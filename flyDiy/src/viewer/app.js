@@ -2496,7 +2496,24 @@
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
     const people = buildPeople(data, grp, ctlMoves);   // live crew
+    // G357: THE CAPTURE'S MAP, AND ITS INVERSE. The snapshot stores every
+    // vertex through B⁻¹ (G337) so the oblique pose lands it exactly; a part
+    // that turns must turn in the TRUE frame, so its rotation is conjugated
+    // — K·R·K⁻¹ — by poseRigid (rigid groups) and conjRot (per-vertex). Null
+    // when the map is the identity (no frame, or an older payload).
+    let poseK = null, K4 = null, Ki4 = null;
+    if (data.poseK && data.poseK.length === 4) {
+      const [k0, k1, k2, k3] = data.poseK, det = k0 * k3 - k1 * k2;
+      if (Math.abs(det) > 0.2 && (Math.abs(k0 - 1) + Math.abs(k1) + Math.abs(k2) + Math.abs(k3 - 1)) > 1e-6) {
+        poseK = [k0, k1, k2, k3];
+        try {
+          K4 = new THREE.Matrix4().set(k0, k1, 0, 0,  k2, k3, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
+          Ki4 = new THREE.Matrix4().set(k3 / det, -k1 / det, 0, 0,  -k2 / det, k0 / det, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
+        } catch (e) { K4 = Ki4 = null; }
+      }
+    }
     const m = Object.assign(entry, { grp, props, rigs, deltas, people,
+                        poseK, K4, Ki4,                                 // G357
                         // the panel arc (session 4): the hands, the lamps and
                         // the bucket records the cockpit reads
                         gauges, lamps, mats, meshes, data,
@@ -2580,6 +2597,47 @@
     return m;
   }
   const qA = new THREE.Quaternion(), qB = new THREE.Quaternion();   // G240
+  // G357: A RIGID PART TURNS IN THE TRUE FRAME. The snapshot's vertices are
+  // stored through the pose's inverse B⁻¹ (G337), which is a SHEAR when the
+  // body axis and the up pair are oblique (85.6° apart on the user's build:
+  // 7.6 %). B·B⁻¹ cancels on a static vertex; on a turning part the world
+  // saw B·R·B⁻¹ — a rotation conjugated by a shear, so a wheel's circle ran
+  // as a swinging ellipse and the spinner wobbled with it. The part's
+  // matrix is written by hand as T·K·R·K⁻¹ (K the map, R the quaternion the
+  // caller set), so the world sees B·K·R·K⁻¹·B⁻¹ = R on the true geometry.
+  // A child of a conjugated part (the wheel inside the castor) composes
+  // exactly, K·A·K⁻¹ · K·B·K⁻¹ = K·A·B·K⁻¹. With no map (identity) the
+  // object keeps three.js's own update.
+  const mR = new THREE.Matrix4();
+  function poseRigid(o) {
+    if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
+    o.matrixAutoUpdate = false;
+    mR.makeRotationFromQuaternion(o.quaternion);
+    o.matrix.multiplyMatrices(model.K4, mR).multiply(model.Ki4);
+    o.matrix.setPosition(o.position);
+    o.matrixWorldNeedsUpdate = true;
+  }
+  // ...and the same conjugation for a rotation applied PER VERTEX (the
+  // control surfaces, the rods' tips, the castor's ear): K·R(ax, ang)·K⁻¹ as
+  // a row-major 3x3, R by Rodrigues — the plain rotation when there is no map
+  function conjRot(ax, ang, M) {
+    const c = Math.cos(ang), s = Math.sin(ang), C = 1 - c;
+    const x = ax[0], y = ax[1], z = ax[2];
+    const r00 = c + x * x * C, r01 = x * y * C - z * s, r02 = x * z * C + y * s,
+          r10 = y * x * C + z * s, r11 = c + y * y * C, r12 = y * z * C - x * s,
+          r20 = z * x * C - y * s, r21 = z * y * C + x * s, r22 = c + z * z * C;
+    const K = model && model.poseK;
+    if (!K) { M[0] = r00; M[1] = r01; M[2] = r02; M[3] = r10; M[4] = r11; M[5] = r12; M[6] = r20; M[7] = r21; M[8] = r22; return M; }
+    const k0 = K[0], k1 = K[1], k2 = K[2], k3 = K[3], det = k0 * k3 - k1 * k2;
+    const i0 = k3 / det, i1 = -k1 / det, i2 = -k2 / det, i3 = k0 / det;
+    const a00 = k0 * r00 + k1 * r10, a01 = k0 * r01 + k1 * r11, a02 = k0 * r02 + k1 * r12,
+          a10 = k2 * r00 + k3 * r10, a11 = k2 * r01 + k3 * r11, a12 = k2 * r02 + k3 * r12;
+    M[0] = a00 * i0 + a01 * i2; M[1] = a00 * i1 + a01 * i3; M[2] = a02;
+    M[3] = a10 * i0 + a11 * i2; M[4] = a10 * i1 + a11 * i3; M[5] = a12;
+    M[6] = r20 * i0 + r21 * i2; M[7] = r20 * i1 + r21 * i3; M[8] = r22;
+    return M;
+  }
+  const M9 = new Float64Array(9), M9b = new Float64Array(9);
   // G250.1: the cockpit controls' own axis temporaries. G240 span the stick
   // about `vY`/`vZ` — the BODY BASIS below, which nodeLocal and the castor
   // read AFTER that block — so the tailwheel's z was projected onto the
@@ -2690,6 +2748,7 @@
           vSpin.set(ax2[0], ax2[1], ax2[2]);
           p.quaternion.setFromAxisAngle(vSpin, ud.spinAng);
         } else p.rotation.x += d;
+        poseRigid(p);                                 // G357: in the true frame
       }
     const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
     if (model.gen) {
@@ -2792,6 +2851,7 @@
         w.obj.rotation.z -= mx / Math.max(0.05, w.R);
       }
       w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
+      poseRigid(w.obj);                               // G357: in the true frame
     }
     // G58.3: the LEGS stretch toward their axle — each vertex moves by its
     // nearness-weight times the node's travel since rest, so the airframe
@@ -2882,13 +2942,15 @@
       const tx = sl ? sl[0] * st : 0, ty = sl ? sl[1] * st : 0,
             tz = sl ? sl[2] * st : 0;
       // Rodrigues about the hinge, which passes through the group's own
-      // origin because the snapshot rebased these verts about the pivot
+      // origin because the snapshot rebased these verts about the pivot —
+      // G357: conjugated by the capture's map, so the surface turns in the
+      // true frame (conjRot says why)
+      const R9 = conjRot(ax, ang, M9);
       for (let i = 0; i < b.length; i += 3) {
         const x = b[i], y = b[i + 1], z = b[i + 2];
-        const d = ax[0] * x + ax[1] * y + ax[2] * z;
-        out[i]     = x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1 + tx;
-        out[i + 1] = y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1 + ty;
-        out[i + 2] = z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1 + tz;
+        out[i]     = R9[0] * x + R9[1] * y + R9[2] * z + tx;
+        out[i + 1] = R9[3] * x + R9[4] * y + R9[5] * z + ty;
+        out[i + 2] = R9[6] * x + R9[7] * y + R9[8] * z + tz;
       }
       // ...then the wing's own flex, ADDED on top of the deflected verts
       if (s.bind && s.bind.bound.length)
@@ -2919,15 +2981,15 @@
       const ang = h.sgn * (h.k || 1) * (link[h.drive] || 0)
         + (h.drive2 ? (h.sgn2 || 1) * (link[h.drive2] || 0) : 0);
       const ax = h.ax, p = h.p, t0 = r.tip;
-      const ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
       const x = t0[0] - p[0], y = t0[1] - p[1], z = t0[2] - p[2];
-      const d = ax[0] * x + ax[1] * y + ax[2] * z;
       const st = h.slide ? Math.abs(link[h.drive] || 0) : 0;
-      const tx = p[0] + x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1
+      // G357: the tip turns about the hinge in the true frame (conjRot)
+      const R9 = conjRot(ax, ang, M9);
+      const tx = p[0] + R9[0] * x + R9[1] * y + R9[2] * z
                  + (h.slide ? h.slide[0] * st : 0) - t0[0];
-      const ty = p[1] + y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1
+      const ty = p[1] + R9[3] * x + R9[4] * y + R9[5] * z
                  + (h.slide ? h.slide[1] * st : 0) - t0[1];
-      const tz = p[2] + z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1
+      const tz = p[2] + R9[6] * x + R9[7] * y + R9[8] * z
                  + (h.slide ? h.slide[2] * st : 0) - t0[2];
       const b = r.base, out = r.posAttr.array, W = r.w;
       // G267.2: a link on the tail rides the tail's anchor, both ends
@@ -2944,13 +3006,12 @@
           ? def.params.twSteer : 0.5;
         const up = c.axis && c.axis[1] < 0 ? -1 : 1;
         const a = -tws * (link.dr || 0) * up;
-        const cx = c.axis ? c.axis[0] : 0, cy = c.axis ? c.axis[1] : -1, cz = c.axis ? c.axis[2] : 0;
-        const ca2 = Math.cos(a), sa2 = Math.sin(a), C2 = 1 - ca2;
         const qx = r.pin[0] - c.pivot[0], qy = r.pin[1] - c.pivot[1], qz = r.pin[2] - c.pivot[2];
-        const dq = cx * qx + cy * qy + cz * qz;
-        px = (qx * ca2 + (cy * qz - cz * qy) * sa2 + cx * dq * C2) - qx + L[0] - r0[0];
-        py = (qy * ca2 + (cz * qx - cx * qz) * sa2 + cy * dq * C2) - qy + L[1] - r0[1];
-        pz = (qz * ca2 + (cx * qy - cy * qx) * sa2 + cz * dq * C2) - qz + L[2] - r0[2];
+        // G357: the ear swings about the swivel in the true frame (conjRot)
+        const Q9 = conjRot(c.axis || [0, -1, 0], a, M9b);
+        px = (Q9[0] * qx + Q9[1] * qy + Q9[2] * qz) - qx + L[0] - r0[0];
+        py = (Q9[3] * qx + Q9[4] * qy + Q9[5] * qz) - qy + L[1] - r0[1];
+        pz = (Q9[6] * qx + Q9[7] * qy + Q9[8] * qz) - qz + L[2] - r0[2];
       }
       for (let i = 0; i < W.length; i++) {
         const u = 1 - W[i];
@@ -2980,9 +3041,13 @@
                        m.home[1] + c.slide[1] * t,
                        m.home[2] + c.slide[2] * t);
       }
+      poseRigid(o);                                   // G357: in the true frame
     }
     // the panel arc (session 4): the hands on the dash
-    if (CK && model.gauges) CK.pose(model);
+    if (CK && model.gauges) {
+      CK.pose(model);
+      for (const g of model.gauges) poseRigid(g.obj);   // G357: in the true frame
+    }
     // ...and the live crew's hands and feet go where the controls went
     if (model.people) stepPeople(model, performance.now() / 1000);
     // the CASTOR rides the tailwheel node (rigid offset axle→swivel) and
@@ -3015,6 +3080,7 @@
           const up = c.axis[1] < 0 ? -1 : 1;
           c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
         }
+        poseRigid(c.obj);                             // G357: in the true frame
       }
     }
   }

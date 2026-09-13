@@ -2511,7 +2511,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     } catch (e) {}
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
-             weather };
+             weather,
+             // G357: the capture's map in the model's x-y plane (row-major
+             // 2x2, the identity when no frame) — every rotation the flight
+             // applies to a captured part is conjugated by it (app.js
+             // poseRigid / conjRot), since it is a shear when the pose's
+             // basis is oblique
+             poseK: BK.slice() };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {

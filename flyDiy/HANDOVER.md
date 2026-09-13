@@ -43239,3 +43239,34 @@ the shell and `navigate` on the URL.
 - A peer's sweep of the working copy took the first write of this entry
   with it (the code survived); re-grep `^## G237.1` before landing.
 - Gates: HINGE, SKINMAT, FIN, PARTS, CLIP, JOIN, FIT, UISMOKE green.
+
+## G357 — A RIGID PART TURNS IN THE TRUE FRAME (2026-09-13, the user: "the
+## wheels wobble, off-centre or squished, and the nose cone too")
+
+- Found by bisecting the pose, not the gear: G337 made the capture exact by
+  mapping every vertex through the pose's own inverse B⁻¹ — and B (the body
+  axis, the up pair, RAW as poseModel takes them) is oblique: 85.6° apart
+  on the user's build, so B⁻¹ is a SHEAR of 7.7 % (poseK measured
+  [1.003, 0, −0.077, 1]), not a rotation. A static vertex comes back exact
+  (B·B⁻¹ = I). A part that TURNS does not: its vertices are stored sheared,
+  the part's own rotation R is applied to them, and the pose maps the
+  result through B — the world sees B·R·B⁻¹, a rotation conjugated by a
+  shear, which draws a circle as an ellipse that swings with the angle.
+  The spinner (always turning) and the wheels (rolling) showed it first;
+  the castor, the stick, the hands, the surfaces and the rods turn by the
+  same law. Measured on the user's tricycle before/after, the tyre's
+  radial spread about its centre at a mid-roll angle: 16 mm → 6 mm (the
+  tread's own sampling), nose wheel 10.6 → 2.9 mm.
+- The join publishes the map (`poseK`, the 2x2 in the model's x-y plane).
+  app.js: `poseRigid(o)` writes a rigid part's matrix by hand as
+  T·K·R·K⁻¹ (matrixAutoUpdate off) after every quaternion write — props,
+  wheels, the castor, the cockpit controls, the gauge hands; `conjRot(ax,
+  ang)` gives K·R·K⁻¹ as a 3x3 for the per-vertex sites — the control
+  surfaces, the rods' tips, the castor's ear. A child of a conjugated part
+  (the nosewheel inside its castor) composes exactly. Positions untouched:
+  they were already through the map. No map (an older payload, no frame)
+  = the plain rotation, as before.
+- Not done: the pose basis itself stays oblique (G145's defBodyProject is
+  the rest builder, GATE SKIN/VIEW measure it); orthonormalising it would
+  be the root fix but touches the rest frame, the tail gauge and the live
+  crew's twin (G246) — a ruling for the frame's owner.
