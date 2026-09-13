@@ -6961,7 +6961,7 @@ window.HOUSE_GEN.CATALOGUE_ALIASES = {};
 window.HOUSE_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
   const Pd = Object.assign({}, DEF, PRESETS[name]);
   const rect = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
-  const base = { key: 'house/' + name, kind: 'building', gen: 'HOUSE_GEN', preset: name, P: {}, frame: 'house',
+  const base = { key: 'house/' + name, kind: 'building', gen: 'HOUSE_GEN', preset: name, P: Object.assign({}, Pd), frame: 'house',   // P = the COMPLETE table (DEF + the preset), what build takes and the composer reads; G372.1
     foot: P => { const L = ((P && P.L) || Pd.L) / 2, w = ((P && P.w) || Pd.w) / 2; return rect(-L, -w, L, w); },
     keepOut: 3, ground: { need: 'none', standing: Pd.stance === 0 ? 'slab' : 'piles' },
     size: P => ({ L: (P && P.L) || Pd.L, w: (P && P.w) || Pd.w }),

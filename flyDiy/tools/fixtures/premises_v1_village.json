@@ -10,7 +10,7 @@
     "frame": { "kind": "free", "extent": { "x0": -200, "z0": -120, "x1": 200, "z1": 200 }, "anchors": { "*": { "x": 0, "z": 0, "yaw": 0 } } },
     "layers": {
       "terrain": [
-        { "id": "t1", "kind": "flatten", "poly": [[120, 100], [180, 100], [180, 150], [120, 150]], "level": 6.0, "falloff": 12, "abs": false, "order": 0 }
+        { "id": "t1", "kind": "flatten", "poly": [[120, 100], [180, 100], [180, 150], [120, 150]], "level": 6.0, "falloff": 40, "abs": false, "order": 0 }
       ],
       "surface": [],
       "material": [],

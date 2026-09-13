@@ -224,7 +224,10 @@ function totemPlot(plot, T, o) {
   const footprint = local.footprint.map(([lx, lz]) => toWorld(lx, lz).map(v => +v.toFixed(3)));
   const pathPts = [];
   for (let i = 0; i <= 12; i++) { const lx = local.patch.x0 + (i / 12) * local.patch.w; pathPts.push(toWorld(lx, local.path.at(lx)).map(v => +v.toFixed(3))); }
-  return { seed: local.seed, R, level, yaw: +yaw.toFixed(4), centre: c.map(v => +v.toFixed(3)), toWorld,
+  // THE LAWN: the patch and a metre round it, in the world - what the world flattens at `level` (the
+  // village's withShelf cut, G352; the premises composer's derived flatten, contract v1.5)
+  const lawn = [[local.patch.x0 - 1, local.patch.z0 - 1], [local.patch.x1 + 1, local.patch.z0 - 1], [local.patch.x1 + 1, local.patch.z1 + 1], [local.patch.x0 - 1, local.patch.z1 + 1]].map(([lx, lz]) => toWorld(lx, lz).map(v => +v.toFixed(3)));
+  return { seed: local.seed, R, level, yaw: +yaw.toFixed(4), centre: c.map(v => +v.toFixed(3)), toWorld, lawn,
            poles, rocks, house, footprint, path: { pts: pathPts, width: local.path.width },
            treeline: local.treeline, keys: local.keys, local, frame: 'world', plot: plot.id };
 }
@@ -367,7 +370,7 @@ API.CATALOGUE = [{
   hooks: P => { const q = totemPlan(Object.assign({}, DEF, P || {})); return [{ name: 'path', kind: 'path', p: [0, 0, q.patch.z1], dir: [0, 0, 1] }, { name: 'house', kind: 'slot', p: [q.house ? q.house.x : 0, 0, q.house ? q.house.z : 0], dir: [0, 0, 1] }]; },
   hooksOf: () => [],
   lod: { dist: [0, 20, 120, 1500] },      // the sheet: 12k under 20 m, 3k past it, 700 past 120 (G341.1)
-  slots: { house: 'plan.house', footprint: 'plan.footprint', path: 'plan.path' }, tags: ['park', 'totem'], headless: true, gate: 'TOTEM',
+  slots: { house: 'plan.house', footprint: 'plan.footprint', path: 'plan.path' }, fill: { house: 'house/log cabin' }, tags: ['park', 'totem'], headless: true, gate: 'TOTEM',   // fill: the slot's occupant, a catalogue key (contract v1.5)
 }];
 if (typeof window !== 'undefined') window.TOTEM_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

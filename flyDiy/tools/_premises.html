@@ -95,6 +95,9 @@
 <script src="../src/viewer/hangar_walls.js"></script>
 <script src="../src/viewer/sign_tex.js"></script>
 <script src="_big_gen.js"></script>
+<script src="_tram_gen.js"></script>
+<script src="../src/totems/totems_poles.js"></script>
+<script src="_totem_gen.js"></script>
 <script src="_village_gen.js"></script>
 <script src="_premises_gen.js"></script>
 <script src="../src/viewer/pattern_vis.js"></script>
@@ -190,6 +193,9 @@ const cameras = {
   mode: () => camMode,
   set: m => { camMode = m === 'map' ? 'map' : 'orbit'; $('camlbl').textContent = camMode === 'map' ? 'MAP · north up · wheel zooms · middle-drag pans · Tab = orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab = map'; saveView(); draw(); },
   toggle: () => cameras.set(camMode === 'map' ? 'orbit' : 'map'),
+  // a scripted aim: the orbit's yaw and pitch (radians), for the captures a script takes
+  look: (y, p) => { if (isFinite(y)) yaw = y; if (isFinite(p)) pitch = p; saveView(); draw(); },
+  view: () => ({ yaw, pitch, zoom: ZOOM, mode: camMode, centre: [centre.x, centre.y, centre.z] }),
   frame: bb => { if (!bb) return; const F = R.overlay.frame; const a = F.toWorld((bb.x0 + bb.x1) / 2, (bb.z0 + bb.z1) / 2); centre.set(a[0], WORLD.terrainH(a[0], a[1]), a[1]); const span = Math.max(bb.x1 - bb.x0, bb.z1 - bb.z0, 20); ZOOM = size * 0.55 / (span * 1.3); mapHalf = span * 0.8; saveView(); draw(); },
 };
 function placeCamera() {

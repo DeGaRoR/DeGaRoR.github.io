@@ -44429,3 +44429,43 @@ right (`uCraftInv · modelMatrix` cancels the pose).
 Gate: scratches must read `uWxV.zw` and never `gSa`; the cowl's joints must
 write `wxCrev`; census cap 64. In situ: dev.html's FINISH view, the four
 rows under LIVERY, the aeroplane weathered live in the hangar.
+
+## G372.1 — THE PREMISES BENCH v4.1: THE VILLAGE LANDED - THE REAL CATALOGUE
+## BUILT, THE REAL CABLE SOLVED, A PARK ON A PLOT (2026-09-13, after the village
+## session's landing G366-G369.1: "your cable link should go green and the
+## copied placeHouse can go")
+
+- **THE COPY GONE**: `_premises_draw.js` builds a sown plot's house through
+  `VILLAGE_GEN.placeHouse` (exported at G369.1); the fifty-line verbatim copy
+  is deleted. The bench page loads `_tram_gen.js`, the totem poles pack and
+  `_totem_gen.js` with the village.
+- **THE CATALOGUE AS LANDED, AND WHAT IT TAUGHT** (contract v1.5): GATE PREMISES
+  rule 3 had been building only entries with `params` - the derived ones - so
+  since the landing it built NONE of the 39; it now builds every entry (36 built,
+  1 park) and refuses to be skipped. An entry's `P` was `{}` with the name on
+  `preset`, so a placed station carried no `P.station` and a placed mill no
+  `P.mill`: `HOUSE_GEN.CATALOGUE` now publishes the COMPLETE table (DEF + the
+  preset). The mill stands by the village's own law at G367 (the shelf's
+  zLevel + 0.5 from the entry's `ground.shelf`), not the old tiers.
+- **THE REAL CABLE** (rule 9c): the two stations found BY TAG, the village's
+  `tramLine` handed the composer's builder - six ropes, 34 deg in the pane on
+  the village's mountain, `lineDeg` on both; the first pass is seeded at the
+  band's middle (an undefined `lineDeg` overrides the generator's default in
+  build's merge and every hook is NaN - the trap).
+- **A PARK ON A PLOT** (rule 8c): a park zone's plots pick `totem/park` by tag;
+  the composer stands it by the entry's `stand` (totemPlot), cuts the lawn as a
+  derived flatten at the plan's level, the falloff widening with the drop
+  (never past 3:1, never into the next lawn - the kind sows 36-44 m plots with
+  a 16 m gap), refuses a plot past a 10 m bank with the reason ("the lawn would
+  need a 16 m bank"), re-stands the park on the cut ground and fills its slot
+  from the entry's `fill` (`house/log cabin` named by the TOTEM entry, never by
+  the editor) as an item in placeSite's shape. In the pane two of four parks on
+  the shore road's mountain side stand, two are refused.
+- The panel's "no step across a falloff" measures the step the MODIFIERS add,
+  not the mountain's own cliffs; the village fixture's 44 m flatten takes a
+  40 m falloff (it had 12: a 5:1 wall the panel rightly refused).
+- Gates: PREMISES green (127 checks), HOUSE, TOTEM, VILLAGE, SITE green;
+  proven from a clean worktree.
+- OWED: the lawn's path and fence per park (the village strokes them); the
+  totem poles' LOD in the panel's budget; the stand + taxi-out; premises_perf;
+  the game host.

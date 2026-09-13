@@ -59,6 +59,9 @@ const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // the plot rules a zone starts from (the village's VDEF numbers)
 const ZONE_RULES = { plotMin: 20, plotMax: 34, plotDepth: 30, riparian: 16, gapOdds: 0.18, sides: 'both' };
+// what a KIND changes before the zone's own rules: a park plot is the village's park (36 x 40) with
+// a gap after it, so two lawns' falloffs (6 m each) never meet; every other kind takes ZONE_RULES
+const KIND_RULES = { park: { plotMin: 36, plotMax: 44, plotDepth: 40, gap: 16, bankMax: 10, setback: 12 } };   // a lawn is refused past a 10 m bank; the plot 12 m back from the road so the bank never re-grades the road
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 // ---------------------------------------------------------------------------
@@ -357,7 +360,7 @@ function frameOf(rec, world) {
 // ---------------------------------------------------------------------------
 function sowPlots(zone, roads, ctx) {
   // ctx = { T(lx, lz) the composed ground in the premises frame, waterY, seed, excludes: [poly], plots: [existing], keepOut: [poly] }
-  const V = Object.assign({}, ZONE_RULES, zone.rules || {});
+  const V = Object.assign({}, ZONE_RULES, KIND_RULES[zone.kind] || {}, zone.rules || {});
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0, 1);
   const gapOdds = clamp(V.gapOdds + 0.6 * (1 - density), 0, 0.95);
   const plots = [];
@@ -381,7 +384,7 @@ function sowPlots(zone, roads, ctx) {
           if (rnd() < gapOdds) continue;
           const a = rd.at(t), b = rd.at(t + w);
           const an = [a.n[0] * sgn, a.n[1] * sgn], bn = [b.n[0] * sgn, b.n[1] * sgn];   // away from the road, this side
-          const off = rd.w / 2 + 1.0;
+          const off = rd.w / 2 + 1.0 + (V.setback || 0);   // a kind may set its plots back from the road (a park's lawn and its bank stay off the shoulder)
           const f0 = [a.p[0] + an[0] * off, a.p[1] + an[1] * off];
           const f1 = [b.p[0] + bn[0] * off, b.p[1] + bn[1] * off];
           // the water side is where the ground goes under within the plot's depth
@@ -424,7 +427,7 @@ function sowPlots(zone, roads, ctx) {
                        tg: [fe[0] / Math.hypot(fe[0], fe[1]), fe[1] / Math.hypot(fe[0], fe[1])], w,
                        seed: hash32(zoneSeed, fnv(road.id + ':' + (k - 1))), kind: zone.kind });
         }
-        t += w + (rnd() < 0.5 ? 0 : 2 + rnd() * 4);
+        t += w + (V.gap || 0) + (rnd() < 0.5 ? 0 : 2 + rnd() * 4);
       }
     }
   }
@@ -519,6 +522,13 @@ function siteFrame(site) {
   const c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0);
   return { at: a, toLocal: (lx, lz) => [a.x + lx * c + lz * sn, a.z - lx * sn + lz * c] };
 }
+// a slot's place in a plan: the entry's slots map names a path ('plan.house'); the plan publishes it
+function slotAt(plan, path) {
+  if (!path) return null;
+  let cur = { plan };
+  for (const seg of String(path).split('.')) { if (cur === null || cur === undefined) return null; cur = cur[seg]; }
+  return cur && typeof cur === 'object' && isFinite(cur.x) && isFinite(cur.z) ? cur : null;
+}
 function placeSite(site, cat, ctx) {
   // ctx = { T(lx, lz) the composed ground in the premises frame, waterY, seed }
   const SF = siteFrame(site);
@@ -542,8 +552,14 @@ function placeSite(site, cat, ctx) {
     // astride the road on its slab a hand over the ground, no plinth; a big building on its plinth
     // over the high corner; a house on the high corner by its stance
     if (P.mill) {
-      P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
-      if (it.bottomOnRoad) { P.bottomGap = (it.z || 0) - P.tierW / 2 - (P.bottomW || 9) / 2; P.bottomL = 16; }
+      // THE MILL (the village's placeSite at G367): the receiving house astride the road (recvZ = the
+      // item's z), the top house on the pad the shelf was cut to from the same plan - the entry's
+      // ground.shelf publishes zLevel; without a shelf, the foot's high corner
+      if (it.bottomOnRoad) { P.recvZ = it.z || 0; P.bottomL = 16; }
+      const sh = entry.ground && typeof entry.ground.shelf === 'function' ? entry.ground.shelf(P) : null;
+      let hiC = -1e9;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * size.L / 2, sz * size.w / 2));
+      P.floorY = (sh && isFinite(sh.zLevel) ? ground(0, sh.zLevel) : hiC) + 0.5;
     } else {
       let hiC = -1e9;
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * size.L / 2, sz * size.w / 2));
@@ -578,7 +594,7 @@ function siteShelves(site, cat, T) {
     const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
     const cy = Math.cos(yaw), sy = Math.sin(yaw);
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
-    const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.P || {});
+    const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.bottomOnRoad ? { recvZ: it.z || 0 } : {}, it.P || {});
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
     if (entry.ground.need === 'flatten' && typeof entry.ground.shelf === 'function') {
       const M = entry.ground.shelf(P);
@@ -633,6 +649,11 @@ LINK_SOLVERS.cable = { needs: 'built', band: { minDeg: 15, maxDeg: 45 },
     const st = r => Math.round(r.P.station || 0);
     const base = st(A) === 2 ? A : st(B) === 2 ? B : null, top = st(A) === 1 ? A : st(B) === 1 ? B : null;
     if (!base || !top) return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': needs one base station (P.station 2) and one top station (P.station 1)'] };
+    // the first pass needs a finite lineDeg on both (an undefined one overrides the generator's default
+    // in build's merge and every hook comes back NaN): the band's middle seeds it, tramLine converges
+    const seed0 = (this.band.minDeg + this.band.maxDeg) / 2;
+    if (!isFinite(base.P.lineDeg)) base.P.lineDeg = seed0;
+    if (!isFinite(top.P.lineDeg)) top.P.lineDeg = seed0;
     const vil = { base, top, T: { h: ctx.T } };
     let tram;
     try { tram = VG.tramLine(vil, r => ctx.build(r)); } catch (e) { return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': ' + (e && e.message)] }; }
@@ -766,7 +787,12 @@ function compose(rec0, world, opts) {
     const cat = catS;
     for (const st of rec.layers.sites) {
       const S = placeSite(st, cat, ctx);
-      for (const it of S.items) O.records.items.push(it);
+      for (const it of S.items) {
+        O.records.items.push(it);
+        // an item astride a road it was not put on: its pad would re-grade the road (an authoring mistake, named)
+        const rit = (st.items || []).find(q => (q.id || '') === it.item) || {};
+        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.w), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.w / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
+      }
       for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
       for (const i of S.issues) O.records.issues.push(i);
     }
@@ -780,6 +806,59 @@ function compose(rec0, world, opts) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
         for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); }
+    }
+    // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
+    // plot by the entry's own stand (totemPlot's shape: (plot, T, o) -> a plan with footprint, level,
+    // the slots' places); its lawn is a DERIVED flatten at the plan's level, cut here and joined to
+    // the index, the park re-stood on the cut ground; the entry's fill names what stands in its
+    // slots - each an item in placeSite's shape (so the renderer builds it like a site's)
+    O.records.parks = [];
+    {
+      const globals = o.globals || (typeof window !== 'undefined' ? window : {});
+      for (const p of O.records.plots) {
+        const e = p.pick && p.pick !== 'sampler' ? cat.entries.get(cat.aliases[p.pick] || p.pick) : null;
+        if (!e || e.kind !== 'park') continue;
+        const G = globals[e.gen], stand = G && e.stand ? G[e.stand] : null;
+        if (typeof stand !== 'function') { O.records.issues.push('plot ' + p.id + ': ' + p.pick + ' has no stand ' + (e.stand || '?') + ' here'); continue; }
+        const seed = seedOf(rec.seed, 'park', String(p.id));
+        const T = { h: O.localH, waterY, size: Math.max(ext.x1 - ext.x0, ext.z1 - ext.z0, 1) };
+        let plan = stand(p, T, { seed, house: true });
+        // the lawn the plan publishes (the patch and its margin - the house slot is behind the poles' footprint), else the footprint
+        const lawnOf = pl => (pl.lawn && pl.lawn.length >= 3 ? pl.lawn : pl.footprint);
+        if (e.ground && e.ground.need === 'flatten' && plan && lawnOf(plan) && lawnOf(plan).length >= 3) {
+          // THE BANK: the lawn's drop is the most the ground differs from the level over the footprint;
+          // the falloff widens with it so the bank never passes 3:1 (a smoothstep's steepest is 1.5 x
+          // drop / falloff), up to half the gap the kind keeps between plots - beyond that the plot is
+          // too steep for a lawn and is refused, with the reason
+          let drop = 0;
+          for (const q of lawnOf(plan)) drop = Math.max(drop, Math.abs(O.localH(q[0], q[1]) - plan.level));
+          const KR = KIND_RULES[p.kind] || {}, bankMax = KR.bankMax || 16, gap = KR.gap || 0;
+          if (drop > bankMax) { O.records.issues.push('plot ' + p.id + ': the lawn would need a ' + drop.toFixed(0) + ' m bank - too steep for ' + p.pick); continue; }
+          const falloff = Math.max(e.ground.falloff || 6, Math.min(gap / 2 || 8, drop / 2));
+          const sh = { id: 'park:' + p.id, kind: 'flatten', poly: lawnOf(plan).map(q => [q[0], q[1]]), level: plan.level - F.y0, falloff, derived: true, plot: p.id, drop: +drop.toFixed(2) };
+          const M = makeModifier(sh, F.y0);
+          if (M) { mods.push(M); index.add(M.bbox, M); shelves.push(sh); }
+          plan = stand(p, T, { seed, house: true, level: plan.level });
+        }
+        if (!plan) { O.records.issues.push('plot ' + p.id + ': ' + p.pick + ' would not stand'); continue; }
+        const park = { id: 'park:' + p.id, plot: p, key: p.pick, entry: e, gen: e.gen, plan, level: plan.level, seed, items: [] };
+        // the slots: the entry's fill names the occupant, its slots say where in the plan (a path)
+        const site = { id: park.id, name: park.id, at: { x: 0, z: 0, yaw: 0 }, items: [] };
+        for (const slot in (e.fill || {})) {
+          const fk = e.fill[slot], at = slotAt(plan, e.slots && e.slots[slot]);
+          if (!at) { O.records.issues.push('park ' + p.id + ': slot ' + slot + ' has no place in the plan'); continue; }
+          // placeSite's yaw is at.yaw + PI + item yaw; the plan's ry is the world yaw itself
+          site.items.push({ id: slot, key: fk, x: at.x, z: at.z, yaw: (at.ry || 0) - Math.PI, P: { L: Math.min((at.w || 12) - 1, 10), w: Math.min((at.d || 9) - 1, 7.5) } });
+        }
+        if (site.items.length) {
+          const S = placeSite(site, cat, ctx);
+          for (const it of S.items) { it.park = park.id; O.records.items.push(it); park.items.push(it); }
+          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+          for (const i of S.issues) O.records.issues.push(i);
+        }
+        O.records.parks.push(park);
+      }
+      O.n = mods.length;
     }
     const pool = o.pool || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
@@ -898,7 +977,10 @@ function checks(rec0, world, opts) {
   const ex = O.extent, span = Math.max(1, ex.x1 - ex.x0, ex.z1 - ex.z0);
   if (O.n) for (let k = 0; k < 400; k++) {
     const lx = ex.x0 - 8 + rnd() * (ex.x1 - ex.x0 + 16), lz = ex.z0 - 8 + rnd() * (ex.z1 - ex.z0 + 16);
-    const s = Math.abs(O.localH(lx + 0.25, lz) - O.localH(lx, lz)) / 0.25;
+    // the STEP the modifiers add, not the terrain's own slope (a cliff of the village's mountain is not a falloff's fault)
+    const wa = F.toWorld(lx, lz), wb = F.toWorld(lx + 0.25, lz);
+    const da = O.localH(lx, lz) - world.terrainH(wa[0], wa[1]), db = O.localH(lx + 0.25, lz) - world.terrainH(wb[0], wb[1]);
+    const s = Math.abs(db - da) / 0.25;
     if (s > slopeMax) slopeMax = s;
   }
   put(slopeMax < (o.slopeMax || 3.0), 'no step across a falloff (max slope ' + slopeMax.toFixed(2) + ')');
@@ -934,9 +1016,10 @@ function checks(rec0, world, opts) {
   const Tn = O.records.trees;
   if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
   // the sites (rules 3 and 9): every item resolved, every link solved
-  if (O.records.items.length || rec.layers.sites.length) {
+  if (O.records.items.some(i => !i.park) || rec.layers.sites.length) {
     const want = rec.layers.sites.reduce((a, st) => a + (st.items || []).length, 0);
-    put(O.records.items.length === want, O.records.items.length + ' of ' + want + ' site items resolved from the catalogue' + (O.records.issues.length ? ' - ' + O.records.issues[0] : ''));
+    const own = O.records.items.filter(i => !i.park).length;
+    put(own === want, own + ' of ' + want + ' site items resolved from the catalogue' + (O.records.issues.length ? ' - ' + O.records.issues[0] : ''));
   }
   if (O.records.links.length) put(O.records.links.every(L => L.ok), O.records.links.every(L => L.ok) ? O.records.links.length + ' link' + (O.records.links.length > 1 ? 's' : '') + ' solved' : O.records.links.find(L => !L.ok).issues[0]);
   // the runways (rule 10): the centreline on its profile to 5 cm; the pattern sound
@@ -994,10 +1077,10 @@ function collect(globals) {
   return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

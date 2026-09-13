@@ -489,3 +489,19 @@ after the freeze, against this document.
   (`inPoly`), the keep-out is the foot's bbox + the margin, and GATE PREMISES rule 3 asks only
   `polySimple`. The same holds for every authored polygon: a zone, a flatten, an exclude, an apron are
   free shapes drawn corner by corner; only a sown PLOT is a quad, because a frontage is.
+- **v1.5 (2026-09-13, at the village's landing - G366-G369.1 on master).** Three things the landed
+  catalogue taught. (a) An entry's `P` is the COMPLETE parameter table `build()` takes - the generator's
+  defaults merged with the preset's own - not `{}` with the name left on `preset`: the composer reads
+  `P.station`, `P.mill`, `P.stance`, `P.L` before it builds, and a cable's first pass needs a finite
+  `lineDeg` (an undefined one overrides the default in build's merge and every hook comes back NaN; the
+  solver seeds the band's middle when the entry carries none). (b) A `park` entry does not build, it
+  STANDS: `stand` names the function on its generator `(plot, T, o) -> plan` (totemPlot's shape: the
+  plan's `lawn` polygon (else its `footprint`) and `level` in the frame T was given, its `house` slot, `centre`, `yaw`); the
+  composer sows a park zone's plots at the kind's size (36-44 m, a 16 m gap between them), cuts the
+  lawn as a DERIVED flatten at the plan's level whose falloff widens with the lawn's drop (never past
+  3:1, never into the next lawn) and refuses a plot past a 10 m bank with the reason, then re-stands
+  the park on the cut ground. (c) `fill: { <slot>: '<key>' }` names what stands in an entry's slot
+  (`slots.<slot>` is the path in the plan to its place: x, z, ry, w, d); the composer places it as an
+  ITEM in placeSite's shape, under the park's id, so the renderer builds it like a site's. The mill's
+  standing follows the village's own law at G367: `floorY = ground(0, shelf.zLevel) + 0.5` from the
+  entry's published `ground.shelf`. GATE PREMISES rules 3 (every landed entry built), 8c and 9c.

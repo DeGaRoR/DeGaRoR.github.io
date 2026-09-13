@@ -56,6 +56,11 @@
 //  12  BAKED VS LIVE: the extent rastered to int16 at 1 m; ten thousand
 //      points within 0.02 m + cell^2 / 8 of the second differences at the
 //      cell — bilinear's own bound (WORLD-V2 §6.3; contract v1.1).
+//  8c  THE PARK ON A PLOT (v1.5): a park zone picks the park entry, the
+//      composer stands it by the entry's stand, its lawn a derived flatten
+//      flat to 1 cm, the entry's fill standing in its slot as an item.
+//  9c  THE REAL CABLE: the catalogue's two stations (by tag) and the
+//      village's tramLine solve six ropes in the band, lineDeg on both.
 //  13  THE CONTRACT HELD: no catalogue key appears as a string literal in any
 //      _premises_* file — the editor accepts a new asset without an edit.
 //
@@ -96,7 +101,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -342,9 +347,12 @@ for (const fx of fixtures) {
   if (CAT.entries.size) {
     check(CAT.issues.length === 0, '3 the catalogue has no key collision', CAT.issues[0]);
     let built = 0, bad = null;
+    let parks = 0;
     for (const [key, e] of CAT.entries) {
-      if (!GENS[e.gen] || !e.params) continue;
-      const P = e.params({}); P.ground = () => 0; P.waterY = -5; P.slopeX = 0; P.slopeZ = 0;
+      if (!GENS[e.gen]) continue;
+      // a PARK entry does not build: it STANDS (its stand on its generator) - rule 8c stands one
+      if (e.kind === 'park') { if (typeof GENS[e.gen][e.stand] !== 'function') { bad = key + ': no stand ' + e.stand; break; } parks++; continue; }
+      const P = e.params ? e.params({}) : Object.assign({}, e.P || {}); P.ground = () => 0; P.waterY = -5; P.slopeX = 0; P.slopeZ = 0;
       if (P.mill) P.floorY = 0.6; else P.floorY = Math.max(0.3, P.floorY || 0.3);
       if (e.gen === 'BIG_GEN') P.big = 1;
       try {
@@ -356,7 +364,8 @@ for (const fx of fixtures) {
         built++;
       } catch (err) { bad = key + ': ' + err.message; break; }
     }
-    check(!bad, '3 every derived catalogue entry builds headless with a simple foot (' + built + ' built)', bad);
+    check(!bad, '3 every catalogue entry builds headless with a simple foot (' + built + ' built, ' + parks + ' parks)', bad);
+    check(built >= 30 || !GENS.HOUSE_GEN, '3 the landed catalogue is built, not skipped (' + built + ')');
     // a concave foot is a foot: the sower and the keep-out use even-odd containment
     { const L = [[-6, -4], [6, -4], [6, 4], [1, 4], [1, 0], [-6, 0]]; check(PG.polySimple(L) && PG.inPoly(L, -3, 2) === false && PG.inPoly(L, 3, 2) === true, '3 a concave L-shaped foot is contained even-odd'); }
     const site = { id: 's1', name: 'the mine', at: { x: 0, z: 0, yaw: 0.2 }, yard: null,
@@ -367,7 +376,9 @@ for (const fx of fixtures) {
     check(O.records.items.length === 4 && !O.records.issues.length, '3 every item of the site resolves from the catalogue', O.records.issues[0]);
     for (const it of O.records.items) {
       let hi = -1e9; for (const sx of [-1, 1]) for (const sz of [-1, 1]) hi = Math.max(hi, it.ground(sx * it.size.L / 2, sz * it.size.w / 2));
-      check(it.P.mill ? it.P.floorY > 0 : it.P.floorY >= hi + 0.05, '3 item ' + it.item + ' stands over its corners', (it.P.floorY - hi).toFixed(2));
+      // the mill stands on its pad: floorY = the cut shelf's level ahead along z + 0.5 (the village's law at G367)
+      if (it.P.mill) { const sh = it.entry.ground && it.entry.ground.shelf ? it.entry.ground.shelf(it.P) : null; check(!!sh && Math.abs(it.P.floorY - (it.ground(0, sh.zLevel) + 0.5)) < 0.01, '3 item ' + it.item + ' stands on its shelf level + 0.5', sh ? (it.P.floorY - it.ground(0, sh.zLevel)).toFixed(2) : 'no shelf'); }
+      else check(it.P.floorY >= hi + 0.05, '3 item ' + it.item + ' stands over its corners', (it.P.floorY - hi).toFixed(2));
     }
     const L = O.records.links[0];
     check(L && L.ok, '9 the conveyor link is solved', L && L.issues[0]);
@@ -417,6 +428,58 @@ for (const fx of fixtures) {
     check(L && L.ok && builds === 6, '9b the cable solver is handed the builder and calls it three times per station', 'builds ' + builds + (L && L.issues[0] ? ' ' + L.issues[0] : ''));
     check(O.records.items.every(it => it.P.lineDeg === 30), '9b lineDeg reaches both stations\' P');
     check(L && L.geom && L.geom.ropes && L.geom.ropes.length === 1, '9b the ropes reach the link');
+  }
+  // 8c THE PARK ON A PLOT (contract v1.5): a park zone's plots pick the entry tagged 'park'; the
+  // composer stands it by the entry's own stand, cuts its lawn as a derived flatten at the plan's
+  // level (flat to 1 cm over the footprint), and the entry's fill stands in its slot as an item
+  if (CAT.byTag && CAT.byTag('park').length && GENS.TOTEM_GEN && GENS.VILLAGE_GEN) {
+    const road = { id: 'r', pts: [[-200, 0], [200, 0]], w: 4, cls: 'gravel', graded: true };
+    const zone = { id: 'z', kind: 'park', poly: [[-210, -80], [210, -80], [210, 80], [-210, 80]], density: 1 };
+    const rec = PG.normalise({ seed: 5, layers: { roads: [road], zones: [zone] } });
+    const O = PG.compose(rec, synth, { catalogue: CAT, globals: GENS });
+    const pk = O.records.parks[0];
+    check(O.records.plots.length > 0 && O.records.plots.every(p => CAT.entries.get(p.pick) && CAT.entries.get(p.pick).kind === 'park'), '8c a park zone picks the park entry on every plot', O.records.plots.map(p => p.pick).join(','));
+    check(O.records.parks.length === O.records.plots.length, '8c every park plot stands a park', O.records.parks.length + ' of ' + O.records.plots.length);
+    if (pk) {
+      let worst = 0;
+      const fp = pk.plan.lawn || pk.plan.footprint, bb = PG.polyBBox(fp);
+      sampleIn(bb, 400, (x, z) => { if (PG.inPoly(fp, x, z) && PG.sdPoly(fp, x, z) < -0.5) worst = Math.max(worst, Math.abs(O.localH(x, z) - pk.level)); });
+      check(worst < 0.01, '8c the lawn (the plan lawn polygon) is a derived flatten at the plan level (1 cm)', worst.toFixed(3) + ' m');
+      check(!!pk.plan.lawn && PG.inPoly(pk.plan.lawn, pk.plan.house.x, pk.plan.house.z), '8c the house slot lies on the lawn');
+      const it = O.records.items.find(i => i.park === pk.id);
+      check(!!it && it.gen === 'HOUSE_GEN', '8c the slot occupant stands as an item', it ? it.key : 'none');
+      if (it) { let hi = -1e9; for (const sx of [-1, 1]) for (const sz of [-1, 1]) hi = Math.max(hi, it.ground(sx * it.P.L / 2, sz * it.P.w / 2)); check(it.P.floorY >= hi + 0.05 && Math.abs(it.P.floorY - hi) < 1.5, '8c the slot house stands over its corners on the lawn', (it.P.floorY - hi).toFixed(2)); }
+      const O2 = PG.compose(rec, synth, { catalogue: CAT, globals: GENS });
+      check(JSON.stringify(O2.records.parks[0].plan.poles) === JSON.stringify(pk.plan.poles), '8c the same seed stands the same park');
+    }
+    check(O.records.issues.length === 0, '8c the park composes without an issue', O.records.issues[0]);
+    // on a flank the plots cannot hold a lawn: refused with the reason, no park stood there
+    const steep = { id: 'steep', terrainH: (x, z) => 0.9 * z, waterH: () => -40 };
+    const Os = PG.compose(rec, steep, { catalogue: CAT, globals: GENS });
+    check(Os.records.parks.length === 0 && Os.records.plots.length > 0 && Os.records.issues.some(i => /bank/.test(i)), '8c a lawn on a 90 % flank is refused with the reason', Os.records.issues[0] || (Os.records.parks.length + ' parks'));
+    // on a slope it accepts, the bank widens with the drop and never passes 3:1
+    const mild = { id: 'mild', terrainH: (x, z) => 0.3 * z, waterH: () => -40 };
+    const Om = PG.compose(rec, mild, { catalogue: CAT, globals: GENS });
+    let steepest = 0;
+    for (const sh of Om.shelves) if (sh.plot) { const bb = PG.polyBBox(sh.poly); sampleIn({ x0: bb.x0 - 10, x1: bb.x1 + 10, z0: bb.z0 - 10, z1: bb.z1 + 10 }, 300, (x, z) => { const da = Om.localH(x, z) - mild.terrainH(x, z), db = Om.localH(x + 0.25, z) - mild.terrainH(x + 0.25, z); steepest = Math.max(steepest, Math.abs(db - da) / 0.25); }); }
+    check(Om.records.parks.length > 0 && steepest < 3.0, '8c a lawn on a 30 % slope stands, its bank under 3:1', Om.records.parks.length + ' parks, bank ' + steepest.toFixed(2));
+  }
+  // 9c THE REAL CABLE: the two stations from the catalogue by their tags, the village's own tramLine
+  // handed the composer's builder - solved, six ropes, the angle in the band, lineDeg on both
+  if (CAT.byTag && CAT.byTag('top station').length && CAT.byTag('base station').length && GENS.VILLAGE_GEN && typeof GENS.VILLAGE_GEN.tramLine === 'function') {
+    const topKey = CAT.byTag('top station')[0].key, baseKey = CAT.byTag('base station')[0].key;
+    const slope = { id: 'slope', terrainH: (x, z) => 0.35 * z + 0.4 * Math.sin(x / 9), waterH: () => -40 };
+    const rec = PG.normalise({ seed: 1, layers: { sites: [{ id: 's', at: { x: 0, z: 0, yaw: 0 }, items: [{ id: 'b', key: baseKey, x: 0, z: 0, yaw: 0 }, { id: 't', key: topKey, x: 0, z: 150, yaw: 0 }] }],
+      links: [{ id: 'c1', kind: 'cable', from: { site: 's', item: 'b', hook: 'track0' }, to: { site: 's', item: 't', hook: 'track0' } }] } });
+    const t0 = Date.now();
+    const O = PG.compose(rec, slope, { catalogue: CAT, globals: GENS, build: r => GENS[r.gen].build(r.P, 0) });
+    const L = O.records.links[0];
+    check(!!L && L.ok, '9c the real tramLine solves the cable between two catalogue stations', L ? L.issues.join('; ') : 'no link');
+    check(!!(L && L.geom && L.geom.ropes && L.geom.ropes.length === 6), '9c six ropes', L && L.geom && L.geom.ropes ? L.geom.ropes.length : 0);
+    const deg = L && L.geom ? L.geom.angle : NaN;
+    check(deg >= 15 && deg <= 45, '9c the line is in the band', String(deg));
+    check(O.records.items.every(it => isFinite(it.P.lineDeg)), '9c lineDeg reaches both stations');
+    check(Date.now() - t0 < 8000, '9c the built solve is under 8 s', (Date.now() - t0) + ' ms');
   }
   // 5 THE GROUND UNDER AN ITEM: an entry's ground block is honoured before placement -
   // a published shelf (the mill's law), a slab at the high corner, a median flatten

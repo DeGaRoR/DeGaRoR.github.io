@@ -388,60 +388,6 @@ function make(THREE, scene, world, rec0, opts) {
     parent.add(grp);
     return grp;
   }
-  // placeHouse — VERBATIM from tools/_village_gen.js (the village does not export
-  // it, and that file is the house session's until its landing; then this
-  // becomes `VILLAGE_GEN.placeHouse` and one export line there). The sampler's
-  // house made to fit its plot and to stand on the composed ground.
-  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-  function placeHouse(T, V, plot, seed, rnd, preset) {
-    const HG = window.HOUSE_GEN;
-    const P = preset ? Object.assign({}, HG.DEF, HG.PRESETS[preset]) : HG.randomHouse(seed);
-    if (preset) P.preset = preset;
-    const n = plot.n, tg = plot.tg;
-    const face = plot.side === 'water' ? [n[0], n[1]] : [-n[0], -n[1]];
-    const yaw = Math.atan2(face[0], face[1]);
-    const maxL = plot.w - 7, maxW = Math.min(plot.depth - 12, 9);
-    P.L = clamp(P.L, 5, Math.max(5.5, maxL));
-    P.w = clamp(P.w, 4, Math.max(4.2, maxW));
-    if (P.porchD > plot.depth * 0.12) P.porchD = plot.depth * 0.12;
-    P.slopeX = 0; P.slopeZ = 0;
-    const cl = d => [plot.front[0] + n[0] * d, plot.front[1] + n[1] * d];
-    let d, c;
-    if (plot.side === 'water') {
-      d = 6;
-      while (d < plot.depth - V.riparian + 2 && T.h(cl(d)[0], cl(d)[1]) > T.waterY + 0.12) d += 0.5;
-      c = cl(d);
-      P.water = 1; P.stance = 3;
-      P.porch = 1; P.stairs = 1; P.pier = 1;
-      P.backDoor = 1; P.backPorch = 1; P.lean = 0;
-    } else {
-      d = 8 + rnd() * 4;
-      c = cl(d);
-      P.water = 0; P.pier = 0;
-    }
-    const cy = Math.cos(yaw), sy = Math.sin(yaw);
-    let toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
-    const fits = () => [[-1, -1], [1, -1], [1, 1], [-1, 1]].every(q => { const w = toWorld(q[0] * P.L / 2, q[1] * P.w / 2); return PG.inPoly(plot.poly, w[0], w[1]); });
-    for (let it = 0; it < 30 && !fits(); it++) {
-      if (P.L > 5.6) P.L *= 0.92;
-      else if (P.w > 4.3) P.w *= 0.92;
-      else { d -= 1; c = cl(d); toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy]; }
-    }
-    const oy = T.h(c[0], c[1]);
-    const ground = (lx, lz) => { const w = toWorld(lx, lz); return T.h(w[0], w[1]) - oy; };
-    P.ground = ground;
-    P.waterY = T.waterY - oy;
-    let hiC = -1e9, loC = 1e9;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const g = ground(sx * P.L / 2, sz * P.w / 2); hiC = Math.max(hiC, g); loC = Math.min(loC, g); }
-    const rise = hiC;
-    if (plot.side === 'water') P.floorY = Math.max(rise + 0.6, 1.8 + rnd() * 0.8);
-    else {
-      if (hiC - loC > 0.55 && P.stance < 2) P.stance = 2;
-      P.floorY = rise + (P.stance === 0 ? 0.25 + rnd() * 0.15 : 0.45 + rnd() * 0.6);
-    }
-    P.skirt = HG.SKIRT_OK(P) && P.stance >= 1 && P.stance <= 3 && rnd() < 0.7 ? 1 : 0;
-    return { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed };
-  }
   function buildHouse(plot) {
     const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN;
     if (!VG || !HG) return null;
@@ -453,7 +399,7 @@ function make(THREE, scene, world, rec0, opts) {
     // the pick: a preset of the house generator when the zone's tag found one; the sampler else
     let preset;
     if (plot.pick && plot.pick !== 'sampler') { const e = PG.collect(window).entries.get(plot.pick); if (e && e.gen === 'HOUSE_GEN') preset = e.preset; }
-    const house = (VG.placeHouse || placeHouse)(Tv, V, plot, plot.seed % 100000, rnd, preset);
+    const house = VG.placeHouse(Tv, V, plot, plot.seed % 100000, rnd, preset);   // the village's own, exported at its landing (G369.1)
     const F = HG.makeFinish();
     HG.applyFinish(house.P, F);
     const built = HG.build(house.P, 0, F);
@@ -473,10 +419,23 @@ function make(THREE, scene, world, rec0, opts) {
     return { grp, tris: built.stats.tris, house: it, built };
   }
   const itemSeed = it => PG.hash32(it.seed, PG.fnv(JSON.stringify([it.x, it.z, it.yaw, it.key, it.P.tramTo || null, it.P.floorY])));
+  // a park on its plot: the totem generator's world-frame build (no ground of its own - the lawn is
+  // the composed terrain, flattened by the composer); its slot's house is an item like a site's
+  function buildPark(pk) {
+    const TG = window[pk.gen];
+    if (!TG || typeof TG.totemBuild !== 'function') return null;
+    const grp = TG.totemBuild(THREE, pk.plan, { ghost: false });
+    let tris = 0;
+    grp.traverse(m => { if (m.isMesh && m.geometry) { const g = m.geometry; tris += (g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0)) / 3; } });
+    G.houses.add(grp);
+    return { grp, tris: Math.round(tris), house: pk };
+  }
+  const parkSeed = pk => PG.hash32(pk.seed, PG.fnv(JSON.stringify([pk.plan.centre, pk.plan.yaw, pk.level, pk.key])));
   function syncHouses() {
     const want = new Map();
     for (const p of O.records.plots) if (p.kind !== 'park' && p.kind !== 'airfield') want.set(p.id, p);
     for (const it of O.records.items) want.set(it.id, Object.assign({ seed: itemSeed(it), isItem: true, rec: it }, { id: it.id }));
+    for (const pk of O.records.parks || []) want.set(pk.id, { id: pk.id, seed: parkSeed(pk), isPark: true, rec: pk });
     for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) { G.houses.remove(h.grp); h.grp.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); HOUSES.delete(id); } }
     queue.length = 0;
     for (const [id, p] of want) if (!HOUSES.has(id)) queue.push(p);
@@ -486,7 +445,7 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = p.isItem ? buildItem(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house }); }
+      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }
