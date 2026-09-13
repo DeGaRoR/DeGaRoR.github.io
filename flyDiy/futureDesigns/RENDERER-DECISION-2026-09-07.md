@@ -574,6 +574,101 @@ needs the same treatment or a per-material output node); the aeroskin last
 sits on it). Each step: the bench's readback against the GLSL variant on
 the same frame, both backends. GLSL stays the default until the last.
 
+## 4i. W0.5b, THE FLAG IS IN — the game boots on WebGPURenderer behind `?tsl=1` (2026-09-13, later the same day)
+
+The user: *"let's do the TSL move right here and now."* What one session could
+land honestly is the RENDERER FLAG and the first materials on it; the rest is a
+checklist with the GLSL path untouched and default.
+
+**The mechanism (dev.html only; index.html stays the WebGLRenderer build):**
+- `tools/build.js` emits the dev page's 143 scripts INERT (`type="text/x-flydiy"`)
+  and a loader in their place: `?tsl=1` loads `vendor/three.webgpu.min.js` and
+  makes `WebGPURenderer({ forceWebGL: true })` on the page's canvas, `?tsl=gpu`
+  asks for the WebGPU backend, `localStorage flydiy.tsl` holds the choice; the
+  loader `await`s `renderer.init()` and only then promotes the scripts (real
+  copies, `async = false`, order kept). Why: the node renderer THROWS on a
+  render before init, and the boot bakes (the PMREM, the impostor sheets)
+  render during script evaluation. `?cm=1` flips ColorManagement ON after the
+  vendor loads — the colour A/B the ruling is owed, on either path.
+- `app.js` takes `window.FLYDIY_RENDERER` when the loader made one and
+  publishes `TSL_ON` / `window.FLYDIY_TSL_ON`; every module picks its variant
+  on it. The resolve pass steps aside under the flag (the renderer's own MSAA
+  draws to the canvas); anisotropy is asked of whichever renderer answers.
+- `onBeforeCompile` is silently ignored by the node renderer and a
+  `ShaderMaterial` is refused with "NodeBuilder: Material is not compatible" —
+  so under the flag every hooked material draws PLAIN until its TSL variant
+  exists, and every raw shader needs a variant or a guard before the page can
+  even boot.
+
+**Ported (TSL variant beside the GLSL one, chosen on `TSL_ON`):**
+- the world's sky dome (`render_world.js skyMatTSL`, from the bench) — one node
+  material serves the screen and the PMREM bake; `uniforms` keeps the GLSL
+  shape so the rig rows and the F8 panel read and write it unchanged;
+- the impostor bake's normal sheet (`normalMatTSL`: world normal, flipped on a
+  back face, cut through the material's own map + alphaTest);
+- the aeroskin's companion multiply pass (`aeroGlassTint`: fresnel, the tint's
+  pass, the alpha — without the weathering's grunge on the pane yet).
+
+**Guarded (no variant yet, the feature is off under the flag):** the graded
+hangar backdrop (the room keeps its baked sky picture), the shed's two shadow
+prints (`GS.bake` / `CS.bake`, a GLSL blur), the bench's station/rail lattice
+diagnostic (normals instead), the resolve pass (off).
+
+**THE CHECKLIST — every GLSL hook in the game path, to port in this order
+(each: a same-frame readback against the GLSL variant, both backends):**
+
+| module | hooks | what they do | status |
+|---|---|---|---|
+| `render_world.js` | 10 + 2 raw | the dome ✔, the normal bake ✔; terrain floor darkening + canopy map + far cascade (Lambert), the water, the ground detail, the impostor DRAW (octahedral lookup, G-buffer lighting, leaf terms), the impostor depth/cover, the clutter | 2 of 12 |
+| `trees.js` | 1 | the leaf material: wrap + SSS terms, the AO bake switch, the tint | — |
+| `site_ground.js` | 1 | the strip's splat | — |
+| `props.js` | 1 | the props' AO/mood hook | — |
+| `cabin.js` | 1 | the liner's second normal set | — |
+| `hangar.js` | 1 + 2 raw | the floor/walls hook; the grade backdrop, the print blur (guarded) | guarded |
+| `editor.js` | 2 | the selection silhouette / x-ray | — |
+| `tools/_house_gen.js` | 7 | shadeHouse, cloudWeather, steelMix, the glass, the wander (the village's look) | — |
+| `tools/_cage_panel.js`, `_cage_energy.js` | 1 + 1 | the instrument faces, the tank fill | — |
+| `aeroskin.js` (+ `aeroweather.js`) | 3 + 1 raw | the skin (livery projector, decals, detail, structure grammar, cabin darkness), the glass, the companion ✔; the 24 weathering layers ride on the skin's hook | 1 of 4 — LAST |
+
+**Traps met today under the node renderer:** a `MeshDepthMaterial` is refused the same way a `ShaderMaterial` is (every custom depth material — the impostor, band and tree depths, the far cascade and canopy passes — is null or off under the flag until ported); a `ShaderMaterial` is an error at
+DRAW time, not at construction — the boot looks clean until the object enters
+the frame; `renderer.capabilities` does not exist (ask `renderer.getMaxAnisotropy()`);
+a `WebGLRenderTarget` is accepted (it extends `RenderTarget`); `PMREMGenerator`
+from the WebGPU bundle is the node one and works after init; the dev loader's
+promotion means any `window.addEventListener('load')` in a module registers
+AFTER the load event — `design_flow.js` checks `readyState` first and is fine,
+anything new must too.
+
+**THE COLOUR A/B, AND THE KNOBS (the user, on the pair: "a significant
+change… I believe the rendering is better though, but the scenes have also
+darkened and colours shifted a lot… can we play with that with sliders? Is
+this like Blender where there is a filmic option? As-is I cannot approve").**
+Measured on the same states, ColorManagement OFF vs ON: the flight frame
+|Δ| 40 codes over 93 % of the pixels (the sky palette, the hemisphere, the
+livery all decode darker and more saturated); the shed |Δ| 3 (textures decode
+the same either way; only the painted colours move). Three NAMED-STEP rows
+joined the GRAPHICS menu (`gfx_settings.js`, both rails): the TONE CURVE —
+ACES (today's), AgX (Blender 4's default view transform, the closest thing
+to "filmic" three has; Blender 3's Filmic itself is not in three), Neutral
+(Khronos), Reinhard, Cineon, linear — live on `renderer.toneMapping` (r186
+re-keys the programs itself); EXPOSURE ×0.7…×1.7 as a multiplier on whatever
+the mood or the world row sets (the renderer's `toneMappingExposure` becomes
+an accessor once, so every existing writer keeps its number); and COLOUR
+MANAGEMENT as authored / managed, which stores `flydiy.cm` and reloads (a
+colour is converted when it is MADE, so it cannot flip live). The defaults
+reproduce today's look exactly; the ruling stays OFF until the user finds
+a managed setting they approve. Under managed, the honest fix for "darker" is
+the light and the palette, not the curve: the sky dome's hex rows and the
+hemisphere/sun colours are the numbers that decode differently.
+
+**The first flagged frames, seen:** one console line from boot through the roll-out (`AttributeNode: Vertex attribute "uv" not found` — a node material on a geometry without uv, harmless) and no error, through
+the roll-out; the TSL dome draws the sunset band exactly as the GLSL one; the
+aeroplane, the apron, the shed and the strip draw as PLAIN Standard/Lambert
+(every hook ignored: no livery projector, no floor darkening, no far cascade,
+no room lights' hooks — the shed reads dark); the near trees draw as their
+plain material and the impostor tier as flat quads. That is the checklist
+above, made visible. The GLSL page is byte-for-byte the same look it was.
+
 ## 5. RULINGS OWED
 
 - (t) WebGPURenderer/TSL as the world renderer target; the aeroskin port as

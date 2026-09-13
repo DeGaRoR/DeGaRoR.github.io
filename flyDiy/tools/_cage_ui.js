@@ -1067,6 +1067,9 @@ function meshFrom(m) {
 const SURF_TILE = 0.25;
 function surfMesh(m, mode) {
   const mesh = meshFrom(m);
+  // W0.5b: a raw ShaderMaterial diagnostic; the node renderer draws the
+  // lattice as normals until it is ported
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) { mesh.material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide }); return mesh; }
   const mat = new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
     uniforms: { uTile: { value: SURF_TILE }, uMode: { value: mode === 'grid' ? 1 : 0 } },

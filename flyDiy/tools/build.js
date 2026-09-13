@@ -444,6 +444,48 @@ function buildViewer(coreBody) {
   // game's (garage.js, one store and one format) rather than the bench's own
   // preset/config bar. The standalone _cage*.html pages set neither.
   const LAZY = `<script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>`;
+  // THE RENDERER FLAG (W0.5b, 2026-09-13; RENDERER-DECISION §4h). dev.html
+  // only - index.html stays the WebGLRenderer build until the flip.
+  //   ?tsl=1    the WebGPU/TSL bundle, WebGPURenderer on its WebGL2 backend
+  //   ?tsl=gpu  the same, asking for the WebGPU backend
+  //   ?cm=1     ColorManagement ON after the vendor loads (the colour A/B)
+  //   (localStorage flydiy.tsl = '1' | 'gpu' holds the choice across loads)
+  // The node renderer throws on a render before init(), and the boot bakes
+  // (PMREM, impostors) render - so under the flag the renderer is made HERE,
+  // initialised, and only then is the rest of the page let run (DEV_PROMOTE).
+  const DEV_LOADER = `<script>
+(function () {
+  var q = new URLSearchParams(location.search), tsl = q.get('tsl');
+  try { if (!q.has('tsl')) tsl = localStorage.getItem('flydiy.tsl') || ''; } catch (e) {}
+  window.FLYDIY_TSL = (tsl === '1' || tsl === 'gpu') ? tsl : '';
+  document.write('<script src="vendor/' + (window.FLYDIY_TSL ? 'three.webgpu.min.js' : 'three.min.js') + '"><\\/script>');
+})();
+</script>
+<script>
+(function () {
+  var cm = new URLSearchParams(location.search).get('cm');
+  try { if (cm === null) cm = localStorage.getItem('flydiy.cm'); } catch (e) {}
+  if (cm === '1') THREE.ColorManagement.enabled = true;   // the colour ruling's A/B: the menu's row stores it
+  var ready = Promise.resolve();
+  if (window.FLYDIY_TSL) {
+    var r = new THREE.WebGPURenderer({ canvas: document.getElementById('c'), antialias: true,
+      logarithmicDepthBuffer: true, forceWebGL: window.FLYDIY_TSL !== 'gpu' });
+    window.FLYDIY_RENDERER = r;
+    ready = r.init();
+  }
+  window.FLYDIY_BOOT = ready;
+})();
+</script>`;
+  const DEV_PROMOTE = `<script>
+window.FLYDIY_BOOT.then(function () {
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
+  for (var i = 0; i < tags.length; i++) {
+    var s = document.createElement('script');
+    s.src = tags[i].getAttribute('src'); s.async = false;
+    document.body.appendChild(s);
+  }
+}, function (e) { console.error('flyDiy: the renderer did not initialise', e); });
+</script>`;
 
   // Each ref carries a hash of its file's CONTENT as ?v=. python -m http.server
   // sends no Cache-Control, so Chrome falls back to HEURISTIC freshness — a
@@ -454,6 +496,11 @@ function buildViewer(coreBody) {
   const ver = p => { try { return '?v=' + sha(read(p)).slice(0, 8); }
                      catch (e) { return ''; } };
   const ref = (dir, sub, f) => `<script src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
+  // THE DEV PAGE'S SCRIPTS ARE INERT UNTIL THE LOADER PROMOTES THEM (W0.5b):
+  // type="text/x-flydiy" is not executed by the parser; DEV_PROMOTE below
+  // appends real copies in order (async = false) once the vendor is in and,
+  // under the renderer flag, once the node renderer has initialised
+  const dref = (dir, sub, f) => `<script type="text/x-flydiy" src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
   // the payload refs are the SAME tags in both pages: model and prop payloads
   // stopped being inlined on 2026-09-01 (the multi-file artifact) and the
   // committed .js files under src/models/ and src/props/ are served directly.
@@ -466,7 +513,9 @@ function buildViewer(coreBody) {
   let art = shell;
   art = fill(art, 'STYLE', `<style>\n${inlineFonts(css)}</style>`);
   art = fill(art, 'BODY', bodyHtml);
-  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>`);
+  // the colour-management switch the GRAPHICS menu stores (flydiy.cm): read
+  // right after the vendor, before any colour is made
+  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='1')THREE.ColorManagement.enabled=true;})();</script>`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
   art = fill(art, 'MODELS', payloadRefs);
   art = fill(art, 'RENDER', [LAZY]
@@ -507,14 +556,14 @@ function buildViewer(coreBody) {
     `<link rel="stylesheet" href="src/viewer/${f}${ver(path.join(VIEW_DIR, f))}">`)
     .join('\n'));
   dev = fill(dev, 'BODY', bodyHtml);
-  dev = fill(dev, 'VENDOR', `<script src="vendor/three.min.js"></script>`);
-  dev = fill(dev, 'CORE', MANIFEST.core.map(f => ref(CORE_DIR, 'src/core', f)).join('\n'));
-  dev = fill(dev, 'MODELS', payloadRefs);
+  dev = fill(dev, 'VENDOR', DEV_LOADER);
+  dev = fill(dev, 'CORE', MANIFEST.core.map(f => dref(CORE_DIR, 'src/core', f)).join('\n'));
+  dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));
   dev = fill(dev, 'RENDER', [LAZY]
-    .concat(MANIFEST.editor.map(f => ref(__dirname, 'tools', f)))
-    .concat(V.scripts.slice(0, -1).map(f => ref(VIEW_DIR, 'src/viewer', f)))
+    .concat(MANIFEST.editor.map(f => dref(__dirname, 'tools', f)))
+    .concat(V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f)))
     .join('\n'));
-  dev = fill(dev, 'APP', ref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]));
+  dev = fill(dev, 'APP', dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
   const devFile = path.join(ROOT, 'dev.html');
   fs.writeFileSync(devFile, dev);

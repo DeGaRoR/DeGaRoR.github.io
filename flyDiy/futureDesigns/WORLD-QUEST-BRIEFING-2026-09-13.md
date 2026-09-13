@@ -28,7 +28,7 @@ to it today (D0) — before that they still said "clipmap", "erosion at 4096²",
 | **W0c the ladder (W0 + W0e's verdict)** | ✔ **closed** (W0c.6–33) | HANDOVER W0c, TREE-IMPORT.md §8 |
 | W0d canopy shell (R3) | not done; partly moot (impostor ring to 4 km, terrain mask beyond); R5 open | WORLD-V2 §8.3, §12.12 |
 | **W0.5a three.js upgrade** (r128 → r186, still WebGL) | ✔ **landed 2026-09-13** | RENDERER-DECISION §4g, HANDOVER W0.5a |
-| W0.5b TSL · W0.5c backend flag | **NEXT**; a renderer FLAG with two variants per material, not hook-by-hook on WebGLRenderer (§4g); groundwork §4h | RENDERER-DECISION §4b, §4c, §4g, §4h |
+| W0.5b TSL · W0.5c backend flag | **IN PROGRESS**: the flag is in (`dev.html?tsl=1`, §4i), 3 materials ported, ~28 hooks to go in §4i's order; GLSL stays default | RENDERER-DECISION §4g, §4h, §4i |
 | W2a switch · W2b loader/sampler · W2c second world = first world | not started; `terrain_bake.js` / `terrain_codec.js` exist, run once (2.55×, 3 361 leaves) | WORLD-V2 §2–5, §11 |
 | W1 splat material (TSL) | not started | WORLD-V2 §8.1 |
 | W3 trees productionised | half inside W0c (density as data, species by place, hand placement); per-class table waits for U1 | TREE-IMPORT.md §8 |

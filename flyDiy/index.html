@@ -7614,6 +7614,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 THREE.ColorManagement.enabled = false;
 
 </script>
+<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='1')THREE.ColorManagement.enabled=true;})();</script>
 <script>
 // ============================================================
 // CUB FLIGHT CORE — M1
@@ -35322,16 +35323,35 @@ function shoulderBuild(mesh, spec, opt, CAGE) {
         arc.push(acc);
       });
       ids.forEach((row, i) => row.forEach((id, k) => { A[id] = [zF - st[i].z, arc[k], 0.5, 0.5]; }));
+      // a cap or a slot vertex (G346.1): its (s, y) in the profile frame AT
+      // ITS OWN STATION, projected onto the profile polyline — the arc at the
+      // foot of the projection is its sC. The first cut took the nearest
+      // profile point by s alone, so every slot vertex on the leg's face (all
+      // at s = W) got the bend's arc and the sheet stretched round the slot
+      // (the user: "the shoulder should be remapped after the cut").
+      const stAt = z => {
+        let i = 0;
+        while (i < st.length - 2 && st[i + 1].z < z) i++;
+        const a = st[i], b = st[Math.min(st.length - 1, i + 1)];
+        const t = Math.max(0, Math.min(1, (z - a.z) / Math.max(1e-9, b.z - a.z)));
+        return { xo: a.xo + (b.xo - a.xo) * t, yTop: a.yTop + (b.yTop - a.yTop) * t };
+      };
+      const P0 = profs[0];
       for (const f of faces) for (const vi of f.v) if (!A[vi]) {
-        // a cap or a slot vertex: the station's sL, the nearest profile arc
         const p = V[vi];
-        const sL = zF - (p[2] - off[2]);
-        let best = 0, bd = 1e9;
-        profs[0].forEach((q, k) => {
-          const d = Math.hypot((p[0] - off[0] - st[0].xo) * u - q.s, 0);
-          if (d < bd) { bd = d; best = k; }
-        });
-        A[vi] = [sL, arc[best], 0.5, 0.5];
+        const z = p[2] - off[2], s0 = stAt(z);
+        const ps = (p[0] - off[0] - s0.xo) * u, py = p[1] - off[1] - s0.yTop;
+        let bestArc = 0, bd = 1e9;
+        for (let k = 0; k + 1 < P0.length; k++) {
+          const a = P0[k], b = P0[k + 1];
+          const dx = b.s - a.s, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+          if (l2 < 1e-12) continue;
+          const t = Math.max(0, Math.min(1, ((ps - a.s) * dx + (py - a.y) * dy) / l2));
+          const qx = a.s + dx * t, qy = a.y + dy * t;
+          const d = Math.hypot(ps - qx, py - qy);
+          if (d < bd) { bd = d; bestArc = arc[k] + Math.sqrt(l2) * t; }
+        }
+        A[vi] = [zF - z, bestArc, 0.5, 0.5];
       }
     }
     // orient this part: coherent windings by position-keyed edges, then
@@ -46295,6 +46315,7 @@ function buildPanel(parent, A, P, pilotX) {
 // of each seat row, screws round the edge every 12 cm.
 let FLOOR_BUILD = 0;                        // the build the deferred floor belongs to
 const FLOOR_T = 0.012;
+const FLOOR_MARGIN = 0.004;                 // the board's edge stands this far inside the wall (G347)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
 const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
 const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;
@@ -46348,8 +46369,11 @@ function floorWalls(mesh, k, yAt, zF, zA) {
   // the innermost wall at a station, per side: a ray along x at (y, z)
   // through every triangle whose bounds hold it (barycentric in y-z; a
   // face lying along x — the belly's bottom — has no answer and is skipped)
-  const edgeAt = (zi, sd) => {
-    const yi = yAt(zi);
+  // ...over the board's whole thickness (G347): the top, the middle and
+  // the bottom of the rim each cast their ray, the innermost wins, and the
+  // edge stands FLOOR_MARGIN inside it — a belly curving inward under the
+  // sill no longer shows the rim outside the skin
+  const rayAt = (yi, zi, sd) => {
     let best = Infinity;
     for (const w of wall) {
       if (yi < w.y0 || yi > w.y1 || zi < w.z0 || zi > w.z1) continue;
@@ -46363,6 +46387,15 @@ function floorWalls(mesh, k, yAt, zF, zA) {
       if (x > 0.03 && x < best) best = x;
     }
     return best < Infinity ? best : null;
+  };
+  const edgeAt = (zi, sd) => {
+    const y0 = yAt(zi);
+    let best = null;
+    for (const dy of [0, -FLOOR_T / 2, -FLOOR_T]) {
+      const x = rayAt(y0 + dy, zi, sd);
+      if (x != null && (best == null || x < best)) best = x;
+    }
+    return best == null ? null : Math.max(0.03, best - FLOOR_MARGIN);
   };
   const STEP = 0.015, zs = [];
   for (let z = zF; z <= zA + 1e-9; z += STEP) zs.push(z);
@@ -78286,6 +78319,9 @@ function meshFrom(m) {
 const SURF_TILE = 0.25;
 function surfMesh(m, mode) {
   const mesh = meshFrom(m);
+  // W0.5b: a raw ShaderMaterial diagnostic; the node renderer draws the
+  // lattice as normals until it is ported
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) { mesh.material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide }); return mesh; }
   const mat = new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
     uniforms: { uTile: { value: SURF_TILE }, uMode: { value: mode === 'grid' ? 1 : 0 } },
@@ -81998,7 +82034,10 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
     try {
       const gl = renderer.getContext && renderer.getContext();
       const caps = renderer.capabilities;
-      S.able = !!(THREE.WebGLRenderTarget && THREE.HalfFloatType &&
+      // the node renderer (W0.5b) has no getContext, no MAX_SAMPLES to ask, and
+      // its own MSAA on the canvas: the pass steps aside there, as it does on
+      // any card that cannot carry it
+      S.able = !renderer.isWebGPURenderer && !!(THREE.WebGLRenderTarget && THREE.HalfFloatType &&
                   THREE.ShaderMaterial && THREE.WebGLRenderTarget &&
                   renderer.setRenderTarget && gl && caps && caps.isWebGL2);
       if (S.able) S.maxSamples = gl.getParameter(gl.MAX_SAMPLES) || 4;
@@ -83182,6 +83221,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const LAMBERT_NO_ENV = new THREE.Texture();
   LAMBERT_NO_ENV.mapping = THREE.EquirectangularReflectionMapping;
   const worldLambert = o => new THREE.MeshLambertMaterial(Object.assign({ envMap: LAMBERT_NO_ENV }, o));
+  // THE RENDERER FLAG (W0.5b): the module picks a variant per material on it
+  const TSL_ON = !!(renderer && renderer.isWebGPURenderer);
+  // the card's anisotropy, asked of whichever renderer this is (the node
+  // renderer answers on itself, after init)
+  const MAX_ANISO = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? renderer.capabilities.getMaxAnisotropy()
+                  : (renderer && renderer.getMaxAnisotropy) ? renderer.getMaxAnisotropy() : 8;
   scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
@@ -83195,7 +83240,36 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // half-float LINEAR one (r186; it was RGBE on r128, where a hand-written
   // alpha of 1.0 read as an exponent and turned every Standard material pure
   // black — W18's afternoon), so the bake variant has one job: linearise.
-  const skyMat = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
+  // THE SAME DOME IN TSL (W0.5b, the first material of the port; tools/_tsl.html
+  // is the bench that proved it to 1 code on both backends). One node material
+  // serves both variants: the palette is DISPLAY values, so the node hands the
+  // output stage the decoded value — on the canvas the stage encodes it back
+  // to the authored bytes, in the PMREM target (no encode) it is the linear
+  // radiance the bake variant wanted. `uniforms` keeps the GLSL shape (.value
+  // on each) so the rig rows and the switchboard read and write it unchanged.
+  const skyMatTSL = (encode, extra) => {
+    const T = THREE.TSL;
+    const U = { uTop: T.uniform(C(0x3f7fbe)), uMid: T.uniform(C(0x9dc4dd)),
+                uHaze: T.uniform(C(HAZE)), uSun: T.uniform(SUN), uSunCol: T.uniform(C(SUNC)) };
+    const dome = T.Fn(() => {
+      const d = T.normalize(T.positionWorld.sub(T.cameraPosition));
+      const h = d.y;
+      let col = T.mix(U.uHaze, U.uMid, T.smoothstep(-0.01, 0.20, h));
+      col = T.mix(col, U.uTop, T.smoothstep(0.13, 0.80, h));
+      col = T.mix(col, U.uHaze.mul(0.82), T.smoothstep(0.0, -0.30, h));
+      const sd = T.max(T.dot(d, T.normalize(U.uSun)), 0.0);
+      const glow = T.pow(sd, 900.0).mul(3.0).add(T.pow(sd, 14.0).mul(0.42)).add(T.pow(sd, 3.0).mul(0.13));
+      return T.colorSpaceToWorking(col.add(U.uSunCol.mul(glow)), THREE.SRGBColorSpace);
+    });
+    const m = new THREE.MeshBasicNodeMaterial();
+    m.colorNode = dome();
+    m.side = THREE.BackSide; m.depthTest = false; m.depthWrite = false; m.fog = false;
+    m.uniforms = U;
+    if (extra) Object.assign(m, extra);
+    return m;
+  };
+  const skyMat = (encode, extra) => (TSL_ON ? skyMatTSL : skyMatGLSL)(encode, extra);
+  const skyMatGLSL = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
       uniforms: { uTop:{value:C(0x3f7fbe)}, uMid:{value:C(0x9dc4dd)},
                   uHaze:{value:C(HAZE)}, uSun:{value:SUN}, uSunCol:{value:C(SUNC)} },
       vertexShader: `varying vec3 vD;
@@ -83339,6 +83413,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // where a shadow at 500 m is seen. Not a general cascade: trees do not
   // read it, and the near map keeps doing the near work.
   const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
+    enabled: !(renderer && renderer.isWebGPURenderer),   // W0.5b: the far cascade + canopy map are packed-depth passes; off under the flag until ported
+
                 rt: null, cam: null, scene: null, proxies: new Map(), tick: 0, at: null, half: 1400, size: 2048 };
   // TEXEL SNAPPING (W0c.22). A shadow camera that follows the aircraft
   // continuously slides its texel grid by a fraction of a texel every frame,
@@ -83758,7 +83834,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       }
       const t = new THREE.CanvasTexture(cv);
       t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      t.anisotropy = MAX_ANISO;
       return t;
     }
     const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
@@ -84239,10 +84315,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // draw decodes it by hand, because <map_fragment> is replaced wholesale.
     // The normal target stays linear; its material writes gl_FragColor raw.
     const NRM_CACHE = new WeakMap();
+    // THE SAME BAKE IN TSL (W0.5b): the world normal, flipped on a back face,
+    // as bytes; the cutout through the map's alpha. `uniforms` keeps the
+    // GLSL shape so the caller below fills it the same way.
+    function normalMatTSL() {
+      const T = THREE.TSL;
+      const U = { map: { value: null }, uCut: T.uniform(0.5), uHasMap: T.uniform(0) };
+      const m = new THREE.MeshBasicNodeMaterial();
+      const n = T.select(T.frontFacing, T.normalWorld, T.normalWorld.negate());
+      m.colorNode = T.colorSpaceToWorking(n.mul(0.5).add(0.5), THREE.SRGBColorSpace);
+      m.uniforms = U;
+      m.userData.nrmTSL = true;
+      return m;
+    }
     function normalMatFor(src) {
       let m = NRM_CACHE.get(src);
       if (!m) {
-        m = new THREE.ShaderMaterial({
+        m = TSL_ON ? normalMatTSL() : new THREE.ShaderMaterial({
           uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 } },
           vertexShader: [
             'varying vec3 vWN;', 'varying vec2 vUvN;',
@@ -84269,6 +84358,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       m.uniforms.map.value = src.map || null;
       m.uniforms.uCut.value = cut || 0.5;
       m.uniforms.uHasMap.value = (src.map && src.map.image && cut > 0) ? 1 : 0;
+      if (m.userData && m.userData.nrmTSL) {   // the node variant cuts through the material's own map + alphaTest
+        m.map = (src.map && src.map.image && cut > 0) ? src.map : null;
+        m.alphaTest = m.map ? (cut || 0.5) : 0;
+        m.needsUpdate = true;
+      }
       m.side = src.side;
       return m;
     }
@@ -84410,6 +84504,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     ].join('\n');
     const U_FARR = { value: 1e7 };            // the far pass: no reach limit
     function impostorDepth(atlas, si, farPass, gain) {
+      if (TSL_ON) return null;   // W0.5b: MeshDepthMaterial is refused by the node renderer; its default depth casts until the port
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (!atlas.tex) return d;
       const cover = farPass === 'cover';
@@ -84810,6 +84905,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return m;
     };
     const bandDepth = (mat, r, n) => {
+      if (TSL_ON) return null;   // W0.5b: same (the band collapse is not in the shadow yet under the flag)
       const E = bandEdges(r, n);
       const d = new THREE.MeshDepthMaterial({
         depthPacking: THREE.RGBADepthPacking,
@@ -85076,8 +85172,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null, gain);
         m.userData.depth = impostorDepth(at, si, false, gain);
         m.userData.farDepth = impostorDepth(at, si, true, gain);
-        (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
-        plantedKit.push(m, m.userData.depth, m.userData.farDepth);   // the atlas is the cache's
+        if (m.userData.farDepth)   // null under the W0.5b flag (no custom depth)
+          (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
+        plantedKit.push(m);                                            // the atlas is the cache's
+        if (m.userData.depth) plantedKit.push(m.userData.depth);
+        if (m.userData.farDepth) plantedKit.push(m.userData.farDepth);
         return m;
       });
     };
@@ -85119,7 +85218,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (!n) return null;
         if (!P) {                                            // the cone
           const m = mk(fallbackGeo, canopyMat, n, true);
-          m.customDepthMaterial = treeDepth;
+          m.customDepthMaterial = TSL_ON ? null : treeDepth;
           const mi = mk(impQuadW, impM[0], n, false);
           return { n, meshes: [m], imps: [mi], rec: null, ser: null };
         }
@@ -85360,8 +85459,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts), gain);
               S.imp.userData.depth = impostorDepth(at, si, false, gain);
               S.imp.userData.farDepth = impostorDepth(at, si, true, gain);
-              (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
-              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's
+              if (S.imp.userData.farDepth)   // null under the W0.5b flag
+                (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
+              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's (dispose tolerates null)
             });
             SHAPE.list.push(H);
           }
@@ -85618,7 +85718,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // each layer gets its own height: coplanar decals + a log depth buffer z-fight
     // lit like the terrain, so the same sun shadows fall across them
     const SITE = siteOf('HOME');    // the registry's default (HANGARS S5)
-    const WANISO = renderer.capabilities.getMaxAnisotropy();
+    const WANISO = MAX_ANISO;
     const HOME = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
     const R = siteRunway(HOME);
     const decal = (w, h, color, y, x, z) => {
@@ -85648,7 +85748,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sitePaintStrip(q, R, RW, RH, true);              // marks only
       const rtex = new THREE.CanvasTexture(cv2);
       rtex.colorSpace = THREE.SRGBColorSpace;
-      rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      rtex.anisotropy = MAX_ANISO;
       const yaw = Math.atan2(-R.dz, -R.dx);
       const mkGeo = (metric) => {
         const g = new THREE.PlaneGeometry(R.len, R.wid);
@@ -91489,6 +91589,27 @@ void main() {
 }`;
 function aeroGlassTint(THREE, o) {
   const G = k => (o[k] != null ? +o[k] : GLASS_DEF[k]);
+  // W0.5b: the multiply pass as a node material — the same three lines of
+  // AERO_GTINT_FS (fresnel, the tint's pass, the alpha). The weathering's
+  // grunge on the pane (AERO_WX_GTINT_FS) is not on this variant yet (§4h).
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON && THREE.MeshBasicNodeMaterial) {
+    const T = THREE.TSL;
+    const col = o.tintLin != null ? new THREE.Color(o.tintLin)
+              : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
+    const uTint = T.uniform(col), uA = T.uniform(G('opacity')), uFres = T.uniform(G('fresnel'));
+    const m = new THREE.MeshBasicNodeMaterial();
+    const nv = T.clamp(T.dot(T.normalView, T.positionViewDirection), 0.0, 1.0);
+    const fr = T.pow(T.oneMinus(nv), 5.0).mul(uFres);
+    const pass = T.mix(T.vec3(1.0), uTint, T.clamp(uA.mul(2.0), 0.0, 1.0));
+    m.colorNode = pass.mul(T.oneMinus(uA)).mul(T.oneMinus(fr));
+    m.transparent = true; m.depthWrite = false; m.side = THREE.FrontSide;
+    m.blending = THREE.CustomBlending; m.blendEquation = THREE.AddEquation;
+    m.blendSrc = THREE.ZeroFactor; m.blendDst = THREE.SrcColorFactor;
+    m.uniforms = { uTint: uTint, uA: uA, uFres: uFres };
+    m.userData.aeroskin = 1; m.userData.aeroFinish = 'glassTint'; m.userData.env0 = 0;
+    AERO_BUILT.push(m);
+    return m;
+  }
   const key = 'gtint|' + (o.tint != null ? o.tint : '') + 'L' +
               (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
               '|' + G('fresnel') + '|w' + (o.wear != null ? +o.wear : 1);
@@ -93834,6 +93955,9 @@ function gradeUniforms(mat, uu) {
 function gradeTextures() {
   if (gradeReady) return true;
   if (!SKY_GRADE || typeof Image === 'undefined' || !THREE.ShaderMaterial) return false;
+  // W0.5b: the grade is a raw ShaderMaterial; under the node renderer the room
+  // keeps its baked sky picture until the grade is ported (§4h)
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) return false;
   const mk = src => {
     const i = new Image();
     const t = new THREE.Texture(i);
@@ -95776,6 +95900,7 @@ const CS = { on: true };   // the aeroplane's own print, below
   G.add(GS.quad);
 
   GS.bake = function (renderer, scene) {
+    if (renderer && renderer.isWebGPURenderer) return;   // W0.5b: the blur is GLSL; no print under the flag yet
     if (!renderer || !scene || !renderer.setRenderTarget) return false;
     try {
       for (const f of FURN)
@@ -95864,6 +95989,7 @@ const CS = { on: true };   // the aeroplane's own print, below
     G.add(CS.quad);
 
     CS.bake = function (renderer, scene, craft) {
+      if (renderer && renderer.isWebGPURenderer) return;   // W0.5b: same
       if (!renderer || !scene || !craft || !renderer.setRenderTarget) return false;
       try {
         const bb = new THREE.Box3().setFromObject(craft);
@@ -102891,17 +103017,38 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
+    // THE COLOUR ROWS (W0.5a, the user: "can we play with that with sliders?").
+    // The tone curve and the exposure are live on the renderer; colour
+    // management is decided when a colour is MADE, so that row stores the
+    // choice and reloads the page.
+    { k: 'tone', label: 'tone curve', steps: [
+        { v: 'aces',     label: 'ACES', why: 'the filmic curve the game has always used' },
+        { v: 'agx',      label: 'AgX', why: 'Blender 4’s default view transform - gentler highlights, less hue shift' },
+        { v: 'neutral',  label: 'neutral', why: 'Khronos PBR neutral - keeps colours as they are, rolls off the top' },
+        { v: 'reinhard', label: 'Reinhard', why: 'the classic soft roll-off' },
+        { v: 'cineon',   label: 'Cineon', why: 'a film-stock curve, cooler shadows' },
+        { v: 'linear',   label: 'linear', why: 'no curve, clipped at white' } ] },
+    { k: 'exposure', label: 'exposure', steps: [
+        { v: 0.7, label: '×0.7', why: 'darker' }, { v: 0.85, label: '×0.85', why: 'a little darker' },
+        { v: 1,   label: '×1', why: 'the mood’s own exposure' },
+        { v: 1.2, label: '×1.2', why: 'a little brighter' }, { v: 1.4, label: '×1.4', why: 'brighter' },
+        { v: 1.7, label: '×1.7', why: 'much brighter' } ] },
+    { k: 'colour', label: 'colour management', steps: [
+        { v: 'linear',  label: 'as authored', why: 'a hex colour is the value the shader sees (the r128 reading every colour was tuned in)' },
+        { v: 'managed', label: 'managed', why: 'every hex decoded as sRGB (three’s default since r152): darker, more saturated, physically the honest reading - RELOADS the page' } ] },
   ];
+  const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
+                 reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
   const BANDS = { near: [60, 270, 270], far: [150, 450, 450] };   // W0c.32: L1 to the impostor, no L2
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -102947,6 +103094,21 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
+    // the tone curve, live: r186 re-keys the program on renderer.toneMapping
+    const R = W.FLYDIY_RENDERER, T = W.THREE;
+    if (R && T && applied.tone !== S.tone && T[TONE[S.tone]] !== undefined) { R.toneMapping = T[TONE[S.tone]]; applied.tone = S.tone; }
+    // the exposure, as a MULTIPLIER on whatever the mood or the world row sets:
+    // the property becomes an accessor once, so every writer (the moods, the
+    // rig rows, the shed) keeps setting its own number and three reads it
+    // times the menu's step
+    if (R && applied.exposure !== S.exposure) {
+      if (!R.__expK) {
+        let base = R.toneMappingExposure;
+        Object.defineProperty(R, 'toneMappingExposure', {
+          get: () => base * (R.__expK || 1), set: v => { base = v; }, configurable: true });
+      }
+      R.__expK = S.exposure; applied.exposure = S.exposure;
+    }
     if (rig && applied.lighting !== S.lighting) {
       rig.row(S.lighting);
       // the row carries its own shadow / floor numbers: re-assert ours
@@ -102958,7 +103120,14 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   const set = (k, v) => {
     if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; }
     else { S[k] = v; S.preset = presetOf(); }
-    save(); apply(); return Object.assign({}, S);
+    save(); apply();
+    // colour management is decided at construction: store the choice for the
+    // page's loader (flydiy.cm) and reload when it differs from what runs
+    if (W.THREE && W.THREE.ColorManagement) {
+      const want = S.colour === 'managed', is = !!W.THREE.ColorManagement.enabled;
+      if (want !== is) { try { W.localStorage.setItem('flydiy.cm', want ? '1' : '0'); } catch (e) {} W.location.reload(); }
+    }
+    return Object.assign({}, S);
   };
 
   // ---- the frame, for the readout ---------------------------------------
@@ -102995,8 +103164,9 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     H.note(body, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
                  'anti-aliasing reallocates the frame (a blink), a new density re-streams the ' +
                  'forest around you (about ten seconds), and shadows off or on recompiles the ' +
-                 'lit surfaces (a short hitch). The F8 panel is the developer’s: every dial, ' +
-                 'nothing saved.');
+                 'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
+                 'colour management reloads the page. The F8 panel is the developer’s: every ' +
+                 'dial, nothing saved.');
     hosts++;
     if (!rafId) { last = 0; rafId = W.requestAnimationFrame(tick); }
     const iv = setInterval(() => {
@@ -103006,6 +103176,9 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   };
 
   load();
+  // the colour row must SAY what runs: the page's loader decided it before
+  // this script, from the same stored key, so read the truth back
+  if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
   W.GFX = {
     OPTIONS, PRESETS, BANDS, SHADOWS,
     get: () => Object.assign({}, S),
@@ -106927,7 +107100,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  // THE RENDERER FLAG (W0.5b): dev.html's loader may have made a WebGPURenderer
+  // (WebGL2 backend by default) and initialised it before this script ran;
+  // otherwise this is the WebGLRenderer it has always been. TSL_ON is what
+  // every material module asks to pick its variant (RENDERER-DECISION §4h).
+  const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
+    new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  const TSL_ON = !!renderer.isWebGPURenderer;
+  if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -107251,7 +107431,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') {
     const cap = renderer.capabilities;
     window.FLYDIY_ANISO = (cap && typeof cap.getMaxAnisotropy === 'function')
-      ? cap.getMaxAnisotropy() : 8;
+      ? cap.getMaxAnisotropy()
+      : (typeof renderer.getMaxAnisotropy === 'function') ? renderer.getMaxAnisotropy() : 8;   // the node renderer answers on itself
   }
 
   const WORLD_EXPOSURE = renderer.toneMappingExposure;

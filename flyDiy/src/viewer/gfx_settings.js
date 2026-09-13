@@ -55,17 +55,38 @@
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
+    // THE COLOUR ROWS (W0.5a, the user: "can we play with that with sliders?").
+    // The tone curve and the exposure are live on the renderer; colour
+    // management is decided when a colour is MADE, so that row stores the
+    // choice and reloads the page.
+    { k: 'tone', label: 'tone curve', steps: [
+        { v: 'aces',     label: 'ACES', why: 'the filmic curve the game has always used' },
+        { v: 'agx',      label: 'AgX', why: 'Blender 4’s default view transform - gentler highlights, less hue shift' },
+        { v: 'neutral',  label: 'neutral', why: 'Khronos PBR neutral - keeps colours as they are, rolls off the top' },
+        { v: 'reinhard', label: 'Reinhard', why: 'the classic soft roll-off' },
+        { v: 'cineon',   label: 'Cineon', why: 'a film-stock curve, cooler shadows' },
+        { v: 'linear',   label: 'linear', why: 'no curve, clipped at white' } ] },
+    { k: 'exposure', label: 'exposure', steps: [
+        { v: 0.7, label: '×0.7', why: 'darker' }, { v: 0.85, label: '×0.85', why: 'a little darker' },
+        { v: 1,   label: '×1', why: 'the mood’s own exposure' },
+        { v: 1.2, label: '×1.2', why: 'a little brighter' }, { v: 1.4, label: '×1.4', why: 'brighter' },
+        { v: 1.7, label: '×1.7', why: 'much brighter' } ] },
+    { k: 'colour', label: 'colour management', steps: [
+        { v: 'linear',  label: 'as authored', why: 'a hex colour is the value the shader sees (the r128 reading every colour was tuned in)' },
+        { v: 'managed', label: 'managed', why: 'every hex decoded as sRGB (three’s default since r152): darker, more saturated, physically the honest reading - RELOADS the page' } ] },
   ];
+  const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
+                 reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
   const BANDS = { near: [60, 270, 270], far: [150, 450, 450] };   // W0c.32: L1 to the impostor, no L2
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -111,6 +132,21 @@
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
+    // the tone curve, live: r186 re-keys the program on renderer.toneMapping
+    const R = W.FLYDIY_RENDERER, T = W.THREE;
+    if (R && T && applied.tone !== S.tone && T[TONE[S.tone]] !== undefined) { R.toneMapping = T[TONE[S.tone]]; applied.tone = S.tone; }
+    // the exposure, as a MULTIPLIER on whatever the mood or the world row sets:
+    // the property becomes an accessor once, so every writer (the moods, the
+    // rig rows, the shed) keeps setting its own number and three reads it
+    // times the menu's step
+    if (R && applied.exposure !== S.exposure) {
+      if (!R.__expK) {
+        let base = R.toneMappingExposure;
+        Object.defineProperty(R, 'toneMappingExposure', {
+          get: () => base * (R.__expK || 1), set: v => { base = v; }, configurable: true });
+      }
+      R.__expK = S.exposure; applied.exposure = S.exposure;
+    }
     if (rig && applied.lighting !== S.lighting) {
       rig.row(S.lighting);
       // the row carries its own shadow / floor numbers: re-assert ours
@@ -122,7 +158,14 @@
   const set = (k, v) => {
     if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; }
     else { S[k] = v; S.preset = presetOf(); }
-    save(); apply(); return Object.assign({}, S);
+    save(); apply();
+    // colour management is decided at construction: store the choice for the
+    // page's loader (flydiy.cm) and reload when it differs from what runs
+    if (W.THREE && W.THREE.ColorManagement) {
+      const want = S.colour === 'managed', is = !!W.THREE.ColorManagement.enabled;
+      if (want !== is) { try { W.localStorage.setItem('flydiy.cm', want ? '1' : '0'); } catch (e) {} W.location.reload(); }
+    }
+    return Object.assign({}, S);
   };
 
   // ---- the frame, for the readout ---------------------------------------
@@ -159,8 +202,9 @@
     H.note(body, 'Everything takes effect at once; nothing needs a restart. Changing the ' +
                  'anti-aliasing reallocates the frame (a blink), a new density re-streams the ' +
                  'forest around you (about ten seconds), and shadows off or on recompiles the ' +
-                 'lit surfaces (a short hitch). The F8 panel is the developer’s: every dial, ' +
-                 'nothing saved.');
+                 'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
+                 'colour management reloads the page. The F8 panel is the developer’s: every ' +
+                 'dial, nothing saved.');
     hosts++;
     if (!rafId) { last = 0; rafId = W.requestAnimationFrame(tick); }
     const iv = setInterval(() => {
@@ -170,6 +214,9 @@
   };
 
   load();
+  // the colour row must SAY what runs: the page's loader decided it before
+  // this script, from the same stored key, so read the truth back
+  if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
   W.GFX = {
     OPTIONS, PRESETS, BANDS, SHADOWS,
     get: () => Object.assign({}, S),

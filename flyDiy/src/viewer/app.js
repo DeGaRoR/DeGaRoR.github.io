@@ -20,7 +20,14 @@
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  // THE RENDERER FLAG (W0.5b): dev.html's loader may have made a WebGPURenderer
+  // (WebGL2 backend by default) and initialised it before this script ran;
+  // otherwise this is the WebGLRenderer it has always been. TSL_ON is what
+  // every material module asks to pick its variant (RENDERER-DECISION §4h).
+  const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
+    new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  const TSL_ON = !!renderer.isWebGPURenderer;
+  if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -344,7 +351,8 @@
   if (typeof window !== 'undefined') {
     const cap = renderer.capabilities;
     window.FLYDIY_ANISO = (cap && typeof cap.getMaxAnisotropy === 'function')
-      ? cap.getMaxAnisotropy() : 8;
+      ? cap.getMaxAnisotropy()
+      : (typeof renderer.getMaxAnisotropy === 'function') ? renderer.getMaxAnisotropy() : 8;   // the node renderer answers on itself
   }
 
   const WORLD_EXPOSURE = renderer.toneMappingExposure;

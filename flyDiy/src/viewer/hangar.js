@@ -1447,6 +1447,9 @@ function gradeUniforms(mat, uu) {
 function gradeTextures() {
   if (gradeReady) return true;
   if (!SKY_GRADE || typeof Image === 'undefined' || !THREE.ShaderMaterial) return false;
+  // W0.5b: the grade is a raw ShaderMaterial; under the node renderer the room
+  // keeps its baked sky picture until the grade is ported (§4h)
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) return false;
   const mk = src => {
     const i = new Image();
     const t = new THREE.Texture(i);
@@ -3389,6 +3392,7 @@ const CS = { on: true };   // the aeroplane's own print, below
   G.add(GS.quad);
 
   GS.bake = function (renderer, scene) {
+    if (renderer && renderer.isWebGPURenderer) return;   // W0.5b: the blur is GLSL; no print under the flag yet
     if (!renderer || !scene || !renderer.setRenderTarget) return false;
     try {
       for (const f of FURN)
@@ -3477,6 +3481,7 @@ const CS = { on: true };   // the aeroplane's own print, below
     G.add(CS.quad);
 
     CS.bake = function (renderer, scene, craft) {
+      if (renderer && renderer.isWebGPURenderer) return;   // W0.5b: same
       if (!renderer || !scene || !craft || !renderer.setRenderTarget) return false;
       try {
         const bb = new THREE.Box3().setFromObject(craft);

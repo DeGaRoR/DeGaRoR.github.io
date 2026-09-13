@@ -381,7 +381,10 @@ W4 — no new data, no size change, no contract change.*
    **but measured (§4g): TSL runs only under `WebGPURenderer`, which ignores
    every GLSL hook, so "one at a time" means a RENDERER FLAG with a GLSL and a
    TSL variant per material module, GLSL the default until the last is ported.**
-   Groundwork landed with W0.5a (§4h): the second vendor bundle and the bench.
+   Groundwork landed with W0.5a (§4h): the second vendor bundle and the bench;
+   **the flag itself landed the same evening (§4i): `dev.html?tsl=1` boots the
+   game on WebGPURenderer (WebGL2 backend), three materials ported, the rest a
+   checklist in §4i with the GLSL path untouched and default.**
 3. **W2 — the adaptive quadtree, on the analytic world** [L]. The baker
    (`tools/terrain_bake.js`, already run once), the format
    (`terrain_codec.js`, 2.55×), the renderer and the physics sampler with

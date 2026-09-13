@@ -544,149 +544,181 @@
 <div id="ctlPanel" hidden></div>
 
 
-<script src="vendor/three.min.js"></script>
-<script src="src/core/00_registry.js?v=d1585af4"></script>
-<script src="src/core/05_atmos.js?v=afded824"></script>
-<script src="src/core/20_world.js?v=145aa6bb"></script>
-<script src="src/core/21_world_hydro.js?v=9f17d247"></script>
-<script src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
-<script src="src/core/23_world_settle.js?v=24706f45"></script>
-<script src="src/core/24_world_aero.js?v=5c2dd151"></script>
-<script src="src/core/25_airfield.js?v=1b1a623a"></script>
-<script src="src/core/26_hangar_fit.js?v=544a2fdd"></script>
-<script src="src/core/30_solver.js?v=108c72fb"></script>
-<script src="src/core/31_elec.js?v=90fc7ae7"></script>
-<script src="src/core/38_nav.js?v=9e55ea9b"></script>
-<script src="src/core/39_ground_path.js?v=ba709a8e"></script>
-<script src="src/core/40_autopilot.js?v=581ea889"></script>
-<script src="src/core/41_test_pilot.js?v=1f4ef3a3"></script>
-<script src="src/core/42_crosswind.js?v=0105de41"></script>
-<script src="src/core/43_pilot.js?v=51e48d72"></script>
-<script src="src/core/50_model_codec.js?v=d79b8ef7"></script>
-<script src="src/core/51_prop_codec.js?v=2a556ad5"></script>
-<script src="src/core/52_char_codec.js?v=9bf22959"></script>
-<script src="src/core/53_tree_codec.js?v=377a975f"></script>
-<script src="src/core/60_gen_spec.js?v=fe3487ec"></script>
-<script src="src/core/60b_gen_loft.js?v=35508464"></script>
-<script src="src/core/60c_gen_energy.js?v=717580ae"></script>
-<script src="src/core/61_gen_frame.js?v=2a160534"></script>
-<script src="src/core/62_gen_aero.js?v=7dc30fe1"></script>
-<script src="src/core/63_gen_wing.js?v=4a86b0cc"></script>
-<script src="src/core/64_gen_build.js?v=ca957f66"></script>
-<script src="src/core/65_gen_loadtest.js?v=25f6ff09"></script>
-<script src="src/core/70_player.js?v=492b9918"></script>
-<script src="src/core/90_node_exports.js?v=1d4f80ec"></script>
-<script src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script src="src/models/c172_model.js?v=267306e7"></script>
-<script src="src/models/d112_model.js?v=3be353d3"></script>
-<script src="src/models/pio200_model.js?v=981cd31e"></script>
-<script src="src/models/c195_model.js?v=8974dedd"></script>
-<script src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script src="src/models/guepard_model.js?v=bf419178"></script>
-<script src="src/models/da40_model.js?v=82bf8782"></script>
-<script src="src/models/g115_model.js?v=87b45f7c"></script>
-<script src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script src="src/models/pa28_model.js?v=a6c43592"></script>
-<script src="src/props/props_bench.js?v=7c6e64b4"></script>
-<script src="src/props/props_storage.js?v=e051184c"></script>
-<script src="src/props/props_machine.js?v=14f1da60"></script>
-<script src="src/props/props_handling.js?v=a92f7dd8"></script>
-<script src="src/props/props_vessel.js?v=96edf5b9"></script>
-<script src="src/props/props_tools.js?v=d179d596"></script>
-<script src="src/props/props_curio.js?v=8ca61851"></script>
-<script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
-<script src="src/props/props_fixture.js?v=93362da1"></script>
-<script src="src/props/props_airframe.js?v=88d864cd"></script>
-<script src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
-<script src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
-<script src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
-<script src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script src="src/chars/ch42_char.js?v=c440fbad"></script>
-<script src="src/chars/ch02_char.js?v=cf30202a"></script>
-<script src="src/chars/remy_char.js?v=01a16f6e"></script>
-<script src="src/chars/ch22_char.js?v=f61be819"></script>
-<script src="src/chars/ch01_char.js?v=854f26f4"></script>
-<script src="src/chars/ch20_char.js?v=97fe3427"></script>
-<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), tsl = q.get('tsl');
+  try { if (!q.has('tsl')) tsl = localStorage.getItem('flydiy.tsl') || ''; } catch (e) {}
+  window.FLYDIY_TSL = (tsl === '1' || tsl === 'gpu') ? tsl : '';
+  document.write('<script src="vendor/' + (window.FLYDIY_TSL ? 'three.webgpu.min.js' : 'three.min.js') + '"><\/script>');
+})();
+</script>
+<script>
+(function () {
+  var cm = new URLSearchParams(location.search).get('cm');
+  try { if (cm === null) cm = localStorage.getItem('flydiy.cm'); } catch (e) {}
+  if (cm === '1') THREE.ColorManagement.enabled = true;   // the colour ruling's A/B: the menu's row stores it
+  var ready = Promise.resolve();
+  if (window.FLYDIY_TSL) {
+    var r = new THREE.WebGPURenderer({ canvas: document.getElementById('c'), antialias: true,
+      logarithmicDepthBuffer: true, forceWebGL: window.FLYDIY_TSL !== 'gpu' });
+    window.FLYDIY_RENDERER = r;
+    ready = r.init();
+  }
+  window.FLYDIY_BOOT = ready;
+})();
+</script>
+<script type="text/x-flydiy" src="src/core/00_registry.js?v=d1585af4"></script>
+<script type="text/x-flydiy" src="src/core/05_atmos.js?v=afded824"></script>
+<script type="text/x-flydiy" src="src/core/20_world.js?v=145aa6bb"></script>
+<script type="text/x-flydiy" src="src/core/21_world_hydro.js?v=9f17d247"></script>
+<script type="text/x-flydiy" src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
+<script type="text/x-flydiy" src="src/core/23_world_settle.js?v=24706f45"></script>
+<script type="text/x-flydiy" src="src/core/24_world_aero.js?v=5c2dd151"></script>
+<script type="text/x-flydiy" src="src/core/25_airfield.js?v=1b1a623a"></script>
+<script type="text/x-flydiy" src="src/core/26_hangar_fit.js?v=544a2fdd"></script>
+<script type="text/x-flydiy" src="src/core/30_solver.js?v=108c72fb"></script>
+<script type="text/x-flydiy" src="src/core/31_elec.js?v=90fc7ae7"></script>
+<script type="text/x-flydiy" src="src/core/38_nav.js?v=9e55ea9b"></script>
+<script type="text/x-flydiy" src="src/core/39_ground_path.js?v=ba709a8e"></script>
+<script type="text/x-flydiy" src="src/core/40_autopilot.js?v=581ea889"></script>
+<script type="text/x-flydiy" src="src/core/41_test_pilot.js?v=1f4ef3a3"></script>
+<script type="text/x-flydiy" src="src/core/42_crosswind.js?v=0105de41"></script>
+<script type="text/x-flydiy" src="src/core/43_pilot.js?v=51e48d72"></script>
+<script type="text/x-flydiy" src="src/core/50_model_codec.js?v=d79b8ef7"></script>
+<script type="text/x-flydiy" src="src/core/51_prop_codec.js?v=2a556ad5"></script>
+<script type="text/x-flydiy" src="src/core/52_char_codec.js?v=9bf22959"></script>
+<script type="text/x-flydiy" src="src/core/53_tree_codec.js?v=377a975f"></script>
+<script type="text/x-flydiy" src="src/core/60_gen_spec.js?v=fe3487ec"></script>
+<script type="text/x-flydiy" src="src/core/60b_gen_loft.js?v=35508464"></script>
+<script type="text/x-flydiy" src="src/core/60c_gen_energy.js?v=717580ae"></script>
+<script type="text/x-flydiy" src="src/core/61_gen_frame.js?v=2a160534"></script>
+<script type="text/x-flydiy" src="src/core/62_gen_aero.js?v=7dc30fe1"></script>
+<script type="text/x-flydiy" src="src/core/63_gen_wing.js?v=4a86b0cc"></script>
+<script type="text/x-flydiy" src="src/core/64_gen_build.js?v=ca957f66"></script>
+<script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=25f6ff09"></script>
+<script type="text/x-flydiy" src="src/core/70_player.js?v=492b9918"></script>
+<script type="text/x-flydiy" src="src/core/90_node_exports.js?v=1d4f80ec"></script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=c440fbad"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=cf30202a"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=01a16f6e"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=f61be819"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=854f26f4"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=97fe3427"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
-<script src="tools/_cage_parts.js?v=52707cb4"></script>
-<script src="tools/_fin_gen.js?v=ce0b0acd"></script>
-<script src="tools/_cage_design.js?v=f4e32738"></script>
-<script src="tools/_cage_page5.js?v=8555b791"></script>
-<script src="tools/_knife_gen.js?v=860a32f8"></script>
-<script src="tools/_shoulder_gen.js?v=574df8dd"></script>
-<script src="tools/_cage_gen.js?v=d5b62238"></script>
-<script src="tools/_cage_char.js?v=53c5a2de"></script>
-<script src="tools/_cage_crew.js?v=064a4509"></script>
-<script src="tools/_panel_gen.js?v=11ae0904"></script>
-<script src="tools/_cage_panel.js?v=9b50d00a"></script>
-<script src="tools/_gear_kit.js?v=d726c883"></script>
-<script src="tools/_gear_gen.js?v=31c3b75d"></script>
-<script src="tools/_gear_page.js?v=e15517ca"></script>
-<script src="tools/_fit_site.js?v=150661e7"></script>
-<script src="tools/_fit_gen.js?v=49b41b86"></script>
-<script src="tools/_hinge_gen.js?v=0d47a859"></script>
-<script src="tools/_rod_fit.js?v=6e344d9f"></script>
-<script src="tools/_eng_gen.js?v=3c98c804"></script>
-<script src="tools/_eng_mesh.js?v=5bacffcf"></script>
-<script src="tools/_eng_page.js?v=8ccbb735"></script>
-<script src="tools/_cowl_gen.js?v=7599101e"></script>
-<script src="tools/_cowl_rows.js?v=a94d01c7"></script>
-<script src="tools/_cage_cowl.js?v=87f127ca"></script>
-<script src="tools/_cage_eng.js?v=ef08699f"></script>
-<script src="tools/_strut_gen.js?v=b048b823"></script>
-<script src="tools/_boom_gen.js?v=f6d006d3"></script>
-<script src="tools/_cage_wing.js?v=df79a5ef"></script>
-<script src="tools/_cage_brace.js?v=6fb46903"></script>
-<script src="tools/_cage_gear.js?v=109cd242"></script>
-<script src="tools/_cage_fin.js?v=b65d0b25"></script>
-<script src="tools/_cage_stab.js?v=8ffbaff0"></script>
-<script src="tools/_tail_headless.js?v=6be0eef1"></script>
-<script src="tools/_cage_access.js?v=3aed980a"></script>
-<script src="tools/_cage_light.js?v=540d4db7"></script>
-<script src="tools/_bay_site.js?v=7bbcf819"></script>
-<script src="tools/_vessel_gen.js?v=f2f8b059"></script>
-<script src="tools/_vessel_mesh.js?v=3eaf3a6b"></script>
-<script src="tools/_cage_energy.js?v=fce7c39c"></script>
-<script src="tools/_cage_hinge.js?v=0dcb0d48"></script>
-<script src="tools/_cage_join.js?v=86e10377"></script>
-<script src="tools/_cage_ui.js?v=788711bd"></script>
-<script src="src/viewer/assets.js?v=5ae00b40"></script>
-<script src="src/viewer/aa_resolve.js?v=da3294e6"></script>
-<script src="src/viewer/light_rig.js?v=ddea6a61"></script>
-<script src="src/viewer/site_tex.js?v=44989fef"></script>
-<script src="src/viewer/site_ground.js?v=3537d5c3"></script>
-<script src="src/viewer/trees_pack.js?v=abb25c7f"></script>
-<script src="src/viewer/trees.js?v=3fc43da1"></script>
-<script src="src/viewer/render_world.js?v=e9fb195d"></script>
-<script src="src/viewer/hangar_floor.js?v=48ce42ee"></script>
-<script src="src/viewer/hangar_walls.js?v=ef861b6f"></script>
-<script src="src/viewer/hangar_sky.js?v=b50cd6c6"></script>
-<script src="src/viewer/props.js?v=820d7d32"></script>
-<script src="src/viewer/wood_tex.js?v=861205aa"></script>
-<script src="src/viewer/skin_tex.js?v=673b0652"></script>
-<script src="src/viewer/vessel_tex.js?v=dd3254c5"></script>
-<script src="src/viewer/panel_tex.js?v=3204781f"></script>
-<script src="src/viewer/aeroweather.js?v=9cd41afa"></script>
-<script src="src/viewer/aeroskin.js?v=91352d08"></script>
-<script src="src/viewer/hangar.js?v=9b05d52b"></script>
-<script src="src/viewer/garage.js?v=074ff81a"></script>
-<script src="src/viewer/workshop.js?v=814565a5"></script>
-<script src="src/viewer/plaque.js?v=8fdc5768"></script>
-<script src="src/viewer/stickers.js?v=e43699be"></script>
-<script src="src/viewer/bench.js?v=cbe3a8eb"></script>
-<script src="src/viewer/refplane.js?v=19535b38"></script>
-<script src="src/viewer/design_flow.js?v=f3ce0e58"></script>
-<script src="src/viewer/balance.js?v=6b250999"></script>
-<script src="src/viewer/pattern_vis.js?v=ccd7e67c"></script>
-<script src="src/viewer/input.js?v=3e4d3384"></script>
-<script src="src/viewer/input_panel.js?v=551221ee"></script>
-<script src="src/viewer/gfx_settings.js?v=c70d2b2a"></script>
-<script src="src/viewer/editor.js?v=e2c259f3"></script>
-<script src="src/viewer/cockpit.js?v=3fa4c507"></script>
-<script src="src/viewer/app.js?v=1cffbb4c"></script>
-<script src="src/viewer/dev_panel.js?v=4bab292d"></script>
+<script type="text/x-flydiy" src="tools/_cage_parts.js?v=52707cb4"></script>
+<script type="text/x-flydiy" src="tools/_fin_gen.js?v=ce0b0acd"></script>
+<script type="text/x-flydiy" src="tools/_cage_design.js?v=f4e32738"></script>
+<script type="text/x-flydiy" src="tools/_cage_page5.js?v=8555b791"></script>
+<script type="text/x-flydiy" src="tools/_knife_gen.js?v=860a32f8"></script>
+<script type="text/x-flydiy" src="tools/_shoulder_gen.js?v=65735e65"></script>
+<script type="text/x-flydiy" src="tools/_cage_gen.js?v=d5b62238"></script>
+<script type="text/x-flydiy" src="tools/_cage_char.js?v=53c5a2de"></script>
+<script type="text/x-flydiy" src="tools/_cage_crew.js?v=e83f6e74"></script>
+<script type="text/x-flydiy" src="tools/_panel_gen.js?v=11ae0904"></script>
+<script type="text/x-flydiy" src="tools/_cage_panel.js?v=9b50d00a"></script>
+<script type="text/x-flydiy" src="tools/_gear_kit.js?v=d726c883"></script>
+<script type="text/x-flydiy" src="tools/_gear_gen.js?v=31c3b75d"></script>
+<script type="text/x-flydiy" src="tools/_gear_page.js?v=e15517ca"></script>
+<script type="text/x-flydiy" src="tools/_fit_site.js?v=150661e7"></script>
+<script type="text/x-flydiy" src="tools/_fit_gen.js?v=49b41b86"></script>
+<script type="text/x-flydiy" src="tools/_hinge_gen.js?v=0d47a859"></script>
+<script type="text/x-flydiy" src="tools/_rod_fit.js?v=6e344d9f"></script>
+<script type="text/x-flydiy" src="tools/_eng_gen.js?v=3c98c804"></script>
+<script type="text/x-flydiy" src="tools/_eng_mesh.js?v=5bacffcf"></script>
+<script type="text/x-flydiy" src="tools/_eng_page.js?v=8ccbb735"></script>
+<script type="text/x-flydiy" src="tools/_cowl_gen.js?v=7599101e"></script>
+<script type="text/x-flydiy" src="tools/_cowl_rows.js?v=a94d01c7"></script>
+<script type="text/x-flydiy" src="tools/_cage_cowl.js?v=87f127ca"></script>
+<script type="text/x-flydiy" src="tools/_cage_eng.js?v=ef08699f"></script>
+<script type="text/x-flydiy" src="tools/_strut_gen.js?v=b048b823"></script>
+<script type="text/x-flydiy" src="tools/_boom_gen.js?v=f6d006d3"></script>
+<script type="text/x-flydiy" src="tools/_cage_wing.js?v=df79a5ef"></script>
+<script type="text/x-flydiy" src="tools/_cage_brace.js?v=6fb46903"></script>
+<script type="text/x-flydiy" src="tools/_cage_gear.js?v=109cd242"></script>
+<script type="text/x-flydiy" src="tools/_cage_fin.js?v=b65d0b25"></script>
+<script type="text/x-flydiy" src="tools/_cage_stab.js?v=8ffbaff0"></script>
+<script type="text/x-flydiy" src="tools/_tail_headless.js?v=6be0eef1"></script>
+<script type="text/x-flydiy" src="tools/_cage_access.js?v=3aed980a"></script>
+<script type="text/x-flydiy" src="tools/_cage_light.js?v=540d4db7"></script>
+<script type="text/x-flydiy" src="tools/_bay_site.js?v=7bbcf819"></script>
+<script type="text/x-flydiy" src="tools/_vessel_gen.js?v=f2f8b059"></script>
+<script type="text/x-flydiy" src="tools/_vessel_mesh.js?v=3eaf3a6b"></script>
+<script type="text/x-flydiy" src="tools/_cage_energy.js?v=fce7c39c"></script>
+<script type="text/x-flydiy" src="tools/_cage_hinge.js?v=0dcb0d48"></script>
+<script type="text/x-flydiy" src="tools/_cage_join.js?v=86e10377"></script>
+<script type="text/x-flydiy" src="tools/_cage_ui.js?v=415d2d99"></script>
+<script type="text/x-flydiy" src="src/viewer/assets.js?v=5ae00b40"></script>
+<script type="text/x-flydiy" src="src/viewer/aa_resolve.js?v=61a1d684"></script>
+<script type="text/x-flydiy" src="src/viewer/light_rig.js?v=ddea6a61"></script>
+<script type="text/x-flydiy" src="src/viewer/site_tex.js?v=44989fef"></script>
+<script type="text/x-flydiy" src="src/viewer/site_ground.js?v=3537d5c3"></script>
+<script type="text/x-flydiy" src="src/viewer/trees_pack.js?v=abb25c7f"></script>
+<script type="text/x-flydiy" src="src/viewer/trees.js?v=3fc43da1"></script>
+<script type="text/x-flydiy" src="src/viewer/render_world.js?v=d69e07a2"></script>
+<script type="text/x-flydiy" src="src/viewer/hangar_floor.js?v=48ce42ee"></script>
+<script type="text/x-flydiy" src="src/viewer/hangar_walls.js?v=ef861b6f"></script>
+<script type="text/x-flydiy" src="src/viewer/hangar_sky.js?v=b50cd6c6"></script>
+<script type="text/x-flydiy" src="src/viewer/props.js?v=820d7d32"></script>
+<script type="text/x-flydiy" src="src/viewer/wood_tex.js?v=861205aa"></script>
+<script type="text/x-flydiy" src="src/viewer/skin_tex.js?v=673b0652"></script>
+<script type="text/x-flydiy" src="src/viewer/vessel_tex.js?v=dd3254c5"></script>
+<script type="text/x-flydiy" src="src/viewer/panel_tex.js?v=3204781f"></script>
+<script type="text/x-flydiy" src="src/viewer/aeroweather.js?v=9cd41afa"></script>
+<script type="text/x-flydiy" src="src/viewer/aeroskin.js?v=1a105ba8"></script>
+<script type="text/x-flydiy" src="src/viewer/hangar.js?v=0359a4bd"></script>
+<script type="text/x-flydiy" src="src/viewer/garage.js?v=074ff81a"></script>
+<script type="text/x-flydiy" src="src/viewer/workshop.js?v=814565a5"></script>
+<script type="text/x-flydiy" src="src/viewer/plaque.js?v=8fdc5768"></script>
+<script type="text/x-flydiy" src="src/viewer/stickers.js?v=e43699be"></script>
+<script type="text/x-flydiy" src="src/viewer/bench.js?v=cbe3a8eb"></script>
+<script type="text/x-flydiy" src="src/viewer/refplane.js?v=19535b38"></script>
+<script type="text/x-flydiy" src="src/viewer/design_flow.js?v=f3ce0e58"></script>
+<script type="text/x-flydiy" src="src/viewer/balance.js?v=6b250999"></script>
+<script type="text/x-flydiy" src="src/viewer/pattern_vis.js?v=ccd7e67c"></script>
+<script type="text/x-flydiy" src="src/viewer/input.js?v=3e4d3384"></script>
+<script type="text/x-flydiy" src="src/viewer/input_panel.js?v=551221ee"></script>
+<script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=a6cb1338"></script>
+<script type="text/x-flydiy" src="src/viewer/editor.js?v=e2c259f3"></script>
+<script type="text/x-flydiy" src="src/viewer/cockpit.js?v=3fa4c507"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=4b6ff35a"></script>
+<script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=4bab292d"></script>
+<script>
+window.FLYDIY_BOOT.then(function () {
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
+  for (var i = 0; i < tags.length; i++) {
+    var s = document.createElement('script');
+    s.src = tags[i].getAttribute('src'); s.async = false;
+    document.body.appendChild(s);
+  }
+}, function (e) { console.error('flyDiy: the renderer did not initialise', e); });
+</script>
 </body>
 </html>

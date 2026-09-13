@@ -3546,6 +3546,27 @@ void main() {
 }`;
 function aeroGlassTint(THREE, o) {
   const G = k => (o[k] != null ? +o[k] : GLASS_DEF[k]);
+  // W0.5b: the multiply pass as a node material — the same three lines of
+  // AERO_GTINT_FS (fresnel, the tint's pass, the alpha). The weathering's
+  // grunge on the pane (AERO_WX_GTINT_FS) is not on this variant yet (§4h).
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON && THREE.MeshBasicNodeMaterial) {
+    const T = THREE.TSL;
+    const col = o.tintLin != null ? new THREE.Color(o.tintLin)
+              : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
+    const uTint = T.uniform(col), uA = T.uniform(G('opacity')), uFres = T.uniform(G('fresnel'));
+    const m = new THREE.MeshBasicNodeMaterial();
+    const nv = T.clamp(T.dot(T.normalView, T.positionViewDirection), 0.0, 1.0);
+    const fr = T.pow(T.oneMinus(nv), 5.0).mul(uFres);
+    const pass = T.mix(T.vec3(1.0), uTint, T.clamp(uA.mul(2.0), 0.0, 1.0));
+    m.colorNode = pass.mul(T.oneMinus(uA)).mul(T.oneMinus(fr));
+    m.transparent = true; m.depthWrite = false; m.side = THREE.FrontSide;
+    m.blending = THREE.CustomBlending; m.blendEquation = THREE.AddEquation;
+    m.blendSrc = THREE.ZeroFactor; m.blendDst = THREE.SrcColorFactor;
+    m.uniforms = { uTint: uTint, uA: uA, uFres: uFres };
+    m.userData.aeroskin = 1; m.userData.aeroFinish = 'glassTint'; m.userData.env0 = 0;
+    AERO_BUILT.push(m);
+    return m;
+  }
   const key = 'gtint|' + (o.tint != null ? o.tint : '') + 'L' +
               (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
               '|' + G('fresnel') + '|w' + (o.wear != null ? +o.wear : 1);

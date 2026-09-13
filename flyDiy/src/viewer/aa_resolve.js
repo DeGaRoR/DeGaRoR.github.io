@@ -260,7 +260,10 @@
     try {
       const gl = renderer.getContext && renderer.getContext();
       const caps = renderer.capabilities;
-      S.able = !!(THREE.WebGLRenderTarget && THREE.HalfFloatType &&
+      // the node renderer (W0.5b) has no getContext, no MAX_SAMPLES to ask, and
+      // its own MSAA on the canvas: the pass steps aside there, as it does on
+      // any card that cannot carry it
+      S.able = !renderer.isWebGPURenderer && !!(THREE.WebGLRenderTarget && THREE.HalfFloatType &&
                   THREE.ShaderMaterial && THREE.WebGLRenderTarget &&
                   renderer.setRenderTarget && gl && caps && caps.isWebGL2);
       if (S.able) S.maxSamples = gl.getParameter(gl.MAX_SAMPLES) || 4;

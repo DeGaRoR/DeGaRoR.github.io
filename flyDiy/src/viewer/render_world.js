@@ -94,6 +94,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const LAMBERT_NO_ENV = new THREE.Texture();
   LAMBERT_NO_ENV.mapping = THREE.EquirectangularReflectionMapping;
   const worldLambert = o => new THREE.MeshLambertMaterial(Object.assign({ envMap: LAMBERT_NO_ENV }, o));
+  // THE RENDERER FLAG (W0.5b): the module picks a variant per material on it
+  const TSL_ON = !!(renderer && renderer.isWebGPURenderer);
+  // the card's anisotropy, asked of whichever renderer this is (the node
+  // renderer answers on itself, after init)
+  const MAX_ANISO = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? renderer.capabilities.getMaxAnisotropy()
+                  : (renderer && renderer.getMaxAnisotropy) ? renderer.getMaxAnisotropy() : 8;
   scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
@@ -107,7 +113,36 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // half-float LINEAR one (r186; it was RGBE on r128, where a hand-written
   // alpha of 1.0 read as an exponent and turned every Standard material pure
   // black — W18's afternoon), so the bake variant has one job: linearise.
-  const skyMat = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
+  // THE SAME DOME IN TSL (W0.5b, the first material of the port; tools/_tsl.html
+  // is the bench that proved it to 1 code on both backends). One node material
+  // serves both variants: the palette is DISPLAY values, so the node hands the
+  // output stage the decoded value — on the canvas the stage encodes it back
+  // to the authored bytes, in the PMREM target (no encode) it is the linear
+  // radiance the bake variant wanted. `uniforms` keeps the GLSL shape (.value
+  // on each) so the rig rows and the switchboard read and write it unchanged.
+  const skyMatTSL = (encode, extra) => {
+    const T = THREE.TSL;
+    const U = { uTop: T.uniform(C(0x3f7fbe)), uMid: T.uniform(C(0x9dc4dd)),
+                uHaze: T.uniform(C(HAZE)), uSun: T.uniform(SUN), uSunCol: T.uniform(C(SUNC)) };
+    const dome = T.Fn(() => {
+      const d = T.normalize(T.positionWorld.sub(T.cameraPosition));
+      const h = d.y;
+      let col = T.mix(U.uHaze, U.uMid, T.smoothstep(-0.01, 0.20, h));
+      col = T.mix(col, U.uTop, T.smoothstep(0.13, 0.80, h));
+      col = T.mix(col, U.uHaze.mul(0.82), T.smoothstep(0.0, -0.30, h));
+      const sd = T.max(T.dot(d, T.normalize(U.uSun)), 0.0);
+      const glow = T.pow(sd, 900.0).mul(3.0).add(T.pow(sd, 14.0).mul(0.42)).add(T.pow(sd, 3.0).mul(0.13));
+      return T.colorSpaceToWorking(col.add(U.uSunCol.mul(glow)), THREE.SRGBColorSpace);
+    });
+    const m = new THREE.MeshBasicNodeMaterial();
+    m.colorNode = dome();
+    m.side = THREE.BackSide; m.depthTest = false; m.depthWrite = false; m.fog = false;
+    m.uniforms = U;
+    if (extra) Object.assign(m, extra);
+    return m;
+  };
+  const skyMat = (encode, extra) => (TSL_ON ? skyMatTSL : skyMatGLSL)(encode, extra);
+  const skyMatGLSL = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
       uniforms: { uTop:{value:C(0x3f7fbe)}, uMid:{value:C(0x9dc4dd)},
                   uHaze:{value:C(HAZE)}, uSun:{value:SUN}, uSunCol:{value:C(SUNC)} },
       vertexShader: `varying vec3 vD;
@@ -251,6 +286,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // where a shadow at 500 m is seen. Not a general cascade: trees do not
   // read it, and the near map keeps doing the near work.
   const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
+    enabled: !(renderer && renderer.isWebGPURenderer),   // W0.5b: the far cascade + canopy map are packed-depth passes; off under the flag until ported
+
                 rt: null, cam: null, scene: null, proxies: new Map(), tick: 0, at: null, half: 1400, size: 2048 };
   // TEXEL SNAPPING (W0c.22). A shadow camera that follows the aircraft
   // continuously slides its texel grid by a fraction of a texel every frame,
@@ -670,7 +707,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       }
       const t = new THREE.CanvasTexture(cv);
       t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      t.anisotropy = MAX_ANISO;
       return t;
     }
     const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
@@ -1151,10 +1188,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // draw decodes it by hand, because <map_fragment> is replaced wholesale.
     // The normal target stays linear; its material writes gl_FragColor raw.
     const NRM_CACHE = new WeakMap();
+    // THE SAME BAKE IN TSL (W0.5b): the world normal, flipped on a back face,
+    // as bytes; the cutout through the map's alpha. `uniforms` keeps the
+    // GLSL shape so the caller below fills it the same way.
+    function normalMatTSL() {
+      const T = THREE.TSL;
+      const U = { map: { value: null }, uCut: T.uniform(0.5), uHasMap: T.uniform(0) };
+      const m = new THREE.MeshBasicNodeMaterial();
+      const n = T.select(T.frontFacing, T.normalWorld, T.normalWorld.negate());
+      m.colorNode = T.colorSpaceToWorking(n.mul(0.5).add(0.5), THREE.SRGBColorSpace);
+      m.uniforms = U;
+      m.userData.nrmTSL = true;
+      return m;
+    }
     function normalMatFor(src) {
       let m = NRM_CACHE.get(src);
       if (!m) {
-        m = new THREE.ShaderMaterial({
+        m = TSL_ON ? normalMatTSL() : new THREE.ShaderMaterial({
           uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 } },
           vertexShader: [
             'varying vec3 vWN;', 'varying vec2 vUvN;',
@@ -1181,6 +1231,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       m.uniforms.map.value = src.map || null;
       m.uniforms.uCut.value = cut || 0.5;
       m.uniforms.uHasMap.value = (src.map && src.map.image && cut > 0) ? 1 : 0;
+      if (m.userData && m.userData.nrmTSL) {   // the node variant cuts through the material's own map + alphaTest
+        m.map = (src.map && src.map.image && cut > 0) ? src.map : null;
+        m.alphaTest = m.map ? (cut || 0.5) : 0;
+        m.needsUpdate = true;
+      }
       m.side = src.side;
       return m;
     }
@@ -1322,6 +1377,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     ].join('\n');
     const U_FARR = { value: 1e7 };            // the far pass: no reach limit
     function impostorDepth(atlas, si, farPass, gain) {
+      if (TSL_ON) return null;   // W0.5b: MeshDepthMaterial is refused by the node renderer; its default depth casts until the port
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (!atlas.tex) return d;
       const cover = farPass === 'cover';
@@ -1722,6 +1778,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return m;
     };
     const bandDepth = (mat, r, n) => {
+      if (TSL_ON) return null;   // W0.5b: same (the band collapse is not in the shadow yet under the flag)
       const E = bandEdges(r, n);
       const d = new THREE.MeshDepthMaterial({
         depthPacking: THREE.RGBADepthPacking,
@@ -1988,8 +2045,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null, gain);
         m.userData.depth = impostorDepth(at, si, false, gain);
         m.userData.farDepth = impostorDepth(at, si, true, gain);
-        (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
-        plantedKit.push(m, m.userData.depth, m.userData.farDepth);   // the atlas is the cache's
+        if (m.userData.farDepth)   // null under the W0.5b flag (no custom depth)
+          (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
+        plantedKit.push(m);                                            // the atlas is the cache's
+        if (m.userData.depth) plantedKit.push(m.userData.depth);
+        if (m.userData.farDepth) plantedKit.push(m.userData.farDepth);
         return m;
       });
     };
@@ -2031,7 +2091,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (!n) return null;
         if (!P) {                                            // the cone
           const m = mk(fallbackGeo, canopyMat, n, true);
-          m.customDepthMaterial = treeDepth;
+          m.customDepthMaterial = TSL_ON ? null : treeDepth;
           const mi = mk(impQuadW, impM[0], n, false);
           return { n, meshes: [m], imps: [mi], rec: null, ser: null };
         }
@@ -2272,8 +2332,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts), gain);
               S.imp.userData.depth = impostorDepth(at, si, false, gain);
               S.imp.userData.farDepth = impostorDepth(at, si, true, gain);
-              (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
-              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's
+              if (S.imp.userData.farDepth)   // null under the W0.5b flag
+                (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
+              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's (dispose tolerates null)
             });
             SHAPE.list.push(H);
           }
@@ -2530,7 +2591,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // each layer gets its own height: coplanar decals + a log depth buffer z-fight
     // lit like the terrain, so the same sun shadows fall across them
     const SITE = siteOf('HOME');    // the registry's default (HANGARS S5)
-    const WANISO = renderer.capabilities.getMaxAnisotropy();
+    const WANISO = MAX_ANISO;
     const HOME = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
     const R = siteRunway(HOME);
     const decal = (w, h, color, y, x, z) => {
@@ -2560,7 +2621,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sitePaintStrip(q, R, RW, RH, true);              // marks only
       const rtex = new THREE.CanvasTexture(cv2);
       rtex.colorSpace = THREE.SRGBColorSpace;
-      rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      rtex.anisotropy = MAX_ANISO;
       const yaw = Math.atan2(-R.dz, -R.dx);
       const mkGeo = (metric) => {
         const g = new THREE.PlaneGeometry(R.len, R.wid);

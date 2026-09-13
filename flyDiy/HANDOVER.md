@@ -42888,6 +42888,25 @@ sessions' G338-G347 or 880dfed1 moved it; not touched here). Then an 18-gate
 subset over every file touched after the battery (the decode, glass and
 matrix fixes): PASS.
 
+W0.5b, THE FLAG (same evening, the user: "let's do the TSL move right here and
+now"): `dev.html?tsl=1` boots the whole game on WebGPURenderer (WebGL2
+backend; `?tsl=gpu` for WebGPU) — the loader makes and initialises the
+renderer before any script runs (the node renderer throws on a render before
+init, and the boot bakes render), the scripts are emitted inert and promoted
+in order. Three materials have TSL variants beside their GLSL (the dome, the
+impostor normal bake, the glass companion pass); four raw shaders are guarded
+off; every other hooked material draws plain until its variant exists —
+RENDERER-DECISION §4i has the checklist in port order. index.html and the
+default dev page are untouched (GLSL). `?cm=1` flips ColorManagement on for
+the A/B.
+
+THE COLOUR KNOBS (the user, on the A/B: "colours are shifting a lot… can we
+play with that with sliders?"): three rows in the GRAPHICS menu — tone curve
+(ACES / AgX / neutral / Reinhard / Cineon / linear, live), exposure ×0.7-×1.7
+(a multiplier over the mood's own number, live), colour management (as
+authored / managed; stores `flydiy.cm`, reloads). AgX is Blender 4's view
+transform; the defaults are today's look. §4g has the A/B numbers.
+
 OWED (all rulings for the eye, written in §4g/§4h): a same-frame A/B on the
 shipped tier and whether the slightly darker ground is wanted back (the
 hemisphere's number); the ColorManagement flip (one line, whole-project
