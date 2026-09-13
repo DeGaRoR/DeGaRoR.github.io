@@ -41696,3 +41696,60 @@ the edge; flat — a wide horizontal lip under the wing; fin at edge 1.2 —
 the keel sweeping up to the axis, the crown line rising.
 
 - Gates: CAGEFIT, PARTS, FIT, JOIN, UISMOKE, SAVE green.
+
+## G340 — THE TERRAIN IS A MOUNTAIN BEHIND, THE WATER IN FRONT, A COHERENT SLOPE
+## BETWEEN; THE TILE ENLARGED; THE MINE UP ITS OWN SPUR INTO THE MOUNTAIN'S FOOT,
+## OFF THE WATER; THE VILLAGE KEEPS THE SHORE, ITS CIVIC PAIR IN THE MIDDLE; THE
+## ROW VARIED
+## (2026-09-13, the user: "vary the size and style of the 3 large houses at the
+## bottom, the largest one being the one in line with the conveyor. Also, the
+## plant ate the village completely. Time to enlarge the tile a little. You can
+## push the factory further back, in the mountains with no water access, and
+## leave the water front for the village, with the townhouse and the church in
+## the middle"; "draw a more realistic terrain; mountain on one side, water on
+## the other, and a varied, yet coherent slope through, not just a big bump")
+
+- **THE TERRAIN** (`makeTerrain(V, pin)`, `tools/_village_gen.js`): the tile
+  is 320 m; the shore sits `shoreFrac` (0.28) in from the front edge
+  (`T.zShore`), so the water takes the front and the land the rest; the
+  bench off the shore is the old gentle slope with its noise; past a FOOT
+  LINE that wanders in x (`mtnFoot` 95 past the shore ± `mtnWander` 25) the
+  mountain rears up over `mtnRun` 150 m to `mtnH` 60 (a smooth ramp, linear
+  on beyond), ridges and gullies across it (0.7-1.3×), its own relief on
+  top. No hill folded in any more (`withHill` stays for anyone who wants a
+  bump). The site pins the foot flat where its works stand (`pin` = [x,
+  foot past the shore], fading over 70 m) so the row and the yard are on
+  the flat and the mill climbs.
+- **THE SPUR** (`makeSpur(road, tJ, sp)`, `polyRoad(pts, w)` factored out
+  of `makeRoad`): the mine's own road off the shore road at 0.6 of its
+  length - inland `in` 68 m, a 10 m rounded corner, then along the
+  mountain's foot parallel to the shore road, `before` 60 back from the
+  site's anchor and `after` 46 past it. The site's frame reads the spur
+  as the village reads the road (`S.road`, `S.t` = `spur.tAnchor`, `S.jt`
+  the junction); the receiving house is astride the spur; the yard,
+  the trees (keep off both roads) and the gate read `S.road`. The bench
+  strokes the spur into the wear map. Only the junction (±14 m, land
+  side) is kept free of plots; the poles and billboards keep off it.
+- **THE CIVIC PAIR IN THE MIDDLE** (`civicPlots(plots, road)`): the town
+  hall on the widest of the three land plots nearest the road's middle,
+  the church on the nearest of the rest two plots away; GATE VILLAGE 12
+  reads the same function.
+- **THE ROW VARIED**: `mine dormer hall` (27 m now) in line with the mill,
+  `mine bunkhouse` one side, the new `mine mess hall` (one tall storey
+  under a 40° gable, a wide porch, a cook's stack, pale boards) the other,
+  a cottage at the end; the office, the shop, a cottage and the shed on
+  the mill's side.
+- **PLOTS ON A BEND**: the longer road found land plots' backs crossing
+  on a bend toward the land (and water plots' on a bend toward the
+  water): `makePlots` pulls a plot's back in by 2 m steps until no corner
+  of it is in a neighbour and none of theirs in it, or drops it.
+- GATE VILLAGE 15: the spur leaves the shore road, the site is on it and
+  more than plotDepth + 10 from the shore road (no water access), the
+  mill's top tier is 20 m above its base and the ground under it 12 m
+  higher (it climbs); 16: in nine columns, water at the front edge, the
+  back edge 40 m and more over the shore, the first fifty metres off the
+  shore under 0.12 per metre, no fall over 6 m on the way up.
+- Gates: HOUSE, VILLAGE green. The bench: seed 3 has 13 plots, ~1000
+  trees, the mine's 9 buildings.
+- Queued (the user's order): the front lot + parking alley + the user's
+  road-facing cars; the optimisation tour; the world join.

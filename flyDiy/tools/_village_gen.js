@@ -63,12 +63,22 @@ function fbm(x, y, s, oct) {
 
 const VDEF = {
   seed: 3,
-  size: 240,              // metres, square, centred on 0
+  size: 320,              // metres, square, centred on 0 (G340: enlarged - the mine ate the village)
   waterY: 0,
+  shoreFrac: 0.28,        // the shore this fraction of the tile in from the front edge: the water in front, the land behind
   slope: 0.055,           // the land climbs this much per metre away from the water (+z)
   relief: 2.2,            // the big noise, metres
   detail: 0.35,           // the small noise, metres
   seabed: 0.09,           // steeper under the water, so a pier has depth
+  // THE MOUNTAIN (G340, the user: "mountain on one side, water on the other,
+  // and a varied, yet coherent slope through, not just a big bump"): the
+  // land is a bench off the shore, then it rears up behind a foot line
+  // that wanders in x, over mtnRun metres to mtnH, spurs and gullies on it
+  mtnFoot: 95,            // the foot this far past the shore
+  mtnWander: 25,          // the foot line wanders this much either way
+  mtnRun: 150,            // the rise takes this many metres
+  mtnH: 60,               // and climbs this high (the ridges more, the gullies less)
+  mtnRelief: 6,           // the mountain's own noise, metres
   roadOff: 26,            // the road this far inland of the shore
   roadW: 3.6,
   plotMin: 20, plotMax: 34,
@@ -84,17 +94,34 @@ const VDEF = {
   siteT: 0,               // where along the road, metres; 0 = the middle
 };
 
-function makeTerrain(V) {
+// `pin` = [x, foot]: the mountain's foot held at `foot` past the shore near
+// this x (fading over 70 m) - the site's works stand on the flat and the
+// mill climbs the foot, wherever the foot line wanders elsewhere
+function makeTerrain(V, pin) {
   const s = V.seed * 0.618 + 1;
+  const half = V.size / 2, zSh = -half + V.size * (V.shoreFrac === undefined ? 0.5 : V.shoreFrac);
   const h = (x, z) => {
+    const zz = z - zSh;
     const big = (fbm(x * 0.012 + 3.1, z * 0.012 + 7.7, s, 3) - 0.5) * 2 * V.relief;
     const small = (fbm(x * 0.09, z * 0.09, s + 5, 3) - 0.5) * 2 * V.detail;
-    let y = V.slope * z + big + small;
+    let y = V.slope * zz + big + small;
+    // THE MOUNTAIN (G340): past the foot line, a smooth ramp on to mtnH
+    // (linear on beyond), ridges and gullies across it, its own relief
+    if (V.mtnH > 0) {
+      let foot = V.mtnFoot + (fbm(x * 0.006 + 9.2, 0.5, s + 11, 2) - 0.5) * 2 * V.mtnWander;
+      if (pin) { const k = clamp(1 - Math.abs(x - pin[0]) / 70, 0, 1); foot += (pin[1] - foot) * k * k * (3 - 2 * k); }
+      const u = Math.max(0, zz - foot) / V.mtnRun;
+      if (u > 0) {
+        const ramp = u < 1 ? u * u * (3 - 2 * u) : 1 + (u - 1) * 1.6;
+        const ridge = 0.7 + 0.6 * fbm(x * 0.011 + 4.4, zz * 0.011 + 1.3, s + 13, 3);
+        y += V.mtnH * ramp * ridge + (fbm(x * 0.03 + 1.0, zz * 0.03 + 2.0, s + 17, 3) - 0.5) * 2 * V.mtnRelief * Math.min(1, u * 2);
+      }
+    }
     // the seabed falls away faster than the beach climbs
     if (y < V.waterY) y = V.waterY + (y - V.waterY) * (V.seabed / V.slope);
     return y;
   };
-  return { h, size: V.size, waterY: V.waterY };
+  return { h, size: V.size, waterY: V.waterY, zShore: zSh };
 }
 
 // where the land starts, for a column x: the lowest z whose ground is above
@@ -127,7 +154,41 @@ function makeRoad(T, V) {
     return a / n;
   });
   const pts = xs.map((x, i) => [x, sm[i] + V.roadOff]);
-  // arclength, tangent and the water-side normal at every point
+  return polyRoad(pts, V.roadW);
+}
+
+// THE SPUR (G340, the user: "push the factory further back, in the
+// mountains with no water access, and leave the water front for the
+// village"): the mine's own road off the shore road - inland `in` metres,
+// a rounded corner, then along the mountain's foot parallel to the shore
+// road, `before` metres back from the corner to the site's anchor and
+// `after` on past it (the receiving house astride it). A polyRoad like the
+// shore road, so the site's frame reads it the same way.
+function makeSpur(road, tJ, sp) {
+  const a = road.at(tJ), up = [-a.n[0], -a.n[1]], tg = a.tg, R = 10;
+  const pts = [a.p.slice()];
+  for (let d = 4; d <= sp.in - R; d += 4) pts.push([a.p[0] + up[0] * d, a.p[1] + up[1] * d]);
+  const E = [a.p[0] + up[0] * (sp.in - R), a.p[1] + up[1] * (sp.in - R)];
+  const C = [E[0] + tg[0] * R, E[1] + tg[1] * R];
+  for (let k = 1; k <= 4; k++) {
+    const th = k / 4 * Math.PI / 2;
+    pts.push([C[0] - tg[0] * R * Math.cos(th) + up[0] * R * Math.sin(th), C[1] - tg[1] * R * Math.cos(th) + up[1] * R * Math.sin(th)]);
+  }
+  const F = pts[pts.length - 1];
+  const along = sp.before + sp.after - R;
+  for (let d = 4; d <= along; d += 4) pts.push([F[0] + tg[0] * d, F[1] + tg[1] * d]);
+  const last = [F[0] + tg[0] * along, F[1] + tg[1] * along];
+  if (Math.hypot(last[0] - pts[pts.length - 1][0], last[1] - pts[pts.length - 1][1]) > 0.5) pts.push(last);
+  const spur = polyRoad(pts, road.w);
+  // the site's anchor: `before` metres along from the corner's end
+  let tF = 0;
+  for (let i = 1; i < pts.length; i++) { tF += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); if (pts[i] === F) break; }
+  spur.tAnchor = tF + sp.before - R;
+  return spur;
+}
+
+// a road from its points: arclength, tangent and the water-side normal
+function polyRoad(pts, w) {
   const s = [0];
   for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
   const at = t => {                              // point/tangent/normal at arclength t
@@ -144,7 +205,7 @@ function makeRoad(T, V) {
     if (n[1] > 0) { n[0] = -n[0]; n[1] = -n[1]; }
     return { p, tg, n };
   };
-  return { pts, s, length: s[s.length - 1], at, w: V.roadW };
+  return { pts, s, length: s[s.length - 1], at, w };
 }
 
 // ---------------------------------------------------------------------------
@@ -162,8 +223,9 @@ function makePlots(T, V, road, rnd, site) {
       if (rnd() < V.gapOdds) continue;
       // the site's span of the road: no plots on the land side, nor on
       // the water side across from the tram shed (G321)
-      // (G334: both sides - the bunkhouse row stands across the road)
-      if (site && t + w > site.t - site.theme.span[0] && t < site.t + site.theme.span[1]) continue;
+      // (G340: the mine is up its own spur now - only the junction on the
+      // land side is kept free)
+      if (site && side === 'land' && t + w > site.jt - 14 && t < site.jt + 14) continue;
       const a = road.at(t), b = road.at(t + w);
       const sgn = side === 'water' ? 1 : -1;      // along the water normal, or against it
       const off = road.w / 2 + 1.0;
@@ -191,6 +253,28 @@ function makePlots(T, V, road, rnd, site) {
       const fe = [f1[0] - f0[0], f1[1] - f0[1]], be = [b1[0] - b0[0], b1[1] - b0[1]];
       if (fe[0] * be[0] + fe[1] * be[1] < 0.35 * Math.hypot(fe[0], fe[1]) * Math.hypot(be[0], be[1])) continue;
       if (Math.hypot(be[0], be[1]) < 9) continue;
+      // ON A BEND TOWARD THE LAND the land plots' backs converge and cross
+      // (G340, the longer road found it): pull this plot's back in until no
+      // corner of it is in a neighbour and none of theirs in it
+      {
+        let ok = false;
+        const dMin = side === 'water' ? 12 + V.riparian : 14;
+        for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
+          if (side === 'water') {
+            const d0 = shoreDepth(T, f0, [a.n[0], a.n[1]]) + V.riparian - cut, d1 = shoreDepth(T, f1, [b.n[0], b.n[1]]) + V.riparian - cut;
+            b0 = [f0[0] + a.n[0] * d0, f0[1] + a.n[1] * d0];
+            b1 = [f1[0] + b.n[0] * d1, f1[1] + b.n[1] * d1];
+            depth = Math.min(d0, d1);
+          } else {
+            depth = V.plotDepth - cut;
+            b0 = [f0[0] - a.n[0] * depth, f0[1] - a.n[1] * depth];
+            b1 = [f1[0] - b.n[0] * depth, f1[1] - b.n[1] * depth];
+          }
+          const q = [f0, f1, b1, b0];
+          ok = !plots.some(p => p.side === side && (inPoly(p.poly, b0[0], b0[1]) || inPoly(p.poly, b1[0], b1[1]) || p.poly.some(c => inPoly(q, c[0], c[1]))));
+        }
+        if (!ok) continue;
+      }
       const poly = [f0, f1, b1, b0];              // frontage first, then round
       const nrm2 = [(a.n[0] + b.n[0]) * sgn, (a.n[1] + b.n[1]) * sgn];
       const nl = Math.hypot(nrm2[0], nrm2[1]) || 1;
@@ -444,18 +528,22 @@ function makeVillage(V0) {
   };
   let T = makeTerrain(V);
   const road = makeRoad(T, V);
-  // THE SITE (G321): a theme on a hill behind the road. The road is laid on
-  // the base terrain (it follows the shore), then the hill is folded into
-  // the terrain behind it - zero at the road, its full height a way up -
-  // and the plots along the site's span of road are not made
+  // THE SITE (G321, G340): a theme up its own spur off the shore road, at
+  // the mountain's foot. The road is laid on the shore; the spur leaves it
+  // toward one end of the tile (the village keeps the middle, its church
+  // and town hall there), the mountain's foot is pinned flat where the
+  // works stand, and the site's frame reads the spur as the village reads
+  // the road: x along it, z inland
   let site = null;
   if (V.site && THEMES[V.site]) {
     const th = THEMES[V.site];
-    const tS = V.siteT > 0 ? V.siteT : road.length / 2;
-    const a = road.at(tS);
-    const hillC = [a.p[0] - a.n[0] * th.hill.back, a.p[1] - a.n[1] * th.hill.back];     // -n: inland
-    T = withHill(T, hillC, th.hill.h, th.hill.r);
-    site = { name: V.site, t: tS, at: a, hill: hillC, theme: th };
+    // (the spur's leg runs on `before + after` past the junction: the junction
+    // sits so the works stay inside the tile, the village keeps the middle)
+    const tJ = V.siteT > 0 ? V.siteT : road.length * 0.6;
+    const spur = makeSpur(road, tJ, th.spur);
+    const a = spur.at(spur.tAnchor);
+    T = makeTerrain(V, [a.p[0], a.p[1] - T.zShore + th.foot]);
+    site = { name: V.site, t: spur.tAnchor, at: a, road: spur, jt: tJ, theme: th };
   }
   const plots = makePlots(T, V, road, rnd, site);
   const houses = [];
@@ -469,14 +557,14 @@ function makeVillage(V0) {
   // both, on land plots (a church on piles is another village), the town
   // hall on the widest, the church on the widest of the rest at least two
   // plots away, so they are not one civic block
+  // (G340, the user: "the water front for the village, with the townhouse
+  // and the church in the middle": the hall on the widest of the three land
+  // plots nearest the road's middle, the church on the nearest of the rest)
   const civic = {};
   if (plots.length >= 6) {
-    const land = plots.filter(p => p.side === 'land').sort((a, b) => b.w - a.w);
-    if (land.length >= 2) {
-      civic[land[0].id] = 'town hall';
-      const far = land.slice(1).filter(p => Math.abs(p.id - land[0].id) >= 2);
-      if (far.length) civic[far[0].id] = 'church';
-    }
+    const c = civicPlots(plots, road);
+    if (c.hall) civic[c.hall] = 'town hall';
+    if (c.church) civic[c.church] = 'church';
   }
   // THE COMMERCIAL PLOTS (G312): eight plots or more and the big generator
   // loaded → a store on the land plot nearest the road's middle that is
@@ -500,10 +588,20 @@ function makeVillage(V0) {
     plot.house = houses.length;
     houses.push(h);
   }
-  const poles = planPoles(T, V, road, rnd, spread, plots).filter(q => !site || Math.abs(q.t - site.t - site.theme.shedT) > 12);
+  const poles = planPoles(T, V, road, rnd, spread, plots).filter(q => !site || Math.abs(q.t - site.jt) > 8);
   const vil = { V, T, road, plots, houses, rnd, spread, poles, site };
   if (site) placeSite(vil);
   return vil;
+}
+
+// which plots get the town hall and the church (the gate mirrors this)
+function civicPlots(plots, road) {
+  const mid = road.length / 2;
+  const near = plots.filter(p => p.side === 'land').sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - mid) - Math.abs((b.s0 + b.s1) / 2 - mid));
+  if (near.length < 2) return {};
+  const hall = near.slice(0, 3).sort((a, b) => b.w - a.w)[0];
+  const church = near.find(p => p.id !== hall.id && Math.abs(p.id - hall.id) >= 2);
+  return { hall: hall.id, church: church ? church.id : undefined };
 }
 
 // ---------------------------------------------------------------------------
@@ -519,36 +617,38 @@ function makeVillage(V0) {
 // turns the items into house records (the village's own shape: P, x, z,
 // yaw, toWorld, ground) on the real terrain, each with the terrain under
 // it as its ground.
-//   hill    { back, h, r }   the bump's centre this far behind the road, its height, its radius
-//   span    [before, after]  metres of road either side of the anchor that get no plots
-//   shedT   where along the span the road runs through a building
+//   spur    { in, before, after }  the mine's road: inland this far, then along the foot,
+//                            `before` metres back from the anchor and `after` past it
+//   foot    the mountain's foot pinned this far behind the anchor at the site (the works flat, the mill climbing)
 //   items   { gen: 'big'|'house', preset, x, z, yaw (0 = facing the road), P: overrides }
+//   yard    { x0, x1, z0, z1 }  the gravel yard in the site's frame
 const THEMES = {
   kennecott: {
     name: 'Kennecott - the mine',
-    hill: { back: 62, h: 34, r: 58 },
-    span: [42, 48], shedT: -4,          // the mill's receiving house sits at the mill's x
+    spur: { in: 68, before: 60, after: 46 },
+    foot: 14,                            // the mountain's foot this far behind the anchor (the row and the yard on the flat, the mill on the rise)
     items: [
       // the mill stands so its own receiving house straddles the road
       // (the gap below the lowest tier is set from `z` in placeSite)
       { gen: 'house', preset: 'kennecott mill', x: -4, z: 24, yaw: 0, bottomOnRoad: true },
       { gen: 'big', preset: 'mine shop', x: -34, z: 12, yaw: 0 },
-      // THE LOWER BUILDINGS (G334): the dormer hall and the office beside
-      // the mill, the bunkhouse row ACROSS THE ROAD on the water side
-      // (yaw pi: facing back toward the road), the cottages, a shed
-      { gen: 'house', preset: 'mine dormer hall', x: 30, z: 14, yaw: 0.05 },
-      { gen: 'house', preset: 'mine office', x: 20, z: 9, yaw: -0.08 },
-      { gen: 'house', preset: 'mine bunkhouse', x: -30, z: -10, yaw: Math.PI },
-      { gen: 'house', preset: 'mine bunkhouse', x: -8, z: -10, yaw: Math.PI + 0.1 },
-      { gen: 'house', preset: 'mine bunkhouse', x: 16, z: -10, yaw: Math.PI - 0.08 },
-      { gen: 'house', preset: 'mine cottage', x: 36, z: -9, yaw: Math.PI },
+      { gen: 'house', preset: 'mine office', x: 22, z: 9, yaw: -0.08 },
       { gen: 'house', preset: 'mine cottage', x: -22, z: 5, yaw: 0.2 },
       { gen: 'house', preset: 'storage shed', x: 8, z: 7, yaw: 0.4 },
+      // THE ROW ACROSS THE ROAD (G334, G340 - the user: "vary the size and
+      // style of the 3 large houses at the bottom, the largest one being the
+      // one in line with the conveyor"): the dormer hall in line with the
+      // mill, the bunkhouse one side, the mess hall the other, a cottage
+      // at the end - each facing back to the road (yaw pi)
+      { gen: 'house', preset: 'mine bunkhouse', x: -32, z: -10, yaw: Math.PI + 0.06 },
+      { gen: 'house', preset: 'mine dormer hall', x: -4, z: -11, yaw: Math.PI },
+      { gen: 'house', preset: 'mine mess hall', x: 24, z: -10, yaw: Math.PI - 0.08 },
+      { gen: 'house', preset: 'mine cottage', x: 40, z: -9, yaw: Math.PI + 0.1 },
     ],
     // THE GRAVEL YARD (G334): the ground the whole works stands on, in the
-    // road's frame - along the span, from the shore's side of the row to
-    // the terminal up the hill
-    yard: { x0: -46, x1: 50, z0: -18, z1: 118 },
+    // site's frame - along the spur, from the far side of the row to the
+    // terminal up the mountain
+    yard: { x0: -48, x1: 48, z0: -18, z1: 118 },
   },
 };
 
@@ -565,7 +665,7 @@ function withHill(T, c, h, r) {
 }
 
 function placeSite(vil) {
-  const S = vil.site, th = S.theme, T = vil.T, road = vil.road;
+  const S = vil.site, th = S.theme, T = vil.T, road = S.road || vil.road;
   const out = [], keepOut = [];
   for (const it of th.items) {
     // THE ROAD'S OWN FRAME: x is arclength along the road from the anchor,
@@ -1173,9 +1273,10 @@ function planTrees(vil, pool) {
     for (const p of list) { r -= (p.proportion || 1); if (r <= 0) return p; }
     return list[list.length - 1];
   };
+  const roads = [vil.road].concat(vil.site && vil.site.road ? [vil.site.road] : []);
   const roadNear = (x, z) => {
     let d = 1e9;
-    for (let i = 1; i < vil.road.pts.length; i++) d = Math.min(d, distSeg(x, z, vil.road.pts[i - 1], vil.road.pts[i]));
+    for (const rd of roads) for (let i = 1; i < rd.pts.length; i++) d = Math.min(d, distSeg(x, z, rd.pts[i - 1], rd.pts[i]));
     return d;
   };
   // THE VILLAGE STRIP IS SMALL TREES (G329, the user: "only small trees in
@@ -1302,7 +1403,7 @@ function planTrees(vil, pool) {
 // bend the site follows. `occ` are the site buildings' occluders in the
 // world (the bench hands them in; the gate hands none).
 function siteGround(vil, occ) {
-  const S = vil.site, th = S.theme, T = vil.T, road = vil.road, Y = th.yard;
+  const S = vil.site, th = S.theme, T = vil.T, road = S.road || vil.road, Y = th.yard;
   const cell = 0.9, M = 6;
   // the quad's corners along the road's frame
   const corner = (x, z) => { const a = road.at(S.t + x); return [a.p[0] - a.n[0] * z, a.p[1] - a.n[1] * z]; };
@@ -1423,7 +1524,7 @@ function planBillboards(vil, keys) {
     // the store's own): an empty frontage or a gap between plots first,
     // any verge after eight tries
     const busy = (vil.plots || []).some(p => p.side === 'land' && p.house !== undefined && t > p.s0 - 1 && t < p.s1 + 1)
-      || (vil.site && t > vil.site.t - vil.site.theme.span[0] && t < vil.site.t + vil.site.theme.span[1]);
+      || (vil.site && Math.abs(t - vil.site.jt) < 14);
     if (!onPlot && !nearPole && T.h(x, z) > V.waterY + 0.5 && (!busy || skipped >= 8)) {
       // facing the road: +z toward the road, i.e. along +n
       out.push({ key: keys[k % keys.length], x, z, y: T.h(x, z), ry: Math.atan2(a.n[0], a.n[1]), t });
@@ -1447,6 +1548,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, siteGround,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, siteGround, makeSpur, polyRoad, civicPlots,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

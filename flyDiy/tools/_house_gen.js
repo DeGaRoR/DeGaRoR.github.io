@@ -2101,7 +2101,7 @@ const PRESETS = {
   // dormers): twenty-four metres, two storeys, six dormers along the
   // front roof, a canopy over the door, a masonry stack, boarded in
   'mine dormer hall': {
-    L: 24.0, w: 8.0, storeys: 2, floorH: 2.7, roofFam: 0, pitch: 32,
+    L: 27.0, w: 8.5, storeys: 2, floorH: 2.7, roofFam: 0, pitch: 32,
     stance: 1, floorY: 0.6, slopeZ: 3, eaveOver: 0.5, rakeOver: 0.35, skirt: 2,
     nFront: 8, nBack: 6, nLeft: 2, nRight: 2, winW: 0.9, winH: 1.2, winSill: 0.9,
     doorPos: 0.5, doorW: 1.1, porch: 1, porchD: 1.5, porchLenF: 0.25, porchRoof: 1, railStyle: 1, stairs: 1,
@@ -2110,6 +2110,20 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 10,
     trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  // THE MESS HALL (G340): one tall storey under a steep gable, a wide front
+  // porch, a cook's stack, pale weathered boards - the third kind in the row
+  'mine mess hall': {
+    L: 16.0, w: 8.5, storeys: 1, floorH: 3.4, roofFam: 0, pitch: 40,
+    stance: 1, floorY: 0.6, slopeZ: 3, eaveOver: 0.6, rakeOver: 0.4, skirt: 0,
+    nFront: 5, nBack: 4, nLeft: 2, nRight: 2, winW: 1.1, winH: 1.5, winSill: 0.9, gableWin: 1,
+    doorPos: 0.5, doorW: 1.2, porch: 1, porchD: 2.4, porchLenF: 0.9, porchRoof: 1, railStyle: 2, stairs: 1,
+    chim: 1, chimR: 0.16, chimXF: 0.6, chimZF: 0.2, gutter: 0, downpipe: 0, backDoor: 1, backPorch: 1,
+    weather: 0.9, dirt: 0.7, dirtH: 1.4, paintPunch: 0.3, clouds: 0.6, curtains: 0.2, yard: 0, woodpile: 1, boat: 0, people: 1,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
     deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
   },
   // THE MINE OFFICE: square, hipped, a deck with its rail, the manager's

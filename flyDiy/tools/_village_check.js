@@ -273,8 +273,12 @@ function battery(name, vil) {
     // the generator's own conditions: two land plots for the hall, one of
     // the rest two or more plots away for the church (a site can eat the
     // land plots, G321)
-    const land = vil.plots.filter(p => p.side === 'land').sort((a, b) => b.w - a.w);
-    const wantHall = land.length >= 2, wantChurch = wantHall && land.slice(1).some(p => Math.abs(p.id - land[0].id) >= 2);
+    // (G340: the pair in the middle of the village - the generator's own
+    // civicPlots names them)
+    const cp = VG.civicPlots(vil.plots, road);
+    const wantHall = cp.hall !== undefined, wantChurch = cp.church !== undefined;
+    if (hall) check(hall.plot === cp.hall, name + ': the town hall is not on the plot nearest the middle');
+    if (church) check(church.plot === cp.church, name + ': the church is not on its plot');
     check(!!hall === wantHall, name + ': ' + (wantHall ? 'no town hall' : 'a town hall with no plot for it'));
     check(!!church === wantChurch, name + ': ' + (wantChurch ? 'no church' : 'a church with no plot for it'));
     if (hall && church) {
@@ -333,8 +337,14 @@ function battery(name, vil) {
   //   road's line crosses its footprint between its two openings), and no
   //   plot on the site's span of the land side
   if (vil.site) {
-    const S = vil.site, th = S.theme;
-    check(T.h(S.hill[0], S.hill[1]) > T.h(S.at.p[0], S.at.p[1]) + th.hill.h * 0.7, name + ': no hill behind the road');
+    const S = vil.site, th = S.theme, spur = S.road;
+    // THE SPUR (G340): leaves the shore road, ends at the mountain's foot
+    // with the site on it, well back from the water; the mill climbs
+    check(!!spur && spur.pts.length > 10, name + ': the mine has no spur');
+    check(distToRoad(road, spur.pts[0]) < 0.5, name + ': the spur does not leave the shore road');
+    check(distToRoad(road, S.at.p) > vil.V.plotDepth + 10, name + ': the site has water access', distToRoad(road, S.at.p).toFixed(1));
+    check(distToRoad(spur, S.at.p) < 0.5, name + ': the site is not on its spur');
+    check(T.h(S.at.p[0], S.at.p[1]) > T.waterY + 2, name + ': the site is at the water');
     const items = vil.siteHouses || [];
     check(items.length === th.items.length, name + ': the site built ' + items.length + ' of ' + th.items.length);
     for (const h of items) {
@@ -348,6 +358,10 @@ function battery(name, vil) {
           for (const x of [tier.x0, tier.x1]) for (const z of [tier.zF, tier.zB]) gU = Math.max(gU, h.ground(x, z));
           check(tier.fy > gU + 0.1, name + ': mill tier ' + tier.i + ' is in the hill', tier.fy.toFixed(2) + ' vs ' + gU.toFixed(2));
         }
+        // the mill climbs the mountain: the top tier's floor well above the base's, and the ground under it too
+        const top = st.mill.tiers[st.mill.tiers.length - 1], base = st.mill.tiers[0];
+        check(top.fy - base.fy > 20, name + ': the mill does not climb', (top.fy - base.fy).toFixed(1));
+        check(h.ground(top.xo, top.zM) - h.ground(base.xo, base.zM) > 12, name + ': the mill stands on the flat', (h.ground(top.xo, top.zM) - h.ground(base.xo, base.zM)).toFixed(1));
       } else {
         const L = h.P.L, w = h.P.w;
         let gU = -1e9;
@@ -362,14 +376,14 @@ function battery(name, vil) {
         check(!!B, name + ': the mill has no receiving house');
         if (B) {
           const wB = h.toWorld(B.x, B.z);
-          check(distToRoad(road, wB) < 1.5, name + ': the receiving house is not on the road', distToRoad(road, wB).toFixed(2));
-          const a = road.at(S.t + h.item.x), lx = [Math.cos(h.yaw), -Math.sin(h.yaw)];   // the mill's local x, in the world
+          check(distToRoad(spur, wB) < 1.5, name + ': the receiving house is not on the road', distToRoad(spur, wB).toFixed(2));
+          const a = spur.at(S.t + h.item.x), lx = [Math.cos(h.yaw), -Math.sin(h.yaw)];   // the mill's local x, in the world
           check(Math.abs(a.tg[0] * lx[0] + a.tg[1] * lx[1]) > 0.9, name + ': the receiving house does not stand along the road');
         }
       }
     }
     for (const p of vil.plots)
-      check(!(p.s1 > S.t - th.span[0] && p.s0 < S.t + th.span[1]), name + ': a plot on the span of road the mine owns');
+      check(!(p.side === 'land' && p.s1 > S.jt - 14 && p.s0 < S.jt + 14), name + ': a plot on the spur\'s junction');
     // THE GRAVEL YARD (G334): a patch on the terrain, gravel by the mill's
     // foot, grass again at its far corner, the lower buildings on it
     {
@@ -392,6 +406,29 @@ function battery(name, vil) {
       check(g2.d > 3 || g2.grav < 0.6, name + ': the yard is gravel to its far edge');
       for (const h of items) if (!h.P.mill) check(VG.inPoly(Y.poly, h.x, h.z), name + ': ' + h.P.preset + ' stands off the yard');
     }
+  }
+  // 16 — THE TERRAIN (G340, the user: "mountain on one side, water on the
+  //   other, and a varied, yet coherent slope through"): in every column,
+  //   water at the front edge, the back edge a mountain (40 m and more over
+  //   the shore), the bench off the shore gentle (under 0.12 per metre over
+  //   its first fifty), and the profile never falls more than a gully on the
+  //   way up (coherent: a slope, not bumps)
+  {
+    const half = T.size / 2;
+    let cols = 0, bad = [];
+    for (let x = -half + 10; x <= half - 10; x += (T.size - 20) / 8) {
+      cols++;
+      const zs = T.zShore;
+      if (!(T.h(x, -half + 2) < T.waterY)) bad.push('no water at x ' + x.toFixed(0));
+      const y0 = T.h(x, zs + 2), yB = T.h(x, half - 2);
+      if (!(yB - y0 > 40)) bad.push('no mountain at x ' + x.toFixed(0) + ' (' + (yB - y0).toFixed(0) + ' m)');
+      if (!((T.h(x, zs + 50) - y0) / 48 < 0.12)) bad.push('the bench is steep at x ' + x.toFixed(0));
+      let drop = 0;
+      for (let z = zs + 2; z < half - 12; z += 10) drop = Math.max(drop, T.h(x, z) - T.h(x, z + 10));
+      if (drop > 6) bad.push('a fall of ' + drop.toFixed(1) + ' m on the way up at x ' + x.toFixed(0));
+    }
+    check(bad.length === 0, name + ': the terrain: ' + bad.slice(0, 3).join('; '));
+    check(cols === 9, name + ': the terrain columns');
   }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot
