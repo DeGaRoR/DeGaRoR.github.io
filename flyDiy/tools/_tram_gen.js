@@ -253,7 +253,8 @@ function buildStation(P, lod, F) {
     // to the portal on the deck (its foot angle solved so the foot lands
     // at portalH over the deck when it can).
     const L = P.lineDeg * D2R, R = P.girderR, gw = P.girderW / 2, xt = P.trackX;
-    const zD = zWing0 + 0.3 + P.cabinL / 2, yD = floorY - 0.2 + P.hangH;
+    // (G351: the dock's centre is where the cabin's PIVOT stands, `hangH` over its floor origin; the rope's contact line is `ropeUp` over the pivot square to the line, so over the dock's centre the rope is this - and a cabin facing either way docks with its pivot on the centre)
+    const zD = zWing0 + 0.3 + P.cabinL / 2, yD = floorY - 0.2 + P.hangH + P.ropeUp / Math.cos(L);
     const depthAt = phi => P.girderD + (P.girderDn - P.girderD) * (phi - (-95 * D2R)) / (P.noseDeg * D2R + 95 * D2R);
     const Rs = R + depthAt(L) / 2 + 0.16;
     const Pt = [0, yD + P.tanBack * Math.sin(L), zD - P.tanBack * Math.cos(L)];
@@ -342,7 +343,7 @@ function buildStation(P, lod, F) {
         if (prevR) for (let j = 0; j < 4; j++) {
           const k = (j + 1) % 4, q = [prevR[j], prevR[k], r[k], r[j]];
           const mid = mul(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
-          face(GD, q, nrm(sub(mid, wc)), p => [a * wr, j % 2 ? p[1] : p[0]]);
+          face(GD, q, nrm(sub(mid, wc)), p => [(q.indexOf(p) >= 2 ? a : a - 2 * Math.PI / segs) * wr, j % 2 ? Math.hypot(p[1] - wc[1], p[2] - wc[2]) : p[0]]);   // (G351: u along the rim by each corner's own angle, v across the rim or down the cheek - the quad had one u)
         }
         prevR = r;
       }
@@ -491,7 +492,7 @@ function buildBase(P, lod, F) {
   const floorY = P.floorY;
   const dxL = P.dockDx, ang = P.lineDeg * D2R, tL = Math.tan(ang);
   const zT = L / 2 - P.towerIn, zD = zT - P.dockIn;
-  const yD = floorY + P.dockH - 0.2 + P.hangH;           // the track rope over the dock
+  const yD = floorY + P.dockH - 0.2 + P.hangH + P.ropeUp / Math.cos(ang);   // the track rope over the dock's centre (G351: the cabin's pivot stands there, the contact line ropeUp over it square to the line)
   const ropeAt = z => yD + (z - zD) * tL;
   const tpB = Math.tan(P.barnPitch * D2R);
   // the barn's eave from the ropes at the open end: the roof's underside over the outer rope a metre above it
@@ -610,7 +611,7 @@ function buildBase(P, lod, F) {
         if (prevR) for (let j = 0; j < 4; j++) {
           const k = (j + 1) % 4, q = [prevR[j], prevR[k], r[k], r[j]];
           const mid = mul(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
-          face(GD, q, nrm(sub(mid, wc)), p => [a * wr, j % 2 ? p[1] : p[0]]);
+          face(GD, q, nrm(sub(mid, wc)), p => [(q.indexOf(p) >= 2 ? a : a - 2 * Math.PI / segs) * wr, j % 2 ? Math.hypot(p[1] - wc[1], p[2] - wc[2]) : p[0]]);   // (G351: u along the rim by each corner's own angle, v across the rim or down the cheek - the quad had one u)
         }
         prevR = r;
       }
@@ -659,24 +660,38 @@ function buildBase(P, lod, F) {
       bm(ST, [x, floorY + 0.2, topP[2] + 1.8], [x, topP[1] - 0.6, topP[2] + 0.2], 0.1, 0.12);
       S.guides.push({ x, top: topP, bottom: [x, floorY + 0.4, zD] });
     }
-    // THE DOCK: a raised deck at the cabin's floor between the guides, rails, two stairs
-    const dY = floorY + P.dockH, dz0 = zD - 3.2, dz1 = zD + 2.6, dxD = dxL + 1.6;
-    boxAB(DK, [-dxD, dY - 0.12, dz0], [dxD, dY, dz1]);
-    for (let z = dz0 + 0.5; z < dz1; z += 1.5) for (const sx of [-1, 1]) bm(PO, [sx * dxD * 0.92, floorY, z], [sx * dxD * 0.92, dY - 0.12, z], 0.09, 0.09);
+    // THE DOCK (G351, the user: "a 2 slot concrete structure with proper
+    // stairs for access and guard rails"): concrete at the cabin's floor -
+    // an ISLAND between the two lines and an OUTER platform beyond each,
+    // the cabins docking in the two slots between them a hand clear of the
+    // cabin's flanks; a straight concrete flight down to the barn floor at
+    // the road end of each, handrails both sides of every flight; guard
+    // rails along every edge that is not a boarding edge (the outer
+    // platforms' outer sides and mountain ends, the island's mountain end)
+    const dY = floorY + P.dockH, dz0 = zD - 3.2, dz1 = zD + 2.6;
+    const cabW = 3.44, gap = 0.12, isl = dxL - cabW / 2 - gap, out0 = dxL + cabW / 2 + gap, out1 = out0 + 1.15;
+    const nSt = Math.max(3, Math.ceil(P.dockH / 0.17)), riser = P.dockH / nSt, run = 0.28;
+    const slab = (x0, x1) => boxAB(CO, [x0, floorY - 0.05, dz0], [x1, dY, dz1]);
+    slab(-isl, isl); slab(out0, out1); slab(-out1, -out0);
+    const flights = [], rails = [];
+    const railRun = (a, b) => {
+      const n = Math.max(1, Math.round(len(sub(b, a)) / 1.3));
+      for (let i = 0; i <= n; i++) { const q = add(a, mul(sub(b, a), i / n)); bm(ST, q, [q[0], q[1] + 1.05, q[2]], 0.03, 0.03); }
+      for (const h of [0.55, 1.05]) bm(ST, [a[0], a[1] + h, a[2]], [b[0], b[1] + h, b[2]], 0.025, 0.025);
+      rails.push({ a, b });
+    };
+    const flight = (x0, x1) => {
+      for (let i = 0; i < nSt; i++) boxAB(CO, [x0, floorY - 0.05, dz0 - (i + 1) * run], [x1, dY - i * riser, dz0 - i * run]);
+      flights.push({ x0, x1, zTop: dz0, zFoot: dz0 - nSt * run, steps: nSt });
+      if (!lo) for (const x of [x0 + 0.04, x1 - 0.04]) railRun([x, dY, dz0], [x, floorY, dz0 - nSt * run]);
+    };
+    flight(-isl, isl); flight(out0, out1); flight(-out1, -out0);
     if (!lo) {
-      const rail = (a, b) => {
-        const n = Math.max(1, Math.round(len(sub(b, a)) / 1.4));
-        for (let i = 0; i <= n; i++) { const p = add(a, mul(sub(b, a), i / n)); bm(ST, p, [p[0], p[1] + 1.05, p[2]], 0.025, 0.025); }
-        for (const h of [0.55, 1.05]) bm(ST, [a[0], a[1] + h, a[2]], [b[0], b[1] + h, b[2]], 0.02, 0.02);
-      };
-      rail([-dxD, dY, dz0], [dxD, dY, dz0]);
-      for (const sx of [-1, 1]) rail([sx * dxD, dY, dz0], [sx * dxD, dY, dz1]);
+      railRun([-isl, dY, dz1], [isl, dY, dz1]);
+      for (const sx of [-1, 1]) { railRun([sx * out1, dY, dz0], [sx * out1, dY, dz1]); railRun([sx * out0, dY, dz1], [sx * out1, dY, dz1]); }
     }
-    for (const sx of [-1, 1]) {
-      const n = Math.max(3, Math.round(P.dockH / 0.18)), run = 0.28, x0 = sx * (dxD - 1.4);
-      for (let i = 0; i < n; i++) boxAB(DK, [x0 - 0.6, dY - (i + 1) * P.dockH / n, dz0 - (i + 1) * run], [x0 + 0.6, dY - i * P.dockH / n, dz0 - i * run]);
-    }
-    S.hooks.dock = { p: [0, dY - 0.2, zD], dx: dxL, w: dxD * 2, depth: dz1 - dz0 };
+    S.dock = { top: dY, island: [-isl, isl], outer: [[out0, out1], [-out1, -out0]], z0: dz0, z1: dz1, slots: [[-out0, -isl], [isl, out0]], flights, rails: rails.length, cabW };
+    S.hooks.dock = { p: [0, dY - 0.2, zD], dx: dxL, w: out1 * 2, depth: dz1 - dz0 };
     // THE SIGN on the barn's road gable, over the office's ridge - the tall
     // wall the road sees; the bench hangs the banner on the published slot
     if (office) {

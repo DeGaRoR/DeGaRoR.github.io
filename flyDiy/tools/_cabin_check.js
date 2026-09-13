@@ -43,10 +43,36 @@ if (check(!!prop, 'the pack does not carry tram_cabin')) {
   check(prop.bb[3] - prop.bb[0] > 3.2 && prop.bb[3] - prop.bb[0] < 3.7, 'the cabin is not 3.4 m across', String(prop.bb[3] - prop.bb[0]));
   // 2 — the plan
   const P = CABIN.plan(dec.parts);
-  check(P.roles.length === names.length - 1, 'the plan dressed ' + P.roles.length + ' parts of ' + (names.length - 1));
+  check(P.roles.length >= names.length - 1, 'the plan dressed ' + P.roles.length + ' parts of ' + (names.length - 1));
+  // 2b — THE CARRIAGE AND THE BEVEL (G351): the carriage split off and laid
+  // level about the pivot, the hanger below it, HANG = pivot + rope, the
+  // arrises chamfered, every normal unit, every part right side out
+  {
+    const cars = P.roles.filter(r => r.carriage), fixed = P.roles.filter(r => !r.carriage);
+    check(cars.length >= 3, 'the carriage was not split off', cars.length + ' parts');
+    for (const r of cars) {
+      let y0 = 1e9, y1 = -1e9, z1 = 0;
+      for (let i = 0; i < r.geo.pos.length; i += 3) { y0 = Math.min(y0, r.geo.pos[i + 1]); y1 = Math.max(y1, r.geo.pos[i + 1]); z1 = Math.max(z1, Math.abs(r.geo.pos[i + 2])); }
+      check(y0 > -0.5 && y1 < 1.0 && z1 < 2.6, 'a carriage part is not level about the pivot', r.mat + ' y ' + y0.toFixed(2) + '..' + y1.toFixed(2));
+    }
+    for (const r of fixed) if (r.role !== 'floor' && r.role !== 'glass') { let y1 = -1e9; for (let i = 1; i < r.geo.pos.length; i += 3) y1 = Math.max(y1, r.geo.pos[i]); check(y1 < CABIN.PIVOT[1] + 0.6, 'the hanger reaches into the carriage', r.mat + ' ' + y1.toFixed(2)); }
+    check(Math.abs(CABIN.HANG - (CABIN.PIVOT[1] + CABIN.ROPE_UP)) < 1e-9, 'HANG is not the pivot plus the rope');
+    let strips = 0, nanN = 0, unitN = 0;
+    for (const r of P.roles) {
+      if (r.role === 'floor') continue;
+      strips += r.strips || 0;
+      for (let i = 0; i < r.geo.nrm.length; i += 3) { const l = Math.hypot(r.geo.nrm[i], r.geo.nrm[i + 1], r.geo.nrm[i + 2]); if (!isFinite(l)) nanN++; else if (Math.abs(l - 1) > 1e-3) unitN++; }
+      if (r.role === 'glass') continue;
+      // every closed component was turned right side out by its volume, the open ones by their centroid or the author's normals
+      check(r.closedVol >= 0 && isFinite(r.flipped), 'a part is inside out', r.mat + (r.carriage ? ' carriage' : '') + ' ' + r.closedVol.toFixed(3));
+      if (r.mat === 'material' && !r.carriage) check(r.flipped > 0, 'the hanger arms were not turned right side out', String(r.flipped));
+    }
+    check(strips > 1500, 'the arrises are not chamfered', strips + ' strips');
+    check(nanN === 0 && unitN === 0, 'bad normals after the bevel', nanN + '/' + unitN);
+  }
   check(!!P.glass && P.glass.idx.length >= 3, 'no glass in the plan');
   // metric uvs: a body vertex's uv is one of its coordinates
-  const body = P.roles.find(r => r.role === 'body'), bodyPart = dec.parts.find(p => p.mat === 'Yellow');
+  const body = P.roles.find(r => r.role === 'body' && !r.carriage), bodyPart = body.geo;
   let bad = 0;
   for (let i = 0; i < bodyPart.pos.length / 3; i++) {
     const u = body.uv[i * 2], v = body.uv[i * 2 + 1], c = [bodyPart.pos[i * 3], bodyPart.pos[i * 3 + 1], bodyPart.pos[i * 3 + 2]];

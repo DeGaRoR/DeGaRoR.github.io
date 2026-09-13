@@ -1496,15 +1496,27 @@ function tramLine(vil, buildFn) {
   }
   const ropes = [];
   const HB = base.built.stats.station.hooks, HT = top.built.stats.station.hooks;
+  // THE PAIRING (G351): the stations face opposite ways, so a base hook's
+  // mate is the top hook on the SAME SIDE OF THE LINE, not the same index
+  // (paired by index the two track ropes crossed mid-span). A line is a
+  // track rope and its haul loop's two strands: six ropes, each tagged
+  const u = [top.x - base.x, top.z - base.z], lu = Math.hypot(u[0], u[1]); u[0] /= lu; u[1] /= lu;
+  const lat = p => (p[0] - base.x) * -u[1] + (p[2] - base.z) * u[0];
+  const pair = [0, 1].map(i => { const lb = lat(toW(base, HB.track[i].p)); return Math.abs(lat(toW(top, HT.track[1].p)) - lb) < Math.abs(lat(toW(top, HT.track[0].p)) - lb) ? 1 : 0; });
   for (let i = 0; i < 2; i++) {
-    ropes.push({ a: toW(base, HB.track[i].p), b: toW(top, HT.track[i].p), kind: 'track' });
-    ropes.push({ a: toW(base, HB.haul[i].p), b: toW(top, HT.haul[i].p), kind: 'haul' });
+    const j = pair[i];
+    ropes.push({ a: toW(base, HB.track[i].p), b: toW(top, HT.track[j].p), kind: 'track', line: i });
+    ropes.push({ a: toW(base, HB.haul[2 * i].p), b: toW(top, HT.haul[2 * j].p), kind: 'haul', line: i });
+    ropes.push({ a: toW(base, HB.haul[2 * i + 1].p), b: toW(top, HT.haul[2 * j + 1].p), kind: 'haul', line: i });
   }
-  const docks = [base, top].map((h, i) => {
-    const d = h.built.stats.station.hooks.dock, sx = i ? 1 : -1;      // the base takes the left line, the top the right
-    return { p: toW(h, [sx * d.dx, d.p[1], d.p[2]]), yaw: h.yaw, dx: d.dx, station: i ? 'top' : 'base' };
-  });
-  vil.tram = { angle, ropes, docks, base, top };
+  // both lines' slots at both stations: where a cabin's floor origin stands when docked, by line
+  const slotAt = (h, sx) => { const d = h.built.stats.station.hooks.dock; return toW(h, [sx * d.dx, d.p[1], d.p[2]]); };
+  const side = i => i ? 1 : -1;
+  const slots = { base: [0, 1].map(i => slotAt(base, side(i))), top: [0, 1].map(i => slotAt(top, side(pair[i]))) };
+  // the pair at rest: cabin 0 in the base's dock on line 0, cabin 1 in the top's dock on line 1
+  const docks = [{ p: slots.base[0], yaw: base.yaw, dx: HB.dock.dx, station: 'base', line: 0 },
+                 { p: slots.top[1], yaw: top.yaw, dx: HT.dock.dx, station: 'top', line: 1 }];
+  vil.tram = { angle, ropes, docks, slots, base, top, pair };
   return vil.tram;
 }
 

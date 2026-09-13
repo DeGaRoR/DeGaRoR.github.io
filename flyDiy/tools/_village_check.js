@@ -66,10 +66,10 @@ const win = {};
                 Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_village_gen.js', '../src/viewer/tram_run.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 }
-const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN, BGN = win.BIG_GEN;
+const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN, BGN = win.BIG_GEN, TRUN = win.TRAM_RUN;
 
 const fail = [];
 let checks = 0;
@@ -447,7 +447,13 @@ function battery(name, vil) {
       // the open end of the barn faces the mountain: the barn's +z is inland
       const bz = [Math.sin(base.yaw), Math.cos(base.yaw)];
       check(bz[0] * inland[0] + bz[1] * inland[1] > 0.9, name + ': the barn does not open toward the mountain');
-      check(TR.ropes.length === 4, name + ': four ropes');
+      check(TR.ropes.length === 6 && [0, 1].every(i => TR.ropes.filter(r => r.line === i && r.kind === 'track').length === 1 && TR.ropes.filter(r => r.line === i && r.kind === 'haul').length === 2), name + ': six ropes, a track and two haul strands per line');
+      // the lines are parallel: a rope's lateral offset from the base-to-top axis is the same at both ends (paired by side, not by index - G351)
+      {
+        const u = [top.x - base.x, top.z - base.z], lu = Math.hypot(u[0], u[1]), lat = p => ((p[0] - base.x) * -u[1] + (p[2] - base.z) * u[0]) / lu;
+        for (const rp of TR.ropes) check(Math.abs(lat(rp.a) - lat(rp.b)) < 0.05, name + ': a rope crosses the line', rp.kind + ' ' + lat(rp.a).toFixed(2) + ' -> ' + lat(rp.b).toFixed(2));
+        check(Math.abs(Math.abs(lat(TR.ropes[0].a)) - Math.abs(lat(TR.ropes[3].a))) < 0.05 && Math.abs(lat(TR.ropes[0].a) - lat(TR.ropes[3].a)) > 4, name + ': the two lines are not a cabin apart either side');
+      }
       for (const rp of TR.ropes) {
         const ang = Math.atan2(rp.b[1] - rp.a[1], Math.hypot(rp.b[0] - rp.a[0], rp.b[2] - rp.a[2])) * 180 / Math.PI;
         // (the haul strands leave the top's wheel under the saddle: a few degrees steeper)
@@ -455,11 +461,54 @@ function battery(name, vil) {
         check(rp.b[1] > rp.a[1] + 20, name + ': a rope does not climb');
         // the rope clears the terrain along its run
         let low = 0;
-        for (let i = 1; i < 20; i++) { const t = i / 20, x = rp.a[0] + (rp.b[0] - rp.a[0]) * t, z = rp.a[2] + (rp.b[2] - rp.a[2]) * t, y = rp.a[1] + (rp.b[1] - rp.a[1]) * t; if (y < T.h(x, z) + 6) low++; }
+        for (let i = 1; i < 20; i++) { const t = i / 20, x = rp.a[0] + (rp.b[0] - rp.a[0]) * t, z = rp.a[2] + (rp.b[2] - rp.a[2]) * t, y = rp.a[1] + (rp.b[1] - rp.a[1]) * t; if (y < T.h(x, z) + (rp.kind === 'track' ? 6 : 3)) low++; }   // (the haul strands hang under the track rope: three metres behind the base)
         check(low === 0, name + ': a rope runs into the mountain', low + ' of 19 samples');
       }
       check(TR.docks.length === 2 && TR.docks.every(d => isFinite(d.p[0]) && isFinite(d.p[1]) && isFinite(d.p[2])), name + ': no dock for the cabins');
     }
+  }
+  // 18 — THE TRAM MOVES (G351): the runtime's rope is the chord with the sag
+  //   hung between the docks; for s in 0, 1/4, 1/2, 3/4, 1 both cabins'
+  //   contact lines are on their ropes, their hangers plumb, their carriages
+  //   at the rope's own slope, the pair a cabin's width apart, one climbing
+  //   as the other descends, both clear of the mountain; at s = 0 and 1
+  //   each cabin's origin is in its slot within 2 cm - which is the
+  //   stations and the runtime agreeing on where the rope is over a dock
+  if (vil.site && vil.site.tram && vil.tram && TRUN) {
+    const TR = vil.tram, run = TRUN.make(TR, null, { sag: 0.012 });
+    check(!!TR.slots && TR.slots.base.length === 2 && TR.slots.top.length === 2, name + ': the line has no slots');
+    const pv = yaw => { const c = TRUN.CAB_DEF.pivot; return [c[0] * Math.cos(yaw) + c[2] * Math.sin(yaw), c[1], -c[0] * Math.sin(yaw) + c[2] * Math.cos(yaw)]; };
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    let prevS = null;
+    for (const sv of [0, 0.25, 0.5, 0.75, 1]) {
+      run.setS(sv);
+      const ps = run.poses();
+      for (let i = 0; i < 2; i++) {
+        const p = ps[i], L = run.lines[i];
+        const onRope = L.rope.at(p.t), n = TRUN.upNormal(L.rope.tangent(p.t));
+        const back = [p.pivot[0] + n[0] * L.cab.ropeUp, p.pivot[1] + n[1] * L.cab.ropeUp, p.pivot[2] + n[2] * L.cab.ropeUp];   // the contact line rides ropeUp over the pivot
+        check(dist(back, onRope) < 0.01, name + ': cabin ' + i + ' is off its rope at s ' + sv);
+        const off = pv(p.yaw);
+        check(dist([p.origin[0] + off[0], p.origin[1] + off[1], p.origin[2] + off[2]], p.pivot) < 1e-6, name + ': cabin ' + i + ' does not hang plumb from its pivot');
+        const T2 = L.rope.tangent(p.t), slope = Math.atan2(T2[1], Math.hypot(T2[0], T2[2]));
+        check(Math.abs(Math.abs(p.pitch) - Math.abs(slope)) < 1e-6, name + ': cabin ' + i + ' carriage is not at the rope slope at s ' + sv);
+        if (sv > 0 && sv < 1) check(p.origin[1] > T.h(p.origin[0], p.origin[2]) + 3, name + ': cabin ' + i + ' scrapes the mountain at s ' + sv);   // (in a dock it stands a metre over the station's ground)
+      }
+      check(Math.hypot(ps[0].origin[0] - ps[1].origin[0], ps[0].origin[2] - ps[1].origin[2]) > 3.4, name + ': the cabins meet at s ' + sv);
+      if (prevS) check((ps[0].origin[1] - prevS[0].origin[1]) * (ps[1].origin[1] - prevS[1].origin[1]) < 0, name + ': the cabins do not move in opposite senses');
+      prevS = ps;
+    }
+    // in a dock the cabin's PIVOT stands on the dock's centre, hangH over the floor (its origin a hand along the slot, by which way it faces)
+    const inDock = (p, slot) => dist(p.pivot, [slot[0], slot[1] + TRUN.CAB_DEF.pivot[1], slot[2]]);
+    const p0 = run.setS(0).poses(), p1 = run.setS(1).poses();
+    check(inDock(p0[0], TR.slots.base[0]) < 0.02 && inDock(p0[1], TR.slots.top[1]) < 0.02, name + ': the cabins are not in their docks at s 0', inDock(p0[0], TR.slots.base[0]).toFixed(3) + '/' + inDock(p0[1], TR.slots.top[1]).toFixed(3));
+    check(inDock(p1[0], TR.slots.top[0]) < 0.02 && inDock(p1[1], TR.slots.base[1]) < 0.02, name + ': the cabins are not in their docks at s 1', inDock(p1[0], TR.slots.top[0]).toFixed(3) + '/' + inDock(p1[1], TR.slots.base[1]).toFixed(3));
+    // the clock: from a dwell it moves off, reaches the far dock, dwells, and comes back the other way
+    run.setS(0); run.phase = 'dwell'; run.wait = 0.1; run.dir = 1;
+    let tMax = 0, arrived = false;
+    for (let k = 0; k < 4000 && !arrived; k++) { run.tick(0.1); if (run.phase === 'dwell' && run.s > 0.99) arrived = true; tMax += 0.1; }
+    check(arrived && tMax > 20 && tMax < 400, name + ': the tram does not make the run', tMax.toFixed(0) + ' s, D ' + run.D.toFixed(0));
+    check(run.dir === -1, name + ': the tram does not turn round at the top');
   }
   // 16 — THE TERRAIN (G340, the user: "mountain on one side, water on the
   //   other, and a varied, yet coherent slope through"): in every column,

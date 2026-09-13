@@ -1404,6 +1404,7 @@ for (const name of Object.keys(HG.PRESETS)) {
     check(mouth === 0, 'station ' + name + ': siding across a slot mouth', String(mouth));
   }
   check(Math.abs(S.hooks.dock.p[2] - (S.slots[0].z0 + 0.3 + P.cabinL / 2)) < 1e-6 && S.hooks.dock.dx === P.topDx, 'station ' + name + ': the dock is not in the slots');
+  check(Math.abs(P.topDx - P.trackX) < 1e-9, 'station ' + name + ': the slots are not under the arches (topDx is not trackX)');
   // THE CANTILEVER'S CABLES (G349): two off the arches' backs, two off the
   // portal, two off the deck's tail, all to the anchor frame; two backstays
   // from the frame to deadmen behind the house
@@ -1462,7 +1463,7 @@ for (const name of Object.keys(HG.PRESETS)) {
   // to there at the line's angle
   {
     const ht = H.track[0], zD = S.hooks.dock.p[2], yD = ht.p[1] - (zD - ht.p[2]) * Math.tan(P.lineDeg * Math.PI / 180);
-    check(Math.abs(yD - S.ropeAtDock) < 0.02 && Math.abs(S.ropeAtDock - (S.hooks.dock.p[1] + P.hangH)) < 1e-6, 'station ' + name + ': the rope over the dock is not at the cabin carriage', yD.toFixed(2) + ' vs ' + S.ropeAtDock.toFixed(2));
+    check(Math.abs(yD - S.ropeAtDock) < 0.02 && Math.abs(S.ropeAtDock - (S.hooks.dock.p[1] + P.hangH + P.ropeUp / Math.cos(P.lineDeg * Math.PI / 180))) < 1e-6, 'station ' + name + ': the rope over the dock is not at the cabin carriage', yD.toFixed(2) + ' vs ' + S.ropeAtDock.toFixed(2));
     check(ht.p[2] < zD, 'station ' + name + ': the saddle is not up the line from the dock');
     // the arch clears every house under it
     for (const b of S.boxes) {
@@ -1549,7 +1550,7 @@ for (const name of Object.keys(HG.PRESETS)) {
     for (const gd of S.guides) check(Math.abs(gd.x) > P.dockDx + 1.7 + 0.1, 'base ' + name + ': a guide is in the cabins path');
     // the rope over the dock at the docked cabin's carriage
     const yD = ht.p[1] - (ht.p[2] - S.hooks.dock.p[2]) * tL2;
-    check(Math.abs(yD - S.ropeAtDock) < 0.02 && Math.abs(S.ropeAtDock - (S.hooks.dock.p[1] + P.hangH)) < 1e-6, 'base ' + name + ': the rope over the dock is not at the cabin carriage', yD.toFixed(2) + ' vs ' + S.ropeAtDock.toFixed(2));
+    check(Math.abs(yD - S.ropeAtDock) < 0.02 && Math.abs(S.ropeAtDock - (S.hooks.dock.p[1] + P.hangH + P.ropeUp / Math.cos(P.lineDeg * Math.PI / 180))) < 1e-6, 'base ' + name + ': the rope over the dock is not at the cabin carriage', yD.toFixed(2) + ' vs ' + S.ropeAtDock.toFixed(2));
   }
   // the hooks
   const tL = [0, Math.sin(P.lineDeg * Math.PI / 180), Math.cos(P.lineDeg * Math.PI / 180)];
@@ -1571,6 +1572,18 @@ for (const name of Object.keys(HG.PRESETS)) {
   // the dock between the guides, at its height
   const D = S.hooks.dock;
   check(Math.abs(D.p[1] - (P.floorY + P.dockH - 0.2)) < 1e-6 && D.dx + 1.7 < Math.abs(S.guides[0].x) + 0.5, 'base ' + name + ': the dock is not between the guides at its height');
+  // THE CONCRETE DOCK (G351): an island between the lines and an outer
+  // platform beyond each, the two slots a hand wider than the cabin and no
+  // more, three flights of stairs down to the floor at the road end, rails
+  {
+    const DK = S.dock;
+    if (check(!!DK && Math.abs(DK.top - (P.floorY + P.dockH)) < 1e-9, 'base ' + name + ': no concrete dock at the cabins floor')) {
+      check(DK.island[1] < P.dockDx - DK.cabW / 2 - 0.05 && DK.outer[0][0] > P.dockDx + DK.cabW / 2 + 0.05, 'base ' + name + ': the slots do not clear the cabins flanks');
+      check(DK.island[1] > P.dockDx - DK.cabW / 2 - 0.3 && DK.outer[0][0] < P.dockDx + DK.cabW / 2 + 0.3, 'base ' + name + ': the slots are not tight');
+      check(DK.flights.length === 3 && DK.flights.every(f => f.steps >= 4 && f.zFoot < DK.z0 - 0.8 && f.zTop === DK.z0), 'base ' + name + ': three flights of stairs at the road end');
+      check(DK.rails >= 9, 'base ' + name + ': too few rails on the dock', String(DK.rails));
+    }
+  }
   // the wheels inside, above the floor
   for (const W2 of S.wheels) check(W2.c[1] - W2.r > P.floorY + 0.3 && Math.abs(W2.c[2]) < L / 2 && W2.c[1] + W2.r < P.floorY + S.barn.H, 'base ' + name + ': a tension wheel is not inside the barn');
   // THE OFFICE across the road end, facing the road, its sign on its front (G349)

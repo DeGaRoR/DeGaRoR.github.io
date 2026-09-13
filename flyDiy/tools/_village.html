@@ -46,6 +46,7 @@
   <label>exposure <input id="expo" type="range" min="0.3" max="2.5" step="0.05" value="1.05"></label>
   <label>face <input id="sunAz" type="range" min="-180" max="180" step="1" value="0"></label>
   <label><input id="lightsOn" type="checkbox"> lights on</label>
+  <label><input id="tramRun" type="checkbox" checked> tram runs</label>
   <label>site <select id="siteSel"><option value="">none</option><option value="kennecott" selected>Kennecott - the mine</option></select></label>
   <label>levels <select id="peopleLod">
     <option value="-1">by distance</option>
@@ -102,6 +103,7 @@
 <script src="../src/cabin/cabin_cabin.js"></script>
 <script src="../src/viewer/cabin_livery.js"></script>
 <script src="../src/viewer/cabin.js"></script>
+<script src="../src/viewer/tram_run.js"></script>
 <script src="_village_gen.js"></script>
 <script>
 (() => {
@@ -781,24 +783,31 @@ function build() {
     FINISHES.push(F);
     siteTris += built.stats.tris;
   }
-  // THE ROPES AND THE CABINS (G348): a cylinder along each rope with a
-  // little sag, one cabin in each station's dock - the base's on the left
-  // line, the top's on the right, as a jig-back stands
-  if (vil.tram) {
+  // THE ROPES AND THE CABINS (G348; G351 THE TRAM MOVES): the runtime's rope
+  // curve draws the tubes (the chord, its sag hung between the docks), and
+  // the cabins ride it in a jig-back - cabin 0 climbs the left line while
+  // cabin 1 comes down the right - their carriages pitched to the rope,
+  // their hangers plumb; the "tram runs" box ticks the clock
+  TRAM = null;
+  if (vil.tram && window.TRAM_RUN) {
     const ropeMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
-    for (const rp of vil.tram.ropes) {
-      const a = new THREE.Vector3(...rp.a), b = new THREE.Vector3(...rp.b), span = a.distanceTo(b);
+    const cabs = [0, 1].map(() => window.CABIN ? { pivot: CABIN.PIVOT, ropeUp: CABIN.ROPE_UP } : null);
+    const run = TRAM_RUN.make(vil.tram, cabs, { sag: 0.012 });
+    vil.tram.ropes.forEach((rp, k) => {
+      const Ln = run.lines[rp.line === undefined ? (k >> 1) : rp.line];
+      const rc = TRAM_RUN.ropeCurve(rp.a, rp.b, 0.012, Ln.rope.t0, Ln.rope.t1);
       const pts = [];
-      for (let i = 0; i <= 16; i++) { const t = i / 16; const p = a.clone().lerp(b, t); p.y -= span * 0.012 * 4 * t * (1 - t); pts.push(p); }
-      const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, rp.kind === 'track' ? 0.055 : 0.035, 6, false);
+      for (let i = 0; i <= 48; i++) { const q = rc.at(i / 48); pts.push(new THREE.Vector3(q[0], q[1], q[2])); }
+      const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, rp.kind === 'track' ? 0.055 : 0.035, 6, false);
       const m = new THREE.Mesh(geo, ropeMat); m.castShadow = true; root.add(m);
-      siteTris += 32 * 6 * 2;
+      siteTris += 96 * 6 * 2;
+    });
+    if (window.CABIN) {
+      const objs = [0, 1].map(i => { const c = CABIN.build(THREE, { livery: i ? 'admiralty' : 'chatham' }); root.add(c); return c; });
+      run.attach(objs);
     }
-    if (window.CABIN) for (const d of vil.tram.docks) {
-      const c = CABIN.build(THREE, { livery: d.station === 'top' ? 'admiralty' : 'chatham' });
-      c.position.set(d.p[0], d.p[1], d.p[2]); c.rotation.y = d.yaw;
-      root.add(c);
-    }
+    TRAM = run;
+    tramLoop();
   }
   // THE GRAVEL YARD (G334): one patch under the works, darkened by every
   // site building's occluders
@@ -923,6 +932,25 @@ function checks(vil) {
 }
 const polyCentre = p => [p.reduce((a, q) => a + q[0], 0) / p.length, p.reduce((a, q) => a + q[1], 0) / p.length];
 
+// THE TRAM'S CLOCK (G351): while "tram runs" is on, the jig-back ticks
+// from the page's own frames and the frame is drawn; `tramAt(s)` puts the
+// pair anywhere for a rig without a clock (the pane)
+let TRAM = null, tramRAF = 0, tramLast = 0;
+function tramLoop() {
+  if (tramRAF || !TRAM || !$('tramRun').checked) return;
+  tramLast = performance.now();
+  const tick = () => {
+    tramRAF = 0;
+    if (!TRAM || !$('tramRun').checked) return;
+    const now = performance.now(), dt = Math.min(0.1, (now - tramLast) / 1000); tramLast = now;
+    TRAM.tick(dt).apply();
+    draw();
+    tramRAF = requestAnimationFrame(tick);
+  };
+  tramRAF = requestAnimationFrame(tick);
+}
+window.tramAt = s => { if (!TRAM) return null; TRAM.setS(s).apply(); draw(); return TRAM.poses(); };
+$('tramRun').onchange = () => tramLoop();
 let smokeRAF = 0;
 function smokeLoop() {
   if (smokeRAF) return;

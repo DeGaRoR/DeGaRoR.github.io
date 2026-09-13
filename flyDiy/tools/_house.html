@@ -607,6 +607,8 @@ function build() {
     for (let i = 0; i < n; i++) {
       const c = CABIN.build(THREE, { livery: CABIN.LIVERIES[i % CABIN.LIVERIES.length] });
       c.position.set(n > 1 ? (i ? d.dx : -d.dx) : 0, d.p[1], d.p[2]);
+      // the carriage at the rope's slope (G351): down toward the valley at the top station, up the line at the base
+      if (c.userData.carriage) c.userData.carriage.rotation.x = (Math.round(P.station) === 1 ? 1 : -1) * P.lineDeg * Math.PI / 180;
       root.add(c);
     }
   }

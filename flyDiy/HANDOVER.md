@@ -43994,3 +43994,105 @@ staircase is gone.
   shadow under the afternoon sky).
 - Queued: the ropes drawn in the house bench; `tram_run.js`; the totem park
   on a village plot; landing the branch on master with a real G-number.
+
+## G351 (village-tram branch, provisional number) — THE TRAM MOVES: THE CARRIAGE
+## RIDES THE ROPE, THE CABIN HANGS PLUMB, A JIG-BACK IN THE VILLAGE; THE CABIN
+## BEVELLED AND SMOOTHED; THE BASE DOCK IN CONCRETE (2026-09-13, on the worktree
+## D:/Dev/wt-village, branch village-tram)
+
+The user, on the top station: "there is still an issue with the orientation
+of the cabin ... IRL the cabin will remain hanging vertically, and the
+wheeled part follows the tangent of the cable. Maybe we need that mechanism
+for proper movement of the tram ... one is up when the other is down, they
+move together in opposite direction ... detail further the dock at the base
+station, a 2 slot concrete structure with proper stairs for access and guard
+rails ... write the movement script, and present everything in the unified
+village view, including moving cabins." And: "The cabins need edge beveling,
+and smooth shading. There is also inverted normals on the A shaped support.
+The barrel wheels seem to have improper UV mapping."
+
+- THE CARRIAGE IS ITS OWN PART (src/viewer/cabin.js `splitCarriage`): the
+  author baked it rigid with the hanger at its own line's angle - eight
+  axles from (z -2.18, y 6.89) to (z 1.85, y 8.35), 19.85 degrees. Every
+  welded component is read against that rail line: thin across it and over
+  the arms = carriage; the arms, the head, its cheeks and side box = hanger.
+  The carriage's triangles go to their own sub-parts, translated to the
+  PIVOT [0, 7.05, 0.07] (the pin through the head's cheeks, on the lower
+  chord) and turned level; `build` hangs them in a `carriage` Group at the
+  pivot (`grp.userData.carriage`, there before the bake lands) that a runtime
+  pitches with `rotation.x`. The wheels (r 0.255) ride ON the rope: the
+  contact line is ROPE_UP 0.365 over the pivot square to the rail; `HANG`
+  is now 7.415 (pivot + rope, level), the stations' `hangH` is the pivot
+  (7.05) and `ropeUp` the rope over it, so the rope over a dock's centre is
+  `p.y + hangH + ropeUp / cos(lineDeg)`; a docked cabin stands with its
+  PIVOT on the centre, its origin a hand along the slot whichever way it
+  faces (a jig-back cabin faces one way for ever and visits both stations).
+- THE BEVEL AND THE SMOOTHING (`bevelSmooth`): parts welded by position and
+  read as faces; every component turned right side out - a closed one by
+  its signed volume, an open one by a centroid vote, a plate by the
+  author's normals (the author's normals could not tell: the hanger's arms
+  were flipped WITH their winding, that was the "A shaped support");
+  edges classed soft (under 40 degrees, smoothed across), hard-convex
+  (chamfered) or hard-concave (a crease); face groups across soft edges
+  each get their own vertex copies, inset 2 cm from every chamfered edge
+  (one inset per distinct direction, clamped to a third of the shortest
+  incident edge, no chamfer at all where that is under 5 mm - the bolts
+  keep their shape), normals averaged per group so a flat stays flat and a
+  facetted curve reads round; a TWO-SEGMENT strip on the arc tangent to
+  both faces over every chamfer (flat normals at the edges, the mean on the
+  crown - no gradient across the flats); the loose ends around a vertex
+  fanned from their centre. Prepared once per bake (`prepare`, cached);
+  about 49k triangles a cabin (33k baked). The glass and the floor boards go
+  through untouched; the gaskets and the livery decals build as before.
+- THE TRAM MOVES (src/viewer/tram_run.js, the TRAM-MOTION-2026-09-13 plan
+  made real): `ropeCurve(a, b, k, t0, t1)` - the chord between the saddles
+  with the parabolic sag hung BETWEEN THE DOCKS and none outside (the few
+  metres saddle-to-dock stay on the chord, so a cabin sits exactly where the
+  station built its dock) - draws the tubes and carries the cabins;
+  `pose(rope, t, yaw, cab)` - the contact line on the rope, the pivot
+  ropeUp UNDER it along the rope's normal, the cabin plumb from the pivot
+  with a fixed yaw, the carriage pitched to the tangent (read backwards for
+  a cabin facing down the line); `dockT` - the parameter where the pivot
+  stands over a dock's centre; `make(tram, cabs, opts)` - the jig-back: one
+  scalar s, cabin 0 climbs line 0 as cabin 1 descends line 1, a trapezoid
+  of speed (0.6 m/s2 to 6 m/s) over the run, a 12 s dwell, the direction
+  flipping; `attach/apply` write the poses into THREE objects; pure math
+  otherwise, so GATE VILLAGE 18 runs it on nothing.
+- THE LINE, PAIRED BY SIDE (tools/_village_gen.js tramLine): the stations
+  face opposite ways, so a base hook's mate is the top hook on the same side
+  of the base-to-top axis, not the same index - paired by index the two
+  track ropes CROSSED mid-span (G348's, unseen until the cabins met). Six
+  ropes now, tagged `{ kind, line }`: a track rope and its haul loop's two
+  strands per line; `slots.base/top[line]` where a cabin's floor stands
+  docked; `docks[0]` the base's on line 0, `docks[1]` the top's on line 1;
+  `pair`. The top station's slots moved from 2.8 to 2.6 m off centre, under
+  the arches (`topDx` = `trackX`); the base's tension sheaves 1.2 m (the
+  rope came down 1.1 m to the cabin's real hang, and the 1.8 m sheaves hit
+  the floor; the barn itself untouched, per the user).
+- THE DOCK (tools/_tram_gen.js buildBase): concrete at the cabin's floor -
+  an island between the lines and an outer platform beyond each, the two
+  slots 12 cm wider than the cabin's 3.44 m flanks; a straight concrete
+  flight at the road end of each (0.17 risers, 0.28 treads) with handrails
+  both sides; guard rails on every edge that is not a boarding edge;
+  `S.dock` published. The bull and tension wheels' rims: u along the rim by
+  each corner's own angle, v across the rim or down the cheek (the quad had
+  ONE u - the smear the user saw).
+- THE BENCHES: the village bench draws the ropes from the runtime's curve,
+  builds the two cabins and runs the jig-back from its own frames ("tram
+  runs", on by default; `tramAt(s)` for a rig without a clock); the house
+  bench pitches a docked cabin's carriage to `lineDeg` (down toward the
+  valley at the top, up the line at the base).
+- GATES: CABIN - the carriage split off and level about the pivot, the
+  hanger below it, HANG = pivot + rope, 1500+ chamfer strips, unit normals,
+  the hanger's arms turned; HOUSE 38/39 - the rope over the dock by the new
+  law, the slots under the arches, the concrete dock (slots a hand clear
+  and tight, three flights, nine rails); VILLAGE 17 - six tagged ropes, no
+  rope crosses the axis, the two lines a cabin apart, haul strands 3 m off
+  the ground (track 6); VILLAGE 18 - for s in 0..1 both contact lines on
+  their ropes, hangers plumb, carriages at the rope's slope, the pair 3.4 m
+  apart moving in opposite senses, clear of the mountain mid-run, the pivot
+  on the dock's centre within 2 cm at both ends, and the clock makes the
+  run and turns round. HOUSE, VILLAGE, CABIN green on the worktree.
+- Screenshots: screenshots/lods/tram351_*.jpg.
+- Queued: wheels spinning and the haul strands moving (cosmetic); the
+  motion in the game with the world clock; the totem park; landing.

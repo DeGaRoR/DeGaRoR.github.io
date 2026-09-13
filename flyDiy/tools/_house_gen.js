@@ -1464,9 +1464,10 @@ const DEF = {
   trackX: 2.6, wheelR: 1.8, haulDrop: 0.9, houseL: 10.5, passage: 1, terminal: 1, terminalZ: 38,
   dockDrop: 5.5, steelRust: 0.3, girderRust: 0.72,
   // G347: the slots and the raked truss
-  slotW: 3.8, wingW: 1.8, slotD: 6.2, midW: 5.2, cabinL: 5.2, footZ: -8, legRearZ: -4, legFrontZ: 12, legW: 3.2, legD: 1.4, topDx: 2.8, stayDeg: 45,
+  slotW: 3.8, wingW: 1.8, slotD: 6.2, midW: 5.2, cabinL: 5.2, footZ: -8, legRearZ: -4, legFrontZ: 12, legW: 3.2, legD: 1.4, topDx: 2.6, stayDeg: 45,
   // G349: the rope solved from the cabin's hang, the italic foot, the anchor frame on the terminal, the office sign
-  hangH: 8.6, tanBack: 3.0, machineH: 4.2, anchorX: 3.2, anchorUp: 3.0, signLivery: 'admiralty',
+  // (G351: the cabin's pivot over its floor origin and the rope's contact line over the pivot square to the line - cabin.js's PIVOT.y and ROPE_UP; a docked cabin stands with its pivot on the dock's centre)
+  hangH: 7.05, ropeUp: 0.365, tanBack: 3.0, machineH: 4.2, anchorX: 3.2, anchorUp: 3.0, signLivery: 'admiralty',
   cabin: 0,      // cabins at the dock (G343): 0, 1 or 2 - the bench places src/viewer/cabin.js's
   // THE BASE STATION (G346, station: 2): the open barn and what stands in it
   barnL: 24, barnW: 16, barnH: 10, barnPitch: 30, barnWin: 4, barnBay: 4, annexOn: 1, annexL: 12, annexW: 8,
@@ -1746,7 +1747,7 @@ const ROWS = [
     ['legFrontZ', 'the front leg head', 4, 14, 0.5, null, P => Math.round(P.station) === 1], ['legW', 'a leg across at its head', 1.5, 5, 0.1, null, P => Math.round(P.station) === 1],
     ['legD', 'a leg deep at its head', 0.8, 3, 0.1, null, P => Math.round(P.station) === 1],
     ['topDx', 'the slots off centre', 2, 4, 0.1, null, P => Math.round(P.station) === 1], ['stayDeg', 'the arch cables leave the arch at', 20, 80, 1, null, P => Math.round(P.station) === 1],
-    ['hangH', 'the cabin carriage over its floor', 4, 12, 0.1, null, P => !!P.station], ['tanBack', 'the rope leaves the saddle this far up the line from the dock', 1, 8, 0.1, null, P => Math.round(P.station) === 1],
+    ['hangH', 'the cabin pivot over its floor', 4, 12, 0.01, null, P => !!P.station], ['ropeUp', 'the rope over the pivot', 0, 1, 0.005, null, P => !!P.station], ['tanBack', 'the rope leaves the saddle this far up the line from the dock', 1, 8, 0.1, null, P => Math.round(P.station) === 1],
     ['machineH', 'the machine house tall', 3, 6, 0.1, null, P => Math.round(P.station) === 1], ['anchorX', 'the anchor frame posts off centre', 2, 6, 0.1, null, P => Math.round(P.station) === 1],
     ['anchorUp', 'the anchor frame over the terminal ridge', 1, 6, 0.1, null, P => Math.round(P.station) === 1],
     ['lamps', 'the lanterns', 0, 1, 1, null, P => !!P.station || !!P.mill],
@@ -2172,6 +2173,7 @@ const PRESETS = {
   // its sheave carriages, the docking guides, the raised dock, the tension
   // wheel, the annex - in weathered boards under worn iron
   'tram base station': {
+    wheelR: 1.2,   // (G351: the tension sheaves, under a rope that came down to the cabin's real hang; the bull wheels at the top keep 1.8)
     station: 2, slopeZ: 0, slopeX: 0, floorY: 0.15, L: 16, w: 24, storeys: 1, stance: 0,
     // painted steel inside (G349: "the structure inside should not be rusty"), the office in white boards (slot 2)
     steelRust: 0.06, girderRust: 0.12, barnH: 12, annexL: 14, annexW: 8,
