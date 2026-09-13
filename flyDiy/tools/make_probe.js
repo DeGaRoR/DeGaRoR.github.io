@@ -96,8 +96,12 @@ function build(name, swap) {
   // throws instead of writing a probe with no handles in it.
   const pathRe = f => '(?:\\.\\./)?' + f.replace(/[.\/]/g, c => '\\' + c) + '(?:\\?[^"]*)?';
   const appTag = new RegExp('<script src="' + pathRe('src/viewer/app.js') + '"><\\/script>');
-  if (!appTag.test(h)) throw new Error('make_probe: no app.js script tag in dev.html');
-  h = h.replace(appTag, m => CATCH + m);
+  // W0.5a made the page's scripts `type="text/x-flydiy"` (a loader runs them
+  // after the vendor pick), so there is no classic app.js tag to hook the
+  // scene catch onto; the shim and the error trap still apply, and
+  // __scene/__camera are simply absent (the panel/crew globals carry on)
+  if (appTag.test(h)) h = h.replace(appTag, m => CATCH + m);
+  else console.warn('make_probe: no classic app.js tag (deferred loader) — no __scene catch');
   if (swap) for (const f of BASE_OF) {
     const re = new RegExp(pathRe(f));
     if (!re.test(h)) throw new Error('make_probe: cannot pin ' + f);

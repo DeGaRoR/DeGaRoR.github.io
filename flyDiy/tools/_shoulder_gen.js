@@ -64,8 +64,12 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 
 const DEF = {
-  W: 0.07,          // lip width, inboard from the skin (m)
-  H: 0.20,          // vertical leg drop below the lip's top (m)
+  W: 0.052,         // lip width, inboard from the skin (m) — 1.5 cm narrower than the
+                    // first cut, to sit with the dashboard's own border (the user)
+  H: 0.10,          // vertical leg drop below the lip's top (m) — "10 cm" (the user)
+  lip: 0.02,        // THE BOTTOM RETURN: the leg's edge bent back 90 deg outboard over
+                    // this much, so the leg ends on a rolled corner like the top one and
+                    // not on a cut edge (the user); 0 = the bare edge
   t: 0.002,         // sheet thickness
   bendR: 0.004,     // inside bend radius (outer = bendR + t)
   bendN: 4,         // segments on the bend
@@ -452,6 +456,7 @@ function shoulderBuild(mesh, spec, opt, CAGE) {
     // profile in (s, y), s inboard from xo. Each point carries the normal of
     // the SEGMENT that starts at it (so a sharp corner is two coincident
     // points) and that segment's strip tag; 'x' marks the degenerate pair.
+    const lip = o.lip > 0 ? Math.max(o.lip, ro + o.t) : 0;   // a return shorter than its bend is no return
     const prof = s0 => {
       const P = [];
       const add = (s, y, ns, ny, tag) => P.push({ s, y, n: [ns, ny], tag });
@@ -462,10 +467,35 @@ function shoulderBuild(mesh, spec, opt, CAGE) {
         add(o.W - ro + ro * Math.cos(a), -ro + ro * Math.sin(a), Math.cos(a), Math.sin(a),
             k === bendN ? 'face' : 'bend');
       }
-      add(o.W, -s0.Hc, 1, 0, 'x');
-      add(o.W, -s0.Hc, 0, -1, 'bottom');
-      add(o.W - o.t, -s0.Hc, 0, -1, 'x');
-      add(o.W - o.t, -s0.Hc, -1, 0, 'pocket');
+      if (lip > 0) {
+        // THE BOTTOM RETURN: down the face to the lower bend, round it (radius
+        // ro, the top's), out along the return's underside to the free edge,
+        // back along its upper face, round the inner bend (ri), up the pocket
+        // face. The free edge is a cut edge still, but it is tucked under the
+        // return, outboard and down, where no hand meets it.
+        const yc = -(s0.Hc - ro);                      // the lower bend's centre height
+        add(o.W, yc, 1, 0, 'lbend');
+        for (let k = 1; k <= bendN; k++) {
+          const a = -Math.PI / 2 * k / bendN;
+          add(o.W - ro + ro * Math.cos(a), yc + ro * Math.sin(a), Math.cos(a), Math.sin(a),
+              k === bendN ? 'bottom' : 'lbend');
+        }
+        add(o.W - lip, -s0.Hc, 0, -1, 'x');
+        add(o.W - lip, -s0.Hc, -1, 0, 'tip');
+        add(o.W - lip, -s0.Hc + o.t, -1, 0, 'x');
+        add(o.W - lip, -s0.Hc + o.t, 0, 1, 'ret');
+        add(o.W - ro, -s0.Hc + o.t, 0, 1, 'ilbend');
+        for (let k = 1; k <= bendN; k++) {
+          const a = -Math.PI / 2 * (1 - k / bendN);
+          add(o.W - ro + ri * Math.cos(a), yc + ri * Math.sin(a), -Math.cos(a), -Math.sin(a),
+              k === bendN ? 'pocket' : 'ilbend');
+        }
+      } else {
+        add(o.W, -s0.Hc, 1, 0, 'x');
+        add(o.W, -s0.Hc, 0, -1, 'bottom');
+        add(o.W - o.t, -s0.Hc, 0, -1, 'x');
+        add(o.W - o.t, -s0.Hc, -1, 0, 'pocket');
+      }
       add(o.W - o.t, -ro, -1, 0, 'ibend');
       for (let k = 1; k <= bendN; k++) {
         const a = Math.PI / 2 * k / bendN;
@@ -595,14 +625,20 @@ function chainStations(ch, o, skinX, ro) {
     // the leg's inner face vs the skin below: the first y where the skin
     // comes inboard of the leg's pocket face ends the leg (closed onto the
     // skin). Sampled at 1 cm steps.
-    const xLegIn = xo + u * (o.W - o.t);
+    // (with a bottom return the return's tip, W - lip inboard, is what must
+    // clear the skin, and the leg needs room for two bends)
+    const lip = o.lip > 0 ? Math.max(o.lip, ro + o.t) : 0;
+    const xLegIn = xo + u * (lip > 0 ? o.W - lip : o.W - o.t);
     let Hc = o.H;
     for (let y = yTop - ro; y >= yTop - o.H - 1e-9; y -= 0.01) {
       const xs = skinX(side, y, p[2]);
       if (xs != null && (xs - xLegIn) * u > -o.inset) { Hc = yTop - y; break; }
     }
-    Hc = Math.max(Hc, ro + o.t + 0.005);
-    st.push({ z: p[2], yTop, xo, xo1, Hc });
+    Hc = Math.max(Hc, (lip > 0 ? 2 * ro : ro) + o.t + 0.005);
+    // THE FACE, NAMED (for the throttle's lever and whatever else mounts on
+    // the leg): its x, and the flat part's top and bottom — the bends take ro
+    st.push({ z: p[2], yTop, xo, xo1, Hc,
+              face: { x: xo + u * o.W, yTop: yTop - ro, yBot: yTop - Hc + (lip > 0 ? ro : 0) } });
   }
   return st;
 }
@@ -681,7 +717,7 @@ function planSlot(o, st, u, side, ch, off) {
     { leg: 'top', plane: { kind: 'y', c: s0.yTop }, map: p => [p[2], (p[0] - at(p[2]).xo) * u],
       dom: z => [0, o.W - ro], tagA: 'top', tagB: 'under', margin: [zMin, zMax] },
     { leg: 'face', plane: { kind: 'x', c: s0.xo + u * o.W }, map: p => [p[2], p[1] - at(p[2]).yTop],
-      dom: z => [-at(z).Hc, -ro], tagA: 'face', tagB: 'pocket', margin: [zMin, zMax] },
+      dom: z => [-at(z).Hc + (o.lip > 0 ? ro : 0), -ro], tagA: 'face', tagB: 'pocket', margin: [zMin, zMax] },
   ];
   let pick = null;
   for (const c of cands) {

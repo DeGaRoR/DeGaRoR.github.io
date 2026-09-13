@@ -6753,8 +6753,12 @@ const CAGE_PARAMS = {
   // Cage units (the rows show ≈ metres): 0.09 / 0.27 / 0.003 are 6.7 cm,
   // 20 cm and 2.2 mm on the page's aeroplane (planeScale 0.745) — the user's
   // "5-10 cm lip, about 20 cm down".
-  shoulderOn: 1, shoulderW: 0.09, shoulderH: 0.27, shoulderT: 0.003,
-  shoulderRun: 0,
+  // G355 (the user): the lip 1.5 cm narrower, to sit with the dash's
+  // border (0.09 -> 0.07 = 5.2 cm on the page's aeroplane); the drop 10 cm
+  // (0.27 -> 0.135); and a BOTTOM LIP — the leg's edge bent back 90 deg
+  // outboard over 2 cm (0.027), so the leg ends on a rolled corner.
+  shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135, shoulderT: 0.003,
+  shoulderLip: 0.027, shoulderRun: 0,
   // THE DOOR INNER PANEL (G3xx): a trim board inside each door from the
   // shoulder's leg to the door's bottom, standing off the door's innermost
   // surface (skin or liner, sampled) by the gap, inset from the cut edges by
@@ -7318,9 +7322,10 @@ function cageSpec(P) {
   // boom machinery idles without its stations. Known v1 gaps in
   // HANDOVER: no boom-cone structure, no aft-belly tube chine.)
   S.shoulder = { on: P.shoulderOn == null || +P.shoulderOn ? 1 : 0,
-                 W: Math.max(0.02, +P.shoulderW || 0.09),
-                 H: Math.max(0.03, +P.shoulderH || 0.27),
+                 W: Math.max(0.02, +P.shoulderW || 0.07),
+                 H: Math.max(0.03, +P.shoulderH || 0.135),
                  t: Math.max(0.0005, +P.shoulderT || 0.003),
+                 lip: Math.max(0, P.shoulderLip == null ? 0.027 : +P.shoulderLip),
                  run: Math.round(+P.shoulderRun || 0) ? 'cabin' : 'pilot' };
   S.doorPanel = { on: +P.doorPanelOn ? 1 : 0,
                   T: Math.max(0.003, +P.doorPanelT || 0.008),
@@ -7901,7 +7906,7 @@ function cageShoulder(m, S) {
   const withPanel = mm => (DP && DP.on && SG.panelBuild)
     ? SG.panelBuild(mm, S, { T: DP.T, gap: DP.gap, margin: DP.margin, pocket: DP.pocket }) : mm;
   if (!SH || !SH.on) return withPanel(m);
-  const o = { W: SH.W, H: SH.H, t: SH.t, run: SH.run };
+  const o = { W: SH.W, H: SH.H, t: SH.t, run: SH.run, lip: SH.lip || 0 };
   // G344: the throttle's lever, decided here and recorded on the mesh for
   // the crew layer to draw; 'slot' cuts the leg, 'face' only seats a plate
   let lever = null;

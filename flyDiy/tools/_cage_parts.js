@@ -982,7 +982,7 @@ const CAGE_PARTS = [
     place: { on: 'shoulderOn', at: 'along the window sill, from the dash aft' },
     groups: [
       ['shoulder', ['shoulderOn', 'shoulderW', 'shoulderH', 'shoulderT',
-                    'shoulderRun']],
+                    'shoulderLip', 'shoulderRun']],
     ] },
 
   // THE DOOR INNER PANEL (G3xx): its own part under the fit, off by default

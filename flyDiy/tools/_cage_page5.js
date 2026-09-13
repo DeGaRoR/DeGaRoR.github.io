@@ -414,6 +414,8 @@ window.CAGE_PAGE = {
          { when: P => +P.shoulderOn, dim: 'len' }],
         ['shoulderT',   'shoulder gauge', 0.001, 0.004, 0.0005,
          { when: P => +P.shoulderOn, dim: 'len' }],
+        ['shoulderLip', 'bottom lip',     0, 0.06, 0.002,
+         { when: P => +P.shoulderOn, dim: 'len' }],
         ['shoulderRun', 'shoulder run',   0, 1, 1, ['pilot bay', 'whole cabin'],
          { when: P => +P.shoulderOn }],
       ]],

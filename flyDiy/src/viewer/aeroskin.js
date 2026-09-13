@@ -290,7 +290,8 @@ const AERO_FINISH = {
   // section; the shell's dark leather is the natural second choice.
   // base 0x5a3a28 -> 0x8a5a3a: under the cabin's own darkening the first
   // read as the liner it covers, and a pleat you cannot see is not a pleat
-  pleatLeather: { name: 'pleated leather', base: 0x8a5a3a, tile: 0.16,
+  // ...and 0x8a5a3a -> 0xb8845a (the user: "too dark in flight")
+  pleatLeather: { name: 'pleated leather', base: 0xb8845a, tile: 0.16,
                   rough: 0.55, metal: 0.0, nrm: 1.0, alb: 0.45,
                   hs: 1.0, bs: 0.7, bake: 'pleat', pleats: 2 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,

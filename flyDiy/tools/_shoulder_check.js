@@ -125,16 +125,18 @@ console.log('--- door panel');
 }
 console.log('--- throttle');
 {
-  // the wall lever at the crew's own station sits ~0.59 m below the sill on
+  // the wall lever at the crew's own station sits well below the sill on
   // the stock build: NO crossing is the truth there. Raised into the pocket
   // it must come out through the face (W 0.05: the knob reaches past the
-  // leg) or be reported BURIED (W 0.07: the 16 cm lever ends inside the
-  // pocket); raised to the sill it comes out through the top
+  // leg); raised to the sill it comes out through the top
   const built = G.cageSheet({ ...G.CAGE_PARAMS, ...BASE }, { level: 2 });
   const ROWS = [
     ['stock station, W 0.07', 0.07, 0, 'none'],
     ['up 0.40, W 0.05', 0.05, 0.40, 'face'],
-    ['up 0.40, W 0.07', 0.07, 0.40, 'buried'],
+    // (a 10 cm leg cannot bury a 16 cm lever any more — G355: the pocket is
+    // shallower than the lever, so 'buried' is unreachable; a lever raised
+    // into the pocket comes out through the top)
+    ['up 0.40, W 0.07', 0.07, 0.40, 'none'],
     ['up 0.55, W 0.07', 0.07, 0.55, 'top'],
     ['up 0.55, W 0.10', 0.10, 0.55, 'top'],
   ];

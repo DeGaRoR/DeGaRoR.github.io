@@ -94,7 +94,7 @@ const D2R = Math.PI / 180;
 
 // ---- the parameters ----------------------------------------------------------
 const P = {
-  W: 0.07, H: 0.20, t: 0.002, bendR: 0.004, drop: 0.003, gap: 0.004,
+  W: 0.052, H: 0.10, lip: 0.02, t: 0.002, bendR: 0.004, drop: 0.003, gap: 0.004,
   run: 'pilot', explode: 0,
   thrDy: 0, thrDx: 0, thrDz: 0, thrLen: 0.16, thrPose: 0,
   cutZ: 2.6, lightAz: 35, lightEl: 22,
@@ -102,6 +102,7 @@ const P = {
 const ROWS = [
   ['W', 'lip width', 0.03, 0.14, 0.005],
   ['H', 'leg drop', 0.05, 0.60, 0.01],
+  ['lip', 'bottom lip', 0, 0.05, 0.002],
   ['t', 'thickness', 0.001, 0.005, 0.0005],
   ['bendR', 'bend radius', 0, 0.012, 0.001],
   ['drop', 'below the glass', 0, 0.015, 0.001],
@@ -142,11 +143,11 @@ const sel = (k, lab, opts) => {
 {
   const h = document.createElement('h2'); h.textContent = 'the shoulder'; ui.append(h);
   sel('run', 'run', ['pilot', 'cabin']);
-  for (const r of ROWS.slice(0, 7)) row(...r);
+  for (const r of ROWS.slice(0, 8)) row(...r);
   const h2 = document.createElement('h2'); h2.textContent = 'the throttle (wall lever)'; ui.append(h2);
-  for (const r of ROWS.slice(7, 12)) row(...r);
+  for (const r of ROWS.slice(8, 13)) row(...r);
   const h3 = document.createElement('h2'); h3.textContent = 'cutaway · light'; ui.append(h3);
-  for (const r of ROWS.slice(12)) row(...r);
+  for (const r of ROWS.slice(13)) row(...r);
   const note = document.createElement('p');
   note.style.color = 'var(--dim)';
   note.textContent = 'drag: orbit · wheel: zoom · right-drag: pan. The wall throttle ' +
@@ -418,7 +419,7 @@ function build() {
   built = G.cageSheet(CP, { level: L });
   const tCage = performance.now() - t0;
   // the run from the preset unless the user changed it
-  const sopt = Object.assign({}, cfg[2] || {}, { W: P.W, H: P.H, t: P.t, bendR: P.bendR, drop: P.drop, gap: P.gap, run: P.run });
+  const sopt = Object.assign({}, cfg[2] || {}, { W: P.W, H: P.H, lip: P.lip, t: P.t, bendR: P.bendR, drop: P.drop, gap: P.gap, run: P.run });
   let lever = null;
   if ($('thrOn').checked) {
     lever = SG.stockLever(built, 1, G, { dy: P.thrDy, dx: P.thrDx, dz: P.thrDz, len: P.thrLen });

@@ -43022,3 +43022,54 @@ premises layer takes.
 - Note for the record: while testing this session set the user's editor
   rows ctlThr 5 / flapCtl 1 and the autosave carried them; both were put
   back to 0 through GARAGE_SPEC.update before landing.
+
+## G355 — THE SHOULDER'S BOTTOM RETURN, THE 10 cm LEG, THE NARROWER LIP AND
+## THE BRIGHTER LEATHER (2026-09-13, the user: "Make the pleated leather
+## brighter, it's too dark in flight. Slightly adjust the length of the top
+## face of the shoulder, so it is better matched with the border of the
+## dashboard. I'd say 1 cm outward, maybe 2? Update the default height of the
+## shoulder to 10 cm (instead of the current 20 ish). Do the bottom lip of the
+## shoulder. Currently, we would end on a dangerous cutting edge. IRL, you'd
+## bend this back 90° over a couple of centimeters, so any contact with the leg
+## is done on a proper smooth corner, like the one on top.")
+
+- **THE BOTTOM RETURN** (`lip`, `tools/_shoulder_gen.js`): the leg's edge is
+  bent back 90° OUTBOARD over `lip` (2 cm on the page's aeroplane; cage
+  0.027), round a bend of the top's own radius, so a knee meets a rolled
+  corner at the bottom as at the top. The profile gains five strips
+  (`lbend` · `bottom` · `tip` · `ret` · `ilbend`) between the face and the
+  pocket; the free cut edge is still there but tucked under the return,
+  outboard and down, where no hand meets it. A return shorter than its bend
+  is no return (floored at ro + t); `lip: 0` gives the bare edge back.
+- **THE STATIONS KNOW THE FACE.** `chainStations` tests the RETURN'S TIP
+  (W − lip inboard) against the skin below, not the pocket face — the tip is
+  what must clear a belly that comes in — floors the leg at two bends, and
+  publishes `face: { x, yTop, yBot }` per station: the flat part of the leg
+  (the bends take ro each end). The slot planner's face domain stops ro
+  above the leg's bottom for the same reason. For the throttle's lever
+  (G344) the contract {xo, yTop, Hc} is unchanged; the flat face now ends
+  ro ABOVE yTop − Hc when a lip exists — read `face.yBot`.
+- **THE DEFAULTS**: `shoulderW` 0.09 → 0.07 (6.7 → 5.2 cm on the page's
+  aeroplane: the user's "1 cm outward, maybe 2" read as 1.5 cm narrower, so
+  the lip's edge sits with the dash's border), `shoulderH` 0.27 → 0.135
+  (20 → 10 cm), `shoulderLip` 0.027 (new; `bottom lip` row on the Cockpit
+  page, 0–0.06, in the `shoulder` part group; the bench's `lip` row); the
+  generator's own DEF W 0.052 / H 0.10 / lip 0.02.
+- **THE LEATHER**: `pleatLeather` base 0x8a5a3a → 0xb8845a (the third
+  lightening: the cabin's own darkening plus the shoulder's shadow ate the
+  first two; in flight it now reads as a warm brown with the pleats
+  visible, screenshots/shoulder/94 vs 71).
+- **GATE SHOULDER**: the 21 shoulder configurations and the 13 door-panel
+  rows pass with the return (closure by position, the panel's clearance to
+  the return's tip). One throttle row changed its truth: a 10 cm leg cannot
+  BURY a 16 cm lever any more (`up 0.40, W 0.07` expects `none`, not
+  `buried`; the pocket is shallower than the lever).
+- `tools/make_probe.js`: after W0.5a the page's scripts are
+  `type="text/x-flydiy"` and there is no classic app.js tag to hook the
+  scene catch onto — a warning now, not a throw (the shim, the error trap
+  and the panel/crew globals still apply; `__scene` is simply absent).
+- Captures (untracked): screenshots/shoulder/81 (bench section at z 2.6:
+  the rolled bottom and the return under the leg, the panel clear of it),
+  82–83 (bench, pilot's eye and from below), 91–93 (shed interior), 94–95
+  (flight). Proven on a clean worktree: SHOULDER, SURF, PARTS, SKINMAT,
+  CLIP, MEDIA.
