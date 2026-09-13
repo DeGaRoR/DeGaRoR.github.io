@@ -37,7 +37,7 @@ function make(THREE, scene, world, rec0, opts) {
   let rec = PG.normalise(rec0 || PG.DEF());
   let O = PG.compose(rec, world, { pool: o.pool() });
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'trees', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'trees', 'runways', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   scene.add(root);
   const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0 };
   const bounds = world.bounds || { x0: -160, z0: -160, x1: 160, z1: 160 };
@@ -134,6 +134,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const s of rec.layers.surface) if (s.poly && s.poly.length >= 3) { path(s.poly); g.fillStyle = SURF_COL[s.surface] || SURF_COL[6]; g.fill(); }
     for (const e of rec.layers.exclude) if (e.poly && e.poly.length >= 3) { path(e.poly); g.fillStyle = 'rgba(255,90,90,0.18)'; g.fill(); }
     for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) { path(z.poly); g.fillStyle = 'rgba(208,192,144,0.18)'; g.fill(); }
+    for (const r of O.runways) { path(PG.runwayBox(r, 0)); g.fillStyle = SURF_COL[r.surface] && r.surface !== 0 ? SURF_COL[r.surface] : 'rgba(110,125,60,0.35)'; g.fill(); }
     ovTex.needsUpdate = true;
   }
   function paintWear() {
@@ -169,7 +170,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function worldPts(entry) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' ? [[entry.x, entry.z]] : []));
+    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -205,6 +206,56 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
 
+  // ---- the runways: the strip's paint over the composed ground, the pattern overlay ---
+  // sitePaintStrip / siteRunway / sitePattern / patternPath come from the core
+  // (flight_core.js in the page); with none the strip is a bare quad
+  const SITE = o.site || {};
+  function buildRunways() {
+    for (const c of G.runways.children.slice()) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); }); }
+    O.runways.forEach((r, i) => {
+      const A = O.aerodromes[i];
+      const R = SITE.siteRunway ? SITE.siteRunway(A) : null;
+      // the strip as a ribbon following the composed ground, 4 m along, 3 across
+      const dx = Math.cos(A.hdg), dz = Math.sin(A.hdg), nx = -dz, nz = dx, hl = A.len / 2, hw = A.wid / 2;
+      const na = Math.max(2, Math.ceil(A.len / 4)), nc = 2;
+      const pos = new Float32Array((na + 1) * (nc + 1) * 3), uv = new Float32Array((na + 1) * (nc + 1) * 2);
+      let k = 0, u = 0;
+      for (let a = 0; a <= na; a++) for (let c = 0; c <= nc; c++) {
+        const t = -hl + A.len * a / na, w = -hw + A.wid * c / nc;
+        const x = A.x + dx * t + nx * w, z = A.z + dz * t + nz * w;
+        pos[k++] = x; pos[k++] = heightAt(x, z) + 0.04; pos[k++] = z;
+        // the paint canvas runs from end1 (u = 0) to end0 (u = 1) in sitePaintStrip's frame
+        uv[u++] = 1 - a / na; uv[u++] = c / nc;
+      }
+      const idx = [];
+      for (let a = 0; a < na; a++) for (let c = 0; c < nc; c++) { const v = a * (nc + 1) + c; idx.push(v, v + 1, v + nc + 2, v, v + nc + 2, v + nc + 1); }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+      let mat;
+      if (R && SITE.sitePaintStrip) {
+        const RW = 2048, RH = Math.max(64, Math.round(RW * A.wid / A.len));
+        const cv = document.createElement('canvas'); cv.width = RW; cv.height = RH;
+        SITE.sitePaintStrip(cv.getContext('2d'), R, RW, RH, true);
+        const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+        mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      } else mat = new THREE.MeshStandardMaterial({ color: 0x9a9a8c, transparent: true, opacity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.renderOrder = 6; m.name = 'runway:' + r.id; m.userData.premId = r.id; m.userData.ownMap = true;
+      G.runways.add(m);
+      // the pattern the pilot reads, drawn by the game's own builder when it is here
+      if (SITE.sitePattern && window.PATTERN_VIS) {
+        try {
+          const pat = SITE.sitePattern(A, r.site || null);
+          const pv = window.PATTERN_VIS.buildPatternVis(THREE, pat, (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway });
+          const grp = pv.group || pv;
+          if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true });
+          grp.name = 'pattern:' + r.id;
+          G.runways.add(grp);
+        } catch (e) { console.warn('premises pattern', r.id, e && e.message); }
+      }
+    });
+    stats.runways = O.runways.length;
+  }
+
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
   const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });
@@ -216,6 +267,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (!selectedId) return;
     const f = PG.findById(rec, selectedId);
     if (!f) return;
+    if (f.layer === 'runways') {
+      const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, f.entry)), F = O.frame;
+      const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
+      put(E.end0, 'e0'); put(E.end1, 'e1'); put(f.entry.c, 'c', true);
+      return;
+    }
     const pts = worldPts(f.entry);
     const closed = !!f.entry.poly;
     for (let i = 0; i < pts.length; i++) {
@@ -445,6 +502,7 @@ function make(THREE, scene, world, rec0, opts) {
     paintOverlay();
     paintWear();
     buildOutlines();
+    buildRunways();
     buildHandles();
     syncHouses();
     buildTrees();
@@ -467,6 +525,7 @@ function make(THREE, scene, world, rec0, opts) {
         for (let i = 0; i + 1 < en.pts.length; i++) { const d = PG.distPtSeg(L[0], L[1], en.pts[i], en.pts[i + 1]) - (en.w || en.width || 4) / 2; if (d < nearD) { nearD = d; near = e; } }
       }
     }
+    for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
@@ -501,7 +560,7 @@ function make(THREE, scene, world, rec0, opts) {
     select: id => { selectedId = id || null; buildOutlines(); buildHandles(); },
     get selected() { return selectedId; },
     overlayOn: on => { uOvOn.value = on ? 1 : 0; },
-    groundMat, plots: () => O.records.plots, houses: HOUSES,
+    groundMat, plots: () => O.records.plots, houses: HOUSES, aerodromes: () => O.aerodromes,
   };
   return R;
 }

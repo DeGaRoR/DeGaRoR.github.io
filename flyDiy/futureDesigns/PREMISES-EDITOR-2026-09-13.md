@@ -2,9 +2,10 @@
 ### (2026-09-13, from the user's brief on the premises of the world editor)
 
 STATUS: **design; the bench v0 (G356: the ground, the record, a flatten) and v1 (roads traced and graded,
-zones sown with the house generator on every plot, forest / clear zones, hand trees) LANDED 2026-09-13**
-(`tools/_premises.html`, port 8401, GATE PREMISES). v2 (the airfield on World A) and v3 (sites + links
-from the catalogue) are next. Companion
+zones sown with the house generator on every plot, forest / clear zones, hand trees) and v2 (a strip placed by
+two clicks on the flight world, graded to its slope, painted by the game's recipe, the pattern derived and
+validated live) LANDED 2026-09-13** (`tools/_premises.html`, port 8401, GATE PREMISES, three goldens). v3
+(sites + links from the catalogue) is next. Companion
 to `PREMISES-CONTRACT-2026-09-13.md` (the record and the asset contract, frozen v1). Appendix A is
 THE SPLIT — how the parallel sessions divide the work, land, unify and port; every session reads it.
 

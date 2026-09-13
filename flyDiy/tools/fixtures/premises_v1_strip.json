@@ -1,0 +1,33 @@
+{
+  "what": "flydiy-premises",
+  "v": 1,
+  "name": "strip",
+  "premises": {
+    "v": 1,
+    "id": "strip",
+    "name": "a sloped grass strip with an apron and a taxi road, in a wood - the airfield's golden (v1)",
+    "seed": 7,
+    "frame": { "kind": "free", "extent": { "x0": -360, "z0": -220, "x1": 360, "z1": 220 }, "anchors": { "*": { "x": 0, "z": 0, "yaw": 0 } } },
+    "layers": {
+      "terrain": [],
+      "surface": [
+        { "id": "y1", "poly": [[-40, 30], [60, 30], [60, 70], [-40, 70]], "surface": 5, "apron": true }
+      ],
+      "material": [],
+      "exclude": [],
+      "roads": [
+        { "id": "r1", "pts": [[10, 70], [40, 130], [120, 190]], "w": 4, "cls": "gravel", "graded": true, "falloff": 6 }
+      ],
+      "runways": [
+        { "id": "w1", "name": "east strip", "c": [0, 0], "hdg": 0.25, "len": 520, "wid": 24, "surface": 0, "slope": 0.015, "crossfall": 0, "disp": [0, 0], "papi": [true, true], "falloff": null, "site": null, "pattern": null }
+      ],
+      "zones": [
+        { "id": "z1", "kind": "forest", "poly": [[-350, -210], [350, -210], [350, 210], [-350, 210]], "density": 1, "seed": null, "palette": null, "rules": {} }
+      ],
+      "sites": [], "links": [], "objects": []
+    },
+    "budget": { "tris": 400000, "lights": 24, "smoke": 6, "people": 40 }
+  },
+  "plaque": null,
+  "log": { "built": null, "tests": [], "flights": [] }
+}

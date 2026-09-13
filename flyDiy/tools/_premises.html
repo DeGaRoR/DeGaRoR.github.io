@@ -97,6 +97,7 @@
 <script src="_big_gen.js"></script>
 <script src="_village_gen.js"></script>
 <script src="_premises_gen.js"></script>
+<script src="../src/viewer/pattern_vis.js"></script>
 <script src="_premises_draw.js"></script>
 <script src="_premises_ui.js"></script>
 <script>
@@ -119,7 +120,7 @@ function makeWorldB() {
 function makeWorldA() {
   if (typeof makeWorld !== 'function') { console.warn('flight_core.js not built — falling back to world B'); return makeWorldB(); }
   const W = makeWorld();
-  const cx = -520, cz = 0, h = size / 2;   // the HOME window
+  const cx = 0, cz = 0, h = size / 2;      // the window on the premises frame's origin: HOME's pad ends at x 130, the shed stands at (42, 62)
   return { id: 'W-24km', terrainH: W.terrainH, waterH: (x, z) => W.waterH(x, z), surface: W.surface, aerodromes: W.aerodromes,
            bounds: { x0: cx - h, z0: cz - h, x1: cx + h, z1: cz + h }, W };
 }
@@ -250,7 +251,11 @@ function treePool() {
   return treeList().map(e => ({ key: e.key, size: (e.col.place && e.col.place.size) || 1,
     sink: (e.col.place && e.col.place.sink) || 0, proportion: (e.col.place && e.col.place.proportion) || 1, h: e.sub.h }));
 }
-let R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps(), pool: treePool, onBuilt: () => draw() });
+// the core's own airfield functions (flight_core.js): the strip's paint, the derived runway, the pattern and its validator
+const SITE = { siteRunway: typeof siteRunway === 'function' ? siteRunway : null, sitePaintStrip: typeof sitePaintStrip === 'function' ? sitePaintStrip : null,
+               sitePattern: typeof sitePattern === 'function' ? sitePattern : null, sitePatternIssues: typeof sitePatternIssues === 'function' ? sitePatternIssues : null,
+               patternPath: typeof patternPath === 'function' ? patternPath : null };
+let R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps(), pool: treePool, onBuilt: () => draw(), site: SITE });
 if (typeof treeWarm === 'function') treeWarm().then(() => (typeof treeMapsReady === 'function' ? treeMapsReady() : null)).then(() => { if (window.PREMISES_PAGE) { PREMISES_PAGE.ed.dirty(); } }).catch(e => console.warn('trees:', e && e.message));
 if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
 let dirtyDraw = true;
@@ -292,7 +297,7 @@ const ED = PU.mount($('host'), {
   THREE, world: WORLD, R, camera, ground, ray, cameras, rows,
   els: { chk: $('chk'), plaque: $('plaque'), strip: $('strip') },
   viewEl, storage: (() => { try { return localStorage; } catch (e) { return null; } })(),
-  rig, redraw: draw, frameText, pool: treePool, fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
+  rig, redraw: draw, frameText, pool: treePool, site: SITE, fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
 });
 // the view sits between the rail and the inspector the module built
 $('host').insertBefore(viewEl, $('host').querySelector('.pr-insp'));

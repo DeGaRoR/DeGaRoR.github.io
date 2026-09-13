@@ -30,13 +30,14 @@ const PG = window.PREMISES_GEN;
 
 const SECTIONS = [
   { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'flatten', 'raise', 'ramp', 'surface', 'probe'] },
+  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'probe'] },
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -49,8 +50,11 @@ const TOOL_HELP = {
   clear: 'click the corners where no tree may grow, close',
   tree: 'click the ground to plant one tree; its species and size in the inspector',
   probe: 'click the ground to read its height, slope and surface',
+  runway: 'click one end of the strip, then the other — it is graded to its profile, its class reaches the wheels, the pattern is derived',
+  apron: 'click the corners of the paved apron or taxiway, close',
 };
-const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', zone: 'zones', forest: 'zones', clear: 'zones' };
+const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', zone: 'zones', forest: 'zones', clear: 'zones' };
+const TWO_POINT_TOOLS = { runway: 'runways' };
 const LINE_TOOLS = { road: 'roads' };
 const POINT_TOOLS = { tree: 'objects' };
 const LS_WIP = 'flydiy.premises.wip';
@@ -81,11 +85,12 @@ function mount(host, ctx) {
     if (entry.poly) { const b = PG.polyBBox(entry.poly); const f = (+entry.falloff || 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.pts) { const b = PG.polyBBox(entry.pts); const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
+    if (entry.c && entry.len) { const b = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, entry), 40)); return b; }
     return null;
   }
   const union = (a, b) => (!a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), z0: Math.min(a.z0, b.z0), x1: Math.max(a.x1, b.x1), z1: Math.max(a.z1, b.z1) });
   // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
-  const groundLayer = layer => layer === 'terrain' || layer === 'roads';
+  const groundLayer = layer => layer === 'terrain' || layer === 'roads' || layer === 'runways';
   function run(cmd, isRedo) {
     applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
@@ -128,7 +133,7 @@ function mount(host, ctx) {
     plaque();
   }
   function checks() {
-    const lines = PG.checks(rec, world, { overlay: R.overlay });
+    const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
     const iss = PG.issues(rec);
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
       (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
@@ -185,6 +190,7 @@ function mount(host, ctx) {
   const isLine = () => !!LINE_TOOLS[tool];
   function ghostFeature() {
     if (!T.pts.length) return null;
+    if (TWO_POINT_TOOLS[tool]) return T.pts.length >= 2 ? { pts: [T.pts[0], T.pts[1]], width: 24 } : { kind: 'tree', x: T.pts[0][0], z: T.pts[0][1] };
     return isLine() ? { pts: T.pts.map(p => [p[0], p[1]]), width: 3.6 } : { poly: T.pts };
   }
   function ghostOk() {
@@ -197,6 +203,7 @@ function mount(host, ctx) {
     if (L && Math.hypot(L[0] - lx, L[1] - lz) < 0.5) return;
     T.pts.push([lx, lz]);
     T.state = 'drawing';
+    if (TWO_POINT_TOOLS[tool] && T.pts.length === 2) { commitDrawing(); return; }
     if (drawBtns) drawBtns.style.display = '';
     R.ghost(ghostFeature(), ghostOk());
     strip.status(T.pts.length + ' point' + (T.pts.length > 1 ? 's' : '') + ' — ✓ close or double-click');
@@ -211,6 +218,15 @@ function mount(host, ctx) {
   }
   function commitDrawing() {
     if (T.state !== 'drawing') return;
+    if (TWO_POINT_TOOLS[tool]) {
+      if (T.pts.length < 2) { strip.status('click the other end'); return; }
+      const a = T.pts[0], b = T.pts[1];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 150) { strip.status('refused: a strip is at least 150 m (' + len.toFixed(0) + ')'); return; }
+      const e = Object.assign({ id: PG.newId(rec, 'runways') }, JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'strip ' + (rec.layers.runways.length + 1), c: [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)], hdg: +Math.atan2(b[1] - a[1], b[0] - a[0]).toFixed(4), len: +len.toFixed(1), wid: 24 });
+      run({ layer: 'runways', id: e.id, before: null, after: e, label: 'runway ' + e.id });
+      cancelTool(); select(e.id); return;
+    }
     T.pts = T.pts.filter((p, i, A) => i === 0 || Math.hypot(p[0] - A[i - 1][0], p[1] - A[i - 1][1]) >= 0.5);
     if (isLine()) {
       if (T.pts.length < 2) { strip.status('a road needs two points'); return; }
@@ -228,6 +244,7 @@ function mount(host, ctx) {
     else if (tool === 'raise') e = { id: PG.newId(rec, 'terrain'), kind: 'raise', poly, dh: 2, falloff: 10 };
     else if (tool === 'ramp') e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, plane: [0.02, 0, medianLevel(poly)], falloff: 8 };
     else if (tool === 'surface') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL };
+    else if (tool === 'apron') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.PAVED, apron: true };
     else if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'forest') e = { id: PG.newId(rec, 'zones'), kind: 'forest', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'clear') e = { id: PG.newId(rec, 'zones'), kind: 'clear', poly, density: 1, seed: null, palette: null, rules: {} };
@@ -247,6 +264,7 @@ function mount(host, ctx) {
         if (!found) return false;
         const e = found.entry, before = clone(e);
         if (e.kind === 'tree') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
+        if (found.layer === 'runways') { drag = { id: selected, layer: 'runways', runway: h.key, before, F }; return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
           const a = arr[h.index], b = arr[(h.index + 1) % arr.length];
@@ -265,6 +283,16 @@ function mount(host, ctx) {
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
     if (drag.point) { found.entry.x = +L[0].toFixed(2); found.entry.z = +L[1].toFixed(2); }
+    else if (drag.runway) {
+      const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
+      if (drag.runway === 'c') { e.c = [+L[0].toFixed(2), +L[1].toFixed(2)]; }
+      else {
+        const fixed = drag.runway === 'e0' ? E.end1 : E.end0, mv = [L[0], L[1]];
+        const a = drag.runway === 'e0' ? mv : fixed, b = drag.runway === 'e0' ? fixed : mv;
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len >= 150) { e.c = [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]; e.hdg = +Math.atan2(b[1] - a[1], b[0] - a[0]).toFixed(4); e.len = +len.toFixed(1); }
+      }
+    }
     else { const arr = found.entry.poly || found.entry.pts; arr[drag.index][0] = +L[0].toFixed(2); arr[drag.index][1] = +L[1].toFixed(2); }
     R.setRecord(rec); R.rebuild({ layer: found.layer, bbox: { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // outlines follow; the ground on release
     ctx.redraw && ctx.redraw();
@@ -313,7 +341,7 @@ function mount(host, ctx) {
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { redo(); ev.preventDefault(); }
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { save(recName); ev.preventDefault(); }
     else if (ev.key === 'Tab') { ctx.cameras && ctx.cameras.toggle(); ev.preventDefault(); }
-    else if (ev.key >= '1' && ev.key <= String(SECTIONS.length)) setSection(SECTIONS[+ev.key - 1].k);
+    else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
   }
   function deleteSelected() { const f = PG.findById(rec, selected); if (f) { run({ layer: f.layer, id: selected, before: clone(f.entry), after: null, label: 'delete ' + selected }); select(null); } }
@@ -330,9 +358,10 @@ function mount(host, ctx) {
       rows.note(insp, rec.name || '(unnamed)');
       rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tool above and click the ground');
       const feats = [];
-      for (const k of ['terrain', 'surface', 'exclude', 'roads', 'zones', 'objects']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id]);
+      for (const k of ['terrain', 'surface', 'exclude', 'roads', 'runways', 'zones', 'objects']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id]);
       if (feats.length) rows.select(insp, 'features', feats, () => '', v => select(v));
       if (section === 'zones') rows.note(insp, 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.');
+      if (section === 'airfield') rows.note(insp, 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. ?world=A stands it on the flight world.');
       if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a no-trees polygon keeps it out; a tree by hand is one record.');
       return;
     }
@@ -380,6 +409,26 @@ function mount(host, ctx) {
       } else rows.note(insp, 'no tree grows here');
       rows.slider(insp, 'seed', 1, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed, v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
       rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
+    } else if (layer === 'runways') {
+      const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      rows.slider(insp, 'length (m)', 150, 1400, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
+      rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
+      rows.select(insp, 'surface', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      rows.slider(insp, 'slope along (%)', -5, 5, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' % (up toward end 1)');
+      rows.slider(insp, 'shoulder (m)', 10, 200, 5, () => e.falloff === null || e.falloff === undefined ? Math.min(120, 40 + e.len * 0.06) : e.falloff, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      rows.check(insp, 'PAPI at end 0', () => !!(e.papi || [true, true])[0], v => ed(x => { x.papi = [v, (x.papi || [true, true])[1]]; }, 'papi of ' + id));
+      rows.check(insp, 'PAPI at end 1', () => !!(e.papi || [true, true])[1], v => ed(x => { x.papi = [(x.papi || [true, true])[0], v]; }, 'papi of ' + id));
+      const A = (R.aerodromes ? R.aerodromes() : []).find(a => a.id === id);
+      if (A) {
+        rows.note(insp, 'elev ' + A.elev.toFixed(1) + ' m · heading ' + ((A.hdg * 180 / Math.PI + 360) % 360).toFixed(0) + '° in the world · tdz ' + A.tdz.map(v => v.toFixed(0)).join(', '));
+        if (ctx.site && ctx.site.sitePattern) {
+          let iss = [];
+          try { iss = ctx.site.sitePatternIssues(ctx.site.sitePattern(A, e.site || null), A, e.site || null, 0, ctx.site.patternPath || null); } catch (err) { iss = [err.message]; }
+          const d = $('div', { class: 'note', style: iss.length ? 'color:#ff6b5a' : 'color:#6fd08c' }); d.textContent = iss.length ? iss.join(' · ') : 'the pattern is sound: two holds on the centreline, the two approaches on the strip'; insp.appendChild(d);
+        }
+      }
+      rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole');
     } else if (layer === 'objects' && e.kind === 'tree') {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));

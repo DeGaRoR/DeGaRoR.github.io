@@ -467,3 +467,9 @@ after the freeze, against this document.
   second difference is the step itself, and the bilinear error across it is half the step). Measured
   on the golden: the worst point is a graded road's shoulder (4 m wide, 6 m feather) at 0.12 m
   live-vs-baked at a 1 m cell — a number W2's baker must remember when it decides a road's depth.
+- **v1.2 (2026-09-13, at the first strip with a taxi road).** §1.3 stages 2 and 3 swap: the RUNWAYS
+  grade first and the ROADS after, with a road's node heights read from the ground the strip already
+  graded. Written the other way, a road inside a strip's shoulder (its feather runs 40 m + 6 % of the
+  length) was re-graded across by the strip and GATE PREMISES rule 9 found it 2.3 cm off flat; a taxi
+  road is on the airfield's ground, not the other way round. The surface strips, the excludes and the
+  aerodrome record are unchanged.

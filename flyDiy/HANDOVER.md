@@ -43446,3 +43446,68 @@ plot's own flatten (`ground.need`) is v3's.
   (commercial / industrial / harbour / park all sow the sampler today);
   snapping; the frontage preview; v2 the airfield section on World A; v3
   sites + links from the catalogue.
+
+## G360 — THE PREMISES BENCH v2: A STRIP IS A PROFILE — PLACED BY TWO CLICKS ON
+## THE FLIGHT WORLD, GRADED TO ITS SLOPE, PAINTED BY THE GAME'S OWN RECIPE, ITS
+## PATTERN DERIVED AND VALIDATED (2026-09-13, the user: "great, keep going")
+
+**What it is.** ROADMAP Phase 4's items 1-3, on the bench, on the record:
+- **THE RUNWAY RECORD** (`layers.runways[]`, `_premises_gen.js` RUNWAY_DEF /
+  runwayEnds / runwayBox / runwayAerodrome): `{ c, hdg, len, wid, surface,
+  slope, crossfall, disp, papi, falloff, site, pattern }` - a centreline, a
+  width and a longitudinal SLOPE (the one-way strip, ROADMAP P4 §2). It
+  composes as a DERIVED grade (elev = the ground at its centre, ±slope·len/2
+  at the ends, a shoulder of 40 m + 6 % of the length), a DERIVED surface
+  strip of its class (→ `GROUND_SURF`), a DERIVED tree exclude 30 m round
+  its box, and it PUBLISHES an aerodrome record in `W.aerodromes`' shape
+  (24_world_aero's push: id, name, kind, x, z, hdg, len, wid, surface,
+  elev, tdz, spawn) in WORLD coordinates - so `siteRunway` derives it,
+  `sitePaintStrip` paints it, `sitePattern` builds the taxi graph, the
+  holds and the two approaches for it, and `sitePatternIssues` judges it,
+  none of them touched. A strip under 150 m or over 5 % is refused.
+- **THE ORDER, v1.2** (contract §9): the runways grade BEFORE the roads and
+  a road's nodes are read from the ground the strip already graded - a taxi
+  road inside a strip's shoulder was re-graded across by the strip and rule
+  9 found it 2.3 cm off flat. A hard surface (paved / gravel / sand) grows
+  no tree and takes no plot: the apron in the wood had trees on it.
+- **DRAWN** (`_premises_draw.js` buildRunways): the strip as a ribbon on the
+  composed ground with the core's own paint (`sitePaintStrip(q, R, RW, RH,
+  marks)` on a 2048-wide canvas, the same recipe the world and the hangar
+  use), its class on the overlay, and the pattern through the GAME's own
+  builder (`PATTERN_VIS.buildPatternVis` with `patternPath` and
+  `siteRunway`: the ribbon along every route, the holds' stop bars, the two
+  touchdown targets, the PAPI, the glide slopes). Handles: the two ends and
+  the centre.
+- **THE EDITOR** (`_premises_ui.js`): an AIRFIELD section - `runway` (click
+  one end, click the other: the strip is placed, 24 m wide, its heading and
+  length from the two points), `apron / taxiway` (a PAVED surface polygon),
+  `probe`. The inspector: name, length, width, heading, surface, slope
+  along, shoulder, PAPI at each end, the derived record's elevation /
+  world heading / tdz, and the VALIDATOR'S VERDICT live ("the pattern is
+  sound" or `sitePatternIssues`' list in red). Drag an end disc: the other
+  end stays, the strip turns and stretches; the faint centre disc moves it
+  whole. The world: `?world=A` stands it on the flight world (the window is
+  now centred on the premises' origin, HOME's pad east end and the shed;
+  the first cut centred on HOME's strip and drew no ground under a strip
+  at the origin).
+- **GATE PREMISES** rule 10 on a third golden (`fixtures/premises_v1_strip
+  .json`: a 520 m strip at 1.5 % in a wood with a paved apron and a taxi
+  road): on its profile within 5 cm, flat across to 2 cm, its class inside
+  its width, no forest tree within 30 m, the aerodrome fields, `siteRunway`
+  derives it, `sitePatternIssues` empty; a strip under 150 m or over 5 %
+  refused. Rule 9's "flat across" is 5 cm now (at a bend two straight
+  segments meet). 83 checks on 3 fixtures; selftest green.
+
+**Measured.** The strip fixture on the flight world: the centreline on its
+profile to 0.0 cm, the pattern sound, 4 810 trees in the wood round it,
+none within 30 m of the box, none on the apron.
+
+- Gates: PREMISES (83 checks, 3 fixtures) green; proven from a clean
+  worktree with `--only=PREMISES,MEDIA`.
+- Screenshots: `screenshots/premises/v2_strip_orbit.png`, `v2_strip_map.png`.
+- OWED: the pattern editor's hand (drag a hold / a node against the
+  validator; an authored `site.pattern` and `site` block - the stand, the
+  taxi-out, the fence); displaced thresholds and overruns in the paint;
+  crossfall; a windsock and the site furniture; the pilot flying the
+  authored pattern headless (GATE SITE's shape, on the bench's record);
+  v3 the sites + links from the catalogue.

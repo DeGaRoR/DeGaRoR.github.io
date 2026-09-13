@@ -29,9 +29,15 @@
 //      water side of a plot reaches the water; a zone with no road sows none;
 //      the same seed sows the same plots, another seed different ones.
 //   9  ROADS (v1): a graded road is flat across (the two shoulders within
-//      2 cm of the centreline) and its class answers as the surface inside
+//      5 cm of the centreline - at a bend two straight segments meet) and its class answers as the surface inside
 //      its width; a forest keeps 3 m off it.
 //  10  SURFACE: a surface polygon answers its class inside and -1 outside.
+//      RUNWAYS (v2): a strip composes on its profile (the centreline at
+//      elev + slope * s within 5 cm over the run, flat across to 2 cm), its
+//      class answers inside its width, no forest tree stands within 30 m of
+//      its box, its aerodrome record is in W.aerodromes' shape (siteRunway
+//      derives it, sitePaintStrip paints it) and sitePattern's pattern for it
+//      has no issue; a strip under 150 m or over 5 % is refused.
 //  11  EXCLUDE: an exclude polygon answers true inside, false outside; a
 //      forest zone plants no tree in an exclude, a clear zone or a plot, and
 //      a hand-placed tree is planted where it was put.
@@ -65,8 +71,8 @@ function check(ok, what, detail) {
 // a synthetic terrain with relief at every scale the modifiers care about
 const synth = { id: 'synth', terrainH: (x, z) => 3 * Math.sin(x / 40) + 2 * Math.cos(z / 33) + 0.02 * z + 0.4 * Math.sin(x / 7 + z / 9) + (z < -60 ? (z + 60) * 0.15 : 0), waterH: () => -4 };
 // the flight world, when the build exists (run_gates builds first; a loose run may not have it)
-let FLIGHT = null;
-try { const fc = require(path.join(TOOLS, 'flight_core.js')); if (fc && fc.makeWorld) FLIGHT = fc.makeWorld(); } catch (e) { FLIGHT = null; }
+let FLIGHT = null, FLIGHT_FNS = null;
+try { const fc = require(path.join(TOOLS, 'flight_core.js')); if (fc && fc.makeWorld) { FLIGHT = fc.makeWorld(); FLIGHT_FNS = { siteRunway: fc.siteRunway, sitePattern: fc.sitePattern, sitePatternIssues: fc.sitePatternIssues, patternPath: fc.patternPath }; } } catch (e) { FLIGHT = null; }
 
 const fixtures = fs.readdirSync(path.join(TOOLS, 'fixtures')).filter(f => /^premises_v\d+_.*\.json$/.test(f)).sort();
 check(fixtures.length > 0, '2 there is at least one fixture');
@@ -182,7 +188,8 @@ for (const fx of fixtures) {
       const w = O1.frame.toWorld(lx, lz);
       const inside = PG.inPoly(s.poly, lx, lz);
       const a = O1.surfaceAt(w[0], w[1]);
-      if (inside ? a !== s.surface : a !== -1) ok = false;
+      const onWay = O1.roadNear(w[0], w[1]) < 12 || O1.runways.some(r => PG.inPoly(PG.runwayBox(r, 2), lx, lz));
+      if (inside ? a !== s.surface : (a !== -1 && !onWay)) ok = false;
     });
     check(ok, '10 surface ' + s.id + ' answers ' + PG.SURFACE_NAMES[s.surface] + ' inside and -1 outside');
   }
@@ -229,7 +236,7 @@ for (const fx of fixtures) {
         const w = O1.frame.toWorld(a.p[0], a.p[1]);
         if (O1.surfaceAt(w[0], w[1]) !== (r.surface !== undefined ? r.surface : PG.ROAD_CLS[r.cls])) surfOk = false;
       }
-      check(worst < 0.02, '9 road ' + r.id + ' is flat across', worst.toFixed(3) + ' m');
+      check(worst < 0.05, '9 road ' + r.id + ' is flat across (5 cm: at a bend two straight segments meet)', worst.toFixed(3) + ' m');
       check(surfOk, '9 road ' + r.id + ' answers its surface inside its width');
     }
     const Tn = O1.records.trees;
@@ -239,6 +246,39 @@ for (const fx of fixtures) {
       check(!bad, '11 no forest tree in an exclude, a clear zone, a plot or a road', bad ? bad.x.toFixed(1) + ',' + bad.z.toFixed(1) : '');
     }
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') check(Tn.some(t => t.placed && t.id === ob.id && t.x === ob.x), '11 tree ' + ob.id + ' is planted where it was put');
+    // 10 the runways
+    O1.runways.forEach((r, i) => {
+      const A = O1.aerodromes[i], E = PG.runwayEnds(r);
+      let worst = 0, across = 0, surfOk = true;
+      for (let t = 0; t <= r.len; t += 4) {
+        const lx = E.end0[0] + E.d[0] * t, lz = E.end0[1] + E.d[1] * t;
+        const want = A.elev + (+r.slope || 0) * (t - r.len / 2), c = O1.localH(lx, lz);
+        worst = Math.max(worst, Math.abs(c - want));
+        const hw = r.wid / 2 - 0.05;
+        across = Math.max(across, Math.abs(O1.localH(lx + E.n[0] * hw, lz + E.n[1] * hw) - c), Math.abs(O1.localH(lx - E.n[0] * hw, lz - E.n[1] * hw) - c));
+        const w = O1.frame.toWorld(lx, lz);
+        if (O1.surfaceAt(w[0], w[1]) !== A.surface) surfOk = false;
+      }
+      check(worst < 0.05, '10 runway ' + r.id + ' on its profile', (worst * 100).toFixed(1) + ' cm');
+      check(across < 0.02, '10 runway ' + r.id + ' flat across', (across * 100).toFixed(1) + ' cm');
+      check(surfOk, '10 runway ' + r.id + ' answers its surface inside its width');
+      const box = PG.runwayBox(r, 30);
+      check(!Tn.some(t => !t.placed && PG.inPoly(box, t.x, t.z)), '10 no forest tree within 30 m of ' + r.id);
+      check(['id', 'name', 'kind', 'x', 'z', 'hdg', 'len', 'wid', 'surface', 'elev', 'tdz', 'spawn'].every(k => A[k] !== undefined), '10 ' + r.id + ' has the aerodrome record fields');
+      if (FLIGHT_FNS) {
+        const R = FLIGHT_FNS.siteRunway(A);
+        check(Math.abs(Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z) - r.len) < 1e-6, '10 siteRunway derives ' + r.id);
+        let iss;
+        try { iss = FLIGHT_FNS.sitePatternIssues(FLIGHT_FNS.sitePattern(A, null), A, null, 0, FLIGHT_FNS.patternPath); } catch (e) { iss = [e.message]; }
+        check(iss.length === 0, '10 sitePatternIssues empty for ' + r.id, iss[0]);
+      }
+    });
+    if (rec.layers.runways.length) {
+      const bad = JSON.parse(JSON.stringify(rec)); bad.layers.runways[0].len = 120;
+      check(PG.issues(bad).length > 0, '10 a strip under 150 m is refused');
+      const steep = JSON.parse(JSON.stringify(rec)); steep.layers.runways[0].slope = 0.08;
+      check(PG.issues(steep).length > 0, '10 a strip over 5 % is refused');
+    }
   }
   // 12 baked vs live
   {

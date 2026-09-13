@@ -28,6 +28,12 @@
 //   compose           the overlay a world composes at its terrainH seam:
 //                     terrainH(x, z, h) / surfaceAt / excludeAt / inExtent,
 //                     plus the RECORDS the placement stages emit (plots, trees)
+//   the runways (v2)  a strip is a PROFILE (ROADMAP P4 §2): a centreline, a
+//                     width, a longitudinal slope; it composes as a DERIVED
+//                     grade (elev + slope along the run), a DERIVED surface
+//                     strip, a DERIVED tree exclude (+30 m), and publishes an
+//                     AERODROME record in W.aerodromes' shape so siteRunway,
+//                     sitePattern, the paint and the pilot read it untouched
 //   the frame         'free' (x, z, yaw); 'road' arrives with the sites
 //   issues / checks   what the #chk panel shows and the gate holds
 //   bake              the extent rastered to int16, and the sampler the
@@ -434,6 +440,35 @@ function planForest(zone, ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// THE RUNWAYS — a strip's geometry from its record, in the premises frame
+// ---------------------------------------------------------------------------
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null };
+function runwayEnds(r) {
+  const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
+  return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
+}
+// the strip's box, with a margin, as a polygon (for the exclude and the hit)
+function runwayBox(r, margin) {
+  const E = runwayEnds(r), m = margin || 0, hw = r.wid / 2 + m;
+  const a = [E.end0[0] - E.d[0] * m, E.end0[1] - E.d[1] * m], b = [E.end1[0] + E.d[0] * m, E.end1[1] + E.d[1] * m];
+  return [[a[0] + E.n[0] * hw, a[1] + E.n[1] * hw], [b[0] + E.n[0] * hw, b[1] + E.n[1] * hw], [b[0] - E.n[0] * hw, b[1] - E.n[1] * hw], [a[0] - E.n[0] * hw, a[1] - E.n[1] * hw]];
+}
+// the record in W.aerodromes' shape, in WORLD coordinates (24_world_aero's push)
+function runwayAerodrome(r, F, elev) {
+  const E = runwayEnds(r);
+  const c = F.toWorld(r.c[0], r.c[1]);
+  const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
+  const hdg = Math.atan2(dw[1], dw[0]);
+  const hl = r.len / 2, aimIn = (r.len - 10) / 4;
+  // the pilot lands along -hdg over thr1 (5 m inside end1): the target sits a quarter in from that bar
+  const tdz = [c[0] + dw[0] * (hl - 5 - aimIn), c[1] + dw[1] * (hl - 5 - aimIn)];
+  const spawn = [c[0] - dw[0] * (hl - 35), c[1] - dw[1] * (hl - 35)];
+  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn, flyIn: false, premises: true,
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
+}
+
+// ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
@@ -450,9 +485,26 @@ function compose(rec0, world, opts) {
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
   const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL) }));
   const nAuth = mods.length;
+  // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
+  // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
+  // a DERIVED tree exclude 30 m round the box, and the aerodrome record
+  const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
+  const aerodromes = [];
+  for (const r of runways) {
+    const E = runwayEnds(r);
+    const elev = T1(r.c[0], r.c[1]);
+    const rise = (+r.slope || 0) * r.len / 2;
+    const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: [[E.end0[0], E.end0[1], elev - rise], [E.end1[0], E.end1[1], elev + rise]], width: r.wid, falloff: fall, abs: true }, F.y0);
+    if (M) mods.push(M);
+    roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
+    aerodromes.push(runwayAerodrome(r, F, elev));
+  }
+  // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
+  const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
   for (const r of roads) {
     if (r.graded === false) continue;
-    const hs = r.pts.map(p => T1(p[0], p[1]));
+    const hs = r.pts.map(p => T1r(p[0], p[1]));
     const sm = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: r.pts.map((p, i) => [p[0], p[1], sm[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
     if (M) mods.push(M);
@@ -461,6 +513,9 @@ function compose(rec0, world, opts) {
   for (const M of mods) index.add(M.bbox, M);
   const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface }));
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
+  for (const r of runways) { const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id }); }
+  // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
+  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) excl.push({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id });
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
   let ext = rec.frame.extent;
@@ -471,12 +526,14 @@ function compose(rec0, world, opts) {
     for (const s of surf) grow(s.bbox);
     for (const s of excl) grow(s.bbox);
     for (const z of rec.layers.zones) if (z.poly && z.poly.length >= 3) grow(polyBBox(z.poly));
+    for (const r of runways) grow(polyBBox(runwayBox(r, 30)));
     ext = isFinite(x0) ? { x0, z0, x1, z1 } : { x0: 0, z0: 0, x1: 0, z1: 0 };
   }
   const inBB = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
+  for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs,
+    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes,
     terrainH(x, z, h) {
       if (!mods.length) return h;
       const L = F.toLocal(x, z);
@@ -508,7 +565,7 @@ function compose(rec0, world, opts) {
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
     const waterY = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity;
-    const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.map(e => e.poly), plots: O.records.plots, keepOut: [] };
+    const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
@@ -539,6 +596,11 @@ function issues(rec0) {
     if (k === 'zones' && ZONE_KINDS.indexOf(e.kind) < 0) out.push('zone ' + e.id + ': unknown kind ' + e.kind);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
+  for (const r of rec.layers.runways) {
+    if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
+    else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
+    else if (Math.abs(+r.slope || 0) > 0.05) out.push('runway ' + r.id + ': a slope over 5 % is not a strip');
+  }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
     const a = fl[i], b = fl[j];
@@ -546,6 +608,9 @@ function issues(rec0) {
     if (polysOverlap(a.poly, b.poly)) out.push('terrain ' + a.id + ' and ' + b.id + ': two flattens at different levels overlap');
   }
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
+  // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
+  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r));
+  for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species');
   const ids = new Set();
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
@@ -656,6 +721,23 @@ function checks(rec0, world, opts) {
   }
   const Tn = O.records.trees;
   if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
+  // the runways (rule 10): the centreline on its profile to 5 cm; the pattern sound
+  for (let i = 0; i < O.runways.length; i++) {
+    const r = O.runways[i], A = O.aerodromes[i], E = runwayEnds(r);
+    let worst = 0;
+    for (let t = 0; t <= r.len; t += Math.max(2, r.len / 60)) {
+      const lx = E.end0[0] + E.d[0] * t, lz = E.end0[1] + E.d[1] * t;
+      const want = A.elev + (+r.slope || 0) * (t - r.len / 2);
+      worst = Math.max(worst, Math.abs(O.localH(lx, lz) - want));
+    }
+    put(worst < 0.05, 'runway ' + r.id + ' on its profile (' + (worst * 100).toFixed(1) + ' cm)');
+    if (o.site && o.site.sitePattern) {
+      let iss;
+      try { const pat = o.site.sitePattern(A, r.site || null); iss = o.site.sitePatternIssues(pat, A, r.site || null, 0, o.site.patternPath || null); }
+      catch (e) { iss = ['pattern: ' + e.message]; }
+      put(!iss.length, iss.length ? 'runway ' + r.id + ': ' + iss[0] : 'runway ' + r.id + ' pattern sound (sitePatternIssues empty)');
+    }
+  }
   return lines;
 }
 
@@ -694,7 +776,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
