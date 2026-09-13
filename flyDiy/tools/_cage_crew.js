@@ -1018,12 +1018,21 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   const KW = window.GEAR_KIT;
   if (KW) {
     const q = KW.Bag(), slot = KW.Bag(), fr = KW.Bag();
-    KW.sweep(q, [[wx, yT, zT], [wx + inb * 0.008, yT, zT]], () => [[-0.10, -0.065], [0.10, -0.065], [0.10, 0.045], [0.06, 0.065], [-0.06, 0.065], [-0.10, 0.045]], true, [0, 1, 0]);
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 8) * THR_ARC * 1.15 - 0.05;
-      const d = [0, Math.cos(a) * 0.11 - Math.sin(a) * 0.105, Math.sin(a) * 0.11 + Math.cos(a) * 0.105];
-      const pp = _off3([wx + inb * 0.004, piv[1], piv[2]], _nrm3(d), 0.13);
-      boxAt(g, M.dark, pp, [0.010, 0.012, 0.012]);
+    if (onFace == null) {
+      KW.sweep(q, [[wx, yT, zT], [wx + inb * 0.008, yT, zT]], () => [[-0.10, -0.065], [0.10, -0.065], [0.10, 0.045], [0.06, 0.065], [-0.06, 0.065], [-0.10, 0.045]], true, [0, 1, 0]);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 8) * THR_ARC * 1.15 - 0.05;
+        const d = [0, Math.cos(a) * 0.11 - Math.sin(a) * 0.105, Math.sin(a) * 0.11 + Math.cos(a) * 0.105];
+        const pp = _off3([wx + inb * 0.004, piv[1], piv[2]], _nrm3(d), 0.13);
+        boxAt(g, M.dark, pp, [0.010, 0.012, 0.012]);
+      }
+    } else {
+      // G374: ON THE SHOULDER'S LEG there is no cast plate and no stops — a
+      // plated flange 40 mm across, 4 mm proud, screwed to the leg at four
+      // points, carries the stub axle straight off the face
+      KW.revolve(q, [wx, piv[1], piv[2]], [inb, 0, 0], [[0.020, 0], [0.020, 0.003], [0.017, 0.004], [0, 0.004]], 28, false);
+      for (const [dy, dz] of [[0.014, 0.014], [-0.014, 0.014], [0.014, -0.014], [-0.014, -0.014]])
+        KW.bolt(q, [wx + inb * 0.004, piv[1] + dy, piv[2] + dz], [inb, 0, 0], 0.0022, 0.0015);
     }
     // THE FITTING (4f, the user: "the fitting between the main body and the
     // round part next to the wall is poor"): a plated stub axle stands off
@@ -1033,7 +1042,7 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
     KW.revolve(ax, [wx + inb * 0.006, piv[1], piv[2]], [inb, 0, 0], [[0.0065, 0], [0.0065, 0.032]], 20, true);
     KW.revolve(ax, [wx + inb * 0.008, piv[1], piv[2]], [inb, 0, 0], [[0.011, 0], [0.011, 0.003], [0, 0.003]], 20, false);   // the washer
     KW.revolve(fr, [wx + inb * 0.011, piv[1], piv[2]], [inb, 0, 0], [[0.006, 0], [0.013, 0.001], [0.0135, 0.004], [0.013, 0.007], [0.006, 0.008]], 32, true);
-    q.mesh(g, M.cast); fr.mesh(g, M.ball); ax.mesh(g, M.plated);
+    q.mesh(g, onFace == null ? M.cast : M.plated); fr.mesh(g, M.ball); ax.mesh(g, M.plated);   // G374
   } else boxAt(g, M.ctrl, [wx, yT, zT], [0.028, 0.13, 0.20]);
   // the lever runs up and forward from its pivot, at the length the
   // slider asks for (user 2026-08-19)

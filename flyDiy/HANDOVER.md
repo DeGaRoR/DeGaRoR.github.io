@@ -44338,3 +44338,18 @@ MEASURED (the check prints every number before its verdict):
   (the lamp is at the pilot's x, 8 cm forward of the dash's aft face —
   G291/G296), on the dash's measured underside as before. Same bracket,
   rod and T handle; same pick ('brake', click = park on/off).
+
+## G374 — THE THROTTLE ON THE SHOULDER HINGES STRAIGHT ON THE LEG
+## (2026-09-13, WS-7 part; the user: "wall-mounted option with lip: lose the
+## plate, hinge on the lip")
+
+- ctlThr 4 ("on the shoulder") kept the wall quadrant's cast plate and its
+  nine stop blocks on the shoulder's face. On the face now: a plated flange
+  40 mm across, 4 mm proud, four screws into the leg, carrying the stub axle
+  with its friction wheel and washer — no cast plate, no stops. The wall
+  lever (ctlThr 0) keeps its quadrant; the slotted lever (ctlThr 5) is
+  unchanged. Seen from the seat (scratchpad thr_lip).
+- WS-7's remaining furniture (a canopy/door lever per side, the jack plate,
+  an intercom box, the EXPERIMENTAL / warning placards) is next; the
+  placards need tiles on a new label sheet the user renders (labels_prep.py
+  SHEETS) — the tile list will be drafted with the builders.
