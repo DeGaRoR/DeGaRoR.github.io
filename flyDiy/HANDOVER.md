@@ -43511,3 +43511,57 @@ none within 30 m of the box, none on the apron.
   crossfall; a windsock and the site furniture; the pilot flying the
   authored pattern headless (GATE SITE's shape, on the bench's record);
   v3 the sites + links from the catalogue.
+
+## G345.2 — ROUGHNESS IS THE WEATHERING'S VOICE: THE CLEAR-COAT CUT THAT r186 SILENCED, SUBSTRATES FROM THE FINISH TABLE WITH THEIR OWN ROUGHNESS, MUSGRAVE ON THE DIRT, RUST WITH NO VARNISH OVER IT, THE CLEAR COAT PEELING (2026-09-14)
+
+The user: "in most of your weathering, I miss roughness influence. The rust
+seems smooth, the paint chips disappear under high reflections, where they
+should outshine. You know the original material, and the paint layer, so
+scratching the paint should really reveal the original material with its
+roughness included ... differential roughness per scratch, paint chip and
+dirt is essential ... apply perlin/musgrave noises on the roughness maps to
+generate dirt variation and clearcoat peeling."
+
+THE FINDING FIRST, because it explains the symptom: W0.5a (1b90136c, r128 →
+r186) renamed `geometryNormal` in this module and re-aimed GATE WEATHER,
+but `AERO_WX_CC_FS` still tested `#ifdef CLEARCOAT` — r186 sets
+`USE_CLEARCOAT` — so since the upgrade NO dirt, chip or rust had taken the
+clear coat off anything. Rust under intact varnish IS a glossy brown stain;
+a chip that keeps the paint's clear lobe IS invisible in a reflection. The
+block tests `USE_CLEARCOAT` now, and the gate holds the define (and holds
+the shader's `AEROWX_NL` slot define against the table's — a 25th layer
+left it at 6 and every program failed to compile, caught in the pane).
+
+THE SUBSTRATE IS A FINISH ROW. Painted alloy (alclad, trim, the panel and
+sill sheets, the foil) chips to the table's own `bareAlu`; castAlu, chrome,
+bronze, copper and the woods chip to themselves — `AERO_WX_SUB_FROM`,
+resolved at material time (`aeroWxSubOf`, when AEROSKIN exists) into the
+row's linear base colour, its metalness and its roughness plus 0.08 (a bare
+surface under paint has never been polished). Hand rows stay for what has
+no row under it (steel → primer, ply → bare wood, the plastics). A chip in
+painted alloy is therefore a METAL at roughness 0.34 with no clear coat:
+it outshines the paint round it, which is why a chipped cowl sparkles.
+
+DIFFERENTIAL ROUGHNESS. Chip to chip the substrate roughness rides the fine
+noise (×0.75..1.25); rust is matte with its own grain (0.85..0.95) and
+strips the varnish (the bleed now raises `aeroWxCov` — it had not, and that
+was the "smooth rust" — and runs in rivulets, `pow(gSd, 1.2)` × 1.3); the
+dirt's roughness floor rides a musgrave field at half a metre (`wxRV`,
+0.80..1.16), so a dusty panel is matte in patches and merely dull between
+— the grammar's own noise, no fetch, in the part's frame.
+
+THE CLEAR COAT PEELS: a 25th layer (`peel`, age 0.80 / flight 0.15 / rain
+0.15), patches of the large blotch and a musgrave at a metre, hard-edged
+(at full strength about a third of the field), no colour of its own: the
+clear lobe goes (`aeroWxPeel`, spent in the clear-coat block), the surface
+goes to roughness 0.62..0.87 and a shade chalky.
+
+The bungee cords: rubber in the gear's own table (`dark` → rubber, no rust,
+no chips); what read as rust on them is mud on black rubber, which is a
+colour and not a mistake — flagged, not changed.
+
+MEASURED on the bench (pin 0 → 1, % pixels): rust 6.8 (was 0 on this
+build's maroon legs), peel 7.0 on the wing top; chips, scratches and pits
+read low on THIS build because its fuselage is fabric, which has no
+substrate to expose — the cowl shows them (screenshots/weather/
+rough_cowl_chips.png, final_rust_legs.png, final_peel_top.png).

@@ -83,8 +83,11 @@ const AERO_WX_LAYERS = [
   // bench's legibility measurement admits it.
   { k: 'gRain',   label: 'glass: rain spots (off)',     c: [0.00, 0.00, 0.00,  0.00] },
   { k: 'gBug',    label: 'glass: insects (off)',        c: [0.00, 0.00, 0.00,  0.00] },
+  // G345.2: the CLEAR COAT PEELS in patches (the user: "clearcoat peeling")
+  // — no colour of its own, a roughness and the loss of the clear lobe
+  { k: 'peel',    label: 'clear coat peeling',          c: [0.80, 0.15, 0.00,  0.15] },
 ];
-const AERO_WX_NL = 6;                      // vec4 slots: 24 layers
+const AERO_WX_NL = 7;                      // vec4 slots: 28 layers
 if (AERO_WX_LAYERS.length > AERO_WX_NL * 4)
   throw new Error('aeroweather: more layers than uWxL slots');
 
@@ -168,6 +171,33 @@ const AERO_WX_SUB = {
   glass:       { col: [0.00, 0.00, 0.00], metal: 0.0,  rough: 0.00, rust: 0, chip: 0.0, hands: 1 },
 };
 const AERO_WX_SUB_NONE = { col: [0.3, 0.3, 0.3], metal: 0, rough: 0.8, rust: 0, chip: 0, hands: 0 };
+// THE SUBSTRATE IS A FINISH ROW WHERE ONE EXISTS (G345.2, the user: "you
+// know the original material, and the paint layer, so scratching the paint
+// should really reveal the original material with its roughness"). A chip
+// in painted alloy shows BARE ALLOY — the finish table's own bareAlu row,
+// its base colour, its metalness and its roughness — not a hand-typed grey.
+// Resolved at material time, when AEROSKIN exists (this file loads first).
+const AERO_WX_SUB_FROM = {
+  alclad: 'bareAlu', trim: 'bareAlu', fireFoil: 'bareAlu', panelMetal: 'bareAlu', sillAlu: 'bareAlu',
+  castAlu: 'castAlu', chrome: 'chrome', bronze: 'bronze', copper: 'copper',
+  composite: 'composite', spruce: 'spruce', maple: 'maple', walnut: 'walnut', walnutFig: 'walnutFig',
+};
+function aeroWxSubOf(finish) {
+  const s = Object.assign({}, AERO_WX_SUB[finish] || AERO_WX_SUB_NONE);
+  const from = AERO_WX_SUB_FROM[finish];
+  const A = (typeof AEROSKIN !== 'undefined') ? AEROSKIN : null;
+  const row = from && A && A.AERO_FINISH && A.AERO_FINISH[from];
+  if (row) {
+    const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const b = row.base >>> 0;
+    s.col = [lin((b >> 16) & 255), lin((b >> 8) & 255), lin(b & 255)];
+    s.metal = row.metal != null ? row.metal : s.metal;
+    // a bare surface under paint has never been polished: a shade rougher
+    // than the row as dressed, and the row's own clear coat is not there
+    s.rough = Math.min(1, (row.rough != null ? row.rough : s.rough) + 0.08);
+  }
+  return s;
+}
 
 // frozen copies, the lab's datum
 const AERO_WX_DEF = {
@@ -337,7 +367,7 @@ function aeroWxSharedU(THREE) {
 // `o.spin` (G345.1): 0 a fixed part, 1 a propeller blade, 2 the spinner —
 // named by the section in the editor and by the join's part walk in flight
 function aeroWxFinishU(THREE, U, finish, o) {
-  const s = AERO_WX_SUB[finish] || AERO_WX_SUB_NONE;
+  const s = aeroWxSubOf(finish);
   if (!U.uWxTurn) U.uWxTurn = { value: 0 };
   U.uWxTurn.value = (o && o.spin) ? +o.spin : 0;
   if (!U.uWxSub) U.uWxSub = { value: new THREE.Vector4() };
@@ -536,7 +566,7 @@ const AERO_WX_UNPACK = AERO_WX_LAYERS.map((L, i) =>
 
 // declared in the fragment prelude of every aeroskin AND glass program
 const AERO_WX_PARS_FS = `
-#define AEROWX_NL 6
+#define AEROWX_NL 7
 #define AEROWX_NE 4
 #define AEROWX_NW 6
 #define AEROWX_LE_SIGN 1.0
@@ -557,6 +587,7 @@ uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE g
 uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
 uniform vec4 uSpiralC;  // linear rgb, strength
 uniform float uWxTurn;  // per material: 0 fixed, 1 a blade, 2 the spinner
+float aeroWxPeel = 0.0; // G345.2: how much of the clear coat has peeled here
 uniform vec4 uWxSub;    // substrate rgb, metal   (per material)
 uniform vec4 uWxSub2;   // substrate rough, rust, chip, hands
 
@@ -907,10 +938,30 @@ const AERO_WX_SURF_FS = `
 
     // ---- NO SHINY DIRT: the invariants, once ----------------------------
     diffuseColor.rgb = col;
-    roughnessFactor = mix(roughnessFactor, max(roughnessFactor, flo), cov);
+    // THE DIRT'S ROUGHNESS VARIES (G345.2, the user: "apply perlin/musgrave
+    // noises on the roughness maps to generate dirt variation"): the floor
+    // rides a musgrave field at half a metre, so a dusty panel is matte in
+    // patches and merely dull between them — no fetch, the grammar's own
+    // noise, evaluated in the part's frame
+    float wxRV = 0.80 + 0.36 * clamp(aeroMusgrave(wxUV / 0.55) * 0.5 + 0.5, 0.0, 1.0);
+    roughnessFactor = mix(roughnessFactor, max(roughnessFactor, flo * wxRV), cov);
     metalnessFactor *= 1.0 - cov;
     normal = normalize(mix(normal, nonPerturbedNormal, uWxR.x * dustCov));
     aeroWxCov = max(cov, 0.6 * wxHands);
+    // ---- THE CLEAR COAT PEELS (G345.2) ----------------------------------
+    // patches of the large blotch and a musgrave at a metre, hard-edged:
+    // where it has gone the surface is the paint's own, dull and a shade
+    // chalky, and the clear lobe is gone with it (spent in AERO_WX_CC_FS)
+    {
+      float wxPm = 0.55 * gC.a + 0.45 * clamp(aeroMusgrave(wxUV / 0.9 + vec2(0.31, 0.77)) * 0.5 + 0.5, 0.0, 1.0);
+      // PATCHES, not a blanket: at full strength a third of the field peels
+      float thrP = 1.0 - 0.36 * wx_peel * wxOut;
+      aeroWxPeel = smoothstep(thrP - 0.03, thrP + 0.02, wxPm) * step(0.02, wx_peel);
+      float wxPR = 0.62 + 0.25 * gF.b;
+      roughnessFactor = mix(roughnessFactor, max(roughnessFactor, wxPR), aeroWxPeel);
+      float wxPL = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+      diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, vec3(wxPL), 0.3) * 1.08, 0.5 * aeroWxPeel);
+    }
 
     // ---- CHIPS: the substrate shows, AFTER the dirt ----------------------
     // peel lives at the edges (convex) and along the grammar's lines; a hard
@@ -933,17 +984,26 @@ const AERO_WX_SURF_FS = `
       float wxScP = wx_scratch * uWxSub2.z * wxSide * wxOut * wxPure;
       ch = max(ch, smoothstep(0.94 - 0.05 * wxScP, 0.96 - 0.05 * wxScP, gSa) * step(0.01, wxScP));
       // steel goes to primer then rust; rust also BLEEDS down from the chips
+      // THE SUBSTRATE WITH ITS OWN ROUGHNESS (G345.2): bare alloy under a
+      // chip is a metal at the finish row's roughness — it OUTSHINES the
+      // paint round it, which is why a chipped cowl sparkles; the roughness
+      // varies chip to chip on the fine noise, and rust is matte and dark
+      // whatever it grew on. The clear coat is gone over both (aeroWxCov).
       vec3 sub = mix(uWxSub.rgb, uWxC[6].rgb, wx_rust * uWxSub2.y);
       float subMet = mix(uWxSub.a, 0.0, wx_rust * uWxSub2.y);
-      float subRgh = mix(uWxSub2.x, uWxC[6].w, wx_rust * uWxSub2.y);
+      float subRgh = mix(uWxSub2.x * (0.75 + 0.5 * gF.b), uWxC[6].w - 0.10 * gF.r, wx_rust * uWxSub2.y);
       diffuseColor.rgb = mix(diffuseColor.rgb, sub, ch);
       metalnessFactor = mix(metalnessFactor, subMet, ch);
       roughnessFactor = mix(roughnessFactor, subRgh, ch);
-      float wxBleed = wx_rust * uWxSub2.y * (1.0 - wxUp) * (1.0 - wxRot) * pow(gSd, 1.6) * (0.3 + 0.7 * wxConvex + 0.5 * wxCav) * 0.7;
+      // the bleed is a STREAK, not a tint: the stretched read squared so it
+      // runs in rivulets, and strong enough to matte the tube where it runs
+      float wxBleed = wx_rust * uWxSub2.y * (1.0 - wxUp) * (1.0 - wxRot) * pow(gSd, 1.2) * (0.3 + 0.7 * wxConvex + 0.5 * wxCav) * 1.3;
       diffuseColor.rgb = mix(diffuseColor.rgb, uWxC[6].rgb, clamp(wxBleed, 0.0, 1.0));
       roughnessFactor = mix(roughnessFactor, max(roughnessFactor, uWxC[6].w), clamp(wxBleed, 0.0, 1.0));
       metalnessFactor *= 1.0 - clamp(wxBleed, 0.0, 1.0);
-      aeroWxCov = max(aeroWxCov, ch);
+      // the bleed strips the varnish too — it had kept it, and rust under
+      // intact clear coat read as a glossy brown stain
+      aeroWxCov = max(aeroWxCov, max(ch, clamp(wxBleed, 0.0, 1.0)));
     }
     roughnessFactor = clamp(roughnessFactor, 0.02, 1.0);
     metalnessFactor = clamp(metalnessFactor, 0.0, 1.0);
@@ -970,8 +1030,12 @@ const AERO_WX_SURF_FS = `
 
 // after lights_physical_fragment: the clear coat falls with the cover
 const AERO_WX_CC_FS = `
-#ifdef CLEARCOAT
+#ifdef USE_CLEARCOAT
+  // USE_CLEARCOAT since W0.5a (r186); under r128's CLEARCOAT this whole
+  // block went silent after the upgrade and no dirt, chip or rust took the
+  // varnish off — which is how rust came to read as a glossy stain
   material.clearcoat *= 1.0 - aeroWxCov;
+  material.clearcoat *= 1.0 - aeroWxPeel;
   material.clearcoatRoughness = min(1.0, max(material.clearcoatRoughness, aeroWxCov * uWxR.y));
 #endif
 `;

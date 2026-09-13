@@ -73,15 +73,24 @@ function audit(ctx) {
     check(n >= 4, 'glsl: the surface block samples less than it claims', String(n));
     // the invariants, verbatim
     check(/metalnessFactor \*= 1\.0 - cov;/.test(S), 'no shiny dirt: metalness does not fall with cover');
-    check(/max\(roughnessFactor, flo\), cov\)/.test(S), 'no shiny dirt: roughness does not saturate up to the floor');
+    check(/max\(roughnessFactor, flo \* wxRV\), cov\)/.test(S), 'no shiny dirt: roughness does not saturate up to the floor');
     check(/normalize\(mix\(normal, nonPerturbedNormal, uWxR\.x \* dustCov\)\)/.test(S), 'dust does not fill the microsurface');
     check(/material\.clearcoat \*= 1\.0 - aeroWxCov;/.test(glsl.CC), 'no shiny dirt: the clear coat does not fall with cover');
+    // G345.2: the define is r186's — under the old one the block is dead
+    check(/#ifdef USE_CLEARCOAT/.test(glsl.CC) && !/#ifdef CLEARCOAT/.test(glsl.CC), 'the clear-coat block tests r128\'s CLEARCOAT define, which r186 never sets');
+    check(/material\.clearcoat \*= 1\.0 - aeroWxPeel;/.test(glsl.CC), 'the peel does not take the clear coat off');
+    check(/aeroWxCov = max\(aeroWxCov, max\(ch, clamp\(wxBleed, 0\.0, 1\.0\)\)\);/.test(S), 'rust bleed keeps the varnish over it');
+    check(/aeroMusgrave\(wxUV \/ 0\.55\)/.test(S), 'the dirt\'s roughness has no noise on it');
     // the unpack matches the table, slot by slot
     layers.forEach((L, i) => {
       const want = 'float wx_' + L.k + ' = uWxL[' + (i >> 2) + '].' + 'xyzw'[i & 3] + ' * wxK;';
       check(S.indexOf(want) >= 0, 'glsl: the unpack disagrees with the layer table', L.k);
     });
     check(layers.length <= nl * 4, 'more layers than uWxL slots');
+    // the GLSL #define and the table's slot count are one number (G345.2:
+    // a 25th layer left the define at 6 and every program failed to compile)
+    const nlDef = /#define AEROWX_NL (\d+)/.exec(glsl.PARS);
+    check(!!nlDef && +nlDef[1] === nl, 'the shader\'s AEROWX_NL define disagrees with AERO_WX_NL', nlDef && nlDef[1]);
   }
   {
     // the vec4 census of the prelude

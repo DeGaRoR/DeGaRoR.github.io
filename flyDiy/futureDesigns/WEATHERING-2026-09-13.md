@@ -199,6 +199,17 @@ cone's base; what the rotation flings runs outward. The spinner's SPIRAL
 is a marking in AERO_DEC_DEF (`spiral*`), five decal rows with a colour
 well, painted in the cone's polar frame under the weathering.
 
+## 6c. G345.2 — roughness (2026-09-14)
+
+The clear-coat block tests `USE_CLEARCOAT` (r186; under r128's name it was
+dead after W0.5a). Substrates come from the finish table where a row exists
+(`AERO_WX_SUB_FROM`: painted alloy → bareAlu, the woods and castings →
+themselves), resolved at material time with the row's colour, metalness and
+roughness + 0.08; chips vary in roughness on the fine noise; rust is matte,
+grained, and strips the varnish; the dirt floor rides a musgrave at 0.55 m;
+the `peel` layer (25th) takes the clear coat off in patches. The gate holds
+the shader's slot define against the table.
+
 ## 7. Owed
 
 - The glass legibility measurement (pilot's eye, chart, contrast bound) —
