@@ -1684,6 +1684,7 @@ function buildPanel(parent, A, P, pilotX) {
 // of each seat row, screws round the edge every 12 cm.
 let FLOOR_BUILD = 0;                        // the build the deferred floor belongs to
 const FLOOR_T = 0.012;
+const FLOOR_MARGIN = 0.004;                 // the board's edge stands this far inside the wall (G354)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
 const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
 const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;
@@ -1737,8 +1738,11 @@ function floorWalls(mesh, k, yAt, zF, zA) {
   // the innermost wall at a station, per side: a ray along x at (y, z)
   // through every triangle whose bounds hold it (barycentric in y-z; a
   // face lying along x — the belly's bottom — has no answer and is skipped)
-  const edgeAt = (zi, sd) => {
-    const yi = yAt(zi);
+  // ...over the board's whole thickness (G354): the top, the middle and
+  // the bottom of the rim each cast their ray, the innermost wins, and the
+  // edge stands FLOOR_MARGIN inside it — a belly curving inward under the
+  // sill no longer shows the rim outside the skin
+  const rayAt = (yi, zi, sd) => {
     let best = Infinity;
     for (const w of wall) {
       if (yi < w.y0 || yi > w.y1 || zi < w.z0 || zi > w.z1) continue;
@@ -1752,6 +1756,15 @@ function floorWalls(mesh, k, yAt, zF, zA) {
       if (x > 0.03 && x < best) best = x;
     }
     return best < Infinity ? best : null;
+  };
+  const edgeAt = (zi, sd) => {
+    const y0 = yAt(zi);
+    let best = null;
+    for (const dy of [0, -FLOOR_T / 2, -FLOOR_T]) {
+      const x = rayAt(y0 + dy, zi, sd);
+      if (x != null && (best == null || x < best)) best = x;
+    }
+    return best == null ? null : Math.max(0.03, best - FLOOR_MARGIN);
   };
   const STEP = 0.015, zs = [];
   for (let z = zF; z <= zA + 1e-9; z += STEP) zs.push(z);

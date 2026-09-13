@@ -43002,3 +43002,23 @@ premises layer takes.
   house session's landing (its G number read at that instant, 354 if nothing
   lands between); the park session's worktree; the ROADMAP Phase 4 note
   landed with this entry.
+
+## G354 — THE FLOOR'S RIM STAYS INSIDE THE SKIN (2026-09-13, the user: "the
+## floor is poking through the fuselage. Ensure you have a margin on the
+## sides … I feel like something is squaring out the bottom of the planes")
+
+- It was the board, not the fuselage. G331 cut the board's outline at the
+  walking height and hung the 12 mm rim straight down; where the belly
+  curves inward under the sill (forward of the seats) the rim stood
+  OUTSIDE the skin — measured at z 2.85: the edge at 0.421 m, the skin at
+  the rim's bottom at 0.416 — a 12 mm ply band along the fuselage bottom
+  that read as the fuselage flattened. Nothing ever changed the belly
+  geometry (the floor reads the mesh and adds its own).
+- `floorWalls.edgeAt` casts three rays per station — the top, the middle
+  and the bottom of the rim — takes the innermost wall, and stands the edge
+  FLOOR_MARGIN (4 mm) inside it. Measured after: the edge 4–5 mm inside
+  the skin at every sampled station (z 2.0: 0.531 vs 0.535; z 2.9: 0.375
+  vs 0.380).
+- Note for the record: while testing this session set the user's editor
+  rows ctlThr 5 / flapCtl 1 and the autosave carried them; both were put
+  back to 0 through GARAGE_SPEC.update before landing.
