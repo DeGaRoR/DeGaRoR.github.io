@@ -228,6 +228,18 @@ changes only how many cells win. Densities at full: insects 1 in 12 of
 measured on the cub's cowl front in the game: ~3 chips at 0.25, ~12 at
 0.7/0.8, ~25 at 1/1, the same size throughout.
 
+## 6f. G345.5 — the baked cavity (2026-09-14)
+
+The screen-derivative curvature reads one triangle's normal gradient and
+measured nothing on a subdivided skin's grooves. aeroWxCavity bakes the
+mesh's own curvature per vertex (2·dot(n,d)/|d|² over welded neighbours,
+1/m via the material's aeroFieldM, concave positive) into an `aCav`
+attribute carried by one float varying; the shader takes max() of it into
+the concave and convex terms over the same kappaMax. Baked on both sides
+(applyWeather over the mount, app.js over the model group), once per
+geometry (the attribute is the mark), ~100 ms for the cub's 560 meshes.
+The first cut was a dimensionless angle and made every coarse tube a chip.
+
 ## 7. Owed
 
 - The glass legibility measurement (pilot's eye, chart, contrast bound) —
@@ -235,8 +247,6 @@ measured on the cub's cowl front in the game: ~3 chips at 0.25, ~12 at
 - The lab's fifth `editing:` kind (weather) in the editor's own lab panel;
   the bench carries the whole lab meanwhile.
 - The chip lip normal (2 offset evaluations) and a mud relief normal.
-- `dep` on the skin needs a baked cavity (vertex or sheet) — the derivative
-  curvature cannot see a subdivided surface's grooves.
 - The airport-driven macros (bush from grass landings, rain from parking) —
   the spec shape `finish.weather {age, flight, bush, rain}` is ready for it.
 - The W0.5a recalibration: re-shoot the bench's references after the

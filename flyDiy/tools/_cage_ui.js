@@ -3202,6 +3202,12 @@ function applyWeather() {
     }
   } catch (e) { console.error('weather: engines', e); }
   WX.aeroWxSetSources(THREE, { exhaust, wheels, engines, floor });
+  // ...and THE BAKED CAVITY (G345.5) on every aeroskin mesh the layers drew:
+  // the attribute is the mark, so a rebuilt geometry bakes once
+  if (WX.aeroWxBakeCavity) try {
+    const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) || window.CAGE_UI_SCENE;
+    WX.aeroWxBakeCavity(THREE, mnt);
+  } catch (e) { console.error('weather: cavity', e); }
   // ...and the four macros themselves (uniforms; the module clamps)
   WX.aeroWxSetMacro(THREE, aeroOn() ? WEAR : { age: 0, flight: 0, bush: 0, rain: 0 });
 }

@@ -44689,3 +44689,48 @@ PARTS, MEDIA.
 - Gates: PREMISES green (186 checks over 4 fixtures), SITE, AERO, PILOT,
   TAKEOFF green; proven from a clean worktree.
 - OWED: premises_perf.js (the measurement), then the game host.
+
+## G345.5 — THE BAKED CAVITY: THE MESH KNOWS ITS OWN GROOVES, AND THE WEATHERING READS THEM (2026-09-14)
+
+The design doc owed it since G345 ("`dep` on the skin needs a baked cavity
+— the derivative curvature cannot see a subdivided surface's grooves"), and
+G345.3 measured it: `dep` came out ZERO on the cowl's strips, which is why
+the cowl's joints had to be given as numbers off COWL_GEN.P. The screen-
+derivative curvature reads one triangle's normal gradient; on a subdivided
+skin a groove three edges wide is a whisper per triangle.
+
+THE MESH'S OWN ANSWER. `aeroWxCavity(pos, idx, nrm, n, unit)` in
+aeroweather.js: for every vertex, the mean over its welded neighbours of
+2·dot(n, d)/|d|² — the circle's 1/r on a chord — positive where the
+neighbours rise above the tangent plane (a groove's floor, a dome's root,
+a corner), negative on a crown. A CURVATURE in 1/m, the same quantity the
+derivative estimates, scaled by the material's own metres-per-unit
+(`userData.aeroFieldM`: the cage's 0.745 and the cowl's metres bake the
+same number), so `kappaMax` is the one knob for both. Welded by position
+(quantised to a ten-thousandth of the bounding box, three 14-bit ints in
+one exact double), so the join's unwelded merge and a split-normal seam
+still see across. The first cut was a dimensionless angle (sin of the edge
+angle) and made every coarse tube a chip: 83 % of the cub's vertices past
+the threshold. Curvature puts a 2 cm tube at its true 50/m, which the
+derivative already gave it.
+
+WHERE IT GOES. `aeroWxBakeCavity(THREE, obj, unit)` sets an `aCav` float
+attribute once per geometry (the attribute is the mark); the editor bakes
+the mount from `applyWeather` after the layers have drawn, the game bakes
+its model group once whole (parts included), in app.js beside the frustum
+lines. aeroskin.js carries it as ONE float varying (`aCav` → `vCav`; the
+five custom varyings stay, this is the sixth and the only one the
+weathering adds). The shader takes `vCav / kappaMax · bakeGain` by max()
+into the concave term (dirt in the grooves: the wx_dep, corner and wheel
+layers) and, by `bakeConvex`, into the convex one (chips on the crowns).
+Measured on the cub: 560 meshes, 1.0 M vertices, ~100 ms a build; the
+debug view 3 (convex red, concave blue) shows every edge red and the
+canopy sill, the wing-root fillet, the aileron gaps and the cowl's own
+strips blue — the strips the derivative never saw.
+
+Gate: the V-groove baked welded AND unwelded (floor > 40/m, crests < −20,
+flat and walls zero, unit 2 halves it), the varying declared, both terms
+read the bake, both sides bake, the skin's VS carries it; selftest probes
+for a zero bake, a sign flip, a unit-blind bake and an unread varying.
+Proof from a clean worktree: WEATHER, SKINMAT, JOIN, BUILD, UISMOKE,
+PARTS, MEDIA. Pictures: screenshots/weather/g3455_*.png.

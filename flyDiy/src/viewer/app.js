@@ -2277,6 +2277,9 @@
     }
     grp.frustumCulled = false;
     grp.traverse(o => { o.frustumCulled = false; });
+    // THE BAKED CAVITY (G345.5): the weathering reads the mesh's own grooves
+    // per vertex, in each material's own unit — once the group is whole
+    if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxBakeCavity) AEROWX.aeroWxBakeCavity(THREE, grp);
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {

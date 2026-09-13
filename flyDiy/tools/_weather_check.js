@@ -46,7 +46,7 @@ const SELF = process.argv.includes('--selftest');
 function audit(ctx) {
   const F = [];
   const check = (ok, label, extra) => { if (!ok) F.push(label + (extra ? ' — ' + extra : '')); return ok; };
-  const { glsl, layers, cols, glossOk, sub, finishes, manifest, benches, fromSpec, toSpec, resolve, grunge, nl } = ctx;
+  const { glsl, layers, cols, glossOk, sub, finishes, manifest, benches, fromSpec, toSpec, resolve, grunge, nl, cavity } = ctx;
 
   // ---- GLSL ---------------------------------------------------------------
   const all = Object.values(glsl).join('\n');
@@ -87,6 +87,9 @@ function audit(ctx) {
     // G345.4: spots by COUNT — the three speckle layers draw cells, never a noise threshold
     check((S.match(/aeroWxSpots\(/g) || []).length >= 4, 'chips, pits and insects are not drawn by count (aeroWxSpots)');
     check(!/smoothstep\(thr, thr \+ 0\.05, gB\.g\)|smoothstep\(thrI, thrI \+ 0\.05, gF\.g\)/.test(S), 'a speckle layer is back on a noise threshold');
+    // G345.5: the BAKED cavity reaches both the concave and the convex term
+    check(/varying float vCav;/.test(glsl.PARS), 'the baked cavity varying is not declared');
+    check(/wxConcave = max\(wxConcave, clamp\(wxBk, 0\.0, 1\.0\)\);/.test(S) && /wxConvex  = max\(wxConvex,  clamp\(-wxBk \* uWxB\.y, 0\.0, 1\.0\)\);/.test(S), 'the baked cavity (vCav) does not reach the concave/convex terms');
     // the unpack matches the table, slot by slot
     layers.forEach((L, i) => {
       const want = 'float wx_' + L.k + ' = uWxL[' + (i >> 2) + '].' + 'xyzw'[i & 3] + ' * wxK;';
@@ -174,6 +177,34 @@ function audit(ctx) {
     check(Math.abs(rp[iDust] - 0.7) < 1e-6, 'a pin does not override the resolved strength');
   }
 
+  // ---- THE BAKED CAVITY (G345.5): a V-groove strip — its floor concave, its
+  // crests convex, the flat and the walls zero, on a welded AND an unwelded copy
+  if (cavity) {
+    const nx = 41, ny = 3, w = 0.02, sl = 0.6, pos = [], nrm = [], idx = [];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const x = (i - 20) * 0.005, z = Math.abs(x) < w ? -(w - Math.abs(x)) * sl : 0;
+      pos.push(x, j * 0.005, z);
+      const dz = Math.abs(x) < w - 1e-9 ? (x < 0 ? -sl : sl) : 0, l = Math.hypot(dz, 1);
+      nrm.push(-dz / l, 0, 1 / l);
+    }
+    for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx.push(a, b, c, b, d, c);
+    }
+    const cv = cavity(new Float32Array(pos), new Uint32Array(idx), new Float32Array(nrm), nx * ny);
+    const at = i => cv[nx + i];
+    // a curvature in 1/m: the floor of a 0.6-slope V on 5 mm edges is ~90/m
+    check(at(20) > 40, 'cavity: the groove floor is not concave', at(20).toFixed(1));
+    check(at(16) < -20 && at(24) < -20, 'cavity: the crests are not convex', at(16).toFixed(1));
+    // ...and in a unit of 2 m per unit the same mesh reads half of it
+    check(Math.abs(cavity(new Float32Array(pos), new Uint32Array(idx), new Float32Array(nrm), nx * ny, 2)[nx + 20] - at(20) / 2) < 1e-3, 'cavity: the unit does not scale the curvature');
+    check(Math.abs(at(2)) < 1e-2 && Math.abs(at(38)) < 1e-2 && Math.abs(at(18)) < 1e-2, 'cavity: flat or wall reads as curved');
+    // unwelded: every triangle its own vertices — the weld must find the same floor
+    const up = [], un = [];
+    for (let t = 0; t < idx.length; t++) { const v = idx[t]; up.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]); un.push(nrm[v * 3], nrm[v * 3 + 1], nrm[v * 3 + 2]); }
+    const cu = cavity(new Float32Array(up), null, new Float32Array(un), idx.length);
+    let fl = 0, k = 0; for (let t = 0; t < idx.length; t++) if (idx[t] === nx + 20) { fl += cu[t]; k++; }
+    check(k > 0 && Math.abs(fl / k - at(20)) < 1e-3, 'cavity: the unwelded copy does not bake the welded floor');
+  }
   // ---- THE BAKE ------------------------------------------------------------
   {
     const S = 32, g = grunge(S);
@@ -201,7 +232,7 @@ const ctx = {
   sub: W.AERO_WX_SUB, finishes: A.AERO_FINISH,
   manifest: rd(path.join(ROOT, 'tools', 'build.js')), benches,
   fromSpec: W.aeroWxMacroFromSpec, toSpec: W.aeroWxMacroToSpec, resolve: W.aeroWxResolve,
-  grunge: W.aeroWxGrunge, nl: W.AERO_WX_NL,
+  grunge: W.aeroWxGrunge, nl: W.AERO_WX_NL, cavity: W.aeroWxCavity,
 };
 const fail = audit(ctx);
 
@@ -227,6 +258,11 @@ function strip(t) { return t.replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').map(l
   chk(/for \(const c of \(G && G\.contacts\) \|\| \[\]\)/.test(UI), 'editor: applyWeather does not walk every wheel contact');
   chk(!/wearFieldAt/.test(UI), 'editor: G70 nearest-vertex field lookup is back');
   chk(!/WEAR\.amount/.test(UI), 'editor: WEAR.amount survives somewhere');
+  // G345.5: the baked cavity is baked on both sides and carried by the skin's VS
+  chk(/WX\.aeroWxBakeCavity\(THREE, mnt\);/.test(UI), 'editor: applyWeather does not bake the cavity on the mount');
+  chk(/AEROWX\.aeroWxBakeCavity\(THREE, grp\);/.test(AP), 'app: the flown model group is not baked');
+  { const SK = rd(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'));
+    chk(/attribute float aCav;/.test(SK) && /varying float vCav;/.test(SK) && /vCav    = aCav;/.test(SK), 'aeroskin: the cavity attribute does not reach the varying'); }
   // the join: the record, every unit and every contact
   chk(/weather = \{ exhaust, wheels, engines, floor:/.test(JN) && /footwell, holes,\s*weather[,\s}]/.test(JN), 'join: no weather record in the snapshot');
   chk(/for \(const u of \(E && E\.units\) \|\| \[\]\)/.test(JN) && /for \(const c of \(G3 && G3\.contacts\) \|\| \[\]\)/.test(JN), 'join: the sources are not all units and all contacts');
@@ -275,6 +311,10 @@ if (SELF) {
     ['toSpec that writes zeros', c => { c.toSpec = m => m; }, 'weather block'],
     ['a resolve that ignores the wash', c => { c.resolve = () => new Float32Array(24).fill(0.5); }, 'wash'],
     ['a flat grunge', c => { c.grunge = S => new Uint8Array(S * S * 4).fill(128); }, 'flat channel'],
+    ['a cavity that is all zero', c => { c.cavity = (p, i, n, k) => new Float32Array(k); }, 'groove floor'],
+    ['a cavity blind to the unit', c => { const f = c.cavity; c.cavity = (p, i, n, k) => f(p, i, n, k, 1); }, 'unit'],
+    ['a cavity with the sign flipped', c => { const f = c.cavity; c.cavity = (p, i, n, k, u) => f(p, i, n, k, u).map(v => -v); }, 'groove floor'],
+    ['the bake unread by the shader', c => { c.glsl.SURF = c.glsl.SURF.replace('wxConcave = max(wxConcave, clamp(wxBk, 0.0, 1.0));', ''); }, 'baked cavity'],
     ['the unpack drifted', c => { c.glsl.SURF = c.glsl.SURF.replace('float wx_dust = uWxL[0].x', 'float wx_dust = uWxL[0].y'); }, 'unpack disagrees'],
   ];
   let caught = 0;

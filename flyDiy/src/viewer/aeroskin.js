@@ -2215,8 +2215,10 @@ function aeroSetDecals(THREE, list) {
 
 const AERO_PARS_VS = `
 attribute vec4 aStruct;
+attribute float aCav;       // G345.5: the baked cavity (aeroweather), 0 where absent
 uniform mat4 uCraftInv;
 varying vec4 vSurf;
+varying float vCav;
 varying vec3 vObjPos;
 varying vec3 vObjNrm;
 varying vec3 vCraftPos;
@@ -2227,6 +2229,7 @@ varying vec3 vCraftNrm;
 // are both in hand here.
 const AERO_MAIN_VS = `
   vSurf   = aStruct;
+  vCav    = aCav;
   vObjPos = transformed;
   vObjNrm = objectNormal;
   vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;

@@ -130,6 +130,11 @@ const AERO_WX_KNOB = {
   seamW:     0.035,  // uWxV.y  m, how far the cowl's joint dirt spreads
   scratchLen: 0.45,  // uWxV.z  m, a scratch's length period
   scratchAcross: 0.03, // uWxV.w m, a scratch's width period
+  // G345.5: the BAKED cavity's gains (uWxB), over kappaMax like the
+  // derivative's — the concave term (dirt in the grooves) and the convex
+  // one's share of it (chips on the crowns)
+  bakeGain:  1.0,    // uWxB.x  on the per-vertex curvature / kappaMax
+  bakeConvex: 1.0,   // uWxB.y  the crown's share, over bakeGain
 };
 // THE SPINNER'S SPIRAL (the user: "the little typical spiral and choose its
 // colour"): a marking, so it lives in the decal block (AERO_DEC_DEF's
@@ -302,6 +307,103 @@ function aeroWxCells(u, v, N, s) {
   }
   return Math.max(0, 1 - best / 0.6);
 }
+
+// THE BAKED CAVITY (G345.5, design doc §7 'dep on the skin needs a baked
+// cavity'). The screen-derivative curvature reads one triangle's normal
+// gradient, which on a subdivided surface is a whisper — a groove three
+// edges wide measured as nothing (G345.3: `dep` was zero on the cowl's
+// strips). This is the MESH's own answer: for every vertex, the mean over
+// its welded neighbours of 2·dot(n, d)/|d|² — the circle's 1/r on a chord
+// — positive where the neighbours rise above the tangent plane (a groove's
+// floor, a dome's root, a corner), negative on a crown. A CURVATURE in
+// 1/unit, the same quantity the derivative estimates, so kappaMax is the
+// one knob for both and a coarse 2 cm tube reads its true 50/m either way
+// (a dimensionless angle would have made every coarse tube a chip: the
+// first cut had 83 % of the cub's vertices past 0.02). `unit` is the
+// material's own metres per object unit (aeroFieldM), so the cage's 0.745
+// and the cowl's metres bake the same 1/m. Welded by position, so the
+// join's unwelded merge and a split-normal seam still see across. Pure and
+// node-safe (the gate bakes a V-groove, welded and not).
+function aeroWxCavity(pos, idx, nrm, n, unit) {
+  n = n || (pos.length / 3) | 0;
+  const out = new Float32Array(n);
+  if (!n || !nrm) return out;
+  const perM = 1.0 / (unit > 0 ? unit : 1);
+  // weld: quantise to a ten-thousandth of the bounding box's long side
+  let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) {
+    const v = pos[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v;
+  }
+  const ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2], 1e-6);
+  const q = 1e4 / ext, tiny = 1e-6 * ext;
+  const rep = new Int32Array(n), key2rep = new Map();
+  for (let i = 0; i < n; i++) {
+    // three 14-bit ints in one exact double (string keys cost 4x: 220 ms a build)
+    const k = (Math.round((pos[i * 3] - lo[0]) * q) * 16384 + Math.round((pos[i * 3 + 1] - lo[1]) * q)) * 16384
+            + Math.round((pos[i * 3 + 2] - lo[2]) * q);
+    let r = key2rep.get(k);
+    if (r === undefined) { r = i; key2rep.set(k, r); }
+    rep[i] = r;
+  }
+  // the neighbourhood per representative, from the triangle edges
+  const nbr = new Array(n);
+  const link = (a, b) => {
+    const ra = rep[a], rb = rep[b];
+    if (ra === rb) return;
+    (nbr[ra] || (nbr[ra] = [])).push(rb);
+    (nbr[rb] || (nbr[rb] = [])).push(ra);
+  };
+  const tri = idx ? idx.length / 3 : n / 3;
+  for (let t = 0; t < tri; t++) {
+    const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
+    link(a, b); link(b, c); link(c, a);
+  }
+  // the measure, per vertex against ITS normal (a split-normal seam gets
+  // each side's own reading over the shared neighbourhood); clamped to
+  // a millimetre's radius so a degenerate sliver cannot blow the float
+  for (let i = 0; i < n; i++) {
+    const N = nbr[rep[i]];
+    if (!N || !N.length) continue;
+    const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
+    const nx = nrm[i * 3], ny = nrm[i * 3 + 1], nz = nrm[i * 3 + 2];
+    let s = 0, m = 0;
+    for (let j = 0; j < N.length; j++) {
+      const k = N[j];
+      const dx = pos[k * 3] - px, dy = pos[k * 3 + 1] - py, dz = pos[k * 3 + 2] - pz;
+      const l2 = dx * dx + dy * dy + dz * dz;
+      if (l2 < tiny * tiny) continue;
+      s += 2.0 * (nx * dx + ny * dy + nz * dz) / l2; m++;
+    }
+    out[i] = m ? Math.max(-1000, Math.min(1000, s / m * perM)) : 0;
+  }
+  return out;
+}
+// onto a geometry (once — the attribute is the mark), or every aeroskin
+// mesh under an object in its material's own unit; the editor calls it from
+// applyWeather after the layers have drawn, the game once its model group
+// is whole (the parts included)
+function aeroWxBakeCavity(THREE, obj, unit) {
+  if (!obj) return 0;
+  let done = 0;
+  const one = (geo, u) => {
+    if (!geo || !geo.attributes || geo.attributes.aCav || !geo.attributes.position) return;
+    if (!geo.attributes.normal) geo.computeVertexNormals();
+    const p = geo.attributes.position.array, nr = geo.attributes.normal.array;
+    const cav = aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u);
+    geo.setAttribute('aCav', new THREE.BufferAttribute(cav, 1));
+    done++;
+  };
+  if (obj.isBufferGeometry) one(obj, unit);
+  else if (obj.traverse) obj.traverse(o => {
+    if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    // (a READ of the aeroskin mark and its unit, never a stamp: SKINMAT
+    // keeps the census whole)
+    const m0 = ms.find(m => m && (m.userData || {}).aeroskin);
+    if (m0) one(o.geometry, unit || (m0.userData || {}).aeroFieldM || 1);
+  });
+  return done;
+}
 function aeroWxGrunge(S) {
   const out = new Uint8Array(S * S * 4);
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
@@ -362,6 +464,7 @@ function aeroWxSharedU(THREE) {
     uWxDbg: { value: 0 },
     uWxT:   { value: new THREE.Vector4(K.propR, K.spinR, K.leGain, K.flingGain) },
     uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross) },
+    uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, 0, 0) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
   };
@@ -397,6 +500,7 @@ function aeroWxRefresh() {
   U.uWxG.value.set(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong);
   U.uWxT.value.set(K.propR, K.spinR, K.leGain, K.flingGain);
   U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross);
+  U.uWxB.value.set(K.bakeGain, K.bakeConvex, 0, 0);
   const m = AERO_WX.macro;
   U.uWear.value.set(aeroWxClamp01(m.age), aeroWxClamp01(m.flight),
                     aeroWxClamp01(m.bush), aeroWxClamp01(m.rain));
@@ -596,6 +700,8 @@ uniform vec4 uWxG;      // x fine tile m  y coarse tile m  z streak across m  w 
 uniform float uWxDbg;
 uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE gain  w fling gain
 uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch length m  w scratch width m
+uniform vec4 uWxB;      // x baked cavity gain  y its convex share  zw 0
+varying float vCav;     // G345.5: the mesh's own curvature per vertex, 1/m, concave positive (aeroWxCavity); 0 where not baked
 uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
 uniform vec4 uSpiralC;  // linear rgb, strength
 uniform float uWxTurn;  // per material: 0 fixed, 1 a blade, 2 the spinner
@@ -837,6 +943,12 @@ const AERO_WX_SURF_FS = `
     float wxKF = smoothstep(0.12, 0.35, wxNV) * (0.55 + 0.45 * gC.a);
     float wxConcave = clamp(-wxKap / uWxR.z, 0.0, 1.0) * wxKF;
     float wxConvex  = clamp( wxKap / uWxR.z, 0.0, 1.0) * wxKF;
+    // ...and THE BAKED CAVITY (G345.5): what the mesh itself knows about its
+    // grooves and crowns, no limb fade needed (it is not a screen quantity),
+    // broken by the same blotch so a vertex ring never reads as a ring
+    float wxBk = vCav / uWxR.z * uWxB.x * (0.55 + 0.45 * gC.a);
+    wxConcave = max(wxConcave, clamp(wxBk, 0.0, 1.0));
+    wxConvex  = max(wxConvex,  clamp(-wxBk * uWxB.y, 0.0, 1.0));
     float wxCav = clamp(aeroCav, 0.0, 1.0);
     float wxDep = clamp(aeroDep, 0.0, 1.0);
 
@@ -1168,7 +1280,7 @@ const AEROWX_API = {
   AERO_WX_MACRO, AERO_WX_LAYERS, AERO_WX_COL, AERO_WX_KNOB, AERO_WX_SUB,
   AERO_WX_DEF, AERO_WX_GLOSS_OK, AERO_WX_NL, AERO_WX_NE, AERO_WX_NW, AERO_WX,
   aeroWxResolve, aeroWxMacroFromSpec, aeroWxMacroToSpec,
-  aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX,
+  aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX, aeroWxCavity, aeroWxBakeCavity,
   aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin,
   aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
   aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabExport, AERO_WX_LAB_KEY,
