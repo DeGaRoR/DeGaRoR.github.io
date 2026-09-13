@@ -1,46 +1,54 @@
-// _totem_gen.js — THE TOTEM PARK: a patch of ground with the carved poles on
-// it (2026-09-13, the user: "The goal is to generate a patch of terrain with
-// these poles, inspired by the attached picture" — a Saxman-style totem
-// park: poles along the edge of a lawn, a painted clan house behind them,
-// boulders on the grass, a gravel path along the front, spruce behind).
+// _totem_gen.js — THE TOTEM PARK: a flat lawn with the carved poles round it
+// in a wide half circle (2026-09-13, the user: "The goal is to generate a
+// patch of terrain with these poles, inspired by the attached picture"; then
+// G341.1: "do the wiring so it can occupy a plot and be placed like on the
+// reference picture? In a large flat semi circle?").
 //
 // TWO HALVES, the house generator's own split:
 //   totemPlan(o)             headless (node and browser): WHERE everything
-//                            stands, in metres, from a seed - held by GATE
-//                            TOTEM; the world join reads this
-//   totemBuild(THREE, plan)  the meshes: the ground, the poles through
-//                            propPlace (a THREE.LOD each, the levels ride in),
-//                            the boulders, the path as a tint
+//                            stands, in the park's OWN frame, from a seed -
+//                            held by GATE TOTEM
+//   totemPlot(plot, T, o)    the same plan stood on a VILLAGE PLOT: sized
+//                            to the plot, turned to open on the road, every
+//                            coordinate in world metres, the lawn's level
+//                            read off the terrain - the one call the village
+//                            generator makes
+//   totemBuild(THREE, plan)  the meshes: the lawn, the poles through
+//                            propPlace (a THREE.LOD each, the levels ride
+//                            in), the boulders, the path as a tint
 //
-// THE FRAME. The patch is w (x) by d (z), centred on the origin. +z is the
-// FRONT: the lawn, the path and the viewer; -z the BACK: the poles' arc, the
-// clan-house slot behind its middle, the treeline beyond. A pole's `face` is
-// the azimuth (degrees, atan2(x, z) in its own frame) its carving looks out
-// along; the plan turns every pole so its face looks to +z, with a little
-// scatter, the way a park's poles all look out over the lawn without
-// standing to attention.
+// THE FRAME (park's own). The lawn's centre is the origin. The poles stand
+// on a half circle of radius R, its apex at the BACK (-z) and its two horns
+// reaching forward, every pole looking IN at the lawn's centre (the
+// reference photograph: poles round a clearing, all faces toward the
+// visitor on the grass). The clan-house slot is behind the apex, its front
+// (+z) toward the lawn; the gravel path crosses the open FRONT (+z) of the
+// half circle; the treeline is everything behind the poles. A pole's `face`
+// is the azimuth (degrees, atan2(x, z) in its own frame) its carving looks
+// along; ry turns that onto the line to the centre, with a little scatter.
+//
+// THE PARK IS FLAT. A totem park is a levelled lawn (the photograph's is),
+// and the user asked for one: `plan.level` is the lawn's height and
+// `plan.footprint` the polygon (the half disc plus the lawn's apron) the
+// terrain owner flattens to it - the park publishes the shape, the world
+// owns the height (the village's rule). The bench draws the patch flat with
+// a soft skirt down to a gentle swell outside the footprint.
 //
 // TOTEM_KIT mirrors src/totems/totems_poles.js headless - L along z, W along
 // x, H up, in the packs' metres, `srcNt` the scan it was cut from - the way
 // PIER_KIT mirrors the pier; GATE TOTEM holds it to the packs. `face` is a
-// judgement read off the renders (tools/_totems.html, FACING view), not a
-// baked number.
+// judgement read off the renders (tools/_totems.html, FACING view): the six
+// Trepanier scans all look along their own +x, the wings pole a shade short.
+// (The jfactory pole was dropped in G341.1: a one-sided scan.)
 'use strict';
 (() => {
-// `face` READ OFF THE FACING VIEW (2026-09-13, screenshots/totems/facing):
-// the six Trepanier scans all look along their own +x (the wings pole a
-// shade short of it); the jfactory pole looks along -x. THAT ONE IS A
-// ONE-SIDED SCAN: its back is a flat, untextured sheet (the scanner never
-// walked round it), so it stands with its back to the treeline and is not
-// for a spot the player can walk behind (`oneSided`).
 const TOTEM_KIT = {
-  totem_claws:    { L: 1.908, W: 2.048, H: 6.996,  srcNt: 378651, face: 90 },
-  totem_eyes:     { L: 3.406, W: 1.729, H: 5.997,  srcNt: 378200, face: 90 },
-  totem_flight:   { L: 4.396, W: 2.758, H: 7.494,  srcNt: 339316, face: 90 },
-  totem_sentinel: { L: 5.218, W: 1.789, H: 7.995,  srcNt: 296859, face: 90 },
-  totem_voice:    { L: 1.878, W: 2.035, H: 8.995,  srcNt: 437625, face: 90 },
-  totem_wings:    { L: 3.812, W: 2.796, H: 6.496,  srcNt: 337945, face: 80 },
-  totem_tall:     { L: 3.048, W: 3.397, H: 19.289, srcNt: 143894, face: -90, oneSided: true },
+  totem_claws:    { L: 1.908, W: 2.048, H: 6.996, srcNt: 378651, face: 90 },
+  totem_eyes:     { L: 3.406, W: 1.729, H: 5.997, srcNt: 378200, face: 90 },
+  totem_flight:   { L: 4.396, W: 2.758, H: 7.494, srcNt: 339316, face: 90 },
+  totem_sentinel: { L: 5.218, W: 1.789, H: 7.995, srcNt: 296859, face: 90 },
+  totem_voice:    { L: 1.878, W: 2.035, H: 8.995, srcNt: 437625, face: 90 },
+  totem_wings:    { L: 3.812, W: 2.796, H: 6.496, srcNt: 337945, face: 80 },
 };
 const KEYS = Object.keys(TOTEM_KIT);
 const D2R = Math.PI / 180;
@@ -48,8 +56,8 @@ const D2R = Math.PI / 180;
 // the footprint radius a pole needs kept clear of boulders and walls: half
 // its wider side (a beak or a wing counts)
 const footR = k => Math.max(TOTEM_KIT[k].L, TOTEM_KIT[k].W) * 0.5;
-// its width ACROSS the arc: every pole faces the lawn, so along the line of
-// poles what one takes up is its own x extent, not its beak
+// its width ACROSS the arc: every pole faces the centre, so along the line
+// of poles what one takes up is its own x extent, not its beak
 const acrossR = k => TOTEM_KIT[k].W * 0.5;
 
 // mulberry32: the same seed is the same park, in node and in the page
@@ -64,7 +72,7 @@ function rng(seed) {
   };
 }
 
-// value noise, smooth, tileless: the lawn's gentle swell
+// value noise, smooth, tileless: the swell outside the lawn
 function hash2(i, j, s) {
   let h = (i * 374761393 + j * 668265263 + s * 1442695041) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -78,125 +86,154 @@ function vnoise(x, z, s) {
   return (a + (b - a) * ux) * (1 - uz) + (c + (d - c) * ux) * uz;
 }
 
-const DEF = { seed: 1, w: 46, d: 30, poles: 'all', house: true, rocks: 5, scatter: 18 };
+// R: the half circle's radius; span: how much of it the poles use (degrees,
+// centred on the apex); apron: lawn kept in front of the horns, where the
+// path crosses; back: ground kept behind the apex for the house
+const DEF = { seed: 1, R: 16, span: 170, apron: 9, back: 15, poles: 'all', house: true,
+              rocks: 5, scatter: 12, flat: true };
 
 // ---------------------------------------------------------------------------
-// THE PLAN
+// THE PLAN (the park's own frame)
 // ---------------------------------------------------------------------------
 function totemPlan(o) {
   o = Object.assign({}, DEF, o || {});
-  const R = rng(o.seed);
-  const w = o.w, d = o.d;
+  const Rn = rng(o.seed);
+  const R = o.R, A = o.span / 2 * D2R;
   const keys = (o.poles === 'all' ? KEYS.slice() : o.poles.slice()).filter(k => TOTEM_KIT[k]);
 
-  // THE GROUND: a swell of 0.35 m over ~14 m plus a finer 0.08 m ripple,
-  // rising a little to the back (the park is on a shore terrace); the
-  // house's slot is flattened to its own level by the house generator, not
-  // here (a lot never owns height - the village's rule)
-  const s1 = o.seed * 7 + 1, s2 = o.seed * 13 + 5;
-  const ground = (x, z) =>
-    (vnoise(x / 14 + 100, z / 14 + 100, s1) - 0.5) * 0.7 +
-    (vnoise(x / 3.5 + 50, z / 3.5 + 50, s2) - 0.5) * 0.16 +
-    (-z / d) * 0.45;
-
-  // THE HOUSE SLOT: behind the arc's middle, its front (+z face) at zHouse
-  const house = o.house ? { x: 0, z: -d / 2 + 5.0, w: 12.0, d: 9.0, ry: 0 } : null;
-  const zHouseFront = house ? house.z + house.d / 2 : -d / 2 + 2;
-
-  // THE ARC: the poles stand along a shallow curve bowed toward the lawn,
-  // its middle 6 m in front of the house, its ends swept back to the patch's
-  // rear corners. Order along the arc: the tall pole at one end (the picture
-  // has its tallest at the edge), the others by height so the line climbs
-  // toward it, with the seed deciding which end.
-  const zMid = zHouseFront + 6.0;
-  const bow = 5.5;                              // how far the ends fall back
-  const half = w / 2 - 3.5;
-  const arcZ = x => zMid - bow * Math.pow(x / half, 2);
-  const flip = R() < 0.5;
-  let line = keys.filter(k => k !== 'totem_tall').sort((a, b) => TOTEM_KIT[a].H - TOTEM_KIT[b].H);
-  // a little disorder in the climb: swap neighbours now and then
-  for (let i = 0; i + 1 < line.length; i++) if (R() < 0.35) { const t = line[i]; line[i] = line[i + 1]; line[i + 1] = t; }
-  if (keys.includes('totem_tall')) line.push('totem_tall');
-  if (flip) line.reverse();
-
-  // arc length as a function of x, by walking it
-  const N = 400, sx = [], sl = [];
-  let acc = 0, px = -half, pz = arcZ(-half);
-  for (let i = 0; i <= N; i++) {
-    const x = -half + (i / N) * 2 * half, z = arcZ(x);
-    acc += Math.hypot(x - px, z - pz); px = x; pz = z;
-    sx.push(x); sl.push(acc);
+  // THE PATCH: the half disc plus its apron in front and the house's ground
+  // behind; the footprint polygon is what the terrain owner flattens
+  const x0 = -(R + 5), x1 = R + 5, z0 = -(R + o.back), z1 = o.apron;
+  const patch = { x0, x1, z0, z1, w: x1 - x0, d: z1 - z0 };
+  const footprint = [];
+  for (let i = 0; i <= 24; i++) {                  // the half disc, west horn round the apex to the east horn
+    const a = Math.PI + (i / 24) * Math.PI;         // angle in the (x, z) plane, z = sin: -pi .. 0 keeps z <= 0
+    footprint.push([+(Math.cos(a) * (R + 4)).toFixed(3), +(Math.sin(a) * (R + 4)).toFixed(3)]);
   }
-  const xAt = s => {
-    if (s <= 0) return -half;
-    for (let i = 1; i < sl.length; i++) if (sl[i] >= s) {
-      const t = (s - sl[i - 1]) / (sl[i] - sl[i - 1] || 1);
-      return sx[i - 1] + (sx[i] - sx[i - 1]) * t;
-    }
-    return half;
+  footprint.push([R + 4, z1], [-(R + 4), z1]);
+  const level = 0;
+  const swell = (x, z) => (vnoise(x / 14 + 100, z / 14 + 100, o.seed * 7 + 1) - 0.5) * 0.7 +
+                          (vnoise(x / 3.5 + 50, z / 3.5 + 50, o.seed * 13 + 5) - 0.5) * 0.16;
+  // signed depth inside the footprint (positive = inside)
+  const inside = (x, z) => {
+    if (z <= 0) return (R + 4) - Math.hypot(x, z);                 // the half disc
+    return Math.min((R + 4) - Math.abs(x), z1 - z);                 // the apron
   };
-  // spacing: width to width across the arc plus a gap, the gaps sharing what
-  // the arc has left once every pole's width is booked (jittered shares,
-  // none over 6.5 m - a park of three poles does not spread them to the
-  // corners), the row then centred on the arc
-  const margin = 1.0;
+  // inside, the lawn is level; outside, a 6 m skirt eases down to the swell
+  // (the bench's own outside - the world has its own)
+  const ground = o.flat
+    ? (x, z) => { const t = Math.min(1, Math.max(0, -inside(x, z) / 6)); return level + swell(x, z) * t * t; }
+    : swell;
+
+  // THE HOUSE SLOT: behind the apex, its front (+z) toward the lawn
+  const house = o.house ? { x: 0, z: -(R + 3.5 + 4.5), w: 12.0, d: 9.0, ry: 0 } : null;
+
+  // THE POLES, round the arc: angle a from the apex (a = 0 at the back,
+  // negative to the west horn); position (R sin a, -R cos a). The order
+  // climbs to the tallest at one horn, with a little disorder, the seed
+  // choosing the horn.
+  let line = keys.slice().sort((a, b) => TOTEM_KIT[a].H - TOTEM_KIT[b].H);
+  for (let i = 0; i + 1 < line.length; i++) if (Rn() < 0.35) { const t = line[i]; line[i] = line[i + 1]; line[i + 1] = t; }
+  if (Rn() < 0.5) line.reverse();
+  // spacing along the arc: width to width plus gaps sharing what the arc
+  // has left (jittered shares, none over 6.5 m), the row centred on the apex
+  const arcLen = 2 * A * R;
   const need = line.reduce((s, k, i) => s + (i > 0 ? acrossR(line[i - 1]) + acrossR(k) : 0), 0);
-  const free = Math.max(0, acc - 2 * margin - need);
-  const share = line.map((k, i) => (i > 0 ? 0.8 + R() * 0.4 : 0));
+  const free = Math.max(0, arcLen - need);
+  const share = line.map((k, i) => (i > 0 ? 0.8 + Rn() * 0.4 : 0));
   const shareSum = share.reduce((a, b) => a + b, 0) || 1;
   const gaps = share.map(s => Math.min(6.5, free * s / shareSum));
   let len = 0;
-  const along = line.map((k, i) => {
-    if (i > 0) len += acrossR(line[i - 1]) + gaps[i] + acrossR(k);
-    return len;
-  });
-  const start = Math.max(margin, (acc - len) / 2);
+  const along = line.map((k, i) => { if (i > 0) len += acrossR(line[i - 1]) + gaps[i] + acrossR(k); return len; });
+  const start = (arcLen - len) / 2;
   const poles = line.map((k, i) => {
-    const x = xAt(start + along[i]);
-    const z = arcZ(x) - (k === 'totem_tall' ? 2.0 : 0);   // the great pole a step back
-    // face the lawn (+z): the pole's own face azimuth turned onto 0, a
-    // scatter either way, and the ends of the arc turned a little inward
-    const inward = -Math.atan2(x, 40) / D2R;
-    const ry = (-TOTEM_KIT[k].face + inward + (R() * 2 - 1) * o.scatter) * D2R;
+    const a = -A + (start + along[i]) / R;
+    const x = R * Math.sin(a), z = -R * Math.cos(a);
+    // look at the centre: world az of (-x, -z), the carving's own az turned onto it
+    const look = Math.atan2(-x, -z) / D2R;
+    const ry = (look - TOTEM_KIT[k].face + (Rn() * 2 - 1) * o.scatter) * D2R;
     return { key: k, x: +x.toFixed(3), z: +z.toFixed(3), ry: +ry.toFixed(4), y: +ground(x, z).toFixed(3),
-             r: +footR(k).toFixed(3), rx: +acrossR(k).toFixed(3) };
+             r: +footR(k).toFixed(3), rx: +acrossR(k).toFixed(3), a: +(a / D2R).toFixed(1) };
   });
 
-  // THE PATH: gravel along the front of the lawn, bowed like the arc, from
-  // edge to edge; 2.6 m wide
-  const zPath = d / 2 - 4.5;
-  const path = { z: zPath, bow: 1.8, width: 2.6,
-                 at: x => zPath + 1.8 * Math.pow(x / (w / 2), 2) };
+  // THE PATH: gravel across the open front, edge to edge, bowed toward the
+  // lawn a little; 2.6 m wide
+  const zPath = z1 - 4.0;
+  const path = { z: zPath, bow: 1.5, width: 2.6, at: x => zPath - 1.5 * (1 - Math.pow(x / (R + 5), 2)) };
 
-  // THE BOULDERS: on the lawn between the arc and the path, clear of both
-  // and of every pole, none in front of the house's door line
+  // THE BOULDERS: on the lawn inside the arc, clear of every pole and of
+  // the path, none in the middle of the clearing (that is where you stand)
   const rocks = [];
   let tries = 0;
-  while (rocks.length < o.rocks && tries++ < 400) {
-    const x = (R() * 2 - 1) * (w / 2 - 3), z = arcZ(x) + 3 + R() * (path.at(x) - arcZ(x) - 6);
-    const r = 0.55 + R() * 0.75;
-    if (z < arcZ(x) + 2.5 || z > path.at(x) - path.width / 2 - 1.5 - r) continue;
+  while (rocks.length < o.rocks && tries++ < 600) {
+    const a = (Rn() * 2 - 1) * Math.PI * 0.6, rr = R * (0.4 + Rn() * 0.45);
+    const x = rr * Math.sin(a), z = -rr * Math.cos(a);
+    const r = 0.55 + Rn() * 0.75;
+    if (Math.hypot(x, z) < 5) continue;
+    if (inside(x, z) < r + 1.0) continue;
+    if (z > path.at(x) - path.width / 2 - 1.0 - r) continue;
     if (poles.some(p => Math.hypot(p.x - x, p.z - z) < p.r + r + 1.5)) continue;
     if (rocks.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 1.2)) continue;
-    rocks.push({ x: +x.toFixed(3), z: +z.toFixed(3), r: +r.toFixed(3), ry: +(R() * Math.PI * 2).toFixed(3),
-                 y: +ground(x, z).toFixed(3), s: +(0.55 + R() * 0.35).toFixed(3) });
+    rocks.push({ x: +x.toFixed(3), z: +z.toFixed(3), r: +r.toFixed(3), ry: +(Rn() * Math.PI * 2).toFixed(3),
+                 y: +ground(x, z).toFixed(3), s: +(0.55 + Rn() * 0.35).toFixed(3) });
   }
 
-  // THE TREELINE: the band behind the arc and round the sides, for the world
-  // to fill with spruce (this generator plants none)
-  const treeline = [{ x0: -w / 2, z0: -d / 2, x1: w / 2, z1: zHouseFront - 1 },
-                    { x0: -w / 2, z0: zHouseFront - 1, x1: -w / 2 + 3, z1: zPath - 3 },
-                    { x0: w / 2 - 3, z0: zHouseFront - 1, x1: w / 2, z1: zPath - 3 }];
+  // THE TREELINE: the band behind the arc, for the world to fill with spruce
+  const treeline = { r0: R + 5, r1: R + o.back + 10, zMax: 0, note: 'annulus behind the poles, z <= 0' };
 
-  return { seed: o.seed, w, d, ground, poles, house, path, rocks, treeline,
-           arc: { zMid, bow, half }, keys: line };
+  return { seed: o.seed, R, span: o.span, level, flat: o.flat, patch, footprint, ground, inside,
+           poles, house, path, rocks, treeline, keys: line, frame: 'park' };
+}
+
+// ---------------------------------------------------------------------------
+// THE PLAN ON A PLOT
+// ---------------------------------------------------------------------------
+// A village plot (tools/_village_gen.js planPlots): { poly: [f0, f1, b1, b0]
+// (the frontage first), w (along the road), depth, n: unit normal AWAY from
+// the road, front: the frontage's midpoint, tg: unit tangent along the
+// frontage, side }. T is the terrain, T.h(x, z) its height. The park opens
+// on the road: its +z (the front, the path) is the plot's -n, the half
+// circle's apex toward the back of the plot, and R is the largest the plot
+// takes (8 to 20 m). Every coordinate returned is WORLD; `yaw` is what was
+// added to every ry; `level` is the median of the terrain under the
+// footprint, the height the world flattens the footprint to.
+function totemPlot(plot, T, o) {
+  o = Object.assign({}, o || {});
+  const n = plot.n, toRoad = [-n[0], -n[1]];
+  const yaw = Math.atan2(toRoad[0], toRoad[1]);          // local +z -> world toRoad
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const back = o.back !== undefined ? o.back : DEF.back, apron = o.apron !== undefined ? o.apron : DEF.apron;
+  // the patch is 2R + 10 across and (R + back) + apron deep
+  const R = o.R !== undefined ? o.R
+    : Math.max(8, Math.min(20, (plot.w - 10) / 2, plot.depth - back - apron - 2));
+  const local = totemPlan(Object.assign({}, o, { R, back, apron }));
+  // the centre: the patch's front edge 1 m inside the frontage
+  const dFront = local.patch.z1 + 1.0;
+  const c = [plot.front[0] + n[0] * dFront, plot.front[1] + n[1] * dFront];
+  const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+  // the lawn's level: the median terrain height under the footprint
+  const hs = [];
+  for (const [lx, lz] of local.footprint) { const w = toWorld(lx, lz); hs.push(T.h(w[0], w[1])); }
+  for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2, w = toWorld(Math.cos(a) * R * 0.5, Math.sin(a) * R * 0.5); hs.push(T.h(w[0], w[1])); }
+  hs.sort((a, b) => a - b);
+  const level = o.level !== undefined ? o.level : hs[hs.length >> 1];
+  const W = (p) => { const w = toWorld(p.x, p.z); return Object.assign({}, p, { x: +w[0].toFixed(3), z: +w[1].toFixed(3), y: level }); };
+  const poles = local.poles.map(p => Object.assign(W(p), { ry: +(p.ry + yaw).toFixed(4) }));
+  const rocks = local.rocks.map(W);
+  const house = local.house ? Object.assign(W(local.house), { ry: +(local.house.ry + yaw).toFixed(4) }) : null;
+  const footprint = local.footprint.map(([lx, lz]) => toWorld(lx, lz).map(v => +v.toFixed(3)));
+  const pathPts = [];
+  for (let i = 0; i <= 12; i++) { const lx = local.patch.x0 + (i / 12) * local.patch.w; pathPts.push(toWorld(lx, local.path.at(lx)).map(v => +v.toFixed(3))); }
+  return { seed: local.seed, R, level, yaw: +yaw.toFixed(4), centre: c.map(v => +v.toFixed(3)), toWorld,
+           poles, rocks, house, footprint, path: { pts: pathPts, width: local.path.width },
+           treeline: local.treeline, keys: local.keys, local, frame: 'world', plot: plot.id };
 }
 
 // ---------------------------------------------------------------------------
 // THE BUILD
 // ---------------------------------------------------------------------------
 // a boulder: an icosphere pushed about by hashed noise, its underside
-// flattened where it sits in the turf; grey stone with a lichen tint
+// flattened where it sits in the turf
 function rockGeo(THREE, r, seed) {
   const g = new THREE.IcosahedronGeometry(r, 3);
   const P = g.attributes.position, v = new THREE.Vector3();
@@ -208,7 +245,7 @@ function rockGeo(THREE, r, seed) {
                   (vnoise(n.x * 6 + 60, n.z * 6 + n.y * 5 + 60, s + 1) - 0.5) * 0.14;
     v.copy(n).multiplyScalar(r * k);
     v.y *= 0.72;
-    if (v.y < -r * 0.25) v.y = -r * 0.25;     // sits in the ground
+    if (v.y < -r * 0.25) v.y = -r * 0.25;
     P.setXYZ(i, v.x, v.y, v.z);
   }
   g.computeVertexNormals();
@@ -216,22 +253,23 @@ function rockGeo(THREE, r, seed) {
 }
 
 function groundMesh(THREE, plan, o) {
-  const { w, d, ground } = plan;
+  const { patch, ground } = plan;
+  const w = patch.w + 12, d = patch.d + 12;             // a skirt round the patch
+  const cx = (patch.x0 + patch.x1) / 2, cz = (patch.z0 + patch.z1) / 2;
   const nx = Math.round(w), nz = Math.round(d);
   const g = new THREE.PlaneGeometry(w, d, nx, nz);
   g.rotateX(-Math.PI / 2);
+  g.translate(cx, 0, cz);
   const P = g.attributes.position;
   const col = new Float32Array(P.count * 3);
   const pathHalf = plan.path.width / 2;
   for (let i = 0; i < P.count; i++) {
     const x = P.getX(i), z = P.getZ(i);
     P.setY(i, ground(x, z));
-    // the lawn's colour varies slowly; the path is a dirt tint with a soft
-    // edge; a worn ring round every pole's foot
-    const t = vnoise(x / 9 + 200, z / 9 + 200, plan.seed) ;
+    const t = vnoise(x / 9 + 200, z / 9 + 200, plan.seed);
     let r = 0.86 + t * 0.2, gg = 0.9 + t * 0.14, b = 0.82 + t * 0.12;
     const dp = Math.abs(z - plan.path.at(x));
-    const onPath = 1 - Math.min(1, Math.max(0, (dp - pathHalf + 0.6) / 1.2));
+    const onPath = (x >= patch.x0 && x <= patch.x1) ? 1 - Math.min(1, Math.max(0, (dp - pathHalf + 0.6) / 1.2)) : 0;
     let worn = onPath;
     for (const p of plan.poles) {
       const dd = Math.hypot(x - p.x, z - p.z) - p.r;
@@ -266,11 +304,14 @@ function groundMesh(THREE, plan, o) {
   return mesh;
 }
 
+// plan: a park-frame plan (totemPlan) draws its own ground; a world-frame
+// one (totemPlot) draws no ground - the world owns it - and places the rest
+// at its world coordinates and `level`
 function totemBuild(THREE, plan, o) {
   o = o || {};
   const root = new THREE.Group();
   root.name = 'totemPark';
-  root.add(groundMesh(THREE, plan, o));
+  if (plan.frame !== 'world' && o.ground !== false) root.add(groundMesh(THREE, plan, o));
   const stats = { poles: 0, rocks: 0, missing: [] };
   const place = (typeof propPlace === 'function') ? propPlace : null;
   const reg = (typeof PROP_REG !== 'undefined') ? PROP_REG : null;
@@ -298,12 +339,12 @@ function totemBuild(THREE, plan, o) {
     stats.rocks++;
   }
   if (plan.house && o.ghost !== false) {
-    // THE SLOT for the house generator: shown as a wire box until the
-    // other generator stands a clan house in it
+    // THE SLOT for the house generator: a wire box until the other
+    // generator stands a clan house in it
     const h = plan.house;
     const box = new THREE.Mesh(new THREE.BoxGeometry(h.w, 4.5, h.d),
       new THREE.MeshBasicMaterial({ color: 0xd8b26a, wireframe: true, transparent: true, opacity: 0.35 }));
-    box.position.set(h.x, plan.ground(h.x, h.z) + 2.25, h.z);
+    box.position.set(h.x, (h.y !== undefined ? h.y : plan.ground(h.x, h.z)) + 2.25, h.z);
     box.rotation.y = h.ry;
     box.name = 'totem:houseSlot';
     root.add(box);
@@ -312,7 +353,7 @@ function totemBuild(THREE, plan, o) {
   return root;
 }
 
-const API = { TOTEM_KIT, KEYS, DEF, totemPlan, totemBuild, rockGeo, groundMesh, footR, acrossR, vnoise, rng };
+const API = { TOTEM_KIT, KEYS, DEF, totemPlan, totemPlot, totemBuild, rockGeo, groundMesh, footR, acrossR, vnoise, rng };
 if (typeof window !== 'undefined') window.TOTEM_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

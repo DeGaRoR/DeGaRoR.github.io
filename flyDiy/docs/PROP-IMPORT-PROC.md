@@ -215,14 +215,19 @@ reason.
 `tools/totem_table.py` → `tools/totem_prep.py` → `tools/totem_lod.js` →
 `src/totems/totems_poles.js` + `media/geo|tex/totems/`, held by GATE TOTEM
 (`tools/_totem_check.js`), placed by `tools/_totem_gen.js` (`totemPlan` /
-`totemBuild` / `TOTEM_KIT`), looked at in `tools/_totems.html`. It is the
-pier's pattern (a second table on the same baker) with ONE exception to rule
-1, by the user's ruling for photoscans: the baker's as-is bake is STAGED
-under `bench/totems/` (gitignored, never `media/`) and `totem_lod.js` cuts
-what ships — a 40k base and 12k / 3k / 700 levels a pole — with the same
-quadric decimator that cuts the pier's levels (`prop_lod.js`), so no vertex
-is moved to a new position and the delivered map is worn unchanged. The
-bench's COMPARE view stands the staged as-is bake beside the cuts;
+`totemPlot` / `totemBuild` / `TOTEM_KIT`), looked at in `tools/_totems.html`.
+It is the pier's pattern (a second table on the same baker) with ONE
+exception to rule 1, by the user's ruling for photoscans: the baker's as-is
+bake is STAGED under `bench/totems/` (gitignored, never `media/`) and
+`totem_lod.js` cuts what ships — a 12k base under 20 m, 3k past 20 m, 700
+past 120 m (G341.1's ruling off the compare sheets) — with the same quadric
+decimator that cuts the pier's levels (`prop_lod.js`), so no vertex is moved
+to a new position and the delivered map is worn unchanged. The bench's
+COMPARE view stands the staged as-is bake beside the cuts;
 `screenshots/totems/` holds the sheets. The six Trepanier scans are
 unit-less (1.9 m) and stand at a declared `height`; `face` in `TOTEM_KIT` is
-read off the FACING view, not baked; the jfactory pole is a one-sided scan.
+read off the FACING view, not baked; the jfactory pole (a one-sided scan) is
+credited and not baked. The park is a FLAT half circle of poles looking in
+at a lawn; `totemPlot(plot, T)` stands it on a village plot (world
+coordinates, the lawn's level = the terrain's median under the footprint,
+which the world flattens) — the one call the village generator makes.

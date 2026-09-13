@@ -26,8 +26,8 @@ THE SIX TREPANIER POLES ARE UNIT-LESS. The scanner normalised every one to
 1.9 m tall - a house-front pole is not a fence post - so each row declares
 the height it stands at (`scale` = height / 1.905), the boats' rule ("sized
 by what the hull is"). Heights are set from the reference photograph, 6 to
-9 m, the tallest at the back of the park; the jfactory pole is delivered
-at 19.3 m, a plausible size for a real one, and is left as it came.
+9 m, the tallest at one end of the arc. The jfactory pole (19.3 m, a real
+one) is NOT baked: a one-sided scan, its back a flat sheet (G341.1).
 
 Each row is props_table.py's P(): key, group, label, src, note, place,
 scale, rot, tex. `height` is the declared standing height, published for
@@ -105,8 +105,9 @@ PROPS = [
            'the tall one of the six at 9 m'),
     P('totem_wings', 'totem', 'Wings of the Silent Herald', 'wings', height=6.5,
       note='a squat pole with wide wings at its crown; 338k triangles; 6.5 m'),
-    P('totem_tall', 'totem', 'the great pole', 'tall',
-      note='a full-size scan, three materials (two maps and a grey base), 144k '
-           'triangles; 19.3 m as delivered and left so - the pole at the back of '
-           'the park'),
+    # THE JFACTORY POLE IS NOT BAKED (G341.1, the user: "drop the one-sided
+    # pole ... Exclude the tall one"): a full-size 19.3 m scan, but the
+    # scanner never walked round it - its back is a flat untextured sheet.
+    # Its SOURCES/FILES entries stay so the credit and the refusal are on
+    # record; the row is gone.
 ]

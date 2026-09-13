@@ -23,12 +23,13 @@
 //      props.js reads them); bins under media/geo/totems/, the maps the stage
 //      wrote under media/tex/totems/. This tool owns and prunes both dirs.
 //
-// THE SHEET, by group: base = [tris]; levels = [[tris, metres], ...]. A pole
-// is 6-19 m tall: on a 1080 view at 50 deg an 8 m pole is ~230 px at 40 m
-// and ~77 px at 120 m - 3k triangles is dense at the first, 700 a clean
-// silhouette at the second. The base holds to 12 m, where the carving is
-// read face to face; 12k past it is the middle distance most of a park is
-// seen from.
+// THE SHEET, by group: base = [tris]; levels = [[tris, metres], ...]. The
+// user's ruling (G341.1, off the compare sheets): "even 3k is fine as base
+// mesh. Maybe just keep the 12k for real close up, less than 20 meters" and
+// the 700 "should swap at at least 100 meters". So the base is 12k (the 40k
+// cut was indistinguishable from the scan at 4 m and 12k shows one facet
+// on a beak there), 3k stands in past 20 m, 700 past 120. On a 1080 view at
+// 50 deg an 8 m pole is ~460 px at 20 m and ~77 px at 120.
 //
 // Usage: node tools/totem_lod.js            (cut and write the pack)
 //        node tools/totem_lod.js --report   (cut, print, write nothing)
@@ -49,7 +50,7 @@ const MANIFEST = path.join(OUT_DIR, 'totems_packs.json');
 const GEO = 'geo/totems', TEX = 'tex/totems';
 
 const SHEET = {
-  totem: { base: 40000, levels: [[12000, 12], [3000, 40], [700, 120]] },
+  totem: { base: 12000, levels: [[3000, 20], [700, 120]] },
 };
 // the levels a prop gets: [[tris, metres], ...] - the one keeper of the rule,
 // read by GATE TOTEM too

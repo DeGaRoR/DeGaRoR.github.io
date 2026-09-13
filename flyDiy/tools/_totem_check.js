@@ -17,12 +17,17 @@
 //      ship)
 //   6  TOTEM_KIT mirrors the pack: the same keys, L/W/H the pack's metres
 //      within 5 mm, srcNt the same number
-//   7  the plan, over twenty seeds: every pole inside the patch with a
-//      metre to spare, no two footprints within a metre of each other, every
-//      pole turned to the lawn within the scatter, the great pole a step
-//      back of the arc, boulders clear of poles and of the path, the house
-//      slot clear of every pole, the ground within ±0.8 m, and the same seed
-//      the same park twice
+//   7  the plan, over twenty seeds: every pole ON the half circle at its
+//      radius, on the back half, inside the patch, looking at the lawn's
+//      centre within the scatter, standing on the level lawn; no two widths
+//      within a metre; boulders clear of poles, path and the clearing's
+//      middle; the house slot clear; the lawn level over its whole
+//      footprint and the outside a gentle swell; the same seed twice
+//   8  the plan on a plot (totemPlot): a synthetic village plot on a
+//      sloping terrain - every pole, the footprint and the house slot inside
+//      the plot's polygon, every pole at the lawn's level looking at the
+//      centre in world, the park opening on the road, the level a height the
+//      terrain has there; a water-side plot turns the park round
 //
 // Usage: node tools/_totem_check.js          (prints GATE TOTEM: PASS|FAIL)
 'use strict';
@@ -43,7 +48,7 @@ const tab = fs.readFileSync(path.join(TOOLS, 'totem_table.py'), 'utf8');
 const rows = [];
 for (const m of tab.matchAll(/P\('([a-z_]+)',\s*'([a-z]+)',[^\n]*?'([a-z]+)'(?:,\s*height=([0-9.]+))?/g))
   rows.push({ key: m[1], group: m[2], src: m[3], height: m[4] ? +m[4] : null });
-check(rows.length >= 7, 'table: fewer than seven rows read from totem_table.py', String(rows.length));
+check(rows.length >= 6, 'table: fewer than six rows read from totem_table.py', String(rows.length));
 
 // ---- the pack ------------------------------------------------------------------
 const C = require(path.join(ROOT, 'src', 'core', '51_prop_codec.js'));
@@ -126,38 +131,85 @@ for (let seed = 1; seed <= 20; seed++) {
   check(P.poles.length === G.KEYS.length, tag + 'not every pole placed', String(P.poles.length));
   check(new Set(P.poles.map(p => p.key)).size === P.poles.length, tag + 'a pole placed twice');
   for (const p of P.poles) {
-    check(Math.abs(p.x) + p.r <= P.w / 2 - 1 && Math.abs(p.z) + p.r <= P.d / 2 - 1, tag + p.key + ' outside the patch', p.x + ',' + p.z);
+    // on the half circle, at its radius, on the back half, inside the patch
+    check(Math.abs(Math.hypot(p.x, p.z) - P.R) < 0.01, tag + p.key + ' is not on the circle', Math.hypot(p.x, p.z).toFixed(2) + ' vs ' + P.R);
+    check(p.z <= 0.5, tag + p.key + ' stands in front of the horns', String(p.z));
+    check(p.x - p.r >= P.patch.x0 && p.x + p.r <= P.patch.x1 && p.z - p.r >= P.patch.z0, tag + p.key + ' outside the patch');
+    // looks at the lawn's centre within the scatter
     const face = G.TOTEM_KIT[p.key].face;
-    const looks = wrap(p.ry / D2R + face);            // where the carving looks, world az from +z
-    check(Math.abs(looks) <= G.DEF.scatter + 25, tag + p.key + ' does not look to the lawn', looks.toFixed(0) + ' deg');
+    const looks = wrap(p.ry / D2R + face), toCentre = wrap(Math.atan2(-p.x, -p.z) / D2R);
+    check(Math.abs(wrap(looks - toCentre)) <= G.DEF.scatter + 1, tag + p.key + ' does not look at the centre', wrap(looks - toCentre).toFixed(0) + ' deg');
     check(Math.abs(p.y - P.ground(p.x, p.z)) < 1e-3, tag + p.key + ' not on the ground');
+    check(P.flat ? Math.abs(p.y - P.level) < 1e-6 : true, tag + p.key + ' not on the flat lawn');
     if (P.house) {
       const h = P.house;
-      check(Math.abs(p.x - h.x) > h.w / 2 + p.r + 1.5 || Math.abs(p.z - h.z) > h.d / 2 + p.r + 1.5, tag + p.key + ' stands in the house slot');
-    }
-    if (p.key === 'totem_tall') {
-      const arcZ = P.arc.zMid - P.arc.bow * Math.pow(p.x / P.arc.half, 2);
-      check(p.z < arcZ - 1.5, tag + 'the great pole is not set back of the arc');
+      check(Math.abs(p.x - h.x) > h.w / 2 + p.r + 1.0 || Math.abs(p.z - h.z) > h.d / 2 + p.r + 1.0, tag + p.key + ' stands in the house slot');
     }
   }
   for (let i = 0; i < P.poles.length; i++) for (let j = i + 1; j < P.poles.length; j++) {
     const a = P.poles[i], b = P.poles[j];
-    // across the arc a pole takes its own width (all face the lawn); a beak
-    // or a wing reaches toward the lawn, not the neighbour
+    // across the arc a pole takes its own width (all face the centre); a
+    // beak or a wing reaches inward, not at the neighbour
     check(Math.hypot(a.x - b.x, a.z - b.z) >= a.rx + b.rx + 1.0, tag + a.key + ' and ' + b.key + ' crowd each other', Math.hypot(a.x - b.x, a.z - b.z).toFixed(2));
   }
   check(P.rocks.length >= 3, tag + 'fewer than three boulders', String(P.rocks.length));
   for (const r of P.rocks) {
     check(P.poles.every(p => Math.hypot(p.x - r.x, p.z - r.z) >= p.r + r.r + 1.0), tag + 'a boulder against a pole');
-    check(Math.abs(r.z - P.path.at(r.x)) >= P.path.width / 2 + r.r + 0.5, tag + 'a boulder on the path');
-    check(Math.abs(r.x) + r.r <= P.w / 2 && Math.abs(r.z) + r.r <= P.d / 2, tag + 'a boulder outside the patch');
+    check(r.z <= P.path.at(r.x) - P.path.width / 2 - r.r - 0.5, tag + 'a boulder on the path');
+    check(P.inside(r.x, r.z) >= r.r, tag + 'a boulder outside the lawn');
+    check(Math.hypot(r.x, r.z) >= 4, tag + 'a boulder in the middle of the clearing');
   }
-  let lo = 1e9, hi = -1e9;
-  for (let x = -P.w / 2; x <= P.w / 2; x += 1) for (let z = -P.d / 2; z <= P.d / 2; z += 1) { const y = P.ground(x, z); lo = Math.min(lo, y); hi = Math.max(hi, y); }
-  check(lo > -0.8 && hi < 0.8, tag + 'the ground is not a gentle patch', lo.toFixed(2) + '..' + hi.toFixed(2));
+  // the lawn is level over the whole footprint, the outside a gentle swell
+  let flatOk = true, lo = 1e9, hi = -1e9;
+  for (let x = P.patch.x0 - 6; x <= P.patch.x1 + 6; x += 1) for (let z = P.patch.z0 - 6; z <= P.patch.z1 + 6; z += 1) {
+    const y = P.ground(x, z);
+    if (P.inside(x, z) >= 0 && Math.abs(y - P.level) > 1e-9) flatOk = false;
+    lo = Math.min(lo, y); hi = Math.max(hi, y);
+  }
+  check(flatOk, tag + 'the lawn is not level inside its footprint');
+  check(lo > -0.8 && hi < 0.8, tag + 'the outside is not a gentle swell', lo.toFixed(2) + '..' + hi.toFixed(2));
+  check(P.footprint.length >= 26, tag + 'the footprint polygon is short');
   const again = G.totemPlan({ seed });
-  const strip = Q => JSON.stringify(Object.assign({}, Q, { ground: null, path: Object.assign({}, Q.path, { at: null }) }));
+  const strip = Q => JSON.stringify(Object.assign({}, Q, { ground: null, inside: null, path: Object.assign({}, Q.path, { at: null }) }));
   check(strip(P) === strip(again), tag + 'the same seed is not the same park');
+}
+
+// ---- 8 the plan on a plot ------------------------------------------------------------
+// a synthetic village plot the way planPlots writes one: frontage f0-f1
+// along a road running east, the plot to its north (n = [0, -1] away from
+// the road), 60 m wide, 50 m deep, on a terrain sloping 1 in 40
+{
+  const f0 = [100, 200], f1 = [160, 200], depth = 50;
+  const n = [0, -1], tg = [1, 0];
+  const plot = { id: 7, side: 'land', w: 60, depth, n, tg, front: [130, 200],
+                 poly: [f0, f1, [f1[0] + n[0] * depth, f1[1] + n[1] * depth], [f0[0] + n[0] * depth, f0[1] + n[1] * depth]] };
+  const T = { h: (x, z) => 12 + (x - 100) / 40 + Math.sin(z * 0.3) * 0.2 };
+  const inPoly = (poly, x, z) => { let s = 0; for (let i = 0; i < 4; i++) { const a = poly[i], b = poly[(i + 1) % 4]; const c = (b[0] - a[0]) * (z - a[1]) - (b[1] - a[1]) * (x - a[0]); if (i === 0) s = Math.sign(c); else if (Math.sign(c) !== s && c !== 0) return false; } return true; };
+  const W = G.totemPlot(plot, T, { seed: 3 });
+  const tag = 'plot: ';
+  check(W.frame === 'world' && W.poles.length === G.KEYS.length, tag + 'no world plan');
+  check(W.R >= 8 && W.R <= 20, tag + 'R out of range', String(W.R));
+  for (const p of W.poles) {
+    check(inPoly(plot.poly, p.x, p.z), tag + p.key + ' is off the plot', p.x + ',' + p.z);
+    check(p.y === W.level, tag + p.key + ' not at the lawn level');
+    // it looks at the lawn's centre in WORLD too: the local look turned by yaw
+    const face = G.TOTEM_KIT[p.key].face;
+    const looks = wrap(p.ry / D2R + face), toC = wrap(Math.atan2(W.centre[0] - p.x, W.centre[1] - p.z) / D2R);
+    check(Math.abs(wrap(looks - toC)) <= G.DEF.scatter + 1, tag + p.key + ' does not look at the centre in world', wrap(looks - toC).toFixed(0));
+  }
+  for (const q of W.footprint) check(inPoly(plot.poly, q[0], q[1]), tag + 'the footprint leaves the plot', q.join(','));
+  // the park opens on the road: the path is nearer the frontage than the apex
+  const apex = W.toWorld(0, -W.R);
+  const dPath = Math.min(...W.path.pts.map(q => Math.abs(q[1] - 200))), dApex = Math.abs(apex[1] - 200);
+  check(dPath < dApex, tag + 'the park does not open on the road', dPath.toFixed(1) + ' vs ' + dApex.toFixed(1));
+  check(W.house && inPoly(plot.poly, W.house.x, W.house.z), tag + 'the house slot is off the plot');
+  const hs = W.footprint.map(q => T.h(q[0], q[1]));
+  check(W.level >= Math.min(...hs) && W.level <= Math.max(...hs), tag + 'the level is not a height of the terrain there');
+  // a water plot (n toward the water, the road behind) turns the park round
+  const plotW = Object.assign({}, plot, { side: 'water', n: [0, 1], poly: [f0, f1, [f1[0], f1[1] + depth], [f0[0], f0[1] + depth]] });
+  const W2 = G.totemPlot(plotW, T, { seed: 3 });
+  check(W2.poles.every(p => inPoly(plotW.poly, p.x, p.z)), tag + 'a water-side park leaves its plot');
+  check(Math.abs(wrap((W2.yaw - W.yaw) / D2R)) > 170, tag + 'a water-side park is not turned round', String(W2.yaw - W.yaw));
 }
 
 if (fail.length) {

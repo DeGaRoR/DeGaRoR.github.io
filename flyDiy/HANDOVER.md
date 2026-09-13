@@ -42079,3 +42079,64 @@ futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
   anchor frame at the leg's foot.
 - Queued (the user's order): the front lot + parking alley + the user's
   road-facing cars; the optimisation tour; the world join.
+
+## G341.1 — THE TOTEM PARK IS A FLAT HALF CIRCLE ON A PLOT; THE SHEET IS 12k /
+## 3k / 700; THE ONE-SIDED POLE GOES (2026-09-13, the user: "Keep the heights
+## and the 40k base, drop the one-sided pole. The 12 k is largely good enough
+## as the base model ... Actually, even 3k is fine as base mesh. Maybe just
+## keep the 12k for real close up, less than 20 meters ... 700 really is a
+## little screwed up, it should swap at at least 100 meters though. Exclude
+## the tall one. ... The other session is busy, how can you coordinate to
+## publish your assets? And maybe do the wiring so it can occupy a plot and be
+## placed like on the reference picture? In a large flat semi circle?")
+
+- **THE SHEET** (`tools/totem_lod.js`): base 12 000 under 20 m, 3 000 past
+  20 m, 700 past 120 m - the user's reading of the compare sheets (the 40k
+  cut was indistinguishable from the scan at 4 m; 12k shows one facet on a
+  beak there and nothing at 12 m). Six poles: 2,168,596 scanned -> 72,000
+  in the bases + 22,200 in the levels; 1.8 MB of bins, 1.9 MB of maps.
+- **THE JFACTORY POLE IS NOT BAKED**: its row is gone from
+  `totem_table.py` (SOURCES/FILES entries stay so the credit and the
+  refusal are on record; CREDITS says so), TOTEM_KIT no longer carries it.
+- **THE PARK IS A HALF CIRCLE, FLAT** (`tools/_totem_gen.js`): the lawn's
+  centre is the origin; the poles stand ON a circle of radius R (16 m
+  default, `span` 170 deg centred on the apex at the back), every one
+  turned to look at the lawn's centre within a 12 deg scatter - the
+  reference photograph's poles round a clearing, all faces to the visitor.
+  Spacing by width across the arc, the row climbing to the tallest at one
+  horn (the seed picks which). The clan-house slot (12 x 9) is behind the
+  apex, its front to the lawn; the gravel path crosses the open front;
+  boulders inside the arc, never in the clearing's middle. `flat: true`:
+  the lawn is LEVEL over `plan.footprint` (the half disc plus the apron
+  polygon) at `plan.level`, the park publishes the shape and the world
+  owns the height - the bench's own ground eases down a 6 m skirt to a
+  swell outside the footprint.
+- **THE WIRING FOR A PLOT**: `totemPlot(plot, T, o)` takes a village plot
+  exactly as `planPlots` writes one (`poly` frontage first, `w`, `depth`,
+  `n` away from the road, `front`, `tg`, `side`) and the terrain `T.h`,
+  sizes R to the plot (8-20 m: `(w - 10) / 2` and `depth - back - apron
+  - 2`), turns the park to OPEN ON THE ROAD (local +z -> world -n; `yaw`
+  is what every ry got), stands its front edge 1 m inside the frontage,
+  reads `level` as the median terrain height under the footprint, and
+  returns everything in WORLD metres: `poles {key, x, z, ry, y}`, `rocks`,
+  `house`, `footprint` (world polygon to flatten to `level`), `path.pts`,
+  `treeline`, `toWorld`. `totemBuild` on a world plan draws no ground
+  (`frame: 'world'`), places the rest.
+- **GATE TOTEM 7 + 8**: every pole on the circle at R, on the back half,
+  looking at the centre, on the level lawn; no two widths within a metre;
+  boulders clear of poles, path and the middle; the lawn level over its
+  whole footprint, the outside a gentle swell; the same seed twice. Rule 8
+  stands the park on a synthetic plot on a 1-in-40 slope (and a water-side
+  one, turned round): every pole, the footprint and the slot inside the
+  plot's polygon, every pole at the level and looking at the centre in
+  world, the park opening on the road, the level a height the terrain has.
+- **PUBLISHING TO THE HOUSE SESSION**: the pack, generator and gate are in
+  master; the village session ("Wooden house generator for flydiy") was
+  sent the recipe by session message: load `src/totems/totems_poles.js`
+  after props.js and `tools/_totem_gen.js`; give a plot to
+  `TOTEM_GEN.totemPlot(plot, T)`; flatten `footprint` to `level`; place
+  `poles`/`rocks` with `propPlace` or `totemBuild(THREE, plan, {ghost:
+  false})`; stand a clan house in `house` (world x/z/ry, front +z local).
+- Gates: TOTEM, MEDIA, PROPS, HOUSE green. Sheets re-cut in
+  `screenshots/totems/` (compare: scan / 12k / 3k / 700; the park's half
+  circle from the lawn, the front and above).

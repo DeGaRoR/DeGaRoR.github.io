@@ -26,7 +26,7 @@
 </style>
 <div id="bar">
   <label>view</label><select id="mode"><option value="shelf">shelf</option><option value="compare">compare</option><option value="facing">facing</option><option value="park" selected>park</option></select>
-  <label>levels</label><select id="lvl"><option value="-1">by distance</option><option value="src">original (staged)</option><option value="0">base</option><option value="1">LOD 1</option><option value="2">LOD 2</option><option value="3">LOD 3</option></select>
+  <label>levels</label><select id="lvl"><option value="-1">by distance</option><option value="src">original (staged)</option><option value="0">base 12k</option><option value="1">LOD 1 3k</option><option value="2">LOD 2 700</option></select>
   <label>pole</label><select id="pole"></select>
   <label>seed</label><input id="seed" type="number" value="1" min="1" max="9999" style="width:60px">
   <label>sky</label><select id="sky"></select>
@@ -176,10 +176,11 @@ function aim() {
 function camPreset(name) {
   const m = $('mode').value;
   if (m === 'park') {
-    if (name === 'photo') { yaw = 0.55; pitch = 0.10; dist = 30; centre.set(-2, 3.2, -6); }
-    if (name === 'high') { yaw = 0.3; pitch = 0.55; dist = 55; centre.set(0, 2, -4); }
-    if (name === 'front') { yaw = 0.0; pitch = 0.08; dist = 34; centre.set(0, 4, -8); }
-    if (name === 'close') { yaw = 0.9; pitch = 0.12; dist = 12; centre.set(-6, 3.5, -7); }
+    // the lawn's centre is the origin, the poles on a half circle of R behind it
+    if (name === 'photo') { yaw = 0.45; pitch = 0.06; dist = 26; centre.set(-3, 3.0, -8); }
+    if (name === 'high') { yaw = 0.3; pitch = 0.55; dist = 70; centre.set(0, 2, -6); }
+    if (name === 'front') { yaw = 0.0; pitch = 0.06; dist = 30; centre.set(0, 3.5, -10); }
+    if (name === 'close') { yaw = 1.1; pitch = 0.10; dist = 12; centre.set(-10, 3.5, -10); }
   } else if (m === 'shelf') {
     if (name === 'photo' || name === 'front') { yaw = 0.0; pitch = 0.12; dist = 46; centre.set(0, 6, 0); }
     if (name === 'high') { yaw = 0.5; pitch = 0.5; dist = 50; centre.set(0, 4, 0); }
@@ -237,7 +238,7 @@ function build() {
     const variants = [];
     if (window.__SRC_KEYS.includes(k + '_src')) variants.push([k + '_src', 'as scanned']);
     variants.push([k, 'base']);
-    for (let i = 1; i <= 3; i++) if (PROP_REG.props[k + '_l' + i]) variants.push([k + '_l' + i, 'LOD ' + i]);
+    for (let i = 1; i <= 3; i++) if (PROP_REG.props[k + '_l' + i]) variants.push([k + '_l' + i, 'LOD ' + i + ' @' + PROP_REG.props[k + '_l' + i].lodDist + ' m']);
     const gap = Math.max(K.W, K.L) + 1.2;
     let x = -(variants.length - 1) * gap / 2;
     window.PROP_LOD_FORCE = 0;
@@ -264,9 +265,10 @@ function build() {
     plan = T.totemPlan({ seed: +$('seed').value });
     root.add(T.totemBuild(THREE, plan, { onTex: render }));
     const st = root.children[0].userData.stats;
-    lines.push('PARK seed ' + plan.seed + '  ' + plan.w + ' x ' + plan.d + ' m   poles ' + st.poles + '  rocks ' + st.rocks + (st.missing.length ? '  MISSING ' + st.missing.join(',') : ''));
+    lines.push('PARK seed ' + plan.seed + '  ' + plan.patch.w.toFixed(0) + ' x ' + plan.patch.d.toFixed(0) + ' m   poles ' + st.poles + '  rocks ' + st.rocks + (st.missing.length ? '  MISSING ' + st.missing.join(',') : ''));
     for (const p of plan.poles) lines.push('  ' + p.key.replace('totem_', '').padEnd(9) + ' x' + p.x.toFixed(1).padStart(6) + ' z' + p.z.toFixed(1).padStart(6) + ' ry' + (p.ry / D2R).toFixed(0).padStart(5) + '  y' + p.y.toFixed(2).padStart(6));
     if (plan.house) lines.push('  house slot ' + plan.house.w + ' x ' + plan.house.d + ' m at z ' + plan.house.z.toFixed(1) + ' (the house generator fills it)');
+    lines.push('  half circle R ' + plan.R + ' m, span ' + plan.span + ' deg, lawn level ' + plan.level + ' (flat: ' + plan.flat + ')');
   }
   scene.add(root);
   const tot = KEYS.reduce((s, k) => s + (PROP_REG.props[k] ? PROP_REG.props[k].nt : 0), 0);
