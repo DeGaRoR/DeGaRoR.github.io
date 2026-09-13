@@ -43364,3 +43364,85 @@ visible. Measured on dev.html at 1280x720 before the change.
   UISMOKE / GFX / VIEW / MEDIA / BUILD green.
 - Already clamped and untouched: the colour picker (_cage_ui.js pkShow flips
   above its well), #gFleet / #dfBirth / #ctlPanel (centred, max-height).
+
+## G359 — THE PREMISES BENCH v1: A ROAD TRACED IS GRADED AND WORN, A ZONE SOWS
+## ITS PLOTS AND THE HOUSE GENERATOR STANDS A HOUSE ON EACH, A FOREST PLANTS
+## ITSELF (2026-09-13, the user: "let's go" — the design's v1)
+
+**What it is.** The three layers the design named for v1, on the record of
+the contract, and the editor's sections for them:
+- **ROADS** (`_premises_gen.js`): `polyRoad` (the village's road frame:
+  arclength, tangent, normal), and a traced road composes as a DERIVED
+  grade whose nodes sit on the ground (T1 = the authored terrain), 3-tap
+  smoothed along the profile - WORLD-GEN-PROC stage 3's roadbed rule, flat
+  across, feathered over the shoulder - plus a DERIVED surface strip of its
+  class (gravel / paved / track → `GROUND_SURF`), `roadNear`. Drawn as the
+  village's wear canvas (`uWear`, roads TINT the ground to earth, they
+  never cut; the beach term came with it) and a ground-following outline.
+- **THE SOWER** (`sowPlots`): `makePlots`' loop VERBATIM, generalised from
+  "one road, by arclength" to "every road inside a polygon" - the road's
+  intervals inside the zone, both sides, the water side named by the ground
+  (shoreDepth within the plot's depth), the fold test, the back-in loop and
+  the riparian rule kept; every plot rejected that leaves its zone, enters
+  an exclude / keep-out, or overlaps a plot sown before (all zones, in
+  composition order). Density lowers the odds of a frontage
+  (`gapOdds + 0.6 (1 - density)`); a zone's seed is its own
+  (`seedOf(premises.seed, 'zone', id)` or authored) and every plot's seed
+  is `hash32(zoneSeed, road:k)` - re-sowing at 0.4 gives 8 plots, back at 1
+  the SAME 20. THE HOUSES: `placeHouse` (verbatim from the village, carried
+  in the renderer until the house session lands and the village exports it
+  - one line there) + `HOUSE_GEN.build` on every plot, two per tick from
+  the host's pump, cached by plot id + seed, so an edit elsewhere rebuilds
+  nothing; the bench's `placeBuilt` less the point lights and the lot patch.
+- **THE FOREST** (`planForest`): planTrees' wood layer inside a forest
+  zone - a jittered grid at `6 / sqrt(density)` metres, the clearing noise,
+  off the water, 3 m off a road, 1.5 m off a plot, out of every exclude and
+  clear zone, the species drawn from the palette by proportion; a CLEAR
+  zone is a derived exclude of trees; a tree by hand is one record in
+  TREE_PLACE's shape. Drawn through the tree payload's three rungs in a
+  THREE.LOD (the village's placeTrees), a cone until the payload lands.
+- **THE EDITOR** (`_premises_ui.js`): sections TERRAIN / ROADS / ZONES /
+  TREES / FILE / VIEW; the road tool (a polyline), the zone / forest /
+  clear tools (polygons), a tree by a click; the inspector's rows per kind
+  (a road's width, class, graded, shoulder and the plots fronting it; a
+  zone's kind, density, plot min / max / depth, seed and a RE-SOW button; a
+  forest's density, species and clearings; a tree's species, size, turn);
+  a point object drags as one disc; the panel grew the plots and trees
+  lines; the plaque the houses, the queue and the trees.
+- **GATE PREMISES** grew rules 8 (plots: quads, in their zone, out of
+  excludes, no overlap; no road → no plot; same seed → same plots; another
+  seed → other plots), 9 (a graded road flat across to 2 cm; its class
+  answers inside its width) and 11 (the forest plants; no tree in an
+  exclude, a clear zone, a plot or a road; a hand tree where it was put),
+  on a second golden `fixtures/premises_v1_village.json` (two roads, a
+  residential zone, a forest, a clear, an exclude, a flatten, a tree) -
+  55 checks, selftest green.
+
+**Measured (640 m at 1 m, the village terrain).** The village fixture:
+15 plots, 15 houses (250 k tris), 882 trees; a record drawn through the
+tools: 20 plots / 20 houses (218 k tris), 1 018 trees (11.3 M tris at rung
+0, the LODs draw far fewer); a full rebuild 670 ms; a zone edit rebuilds
+no chunk; the frame 15 ms median / 29 ms p90 in the pane at that density.
+The panel's baked-vs-live line rastered a 440 m extent at 2 m and went red
+by 2.4 cm on a road's shoulder - a 2 m raster cannot hold a 6 m feather;
+it now compares against the contract's 1 m lattice LOCALLY (four
+quantised neighbours per sample), the gate's rule unchanged.
+
+**Traps.** The concatenated core (`flight_core.js`) carries the prop and
+tree codecs: loaded AFTER `51_prop_codec.js` it redeclares `PROP_REG` and
+the whole core script dies - the core goes first, the codec tags go. The
+village does not export `placeHouse` (internal); its file is the house
+session's until the landing. A click in the pane lands on the far hills
+beyond the bounds from a low orbit and the ray march answers nothing - the
+map camera for tracing. Houses on a steep plot stand on tall piles: the
+plot's own flatten (`ground.need`) is v3's.
+
+- Gates: PREMISES (55 checks, 2 fixtures) green; proven from a clean
+  worktree with `--only=PREMISES,MEDIA`.
+- Screenshots: `screenshots/premises/v1_village_map.png`,
+  `v1_drawn_orbit.png` (+ `v1_village_orbit`, `v1_drawn_map` in the tree).
+- OWED: fences, paths, lot patches and outbuildings per plot (the village's
+  finishPlot - after the house session lands); the pickers by tag
+  (commercial / industrial / harbour / park all sow the sampler today);
+  snapping; the frontage preview; v2 the airfield section on World A; v3
+  sites + links from the catalogue.

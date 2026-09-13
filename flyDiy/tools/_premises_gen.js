@@ -4,7 +4,7 @@
 // for GATE PREMISES and in the page for the bench and (later) the game, where
 // it becomes src/core/27_premises.js.
 //
-// WHAT IS HERE (v0 — the terrain layers):
+// WHAT IS HERE:
 //   the record        DEF / normalise / migrate / envelope / unwrap (the garage's
 //                     rulings: nulls kept, plaque beside the record, a bare
 //                     record accepted, a load replaces)
@@ -14,11 +14,21 @@
 //   the modifiers     flatten / raise / ramp / grade, each a smoothstep feather
 //                     over a signed distance — AERO.grade's idiom, one function
 //                     per record, C1 by construction
+//   the roads (v1)    polyRoad (arclength, tangent, normal — the village's road
+//                     frame), a DERIVED grade for a graded road (its nodes at
+//                     the ground, 3-tap smoothed, WORLD-GEN-PROC stage 3's
+//                     rule), a DERIVED surface strip, roadNear
+//   the sower (v1)    sowPlots — makePlots' loop verbatim, generalised from one
+//                     road by arclength to every road inside a polygon; the
+//                     fold test, the back-in loop, the riparian rule kept
+//   the forest (v1)   planForest — planTrees' wood layer (a jittered grid, a
+//                     clearing noise, the keep-outs) inside a forest zone
 //   the index         256 m cells keyed by string (treesNear's idiom) so the
 //                     hot path is one Map.get and AABB rejects
 //   compose           the overlay a world composes at its terrainH seam:
-//                     terrainH(x, z, h) / surfaceAt / excludeAt / inExtent
-//   the frame         'free' (x, z, yaw) in v0; 'road' arrives with the sites
+//                     terrainH(x, z, h) / surfaceAt / excludeAt / inExtent,
+//                     plus the RECORDS the placement stages emit (plots, trees)
+//   the frame         'free' (x, z, yaw); 'road' arrives with the sites
 //   issues / checks   what the #chk panel shows and the gate holds
 //   bake              the extent rastered to int16, and the sampler the
 //                     baked-vs-live rule compares against (WORLD-V2 §6.3)
@@ -32,6 +42,11 @@ const PREMISES_V = 1;
 const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects'];
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
+const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
+const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
+// the plot rules a zone starts from (the village's VDEF numbers)
+const ZONE_RULES = { plotMin: 20, plotMax: 34, plotDepth: 30, riparian: 16, gapOdds: 0.18, sides: 'both' };
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 // ---------------------------------------------------------------------------
 // the seeds
@@ -58,6 +73,20 @@ function mulberry32(seed) {
   };
 }
 const seedOf = (seed, layer, id) => hash32(seed | 0, fnv(layer + ':' + id));
+// the village's value noise, for a forest's clearings
+function hash2(x, y, s) { const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); }
+function vnoise(x, y, s) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  let fx = x - ix, fy = y - iy;
+  fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = hash2(ix, iy, s), b = hash2(ix + 1, iy, s), c = hash2(ix, iy + 1, s), d = hash2(ix + 1, iy + 1, s);
+  return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+}
+function fbm(x, y, s, oct) {
+  let v = 0, amp = 0.5, f = 1, tot = 0;
+  for (let i = 0; i < (oct || 4); i++) { v += vnoise(x * f, y * f, s + i * 13) * amp; tot += amp; amp *= 0.5; f *= 2.1; }
+  return v / tot;
+}
 
 // ---------------------------------------------------------------------------
 // the polygons — poly = [[x, z], ...], any winding, concave allowed
@@ -67,7 +96,6 @@ function polyBBox(poly) {
   for (const p of poly) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < z0) z0 = p[1]; if (p[1] > z1) z1 = p[1]; }
   return { x0, z0, x1, z1 };
 }
-// signed area: positive when the polygon turns from +x toward +z (CCW seen from +y)
 function polyArea(poly) {
   let a = 0;
   for (let i = 0, n = poly.length; i < n; i++) { const p = poly[i], q = poly[(i + 1) % n]; a += p[0] * q[1] - q[0] * p[1]; }
@@ -92,10 +120,7 @@ function distPtSeg(x, z, a, b) {
 // signed distance to the polygon's edge: negative inside
 function sdPoly(poly, x, z) {
   let d = Infinity;
-  for (let i = 0, n = poly.length; i < n; i++) {
-    const e = distPtSeg(x, z, poly[i], poly[(i + 1) % n]);
-    if (e < d) d = e;
-  }
+  for (let i = 0, n = poly.length; i < n; i++) { const e = distPtSeg(x, z, poly[i], poly[(i + 1) % n]); if (e < d) d = e; }
   return inPoly(poly, x, z) ? -d : d;
 }
 function segsCross(a, b, c, d) {
@@ -103,7 +128,6 @@ function segsCross(a, b, c, d) {
   const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
   return (o1 > 0) !== (o2 > 0) && (o3 > 0) !== (o4 > 0) && o1 !== 0 && o2 !== 0 && o3 !== 0 && o4 !== 0;
 }
-// simple = at least three points, no repeated point, no two non-adjacent edges crossing
 function polySimple(poly) {
   const n = poly.length;
   if (n < 3) return false;
@@ -118,6 +142,53 @@ function polySimple(poly) {
 }
 const ensureCCW = poly => (polyCCW(poly) ? poly.slice() : poly.slice().reverse());
 const smf01 = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+// do two polygons overlap (a corner of one inside the other)
+const polysOverlap = (a, b) => a.some(p => inPoly(b, p[0], p[1])) || b.some(p => inPoly(a, p[0], p[1]));
+
+// ---------------------------------------------------------------------------
+// the roads — the village's polyRoad: arclength, tangent, and a normal
+// ---------------------------------------------------------------------------
+function polyRoad(pts, w) {
+  const s = [0];
+  for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const at = t => {
+    t = clamp(t, 0, s[s.length - 1]);
+    let i = 1;
+    while (i < s.length - 1 && s[i] < t) i++;
+    const u = (t - s[i - 1]) / Math.max(1e-6, s[i] - s[i - 1]);
+    const p = [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * u, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * u];
+    const d = [pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]];
+    const L = Math.hypot(d[0], d[1]) || 1;
+    const tg = [d[0] / L, d[1] / L];
+    return { p, tg, n: [tg[1], -tg[0]] };          // n = the right-hand side; the sower names the sides by the water
+  };
+  return { pts, s, length: s[s.length - 1], at, w };
+}
+function roadDist(road, x, z) {
+  let d = Infinity;
+  for (let i = 1; i < road.pts.length; i++) { const e = distPtSeg(x, z, road.pts[i - 1], road.pts[i]); if (e < d) d = e; }
+  return d;
+}
+// the arclength intervals of a road inside a polygon (sampled every 2 m)
+function roadInPoly(road, poly) {
+  const out = [];
+  let t0 = null;
+  for (let t = 0; ; t += 2) {
+    const tt = Math.min(t, road.length);
+    const p = road.at(tt).p, inside = inPoly(poly, p[0], p[1]);
+    if (inside && t0 === null) t0 = tt;
+    if (!inside && t0 !== null) { out.push([t0, tt]); t0 = null; }
+    if (tt >= road.length) break;
+  }
+  if (t0 !== null) out.push([t0, road.length]);
+  return out;
+}
+// how far from p along n until the ground is under water (the village's)
+function shoreDepth(T, waterY, p, n) {
+  let d = 0;
+  while (d < 80 && T(p[0] + n[0] * d, p[1] + n[1] * d) > waterY + 0.05) d += 0.5;
+  return d;
+}
 
 // ---------------------------------------------------------------------------
 // the modifiers — each { bbox (with its falloff), apply(x, z, h) -> h }, in
@@ -141,12 +212,11 @@ function makeModifier(m, y0) {
     } };
   }
   if (m.kind === 'grade') {
-    // a polyline with a height at every node, a width, a feather beyond the
-    // half width — AERO.grade's oriented feather, per segment
     const pts = m.pts, hw = Math.max(0.5, (+m.width || 4) / 2);
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     const bbox = { x0: x0 - hw - fall, z0: z0 - hw - fall, x1: x1 + hw + fall, z1: z1 + hw + fall };
+    const abs = !!m.abs;
     return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
       let best = Infinity, ty = 0;
@@ -158,7 +228,7 @@ function makeModifier(m, y0) {
         if (d < best) { best = d; ty = (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t; }
       }
       const w = weight(best - hw);
-      return w > 0 ? h + (y0 + ty - h) * w : h;
+      return w > 0 ? h + ((abs ? 0 : y0) + ty - h) * w : h;
     } };
   }
   return null;
@@ -194,9 +264,7 @@ function DEF() {
            layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
-const PREMISES_MIGRATORS = {
-  // 1 -> 2: (none yet) — each entry lifts ONE version, on the raw saved shape
-};
+const PREMISES_MIGRATORS = {};
 function migrate(rec) {
   let r = rec, v = +r.v || 1;
   while (v < PREMISES_V) {
@@ -206,8 +274,6 @@ function migrate(rec) {
   }
   return r;
 }
-// fill what a save predates; never invent a value the author did not write
-// (a missing number stays missing where the composer has a default)
 function normalise(rec) {
   const d = DEF();
   const r = Object.assign(d, rec || {});
@@ -223,14 +289,12 @@ function normalise(rec) {
 const envelope = (name, rec, plaque, log) => JSON.stringify({
   what: 'flydiy-premises', v: PREMISES_V, name: name || null, premises: rec,
   plaque: plaque || null, log: log || { built: null, tests: [], flights: [] } });
-// an envelope, or a bare record pasted out of a console
 function unwrap(txt) {
   const o = typeof txt === 'string' ? JSON.parse(txt) : txt;
   if (o && o.what === 'flydiy-premises') return { rec: normalise(migrate(o.premises)), name: o.name || null, plaque: o.plaque || null, log: o.log || null };
   if (o && o.layers) return { rec: normalise(migrate(o)), name: null, plaque: null, log: null };
   throw new Error('not a flyDiy premises');
 }
-// a stable id a layer has not used: z3, f7, ...
 const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o' };
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
@@ -242,33 +306,163 @@ function findById(rec, id) {
 }
 
 // ---------------------------------------------------------------------------
-// the frame — 'free' in v0: an anchor (x, z, yaw) per world id
+// the frame — 'free': an anchor (x, z, yaw) per world id
 // ---------------------------------------------------------------------------
 function frameOf(rec, world) {
   const wid = (world && world.id) || '*';
   const a = rec.frame.anchors[wid] || rec.frame.anchors['*'] || { x: 0, z: 0, yaw: 0 };
   const c = Math.cos(a.yaw || 0), s = Math.sin(a.yaw || 0);
-  // local x -> [c, -s], local z -> [s, c] (placeSite's rotation, verbatim)
   const toWorld = (lx, lz) => [a.x + lx * c + lz * s, a.z - lx * s + lz * c];
   const toLocal = (x, z) => { const dx = x - a.x, dz = z - a.z; return [dx * c - dz * s, dx * s + dz * c]; };
   const y0 = world && world.terrainH ? world.terrainH(a.x, a.z) : 0;
-  return { anchor: a, toWorld, toLocal, y0, worldId: wid };
+  return { anchor: a, toWorld, toLocal, y0, worldId: wid, yaw: a.yaw || 0 };
+}
+
+// ---------------------------------------------------------------------------
+// THE SOWER — makePlots' loop, generalised: every road inside the zone, both
+// sides, the water side named by the ground, the fold test, the back-in
+// loop and the riparian rule verbatim; every plot rejected that leaves the
+// zone, enters an exclude / keep-out, or overlaps a plot already sown
+// ---------------------------------------------------------------------------
+function sowPlots(zone, roads, ctx) {
+  // ctx = { T(lx, lz) the composed ground in the premises frame, waterY, seed, excludes: [poly], plots: [existing], keepOut: [poly] }
+  const V = Object.assign({}, ZONE_RULES, zone.rules || {});
+  const density = zone.density === undefined ? 1 : clamp(+zone.density, 0, 1);
+  const gapOdds = clamp(V.gapOdds + 0.6 * (1 - density), 0, 0.95);
+  const plots = [];
+  const all = () => ctx.plots.concat(plots);
+  const rejectAt = (x, z) => !inPoly(zone.poly, x, z) || ctx.excludes.some(p => inPoly(p, x, z)) || (ctx.keepOut || []).some(p => inPoly(p, x, z));
+  for (const road of roads) {
+    const rd = polyRoad(road.pts, road.w || 3.6);
+    if (rd.length < 40) continue;
+    const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
+    const rnd = mulberry32(hash32(zoneSeed, fnv(String(road.id))));
+    for (const [tA, tB] of roadInPoly(rd, zone.poly)) {
+      if (tB - tA < 30) continue;
+      let t = tA + 6 + rnd() * 8;
+      let k = 0;
+      while (t < tB - 26) {
+        const w = V.plotMin + rnd() * (V.plotMax - V.plotMin);
+        if (t + w > tB - 6) break;
+        for (const sgn of [1, -1]) {
+          if (V.sides === 'right' && sgn < 0) continue;
+          if (V.sides === 'left' && sgn > 0) continue;
+          if (rnd() < gapOdds) continue;
+          const a = rd.at(t), b = rd.at(t + w);
+          const an = [a.n[0] * sgn, a.n[1] * sgn], bn = [b.n[0] * sgn, b.n[1] * sgn];   // away from the road, this side
+          const off = rd.w / 2 + 1.0;
+          const f0 = [a.p[0] + an[0] * off, a.p[1] + an[1] * off];
+          const f1 = [b.p[0] + bn[0] * off, b.p[1] + bn[1] * off];
+          // the water side is where the ground goes under within the plot's depth
+          const sd0 = shoreDepth(ctx.T, ctx.waterY, f0, an), sd1 = shoreDepth(ctx.T, ctx.waterY, f1, bn);
+          const side = (sd0 < V.plotDepth + 10 || sd1 < V.plotDepth + 10) && sd0 < 80 && sd1 < 80 ? 'water' : 'land';
+          let b0, b1, depth;
+          const back = cut => {
+            if (side === 'water') {
+              const d0 = sd0 + V.riparian - cut, d1 = sd1 + V.riparian - cut;
+              b0 = [f0[0] + an[0] * d0, f0[1] + an[1] * d0];
+              b1 = [f1[0] + bn[0] * d1, f1[1] + bn[1] * d1];
+              depth = Math.min(d0, d1);
+            } else {
+              depth = V.plotDepth - cut;
+              b0 = [f0[0] + an[0] * depth, f0[1] + an[1] * depth];
+              b1 = [f1[0] + bn[0] * depth, f1[1] + bn[1] * depth];
+            }
+          };
+          back(0);
+          if (side === 'water' && depth < 12 + V.riparian) continue;    // the road is nearly on the beach here
+          const fe = [f1[0] - f0[0], f1[1] - f0[1]];
+          let be = [b1[0] - b0[0], b1[1] - b0[1]];
+          if (fe[0] * be[0] + fe[1] * be[1] < 0.35 * Math.hypot(fe[0], fe[1]) * Math.hypot(be[0], be[1])) continue;
+          if (Math.hypot(be[0], be[1]) < 9) continue;
+          // pull the back in until no corner is in a neighbour, none of theirs in it, and it stays in the zone
+          let ok = false;
+          const dMin = side === 'water' ? 12 + V.riparian : 14;
+          for (let cut = 0; depth - cut >= dMin && !ok; cut += 2) {
+            back(cut);
+            const q = [f0, f1, b1, b0];
+            ok = !all().some(p => polysOverlap(p.poly, q)) && !q.some(c => rejectAt(c[0], c[1]));
+          }
+          if (!ok) continue;
+          be = [b1[0] - b0[0], b1[1] - b0[1]];
+          const poly = [f0, f1, b1, b0];
+          const nrm2 = [an[0] + bn[0], an[1] + bn[1]];
+          const nl = Math.hypot(nrm2[0], nrm2[1]) || 1;
+          plots.push({ id: zone.id + ':' + road.id + ':' + (k++), zone: zone.id, road: road.id, side, s0: t, s1: t + w, poly, depth,
+                       n: [nrm2[0] / nl, nrm2[1] / nl], front: [(f0[0] + f1[0]) / 2, (f0[1] + f1[1]) / 2],
+                       tg: [fe[0] / Math.hypot(fe[0], fe[1]), fe[1] / Math.hypot(fe[0], fe[1])], w,
+                       seed: hash32(zoneSeed, fnv(road.id + ':' + (k - 1))), kind: zone.kind });
+        }
+        t += w + (rnd() < 0.5 ? 0 : 2 + rnd() * 4);
+      }
+    }
+  }
+  return plots;
+}
+
+// THE FOREST — planTrees' wood layer inside a forest zone: a jittered grid at
+// a spacing the density sets, a clearing noise, off the water, the roads,
+// the plots, the excludes; the species drawn from the palette by proportion
+function planForest(zone, ctx) {
+  // ctx = { T, waterY, seed, excludes, plots, roads: [{pts, w}], pool: [{key, size, sink, proportion, h}], trees: [existing] }
+  const density = zone.density === undefined ? 1 : clamp(+zone.density, 0.05, 3);
+  const step = 6 / Math.sqrt(density);
+  const pool = (zone.palette && zone.palette.length ? ctx.pool.filter(p => zone.palette.indexOf(p.key) >= 0) : ctx.pool);
+  const list = pool.length ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
+  const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
+  const rnd = mulberry32(zoneSeed);
+  const draw = () => { const tot = list.reduce((s, p) => s + (p.proportion || 1), 0); let r = rnd() * tot; for (const p of list) { r -= (p.proportion || 1); if (r <= 0) return p; } return list[list.length - 1]; };
+  const roadNear = (x, z) => { let d = 1e9; for (const r of ctx.roads) d = Math.min(d, roadDist(r, x, z) - (r.w || 3.6) / 2); return d; };
+  const trees = [];
+  const clearOf = (x, z, m) => trees.every(t => Math.hypot(t.x - x, t.z - z) >= m) && ctx.trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+  const bb = polyBBox(zone.poly), s = zoneSeed % 1000 * 0.618 + 9;
+  const clearing = zone.rules && zone.rules.clearings === false ? -1 : 0.38;
+  for (let z = bb.z0 + 1; z < bb.z1; z += step) for (let x = bb.x0 + 1; x < bb.x1; x += step) {
+    const px = x + (rnd() - 0.5) * step * 0.75, pz = z + (rnd() - 0.5) * step * 0.75;
+    if (!inPoly(zone.poly, px, pz)) continue;
+    if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < clearing) continue;
+    if (ctx.T(px, pz) < ctx.waterY + 0.6) continue;
+    if (roadNear(px, pz) < 3) continue;
+    if (ctx.plots.some(p => sdPoly(p.poly, px, pz) < 1.5)) continue;
+    if (ctx.excludes.some(p => inPoly(p, px, pz))) continue;
+    if (!clearOf(px, pz, Math.min(3.2, step * 0.55))) continue;
+    const p = draw();
+    const size = (p.size || 1) * (0.82 + rnd() * 0.4);
+    trees.push({ x: px, z: pz, key: p.key, size, yaw: rnd() * Math.PI * 2, sink: p.sink || 0, h: (p.h || 12) * size / (p.size || 1), zone: zone.id });
+  }
+  return trees;
 }
 
 // ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
-function compose(rec0, world) {
+function compose(rec0, world, opts) {
+  const o = opts || {};
   const rec = normalise(rec0);
   const F = frameOf(rec, world);
   const mods = [];
   for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }
-  // the index is in the PREMISES frame (local); the world point is turned once per call
+  // T1: the authored modifiers alone, in the premises frame, to read a road's node heights from
+  const T1 = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
+  // THE ROADS (stage 2): a graded road is a DERIVED grade whose nodes sit on
+  // T1, 3-tap smoothed along the profile (WORLD-GEN-PROC stage 3's roadbed
+  // rule: flat across, the profile smoothed along); a surface strip of its class
+  const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
+  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL) }));
+  const nAuth = mods.length;
+  for (const r of roads) {
+    if (r.graded === false) continue;
+    const hs = r.pts.map(p => T1(p[0], p[1]));
+    const sm = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: r.pts.map((p, i) => [p[0], p[1], sm[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
+    if (M) mods.push(M);
+  }
   const index = SpatialIndex(256);
   for (const M of mods) index.add(M.bbox, M);
   const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface }));
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
-  // the extent: the record's own, else the union of everything, else nothing
+  // a clear zone is a derived exclude of trees
+  for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -276,11 +470,13 @@ function compose(rec0, world) {
     for (const M of mods) grow(M.bbox);
     for (const s of surf) grow(s.bbox);
     for (const s of excl) grow(s.bbox);
+    for (const z of rec.layers.zones) if (z.poly && z.poly.length >= 3) grow(polyBBox(z.poly));
     ext = isFinite(x0) ? { x0, z0, x1, z1 } : { x0: 0, z0: 0, x1: 0, z1: 0 };
   }
   const inBB = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+  const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   const O = {
-    n: mods.length, rec, frame: F, extent: ext, index,
+    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs,
     terrainH(x, z, h) {
       if (!mods.length) return h;
       const L = F.toLocal(x, z);
@@ -289,12 +485,13 @@ function compose(rec0, world) {
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(L[0], L[1], h);
       return h;
     },
-    // the composed ground at a world point, from the host's own base
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
+    // the composed ground in the PREMISES frame
+    localH: (lx, lz) => { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]); },
     surfaceAt(x, z) {
-      if (!surf.length) return -1;
       const L = F.toLocal(x, z);
       for (let i = surf.length - 1; i >= 0; i--) { const s = surf[i]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
+      for (let i = 0; i < roadObjs.length; i++) if (inBB(roadBB[i], L[0], L[1]) && roadDist(roadObjs[i], L[0], L[1]) <= roadObjs[i].w / 2) return roadObjs[i].surface;
       return -1;
     },
     excludeAt(x, z, what) {
@@ -303,8 +500,28 @@ function compose(rec0, world) {
       for (const e of excl) if (inBB(e.bbox, L[0], L[1]) && (!what || e.what.indexOf(what) >= 0) && inPoly(e.poly, L[0], L[1])) return true;
       return false;
     },
+    roadNear(x, z) { const L = F.toLocal(x, z); let d = Infinity; for (const r of roadObjs) d = Math.min(d, roadDist(r, L[0], L[1])); return d; },
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
+    records: { plots: [], trees: [], excludes: excl.map(e => e.poly) },
   };
+  // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
+  // reject against the earlier ones; forest zones plant after every plot is known
+  if (!o.noPlace) {
+    const waterY = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity;
+    const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.map(e => e.poly), plots: O.records.plots, keepOut: [] };
+    for (const z of rec.layers.zones) {
+      if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
+      if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
+        for (const p of sowPlots(z, roads, ctx)) O.records.plots.push(p);
+    }
+    const pool = o.pool || [];
+    const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
+    for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
+      for (const t of planForest(z, tctx)) O.records.trees.push(t);
+    // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
+    for (const t of O.records.trees) t.y = O.localH(t.x, t.z);
+  }
   return O;
 }
 
@@ -314,30 +531,27 @@ function compose(rec0, world) {
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
-  const polys = [];
   for (const k of ['terrain', 'surface', 'material', 'exclude', 'zones']) for (const e of rec.layers[k]) {
     if (e.kind === 'grade') { if (!e.pts || e.pts.length < 2) out.push(k + ' ' + e.id + ': a grade needs two points'); continue; }
     if (!e.poly || e.poly.length < 3) { out.push(k + ' ' + e.id + ': a polygon needs three points'); continue; }
     if (!polySimple(e.poly)) out.push(k + ' ' + e.id + ': the polygon crosses itself');
-    else polys.push({ k, e });
     if (k === 'terrain' && !(+e.falloff > 0)) out.push('terrain ' + e.id + ': falloff must be positive');
+    if (k === 'zones' && ZONE_KINDS.indexOf(e.kind) < 0) out.push('zone ' + e.id + ': unknown kind ' + e.kind);
   }
-  // two flattens at different levels whose bodies overlap: not a fixed point, a mistake
+  for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
     const a = fl[i], b = fl[j];
     if (Math.abs((+a.level || 0) - (+b.level || 0)) < 0.01) continue;
-    const overlap = a.poly.some(p => inPoly(b.poly, p[0], p[1])) || b.poly.some(p => inPoly(a.poly, p[0], p[1]));
-    if (overlap) out.push('terrain ' + a.id + ' and ' + b.id + ': two flattens at different levels overlap');
+    if (polysOverlap(a.poly, b.poly)) out.push('terrain ' + a.id + ' and ' + b.id + ': two flattens at different levels overlap');
   }
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
+  for (const ob of rec.layers.objects) if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species');
   const ids = new Set();
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
   return out;
 }
 
-// the extent rastered to int16 (WORLD-V2 §9's patch, 1 cm steps) — the
-// baked mode the live mode must agree with
 function bake(overlay, world, extent, cell) {
   const c = cell || 1, ex = extent || overlay.extent;
   const nx = Math.max(2, Math.ceil((ex.x1 - ex.x0) / c) + 1), nz = Math.max(2, Math.ceil((ex.z1 - ex.z0) / c) + 1);
@@ -353,7 +567,6 @@ function bake(overlay, world, extent, cell) {
   const step = 0.01, base = Math.floor(lo / step) * step;
   for (let k = 0; k < tmp.length; k++) data[k] = Math.round((tmp[k] - base) / step);
   return { x0: ex.x0, z0: ex.z0, nx, nz, cell: c, step, base, data,
-    // bilinear, in the premises frame
     sample(lx, lz) {
       const u = (lx - this.x0) / this.cell, v = (lz - this.z0) / this.cell;
       const i = Math.max(0, Math.min(this.nx - 2, Math.floor(u))), j = Math.max(0, Math.min(this.nz - 2, Math.floor(v)));
@@ -378,7 +591,6 @@ function checks(rec0, world, opts) {
   const rec = normalise(rec0), o = opts || {};
   const lines = [];
   const put = (ok, label) => { lines.push({ ok: !!ok, label }); return ok; };
-  // 1 the record round-trips through the envelope
   try {
     const back = unwrap(envelope(rec.name, rec)).rec;
     put(JSON.stringify(back) === JSON.stringify(normalise(rec)), 'the record round-trips');
@@ -386,64 +598,69 @@ function checks(rec0, world, opts) {
   const iss = issues(rec);
   put(iss.length === 0, iss.length ? iss[0] : 'every polygon simple, every id unique');
   if (!world || !world.terrainH) return lines;
-  const O = compose(rec, world);
+  const O = o.overlay || compose(rec, world, { pool: o.pool });
   const F = O.frame;
   const rnd = mulberry32(7);
-  // 7 every flatten is flat to 1 cm over its body
   let flatOk = true, flats = 0;
   for (const m of rec.layers.terrain) if (m.kind === 'flatten' && m.poly && polySimple(m.poly)) {
     flats++;
     const bb = polyBBox(m.poly), target = (m.abs ? 0 : F.y0) + (+m.level || 0);
-    // the LAST flatten wins where two overlap; sample only where this one is the last
     for (let k = 0; k < 200; k++) {
       const lx = bb.x0 + rnd() * (bb.x1 - bb.x0), lz = bb.z0 + rnd() * (bb.z1 - bb.z0);
       if (!inPoly(m.poly, lx, lz)) continue;
-      const w = F.toWorld(lx, lz);
-      const h = O.terrainAt(w[0], w[1]);
+      const h = O.localH(lx, lz);
       if (Math.abs(h - target) > 0.01) {
-        // a later modifier may legitimately sit on top; only flag when nothing later covers this point
-        const later = rec.layers.terrain.slice(rec.layers.terrain.indexOf(m) + 1).some(n => n.poly && inPoly(n.poly, lx, lz));
+        const w = F.toWorld(lx, lz);
+        const later = rec.layers.terrain.slice(rec.layers.terrain.indexOf(m) + 1).some(n => n.poly && inPoly(n.poly, lx, lz)) || O.roadNear(w[0], w[1]) < 12;
         if (!later) { flatOk = false; break; }
       }
     }
   }
   put(flatOk, flats ? 'every flatten flat to 1 cm over its body (' + flats + ')' : 'no flatten yet');
-  // 6 C1: the slope across every falloff band stays bounded (no step)
   let slopeMax = 0;
   const ex = O.extent, span = Math.max(1, ex.x1 - ex.x0, ex.z1 - ex.z0);
   if (O.n) for (let k = 0; k < 400; k++) {
     const lx = ex.x0 - 8 + rnd() * (ex.x1 - ex.x0 + 16), lz = ex.z0 - 8 + rnd() * (ex.z1 - ex.z0 + 16);
-    const w = F.toWorld(lx, lz), w2 = F.toWorld(lx + 0.25, lz);
-    const s = Math.abs(O.terrainAt(w2[0], w2[1]) - O.terrainAt(w[0], w[1])) / 0.25;
+    const s = Math.abs(O.localH(lx + 0.25, lz) - O.localH(lx, lz)) / 0.25;
     if (s > slopeMax) slopeMax = s;
   }
   put(slopeMax < (o.slopeMax || 3.0), 'no step across a falloff (max slope ' + slopeMax.toFixed(2) + ')');
-  // 12 baked vs live agree to the quantisation (a small raster, the gate does the big one)
-  if (O.n && span < 2000) {
-    // 1 m is the contract's cell (rule 12); a wide extent rasters coarser for the
-    // panel with a curvature allowance that is zero at 1 m (a feather's bilinear
-    // error is curvature, not slope)
-    const cell = o.cell || Math.max(1, Math.ceil(span / 400));   // 1 m is the contract's cell; wider extents raster coarser for the panel
-    const B = bake(O, world, ex, cell);
+  if (O.n) {
+    // the panel's baked-vs-live: the contract's 1 m lattice, sampled LOCALLY at
+    // each point (the four lattice neighbours quantised to 1 cm, bilinear) - the
+    // same comparison the gate makes over a whole raster, at the cost of four
+    // samples per point instead of a raster of the extent
+    const cell = 1, q = v => Math.round(v * 100) / 100;
     let worst = 0;
     for (let k = 0; k < 400; k++) {
       const lx = ex.x0 + rnd() * (ex.x1 - ex.x0), lz = ex.z0 + rnd() * (ex.z1 - ex.z0);
-      const w = F.toWorld(lx, lz);
-      const live = O.terrainAt(w[0], w[1]), baked = B.sample(lx, lz);
-      // bilinear is exact on a plane: its error is CURVATURE, cell^2 / 8 of the
-      // second differences at the cell (contract v1.1) — a step still fails,
-      // its second difference is the step itself
-      const tol = 0.02 + curvTol(O, F, lx, lz, B.cell);
-      const err = Math.abs(live - baked) - tol;
+      const i = Math.floor(lx / cell) * cell, j = Math.floor(lz / cell) * cell, fu = (lx - i) / cell, fv = (lz - j) / cell;
+      const g = (a, b) => q(O.localH(a, b));
+      const baked = (g(i, j) * (1 - fu) + g(i + cell, j) * fu) * (1 - fv) + (g(i, j + cell) * (1 - fu) + g(i + cell, j + cell) * fu) * fv;
+      const err = Math.abs(O.localH(lx, lz) - baked) - (0.02 + curvTol(O, F, lx, lz, cell));
       if (err > worst) worst = err;
     }
-    put(worst <= 0, 'baked and live agree (' + (worst <= 0 ? 'within tolerance' : 'over by ' + worst.toFixed(3) + ' m') + ')');
-  } else put(true, O.n ? 'baked vs live: extent too large for the panel (the gate rasters it)' : 'baked vs live: nothing to bake yet');
+    put(worst <= 0, 'baked and live agree at 1 m (' + (worst <= 0 ? 'within tolerance' : 'over by ' + worst.toFixed(3) + ' m') + ')');
+  } else put(true, 'baked vs live: nothing to bake yet');
+  // the plots (rule 8): no overlap, inside their zone, outside excludes
+  const P = O.records.plots;
+  if (P.length) {
+    let ok = true, why = '';
+    for (let i = 0; i < P.length && ok; i++) {
+      const z = rec.layers.zones.find(zz => zz.id === P[i].zone);
+      if (!P[i].poly.every(c => inPoly(z.poly, c[0], c[1]))) { ok = false; why = P[i].id + ' leaves its zone'; }
+      if (P[i].poly.some(c => O.records.excludes.some(e => inPoly(e, c[0], c[1])))) { ok = false; why = P[i].id + ' in an exclude'; }
+      for (let j = 0; j < i && ok; j++) if (polysOverlap(P[i].poly, P[j].poly)) { ok = false; why = P[i].id + ' overlaps ' + P[j].id; }
+    }
+    put(ok, ok ? P.length + ' plots sown: none overlap, all in their zone' : why);
+  }
+  const Tn = O.records.trees;
+  if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
   return lines;
 }
 
 // ---------------------------------------------------------------------------
-// the catalogue — v0: collect what the loaded generators export, or DERIVE an
+// the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
 const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN'];
@@ -474,9 +691,10 @@ function collect(globals) {
   return { entries, aliases, issues: issuesOut, byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, PREMISES_MIGRATORS, GENERATORS,
-  fnv, hash32, mulberry32, seedOf,
-  polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, PREMISES_MIGRATORS, GENERATORS,
+  fnv, hash32, mulberry32, seedOf, fbm,
+  polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

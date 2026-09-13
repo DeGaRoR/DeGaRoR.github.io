@@ -24,8 +24,17 @@
 //   7  FLATTEN: every flatten is flat to 1 cm over its body; a raise moves
 //      its body by its dh; a ramp's body lies on its plane; a grade's
 //      centreline is at its nodes' heights.
+//   8  PLOTS (v1): every plot sown in a zone is a convex quad that does not
+//      overlap another, lies inside its zone and outside every exclude; the
+//      water side of a plot reaches the water; a zone with no road sows none;
+//      the same seed sows the same plots, another seed different ones.
+//   9  ROADS (v1): a graded road is flat across (the two shoulders within
+//      2 cm of the centreline) and its class answers as the surface inside
+//      its width; a forest keeps 3 m off it.
 //  10  SURFACE: a surface polygon answers its class inside and -1 outside.
-//  11  EXCLUDE: an exclude polygon answers true inside, false outside.
+//  11  EXCLUDE: an exclude polygon answers true inside, false outside; a
+//      forest zone plants no tree in an exclude, a clear zone or a plot, and
+//      a hand-placed tree is planted where it was put.
 //  12  BAKED VS LIVE: the extent rastered to int16 at 1 m; ten thousand
 //      points within 0.02 m + cell^2 / 8 of the second differences at the
 //      cell — bilinear's own bound (WORLD-V2 §6.3; contract v1.1).
@@ -54,7 +63,7 @@ function check(ok, what, detail) {
 }
 
 // a synthetic terrain with relief at every scale the modifiers care about
-const synth = { id: 'synth', terrainH: (x, z) => 3 * Math.sin(x / 40) + 2 * Math.cos(z / 33) + 0.02 * z + 0.4 * Math.sin(x / 7 + z / 9) };
+const synth = { id: 'synth', terrainH: (x, z) => 3 * Math.sin(x / 40) + 2 * Math.cos(z / 33) + 0.02 * z + 0.4 * Math.sin(x / 7 + z / 9) + (z < -60 ? (z + 60) * 0.15 : 0), waterH: () => -4 };
 // the flight world, when the build exists (run_gates builds first; a loose run may not have it)
 let FLIGHT = null;
 try { const fc = require(path.join(TOOLS, 'flight_core.js')); if (fc && fc.makeWorld) FLIGHT = fc.makeWorld(); } catch (e) { FLIGHT = null; }
@@ -187,6 +196,50 @@ for (const fx of fixtures) {
     check(ok, '11 exclude ' + e.id + ' answers inside and not outside');
   }
 
+  // 8 the plots, 9 the roads, 11 the trees (v1)
+  {
+    const P = O1.records.plots, zones = rec.layers.zones, ex = O1.records.excludes;
+    if (rec.layers.zones.some(z => z.kind === 'residential')) {
+      check(P.length > 0, '8 ' + fx + ' sows plots', 'none');
+      let ok = true, why = '';
+      for (let i = 0; i < P.length && ok; i++) {
+        const z = zones.find(zz => zz.id === P[i].zone);
+        if (P[i].poly.length !== 4) { ok = false; why = P[i].id + ' is not a quad'; }
+        if (!P[i].poly.every(c => PG.inPoly(z.poly, c[0], c[1]))) { ok = false; why = P[i].id + ' leaves its zone'; }
+        if (P[i].poly.some(c => ex.some(e => PG.inPoly(e, c[0], c[1])))) { ok = false; why = P[i].id + ' in an exclude'; }
+        for (let j = 0; j < i && ok; j++) if (PG.polysOverlap(P[i].poly, P[j].poly)) { ok = false; why = P[i].id + ' overlaps ' + P[j].id; }
+      }
+      check(ok, '8 ' + fx + ' plots: quads, in their zone, out of excludes, no overlap', why);
+      const noRoad = JSON.parse(JSON.stringify(rec)); noRoad.layers.roads = [];
+      check(PG.compose(noRoad, synth).records.plots.length === 0, '8 a zone with no road sows no plot');
+      const again = PG.compose(rec, synth).records.plots;
+      check(again.length === P.length && again.every((q, i) => q.id === P[i].id && Math.abs(q.poly[0][0] - P[i].poly[0][0]) < 1e-9), '8 the same seed sows the same plots');
+      const other = JSON.parse(JSON.stringify(rec)); other.seed = rec.seed + 7;
+      const P2 = PG.compose(other, synth).records.plots;
+      check(P2.length !== P.length || P2.some((q, i) => Math.abs(q.s0 - P[i].s0) > 1e-6), '8 another seed sows other plots');
+    }
+    for (const r of rec.layers.roads) {
+      if (r.graded === false) continue;
+      const rd = PG.polyRoad(r.pts, r.w);
+      let worst = 0, surfOk = true;
+      for (let t = 4; t < rd.length - 4; t += 3) {
+        const a = rd.at(t), hw = r.w / 2 - 0.05;
+        const c = O1.localH(a.p[0], a.p[1]), l = O1.localH(a.p[0] + a.n[0] * hw, a.p[1] + a.n[1] * hw), rr = O1.localH(a.p[0] - a.n[0] * hw, a.p[1] - a.n[1] * hw);
+        worst = Math.max(worst, Math.abs(l - c), Math.abs(rr - c));
+        const w = O1.frame.toWorld(a.p[0], a.p[1]);
+        if (O1.surfaceAt(w[0], w[1]) !== (r.surface !== undefined ? r.surface : PG.ROAD_CLS[r.cls])) surfOk = false;
+      }
+      check(worst < 0.02, '9 road ' + r.id + ' is flat across', worst.toFixed(3) + ' m');
+      check(surfOk, '9 road ' + r.id + ' answers its surface inside its width');
+    }
+    const Tn = O1.records.trees;
+    if (rec.layers.zones.some(z => z.kind === 'forest')) {
+      check(Tn.some(t => !t.placed), '11 ' + fx + ' the forest plants trees');
+      const bad = Tn.find(t => !t.placed && (ex.some(e => PG.inPoly(e, t.x, t.z)) || P.some(q => PG.inPoly(q.poly, t.x, t.z)) || O1.roads.some(r => PG.roadDist(r, t.x, t.z) < r.w / 2 + 2.9)));
+      check(!bad, '11 no forest tree in an exclude, a clear zone, a plot or a road', bad ? bad.x.toFixed(1) + ',' + bad.z.toFixed(1) : '');
+    }
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree') check(Tn.some(t => t.placed && t.id === ob.id && t.x === ob.x), '11 tree ' + ob.id + ' is planted where it was put');
+  }
   // 12 baked vs live
   {
     const B = PG.bake(O1, synth, O1.extent, 1);

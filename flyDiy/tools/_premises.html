@@ -68,10 +68,34 @@
 
 <script src="../vendor/three.min.js"></script>
 <script>window.FLYDIY_ASSET_BASE = '../';</script>
-<script src="../src/viewer/site_tex.js"></script>
-<script src="_house_kit.js"></script>
-<script src="_village_gen.js"></script>
+<!-- the generated core first: makeWorld and the prop / tree codecs live in it (a second codec tag would redeclare PROP_REG) -->
 <script src="flight_core.js"></script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script src="../src/pier/pier_pier.js"></script>
+<script src="../src/pier/pier_boat.js"></script>
+<script src="../src/pier/pier_people.js"></script>
+<script src="../src/pier/pier_yard.js"></script>
+<script src="../src/pier/pier_car.js"></script>
+<script src="../src/pier/pier_lods.js"></script>
+<script src="../src/viewer/trees_pack.js"></script>
+<script src="../src/viewer/trees.js"></script>
+<script src="../src/props/props_vessel.js"></script>
+<script src="../src/props/props_bench.js"></script>
+<script src="../src/props/props_handling.js"></script>
+<script src="../src/props/props_storage.js"></script>
+<script src="../src/props/props_machine.js"></script>
+<script src="../src/props/props_fixture.js"></script>
+<script src="../src/props/props_vehicle.js"></script>
+<script src="../src/viewer/site_tex.js"></script>
+<script src="../src/viewer/lot_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="../src/viewer/hangar_walls.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
+<script src="_big_gen.js"></script>
+<script src="_village_gen.js"></script>
 <script src="_premises_gen.js"></script>
 <script src="_premises_draw.js"></script>
 <script src="_premises_ui.js"></script>
@@ -220,7 +244,15 @@ function ground(cx, cy) {
 // ---- the renderer and the editor -------------------------------------------------------------
 const RP = window.RENDER_PREMISES, PU = window.PREMISES_UI;
 const viewEl = $('view');   // held before the mount: the module clears its host and the view goes back in between the rail and the inspector
-let R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps() });
+// the species pool as the tree payload offers it (the village bench's treePool)
+function treePool() {
+  if (typeof treeList !== 'function' || typeof treeReady !== 'function' || !treeReady()) return [];
+  return treeList().map(e => ({ key: e.key, size: (e.col.place && e.col.place.size) || 1,
+    sink: (e.col.place && e.col.place.sink) || 0, proportion: (e.col.place && e.col.place.proportion) || 1, h: e.sub.h }));
+}
+let R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps(), pool: treePool, onBuilt: () => draw() });
+if (typeof treeWarm === 'function') treeWarm().then(() => (typeof treeMapsReady === 'function' ? treeMapsReady() : null)).then(() => { if (window.PREMISES_PAGE) { PREMISES_PAGE.ed.dirty(); } }).catch(e => console.warn('trees:', e && e.message));
+if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
 let dirtyDraw = true;
 const draw = () => { dirtyDraw = true; };
 const rows = {
@@ -260,7 +292,7 @@ const ED = PU.mount($('host'), {
   THREE, world: WORLD, R, camera, ground, ray, cameras, rows,
   els: { chk: $('chk'), plaque: $('plaque'), strip: $('strip') },
   viewEl, storage: (() => { try { return localStorage; } catch (e) { return null; } })(),
-  rig, redraw: draw, frameText, fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
+  rig, redraw: draw, frameText, pool: treePool, fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
 });
 // the view sits between the rail and the inspector the module built
 $('host').insertBefore(viewEl, $('host').querySelector('.pr-insp'));
@@ -302,6 +334,7 @@ addEventListener('resize', draw);
 let rafSeen = false, pumpIv = 0;
 function tick(t) {
   rafSeen = true;
+  if (R.stats.queued) { R.step(2); PREMISES_PAGE && PREMISES_PAGE.ed.plaque(); dirtyDraw = true; }
   if (dirtyDraw) render(t);
   requestAnimationFrame(tick);
 }
@@ -320,7 +353,7 @@ function render(t) {
   $('stat').textContent = WORLD.id + ' · ' + size + ' m · ' + R.stats.chunks + ' chunks';
 }
 requestAnimationFrame(tick);
-setTimeout(() => { if (!rafSeen) { pumpIv = setInterval(() => { if (dirtyDraw) render(performance.now()); }, 50); console.warn('premises: rAF is dead here — pumping on a timer'); } }, 400);
+setTimeout(() => { if (!rafSeen) { pumpIv = setInterval(() => { if (R.stats.queued) { R.step(2); PREMISES_PAGE && PREMISES_PAGE.ed.plaque(); dirtyDraw = true; } if (dirtyDraw) render(performance.now()); }, 50); console.warn('premises: rAF is dead here — pumping on a timer'); } }, 400);
 if (Q.get('probe') === '1') { let q = []; window.requestAnimationFrame = f => q.push(f); window.__pump = n => { for (let i = 0; i < (n || 1); i++) { const qq = q; q = []; for (const f of qq) f(performance.now()); } }; }
 
 // ---- the screenshot: a render target POSTed to the sink (never the on-screen canvas) --------------

@@ -1,7 +1,10 @@
 # PREMISES-EDITOR — the world editor: zones, sites, roads, runways, polygons; a bench first, the game last
 ### (2026-09-13, from the user's brief on the premises of the world editor)
 
-STATUS: **design, v0 bench in progress** (`tools/_premises.html`, port 8401, GATE PREMISES). Companion
+STATUS: **design; the bench v0 (G356: the ground, the record, a flatten) and v1 (roads traced and graded,
+zones sown with the house generator on every plot, forest / clear zones, hand trees) LANDED 2026-09-13**
+(`tools/_premises.html`, port 8401, GATE PREMISES). v2 (the airfield on World A) and v3 (sites + links
+from the catalogue) are next. Companion
 to `PREMISES-CONTRACT-2026-09-13.md` (the record and the asset contract, frozen v1). Appendix A is
 THE SPLIT — how the parallel sessions divide the work, land, unify and port; every session reads it.
 

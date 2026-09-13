@@ -1,0 +1,39 @@
+{
+  "what": "flydiy-premises",
+  "v": 1,
+  "name": "village",
+  "premises": {
+    "v": 1,
+    "id": "village",
+    "name": "a road, a zone either side, a wood behind - the sower's golden (v1)",
+    "seed": 5,
+    "frame": { "kind": "free", "extent": { "x0": -200, "z0": -120, "x1": 200, "z1": 200 }, "anchors": { "*": { "x": 0, "z": 0, "yaw": 0 } } },
+    "layers": {
+      "terrain": [
+        { "id": "t1", "kind": "flatten", "poly": [[120, 100], [180, 100], [180, 150], [120, 150]], "level": 6.0, "falloff": 12, "abs": false, "order": 0 }
+      ],
+      "surface": [],
+      "material": [],
+      "exclude": [
+        { "id": "x1", "poly": [[-60, 90], [0, 90], [0, 140], [-60, 140]], "what": ["trees"] }
+      ],
+      "roads": [
+        { "id": "r1", "pts": [[-180, 20], [-90, 26], [0, 18], [90, 24], [180, 16]], "w": 3.6, "cls": "gravel", "graded": true, "falloff": 6 },
+        { "id": "r2", "pts": [[0, 18], [10, 60], [30, 110]], "w": 3.0, "cls": "track", "graded": true, "falloff": 5 }
+      ],
+      "runways": [],
+      "zones": [
+        { "id": "z1", "kind": "residential", "poly": [[-190, -70], [190, -70], [190, 70], [-190, 70]], "density": 1, "seed": null, "palette": null, "rules": {} },
+        { "id": "z2", "kind": "forest", "poly": [[-190, 70], [190, 70], [190, 190], [-190, 190]], "density": 1, "seed": null, "palette": null, "rules": {} },
+        { "id": "z3", "kind": "clear", "poly": [[60, 80], [110, 80], [110, 130], [60, 130]], "density": 1, "seed": null, "palette": null, "rules": {} }
+      ],
+      "sites": [], "links": [],
+      "objects": [
+        { "id": "o1", "kind": "tree", "x": -150, "z": 60, "key": "stub|tree", "size": 1.2, "yaw": 0.4 }
+      ]
+    },
+    "budget": { "tris": 400000, "lights": 24, "smoke": 6, "people": 40 }
+  },
+  "plaque": null,
+  "log": { "built": null, "tests": [], "flights": [] }
+}

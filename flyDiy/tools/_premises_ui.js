@@ -7,42 +7,53 @@
 // terrain, trees or meshes.
 //
 //   PREMISES_UI.mount(host, ctx) -> handle
-//     host   the element the rail, the tool strip and the inspector are built in
+//     host   the element the rail and the inspector are built in
 //     ctx = { THREE, world, R (RENDER_PREMISES), camera(), ground(clientX, clientY) -> [x, y, z] | null,
-//             ray(clientX, clientY) -> THREE.Ray, cameras { mode(), set(m), toggle() },
+//             ray(clientX, clientY) -> THREE.Ray, cameras { mode(), set(m), toggle(), frame(bbox) },
 //             rows { slider, select, check, note, section, button }, els { chk, plaque, strip },
-//             tick(fn), storage, rig { get, set } | null, fresh }
-//     handle = { record(), load(rec), save(name), cmd(name, args), select(id), tool(name),
-//                undo(), redo(), checks(), section(name), close() }
+//             viewEl, storage, rig { get, set } | null, redraw(), frameText(), pool() -> tree species, fresh }
+//     handle = { record(), load(txt), save(name), cmd(name, args), select(id), setTool(name),
+//                setSection(k), undo(), redo(), checks(), close() }
 //
-// v0 — TERRAIN (flatten / raise / ramp / grade, plus the surface and no-trees
-// polygons that later move to their own sections), FILE, VIEW. The tool
-// state machine, the ghost with its validity colour (red refuses), vertex and
-// midpoint handles, the inspector's declared rows, undo/redo as a command
-// stack over the record, autosave, the #chk panel mirroring GATE PREMISES.
+// v1 — TERRAIN (flatten / raise / ramp / surface / probe), ROADS (trace a road:
+// graded, worn, a surface strip; the plots grow off it), ZONES (a polygon
+// with a kind, a density, a seed; the sower fills it with plots and the
+// house generator stands a house on each), VEGETATION (a forest polygon, a
+// no-trees polygon, a tree by hand), FILE, VIEW. The tool state machine, the
+// ghost with its validity colour (red refuses), vertex and midpoint handles,
+// the inspector's declared rows, undo/redo as a command stack over the
+// record, autosave, the #chk panel mirroring GATE PREMISES.
 (function () {
 'use strict';
 if (typeof window === 'undefined') return;
 const PG = window.PREMISES_GEN;
 
 const SECTIONS = [
-  { k: 'terrain', label: 'TERRAIN', icon: '⛰', tools: ['select', 'flatten', 'raise', 'ramp', 'grade', 'surface', 'exclude', 'probe'] },
-  { k: 'file',    label: 'FILE',    icon: '▤',  tools: [] },
-  { k: 'view',    label: 'VIEW',    icon: '◎',  tools: [] },
+  { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'flatten', 'raise', 'ramp', 'surface', 'probe'] },
+  { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
+  { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
+  { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
+  { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
+  { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', grade: 'grade (road)', surface: 'surface', exclude: 'no trees', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
-  flatten: 'click the corners of the flat, Enter or double-click to close',
+  flatten: 'click the corners of the flat, then ✓ close (or double-click)',
   raise: 'click the corners, close; then set the lift in the inspector',
   ramp: 'click the corners, close; then set the plane in the inspector',
-  grade: 'click the road\'s points, Enter to end; a height per point in the inspector',
+  road: 'click the road\'s points, then ✓ close (or double-click) — it is graded and worn; zones grow plots off it',
   surface: 'click the corners of the paved / gravel / sand patch, close',
-  exclude: 'click the corners where no tree may grow, close',
-  probe: 'click the ground to read its height and slope',
+  zone: 'click the corners of the zone, close; its kind, density and seed are in the inspector — plots grow along the roads inside it',
+  forest: 'click the corners of the wood, close; density and species in the inspector',
+  clear: 'click the corners where no tree may grow, close',
+  tree: 'click the ground to plant one tree; its species and size in the inspector',
+  probe: 'click the ground to read its height, slope and surface',
 };
-const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', exclude: 'exclude' };
-const LS_WIP = 'flydiy.premises.wip', LS_VIEW = 'flydiy.prem.view';
+const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', zone: 'zones', forest: 'zones', clear: 'zones' };
+const LINE_TOOLS = { road: 'roads' };
+const POINT_TOOLS = { tree: 'objects' };
+const LS_WIP = 'flydiy.premises.wip';
 
 function mount(host, ctx) {
   const { THREE, world, R, rows, els } = ctx;
@@ -67,11 +78,14 @@ function mount(host, ctx) {
   }
   function bboxOf(entry) {
     if (!entry) return null;
-    if (entry.poly) { const b = PG.polyBBox(entry.poly); const f = +entry.falloff || 0; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
-    if (entry.pts) { const b = PG.polyBBox(entry.pts); const f = (+entry.falloff || 0) + (+entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
+    if (entry.poly) { const b = PG.polyBBox(entry.poly); const f = (+entry.falloff || 0) + 4; return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
+    if (entry.pts) { const b = PG.polyBBox(entry.pts); const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
+    if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
     return null;
   }
   const union = (a, b) => (!a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), z0: Math.min(a.z0, b.z0), x1: Math.max(a.x1, b.x1), z1: Math.max(a.z1, b.z1) });
+  // which layers move the GROUND (and so the chunks): terrain, and roads (graded)
+  const groundLayer = layer => layer === 'terrain' || layer === 'roads';
   function run(cmd, isRedo) {
     applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
@@ -81,7 +95,6 @@ function mount(host, ctx) {
   }
   function undo() { const c = undoS.pop(); if (!c) return; applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(c.layer, union(bboxOf(c.before), bboxOf(c.after))); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
-  // an edit to the selected entry, coalesced per key while the slider moves
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
     const arr = rec.layers[layer], e = arr.find(x => x.id === id);
@@ -89,14 +102,13 @@ function mount(host, ctx) {
     const before = clone(e);
     mutate(e);
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
-      // fold into the last command: keep its `before`, take the new `after`
       const last = undoS[undoS.length - 1];
       last.after = clone(e); coalesce.t = Date.now();
       dirty(layer, union(bboxOf(before), bboxOf(e)));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
-    applyEntry(layer, id, clone(e));   // already mutated in place; keep the arrays canonical
+    applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
     dirty(layer, union(bboxOf(before), bboxOf(e)));
@@ -106,9 +118,9 @@ function mount(host, ctx) {
   let chkT = 0;
   function dirty(layer, bbox) {
     R.setRecord(rec);
-    // terrain moves the ground: rebuild its chunks; the others repaint only
-    if (layer === 'terrain' || !layer) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
-    else R.rebuild({ layer, bbox: { x0: 0, z0: 0, x1: 0, z1: 0 } });   // no chunk touched, outlines + overlay repainted
+    if (!layer) R.rebuild(null);
+    else if (groundLayer(layer)) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
+    else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
     inspector.refresh();
     autosave();
     ctx.redraw && ctx.redraw();
@@ -116,7 +128,7 @@ function mount(host, ctx) {
     plaque();
   }
   function checks() {
-    const lines = PG.checks(rec, world);
+    const lines = PG.checks(rec, world, { overlay: R.overlay });
     const iss = PG.issues(rec);
     if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
       (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '');
@@ -127,7 +139,8 @@ function mount(host, ctx) {
     const s = R.stats;
     const n = PG.LAYERS.reduce((a, k) => a + rec.layers[k].length, 0);
     els.plaque.innerHTML = '<b>' + (s.tris || 0).toLocaleString() + '</b> ground tris · ' + (s.chunks || 0) + ' chunks · rebuild ' + (s.ms || 0).toFixed(0) + ' ms (' + (s.rebuilt || 0) + ')<br>' +
-      n + ' feature' + (n === 1 ? '' : 's') + ' · undo ' + undoS.length + (ctx.frameText ? '<br>' + ctx.frameText() : '');
+      '<b>' + (s.houses || 0) + '</b> houses ' + (s.houseTris || 0).toLocaleString() + ' tris' + (s.queued ? ' · ' + s.queued + ' queued' : '') + ' · <b>' + (s.trees || 0) + '</b> trees ' + (s.treeTris || 0).toLocaleString() + ' tris<br>' +
+      n + ' feature' + (n === 1 ? '' : 's') + ' · ' + (R.plots ? R.plots().length : 0) + ' plots · undo ' + undoS.length + (ctx.frameText ? '<br>' + ctx.frameText() : '');
   }
 
   // ---- the layout: rail | (strip over the view) | inspector -------------------
@@ -152,13 +165,12 @@ function mount(host, ctx) {
     const S = SECTIONS.find(s => s.k === section);
     for (const t of S.tools) {
       const b = $('button', { class: 'pr-tool' + (t === tool ? ' on' : ''), text: TOOL_LABEL[t] || t, title: TOOL_HELP[t] || '' });
-      b.onclick = () => { setTool(t); b.blur(); };   // keys go to the page, not the button (Enter would re-click it)
+      b.onclick = () => { setTool(t); b.blur(); };
       els.strip.appendChild(b); toolBtns[t] = b;
     }
     helpEl = $('span', { class: 'pr-help', text: TOOL_HELP[tool] || '' });
     statusEl = $('span', { class: 'pr-status', text: '' });
     els.strip.appendChild(helpEl); els.strip.appendChild(statusEl);
-    // while drawing: a close and a cancel button (a pane or a touch screen has no Enter / Esc)
     drawBtns = $('span', { class: 'pr-draw', style: 'display:none' });
     const ok = $('button', { class: 'pr-tool', text: '✓ close', title: 'close the polygon (Enter)' }); ok.onclick = () => { commitDrawing(); ok.blur(); };
     const no = $('button', { class: 'pr-tool', text: '✕ cancel', title: 'drop the points (Esc)' }); no.onclick = () => { cancelTool(); no.blur(); };
@@ -168,58 +180,57 @@ function mount(host, ctx) {
   function setTool(t) { cancelTool(); tool = t; for (const k in toolBtns) toolBtns[k].classList.toggle('on', k === t); strip.help(TOOL_HELP[t] || ''); if (t !== 'select') select(null); }
 
   // ---- the tool state machine ----------------------------------------------------
-  const T = { state: 'armed', pts: [], kind: null };
+  const T = { state: 'armed', pts: [] };
   function cancelTool() { T.state = 'armed'; T.pts = []; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
+  const isLine = () => !!LINE_TOOLS[tool];
   function ghostFeature() {
     if (!T.pts.length) return null;
-    const f = tool === 'grade' ? { pts: T.pts.map(p => [p[0], p[1], 0]), width: 4 } : { poly: T.pts };
-    return f;
+    return isLine() ? { pts: T.pts.map(p => [p[0], p[1]]), width: 3.6 } : { poly: T.pts };
   }
   function ghostOk() {
-    if (tool === 'grade') return T.pts.length >= 2 ? true : 'warn';
+    if (isLine()) return T.pts.length >= 2 ? true : 'warn';
     if (T.pts.length < 3) return 'warn';
     return PG.polySimple(T.pts) ? true : false;
   }
   function addPoint(lx, lz) {
-    // a double-click's own two clicks land on the last point: ignore a repeat within half a metre
     const L = T.pts[T.pts.length - 1];
     if (L && Math.hypot(L[0] - lx, L[1] - lz) < 0.5) return;
     T.pts.push([lx, lz]);
     T.state = 'drawing';
     if (drawBtns) drawBtns.style.display = '';
     R.ghost(ghostFeature(), ghostOk());
-    strip.status(T.pts.length + ' point' + (T.pts.length > 1 ? 's' : '') + (tool === 'grade' ? ' — Enter ends' : ' — Enter or double-click closes'));
+    strip.status(T.pts.length + ' point' + (T.pts.length > 1 ? 's' : '') + ' — ✓ close or double-click');
     ctx.redraw && ctx.redraw();
+  }
+  // the level a flat wants: the median ground under the polygon, relative to y0
+  function medianLevel(poly) {
+    const O = R.overlay, F = O.frame, hs = [], bb = PG.polyBBox(poly);
+    for (let i = 0; i < 64; i++) { const lx = bb.x0 + (i % 8 + 0.5) / 8 * (bb.x1 - bb.x0), lz = bb.z0 + (Math.floor(i / 8) + 0.5) / 8 * (bb.z1 - bb.z0); if (PG.inPoly(poly, lx, lz)) { const w = F.toWorld(lx, lz); hs.push(world.terrainH(w[0], w[1]) - F.y0); } }
+    hs.sort((a, b) => a - b);
+    return +(hs.length ? hs[hs.length >> 1] : 0).toFixed(2);
   }
   function commitDrawing() {
     if (T.state !== 'drawing') return;
-    // drop consecutive repeats and a closing repeat of the first point
     T.pts = T.pts.filter((p, i, A) => i === 0 || Math.hypot(p[0] - A[i - 1][0], p[1] - A[i - 1][1]) >= 0.5);
-    if (T.pts.length > 2 && Math.hypot(T.pts[0][0] - T.pts[T.pts.length - 1][0], T.pts[0][1] - T.pts[T.pts.length - 1][1]) < 0.5) T.pts.pop();
-    if (tool === 'grade') {
+    if (isLine()) {
       if (T.pts.length < 2) { strip.status('a road needs two points'); return; }
-      const O = R.overlay, F = O.frame;
-      const pts = T.pts.map(p => { const w = F.toWorld(p[0], p[1]); return [p[0], p[1], +(world.terrainH(w[0], w[1]) - F.y0).toFixed(2)]; });
-      const e = { id: PG.newId(rec, 'terrain'), kind: 'grade', pts, width: 4, crossfall: 0, falloff: 6 };
-      run({ layer: 'terrain', id: e.id, before: null, after: e, label: 'grade ' + e.id });
+      const e = { id: PG.newId(rec, 'roads'), pts: T.pts.map(p => [p[0], p[1]]), w: 3.6, cls: 'gravel', graded: true, falloff: 6 };
+      run({ layer: 'roads', id: e.id, before: null, after: e, label: 'road ' + e.id });
       cancelTool(); select(e.id); return;
     }
+    if (T.pts.length > 2 && Math.hypot(T.pts[0][0] - T.pts[T.pts.length - 1][0], T.pts[0][1] - T.pts[T.pts.length - 1][1]) < 0.5) T.pts.pop();
     if (T.pts.length < 3) { strip.status('a polygon needs three points'); return; }
     if (!PG.polySimple(T.pts)) { strip.status('refused: the polygon crosses itself'); return; }
     const poly = PG.ensureCCW(T.pts);
     const layer = POLY_TOOLS[tool];
     let e;
-    if (tool === 'flatten') {
-      // the level a flat wants: the median ground under the polygon, relative to y0
-      const F = R.overlay.frame, hs = [];
-      const bb = PG.polyBBox(poly);
-      for (let i = 0; i < 64; i++) { const lx = bb.x0 + (i % 8 + 0.5) / 8 * (bb.x1 - bb.x0), lz = bb.z0 + (Math.floor(i / 8) + 0.5) / 8 * (bb.z1 - bb.z0); if (PG.inPoly(poly, lx, lz)) { const w = F.toWorld(lx, lz); hs.push(world.terrainH(w[0], w[1]) - F.y0); } }
-      hs.sort((a, b) => a - b);
-      e = { id: PG.newId(rec, 'terrain'), kind: 'flatten', poly, level: +(hs.length ? hs[hs.length >> 1] : 0).toFixed(2), falloff: 10, abs: false, order: 0 };
-    } else if (tool === 'raise') e = { id: PG.newId(rec, 'terrain'), kind: 'raise', poly, dh: 2, falloff: 10 };
-    else if (tool === 'ramp') e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, plane: [0.02, 0, 0], falloff: 8 };
+    if (tool === 'flatten') e = { id: PG.newId(rec, 'terrain'), kind: 'flatten', poly, level: medianLevel(poly), falloff: 10, abs: false, order: 0 };
+    else if (tool === 'raise') e = { id: PG.newId(rec, 'terrain'), kind: 'raise', poly, dh: 2, falloff: 10 };
+    else if (tool === 'ramp') e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, plane: [0.02, 0, medianLevel(poly)], falloff: 8 };
     else if (tool === 'surface') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL };
-    else if (tool === 'exclude') e = { id: PG.newId(rec, 'exclude'), poly, what: ['trees'] };
+    else if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
+    else if (tool === 'forest') e = { id: PG.newId(rec, 'zones'), kind: 'forest', poly, density: 1, seed: null, palette: null, rules: {} };
+    else if (tool === 'clear') e = { id: PG.newId(rec, 'zones'), kind: 'clear', poly, density: 1, seed: null, palette: null, rules: {} };
     run({ layer, id: e.id, before: null, after: e, label: (e.kind || layer) + ' ' + e.id });
     cancelTool(); select(e.id);
   }
@@ -235,12 +246,11 @@ function mount(host, ctx) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
         if (!found) return false;
         const e = found.entry, before = clone(e);
+        if (e.kind === 'tree') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
-          // a midpoint drag inserts a vertex after index i and drags it
           const a = arr[h.index], b = arr[(h.index + 1) % arr.length];
-          const nv = e.pts ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, ((a[2] || 0) + (b[2] || 0)) / 2] : [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-          arr.splice(h.index + 1, 0, nv);
+          arr.splice(h.index + 1, 0, a.length > 2 ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, ((a[2] || 0) + (b[2] || 0)) / 2] : [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
           drag = { id: selected, layer: found.layer, index: h.index + 1, before, F };
         } else drag = { id: selected, layer: found.layer, index: h.index, before, F };
         return true;
@@ -254,9 +264,9 @@ function mount(host, ctx) {
     if (!g) return true;
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
-    const arr = found.entry.poly || found.entry.pts;
-    arr[drag.index][0] = +L[0].toFixed(2); arr[drag.index][1] = +L[1].toFixed(2);
-    R.setRecord(rec); R.rebuild({ layer: found.layer, bbox: { x0: 0, z0: 0, x1: 0, z1: 0 } });   // outlines follow; the ground on release
+    if (drag.point) { found.entry.x = +L[0].toFixed(2); found.entry.z = +L[1].toFixed(2); }
+    else { const arr = found.entry.poly || found.entry.pts; arr[drag.index][0] = +L[0].toFixed(2); arr[drag.index][1] = +L[1].toFixed(2); }
+    R.setRecord(rec); R.rebuild({ layer: found.layer, bbox: { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // outlines follow; the ground on release
     ctx.redraw && ctx.redraw();
     return true;
   }
@@ -264,7 +274,7 @@ function mount(host, ctx) {
     if (!drag) return false;
     const found = PG.findById(rec, drag.id);
     if (found) {
-      const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move point of ' + drag.id };
+      const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
       dirty(found.layer, union(bboxOf(drag.before), bboxOf(found.entry)));
     }
@@ -280,7 +290,14 @@ function mount(host, ctx) {
       const h = R.heightAt(g[0], g[2]);
       const sx = (R.heightAt(g[0] + 1, g[2]) - R.heightAt(g[0] - 1, g[2])) / 2, sz = (R.heightAt(g[0], g[2] + 1) - R.heightAt(g[0], g[2] - 1)) / 2;
       const s = PG.SURFACE_NAMES[R.overlay.surfaceAt(g[0], g[2])] || 'base';
-      strip.status('x ' + L[0].toFixed(1) + ' z ' + L[1].toFixed(1) + ' · ' + h.toFixed(2) + ' m (' + (h - F.y0).toFixed(2) + ' over the anchor) · slope ' + (Math.hypot(sx, sz) * 100).toFixed(1) + ' % · ' + s + (R.overlay.excludeAt(g[0], g[2], 'trees') ? ' · no trees' : ''));
+      strip.status('x ' + L[0].toFixed(1) + ' z ' + L[1].toFixed(1) + ' · ' + h.toFixed(2) + ' m (' + (h - F.y0).toFixed(2) + ' over the anchor) · slope ' + (Math.hypot(sx, sz) * 100).toFixed(1) + ' % · ' + s + (R.overlay.excludeAt(g[0], g[2], 'trees') ? ' · no trees' : '') + ' · road ' + R.overlay.roadNear(g[0], g[2]).toFixed(0) + ' m');
+      return;
+    }
+    if (POINT_TOOLS[tool]) {
+      const pool = ctx.pool ? ctx.pool() : [];
+      const e = { id: PG.newId(rec, 'objects'), kind: 'tree', x: +L[0].toFixed(2), z: +L[1].toFixed(2), key: pool.length ? pool[0].key : 'stub|tree', size: 1, yaw: +(Math.random() * 6.28).toFixed(2) };
+      run({ layer: 'objects', id: e.id, before: null, after: e, label: 'tree ' + e.id });
+      select(e.id);
       return;
     }
     addPoint(+L[0].toFixed(2), +L[1].toFixed(2));
@@ -291,7 +308,7 @@ function mount(host, ctx) {
     if (ev.key === 'Escape') { if (T.state === 'drawing') cancelTool(); else if (tool !== 'select') setTool('select'); else select(null); ev.preventDefault(); }
     else if (ev.key === 'Enter') { if (T.state === 'drawing') commitDrawing(); }
     else if (ev.key === 'Backspace' && T.state === 'drawing') { T.pts.pop(); if (!T.pts.length) cancelTool(); else { R.ghost(ghostFeature(), ghostOk()); ctx.redraw && ctx.redraw(); } ev.preventDefault(); }
-    else if (ev.key === 'Delete' && selected) { const f = PG.findById(rec, selected); if (f) { run({ layer: f.layer, id: selected, before: clone(f.entry), after: null, label: 'delete ' + selected }); select(null); } }
+    else if (ev.key === 'Delete' && selected) deleteSelected();
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.shiftKey ? redo() : undo(); ev.preventDefault(); }
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { redo(); ev.preventDefault(); }
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { save(recName); ev.preventDefault(); }
@@ -299,8 +316,10 @@ function mount(host, ctx) {
     else if (ev.key >= '1' && ev.key <= String(SECTIONS.length)) setSection(SECTIONS[+ev.key - 1].k);
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
   }
+  function deleteSelected() { const f = PG.findById(rec, selected); if (f) { run({ layer: f.layer, id: selected, before: clone(f.entry), after: null, label: 'delete ' + selected }); select(null); } }
 
   // ---- the inspector: declared rows for the selected feature ----------------------
+  const SURF_OPTS = PG.SURFACE_NAMES.map((n, i) => [String(i), n.toLowerCase()]);
   const inspector = { refresh() {
     insp.innerHTML = '';
     if (section === 'file') return fileRows();
@@ -311,29 +330,64 @@ function mount(host, ctx) {
       rows.note(insp, rec.name || '(unnamed)');
       rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tool above and click the ground');
       const feats = [];
-      for (const k of ['terrain', 'surface', 'exclude']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k) + ' ' + e.id]);
+      for (const k of ['terrain', 'surface', 'exclude', 'roads', 'zones', 'objects']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id]);
       if (feats.length) rows.select(insp, 'features', feats, () => '', v => select(v));
+      if (section === 'zones') rows.note(insp, 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.');
+      if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a no-trees polygon keeps it out; a tree by hand is one record.');
       return;
     }
     const e = f.entry, id = e.id, layer = f.layer;
     const ed = (mut, label, key) => edit(id, layer, mut, label, key);
-    rows.section(insp, (e.kind || layer).toUpperCase() + ' ' + id);
-    if (e.kind === 'flatten') {
-      rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
-      rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
-    } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
-    else if (e.kind === 'ramp') {
-      rows.slider(insp, 'rise along x (‰)', -150, 150, 1, () => e.plane[0] * 1000, v => ed(x => { x.plane[0] = v / 1000; }, 'plane of ' + id, 'a'), v => v.toFixed(0) + ' ‰');
-      rows.slider(insp, 'rise along z (‰)', -150, 150, 1, () => e.plane[1] * 1000, v => ed(x => { x.plane[1] = v / 1000; }, 'plane of ' + id, 'b'), v => v.toFixed(0) + ' ‰');
-      rows.slider(insp, 'height at origin', -40, 80, 0.1, () => e.plane[2], v => ed(x => { x.plane[2] = v; }, 'plane of ' + id, 'c'), v => v.toFixed(1) + ' m');
-    } else if (e.kind === 'grade') {
-      rows.slider(insp, 'width (m)', 2, 30, 0.5, () => e.width, v => ed(x => { x.width = v; }, 'width of ' + id, 'width'), v => v.toFixed(1) + ' m');
-      e.pts.forEach((p, i) => rows.slider(insp, 'point ' + (i + 1) + ' height', -40, 80, 0.1, () => p[2] || 0, v => ed(x => { x.pts[i][2] = v; }, 'height of ' + id, 'p' + i), v => v.toFixed(1) + ' m'));
-    } else if (layer === 'surface') rows.select(insp, 'surface', PG.SURFACE_NAMES.map((n, i) => [String(i), n.toLowerCase()]), () => String(e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+    rows.section(insp, (e.kind || layer.replace(/s$/, '')).toUpperCase() + ' ' + id);
+    if (layer === 'terrain') {
+      if (e.kind === 'flatten') {
+        rows.slider(insp, 'level (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
+      } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
+      else if (e.kind === 'ramp') {
+        rows.slider(insp, 'rise along x (‰)', -150, 150, 1, () => e.plane[0] * 1000, v => ed(x => { x.plane[0] = v / 1000; }, 'plane of ' + id, 'a'), v => v.toFixed(0) + ' ‰');
+        rows.slider(insp, 'rise along z (‰)', -150, 150, 1, () => e.plane[1] * 1000, v => ed(x => { x.plane[1] = v / 1000; }, 'plane of ' + id, 'b'), v => v.toFixed(0) + ' ‰');
+        rows.slider(insp, 'height at origin', -40, 80, 0.1, () => e.plane[2], v => ed(x => { x.plane[2] = v; }, 'plane of ' + id, 'c'), v => v.toFixed(1) + ' m');
+      } else if (e.kind === 'grade') {
+        rows.slider(insp, 'width (m)', 2, 30, 0.5, () => e.width, v => ed(x => { x.width = v; }, 'width of ' + id, 'width'), v => v.toFixed(1) + ' m');
+        e.pts.forEach((p, i) => rows.slider(insp, 'point ' + (i + 1) + ' height', -40, 80, 0.1, () => p[2] || 0, v => ed(x => { x.pts[i][2] = v; }, 'height of ' + id, 'p' + i), v => v.toFixed(1) + ' m'));
+      }
+      rows.slider(insp, 'falloff (m)', 1, 120, 1, () => e.falloff, v => ed(x => { x.falloff = v; }, 'falloff of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+    } else if (layer === 'surface') rows.select(insp, 'surface', SURF_OPTS, () => String(e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
     else if (layer === 'exclude') rows.check(insp, 'no trees', () => e.what.indexOf('trees') >= 0, v => ed(x => { x.what = v ? ['trees'] : []; }, 'exclude of ' + id));
-    if (layer === 'terrain') rows.slider(insp, 'falloff (m)', 1, 120, 1, () => e.falloff, v => ed(x => { x.falloff = v; }, 'falloff of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
-    rows.note(insp, (e.poly ? e.poly.length + ' corners' : e.pts.length + ' points') + ' — drag a disc to move it, a faint one to add a corner');
-    rows.button(insp, 'delete ' + id, () => { run({ layer, id, before: clone(e), after: null, label: 'delete ' + id }); select(null); });
+    else if (layer === 'roads') {
+      rows.slider(insp, 'width (m)', 2, 12, 0.2, () => e.w, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1) + ' m');
+      rows.select(insp, 'class', [['gravel', 'gravel'], ['paved', 'paved'], ['track', 'track (grass)']], () => e.cls || 'gravel', v => ed(x => { x.cls = v; }, 'class of ' + id));
+      rows.check(insp, 'graded (flat across)', () => e.graded !== false, v => ed(x => { x.graded = v; }, 'grading of ' + id));
+      rows.slider(insp, 'shoulder (m)', 1, 30, 1, () => e.falloff || 6, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      const np = (R.plots ? R.plots() : []).filter(p => p.road === id).length;
+      rows.note(insp, e.pts.length + ' points · ' + np + ' plot' + (np === 1 ? '' : 's') + ' front on it');
+    } else if (layer === 'zones') {
+      if (e.kind === 'forest') {
+        rows.slider(insp, 'density', 0.1, 3, 0.05, () => e.density === undefined ? 1 : e.density, v => ed(x => { x.density = v; }, 'density of ' + id, 'density'), v => v.toFixed(2) + ' (' + (6 / Math.sqrt(v)).toFixed(1) + ' m)');
+        const pool = ctx.pool ? ctx.pool() : [];
+        if (pool.length) rows.select(insp, 'species', [['', 'the whole pool']].concat(pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)])), () => (e.palette && e.palette[0]) || '', v => ed(x => { x.palette = v ? [v] : null; }, 'species of ' + id));
+        rows.check(insp, 'clearings', () => !(e.rules && e.rules.clearings === false), v => ed(x => { x.rules = Object.assign({}, x.rules, { clearings: v }); }, 'clearings of ' + id));
+      } else if (e.kind !== 'clear') {
+        rows.select(insp, 'kind', PG.ZONE_KINDS.filter(k => k !== 'forest' && k !== 'clear').map(k => [k, k]), () => e.kind, v => ed(x => { x.kind = v; }, 'kind of ' + id));
+        rows.slider(insp, 'density', 0, 1, 0.05, () => e.density === undefined ? 1 : e.density, v => ed(x => { x.density = v; }, 'density of ' + id, 'density'), v => v.toFixed(2));
+        const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
+        rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
+        rows.slider(insp, 'plot max (m)', 16, 60, 1, () => RU.plotMax, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMax: v }); }, 'plots of ' + id, 'plotMax'), v => v.toFixed(0) + ' m');
+        rows.slider(insp, 'plot depth (m)', 16, 60, 1, () => RU.plotDepth, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotDepth: v }); }, 'plots of ' + id, 'plotDepth'), v => v.toFixed(0) + ' m');
+        const np = (R.plots ? R.plots() : []).filter(p => p.zone === id).length;
+        rows.note(insp, np + ' plot' + (np === 1 ? '' : 's') + ' sown' + (np ? '' : ' — trace a road through the zone'));
+      } else rows.note(insp, 'no tree grows here');
+      rows.slider(insp, 'seed', 1, 99, 1, () => (e.seed === null || e.seed === undefined) ? 0 : e.seed, v => ed(x => { x.seed = v; }, 'seed of ' + id, 'seed'), v => (v ? String(v) : 'auto'));
+      rows.button(insp, 're-sow (new seed)', () => ed(x => { x.seed = 1 + Math.floor(Math.random() * 98); }, 're-sow ' + id));
+    } else if (layer === 'objects' && e.kind === 'tree') {
+      const pool = ctx.pool ? ctx.pool() : [];
+      if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
+      rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
+      rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
+    }
+    if (e.poly || e.pts) rows.note(insp, (e.poly ? e.poly.length + ' corners' : e.pts.length + ' points') + ' — drag a disc to move it, a faint one to add a corner');
+    rows.button(insp, 'delete ' + id, deleteSelected);
   } };
   function fileRows() {
     rows.section(insp, 'FILE');
@@ -354,6 +408,7 @@ function mount(host, ctx) {
       for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith('flydiy.premises.slot.')) slots.push(k.slice(21)); }
       if (slots.length) rows.select(insp, 'load slot', slots.map(s => [s, s]), () => '', v => { try { load(storage.getItem('flydiy.premises.slot.' + v)); } catch (e) { strip.status(e.message); } });
     }
+    rows.slider(insp, 'premises seed', 1, 99, 1, () => rec.seed, v => { rec.seed = v; dirty('zones'); }, v => String(v));
     rows.note(insp, 'autosaved to ' + LS_WIP + ' a second after every edit; a load replaces');
   }
   function viewRows() {
@@ -366,7 +421,7 @@ function mount(host, ctx) {
       rows.slider(insp, 'sun azimuth', -180, 180, 1, () => ctx.rig.get().azim, v => ctx.rig.set({ azim: v }), v => v.toFixed(0) + '°');
       rows.slider(insp, 'exposure', 0.3, 2.5, 0.02, () => ctx.rig.get().exposure, v => ctx.rig.set({ exposure: v }));
     }
-    rows.note(insp, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-3 pick a section');
+    rows.note(insp, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
   }
 
   // ---- save / load -----------------------------------------------------------------
@@ -393,24 +448,24 @@ function mount(host, ctx) {
   view.addEventListener('dblclick', ev => { if (ev.button === 0) onDblClick(ev); });
   addEventListener('keydown', onKey);
 
-  if (!ctx.fresh && loadWip()) { /* the working record from last time */ }
+  if (!ctx.fresh) loadWip();
   buildRail(); buildStrip();
   R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
 
   const handle = {
-    record: () => rec, load, save, undo, redo, checks, select, setTool, setSection,
+    record: () => rec, load, save, undo, redo, checks, select, setTool, setSection, plaque,
     get tool() { return tool; }, get section() { return section; }, get selected() { return selected; },
     cmd: (name, args) => {
-      // scripted authoring: add a feature straight from a record fragment
       if (name === 'add') { const e = Object.assign({ id: PG.newId(rec, args.layer) }, args.entry); run({ layer: args.layer, id: e.id, before: null, after: e, label: 'add ' + e.id }); return e.id; }
       if (name === 'set') { edit(args.id, PG.findById(rec, args.id).layer, x => Object.assign(x, args.patch), 'set ' + args.id); return true; }
       if (name === 'delete') { const f = PG.findById(rec, args.id); if (f) run({ layer: f.layer, id: args.id, before: clone(f.entry), after: null, label: 'delete ' + args.id }); return !!f; }
       if (name === 'point') { addPoint(args.x, args.z); return T.pts.length; }
       if (name === 'commit') { commitDrawing(); return selected; }
       if (name === 'tool') { setTool(args.name); return tool; }
+      if (name === 'section') { setSection(args.name); return section; }
       throw new Error('premises: unknown cmd ' + name);
     },
-    plaque, dirty: () => dirty(null),
+    dirty: () => dirty(null),
     close() { R.dispose(); host.innerHTML = ''; },
   };
   return handle;
