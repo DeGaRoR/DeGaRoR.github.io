@@ -43645,3 +43645,34 @@ big entry whose preset says shed, found in `ctx.catalogue.keys()` at the
 click. The rule did its job on the first commit that broke it.
 
 - Gates: PREMISES green (94 checks, selftest); proven from a clean worktree.
+
+## G362 — THE KEEL CREASE IS OFF BY DEFAULT (2026-09-13, the user: "are you
+## really, really sure that nothing recent squares off the bottom of the
+## cabins? … the bottom corners of my planes were smooth. That's a really
+## important regression" / "a slider … at zero (disabled) by default")
+
+- The user was right and the floor was not it (floorOn 0: the belly stayed
+  flat). It was **G319** (2026-09-12 23:32): `crKeel`, the keel-rail crease
+  that flattens the belly between the lower longerons so a Cub's crossed
+  shock struts clear the round — landed with DEFAULT 2, and a saved spec
+  without the key took the default, so every aeroplane in the user's
+  hangar was squared overnight. Proven two ways: the fuselage mesh's
+  section at z 1.4 on the user's build — flat at y −0.686 over the full
+  1.08 m width today; with crKeel 0 the same section is byte-identical to a
+  worktree at G264 (30 h earlier): −0.588 / −0.637 / −0.667 / −0.681 /
+  −0.686 from the corner to the keel (z −0.2 and z 2.0 likewise); and
+  screenshots from the free camera under the flank, scratchpad
+  fly_crKeel2_c (a hard crease line the length of the belly) vs
+  fly_crKeel0_c (the round flank).
+- `crKeel` defaults to **0** (CAGE_PARAMS, cageSpec's absent-key fallback,
+  the bench's CAGE_DEFAULT.crease.keel). The slider stays ("keel crease",
+  longerons) for a build that wants a flat belly. GATE CLIP's stock builds
+  pass `crKeel: 2` explicitly, so its baseline (the flat-bellied Cub G319
+  measured its struts against) is unchanged.
+- GATE SHOULDER's throttle rows (`up 0.55`) were tuned on the flat flank
+  too (the lever's wall x is sampled off the skin; the slot clipped at the
+  leg's edge with the round flank), so its BASE carries `crKeel: 2` as well.
+- OWED (the fitment session): the shock struts 35 mm into a ROUND belly is
+  the strut's problem — a fitting follows the skin it is bolted to; the
+  skin is not changed to suit a fitting (the user's rule for the floor,
+  the same rule here).

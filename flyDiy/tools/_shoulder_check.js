@@ -13,7 +13,10 @@ const G = require('./_cage_gen.js');
 const SG = require('./_shoulder_gen.js');
 const VERB = process.argv.includes('--verbose');
 
-const BASE = { intOn: 1, cutParts: 1 };
+// G362: the rows below were tuned on G319's flat-bellied stock fuselage (the
+// lever's wall x is sampled off the flank); the default crease went back to 0,
+// so this gate keeps the geometry it was written on explicitly
+const BASE = { intOn: 1, cutParts: 1, crKeel: 2 };
 const CONFIGS = SG.CONFIGS;
 const stockLever = (built, side) => SG.stockLever(built, side, G);
 

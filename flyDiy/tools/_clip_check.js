@@ -334,13 +334,17 @@ const boxTouch = (a, b, m) => a[0] <= b[3] + m && b[0] <= a[3] + m && a[1] <= b[
 // ---- the builds ------------------------------------------------------------
 const FIX = f => SH.loadFixture(path.join(__dirname, 'fixtures', f)).spec;
 const IFR = { fuel: { litres: 90, tank: 'wing' }, systems: { fit: 'ifr' } };
+// G362: the stock builds keep G319's keel crease EXPLICITLY — the default
+// went back to 0 (it had squared every saved aeroplane) and this gate's Cub
+// is the flat-bellied one whose shock struts were measured against it
+const KEEL = { crKeel: 2 };
 const BUILDS = [
-  { name: 'stock' },
-  { name: 'rod', over: { boomStyle: 1 } },
+  { name: 'stock', over: { ...KEEL } },
+  { name: 'rod', over: { boomStyle: 1, ...KEEL } },
   { name: 'twin', spec: FIX('build_v8_twin-boom_2026-09-11.json') },
-  { name: 'stock+ifr', garage: IFR },
+  { name: 'stock+ifr', garage: IFR, over: { ...KEEL } },
   // G3xx: the door inner panel on — the wall controls must stand off it
-  { name: 'stock+panel', over: { doorPanelOn: 1 } },
+  { name: 'stock+panel', over: { doorPanelOn: 1, ...KEEL } },
 ];
 
 function fmt(f) {

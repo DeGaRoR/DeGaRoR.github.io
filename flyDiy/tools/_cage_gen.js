@@ -119,7 +119,7 @@ const CAGE_DEFAULT = {
   // tight ring PAIR holds them, the template's own mechanism), the rails
   // carry INTEGER weights, and window frames never touch the rails.
   crease: { pillar: 0, sill: 2, band: 1, ceil: 1, frame: 2, cap: 2,
-            frontCap: 0.3, keel: 2 },
+            frontCap: 0.3, keel: 0 },      // G362: the keel crease is a choice, off by default
 
   // nose: designed per level; twin = pillarFront's aft ring. yC/zC are the
   // centre-column variants where the ring is not planar.
@@ -6524,7 +6524,7 @@ const CAGE_PARAMS = {
   // sharp-then-smooth funnel), and the ceil rail crease is retired.
   crPillar: 3, crSill: 2, crBand: 1, crCeil: 0, crFrame: 3, crCap: 2,
   crFrontCap: 0.3, crNoseCap: 2,
-  crKeel: 2,        // G319: the belly is flat between the lower longerons
+  crKeel: 0,        // G319: the keel crease (flat belly between the lower longerons); G362: OFF by default — it squared every saved aeroplane
   botRound: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
@@ -6950,7 +6950,7 @@ function cageSpec(P) {
               sillPax: Math.max(0, P.winSillPax || 0) };
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
-               keel: P.crKeel == null ? 2 : +P.crKeel,
+               keel: P.crKeel == null ? 0 : +P.crKeel,     // G362: absent = round, as every build before G319
                frontCap: P.crFrontCap, noseCap: P.crNoseCap,
                sillNose: P.crSillNose };
   // THE MOUNT DECIDES THE ENDS (2026-09-04): a pusher (engMount 1) opens the
