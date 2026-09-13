@@ -34,6 +34,13 @@
 //                     strip, a DERIVED tree exclude (+30 m), and publishes an
 //                     AERODROME record in W.aerodromes' shape so siteRunway,
 //                     sitePattern, the paint and the pilot read it untouched
+//   the sites (v3)    placeSite - THEMES / placeSite's item body generalised
+//                     to a CATALOGUE KEY: an item stands in its site's frame
+//                     on the composed ground (the standing rules verbatim:
+//                     the high corner + a hand, the mill's own, a shed astride
+//                     the road on its slab), its foot + 3 m keeps the wood
+//                     and the plots out; the LINKS: conveyor = the mill's
+//                     tramTo (placeSite verbatim), solved before the build
 //   the frame         'free' (x, z, yaw); 'road' arrives with the sites
 //   issues / checks   what the #chk panel shows and the gate holds
 //   bake              the extent rastered to int16, and the sampler the
@@ -469,6 +476,95 @@ function runwayAerodrome(r, F, elev) {
 }
 
 // ---------------------------------------------------------------------------
+// THE SITES — placeSite's item body, on a catalogue entry
+// ---------------------------------------------------------------------------
+// a site's frame: `at` in the premises frame, x along, z "inland"; an item's
+// yaw 0 faces -z of the site (the road side, THEMES' convention), so its
+// world yaw is at.yaw + pi + item.yaw (placeSite: atan2(-up) + it.yaw)
+function siteFrame(site) {
+  const a = site.at || { x: 0, z: 0, yaw: 0 };
+  const c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0);
+  return { at: a, toLocal: (lx, lz) => [a.x + lx * c + lz * sn, a.z - lx * sn + lz * c] };
+}
+function placeSite(site, cat, ctx) {
+  // ctx = { T(lx, lz) the composed ground in the premises frame, waterY, seed }
+  const SF = siteFrame(site);
+  const out = [], keepOut = [], issues = [];
+  (site.items || []).forEach((it, k) => {
+    const key = cat.aliases[it.key] || it.key;
+    const entry = cat.entries.get(key);
+    if (!entry) { issues.push('site ' + site.id + ': no catalogue entry for ' + it.key); return; }
+    const c = SF.toLocal(it.x || 0, it.z || 0);
+    const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+    const oy = ctx.T(c[0], c[1]);
+    const ground = (lx, lz) => { const w = toWorld(lx, lz); return ctx.T(w[0], w[1]) - oy; };
+    const P = entry.params ? entry.params(it.P || {}) : Object.assign({}, entry.P || {}, it.P || {});
+    P.preset = entry.preset; P.slopeX = 0; P.slopeZ = 0; P.ground = ground; P.waterY = ctx.waterY - oy;
+    if (entry.gen === 'BIG_GEN') P.big = 1;
+    if (entry.gen === 'HOUSE_GEN') { P.water = 0; P.pier = 0; }
+    const size = entry.size ? entry.size(P) : { L: P.L || 8, w: P.w || 6 };
+    // STANDING (placeSite verbatim): the mill on its lowest tier's front corners + 0.6; a shed
+    // astride the road on its slab a hand over the ground, no plinth; a big building on its plinth
+    // over the high corner; a house on the high corner by its stance
+    if (P.mill) {
+      P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+      if (it.bottomOnRoad) { P.bottomGap = (it.z || 0) - P.tierW / 2 - (P.bottomW || 9) / 2; P.bottomL = 16; }
+    } else {
+      let hiC = -1e9;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * size.L / 2, sz * size.w / 2));
+      if (entry.gen === 'BIG_GEN') { P.floorY = hiC + (it.onRoad ? 0.06 : Math.max(0.3, P.floorY || 0)); if (it.onRoad) P.plinth = 0; }
+      else P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
+    }
+    P.site = site.name || site.id;
+    const rec = { id: site.id + '/' + (it.id || ('i' + k)), item: it.id || ('i' + k), site: site.id, key, entry, gen: entry.gen, P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground,
+                  seed: hash32(seedOf(ctx.seed, 'site', site.id), fnv(String(it.id || k))), size };
+    out.push(rec);
+    // the keep-out: the foot and a margin, in the premises frame
+    const foot = entry.foot ? entry.foot(P) : [[-size.L / 2, -size.w / 2], [size.L / 2, -size.w / 2], [size.L / 2, size.w / 2], [-size.L / 2, size.w / 2]];
+    const m = entry.keepOut === undefined ? 3 : +entry.keepOut;
+    const fb = polyBBox(foot);
+    keepOut.push([[fb.x0 - m, fb.z0 - m], [fb.x1 + m, fb.z0 - m], [fb.x1 + m, fb.z1 + m], [fb.x0 - m, fb.z1 + m]].map(q => toWorld(q[0], q[1])));
+    rec.foot = foot.map(q => toWorld(q[0], q[1]));
+  });
+  return { items: out, keepOut, issues };
+}
+
+// THE LINKS: a solver per kind; 'placed' ones patch P before the build
+const LINK_SOLVERS = {
+  // the mill's aerial tramway to the receiving shed (placeSite :724-730 verbatim):
+  // the target in the mill's own frame, at the shed's eave
+  conveyor: { needs: 'placed', band: { maxDx: 120, dyMin: -40, dyMax: 60 },
+    solve(link, A, B) {
+      const c = Math.cos(A.yaw), sn = Math.sin(A.yaw);
+      const dx = B.x - A.x, dz = B.z - A.z;
+      const ty = B.y + (B.P.floorY || 0) + (B.P.eaveH || 5) - A.y;
+      const to = [dx * c - dz * sn, ty, dx * sn + dz * c];
+      const issues = [];
+      if (Math.abs(to[0]) > this.band.maxDx) issues.push('conveyor ' + link.id + ': ' + Math.abs(to[0]).toFixed(0) + ' m along is over ' + this.band.maxDx);
+      if (ty < this.band.dyMin || ty > this.band.dyMax) issues.push('conveyor ' + link.id + ': a rise of ' + ty.toFixed(0) + ' m is outside ' + this.band.dyMin + '..' + this.band.dyMax);
+      return { ok: !issues.length, geom: { from: [A.x, A.y + (A.P.floorY || 0) + 6, A.z], to: [B.x, B.y + (B.P.floorY || 0) + (B.P.eaveH || 5), B.z] }, patch: { [A.id]: { tramTo: to } }, issues };
+    } },
+};
+function solveLinks(rec, items, phase) {
+  const byId = {}; for (const it of items) byId[it.site + '/' + it.item] = it;
+  const out = [];
+  for (const L of rec.layers.links || []) {
+    const S = LINK_SOLVERS[L.kind];
+    if (!S) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': unknown kind ' + L.kind] }); continue; }
+    if (S.needs !== phase) continue;
+    const A = byId[(L.from.site || '') + '/' + L.from.item] || items.find(i => i.item === L.from.item);
+    const B = byId[(L.to.site || '') + '/' + L.to.item] || items.find(i => i.item === L.to.item);
+    if (!A || !B) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': an end is missing'] }); continue; }
+    const sol = S.solve(L, A, B, {});
+    for (const id in sol.patch || {}) { const it = items.find(i => i.id === id); if (it) Object.assign(it.P, sol.patch[id]); }
+    out.push(Object.assign({ link: L, A, B }, sol));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
@@ -559,13 +655,23 @@ function compose(rec0, world, opts) {
     },
     roadNear(x, z) { const L = F.toLocal(x, z); let d = Infinity; for (const r of roadObjs) d = Math.min(d, roadDist(r, L[0], L[1])); return d; },
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
-    records: { plots: [], trees: [], excludes: excl.map(e => e.poly) },
+    records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.map(e => e.poly) },
   };
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
     const waterY = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity;
     const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
+    // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
+    const cat = o.catalogue || collect(o.globals || (typeof window !== 'undefined' ? window : {}));
+    for (const st of rec.layers.sites) {
+      const S = placeSite(st, cat, ctx);
+      for (const it of S.items) O.records.items.push(it);
+      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+      for (const i of S.issues) O.records.issues.push(i);
+    }
+    O.records.links = solveLinks(rec, O.records.items, 'placed');
+    for (const L of O.records.links) for (const i of L.issues || []) O.records.issues.push(i);
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
@@ -612,6 +718,8 @@ function issues(rec0) {
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species');
+  for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
+  for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
   return out;
@@ -721,6 +829,12 @@ function checks(rec0, world, opts) {
   }
   const Tn = O.records.trees;
   if (Tn.length) put(!Tn.some(t => !t.placed && (O.records.excludes.some(e => inPoly(e, t.x, t.z)) || P.some(p => inPoly(p.poly, t.x, t.z)))), Tn.length + ' trees: none in an exclude or a plot');
+  // the sites (rules 3 and 9): every item resolved, every link solved
+  if (O.records.items.length || rec.layers.sites.length) {
+    const want = rec.layers.sites.reduce((a, st) => a + (st.items || []).length, 0);
+    put(O.records.items.length === want, O.records.items.length + ' of ' + want + ' site items resolved from the catalogue' + (O.records.issues.length ? ' - ' + O.records.issues[0] : ''));
+  }
+  if (O.records.links.length) put(O.records.links.every(L => L.ok), O.records.links.every(L => L.ok) ? O.records.links.length + ' link' + (O.records.links.length > 1 ? 's' : '') + ' solved' : O.records.links.find(L => !L.ok).issues[0]);
   // the runways (rule 10): the centreline on its profile to 5 cm; the pattern sound
   for (let i = 0; i < O.runways.length; i++) {
     const r = O.runways[i], A = O.aerodromes[i], E = runwayEnds(r);
@@ -763,20 +877,23 @@ function collect(globals) {
       for (const name in G.PRESETS) {
         const key = ns + '/' + name;
         if (entries.has(key)) continue;
-        entries.set(key, { key, kind: 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true,
-          foot: P => { const L = (P.L || 8) / 2, w = (P.w || 6) / 2; return [[-L, -w], [L, -w], [L, w], [-L, w]]; },
+        const isMill = !!(G.PRESETS[name] && G.PRESETS[name].mill);
+        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true,
+          params: ov => Object.assign({}, G.DEF, G.PRESETS[name] || {}, ov || {}),
+          // the mill's foot is its tiers' footprint (placeSite :718-720); a house's its L x w
+          foot: P => { if (P.mill) { const L = P.tierL0 + 24, w = P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW, zc = -(w / 2 - P.tierW / 2); return [[-L / 2, zc - w / 2], [L / 2, zc - w / 2], [L / 2, zc + w / 2], [-L / 2, zc + w / 2]]; } const L = (P.L || 8) / 2, w = (P.w || 6) / 2; return [[-L, -w], [L, -w], [L, w], [-L, w]]; },
           keepOut: 3, ground: { need: 'none' }, size: P => ({ L: P.L || 8, w: P.w || 6 }),
           hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: [ns], headless: true });
       }
     }
   }
-  return { entries, aliases, issues: issuesOut, byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
+  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
 }
 
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

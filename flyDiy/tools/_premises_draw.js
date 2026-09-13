@@ -35,7 +35,7 @@ const TREE_BANDS = [0, 60, 132];
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
-  let O = PG.compose(rec, world, { pool: o.pool() });
+  let O = PG.compose(rec, world, { pool: o.pool(), globals: window });
   const root = new THREE.Group(); root.name = 'premises';
   const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'trees', 'runways', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   scene.add(root);
@@ -194,6 +194,22 @@ function make(THREE, scene, world, rec0, opts) {
       G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e });
       if (e.id === selectedId) { const l2 = lineFor(layer, e, 0xffffff, true); l2.material.opacity = 0.9; l2.position.y = 0.06; G.outlines.add(l2); LINES.set(e.id + ':sel', { line: l2, layer, entry: e }); }
     }
+    // the site items' feet (cyan) and the links (a line from hook to hook)
+    for (const it of O.records.items) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(it.foot.map(q => O.frame.toWorld(q[0], q[1])), true, LIFT * 0.8), 3));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
+      line.renderOrder = 8; line.name = 'item:' + it.id;
+      G.plots.add(line);
+    }
+    for (const L of O.records.links) if (L.geom && L.geom.from) {
+      const a = O.frame.toWorld(L.geom.from[0], L.geom.from[2]), b = O.frame.toWorld(L.geom.to[0], L.geom.to[2]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([a[0], L.geom.from[1], a[1], b[0], L.geom.to[1], b[1]]), 3));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: L.ok ? 0xffd060 : 0xff5a5a, transparent: true, opacity: 0.9, depthTest: false }));
+      line.renderOrder = 8; line.name = 'link:' + L.link.id;
+      G.plots.add(line);
+    }
     // the plots: thin, dim, not hittable
     for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
     for (const p of O.records.plots) {
@@ -267,6 +283,13 @@ function make(THREE, scene, world, rec0, opts) {
     if (!selectedId) return;
     const f = PG.findById(rec, selectedId);
     if (!f) return;
+    if (f.layer === 'sites') {
+      const F = O.frame, SF = PG.siteFrame(f.entry);
+      const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
+      put([SF.at.x, SF.at.z], 'at');
+      for (const it of f.entry.items || []) put(SF.toLocal(it.x || 0, it.z || 0), 'i:' + it.id, true);
+      return;
+    }
     if (f.layer === 'runways') {
       const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, f.entry)), F = O.frame;
       const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
@@ -415,9 +438,22 @@ function make(THREE, scene, world, rec0, opts) {
     const grp = placeBuilt(G.houses, house, built, F, HG);
     return { grp, tris: built.stats.tris, house, built };
   }
+  function buildItem(it) {
+    const GEN = window[it.gen];
+    if (!GEN) return null;
+    const F = GEN.makeFinish();
+    GEN.applyFinish(it.P, F);
+    const built = GEN.build(it.P, 0, F);
+    built.BAGS = GEN.BAGS;
+    const grp = placeBuilt(G.houses, it, built, F, GEN);
+    if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
+    return { grp, tris: built.stats.tris, house: it, built };
+  }
+  const itemSeed = it => PG.hash32(it.seed, PG.fnv(JSON.stringify([it.x, it.z, it.yaw, it.key, it.P.tramTo || null, it.P.floorY])));
   function syncHouses() {
     const want = new Map();
     for (const p of O.records.plots) if (p.kind !== 'park' && p.kind !== 'airfield') want.set(p.id, p);
+    for (const it of O.records.items) want.set(it.id, Object.assign({ seed: itemSeed(it), isItem: true, rec: it }, { id: it.id }));
     for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) { G.houses.remove(h.grp); h.grp.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); HOUSES.delete(id); } }
     queue.length = 0;
     for (const [id, p] of want) if (!HOUSES.has(id)) queue.push(p);
@@ -427,7 +463,7 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house }); }
+      try { const h = p.isItem ? buildItem(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }
@@ -487,7 +523,7 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- rebuild ---------------------------------------------------------------------------------
   function rebuild(dirty) {
     const t0 = performance.now();
-    O = PG.compose(rec, world, { pool: o.pool() });
+    O = PG.compose(rec, world, { pool: o.pool(), globals: window });
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     if (!dirty || !dirty.bbox) {
@@ -526,6 +562,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
     }
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
+    for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
@@ -560,7 +597,7 @@ function make(THREE, scene, world, rec0, opts) {
     select: id => { selectedId = id || null; buildOutlines(); buildHandles(); },
     get selected() { return selectedId; },
     overlayOn: on => { uOvOn.value = on ? 1 : 0; },
-    groundMat, plots: () => O.records.plots, houses: HOUSES, aerodromes: () => O.aerodromes,
+    groundMat, plots: () => O.records.plots, houses: HOUSES, aerodromes: () => O.aerodromes, items: () => O.records.items, links: () => O.records.links,
   };
   return R;
 }

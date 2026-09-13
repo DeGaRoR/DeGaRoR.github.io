@@ -297,7 +297,7 @@ const ED = PU.mount($('host'), {
   THREE, world: WORLD, R, camera, ground, ray, cameras, rows,
   els: { chk: $('chk'), plaque: $('plaque'), strip: $('strip') },
   viewEl, storage: (() => { try { return localStorage; } catch (e) { return null; } })(),
-  rig, redraw: draw, frameText, pool: treePool, site: SITE, fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
+  rig, redraw: draw, frameText, pool: treePool, site: SITE, catalogue: window.PREMISES_GEN.collect(window), fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
 });
 // the view sits between the rail and the inspector the module built
 $('host').insertBefore(viewEl, $('host').querySelector('.pr-insp'));

@@ -4,8 +4,9 @@
 STATUS: **design; the bench v0 (G356: the ground, the record, a flatten) and v1 (roads traced and graded,
 zones sown with the house generator on every plot, forest / clear zones, hand trees) and v2 (a strip placed by
 two clicks on the flight world, graded to its slope, painted by the game's recipe, the pattern derived and
-validated live) LANDED 2026-09-13** (`tools/_premises.html`, port 8401, GATE PREMISES, three goldens). v3
-(sites + links from the catalogue) is next. Companion
+validated live) and v3 (a site from the catalogue - the Kennecott theme by one click, placeSite's rules, the
+conveyor link solved, every derived entry built headless) LANDED 2026-09-13** (`tools/_premises.html`, port
+8401, GATE PREMISES, three goldens). Next: the cable link once the house session lands, the game host. Companion
 to `PREMISES-CONTRACT-2026-09-13.md` (the record and the asset contract, frozen v1). Appendix A is
 THE SPLIT — how the parallel sessions divide the work, land, unify and port; every session reads it.
 

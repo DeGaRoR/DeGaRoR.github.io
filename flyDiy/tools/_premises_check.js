@@ -11,8 +11,14 @@
 //   1  ROUND TRIP: the envelope unwraps to the record it wrapped, nulls and
 //      all; a bare record is accepted; a foreign document is refused.
 //   2  MIGRATION: every fixture walks to PREMISES_V and normalises.
-//   3  (the catalogue — arrives with the sites; v0 holds only that collect()
-//      answers, deriving an entry per preset when a generator has no CATALOGUE)
+//   3  CATALOGUE (v3): collect() answers, deriving an entry per preset when a
+//      generator has no CATALOGUE; under the vm THREE stub every derived
+//      entry of the house and big generators BUILDS at lod 0 on flat ground
+//      with no NaN, and its foot is a convex quad; a key collision is reported.
+//      SITES: every item of a site resolves and stands (its floor over its
+//      corners), its foot keeps the plots and the wood out; the conveyor
+//      link lands (the mill's tramTo is the shed's eave in the mill's frame,
+//      to 1 cm); the same seed stands the same site.
 //   4  DETERMINISM: the fixture composes twice to the same heights; with its
 //      DISJOINT modifiers permuted, the same heights.
 //   5  IDENTITY: an empty record changes nothing; the fixture stood far from
@@ -59,6 +65,35 @@ const SINK = process.argv.indexOf('--sink');
 if (SINK >= 0) { sink(+process.argv[SINK + 1] || 8402); return; }
 
 const PG = require(path.join(TOOLS, '_premises_gen.js'));
+const vm = require('vm');
+function makeTHREE() {
+  function Col(c) { this.hex = c; }
+  Col.prototype.setHex = function (h) { this.hex = h; };
+  Col.prototype.multiplyScalar = function (k) {
+    const c = this.hex, f = v => Math.round(v * k);
+    this.hex = (f((c >> 16) & 255) << 16) | (f((c >> 8) & 255) << 8) | f(c & 255);
+    return this;
+  };
+  function Mat(o) { Object.assign(this, { isMat: 1 }, o || {}); this.color = new Col((o && o.color) || 0); }
+  class BufferAttribute { constructor(a, n) { this.array = a; this.itemSize = n; } }
+  class BufferGeometry { constructor() { this.attributes = {}; this.index = null; } setAttribute(k, a) { this.attributes[k] = a; } setIndex(i) { this.index = i; } computeVertexNormals() {} }
+  class Mesh { constructor(g, m) { this.geometry = g; this.material = m; } }
+  class Vec2 { constructor(x, y) { this.x = x; this.y = y; } set(x, y) { this.x = x; this.y = y; } }
+  class Texture { constructor(img) { this.image = img; this.repeat = new Vec2(1, 1); } }
+  return { BufferAttribute, BufferGeometry, Mesh, Texture, Vector2: Vec2, Color: Col,
+           MeshLambertMaterial: Mat, MeshStandardMaterial: Mat, MeshBasicMaterial: Mat,
+           DoubleSide: 2, FrontSide: 0, RepeatWrapping: 1000, SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear' };
+}
+// the generators, headless: the catalogue's entries come from them
+const GENS = {};
+try {
+  const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js'])
+    vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
+} catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
+const CAT = PG.collect(GENS);
 
 const fail = [];
 let checks = 0;
@@ -95,14 +130,14 @@ for (const fx of fixtures) {
   check(PG.issues(rec).length === 0, '2 ' + fx + ' has no issues', PG.issues(rec)[0]);
 
   // 4 determinism
-  const O1 = PG.compose(rec, synth), O2 = PG.compose(rec, synth);
+  const O1 = PG.compose(rec, synth, { catalogue: CAT }), O2 = PG.compose(rec, synth, { catalogue: CAT });
   let same = true;
   sampleIn(O1.extent, 2000, (x, z) => { if (O1.terrainAt(x, z) !== O2.terrainAt(x, z)) same = false; });
   check(same, '4 ' + fx + ' composes the same twice');
   {
     const perm = JSON.parse(JSON.stringify(rec));
     perm.layers.terrain.reverse();
-    const O3 = PG.compose(perm, synth);
+    const O3 = PG.compose(perm, synth, { catalogue: CAT });
     // the fixture's modifiers are disjoint (their feathered bboxes do not touch), so order cannot matter
     let disjoint = true;
     const M = rec.layers.terrain.map(m => PG.makeModifier(m, 0).bbox);
@@ -296,8 +331,48 @@ for (const fx of fixtures) {
   check(lines.every(l => l.ok), '12 the #chk lines are green on ' + fx, lines.filter(l => !l.ok).map(l => l.label).join('; '));
 }
 
-// 3 the catalogue collects, deriving where a generator has none
+// 3 the catalogue: every derived entry builds headless; a site stands; the conveyor lands
 {
+  if (CAT.entries.size) {
+    check(CAT.issues.length === 0, '3 the catalogue has no key collision', CAT.issues[0]);
+    let built = 0, bad = null;
+    for (const [key, e] of CAT.entries) {
+      if (!GENS[e.gen] || !e.params) continue;
+      const P = e.params({}); P.ground = () => 0; P.waterY = -5; P.slopeX = 0; P.slopeZ = 0;
+      if (P.mill) P.floorY = 0.6; else P.floorY = Math.max(0.3, P.floorY || 0.3);
+      if (e.gen === 'BIG_GEN') P.big = 1;
+      try {
+        const b = GENS[e.gen].build(P, 0);
+        if (!b || !b.stats || !(b.stats.tris > 0)) throw new Error('no stats');
+        for (const k in b.bags) { const a = b.bags[k].pos || (b.bags[k].tris !== undefined ? null : null); if (a && a.some && a.some(v => !isFinite(v))) throw new Error('NaN in ' + k); }
+        const foot = e.foot(P);
+        if (!(foot.length === 4 && PG.polySimple(foot))) throw new Error('foot is not a simple quad');
+        built++;
+      } catch (err) { bad = key + ': ' + err.message; break; }
+    }
+    check(!bad, '3 every derived catalogue entry builds headless with a simple foot (' + built + ' built)', bad);
+    const site = { id: 's1', name: 'the mine', at: { x: 0, z: 0, yaw: 0.2 }, yard: null,
+      items: [{ id: 'mill', key: 'house/kennecott mill', x: -4, z: 24, yaw: 0, bottomOnRoad: true }, { id: 'rcv', key: 'big/tram shed', x: 0, z: 0, yaw: 0, onRoad: true }, { id: 'shop', key: 'big/mine shop', x: -34, z: 12, yaw: 0 }, { id: 'cot', key: 'house/mine cottage', x: -22, z: 5, yaw: 0.2 }] };
+    const rec = PG.normalise({ seed: 4, layers: { sites: [site], links: [{ id: 'l1', kind: 'conveyor', from: { site: 's1', item: 'mill', hook: 'head' }, to: { site: 's1', item: 'rcv', hook: 'roof' } }],
+      zones: [{ id: 'z1', kind: 'forest', poly: [[-120, -80], [120, -80], [120, 140], [-120, 140]], density: 1 }] } });
+    const O = PG.compose(rec, synth, { catalogue: CAT, pool: [{ key: 'a|A', size: 1, sink: 0, proportion: 1, h: 14 }] });
+    check(O.records.items.length === 4 && !O.records.issues.length, '3 every item of the site resolves from the catalogue', O.records.issues[0]);
+    for (const it of O.records.items) {
+      let hi = -1e9; for (const sx of [-1, 1]) for (const sz of [-1, 1]) hi = Math.max(hi, it.ground(sx * it.size.L / 2, sz * it.size.w / 2));
+      check(it.P.mill ? it.P.floorY > 0 : it.P.floorY >= hi + 0.05, '3 item ' + it.item + ' stands over its corners', (it.P.floorY - hi).toFixed(2));
+    }
+    const L = O.records.links[0];
+    check(L && L.ok, '9 the conveyor link is solved', L && L.issues[0]);
+    if (L && L.ok) {
+      const mill = O.records.items.find(i => i.item === 'mill'), rcv = O.records.items.find(i => i.item === 'rcv');
+      const w = mill.toWorld(mill.P.tramTo[0], mill.P.tramTo[2]);
+      check(Math.hypot(w[0] - rcv.x, w[1] - rcv.z) < 0.01 && Math.abs(mill.y + mill.P.tramTo[1] - (rcv.y + rcv.P.floorY + (rcv.P.eaveH || 5))) < 0.01, '9 the conveyor lands on the shed\'s eave in the mill\'s frame (1 cm)');
+    }
+    check(!O.records.trees.some(t => O.records.items.some(it => PG.inPoly(it.foot, t.x, t.z))), '3 no forest tree inside a site item\'s foot');
+    const O2 = PG.compose(rec, synth, { catalogue: CAT, pool: [{ key: 'a|A', size: 1, sink: 0, proportion: 1, h: 14 }] });
+    check(O2.records.items.every((it, i) => it.x === O.records.items[i].x && it.P.floorY === O.records.items[i].P.floorY), '3 the same seed stands the same site');
+  } else check(true, '3 (generators not loaded headless here)');
+
   const cat = PG.collect({ HOUSE_GEN: { DEF: { L: 8, w: 6 }, PRESETS: { 'shore cabin': {}, 'village house': { L: 9 } } },
                            TOTEM_GEN: { CATALOGUE: [{ key: 'totem/park', kind: 'park', preset: 'park', foot: () => [[0, 0], [1, 0], [1, 1]], lod: { dist: [0, 150, 500, 1500] } }] } });
   check(cat.entries.size === 3 && cat.entries.get('house/shore cabin').derived === true && cat.entries.get('totem/park').kind === 'park', '3 collect() derives an entry per preset and takes an exported CATALOGUE');

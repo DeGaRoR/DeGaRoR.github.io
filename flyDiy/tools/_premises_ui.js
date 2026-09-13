@@ -34,10 +34,11 @@ const SECTIONS = [
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
+  { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', building: 'a building', theme: 'the mine (theme)', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -52,11 +53,14 @@ const TOOL_HELP = {
   probe: 'click the ground to read its height, slope and surface',
   runway: 'click one end of the strip, then the other — it is graded to its profile, its class reaches the wheels, the pattern is derived',
   apron: 'click the corners of the paved apron or taxiway, close',
+  building: 'pick a building in the inspector, click the ground to stand it there (its own site); drag its disc to move it',
+  theme: 'click the ground: the Kennecott theme stands there as ONE site - the mill, the shop, the row, the receiving shed, the conveyor link and the gravel yard',
 };
 const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', zone: 'zones', forest: 'zones', clear: 'zones' };
 const TWO_POINT_TOOLS = { runway: 'runways' };
 const LINE_TOOLS = { road: 'roads' };
-const POINT_TOOLS = { tree: 'objects' };
+const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites' };
+let PALETTE_KEY = null;   // the building the 'building' tool stands
 const LS_WIP = 'flydiy.premises.wip';
 
 function mount(host, ctx) {
@@ -86,6 +90,7 @@ function mount(host, ctx) {
     if (entry.pts) { const b = PG.polyBBox(entry.pts); const f = (+entry.falloff || 6) + (+entry.w || +entry.width || 4); return { x0: b.x0 - f, z0: b.z0 - f, x1: b.x1 + f, z1: b.z1 + f }; }
     if (entry.kind === 'tree') return { x0: entry.x - 4, z0: entry.z - 4, x1: entry.x + 4, z1: entry.z + 4 };
     if (entry.c && entry.len) { const b = PG.polyBBox(PG.runwayBox(Object.assign({}, PG.RUNWAY_DEF, entry), 40)); return b; }
+    if (entry.at && entry.items) { const SF = PG.siteFrame(entry); let b = null; for (const it of entry.items) { const q = SF.toLocal(it.x || 0, it.z || 0); const bb = { x0: q[0] - 40, z0: q[1] - 40, x1: q[0] + 40, z1: q[1] + 40 }; b = b ? { x0: Math.min(b.x0, bb.x0), z0: Math.min(b.z0, bb.z0), x1: Math.max(b.x1, bb.x1), z1: Math.max(b.z1, bb.z1) } : bb; } return b || { x0: entry.at.x - 10, z0: entry.at.z - 10, x1: entry.at.x + 10, z1: entry.at.z + 10 }; }
     return null;
   }
   const union = (a, b) => (!a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), z0: Math.min(a.z0, b.z0), x1: Math.max(a.x1, b.x1), z1: Math.max(a.z1, b.z1) });
@@ -265,6 +270,7 @@ function mount(host, ctx) {
         const e = found.entry, before = clone(e);
         if (e.kind === 'tree') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
         if (found.layer === 'runways') { drag = { id: selected, layer: 'runways', runway: h.key, before, F }; return true; }
+        if (found.layer === 'sites') { drag = { id: selected, layer: 'sites', site: h.key, before, F }; return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
           const a = arr[h.index], b = arr[(h.index + 1) % arr.length];
@@ -283,6 +289,14 @@ function mount(host, ctx) {
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
     if (drag.point) { found.entry.x = +L[0].toFixed(2); found.entry.z = +L[1].toFixed(2); }
+    else if (drag.site) {
+      const e = found.entry;
+      if (drag.site === 'at') { e.at.x = +L[0].toFixed(2); e.at.z = +L[1].toFixed(2); }
+      else {
+        const it = (e.items || []).find(i => 'i:' + i.id === drag.site);
+        if (it) { const a = e.at, c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0), dx = L[0] - a.x, dz = L[1] - a.z; it.x = +(dx * c - dz * sn).toFixed(2); it.z = +(dx * sn + dz * c).toFixed(2); }
+      }
+    }
     else if (drag.runway) {
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
       if (drag.runway === 'c') { e.c = [+L[0].toFixed(2), +L[1].toFixed(2)]; }
@@ -312,6 +326,10 @@ function mount(host, ctx) {
   function onClick(ev) {
     const g = ctx.ground(ev.clientX, ev.clientY);
     if (!g) return;
+    clickAt(g);
+  }
+  // a click at a WORLD ground point: the tools' one entry, from the mouse or from a script
+  function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (tool === 'select') { const h = R.hit(g[0], g[2]); select(h ? h.id : null); return; }
     if (tool === 'probe') {
@@ -320,6 +338,37 @@ function mount(host, ctx) {
       const s = PG.SURFACE_NAMES[R.overlay.surfaceAt(g[0], g[2])] || 'base';
       strip.status('x ' + L[0].toFixed(1) + ' z ' + L[1].toFixed(1) + ' · ' + h.toFixed(2) + ' m (' + (h - F.y0).toFixed(2) + ' over the anchor) · slope ' + (Math.hypot(sx, sz) * 100).toFixed(1) + ' % · ' + s + (R.overlay.excludeAt(g[0], g[2], 'trees') ? ' · no trees' : '') + ' · road ' + R.overlay.roadNear(g[0], g[2]).toFixed(0) + ' m');
       return;
+    }
+    if (tool === 'building' || tool === 'theme') {
+      if (tool === 'building') {
+        const key = PALETTE_KEY || (ctx.catalogue ? ctx.catalogue.keys()[0] : null);
+        if (!key) { strip.status('no catalogue - no generator loaded'); return; }
+        const e = { id: PG.newId(rec, 'sites'), name: key.split('/')[1], at: { x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }, items: [{ id: 'i1', key, x: 0, z: 0, yaw: 0, P: {} }], yard: null };
+        run({ layer: 'sites', id: e.id, before: null, after: e, label: 'site ' + e.id + ' (' + key + ')' });
+        select(e.id); return;
+      }
+      const TH = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES && window.VILLAGE_GEN.THEMES.kennecott;
+      if (!TH) { strip.status('the village generator is not loaded'); return; }
+      const sid = PG.newId(rec, 'sites');
+      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: (it.gen === 'big' ? 'big/' : 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
+      // the receiving shed the mill's conveyor runs to: the theme on master has none (its mill's own bottom house
+      // straddles the road); the branch's has the tram shed astride the road - stand one when the theme lacks it
+      if (!items.some(i => i.onRoad)) items.push({ id: 'rcv', key: 'big/tram shed', x: 0, z: -2, yaw: 0, P: {}, onRoad: true, bottomOnRoad: false });
+      const e = { id: sid, name: TH.name, at: { x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }, items, yard: TH.yard || null };
+      run({ layer: 'sites', id: sid, before: null, after: e, label: 'site ' + sid + ' (' + TH.name + ')' });
+      const mill = items.find(i => /mill/.test(i.key)), rcv = items.find(i => i.onRoad);
+      if (mill && rcv) run({ layer: 'links', id: PG.newId(rec, 'links'), before: null, after: { id: PG.newId(rec, 'links'), kind: 'conveyor', from: { site: sid, item: mill.id, hook: 'head' }, to: { site: sid, item: rcv.id, hook: 'roof' }, P: {}, dynamic: true }, label: 'conveyor' });
+      if (TH.yard) {
+        const SF = PG.siteFrame(e), Y = TH.yard;
+        const poly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, Y.z1], [Y.x0, Y.z1]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
+        run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
+        // THE WORKS STAND ON A FLAT (the village pinned the mountain's foot behind the row, G340): the lower yard -
+        // the row, the shop, the office, the sheds, the receiving shed - flattened to its median; the mill climbs the hill above it
+        const fpoly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, 30], [Y.x0, 30]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
+        const fid = PG.newId(rec, 'terrain');
+        run({ layer: 'terrain', id: fid, before: null, after: { id: fid, kind: 'flatten', poly: PG.ensureCCW(fpoly), level: medianLevel(fpoly), falloff: 14, abs: false, order: 0 }, label: 'the works flat' });
+      }
+      select(sid); return;
     }
     if (POINT_TOOLS[tool]) {
       const pool = ctx.pool ? ctx.pool() : [];
@@ -342,9 +391,14 @@ function mount(host, ctx) {
     else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { save(recName); ev.preventDefault(); }
     else if (ev.key === 'Tab') { ctx.cameras && ctx.cameras.toggle(); ev.preventDefault(); }
     else if (ev.key >= '1' && ev.key <= String(Math.min(9, SECTIONS.length))) setSection(SECTIONS[+ev.key - 1].k);
+    else if (ev.key === 'r' && selected) { const f = PG.findById(rec, selected); if (f && f.entry.at) edit(selected, 'sites', x => { x.at.yaw = ((x.at.yaw || 0) + Math.PI / 12); }, 'turn ' + selected); }
     else if (ev.key === 'f' && tool === 'select' && ctx.cameras && ctx.cameras.frame) { const f = selected && PG.findById(rec, selected); if (f) ctx.cameras.frame(bboxOf(f.entry)); }
   }
-  function deleteSelected() { const f = PG.findById(rec, selected); if (f) { run({ layer: f.layer, id: selected, before: clone(f.entry), after: null, label: 'delete ' + selected }); select(null); } }
+  function deleteSelected() {
+    const f = PG.findById(rec, selected); if (!f) return;
+    if (f.layer === 'sites') for (const L of rec.layers.links.slice()) if (L.from.site === selected || L.to.site === selected) run({ layer: 'links', id: L.id, before: clone(L), after: null, label: 'delete ' + L.id });
+    run({ layer: f.layer, id: selected, before: clone(f.entry), after: null, label: 'delete ' + selected }); select(null);
+  }
 
   // ---- the inspector: declared rows for the selected feature ----------------------
   const SURF_OPTS = PG.SURFACE_NAMES.map((n, i) => [String(i), n.toLowerCase()]);
@@ -358,9 +412,15 @@ function mount(host, ctx) {
       rows.note(insp, rec.name || '(unnamed)');
       rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tool above and click the ground');
       const feats = [];
-      for (const k of ['terrain', 'surface', 'exclude', 'roads', 'runways', 'zones', 'objects']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id]);
+      for (const k of ['terrain', 'surface', 'exclude', 'roads', 'runways', 'zones', 'sites', 'objects']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id + (e.name ? ' ' + e.name : '')]);
       if (feats.length) rows.select(insp, 'features', feats, () => '', v => select(v));
       if (section === 'zones') rows.note(insp, 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.');
+      if (section === 'sites' && ctx.catalogue) {
+        const keys = ctx.catalogue.keys();
+        if (!PALETTE_KEY) PALETTE_KEY = keys[0] || null;
+        rows.select(insp, 'building', keys.map(k => [k, k]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
+        rows.note(insp, keys.length + ' entries in the catalogue (derived from the generators\' presets until each exports its own); pick one, then click the ground with the building tool');
+      }
       if (section === 'airfield') rows.note(insp, 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. ?world=A stands it on the flight world.');
       if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a no-trees polygon keeps it out; a tree by hand is one record.');
       return;
@@ -429,6 +489,22 @@ function mount(host, ctx) {
         }
       }
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole');
+    } else if (layer === 'sites') {
+      const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
+      rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.at.yaw || 0) * 180 / Math.PI, v => ed(x => { x.at.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
+      const items = e.items || [];
+      rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
+      const links = rec.layers.links.filter(L => (L.from.site === id) || (L.to.site === id));
+      const solved = (R.links ? R.links() : []);
+      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note', style: sol && sol.ok ? 'color:#6fd08c' : 'color:#ff6b5a' }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d); }
+      const iss = (R.overlay.records.issues || []).filter(t => t.indexOf(id) >= 0);
+      if (iss.length) rows.note(insp, '⚠ ' + iss[0]);
+      for (const it of items) {
+        rows.section(insp, 'ITEM ' + it.id);
+        if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, k]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
+        rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
+        rows.button(insp, 'remove ' + it.id, () => ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id));
+      }
     } else if (layer === 'objects' && e.kind === 'tree') {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
@@ -509,6 +585,7 @@ function mount(host, ctx) {
       if (name === 'set') { edit(args.id, PG.findById(rec, args.id).layer, x => Object.assign(x, args.patch), 'set ' + args.id); return true; }
       if (name === 'delete') { const f = PG.findById(rec, args.id); if (f) run({ layer: f.layer, id: args.id, before: clone(f.entry), after: null, label: 'delete ' + args.id }); return !!f; }
       if (name === 'point') { addPoint(args.x, args.z); return T.pts.length; }
+      if (name === 'click') { const w = R.overlay.frame.toWorld(args.x, args.z); clickAt([w[0], R.heightAt(w[0], w[1]), w[1]]); return selected; }
       if (name === 'commit') { commitDrawing(); return selected; }
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }

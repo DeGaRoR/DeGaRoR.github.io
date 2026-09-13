@@ -43565,3 +43565,69 @@ build's maroon legs), peel 7.0 on the wing top; chips, scratches and pits
 read low on THIS build because its fuselage is fabric, which has no
 substrate to expose — the cowl shows them (screenshots/weather/
 rough_cowl_chips.png, final_rust_legs.png, final_peel_top.png).
+
+## G361 — THE PREMISES BENCH v3: A SITE FROM THE CATALOGUE — THE KENNECOTT THEME
+## STOOD BY ONE CLICK, ITS ITEMS PLACED BY placeSite'S OWN RULES, THE CONVEYOR
+## LINK SOLVED, EVERY DERIVED ENTRY BUILT HEADLESS (2026-09-13, "keep going")
+
+**What it is.** The contract's SITES and LINKS, on the bench, without waiting
+for any generator to export its own catalogue:
+- **THE CATALOGUE, DERIVED** (`_premises_gen.js` collect): a generator with
+  no `CATALOGUE` gives one entry per preset - `house/<preset>`,
+  `big/<preset>` - carrying `params(overrides)` (DEF + PRESET + overrides,
+  read from the generator object the caller hands in, so the core stays
+  pure), a `foot(P)` (the mill's from its tiers as placeSite measured it,
+  a house's L x w), a keep-out of 3 m, `ground.need:'none'`, the four lod
+  distances. 38 entries from the house and big generators today; the
+  contract's rule 8 holds: a session's own entry replaces the derived one.
+- **placeSite** (contract §1.3 stage 5a): THEMES / placeSite's item body
+  generalised to a key - an item stands in its site's frame (`at` + the
+  item's x, z, yaw; yaw 0 faces the site's -z, THEMES' road side) on the
+  COMPOSED ground, the standing rules verbatim (the mill on its lowest
+  tier's front corners + 0.6, a shed astride the road on its slab a hand
+  over the ground with no plinth, a big building on its plinth over the
+  high corner, a house on the high corner by its stance); its foot + 3 m
+  is a keep-out that rejects plots and trees; the records are the house
+  record's shape (`P, x, z, y, yaw, toWorld, ground, seed, gen`) so the
+  renderer builds them through the same queue as a plot's house.
+- **THE CONVEYOR LINK** (`LINK_SOLVERS.conveyor`, phase 'placed'):
+  placeSite :724-730 VERBATIM - the target in the mill's own frame at the
+  shed's eave (`B.y + floorY + eaveH - A.y`), patched into the mill's
+  `P.tramTo` before it builds; a band (120 m along, -40..60 m of rise)
+  makes the verdict; drawn as a line from hook to hook, gold when solved,
+  red when not. `solveLinks` runs the 'placed' phase in compose; the
+  'built' phase (the cable: tramLine) waits for the house session's
+  landing and the stations' hooksOf.
+- **THE EDITOR** (`_premises_ui.js`): a SITES section - `a building` (pick
+  a key in the palette, click the ground: a site of one item), `the mine`
+  (click: the Kennecott THEME as ONE site - its nine items, a receiving
+  `big/tram shed` astride the site's road line when the theme has none,
+  the conveyor link mill → shed, the gravel yard as a surface polygon, and
+  a FLATTEN under the lower yard at its median so the works stand on a
+  flat while the mill climbs - the village's foot pin, as a modifier);
+  the site's rows (name, turn, its links' verdicts, each item's building
+  and turn, remove); the bright disc moves the site whole, a faint disc
+  moves an item in the site's frame; `r` turns a site 15°; deleting a
+  site deletes its links. A scripted `click` command drives the point
+  tools from the pane.
+- **GATE PREMISES** rule 3 (and 9): the generators loaded headless under
+  the village gate's THREE stub; every derived entry BUILDS at lod 0 on
+  flat ground with a simple quad foot (36 built); a four-item site
+  resolves, every item stands over its corners, the conveyor lands on the
+  shed's eave in the mill's frame to 1 cm, no forest tree inside a foot,
+  the same seed stands the same site. 94 checks on 3 fixtures; selftest.
+
+**Measured.** The theme stood on the village terrain: 10 items, 276 k tris,
+built two per tick in ~5 s; the works' flatten cuts a 1.9 m/m bank into
+the hill (an authoring choice the panel names).
+
+- Gates: PREMISES green (94 checks); proven from a clean worktree with
+  `--only=PREMISES,MEDIA`.
+- Screenshots: `screenshots/premises/v3_mine_high.png`,
+  `v3_mine_from_road.png`.
+- OWED: the cable link (the two stations, `hooksOf(built)`, tramLine) once
+  the house session lands and exports `placeHouse` / `tramLine`; the
+  'road' frame and a site anchored to a road; the site's own yard ground
+  (`siteGround`) and the mill's spur; the pickers by tag; a per-item
+  preset dial set; the budget's `__gl` counters and `premises_perf.js`;
+  the game host (the WORLD rail entry, the three hooks in 20_world.js).
