@@ -45,6 +45,8 @@ const SETS = [
   ['leather', 512],
   // the cockpit's hands-on surfaces (the panel arc, session 4f)
   ['plasticScr', 512], ['plasticGrn', 512], ['plasticWorn', 512], ['rubberGrip', 512], ['hide', 512],
+  // the sill shoulder's hammered alloy (G325.1) — at the elbow, so 1k like the panel
+  ['sillAlu', 1024],
 ];
 
 const sfx = tex => (tex === 1024 ? '1k' : String(tex));

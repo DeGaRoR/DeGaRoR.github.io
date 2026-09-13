@@ -321,7 +321,7 @@ dashboard's two surfaces (2026-09-04) — the bare alloy instrument facia and
 the dark hide of the coaming round it.
 
 **ambientCG, CC0** (https://ambientcg.com) — `Foil001` (the `foil` sheet, worn
-by the `fireFoil` finish), `Metal050C` (the `panel` sheet, worn by
+by the `fireFoil` finish), `Metal051C` (the `sillAlu` sheet, worn by the `sillAlu` finish — the sill shoulder, G325.1), `Metal050C` (the `panel` sheet, worn by
 `panelMetal`), `Leather027` (the `leather` sheet, worn by `leatherDark`);
 and the cockpit's hands-on surfaces (the panel arc, 2026-09-12, the user's
 own picks): `Plastic007` (`plasticScr`, a throttle's ball, the buttons),

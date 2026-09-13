@@ -6745,6 +6745,16 @@ const CAGE_PARAMS = {
   // above the windshield base line — the rounded instrument panel of
   // real cockpits. 0 = the historic horizontal extrusion.
   dashCrown: 0,
+  // THE SHOULDER (G325): the sill trim — an L-section sheet swept along the
+  // window transition of each flank, W inboard then H down, from the dash
+  // aft to the cabin pillar (run 0) or through the passenger bays (run 1).
+  // On by default: the user asked for it "for all planes now". Built by
+  // tools/_shoulder_gen.js, reached by cageShoulder at call time.
+  // Cage units (the rows show ≈ metres): 0.09 / 0.27 / 0.003 are 6.7 cm,
+  // 20 cm and 2.2 mm on the page's aeroplane (planeScale 0.745) — the user's
+  // "5-10 cm lip, about 20 cm down".
+  shoulderOn: 1, shoulderW: 0.09, shoulderH: 0.27, shoulderT: 0.003,
+  shoulderRun: 0,
   // G14: post-subsurf cutting of doors/windows into separate parts
   cutParts: 0, explodeD: 0,
 };
@@ -7300,6 +7310,11 @@ function cageSpec(P) {
   // per bay in pod bubble, wsBase filters to the front screen, and the
   // boom machinery idles without its stations. Known v1 gaps in
   // HANDOVER: no boom-cone structure, no aft-belly tube chine.)
+  S.shoulder = { on: P.shoulderOn == null || +P.shoulderOn ? 1 : 0,
+                 W: Math.max(0.02, +P.shoulderW || 0.09),
+                 H: Math.max(0.03, +P.shoulderH || 0.27),
+                 t: Math.max(0.0005, +P.shoulderT || 0.003),
+                 run: Math.round(+P.shoulderRun || 0) ? 'cabin' : 'pilot' };
   return S;
 }
 
@@ -7845,6 +7860,21 @@ function cageDoorEdges(mesh) {
   return out;
 }
 
+// THE SHOULDER (G325): the sill trim, tools/_shoulder_gen.js. A post-pass
+// like the interior — it reads the displayed mesh (the transition it follows
+// is traced off the faces, keyed by as-built position) and returns the mesh
+// with its parts appended, or the mesh untouched when off or the module is
+// not loaded (a headless caller without it still builds).
+function cageShoulder(m, S) {
+  const SH = S.shoulder;
+  if (!SH || !SH.on) return m;
+  const SG = (typeof SHOULDER_GEN !== 'undefined') ? SHOULDER_GEN
+    : (typeof require === 'function' ? require('./_shoulder_gen.js') : null);
+  if (!SG) return m;
+  return SG.shoulderBuild(m, S, { W: SH.W, H: SH.H, t: SH.t, run: SH.run },
+                          { cageResolve });
+}
+
 function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
@@ -7909,6 +7939,10 @@ function cageSheet(P, opts) {
     s = cageCanopy(s, spec);
     s = cageRims(s, spec);
     s = cageInterior(s, spec);
+    // THE SHOULDER (G325) reads the dash's aft plane off the built dash
+    // faces, so it runs after the interior; its door segments carry the
+    // door's cutOff and are undone with it below
+    s = cageShoulder(s, spec);
   }
   // LAYERS SEE THE AEROPLANE AS-BUILT (G29): exploded cut parts carry their
   // translation as cutOff — the DISPLAY keeps the offsets, the contracts
@@ -7935,7 +7969,7 @@ if (typeof module !== 'undefined')
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
-                     cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
+                     cageCanopy, cageShoulder, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
@@ -7943,6 +7977,6 @@ if (typeof window !== 'undefined')
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
-                   cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
+                   cageCanopy, cageShoulder, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

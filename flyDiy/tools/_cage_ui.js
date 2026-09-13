@@ -52,6 +52,7 @@ const SEC = {
   fireSeal:        '#4a4f55',
   dash:            '#333a45',
   dashFace:        '#7d8896',
+  shoulder:        '#b9b6ae',
   tube:            '#93a0ad',
   plywood:         '#b5854e',
   woodFrame:       '#8a6134',

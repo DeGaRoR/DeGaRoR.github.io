@@ -267,6 +267,7 @@ function emittedSections() {
     if (G.cageCanopy) s = G.cageCanopy(s, spec);
     s = G.cageRims(s, spec);
     if (G.cageInterior) s = G.cageInterior(s, spec);
+    if (G.cageShoulder) s = G.cageShoulder(s, spec);          // G325
     for (const f of s.F) all.add(f.m);
   }
   return all;

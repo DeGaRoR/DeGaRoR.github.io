@@ -41870,3 +41870,126 @@ line count against the edit's before calling it landed.
 - Gates: TOTEM, MEDIA, PROPS, HOUSE green. Credits: a "Totem poles"
   section (CC-BY, modifications listed); docs/PROP-IMPORT-PROC.md gained
   "THE THIRD TABLE".
+
+## G325 — THE SHOULDER: THE SILL TRIM IS ONE BENT SHEET, TRACED OFF THE
+## WINDOW, ON EVERY BUILD (2026-09-13, the user: "the messy border between
+## window and fuselage/door ... model extremely rigorously and cleanly a
+## 'shoulder' ... a 5-10 cm lip from the window transition towards the
+## inside of the plane, and goes down about 20 cm ... joins nicely with the
+## dashboard ... allowed to cover the left side throttle")
+
+The messy border was the composite liner's reveal wall and the door's own
+liner meeting the glass at the sill. It is covered now by an L-section
+sheet — the shoulder — swept along the WINDOW TRANSITION of each flank: the
+top leg at the glass edge, its outboard edge ON the skin, W inboard; the
+vertical leg H down from a real bend. Rows on the Cockpit page (`sill
+shoulder`: on, lip, drop, gauge, run); a part of its own (`Sill shoulder`,
+section `shoulder`, role `sill` — bare alloy on every construction, "a piece
+of metal, for all planes"); on by default. Design note
+futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
+(`tools/_shoulder.html`, launch `flydiy-shoulder`) stay as the instrument.
+
+- **THE TRACE, NOT THE LATTICE** (`tools/_shoulder_gen.js`, reached by
+  `cageShoulder` after the interior in cageSheet). The transition is read
+  off the DISPLAYED mesh — a glass face above and a skin face below sharing
+  an edge, or a single-owner skin edge at the canopy's cut height — with
+  every edge keyed by its AS-BUILT position, so a cut door, a cut pane, the
+  bubble and an exploded part all answer the same question. A door's
+  segment is emitted as the door's own part (doorKey + cutOff): it explodes
+  with the door. The extended sill (winSillPilot) just moves the line.
+- **THE SKIN IS SAMPLED, NOT ASSUMED**: `makeSkinSampler` answers "where is
+  the flank at (y, z)"; the top leg's outboard edge and the underside sit
+  0.4 mm inside it, and the vertical leg closes onto the skin wherever the
+  body comes inboard of its pocket face within H.
+- **WATERTIGHT BY CONSTRUCTION, CHECKED BY POSITION**: a loft of closed
+  profiles + two ear-clipped caps, vertices split only at sharp edges (the
+  normals are explicit — flat across the bend, smooth along the sill),
+  windings made coherent across position-shared edges, volume made
+  positive. GATE SHOULDER (`_shoulder_check.js`, core) builds 21
+  configurations — wide and narrow cabins, no pax bay, one and two, the
+  cabin run, bubble, bubble + door, open canopy, pod, pod + bubble, no door,
+  sill down, exploded, round + tube, round bottom + wood, drawn pax windows,
+  no dash, no interior, wide and narrow lips — and requires 0 open / 0
+  over-shared edges on every part.
+- **THE LIMITS**: forward, the dashboard's aft face (the dash's own minimum
+  z — its outline is creased at 3, so the plane is exact) minus a 4 mm shut
+  line; aft, the cabin pillar behind the pilot (`run` 0, the default — the
+  user's "stops after the pilot, I take your recommendations") or the last
+  passenger bay (`run` 1). On the stock build the door owns the whole
+  pilot sill (z 1.93..3.23), so the shoulder there is one door segment
+  with the door's own jamb gaps at both ends.
+- **THE QUADRANT MOUNTS ON THE LEG** (the user's ruling on the throttle):
+  the crew's `wallAt` answers the shoulder's cabin face wherever the leg
+  covers (y, z) (`A.shoulderAt`), so a wall-mounted control hangs on the
+  trim and its lever swings in the cabin — no slot. Measured in the game
+  (planeScale 0.745): the stock wall throttle's pivot sits 0.30 m under the
+  sill and the leg drops 0.20 m, so the quadrant's top edge is 4 cm below
+  the leg's bottom and on the stock build it stays on the skin; raise it
+  (`thrY` +0.16) or deepen the shoulder and it moves onto the leg. (The
+  bench's own floor estimate had said 0.59 m — it took the door outline's
+  lowest point for the floor; the crew's `floorAt` is the measure.) The slot
+  machinery (the swept bar's hull through either leg) lives on in the
+  generator and the bench for the case where a lever is placed through the
+  sheet; the game does not cut one.
+- **A SILL IS NEAR-HORIZONTAL** (found on the page's own aeroplane, in the
+  game): the windscreen's side edge along the A-pillar is a glass-over-skin
+  transition too, at 36°, and the trace built a stub up it — a dark slab on
+  the lip by the dash. `maxSlope` 0.35 (the steepest real sill measured
+  0.04) refuses a pillar and keeps a raked door window.
+- **THE LEG IS ONE QUAD TALL**: its face has vertices at the bend and at the
+  bottom edge and none between, so `shoulderAt` tests a y RANGE over the
+  vertices at the station, not a nearest vertex (the first cut found nothing
+  in the middle of a 20 cm leg).
+- **CAGE UNITS**: the rows are cage units shown ≈ metres; 0.09 / 0.27 /
+  0.003 are 6.7 cm, 20 cm and 2.2 mm on the page's aeroplane (planeScale
+  0.745).
+- **TWO TRAPS**: the bubble's released band strip is nearly FLAT at its top
+  row, so "the skin face is below the edge" must compare the face's own
+  centroid with a tolerance, not the edge's y (the door's segment lost its
+  middle third otherwise); a slot outline clipped by projecting its points
+  onto the domain's edge made duplicate points and an open patch — clip the
+  convex outline properly (Sutherland-Hodgman).
+- **THE BROWSER PANE REFUSES CROSS-PORT FETCHES** (the day's instrument
+  finding): a page on one localhost port cannot POST to a sink on another;
+  serve the page and the screenshot sink from ONE port. And the first
+  `toBlob` after a navigation in the pane is empty until a frame has been
+  composited — take a screenshot first.
+- Gates: SHOULDER (new, core), PARTS (the sections sweep runs the pass),
+  SKINMAT green; the core battery green.
+
+## G325.1 — THE SHOULDER WEARS THE USER'S SCAN, MAPPED IN METRES (2026-09-13,
+## the user: "Very clean. Try with the attached material. It would be good
+## that it can be set from the finish, but try this by default first, super
+## clean mapping, as usual" — then "the textures need to be mapped smaller,
+## by half")
+
+- **THE SHEET**: ambientCG `Metal051C` (a hammered bright alloy) through the
+  existing pipeline — a SETS row in `tools/skin_tex_import.py` (B rides the
+  ROUGHNESS at the panel's gain 1.3: Color 213..255 is near-white, the facets
+  are in the roughness, p1..p99 0.61..1.48 of its mean; achieved span
+  167..250) and `tools/skin_tex_prep.js` at 1k like the panel (it is at the
+  elbow). `assets/skin/sillAlu/` (ignored, like every asset),
+  `media/tex/skin/sillAlu_aero_1k.*.jpg`, CREDITS.md.
+- **THE FINISH**: `sillAlu` ("hammered alloy") in AERO_FINISH — bake 'sheet',
+  sheet 'sillAlu', tile 0.25 m (0.50 on the first captures; the user asked
+  for half), metal 0.92, rough 0.34, nrm 0.55, alb 0.30 — and the `sill` role
+  resolves to it in every construction column, so it is the default on every
+  build AND a finish any section can be set to from the paint UI. GATE
+  SKINMAT's bare-metal list admits it (a bent bare sheet; Metal051C's
+  metalness map measures a flat 255, like the facia's).
+- **THE MAPPING IS THE FIELD, NOT TRIPLANAR**: the shoulder's vertices now
+  carry `aStruct` — sL along the sill (0 at the forward cap, +aft, the body's
+  own ruler), sC around the profile from the outer top edge (over the lip,
+  round the bend, down the leg), st/lv 0.5/0.5 so no rail grammar fires — so
+  the sheet runs continuously over the bend and along the sill in metres,
+  with no seam and no stretch. Filled only when the mesh has a field
+  (`mesh.A`); GATE SURF holds it (no holes), the purity rule holds (every
+  shoulder vertex fielded).
+- **A GATE RUN ON A LOADED MACHINE IS NOT A VERDICT** (again): GEN ran clean
+  (every archetype "flies a circuit") and still came back `exit null` — the
+  runner's 30-minute cap — with three copies of test_gen.js and two other
+  sessions' batteries on the box; two of those copies were orphans of
+  batteries this session had stopped. Killing a battery leaves its child
+  gate running: stop the child too, then rerun the gate alone.
+- Captures: screenshots/shoulder/41..45 (shed interior), 51..53 (flight);
+  the PNGs stay untracked like every session's.

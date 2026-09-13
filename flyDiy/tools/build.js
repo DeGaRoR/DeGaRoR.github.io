@@ -296,7 +296,9 @@ const MANIFEST = {
     // dummies with — reads CHAR_REG at call time, so only before the crew.
     // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at
     // call time through the KNIFE_GEN global — before the generator.
-    '_cage_page5.js', '_knife_gen.js', '_cage_gen.js', '_cage_char.js',
+    // THE SHOULDER (G325): the sill trim, pure, reached by cageSheet at call
+    // time through the SHOULDER_GEN global — before the generator too.
+    '_cage_page5.js', '_knife_gen.js', '_shoulder_gen.js', '_cage_gen.js', '_cage_char.js',
     '_cage_crew.js',
     // THE INSTRUMENTS (the panel arc, session 2): the fit as a list, the
     // Instruments part's column and the join's `systems` seam; its geometry

@@ -2667,13 +2667,37 @@ function anchors(spec, P, mesh) {
   // within 5 cm of it (a lined pillar's liner, else the skin itself).
   // Signed by side. And the door's forward edge at a height (the jamb),
   // so nothing is hung across it.
-  const sidePts = [];
+  const sidePts = [], shPts = [];
   if (mesh && mesh.F && mesh.V)
     for (const f of mesh.F) for (const vi of f.v) {
       const v = mesh.V[vi];
+      if (f.shoulder) { shPts.push([v[0] * k, v[1] * k, v[2] * k]); continue; }
       if (Math.abs(v[0]) * k > 0.15) sidePts.push([v[0] * k, v[1] * k, v[2] * k, f.door ? 1 : 0]);
     }
+  // THE QUADRANT MOUNTS ON THE SHOULDER (G325, the user's ruling): where the
+  // sill trim's vertical leg covers (y, z), the "wall" a control hangs on is
+  // the leg's cabin face — its innermost x among the shoulder's own vertices
+  // at that station — so the lever swings in the cabin and nothing needs a
+  // slot. The leg is ONE quad tall (its face has vertices at the bend and at
+  // the bottom edge and nowhere between), so "covers y" is a RANGE test over
+  // the vertices near the station, not a nearest-vertex one — the first cut
+  // asked for a vertex within 3 cm and found none in the middle of a 20 cm
+  // leg. Below the leg (the stock wall throttle sits 0.30 m under the sill
+  // and the leg drops 0.20) the wall is still the skin.
+  const shoulderAt = (sd, y, z) => {
+    let xIn = 0, y0 = 1e9, y1 = -1e9, any = false;
+    for (const q of shPts) {
+      const x = q[0] * sd;
+      if (x <= 0 || Math.abs(q[2] - z) > 0.06) continue;
+      if (q[1] < y0) y0 = q[1];
+      if (q[1] > y1) y1 = q[1];
+      if (!any || x < xIn) { xIn = x; any = true; }
+    }
+    return any && y >= y0 - 0.01 && y <= y1 + 0.01 ? sd * xIn : null;
+  };
   const wallAt = (sd, y, z) => {
+    const sh = shoulderAt(sd, y, z);
+    if (sh != null) return sh;
     let xMax = 0;
     for (const q of sidePts) if (q[0] * sd > xMax && Math.abs(q[1] - y) < 0.08 && Math.abs(q[2] - z) < 0.10) xMax = q[0] * sd;
     if (!(xMax > 0)) return sd * spec.cabin.halfW * k * 0.90;
@@ -2686,7 +2710,7 @@ function anchors(spec, P, mesh) {
     for (const q of sidePts) if (q[3] && q[0] * sd > 0 && Math.abs(q[1] - y) < 0.06 && q[2] > zM) zM = q[2];
     return zM;
   };
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, tubeDist, wallAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be

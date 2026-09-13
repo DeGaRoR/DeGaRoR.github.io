@@ -192,6 +192,8 @@ const GATES = [
   // THE PART TABLE (G76): the declared assembly against the editor's own row
   // list and the sections real builds emit — every slider in exactly one part
   { id: 'PARTS', file: '_parts_check.js', tier: 'core' },
+  // THE SHOULDER (G325): the sill trim closed on every configuration
+  { id: 'SHOULDER', file: '_shoulder_check.js', tier: 'core' },
   // THE MACRO ROWS (NEW-AIRCRAFT): the birth flow's declaration — every
   // option writes something or carries a reason, every written key real,
   // live classes inside the wing clamps, archetypes resolvable. Sub-second.

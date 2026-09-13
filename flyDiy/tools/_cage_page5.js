@@ -402,6 +402,21 @@ window.CAGE_PAGE = {
         ['dashCrown', 'dash crown',     0, 0.30, 0.005,
          { when: P => +P.intOn && +P.intDash }],
       ]],
+      // THE SHOULDER (G325): the sill trim — an L-section sheet from the
+      // window transition W inboard and H down, from the dash aft. On for
+      // every build; the run says where it stops (the cabin pillar behind
+      // the pilot, or through the passenger bays).
+      ['sill shoulder', [
+        ['shoulderOn',  'sill shoulder',  0, 1, 1],
+        ['shoulderW',   'shoulder lip',   0.03, 0.14, 0.005,
+         { when: P => +P.shoulderOn, dim: 'len' }],
+        ['shoulderH',   'shoulder drop',  0.05, 0.60, 0.01,
+         { when: P => +P.shoulderOn, dim: 'len' }],
+        ['shoulderT',   'shoulder gauge', 0.001, 0.004, 0.0005,
+         { when: P => +P.shoulderOn, dim: 'len' }],
+        ['shoulderRun', 'shoulder run',   0, 1, 1, ['pilot bay', 'whole cabin'],
+         { when: P => +P.shoulderOn }],
+      ]],
     ], 'open'],
     // aft half of the mirrored pod — the FULL front control set,
     // duplicated (user ruling). FOREVER-SPLIT: the aft params take a

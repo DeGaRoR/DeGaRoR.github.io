@@ -153,8 +153,10 @@ for (const k of Object.keys(A.AERO_FINISH)) {
   // drew it: an instrument facia is a bare alloy plate — Metal050C's own
   // metalness map measures a flat 255 — while the coaming it is screwed into
   // stays a dielectric hide. A PAINTED panel would be `trim`, and still is.
+  // `sillAlu` (G325.1) is the sill shoulder's hammered sheet — Metal051C's
+  // metalness map measures a flat 255 too — a bent bare alloy trim.
   const bare =
-    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal)$/
+    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal|sillAlu)$/
     .test(k);
   check(bare || r.metal <= 0.25,
     `finish ${k}: metalness ${r.metal} on a painted surface`);

@@ -484,6 +484,15 @@
       "port": 8367
     },
     {
+      "name": "flydiy-shoulder",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8368"
+      ],
+      "port": 8368
+    },
+    {
       "name": "flydiy-cgpost",
       "runtimeExecutable": "node",
       "runtimeArgs": [

@@ -18,5 +18,6 @@ const SKIN_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
     plasticWorn: { px: 512, img: mk('media/tex/skin/plasticWorn_aero_512.81fe75e2.jpg') },
     rubberGrip: { px: 512, img: mk('media/tex/skin/rubberGrip_aero_512.e371d52d.jpg') },
     hide: { px: 512, img: mk('media/tex/skin/hide_aero_512.2e381f49.jpg') },
+    sillAlu: { px: 1024, img: mk('media/tex/skin/sillAlu_aero_1k.a51b4a39.jpg') },
   };
 })() : null;

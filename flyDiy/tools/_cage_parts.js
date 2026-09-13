@@ -973,6 +973,18 @@ const CAGE_PARTS = [
       ['crease', ['dashCrease'], EXPERT],
     ] },
 
+  // THE SHOULDER (G325): the sill trim — one L-section sheet per flank from
+  // the dash aft, its own part because it is one thing to click on and one
+  // switch to take away; the rows are its four dimensions and its run.
+  { key: 'shoulder', name: 'Sill shoulder', parent: 'fit', layer: 'cage',
+    sections: ['shoulder'],
+    when: P => +P.shoulderOn, gate: 'shoulderOn',
+    place: { on: 'shoulderOn', at: 'along the window sill, from the dash aft' },
+    groups: [
+      ['shoulder', ['shoulderOn', 'shoulderW', 'shoulderH', 'shoulderT',
+                    'shoulderRun']],
+    ] },
+
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
     sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,

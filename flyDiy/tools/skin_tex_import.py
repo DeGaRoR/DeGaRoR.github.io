@@ -65,6 +65,12 @@ SETS = [
     #              0.65..1.76, the crease pattern. So B rides luminance here,
     #              wood's rule, gain 1.2 -> h -0.42..+0.91.
     ('panel', 'Metal050C_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Metal050C', 'rough', 1.3),
+    # THE SILL SHOULDER (G325.1, the user's own pick: "try with the attached
+    # material"). Metal051C is a hammered bright alloy — Color 213..255 of 255
+    # (near-white, the facets in it), Roughness mean 0.35 with p1..p99 at
+    # 0.61..1.48 of the mean: the facets live in the roughness, so B rides it
+    # at the panel's gain.
+    ('sillAlu', 'Metal051C_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Metal051C', 'rough', 1.3),
     ('leather', 'Leather027_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Leather027', 'lum', 1.2),
     # THE COCKPIT'S HANDS-ON SURFACES (the panel arc, session 4f, the user's
     # own five from assets/interior/): what a hand touches. B rides the

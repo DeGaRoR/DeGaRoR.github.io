@@ -271,6 +271,18 @@ const AERO_FINISH = {
                 rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
                 hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel',
                 fld: 0.0010, fldL: 0.4, fldR: 0.3 },
+  // THE SILL SHOULDER'S ALLOY (G325.1, the user's own scan: Metal051C, a
+  // hammered bright sheet). Its Color map is near-white (213..255) and its
+  // facets live in the roughness (p1..p99 0.61..1.48 of the mean), so the
+  // pack rides B on the roughness exactly as the panel's Metal050C does; the
+  // base is the alloy's own grey, the albedo ride opened a little more than
+  // the panel's so the facets read. 1k, like the panel: it is at the elbow.
+  // tile 0.50 -> 0.25 (the user, off the first captures: "the textures need
+  // to be mapped smaller, by half")
+  sillAlu:   { name: 'hammered alloy', base: 0xcdd1d5, tile: 0.25,
+               rough: 0.34, metal: 0.92, nrm: 0.55, alb: 0.30,
+               hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'sillAlu',
+               fld: 0.0010, fldL: 0.4, fldR: 0.3 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
                  rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
                  hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
@@ -414,6 +426,12 @@ const AERO_ROLE = {
   // now means the facia; `pad` is the shell's.
   aluminium: 'struct', bulkhead: 'struct', firewall: 'struct',
   dash: 'pad', dashFace: 'panel',
+  // THE SHOULDER (G325): the sill trim is a bent alloy sheet on every
+  // construction — "a piece of metal, for all planes" — so it has a role of
+  // its own, `sill`, the hammered alloy in every column (the facia's `panel`
+  // is the dark instrument plate, which read black along the window),
+  // paintable per section like the rest.
+  shoulder: 'sill',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
 };
 // THE CABIN IS DARKER THAN THE DAY (G206.1, the audit's §1.1 item 4). The
@@ -428,7 +446,7 @@ const AERO_ROLE = {
 // factory takes `inside` and the shader scales every lit term by
 // (1 - uCabin.x) on those fragments — sky, lamps and sun alike, because a
 // roof and a skin stop all three.
-const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire']);
+const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire', 'sill']);
 function aeroIsInside(section) {
   if (section === 'boomTube' || section === 'taperPanel') return false;
   return AERO_INSIDE_ROLES.has(AERO_ROLE[section]);
@@ -458,19 +476,19 @@ const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge' },
+                edge: 'acrylicEdge', sill: 'sillAlu' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge' },
+                edge: 'acrylicEdge', sill: 'sillAlu' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
                 struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge' },
+                edge: 'acrylicEdge', sill: 'sillAlu' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge' },
+                edge: 'acrylicEdge', sill: 'sillAlu' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
   // over steel tube — both wear doped fabric; what differs is the structure
   // showing through where a section is left open. Reached only from the
@@ -478,11 +496,11 @@ const AERO_BY_CONS = {
   fabric:     { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge' },
+                edge: 'acrylicEdge', sill: 'sillAlu' },
   steel:      { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge' },
+                edge: 'acrylicEdge', sill: 'sillAlu' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);

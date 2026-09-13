@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<!--
+  SHOULDER BENCH — the proof of concept for the sill trim (see _shoulder_gen.js).
+
+  The fuselage is the game's own cage sheet (CAGE2.cageSheet, interior on, cut
+  parts on) in one of the configurations the user named — wide and narrow
+  cabins, no passenger bay, one and two, bubble cockpit, mirrored pod — and
+  the shoulder is traced off the displayed mesh and built as a closed solid on
+  both flanks. The throttle is the wall lever at the crew layer's station,
+  movable, so the slot can be judged.
+
+  What to judge here, and the controls that judge it:
+    - PILOT'S EYE (port/stbd): the lip against the glass, the bead riding on
+      it, the vertical leg hiding the liner, the caps at the dash and the
+      pillar. Sweep the light low across it.
+    - CUTAWAY: a clipping plane at the chosen station shows the L profile
+      itself — thickness, bend radius, the outboard edge ON the skin, the
+      pocket behind it.
+    - NORMALS view: the shoulder's shading must be flat across the bend and
+      smooth along the sill; the bend reads as a gradient, nothing else does.
+    - the stat line: every part closed by position (open 0 / over 0), the
+      slot's leg and status, the limits used.
+
+  Serve from the repo root (launch: flydiy-shoulder) and open
+  /flyDiy/tools/_shoulder.html.
+-->
+<meta charset="utf-8">
+<title>flyDiy — the shoulder</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:12px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;
+    padding:10px;width:330px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r span.k{color:var(--dim);width:104px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:52px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    white-space:pre;line-height:1.5;pointer-events:none}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  .ok{color:#6fd08c} .bad{color:#ff6b5a} .warn{color:#ffbe5a}
+</style>
+
+<header>
+  <h1>the shoulder</h1>
+  <label>build <select id="cfg"></select></label>
+  <label>subsurf <select id="lvl">
+    <option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label>view <select id="view">
+    <option value="paint" selected>paint</option>
+    <option value="sections">sections</option>
+    <option value="normals">normals</option>
+  </select></label>
+  <label><input type="checkbox" id="wire"> wire</label>
+  <label><input type="checkbox" id="shOn" checked> shoulder</label>
+  <label><input type="checkbox" id="thrOn" checked> throttle</label>
+  <label><input type="checkbox" id="cut"> cutaway</label>
+  <button id="eyeP">pilot's eye · port</button>
+  <button id="eyeS">pilot's eye · stbd</button>
+  <button id="outBtn">outside</button>
+  <button id="sillBtn">along the sill</button>
+  <button id="secBtn">section (ortho)</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_knife_gen.js"></script>
+<script src="_shoulder_gen.js"></script>
+<script>
+'use strict';
+(() => {
+const G = window.CAGE2, SG = window.SHOULDER_GEN;
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180;
+
+// ---- the parameters ----------------------------------------------------------
+const P = {
+  W: 0.07, H: 0.20, t: 0.002, bendR: 0.004, drop: 0.003, gap: 0.004,
+  run: 'pilot', explode: 0,
+  thrDy: 0, thrDx: 0, thrDz: 0, thrLen: 0.16, thrPose: 0,
+  cutZ: 2.6, lightAz: 35, lightEl: 22,
+};
+const ROWS = [
+  ['W', 'lip width', 0.03, 0.14, 0.005],
+  ['H', 'leg drop', 0.05, 0.60, 0.01],
+  ['t', 'thickness', 0.001, 0.005, 0.0005],
+  ['bendR', 'bend radius', 0, 0.012, 0.001],
+  ['drop', 'below the glass', 0, 0.015, 0.001],
+  ['gap', 'shut line', 0, 0.02, 0.001],
+  ['explode', 'explode parts', 0, 0.4, 0.01],
+  ['thrDy', 'throttle up', -0.2, 0.7, 0.01],
+  ['thrDx', 'throttle inboard', -0.05, 0.15, 0.005],
+  ['thrDz', 'throttle fwd', -0.5, 0.6, 0.01],
+  ['thrLen', 'lever length', 0.08, 0.30, 0.01],
+  ['thrPose', 'lever pose', 0, 1, 0.05],
+  ['cutZ', 'cutaway station', 1.8, 3.4, 0.01],
+  ['lightAz', 'light az', -180, 180, 1],
+  ['lightEl', 'light el', 2, 80, 1],
+];
+const ui = $('ui');
+const row = (k, lab, lo, hi, st) => {
+  const d = document.createElement('div'); d.className = 'r';
+  const s = document.createElement('input');
+  s.type = 'range'; s.min = lo; s.max = hi; s.step = st; s.value = P[k];
+  const v = document.createElement('span'); v.className = 'v';
+  const fmt = () => v.textContent = (+P[k]).toFixed(st < 0.001 ? 4 : st < 0.01 ? 3 : st < 1 ? 2 : 0);
+  fmt();
+  s.oninput = () => { P[k] = +s.value; fmt();
+    if (k.startsWith('light')) light();
+    else if (k === 'cutZ' || k === 'thrPose') { clipAt(); poseLever(); draw(); }
+    else build(); };
+  d.innerHTML = `<span class="k">${lab}</span>`;
+  d.append(s, v); ui.append(d);
+};
+const sel = (k, lab, opts) => {
+  const d = document.createElement('div'); d.className = 'r';
+  d.innerHTML = `<span class="k">${lab}</span>`;
+  const s = document.createElement('select');
+  for (const o of opts) s.add(new Option(o, o));
+  s.value = P[k]; s.onchange = () => { P[k] = s.value; build(); };
+  d.append(s); ui.append(d);
+};
+{
+  const h = document.createElement('h2'); h.textContent = 'the shoulder'; ui.append(h);
+  sel('run', 'run', ['pilot', 'cabin']);
+  for (const r of ROWS.slice(0, 7)) row(...r);
+  const h2 = document.createElement('h2'); h2.textContent = 'the throttle (wall lever)'; ui.append(h2);
+  for (const r of ROWS.slice(7, 12)) row(...r);
+  const h3 = document.createElement('h2'); h3.textContent = 'cutaway · light'; ui.append(h3);
+  for (const r of ROWS.slice(12)) row(...r);
+  const note = document.createElement('p');
+  note.style.color = 'var(--dim)';
+  note.textContent = 'drag: orbit · wheel: zoom · right-drag: pan. The wall throttle ' +
+    'sits ~0.59 m under the sill on the stock build; raise it to see the slot.';
+  ui.append(note);
+}
+for (const [name] of SG.CONFIGS) $('cfg').add(new Option(name, name));
+
+// ---- scene ------------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
+                                           preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.85;
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 200);
+// THE SECTION DRAWING'S CAMERA: orthographic, looking aft along -z from just
+// ahead of the cutaway plane, a 0.36 m window round the port sill
+const ortho = new THREE.OrthographicCamera(-0.18, 0.18, 0.18, -0.18, 0.001, 2);
+let useOrtho = false;
+const sun = new THREE.DirectionalLight(0xfff2e0, 1.5);
+scene.add(sun, sun.target);
+const hemi = new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.45);
+scene.add(hemi);
+{
+  const W = 256, H = 128, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) {
+    const t = y / (H - 1);
+    const top = [0.35, 0.52, 0.80], hor = [0.78, 0.82, 0.86], gnd = [0.22, 0.21, 0.18];
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const col = t < 0.5 ? top.map((a, k) => a + (hor[k] - a) * (t / 0.5))
+                          : hor.map((a, k) => a + (gnd[k] - a) * ((t - 0.5) / 0.5));
+      img.data[i] = col[0] * 255; img.data[i+1] = col[1] * 255;
+      img.data[i+2] = col[2] * 255; img.data[i+3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.encoding = THREE.sRGBEncoding;
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromEquirectangular(t).texture;
+}
+function light() {
+  const az = P.lightAz * D2R, el = P.lightEl * D2R;
+  sun.position.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az))
+     .multiplyScalar(20);
+  sun.target.position.set(0, 0, 0);
+  draw();
+}
+// the cutaway: one clipping plane, z = cutZ, keeping the AFT side (so the
+// profile at the station faces the camera from the nose)
+const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), P.cutZ);
+function clipAt() { clipPlane.constant = P.cutZ; sectionLines(); }
+// THE SECTION DRAWING: a clipped solid shows no cap, so the profile is drawn
+// as lines — every face's edges intersected with the plane z = cutZ, the
+// shoulder in orange, the skin in white, the interior in pink, glass in blue
+let secObj = null;
+function sectionLines() {
+  if (secObj) { scene.remove(secObj); secObj.geometry.dispose(); secObj = null; }
+  const m = outMesh || (built && built.mesh);
+  if (!m || !$('cut').checked) return;
+  // drawn as thin QUADS in the section plane (WebGL lines are one pixel at
+  // any zoom): 0.6 mm wide, orange for the shoulder, white skin, pink
+  // interior, blue glass, dark beads
+  const pos = [], col = [];
+  const z = P.cutZ, w = 0.0003;
+  const C = { sh: [1.0, 0.45, 0.15], skin: [0.95, 0.95, 0.9], int: [0.95, 0.5, 0.8], glass: [0.4, 0.7, 1.0], dark: [0.45, 0.45, 0.45] };
+  for (const f of m.F) {
+    const k = f.v.length, hits = [];
+    for (let i = 0; i < k; i++) {
+      const a = m.V[f.v[i]], b = m.V[f.v[(i + 1) % k]];
+      if ((a[2] - z) * (b[2] - z) > 0 || a[2] === b[2]) continue;
+      const t = (z - a[2]) / (b[2] - a[2]);
+      hits.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+    if (hits.length < 2) continue;
+    const c = f.shoulder ? C.sh : GLASS.has(f.m) ? C.glass : (f.att || INTERIOR[f.m] != null) ? C.int
+      : (f.m === 'joint' || f.m === 'doorSeal') ? C.dark : C.skin;
+    for (let i = 0; i + 1 < hits.length; i += 2) {
+      const a = hits[i], b = hits[i + 1];
+      const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+      const nx = -dy / l * w, ny = dx / l * w;
+      const q = [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]];
+      for (const t of [[0, 1, 2], [0, 2, 3]]) for (const j of t) { pos.push(q[j][0], q[j][1], z); col.push(...c); }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+  secObj = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, depthTest: false, side: THREE.DoubleSide }));
+  secObj.renderOrder = 5;
+  scene.add(secObj);
+}
+// ---- materials --------------------------------------------------------------
+const PAINT = 0xd9d2c4;
+const MATS = {};
+const SECT = {};
+const secCol = name => {
+  if (!SECT[name]) {
+    let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    SECT[name] = new THREE.Color().setHSL((h % 360) / 360, 0.45, 0.55);
+  }
+  return SECT[name];
+};
+const GLASS = new Set(['pasengerWindow', 'pilotWindow', 'windshield', 'skyWindows']);
+const INTERIOR = { composite: 0x5a554e, plywood: 0x9a7a52, toele: 0x6a5f50, cloth: 0x8a8578,
+  tube: 0x4a4d52, woodFrame: 0xb08a5a, dash: 0x2b2b2f, dashFace: 0x141416, firewall: 0x707478,
+  fireProof: 0x8a8d90, fireSeal: 0x3a3a3c, bulkhead: 0x6a6d70, reveal: 0x6d675e,
+  shoulder: 0xb9b6ae };
+function matOf(name, view) {
+  const key = name + '|' + view;
+  if (MATS[key]) return MATS[key];
+  let m;
+  if (view === 'normals') m = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide });
+  else if (GLASS.has(name))
+    m = new THREE.MeshPhysicalMaterial({ color: 0x8fb4c8, roughness: 0.04,
+      metalness: 0, transparent: true, opacity: 0.35, envMapIntensity: 1.2,
+      side: THREE.DoubleSide, depthWrite: false });
+  else if (name === 'joint' || name === 'doorSeal' || name === 'paneEdge')
+    m = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  else if (name === 'shoulder')
+    m = new THREE.MeshStandardMaterial({ color: view === 'sections' ? 0xff8a3c : INTERIOR.shoulder,
+      roughness: 0.42, metalness: 0.55, envMapIntensity: 1.0, side: THREE.DoubleSide });
+  else if (INTERIOR[name] != null)
+    m = new THREE.MeshStandardMaterial({ color: view === 'sections' ? secCol(name) : INTERIOR[name],
+      roughness: 0.7, metalness: 0.05, side: THREE.DoubleSide });
+  else
+    m = new THREE.MeshStandardMaterial({
+      color: view === 'sections' ? secCol(name) : PAINT,
+      roughness: 0.38, metalness: 0.08, envMapIntensity: 0.9, side: THREE.DoubleSide });
+  m.clippingPlanes = [clipPlane];
+  m.clipShadows = true;
+  MATS[key] = m;
+  return m;
+}
+function setClip(on) { for (const m of Object.values(MATS)) m.clippingPlanes = on ? [clipPlane] : []; for (const m of thrMats) m.clippingPlanes = on ? [clipPlane] : []; }
+
+// ---- geometry: n-gons fanned, explicit normals, per-material groups --------
+function geomFrom(m, view, only) {
+  const pos = new Float32Array(m.V.length * 3), nor = new Float32Array(m.V.length * 3);
+  m.V.forEach((v, i) => { pos[i*3] = v[0]; pos[i*3+1] = v[1]; pos[i*3+2] = v[2]; });
+  const N = m.N ? m.N.slice() : [];
+  const need = [];
+  for (let i = 0; i < m.V.length; i++) if (!N[i]) { N[i] = [0, 0, 0]; need.push(i); }
+  if (need.length) {
+    const nd = new Set(need);
+    for (const f of m.F) {
+      if (!f.v.some(i => nd.has(i))) continue;
+      const n = [0, 0, 0], k = f.v.length;
+      for (let i = 0; i < k; i++) {
+        const a = m.V[f.v[i]], b = m.V[f.v[(i + 1) % k]];
+        n[0] += (a[1]-b[1]) * (a[2]+b[2]); n[1] += (a[2]-b[2]) * (a[0]+b[0]);
+        n[2] += (a[0]-b[0]) * (a[1]+b[1]);
+      }
+      for (const vi of f.v) if (nd.has(vi)) { N[vi][0] += n[0]; N[vi][1] += n[1]; N[vi][2] += n[2]; }
+    }
+  }
+  N.forEach((n, i) => {
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    nor[i*3] = n[0] / l; nor[i*3+1] = n[1] / l; nor[i*3+2] = n[2] / l;
+  });
+  const byMat = new Map();
+  for (const f of m.F) {
+    if (only && !only(f)) continue;
+    if (!byMat.has(f.m)) byMat.set(f.m, []);
+    const t = byMat.get(f.m);
+    for (let i = 1; i + 1 < f.v.length; i++) t.push(f.v[0], f.v[i], f.v[i + 1]);
+  }
+  const idx = [], mats = [];
+  const g = new THREE.BufferGeometry();
+  // opaque first, glass last (it does not write depth)
+  const names = [...byMat.keys()].sort((a, b) => (GLASS.has(a) ? 1 : 0) - (GLASS.has(b) ? 1 : 0));
+  for (const name of names) {
+    const tris = byMat.get(name);
+    g.addGroup(idx.length, tris.length, mats.length);
+    for (const i of tris) idx.push(i);
+    mats.push(matOf(name, view));
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return new THREE.Mesh(g, mats);
+}
+function wireFrom(m, only) {
+  const pos = [];
+  for (const f of m.F) {
+    if (f.m === 'joint' || f.m === 'doorSeal') continue;
+    if (only && !only(f)) continue;
+    for (let i = 0; i < f.v.length; i++) {
+      const a = m.V[f.v[i]], b = m.V[f.v[(i + 1) % f.v.length]];
+      pos.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+    color: 0xffbe5a, transparent: true, opacity: 0.55 }));
+  l.renderOrder = 3;
+  return l;
+}
+
+// ---- the throttle, drawn: plate on the wall, lever + ball, a ghost at full ---
+const thrMats = [
+  new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: 0.6, metalness: 0.4 }),
+  new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.35, metalness: 0.8 }),
+  new THREE.MeshStandardMaterial({ color: 0xd06a2a, roughness: 0.45, metalness: 0.1 }),
+  new THREE.MeshStandardMaterial({ color: 0xd06a2a, roughness: 0.45, metalness: 0.1, transparent: true, opacity: 0.25, depthWrite: false }),
+];
+let thrGroup = null, thrLever = null, thrGhost = null, leverRec = null;
+function drawThrottle(lever) {
+  if (thrGroup) { scene.remove(thrGroup); thrGroup = null; }
+  if (!lever || !$('thrOn').checked) return;
+  const g = new THREE.Group();
+  const inb = lever.dir[0] >= 0 ? 1 : -1;
+  // the plate: 0.20 x 0.13, 8 mm, on the wall (its inboard face at wall + inb*0.008)
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.13, 0.20), thrMats[0]);
+  plate.position.set(lever.wall + inb * 0.004, lever.plateY, lever.plateZ);
+  g.add(plate);
+  const mkLever = (mat, ballMat) => {
+    const grp = new THREE.Group();
+    grp.position.set(lever.piv[0], lever.piv[1], lever.piv[2]);
+    const L = lever.len;
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(lever.wx, lever.tz, L), mat);
+    // the bar along dir: build along +z then aim
+    bar.position.set(0, 0, L / 2);
+    const aim = new THREE.Group();
+    aim.add(bar);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(lever.knobR, 24, 16), ballMat);
+    ball.position.set(0, 0, L);
+    aim.add(ball);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(lever.dir[0], lever.dir[1], lever.dir[2]));
+    aim.quaternion.copy(q);
+    grp.add(aim);
+    return grp;
+  };
+  thrLever = mkLever(thrMats[1], thrMats[2]);
+  thrGhost = mkLever(thrMats[3], thrMats[3]);
+  thrGhost.rotation.x = lever.arc;
+  g.add(thrLever, thrGhost);
+  thrGroup = g;
+  scene.add(g);
+  leverRec = lever;
+  poseLever();
+}
+function poseLever() { if (thrLever && leverRec) thrLever.rotation.x = leverRec.arc * P.thrPose; }
+
+// ---- build ------------------------------------------------------------------
+let obj = null, wireObj = null, built = null, outMesh = null;
+let centre = new THREE.Vector3(0.3, 0.2, 2.6), fitR = 2.6;
+function build() {
+  const L = +$('lvl').value;
+  const cfg = SG.CONFIGS.find(c => c[0] === $('cfg').value) || SG.CONFIGS[0];
+  const CP = { ...G.CAGE_PARAMS, intOn: 1, cutParts: 1, ...cfg[1], explodeD: P.explode };
+  const t0 = performance.now();
+  built = G.cageSheet(CP, { level: L });
+  const tCage = performance.now() - t0;
+  // the run from the preset unless the user changed it
+  const sopt = Object.assign({}, cfg[2] || {}, { W: P.W, H: P.H, t: P.t, bendR: P.bendR, drop: P.drop, gap: P.gap, run: P.run });
+  let lever = null;
+  if ($('thrOn').checked) {
+    lever = SG.stockLever(built, 1, G, { dy: P.thrDy, dx: P.thrDx, dz: P.thrDz, len: P.thrLen });
+    sopt.lever = lever;
+  }
+  const t1 = performance.now();
+  let s = built.mesh, res = null;
+  if ($('shOn').checked) {
+    outMesh = SG.shoulderBuild(built.mesh, built.spec, sopt, G);
+    res = SG.shoulderCheck(outMesh);
+    s = outMesh;
+  } else outMesh = null;
+  const tSh = performance.now() - t1;
+  if (obj) { scene.remove(obj); obj.geometry.dispose(); }
+  if (wireObj) { scene.remove(wireObj); wireObj.geometry.dispose(); wireObj = null; }
+  obj = geomFrom(s, $('view').value);
+  scene.add(obj);
+  if ($('wire').checked) { wireObj = wireFrom(s, f => f.shoulder); scene.add(wireObj); }
+  drawThrottle(lever);
+  setClip($('cut').checked);
+  sectionLines();
+  let line = `${cfg[0]} · L${L}: ${s.V.length} v / ${s.F.length} f   cage ${tCage.toFixed(0)} ms  shoulder ${tSh.toFixed(0)} ms`;
+  if (res) {
+    const lim = outMesh.shoulder.trace.limits;
+    line += `\nlimits: dash ${lim.zDash != null ? lim.zDash.toFixed(3) : '-'}  aft ${lim.zAft.toFixed(3)}  (${outMesh.shoulder.trace.edges} transition edges)`;
+    for (const r of res) {
+      const st = r.ok ? '<span class="ok">closed</span>' : `<span class="bad">OPEN ${r.open} / over ${r.over}</span>`;
+      let sl = '';
+      if (r.slot) sl = r.slot.ok ? `  slot in the <span class="ok">${r.slot.leg}</span>${r.slot.clipped ? ' <span class="warn">(clipped at the edge)</span>' : ''}`
+        : /BURIED/.test(r.slot.note) ? `  <span class="warn">${r.slot.note}</span>` : `  ${r.slot.note}`;
+      line += `\n${r.side > 0 ? 'port' : 'stbd'} ${r.door ? 'door' : 'fixed'} ${r.kind}  z ${r.z0.toFixed(2)}..${r.z1.toFixed(2)}  ${r.faces} f  ${st}  vol ${(r.vol * 1e6).toFixed(0)} cm³  drop ${r.Hmin.toFixed(2)}${r.Hmax - r.Hmin > 1e-4 ? '..' + r.Hmax.toFixed(2) : ''}${sl}`;
+    }
+  }
+  $('stat').innerHTML = line;
+  draw();
+}
+
+// ---- camera -----------------------------------------------------------------
+let yaw = 1.35, pitch = 0.12, zoom = 1, drag = null;
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w || cv.height !== h) {
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  const d = fitR * zoom;
+  camera.position.set(centre.x + d * Math.cos(pitch) * Math.sin(yaw),
+                      centre.y + d * Math.sin(pitch),
+                      centre.z + d * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(centre);
+  if (useOrtho) {
+    const hw = 0.18 * zoom, hh = hw * h / w;
+    ortho.left = -hw; ortho.right = hw; ortho.top = hh; ortho.bottom = -hh;
+    ortho.updateProjectionMatrix();
+    ortho.position.set(centre.x, centre.y, P.cutZ + 0.02);
+    ortho.lookAt(centre.x, centre.y, P.cutZ - 1);
+    // the SECTION DRAWING is the lines alone: the solids beyond the plane
+    // would project over the profile (a liner two centimetres inboard drew
+    // itself across the lip's edge)
+    if (obj) obj.visible = false; if (thrGroup) thrGroup.visible = false; if (wireObj) wireObj.visible = false;
+    renderer.render(scene, ortho);
+    if (obj) obj.visible = true; if (thrGroup) thrGroup.visible = true; if (wireObj) wireObj.visible = true;
+    return;
+  }
+  renderer.render(scene, camera);
+}
+function lookFrom(eye, target) {
+  useOrtho = false;
+  centre.set(target[0], target[1], target[2]);
+  const dx = eye[0] - target[0], dy = eye[1] - target[1], dz = eye[2] - target[2];
+  const d = Math.hypot(dx, dy, dz);
+  fitR = d; zoom = 1;
+  yaw = Math.atan2(dx, dz); pitch = Math.asin(dy / d);
+  draw();
+}
+cv.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, b: e.button }; cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 2) {
+    const s = fitR * zoom * 0.0015;
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    centre.addScaledVector(right, -dx * s); centre.y += dy * s;
+  } else { yaw -= dx * 0.006; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.006)); }
+  draw();
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => {
+  zoom *= Math.exp(e.deltaY * 0.001); zoom = Math.max(0.05, Math.min(6, zoom)); draw();
+}, { passive: true });
+// the pilot's eye: seated on the port side, head at sill + 0.42, looking
+// down-and-out at the sill's middle
+const sillMid = side => {
+  const parts = outMesh ? outMesh.shoulder.parts.filter(p => p.side === side) : [];
+  const z = parts.length ? (parts[0].z0 + parts[parts.length - 1].z1) / 2 : 2.6;
+  const x = side * (built ? built.spec.cabin.halfW : 0.55);
+  return [x * 0.95, 0.19, z];
+};
+$('eyeP').onclick = () => { const t = sillMid(1); lookFrom([-0.15, t[1] + 0.56, t[2] - 0.95], [t[0], t[1] - 0.07, t[2] + 0.05]); };
+$('eyeS').onclick = () => { const t = sillMid(-1); lookFrom([0.15, t[1] + 0.56, t[2] - 0.95], [t[0], t[1] - 0.07, t[2] + 0.05]); };
+$('secBtn').onclick = () => {
+  // cutaway on, the port sill centred, orthographic
+  if (!$('cut').checked) { $('cut').checked = true; setClip(true); sectionLines(); }
+  const t = sillMid(1);
+  centre.set(t[0] - 0.04, t[1] - 0.05, P.cutZ); zoom = 0.5; useOrtho = true; draw();
+};
+$('outBtn').onclick = () => { useOrtho = false; yaw = 1.1; pitch = 0.25; zoom = 1; fitR = 3.4; centre.set(0.2, 0.2, 2.4); draw(); };
+$('sillBtn').onclick = () => { const t = sillMid(1); lookFrom([t[0] - 0.25, t[1] + 0.25, t[2] - 1.6], [t[0], t[1] - 0.05, t[2]]); };
+window.addEventListener('resize', draw);
+for (const id of ['cfg', 'lvl', 'view', 'wire', 'shOn', 'thrOn']) $(id).addEventListener('change', build);
+$('cut').addEventListener('change', () => { setClip($('cut').checked); sectionLines(); draw(); });
+// the pane pumps no rAF (HANDOVER: the Browser pane); every change draws
+async function save(name, port) {
+  draw();
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const res = await fetch(`http://localhost:${port || 8371}/save?name=${encodeURIComponent(name)}`, { method: 'POST', body: blob });
+  return res.status;
+}
+window.SHOULDER_BENCH = { build, draw, light, lookFrom, P, save,
+  section: (cx, cy, z) => { P.cutZ = z != null ? z : P.cutZ; clipAt();
+    if (!$('cut').checked) { $('cut').checked = true; setClip(true); sectionLines(); }
+    centre.set(cx, cy, P.cutZ); useOrtho = true; draw(); },
+  setZoom: v => { zoom = v; draw(); },
+  get out() { return outMesh; }, get built() { return built; } };
+light();
+build();
+})();
+</script>
