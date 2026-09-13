@@ -44169,3 +44169,8 @@ are clear and can be picked up with rigor by other sessions?"
 - Screenshots: screenshots/lods/park352_*.jpg (the lawn, from above, the
   path), scene352_*.jpg (the whole tile from above, from the water, from the
   park).
+- G352.1 (for the premises composer, on its message): tramLine reads nothing
+  of the village but the two station records (vil.base / vil.top given
+  outright, or siteHouses searched); VILLAGE_GEN.placeHouse exported (the
+  renderer can drop its verbatim copy at the landing); recvZ passed to every
+  item is read by millPlan alone - harmless elsewhere.

@@ -1583,9 +1583,13 @@ function planTrees(vil, pool) {
 // is the caller's build (the bench's with its finish, the gate's plain).
 // Returns { angle (deg), ropes: [{ a, b, kind }], docks: [{ p, yaw, dx }] }
 // in the world, and leaves each station's `built` on its record.
+// (G352.1, for the premises composer's adapter: `vil` needs nothing but the
+// two station records - `{ base, top }` given outright, or `siteHouses` to
+// search; each record { P, x, z, y, yaw, toWorld }; nothing else of the
+// village is read, and the result is left on `vil.tram` and returned)
 function tramLine(vil, buildFn) {
-  const base = (vil.siteHouses || []).find(h => h.tram && Math.round(h.P.station) === 2);
-  const top = (vil.siteHouses || []).find(h => h.tram && Math.round(h.P.station) === 1);
+  const base = vil.base || (vil.siteHouses || []).find(h => h.tram && Math.round(h.P.station) === 2);
+  const top = vil.top || (vil.siteHouses || []).find(h => h.tram && Math.round(h.P.station) === 1);
   if (!base || !top) return null;
   const toW = (h, p) => { const w = h.toWorld(p[0], p[2]); return [w[0], p[1] + h.y, w[1]]; };
   const toWdir = (h, d) => { const c = Math.cos(h.yaw), s = Math.sin(h.yaw); return [d[0] * c + d[2] * s, d[1], -d[0] * s + d[2] * c]; };
@@ -1781,6 +1785,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, withShelf, placePark, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();
