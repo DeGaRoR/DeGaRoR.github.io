@@ -334,10 +334,13 @@ const boxTouch = (a, b, m) => a[0] <= b[3] + m && b[0] <= a[3] + m && a[1] <= b[
 // ---- the builds ------------------------------------------------------------
 const FIX = f => SH.loadFixture(path.join(__dirname, 'fixtures', f)).spec;
 const IFR = { fuel: { litres: 90, tank: 'wing' }, systems: { fit: 'ifr' } };
-// G362: the stock builds keep G319's keel crease EXPLICITLY — the default
-// went back to 0 (it had squared every saved aeroplane) and this gate's Cub
-// is the flat-bellied one whose shock struts were measured against it
-const KEEL = { crKeel: 2 };
+// G362 kept G319's keel crease EXPLICITLY on these builds (the default went
+// back to 0 — it had squared every saved aeroplane — and the Cub's shock
+// struts had only been cleared against the flat belly). G363: the struts
+// stand off a ROUND belly now, so the gate measures the DEFAULT — the belly
+// the user's aeroplanes actually have — and the crease is no longer needed
+// to keep it green.
+const KEEL = {};
 const BUILDS = [
   { name: 'stock', over: { ...KEEL } },
   { name: 'rod', over: { boomStyle: 1, ...KEEL } },

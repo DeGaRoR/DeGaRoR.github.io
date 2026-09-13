@@ -1305,10 +1305,53 @@ function legLink(bags, AF, P, st, sgn) {
   // described; if the real J-3 fitting is same-side, flip this back.
   const xTop = cen ? 0 : (P.linkX > 0.5 ? -sgn : sgn);
   const sTop = fitOn(AF, st, st.z + P.shockZ, xTop * P.shockAng * D2R, mdx);
-  const top = off(sTop.p, sTop.n, 0.008 + 0.014);
   const foot = lerp3(vee ? pF : pivot, axleIn, clamp(P.shockAt, 0.15, 0.95));
+  // THE STRUT CLEARS THE BELLY BY STANDING OFF IT (G363, the user's rule for
+  // the skin: it is not changed to suit a fitting — G319 flattened the belly
+  // for this strut and squared every saved aeroplane; G362 put the round
+  // back). A crossed strut arrives at the far corner from below and inboard,
+  // and on a round belly a straight bar from the foot to a pin 22 mm off the
+  // skin runs its last 30 cm INSIDE the round (35 mm, GATE CLIP). The pin is
+  // lifted along the fitting's normal until the whole bar is outside the
+  // section — the same radius-about-the-centre test clearBody uses, on the
+  // bar's own line — and the fitting grows a bracket to reach it. A flat
+  // belly needs none and draws none.
+  const rBar = 0.011, clr = 0.005;
+  let hTop = 0.008 + 0.014;
+  if (!cen && typeof AF.surf === 'function' && typeof AF.cyAt === 'function') {
+    const intrude = top => {
+      let worst = 0, tW = 0;
+      for (let k = 0; k <= 24; k++) {
+        const t = 0.7 * k / 24, p = lerp3(top, foot, t);
+        const cy = AF.cyAt(p[2]), dx = p[0], dy = p[1] - cy;
+        const rp = Math.hypot(dx, dy);
+        if (rp < 1e-6) continue;
+        const s = AF.surf(p[2], Math.atan2(dx, -dy));
+        if (!s || !isFinite(s[0])) continue;
+        const d = Math.hypot(s[0], s[1] - cy) + rBar + clr - rp;
+        if (d > worst) { worst = d; tW = t; }
+      }
+      return { worst, tW };
+    };
+    for (let it = 0; it < 10 && hTop < 0.16; it++) {
+      const { worst, tW } = intrude(off(sTop.p, sTop.n, hTop));
+      if (worst <= 0) break;
+      hTop = Math.min(0.16, hTop + worst / Math.max(0.3, 1 - tW) + 0.001);
+    }
+  }
+  const top = off(sTop.p, sTop.n, hTop);
   padOn(bags, AF, st, st.z + P.shockZ, (cen ? 0 : sgn) * P.shockAng * D2R,
         0.11, 0.10, { thick: 0.007 }, mdx);
+  if (hTop > 0.03) {
+    // the bracket: a pedestal from the pad up to the pin, its foot wider than
+    // its head, standing on the fitting's normal
+    const nB = sTop.n, sideB = nrm(crs(nB, sTop.fore));
+    const hB = hTop - 0.007;
+    boxIn(bags.alloy, off(sTop.p, nB, 0.007 + hB * 0.5), [0.013, hB * 0.5, 0.020],
+          sideB, nB, sTop.fore);
+    boxIn(bags.alloy, off(sTop.p, nB, 0.007 + 0.006), [0.026, 0.006, 0.034],
+          sideB, nB, sTop.fore);
+  }
   const dir = nrm(sub(foot, top));
   const L = len(sub(foot, top));
   const mode = Math.round(P.shockKind);

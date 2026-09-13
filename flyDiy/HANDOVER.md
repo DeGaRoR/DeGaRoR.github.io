@@ -43692,3 +43692,25 @@ click. The rule did its job on the first commit that broke it.
   ships, and the five throttle rows run on both flanks (`crKeel` 0 and 2,
   the lever's wall x being sampled off the flank) — ten rows, all closed,
   the same slot legs as before.
+
+## G363 — THE SHOCK STRUT STANDS OFF A ROUND BELLY (2026-09-13; owed after
+## G362 — the user: the skin is "a pure slave of the existing fuselage
+## geometry", a fitting does not get to change it)
+
+- G319 flattened the belly to clear the Cub's crossed shock struts; that
+  squared every saved aeroplane (G362 put the round back and kept GATE
+  CLIP's builds flat by hand). The strut's problem is now solved on the
+  strut: a crossed strut arrives at the far corner from below and inboard,
+  and on a round belly a straight bar from the foot to a pin 22 mm off the
+  skin ran its last 30 cm INSIDE the round (35 mm, GATE CLIP).
+- **`legLink`** (`_gear_gen.js`): the pin is lifted along the fitting's
+  normal until the whole bar is outside the section — the radius-about-
+  the-centre test `clearBody` uses, taken on the bar's own line over its
+  upper 70 %, iterated (each lift divided by the worst point's share of
+  the line) — and the fitting grows a bracket to reach it: a pedestal
+  from the pad to the pin, foot wider than head, on the fitting's normal.
+  A flat belly needs no lift and draws no bracket (the pin stays at 22 mm).
+- **GATE CLIP** measures the DEFAULT belly again (G362's explicit
+  `crKeel: 2` on the stock builds is gone): stock / rod / stock+ifr /
+  stock+panel worst 0.0 mm on the round belly, and 0.0 mm with `crKeel 2`
+  as well; the baseline is unchanged (6 lines, the two rulings).
