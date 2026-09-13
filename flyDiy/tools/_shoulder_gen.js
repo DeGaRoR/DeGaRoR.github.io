@@ -531,16 +531,35 @@ function shoulderBuild(mesh, spec, opt, CAGE) {
         arc.push(acc);
       });
       ids.forEach((row, i) => row.forEach((id, k) => { A[id] = [zF - st[i].z, arc[k], 0.5, 0.5]; }));
+      // a cap or a slot vertex (G346.1): its (s, y) in the profile frame AT
+      // ITS OWN STATION, projected onto the profile polyline — the arc at the
+      // foot of the projection is its sC. The first cut took the nearest
+      // profile point by s alone, so every slot vertex on the leg's face (all
+      // at s = W) got the bend's arc and the sheet stretched round the slot
+      // (the user: "the shoulder should be remapped after the cut").
+      const stAt = z => {
+        let i = 0;
+        while (i < st.length - 2 && st[i + 1].z < z) i++;
+        const a = st[i], b = st[Math.min(st.length - 1, i + 1)];
+        const t = Math.max(0, Math.min(1, (z - a.z) / Math.max(1e-9, b.z - a.z)));
+        return { xo: a.xo + (b.xo - a.xo) * t, yTop: a.yTop + (b.yTop - a.yTop) * t };
+      };
+      const P0 = profs[0];
       for (const f of faces) for (const vi of f.v) if (!A[vi]) {
-        // a cap or a slot vertex: the station's sL, the nearest profile arc
         const p = V[vi];
-        const sL = zF - (p[2] - off[2]);
-        let best = 0, bd = 1e9;
-        profs[0].forEach((q, k) => {
-          const d = Math.hypot((p[0] - off[0] - st[0].xo) * u - q.s, 0);
-          if (d < bd) { bd = d; best = k; }
-        });
-        A[vi] = [sL, arc[best], 0.5, 0.5];
+        const z = p[2] - off[2], s0 = stAt(z);
+        const ps = (p[0] - off[0] - s0.xo) * u, py = p[1] - off[1] - s0.yTop;
+        let bestArc = 0, bd = 1e9;
+        for (let k = 0; k + 1 < P0.length; k++) {
+          const a = P0[k], b = P0[k + 1];
+          const dx = b.s - a.s, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+          if (l2 < 1e-12) continue;
+          const t = Math.max(0, Math.min(1, ((ps - a.s) * dx + (py - a.y) * dy) / l2));
+          const qx = a.s + dx * t, qy = a.y + dy * t;
+          const d = Math.hypot(ps - qx, py - qy);
+          if (d < bd) { bd = d; bestArc = arc[k] + Math.sqrt(l2) * t; }
+        }
+        A[vi] = [zF - z, bestArc, 0.5, 0.5];
       }
     }
     // orient this part: coherent windings by position-keyed edges, then
