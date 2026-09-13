@@ -156,6 +156,7 @@
     const d = $('details'); d.append($('summary', null, 'knobs'));
     const R = { dustFlat: [0, 1, 0.01], ccRough: [0, 1, 0.01], kappaMax: [5, 200, 1], bugTile: [0.1, 1, 0.01],
                 fineTile: [0.1, 1.5, 0.01], coarseTile: [0.5, 6, 0.05], streakAcross: [0.05, 1, 0.01], streakAlong: [0.5, 8, 0.05],
+                creviceGain: [0, 4, 0.05], seamW: [0.01, 0.12, 0.005], scratchLen: [0.1, 2, 0.01], scratchAcross: [0.01, 0.2, 0.005],
                 propR: [0.3, 2.0, 0.01], spinR: [0.05, 0.4, 0.005], leGain: [0, 3, 0.05], flingGain: [0, 3, 0.05] };
     for (const k of Object.keys(W.AERO_WX_KNOB))
       rows.push(row(d, k, R[k][0], R[k][1], R[k][2], () => W.aeroWxLabGet('knob', k),

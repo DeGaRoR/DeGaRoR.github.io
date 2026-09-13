@@ -44377,3 +44377,55 @@ MEASURED (the check prints every number before its verdict):
   sheet the user renders (labels_prep.py SHEETS, a 'labels3.png'); the
   builders are ready to take `tapeOn(...)` once the names exist. The extra
   gauge on the shoulder is not drawn (the leg is 10 cm since G355).
+
+## G345.3 — SCRATCHES ARE RARE AND SHORT, DIRT KNOWS WHERE THE CREVICES ARE, AND THE GAME'S SOURCES WERE IN THE WRONG FRAME (2026-09-14)
+
+The user, on the game page: "the scratches on the side are too harsh. They
+suggest really harsh treatment, not normal flight conditions. We need to
+separate the scratches from the dirt. Dirt is OK in large amount, scratches
+should be a lot more parsimonious, and I believe you extend the scratches a
+lot by projecting wrong ... the paint chips on the wings look good (less on
+the wing tips though) ... What I really miss is the ability to generate
+dirt in all appropriate places independently, in particular in the
+crevices."
+
+THE STREAKS WERE NOT A PROJECTION FAULT. The scratch layer read the SAME
+stretched noise the aft streaks read — 2.6 m along by 0.22 across — so every
+scratch ran the length of the part it was on, and on the cowl and the fin the
+substrate it exposed is bright alloy: hangar rash drawn as a keying. Now a
+scratch has its OWN read (`uWxV.zw`: 0.45 m long, 0.03 m wide, in the same
+part frame) and a threshold that admits a few per square metre at most; the
+coefficients are halved (age 0.16, flight 0.04, bush 0.06). The dirt layers
+keep their long read — dirt in large amount is the ask.
+
+DIRT IN THE CREVICES, AS A THING OF ITS OWN. Two sources, each with the
+`creviceGain` knob (`uWxV.x`, 1.6): the grammar's cavity (`aeroCav` — every
+rivet flank, tape edge, lap and seam of the fielded skin, exact) and the
+COWL'S OWN JOINTS — the panel joint is a station along the axis and the
+split line an azimuth on both flanks, the cowl tool's numbers (`seamPos`,
+`partY`, `seamOn`, off `COWL_GEN.P`), carried per engine in `uWxAd` (y the
+joint's craft station, z the split azimuth, w on) from both the editor
+(`applyWeather`) and the join, and read in the cylindrical map as two
+gaussians `seamW` wide. The screen-derivative concavity stays for what it
+can see (a rim bead's root, a groove wide enough to have its own triangles);
+it never saw the cowl's millimetre strips, which is why `dep` measured zero
+there. Chips: `kappaMax` 25 → 40, so a wing tip's gentle round no longer
+counts as an edge while a rivet dome still saturates.
+
+THE GAME'S SOURCES WERE IN THE WRONG FRAME, and only the game shows it. The
+layers publish their points in the CAGE'S OWN frame: the gear's contacts
+never pass through a THREE transform, and the engine layer's `localToWorld`
+runs while the sit group's matrix is still identity. `applyWeather` pushed
+them through `uCraftInv`, which inverts the sit group's hangar pose — so in
+the garage the two mains came out at different "along" stations, the thrust
+line 3.6 m to the side, every plume and every wheel cone off the aeroplane.
+On the bench the mesh sits at the identity and the two frames coincide.
+The craft frame for published points is the cage convention applied
+directly (x lateral, aft = −z, up = y); measured after: the mains at ±0.80 m
+lateral, the nosewheel on the centreline, the panel joint 0.55 m ahead of
+the firewall as the cowl tool says. The shader's own positions were always
+right (`uCraftInv · modelMatrix` cancels the pose).
+
+Gate: scratches must read `uWxV.zw` and never `gSa`; the cowl's joints must
+write `wxCrev`; census cap 64. In situ: dev.html's FINISH view, the four
+rows under LIVERY, the aeroplane weathered live in the hangar.

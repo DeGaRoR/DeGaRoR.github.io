@@ -81,6 +81,9 @@ function audit(ctx) {
     check(/material\.clearcoat \*= 1\.0 - aeroWxPeel;/.test(glsl.CC), 'the peel does not take the clear coat off');
     check(/aeroWxCov = max\(aeroWxCov, max\(ch, clamp\(wxBleed, 0\.0, 1\.0\)\)\);/.test(S), 'rust bleed keeps the varnish over it');
     check(/aeroMusgrave\(wxUV \/ 0\.55\)/.test(S), 'the dirt\'s roughness has no noise on it');
+    // G345.3: scratches read their OWN short period, never the aft streaks' long one
+    check(/vec2\(wxAcross \/ uWxV\.w, wxAlong \/ uWxV\.z\)/.test(S) && !/, gSa\) \* step\(0\.01, wxScP\)/.test(S), 'scratches ride the aft-streak read (2.6 m long)');
+    check(/wxCrev = s \* uWxAd\[i\]\.w \* max\(wxJ, wxSpl\);/.test(S), 'the cowl\'s joints put no dirt in their crevices');
     // the unpack matches the table, slot by slot
     layers.forEach((L, i) => {
       const want = 'float wx_' + L.k + ' = uWxL[' + (i >> 2) + '].' + 'xyzw'[i & 3] + ' * wxK;';
@@ -108,7 +111,7 @@ function audit(ctx) {
     // 48 was the plan's budget; the thrust lines (8), the turning parts'
     // knobs and the spiral (3) sit on top of it, against a WebGL2 floor of
     // 224 with ~165 spent before this module
-    check(vec <= 60, 'uniform census: more than 60 vec4-equivalents', String(vec));
+    check(vec <= 64, 'uniform census: more than 64 vec4-equivalents', String(vec));
   }
 
   // ---- THE TABLES ----------------------------------------------------------

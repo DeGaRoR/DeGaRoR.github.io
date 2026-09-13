@@ -70,7 +70,8 @@ const AERO_WX_LAYERS = [
   { k: 'streakD', label: 'drips down the flanks',       c: [0.10, 0.00, 0.10,  0.90] },
   { k: 'chip',    label: 'chips and peel at the edges', c: [0.85, 0.20, 0.10,  0.00] },
   { k: 'rust',    label: 'rust on steel',               c: [0.60, 0.00, 0.10,  0.50] },
-  { k: 'scratch', label: 'scratches along the flanks',  c: [0.30, 0.15, 0.10,  0.00] },
+  // G345.3: PARSIMONIOUS — hangar rash is rare, short and mostly age
+  { k: 'scratch', label: 'scratches along the flanks',  c: [0.16, 0.04, 0.06,  0.00] },
   { k: 'impact',  label: 'stone chips, forward faces',  c: [0.20, 0.50, 0.60,  0.00] },
   { k: 'tar',     label: 'tar and oil spots',           c: [0.30, 0.50, 0.10,  0.00] },
   { k: 'corner',  label: 'cabin corners and floor',     c: [0.50, 0.30, 0.40,  0.10] },
@@ -111,7 +112,7 @@ const AERO_WX_GLOSS_OK = ['tar'];
 const AERO_WX_KNOB = {
   dustFlat:  0.60,   // uWxR.x  how far dust fills the microsurface (normal -> smooth)
   ccRough:   0.50,   // uWxR.y  clear-coat roughness a full cover adds
-  kappaMax:  25.0,   // uWxR.z  1/m: curvature at which concave/convex saturate
+  kappaMax:  40.0,   // uWxR.z  1/m: curvature at which concave/convex saturate (40: a wing tip's gentle round is not an edge)
   bugTile:   0.30,   // uWxR.w  m, the insects' cell tile
   fineTile:  0.35,   // uWxG.x  m, the fine mottle / cells
   coarseTile: 2.40,  // uWxG.y  m, the large blotch
@@ -124,6 +125,11 @@ const AERO_WX_KNOB = {
   spinR:     0.15,   // uWxT.y  m, the spinner's base radius
   leGain:    1.00,   // uWxT.z  leading-edge insects and stone pits
   flingGain: 1.00,   // uWxT.w  centrifugal streaks
+  // G345.3: the crevices and the scratches
+  creviceGain: 1.6,  // uWxV.x  dirt in the rivet flanks, seams, grooves and the cowl's joints
+  seamW:     0.035,  // uWxV.y  m, how far the cowl's joint dirt spreads
+  scratchLen: 0.45,  // uWxV.z  m, a scratch's length period
+  scratchAcross: 0.03, // uWxV.w m, a scratch's width period
 };
 // THE SPINNER'S SPIRAL (the user: "the little typical spiral and choose its
 // colour"): a marking, so it lives in the decal block (AERO_DEC_DEF's
@@ -347,7 +353,7 @@ function aeroWxSharedU(THREE) {
     uWxE:   { value: v4s(AERO_WX_NE) },   // exhaust: xyz craft m, w run m
     uWxEd:  { value: v4s(AERO_WX_NE) },   // exhaust: xyz blown direction, w half-width m
     uWxA:   { value: v4s(AERO_WX_NE) },   // thrust line: xyz craft m, w cowl radius
-    uWxAd:  { value: v4s(AERO_WX_NE) },   // x cowl length aft
+    uWxAd:  { value: v4s(AERO_WX_NE) },   // x cowl length aft  y panel joint (craft y)  z split-line azimuth  w joint on
     uWxW:   { value: v4s(AERO_WX_NW) },   // wheel: xyz contact craft m, w R
     uWxWd:  { value: v4s(AERO_WX_NW) },   // wheel: x tyre half-width, y weight, z run m, w 0
     uWxN:   { value: new THREE.Vector4(0, 0, 0, -9) },  // x nE y nW z 0 w cabin floor z
@@ -355,6 +361,7 @@ function aeroWxSharedU(THREE) {
     uWxG:   { value: new THREE.Vector4(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong) },
     uWxDbg: { value: 0 },
     uWxT:   { value: new THREE.Vector4(K.propR, K.spinR, K.leGain, K.flingGain) },
+    uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
   };
@@ -389,6 +396,7 @@ function aeroWxRefresh() {
   U.uWxR.value.set(K.dustFlat, K.ccRough, K.kappaMax, K.bugTile);
   U.uWxG.value.set(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong);
   U.uWxT.value.set(K.propR, K.spinR, K.leGain, K.flingGain);
+  U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross);
   const m = AERO_WX.macro;
   U.uWear.value.set(aeroWxClamp01(m.age), aeroWxClamp01(m.flight),
                     aeroWxClamp01(m.bush), aeroWxClamp01(m.rain));
@@ -462,7 +470,10 @@ function aeroWxSetSources(THREE, src) {
     const g = en[i] || (ex[i] ? { x: ex[i].x, y: ex[i].y, z: ex[i].z } : null);
     if (!g) { U.uWxA.value[i].set(0, 0, 0, 0); U.uWxAd.value[i].set(0, 0, 0, 0); continue; }
     U.uWxA.value[i].set(+g.x || 0, +g.y || 0, +g.z || 0, g.r != null ? +g.r : 0.8);
-    U.uWxAd.value[i].set(g.len != null ? +g.len : 1.2, 0, 0, 0);
+    // the cowl's own crevices (G345.3): the panel joint's station in craft
+    // metres and the split line's azimuth, off the cowl tool's numbers
+    U.uWxAd.value[i].set(g.len != null ? +g.len : 1.2, g.seam != null ? +g.seam : 0,
+                         g.split != null ? +g.split : 0, g.seamOn ? 1 : 0);
   }
   for (let j = 0; j < AERO_WX_NW; j++) {
     const w = wh[j];
@@ -578,12 +589,13 @@ uniform vec4 uWxEd[AEROWX_NE];
 uniform vec4 uWxW[AEROWX_NW];
 uniform vec4 uWxWd[AEROWX_NW];
 uniform vec4 uWxA[AEROWX_NE];   // an engine's thrust line: xyz craft m, w the cowl's radius
-uniform vec4 uWxAd[AEROWX_NE];  // x the cowl's length aft of that point
+uniform vec4 uWxAd[AEROWX_NE];  // x the cowl's length aft of that point  y panel joint craft y  z split azimuth  w joint on
 uniform vec4 uWxN;      // x nE  y nW  z object space is the turning part's own frame  w cabin floor z (craft m)
 uniform vec4 uWxR;      // x dust flatten  y cc rough add  z kappa max (1/m)  w bug tile m
 uniform vec4 uWxG;      // x fine tile m  y coarse tile m  z streak across m  w streak along m
 uniform float uWxDbg;
 uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE gain  w fling gain
+uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch length m  w scratch width m
 uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
 uniform vec4 uSpiralC;  // linear rgb, strength
 uniform float uWxTurn;  // per material: 0 fixed, 1 a blade, 2 the spinner
@@ -753,7 +765,7 @@ const AERO_WX_SURF_FS = `
     // CYLINDRICAL — arc length round the line, metres along it, the seam
     // declared at the bottom — on the triplanar parts, which have no field.
     // The nose face itself (the spinner's plane) keeps the nose plane.
-    float wxCyl = 0.0; vec2 wxCylUV = vec2(0.0);
+    float wxCyl = 0.0; vec2 wxCylUV = vec2(0.0); float wxCrev = 0.0;
     for (int i = 0; i < AEROWX_NE; ++i) {
       if (float(i) >= uWxN.x) break;
       vec3 qa = cP - uWxA[i].xyz;
@@ -767,7 +779,17 @@ const AERO_WX_SURF_FS = `
       // by its radius, meets at the shoulder without a step, and needs no
       // blend toward a nose plane (a blend by facing was a shear band).
       // ACROSS is the arc, the seam declared at the bottom.
-      if (s > wxCyl) { wxCyl = s; wxCylUV = vec2(qa.y + rr, atan(qa.x, qa.z) * max(rr, 0.05)); }
+      if (s > wxCyl) {
+        wxCyl = s; wxCylUV = vec2(qa.y + rr, atan(qa.x, qa.z) * max(rr, 0.05));
+        // THE COWL'S CREVICES (G345.3, the user: "dirt in all appropriate
+        // places, in particular in the crevices"): the panel joint is a
+        // station along the axis, the split line an azimuth on both flanks —
+        // the cowl tool's own numbers, not a curvature the derivatives
+        // cannot see on a millimetre groove
+        float wxJ = exp(-pow((qa.y - uWxAd[i].y) / uWxV.y, 2.0));
+        float wxSpl = exp(-pow((abs(atan(qa.x, qa.z)) - uWxAd[i].z) * rr / uWxV.y, 2.0));
+        wxCrev = s * uWxAd[i].w * max(wxJ, wxSpl);
+      }
     }
     #if AEROSKIN_SURF == 0
     wxUV = mix(wxUV, wxCylUV, wxCyl);
@@ -872,10 +894,10 @@ const AERO_WX_SURF_FS = `
     float wxBelly = wxRadW * wx_belly * pow(wxDown, 1.5) * (0.5 + 0.5 * wxBlot) * (0.6 + 0.4 * gF.r) * wxOut;
     aeroWxLay(col, cov, flo, 0.65 * wxBelly, uWxC[1]);
     // the grammar's own cavities: rivet flanks, tape edges, seams, the sag
-    aeroWxLay(col, cov, flo, wx_cav * wxCav * (0.6 + 0.4 * gF.r), uWxC[7]);
+    aeroWxLay(col, cov, flo, wx_cav * min(1.0, wxCav * uWxV.x) * (0.6 + 0.4 * gF.r), uWxC[7]);
     aeroWxLay(col, cov, flo, 0.5 * wx_cav * wxDep * (0.5 + 0.5 * gC.a), uWxC[1]);
     // depressions the geometry has: grooves, dome roots, corners
-    aeroWxLay(col, cov, flo, wx_dep * wxConcave * (0.5 + 0.5 * gC.a), uWxC[7]);
+    aeroWxLay(col, cov, flo, wx_dep * min(1.0, (wxConcave + wxCrev) * uWxV.x) * (0.5 + 0.5 * gC.a), uWxC[7]);
     // the cabin's corners and floor
     float wxTrough = 1.0 - smoothstep(0.0, 0.14, abs(cP.z - uWxN.w));
     aeroWxLay(col, cov, flo, wx_corner * wxIn * (1.4 * wxConcave + 0.6 * wxTrough * (0.4 + 0.6 * gF.r)), uWxC[2]);
@@ -981,8 +1003,13 @@ const AERO_WX_SURF_FS = `
       float thrI = 1.0 - 0.22 * wxImpP;      // small pits, not coins (the cub's cowl at 0.45 wore coins)
       ch = max(ch, smoothstep(thrI, thrI + 0.05, gF.g) * step(0.01, wxImpP));
       // scratches along the flanks: the stretched read, thresholded high
+      // A SCRATCH IS SHORT AND RARE (G345.3, the user: "scratches should be
+      // a lot more parsimonious"): its own read at a 0.45 m period, not the
+      // aft streaks' 2.6 m one that ran every scratch the length of the
+      // part, and a threshold that admits a few per square metre at most
       float wxScP = wx_scratch * uWxSub2.z * wxSide * wxOut * wxPure;
-      ch = max(ch, smoothstep(0.94 - 0.05 * wxScP, 0.96 - 0.05 * wxScP, gSa) * step(0.01, wxScP));
+      float gSc = texture2D(tGrunge, vec2(wxAcross / uWxV.w, wxAlong / uWxV.z) + vec2(0.23, 0.59)).b;
+      ch = max(ch, smoothstep(0.968 - 0.03 * wxScP, 0.978 - 0.03 * wxScP, gSc) * step(0.01, wxScP));
       // steel goes to primer then rust; rust also BLEEDS down from the chips
       // THE SUBSTRATE WITH ITS OWN ROUGHNESS (G345.2): bare alloy under a
       // chip is a metal at the finish row's roughness — it OUTSHINES the
@@ -1013,7 +1040,7 @@ const AERO_WX_SURF_FS = `
     // so what you see is the mask and not the lamps on the weave
     if (uWxDbg > 0.5) {
       vec3 dbg = vec3(cov);
-      if (uWxDbg > 1.5) dbg = vec3(wxCav);
+      if (uWxDbg > 1.5) dbg = vec3(wxCav, wxCrev, wxConcave);
       if (uWxDbg > 2.5) dbg = vec3(wxConvex, 0.0, wxConcave);
       if (uWxDbg > 3.5) dbg = vec3(wxSoot, wxMud, 0.0);
       if (uWxDbg > 4.5) dbg = vec3(gF.r, gF.g, gC.a);

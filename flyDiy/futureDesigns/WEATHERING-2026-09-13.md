@@ -210,6 +210,14 @@ grained, and strips the varnish; the dirt floor rides a musgrave at 0.55 m;
 the `peel` layer (25th) takes the clear coat off in patches. The gate holds
 the shader's slot define against the table.
 
+## 6d. G345.3 — scratches, crevices, the game's frame (2026-09-14)
+
+Scratches read their own short period (uWxV.zw) at a rare threshold; the
+crevice dirt has a gain (uWxV.x) over the grammar's cavity and the cowl's
+own joints (panel joint station + split azimuth per engine in uWxAd, from
+COWL_GEN.P); kappaMax 40. The layers publish CAGE-LOCAL points: the editor
+maps them with the cage convention directly, never through uCraftInv.
+
 ## 7. Owed
 
 - The glass legibility measurement (pilot's eye, chart, contrast bound) —

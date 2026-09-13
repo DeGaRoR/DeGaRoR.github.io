@@ -2500,7 +2500,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const CL = window.CAGE_COWL;
       for (const u of (E && E.units) || []) {
         if (!u.at) continue;
-        engines.push(Object.assign(pt(u.at), { r: 0.8, len: (CL && +CL.len > 0) ? +(+CL.len + 0.3).toFixed(3) : 1.3 }));
+        const CP = window.COWL_GEN && window.COWL_GEN.P, zFw = (E && +E.zFw) || 0;
+        const len = (CL && +CL.len > 0) ? +CL.len : 1.0;
+        const at = pt(u.at);
+        engines.push(Object.assign(at, { r: 0.8, len: +(len + 0.3).toFixed(3),
+          // G345.3: the cowl's crevices, in the flown craft frame (y aft)
+          seam: +(at.y - zFw - (CP ? +CP.seamPos : 0.75) * len).toFixed(4),
+          split: +(Math.PI * 0.5 * (1 - (CP ? +CP.partY : 0))).toFixed(4),
+          seamOn: CP ? (+CP.seamOn ? 1 : 0) : 0 }));
       }
       const G3 = window.CAGE_GEAR, GG = window.GEAR_GEN, PU = window.CAGE_UI && window.CAGE_UI.P;
       const prof = (GG && GG.TYRE && GG.TYRE[Math.round((PU && PU.whProfile) || 0)]) || { hw: 0.40 };

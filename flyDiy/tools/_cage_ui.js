@@ -3144,8 +3144,16 @@ function applyWeather() {
   const A = AK();
   const WX = window.AEROWX;
   if (!A || !WX || !A.aeroSharedU) return;
-  const inv = A.aeroSharedU(THREE).uCraftInv.value;
-  const craft = (p, dir) => WX.aeroWxCraftOf(THREE, inv, p, dir);
+  // THE LAYERS PUBLISH IN THE CAGE'S OWN FRAME (G345.3, measured in the
+  // game): the gear's contacts never pass through a THREE transform, and the
+  // engine layer's localToWorld runs while the sit group's matrix is still
+  // identity — so these points are mesh-local metres, and the craft frame
+  // for them is the cage convention applied DIRECTLY (x lateral, aft = -z,
+  // up = y), never uCraftInv (which inverts the sit group's hangar pose
+  // and, in the game, turned every "up" and "aft" gate sideways). On a bench
+  // the mesh sits at the identity and the two agree, which is why the bench
+  // never showed it.
+  const craft = (p, dir) => [+p[0], -p[2], +p[1]];
   const exhaust = [], wheels = [];
   try {
     const E = window.CAGE_ENG;
@@ -3182,7 +3190,15 @@ function applyWeather() {
     for (const u of (E2 && E2.units) || []) {
       if (!u.at) continue;
       const p = craft(u.at);
-      engines.push({ x: p[0], y: p[1], z: p[2], r: 0.8, len: (CL && +CL.len > 0) ? +CL.len + 0.3 : 1.3 });
+      // G345.3: the cowl's crevices — the panel joint's station (the cowl runs
+      // forward from the firewall face, which sits zFw ahead of the unit) and
+      // the split line's azimuth (partY: 0 the waist, 1 the top pole)
+      const CP = window.COWL_GEN && window.COWL_GEN.P, zFw = (E2 && +E2.zFw) || 0;
+      const len = (CL && +CL.len > 0) ? +CL.len : 1.0;
+      engines.push({ x: p[0], y: p[1], z: p[2], r: 0.8, len: len + 0.3,
+                     seam: p[1] - zFw - (CP ? +CP.seamPos : 0.75) * len,
+                     split: Math.PI * 0.5 * (1 - (CP ? +CP.partY : 0)),
+                     seamOn: CP ? (+CP.seamOn ? 1 : 0) : 0 });
     }
   } catch (e) { console.error('weather: engines', e); }
   WX.aeroWxSetSources(THREE, { exhaust, wheels, engines, floor });
