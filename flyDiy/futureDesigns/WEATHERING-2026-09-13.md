@@ -240,13 +240,26 @@ the concave and convex terms over the same kappaMax. Baked on both sides
 geometry (the attribute is the mark), ~100 ms for the cub's 560 meshes.
 The first cut was a dimensionless angle and made every coarse tube a chip.
 
+## 6g. G345.6 — the relief, and the lab in the editor (2026-09-14)
+
+THE RELIEF. One height field in metres — the chips as bevelled pits (the
+same lattice discs with a soft inner ramp half a radius wide), the mud as
+analytic lumps on a 3 cm lattice where the mud is — bends the normal by
+the screen-gradient bump idiom after the invariants and the substrate.
+Knobs `chipLip` (1 mm, three paint thicknesses: the render's licence) and
+`mudRelief` (5 mm) on uWxB.zw; 0 is off. Two traps measured on the bench:
+a crisp mask is a one-pixel rim at any distance (0.03 % of the frame), and
+a height read off a bilinear texel bends the normal at every texel edge
+(one-pixel sparkles on the belly) — so both heights are analytic and soft.
+
+THE LAB IN THE EDITOR. The editor's lab panel has a fifth kind, weather:
+a layer's four coefficients, a colour's rgb + floor, or the knobs, through
+aeroWxLabSet / aeroWxLabResetRow (localStorage, uniforms live, no build).
+The knob ranges are one table (AERO_WX_KNOB_RANGE) for both labs.
 ## 7. Owed
 
 - The glass legibility measurement (pilot's eye, chart, contrast bound) —
   until it exists gRain/gBug stay at 0 by table.
-- The lab's fifth `editing:` kind (weather) in the editor's own lab panel;
-  the bench carries the whole lab meanwhile.
-- The chip lip normal (2 offset evaluations) and a mud relief normal.
 - The airport-driven macros (bush from grass landings, rain from parking) —
   the spec shape `finish.weather {age, flight, bush, rain}` is ready for it.
 - The W0.5a recalibration: re-shoot the bench's references after the

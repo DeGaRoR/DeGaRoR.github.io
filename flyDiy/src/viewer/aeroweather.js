@@ -135,6 +135,18 @@ const AERO_WX_KNOB = {
   // one's share of it (chips on the crowns)
   bakeGain:  1.0,    // uWxB.x  on the per-vertex curvature / kappaMax
   bakeConvex: 1.0,   // uWxB.y  the crown's share, over bakeGain
+  // G345.6: THE RELIEF — a chip is a pit as deep as the paint, the mud's
+  // spatter a lump; both are heights in metres the normal bends to (0 = off)
+  chipLip:   0.0010,  // uWxB.z  m, a chip's depth over its bevel (three paint thicknesses: the render's licence, so the lip reads at arm's length)
+  mudRelief: 0.0050,  // uWxB.w  m, a mud lump's height over its dome
+};
+// THE KNOBS' RANGES, one keeper for the bench and the editor's lab (G345.6)
+const AERO_WX_KNOB_RANGE = {
+  dustFlat: [0, 1, 0.01], ccRough: [0, 1, 0.01], kappaMax: [5, 200, 1], bugTile: [0.1, 1, 0.01],
+  fineTile: [0.1, 1.5, 0.01], coarseTile: [0.5, 6, 0.05], streakAcross: [0.05, 1, 0.01], streakAlong: [0.5, 8, 0.05],
+  propR: [0.3, 2.0, 0.01], spinR: [0.05, 0.4, 0.005], leGain: [0, 3, 0.05], flingGain: [0, 3, 0.05],
+  creviceGain: [0, 4, 0.05], seamW: [0.01, 0.12, 0.005], scratchLen: [0.1, 2, 0.01], scratchAcross: [0.01, 0.2, 0.005],
+  bakeGain: [0, 10, 0.1], bakeConvex: [0, 3, 0.05], chipLip: [0, 0.003, 0.00005], mudRelief: [0, 0.02, 0.0001],
 };
 // THE SPINNER'S SPIRAL (the user: "the little typical spiral and choose its
 // colour"): a marking, so it lives in the decal block (AERO_DEC_DEF's
@@ -464,7 +476,7 @@ function aeroWxSharedU(THREE) {
     uWxDbg: { value: 0 },
     uWxT:   { value: new THREE.Vector4(K.propR, K.spinR, K.leGain, K.flingGain) },
     uWxV:   { value: new THREE.Vector4(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross) },
-    uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, 0, 0) },
+    uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
   };
@@ -500,7 +512,7 @@ function aeroWxRefresh() {
   U.uWxG.value.set(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong);
   U.uWxT.value.set(K.propR, K.spinR, K.leGain, K.flingGain);
   U.uWxV.value.set(K.creviceGain, K.seamW, K.scratchLen, K.scratchAcross);
-  U.uWxB.value.set(K.bakeGain, K.bakeConvex, 0, 0);
+  U.uWxB.value.set(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief);
   const m = AERO_WX.macro;
   U.uWear.value.set(aeroWxClamp01(m.age), aeroWxClamp01(m.flight),
                     aeroWxClamp01(m.bush), aeroWxClamp01(m.rain));
@@ -651,6 +663,15 @@ function aeroWxLabGet(kind, key, field) {
   if (kind === 'knob')  return AERO_WX_KNOB[key];
   return null;
 }
+// one row back to the table (the editor's 'reset row'): a layer's four
+// coefficients, a colour's four numbers, or one knob
+function aeroWxLabResetRow(THREE, kind, key) {
+  if (kind === 'layer') { const i = AERO_WX_LAYERS.findIndex(L => L.k === key); if (i >= 0) AERO_WX_DEF.layers[i].forEach((v, g) => aeroWxLabSet(null, 'layer', key, g, v)); }
+  else if (kind === 'col') { const i = AERO_WX_COL.findIndex(C => C.k === key); if (i >= 0) AERO_WX_DEF.cols[i].forEach((v, g) => aeroWxLabSet(null, 'col', key, g, v)); }
+  else if (kind === 'knob') { if (AERO_WX_DEF.knobs[key] != null) aeroWxLabSet(null, 'knob', key, null, AERO_WX_DEF.knobs[key]); }
+  if (THREE) aeroWxSharedU(THREE);
+  aeroWxRefresh();
+}
 function aeroWxLabReset(THREE) {
   AERO_WX_LAYERS.forEach((L, i) => { L.c = AERO_WX_DEF.layers[i].slice(); });
   AERO_WX_COL.forEach((C, i) => { C.v = AERO_WX_DEF.cols[i].slice(); });
@@ -700,7 +721,7 @@ uniform vec4 uWxG;      // x fine tile m  y coarse tile m  z streak across m  w 
 uniform float uWxDbg;
 uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE gain  w fling gain
 uniform vec4 uWxV;      // x crevice gain  y cowl joint width m  z scratch length m  w scratch width m
-uniform vec4 uWxB;      // x baked cavity gain  y its convex share  zw 0
+uniform vec4 uWxB;      // x baked cavity gain  y its convex share  z chip depth m  w mud lump height m
 varying float vCav;     // G345.5: the mesh's own curvature per vertex, 1/m, concave positive (aeroWxCavity); 0 where not baked
 uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
 uniform vec4 uSpiralC;  // linear rgb, strength
@@ -733,7 +754,9 @@ float aeroWxKappa(vec3 gN, vec3 P) {
 // their count together and covers a third of a cowl at full. The jitter
 // stays inside the cell (0.3) and the radius under 0.2 cell, so a disc
 // is never clipped by its neighbour and one cell per fragment suffices.
-float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed) {
+// soft (G345.6): a second, inner ramp of that width — the same disc with
+// a bevelled edge, for the relief's height field; 0 is the crisp mask
+float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed, float soft) {
   vec2 c = floor(uv / cell);
   float r0 = aeroHash(c + seed);
   float r1 = aeroHash(c + seed + 17.3);
@@ -742,7 +765,7 @@ float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed) {
   float rr = rad * (0.7 + 0.6 * aeroHash(c + seed + 5.9));
   float d = length(uv - ctr);
   float aa = max(length(fwidth(uv)), 1e-4) * 0.8;
-  return step(r0, dens) * (1.0 - smoothstep(rr - aa, rr + aa, d));
+  return step(r0, dens) * (1.0 - smoothstep(rr - aa - soft, rr + aa, d));
 }
 void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C) {
   float cc = clamp(c, 0.0, 1.0);
@@ -1040,6 +1063,13 @@ const AERO_WX_SURF_FS = `
     // the sources, over the films
     aeroWxLay(col, cov, flo, 0.85 * wxSoot, uWxC[3]);
     float wxSpat = smoothstep(1.0 - 0.75 * wxMud, 1.0 - 0.75 * wxMud + 0.06, gF.g) * step(0.02, wxMud);
+    // ...and the LUMPS for the relief (G345.6): analytic soft discs on a
+    // 3 cm lattice where the mud is, one in two cells at full mud — NOT the
+    // spats' own noise: a bilinear texel's gradient is discontinuous, and
+    // a height read off it bent the normal at every texel edge (measured
+    // on the belly: one-pixel sparkles, the very speckle the user refused)
+    float wxMudOn = smoothstep(0.02, 0.25, wxMud);
+    float wxSpatH = aeroWxSpots(wxUV, 0.03, 0.5 * wxMudOn, 0.006, 31.0, 0.009) * wxMudOn;
     aeroWxLay(col, cov, flo, 0.75 * wxMud * (0.55 + 0.45 * gC.a) + 0.6 * wxSpat, uWxC[2]);
     aeroWxLay(col, cov, flo, wxWheelDust, uWxC[0]);
     // what the rotation flings: oil and dirt in radial streaks from the hub
@@ -1063,8 +1093,8 @@ const AERO_WX_SURF_FS = `
       // by COUNT: at full, one 5 cm cell in twelve carries one 3-8 mm splat
       // (a third of them put seventy on the cowl front; the ask is VERY sparse)
       vec2 wxBuv = vec2(wxAlong, wxAcross);
-      float body = aeroWxSpots(wxBuv, 0.05, 0.08 * wxDens, 0.0035, 3.0) * step(0.02, wxDens);
-      float halo = aeroWxSpots(wxBuv, 0.05, 0.08 * wxDens, 0.0065, 3.0) * step(0.02, wxDens) - body;
+      float body = aeroWxSpots(wxBuv, 0.05, 0.08 * wxDens, 0.0035, 3.0, 0.0) * step(0.02, wxDens);
+      float halo = aeroWxSpots(wxBuv, 0.05, 0.08 * wxDens, 0.0065, 3.0, 0.0) * step(0.02, wxDens) - body;
       col = mix(col, vec3(0.55, 0.50, 0.34), 0.35 * clamp(halo, 0.0, 1.0));
       aeroWxLay(col, cov, flo, body, uWxC[4]);
     }
@@ -1130,12 +1160,20 @@ const AERO_WX_SURF_FS = `
       // blade whose whole convex back counts as an edge it showed as one tan
       // patch of maple (measured: gone at zero macros, so it was this)
       // by COUNT (G345.4): at full, one 6 cm cell in sixteen carries one
-      // 4-10 mm chip, shaped a little by the fine noise so it is not a disc
-      float wxMot = mix(gF.b, mix(gWh.b, gPr.b, wxProp), wxRot);
-      float ch = aeroWxSpots(wxUV, 0.06, 0.06 * wxChipP, 0.006 + 0.004 * wxMot, 11.0) * step(0.01, wxChipP);
+      // 6-10 mm chip (the radius varies by the cell's own hash inside
+      // aeroWxSpots; G345.6 dropped the fine noise from it — a texel's
+      // gradient is discontinuous and the bevel below showed the grid)
+      float wxChR = 0.008;
+      float ch = aeroWxSpots(wxUV, 0.06, 0.06 * wxChipP, wxChR, 11.0, 0.0) * step(0.01, wxChipP);
       // stone chips on the forward faces: small round pits, sparser still
       float wxImpP = wx_impact * uWxSub2.z * pow(wxFwd, 2.0) * wxOut;
-      ch = max(ch, aeroWxSpots(wxUV, 0.04, 0.05 * wxImpP, 0.0025, 23.0) * step(0.01, wxImpP));
+      ch = max(ch, aeroWxSpots(wxUV, 0.04, 0.05 * wxImpP, 0.0025, 23.0, 0.0) * step(0.01, wxImpP));
+      // THE PITS' HEIGHT (G345.6): the same discs with a bevel 0.4 radius
+      // wide — a crisp edge is one pixel of rim at any distance (measured:
+      // 0.03 % of the frame changed with the lip on), a bevel is a ring the
+      // light can find; a scratch is too thin for either
+      float wxChipH = max(aeroWxSpots(wxUV, 0.06, 0.06 * wxChipP, wxChR, 11.0, 0.5 * wxChR) * step(0.01, wxChipP),
+                          aeroWxSpots(wxUV, 0.04, 0.05 * wxImpP, 0.0025, 23.0, 0.0012) * step(0.01, wxImpP));
       // scratches along the flanks: the stretched read, thresholded high
       // A SCRATCH IS SHORT AND RARE (G345.3, the user: "scratches should be
       // a lot more parsimonious"): its own read at a 0.45 m period, not the
@@ -1165,6 +1203,24 @@ const AERO_WX_SURF_FS = `
       // the bleed strips the varnish too — it had kept it, and rust under
       // intact clear coat read as a glossy brown stain
       aeroWxCov = max(aeroWxCov, max(ch, clamp(wxBleed, 0.0, 1.0)));
+      // ---- THE RELIEF (G345.6, design doc §7 'the chip lip normal ... and
+      // a mud relief normal'). A chip is a PIT as deep as the paint, the
+      // spatter a LUMP: one height field in metres, and the normal bends
+      // to its screen gradient (three's own bump idiom: the gradient over
+      // the position derivatives, so the slope is a real dh/dx whatever the
+      // footprint). Self-fading: the spot's antialias ramp is a pixel or
+      // two wide at any distance, so the lip's slope is depth over the
+      // footprint — a 0.35 mm paint edge stands up at arm's length and is
+      // nothing from across the hangar, which is what a chip's lip does.
+      // After the invariants and the substrate, so the dust flatten never
+      // erases it; a zero depth is off by table. The heights are the BEVELLED
+      // pits and the DOMED spats (above), not the crisp masks.
+      float wxH = uWxB.w * wxSpatH - uWxB.z * wxChipH;
+      vec3 wxSx = dFdx(-vViewPosition), wxSy = dFdy(-vViewPosition);
+      vec3 wxR1 = cross(wxSy, nonPerturbedNormal), wxR2 = cross(nonPerturbedNormal, wxSx);
+      float wxDet = dot(wxSx, wxR1);
+      vec3 wxGrad = sign(wxDet) * (dFdx(wxH) * wxR1 + dFdy(wxH) * wxR2);
+      normal = normalize(abs(wxDet) * normal - wxGrad);
     }
     roughnessFactor = clamp(roughnessFactor, 0.02, 1.0);
     metalnessFactor = clamp(metalnessFactor, 0.0, 1.0);
@@ -1283,7 +1339,7 @@ const AEROWX_API = {
   aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX, aeroWxCavity, aeroWxBakeCavity,
   aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin,
   aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
-  aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabExport, AERO_WX_LAB_KEY,
+  aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabResetRow, aeroWxLabExport, AERO_WX_LAB_KEY, AERO_WX_KNOB_RANGE,
   AERO_WX_PARS_FS, AERO_WX_SURF_FS, AERO_WX_CC_FS, AERO_WX_GLASS_FS,
   AERO_WX_GTINT_VS, AERO_WX_GTINT_FS,
 };

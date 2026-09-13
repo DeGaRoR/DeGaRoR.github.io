@@ -45079,3 +45079,51 @@ FLYDIY_RENDERER — scratch shot.js).
 - Gates: WORLD, PREMISES (5b), MEDIA, BUILD green.
 - NEXT: L2 the renderer in the game (render_premises.js, the ground patch,
   the road ribbons), L3 the editor host (the WORLD rail entry), L4 the gates.
+
+## G345.6 — A CHIP HAS A LIP AND MUD HAS LUMPS, AND THE WEATHER LAB LIVES IN THE EDITOR'S OWN PANEL (2026-09-14)
+
+Two of the design doc's owed items (§7), asked for together.
+
+THE RELIEF. A chip was a colour and a roughness on a flat surface; a spat
+was a dark dot. Now ONE height field in metres — the chips as bevelled
+pits, the mud as lumps — bends the normal by the screen-gradient bump idiom
+(the gradient over the position derivatives, so the slope is a real dh/dx
+whatever the footprint), after the invariants and the substrate so the
+dust flatten never erases it. Knobs `chipLip` (1 mm: three paint
+thicknesses, the render's licence, so a lip reads at arm's length) and
+`mudRelief` (5 mm) on uWxB.zw; 0 is off by table.
+
+TWO TRAPS, MEASURED ON THE BENCH before the cut that landed. (1) A CRISP
+mask is a one-pixel rim at any distance: the spot's antialias ramp is a
+pixel wide, so the lip was 0.03 % of a 1400-wide frame, on or off, and
+eight times the depth changed nothing — the rim was already vertical and
+still one pixel. The pits' height is therefore the same lattice discs with
+a soft inner ramp half a radius wide (aeroWxSpots' new `soft` argument): a
+BEVEL the light can find. (2) A height read off a bilinear TEXEL bends the
+normal at every texel edge — the first mud dome was the spats' own noise
+window widened, and the belly came back covered in one-pixel sparkles, the
+very speckle the user refused on the glass. The lumps are analytic soft
+discs on a 3 cm lattice where the mud is (one cell in two at full mud),
+and the chip radius no longer carries the fine noise (the cell's own hash
+already varies it 0.7-1.3). Close on a steel strut: the pits appear as
+shaded dimples where, with the lip off, rust on brown paint was invisible
+(screenshots/weather/g3456_lipclose_def_on|off.png).
+
+THE LAB IN THE EDITOR. The editor's lab panel (LAB.kind) has a fifth kind,
+`weather`: a second select picks a LAYER (its four macro coefficients), a
+DIRT COLOUR (rgb and roughness floor) or the KNOBS (all twenty, mm-
+formatted where small), and every slider goes through the module's own
+keeper — aeroWxLabSet writes the deviation to localStorage 'flydiy.aeroWx'
+and refreshes the uniforms live, no build. 'reset row' goes through the new
+aeroWxLabResetRow, 'reset all' through aeroWxLabReset, 'export json'
+through aeroWxLabExport. The knob ranges moved out of the bench into ONE
+table, AERO_WX_KNOB_RANGE, that both labs read. Exercised on the game page
+through the real DOM: a layer slider wrote its deviation and reset row took
+it back; the knob rows listed all twenty.
+
+Gate: the height line and the bump line verbatim, the bump AFTER the dust
+flatten, every knob with a range and every range with a knob, the editor's
+weather kind through aeroWxLabSet / ResetRow, the bench on the one range
+table; selftest probes for an unbent normal and a knob without a range.
+Proof from a clean worktree: WEATHER, SKINMAT, JOIN, BUILD, UISMOKE,
+PARTS, MEDIA.

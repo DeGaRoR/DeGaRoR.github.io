@@ -46,7 +46,7 @@ const SELF = process.argv.includes('--selftest');
 function audit(ctx) {
   const F = [];
   const check = (ok, label, extra) => { if (!ok) F.push(label + (extra ? ' — ' + extra : '')); return ok; };
-  const { glsl, layers, cols, glossOk, sub, finishes, manifest, benches, fromSpec, toSpec, resolve, grunge, nl, cavity } = ctx;
+  const { glsl, layers, cols, glossOk, sub, finishes, manifest, benches, fromSpec, toSpec, resolve, grunge, nl, cavity, knobs, ranges } = ctx;
 
   // ---- GLSL ---------------------------------------------------------------
   const all = Object.values(glsl).join('\n');
@@ -90,6 +90,14 @@ function audit(ctx) {
     // G345.5: the BAKED cavity reaches both the concave and the convex term
     check(/varying float vCav;/.test(glsl.PARS), 'the baked cavity varying is not declared');
     check(/wxConcave = max\(wxConcave, clamp\(wxBk, 0\.0, 1\.0\)\);/.test(S) && /wxConvex  = max\(wxConvex,  clamp\(-wxBk \* uWxB\.y, 0\.0, 1\.0\)\);/.test(S), 'the baked cavity (vCav) does not reach the concave/convex terms');
+    // G345.6: the relief — one height field (mud up, chips down) bends the normal, after the invariants
+    check(/float wxH = uWxB\.w \* wxSpatH - uWxB\.z \* wxChipH;/.test(S) && /normal = normalize\(abs\(wxDet\) \* normal - wxGrad\);/.test(S), 'the chip lip / mud relief does not bend the normal');
+    check(S.indexOf('normal = normalize(abs(wxDet) * normal - wxGrad);') > S.indexOf('normal = normalize(mix(normal, nonPerturbedNormal, uWxR.x * dustCov));'), 'the relief is applied before the dust flatten (which would erase it)');
+    // ...and every knob has a range for the two labs, every range a knob
+    if (knobs && ranges) {
+      for (const k in knobs) check(Array.isArray(ranges[k]) && ranges[k].length === 3 && ranges[k][0] <= knobs[k] && knobs[k] <= ranges[k][1], 'knob without a range (or out of it)', k);
+      for (const k in ranges) check(knobs[k] != null, 'range without a knob', k);
+    }
     // the unpack matches the table, slot by slot
     layers.forEach((L, i) => {
       const want = 'float wx_' + L.k + ' = uWxL[' + (i >> 2) + '].' + 'xyzw'[i & 3] + ' * wxK;';
@@ -233,6 +241,7 @@ const ctx = {
   manifest: rd(path.join(ROOT, 'tools', 'build.js')), benches,
   fromSpec: W.aeroWxMacroFromSpec, toSpec: W.aeroWxMacroToSpec, resolve: W.aeroWxResolve,
   grunge: W.aeroWxGrunge, nl: W.AERO_WX_NL, cavity: W.aeroWxCavity,
+  knobs: W.AERO_WX_KNOB, ranges: W.AERO_WX_KNOB_RANGE,
 };
 const fail = audit(ctx);
 
@@ -261,6 +270,9 @@ function strip(t) { return t.replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').map(l
   // G345.5: the baked cavity is baked on both sides and carried by the skin's VS
   chk(/WX\.aeroWxBakeCavity\(THREE, mnt\);/.test(UI), 'editor: applyWeather does not bake the cavity on the mount');
   chk(/AEROWX\.aeroWxBakeCavity\(THREE, grp\);/.test(AP), 'app: the flown model group is not baked');
+  // G345.6: the weathering's lab in the editor's own panel, through the module's keeper; the bench on the one range table
+  chk(/\['weather', 'the WEATHERING/.test(UI) && /W\.aeroWxLabSet\(THREE, 'layer', key, \+f, v\)/.test(UI) && /WXL\.aeroWxLabResetRow\(THREE, LAB\.wkind, key\)/.test(UI), 'editor: the lab has no weather kind (or it does not go through aeroWxLabSet / ResetRow)');
+  chk(/const R = W\.AERO_WX_KNOB_RANGE;/.test(rd(path.join(ROOT, 'tools', '_weather_bench.js'))), 'bench: the knob ranges are not the module\'s one table');
   { const SK = rd(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'));
     chk(/attribute float aCav;/.test(SK) && /varying float vCav;/.test(SK) && /vCav    = aCav;/.test(SK), 'aeroskin: the cavity attribute does not reach the varying'); }
   // the join: the record, every unit and every contact
@@ -315,6 +327,8 @@ if (SELF) {
     ['a cavity blind to the unit', c => { const f = c.cavity; c.cavity = (p, i, n, k) => f(p, i, n, k, 1); }, 'unit'],
     ['a cavity with the sign flipped', c => { const f = c.cavity; c.cavity = (p, i, n, k, u) => f(p, i, n, k, u).map(v => -v); }, 'groove floor'],
     ['the bake unread by the shader', c => { c.glsl.SURF = c.glsl.SURF.replace('wxConcave = max(wxConcave, clamp(wxBk, 0.0, 1.0));', ''); }, 'baked cavity'],
+    ['a relief that never bends the normal', c => { c.glsl.SURF = c.glsl.SURF.replace('normal = normalize(abs(wxDet) * normal - wxGrad);', ''); }, 'relief'],
+    ['a knob with no range', c => { c.knobs = Object.assign({ __x: 1 }, c.knobs); }, 'knob without a range'],
     ['the unpack drifted', c => { c.glsl.SURF = c.glsl.SURF.replace('float wx_dust = uWxL[0].x', 'float wx_dust = uWxL[0].y'); }, 'unpack disagrees'],
   ];
   let caught = 0;

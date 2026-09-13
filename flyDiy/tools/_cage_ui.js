@@ -3320,7 +3320,8 @@ const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
 // section list changes shape. Sliders write LIVE (uniforms and scalars, no
 // rebuild); `cc` rebuilds on release because a clear coat appearing on a row
 // changes the material class; the resets rebuild too.
-const LAB = { kind: 'finish', key: null, gkey: null, open: false };
+const LAB = { kind: 'finish', key: null, gkey: null, open: false,
+              wkind: 'layer', wkey: null };   // G345.6: the weathering's own rows
 // WHAT THIS AEROPLANE WEARS (G206.3, the user: "I can't see a single thing
 // moving from any slider in finish rows and construction rows" — the lab
 // opened on doped fabric and tube + fabric, and the aeroplane was ply on a
@@ -3378,7 +3379,8 @@ function labRender(box) {
   head.appendChild(sel([['finish', 'a MATERIAL (what a surface is made of)'],
                         ['grammar', 'a CONSTRUCTION (how its structure shows)'],
                         ['gain', 'the display gains (how much is exaggerated)'],
-                        ['glass', 'the glazing itself']],
+                        ['glass', 'the glazing itself'],
+                        ['weather', 'the WEATHERING (its layers, colours and knobs)']],
                        LAB.kind, v => { LAB.kind = v; labRender(box); }));
   let fields, get, set, key = null;
   const fmt = v => v == null ? '-'
@@ -3414,6 +3416,41 @@ function labRender(box) {
     key = LAB.gkey; fields = A.AERO_LAB_GRAM;
     get = f => A.aeroLabGet('grammar', key, f);
     set = (f, v) => A.aeroLabSet(THREE, 'grammar', key, f, v);
+  } else if (LAB.kind === 'weather') {
+    // THE WEATHERING'S LAB (G345.6, design doc §7): the same deviations the
+    // bench edits — a layer's four macro coefficients, a colour's rgb and
+    // roughness floor, or a knob — through the module's own keeper
+    // (aeroWxLabSet: localStorage 'flydiy.aeroWx', uniforms live, no build)
+    const W = window.AEROWX;
+    if (!W) { row('(aeroweather.js is not loaded)', ''); return; }
+    const wr = row('  over', 'which of the weathering tables');
+    wr.appendChild(sel([['layer', 'a LAYER (how much each macro drives it)'],
+                        ['col', 'a DIRT COLOUR (and its roughness floor)'],
+                        ['knob', 'the knobs (tiles, gains, depths)']],
+                       LAB.wkind, v => { LAB.wkind = v; LAB.wkey = null; labRender(box); }));
+    if (LAB.wkind === 'layer') {
+      if (!W.AERO_WX_LAYERS.some(L => L.k === LAB.wkey)) LAB.wkey = W.AERO_WX_LAYERS[0].k;
+      const kr = row('  layer', 'WHICH layer the sliders below edit; * = edited');
+      kr.appendChild(sel(W.AERO_WX_LAYERS.map(L => [L.k, L.label + (W.AERO_WX.lab.layers[L.k] ? ' *' : '')]),
+                         LAB.wkey, v => { LAB.wkey = v; labRender(box); }));
+      key = LAB.wkey;
+      fields = {}; W.AERO_WX_MACRO.forEach((m, g) => { fields[g] = [-1, 1.5, 0.01, 'by ' + (WEAR_LABEL[m] || m)]; });
+      get = f => W.aeroWxLabGet('layer', key, +f);
+      set = (f, v) => W.aeroWxLabSet(THREE, 'layer', key, +f, v);
+    } else if (LAB.wkind === 'col') {
+      if (!W.AERO_WX_COL.some(C => C.k === LAB.wkey)) LAB.wkey = W.AERO_WX_COL[0].k;
+      const kr = row('  colour', 'WHICH dirt colour the sliders below edit; * = edited');
+      kr.appendChild(sel(W.AERO_WX_COL.map(C => [C.k, C.k + (W.AERO_WX.lab.cols[C.k] ? ' *' : '')]),
+                         LAB.wkey, v => { LAB.wkey = v; labRender(box); }));
+      key = LAB.wkey;
+      fields = { 0: [0, 1, 0.005, 'red'], 1: [0, 1, 0.005, 'green'], 2: [0, 1, 0.005, 'blue'], 3: [0, 1, 0.005, 'roughness floor'] };
+      get = f => W.aeroWxLabGet('col', key, +f);
+      set = (f, v) => W.aeroWxLabSet(THREE, 'col', key, +f, v);
+    } else {
+      fields = {}; for (const k in W.AERO_WX_KNOB_RANGE) fields[k] = W.AERO_WX_KNOB_RANGE[k].concat(k + (W.AERO_WX.lab.knobs[k] != null ? ' *' : ''));
+      get = f => W.aeroWxLabGet('knob', f);
+      set = (f, v) => W.aeroWxLabSet(THREE, 'knob', f, null, v);
+    }
   } else if (LAB.kind === 'gain') {
     fields = A.AERO_LAB_GAIN;
     get = f => A.aeroLabGet('gain', f);
@@ -3438,16 +3475,20 @@ function labRender(box) {
     r.appendChild(i); r.appendChild(v);
   }
   const foot = row('', '');
+  // the weathering's rows reset through their own keeper, and need no build
+  const WXL = LAB.kind === 'weather' ? window.AEROWX : null;
   foot.appendChild(btn('reset row', () => {
+    if (WXL) { if (LAB.wkind === 'knob') WXL.aeroWxLabReset(THREE); else WXL.aeroWxLabResetRow(THREE, LAB.wkind, key); labRender(box); return; }
     A.aeroLabReset(THREE, LAB.kind, key); build(); labRender(box); }));
   foot.appendChild(btn('reset all', () => {
+    if (WXL) { WXL.aeroWxLabReset(THREE); labRender(box); return; }
     A.aeroLabReset(THREE); build(); labRender(box); }));
   foot.appendChild(btn(LAB.open ? 'hide json' : 'export json', () => {
     LAB.open = !LAB.open; labRender(box); }));
   if (LAB.open) {
     const ta = document.createElement('textarea'); ta.readOnly = true;
     ta.style.cssText = 'flex:1 1 100%;height:110px;font:10px/1.3 monospace;';
-    ta.value = A.aeroLabExport(); box.appendChild(ta);
+    ta.value = WXL ? WXL.aeroWxLabExport() : A.aeroLabExport(); box.appendChild(ta);
     try { if (navigator.clipboard) navigator.clipboard.writeText(ta.value); }
     catch (e) {}
   }
