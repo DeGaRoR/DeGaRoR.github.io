@@ -42551,3 +42551,59 @@ door's glass).
 - Not done, by the user's word: the ropes between the two stations'
   hooks and the cabins on them; the stations in a village theme (the
   top station on the mountain, the base by the shore).
+
+## G347 — THE TOP STATION TO THE DRAWING: THE DOCK SLOTS IN THE FRONT BUILDING,
+## THE RAKED V TRUSS FROM ONE FOOT, TWIN ARCHES BRACED INTO ONE, THE BACKSTAY
+## CABLES INTO THE TERMINAL HOUSE
+## (2026-09-13, the user, on a marked-up screenshot: "do a slot in on the
+## frontmost building, so the cabin can come and slot in exactly. It has to be
+## tight because these are docks on both sides. We may also keep a little more
+## true to the original design and put the main truss at an angle, and
+## concentrated toward the foot. I've drawn the target truss in red, and the
+## cantilever cable structure in green, should be anchored into the building
+## at the back")
+
+- **THE SLOTS** (`tools/_tram_gen.js`, `buildStation`): the front of the
+  station is three dock WINGS off the middle house's front - a centre
+  wing and two outer wings, house builds turned along the line - and the
+  two slots between them are `slotW` 3.8 m (the cabin is 3.43: a hand
+  each side), `slotD` 6.2 deep (the cabin 5.2), walled on both sides and
+  the back, open to the valley and the sky. The cabin's floor is the
+  wings' floor; the middle house is as wide as the wings' outer faces;
+  the deck's cross beams and floor plate widen under them; the dock
+  guides hang under each slot's edges. `topDx` 2.8 sets the two lines
+  off centre; `hooks.dock` {p, dx, w, depth} and `stats.station.slots`.
+- **THE RAKED TRUSS**: the vertical mast is gone. One footing forward on
+  the slope (`footZ`) and from it two four-chord lattice legs opening
+  upward like a V - the rear leg to under the machine house
+  (`legRearZ`), the front leg to under the wings (`legFrontZ`) - each an
+  X on every face of every panel with a plan diaphragm every second,
+  tapering from its head (`legW` × `legD`) to the shared foot, a laced
+  tie between them half way up, bearing blocks under the deck girders,
+  knee braces from the heads to the deck's ends. The rope pulls forward
+  and down; the front leg takes it in compression, the rear leg holds
+  the tail.
+- **TWIN ARCHES**: two saddle girders (`girderW` 1.5 each) at `trackX`
+  ±2.6 - one over each line - tied by cross beams every other segment
+  and an X between, the bull wheel between them on an axle arch to
+  arch, the props from the portal under both. `girderR` 9.
+- **THE BACKSTAYS** (the green lines): each arch is a cantilever held back
+  by a cable from its upper back (`stayDeg` 45 back from the apex) to an
+  anchor plate in the terminal house's front wall (a deadman on the ridge
+  without one); drawn as cables (`stats.station.anchorRopes`); the track
+  ropes' `anchor` hooks are these points.
+- GATE HOUSE 38: the foot on the ground at `footZ`, two legs from it to
+  under the deck opening into a V; two slots a cabin and a hand wide,
+  each walled on both sides and the back, no house in a slot, no siding
+  across a mouth, longer than the cabin, the dock in them; two backstays
+  leaving the arches and running back into the terminal house; the nose
+  over the dock. The old strut dials are gone.
+- A trap: the slot spacing was read off the base station's `dockDx` (2.2)
+  and the centre wing stood in the slots - the top station has its own.
+- Gates: HOUSE, CABIN, MEDIA, VILLAGE green.
+- **A hand-off received from the totem-poles session** (G341/G341.1):
+  `TOTEM_GEN.totemPlot(plot, T)` lays a Saxman-style park on a village
+  plot and `totemBuild` stands the poles through `propPlace`; wiring it
+  into the village as a civic plot is queued behind the tram's ropes and
+  the stations in a theme (this session cannot message that session
+  back - this note is the reply).

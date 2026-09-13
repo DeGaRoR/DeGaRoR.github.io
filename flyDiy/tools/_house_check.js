@@ -1322,9 +1322,38 @@ for (const name of Object.keys(HG.PRESETS)) {
   check(lo.stats.tris < hi.stats.tris * 0.8, 'station ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
   const S = hi.stats.station, g = hi.stats.ground;
   check(!!S && S.deckY > g(0, 0) + P.mastH - 0.01, 'station ' + name + ': the deck is not the mast up');
-  check(per.steel.y0 < g(0, 0) + 0.5, 'station ' + name + ': the mast does not reach the ground', per.steel.y0.toFixed(2));
+  // the raked truss: one foot on the ground forward, two legs to under the deck
+  check(Math.abs(S.mast.foot[1] - g(0, P.footZ)) < 1e-6 && S.mast.foot[2] === P.footZ, 'station ' + name + ': the truss foot is not on the ground forward');
+  check(S.mast.legs.length === 2 && S.mast.legs.every(l => Math.abs(l.head[1] - (S.deckY - P.deckD)) < 1e-6 && l.dir[1] > 0.3), 'station ' + name + ': the legs do not rise from the foot to under the deck');
+  check(S.mast.legs[0].head[2] < S.mast.legs[1].head[2] - 6, 'station ' + name + ': the legs do not open into a V');
+  check(per.steel.y0 < g(0, P.footZ) + 0.6, 'station ' + name + ': the truss does not reach the ground', per.steel.y0.toFixed(2));
   check(per.steel.y1 > S.deckY + P.portalH - 0.1, 'station ' + name + ': no portal above the deck');
   for (const b of S.boxes) if (b.tag !== 'terminal house') check(b.y0 > S.deckY + 0.05, 'station ' + name + ': ' + b.tag + ' is not on the deck');
+  // THE SLOTS: two, a cabin's width and a hand, walled by the wings on both sides, open to the valley
+  check(S.slots.length === 2, 'station ' + name + ': two slots');
+  for (const sl of S.slots) {
+    check(Math.abs(sl.x1 - sl.x0 - P.slotW) < 1e-6 && P.slotW > 3.5 && P.slotW < 4.2, 'station ' + name + ': the slot is not a cabin and a hand wide', (sl.x1 - sl.x0).toFixed(2));
+    const left = S.boxes.find(b => Math.abs(b.x1 - sl.x0) < 0.05 && b.z0 <= sl.z0 + 0.05 && b.z1 >= sl.z1 - 0.05);
+    const right = S.boxes.find(b => Math.abs(b.x0 - sl.x1) < 0.05 && b.z0 <= sl.z0 + 0.05 && b.z1 >= sl.z1 - 0.05);
+    const back = S.boxes.find(b => Math.abs(b.z1 - sl.z0) < 0.05 && b.x0 <= sl.x0 && b.x1 >= sl.x1);
+    check(!!left && !!right && !!back, 'station ' + name + ': a slot is not walled on both sides and the back');
+    check(!S.boxes.some(b => b.x0 < sl.x1 - 0.05 && b.x1 > sl.x0 + 0.05 && b.z0 < sl.z1 - 0.05 && b.z1 > sl.z0 + 0.05), 'station ' + name + ': a house stands in a slot');
+    check(sl.z1 - sl.z0 > P.cabinL + 0.5, 'station ' + name + ': the slot is shorter than the cabin');
+    // no siding across the slot's mouth
+    const sd = hi.bags.siding.data(); let mouth = 0;
+    for (let i = 0; i < sd.pos.length; i += 3) if (sd.pos[i] > sl.x0 + 0.2 && sd.pos[i] < sl.x1 - 0.2 && Math.abs(sd.pos[i + 2] - sl.z1) < 0.3 && sd.pos[i + 1] > S.deckY + 0.5) mouth++;
+    check(mouth === 0, 'station ' + name + ': siding across a slot mouth', String(mouth));
+  }
+  check(Math.abs(S.hooks.dock.p[2] - (S.slots[0].z0 + 0.3 + P.cabinL / 2)) < 1e-6 && S.hooks.dock.dx === P.topDx, 'station ' + name + ': the dock is not in the slots');
+  // the anchor cables: from the back of the arches to the terminal's front wall
+  check(S.anchorRopes.length === 2, 'station ' + name + ': two anchor cables');
+  const term = S.boxes.find(b => b.tag === 'terminal house');
+  for (const rp of S.anchorRopes) {
+    const dA = Math.hypot(rp.a[1] - S.girder.C[1], rp.a[2] - S.girder.C[2]);
+    check(dA > S.girder.R && dA < S.girder.R + S.girder.dFoot / 2 + 0.3, 'station ' + name + ': an anchor cable does not leave the arch', dA.toFixed(2));
+    check(rp.a[2] < S.girder.C[2] && rp.b[2] < rp.a[2], 'station ' + name + ': an anchor cable does not run back');
+    if (term) check(Math.abs(rp.b[2] - term.z1) < 1e-6 && rp.b[1] > term.y0 + 2 && rp.b[1] < term.y1, 'station ' + name + ': an anchor is not in the terminal house');
+  }
   // no house post below the deck: the post bag's lowest vertex above the deck
   // less a step (the terminal house on the ridge stands on the ground behind)
   const dPost = hi.bags.post.data();
@@ -1335,7 +1364,7 @@ for (const name of Object.keys(HG.PRESETS)) {
   const G = S.girder;
   const apexY = G.C[1] + G.R;
   check(Math.abs(G.apex[1] - apexY) < 1e-6 && yTop >= apexY + G.dNose / 2 - 0.05, 'station ' + name + ': the girder is not the highest steel');
-  check(G.nose[2] > P.deckFront - 1.5, 'station ' + name + ': the nose is not forward of the deck', G.nose[2].toFixed(2));
+  check(G.nose[2] > S.hooks.dock.p[2] - 1.5, 'station ' + name + ': the nose is not over the dock', G.nose[2].toFixed(2));
   check(Math.abs(Math.hypot(G.foot[1] - G.C[1], G.foot[2] - G.C[2]) - G.R) < 1e-6, 'station ' + name + ': the foot is off the arc');
   // the hooks
   const H = S.hooks;
@@ -1346,7 +1375,7 @@ for (const name of Object.keys(HG.PRESETS)) {
   }
   for (const h of H.anchor) {
     check(onArc(h), 'station ' + name + ': an anchor hook is off the saddle');
-    check(h.dir[2] < 0 && h.dir[1] < 0, 'station ' + name + ': the anchor rope does not go down and back');
+    check(h.dir[2] < 0, 'station ' + name + ': the anchor rope does not go back');
   }
   const W = S.wheel;
   for (const h of H.haul) {

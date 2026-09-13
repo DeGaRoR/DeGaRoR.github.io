@@ -6,10 +6,12 @@
 //
 // THE STRUCTURE, read off the Goldbelt tram's top terminal (Juneau) rather
 // than its look:
-//   THE MAST      a tapered four-chord lattice column on four footings:
-//                 horizontal struts at every panel, an X on every face of
-//                 every panel, a plan diaphragm every second panel. It takes
-//                 the vertical load of everything above.
+//   THE TRUSS     (G347) one footing forward on the slope and two lattice
+//                 legs opening upward from it like a V - the rear leg to
+//                 the deck under the machine house, the front leg under the
+//                 wings - four chords each, an X on every face of every
+//                 panel, a laced tie between them. The rope pulls forward
+//                 and down: the front leg takes it in compression.
 //   THE DECK      two plate girders along the line on top of the mast,
 //                 cantilevered forward toward the valley (the cabin docks
 //                 under the tip) and back toward the ridge; cross beams, a
@@ -18,7 +20,13 @@
 //                 house at the back (two storeys), the middle house, the
 //                 docking gallery at the tip - three staggered boxes, ribbon
 //                 windows, no window into a joint.
-//   THE GIRDER    the ropes come up from the valley at the line's angle and
+//   THE SLOTS     (G347) the front of the station is three dock wings off
+//                 the middle house - a centre wing and two outer wings -
+//                 and the two slots between them are a cabin's width and a
+//                 hand: the cabin comes in from the valley between the
+//                 wings, docks on both sides, its floor the wings' floor.
+//   THE GIRDERS   two arches, one over each line, braced into one (G347);
+//                 the ropes come up from the valley at the line's angle and
 //                 must bend over to go down to their anchors behind - a
 //                 track rope cannot be bent sharply, so the saddle is a
 //                 CURVED plate girder of large radius: it rises from the
@@ -34,10 +42,10 @@
 //                 the line's angle: a rim, a hub, an axle, eight spokes, the
 //                 hangers down from the girder. Both strands of the loop
 //                 leave it down the line.
-//   THE STRUT     a raked two-chord lattice leg from under the front
-//                 cantilever down to a footing forward on the slope - the
-//                 rope pulls the station toward the valley and down; the
-//                 strut takes the forward push in compression.
+//   THE ANCHORS   (G347) each track rope leaves the back of its arch
+//                 tangentially and runs as a cable to an anchor plate in
+//                 the terminal house's front wall - the arch is a cantilever
+//                 held back by the building behind it.
 //   THE PASSAGE   an enclosed bridge back to the terminal house on the
 //                 ridge, a house turned lengthways on a Warren truss with
 //                 trestle bents to the ground where the ground is far.
@@ -59,13 +67,13 @@ function buildStation(P, lod, F) {
   const { add, sub, mul, nrm, len, crs, beam, cyl, face, boxAB } = K;
   const g = typeof P.ground === 'function' ? P.ground
     : (x, z) => -Math.tan(P.slopeX * D2R) * x - Math.tan(P.slopeZ * D2R) * z;
-  const H = P.mastH, top = P.mastTop / 2, base = P.mastBase / 2;
+  const H = P.mastH;
   const deckY = H, zF = P.deckFront, zB = -P.deckBack, hw = P.deckW / 2;
   const floorY = deckY + 0.3;
   const lo = lod > 0;
   const fake = y => () => y;             // a house on the deck: its posts are stubs into the deck
 
-  // ---- THE HOUSES: three staggered boxes on the deck, the passage, the terminal
+  // ---- THE HOUSES: the machine house, the wide middle house, the dock wings, the passage, the terminal
   const wallSet = HG.SET_IDX('wall', 'boxprof'), roofSet = HG.SET_IDX('roof', 'galv');
   const box = (L, w, storeys, floorH, z, o) => Object.assign({
     L, w, storeys, floorH, floorY, stance: 0, skirt: 0, roofFam: 0, pitch: 7, eaveOver: 0.35, rakeOver: 0.25,
@@ -78,30 +86,46 @@ function buildStation(P, lod, F) {
   const parts = [];
   const houseAt = (tag, Pb, x, z, yaw) => {
     const L = Pb.L, w = Pb.w, c = Math.cos(yaw || 0), s = Math.sin(yaw || 0);
-    // the box in the station's frame (an axis-aligned bound is enough: the
-    // houses stand square to the line)
     const hx = Math.abs(L / 2 * c) + Math.abs(w / 2 * s), hz = Math.abs(L / 2 * s) + Math.abs(w / 2 * c);
     const b = { tag, x, z, x0: x - hx, x1: x + hx, z0: z - hz, z1: z + hz, y0: Pb.floorY, y1: Pb.floorY + Pb.storeys * Pb.floorH };
     boxes.push(b);
     parts.push({ tag, P: Pb, x, z, yaw: yaw || 0, box: b, ground: Pb.groundFake ? fake(Pb.floorY - 0.25) : undefined });
     return b;
   };
-  const rearL = P.houseL, midL = P.houseL * 0.82, frontL = P.houseL * 0.68;
+  // THE SLOTS (G347, the user: "do a slot in on the frontmost building, so the
+  // cabin can come and slot in exactly. It has to be tight because these are
+  // docks on both sides"): the front of the station is three dock WINGS off
+  // the middle house's front - a centre wing and two outer wings - and the
+  // two slots between them are a cabin's width and a hand: the cabin comes in
+  // from the valley between the wings and its floor is the wings' floor. The
+  // middle house is as wide as the wings' outer faces.
+  const dx = P.topDx, slotW = P.slotW, wingW = P.wingW, slotD = P.slotD;
+  const cW = Math.max(1.2, 2 * (dx - slotW / 2)), midL = 2 * (dx + slotW / 2 + wingW);
+  const rearL = P.houseL;
   houseAt('machine house', box(rearL, 6.6, 2, 2.9, 0, { nFront: 6, nBack: 5, nLeft: 3, nRight: 3, groundFake: 1 }), 0, -1.2, 0);
-  houseAt('middle house', box(midL, 5.2, 1, 3.5, 0, { nFront: 5, nBack: 0, nLeft: 2, nRight: 2, winH: 1.25, winSill: 1.0, groundFake: 1 }), 0, 4.7, 0);
-  houseAt('docking gallery', box(frontL, 4.4, 1, 3.0, 0, { nFront: 4, nBack: 0, nLeft: 2, nRight: 2, winH: 1.3, winSill: 0.95, groundFake: 1 }), 0, zF - 2.0, 0);
+  const zMid = 2.1 + P.midW / 2;
+  houseAt('middle house', box(midL, P.midW, 1, 3.5, 0, { nFront: 7, nBack: 0, nLeft: 2, nRight: 2, winH: 1.25, winSill: 1.0, groundFake: 1 }), 0, zMid, 0);
+  const zWing0 = zMid + P.midW / 2, zWing = zWing0 + slotD / 2;
+  const wing = (tag, x, w, nOut, nIn) => houseAt(tag, box(slotD, w, 1, 2.9, 0, { nFront: nOut, nBack: nIn, nLeft: 0, nRight: 0, winW: 1.2, winH: 1.2, winSill: 0.95, groundFake: 1, eaveOver: 0.25, rakeOver: 0.15 }), x, zWing, Math.PI / 2);
+  wing('centre wing', 0, cW, 2, 2);
+  wing('right wing', dx + slotW / 2 + wingW / 2, wingW, 2, 2);
+  wing('left wing', -(dx + slotW / 2 + wingW / 2), wingW, 2, 2);
+  // (a turned house's front faces +x; the left wing must face outward, so it is turned the other way)
+  parts[parts.length - 1].yaw = -Math.PI / 2;
   // the passageway: a narrow house turned lengthways, windows down both sides
   // from the machine house's back wall to the terminal's front wall
   const zT = -P.terminalZ, termL = 14, termW = 9.5;
   const zPass0 = boxes[0].z0 + 0.3, zPass1 = P.terminal ? zT + termW / 2 - 0.3 : zB - 12;
   const passL = P.passage ? zPass0 - zPass1 : 0;
   if (P.passage) houseAt('passageway', box(passL, 2.9, 1, 2.75, 0, { nFront: Math.round(passL / 2.4), nBack: Math.round(passL / 2.4), nLeft: 0, nRight: 0, winW: 1.5, winH: 1.15, winSill: 1.0, groundFake: 1, eaveOver: 0.25 }), 0, (zPass0 + zPass1) / 2, Math.PI / 2);
-  // the terminal house on the ridge: a plain red house on the real ground
+  // the terminal house on the ridge: a plain house on the real ground
+  let termFloor = 0;
   if (P.terminal) {
     let gT = -1e9;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) gT = Math.max(gT, g(sx * termL / 2, zT + sz * termW / 2));
+    termFloor = gT + 0.45;
     houseAt('terminal house', {
-      L: termL, w: termW, storeys: 2, floorH: 2.9, floorY: gT + 0.45, stance: 1, skirt: 2, roofFam: 0, pitch: 30, eaveOver: 0.55, rakeOver: 0.4,
+      L: termL, w: termW, storeys: 2, floorH: 2.9, floorY: termFloor, stance: 1, skirt: 2, roofFam: 0, pitch: 30, eaveOver: 0.55, rakeOver: 0.4,
       // the passage comes in at the front; the door is at the back, on the
       // ridge (a front door on a 28-degree slope drew a stair that chased
       // the ground forty metres down the hill)
@@ -123,73 +147,79 @@ function buildStation(P, lod, F) {
   }
 
   // ---- THE STEEL, after the houses
-  const S = { deckY, hooks: {} };
+  const S = { deckY, hooks: {}, kind: 'top' };
   const extra = (bags, built, Q) => {
     const ST = bags.steel, GD = bags.girder, CO = bags.stone;
     const bm = (bag, a, b, w, t, up) => beam(bag, a, b, w, t, up || [0, 1, 0]);
-    const chordAt = (sx, sz, y) => {        // a chord's point at height y: the mast tapers
-      const t = Math.max(0, Math.min(1, (y - g(0, 0)) / (H - g(0, 0))));
-      const r = base + (top - base) * t;
-      return [sx * r, y, sz * r];
-    };
-    // THE FOOTINGS and THE MAST
-    const y0 = g(0, 0);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      const c = chordAt(sx, sz, y0);
-      const yg = g(c[0], c[2]);
-      boxAB(CO, [c[0] - 0.7, yg - 0.8, c[2] - 0.7], [c[0] + 0.7, yg + 0.35, c[2] + 0.7]);
-      bm(ST, [c[0], yg + 0.3, c[2]], chordAt(sx, sz, H), 0.16, 0.16);
-    }
-    const nPan = Math.max(3, Math.round((H - y0) / P.panel));
-    const levels = [];
-    for (let k = 0; k <= nPan; k++) levels.push(y0 + 0.3 + (H - y0 - 0.3) * k / nPan);
-    const corners = y => [chordAt(-1, 1, y), chordAt(1, 1, y), chordAt(1, -1, y), chordAt(-1, -1, y)];
-    for (let k = 0; k <= nPan; k++) {
-      const c = corners(levels[k]);
-      for (let i = 0; i < 4; i++) bm(ST, c[i], c[(i + 1) % 4], 0.07, 0.07);   // the struts
-      if (k > 0) {
-        const d = corners(levels[k - 1]);
-        for (let i = 0; i < 4; i++) {         // the X on every face
-          const j = (i + 1) % 4;
-          bm(ST, d[i], c[j], 0.06, 0.06);
-          if (!lo) bm(ST, d[j], c[i], 0.06, 0.06);
-        }
-        if (k % 2 === 0 && !lo) { bm(ST, c[0], c[2], 0.05, 0.05); bm(ST, c[1], c[3], 0.05, 0.05); }   // the plan diaphragm
-      }
-    }
-    // the ladder up the inside
-    if (!lo) {
-      const lx = [-0.25, 0.25];
-      for (const x of lx) bm(ST, [x, y0 + 0.3, -top + 0.5], [x, H + 1.0, -top + 0.5], 0.03, 0.03);
-      for (let y = y0 + 0.6; y < H + 0.9; y += 0.3) bm(ST, [lx[0], y, -top + 0.5], [lx[1], y, -top + 0.5], 0.015, 0.015);
-    }
-    // THE DECK: two girders along the line, cross beams, the floor plate, knee braces
     const gy0 = deckY - P.deckD, gy1 = deckY;
+    // THE RAKED TRUSS (G347, the user: "put the main truss at an angle, and
+    // concentrated toward the foot"): one footing forward on the slope, and
+    // from it two lattice legs opening upward like a V - the rear leg to the
+    // deck under the machine house, the front leg to the deck under the
+    // wings - each a four-chord lattice (an X on every face of every panel,
+    // a plan diaphragm every second) tapering from its head to the shared
+    // foot, and a laced tie between the legs half way up. The rope's pull is
+    // forward and down; the front leg takes it in compression, the rear leg
+    // holds the deck's tail.
+    const zFoot = P.footZ, yFoot = g(0, zFoot), foot = [0, yFoot, zFoot];
+    boxAB(CO, [-2.2, yFoot - 1.0, zFoot - 1.6], [2.2, yFoot + 0.5, zFoot + 1.6]);
+    const legs = [{ zTop: P.legRearZ, tag: 'rear' }, { zTop: P.legFrontZ, tag: 'front' }];
+    S.mast = { H, foot, legs: [] };
+    for (const leg of legs) {
+      const head = [0, gy0, leg.zTop], axis = sub(head, [0, yFoot + 0.5, zFoot]), Ll = len(axis), X = nrm(axis);
+      // the leg's own frame: X along it, U across (world x), V the third
+      const U = [1, 0, 0], V = nrm(crs(X, U));
+      const hwTop = P.legW / 2, hvTop = P.legD / 2, hwFoot = 0.55, hvFoot = 0.3;
+      const corner = (t, su, sv) => { const c = add([0, yFoot + 0.5, zFoot], mul(X, Ll * t)); const hu = hwFoot + (hwTop - hwFoot) * t, hv = hvFoot + (hvTop - hvFoot) * t; return add(add(c, mul(U, su * hu)), mul(V, sv * hv)); };
+      for (const su of [-1, 1]) for (const sv of [-1, 1]) bm(ST, corner(0, su, sv), corner(1, su, sv), 0.15, 0.15, V);   // the chords
+      const nPan = Math.max(3, Math.round(Ll / P.panel));
+      const ring = t => [corner(t, -1, 1), corner(t, 1, 1), corner(t, 1, -1), corner(t, -1, -1)];
+      for (let k = 0; k <= nPan; k++) {
+        const t = k / nPan, c = ring(t);
+        for (let i = 0; i < 4; i++) bm(ST, c[i], c[(i + 1) % 4], 0.06, 0.06, V);
+        if (k > 0) {
+          const d = ring((k - 1) / nPan);
+          for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; bm(ST, d[i], c[j], 0.05, 0.05, V); if (!lo) bm(ST, d[j], c[i], 0.05, 0.05, V); }
+          if (k % 2 === 0 && !lo) { bm(ST, c[0], c[2], 0.05, 0.05, V); bm(ST, c[1], c[3], 0.05, 0.05, V); }
+        }
+      }
+      // the head: a bearing block under the deck girders, the chords into it
+      boxAB(ST, [-hwTop - 0.2, gy0 - 0.5, leg.zTop - hvTop - 0.3], [hwTop + 0.2, gy0, leg.zTop + hvTop + 0.3]);
+      S.mast.legs.push({ tag: leg.tag, head, L: Ll, dir: X });
+    }
+    // the tie between the legs, half way up, laced
+    {
+      const a = add([0, yFoot + 0.5, zFoot], mul(S.mast.legs[0].dir, S.mast.legs[0].L * 0.5)), b = add([0, yFoot + 0.5, zFoot], mul(S.mast.legs[1].dir, S.mast.legs[1].L * 0.5));
+      for (const sx of [-1, 1]) { bm(ST, add(a, [sx * 0.9, 0.35, 0]), add(b, [sx * 0.9, 0.35, 0]), 0.08, 0.08); bm(ST, add(a, [sx * 0.9, -0.35, 0]), add(b, [sx * 0.9, -0.35, 0]), 0.08, 0.08); }
+      const n = Math.max(2, Math.round(len(sub(b, a)) / 1.8));
+      for (let i = 0; i <= n; i++) { const p = add(a, mul(sub(b, a), i / n)); for (const sx of [-1, 1]) bm(ST, add(p, [sx * 0.9, -0.35, 0]), add(p, [sx * 0.9, 0.35, 0]), 0.05, 0.05); if (i < n) { const q = add(a, mul(sub(b, a), (i + 1) / n)); for (const sx of [-1, 1]) bm(ST, add(p, [sx * 0.9, i % 2 ? 0.35 : -0.35, 0]), add(q, [sx * 0.9, i % 2 ? -0.35 : 0.35, 0]), 0.04, 0.04); } }
+    }
+    // THE DECK: two girders along the line, cross beams (wider under the wings), the floor plate
     for (const sx of [-1, 1]) {
       const x = sx * hw;
       boxAB(ST, [x - 0.06, gy0, zB], [x + 0.06, gy1, zF]);                       // the web
       boxAB(ST, [x - 0.22, gy1 - 0.08, zB], [x + 0.22, gy1, zF]);                // the flanges
       boxAB(ST, [x - 0.22, gy0, zB], [x + 0.22, gy0 + 0.08, zF]);
     }
-    for (let z = zB + 1.0; z < zF; z += 2.0) bm(ST, [-hw, gy0 + 0.3, z], [hw, gy0 + 0.3, z], 0.12, 0.2);
-    boxAB(ST, [-hw - 0.3, gy1, zB], [hw + 0.3, gy1 + 0.06, zF]);                 // the floor plate
-    for (const sx of [-1, 1]) {                                                   // the knee braces from the chords
-      const cf = chordAt(sx, 1, H - 7), cb = chordAt(sx, -1, H - 7);
-      bm(ST, cf, [sx * hw, gy0, zF - 1.0], 0.1, 0.14);
-      bm(ST, cb, [sx * hw, gy0, zB + 1.0], 0.1, 0.14);
-      bm(ST, [sx * hw, gy0, zF - 1.0], [sx * hw, gy0, zF], 0.1, 0.1);
-    }
-    // the handrail round the deck's free edges
+    const xWide = midL / 2 + 0.2;
+    for (let z = zB + 1.0; z < zF; z += 2.0) { const w = z > zMid - P.midW / 2 - 1 ? xWide : hw; bm(ST, [-w, gy0 + 0.3, z], [w, gy0 + 0.3, z], 0.12, 0.2); }
+    for (const sx of [-1, 1]) boxAB(ST, [sx * xWide - 0.1, gy0 + 0.2, zMid - P.midW / 2 - 1], [sx * xWide + 0.1, gy0 + 0.5, zF]);   // the outrigger edge beams
+    boxAB(ST, [-hw - 0.3, gy1, zB], [hw + 0.3, gy1 + 0.06, zMid - P.midW / 2 - 1]);            // the floor plate, narrow behind
+    boxAB(ST, [-xWide - 0.1, gy1, zMid - P.midW / 2 - 1], [xWide + 0.1, gy1 + 0.06, zF]);      // and wide under the wings
+    // the knee braces from the legs' heads out to the deck's ends
+    bm(ST, [0, gy0 - 0.4, P.legRearZ], [0, gy0, zB + 0.5], 0.12, 0.14);
+    for (const sx of [-1, 1]) { bm(ST, [sx * hw, gy0, zB + 0.5], [sx * hw, gy0 - 2.2, P.legRearZ], 0.1, 0.12); bm(ST, [sx * hw, gy0 - 2.2, P.legFrontZ], [sx * hw, gy0, zF - 0.5], 0.1, 0.12); }
+    // the handrail along the deck's back edges
     if (!lo) {
       const rail = (a, b) => {
         const n = Math.max(1, Math.round(len(sub(b, a)) / 1.6));
         for (let i = 0; i <= n; i++) { const p = add(a, mul(sub(b, a), i / n)); bm(ST, p, [p[0], p[1] + 1.05, p[2]], 0.02, 0.02); }
         for (const h of [0.55, 1.05]) bm(ST, [a[0], a[1] + h, a[2]], [b[0], b[1] + h, b[2]], 0.02, 0.02);
       };
-      for (const sx of [-1, 1]) rail([sx * (hw + 0.2), gy1, zB], [sx * (hw + 0.2), gy1, zF]);
+      for (const sx of [-1, 1]) rail([sx * (hw + 0.2), gy1, zB], [sx * (hw + 0.2), gy1, zMid - P.midW / 2 - 1]);
     }
-    // THE PORTAL FRAME behind the machine house, on the deck: the girder's foot
-    const pH = P.portalH, pz = Math.max(zB + 0.4, boxes[0].z0 - 0.7);
+    // THE PORTAL FRAME behind the machine house, on the deck: the girders' feet
+    const pH = P.portalH, pz = Math.max(zB + 0.4, boxes[0].z0 - 0.7), top = P.trackX + 0.4;
     for (const sx of [-1, 1]) {
       bm(ST, [sx * top, H, pz], [sx * top, H + pH, pz], 0.15, 0.15);
       bm(ST, [sx * top, H + pH - 0.2, pz], [sx * top, H + 0.2, pz - 2.2], 0.08, 0.08);   // the knee back onto the deck
@@ -197,66 +227,92 @@ function buildStation(P, lod, F) {
     bm(ST, [-top, H + pH, pz], [top, H + pH, pz], 0.16, 0.16);
     bm(ST, [-top, H + 0.3, pz], [top, H + pH - 0.3, pz], 0.05, 0.05);
     if (!lo) bm(ST, [top, H + 0.3, pz], [-top, H + pH - 0.3, pz], 0.05, 0.05);
-    // THE GIRDER: an arc from the portal's crossbar over the houses to the nose
+    // THE GIRDERS (G347): TWO arcs, one over each line, tied to each other -
+    // the saddle for each cabin's track rope is over that cabin's slot, and
+    // the pair is braced into one wide arch. Each arc from the portal's
+    // crossbar over the houses to its nose; the ropes leave tangent.
     const R = P.girderR, phi0 = -95 * D2R, phi1 = P.noseDeg * D2R, gw = P.girderW / 2;
-    const foot = [0, H + pH + 0.3, pz];
-    const C = [0, foot[1] - R * Math.cos(phi0), foot[2] - R * Math.sin(phi0)];
-    const A = phi => [0, C[1] + R * Math.cos(phi), C[2] + R * Math.sin(phi)];
-    const N = phi => [0, Math.cos(phi), Math.sin(phi)];                 // radial, outward
-    const T = phi => [0, -Math.sin(phi), Math.cos(phi)];                // along, toward the nose
+    const gFoot = [0, H + pH + 0.3, pz];
+    const C = [0, gFoot[1] - R * Math.cos(phi0), gFoot[2] - R * Math.sin(phi0)];
+    const A = (phi, x) => [x || 0, C[1] + R * Math.cos(phi), C[2] + R * Math.sin(phi)];
+    const N = phi => [0, Math.cos(phi), Math.sin(phi)];
+    const T = phi => [0, -Math.sin(phi), Math.cos(phi)];
     const depth = phi => P.girderD + (P.girderDn - P.girderD) * (phi - phi0) / (phi1 - phi0);
-    const ring = phi => {
-      const a = A(phi), n = N(phi), d = depth(phi) / 2;
+    const ring = (phi, x) => {
+      const a = A(phi, x), n = N(phi), d = depth(phi) / 2;
       return [add(add(a, mul(n, d)), [-gw, 0, 0]), add(add(a, mul(n, d)), [gw, 0, 0]),
               add(add(a, mul(n, -d)), [gw, 0, 0]), add(add(a, mul(n, -d)), [-gw, 0, 0])];
     };
     const step = (lo ? 9 : 4.5) * D2R, nSeg = Math.ceil((phi1 - phi0) / step);
-    let rPrev = ring(phi0), sPrev = 0;
-    face(GD, rPrev.slice().reverse(), mul(T(phi0), -1), p => [p[0], p[1]]);   // the foot cap
-    for (let i = 1; i <= nSeg; i++) {
-      const phi = phi0 + (phi1 - phi0) * i / nSeg, r = ring(phi), sHere = sPrev + R * (phi1 - phi0) / nSeg;
-      const ca = A(phi0 + (phi1 - phi0) * (i - 0.5) / nSeg);
-      for (let j = 0; j < 4; j++) {
-        const k = (j + 1) % 4, q = [rPrev[j], rPrev[k], r[k], r[j]];
-        const mid = mul(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
-        face(GD, q, nrm(sub(mid, ca)), p => [sPrev + len(sub(p, rPrev[j])) * 0.5, j % 2 ? p[1] : p[0]]);
-      }
-      // the flanges: plates a hand wider than the webs along the top and the bottom edges
-      for (const sg of [1, -1]) {
-        const p0 = add(A(phi0 + (phi1 - phi0) * (i - 1) / nSeg), mul(N(phi0 + (phi1 - phi0) * (i - 1) / nSeg), sg * depth(phi0 + (phi1 - phi0) * (i - 1) / nSeg) / 2));
-        const p1 = add(A(phi), mul(N(phi), sg * depth(phi) / 2));
-        bm(GD, p0, p1, gw + 0.16, 0.05, N(phi0 + (phi1 - phi0) * (i - 0.5) / nSeg));
-      }
-      // a stiffener rib across each web, every metre and a bit
-      if (!lo && Math.floor(sHere / 1.3) !== Math.floor(sPrev / 1.3)) {
-        const n = N(phi), a = A(phi), d = depth(phi) / 2;
-        for (const sx of [-1, 1]) bm(GD, add(add(a, mul(n, d - 0.05)), [sx * (gw + 0.05), 0, 0]), add(add(a, mul(n, -d + 0.05)), [sx * (gw + 0.05), 0, 0]), 0.05, 0.1, [1, 0, 0]);
-      }
-      rPrev = r; sPrev = sHere;
-    }
-    face(GD, rPrev, T(phi1), p => [p[0], p[1]]);                                 // the nose cap
-    // the saddle strips the track ropes ride, along the top, from behind the apex to the nose
     const xt = P.trackX;
     for (const sx of [-1, 1]) {
+      const xa = sx * xt;
+      let rPrev = ring(phi0, xa), sPrev = 0;
+      face(GD, rPrev.slice().reverse(), mul(T(phi0), -1), p => [p[0], p[1]]);
+      for (let i = 1; i <= nSeg; i++) {
+        const phi = phi0 + (phi1 - phi0) * i / nSeg, r = ring(phi, xa), sHere = sPrev + R * (phi1 - phi0) / nSeg;
+        const phiM = phi0 + (phi1 - phi0) * (i - 0.5) / nSeg, ca = A(phiM, xa);
+        for (let j = 0; j < 4; j++) {
+          const k = (j + 1) % 4, q = [rPrev[j], rPrev[k], r[k], r[j]];
+          const mid = mul(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
+          face(GD, q, nrm(sub(mid, ca)), p => [sPrev + len(sub(p, rPrev[j])) * 0.5, j % 2 ? p[1] : p[0]]);
+        }
+        for (const sg of [1, -1]) {                                                       // the flanges
+          const phiP = phi0 + (phi1 - phi0) * (i - 1) / nSeg;
+          bm(GD, add(A(phiP, xa), mul(N(phiP), sg * depth(phiP) / 2)), add(A(phi, xa), mul(N(phi), sg * depth(phi) / 2)), gw + 0.16, 0.05, N(phiM));
+        }
+        if (!lo && Math.floor(sHere / 1.3) !== Math.floor(sPrev / 1.3)) {               // a stiffener rib each web
+          const n = N(phi), a = A(phi, xa), d = depth(phi) / 2;
+          for (const s2 of [-1, 1]) bm(GD, add(add(a, mul(n, d - 0.05)), [s2 * (gw + 0.05), 0, 0]), add(add(a, mul(n, -d + 0.05)), [s2 * (gw + 0.05), 0, 0]), 0.05, 0.1, [1, 0, 0]);
+        }
+        // the ties between the two arcs: a cross beam every other segment, an X between
+        if (sx > 0 && i % 2 === 0) {
+          for (const sg of [1, -1]) bm(ST, add(A(phi, -xt + gw), mul(N(phi), sg * (depth(phi) / 2 - 0.15))), add(A(phi, xt - gw), mul(N(phi), sg * (depth(phi) / 2 - 0.15))), 0.08, 0.1, N(phi));
+          if (!lo && i >= 2) {
+            const phiQ = phi0 + (phi1 - phi0) * (i - 2) / nSeg;
+            bm(ST, add(A(phiQ, -xt + gw), mul(N(phiQ), depth(phiQ) / 2 - 0.15)), add(A(phi, xt - gw), mul(N(phi), depth(phi) / 2 - 0.15)), 0.05, 0.05, N(phi));
+            bm(ST, add(A(phiQ, xt - gw), mul(N(phiQ), depth(phiQ) / 2 - 0.15)), add(A(phi, -xt + gw), mul(N(phi), depth(phi) / 2 - 0.15)), 0.05, 0.05, N(phi));
+          }
+        }
+        rPrev = r; sPrev = sHere;
+      }
+      face(GD, rPrev, T(phi1), p => [p[0], p[1]]);
+      // the saddle strip the track rope rides, from behind the apex to the nose
       let prev = null;
       for (let i = 0; i <= nSeg; i++) {
         const phi = Math.max(phi0, -75 * D2R) + (phi1 - Math.max(phi0, -75 * D2R)) * i / nSeg;
-        const p = add(add(A(phi), mul(N(phi), depth(phi) / 2 + 0.08)), [sx * xt, 0, 0]);
+        const p = add(A(phi, xa), mul(N(phi), depth(phi) / 2 + 0.08));
         if (prev) bm(GD, prev, p, 0.09, 0.08, N(phi));
         prev = p;
       }
     }
-    // the prop from the portal under the arch (the nose is carried by the raked leg, below)
-    bm(ST, [0, H + pH, pz + 0.3], add(A(-40 * D2R), mul(N(-40 * D2R), -depth(-40 * D2R) / 2)), 0.1, 0.12);
-    // the antennae on the back of the arch
-    if (!lo) for (const phi of [-30 * D2R, -48 * D2R]) { const a = add(A(phi), mul(N(phi), depth(phi) / 2)); cyl(bags.metal, a, N(phi), 0.03, 4.0, 6, true); }
-    // THE HOOKS: the track ropes' tangent points front (the line) and back (the anchors)
-    const phiL = P.lineDeg * D2R, phiA = -P.anchorDeg * D2R;
-    const topAt = (phi, x) => add(add(A(phi), mul(N(phi), depth(phi) / 2 + 0.16)), [x, 0, 0]);
+    // the prop from the portal under the arches, and the antennae on the back
+    for (const sx of [-1, 1]) bm(ST, [sx * top, H + pH, pz + 0.3], add(A(-40 * D2R, sx * xt), mul(N(-40 * D2R), -depth(-40 * D2R) / 2)), 0.1, 0.12);
+    if (!lo) for (const phi of [-30 * D2R, -48 * D2R]) { const a = add(A(phi, xt), mul(N(phi), depth(phi) / 2)); cyl(bags.metal, a, N(phi), 0.03, 4.0, 6, true); }
+    // THE HOOKS: the track ropes' tangent points front (the line) - and the
+    // BACKSTAY CABLES (G347, the green lines): the arches are cantilevers,
+    // and each is held back by a cable from its upper back (`stayDeg` back
+    // from the apex) to an anchor plate in the terminal house's front wall
+    // (or a deadman on the ridge without one); drawn. The track ropes'
+    // anchors are these same points.
+    const phiL = P.lineDeg * D2R;
+    const topAt = (phi, x) => add(A(phi, x), mul(N(phi), depth(phi) / 2 + 0.16));
     S.hooks.track = [-1, 1].map(sx => ({ p: topAt(phiL, sx * xt), dir: T(phiL) }));
-    S.hooks.anchor = [-1, 1].map(sx => ({ p: topAt(phiA, sx * xt), dir: mul(T(phiA), -1) }));
-    // THE BULL WHEEL under the nose: the haul rope arrives tangent at the line's angle
-    const wr = P.wheelR, hl = add(A(phiL), mul(N(phiL), -depth(phiL) / 2 - P.haulDrop));   // the top strand's line
+    S.hooks.anchor = []; S.anchorRopes = [];
+    const zAnc = P.terminal ? zT + termW / 2 : zB - 26, yAnc = P.terminal ? termFloor + 2.9 + 1.4 : g(0, zB - 26) + 0.6;
+    for (const sx of [-1, 1]) {
+      const Qa = [sx * xt, yAnc, zAnc];
+      const phiA = -P.stayDeg * D2R;
+      const Pt = topAt(phiA, sx * xt);
+      const dir = nrm(sub(Qa, Pt));
+      S.hooks.anchor.push({ p: Pt, dir });
+      S.anchorRopes.push({ a: Pt, b: Qa });
+      cyl(ST, Pt, dir, 0.04, len(sub(Qa, Pt)), 6, false);
+      boxAB(ST, [Qa[0] - 0.45, Qa[1] - 0.45, Qa[2] - 0.25], [Qa[0] + 0.45, Qa[1] + 0.45, Qa[2] + 0.05]);   // the anchor plate on the wall
+      if (!P.terminal) boxAB(CO, [Qa[0] - 1.2, Qa[1] - 2.0, Qa[2] - 1.5], [Qa[0] + 1.2, Qa[1] + 0.2, Qa[2] + 1.5]);
+    }
+    // THE BULL WHEEL between the arches under the nose: the haul rope arrives tangent at the line's angle
+    const wr = P.wheelR, hl = add(A(phiL), mul(N(phiL), -depth(phiL) / 2 - P.haulDrop));
     const wc = add(hl, mul(N(phiL), -wr));
     S.wheel = { c: wc, r: wr, axis: [1, 0, 0] };
     const tL = T(phiL);
@@ -275,46 +331,26 @@ function buildStation(P, lod, F) {
       prevR = r;
     }
     cyl(ST, add(wc, [-0.4, 0, 0]), [1, 0, 0], 0.32, 0.8, 16, true);            // the hub
-    cyl(ST, add(wc, [-0.9, 0, 0]), [1, 0, 0], 0.09, 1.8, 10, true);            // the axle
+    cyl(ST, add(wc, [-(xt - gw) - 0.1, 0, 0]), [1, 0, 0], 0.09, 2 * (xt - gw) + 0.2, 10, true);   // the axle, arch to arch
     const nSp = lo ? 4 : 8;
     for (let i = 0; i < nSp; i++) { const a = 2 * Math.PI * i / nSp, rad = [0, Math.cos(a), Math.sin(a)]; bm(ST, add(wc, mul(rad, 0.3)), add(wc, mul(rad, wr - rd + 0.02)), 0.045, 0.08, [1, 0, 0]); }
-    for (const sx of [-1, 1]) {                                                 // the hangers from the girder
-      const ax = add(wc, [sx * 0.85, 0, 0]);
-      bm(GD, add(add(A(phiL), mul(N(phiL), -depth(phiL) / 2)), [sx * 0.85, 0, 0]), ax, 0.12, 0.08);
-      bm(GD, add(add(A(phiL - 14 * D2R), mul(N(phiL - 14 * D2R), -depth(phiL - 14 * D2R) / 2)), [sx * 0.85, 0, 0]), ax, 0.08, 0.06);
-      boxAB(ST, [ax[0] - 0.12, ax[1] - 0.3, ax[2] - 0.3], [ax[0] + 0.12, ax[1] + 0.3, ax[2] + 0.3]);   // the bearing
+    for (const sx of [-1, 1]) {                                                 // the hangers from the arches' inner faces
+      const xh = sx * (xt - gw), ax = add(wc, [xh, 0, 0]);
+      bm(GD, add(A(phiL, xh), mul(N(phiL), -depth(phiL) / 2)), ax, 0.12, 0.08);
+      bm(GD, add(A(phiL - 14 * D2R, xh), mul(N(phiL - 14 * D2R), -depth(phiL - 14 * D2R) / 2)), ax, 0.08, 0.06);
+      boxAB(ST, [ax[0] - 0.12, ax[1] - 0.3, ax[2] - 0.3], [ax[0] + 0.12, ax[1] + 0.3, ax[2] + 0.3]);
     }
-    // THE RAKED LEG toward the valley (the photographs: one lattice leg from
-    // a footing forward on the slope up to the girder's nose, beside the
-    // houses): the rope pulls the nose toward the valley and down, and the
-    // leg takes it in compression. An outrigger off the girder's underside
-    // carries the leg's head clear of the docking gallery.
-    if (P.strut) {
-      const zs = P.strutZ, xl = hw + 1.6, dz = 0.65, phiN = 24 * D2R;
-      const gS = g(xl, zs);
-      boxAB(CO, [xl - 1.0, gS - 0.8, zs - 1.2], [xl + 1.0, gS + 0.35, zs + 1.2]);
-      const head = add(A(phiN), mul(N(phiN), -depth(phiN) / 2 - 0.3));
-      bm(GD, add(head, [-gw, 0, 0]), add(head, [xl + 0.3, 0, 0]), 0.35, 0.22, N(phiN));     // the outrigger
-      const topP = sz => [xl, head[1] - 0.2, head[2] + sz * dz], botP = sz => [xl, gS + 0.3, zs + sz * dz];
-      for (const sz of [-1, 1]) bm(ST, botP(sz), topP(sz), 0.11, 0.11);
-      const L = len(sub(topP(1), botP(1))), nL = Math.max(2, Math.round(L / 1.6));
-      for (let i = 0; i <= nL; i++) {
-        const a = add(botP(-1), mul(sub(topP(-1), botP(-1)), i / nL)), b = add(botP(1), mul(sub(topP(1), botP(1)), i / nL));
-        bm(ST, a, b, 0.05, 0.05);
-        if (i < nL) { const c = add(botP(i % 2 ? -1 : 1), mul(sub(topP(i % 2 ? -1 : 1), botP(i % 2 ? -1 : 1)), (i + 1) / nL)); bm(ST, i % 2 ? b : a, c, 0.05, 0.05); }
-      }
-      // a tie from the leg's head back to the deck's edge, so the leg and the deck act together
-      bm(ST, [xl, head[1] - 0.4, head[2]], [hw, gy1, zF - 0.5], 0.07, 0.07);
+    // THE DOCK GUIDES: a laced frame hanging under each slot's edges
+    const guideX = [];
+    for (const sx of [-1, 1]) { guideX.push(sx * dx - slotW / 2, sx * dx + slotW / 2); }
+    for (const x of guideX) for (const z of [zWing0 + 0.8, zWing0 + slotD - 0.8]) bm(ST, [x, gy0, z], [x, gy0 - P.dockDrop, z], 0.08, 0.08);
+    for (const x of guideX) for (let y = gy0 - 1.0; y > gy0 - P.dockDrop + 0.2; y -= 1.0) {
+      bm(ST, [x, y, zWing0 + 0.8], [x, y, zWing0 + slotD - 0.8], 0.04, 0.04);
+      if (!lo) bm(ST, [x, y, zWing0 + 0.8], [x, y + 1.0, zWing0 + slotD - 0.8], 0.03, 0.03);
     }
-    // THE DOCK GUIDES under the tip
-    for (const sx of [-1, 1]) for (const z of [zF - 4.2, zF - 0.6]) bm(ST, [sx * hw, gy0, z], [sx * hw, gy0 - P.dockDrop, z], 0.08, 0.08);
-    for (const sx of [-1, 1]) for (let y = gy0 - 1.0; y > gy0 - P.dockDrop + 0.2; y -= 1.0) {
-      bm(ST, [sx * hw, y, zF - 4.2], [sx * hw, y, zF - 0.6], 0.04, 0.04);
-      if (!lo) bm(ST, [sx * hw, y, zF - 4.2], [sx * hw, y + 1.0, zF - 0.6], 0.03, 0.03);
-    }
-    // the dock: where a cabin stands with its floor level with the gallery's, past the tip
-    S.hooks.dock = { p: [0, deckY + 0.3, zF + 2.2], dx: 2.2, w: hw * 2 };
-    S.kind = 'top';
+    // the dock: a cabin stands in its slot with its floor at the wings' floor
+    S.hooks.dock = { p: [0, floorY - 0.2, zWing0 + 0.3 + P.cabinL / 2], dx, w: slotW, depth: slotD };
+    S.slots = [-1, 1].map(sx => ({ x0: sx * dx - slotW / 2, x1: sx * dx + slotW / 2, z0: zWing0, z1: zWing0 + slotD }));
     // THE PASSAGE TRUSS and its bents
     if (P.passage) {
       const x1 = 1.35, ty0 = deckY - 1.5, ty1 = deckY + 0.1, zEnd = zPass1;
@@ -343,8 +379,7 @@ function buildStation(P, lod, F) {
         if (!lo) { bm(ST, [-(x1 + 0.45), yM, z], [x1, ty0, z], 0.04, 0.04); bm(ST, [x1 + 0.45, yM, z], [-x1, ty0, z], 0.04, 0.04); }
       }
     }
-    S.mast = { H, top: top * 2, base: base * 2, panels: nPan };
-    S.girder = { C, R, phi0, phi1, w: gw * 2, dFoot: P.girderD, dNose: P.girderDn, foot, apex: A(0), nose: A(phi1) };
+    S.girder = { C, R, phi0, phi1, w: gw * 2, dFoot: P.girderD, dNose: P.girderDn, foot: gFoot, apex: A(0), nose: A(phi1), xs: [-xt, xt] };
     S.boxes = boxes;
   };
 
@@ -355,7 +390,6 @@ function buildStation(P, lod, F) {
   built.stats.ridgeY = Math.max(built.stats.ridgeY, S.girder.apex[1] + P.girderD / 2);
   return built;
 }
-
 
 // ---------------------------------------------------------------------------
 // THE BASE STATION (G346, the user: "I have references for the base station
