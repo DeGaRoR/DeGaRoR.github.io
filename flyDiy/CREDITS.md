@@ -613,6 +613,19 @@ more** (`person_charles`, `person_luke`, `person_koky`, G280) come from the
 same source, one whole-scene export (`charles.glb`) selected by node — same
 licence, same caveat.
 
+## Tram cabin (`assets/cabin/`, baked and served from media/)
+
+The aerial tramway's cabin (`src/viewer/cabin.js`, G343): the user's
+`cable_car.glb`, declared in `tools/cabin_table.py`, baked as-is by
+`tools/cabin_prep.py` (the prop baker's runner pointed at this table) into
+`src/cabin/` + `media/geo/cabin/`, at a declared scale (3.4 m across) and
+without its two modelled rope nodes. The file ships flat colours and no map;
+the cabin wears the house library instead (`steelgrey`, `galv`, `deckwood`,
+the house's glass), a swept gasket round every window, and the user's two
+banners as liveries (`assets/cabin/livery_*.png` -> `media/tex/cabin/`,
+manifest `src/viewer/cabin_livery.js`). **Provenance of the model: delivered
+by the user; author and licence to be recorded here.**
+
 ## Totem poles (`assets/totems/`, baked and served from media/)
 
 Six photogrammetry scans of carved poles for the totem park

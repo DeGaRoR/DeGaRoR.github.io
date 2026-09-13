@@ -137,6 +137,10 @@
 <script src="../src/viewer/sign_tex.js"></script>
 <script src="_big_gen.js"></script>
 <script src="_tram_gen.js"></script>
+<!-- THE TRAM CABIN (G343): the baked prop, its liveries, and the dresser -->
+<script src="../src/cabin/cabin_cabin.js"></script>
+<script src="../src/viewer/cabin_livery.js"></script>
+<script src="../src/viewer/cabin.js"></script>
 <script>
 'use strict';
 (() => {
@@ -590,6 +594,17 @@ function build() {
   if (hi.stats.people && mode !== 1)
     for (const q of hi.stats.people)
       if (PROP_REG.props[q.key]) root.add(propPlace(THREE, q.key, q.x, q.z, q.ry, q.y));
+  // THE CABINS AT THE DOCK (G343): the station's dock hook, the cabin's floor
+  // level with the docking gallery's, one in front of the tip or two side by
+  // side, each in its own livery
+  if (hi.stats.station && P.cabin && window.CABIN && mode !== 1) {
+    const S = hi.stats.station, n = Math.round(P.cabin);
+    for (let i = 0; i < n; i++) {
+      const c = CABIN.build(THREE, { livery: CABIN.LIVERIES[i % CABIN.LIVERIES.length] });
+      c.position.set(n > 1 ? (i ? 2.2 : -2.2) : 0, S.deckY + 0.3, P.deckFront + 2.2);
+      root.add(c);
+    }
+  }
   // THE YARD (G273): every prop the plan placed, stood where it stands - a
   // thing on the ground is tilted to the ground under it, a thing on a wall
   // is turned to face off it

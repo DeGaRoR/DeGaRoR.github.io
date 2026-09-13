@@ -60,7 +60,8 @@ const DATA_BUDGET_KB = 400;
 function manifestFiles() {
   const v = ['hangar_walls.js', 'hangar_floor.js', 'site_tex.js',
              'wood_tex.js', 'skin_tex.js', 'vessel_tex.js', 'hangar_sky.js',
-             'house_tex.js', 'panel_tex.js', 'lot_tex.js', 'sign_tex.js']
+             'house_tex.js', 'panel_tex.js', 'lot_tex.js', 'sign_tex.js',
+             'cabin_livery.js']   // the tram cabin's liveries (G343)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))
@@ -88,6 +89,13 @@ function manifestFiles() {
     ? JSON.parse(fs.readFileSync(hwMf, 'utf8'))
         .map(f => path.join(ROOT, 'src', 'panelhw', f))
     : [];
+  // the tram cabin (G343): the baker's fourth table - the user's cable car,
+  // its own pack and media (media/geo/cabin; media/tex/cabin holds the liveries)
+  const cabinMf = path.join(ROOT, 'src', 'cabin', 'cabin_packs.json');
+  const cabin = fs.existsSync(cabinMf)
+    ? JSON.parse(fs.readFileSync(cabinMf, 'utf8'))
+        .map(f => path.join(ROOT, 'src', 'cabin', f))
+    : [];
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -107,7 +115,7 @@ function manifestFiles() {
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, models, chars, trees);
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, trees);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;

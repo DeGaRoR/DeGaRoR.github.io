@@ -77,6 +77,10 @@ const GATES = [
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
   { id: 'TOTEM', file: '_totem_check.js', tier: 'core' },
+  // THE TRAM CABIN (G343): the user's cable car baked as a prop and dressed
+  // from the house library - roles, metric uvs, the gasket round every
+  // window, the livery on both flanks, the liveries published
+  { id: 'CABIN', file: '_cabin_check.js', tier: 'core' },
   // THE TREE PAYLOAD (W0b). Not "does the file exist" — every fault this
   // pipeline met in the bench presented as "the tree is missing or wrong"
   // and was something else entirely, so this asserts what comes back OUT is
@@ -94,6 +98,8 @@ const GATES = [
   // AEROSKIN (G67): the declared finish + role tables against the cage's own
   // section list, and the r128 constraints the shader stands on
   { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
+  // THE WEATHERING (G343): the module's GLSL rules, its tables, its load order
+  { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
   { id: 'SURF', file: '_surf_check.js', tier: 'core' },
   // THE LIGHT RIG (this chantier): the contract, the census, the switchboard,

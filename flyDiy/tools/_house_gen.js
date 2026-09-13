@@ -1444,6 +1444,7 @@ const DEF = {
   portalH: 4.5, girderR: 8, girderW: 2.2, girderD: 2.4, girderDn: 1.3, noseDeg: 48, lineDeg: 32, anchorDeg: 62,
   trackX: 0.75, wheelR: 1.8, haulDrop: 0.9, houseL: 10.5, passage: 1, terminal: 1, terminalZ: 38, strut: 1, strutZ: 14,
   dockDrop: 5.5, steelRust: 0.3, girderRust: 0.72,
+  cabin: 0,      // cabins at the dock (G343): 0, 1 or 2 - the bench places src/viewer/cabin.js's
   // THE MILL (G329): a composite of houses up a hill - see buildMill
   mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
   tram: 1, tramTo: null, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, millTiers: null, frameBack: 2,
@@ -1724,6 +1725,7 @@ const ROWS = [
     ['terminalZ', 'the terminal behind', 20, 60, 0.5, null, P => !!P.station], ['strut', 'the raked strut', 0, 1, 1, null, P => !!P.station],
     ['strutZ', 'its footing forward', 6, 30, 0.5, null, P => !!P.station], ['dockDrop', 'the dock guides down', 2, 10, 0.1, null, P => !!P.station],
     ['steelRust', 'rust on the lattice', 0, 1, 0.02, null, P => !!P.station], ['girderRust', 'rust on the girder', 0, 1, 0.02, null, P => !!P.station],
+    ['cabin', 'cabins at the dock', 0, 2, 1, null, P => !!P.station],
   ]],
   ['the mill', [
     ['mill', 'a mill up the hill', 0, 1, 1], ['tiers', 'tiers', 3, 10, 1, null, P => !!P.mill],
@@ -6695,6 +6697,6 @@ window.HOUSE_GEN = {
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
   steelMix,   // the tram's steel (G342)
   buildComposite, buildMill,   // composites of houses: the mill (G329)
-  dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,
+  dressSlot, dressMat, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,   // dressMat: the cabin dresses its own materials (G343)
 };
 })();

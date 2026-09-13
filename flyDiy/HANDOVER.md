@@ -42140,3 +42140,68 @@ futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
 - Gates: TOTEM, MEDIA, PROPS, HOUSE green. Sheets re-cut in
   `screenshots/totems/` (compare: scan / 12k / 3k / 700; the park's half
   circle from the lawn, the front and above).
+
+## G343 — THE TRAM CABIN: THE USER'S MODEL BAKED AS A PROP AND DRESSED FROM THE
+## HOUSE LIBRARY, THE HOUSE'S GLASS, A SWEPT GASKET ROUND EVERY WINDOW, THE
+## LIVERY PROJECTED ON BOTH FLANKS
+## (2026-09-13, the user: "I've got a cabin model. It needs new materials from
+## our library, choose wisely amongst all available. Use the same technique for
+## the windows as for the houses. Build a smooth joint on the window contour,
+## with higher resolution than the base mesh. The low poly shows there in
+## particular. I also attach 2 images we can project on each side as liveries.
+## Keep the normal of the base material, replace the metallic, roughness and
+## diffuse")
+
+- **THE BAKE** (`tools/cabin_table.py`, `tools/cabin_prep.py`, the prop
+  baker's runner pointed at a fourth table; `src/cabin/cabin_cabin.js` +
+  `cabin_packs.json`, `media/geo/cabin/`): the user's `cable_car.glb`
+  (assets/cabin/) as-is - every triangle, the author's normals - but at a
+  DECLARED SCALE (the file's world transform leaves it 0.42 m wide; 8.1×
+  puts the body at 3.4 m across, 5.2 long, the carriage 8.6 m over the
+  floor) and WITHOUT its two modelled rope nodes (the tram draws its own
+  from the station's hooks). The baker keeps parts per material, and
+  that name is the handle.
+- **THE DRESSING** (`src/viewer/cabin.js`, `CABIN.plan(parts)` pure,
+  `CABIN.build(THREE, {livery})` the meshes): body `steelgrey` in harbour
+  red (metalness 0.35), trim `steelgrey` charcoal, floor `deckwood`,
+  hanger bare `steelgrey`, details and rails `galv`; every part re-mapped
+  by a planar projection along its dominant normal so the UVs are METRES
+  as the library expects. `dressMat` is exported for it. The windows go
+  through a house Bag and wear `HG.MAT.glass` - the house's own glass
+  shader, attributes and all.
+- **THE GASKET** (the smooth joint): the window mesh's boundary edges are
+  walked into closed loops (17 on this cabin), each loop rounded by
+  three passes of corner-cutting and resampled at 5 cm (four times the
+  author's resolution at the corners), and a six-sided rubber bead of
+  4.5 cm swept round it, stood 4 cm proud along the pane's outward
+  normal - a pane sits behind the skin's edge, and a bead behind the skin
+  is a bead nobody sees. The polygonal corner is under the rubber.
+- **THE LIVERY** (`assets/cabin/livery_*.png` → `tools/cabin_prep.py` →
+  `media/tex/cabin/`, manifest `src/viewer/cabin_livery.js`): the body's
+  flank triangles (the outermost tenth of a metre either side) are
+  clipped to the banner's rectangle (3.0 × 1.0 m under the window band)
+  and copied 6 mm proud with two UV sets - the banner's, mirrored on the
+  far flank so the words read from either side (a viewer's right hand
+  is forward × up: on the +x flank u grows toward −z), and the metric
+  one the steel's NORMAL map keeps reading through a small shader patch
+  (`aUvN`). Diffuse is the banner; metalness 0.12, roughness 0.55 are
+  the decal's own. Two liveries, `admiralty` and `chatham`.
+- **THE BENCH**: preset `tram top station`, dial `cabin` 0/1/2 places the
+  cabins at the dock, floor level with the docking gallery's, one per
+  livery.
+- **GATE CABIN** (`tools/_cabin_check.js`, in the runner; MEDIA lists the
+  pack and the livery manifest): the pack carries the cabin at the
+  declared size on its floor origin; every material has a role; body
+  UVs metric; ≥4 window loops, the gasket on every one, finer than the
+  edge and within 8 cm of the drawn contour; decals on both flanks,
+  inside the banner, proud of the skin, UVs in 0..1, reading the right
+  way; the plan deterministic; the liveries published and on disk.
+- Traps: the codec's top-level consts are not properties of a vm
+  context (hand them over); the decoder wants a Buffer, not an
+  ArrayBuffer; the first livery came out mirrored - right is forward ×
+  up, not up × forward.
+- Gates: CABIN, MEDIA, HOUSE, VILLAGE green. Provenance of the model to be
+  recorded in CREDITS.md by the user.
+- Not done, by the user's word: the base station (an open wooden barn on
+  the Goldbelt lower terminal's architecture) - next; the ropes between
+  the hooks; the station and cabins in a village theme.
