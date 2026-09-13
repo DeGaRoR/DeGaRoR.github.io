@@ -43631,3 +43631,17 @@ the hill (an authoring choice the panel names).
   (`siteGround`) and the mill's spur; the pickers by tag; a per-item
   preset dial set; the budget's `__gl` counters and `premises_perf.js`;
   the game host (the WORLD rail entry, the three hooks in 20_world.js).
+
+## G361.1 — THE EDITOR NAMES NO ASSET: THE THEME'S RECEIVING SHED IS FOUND IN
+## THE LIVE CATALOGUE (2026-09-13, found by the clean-worktree proof of G361)
+
+GATE PREMISES rule 13 ("the contract held": no catalogue key as a literal in
+any `_premises_*` file) went red on the proof worktree and not in the shared
+tree, because the key was written after the tree's last gate run: the theme
+tool stood its receiving shed as `'big/tram shed'`. The editor may not know
+an asset by name - a session's new entry must be accepted without an edit -
+so the shed is now the palette's pick when that is a shed, else the first
+big entry whose preset says shed, found in `ctx.catalogue.keys()` at the
+click. The rule did its job on the first commit that broke it.
+
+- Gates: PREMISES green (94 checks, selftest); proven from a clean worktree.

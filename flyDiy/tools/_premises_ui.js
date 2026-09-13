@@ -353,7 +353,8 @@ function mount(host, ctx) {
       const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: (it.gen === 'big' ? 'big/' : 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
       // the receiving shed the mill's conveyor runs to: the theme on master has none (its mill's own bottom house
       // straddles the road); the branch's has the tram shed astride the road - stand one when the theme lacks it
-      if (!items.some(i => i.onRoad)) items.push({ id: 'rcv', key: 'big/tram shed', x: 0, z: -2, yaw: 0, P: {}, onRoad: true, bottomOnRoad: false });
+      // (the key is FOUND in the live catalogue, never written here - rule 13: the editor names no asset)
+      if (!items.some(i => i.onRoad)) { const keys = ctx.catalogue ? ctx.catalogue.keys() : []; const rcvKey = (PALETTE_KEY && /shed/.test(PALETTE_KEY)) ? PALETTE_KEY : keys.find(k => k.indexOf('big') === 0 && /shed/.test(k)) || keys.find(k => /shed/.test(k)); if (rcvKey) items.push({ id: 'rcv', key: rcvKey, x: 0, z: -2, yaw: 0, P: {}, onRoad: true, bottomOnRoad: false }); }
       const e = { id: sid, name: TH.name, at: { x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }, items, yard: TH.yard || null };
       run({ layer: 'sites', id: sid, before: null, after: e, label: 'site ' + sid + ' (' + TH.name + ')' });
       const mill = items.find(i => /mill/.test(i.key)), rcv = items.find(i => i.onRoad);
