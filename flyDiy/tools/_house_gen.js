@@ -6951,4 +6951,51 @@ window.HOUSE_GEN = {
   buildComposite, buildMill, millPlan, lampAt,   // composites of houses: the mill (G329; G350 its plan, for the village to cut the shoulder); the wall lantern (G348)
   dressSlot, dressMat, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,   // dressMat: the cabin dresses its own materials (G343)
 };
+// THE CATALOGUE (G352, PREMISES-CONTRACT-2026-09-13 section 2): one entry per
+// preset on the generator's own API object - the plain houses from their own
+// L x w (what collect() would derive), the mill and the tram's two stations
+// with their frames, footprints, ground needs and hooks. Every foot is a
+// CCW rectangle in the item's frame (the house convention: +z the front).
+window.HOUSE_GEN.CATALOGUE_V = 1;
+window.HOUSE_GEN.CATALOGUE_ALIASES = {};
+window.HOUSE_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
+  const Pd = Object.assign({}, DEF, PRESETS[name]);
+  const rect = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+  const base = { key: 'house/' + name, kind: 'building', gen: 'HOUSE_GEN', preset: name, P: {}, frame: 'house',
+    foot: P => { const L = ((P && P.L) || Pd.L) / 2, w = ((P && P.w) || Pd.w) / 2; return rect(-L, -w, L, w); },
+    keepOut: 3, ground: { need: 'none', standing: Pd.stance === 0 ? 'slab' : 'piles' },
+    size: P => ({ L: (P && P.L) || Pd.L, w: (P && P.w) || Pd.w }),
+    hooks: () => [], hooksOf: () => [], lod: { dist: [0, 150, 500, 1500] },
+    slots: { lights: 'stats.lit.lights', smoke: 'stats.smoke', people: 'stats.people', ao: 'stats.groundAO' },
+    tags: ['house'], headless: true, gate: 'HOUSE' };
+  if (Pd.mill) return Object.assign(base, { kind: 'complex', tags: ['industrial', 'mine'],
+    // THE MILL'S GROUND: the top house's pad is a SHELF the world cuts and
+    // fills from the same plan (millPlan; VILLAGE_GEN.withShelf is the cut),
+    // the stations and the receiving house stand on the slope below it
+    foot: P => { const M = millPlan(Object.assign({}, Pd, P || {})); return rect(M.x0 - 3, M.termZ - 8, M.x1 + 3, M.R + 8); },
+    ground: { need: 'flatten', level: 'median', falloff: 10, standing: 'piles',
+              shelf: P => { const M = millPlan(Object.assign({}, Pd, P || {})); return { rect: [M.x0, M.zPB, M.x1, M.zPF], zLevel: M.zLevel, marginF: M.marginF, marginB: M.marginB }; } },
+    size: P => { const M = millPlan(Object.assign({}, Pd, P || {})); return { L: M.x1 - M.x0 + 6, w: M.R - M.termZ + 16 }; },
+    hooks: P => { const M = millPlan(Object.assign({}, Pd, P || {})); return [{ name: 'road', kind: 'roadThrough', p: [0, 0, M.R], dir: [1, 0, 0] }]; },
+    hooksOf: built => (built && built.stats.mill ? built.stats.mill.conveyors.map((c, i) => ({ name: 'conveyor' + i, kind: c.rope ? 'cable' : 'conveyor', p: c.a, dir: [c.b[0] - c.a[0], c.b[1] - c.a[1], c.b[2] - c.a[2]] })) : []),
+    slots: { lights: 'stats.lit.lights', ao: 'stats.groundAO', conveyors: 'stats.mill.conveyors', plateau: 'stats.mill.plateau' } });
+  if (Pd.station) {
+    const top = Math.round(Pd.station) === 1;
+    return Object.assign(base, { kind: 'complex', tags: ['tram', top ? 'top station' : 'base station'],
+      foot: P => { const Q = Object.assign({}, Pd, P || {}); return top ? rect(-(Q.deckW / 2 + 6), -(Q.deckBack + Q.terminalZ + 12), Q.deckW / 2 + 6, Q.deckFront + 4) : rect(-(Q.barnW / 2 + 2), -(Q.barnL / 2 + Q.annexW + 2), Q.barnW / 2 + 2, Q.barnL / 2 + 8); },
+      ground: top ? { need: 'none', standing: 'piles' } : { need: 'level', level: 'high', standing: 'slab' },
+      size: P => { const Q = Object.assign({}, Pd, P || {}); return top ? { L: Q.deckW + 12, w: Q.deckBack + Q.terminalZ + Q.deckFront + 16 } : { L: Q.barnW + 4, w: Q.barnL + Q.annexW + 10 }; },
+      hooks: () => [],
+      // the cable hooks move with the line's angle: known only after the build (rule 4); VILLAGE_GEN.tramLine is the solver
+      hooksOf: built => { const S = built && built.stats.station; if (!S) return []; const out = [];
+        (S.hooks.track || []).forEach((h, i) => out.push({ name: 'track' + i, kind: 'cable', p: h.p, dir: h.dir }));
+        (S.hooks.haul || []).forEach((h, i) => out.push({ name: 'haul' + i, kind: 'cable', p: h.p, dir: h.dir }));
+        (S.hooks.anchor || []).forEach((h, i) => out.push({ name: 'anchor' + i, kind: 'cable', p: h.p, dir: h.dir }));
+        if (S.hooks.dock) out.push({ name: 'dock', kind: 'dock', p: S.hooks.dock.p, dir: [0, 0, 1] });
+        return out; },
+      link: { cable: 'VILLAGE_GEN.tramLine' },
+      slots: { lights: 'stats.lit.lights', ao: 'stats.groundAO', sign: 'stats.station.sign', wheels: 'stats.station.wheels', dock: 'stats.station.hooks.dock' } });
+  }
+  return base;
+});
 })();

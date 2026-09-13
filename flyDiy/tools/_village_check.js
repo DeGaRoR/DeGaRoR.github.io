@@ -66,7 +66,7 @@ const win = {};
                 Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_village_gen.js', '../src/viewer/tram_run.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js', '../src/viewer/tram_run.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 }
 const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN, BGN = win.BIG_GEN, TRUN = win.TRAM_RUN;
@@ -93,6 +93,7 @@ function buildVillage(V) {
   }
   if (vil.site && vil.site.tram) VG.tramLine(vil, h => HG.build(h.P, 0));
   for (const h of vil.siteHouses || []) if (!h.tram) h.built = (h.gen === 'big' ? BGN : HG).build(h.P, 0);
+  if (vil.park && vil.park.house) vil.park.house.built = HG.build(vil.park.house.P, 0);   // the park's log cabin (G352)
   VG.planBillboards(vil, ['air_taxi', 'bear_tours', 'north_motel']);
   // the trees, on a stub pool shaped like the bench's (tall and small)
   VG.planTrees(vil, [{ key: 'cedar|Cedar', size: 1, sink: 2, proportion: 1, h: 17 },
@@ -509,6 +510,44 @@ function battery(name, vil) {
     for (let k = 0; k < 4000 && !arrived; k++) { run.tick(0.1); if (run.phase === 'dwell' && run.s > 0.99) arrived = true; tMax += 0.1; }
     check(arrived && tMax > 20 && tMax < 400, name + ': the tram does not make the run', tMax.toFixed(0) + ' s, D ' + run.D.toFixed(0));
     check(run.dir === -1, name + ': the tram does not turn round at the top');
+  }
+  // 19 — THE TOTEM PARK (G352): up the mountain behind the village, clear of
+  //   the mine's spur and the tram's base, its lawn flat at its level with
+  //   every pole on it, the level `parkRise` over the road, on the tile; a
+  //   path from the road's verge to the frontage's middle over dry ground; a
+  //   rail fence on all four edges with one gate, where the path comes in;
+  //   no plot corner in the park and no park corner in a plot; no tree on the
+  //   lawn or the path; a log cabin built in the clan-house slot
+  if (vil.V.park) {
+    const PK = vil.park;
+    if (check(!!PK, name + ': no totem park')) {
+      const pl = PK.plan;
+      check(pl.poles.length === win.TOTEM_GEN.KEYS.length, name + ': the park has ' + pl.poles.length + ' poles');
+      let offLevel = 0, offGround = 0;
+      for (const p of pl.poles) { if (Math.abs(p.y - PK.level) > 1e-6) offLevel++; if (Math.abs(T.h(p.x, p.z) - PK.level) > 0.03) offGround++; }
+      check(offLevel === 0 && offGround === 0, name + ': poles off the lawn level', offLevel + '/' + offGround);
+      let notFlat = 0; for (const q of pl.footprint) if (Math.abs(T.h(q[0], q[1]) - PK.level) > 0.05) notFlat++;
+      check(notFlat === 0, name + ': the lawn is not flat', notFlat + ' of ' + pl.footprint.length);
+      const ap = road.at(PK.t);
+      check(PK.level > T.h(ap.p[0], ap.p[1]) + 4 && PK.d >= 40, name + ': the park is not up the mountain', (PK.level - T.h(ap.p[0], ap.p[1])).toFixed(1) + ' m up, ' + PK.d.toFixed(0) + ' m in');   // (the rise the tile allows: parkRise where the hill gives it before the edge)
+      check(PK.poly.every(q => Math.abs(q[0]) < T.size / 2 - 2 && Math.abs(q[1]) < T.size / 2 - 2), name + ': the park is off the tile');
+      let inPark = 0, inPlot = 0;
+      for (const p of vil.plots) { for (const q of p.poly) if (VG.inPoly(PK.poly, q[0], q[1])) inPark++; for (const q of PK.poly) if (VG.inPoly(p.poly, q[0], q[1])) inPlot++; }
+      check(inPark === 0 && inPlot === 0, name + ': the park and a plot overlap', inPark + '/' + inPlot);
+      const pts = PK.path.pts, last = pts[pts.length - 1];
+      check(pts.length >= 6 && distToRoad(road, pts[0]) < road.w / 2 + 1.0 && Math.hypot(last[0] - PK.plot.front[0], last[1] - PK.plot.front[1]) < 1.0, name + ': the path does not run from the road to the park');
+      check(!pts.some(q => T.h(q[0], q[1]) < T.waterY + 0.5), name + ': the path wades');
+      check(PK.fences.length === 4 && PK.fences.filter(f => f.gap).length === 1 && PK.fences[0].kind === 'front' && PK.fences[0].style === 'rail', name + ': the park is not fenced on four sides with one gate');
+      const gate = PK.fences[0], gl = Math.hypot(gate.b[0] - gate.a[0], gate.b[1] - gate.a[1]), gm = (gate.gap[0] + gate.gap[1]) / 2;
+      const gp = [gate.a[0] + (gate.b[0] - gate.a[0]) * gm / gl, gate.a[1] + (gate.b[1] - gate.a[1]) * gm / gl];
+      check(Math.hypot(gp[0] - last[0], gp[1] - last[1]) < 1.5, name + ': the gate is not where the path comes in');
+      const treesIn = (vil.trees || []).filter(t => VG.inPoly(PK.poly, t.x, t.z)).length;
+      const treesOn = (vil.trees || []).filter(t => { for (let i = 1; i < pts.length; i++) if (distPtSeg([t.x, t.z], pts[i - 1], pts[i]) < 1.5) return true; return false; }).length;
+      check(treesIn === 0 && treesOn === 0, name + ': trees on the lawn or the path', treesIn + '/' + treesOn);
+      check(!!PK.house && !!PK.house.built && PK.house.built.stats.tris > 300, name + ': no log cabin in the park');
+      if (PK.house && pl.house) check(Math.hypot(PK.house.x - pl.house.x, PK.house.z - pl.house.z) < 0.01 && PK.house.P.L <= pl.house.w && PK.house.P.w <= pl.house.d, name + ': the cabin is not in the slot');
+      if (vil.site) check(Math.abs(PK.t - vil.site.jt) > 60 && (!vil.site.tram || Math.abs(PK.t - vil.site.tram.t) > 40), name + ': the park crowds the mine or the tram');
+    }
   }
   // 16 — THE TERRAIN (G340, the user: "mountain on one side, water on the
   //   other, and a varied, yet coherent slope through"): in every column,

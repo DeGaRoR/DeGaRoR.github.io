@@ -44096,3 +44096,76 @@ The barrel wheels seem to have improper UV mapping."
 - Screenshots: screenshots/lods/tram351_*.jpg.
 - Queued: wheels spinning and the haul strands moving (cosmetic); the
   motion in the game with the world clock; the totem park; landing.
+
+## G352 (village-tram branch, provisional number) — THE TOTEM PARK IN THE
+## MOUNTAINS, FENCED AND ON A PATH; THE CATALOGUE FOR THE WORLD EDITOR; THE
+## PROCEDURES WRITTEN DOWN (2026-09-14, on the worktree D:/Dev/wt-village,
+## branch village-tram, rebased on master 3403a2f8 = G359)
+
+The user: "And now do the totem patch please, maybe you can set it somewhere
+a little recluse in the mountains, yet have it fenced and linked with a path.
+Present the full scene, ensure coordination with the world editor premise
+thread, and I think we're gonna close soon ... Are you sure all procedures
+are clear and can be picked up with rigor by other sessions?"
+
+- THE PARK (tools/_village_gen.js `placePark`, before the plots and the
+  trees): a spot off the shore road at `parkT` of its length - or the first
+  of a few candidates clear of the mine's strip (55 m either side of the
+  spur's anchor, 25 m before it to 160 m up the hill), the tram's corridor
+  (30 m off the base-to-top segment) and the spur's junction - the one that
+  climbs `parkRise` (8 m) over the road within the tile, else the one that
+  climbs most; inland until the hill has risen that much; a PLOT of the
+  sower's shape written there facing the road (`parkW` 36 x `parkD` 40), the
+  totem session's `TOTEM_GEN.totemPlot(plot, T)` stood on it (G341.1's
+  wiring, used as published: the lawn's level is the median terrain under
+  the footprint), the terrain flattened to that level over the patch with
+  `withShelf` (7 m fill in front and beside, 9 m cut behind) and the plan
+  taken again on the flat ground; a footpath from the road's verge to the
+  frontage's middle, swaying a few metres; a rail fence on the plot's four
+  edges with a gate in the frontage where the path comes in; a `log cabin`
+  (the house generator, L/w clipped to the slot) in the park's clan-house
+  slot, its front to the lawn. The sower keeps the path's land strip free
+  (`makePlots`), the trees keep 3 m off the lawn and 2.2 m off the path
+  (`planTrees`). `vil.park = { t, d, rise, plot, poly, level, plan, path,
+  fences, house, centre, yaw }`; dials `park, parkT, parkRise, parkW, parkD`
+  in VDEF. On seed 3 the park lands at t 0.15 of the road (the 0.85 spot is
+  the mine's), 68 m in, 14 m up, in a clearing of the wood.
+- THE BENCH (tools/_village.html): loads `src/totems/totems_poles.js` and
+  `_totem_gen.js`; `totemBuild(THREE, plan, { ghost: false })` for the poles
+  and boulders, the cabin through `placeBuilt` like a site house, the fence
+  through `buildFence` in `placeFences`, the footpath and the park's own
+  gravel path painted in the wear canvas.
+- GATE VILLAGE 19: six poles at the level and on the level ground, the lawn
+  flat over the footprint (5 cm), 4 m+ up and 40 m+ in, on the tile, no plot
+  corner in the park and none of its corners in a plot, the path from the
+  verge (within a metre of the road's edge) to the frontage (within a metre)
+  over dry ground, four fence runs with one gate where the path arrives, no
+  tree on the lawn or the path, the cabin built and in its slot, 60 m off the
+  spur's junction and 40 m off the tram's base. Two fixes on the way: the
+  clearance test had compared a spur arclength with a road arclength (seed
+  3's park landed on the mill's pad - HOUSE 15 "the top house does not stand
+  on the flat"), and two seeds walked the park off the tile where a bay puts
+  the road deep in it (the walk is bounded by the tile now, and the spot is
+  chosen by the rise it gets).
+- THE CATALOGUE (PREMISES-CONTRACT-2026-09-13 section 2, the one block per
+  generator before its export): `HOUSE_GEN.CATALOGUE` one entry per preset -
+  the plain houses from their own L x w, `house/kennecott mill` (complex,
+  flatten with `ground.shelf(P)` from `millPlan`, a roadThrough hook at the
+  receiving house, the conveyors as `hooksOf`), `house/tram top station` and
+  `house/tram base station` (complex, the cable hooks as `hooksOf(built)`
+  named track0.. haul0.. anchor0.. dock, `link.cable = VILLAGE_GEN.tramLine`);
+  `TOTEM_GEN.CATALOGUE` `totem/park` (park, frame park, stand totemPlot,
+  flatten at the median, the path and house-slot hooks, the 0/20/120/1500
+  sheet); `TRAM_GEN.CATALOGUE` an empty array on purpose. `PREMISES_GEN
+  .collect(window)`: 39 entries, no issue, every foot a CCW rectangle
+  (scratch dbg357.js). GATE PREMISES green (its rule 3 holds only that
+  collect answers). The world editor session was told.
+- THE PROCEDURES: `futureDesigns/VILLAGE-TRAM-MILL-PARK-PROCEDURES-2026-09-14.md`
+  - the map of the code, the frames, each piece's contract / gate / bench /
+  traps, the screenshot rig, the LANDING recipe for the branch (fast-forward
+  plus copying the branch's files into the shared working tree without
+  git-checkout), and what is owed.
+- Gates on the worktree: CABIN, HOUSE, VILLAGE, TOTEM, PREMISES, MEDIA green.
+- Screenshots: screenshots/lods/park352_*.jpg (the lawn, from above, the
+  path), scene352_*.jpg (the whole tile from above, from the water, from the
+  park).

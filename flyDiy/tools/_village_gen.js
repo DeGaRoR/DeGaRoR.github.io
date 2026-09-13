@@ -35,6 +35,7 @@
 const K = window.HOUSE_KIT;
 const HG = window.HOUSE_GEN;
 const BG = () => window.BIG_GEN;          // the big buildings (G312), loaded after this or not at all
+const TG = () => window.TOTEM_GEN;        // the totem park (G352), loaded after this or not at all
 const { sub, add, mul, nrm, len, clamp } = K;
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,8 @@ function fbm(x, y, s, oct) {
 const VDEF = {
   seed: 3,
   size: 320,              // metres, square, centred on 0 (G340: enlarged - the mine ate the village)
+  // THE TOTEM PARK (G352): up the mountain behind the village at `parkT` of the road (or the first clear spot), inland until the hill is `parkRise` over the road, a plot `parkW` x `parkD`
+  park: 1, parkT: 0.85, parkRise: 8, parkW: 36, parkD: 40,
   waterY: 0,
   shoreFrac: 0.28,        // the shore this fraction of the tile in from the front edge: the water in front, the land behind
   slope: 0.055,           // the land climbs this much per metre away from the water (+z)
@@ -211,7 +214,7 @@ function polyRoad(pts, w) {
 // ---------------------------------------------------------------------------
 // THE PLOTS
 // ---------------------------------------------------------------------------
-function makePlots(T, V, road, rnd, site) {
+function makePlots(T, V, road, rnd, site, park) {
   const plots = [];
   const total = road.length;
   let t = 6 + rnd() * 8;
@@ -228,6 +231,8 @@ function makePlots(T, V, road, rnd, site) {
       if (site && side === 'land' && t + w > site.jt - 14 && t < site.jt + 14) continue;
       // (G348: nor where the tram's base station stands)
       if (site && site.tram && side === 'land' && t + w > site.tram.t - 22 && t < site.tram.t + 22) continue;
+      // (G352: nor on the land strip the totem park's path climbs through)
+      if (park && side === 'land' && t + w > park.t - park.plot.w / 2 - 6 && t < park.t + park.plot.w / 2 + 6) continue;
       const a = road.at(t), b = road.at(t + w);
       const sgn = side === 'water' ? 1 : -1;      // along the water normal, or against it
       const off = road.w / 2 + 1.0;
@@ -563,7 +568,12 @@ function makeVillage(V0) {
     }
     if (th.tram) site.tram = { t: road.length * th.tram.t, back: th.tram.back, topZ: th.tram.topZ };
   }
-  const plots = makePlots(T, V, road, rnd, site);
+  // THE TOTEM PARK (G352): placed before the plots (its path wants a clear
+  // strip) and before the trees (its lawn is a clearing); it flattens its lawn
+  const parked = placePark(T, V, road, rnd, site);
+  const park = parked ? parked.park : null;
+  if (parked) T = parked.T;
+  const plots = makePlots(T, V, road, rnd, site, park);
   const houses = [];
   const nMax = V.nHouses > 0 ? V.nHouses : plots.length;
   // ONE SPREAD FOR THE VILLAGE (G285): every house's boats, people, bins,
@@ -607,9 +617,101 @@ function makeVillage(V0) {
     houses.push(h);
   }
   const poles = planPoles(T, V, road, rnd, spread, plots).filter(q => !site || (Math.abs(q.t - site.jt) > 8 && (!site.tram || Math.abs(q.t - site.tram.t) > 20)));
-  const vil = { V, T, road, plots, houses, rnd, spread, poles, site };
+  const vil = { V, T, road, plots, houses, rnd, spread, poles, site, park };
   if (site) placeSite(vil);
   return vil;
+}
+
+// THE TOTEM PARK (G352, the user: "do the totem patch ... set it somewhere a
+// little recluse in the mountains, yet have it fenced and linked with a
+// path"): up the mountain behind the village, off the road at `parkT` of
+// its length (or the first of a few spots clear of the mine's spur, the
+// mill's ground and the tram's base), inland until the hill has risen
+// `parkRise` over the road; a plot of the sower's shape is written there
+// facing the road, the totem session's `totemPlot` stands the park on it
+// (G341.1: the lawn's level is the median terrain under the footprint, the
+// world owns the height), the terrain is flattened to that level over the
+// patch (withShelf, a fill in front and a cut behind), a footpath wanders
+// from the road's verge up to the frontage's middle, a rail fence rings
+// the plot with a gate where the path comes in, and a log cabin stands in
+// the park's clan-house slot with its front to the lawn. The trees keep
+// off the lawn and the path (planTrees); the sower keeps the path's strip
+// of the land side free (makePlots). Returns { T: the flattened terrain,
+// park: { t, d, plot, poly, level, plan (world), path, fences, house } }
+function placePark(T, V, road, rnd, site) {
+  const G = TG();
+  if (!V.park || !G || !G.totemPlot) return null;
+  const L = road.length, half = T.size / 2, w = V.parkW, depth = V.parkD;
+  // a candidate spot: off the road at t, inland until the hill is `parkRise`
+  // over the road or the plot would leave the tile; its plot in the world
+  const spot = t => {
+    const a = road.at(t), up = [-a.n[0], -a.n[1]], yRoad = T.h(a.p[0], a.p[1]), tg = [a.tg[0], a.tg[1]];
+    const inside = dd => [[-w / 2, dd], [w / 2, dd], [w / 2, dd + depth], [-w / 2, dd + depth]].every(q => { const x = a.p[0] + tg[0] * q[0] + up[0] * q[1], z = a.p[1] + tg[1] * q[0] + up[1] * q[1]; return Math.abs(x) < half - 6 && Math.abs(z) < half - 6; });
+    let d = 40;
+    while (d < 150 && inside(d + 2) && T.h(a.p[0] + up[0] * d, a.p[1] + up[1] * d) < yRoad + V.parkRise) d += 2;
+    while (d > 30 && !inside(d)) d -= 2;
+    const front = [a.p[0] + up[0] * d, a.p[1] + up[1] * d];
+    const f0 = [front[0] - tg[0] * w / 2, front[1] - tg[1] * w / 2], f1 = [front[0] + tg[0] * w / 2, front[1] + tg[1] * w / 2];
+    const poly = [f0, f1, [f1[0] + up[0] * depth, f1[1] + up[1] * depth], [f0[0] + up[0] * depth, f0[1] + up[1] * depth]];
+    return { t, a, up, tg, d, yRoad, front, f0, f1, poly, rise: T.h(front[0], front[1]) - yRoad };
+  };
+  // clear of the works: the mine's ground is a strip up the mountain from
+  // the spur's anchor (the site's frame: x along the foot, z inland), the
+  // tram's line a corridor from its base to its top; every corner of the
+  // plot must be off both, and the spot off the spur's junction
+  const clear = S => {
+    if (!site) return true;
+    if (Math.abs(S.t - site.jt) < 60) return false;
+    const sa = site.at, sup = [-sa.n[0], -sa.n[1]], stg = sa.tg;
+    for (const q of S.poly) {
+      const dx = q[0] - sa.p[0], dz = q[1] - sa.p[1], lx = dx * stg[0] + dz * stg[1], lz = dx * sup[0] + dz * sup[1];
+      if (Math.abs(lx) < 55 && lz > -25 && lz < 160) return false;
+    }
+    if (site.tram) {
+      const b = road.at(site.tram.t), bup = [-b.n[0], -b.n[1]], p0 = [b.p[0] + bup[0] * site.tram.back, b.p[1] + bup[1] * site.tram.back], p1 = [b.p[0] + bup[0] * site.tram.topZ, b.p[1] + bup[1] * site.tram.topZ];
+      const dSeg = (x, z) => { const ex = p1[0] - p0[0], ez = p1[1] - p0[1], u = clamp(((x - p0[0]) * ex + (z - p0[1]) * ez) / Math.max(1e-9, ex * ex + ez * ez), 0, 1); return Math.hypot(x - (p0[0] + ex * u), z - (p0[1] + ez * u)); };
+      for (const q of S.poly) if (dSeg(q[0], q[1]) < 30) return false;
+      if (Math.abs(S.t - site.tram.t) < 45) return false;
+    }
+    return true;
+  };
+  // the spot: the first candidate that is clear and climbs the full rise;
+  // failing that (a bay puts the road deep in the tile) the clear one that climbs most
+  const cands = [V.parkT, 0.15, 0.5, 0.7, 0.85, 0.35].map(f => spot(L * f)).filter(clear);
+  let S = cands.find(c => c.rise >= V.parkRise - 0.5) || cands.slice().sort((p, q) => q.rise - p.rise)[0] || spot(L * V.parkT);
+  const { t, a, up, tg, d, front, f0, f1, poly } = S;
+  const plot = { id: 'park', side: 'land', s0: t - w / 2, s1: t + w / 2, poly, depth, n: up, front, tg, w };
+  const plan0 = G.totemPlot(plot, T, { seed: V.seed, house: true });
+  const level = plan0.level, patch = plan0.local.patch;
+  const T2 = withShelf(T, plan0.centre, plan0.yaw, { x0: patch.x0 - 1, x1: patch.x1 + 1, z0: patch.z0 - 1, z1: patch.z1 + 1 }, level, 7, 9);
+  const plan = G.totemPlot(plot, T2, { seed: V.seed, house: true, level });
+  // THE PATH: from the road's verge to the frontage's middle, swaying a little, on the ground as it finds it
+  const p0 = [a.p[0] + up[0] * (road.w / 2 + 0.6), a.p[1] + up[1] * (road.w / 2 + 0.6)];
+  const sway = (rnd() < 0.5 ? -1 : 1) * (3 + rnd() * 3);
+  const pts = [];
+  for (let i = 0; i <= 10; i++) { const u = i / 10, sw = Math.sin(u * Math.PI) * sway; pts.push([p0[0] + (front[0] - p0[0]) * u + tg[0] * sw, p0[1] + (front[1] - p0[1]) * u + tg[1] * sw]); }
+  // THE FENCE: the plot's four edges, rails, a gate in the frontage where the path comes in
+  const fences = [
+    { a: f0, b: f1, kind: 'front', style: 'rail', gap: [w / 2 - 1.2, w / 2 + 1.2] },
+    { a: f1, b: poly[2], kind: 'side', style: 'rail', gap: null },
+    { a: poly[2], b: poly[3], kind: 'back', style: 'rail', gap: null },
+    { a: poly[3], b: f0, kind: 'side', style: 'rail', gap: null },
+  ];
+  // THE CLAN HOUSE in the park's slot: a log cabin, its front (+z) to the lawn
+  let house = null;
+  if (plan.house) {
+    const hs = plan.house, yaw = hs.ry, cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const toWorld = (lx, lz) => [hs.x + lx * cy + lz * sy, hs.z - lx * sy + lz * cy];
+    const oy = T2.h(hs.x, hs.z);
+    const ground = (lx, lz) => { const q = toWorld(lx, lz); return T2.h(q[0], q[1]) - oy; };
+    const P = Object.assign({}, HG.DEF, HG.PRESETS['log cabin'] || {}, { L: Math.min(hs.w - 1, 10), w: Math.min(hs.d - 1, 7.5) });
+    P.preset = 'log cabin'; P.slopeX = 0; P.slopeZ = 0; P.water = 0; P.pier = 0; P.yard = 0; P.ground = ground; P.waterY = T.waterY - oy;
+    let hiC = -1e9;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));
+    P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
+    house = { P, x: hs.x, z: hs.z, y: oy, yaw, toWorld, ground, seed: 700 + V.seed, gen: 'house', park: true };
+  }
+  return { T: T2, park: { t, d, rise: level - S.yRoad, plot, poly, level, plan, path: { pts, width: 1.4 }, fences, house, centre: plan.centre, yaw: plan.yaw } };
 }
 
 // which plots get the town hall and the church (the gate mirrors this)
@@ -1413,6 +1515,7 @@ function planTrees(vil, pool) {
     if (roadNear(px, pz) < 5) continue;
     if (vil.plots.some(p => nearPoly(p.poly, px, pz, 0) < 1.5)) continue;
     if ((vil.siteKeepOut || []).some(poly => inPoly(poly, px, pz))) continue;      // the mine's ground (G321)
+    if (vil.park && (nearPoly(vil.park.poly, px, pz, 0) < 3 || vil.park.path.pts.some((q, i, arr) => i > 0 && distSeg(px, pz, arr[i - 1], q) < 2.2))) continue;   // the totem park's lawn and its path (G352)
     if (vil.site && vil.site.yardPoly && inPoly(vil.site.yardPoly, px, pz) && rnd() < 0.85) continue;   // the gravel yard (G334): a few stragglers
     if (!clearOf(px, pz, gap ? 2.8 : 3.2)) continue;
     // ONLY SMALL TREES IN THE VILLAGE (G323, the user): the tall species
@@ -1678,6 +1781,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, withShelf, placePark, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

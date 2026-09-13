@@ -718,5 +718,5 @@ function buildBase(P, lod, F) {
   return built;
 }
 
-window.TRAM_GEN = { buildStation, buildBase };
+window.TRAM_GEN = { buildStation, buildBase, CATALOGUE_V: 1, CATALOGUE: [], CATALOGUE_ALIASES: {} };   // (G352: the stations are HOUSE presets - their catalogue entries are on HOUSE_GEN.CATALOGUE, keys house/tram top station and house/tram base station)
 })();

@@ -354,6 +354,21 @@ function totemBuild(THREE, plan, o) {
 }
 
 const API = { TOTEM_KIT, KEYS, DEF, totemPlan, totemPlot, totemBuild, rockGeo, groundMesh, footR, acrossR, vnoise, rng };
+// THE CATALOGUE (G352, PREMISES-CONTRACT-2026-09-13 section 2): the park
+// stands itself on a plot (totemPlot); its lawn is a flatten the world owns
+// at the median terrain; the path leaves the patch's open front
+API.CATALOGUE_V = 1;
+API.CATALOGUE_ALIASES = {};
+API.CATALOGUE = [{
+  key: 'totem/park', kind: 'park', gen: 'TOTEM_GEN', preset: 'park', P: {}, frame: 'park', stand: 'totemPlot',
+  foot: P => { const q = totemPlan(Object.assign({}, DEF, P || {})).patch; return [[q.x0, q.z0], [q.x1, q.z0], [q.x1, q.z1], [q.x0, q.z1]]; },
+  keepOut: 3, ground: { need: 'flatten', level: 'median', falloff: 6, standing: 'lawn' },
+  size: P => { const q = totemPlan(Object.assign({}, DEF, P || {})).patch; return { L: q.w, w: q.d }; },
+  hooks: P => { const q = totemPlan(Object.assign({}, DEF, P || {})); return [{ name: 'path', kind: 'path', p: [0, 0, q.patch.z1], dir: [0, 0, 1] }, { name: 'house', kind: 'slot', p: [q.house ? q.house.x : 0, 0, q.house ? q.house.z : 0], dir: [0, 0, 1] }]; },
+  hooksOf: () => [],
+  lod: { dist: [0, 20, 120, 1500] },      // the sheet: 12k under 20 m, 3k past it, 700 past 120 (G341.1)
+  slots: { house: 'plan.house', footprint: 'plan.footprint', path: 'plan.path' }, tags: ['park', 'totem'], headless: true, gate: 'TOTEM',
+}];
 if (typeof window !== 'undefined') window.TOTEM_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
