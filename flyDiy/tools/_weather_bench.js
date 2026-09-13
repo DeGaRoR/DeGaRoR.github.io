@@ -181,7 +181,7 @@
     if (!R) throw new Error('no renderer (EXT scene)');
     if (!RT) {
       RT = new T.WebGLRenderTarget(SZ, SZ, { format: T.RGBAFormat });
-      RT.texture.encoding = T.sRGBEncoding;
+      RT.texture.colorSpace = T.SRGBColorSpace;
       buf = new Uint8Array(SZ * SZ * 4);
     }
     // the editor's draw() places the camera; do that, then shoot square
@@ -284,7 +284,7 @@
     const R = UI.renderer, S = UI.scene, C = UI.camera;
     draw();
     const rt = new T.WebGLRenderTarget(w, h, { format: T.RGBAFormat });
-    rt.texture.encoding = T.sRGBEncoding;
+    rt.texture.colorSpace = T.SRGBColorSpace;
     const asp = C.aspect;
     C.aspect = w / h; C.updateProjectionMatrix();
     const pr = R.getRenderTarget();

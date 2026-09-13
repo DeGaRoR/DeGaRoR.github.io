@@ -111,8 +111,18 @@ const checks = {
   // measured exact on opaque pixels. The invariant is that this pass does not
   // participate in colour at all, so that blending stays where it has always
   // been and there is one ACES in the project rather than two.
-  'the target is sRGB-encoded (blending stays in display space)':
-    /texture\.encoding\s*=\s*THREE\.sRGBEncoding/.test(src),
+  // W0.5a (r186): an ordinary render target is written linear and
+  // un-tone-mapped whatever its texture says; the XR-target rule is the one
+  // flag that makes r186 treat a target like the canvas (materials tone-map
+  // and encode on the way in, per their own toneMapped). Both lines, or the
+  // sky is tone-mapped twice and every transparent blends in linear light.
+  'the target is display-space: sRGB texture AND the XR-target rule that makes r186 honour it':
+    /texture\.colorSpace\s*=\s*THREE\.SRGBColorSpace/.test(src) &&
+    /isXRRenderTarget\s*=\s*true/.test(src),
+  'the resolve shader includes no tone-mapping or colour-space chunk of its own':
+    !/tonemapping_fragment|colorspace_fragment/.test(src.replace(/^\s*\/\/.*$/gm, '')),
+  'and the vendor still carries the rule this leans on (WebGLPrograms: isXRRenderTarget)':
+    /isXRRenderTarget/.test(R('vendor/three.min.js')),
   'the pass carries no ACES of its own': !/ACESInput|RRTAndODTFit|aaACES/.test(src.replace(/^\/\/.*$/gm, '')),
   'the pass carries no transfer curve of its own':
     !/0\.41666|0\.0031308/.test(src.replace(/^\s*\/\/.*$/gm, '')),

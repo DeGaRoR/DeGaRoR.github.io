@@ -281,7 +281,7 @@ function aeroWxGrungeTex(THREE) {
   ctx.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(cv);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.encoding = THREE.LinearEncoding;       // DATA, NOT A PICTURE
+  t.colorSpace = THREE.LinearSRGBColorSpace;       // DATA, NOT A PICTURE
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
   t.needsUpdate = true;
   return (AERO_WX_GTEX = t);
@@ -545,7 +545,7 @@ void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C
 }
 `;
 
-// THE WEATHERING, at the tail of the surface pass: `normal`, `geometryNormal`,
+// THE WEATHERING, at the tail of the surface pass: `normal`, `nonPerturbedNormal`,
 // `roughnessFactor`, `metalnessFactor`, `diffuseColor`, `faceDirection` and
 // the craft varyings are all in hand, the decals have already composited
 // (dirt goes over markings — G70's ruling), and aeroStructure has written
@@ -680,8 +680,8 @@ const AERO_WX_SURF_FS = `
     float gSd = texture2D(tGrunge, vec2(wxAcrossH / uWxG.z + 0.5, cP.z / uWxG.w)).b;
     // the curvature, faded at the limb and broken by the blotch so a
     // per-triangle constant never reads as a facet
-    float wxKap = aeroWxKappa(geometryNormal, -vViewPosition);
-    float wxNV = abs(dot(geometryNormal, normalize(vViewPosition)));
+    float wxKap = aeroWxKappa(nonPerturbedNormal, -vViewPosition);
+    float wxNV = abs(dot(nonPerturbedNormal, normalize(vViewPosition)));
     float wxKF = smoothstep(0.12, 0.35, wxNV) * (0.55 + 0.45 * gC.a);
     float wxConcave = clamp(-wxKap / uWxR.z, 0.0, 1.0) * wxKF;
     float wxConvex  = clamp( wxKap / uWxR.z, 0.0, 1.0) * wxKF;
@@ -826,7 +826,7 @@ const AERO_WX_SURF_FS = `
     diffuseColor.rgb = col;
     roughnessFactor = mix(roughnessFactor, max(roughnessFactor, flo), cov);
     metalnessFactor *= 1.0 - cov;
-    normal = normalize(mix(normal, geometryNormal, uWxR.x * dustCov));
+    normal = normalize(mix(normal, nonPerturbedNormal, uWxR.x * dustCov));
     aeroWxCov = max(cov, 0.6 * wxHands);
 
     // ---- CHIPS: the substrate shows, AFTER the dirt ----------------------
@@ -877,7 +877,7 @@ const AERO_WX_SURF_FS = `
       if (uWxDbg > 5.5) dbg = vec3(wxUp, wxFwd, wxDown);
       diffuseColor.rgb = vec3(0.0);
       totalEmissiveRadiance = dbg;
-      normal = geometryNormal;
+      normal = nonPerturbedNormal;
       roughnessFactor = 1.0;
       metalnessFactor = 0.0;
     }

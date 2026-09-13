@@ -24,10 +24,11 @@
 // envMapIntensity so the hangar's moods can scale it (installPropMoods).
 // ============================================================
 
-// aoMap reads uv2, ALWAYS, in every three version that has it. A prop whose
-// geometry has only `uv` gets an ao map that samples an attribute that is not
-// there — which is not an error, just a prop that renders black. So uv2 is
-// aliased onto uv at build time, once, here.
+// aoMap reads the SECOND uv set, always — named `uv2` up to r150 and `uv1`
+// since r151 (W0.5a). A prop whose geometry has only `uv` gets an ao map that
+// samples an attribute that is not there — which is not an error, just a prop
+// that renders black. So the second set is aliased onto uv at build time,
+// once, here.
 // see the note in app.js: whatever the card allows, not a remembered number
 const PROP_ANISO = () =>
   (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
@@ -47,7 +48,7 @@ function propTexture(THREE, id, srgb) {
   t.anisotropy = PROP_ANISO();
   t.wrapS = t.wrapT = THREE.RepeatWrapping;   // industrial_storage_cart wraps u to 2
   t.flipY = false;                            // glTF uv origin is top-left
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; };
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });
@@ -136,7 +137,7 @@ function propBuild(THREE, key) {
     g.setAttribute('normal', new THREE.BufferAttribute(part.nrm, 3));
     const uv = new THREE.BufferAttribute(part.uv, 2);
     g.setAttribute('uv', uv);
-    g.setAttribute('uv2', uv);          // see the note at the top: aoMap needs it
+    g.setAttribute('uv1', uv);          // see the note at the top: aoMap needs it
     g.setIndex(new THREE.BufferAttribute(part.idx, 1));
     g.computeBoundingSphere();
     geos.push(g);

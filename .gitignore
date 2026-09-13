@@ -44,3 +44,7 @@ flyDiy/tools/_cage.html
 # before the artifact went multi-file (assets externalized). Local only —
 # ~100 MiB each, over GitHub's push limit by construction.
 flyDiy/archiveSingle/
+
+# flyDiy: npm is used ONLY to build vendor/three.min.js (tools/vendor_three.js)
+flyDiy/node_modules/
+flyDiy/package-lock.json

@@ -366,7 +366,10 @@ W4 — no new data, no size change, no contract change.*
    of its cost at the supersampled tier is AA fill-rate — the same wall a
    native engine hits. **The platform is not the constraint; the web stays.**
 1. **W0.5a — THE THREE.JS UPGRADE, r128 → current, still on WebGLRenderer**
-   [M–L, its own chantier]. RENDERER-DECISION §4b: the version jump is the
+   ✔ **LANDED 2026-09-13 (r186; RENDERER-DECISION §4g, HANDOVER W0.5a).** The
+   recalibration was three things (the colour ruling, the light unit, the
+   world's Lambert out of the IBL) and one trap (post-process tone mapping;
+   the XR-target rule). Owed: a same-frame A/B by eye. [was M–L, its own chantier]. RENDERER-DECISION §4b: the version jump is the
    larger and riskier of the two jumps, and its cost is RECALIBRATION (colour
    management r152, light units r155, moved shader chunks, the PMREM/RGBE
    workaround) of every number tuned by eye — the mood rows, the rig, the
@@ -374,7 +377,11 @@ W4 — no new data, no size change, no contract change.*
    shader work** so W1, W3 and the atmosphere are written once. Ends with
    the battery green on the same backend.
 2. **W0.5b — GLSL → TSL on the WebGL2 backend**, one hook at a time; then
-   **W0.5c — the backend flag** (WebGPU). Conditional, per §4b; not a fork.
+   **W0.5c — the backend flag** (WebGPU). Conditional, per §4b; not a fork —
+   **but measured (§4g): TSL runs only under `WebGPURenderer`, which ignores
+   every GLSL hook, so "one at a time" means a RENDERER FLAG with a GLSL and a
+   TSL variant per material module, GLSL the default until the last is ported.**
+   Groundwork landed with W0.5a (§4h): the second vendor bundle and the bench.
 3. **W2 — the adaptive quadtree, on the analytic world** [L]. The baker
    (`tools/terrain_bake.js`, already run once), the format
    (`terrain_codec.js`, 2.55×), the renderer and the physics sampler with

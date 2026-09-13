@@ -53,31 +53,35 @@
 //
 //   SOMEWHERE TO PUT THE DITHER. See the seventh circle, above.
 //
-// THE r128 FACT THAT COSTS AN AFTERNOON, so nobody pays it twice:
+// THE TARGET IS DISPLAY-SPACE, LIKE THE CANVAS — AND ON r186 THAT TAKES ONE
+// FLAG (W0.5a, 2026-09-13). The arrangement this pass was written around:
 //
-//     outputEncoding: null !== A ? v(A.texture) : t.outputEncoding
-//     toneMapping:    r.toneMapped ? t.toneMapping : 0
+//   r128 took the OUTPUT ENCODING from the target's texture and TONE MAPPING
+//   from the renderer, so a target flagged sRGB received values that were
+//   already tone-mapped and already encoded, this pass never touched colour,
+//   and the blend unit composited in display space exactly as on the canvas.
 //
-//   Those are the two lines in vendor/three.min.js that decide it, and they do
-//   NOT agree with each other. TONE MAPPING is taken from the RENDERER and
-//   applies whatever you render into. OUTPUT ENCODING is taken from the TARGET
-//   — and only from the renderer when there is no target.
+//   Since r152/r155 an ordinary render target is written LINEAR and
+//   UN-tone-mapped whatever its texture says (WebGLPrograms: toneMapping and
+//   outputColorSpace come from the renderer only for the canvas). The first
+//   r186 cut of this file followed that rule — linear target, three's
+//   `tonemapping_fragment` + `colorspace_fragment` in the resolve shader — and
+//   the very first frame showed why the old arrangement was not a taste: the
+//   sky dome, a raw ShaderMaterial that writes DISPLAY values and relies on
+//   never being tone-mapped, came out washed out under an ACES it was never
+//   tuned for, and every `toneMapped: false` material in the game (the UI
+//   colours, the impostor bake, the instrument faces) would have lost that
+//   opt-out, because a post-process tone map cannot see it.
 //
-//   Read that asymmetry the wrong way and the frame is dark; read it the other
-//   wrong way and it is bright. Both happened while this was written, and both
-//   were the same root cause: a target left at the default LinearEncoding gets
-//   tone-mapped but un-encoded values, which is neither of the two states you
-//   would reasonably assume it to be in.
-//
-//   The fix is not to compensate downstream. It is to set the target's encoding
-//   and let both lines agree — see THE TARGET IS sRGB-ENCODED above. Then the
-//   scene arrives already tone-mapped AND already encoded, this pass never
-//   touches colour at all, and there is exactly one implementation of ACES in
-//   the project instead of two that can drift apart.
-//
-// THE TARGET IS sRGB-ENCODED, NOT LINEAR — and that is the whole reason this
-// pass is safe to turn on. It is also the mistake the first draft made, so the
-// reasoning is written down rather than left as a flag nobody dares touch.
+//   three itself has the same requirement for its WebXR layers, and the
+//   renderer carries the rule for it: a target with `isXRRenderTarget` is
+//   treated LIKE THE CANVAS — tone mapping per material.toneMapped, output
+//   colour space from the target's own texture, unlit colours converted the
+//   same way, and the storage kept linear-format so the SHADER does the
+//   encoding (WebGLPrograms 181/213, UniformsUtils 140, WebGLTextures 2120,
+//   WebGLRenderer 2378). That is r128's behaviour, to the line, and it is
+//   the one flag set on the target below. It is a documented renderer rule,
+//   not a private field; if a three bump ever drops it, GATE AA says so.
 //
 // ALPHA BLENDING HAPPENS IN WHATEVER SPACE THE TARGET IS IN. The blend unit is
 // hardware; it mixes whatever the fragment shader wrote. Render into a LINEAR
@@ -100,27 +104,18 @@
 // impose: the whole look of the game — 29 transparent materials, every editor
 // overlay, the x-ray, the glazing — was judged by eye against gamma-space
 // compositing, and a pass whose job is smoother EDGES has no business
-// re-grading all of it as a side effect.
+// re-grading all of it as a side effect. So the target is display-space, the
+// pass keeps tone mapping OFF ITS OWN HANDS entirely — no second copy of ACES,
+// no transfer curve, nothing that could drift from the renderer on a three
+// bump — and the one implementation of each stays in the renderer.
 //
-// So the target carries `encoding = sRGBEncoding`, and r128 honours that:
-//
-//     outputEncoding: null !== A ? v(A.texture) : t.outputEncoding
-//     function v(t) { return t && t.isTexture ? t.encoding : ... }
-//
-// With that one property set, materials encode on the way into the target
-// exactly as they do on the way to the canvas, blending happens in display
-// space exactly as it always has, and the pass keeps tone mapping OFF ITS OWN
-// HANDS entirely — no second copy of ACES, no `/0.6` to get wrong, no chance of
-// drifting from the renderer on a three upgrade. The first draft did carry its
-// own ACES, and deleting it is the single biggest simplification here.
-//
-// THE TARGET IS STILL HALF FLOAT, though it now holds display-space values.
+// THE TARGET IS STILL HALF FLOAT, though it holds display-space values.
 // Encoding decides the SPACE, type decides the PRECISION, and they are
 // independent: an 8-bit target would quantise to 256 levels BEFORE the filter
 // and the dither could act, which would hand back the very banding the dither
 // exists to remove.
 //
-// WHAT THIS COSTS, stated plainly: the downsample filter now averages encoded
+// WHAT THIS COSTS, stated plainly: the downsample filter averages encoded
 // values rather than linear ones, which is the mathematically worse of the two.
 // It is also precisely what the default framebuffer's MSAA resolve has always
 // done, so it is not a regression — it is the status quo, kept on purpose.
@@ -265,7 +260,7 @@
     try {
       const gl = renderer.getContext && renderer.getContext();
       const caps = renderer.capabilities;
-      S.able = !!(THREE.WebGLMultisampleRenderTarget && THREE.HalfFloatType &&
+      S.able = !!(THREE.WebGLRenderTarget && THREE.HalfFloatType &&
                   THREE.ShaderMaterial && THREE.WebGLRenderTarget &&
                   renderer.setRenderTarget && gl && caps && caps.isWebGL2);
       if (S.able) S.maxSamples = gl.getParameter(gl.MAX_SAMPLES) || 4;
@@ -280,7 +275,7 @@
       if (!S.able || S.tier === 'off') return;
       const SW = Math.max(1, Math.round(S.w * S.ss));
       const SH = Math.max(1, Math.round(S.h * S.ss));
-      S.rt = new THREE.WebGLMultisampleRenderTarget(SW, SH, {
+      S.rt = new THREE.WebGLRenderTarget(SW, SH, {
         minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
         generateMipmaps: false, type: THREE.HalfFloatType,
         format: THREE.RGBAFormat, depthBuffer: true,
@@ -294,13 +289,16 @@
         stencilBuffer: true,
       });
       S.rt.samples = Math.min(S.samples, S.maxSamples);
-      // THE ONE LINE THAT KEEPS THE GAME LOOKING LIKE THE GAME. r128 takes the
-      // output encoding from the TARGET when there is one, so this makes the
-      // materials encode on the way in — and therefore makes the blend unit
-      // composite in display space, exactly as it does on the canvas. Without
-      // it every transparent material in the scene silently re-composites in
-      // linear light. See THE TARGET IS sRGB-ENCODED in the header.
-      S.rt.texture.encoding = THREE.sRGBEncoding;
+      // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
+      // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat
+      // this target like the canvas — materials tone-map and encode on the
+      // way in, per their own toneMapped, into the space this texture names —
+      // and therefore makes the blend unit composite in display space, exactly
+      // as it does on the canvas. Without them every transparent material in
+      // the scene re-composites in linear light and the sky is tone-mapped
+      // twice.
+      S.rt.isXRRenderTarget = true;
+      S.rt.texture.colorSpace = THREE.SRGBColorSpace;
       if (!S.fsScene) {
         S.fsScene = new THREE.Scene();
         S.fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);

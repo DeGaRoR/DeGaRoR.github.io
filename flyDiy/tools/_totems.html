@@ -78,20 +78,23 @@ for (const k of KEYS) $('pole').add(new Option(k.replace('totem_', ''), k));
 // ---- renderer + sky (the house bench's rig, cut down) ----------------------
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9fb6d0);
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
-const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xffffff, 2.0 * LU);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
-const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.35);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.35 * LU);
 scene.add(fill);
 const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
@@ -125,7 +128,7 @@ function bgTexture(sky) {
   if (!img.complete || !img.naturalWidth) return null;
   if (!BGC.has(sky)) {
     const t = new THREE.Texture(img);
-    t.mapping = THREE.EquirectangularReflectionMapping; t.encoding = THREE.sRGBEncoding; t.needsUpdate = true;
+    t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true;
     BGC.set(sky, t);
   }
   return BGC.get(sky);
@@ -204,7 +207,7 @@ function lawn(w, d) {
   const m = new THREE.MeshStandardMaterial({ color: 0x8ea55c, roughness: 1 });
   const LOT = (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || null;
   if (LOT && LOT.grass) {
-    const t = new THREE.Texture(LOT.grass.diff); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / 2.4, d / 2.4); t.encoding = THREE.sRGBEncoding;
+    const t = new THREE.Texture(LOT.grass.diff); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / 2.4, d / 2.4); t.colorSpace = THREE.SRGBColorSpace;
     const ok = () => { t.needsUpdate = true; render(); };
     if (LOT.grass.diff.complete && LOT.grass.diff.naturalWidth) ok(); else LOT.grass.diff.addEventListener('load', ok, { once: true });
     m.map = t; m.color.set(0xffffff);

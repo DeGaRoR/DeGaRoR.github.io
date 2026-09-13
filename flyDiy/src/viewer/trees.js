@@ -134,7 +134,7 @@
     let t = TEX.get(url);
     if (t) return t;
     t = new THREE.Texture();
-    if (srgb) t.encoding = THREE.sRGBEncoding;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.flipY = false;                       // glTF uv origin is top-left
     const img = new Image();
@@ -200,11 +200,14 @@
     '#if NUM_DIR_LIGHTS > 0',
     'if (uLeaf > 0.5) {',
     '  vec3 _L = normalize(directionalLights[0].direction);',
-    '  vec3 _C = directionalLights[0].color;',
-    '  float _ndl = dot(geometry.normal, _L);',
+    // W0.5a: the uniform carries the PHYSICAL intensity now (the row's number
+    // times PI, render_world LIGHT_UNIT); the wrap and SSS terms were tuned
+    // against the legacy one, so they take it back out
+    '  vec3 _C = directionalLights[0].color * RECIPROCAL_PI;',
+    '  float _ndl = dot(geometryNormal, _L);',
     '  float _w = max(0.0, (_ndl + uWrap) / (1.0 + uWrap)) - max(0.0, _ndl);',
     '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _w;',
-    '  float _b = pow(max(0.0, dot(geometry.viewDir, -_L)), uSSSP);',
+    '  float _b = pow(max(0.0, dot(geometryViewDir, -_L)), uSSSP);',
     '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _b * uSSS;',
     '}',
     '#endif',

@@ -37,7 +37,7 @@
     RT = new T.WebGLRenderTarget(SZ, SZ, { format: T.RGBAFormat });
     // the readback has to be in the same space the screen shows, or every
     // number here is linear and every judgement about it is wrong
-    RT.texture.encoding = T.sRGBEncoding;
+    RT.texture.colorSpace = T.SRGBColorSpace;
     buf = new Uint8Array(SZ * SZ * 4);
     return RT;
   }
@@ -210,7 +210,7 @@
     scene = scene || D.scene;
     if (!RT2) {
       RT2 = new T.WebGLRenderTarget(SW, SH, { format: T.RGBAFormat });
-      RT2.texture.encoding = T.sRGBEncoding;
+      RT2.texture.colorSpace = T.SRGBColorSpace;
       px2 = new Uint8Array(SW * SH * 4);
       cv = document.createElement('canvas'); cv.width = SW; cv.height = SH;
       ctx = cv.getContext('2d');

@@ -257,10 +257,11 @@ for (const b of shaderBlocks)
     'FUNCTION source, so two materials would silently share one program');
 
 // ---------------------------------------------------------------------------
-// 4 r128 — the shader may not use what this build has not got
+// 4 r186 — the shader may not use what this build has not got, nor what it
+//   has dropped (W0.5a, 2026-09-13: r128 -> r186)
 // ---------------------------------------------------------------------------
-// vendor/three.min.js is PINNED at r128 and the renderer targets its APIs.
-// These are the ones that read as ordinary modern three and are not there.
+// vendor/three.min.js is built by tools/vendor_three.js from npm three; these
+// are the r128 spellings that would read as harmless and silently do nothing.
 // SCAN THE CODE, NOT THE PROSE. The first cut of this matched
 // `environmentIntensity` inside the header's own sentence explaining that
 // r128 does not have it — a test that fails on its own documentation is a
@@ -276,26 +277,23 @@ const CODE = SRC
   .map(l => l.replace(/(^|[^:])\/\/.*$/, '$1'))
   .join('\n');
 const BANNED = [
-  ['colorSpace', /\.colorSpace\s*=/, 'r128 uses texture.encoding'],
-  ['SRGBColorSpace', /SRGBColorSpace/, 'r128 uses THREE.sRGBEncoding'],
-  ['outputColorSpace', /outputColorSpace/, 'r128 uses outputEncoding'],
-  ['thickness', /thickness\s*:/, 'MeshPhysicalMaterial.thickness is r132+'],
-  ['sheenColor', /sheenColor/, 'r132+; r128 has the old sheen: Color only'],
-  ['ior', /\bior\s*:/, 'r132+; r128 uses reflectivity'],
-  ['iridescence', /iridescence/, 'r140+'],
-  ['textureGrad', /textureGrad/, 'GLSL ES 3.0 only; this targets WebGL1 too'],
+  ['sRGBEncoding', /sRGBEncoding/, 'r152+ spells it SRGBColorSpace, on texture.colorSpace'],
+  ['LinearEncoding', /LinearEncoding/, 'r152+ spells it LinearSRGBColorSpace'],
+  ['outputEncoding', /outputEncoding/, 'r152+: renderer.outputColorSpace'],
+  ['extensions.derivatives', /derivatives:\s*true/, 'r163+ is WebGL2 only: derivatives are always there, the flag is gone'],
+  ['sRGBToLinear', /sRGBToLinear\(/, 'r152+: sRGBTransferEOTF'],
+  ['encodings_fragment', /encodings_fragment/, 'r153+: colorspace_fragment'],
+  ['geometryNormal before the lights', /geometryNormal/, 'r155+: nonPerturbedNormal (geometryNormal is declared from `normal` in lights_fragment_begin)'],
   ['environmentIntensity', /environmentIntensity/,
-   'no such thing in r128 — each material carries envMapIntensity'],
+   'the scene has one since r163, but each material carries envMapIntensity and that is the one the moods scale'],
 ];
 for (const [nm, re, why] of BANNED)
   check(!re.test(CODE), `aeroskin.js uses ${nm}`, why);
 // and the things it MUST do
 check(/convertSRGBToLinear/.test(SRC),
   'no sRGB->linear conversion: a picked colour would render ~2x too bright');
-check(/LinearEncoding/.test(SRC),
+check(/LinearSRGBColorSpace/.test(SRC),
   'the detail sheet must be LINEAR — it is data, not a picture');
-check(/extensions\s*=\s*\{\s*derivatives:\s*true\s*\}/.test(SRC),
-  'derivatives are not requested, and the tangent frame needs them');
 // POT: RepeatWrapping + mipmaps on WebGL1 requires it, and a non-POT sheet
 // works on the machine it was written on and fails on someone else's
 check((A.AERO_TEX & (A.AERO_TEX - 1)) === 0,

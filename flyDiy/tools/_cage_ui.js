@@ -209,10 +209,13 @@ const scene = EXT || new THREE.Scene();
 // the light arc was found by reading boxes, not by squinting at a screenshot
 window.CAGE_SCENE = scene;
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
-const hemi = new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95);
-const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const hemi = new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95 * LU);
+const sun = new THREE.DirectionalLight(0xffffff, 0.75 * LU);
 sun.position.set(-3, 4, -5);
-const sun2 = new THREE.DirectionalLight(0xcfd8ff, 0.25);
+const sun2 = new THREE.DirectionalLight(0xcfd8ff, 0.25 * LU);
 sun2.position.set(4, -1, 3);
 if (!EXT) {
   scene.background = new THREE.Color(0x12151a);
@@ -240,7 +243,7 @@ if (!EXT) {
     gx.fillStyle = gr; gx.fillRect(0, 0, 4, 64);
     const et = new THREE.CanvasTexture(g);
     et.mapping = THREE.EquirectangularReflectionMapping;
-    et.encoding = THREE.sRGBEncoding;
+    et.colorSpace = THREE.SRGBColorSpace;
     const pm = new THREE.PMREMGenerator(renderer);
     pm.compileEquirectangularShader();
     scene.environment = pm.fromEquirectangular(et).texture;

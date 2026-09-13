@@ -191,7 +191,7 @@ function texture(c, id, srgb) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.flipY = false;                            // glTF uv origin is top-left
   t.anisotropy = 4;
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; if (window.CHAR_TEX_LANDED) window.CHAR_TEX_LANDED(c.key); };
   img.onload = ok;
   img.src = uri;
@@ -208,7 +208,6 @@ function material(c, mi) {
     color: new THREE.Color(m.col ? m.col[0] : 1, m.col ? m.col[1] : 1, m.col ? m.col[2] : 1),
     roughness: 0.62, metalness: 0,
     side: m.ds ? THREE.DoubleSide : THREE.FrontSide,
-    skinning: true,
   };
   if (m.map) o.map = texture(c, m.map, true);
   if (m.nrm) o.normalMap = texture(c, m.nrm, false);
@@ -566,7 +565,6 @@ function flatMaterial(key, mi) {
   const c = REG().chars[key];
   if (!c || !c.mats || !c.mats[mi]) return null;
   const m = material(c, mi).clone();
-  m.skinning = false;
   m.userData = Object.assign({}, m.userData);
   m.needsUpdate = true;
   return (FLAT[k] = m);

@@ -185,11 +185,11 @@ const RAW = '../assets/treesRaw/';
 // ---- scene ---------------------------------------------------------------
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 scene.fog = new THREE.Fog(0x12151a, 400, 2600);
@@ -330,7 +330,7 @@ function alpsBuild() {
 
       const bt = new THREE.Texture(imgs.base);
       bt.mapping = THREE.EquirectangularReflectionMapping;
-      bt.encoding = THREE.sRGBEncoding;
+      bt.colorSpace = THREE.SRGBColorSpace;
       bt.needsUpdate = true;
       alpsBgTex = bt;
       alpsState = 'ready';
@@ -364,13 +364,16 @@ function buildSkyAlps() {
   return false;                              // paint a mood meanwhile
 }
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xffffff, 2.4 * LU);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.bias = -0.0008;
 sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
-const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5 * LU);
 scene.add(fill);
 const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
@@ -427,7 +430,7 @@ function bgTexture(sky) {
   if (!BGC.has(sky)) {
     const t = new THREE.Texture(img);
     t.mapping = THREE.EquirectangularReflectionMapping;
-    t.encoding = THREE.sRGBEncoding;
+    t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
     BGC.set(sky, t);
   }
@@ -506,7 +509,7 @@ function buildSky() {
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.mapping = THREE.EquirectangularReflectionMapping;
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   if (envRT) envRT.dispose();
   envRT = pmrem.fromEquirectangular(t);
   scene.environment = envRT.texture;
@@ -556,7 +559,7 @@ function measureStage() {
 }
 
 
-const ground = new THREE.Mesh(new THREE.PlaneBufferGeometry(8000, 8000),
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000),
   new THREE.MeshStandardMaterial({ color: 0x2a3327, roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const grid = new THREE.GridHelper(400, 400, 0x39424e, 0x232a32);
@@ -665,7 +668,7 @@ function imageTex(g, bin, idx, srgb) {
                         { type: im.mimeType || 'image/png' });
   const tex = new THREE.Texture();
   tex.flipY = false;                      // glTF UV origin is top-left
-  if (srgb) tex.encoding = THREE.sRGBEncoding;
+  if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   const img = new Image();
   // A DECODE IS ASYNCHRONOUS AND THE IMPOSTOR BAKE READS THE RESULT. Baking
@@ -839,11 +842,14 @@ const LEAF_GLSL = [
   '#if NUM_DIR_LIGHTS > 0',
   'if (uLeaf > 0.5) {',
   '  vec3 _L = normalize(directionalLights[0].direction);',
-  '  vec3 _C = directionalLights[0].color;',
-  '  float _ndl = dot(geometry.normal, _L);',
+  // W0.5a: the uniform carries the PHYSICAL intensity now (the row's number
+    // times PI, render_world LIGHT_UNIT); the wrap and SSS terms were tuned
+    // against the legacy one, so they take it back out
+    '  vec3 _C = directionalLights[0].color * RECIPROCAL_PI;',
+  '  float _ndl = dot(geometryNormal, _L);',
   '  float _w = max(0.0, (_ndl + uWrap) / (1.0 + uWrap)) - max(0.0, _ndl);',
   '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _w;',
-  '  float _b = pow(max(0.0, dot(geometry.viewDir, -_L)), uSSSP);',
+  '  float _b = pow(max(0.0, dot(geometryViewDir, -_L)), uSSSP);',
   '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _b * uSSS;',
   '}',
   '#endif',
@@ -2122,7 +2128,7 @@ function bakeImpostor(proto, tile) {
   // eight to thirty-eight levels. sRGB spends its precision where the tree is.
   // The NORMAL sheet stays linear - it is not a colour, and its material writes
   // gl_FragColor raw, with no encodings_fragment to apply one anyway.
-  rt.texture.encoding = THREE.sRGBEncoding;
+  rt.texture.colorSpace = THREE.SRGBColorSpace;
   const sc = new THREE.Scene();
   sc.add(staged);
   sc.environment = scene.environment;
@@ -2399,7 +2405,7 @@ const IMP_SAMPLE = [
   'vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
   'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
   'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
-  'vec2 qv = (vUv * (1.0 - 2.0 / float(IMP_TILE_JS)) + 1.0 / float(IMP_TILE_JS)) / uG;',
+  'vec2 qv = (vMapUv * (1.0 - 2.0 / float(IMP_TILE_JS)) + 1.0 / float(IMP_TILE_JS)) / uG;',   // vMapUv: r186 has no vUv
   // hoisted: the normal sheet is sampled at exactly these three points
   'vec2 uvA = (g0 + cA) / uG + qv;',
   'vec2 uvB = (g0 + cB) / uG + qv;',
@@ -2601,7 +2607,7 @@ function impostorMaterial(atlas, gain, light, solid, cut, a2c) {
           // bright where it is, which is the correction that was actually
           // wanted: the foliage was dark, the bark was not.
           'vec3 rgbT = pow(clamp(rgbI, 0.0, 1.0), vec3(1.0 / max(uILight, 0.05)));',
-          'diffuseColor *= vec4(impSRGB(rgbT), aOut);',
+          'diffuseColor *= vec4(rgbT, aOut);',   // r186: the sRGB8 sheet is decoded by the sampler (W0.5a)
           // ---- and now the other half of the G-buffer ----
           // The same three taps, un-premultiplied by the normal sheet's OWN
           // alpha: its mips are a straight average, so an empty texel pulls a
@@ -2618,7 +2624,7 @@ function impostorMaterial(atlas, gain, light, solid, cut, a2c) {
           'vec3 rgtW = abs(dI.y) > 0.999 ? vec3(1.0, 0.0, 0.0)',
           '                              : normalize(vec3(dI.z, 0.0, -dI.x));',
           'vec3 upW = cross(dI, rgtW);',
-          'vec2 spN = vUv * 2.0 - 1.0;',
+          'vec2 spN = vMapUv * 2.0 - 1.0;',
           'vec3 nSph = normalize(rgtW * spN.x + upW * spN.y',
           '                      + dI * sqrt(clamp(1.0 - dot(spN, spN), 0.0, 1.0)));',
           'vec3 nImpW = normalize(mix(normalize(nBake), nSph, uISph));',
@@ -2629,7 +2635,7 @@ function impostorMaterial(atlas, gain, light, solid, cut, a2c) {
       // lights_fragment_maps reads geometryNormal for the environment
       .replace('#include <normal_fragment_maps>',
         ['#include <normal_fragment_maps>', 'normal = nImpV;',
-         'geometryNormal = nImpV;'].join(NL))
+         'nonPerturbedNormal = nImpV;'].join(NL))
       // and the leaf terms, verbatim from the geometry foliage
       .replace('#include <lights_fragment_end>',
         ['#include <lights_fragment_end>', LEAF_GLSL,
@@ -3502,7 +3508,7 @@ function labelSprite(text, sub) {
     g.fillText(sub, 128, 62);
   }
   const t = new THREE.CanvasTexture(cv2);
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, toneMapped: false, depthTest: false }));
   sp.renderOrder = 999;
   return sp;
@@ -4018,7 +4024,7 @@ function aoBuild() {
     blending: THREE.MultiplyBlending,     // it may only ever darken
     extensions: { derivatives: true },
   });
-  aoQuad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), mat);
+  aoQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
   aoQuad.frustumCulled = false;
   aoScene.add(aoQuad);
 }

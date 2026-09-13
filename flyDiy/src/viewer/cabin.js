@@ -243,7 +243,7 @@ function decalMat(THREE, HG, livery) {
   m.color.setHex(0xffffff); m.roughnessMap = null; m.metalness = 0.12; m.roughness = 0.55;
   if (L) {
     const t = new THREE.Texture(L.img);
-    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8; t.encoding = THREE.sRGBEncoding;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
     const ok = () => { t.needsUpdate = true; };
     if (L.img.complete && L.img.naturalWidth) ok(); else L.img.addEventListener('load', ok);
     m.map = t;
@@ -253,7 +253,7 @@ function decalMat(THREE, HG, livery) {
       .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vUvN = aUvN;');
     sh.fragmentShader = 'varying vec2 vUvN;\n' + sh.fragmentShader
       .replace('#include <normal_fragment_maps>',
-        '#ifdef USE_NORMALMAP\n  { vec3 mapN = texture2D(normalMap, vUvN * 0.5).xyz * 2.0 - 1.0; mapN.xy *= normalScale; normal = perturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection); }\n#endif');
+        '#ifdef USE_NORMALMAP\n  { vec3 mapN = texture2D(normalMap, vUvN * 0.5).xyz * 2.0 - 1.0; mapN.xy *= normalScale; normal = normalize(tbn * mapN); /* r186: the tangent frame is tbn, from normal_fragment_begin (W0.5a) */ }\n#endif');
   };
   m.needsUpdate = true;
   M.decal[livery] = m;

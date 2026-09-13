@@ -81,8 +81,11 @@ const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 const camera = new THREE.PerspectiveCamera(45, 1, 5, 120000);
-scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.9));
-const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.9 * LU));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8 * LU);
 sun.position.set(-0.4, 1, 0.3); scene.add(sun);
 
 let yaw = -0.7, pitch = 0.55, dist = 20000, drag = null;

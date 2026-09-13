@@ -74,7 +74,7 @@ function audit(ctx) {
     // the invariants, verbatim
     check(/metalnessFactor \*= 1\.0 - cov;/.test(S), 'no shiny dirt: metalness does not fall with cover');
     check(/max\(roughnessFactor, flo\), cov\)/.test(S), 'no shiny dirt: roughness does not saturate up to the floor');
-    check(/normalize\(mix\(normal, geometryNormal, uWxR\.x \* dustCov\)\)/.test(S), 'dust does not fill the microsurface');
+    check(/normalize\(mix\(normal, nonPerturbedNormal, uWxR\.x \* dustCov\)\)/.test(S), 'dust does not fill the microsurface');
     check(/material\.clearcoat \*= 1\.0 - aeroWxCov;/.test(glsl.CC), 'no shiny dirt: the clear coat does not fall with cover');
     // the unpack matches the table, slot by slot
     layers.forEach((L, i) => {

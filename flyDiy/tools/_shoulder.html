@@ -159,7 +159,7 @@ for (const [name] of SG.CONFIGS) $('cfg').add(new Option(name, name));
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
                                            preserveDrawingBuffer: true });
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.85;
 renderer.localClippingEnabled = true;
@@ -170,9 +170,12 @@ const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 200);
 // ahead of the cutaway plane, a 0.36 m window round the port sill
 const ortho = new THREE.OrthographicCamera(-0.18, 0.18, 0.18, -0.18, 0.001, 2);
 let useOrtho = false;
-const sun = new THREE.DirectionalLight(0xfff2e0, 1.5);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xfff2e0, 1.5 * LU);
 scene.add(sun, sun.target);
-const hemi = new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.45);
+const hemi = new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.45 * LU);
 scene.add(hemi);
 {
   const W = 256, H = 128, c = document.createElement('canvas');
@@ -192,7 +195,7 @@ scene.add(hemi);
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.mapping = THREE.EquirectangularReflectionMapping;
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   const pm = new THREE.PMREMGenerator(renderer);
   scene.environment = pm.fromEquirectangular(t).texture;
 }

@@ -27,7 +27,7 @@ function siteGroundTex(THREE, img, srgb, tile, aniso) {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = aniso || 8;
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.repeat.set(1 / tile, 1 / tile);
   // A LISTENER, NOT `img.onload = ok`. These Images are SHARED — the world's
   // runway base and pad, the garage's field, the hangar's own floor all
@@ -86,7 +86,7 @@ function siteBladeTexture(THREE, rnd, aniso) {
     g.closePath(); g.fill();
   }
   const t = new THREE.CanvasTexture(c);
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = aniso || 8;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   return t;

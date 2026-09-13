@@ -151,7 +151,7 @@ const THREE = {
   LineSegments: class { constructor(g){ Object.assign(this, mkObj()); this.geometry = g; } },
   Points: class { constructor(g){ Object.assign(this, mkObj()); this.geometry = g; } },
   InstancedMesh: class { constructor(){ Object.assign(this, mkObj());
-    this.instanceMatrix = { needsUpdate: false }; this.instanceColor = null; }
+    this.instanceMatrix = { needsUpdate: false, clearUpdateRanges() {}, addUpdateRange() {} }; this.instanceColor = null; }
     setMatrixAt() {} setColorAt() {} },
   MeshLambertMaterial: class {}, MeshBasicMaterial: class {},
   // W18: the skin is PBR now. The stub takes the parameter object so the
@@ -175,14 +175,15 @@ const THREE = {
   TextureLoader: class { load(url, onLoad) { const t = { anisotropy: 0 };
     if (onLoad) onLoad(t); return t; } },
   // the garage's CG/NP labels are canvas sprites (G3.5b)
-  CanvasTexture: class { constructor(c) { this.image = c; this.encoding = 0; }
+  CanvasTexture: class { constructor(c) { this.image = c; this.colorSpace = ''; }
     dispose() {} },
   SpriteMaterial: class { constructor(o) { Object.assign(this, o || {}); }
     dispose() {} },
   Sprite: class { constructor(m) { this.material = m; this.scale = { set() {} };
     this.position = { set() {} }; this.renderOrder = 0; } },
   DoubleSide: 2,
-  sRGBEncoding: 0, ACESFilmicToneMapping: 0, PCFSoftShadowMap: 0,
+  SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear', NoColorSpace: '',
+  ACESFilmicToneMapping: 0, PCFShadowMap: 0,
 };
 
 // ---- DOM stub ----

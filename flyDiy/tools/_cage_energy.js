@@ -587,7 +587,7 @@ function vTex(setKey, map, srgb) {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   // the payload starts decoding at script eval; a material built before the
   // bytes land simply repaints when they arrive
   const ok = () => { t.needsUpdate = true; };

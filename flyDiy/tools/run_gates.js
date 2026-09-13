@@ -96,7 +96,7 @@ const GATES = [
   // ruling 4 promised this battery a loading gate and it never had one.
   { id: 'BUILD', file: 'test_build.js', tier: 'core' },
   // AEROSKIN (G67): the declared finish + role tables against the cage's own
-  // section list, and the r128 constraints the shader stands on
+  // section list, and the r186 spellings the shader stands on (W0.5a)
   { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
   // THE WEATHERING (G345): the module's GLSL rules, its tables, its load order
   { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },

@@ -1199,7 +1199,7 @@ function aeroDetailTex(THREE, key) {
     const ctx = cv.getContext('2d');
     const t = new THREE.CanvasTexture(cv);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.encoding = THREE.LinearEncoding;    // DATA, NOT A PICTURE, like the bake
+    t.colorSpace = THREE.LinearSRGBColorSpace;    // DATA, NOT A PICTURE, like the bake
     t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
     const draw = () => {
       ctx.drawImage(pay.img, 0, 0, S, S);
@@ -1242,7 +1242,7 @@ function aeroDetailTex(THREE, key) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   // DATA, NOT A PICTURE: linear, always. Declaring this sRGB would bend every
   // normal and every roughness value in the sheet.
-  t.encoding = THREE.LinearEncoding;
+  t.colorSpace = THREE.LinearSRGBColorSpace;
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
   t.needsUpdate = true;
   return (AERO_TEX_CACHE[key] = t);
@@ -1320,7 +1320,7 @@ function aeroAtlas(THREE) {
   // the two is how a registration ends up mirrored, so the page rect below
   // does the v flip explicitly and once.
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  t.encoding = THREE.sRGBEncoding;   // documentation: see the note below
+  t.colorSpace = THREE.SRGBColorSpace;   // THE decode since r186 (sRGB8 storage) - see the atlas read
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
   t.needsUpdate = true;
   return (AERO_ATLAS = t);
@@ -2303,7 +2303,7 @@ function aeroFastTex(THREE, gk, G) {
   ctx.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(cv);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.encoding = THREE.LinearEncoding;
+  t.colorSpace = THREE.LinearSRGBColorSpace;
   t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
   t.needsUpdate = true;
   return (AERO_FAST_CACHE[gk] = t);
@@ -3017,13 +3017,14 @@ const AERO_ALBEDO_FS = `
     vec2 auv = uDecB[di].xy + uDecB[di].zw
              * (clamp(q, 0.0, 1.0) * (1.0 - 2.0 * uInset) + uInset);
     vec4 tx = texture2D(tAtlas, auv);
-    // THE ATLAS IS AUTHORED sRGB AND MUST BE CONVERTED BY HAND. Setting
-    // texture.encoding is INERT on a uniform three did not generate a decode
-    // function for - it is only read for map/envMap/emissiveMap and friends -
-    // so on the atlas it is documentation, and this line is the conversion.
+    // THE ATLAS IS AUTHORED sRGB, AND ON r186 THE FLAG IS THE CONVERSION (W0.5a):
+    // texture.colorSpace = SRGBColorSpace gives the texture sRGB8 storage and
+    // the sampler decodes it in hardware, hand-declared or not. On r128 the
+    // flag was inert on a sampler of ours and this line did the decode by
+    // hand (sRGBToLinear); keeping that on r186 decoded the atlas TWICE.
     // (No backticks in here: this whole block is a template literal, and a
     // stray one ends it mid-shader. It has cost two debugging rounds.)
-    vec3 dc = sRGBToLinear(tx).rgb;
+    vec3 dc = tx.rgb;
     // THE REGISTRATION IS A DISTANCE FIELD (G212, the user: "either we need
     // higher resolution, or vectorial"). Its page's alpha is a signed
     // distance to the glyph edge, 0.5 AT the edge, so the edge is wherever
@@ -3192,13 +3193,13 @@ const AEROSKIN_HOOK = function (shader) {
     // the clear coat loses what the dirt covers (G345)
     .replace('#include <lights_physical_fragment>',
              '#include <lights_physical_fragment>\n' + (W ? W.AERO_WX_CC_FS : ''))
-    // THE CLEAR LAYER FOLLOWS THE RELIEF (G206). r128's own chunk puts the
-    // clearcoat on geometryNormal — the smooth mesh — so varnish over a rib
+    // THE CLEAR LAYER FOLLOWS THE RELIEF (G206). three's own chunk puts the
+    // clearcoat on nonPerturbedNormal — the smooth mesh — so varnish over a rib
     // tape would reflect the sky as if the tape were not there. A clear coat
     // is brushed ONTO the tapes and the set panels; it takes the perturbed
     // normal. Inert on a Standard material: the include is not in its shader.
     .replace('#include <clearcoat_normal_fragment_begin>',
-             '#ifdef CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
+             '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')   // USE_CLEARCOAT since r13x (W0.5a)
     .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
 };
 
@@ -3504,7 +3505,11 @@ const AEROGLASS_HOOK = function (shader) {
     // NOT transmission, Fresnel-closed at the limb exactly as the multiply
     // pass closes it, so the two passes describe one pane. Alpha 1: the
     // blend is ONE, ONE and reads no alpha; the premultiply chunk is inert.
-    .replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );', `
+    // THE OUTPUT LINE LIVES IN <opaque_fragment> SINCE r15x (W0.5a): on r128 it
+    // sat inline in the template and this anchored on the line itself; on
+    // r186 the hook must take the include, or the pane draws the whole
+    // outgoingLight additively and reads as milk (the user's eye, same frame)
+    .replace('#include <opaque_fragment>', `
   float aeroNV = clamp(dot(normalize(normal), normalize(vViewPosition)),
                        0.0, 1.0);
   float aeroFr = pow(1.0 - aeroNV, 5.0) * uGlassB.x;
@@ -3889,7 +3894,6 @@ function aeroMaterial(THREE, o) {
     m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
     m.transmission = 0;
   }
-  m.extensions = { derivatives: true };
   m.userData.aeroU = U;
   m.userData.aeroD = aeroDecUniforms(THREE);
   m.userData.aeroskin = 1;             // the G38 understudy must skip this
@@ -4037,7 +4041,6 @@ function aeroGlass(THREE, o) {
     side: THREE.FrontSide,
     depthWrite: false,
   });
-  m.extensions = { derivatives: true };
   m.userData.aeroU = U;
   // G345: the pane reads the aeroplane-wide block (the macros, the sources,
   // the grunge) like every other material

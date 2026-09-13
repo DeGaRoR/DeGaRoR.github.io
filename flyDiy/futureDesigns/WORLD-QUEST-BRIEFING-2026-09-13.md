@@ -27,8 +27,8 @@ to it today (D0) — before that they still said "clipmap", "erosion at 4096²",
 | W0a bench · W0b assets | ✔ | `tools/_trees.html`, `tree_prep.py`, TREE-IMPORT.md |
 | **W0c the ladder (W0 + W0e's verdict)** | ✔ **closed** (W0c.6–33) | HANDOVER W0c, TREE-IMPORT.md §8 |
 | W0d canopy shell (R3) | not done; partly moot (impostor ring to 4 km, terrain mask beyond); R5 open | WORLD-V2 §8.3, §12.12 |
-| **W0.5a three.js upgrade** (r128 → current, still WebGL) | **NEXT** | RENDERER-DECISION §4b |
-| W0.5b TSL · W0.5c backend flag | after W0.5a; conditional | RENDERER-DECISION §4b, §4c |
+| **W0.5a three.js upgrade** (r128 → r186, still WebGL) | ✔ **landed 2026-09-13** | RENDERER-DECISION §4g, HANDOVER W0.5a |
+| W0.5b TSL · W0.5c backend flag | **NEXT**; a renderer FLAG with two variants per material, not hook-by-hook on WebGLRenderer (§4g); groundwork §4h | RENDERER-DECISION §4b, §4c, §4g, §4h |
 | W2a switch · W2b loader/sampler · W2c second world = first world | not started; `terrain_bake.js` / `terrain_codec.js` exist, run once (2.55×, 3 361 leaves) | WORLD-V2 §2–5, §11 |
 | W1 splat material (TSL) | not started | WORLD-V2 §8.1 |
 | W3 trees productionised | half inside W0c (density as data, species by place, hand placement); per-class table waits for U1 | TREE-IMPORT.md §8 |
@@ -73,6 +73,8 @@ the upgrade is one more thing to recalibrate — so **W0.5a goes before W1, W3's
 material work and S3+**, each of which should be written once. It stays on
 WebGLRenderer and ends with the battery green; `4c` says how to keep a working
 game throughout without a fork.
+
+*(The warning below is history: §4b/§4c were committed with W0.5a, 2026-09-13.)*
 
 **WARNING (2026-09-13):** §4b and §4c of RENDERER-DECISION — the correction
 that puts the upgrade first — are **UNCOMMITTED in the shared tree** (+224

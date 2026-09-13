@@ -143,21 +143,24 @@ let yaw = -0.6, pitch = 0.42, ZOOM = 1, drag = null, panD = null;
 let centre = new THREE.Vector3(), centreOv = null, fitR = 150;
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 2000);
-const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xffffff, 2.4 * LU);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.04;
 scene.add(sun, sun.target);
-const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5 * LU);
 scene.add(fill);
 const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
@@ -210,7 +213,7 @@ function bgTexture(sky) {
   if (!BGC.has(sky)) {
     const t = new THREE.Texture(img);
     t.mapping = THREE.EquirectangularReflectionMapping;
-    t.encoding = THREE.sRGBEncoding;
+    t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
     BGC.set(sky, t);
   }
@@ -348,7 +351,7 @@ function terrainMesh(vil) {
       const t = new THREE.Texture(img);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = 8;
-      if (srgb) t.encoding = THREE.sRGBEncoding;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
       t.repeat.set(1 / GS.tile, 1 / GS.tile);
       const ok = () => { t.needsUpdate = true; draw(); };
       if (img.complete && img.naturalWidth) t.needsUpdate = true;
@@ -472,7 +475,7 @@ function lotTex(k, m, srgb) {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = 8;
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; draw(); };
   if (img.complete && img.naturalWidth) t.needsUpdate = true;
   else img.addEventListener('load', ok);
@@ -508,7 +511,7 @@ function lotMaterial() {
       'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
       sh.vertexShader.replace('#include <begin_vertex>',
         '#include <begin_vertex>\n  vSplat = aSplat; vTone = aTone; vAlpha = aAlpha; vLotP = transformed;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vUv = position.xz / ' + (LOT ? LOT.grass.tile : 2.4).toFixed(3) + ';');
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vMapUv = position.xz / ' + (LOT ? LOT.grass.tile : 2.4).toFixed(3) + ';');
     sh.fragmentShader = 'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
       'uniform sampler2D uLush, uDry, uDirt, uPeb;\nuniform sampler2D uLushN, uDryN, uDirtN, uPebN;\nuniform vec4 uTiles;\n' +
       'float lwGm, lwDry, lwPeb, lwDirt;\n' +
@@ -519,7 +522,7 @@ function lotMaterial() {
       sh.fragmentShader.replace('#include <map_fragment>',
         '  {\n' +
         '    vec2 w = vLotP.xz;\n' +
-        '    vec4 cGrass = texture2D(map, vUv);\n' +
+        '    vec4 cGrass = texture2D(map, vMapUv);\n' +
         '    vec4 cLush = texture2D(uLush, w / uTiles.x);\n' +
         '    vec4 cDry = texture2D(uDry, w / uTiles.y);\n' +
         '    vec4 cDirt = texture2D(uDirt, w / uTiles.z);\n' +
@@ -554,7 +557,7 @@ function lotMaterial() {
       .replace('#include <normal_fragment_maps>',
         '  {\n' +
         '    vec2 w2 = vLotP.xz;\n' +
-        '    vec3 nG = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;\n' +
+        '    vec3 nG = texture2D(normalMap, vMapUv).xyz * 2.0 - 1.0;\n' +
         '    vec3 nL = texture2D(uLushN, w2 / uTiles.x).xyz * 2.0 - 1.0;\n' +
         '    vec3 nD = texture2D(uDryN, w2 / uTiles.y).xyz * 2.0 - 1.0;\n' +
         '    vec3 nT = texture2D(uDirtN, w2 / uTiles.z).xyz * 2.0 - 1.0;\n' +
@@ -563,7 +566,7 @@ function lotMaterial() {
         '    mapN = mix(mapN, nD, lwDry); mapN = mix(mapN, nP, lwPeb); mapN = mix(mapN, nT, lwDirt);\n' +
         '    mapN = normalize(mapN);\n' +
         '    mapN.xy *= normalScale;\n' +
-        '    normal = perturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection);\n' +
+        '    normal = normalize(tbn * mapN);\n' +
         '  }');
   };
   LOT_MAT = m;

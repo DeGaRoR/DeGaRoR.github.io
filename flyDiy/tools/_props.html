@@ -103,7 +103,7 @@ function envMap() {
   gr.addColorStop(0.56, '#4a4740'); gr.addColorStop(1, '#241f19');
   x.fillStyle = gr; x.fillRect(0, 0, 4, 64);
   const t = new THREE.CanvasTexture(cv);
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide })));
   const pm = new THREE.PMREMGenerator(renderer);
   const rt = pm.fromScene(s, 0.04);
@@ -114,22 +114,25 @@ function envMap() {
 function start() {
   const cv = $('c');
   renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x12151a);
   camera = new THREE.PerspectiveCamera(38, 1, 0.02, 300);
   scene.environment = envMap();
-  scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.35));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+  // W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+  // now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+  const LU = Math.PI;
+  scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.35 * LU));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.5 * LU);
   sun.position.set(-4, 7, 5); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const c = sun.shadow.camera;
   c.left = -16; c.right = 16; c.top = 16; c.bottom = -16; c.far = 60;
   sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target);
-  const fill = new THREE.DirectionalLight(0xcfd8ff, 0.35);
+  const fill = new THREE.DirectionalLight(0xcfd8ff, 0.35 * LU);
   fill.position.set(5, 2, -4); scene.add(fill);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
     new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.92 }));

@@ -287,7 +287,7 @@ function groundMesh(THREE, plan, o) {
       const t = new THREE.Texture(img);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.repeat.set(w / LOT.grass.tile, d / LOT.grass.tile);
-      if (srgb) t.encoding = THREE.sRGBEncoding;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = 8;
       const ok = () => { t.needsUpdate = true; if (o && o.onTex) o.onTex(); };
       if (img.complete && img.naturalWidth) ok(); else img.addEventListener('load', ok, { once: true });

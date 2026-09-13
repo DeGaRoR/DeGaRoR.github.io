@@ -574,7 +574,7 @@ function tex(key, mapName) {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = 8;
-  if (mapName === 'diff' || mapName === 'paint') t.encoding = THREE.sRGBEncoding;
+  if (mapName === 'diff' || mapName === 'paint') t.colorSpace = THREE.SRGBColorSpace;
   t.repeat.set(1 / set.tile, 1 / set.tile);
   const ok = () => { t.needsUpdate = true; };
   if (img.complete && img.naturalWidth) ok();
@@ -724,12 +724,14 @@ function shadeHouse(m, U) {
     // normal map and the roughness map all slide together
     const wanderUV = fs => {
       const i = fs.indexOf('void main() {');
-      // a material with no map (the flag, G309) declares no vUv at all -
-      // the shifted copy would be of nothing
+      // a material with no map (the flag, G309) declares no map uv at all -
+      // the shifted copy would be of nothing. r186 (W0.5a) gives every map
+      // its own varying (vMapUv, vNormalMapUv, ...) where r128 had one vUv;
+      // they all carry the same uv here, so every one of them slides
       if (i < 0 || !m.map) return fs;
       const head = fs.slice(0, i), body = fs.slice(i);
-      return head + body.replace(/\bvUv\b/g, 'hUv').replace('void main() {',
-        'void main() {\n  vec2 hUv = vUv * uUvK + vec2(0.0, uWander * (hNoise(vec3(vHouseP.x * 0.45, vHouseP.z * 0.45, vHouseP.y * 0.2 + 1.7)) * 2.0 - 1.0)\n' +
+      return head + body.replace(/\bv(?:Map|NormalMap|RoughnessMap|MetalnessMap|AoMap|EmissiveMap|AlphaMap|BumpMap|SpecularMap)Uv\b/g, 'hUv').replace('void main() {',
+        'void main() {\n  vec2 hUv = vMapUv * uUvK + vec2(0.0, uWander * (hNoise(vec3(vHouseP.x * 0.45, vHouseP.z * 0.45, vHouseP.y * 0.2 + 1.7)) * 2.0 - 1.0)\n' +
         '                    + uWander * 0.35 * (hNoise(vec3(vHouseP.x * 2.1, vHouseP.z * 2.1, 3.3)) * 2.0 - 1.0));');
     };
     sh.vertexShader = 'varying float vHouseY;\nvarying float vHouseAO;\n' +
@@ -954,8 +956,8 @@ function shadeGlass(m, GU0, SU0) {
         .replace('#include <lights_fragment_end>',
           '#include <lights_fragment_end>\n' +
           '  {\n' +
-          '    float gf = pow(clamp(1.0 - abs(dot(geometry.normal,\n' +
-          '                     geometry.viewDir)), 0.0, 1.0), 5.0);\n' +
+          '    float gf = pow(clamp(1.0 - abs(dot(geometryNormal,\n' +
+          '                     geometryViewDir)), 0.0, 1.0), 5.0);\n' +
           '    float gk = 1.0 + uGlassFres * gf;\n' +
           // a lit pane is a light, not a mirror: the room behind it drowns
           // most of what the glass was reflecting
@@ -6508,10 +6510,10 @@ function steelMix(m, key2, level) {
       sh.fragmentShader = 'uniform float uRustLevel, uHasMap2; uniform sampler2D uMap2, uNor2, uRough2; varying vec3 vSteelN; float sMix;' + String.fromCharCode(10) + sh.fragmentShader
         .replace('#include <map_fragment>', '#include <map_fragment>' + String.fromCharCode(10) + STEEL_GLSL)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + String.fromCharCode(10) +
-          '  if (uHasMap2 > 0.5) roughnessFactor = roughness * mix(texture2D(roughnessMap, vUv).g, texture2D(uRough2, vUv).g, sMix);')
+          '  if (uHasMap2 > 0.5) roughnessFactor = roughness * mix(texture2D(roughnessMap, vMapUv).g, texture2D(uRough2, vMapUv).g, sMix);')
         .replace('#include <normal_fragment_maps>',
-          '  if (uHasMap2 > 0.5) { vec3 mapN2 = mix(texture2D(normalMap, vUv).xyz, texture2D(uNor2, vUv).xyz, sMix) * 2.0 - 1.0; mapN2.xy *= normalScale;' +
-          ' normal = perturbNormal2Arb(-vViewPosition, normal, mapN2, faceDirection); } else {' + String.fromCharCode(10) +
+          '  if (uHasMap2 > 0.5) { vec3 mapN2 = mix(texture2D(normalMap, vMapUv).xyz, texture2D(uNor2, vMapUv).xyz, sMix) * 2.0 - 1.0; mapN2.xy *= normalScale;' +
+          ' normal = normalize(tbn * mapN2); } else {' + String.fromCharCode(10) +
           '#include <normal_fragment_maps>' + String.fromCharCode(10) + '  }');
     };
     m.needsUpdate = true;
@@ -6532,7 +6534,7 @@ const STEEL_GLSL =
   '    float sk = uRustLevel + 0.28 * sUp - 0.18 * sDown + 0.42 * sStreak + 0.5 * sPatch + 0.16 * sFine;' + String.fromCharCode(10) +
   '    sMix = smoothstep(0.3, 0.7, sk);' + String.fromCharCode(10) +
   '    if (uHasMap2 > 0.5) {' + String.fromCharCode(10) +
-  '      vec4 c2 = texture2D(uMap2, vUv);' + String.fromCharCode(10) +
+  '      vec4 c2 = texture2D(uMap2, vMapUv);' + String.fromCharCode(10) +
   '      diffuseColor.rgb = mix(diffuseColor.rgb, c2.rgb, sMix);' + String.fromCharCode(10) +
   '    } else diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.24, 0.14), sMix * 0.8);' + String.fromCharCode(10) +
   '  }';

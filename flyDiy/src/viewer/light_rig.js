@@ -45,6 +45,9 @@
   // something: candela with inverse-square falloff. The legacy path is a
   // scale factor with no units, and there is nothing to calibrate it against.
   var PHYS = true;
+  // W0.5a (r186): the physical model is the ONLY one three has now — the
+  // renderer flag is gone — so the world's rows were converted at the light
+  // (render_world.js LIGHT_UNIT) and this stays as the contract's statement.
 
   // ---- 2. THE GROUND BOUNCE ------------------------------------------------
   // AN ENVIRONMENT PROBE'S LOWER HEMISPHERE IS THE FLOOR, AND THE FLOOR IS NOT
@@ -108,7 +111,6 @@
     if (!renderer) return null;
     var ex = (row && typeof row.ex === 'number') ? row.ex : 0.92;
     renderer.toneMappingExposure = ex;
-    renderer.physicallyCorrectLights = PHYS;
     return ex;
   }
 

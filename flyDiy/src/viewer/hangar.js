@@ -206,7 +206,7 @@ const sheet = (w, h, draw, linear) => {
   const t = new THREE.CanvasTexture(c);
   // r128 declares colour space per texture as an ENCODING; a data sheet
   // (normal, roughness) must stay linear or every value in it is bent.
-  if (!linear) t.encoding = THREE.sRGBEncoding;
+  if (!linear) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   HANGAR_SHEETS.set(key, t);
@@ -715,7 +715,7 @@ const floorTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   // the floor plane carries METRIC uvs since G41 — one tile = tile metres
   const tile = (typeof HANGAR_FLOOR_TILE_M === 'number') ? HANGAR_FLOOR_TILE_M : 5;
   t.repeat.set(1 / tile, 1 / tile);
@@ -1380,7 +1380,7 @@ let skyDirty = false;
 
 // The sphere becomes a ShaderMaterial when the grade is live: the grade IS the
 // texture lookup, so there is no intermediate picture to bake at full size.
-// `tonemapping_fragment` and `encodings_fragment` are the two chunks
+// `tonemapping_fragment` and `colorspace_fragment` are the two chunks
 // MeshBasicMaterial would have run, included by hand because a raw
 // ShaderMaterial gets neither and the backdrop would come out unmapped.
 function makeGradeMaterial(forTarget) {
@@ -1402,11 +1402,13 @@ function makeGradeMaterial(forTarget) {
   };
   const NLc = String.fromCharCode(10);
   const tail = forTarget
-    // the probe target holds bytes, so encode exactly as the baked JPEGs did
-    ? 'gl_FragColor = vec4(fdL2S(c), 1.0);'
+    // the probe target is an sRGB8 texture (r186): the shader writes linear,
+    // the GPU encodes on write and decodes on read - the bytes come out
+    // exactly as the baked JPEGs held them, with no fdL2S by hand
+    ? 'gl_FragColor = vec4(c, 1.0);'
     // the backdrop hands display-linear to the renderer's own tone map
     : 'gl_FragColor = vec4(c, 1.0);' + NLc +
-      '#include <tonemapping_fragment>' + NLc + '#include <encodings_fragment>';
+      '#include <tonemapping_fragment>' + NLc + '#include <colorspace_fragment>';
   const vert = 'varying vec2 vUv;' + NLc + 'void main() {' + NLc + '  vUv = uv;' + NLc +
     (forTarget
       ? '  gl_Position = vec4(position.xy, 0.0, 1.0);'
@@ -1452,7 +1454,7 @@ function gradeTextures() {
     // BOTH are read RAW: the shader does its own sRGB decode on the base, and
     // the gain map is data rather than colour. Letting three decode either
     // would apply the transform twice.
-    t.encoding = THREE.LinearEncoding;
+    t.colorSpace = THREE.LinearSRGBColorSpace;
     i.onload = () => { t.needsUpdate = true; skyDirty = true; if (skyOnReady) skyOnReady(); };
     i.src = src;
     return t;
@@ -1483,7 +1485,7 @@ function renderSky(renderer) {
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
       wrapS: THREE.RepeatWrapping, generateMipmaps: false,
     });
-    skyRT.texture.encoding = THREE.sRGBEncoding;   // the shader writes sRGB bytes
+    skyRT.texture.colorSpace = THREE.SRGBColorSpace;   // sRGB8 storage: encoded on write, decoded on read
   }
   if (!skyRT) return null;
   const was = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
@@ -1538,7 +1540,7 @@ function setSky(row) {
   const img = row.img();
   if (!img) return;
   const st = new THREE.Texture(img);
-  st.encoding = THREE.sRGBEncoding;
+  st.colorSpace = THREE.SRGBColorSpace;
   // the data URI decodes asynchronously; whoever baked an environment off
   // the old picture is told when the new one has actually landed
   const ok = () => { st.needsUpdate = true; if (skyOnReady) skyOnReady(); };
@@ -1819,7 +1821,7 @@ if (!EXT) {
     const cv = document.createElement('canvas'); cv.width = RWc; cv.height = RHc;
     sitePaintStrip(cv.getContext('2d'), R, RWc, RHc, true);   // marks only
     const stex = new THREE.CanvasTexture(cv);
-    stex.encoding = THREE.sRGBEncoding;
+    stex.colorSpace = THREE.SRGBColorSpace;
     stex.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
     stex.wrapS = stex.wrapT = THREE.ClampToEdgeWrapping;
     const marks = new THREE.Mesh(sMark, new THREE.MeshBasicMaterial({
@@ -3265,7 +3267,7 @@ const partTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
-  if (srgb) t.encoding = THREE.sRGBEncoding;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   // roomTexLanded: external media can land after the env bake — see floorTex
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
   if (img.complete && img.naturalWidth) ok();

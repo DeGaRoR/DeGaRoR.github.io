@@ -150,8 +150,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   docs/MODEL-IMPORT-PROC.md. Since G184 this is the RIGGED-import record
   (nothing flies an import); `tools/ref_prep.py` + `ref_table.py` is the live
   reference-plane baker.
-- `vendor/` — three.js r128 PINNED (renderer code targets r128 APIs; do not
-  upgrade casually) + IBM Plex woff2 (latin).
+- `vendor/` — three.js r186 (W0.5a, 2026-09-13), BUILT by `tools/vendor_three.js`
+  from `package.json`'s pin (`npm install && node tools/vendor_three.js`): an
+  esbuild IIFE with a global `THREE`, a CommonJS export for the node gates,
+  and `ColorManagement.enabled = false` (the colour ruling) in its footer.
+  Bump the pin, rebuild, re-shoot, run the battery. + IBM Plex woff2 (latin).
 - Multi-agent etiquette: core agents own `src/core/`, viewer agents own
   `src/viewer/`, either regenerates via build.js. Solver changes re-anchor
   GATE GEN's SHAKEDOWN line and the garage's own bounds.
@@ -42781,3 +42784,122 @@ not a bias, and that is a chantier of its own.)
 - Gates: the whole core tier green but STARTER (red on HEAD before this,
   another session's `applySpec`), GEN run on its own, ARCHETYPES and
   HOTHIGH from the full tier.
+
+## W0.5a — THE THREE.JS UPGRADE, r128 → r186, STILL ON WebGLRenderer; AND THE
+## FIRST TSL MATERIAL ON THE BENCH (2026-09-13, the user: "this session is
+## tasked with the three.js upgrade to the latest version, then the move to
+## TSL materials … be autonomous as much as you can, I think everything is
+## decided at this point")
+
+The ruling was (ak) in `RENDERER-DECISION-2026-09-07.md` §4b and the briefing's
+"NEXT" row; the full record is §4g (the port, what it actually cost) and §4h
+(the TSL groundwork). The short form:
+
+WHAT LANDED:
+- `vendor/three.min.js` is three@0.186.0 (r186, released 2026-09-08 — five
+  days old), BUILT by `tools/vendor_three.js` from `package.json`'s pin: three
+  ships no global build since r160, so the vendor is an esbuild IIFE with a
+  global `THREE`, a CommonJS export for the node gates, and the colour ruling
+  in its footer. `npm install && node tools/vendor_three.js` regenerates it;
+  `node_modules` is ignored; the output is tracked as it always was. The same
+  script emits `vendor/three.webgpu.min.js` (WebGPURenderer + `THREE.TSL`),
+  which nothing in the game loads yet.
+- The port, measured (§4g): 30 files of renames; of the 55 GLSL hooks only
+  these broke — `GeometricContext` gone, `geometryNormal` now declared by the
+  lights (so `nonPerturbedNormal` before them), `CLEARCOAT` → `USE_CLEARCOAT`
+  (the aeroskin's clear layer had compiled and silently drawn nothing),
+  `sRGBToLinear` → `sRGBTransferEOTF`, `encodings_fragment` →
+  `colorspace_fragment`, Lambert per-fragment (the far cascade re-anchored,
+  `<packing>` included by hand), `perturbNormal2Arb` → `normalize(tbn * mapN)`,
+  and NO `vUv` at all (every map has its own varying — `vMapUv`).
+- The recalibration was three rulings, not thirty knobs: (1)
+  `ColorManagement.enabled = false` in the vendor's footer — a hex literal
+  means what it meant; (2) the LIGHT UNIT — the world ran r128's legacy light
+  model and r186 has only the physical one, so `render_world.js LIGHT_UNIT =
+  Math.PI` converts the rows' numbers where they reach a light (the rows and
+  the F8 panel keep 2.75 / 0.50, alps 2.8 / 0.274); the leaf terms take the
+  PI back out; every bench rig got the same `LU`; (3) the world's Lambert
+  stays OUT of the environment (r186 hands `scene.environment` to Lambert as
+  IBL; `LAMBERT_NO_ENV` + `worldLambert()` opt the 27 sites out at no cost).
+- The trap: r186 writes every ordinary render target linear and
+  un-tone-mapped, and the resolve pass's first r186 cut (three's own two
+  chunks in the blit) washed the sky out — a raw dome that must never be
+  tone-mapped, and every `toneMapped: false` material, cannot live under a
+  post-process tone map. The XR-target rule (`isXRRenderTarget = true` on the
+  resolve target) makes r186 treat it like the canvas, to the line; GATE AA
+  holds it and checks the vendor still carries the rule.
+- THE FLAG IS NOT INERT (found by the user's eye on the first forest shot):
+  on r128 `texture.encoding` did nothing on a hook's own sampler, so the
+  impostor sheet and the decal atlas were decoded by hand; on r186 the flag
+  is sRGB8 storage and the sampler decodes — both were decoded TWICE and
+  drew dark. Hand decodes dropped; the flag stays (§4g). The house steel
+  mix's second diffuse now arrives decoded, which is the right value.
+- THE PANE AND THE SHOE (the user's eye, same frame): the glass pass's output
+  anchor was a literal template line that moved into `<opaque_fragment>` —
+  the pane drew whole outgoingLight additively (milk); re-anchored on the
+  include. And r186's `updateWorldMatrix` no longer recomputes a hand-set
+  matrix unless flagged: the crew solver twin's detached cage→model frame
+  stayed identity and the legs solved in the cage frame (a foot outside the
+  door); `matrixWorldNeedsUpdate = true` after `cageM` and after each pose.
+- `PCFSoftShadowMap` is gone in r186; the renderer says PCF outright.
+  `updateRange` → `addUpdateRange`; the props' aoMap reads `uv1`; the dead
+  `skinning` / `extensions.derivatives` flags went; five gate stubs carry the
+  new constants; GATE SKINMAT's r128 pin became an r186 pin (the r128
+  spellings are what it bans now).
+
+MEASURED, r128 vs r186 on the same states (headless Chrome + CDP, 1600×900,
+baseline shot BEFORE the vendor moved): the sky region |Δ| 0.8 (identical);
+the roll-out frame 7 codes overall; the flight frames' ground 15–25 in the
+mid/bottom regions with the shots a taxi-moment apart (candidates: PCF vs
+PCFSoft on the shadow's edge, hardware sRGB decode vs r128's fit, per-fragment
+Lambert); and then the SAME FRAME properly — a clean HEAD worktree (r128)
+served beside the tree, both paused at the stand three seconds after the
+roll-out, shot twice each (the r128 pair differs by 0.02): r128 vs r186 mean
+|Δ| 3.9 on the sky, 8–12 on the apron and the aeroplane, region means within
+1–4 codes, 8–14 % of pixels over 24 (the shadow's filter edge and the
+dither); zero console errors on the game page; the bench pages smoke clean
+except `_terrain.html` (a missing bench bake, not three's) and
+`_village.html`'s `SMOKE_U.uTime` on a finish without smoke (not three's
+either, not verified as pre-existing).
+
+THE TSL BENCH (§4h, `tools/_tsl.html`): the world's sky dome as a
+`MeshBasicNodeMaterial.colorNode` on `WebGPURenderer`, read back and compared
+with the formula in JS — |Δ| 0 / 1 / 1 codes on the WebGL2 fallback backend
+AND on real WebGPU, identical; with ColorManagement ON it does not round-trip
+(|Δ| 72–74). Two traps: `renderAsync` is deprecated (init once, then
+`render`), and the readback's rows run bottom-up on WebGL and top-down on
+WebGPU.
+
+THE FINDING THAT CHANGES HOW W0.5b IS WRITTEN: TSL runs only under
+`WebGPURenderer` (its WebGL2 backend is `forceWebGL`), which ignores every
+`onBeforeCompile` and cannot draw a `ShaderMaterial`. "One hook at a time on
+WebGLRenderer" is not a thing; it is a RENDERER FLAG with a GLSL and a TSL
+variant per material module, GLSL the default until the last is ported. §4h
+gives the order (dome → trees/impostors → the resolve pass as PostProcessing →
+the aeroskin last).
+
+BATTERY: the core tier, run on the working tree with the screenshot rig
+loading the machine: every gate green except GEN (the runner's 1800 s cap —
+a timeout is not a verdict; re-run ALONE afterwards: GATE GEN: PASS) and
+STARTER, which is red on a clean HEAD worktree BEFORE this change
+(`applySpec`'s `loaded()` now sits more than 1400 characters from its
+`build()`; the door gate's window, not the door — the village/house
+sessions' G338-G347 or 880dfed1 moved it; not touched here). Then an 18-gate
+subset over every file touched after the battery (the decode, glass and
+matrix fixes): PASS.
+
+OWED (all rulings for the eye, written in §4g/§4h): a same-frame A/B on the
+shipped tier and whether the slightly darker ground is wanted back (the
+hemisphere's number); the ColorManagement flip (one line, whole-project
+re-judging); the world's Lambert taking the IBL (retire the hemisphere); the
+transparent materials' alphas were NOT re-judged (blending stays in display
+space by the XR rule, so nothing moved). Not done: the bench pages' reference
+shots were not re-shot (the weather bench's stored references may differ by
+the sRGB decode); `_base_app.js` / `_base_render_world.js` got the renames and
+the light unit and nothing else. FOUND ON THE WAY, NOT THREE'S: a roll-out
+clicked before the character payload has landed flies WITHOUT the crew
+(`buildPeople` reads `data.people` from the bake that stood at roll-out; the
+rebuild the payload triggers reaches only the garage) — probed on r128 and
+r186 alike, 12 s after a 25 s boot on a loaded machine: no crew; after a 70 s
+boot: the pilot's skinned body 1.3 x 1.1 x 1.4 m at the seat on both. A
+user waits longer than a script, but the door should refuse or re-bake.

@@ -1,0 +1,9 @@
+{
+  "name": "flydiy",
+  "private": true,
+  "description": "flyDiy — vendor build only: `npm install && node tools/vendor_three.js` regenerates vendor/three.min.js (W0.5a). The game and its gates have no other dependency.",
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "three": "0.186.0"
+  }
+}

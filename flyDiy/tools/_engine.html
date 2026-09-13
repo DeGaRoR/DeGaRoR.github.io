@@ -103,13 +103,16 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 camera = new THREE.PerspectiveCamera(38, 1, 0.01, 200);
-const keyL = new THREE.DirectionalLight(0xfff3e2, 1.9);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const keyL = new THREE.DirectionalLight(0xfff3e2, 1.9 * LU);
 keyL.position.set(3, 5, 4); scene.add(keyL);
-const fillL = new THREE.DirectionalLight(0x9fc4dd, 0.8);
+const fillL = new THREE.DirectionalLight(0x9fc4dd, 0.8 * LU);
 fillL.position.set(-4, 1, -3); scene.add(fillL);
-const rimL = new THREE.DirectionalLight(0xffffff, 0.6);
+const rimL = new THREE.DirectionalLight(0xffffff, 0.6 * LU);
 rimL.position.set(0, -3, -5); scene.add(rimL);
-scene.add(new THREE.HemisphereLight(0x6a7480, 0x14161a, 0.6));
+scene.add(new THREE.HemisphereLight(0x6a7480, 0x14161a, 0.6 * LU));
 root = new THREE.Group(); scene.add(root);
 gridGrp = new THREE.Group(); scene.add(gridGrp);
 

@@ -116,7 +116,7 @@ function wsSkinMat(THREE, spec) {
     if (typeof fn !== 'function') return null;
     const t = new THREE.TextureLoader().load(fn(spec));
     t.anisotropy = wsAniso();
-    if (srgb) t.encoding = THREE.sRGBEncoding;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
   const map = load(typeof genPaintDataURI === 'function' ? genPaintDataURI : null, true);

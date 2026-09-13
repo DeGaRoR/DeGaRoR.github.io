@@ -408,7 +408,7 @@ function mkTHREE(bad) {
     OrthographicCamera: class extends Obj3 { updateProjectionMatrix() {} },
     Scene: class extends Obj3 {},
     RepeatWrapping: 1000, ClampToEdgeWrapping: 1001, DoubleSide: 2,
-    FrontSide: 0, BackSide: 1, SRGBColorSpace: 'srgb', sRGBEncoding: 3001,
+    FrontSide: 0, BackSide: 1, SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear', NoColorSpace: '',
     LinearFilter: 1006, LinearMipmapLinearFilter: 1008, NearestFilter: 1003,
     AdditiveBlending: 2, EquirectangularReflectionMapping: 303,
     MathUtils: { degToRad: d => d * Math.PI / 180, clamp:

@@ -163,11 +163,11 @@ let centre = new THREE.Vector3(), centreOv = null, fitR = 12;
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
                                            preserveDrawingBuffer: true });
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 
@@ -273,13 +273,16 @@ function envTexture(sky) {
   return t;
 }
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xffffff, 2.4 * LU);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.bias = -0.0008;
 sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
-const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5 * LU);
 scene.add(fill);
 const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
@@ -302,7 +305,7 @@ function bgTexture(sky) {
   if (!BGC.has(sky)) {
     const t = new THREE.Texture(img);
     t.mapping = THREE.EquirectangularReflectionMapping;
-    t.encoding = THREE.sRGBEncoding;
+    t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
     BGC.set(sky, t);
   }
@@ -408,7 +411,7 @@ function buildSky() {
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.mapping = THREE.EquirectangularReflectionMapping;
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   if (envRT) envRT.dispose();
   envRT = pmrem.fromEquirectangular(t);
   scene.environment = envRT.texture;
@@ -458,7 +461,7 @@ function siteMesh(g, R, foot) {
       const t = new THREE.Texture(img);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = 8;
-      if (srgb) t.encoding = THREE.sRGBEncoding;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
       t.repeat.set(1 / SS.grass005.tile, 1 / SS.grass005.tile);
       const ok = () => { t.needsUpdate = true; draw(); };
       if (img.complete && img.naturalWidth) t.needsUpdate = true;

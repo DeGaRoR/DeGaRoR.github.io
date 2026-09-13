@@ -90,7 +90,7 @@ class InstancedMesh extends Obj3 {
     // frames (W0c.4/5); `capacity` is what was planted, and it is capacity the
     // two-tier invariants below are about
     this.count = count; this.capacity = count; this.mats = new Array(count).fill(null);
-    this.instanceMatrix = { needsUpdate: false, array: new Float32Array(count * 16) };
+    this.instanceMatrix = { needsUpdate: false, array: new Float32Array(count * 16), clearUpdateRanges() {}, addUpdateRange() {} };
     this.instanceColor = { needsUpdate: false };
     CREATED.push(this);
   }
@@ -188,6 +188,7 @@ const THREE = {
   PointsMaterial: class { constructor(o) { Object.assign(this, o); } dispose() {} },
   ShaderMaterial: class { constructor(o) { Object.assign(this, o); } dispose() {} },
   CanvasTexture: class { constructor() { this.wrapS = this.wrapT = 0; } dispose() {} },
+  Texture: class { constructor() { this.mapping = 0; } dispose() {} },
   DirectionalLight: class extends Obj3 { constructor() { super();
     this.shadow = { mapSize: { set() {} }, camera: { left:0, right:0, top:0, bottom:0, near:0, far:0,
       updateProjectionMatrix() {} }, bias: 0, normalBias: 0 }; this.target = new Obj3(); } },
@@ -198,7 +199,9 @@ const THREE = {
   HemisphereLight: class extends Obj3 {
     constructor(sky, gnd, i) { super(); this.color = sky; this.groundColor = gnd;
       this.intensity = i; } },
-  RepeatWrapping: 1000, DoubleSide: 2, BackSide: 1, sRGBEncoding: 3000,
+  RepeatWrapping: 1000, DoubleSide: 2, BackSide: 1,
+  SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear', NoColorSpace: '',
+  EquirectangularReflectionMapping: 303,
   LinearFilter: 1006, LinearMipmapLinearFilter: 1008, RGBAFormat: 1023,
   RGBADepthPacking: 3201,
 };

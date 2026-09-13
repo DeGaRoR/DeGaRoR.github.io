@@ -4,7 +4,7 @@
 // PAGE.post chain; every layer draws its group into `scene`. That chain is
 // the only description of "what the aeroplane wears", and until now it ran
 // only under a document. This module runs it under node: the real
-// vendor/three.min.js (r128, the same the page draws with — a stub would
+// vendor/three.min.js (r186, the same the page draws with — a stub would
 // answer a different question about geometry), the core's exports as
 // globals (the layers reach GEN_*, genTravel, makeSkinBinding... bare), and
 // a six-line document that answers `getElementById` with null, which every

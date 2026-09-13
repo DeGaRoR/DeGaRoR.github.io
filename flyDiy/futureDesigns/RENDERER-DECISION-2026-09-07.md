@@ -370,6 +370,210 @@ grows heavier. But it addresses the CPU wall — the same wall WebGPU's compute
 culling addresses. If W0's spike reports a FILL-RATE wall, neither buys a
 visible frame. **Run W0 first; it prices both of these at once.**
 
+## 4g. W0.5a LANDED — r128 → r186 ON WebGLRenderer, AND WHAT THE JUMP ACTUALLY COST (2026-09-13)
+
+Done in one session, autonomously, on ruling (ak). The vendor is
+three@0.186.0 (r186, released 2026-09-08), bundled by `tools/vendor_three.js`
+(three stopped shipping a global build at r160; the bundle is an esbuild IIFE
+with a global `THREE`, a CommonJS export for the node gates, and the colour
+ruling in its footer; `package.json` pins it, `node_modules` is ignored, the
+output `vendor/three.min.js` is tracked as it always was). Baseline shots were
+taken on r128 FIRST (garage, roll-out, two flight frames; headless Chrome +
+CDP at 1600×900), then the same states on r186, compared region by region.
+The list below is MEASURED on this tree, not the migration guide's.
+
+**What the port was, by kind:**
+
+- *Translation* (mechanical, 30 files): `encoding` → `colorSpace`,
+  `sRGBEncoding` → `SRGBColorSpace`, `LinearEncoding` → `LinearSRGBColorSpace`,
+  `outputEncoding` → `outputColorSpace`, `PlaneBufferGeometry`,
+  `WebGLMultisampleRenderTarget` → `WebGLRenderTarget` + `samples`,
+  `uv2` → `uv1` for the props' aoMap, `updateRange` → `addUpdateRange`,
+  `PCFSoftShadowMap` (removed in r186; PCF, the fallback it names), the dead
+  `skinning` / `extensions.derivatives` flags, and the gate stubs' constants.
+- *GLSL* (of the 55 hooks, only these broke): `GeometricContext` is gone
+  (`geometry.normal/viewDir` → `geometryNormal/geometryViewDir`: the trees
+  and the house glass); `geometryNormal` is declared by the LIGHTS now, so a
+  hook that runs before them (the weathering, the impostor's normal
+  substitution) reads `nonPerturbedNormal`; `#ifdef CLEARCOAT` →
+  `USE_CLEARCOAT` (the aeroskin's clear layer compiled and silently drew
+  nothing until then); `sRGBToLinear` → `sRGBTransferEOTF`;
+  `encodings_fragment` → `colorspace_fragment`; Lambert is per-fragment and
+  its vertex-lit shadow line (the far cascade's anchor) is gone — the cascade
+  rides after `lights_fragment_end` and includes `<packing>` by hand (Lambert
+  no longer does); **`vUv` does not exist any more** — `USE_UV` is defined
+  nowhere in r186 and every map has its own varying (`vMapUv`,
+  `vNormalMapUv`, …), so a hook that read the map's uv reads `vMapUv` (the
+  house wander shifts ALL of them).
+- *Recalibration* — the honest cost, and it was three things, not thirty:
+  1. **The colour ruling.** `ColorManagement.enabled = false`, set in the
+     vendor's footer so every page, bench and gate gets the same three. A hex
+     literal means what it meant on r128 (the linear value the shader sees);
+     texture decode is untouched (that is `texture.colorSpace`, independent).
+     Turning it ON is a one-line, whole-project re-judging of every colour
+     tuned by eye — the six mood rows, the sky palette, the material lab,
+     every saved livery — a ruling for the user's eye, not for a session.
+  2. **The light unit.** The WORLD ran r128's legacy light model (the shed ran
+     the physical one already — `light_rig.js`); r186 has only the physical
+     one, in which a directional/hemisphere intensity means PI× less. The rows
+     keep their numbers (2.75 / 0.50, alps 2.8 / 0.274; the F8 panel shows and
+     edits them) and `render_world.js LIGHT_UNIT = Math.PI` converts where a
+     row reaches a light, once; the leaf wrap/SSS terms, which read the light
+     uniform by hand, take the PI back out. Every bench rig got the same
+     factor (`LU`). The aeroplane's own lamps were already tuned in the shed's
+     physical model, so in flight they now fall off as they do in the shed.
+  3. **The world's Lambert stays out of the environment.** r186 hands
+     `scene.environment` to Lambert/Phong as diffuse IBL (r128: Standard
+     only). Left alone, every slope, tree and roof would count the sky twice
+     (the hemisphere IS the world's ambient because of r128's rule). One
+     opt-out, zero cost: a Lambert with an envMap of its own is left alone by
+     the scene, and an equirect texture with no image resolves to no map at
+     all (`LAMBERT_NO_ENV`, `worldLambert()`, 27 sites in one file). The IBL
+     is the better ambient; taking it means retiring the hemisphere and
+     re-judging the world — RULING OWED.
+
+**The trap that cost the most: post-process tone mapping.** r186 writes every
+ordinary render target LINEAR and UN-tone-mapped, so the resolve pass (G144)
+had to apply three's own two chunks itself — and the first r186 frame showed
+why that cannot be: the sky dome writes DISPLAY values and relies on never
+being tone-mapped, and every `toneMapped: false` material (UI colours, the
+impostor bake, the instrument faces) loses its opt-out under a post-process
+tone map. three carries the rule that restores r128's arrangement for its own
+WebXR layers — a target with `isXRRenderTarget` is treated LIKE THE CANVAS
+(tone map per material, output space from the target's texture, linear
+storage so the shader encodes; WebGLPrograms 181/213, UniformsUtils 140,
+WebGLTextures 2120, WebGLRenderer 2378). One flag on the resolve target; GATE
+AA holds it and checks that the vendor still carries the rule. Blending stays
+in display space, as the header's own measurement wanted.
+
+**Measured, r128 vs r186, same states (mean |Δ| per channel, 0–255):** the sky
+region 0.8 (identical); the roll-out frame 7 overall (dither plus a moment of
+taxi); the flight frames' ground 15–25 in the mid/bottom regions — shots taken
+at slightly different taxi moments, so partly the aeroplane's own shadow
+moving; the residual candidates are PCF vs PCFSoft (the shadow's edge),
+hardware sRGB decode vs r128's shader approximation, and per-fragment Lambert.
+The garage matched to the eye (its numbers are dominated by a different boot
+framing). Console: zero errors on the game page after the port. THEN THE
+SAME FRAME, properly: a clean HEAD worktree (r128) served beside the tree,
+both rolled out and PAUSED at the stand within three seconds, shot twice each
+(the r128 pair's own difference: 0.02 — the frame is still) — r128 vs r186
+mean |Δ| 3.9 on the sky, 8–12 on the apron and the aeroplane, region means
+within 1–4 codes of each other, 8–14 % of pixels over 24 codes (edges: the
+shadow's PCF vs PCFSoft filter and the dither). **RULING
+OWED: a same-frame A/B by the user's eye on the shipped tier**, and whether
+the slightly darker ground is wanted back (the hemisphere's number is the
+knob).
+
+**What W0.5b must actually look like — a finding, not a plan change.** The
+briefing says "GLSL → TSL on the WebGL2 backend, one hook at a time, no
+fork". Measured against r186: TSL runs only under `WebGPURenderer` (its WebGL2
+backend is `forceWebGL: true`), and that renderer IGNORES `onBeforeCompile`
+and cannot draw a `ShaderMaterial` at all. So the moment the renderer object
+changes, every GLSL hook is dead at once — "one hook at a time" is only
+possible as a RENDERER FLAG with each material module offering both a GLSL
+and a TSL variant, the GLSL path staying the default until the last hook is
+ported. Not a fork of the tree; a second variant per material (aeroskin's
+5 hooks + 4 ShaderMaterials, aeroweather, render_world's ~20, trees,
+site_ground, hangar's backdrop + probe, the impostor bake, aa_resolve → three's
+PostProcessing / RenderOutput node). The vendor script emits the second bundle
+(`three.webgpu.js`) beside the first; it loads only under the flag, so
+index.html does not grow until the flip. §4h records the first step.
+
+**THE FLAG IS NOT INERT ANY MORE — the second trap, found by the user's eye.**
+On r128 `texture.encoding` did nothing on a sampler the hook declared itself
+(only the built-in map chunks decoded), so two hooks decoded by hand: the
+impostor sheet (`impSRGB`) and the aeroskin's decal atlas (`sRGBToLinear`).
+On r186 the flag IS the decode — an sRGB texture gets `SRGB8_ALPHA8`
+storage and every sampler, ours included, reads it decoded — so both were
+decoded TWICE and every impostor and every decal came out darker. Fixed by
+dropping the hand decodes (the flag stays; one keeper). The converse is
+true as well and was NOT a bug here: an sRGB-flagged texture a hook read
+raw on r128 (the house steel mix's second diffuse, `uMap2`) now arrives
+decoded, i.e. correctly — the rust on the village's steel roofs is a little
+darker and that is the right value (the village session owns it).
+
+**TWO MORE, FOUND ON THE SAME FRAME BY THE USER'S EYE (the pane and the shoe).**
+(1) The aeroskin's glass pass anchored its output on the literal line
+`gl_FragColor = vec4( outgoingLight, diffuseColor.a );`, which sat inline in
+r128's template and lives inside `<opaque_fragment>` since r15x — the anchor
+census passed it because the text still exists in a CHUNK. The replace missed
+silently, the pane drew the whole outgoingLight additively and read as milk
+(centre |Δ| 92 vs r128; 17 after re-anchoring on the include). Lesson: a
+non-include anchor must be checked against the ShaderLib TEMPLATES, not the
+chunks. (2) `Object3D.updateWorldMatrix` recomputes a world matrix only when
+`matrixWorldNeedsUpdate` is set or a parent forces it; r128 recomputed it
+unconditionally. The crew's solver twin hangs off a DETACHED, never-rendered
+root whose frame is a hand-set `cageM` with `matrixAutoUpdate = false`, so on
+r186 that frame stayed the identity and the legs and arms were solved in the
+cage's frame — a foot outside the door. One flag (`matrixWorldNeedsUpdate =
+true`) after every hand-set matrix (`mkFrame`, and the craft's own `grp` per
+pose, whose world was otherwise a frame stale for anything read between the
+pose and the render). After both: the door close-up, same frame, r128 vs
+r186 — mean |Δ| 6–8 codes, 2–7 % of pixels over 24, and the pilot's feet on
+the same pedals to the centimetre (41.84 / 0.97 / 40.29 both).
+
+**Traps for the next three bump, so nobody pays them twice:** the migration
+guide lists the renames and none of the four that hurt (no `vUv`,
+`geometryNormal` moved to the lights, `CLEARCOAT` → `USE_CLEARCOAT`, Lambert
+without `<packing>`); a hook that compiles can still be WRONG (the clearcoat
+one compiled and drew no clear coat, because `#ifdef` of a dead name is not an
+error); shoot the page before trusting a green node battery — every one of
+these was found in the first headless-Chrome frame and none by a gate; and the
+node battery's stubs (UISMOKE, WORLDRENDER, HANGAR, HOUSE, VILLAGE) carry
+three's constants by hand — a rename lands in five stubs or a gate goes red on
+a name, not on a fact.
+
+## 4h. W0.5b GROUNDWORK — THE SECOND BUNDLE, THE TSL BENCH, AND THE FIRST MATERIAL WRITTEN ONCE (2026-09-13)
+
+Landed with W0.5a so the next session starts from a number:
+
+- **`vendor/three.webgpu.min.js`** (1.08 MB, built by the same
+  `tools/vendor_three.js`): `three/webgpu` (the whole core + WebGPURenderer +
+  the node materials + PostProcessing) with the TSL functions under
+  `THREE.TSL`. A page loads ONE of the two bundles; nothing in the game loads
+  this one yet, and index.html does not carry it.
+- **`tools/_tsl.html`**: WebGPURenderer, `forceWebGL` by default (`?gpu=1` for
+  the WebGPU backend), the world's SKY DOME ported to a
+  `MeshBasicNodeMaterial.colorNode` — the same five uniforms, three mixes and
+  three sun powers as `render_world.js skyMat` — over a Standard node-material
+  ground under the world's sun and hemisphere in the physical unit; then a
+  render-target readback compared with the dome formula evaluated in JS.
+
+**Measured (headless Chrome, RTX 3080):**
+
+| run | backend | ColorManagement | dome vs formula, three sky samples |
+|---|---|---|---|
+| default | WebGL2 fallback | off (the ruling) | **|Δ| 0 / 1 / 1 codes** |
+| `?gpu=1` | **WebGPU** (real, in headless Chrome) | off | **|Δ| 0 / 1 / 1** — identical to the fallback |
+| `?nocm=0` | WebGL2 fallback | ON | |Δ| 72–74: the node stage's working↔output conversions do not round-trip a display-authored palette |
+
+So: (1) the TSL toolchain works from the vendor bundle with no module
+loader; (2) the first material ported reads the same to the code on BOTH
+backends, which is §4c's "one material source, both backends" made true on
+this tree; (3) the colour ruling holds under the node renderer too —
+`colorSpaceToWorking` + the output stage are both inert with the flag off,
+so a display-authored colour round-trips exactly, and the flip to ON is the
+same whole-project re-judging it is on WebGLRenderer, no worse.
+
+**Traps met (both cost a run):** `renderAsync()` is deprecated in r186
+(`await renderer.init()` once, then `render()`); and `readRenderTargetPixelsAsync`
+returns rows BOTTOM-UP on the WebGL backend and TOP-DOWN on WebGPU — the
+first WebGPU run sampled the ground where it asked for the zenith and
+reported |Δ| 138 against a sky that was, on the screenshot, right.
+
+**The order for W0.5b, from here:** a renderer flag in app.js (`?tsl=1` /
+a graphics-menu row) that loads the second bundle and constructs
+`WebGPURenderer({ forceWebGL: true })`; the dome first (done on the bench —
+move it into render_world.js behind the flag); then the impostor and tree
+materials (the newest GLSL, 28 hooks, all in two files); then the resolve
+pass as `PostProcessing` + `RenderOutputNode` (the XR-target trick of §4g is
+WebGLRenderer-only — under the node renderer the dome must be decoded on the
+way in exactly as the bench does, and every `toneMapped: false` material
+needs the same treatment or a per-material output node); the aeroskin last
+(5 hooks + 4 ShaderMaterials, the largest surface, and the material lab
+sits on it). Each step: the bench's readback against the GLSL variant on
+the same frame, both backends. GLSL stays the default until the last.
+
 ## 5. RULINGS OWED
 
 - (t) WebGPURenderer/TSL as the world renderer target; the aeroskin port as
@@ -380,7 +584,8 @@ visible frame. **Run W0 first; it prices both of these at once.**
 - (w) W4's 20×20 km slice as the shipped world until the loop proves itself.
 - **(ak) The three.js upgrade (r128 → current) is its own chantier, on
   WebGLRenderer, and lands BEFORE the world's new shader work** (§4b).
-  Recommended.
+  **LANDED 2026-09-13 as W0.5a (§4g): r186. Owed from it: the same-frame
+  A/B, the ColorManagement flip, the Lambert IBL — all rulings for the eye.**
 - **(al) The solver never moves to the GPU** — determinism and the node gate
   battery (§4d). Recommended as a standing ruling.
 - **(am) The solver in a Web Worker** as an independent frame-time chantier,

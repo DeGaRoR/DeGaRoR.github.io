@@ -80,6 +80,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the sky dome, held so the switchboard further down can reach it: it is
   // parented to the CAMERA, so it is not findable by walking the scene
   let worldSky = null;
+  // THE WORLD'S LAMBERT STAYS OUT OF THE ENVIRONMENT (W0.5a). r186 hands
+  // scene.environment to Lambert and Phong as diffuse IBL; r128 gave it to
+  // Standard only, and the hemisphere further down is the world's ambient
+  // BECAUSE of that (THE HEMISPHERE STAYS OUT HERE). Letting the IBL in would
+  // count the sky a second time on every slope, tree and roof — the double
+  // the shed paid at G62.5. A Lambert material that carries an envMap of its
+  // own is left alone by the scene, and an equirect texture with no image
+  // resolves to NO map at all (WebGLEnvironments: "image not yet ready"), so
+  // this opt-out costs nothing per fragment and compiles no envmap code.
+  // RULING OWED: the IBL is the better ambient; taking it means retiring the
+  // hemisphere and re-judging the world by eye (RENDERER-DECISION §4g).
+  const LAMBERT_NO_ENV = new THREE.Texture();
+  LAMBERT_NO_ENV.mapping = THREE.EquirectangularReflectionMapping;
+  const worldLambert = o => new THREE.MeshLambertMaterial(Object.assign({ envMap: LAMBERT_NO_ENV }, o));
   scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
@@ -87,16 +101,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // very same dome into a cube map: ONE source of truth for the golden hour, so
   // a reflection can never drift from the sky it is supposed to be reflecting.
   //
-  // `encode` exists for one hard-won reason. This shader writes gl_FragColor by
-  // hand and includes none of three's chunks, so nothing ever converts its
-  // output to the target's encoding — which is fine and deliberate on screen
-  // (the palette was tuned against exactly that). But r128's PMREM target is
-  // **RGBE**: alpha is an EXPONENT. Writing alpha = 1.0 into it means 2^(255-128),
-  // the decoder returns ~1.7e38, the IBL term goes infinite, and infinity minus
-  // infinity is NaN — so every MeshStandardMaterial in the scene renders PURE
-  // BLACK, aircraft and water alike, while the Lambert world looks perfectly
-  // fine. Symptom and cause could hardly be further apart; the bisect that
-  // found it was swapping in a PMREM baked from a plain MeshBasicMaterial dome.
+  // `encode` is the bake variant. This shader writes gl_FragColor by hand and
+  // includes none of three's chunks, so on screen nothing converts its output
+  // (the palette was tuned against exactly that). The PMREM target is a
+  // half-float LINEAR one (r186; it was RGBE on r128, where a hand-written
+  // alpha of 1.0 read as an exponent and turned every Standard material pure
+  // black — W18's afternoon), so the bake variant has one job: linearise.
   const skyMat = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
       uniforms: { uTop:{value:C(0x3f7fbe)}, uMid:{value:C(0x9dc4dd)},
                   uHaze:{value:C(HAZE)}, uSun:{value:SUN}, uSunCol:{value:C(SUNC)} },
@@ -122,8 +132,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // reflects a sky about 2.4x too bright, which reads as chrome: the
           // C172's white-and-teal livery vanished under a mirror of sky and
           // grass. Linearise here, in the bake variant only.
-          gl_FragColor = sRGBToLinear(gl_FragColor);
-          #include <encodings_fragment>` : '') + `
+          gl_FragColor = vec4(mix(pow((gl_FragColor.rgb + 0.055) / 1.055, vec3(2.4)),
+                                  gl_FragColor.rgb / 12.92, step(gl_FragColor.rgb, vec3(0.04045))), 1.0);` : '') + `
         }`,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra));
 
@@ -191,6 +201,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // drop density than shadow fidelity"): the sun map always covers ±540 m,
   // so nothing inside it pops from shadow to none as the aircraft climbs
   const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 540 };
+  // THE LIGHT UNIT (W0.5a). r128 drew the world under the LEGACY light model,
+  // where a directional or hemisphere intensity meant PI times what the
+  // physical model — r186's only one — means (lights_pars_begin's
+  // `irradiance *= PI`). The rows keep the numbers they were tuned in (2.75 /
+  // 0.50; alps 2.8 / 0.274 — the F8 panel shows and edits those); the
+  // conversion happens where a row reaches a light, here, once. The shed
+  // needs none: it ran the physical model already (light_rig.js).
+  const LIGHT_UNIT = Math.PI;
   // THE FOREST FLOOR (W0c.17): the ground under a canopy gets a fraction of
   // the sky, and a terrain painted as if it stood in the open is what makes
   // a stand float on it. The far tier already darkens the ground it stands
@@ -367,7 +385,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     coverRender(eye);
   };
   const hemiLight = () => {
-    const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi);
+    const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi * LIGHT_UNIT);
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
     return h;
   };
@@ -390,7 +408,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // knew about the other. The sky half is untouched.
   const hemi = hemiLight();
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(C(SUNC), RIG.sun);
+  const sun = new THREE.DirectionalLight(C(SUNC), RIG.sun * LIGHT_UNIT);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0009;
@@ -424,8 +442,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   }
   function applyWorldLights() {
     if (!worldSwitch) return;
-    sun.intensity = RIG.sun;
-    hemi.intensity = RIG.hemi;
+    sun.intensity = RIG.sun * LIGHT_UNIT;
+    hemi.intensity = RIG.hemi * LIGHT_UNIT;
     scene.environment = envMap;
     if (worldSky) worldSky.visible = true;
     worldSwitch.apply();
@@ -651,7 +669,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
       const t = new THREE.CanvasTexture(cv);
-      t.encoding = THREE.sRGBEncoding;
+      t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = renderer.capabilities.getMaxAnisotropy();
       return t;
     }
@@ -731,13 +749,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         .replace('#include <project_vertex>', '#include <project_vertex>\n' +
           'vWP = (modelMatrix * vec4(position, 1.0)).xyz;\nvCD = -mvPosition.z;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D uFMask;\n' +
+        // <packing> by hand: r186's Lambert no longer includes it, and the far
+        // cascade below unpacks the depth it wrote (W0.5a)
+        .replace('#include <common>', '#include <common>\n#include <packing>\nuniform sampler2D uFMask;\n' +
           'uniform sampler2D uCanopy;\nuniform float uFloor, uFloorLod, uFloorEdge;\nvarying vec3 vWP;\nvarying float vCD;\n' +
           'uniform float uFarOn;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\n' +
           'uniform float uCovOn;\nuniform sampler2D uCovMap;\nuniform mat4 uCovVP;')
         // the far cascade, on the direct term only: four taps of packed depth
-        .replace('reflectedLight.directDiffuse *= BRDF_Diffuse_Lambert( diffuseColor.rgb ) * getShadowMask();',
-          'reflectedLight.directDiffuse *= BRDF_Diffuse_Lambert( diffuseColor.rgb ) * getShadowMask();\n' +
+        .replace('#include <lights_fragment_end>',
+          '#include <lights_fragment_end>\n' +
           'if (uFarOn > 0.5) {\n' +
           '  vec4 fc = uFarVP * vec4(vWP, 1.0);\n' +
           '  vec3 fp = fc.xyz / fc.w * 0.5 + 0.5;\n' +
@@ -808,7 +828,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'vec3 dC2 = texture2D(uDetail, vDUv * 6.31).rgb;\n' +
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     }; };
-    const gMat = new THREE.MeshLambertMaterial({ map: tex });
+    const gMat = worldLambert({ map: tex });
     gMat.onBeforeCompile = sh => {
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
@@ -834,7 +854,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     scene.add(ground);
 
     { // outer ring: four coarse strips sharing one full-domain texture
-      const oMat = new THREE.MeshLambertMaterial({ map: outerTex });
+      const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = canopyHook;   // the far tier lives mostly out here
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
@@ -1184,7 +1204,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
         format: THREE.RGBAFormat, generateMipmaps: true });
       const rt = mkRT(), rtN = mkRT();
-      rt.texture.encoding = THREE.sRGBEncoding;
+      rt.texture.colorSpace = THREE.SRGBColorSpace;
       const sc = new THREE.Scene();
       const meshes = [];
       if (parts) {
@@ -1435,8 +1455,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uIGainK, uISolid, uICut, uTile;\n' +
             'uniform float uHue, uSat, uLight;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
-            // the decode, written out: <map_fragment> and its mapTexelToLinear
-            // are replaced below, and the sheet was written sRGB
+            // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
+            // the sampler since r186 - see the map_fragment replacement)
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
           .replace('#include <map_fragment>', [
             // hemi-octahedral fold: the upper hemisphere onto [-1,1]^2, so a
@@ -1455,11 +1475,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
             // one texel in from the tile's border: the neighbouring tile's
             // edge bleeds through bilinear filtering otherwise
-            'vec2 qv = (vUv * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
+            'vec2 qv = (vMapUv * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',   // vMapUv: r186 has no vUv (W0.5a)
             'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
             'vec4 t0 = texture2D(map, uvA), t1 = texture2D(map, uvB), t2 = texture2D(map, uvC);',
             'vec4 texelColor = t0 * wB.x + t1 * wB.y + t2 * wB.z;',
-            'texelColor.rgb = impSRGB(clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0));',   // premultiplied sheet
+            // NO HAND DECODE ANY MORE (W0.5a): the sheet is an sRGB8 target on r186 and
+            // the sampler decodes it in hardware; impSRGB on top of that darkened every
+            // impostor (the user saw it in the first forest shot)
+            'texelColor.rgb = clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0);',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
             'texelColor.a = clamp((mix(texelColor.a, aSol, uISolid) - uICut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
@@ -1476,10 +1499,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'if (dot(nBake, nBake) < 1e-4) nBake = dI;',
             'vec3 nImpV = normalize((viewMatrix * vec4(normalize(nBake), 0.0)).xyz);',
           ].join('\n'))
-          // the substitution that buys the rig; both, because the environment
-          // reads geometryNormal
+          // the substitution that buys the rig; both: r186 declares geometryNormal
+          // from `normal` in lights_fragment_begin, and nonPerturbedNormal is what
+          // the clearcoat and transmission terms read
           .replace('#include <normal_fragment_maps>',
-            '#include <normal_fragment_maps>\nnormal = nImpV;\ngeometryNormal = nImpV;')
+            '#include <normal_fragment_maps>\nnormal = nImpV;\nnonPerturbedNormal = nImpV;')
           .replace('#include <lights_fragment_end>',
             '#include <lights_fragment_end>\n' + (LEAF ? LEAF.terms : '') + '\n' +
             // the tier gain, on all four terms - the multiscatter one rides on
@@ -1591,10 +1615,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const c = k[si][b];
           if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
           m.count = c; m.visible = c > 0;
-          // only the instances written go up (r128 honours updateRange in
-          // bufferSubData and resets it after the upload) - a rung's buffer
+          // only the instances written go up (addUpdateRange, r159+: the list
+          // is consumed by the upload and cleared after it) - a rung's buffer
           // is sized for the whole series, and a band holds a fraction of it
-          if (c) { m.instanceMatrix.updateRange.offset = 0; m.instanceMatrix.updateRange.count = c * 16; m.instanceMatrix.needsUpdate = true; }
+          if (c) { m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, c * 16); m.instanceMatrix.needsUpdate = true; }
         }
     }
     const parkChunk = rec => {
@@ -1950,8 +1974,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (!a) cells.set(k, a = { cx, cz, list: [] });
       a.list.push(T);
     }
-    const trunkMat = nearOnly(new THREE.MeshLambertMaterial({ color: C(0x584431) }));
-    const canopyMat = nearOnly(new THREE.MeshLambertMaterial({ vertexColors: true }));
+    const trunkMat = nearOnly(worldLambert({ color: C(0x584431) }));
+    const canopyMat = nearOnly(worldLambert({ vertexColors: true }));
     // Impostors carry NO trunk: 1.9 m tall and 0.4 m wide is a fifth of a pixel
     // at 450 m, which is the same argument that already switched trunks off at
     // 900 m — and a brown trunk cannot ride a per-species tint anyway.
@@ -2188,7 +2212,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // three CAN cull these after all (it never could while the matrices held
       // world coordinates against a 2 m shared sphere).
       [coneF, blobF].forEach(g => chunkBounds(g, CH));
-      const matF = nearOnly(new THREE.MeshLambertMaterial({ vertexColors: true }));
+      const matF = nearOnly(worldLambert({ vertexColors: true }));
       // the fill shapes are shorter than the woodland ones (no trunk under
       // them), so they get their own atlases rather than borrowing — the
       // impostor's size and centre height come straight off the source
@@ -2511,7 +2535,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const R = siteRunway(HOME);
     const decal = (w, h, color, y, x, z) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-        new THREE.MeshLambertMaterial({ color: C(color), depthWrite: false,
+        worldLambert({ color: C(color), depthWrite: false,
           transparent: true }));
       m.rotation.x = -Math.PI / 2;
       m.renderOrder = Math.round(y * 100);
@@ -2535,7 +2559,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and it cannot wear the grass the field beside it wears.
       sitePaintStrip(q, R, RW, RH, true);              // marks only
       const rtex = new THREE.CanvasTexture(cv2);
-      rtex.encoding = THREE.sRGBEncoding;
+      rtex.colorSpace = THREE.SRGBColorSpace;
       rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
       const yaw = Math.atan2(-R.dz, -R.dx);
       const mkGeo = (metric) => {
@@ -2556,7 +2580,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const base = new THREE.Mesh(mkGeo(!!gmaps), gmaps
         ? new THREE.MeshStandardMaterial(Object.assign({
             roughness: 1, metalness: 0, depthWrite: false, transparent: true }, gmaps))
-        : new THREE.MeshLambertMaterial({ color: C(0x6b7a36), depthWrite: false,
+        : worldLambert({ color: C(0x6b7a36), depthWrite: false,
             transparent: true }));
       base.position.set(R.cx, 0.02, R.cz);
       base.renderOrder = 2;
@@ -2570,7 +2594,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
-    const markMat = new THREE.MeshLambertMaterial({ color: C(0xe4dccb) });
+    const markMat = worldLambert({ color: C(0xe4dccb) });
     for (const P of siteMarkers(HOME)) {
       const m = new THREE.Mesh(markGeo, markMat);
       m.position.set(P.x, 0.35, P.z);
@@ -2581,12 +2605,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const building = (x, z, w, d, hgt, ry, wc) => {
       const g = new THREE.Group();
       const body = new THREE.Mesh(new THREE.BoxGeometry(w, hgt, d),
-        new THREE.MeshLambertMaterial({ color: wc || wall }));
+        worldLambert({ color: wc || wall }));
       body.position.y = hgt / 2;
       const r = d * 0.60;
       const rg = new THREE.CylinderGeometry(r, r, w * 1.05, 3, 1);
       rg.rotateY(Math.PI / 2); rg.rotateZ(Math.PI / 2);
-      const roof = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ color: roofc }));
+      const roof = new THREE.Mesh(rg, worldLambert({ color: roofc }));
       roof.position.y = hgt + r * 0.5 - 0.02;
       g.add(body); g.add(roof);
       g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
@@ -2717,11 +2741,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     setShedDims = dims => standShed(dims);
 
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, SITE.windsock.h),
-      new THREE.MeshLambertMaterial({ color: C(0xd8d2c4) }));
+      worldLambert({ color: C(0xd8d2c4) }));
     pole.position.set(SITE.windsock.x, SITE.windsock.h / 2, SITE.windsock.z);
     pole.castShadow = true; pole.receiveShadow = true; scene.add(pole);
     const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true),
-      new THREE.MeshLambertMaterial({ color: C(0xe4622e), side: THREE.DoubleSide }));
+      worldLambert({ color: C(0xe4622e), side: THREE.DoubleSide }));
     sock.castShadow = true; scene.add(sock);
     // W13: wind-driven, see setWindVis
     socks.push({ pole: [SITE.windsock.x, SITE.windsock.h - 0.5, SITE.windsock.z], mesh: sock });
@@ -2729,7 +2753,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // THE BOUNDARY, in runs with a gate in it. The old fence was one line from
     // x 60 to -80 that walked straight through the taxiway.
     const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, SITE.fence.h),
-      new THREE.MeshLambertMaterial({ color: C(0x8a7457) }));
+      worldLambert({ color: C(0x8a7457) }));
     for (const run of SITE.fence.runs)
       for (let x = Math.max(run[0], run[1]); x >= Math.min(run[0], run[1]); x -= SITE.fence.step) {
         const fq = fp.clone(); fq.position.set(x, SITE.fence.h / 2, SITE.fence.z);
@@ -2780,10 +2804,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       m.position.set(x, y, z); m.rotation.y = ry; m.rotation.z = rz;
       m.castShadow = true; m.receiveShadow = true; scene.add(m); return m;
     };
-    const steel = new THREE.MeshLambertMaterial({ color: C(0x8d9299) });
-    const rust  = new THREE.MeshLambertMaterial({ color: C(0xb2653a) });
-    const wood  = new THREE.MeshLambertMaterial({ color: C(0xa8834f) });
-    const straw = new THREE.MeshLambertMaterial({ color: C(0xd7bf7c) });
+    const steel = worldLambert({ color: C(0x8d9299) });
+    const rust  = worldLambert({ color: C(0xb2653a) });
+    const wood  = worldLambert({ color: C(0xa8834f) });
+    const straw = worldLambert({ color: C(0xd7bf7c) });
     const CL = SITE.clutter;
 
     const drum = new THREE.CylinderGeometry(0.31, 0.31, 0.9, 12);
@@ -2880,9 +2904,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const roofGeo = new THREE.CylinderGeometry(1, 1, 1, 3, 1);
       roofGeo.rotateY(Math.PI / 2); roofGeo.rotateZ(Math.PI / 2);   // prism, axis along x
       const bodies = new THREE.InstancedMesh(bodyGeo,
-        new THREE.MeshLambertMaterial({ color: 0xffffff }), BL.length);
+        worldLambert({ color: 0xffffff }), BL.length);
       const roofs = new THREE.InstancedMesh(roofGeo,
-        new THREE.MeshLambertMaterial({ color: 0xffffff }), BL.length);
+        worldLambert({ color: 0xffffff }), BL.length);
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(),
             up = new THREE.Vector3(0, 1, 0), pv = new THREE.Vector3(),
             sv = new THREE.Vector3(), c3 = new THREE.Color();
@@ -2930,7 +2954,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         scene.add(m);
       }
     }
-    const deckMat = new THREE.MeshLambertMaterial({ color: C(0x8a6a4a) });
+    const deckMat = worldLambert({ color: C(0x8a6a4a) });
     for (const r of world.roadNet.roads) {
       if (r.cls !== 'bridge') continue;
       const [a, b] = r.pts;
@@ -2971,13 +2995,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       q.fillStyle = '#efe9da';
       for (const um of [128, 384]) { q.fillRect(um - 5, 14, 10, 10); q.fillRect(um - 5, 40, 10, 10); }
       const t = new THREE.CanvasTexture(cv2);
-      t.encoding = THREE.sRGBEncoding;
+      t.colorSpace = THREE.SRGBColorSpace;
       return t;
     };
     const texes = {};
-    const poleMat = new THREE.MeshLambertMaterial({ color: C(0xd8d2c4) });
-    const sockMat = new THREE.MeshLambertMaterial({ color: C(0xe4622e), side: THREE.DoubleSide });
-    const patchMat = new THREE.MeshLambertMaterial({ map: outerTexShared });
+    const poleMat = worldLambert({ color: C(0xd8d2c4) });
+    const sockMat = worldLambert({ color: C(0xe4622e), side: THREE.DoubleSide });
+    const patchMat = worldLambert({ map: outerTexShared });
     // patch uvs span the full 24 km domain: 613 tiles ~= the inner ring's
     // on-ground grain density (230 tiles over 9 km)
     if (detailApply) detailApply(patchMat, 613);
@@ -3027,7 +3051,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         dp.setY(i, world.terrainH(dp.getX(i), dp.getZ(i)) + 0.07);
       geo.computeVertexNormals();
       const m = new THREE.Mesh(geo,
-        new THREE.MeshLambertMaterial({ map: texes[kind], depthWrite: false }));
+        worldLambert({ map: texes[kind], depthWrite: false }));
       m.renderOrder = 2;
       m.receiveShadow = true;
       scene.add(m);
@@ -3046,11 +3070,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const beaconGeo = new THREE.CylinderGeometry(0.16, 0.22, 7);
     const flagGeo = new THREE.PlaneGeometry(2.4, 1.4);
     const ringGeo = new THREE.ConeGeometry(0.55, 1.7, 6);
-    const ringMat = new THREE.MeshLambertMaterial({ color: C(0xe4622e) });
+    const ringMat = worldLambert({ color: C(0xe4622e) });
     for (const m of world.meadows) {
-      const b = new THREE.Mesh(beaconGeo, new THREE.MeshLambertMaterial({ color: C(0xe9e2d3) }));
+      const b = new THREE.Mesh(beaconGeo, worldLambert({ color: C(0xe9e2d3) }));
       b.position.set(m.x, m.h + 3.5, m.z); b.castShadow = true; b.receiveShadow = true; scene.add(b);
-      const fl = new THREE.Mesh(flagGeo, new THREE.MeshLambertMaterial({
+      const fl = new THREE.Mesh(flagGeo, worldLambert({
         color: C(0xe4622e), side: THREE.DoubleSide }));
       fl.position.set(m.x + 1.2, m.h + 6.2, m.z); scene.add(fl);
       for (let a = 0; a < 8; a++) {
@@ -3232,8 +3256,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const rigApply = () => {
     const R = rigCur, el = R.elev * Math.PI / 180, az = R.azim * Math.PI / 180;
     SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
-    sun.intensity = RIG.sun = R.sunI; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
-    hemi.intensity = RIG.hemi = R.hemi;
+    sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
+    hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
     if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
     if (renderer) renderer.toneMappingExposure = R.exposure;
     RIG.shadowMin = R.shadowMin;

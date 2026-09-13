@@ -22,11 +22,11 @@
   const canvas = $('c');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.12;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
   // so it can have eight MSAA samples instead of the four `antialias: true`
   // hands out, a downsample filter that is ours rather than the compositor's,
@@ -348,7 +348,6 @@
   }
 
   const WORLD_EXPOSURE = renderer.toneMappingExposure;
-  const WORLD_PHYSLIGHTS = !!renderer.physicallyCorrectLights;
   // WHAT THE AEROPLANE'S envMapIntensity SHOULD BE OUT THERE — and it is not
   // 1.0, because the world counts the sky TWICE for anything Standard.
   //
@@ -437,11 +436,7 @@
   let skyPM = null;
   function bakeHangarEnv() {
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
-    // the bake has to happen under the room's OWN lighting model, or the
-    // environment it produces belongs to a different sun than the one that
-    // will light the aeroplane standing in it
-    const physWas = renderer.physicallyCorrectLights;
-    renderer.physicallyCorrectLights = true;
+    // (one light model everywhere since W0.5a: r186 has only the physical one)
     const pm = new THREE.PMREMGenerator(renderer);
     // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
     // texture to bake is whichever one is hanging outside right now
@@ -576,7 +571,6 @@
       }
     }
     pm.dispose();
-    renderer.physicallyCorrectLights = physWas;
     // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
     // asked for before it lands falls back to the room and comes back here.
     // The room's own `onSkyReady` (wired in getHangar) covers the swap case;
@@ -781,7 +775,6 @@
     if (hangar && hangar.moods) hangarMood = Math.min(hangarMood, hangar.moods.length - 1);
     renderer.toneMappingExposure = inRoom ? hangar.setMood(hangarMood).ex
                                           : WORLD_EXPOSURE;
-    renderer.physicallyCorrectLights = inRoom ? true : WORLD_PHYSLIGHTS;
     syncEnvBtn();
   }
   function setMood(i) {
@@ -1260,6 +1253,14 @@
       f.name = 'crewFrame';
       f.matrixAutoUpdate = false;
       f.matrix.set(...data.cageM);
+      // A HAND-SET MATRIX MUST SAY SO (W0.5a, r186). r128's updateWorldMatrix
+      // recomputed a world matrix unconditionally; r186 recomputes only when
+      // matrixWorldNeedsUpdate is set or a parent forces it — and the solver
+      // twin below hangs off a DETACHED root that is never rendered, so no
+      // pass ever forced it. Its frame stayed the identity, the legs and arms
+      // were solved in the CAGE's frame (x aft) and drawn mirrored fore-and-aft:
+      // the user's shoe outside the door. One flag, both semantics.
+      f.matrixWorldNeedsUpdate = true;
       parent.add(f);
       return f;
     };
@@ -1453,7 +1454,7 @@
       // curve bends every one of them. The payload says which of its own sheets
       // are data (`linTex`), because the generator is what knows.
       if (data.generated && !(data.linTex || []).includes(t))
-        texs[t].encoding = THREE.sRGBEncoding;
+        texs[t].colorSpace = THREE.SRGBColorSpace;
     }
     if (!entry.pending) entry.ready = true;
     const mkGeo = (g, ownPos) => {
@@ -2600,6 +2601,9 @@
       cg[1] + ox*xA[1] + oy*yU[1] + oz*vZ.y,
       cg[2] + ox*xA[2] + oy*yU[2] + oz*vZ.z);
     model.grp.matrix.copy(mBasis);
+    // r186: a hand-set matrix must flag itself, or a getWorldPosition between
+    // this pose and the render reads last frame's world (see buildPeople's mkFrame)
+    model.grp.matrixWorldNeedsUpdate = true;
     // THE PROJECTOR'S FRAME IS THIS ONE, AND IT MOVES (G160.2). The box decal
     // modes read `vCraftPos = uCraftInv * modelMatrix * v`, so uCraftInv has to
     // be the inverse of whatever carries the aeroplane's pose — and that is
@@ -4578,7 +4582,7 @@
       g.fillText(text, 256, 32);
     }
     const tex = new THREE.CanvasTexture(c);
-    tex.encoding = THREE.sRGBEncoding;
+    tex.colorSpace = THREE.SRGBColorSpace;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
     sp.scale.set(0.220, 0.028, 1);
@@ -4838,7 +4842,7 @@
     for (const b of rg.bags) maxF = Math.max(maxF, b[1]);
     // Each bag is sized by the share of the load its node actually carries, so
     // the spanwise distribution is something you can look at, not just infer.
-    // STANDARD, not Lambert. The room runs physicallyCorrectLights and bakes a
+    // STANDARD, not Lambert. The room runs the physical light model and bakes a
     // PMREM of itself for everything glossy in it, and a Lambert surface in it
     // saturates: measured on the bags, 0x7d6142 rendered 255,255,255 and even a
     // near-black 0x2a2016 came back 255,252,246, so the colour was doing
@@ -5011,7 +5015,6 @@
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     renderer.toneMappingExposure = WORLD_EXPOSURE;
-    renderer.physicallyCorrectLights = WORLD_PHYSLIGHTS;
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").
     // Every mood scales the aeroplane's own envMapIntensity to suit the room's

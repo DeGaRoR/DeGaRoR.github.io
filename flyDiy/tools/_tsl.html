@@ -1,0 +1,139 @@
+<!doctype html>
+<!-- _tsl.html — THE TSL BENCH (W0.5b groundwork, 2026-09-13; RENDERER-DECISION §4h).
+
+  The first material written once, in TSL, on the second vendor bundle
+  (vendor/three.webgpu.min.js: WebGPURenderer + THREE.TSL, built by
+  tools/vendor_three.js). It draws the world's sky dome — render_world.js's
+  skyMat, the same five uniforms and the same three mixes and the sun's three
+  powers — as a MeshBasicNodeMaterial colorNode, over a Lambert-ish ground
+  under the world's sun and hemisphere in the physical unit, and then READS
+  PIXELS BACK and compares them with the formula evaluated in JS, so the port
+  is a number and not an impression.
+
+  Open ../tools/_tsl.html served from the repo root (node tools/_serve.js).
+    ?gpu=1   ask for the WebGPU backend (default: forceWebGL — the WebGL2
+             backend, which is what W0.5b runs on until W0.5c flips it)
+    ?nocm=0  leave ColorManagement.enabled as the vendor set it (false) —
+             the bench's first question is whether the node output stage
+             honours that flag; the default measures it.
+
+  What it answers (printed on the page and as ONE console.warn line, so a
+  headless smoke can read it):
+    backend      which backend three actually gave us
+    zenith/haze  sampled bytes vs the dome formula's display values
+    ground       the lit ground's bytes under sun 2.75π + hemi 0.50π
+-->
+<meta charset="utf-8">
+<title>flyDiy — TSL bench</title>
+<style>
+  body { margin: 0; background: #14161a; color: #cfd3d8; font: 13px/1.4 ui-monospace, monospace; }
+  #c { display: block; width: 960px; height: 540px; }
+  pre { margin: 8px 12px; white-space: pre-wrap; }
+</style>
+<canvas id="c" width="960" height="540"></canvas>
+<pre id="out">booting…</pre>
+<script src="../vendor/three.webgpu.min.js"></script>
+<script>
+(async () => {
+  const out = document.getElementById('out');
+  const say = s => { out.textContent += '\n' + s; };
+  const T = THREE.TSL;
+  const q = new URLSearchParams(location.search);
+  const wantGPU = q.get('gpu') === '1';
+  // THE FIRST QUESTION (the vendor footer sets ColorManagement.enabled = false,
+  // the W0.5a colour ruling): does the node output stage honour it?
+  const cmOff = q.get('nocm') !== '0';
+  THREE.ColorManagement.enabled = !cmOff ? true : false;
+
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, forceWebGL: !wantGPU });
+  await renderer.init();
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.setPixelRatio(1);
+  renderer.setSize(960, 540, false);
+  const backend = renderer.backend && renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2 (fallback backend)';
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 960 / 540, 0.1, 100);
+  camera.position.set(0, 1.6, 0); camera.lookAt(0, 1.6 + 0.35, -1);
+  scene.add(camera);
+
+  // ---- THE SKY DOME, IN TSL (render_world.js skyMat, verbatim in meaning) ----
+  const HAZE = 0xdac4a8, SUNC = 0xffd8a0;
+  const SUN = new THREE.Vector3(0.35, 0.12, -0.93).normalize();
+  const uTop = T.uniform(new THREE.Color(0x3f7fbe));
+  const uMid = T.uniform(new THREE.Color(0x9dc4dd));
+  const uHaze = T.uniform(new THREE.Color(HAZE));
+  const uSunCol = T.uniform(new THREE.Color(SUNC));
+  const uSun = T.uniform(SUN);
+  const dome = T.Fn(() => {
+    const d = T.normalize(T.positionWorld.sub(T.cameraPosition));
+    const h = d.y;
+    let col = T.mix(uHaze, uMid, T.smoothstep(-0.01, 0.20, h));
+    col = T.mix(col, uTop, T.smoothstep(0.13, 0.80, h));
+    col = T.mix(col, uHaze.mul(0.82), T.smoothstep(0.0, -0.30, h));
+    const sd = T.max(T.dot(d, T.normalize(uSun)), 0.0);
+    const glow = T.pow(sd, 900.0).mul(3.0).add(T.pow(sd, 14.0).mul(0.42)).add(T.pow(sd, 3.0).mul(0.13));
+    col = col.add(uSunCol.mul(glow));
+    // the palette is DISPLAY values (render_world.js: "authored in DISPLAY
+    // space"): the GLSL dome wrote them raw. The node output stage will
+    // encode working -> sRGB, so hand it the decoded value and the bytes
+    // come out as authored — IF the stage does what the flag says. Measured
+    // below either way.
+    return T.colorSpaceToWorking(col, THREE.SRGBColorSpace);
+  });
+  const skyMat = new THREE.MeshBasicNodeMaterial();
+  skyMat.colorNode = dome();
+  skyMat.side = THREE.BackSide; skyMat.depthWrite = false; skyMat.depthTest = false; skyMat.fog = false;
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 20), skyMat);
+  sky.renderOrder = -1000; sky.frustumCulled = false;
+  camera.add(sky);
+
+  // ---- the ground, under the world's rig in the physical unit --------------
+  const LIGHT_UNIT = Math.PI;
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardNodeMaterial({ color: 0x6b7a36, roughness: 1, metalness: 0 }));
+  gnd.rotation.x = -Math.PI / 2; scene.add(gnd);
+  const hemi = new THREE.HemisphereLight(0xbcd8f0, 0x6a5a3c, 0.50 * LIGHT_UNIT); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(SUNC, 2.75 * LIGHT_UNIT); sun.position.copy(SUN).multiplyScalar(50); scene.add(sun); scene.add(sun.target);
+
+  renderer.render(scene, camera);
+
+  // ---- READ BACK, and compare with the formula in JS -----------------------
+  const W = 960, H = 540;
+  const rt = new THREE.RenderTarget(W, H, { type: THREE.UnsignedByteType });
+  renderer.setRenderTarget(rt);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  // TRAP, measured: the readback's rows run BOTTOM-UP on the WebGL backend and
+  // TOP-DOWN on WebGPU (the target's own orientation); without this the
+  // WebGPU run sampled the ground where it asked for the zenith
+  const flipY = !(renderer.backend && renderer.backend.isWebGPUBackend);
+  const row = y => flipY ? H - 1 - y : y;
+  const px = async (x, y) => { const b = await renderer.readRenderTargetPixelsAsync(rt, x, y, 1, 1); return [b[0], b[1], b[2]]; };
+  const c = new THREE.Color();
+  const domeJS = (d) => {
+    const h = d.y, mixc = (a, b, t) => a.clone().lerp(b, t), ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    let col = mixc(c.set(HAZE), new THREE.Color(0x9dc4dd), ss(-0.01, 0.20, h));
+    col = mixc(col, new THREE.Color(0x3f7fbe), ss(0.13, 0.80, h));
+    col = mixc(col, new THREE.Color(HAZE).multiplyScalar(0.82), ss(0.0, -0.30, h));
+    const sd = Math.max(d.dot(SUN), 0);
+    const g = Math.pow(sd, 900) * 3 + Math.pow(sd, 14) * 0.42 + Math.pow(sd, 3) * 0.13;
+    col.add(new THREE.Color(SUNC).multiplyScalar(g));
+    return [col.r, col.g, col.b].map(v => Math.round(Math.min(1, Math.max(0, v)) * 255));
+  };
+  // a screen pixel's world direction, through the camera (readback rows run bottom-up)
+  const dirAt = (x, y) => new THREE.Vector3((x / W) * 2 - 1, 1 - (y / H) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
+  const rows = [];
+  for (const [name, x, y] of [['near-zenith', 480, 8], ['mid-sky', 480, 120], ['horizon+', 480, 300]]) {
+    const d = dirAt(x, y); const want = domeJS(d); const got = await px(x, row(y));
+    rows.push(`${name.padEnd(12)} d.y ${d.y.toFixed(3).padStart(6)}  formula ${want.join(',').padEnd(12)} sampled ${got.join(',').padEnd(12)} |Δ| ${Math.max(...want.map((v, i) => Math.abs(v - got[i])))}`);
+  }
+  const g1 = await px(480, row(H - 60)), g2 = await px(200, row(H - 40));
+  rows.push(`ground        sampled ${g1.join(',')} / ${g2.join(',')}  (0x6b7a36 under sun 2.75π + hemi 0.50π, NoToneMapping)`);
+  const report = { backend, revision: THREE.REVISION, colorManagement: THREE.ColorManagement.enabled, rows };
+  out.textContent = `TSL bench — three r${THREE.REVISION}, ${backend}, ColorManagement.enabled = ${THREE.ColorManagement.enabled}\n` + rows.join('\n');
+  console.warn('TSL_BENCH ' + JSON.stringify(report));
+  window.TSL_BENCH = report;
+})().catch(e => { document.getElementById('out').textContent = 'FAILED: ' + (e.stack || e); console.error(e); });
+</script>

@@ -402,7 +402,7 @@ function facesMaterial() {
   if (facesMat) return facesMat;
   const cv = atlas();
   atlasTex = new THREE.CanvasTexture(cv);
-  atlasTex.encoding = THREE.sRGBEncoding;
+  atlasTex.colorSpace = THREE.SRGBColorSpace;
   atlasTex.anisotropy = 8;
   atlasTex.flipY = true;
   // THE FACE IS LIT, NOT GLOWING (G298): no emissiveMap. The atlas's alpha
@@ -497,7 +497,7 @@ function labelMaterial() {
   let tex = null;
   if (sh && sh.img) {
     tex = new THREE.Texture(sh.img);
-    tex.encoding = THREE.sRGBEncoding;
+    tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
     const up = () => { tex.needsUpdate = true; };
     // addEventListener, not onload: the sheet's Image is shared with
@@ -550,7 +550,7 @@ function regMaterial() {
   regCv = HAS_DOM ? document.createElement('canvas') : null;
   if (regCv) { regCv.width = 512; regCv.height = 160; }
   regTex = regCv ? new THREE.CanvasTexture(regCv) : null;
-  if (regTex) { regTex.encoding = THREE.sRGBEncoding; regTex.anisotropy = 8; }
+  if (regTex) { regTex.colorSpace = THREE.SRGBColorSpace; regTex.anisotropy = 8; }
   regMat = new THREE.MeshStandardMaterial({ map: regTex, color: 0xffffff, roughness: 0.92, metalness: 0,
     transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });   // blended (G320)
   regMat.userData.aeroskin = 1;

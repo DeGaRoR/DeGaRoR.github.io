@@ -146,15 +146,18 @@ const sel = (k, lab, opts) => {
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
                                            preserveDrawingBuffer: true });
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.85;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 const camera = new THREE.PerspectiveCamera(32, 1, 0.02, 200);
-const sun = new THREE.DirectionalLight(0xfff2e0, 1.5);
+// W0.5a (r186): this bench drew under r128's LEGACY light model; three has only the physical one
+// now, where a directional/hemisphere intensity means PI x what it did (render_world.js LIGHT_UNIT)
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xfff2e0, 1.5 * LU);
 scene.add(sun, sun.target);
-const hemi = new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.35);
+const hemi = new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.35 * LU);
 scene.add(hemi);
 // a painted sky through PMREM: a PBR paint needs something to reflect, or
 // the specular that shows a normal seam is not there to show it
@@ -176,7 +179,7 @@ scene.add(hemi);
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.mapping = THREE.EquirectangularReflectionMapping;
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   const pm = new THREE.PMREMGenerator(renderer);
   scene.environment = pm.fromEquirectangular(t).texture;
 }

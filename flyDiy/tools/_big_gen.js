@@ -66,7 +66,7 @@ function texOf(lib, key, mapName) {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = 8;
-  if (mapName === 'diff' || mapName === 'paint') t.encoding = THREE.sRGBEncoding;
+  if (mapName === 'diff' || mapName === 'paint') t.colorSpace = THREE.SRGBColorSpace;
   const tile = lib === 'hangar' ? HANGAR_TILE() : (set.tile || 2);
   t.repeat.set(1 / tile, 1 / tile);
   const ok = () => { t.needsUpdate = true; };
@@ -142,7 +142,7 @@ function signTexture(text, w, h) {
   for (let i = 0; i < 12; i++) g.fillRect((i * 97) % cv.width, 0, 3 + (i % 3) * 2, cv.height);
   g.globalAlpha = 1;
   const t = new THREE.CanvasTexture(cv);
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   SIGNC.set(key, t);
   return t;
@@ -164,7 +164,7 @@ function billboardTexture(key) {
   if (!set) return null;
   if (SIGNT.has(key)) return SIGNT.get(key);
   const t = new THREE.Texture(set.img);
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   const ok = () => { t.needsUpdate = true; };

@@ -74,7 +74,7 @@ function makeTHREE() {
            Color: Col,
            MeshLambertMaterial: Mat, MeshStandardMaterial: Mat,
            MeshBasicMaterial: Mat, DoubleSide: 2, FrontSide: 0,
-           RepeatWrapping: 1000, sRGBEncoding: 3001 };
+           RepeatWrapping: 1000, SRGBColorSpace: 'srgb', LinearSRGBColorSpace: 'srgb-linear' };
 }
 
 const win = {};
