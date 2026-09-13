@@ -809,7 +809,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   z-index:2; min-width:172px; display:flex; flex-direction:column;
   padding:5px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px;
-  box-shadow:0 14px 34px rgba(0,0,0,.44); }
+  box-shadow:0 14px 34px rgba(0,0,0,.44);
+  /* EVERY POP-UP STAYS INSIDE THE FRAME (2026-09-13, the user: "some options
+     inaccessible"). The bar sits 18 px down and the name is ~34 px tall, so
+     this is the estate left under the menu on a short window; past it the
+     verbs scroll rather than fall off the bottom. */
+  max-height:calc(100vh - 90px); overflow-y:auto; }
 
 #edFleet #edShelf[hidden] { display:none; }
 
@@ -1219,12 +1224,15 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    put the same question in the same place. Its flyouts open BESIDE their own
    button — openFly measures the rail's right edge. */
 #edBotBar { position:absolute; left:22px; top:50%;
-  transform:translateY(-50%); display:flex; align-items:center; }
+  transform:translateY(-50%); display:flex; align-items:center;
+  max-height:calc(100% - 44px); }
 
-/* THE RAIL. Five questions about looking, one glyph and one word each. */
+/* THE RAIL. Five questions about looking, one glyph and one word each.
+   Eight now, ~400 px: on a short window the ribbon scrolls inside its plate
+   rather than being cropped top and bottom (it is centred on the height). */
 #edRail { display:flex; flex-direction:column; gap:6px; padding:6px;
   background:var(--ed-plate); border:1px solid var(--ed-border);
-  border-radius:9px; }
+  border-radius:9px; max-height:100%; overflow-y:auto; scrollbar-width:none; }
 
 /* THE VERBS, BOTTOM RIGHT (2026-09-03: "the action button(s) go to the
    bottom right") — their own surface, opposite the ribbon, on the pixel
@@ -1235,6 +1243,7 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   justify-content:flex-end; max-width:calc(100% - 44px); }
 
 .edRailBtn { display:flex; flex-direction:column; align-items:center; gap:3px;
+  flex:none;   /* a scrolling column must not squash its buttons */
   width:50px; padding:8px 0; border:0; border-radius:6px;
   background:transparent; color:var(--ed-dim); cursor:pointer;
   transition:background .12s ease, color .12s ease; }
@@ -1256,6 +1265,9 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    the resting ones, before the first measurement. */
 #edFly { position:absolute; left:100px; top:96px; width:296px;
   max-height:calc(100% - 120px); overflow-y:auto;   /* 96 down + a margin: the GRAPHICS menu's colour rows spilled past the window */
+  /* placeFly (editor.js) overwrites `top` and `max-height` from the MEASURED
+     flyout, after its rows are in — measured empty, the graphics menu hung
+     400 px past the window's bottom edge; and it re-places on resize. */
   padding:12px 14px 14px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px; }
 

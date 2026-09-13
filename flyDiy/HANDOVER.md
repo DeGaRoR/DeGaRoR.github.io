@@ -43335,3 +43335,32 @@ blade's pressure face by its pitch, as it should. Gate: the join's walk and
 record, `m.spin` in app.js, `secMat`'s naming, the spiral on both sides,
 the keys in `AERO_DEC_DEF`; the uniform census cap raised to 60 (the thrust
 lines and these sit on G345's 48, against a WebGL2 floor of 224).
+
+## G358 — EVERY POP-UP STAYS INSIDE THE FRAME (2026-09-13, the user: "the
+## pop-up menus from the floating option bars do not check for the window
+## frame, rendering some options inaccessible")
+
+**The bug.** `openFly` (editor.js) clamped the rail flyout to #edView's box
+BEFORE it borrowed the rows into it, so it measured an EMPTY flyout (~60 px)
+and anchored `top` at the button: the GRAPHICS menu (676 px) opened from a
+button 460 px down and hung 410 px past the window's bottom edge; LEGEND
+460 px. `overflow-y:auto` made the spilled rows scrollable-to but never
+visible. Measured on dev.html at 1280x720 before the change.
+
+**The fix.**
+- editor.js: the clamp is `placeFly(k)`, called at the END of openFly (the
+  flyout measured full), and again from a ResizeObserver on #edView + the
+  window's resize event (a panel folding or the window shrinking under an
+  open flyout re-places it). The event is kept beside the observer because
+  observers ride the rendering step, which the Browser pane never runs.
+- app.js's `flyOpenSet` already measured after building; unchanged.
+- editor.css / flight.css: safety nets on everything that pops — #edShelf
+  (the file menu) `max-height:calc(100vh - 90px)` + scroll; #arrCard
+  max-height + scroll; both RAILS (#edRail 8 buttons, #flRail 10 = 502 px)
+  clamp to `calc(100% - 44px)` and scroll inside their plate on a short
+  window, buttons `flex:none` so the column does not squash them.
+- Measured after: 1280x720 every editor and flight flyout bottoms at <= 698;
+  900x480 every one at <= 458, the flight rail 22..458 scrolling 502 px.
+  UISMOKE / GFX / VIEW / MEDIA / BUILD green.
+- Already clamped and untouched: the colour picker (_cage_ui.js pkShow flips
+  above its well), #gFleet / #dfBirth / #ctlPanel (centred, max-height).

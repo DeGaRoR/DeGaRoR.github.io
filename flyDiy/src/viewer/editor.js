@@ -1866,6 +1866,58 @@ function editorInit(api) {
   // knows how a flyout is assembled.
   function reopenFly() { if (flyOpen) openFly(flyOpen); }
 
+  // WHERE THE FLYOUT SITS. Called once the body is built (so the height it
+  // measures is the height the reader sees) and again whenever the estate
+  // moves — a window resize, a panel folding — because a flyout clamped
+  // to yesterday's window is the one the user could not reach.
+  function placeFly(k) {
+    const fly = $('edFly');
+    if (!fly || fly.hidden || !k) return;
+    // BESIDE ITS OWN BUTTON (2026-09-03). An answer that always appears in
+    // the same place does not say which question it answers, so it is
+    // measured rather than computed from the button index — the icons are not
+    // all the same width and a later one will not be. With the ribbon
+    // standing up the left edge it opens to the RIGHT of the rail, top-
+    // aligned to its button and pulled up only as far as the estate makes it;
+    // that is #flFly's own rule, and the two screens are the same screen for
+    // this purpose. Clamped to the free estate — #edView is already inset by
+    // both panels, so its own box is the whole of what is available.
+    const btn = [...$('edRail').children].filter(b => b.dataset.f === k)[0];
+    const view = $('edView'), rail = $('edRail');
+    if (!btn || !view) return;
+    const vb = view.getBoundingClientRect(), bb = btn.getBoundingClientRect();
+    const rb = (rail || btn).getBoundingClientRect();
+    // IT NEVER COVERS THE RIBBON IT ANSWERS. The flight screen can leave
+    // the width at 296 because its estate is the whole window; this one
+    // is inset by BOTH panels and is routinely 320 px wide, and a flyout
+    // that swallows the buttons hides the question with the answer. So
+    // the width gives way first, down to a floor, and only then the gap.
+    const strip = rb.right - vb.left + 10;
+    const w = Math.min(296, Math.max(196, vb.width - strip - 22));
+    fly.style.width = Math.round(w) + 'px';
+    fly.style.left = Math.round(Math.max(22,
+      Math.min(strip, vb.width - w - 22))) + 'px';
+    // anchored by `top`, so it grows DOWN from the button it belongs to;
+    // maxHeight first, because the height it settles at is what the
+    // clamp below has to read
+    fly.style.bottom = 'auto';
+    const maxH = Math.max(120, vb.height - 44);
+    fly.style.maxHeight = Math.round(maxH) + 'px';
+    const hFly = Math.min(fly.offsetHeight || 260, maxH);
+    fly.style.top = Math.round(Math.max(22,
+      Math.min(bb.top - vb.top - 8, vb.height - hFly - 22))) + 'px';
+  }
+  // THE ESTATE MOVES, THE FLYOUT FOLLOWS. #edView is inset by both panels
+  // and the window is whatever the user makes it; either changing under an
+  // open flyout re-clamps it. The observer sees a fold's CSS transition
+  // through to its last frame; the resize event is kept beside it because
+  // observers are delivered with the rendering step and a window that is not
+  // painting (the Browser pane) never delivers them — the event always fires.
+  const replaceFly = () => { if (flyOpen) placeFly(flyOpen); };
+  if (typeof ResizeObserver === 'function' && $('edView'))
+    new ResizeObserver(replaceFly).observe($('edView'));
+  window.addEventListener('resize', replaceFly);
+
   function openFly(k) {
     const fly = $('edFly'), body = $('edFlyBody'), head = $('edFlyHead');
     if (!fly) return;
@@ -1877,42 +1929,6 @@ function editorInit(api) {
     if (!k) { fly.hidden = true; return; }
     const t = RAIL.filter(x => x.k === k)[0];
     fly.hidden = false;
-    // BESIDE ITS OWN BUTTON (2026-09-03). An answer that always appears in
-    // the same place does not say which question it answers, so it is
-    // measured rather than computed from the button index — the icons are not
-    // all the same width and a later one will not be. With the ribbon
-    // standing up the left edge it opens to the RIGHT of the rail, top-
-    // aligned to its button and pulled up only as far as the estate makes it;
-    // that is #flFly's own rule, and the two screens are the same screen for
-    // this purpose. Clamped to the free estate — #edView is already inset by
-    // both panels, so its own box is the whole of what is available.
-    {
-      const btn = [...$('edRail').children].filter(b => b.dataset.f === k)[0];
-      const view = $('edView'), rail = $('edRail');
-      if (btn && view) {
-        const vb = view.getBoundingClientRect(), bb = btn.getBoundingClientRect();
-        const rb = (rail || btn).getBoundingClientRect();
-        // IT NEVER COVERS THE RIBBON IT ANSWERS. The flight screen can leave
-        // the width at 296 because its estate is the whole window; this one
-        // is inset by BOTH panels and is routinely 320 px wide, and a flyout
-        // that swallows the buttons hides the question with the answer. So
-        // the width gives way first, down to a floor, and only then the gap.
-        const strip = rb.right - vb.left + 10;
-        const w = Math.min(296, Math.max(196, vb.width - strip - 22));
-        fly.style.width = Math.round(w) + 'px';
-        fly.style.left = Math.round(Math.max(22,
-          Math.min(strip, vb.width - w - 22))) + 'px';
-        // anchored by `top`, so it grows DOWN from the button it belongs to;
-        // maxHeight first, because the height it settles at is what the
-        // clamp below has to read
-        fly.style.bottom = 'auto';
-        const maxH = Math.max(120, vb.height - 44);
-        fly.style.maxHeight = Math.round(maxH) + 'px';
-        const hFly = Math.min(fly.offsetHeight || 260, maxH);
-        fly.style.top = Math.round(Math.max(22,
-          Math.min(bb.top - vb.top - 8, vb.height - hFly - 22))) + 'px';
-      }
-    }
     head.textContent = t.title;
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
@@ -1937,6 +1953,11 @@ function editorInit(api) {
     // THE `tune the shed ›` PILL IS GONE with the sheet it opened (G108). The
     // shed is a tree root; a flyout that is about LOOKING has no business
     // being a second door to an object you can select.
+    // ...AND ONLY NOW IS IT PLACED. The clamp used to run before the rows
+    // were borrowed, so it measured an EMPTY flyout (~60 px) and hung the
+    // graphics menu 400 px past the bottom of the window; the rows that
+    // spilled could be scrolled to but not seen. Measured full, it fits.
+    placeFly(k);
   }
 
   // THE FRAMING PRESETS. The game's own orbit camera, driven through the

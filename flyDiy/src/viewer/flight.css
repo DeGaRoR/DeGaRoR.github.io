@@ -280,10 +280,13 @@
    above it and the trace below it without either of them having to know it is
    there, and the bottom row goes back to being the trace and the verbs. */
 #flRail { position:absolute; left:22px; top:50%; transform:translateY(-50%);
-  display:flex; flex-direction:column; gap:6px; padding:6px; }
+  display:flex; flex-direction:column; gap:6px; padding:6px;
+  /* ten buttons are ~500 px; on a shorter window the ribbon itself was the
+     thing cropped, top and bottom at once (centred). It scrolls instead. */
+  max-height:calc(100% - 44px); overflow-y:auto; scrollbar-width:none; }
 
 #ui .flRailBtn { display:flex; flex-direction:column; align-items:center;
-  gap:3px; width:50px; padding:8px 0; border:0; border-radius:6px;
+  gap:3px; flex:none; width:50px; padding:8px 0; border:0; border-radius:6px;
   background:transparent; color:var(--ed-dim); cursor:pointer;
   transition:background .12s ease, color .12s ease; }
 
@@ -601,6 +604,7 @@
    the same kind of thing. ---- */
 #arrCard { position:absolute; left:50%; top:50%;
   transform:translate(-50%,-50%); width:520px; max-width:calc(100% - 44px);
+  max-height:calc(100% - 44px); overflow-y:auto;   /* a short window scrolls the card, never crops its verbs */
   padding:20px 22px 18px; background:var(--ed-panel);
   border:1px solid var(--ed-border); border-radius:11px;
   box-shadow:0 24px 60px rgba(0,0,0,.55); z-index:30; }
