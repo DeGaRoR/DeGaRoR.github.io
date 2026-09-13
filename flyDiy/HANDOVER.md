@@ -43676,3 +43676,19 @@ click. The rule did its job on the first commit that broke it.
   the strut's problem — a fitting follows the skin it is bolted to; the
   skin is not changed to suit a fitting (the user's rule for the floor,
   the same rule here).
+
+## G355.1 — THE SLOT OUTLINE IS WELDED AFTER THE CLIP; GATE SHOULDER RUNS ITS
+## THROTTLE ROWS ON BOTH FLANKS (2026-09-13, after G362)
+
+- G362 put the keel crease back to 0 and pinned GATE SHOULDER's BASE to
+  `crKeel: 2` because the `up 0.55` rows came out unclosed on the round
+  flank. That was a defect, not a tuning: on the round belly the top
+  slot's outline, clipped to the leg's domain, kept two consecutive points
+  a few microns apart (a clip line a hair from an arc point). The zip then
+  made a sliver triangle whose third edge counted twice and the wall a
+  zero-width quad — 18 over-shared edges, `closed false`.
+- `planSlot` welds the clipped outline at 0.2 mm (`weld2`, cyclic) before
+  the patch is built. The pin is gone: BASE is the stock fuselage as it
+  ships, and the five throttle rows run on both flanks (`crKeel` 0 and 2,
+  the lever's wall x being sampled off the flank) — ten rows, all closed,
+  the same slot legs as before.

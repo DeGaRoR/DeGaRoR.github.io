@@ -13,10 +13,10 @@ const G = require('./_cage_gen.js');
 const SG = require('./_shoulder_gen.js');
 const VERB = process.argv.includes('--verbose');
 
-// G362: the rows below were tuned on G319's flat-bellied stock fuselage (the
-// lever's wall x is sampled off the flank); the default crease went back to 0,
-// so this gate keeps the geometry it was written on explicitly
-const BASE = { intOn: 1, cutParts: 1, crKeel: 2 };
+// the stock fuselage as it ships (G362 put the keel crease back to 0; the
+// throttle rows below run on BOTH flanks — the round one found a slot
+// outline the clip had left with two coincident points, G355.1)
+const BASE = { intOn: 1, cutParts: 1 };
 const CONFIGS = SG.CONFIGS;
 const stockLever = (built, side) => SG.stockLever(built, side, G);
 
@@ -132,7 +132,6 @@ console.log('--- throttle');
   // the stock build: NO crossing is the truth there. Raised into the pocket
   // it must come out through the face (W 0.05: the knob reaches past the
   // leg); raised to the sill it comes out through the top
-  const built = G.cageSheet({ ...G.CAGE_PARAMS, ...BASE }, { level: 2 });
   const ROWS = [
     ['stock station, W 0.07', 0.07, 0, 'none'],
     ['up 0.40, W 0.05', 0.05, 0.40, 'face'],
@@ -143,7 +142,12 @@ console.log('--- throttle');
     ['up 0.55, W 0.07', 0.07, 0.55, 'top'],
     ['up 0.55, W 0.10', 0.10, 0.55, 'top'],
   ];
-  for (const [lab, W, dy, want] of ROWS) {
+  for (const crKeel of [0, 2]) {
+  // the lever's wall x is sampled off the flank, so the round belly (0) and
+  // G319's flat one (2) put the crossings in different places
+  const built = G.cageSheet({ ...G.CAGE_PARAMS, ...BASE, crKeel }, { level: 2 });
+  for (const [lab0, W, dy, want] of ROWS) {
+    const lab = lab0 + (crKeel ? ' (flat flank)' : '');
     const lever = stockLever(built, 1);
     lever.piv[1] += dy;
     const out = SG.shoulderBuild(built.mesh, built.spec, { W, lever }, G);
@@ -156,6 +160,7 @@ console.log('--- throttle');
     console.log((ok ? 'PASS ' : 'FAIL ') + lab.padEnd(24) + ' closed ' + closed + '  slot ' + got + (want !== got ? ' (wanted ' + want + ')' : '') +
       (s.range ? '  z ' + s.range.map(v => v.toFixed(3)).join('..') : '') + (s.clipped ? '  clipped at the edge' : ''));
     if (!closed) for (const r of res) console.log('     ', r);
+  }
   }
 }
 // the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code

@@ -356,6 +356,17 @@ function roundedOffset(hull, r, nArc) {      // CCW convex polygon -> offset by 
 }
 // clip a polygon to an axis-aligned box (Sutherland-Hodgman), then drop
 // consecutive duplicates
+// drop consecutive (cyclic) points closer than tol — see planSlot's clip
+function weld2(poly, tol) {
+  const out = [];
+  for (const p of poly) {
+    const q = out[out.length - 1];
+    if (q && Math.hypot(p[0] - q[0], p[1] - q[1]) < tol) continue;
+    out.push(p);
+  }
+  while (out.length > 1 && Math.hypot(out[0][0] - out[out.length - 1][0], out[0][1] - out[out.length - 1][1]) < tol) out.pop();
+  return out;
+}
 function clipRect(poly, box) {
   let P = poly.slice();
   const planes = [[0, 1, box[0][0]], [0, -1, box[1][0]], [1, 1, box[0][1]], [1, -1, box[1][1]]];
@@ -748,6 +759,12 @@ function planSlot(o, st, u, side, ch, off) {
   const box = [[zMin + mg, dm[0] + mg], [zMax - mg, dm[1] - mg]];
   const before = outline.length;
   outline = clipRect(outline, box);
+  // WELD WHAT THE CLIP LEFT TOO CLOSE TOGETHER (G362's round flank found
+  // it): a clip line a hair from an arc point leaves two outline points a
+  // few microns apart; the zip then makes a sliver triangle whose third edge
+  // is counted twice and the wall a zero-width quad — the part reads
+  // over-shared. 0.2 mm on a 2 mm sheet is nothing the eye or the field sees.
+  outline = weld2(outline, 2e-4);
   const clipped = outline.length !== before || outline.some(p => p[0] <= box[0][0] + 1e-9 || p[0] >= box[1][0] - 1e-9 || p[1] <= box[0][1] + 1e-9 || p[1] >= box[1][1] - 1e-9);
   rep.clipped = clipped;
   if (outline.length < 3) { rep.note = 'slot outside the leg'; return { ok: false, skip: () => false, emit: () => {}, report: () => rep }; }
