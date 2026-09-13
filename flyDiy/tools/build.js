@@ -448,7 +448,7 @@ function buildViewer(coreBody) {
   // only - index.html stays the WebGLRenderer build until the flip.
   //   ?tsl=1    the WebGPU/TSL bundle, WebGPURenderer on its WebGL2 backend
   //   ?tsl=gpu  the same, asking for the WebGPU backend
-  //   ?cm=1     ColorManagement ON after the vendor loads (the colour A/B)
+  //   ?cm=0     ColorManagement OFF (the r128 "as authored" reading; managed is the ruling)
   //   (localStorage flydiy.tsl = '1' | 'gpu' holds the choice across loads)
   // The node renderer throws on a render before init(), and the boot bakes
   // (PMREM, impostors) render - so under the flag the renderer is made HERE,
@@ -465,7 +465,7 @@ function buildViewer(coreBody) {
 (function () {
   var cm = new URLSearchParams(location.search).get('cm');
   try { if (cm === null) cm = localStorage.getItem('flydiy.cm'); } catch (e) {}
-  if (cm === '1') THREE.ColorManagement.enabled = true;   // the colour ruling's A/B: the menu's row stores it
+  if (cm === '0') THREE.ColorManagement.enabled = false;   // "as authored" (the r128 reading); managed is the ruling
   var ready = Promise.resolve();
   if (window.FLYDIY_TSL) {
     var r = new THREE.WebGPURenderer({ canvas: document.getElementById('c'), antialias: true,
@@ -515,7 +515,7 @@ window.FLYDIY_BOOT.then(function () {
   art = fill(art, 'BODY', bodyHtml);
   // the colour-management switch the GRAPHICS menu stores (flydiy.cm): read
   // right after the vendor, before any colour is made
-  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='1')THREE.ColorManagement.enabled=true;})();</script>`);
+  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
   art = fill(art, 'MODELS', payloadRefs);
   art = fill(art, 'RENDER', [LAZY]

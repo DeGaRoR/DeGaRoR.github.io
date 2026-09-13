@@ -42907,6 +42907,13 @@ play with that with sliders?"): three rows in the GRAPHICS menu — tone curve
 authored / managed; stores `flydiy.cm`, reloads). AgX is Blender 4's view
 transform; the defaults are today's look. §4g has the A/B numbers.
 
+THE RULING (same evening, by the user's eye, §4j): MANAGED + CINEON, as
+tested, nothing re-authored — the vendor no longer forces the flag off, the
+presets carry the new defaults, `flydiy.cm = '0'` is the "as authored" step.
+Found on the way: the exposure step compounded through the rig snapshot
+(the field shed blow-out; now base + step through GFX.setExposure) and the
+shed flyout spilled past the window (its height).
+
 OWED (all rulings for the eye, written in §4g/§4h): a same-frame A/B on the
 shipped tier and whether the slightly darker ground is wanted back (the
 hemisphere's number); the ColorManagement flip (one line, whole-project

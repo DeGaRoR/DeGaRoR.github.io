@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
 <link rel="stylesheet" href="src/viewer/style.css?v=771a9126">
-<link rel="stylesheet" href="src/viewer/editor.css?v=a0d7d3c9">
+<link rel="stylesheet" href="src/viewer/editor.css?v=89fd3967">
 <link rel="stylesheet" href="src/viewer/flight.css?v=f8456e11">
 <link rel="stylesheet" href="src/viewer/controls.css?v=c73aba83">
 <link rel="stylesheet" href="src/viewer/bench.css?v=880ba5dc">
@@ -556,7 +556,7 @@
 (function () {
   var cm = new URLSearchParams(location.search).get('cm');
   try { if (cm === null) cm = localStorage.getItem('flydiy.cm'); } catch (e) {}
-  if (cm === '1') THREE.ColorManagement.enabled = true;   // the colour ruling's A/B: the menu's row stores it
+  if (cm === '0') THREE.ColorManagement.enabled = false;   // "as authored" (the r128 reading); managed is the ruling
   var ready = Promise.resolve();
   if (window.FLYDIY_TSL) {
     var r = new THREE.WebGPURenderer({ canvas: document.getElementById('c'), antialias: true,
@@ -633,15 +633,15 @@
 <script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
 <script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
-<script type="text/x-flydiy" src="tools/_cage_parts.js?v=52707cb4"></script>
+<script type="text/x-flydiy" src="tools/_cage_parts.js?v=13c8d589"></script>
 <script type="text/x-flydiy" src="tools/_fin_gen.js?v=ce0b0acd"></script>
 <script type="text/x-flydiy" src="tools/_cage_design.js?v=f4e32738"></script>
-<script type="text/x-flydiy" src="tools/_cage_page5.js?v=8555b791"></script>
+<script type="text/x-flydiy" src="tools/_cage_page5.js?v=48f9d47c"></script>
 <script type="text/x-flydiy" src="tools/_knife_gen.js?v=860a32f8"></script>
-<script type="text/x-flydiy" src="tools/_shoulder_gen.js?v=65735e65"></script>
-<script type="text/x-flydiy" src="tools/_cage_gen.js?v=d5b62238"></script>
+<script type="text/x-flydiy" src="tools/_shoulder_gen.js?v=61ca3b78"></script>
+<script type="text/x-flydiy" src="tools/_cage_gen.js?v=7bb0d853"></script>
 <script type="text/x-flydiy" src="tools/_cage_char.js?v=53c5a2de"></script>
-<script type="text/x-flydiy" src="tools/_cage_crew.js?v=e83f6e74"></script>
+<script type="text/x-flydiy" src="tools/_cage_crew.js?v=1c31dc19"></script>
 <script type="text/x-flydiy" src="tools/_panel_gen.js?v=11ae0904"></script>
 <script type="text/x-flydiy" src="tools/_cage_panel.js?v=9b50d00a"></script>
 <script type="text/x-flydiy" src="tools/_gear_kit.js?v=d726c883"></script>
@@ -649,7 +649,7 @@
 <script type="text/x-flydiy" src="tools/_gear_page.js?v=e15517ca"></script>
 <script type="text/x-flydiy" src="tools/_fit_site.js?v=150661e7"></script>
 <script type="text/x-flydiy" src="tools/_fit_gen.js?v=49b41b86"></script>
-<script type="text/x-flydiy" src="tools/_hinge_gen.js?v=0d47a859"></script>
+<script type="text/x-flydiy" src="tools/_hinge_gen.js?v=797ef491"></script>
 <script type="text/x-flydiy" src="tools/_rod_fit.js?v=6e344d9f"></script>
 <script type="text/x-flydiy" src="tools/_eng_gen.js?v=3c98c804"></script>
 <script type="text/x-flydiy" src="tools/_eng_mesh.js?v=5bacffcf"></script>
@@ -672,17 +672,17 @@
 <script type="text/x-flydiy" src="tools/_vessel_gen.js?v=f2f8b059"></script>
 <script type="text/x-flydiy" src="tools/_vessel_mesh.js?v=3eaf3a6b"></script>
 <script type="text/x-flydiy" src="tools/_cage_energy.js?v=fce7c39c"></script>
-<script type="text/x-flydiy" src="tools/_cage_hinge.js?v=0dcb0d48"></script>
+<script type="text/x-flydiy" src="tools/_cage_hinge.js?v=766884ac"></script>
 <script type="text/x-flydiy" src="tools/_cage_join.js?v=86e10377"></script>
 <script type="text/x-flydiy" src="tools/_cage_ui.js?v=415d2d99"></script>
 <script type="text/x-flydiy" src="src/viewer/assets.js?v=5ae00b40"></script>
 <script type="text/x-flydiy" src="src/viewer/aa_resolve.js?v=61a1d684"></script>
-<script type="text/x-flydiy" src="src/viewer/light_rig.js?v=ddea6a61"></script>
+<script type="text/x-flydiy" src="src/viewer/light_rig.js?v=e20a285d"></script>
 <script type="text/x-flydiy" src="src/viewer/site_tex.js?v=44989fef"></script>
 <script type="text/x-flydiy" src="src/viewer/site_ground.js?v=3537d5c3"></script>
 <script type="text/x-flydiy" src="src/viewer/trees_pack.js?v=abb25c7f"></script>
 <script type="text/x-flydiy" src="src/viewer/trees.js?v=3fc43da1"></script>
-<script type="text/x-flydiy" src="src/viewer/render_world.js?v=d69e07a2"></script>
+<script type="text/x-flydiy" src="src/viewer/render_world.js?v=f4d0b7d2"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_floor.js?v=48ce42ee"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_walls.js?v=ef861b6f"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_sky.js?v=b50cd6c6"></script>
@@ -692,7 +692,7 @@
 <script type="text/x-flydiy" src="src/viewer/vessel_tex.js?v=dd3254c5"></script>
 <script type="text/x-flydiy" src="src/viewer/panel_tex.js?v=3204781f"></script>
 <script type="text/x-flydiy" src="src/viewer/aeroweather.js?v=9cd41afa"></script>
-<script type="text/x-flydiy" src="src/viewer/aeroskin.js?v=1a105ba8"></script>
+<script type="text/x-flydiy" src="src/viewer/aeroskin.js?v=d88bdc0c"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar.js?v=0359a4bd"></script>
 <script type="text/x-flydiy" src="src/viewer/garage.js?v=074ff81a"></script>
 <script type="text/x-flydiy" src="src/viewer/workshop.js?v=814565a5"></script>
@@ -705,10 +705,10 @@
 <script type="text/x-flydiy" src="src/viewer/pattern_vis.js?v=ccd7e67c"></script>
 <script type="text/x-flydiy" src="src/viewer/input.js?v=3e4d3384"></script>
 <script type="text/x-flydiy" src="src/viewer/input_panel.js?v=551221ee"></script>
-<script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=a6cb1338"></script>
+<script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=23433ba2"></script>
 <script type="text/x-flydiy" src="src/viewer/editor.js?v=e2c259f3"></script>
 <script type="text/x-flydiy" src="src/viewer/cockpit.js?v=3fa4c507"></script>
-<script type="text/x-flydiy" src="src/viewer/app.js?v=4b6ff35a"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=9a08b7f7"></script>
 <script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=4bab292d"></script>
 <script>
 window.FLYDIY_BOOT.then(function () {

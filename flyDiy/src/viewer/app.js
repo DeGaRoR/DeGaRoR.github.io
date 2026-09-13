@@ -31,7 +31,11 @@
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  // EXPOSURE GOES THROUGH THE MENU (G286 + the colour rows): the menu keeps the
+  // base and multiplies its step over it; every writer below says setExp
+  const setExp = v => (typeof GFX !== 'undefined' && GFX && GFX.setExposure)
+    ? GFX.setExposure(renderer, v) : (renderer.toneMappingExposure = v);
+  setExp(1.12);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
@@ -355,7 +359,8 @@
       : (typeof renderer.getMaxAnisotropy === 'function') ? renderer.getMaxAnisotropy() : 8;   // the node renderer answers on itself
   }
 
-  const WORLD_EXPOSURE = renderer.toneMappingExposure;
+  const WORLD_EXPOSURE = (typeof GFX !== 'undefined' && GFX && GFX.exposureBase && GFX.exposureBase() != null)
+    ? GFX.exposureBase() : renderer.toneMappingExposure;
   // WHAT THE AEROPLANE'S envMapIntensity SHOULD BE OUT THERE — and it is not
   // 1.0, because the world counts the sky TWICE for anything Standard.
   //
@@ -781,8 +786,7 @@
     // a pref saved against an older, shorter mood list is clamped here, once
     // the room is standing and can say how many skies it actually has
     if (hangar && hangar.moods) hangarMood = Math.min(hangarMood, hangar.moods.length - 1);
-    renderer.toneMappingExposure = inRoom ? hangar.setMood(hangarMood).ex
-                                          : WORLD_EXPOSURE;
+    setExp(inRoom ? hangar.setMood(hangarMood).ex : WORLD_EXPOSURE);
     syncEnvBtn();
   }
   function setMood(i) {
@@ -5022,7 +5026,7 @@
     inGarage = false;
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
-    renderer.toneMappingExposure = WORLD_EXPOSURE;
+    setExp(WORLD_EXPOSURE);
     // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
     // really washed out when they get out of the garage and into the world").
     // Every mood scales the aeroplane's own envMapIntensity to suit the room's

@@ -110,7 +110,8 @@
   function applyRig(renderer, row) {
     if (!renderer) return null;
     var ex = (row && typeof row.ex === 'number') ? row.ex : 0.92;
-    renderer.toneMappingExposure = ex;
+    if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(renderer, ex);
+    else renderer.toneMappingExposure = ex;
     return ex;
   }
 

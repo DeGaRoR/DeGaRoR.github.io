@@ -669,6 +669,33 @@ no room lights' hooks — the shed reads dark); the near trees draw as their
 plain material and the impostor tier as flat quads. That is the checklist
 above, made visible. The GLSL page is byte-for-byte the same look it was.
 
+## 4j. THE COLOUR RULING, DECIDED BY THE USER'S EYE: MANAGED, CINEON (2026-09-13, evening)
+
+The user played with the rows live and ruled: *"Let's do the switch to
+managed, and choose cineon as the default tone curve"* — and, on my starting
+to re-author the hand-decoded colours to keep the old look under management:
+*"you're overdoing it. I tested as-is and I was happy with the result… let me
+complain if I'm unhappy."* So the ruling is taken AS TESTED: three's default
+colour management (every hex decoded as sRGB) with Cineon, and NO colour
+re-authored — the vendor's footer no longer touches the flag, the pages read
+`flydiy.cm = '0'` only to bring the "as authored" reading back for the menu's
+step, the presets say `tone: 'cineon', colour: 'managed'`. §4g's colour
+paragraph is history from here. What this leaves as it was, deliberately:
+`aeroLinear` still calls `convertSRGBToLinear` on a Color that management
+already decoded (the liveries the user judged were seen that way), the dome
+still writes its palette raw (the sky the user judged). If either ever reads
+wrong to the eye, those are the two lines.
+
+**Two things the rows found the same evening.** (1) The exposure step's
+first cut made `renderer.toneMappingExposure` an accessor returning base ×
+step; the world's rig snapshot read that back and wrote it as the row's
+exposure, so every rig/mood write compounded the step — the field shed
+"went crazy" (×1.4ⁿ). Now the writers declare a BASE through
+`GFX.setExposure(renderer, v)` and the menu multiplies once; the snapshot
+reads the base. (2) The shed rail's flyout sat 96 px down with a
+`calc(100% - 44px)` height and spilled past the window once the colour rows
+joined; `calc(100% - 120px)` now, scrolling.
+
 ## 5. RULINGS OWED
 
 - (t) WebGPURenderer/TSL as the world renderer target; the aeroskin port as

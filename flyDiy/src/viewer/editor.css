@@ -1255,7 +1255,7 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    is a menu that does not say which item it belongs to. The values here are
    the resting ones, before the first measurement. */
 #edFly { position:absolute; left:100px; top:96px; width:296px;
-  max-height:calc(100% - 44px); overflow-y:auto;
+  max-height:calc(100% - 120px); overflow-y:auto;   /* 96 down + a margin: the GRAPHICS menu's colour rows spilled past the window */
   padding:12px 14px 14px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px; }
 

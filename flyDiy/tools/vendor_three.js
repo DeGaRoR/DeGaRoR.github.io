@@ -10,19 +10,14 @@
 // (_scene_headless.js, test_skinmat.js, ...). So the vendor file is bundled
 // here: esbuild, IIFE, global name THREE, and a two-line footer that
 //   (1) exports the same object for CommonJS, and
-//   (2) sets ColorManagement.enabled = false — THE COLOUR RULING of W0.5a.
-//       Every colour in this project was tuned by eye against r128, where a
-//       hex literal IS the linear value the shader sees. Modern three (r152+)
-//       would decode every `new Color(0x...)` as sRGB first and darken every
-//       hand-picked colour by ~2.2 gamma: the six mood rows, the sky palette,
-//       the material lab, the liveries in every saved design. Off, a hex
-//       literal means what it meant, texture decode is untouched (that is
-//       `texture.colorSpace`, independent of this flag), and the door to
-//       turning it ON stays a one-line, whole-project recalibration owed to
-//       the user's eye (RENDERER-DECISION §4g).
-//   Both live in the vendor file so that every host — page, bench, gate —
-//   gets the same three with the same posture, and nobody can load the
-//   library without the ruling.
+//   (2) THE COLOUR RULING. W0.5a shipped `ColorManagement.enabled = false`
+//       here (a hex literal is the linear value the shader sees — the r128
+//       reading every colour was tuned in). The same evening the user judged
+//       the A/B and ruled MANAGED: three's own default (every hex decoded as
+//       sRGB), with Cineon as the tone curve — so the footer no longer touches
+//       the flag, and the pages' loaders read `flydiy.cm = '0'` to bring the
+//       old reading back for the GRAPHICS menu's "as authored" step
+//       (RENDERER-DECISION §4g / §4j).
 //
 // Usage:  cd flyDiy && npm install && node tools/vendor_three.js
 //   (package.json pins three and esbuild; node_modules is gitignored; the
@@ -46,9 +41,8 @@ const banner = [
   '// global THREE + CommonJS export. Do not edit; bump package.json and rebuild.',
 ].join('\n');
 const footer = [
-  '// flyDiy W0.5a: the same object for node gates, and the colour ruling (see tools/vendor_three.js).',
+  '// flyDiy W0.5a: the same object for node gates (see tools/vendor_three.js; colour management is three\'s default, managed).',
   "if (typeof module !== 'undefined' && module.exports) module.exports = THREE;",
-  'THREE.ColorManagement.enabled = false;',
 ].join('\n');
 
 const build = (entryFile, outfile) => esbuild.buildSync({
@@ -82,7 +76,7 @@ fs.unlinkSync(entryGpu);
 // prove it loads both ways
 const T = require(OUT);
 if (String(T.REVISION) !== rev) throw new Error(`built REVISION ${T.REVISION} != ${rev}`);
-if (T.ColorManagement.enabled !== false) throw new Error('ColorManagement.enabled must be false');
+if (T.ColorManagement.enabled !== true) throw new Error('ColorManagement.enabled must be three\'s default (managed)');
 console.log(`vendor/three.min.js: r${T.REVISION}, ${(fs.statSync(OUT).size / 1024).toFixed(0)} KB, ColorManagement.enabled = ${T.ColorManagement.enabled}`);
 const G = require(OUT_GPU);
 if (typeof G.WebGPURenderer !== 'function' || typeof G.TSL.Fn !== 'function') throw new Error('webgpu bundle lacks WebGPURenderer / TSL');

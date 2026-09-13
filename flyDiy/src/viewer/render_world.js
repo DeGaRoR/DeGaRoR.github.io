@@ -1196,7 +1196,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const U = { map: { value: null }, uCut: T.uniform(0.5), uHasMap: T.uniform(0) };
       const m = new THREE.MeshBasicNodeMaterial();
       const n = T.select(T.frontFacing, T.normalWorld, T.normalWorld.negate());
-      m.colorNode = T.colorSpaceToWorking(n.mul(0.5).add(0.5), THREE.SRGBColorSpace);
+      m.colorNode = n.mul(0.5).add(0.5);   // data into a linear target: no colour-space step
       m.uniforms = U;
       m.userData.nrmTSL = true;
       return m;
@@ -3254,7 +3254,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     elev: Math.asin(SUN.y) * 180 / Math.PI, azim: Math.atan2(SUN.x, SUN.z) * 180 / Math.PI,
     sunI: RIG.sun, sunCol: hexOf(sun.color, SUNC), hemi: RIG.hemi,
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
-    exposure: (renderer && renderer.toneMappingExposure) || 1,
+    exposure: (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null)
+      ? window.GFX.exposureBase() : ((renderer && renderer.toneMappingExposure) || 1),   // the BASE, never the menu's step over it
     env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
     farShadow: true, snap: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
@@ -3320,7 +3321,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
     hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
     if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
-    if (renderer) renderer.toneMappingExposure = R.exposure;
+    if (renderer) { if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(renderer, R.exposure); else renderer.toneMappingExposure = R.exposure; }
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
     if (R.floorBlur !== undefined) uFloorLod.value = R.floorBlur;

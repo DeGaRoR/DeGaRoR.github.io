@@ -60,11 +60,11 @@
     // management is decided when a colour is MADE, so that row stores the
     // choice and reloads the page.
     { k: 'tone', label: 'tone curve', steps: [
-        { v: 'aces',     label: 'ACES', why: 'the filmic curve the game has always used' },
+        { v: 'aces',     label: 'ACES', why: 'the filmic curve the game used until 2026-09-13' },
         { v: 'agx',      label: 'AgX', why: 'Blender 4’s default view transform - gentler highlights, less hue shift' },
         { v: 'neutral',  label: 'neutral', why: 'Khronos PBR neutral - keeps colours as they are, rolls off the top' },
         { v: 'reinhard', label: 'Reinhard', why: 'the classic soft roll-off' },
-        { v: 'cineon',   label: 'Cineon', why: 'a film-stock curve, cooler shadows' },
+        { v: 'cineon',   label: 'Cineon', why: 'a film-stock curve, cooler shadows - the default since the colour ruling' },
         { v: 'linear',   label: 'linear', why: 'no curve, clipped at white' } ] },
     { k: 'exposure', label: 'exposure', steps: [
         { v: 0.7, label: '×0.7', why: 'darker' }, { v: 0.85, label: '×0.85', why: 'a little darker' },
@@ -72,8 +72,8 @@
         { v: 1.2, label: '×1.2', why: 'a little brighter' }, { v: 1.4, label: '×1.4', why: 'brighter' },
         { v: 1.7, label: '×1.7', why: 'much brighter' } ] },
     { k: 'colour', label: 'colour management', steps: [
-        { v: 'linear',  label: 'as authored', why: 'a hex colour is the value the shader sees (the r128 reading every colour was tuned in)' },
-        { v: 'managed', label: 'managed', why: 'every hex decoded as sRGB (three’s default since r152): darker, more saturated, physically the honest reading - RELOADS the page' } ] },
+        { v: 'managed', label: 'managed', why: 'every hex decoded as sRGB (three’s default): the honest reading, the ruling - RELOADS the page' },
+        { v: 'linear',  label: 'as authored', why: 'a hex colour is the value the shader sees (the r128 reading every colour was first tuned in) - RELOADS the page' } ] },
   ];
   const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
                  reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
@@ -83,10 +83,11 @@
 
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'aces', exposure: 1, colour: 'linear' },
+    // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -95,6 +96,10 @@
 
   // ---- the state ----------------------------------------------------------
   const S = Object.assign({ preset: 'medium' }, PRESETS.medium);
+  let expBase = null;                        // the exposure the writers last declared
+  // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step on the renderer. A
+  // writer that has no menu (the headless stubs) sets the property itself.
+  const setExposure = (R, v) => { expBase = v; if (R) R.toneMappingExposure = v * (S.exposure || 1); return expBase; };
   const load = () => {
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
@@ -135,17 +140,15 @@
     // the tone curve, live: r186 re-keys the program on renderer.toneMapping
     const R = W.FLYDIY_RENDERER, T = W.THREE;
     if (R && T && applied.tone !== S.tone && T[TONE[S.tone]] !== undefined) { R.toneMapping = T[TONE[S.tone]]; applied.tone = S.tone; }
-    // the exposure, as a MULTIPLIER on whatever the mood or the world row sets:
-    // the property becomes an accessor once, so every writer (the moods, the
-    // rig rows, the shed) keeps setting its own number and three reads it
-    // times the menu's step
+    // the exposure, as a MULTIPLIER over the BASE the writers declare through
+    // setExposure (the moods, the world's rig rows, the shed). NOT an accessor
+    // on the renderer: the first cut made the property return base x step, and
+    // the world's rig snapshot read it back and wrote it again as the row's
+    // exposure — every row change compounded the step (the field shed blew
+    // out at x1.4^n, the user's "lighting went crazy")
     if (R && applied.exposure !== S.exposure) {
-      if (!R.__expK) {
-        let base = R.toneMappingExposure;
-        Object.defineProperty(R, 'toneMappingExposure', {
-          get: () => base * (R.__expK || 1), set: v => { base = v; }, configurable: true });
-      }
-      R.__expK = S.exposure; applied.exposure = S.exposure;
+      if (expBase == null) expBase = R.toneMappingExposure;
+      R.toneMappingExposure = expBase * S.exposure; applied.exposure = S.exposure;
     }
     if (rig && applied.lighting !== S.lighting) {
       rig.row(S.lighting);
@@ -221,6 +224,7 @@
     OPTIONS, PRESETS, BANDS, SHADOWS,
     get: () => Object.assign({}, S),
     set, apply, mount, presetOf, frameText,
+    setExposure, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
     // what each option costs to change, for anyone who asks
