@@ -6,9 +6,10 @@ each with the files, the contract, the gate that holds it, the bench that shows 
 traps met on the way. It is written for a session that has never seen this code. Where a
 statement is a judgement rather than a fact it says so.
 
-The work lives on branch `village-tram` (worktree `D:/Dev/wt-village`, rebased on master
-3403a2f8 = G359). Its HANDOVER entries: G348, G350, G351, G352 (provisional numbers, all
-"(village-tram branch)"). Nothing of it is on master until the landing below is done.
+The work was developed on branch `village-tram` (worktree `D:/Dev/wt-village`) and LANDED on
+master on 2026-09-14 as G366 (the tram in the village), G367 (the mill), G368 (the tram moves),
+G369 (the park, the catalogue, this document) and G369.1 (tramLine for the composer). The
+branch's own commit messages keep their provisional numbers (G348, G350, G351, G352, G352.1).
 
 ---------------------------------------------------------------------------------------------
 

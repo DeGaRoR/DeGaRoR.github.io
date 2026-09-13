@@ -43819,7 +43819,7 @@ checks; selftest.
   (the G26 rule); the crown indexes past the left chain's own length.
   Seen from the seat: a round corner (scratchpad dash_corners_after).
 
-## G348 (village-tram branch, provisional number) — THE TRAM IN THE VILLAGE; THE
+## G366 — THE TRAM IN THE VILLAGE (landed from the village-tram branch as G348 there); THE
 ## STATIONS REBUILT TO THE USER'S NOTES; THE MILL REBUILT TIGHT; LANTERNS; THE
 ## MOTION PLAN
 ## (2026-09-13, on the worktree D:/Dev/wt-village, branch village-tram from
@@ -43905,7 +43905,7 @@ checks; selftest.
 - Queued: the ropes drawn in the house bench; `tram_run.js`; the totem park
   on a village plot; the r186 rebase.
 
-## G350 (village-tram branch, provisional number) — THE MILL TO THE REFERENCE:
+## G367 — THE MILL TO THE REFERENCE (landed from the village-tram branch as G350 there):
 ## A MASSIVE TOP HOUSE ON A SHOULDER OF THE MOUNTAIN, TWO STATIONS DOWN THE
 ## SLOPE, CONVEYORS HOUSE TO HOUSE (2026-09-13, on the worktree
 ## D:/Dev/wt-village, branch village-tram, rebased on master 1b90136c = r186)
@@ -43995,7 +43995,7 @@ staircase is gone.
 - Queued: the ropes drawn in the house bench; `tram_run.js`; the totem park
   on a village plot; landing the branch on master with a real G-number.
 
-## G351 (village-tram branch, provisional number) — THE TRAM MOVES: THE CARRIAGE
+## G368 — THE TRAM MOVES (landed from the village-tram branch as G351 there): THE CARRIAGE
 ## RIDES THE ROPE, THE CABIN HANGS PLUMB, A JIG-BACK IN THE VILLAGE; THE CABIN
 ## BEVELLED AND SMOOTHED; THE BASE DOCK IN CONCRETE (2026-09-13, on the worktree
 ## D:/Dev/wt-village, branch village-tram)
@@ -44097,7 +44097,7 @@ The barrel wheels seem to have improper UV mapping."
 - Queued: wheels spinning and the haul strands moving (cosmetic); the
   motion in the game with the world clock; the totem park; landing.
 
-## G352 (village-tram branch, provisional number) — THE TOTEM PARK IN THE
+## G369 — THE TOTEM PARK IN THE MOUNTAINS (landed from the village-tram branch as G352 there); THE TOTEM PARK IN THE
 ## MOUNTAINS, FENCED AND ON A PATH; THE CATALOGUE FOR THE WORLD EDITOR; THE
 ## PROCEDURES WRITTEN DOWN (2026-09-14, on the worktree D:/Dev/wt-village,
 ## branch village-tram, rebased on master 3403a2f8 = G359)
@@ -44169,8 +44169,12 @@ are clear and can be picked up with rigor by other sessions?"
 - Screenshots: screenshots/lods/park352_*.jpg (the lawn, from above, the
   path), scene352_*.jpg (the whole tile from above, from the water, from the
   park).
-- G352.1 (for the premises composer, on its message): tramLine reads nothing
+- G369.1 (G352.1 on the branch; for the premises composer, on its message): tramLine reads nothing
   of the village but the two station records (vil.base / vil.top given
   outright, or siteHouses searched); VILLAGE_GEN.placeHouse exported (the
   renderer can drop its verbatim copy at the landing); recvZ passed to every
   item is read by millPlan alone - harmless elsewhere.
+- LANDED 2026-09-14 on master (G366-G369.1, the village-tram branch fast-forwarded
+  per futureDesigns/VILLAGE-TRAM-MILL-PARK-PROCEDURES-2026-09-14.md section 9).
+  The user: "I think we can close the session here, leave that to the world
+  editor. Commit according to the procedure."
