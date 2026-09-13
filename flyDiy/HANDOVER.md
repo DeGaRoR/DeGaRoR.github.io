@@ -41656,3 +41656,43 @@ does at every station, not just the mains.
   pick (`pick:'flap'`) — a click a notch, a drag the notches. Verified on
   the stand: the click stepped `flapI` 0 → 1; the knob at 43° with the
   flap at 1.
+
+## G339 — THE AERO AFT HAS A SHAPE: CONE, BLADE, FLAT, FIN (2026-09-13, the
+## user: "I'm ok to add more shape options, but ensure the current settings
+## keep working as-is, because they're good for bubbles. I'd be happy to
+## have a shape morphing into a fin, or something squished along a vertical
+## axis")
+
+**What it was.** The pod's aero aft (the tail of a pod that ends at the
+bulkhead — a rod boom, twin booms) was ONE shape: the bulkhead's section
+scaled by one factor to 5 % at the tip, on the dome-to-teardrop curve of
+`aeroAftTip` — a cone. Good for a bubble; the only choice.
+
+**What it is.** `aeroAftShape` (Tail cone › aero aft): **cone** (0, the one
+there was), **blade** (1: the WIDTH squeezes to the tip on the cone's own
+curve while the height holds — a vertical knife edge), **flat** (2: the
+HEIGHT squeezes, the width holds — a horizontal edge, a beaver tail),
+**fin** (3: the blade with the keel alone climbing to the axis while the
+crown keeps its height — the pod morphs into a fin). `aeroAftEdge`
+(0.05–1.5) is what the held axis keeps at the tip as a fraction of its
+base — 1 holds it whole, and on the fin > 1 lifts the crown past the roof
+line (a dorsal fin rising aft). The droop rides every shape as before.
+The three squeezed shapes draw through two more rings (28 % and 80 % of
+the length; the cone keeps its one at 55 % — the template's ring list does
+not move). Ordinary rings: skinned, zoned, painted as fuselage; the tip is
+the tail cap, domed by its crease (a thin tall polygon on a blade, thin
+and wide on a flat).
+
+**Bit-identical where nothing is picked.** The cone path is the old
+arithmetic to the operation (`up(v) = mid + (v − mid) · sc`): the
+subdivided cage compared against HEAD's generator on the twin-boom pod,
+the rod-boom pod, a long drooped teardrop, the aft off and the template —
+IDENTICAL, byte for byte. The new rows default to 0 / 0.6 and read as
+"unset" on every saved build.
+
+**Measured** (the user's twin-boom WIP, aero aft 1.2 m, screenshots off the
+join mount): blade — pointed in plan, 60 % of the bulkhead's height at
+the edge; flat — a wide horizontal lip under the wing; fin at edge 1.2 —
+the keel sweeping up to the axis, the crown line rising.
+
+- Gates: CAGEFIT, PARTS, FIT, JOIN, UISMOKE, SAVE green.

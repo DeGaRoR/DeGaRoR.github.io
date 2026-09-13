@@ -710,6 +710,14 @@ window.CAGE_PAGE = {
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn, dim: 'len' }],
       ['aeroAftTip', 'aero aft tip (dome → teardrop)', 0, 1, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn }],
+      // G339: the shape — the cone, or one axis squeezed to an edge (a
+      // vertical blade, a flat beaver tail, a fin the crown holds) — and
+      // how much of its base the held axis keeps at the tip (> 1 on the
+      // fin: the crown rises past the roof)
+      ['aeroAftShape', 'aero aft shape', 0, 3, 1, ['cone', 'blade', 'flat', 'fin'],
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn }],
+      ['aeroAftEdge', 'aero aft edge (of the base)', 0.05, 1.5, 0.01,
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn && +P.aeroAftShape }],
       ['rodY',      'rod height',     -0.9, 0.9, 0.005,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,

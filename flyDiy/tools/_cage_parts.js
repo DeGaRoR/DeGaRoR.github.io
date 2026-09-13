@@ -431,7 +431,8 @@ const CAGE_PARTS = [
       ['cone', ['tailLen', 'tailHalfW', 'tailRoofY', 'tailKeelY']],
       // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
       // twin booms) — moved here from the Boom (G267)
-      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip']],
+      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',
+                    'aeroAftShape', 'aeroAftEdge']],   // G339: the shape and its edge
     ] },
 
   // THE FITTINGS (G81-G83). They are not a shape you draw — they are what

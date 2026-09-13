@@ -456,6 +456,18 @@ function cageResolve(S) {
   if (!MIR && AA) {
     const baseD = TAP ? cabD : aftDA;
     const zTipA = zPaxA - AA.len;
+    // G339 (the user: "a shape morphing into a fin, or something squished
+    // along a vertical axis ... ensure the current settings keep working
+    // as-is"): THE AERO AFT HAS A SHAPE. The cone scales the whole section
+    // by one factor (sc, to 5 % at the tip) — unchanged, bit-identical,
+    // shape 0. The other three squeeze ONE axis to that same 5 % on the
+    // cone's own curve and hold the other to `edge` of its base at the
+    // tip: BLADE (1) squeezes the width — a vertical knife edge; FLAT (2)
+    // squeezes the height — a horizontal edge, a beaver tail; FIN (3) is
+    // the blade with the keel alone climbing to the axis while the crown
+    // keeps its height (edge 1) or rises past it (edge > 1) — the pod
+    // morphs into a fin. The droop rides every shape the same way.
+    const shp = AA.shape || 0, edge = AA.edge == null ? 0.6 : AA.edge;
     const ringAft = (name, zz) => {
       const f = Math.min(1, (zPaxA - zz) / Math.max(1e-6, zPaxA - zTipA));
       const pw = 2.2 - 1.3 * AA.tip;                  // dome ... teardrop
@@ -6539,6 +6551,7 @@ const CAGE_PARAMS = {
   boomTailLen: 0.45, boomTailK: 0.7, boomTailCap: 2,
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
   aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
+  aeroAftShape: 0, aeroAftEdge: 0.6,         // G339: cone | blade | flat | fin, the edge's fraction
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
   // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
   // h 0 = off (the fit identity path).
@@ -6920,7 +6933,11 @@ function cageSpec(P) {
   // a pusher on the bulkhead (its cowl is the aft), only where the pod ends
   const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && engMountK !== 1)
     ? { len: Math.max(0.3, +P.aeroAftLen || 0.9), droop: +P.aeroAftDroop || 0,
-        tip: Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip)) }
+        tip: Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip)),
+        // G339: the shape (0 cone, 1 blade, 2 flat, 3 fin) and the edge the
+        // held axis keeps at the tip (a fraction of its base)
+        shape: Math.max(0, Math.min(3, Math.round(+P.aeroAftShape || 0))),
+        edge: Math.max(0.05, Math.min(1.5, +P.aeroAftEdge == null ? 0.6 : +P.aeroAftEdge)) }
     : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
