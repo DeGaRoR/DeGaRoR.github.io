@@ -32,6 +32,8 @@ const ZONE_COL = { residential: 0x6fd08c, commercial: 0x5db3ff, industrial: 0xe0
 const LIFT = 0.18;
 const TREE_BANDS = [0, 60, 132];
 
+// the prop registry is a script-scope const of flight_core.js (51_prop_codec), never on window: read it where it lives
+const propReg = () => (typeof PROP_REG !== 'undefined' ? PROP_REG : (typeof window !== 'undefined' && window.PROP_REG) || null);
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
@@ -39,9 +41,13 @@ function make(THREE, scene, world, rec0, opts) {
   const buildFor = r => { const GEN = window[r.gen]; return GEN ? GEN.build(r.P, 0) : null; };
   let O = PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'trees', 'runways', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
+  // premises frame (fences, lot patches, cars, boats) goes in here untransformed
+  const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
+  placeLots();
   scene.add(root);
-  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0 };
+  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0 };
   const bounds = world.bounds || { x0: -160, z0: -160, x1: 160, z1: 160 };
   const W = bounds.x1 - bounds.x0, H = bounds.z1 - bounds.z0;
 
@@ -149,6 +155,9 @@ function make(THREE, scene, world, rec0, opts) {
       g.beginPath(); pts.forEach((p, i) => { const q = F.toWorld(p[0], p[1]); i ? g.lineTo(X(q[0]), Z(q[1])) : g.moveTo(X(q[0]), Z(q[1])); }); g.stroke();
     };
     for (const r of O.roads) { stroke(r.pts, r.w + 2.0, 0.45); stroke(r.pts, r.w, 0.95); }
+    // the garden paths (planPath's, on the built house), the outbuildings' and the parks' footpaths
+    for (const [, h] of HOUSES) { const pl = h.plot; if (!pl || !pl.path) continue; for (const sg of (pl.path || []).concat(pl.outPath || [])) { stroke([sg[0], sg[1]], 1.3, 0.35); stroke([sg[0], sg[1]], 0.7, 0.8); } }
+    for (const pk of O.records.parks || []) if (pk.path) { stroke(pk.path.pts, pk.path.width + 1.0, 0.35); stroke(pk.path.pts, pk.path.width, 0.8); if (pk.plan.path) stroke(pk.plan.path.pts, pk.plan.path.width, 0.7); }
     wearTex.needsUpdate = true;
   }
 
@@ -172,7 +181,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function worldPts(entry) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -378,7 +387,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const k of (built.BAGS || HG.BAGS)) if (built.bags[k] && F.MAT[k]) built.bags[k].mesh(grp, F.MAT[k]);
     if (built.bags.smoke && F.MAT.smoke) { const sm = built.bags.smoke.mesh(grp, F.MAT.smoke); if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; } }
     const st = built.stats, g = st.ground;
-    const PR = (typeof window !== 'undefined' && window.PROP_REG) || null, pp = (typeof propPlace === 'function') ? propPlace : null;
+    const PR = propReg(), pp = (typeof propPlace === 'function') ? propPlace : null;
     if (PR && pp) {
       if (st.pier) for (const m of st.pier.modules.concat(st.pier.boats)) if (PR.props[m.key]) grp.add(pp(THREE, m.key, m.x, m.z, m.ry, m.y));
       for (const q of st.people || []) if (PR.props[q.key]) grp.add(pp(THREE, q.key, q.x, q.z, q.ry, q.y));
@@ -400,13 +409,135 @@ function make(THREE, scene, world, rec0, opts) {
     let preset;
     if (plot.pick && plot.pick !== 'sampler') { const e = PG.collect(window).entries.get(plot.pick); if (e && e.gen === 'HOUSE_GEN') preset = e.preset; }
     const house = VG.placeHouse(Tv, V, plot, plot.seed % 100000, rnd, preset);   // the village's own, exported at its landing (G369.1)
+    if (!SPREAD && HG.makeSpread) SPREAD = HG.makeSpread();
+    if (SPREAD) house.P.spread = SPREAD;
     const F = HG.makeFinish();
     HG.applyFinish(house.P, F);
     const built = HG.build(house.P, 0, F);
     built.BAGS = HG.BAGS;
     const grp = placeBuilt(G.houses, house, built, F, HG);
-    return { grp, tris: built.stats.tris, house, built };
+    const D = dressPlot(plot, house, built, V, Tv);
+    return { grp, tris: built.stats.tris + D.tris, house, built, extra: D.groups, lights: litOf(built) + D.lights };
   }
+  // THE DRESSING (v5): the village's own plan functions on the BUILT house - the garden path, the
+  // fences (a neighbour's fence is this fence: one edge set for the whole premises), the outbuilding,
+  // the car and the boat, and the lot's ground patch reading them all; drawn in the premises frame
+  // under G.lots, the outbuilding as a house of its own
+  let SPREAD = null;
+  const FENCED = new Set();
+  const FENCE_HAND = 0.6;
+  let FENCE_F = null;
+  function fenceFinish() {
+    if (FENCE_F) return FENCE_F;
+    const HG = window.HOUSE_GEN;
+    // weathered brown boards and the frame's rough timber (the village's G277/G280 rulings)
+    const P = Object.assign({}, HG.DEF, { postSet: HG.SET_IDX('post', 'rough'), deckSet: HG.SET_IDX('deck', 'wornwood'), frameAge: 0.8, hand: FENCE_HAND, weather: 0.8 });
+    const F = HG.makeFinish();
+    HG.applyFinish(P, F);
+    F.MAT.deck.color.multiplyScalar(0.5);
+    F.MAT.post.color.multiplyScalar(0.6);
+    FENCE_F = F;
+    return F;
+  }
+  const litOf = built => (built && built.stats && built.stats.lit && built.stats.lit.lights ? built.stats.lit.lights.length : 0);
+  // the fence segments of one plot (or park) into their own baked bags under G.lots; the posts' feet out
+  function fenceGroup(segs, T, seed, posts) {
+    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
+    if (!VG || !HK || !segs || !segs.length) return null;
+    const F = fenceFinish();
+    const bags = { post: HK.Bag('post'), deck: HK.Bag('deck') };
+    const grp = new THREE.Group(); grp.name = 'fence';
+    let n = 0;
+    for (const seg0 of segs) {
+      const seg = VG.clipToLand(T, seg0);
+      if (!seg) continue;
+      if (seg.style === 'old' && pp && PR && PR.props.fence_old && HG.YARD_KIT && HG.YARD_KIT.fence_old) {
+        // the scanned stretch, one prop width at a time along the edge, on the ground under its own middle, the gate's bay left out
+        const L = Math.hypot(seg.b[0] - seg.a[0], seg.b[1] - seg.a[1]), tg = [(seg.b[0] - seg.a[0]) / L, (seg.b[1] - seg.a[1]) / L];
+        const Wd = HG.YARD_KIT.fence_old.W, ry = Math.atan2(tg[0], tg[1]) - Math.PI / 2;
+        const parts = seg.gap ? [[0, Math.max(0, seg.gap[0])], [Math.min(L, seg.gap[1]), L]] : [[0, L]];
+        for (const [u0, u1] of parts) {
+          if (u1 - u0 < 0.8) continue;
+          const ns = Math.max(1, Math.round((u1 - u0) / Wd)), pw = (u1 - u0) / ns;
+          for (let i = 0; i < ns; i++) { const tm = u0 + pw * (i + 0.5), x = seg.a[0] + tg[0] * tm, z = seg.a[1] + tg[1] * tm; const o = pp(THREE, 'fence_old', x, z, ry, T.h(x, z) - 0.03); o.scale.x = pw / Wd; grp.add(o); n++; }
+        }
+        if (seg.gap) n += VG.gateLeaf(bags, T, seg.a, tg, Math.max(0.3, seg.gap[0]), Math.min(L - 0.3, seg.gap[1]), 1.15, FENCE_HAND, () => 0.3, 'old');
+      } else { seg.feet = posts || []; n += VG.buildFence(bags, T, seg, FENCE_HAND, seed); }
+    }
+    if (!n) return null;
+    HK.bakeAO([bags.post, bags.deck], { strength: 0.85, range: 0.5, ground: T.h });
+    for (const k in bags) bags[k].mesh(grp, F.MAT[k]);
+    G.lots.add(grp);
+    return grp;
+  }
+  function dressPlot(plot, house, built, V, Tv) {
+    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
+    const out = { groups: [], tris: 0, lights: 0 };
+    if (!VG || !VG.finishPlot) return out;
+    const rd = O.roads.find(r => r.id === plot.road) || O.roads[0];
+    if (!rd) return out;
+    const T = { h: Tv.h, size: Tv.size, waterY: Tv.waterY };
+    const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: rd.w }, fenced: FENCED, T, spread: SPREAD, plots: O.records.plots, houses: [] };
+    try { VG.finishPlot(vil, plot, house, built); } catch (e) { console.warn('premises dress', plot.id, e && e.message); return out; }
+    const posts = [];
+    const fg = fenceGroup(plot.fences, T, (PG.fnv(String(plot.id)) % 1000) * 7 + 1, posts);
+    if (fg) out.groups.push(fg);
+    // the outbuilding: the same generator, its own finish, a house of its own in the world
+    if (plot.out) {
+      try {
+        const F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2);
+        const b2 = HG.build(plot.out.P, 0, F2); b2.BAGS = HG.BAGS; plot.out.built = b2;
+        out.groups.push(placeBuilt(G.houses, plot.out, b2, F2, HG)); out.tris += b2.stats.tris; out.lights += litOf(b2);
+      } catch (e) { console.warn('premises outbuilding', plot.id, e && e.message); plot.out = null; }
+    }
+    // the car and the boat on the ground, tilted to it; the occluders the lot patch reads
+    const grp = new THREE.Group(); grp.name = 'yard:' + plot.id;
+    const occ = [];
+    const toW = (hh, o) => { const w = hh.toWorld(o.x, o.z); return Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + hh.yaw }); };
+    for (const o of built.stats.groundAO || []) occ.push(toW(house, o));
+    if (plot.out && plot.out.built) for (const o of plot.out.built.stats.groundAO || []) occ.push(toW(plot.out, o));
+    for (const c of [plot.car, plot.boat]) if (c && pp && PR && PR.props[c.key]) {
+      const o = pp(THREE, c.key, c.x, c.z, c.ry, c.y); tiltToGround(o, T.h, c.x, c.z, c.ry); grp.add(o);
+      const K = plot.car === c ? (HG.YARD_KIT || {})[c.key] : (HG.PIER_KIT || {})[c.key];
+      if (K) occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.car === c ? 0.65 : 0.6, soft: plot.car === c ? 1.0 : 0.9 });
+    }
+    for (const f of posts) if (Math.abs(f[0] - house.x) < 40 && Math.abs(f[1] - house.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.45, soft: 0.35 });
+    if (window.LOT_GROUND && VG.lotGround) {
+      try { const L = VG.lotGround(vil, plot, house, built, occ); window.LOT_GROUND.mesh(THREE, grp, L, () => { if (o.onBuilt) o.onBuilt(0, queue.length); }); }
+      catch (e) { console.warn('premises lot', plot.id, e && e.message); }
+    }
+    G.lots.add(grp); out.groups.push(grp);
+    return out;
+  }
+  // a placed prop or billboard (v5): a prop through propPlace on the composed ground, a billboard
+  // through BIG_GEN.billboard with its own finish (the board IS the texture); in the world frame
+  function buildObject(ob) {
+    const PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
+    const w = O.frame.toWorld(ob.x, ob.z), yaw = ob.yaw + O.frame.yaw;
+    if (ob.kind === 'prop') {
+      if (!pp || !PR || !PR.props[ob.key]) return null;
+      const g = pp(THREE, ob.key, w[0], w[1], yaw, ob.y);
+      if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
+      G.houses.add(g);
+      let tris = 0; g.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
+      return { grp: g, tris: Math.round(tris), house: ob };
+    }
+    if (ob.kind === 'billboard') {
+      const BG = window.BIG_GEN;
+      if (!BG || !BG.billboard) return null;
+      const c = Math.cos(yaw), sn = Math.sin(yaw);
+      const bb = BG.billboard({ key: ob.key, w: ob.w, ground: (x, z) => O.terrainAt(w[0] + x * c + z * sn, w[1] - x * sn + z * c) - ob.y });
+      const F = BG.billboardFinish(ob.key);
+      const grp = new THREE.Group(); grp.position.set(w[0], ob.y, w[1]); grp.rotation.y = yaw;
+      for (const k of bb.BAGS) bb.bags[k].mesh(grp, F.MAT[k]);
+      if (bb.bags.aoskirt && window.HOUSE_GEN && window.HOUSE_GEN.MAT && window.HOUSE_GEN.MAT.aoskirt) { const sk = bb.bags.aoskirt.mesh(grp, window.HOUSE_GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
+      G.houses.add(grp);
+      let tris = 0; grp.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
+      return { grp, tris: Math.round(tris), house: ob };
+    }
+    return null;
+  }
+  const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on])));
   function buildItem(it) {
     const GEN = window[it.gen];
     if (!GEN) return null;
@@ -416,7 +547,7 @@ function make(THREE, scene, world, rec0, opts) {
     built.BAGS = GEN.BAGS;
     const grp = placeBuilt(G.houses, it, built, F, GEN);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
-    return { grp, tris: built.stats.tris, house: it, built };
+    return { grp, tris: built.stats.tris, house: it, built, lights: litOf(built) };
   }
   const itemSeed = it => PG.hash32(it.seed, PG.fnv(JSON.stringify([it.x, it.z, it.yaw, it.key, it.P.tramTo || null, it.P.floorY])));
   // a park on its plot: the totem generator's world-frame build (no ground of its own - the lawn is
@@ -428,7 +559,11 @@ function make(THREE, scene, world, rec0, opts) {
     let tris = 0;
     grp.traverse(m => { if (m.isMesh && m.geometry) { const g = m.geometry; tris += (g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0)) / 3; } });
     G.houses.add(grp);
-    return { grp, tris: Math.round(tris), house: pk };
+    const extra = [];
+    const Tp = { h: (lx, lz) => O.localH(lx, lz), size: Math.max(W, H), waterY: world.waterH ? world.waterH(0, 0) : -1e9 };   // clipToLand reads waterY
+    const fg = fenceGroup(pk.fences, Tp, 991, []);
+    if (fg) extra.push(fg);
+    return { grp, tris: Math.round(tris), house: pk, extra };
   }
   const parkSeed = pk => PG.hash32(pk.seed, PG.fnv(JSON.stringify([pk.plan.centre, pk.plan.yaw, pk.level, pk.key])));
   function syncHouses() {
@@ -436,7 +571,13 @@ function make(THREE, scene, world, rec0, opts) {
     for (const p of O.records.plots) if (p.kind !== 'park' && p.kind !== 'airfield') want.set(p.id, p);
     for (const it of O.records.items) want.set(it.id, Object.assign({ seed: itemSeed(it), isItem: true, rec: it }, { id: it.id }));
     for (const pk of O.records.parks || []) want.set(pk.id, { id: pk.id, seed: parkSeed(pk), isPark: true, rec: pk });
-    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) { G.houses.remove(h.grp); h.grp.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); HOUSES.delete(id); } }
+    for (const ob of O.records.objects || []) want.set('ob:' + ob.id, { id: 'ob:' + ob.id, seed: objectSeed(ob), isObject: true, rec: ob });
+    const VGe = window.VILLAGE_GEN;
+    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) {
+      for (const g of [h.grp].concat(h.extra || [])) if (g) { if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
+      if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) FENCED.delete(VGe.edgeKey(sg.a, sg.b));
+      HOUSES.delete(id);
+    } }
     queue.length = 0;
     for (const [id, p] of want) if (!HOUSES.has(id)) queue.push(p);
     stats.queued = queue.length;
@@ -445,12 +586,13 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house }); }
+      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }
-    stats.queued = queue.length; stats.houses = HOUSES.size; stats.houseTris = 0;
-    for (const [, h] of HOUSES) stats.houseTris += h.tris || 0;
+    stats.queued = queue.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
+    for (const [, h] of HOUSES) { stats.houseTris += h.tris || 0; stats.lights += h.lights || 0; if (h.isObject) stats.objects++; else stats.houses++; }
+    if (built) paintWear();   // the garden paths are the built houses' (planPath reads the door)
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
     return built;
   }
@@ -517,6 +659,7 @@ function make(THREE, scene, world, rec0, opts) {
       for (let i = Math.max(ci0, Math.floor(wx0 / CHUNK)); i <= Math.min(ci1, Math.floor(wx1 / CHUNK)); i++)
         for (let j = Math.max(cj0, Math.floor(wz0 / CHUNK)); j <= Math.min(cj1, Math.floor(wz1 / CHUNK)); j++) { buildChunk(i, j); n++; }
     }
+    placeLots();
     paintOverlay();
     paintWear();
     buildOutlines();
@@ -547,7 +690,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;

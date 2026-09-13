@@ -9,7 +9,9 @@ conveyor link solved, every derived entry built headless) and v4 (G372: a catalo
 polygon, the strip's HOLDS slide on the centreline and the validator answers live - the strip judged on its own
 graded flat - pickers by tag, draw calls and triangles on the plaque) and v4.1 (G372.1: the village landed - the
 real catalogue built by the gate, the real tramLine solving the cable, a park zone standing totem parks on its
-plots with derived lawns and a filled slot, contract v1.5) LANDED 2026-09-13** (`tools/_premises.html`, port
+plots with derived lawns and a filled slot, contract v1.5) and v5 (G378: the dressing per plot and park through the
+village's plan functions, the lot material one keeper, lights counted, props and billboards placed by hand, contract v1.6)
+LANDED 2026-09-13** (`tools/_premises.html`, port
 8401, GATE PREMISES, three goldens). Next: the cable link once the house session lands, the game host. Companion
 to `PREMISES-CONTRACT-2026-09-13.md` (the record and the asset contract, frozen v1). Appendix A is
 THE SPLIT — how the parallel sessions divide the work, land, unify and port; every session reads it.

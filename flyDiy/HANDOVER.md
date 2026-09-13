@@ -44598,3 +44598,43 @@ Gate: `aeroWxSpots(` at least four times; the old thresholds
 (`smoothstep(thr, thr + 0.05, gB.g)`, `smoothstep(thrI, ...)`) refused.
 Proof from a clean worktree: WEATHER, SKINMAT, JOIN, BUILD, UISMOKE,
 PARTS, MEDIA.
+
+## G378 — THE PREMISES BENCH v5: THE DRESSING - FENCES, PATHS, LOTS, CARS AND
+## OUTBUILDINGS PER PLOT, THE PARK'S PATH AND FENCE, LIGHTS COUNTED, PROPS AND
+## BILLBOARDS PLACED BY HAND (2026-09-13, closing the bench's owed list)
+
+- **THE DRESSING PER PLOT** (contract v1.6): a sown plot's house is finished
+  as the village finishes it - `VILLAGE_GEN.finishPlot` on the BUILT house
+  plans the garden path (from the door, planPath), the fences (a neighbour's
+  fence is this fence: one edge set for the whole premises, released when a
+  plot goes), the outbuilding, the car and the boat; the renderer draws the
+  fences into baked bags (the scanned old fence with its gate leaf, or the
+  drawn rails), the outbuilding as a house of its own, the car and the boat
+  tilted to the ground, the paths worn into the ground's wear canvas, and
+  the LOT'S GROUND PATCH from `lotGround` reading every occluder. All of it
+  in the premises frame under one group standing at the frame.
+- **ONE KEEPER FOR THE LOT MATERIAL**: the 100-line lot shader that lived in
+  `tools/_village.html` moved verbatim to `src/viewer/lot_tex.js` as
+  `LOT_GROUND.material(THREE, onLoad)` / `.mesh(THREE, parent, L, onLoad)`;
+  the village page calls it through three one-line shims. GATE VILLAGE green.
+- **THE PARK'S DRESSING**: the composer plans the footpath from the road's
+  verge to the lawn's front (swaying like placePark's) and the rail fence
+  round the plot with its gate where the path comes in; the renderer draws
+  them with the same fence bags. Rule 14.
+- **LIGHTS COUNTED**: every build's lights slot (`stats.lit.lights`, the
+  village's G376 fixtures included) is summed on the plaque - the budget's
+  number before they are drawn.
+- **PROPS AND BILLBOARDS BY HAND** (the OBJECTS section): a prop tool stands a
+  prop registry key on the composed ground (tilted to it, a lift dial), a
+  billboard tool a painted roadside sign on its posts at a width; each ONE
+  record, dragged by its disc, its key picked from what the registries
+  offer at call time (the editor names none). Rule 14.
+- **A v1 BUG FOUND BY IT**: the renderer read the prop registry off `window`,
+  where it never was (`PROP_REG` is a script-scope const of flight_core.js)
+  - so since v1 no pier, no person, no yard prop and no light fixture was
+  ever drawn on the bench. Read where it lives; the piers and the people
+  appear.
+- Gates: PREMISES green (135 checks), VILLAGE, HOUSE, TOTEM, SITE green;
+  proven from a clean worktree.
+- OWED (the bench's close): the authored stand + taxi-out, the harbour, the
+  showcase record, premises_perf.js.

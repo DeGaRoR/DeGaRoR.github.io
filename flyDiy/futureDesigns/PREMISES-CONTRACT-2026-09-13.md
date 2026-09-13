@@ -505,3 +505,17 @@ after the freeze, against this document.
   ITEM in placeSite's shape, under the park's id, so the renderer builds it like a site's. The mill's
   standing follows the village's own law at G367: `floorY = ground(0, shelf.zLevel) + 0.5` from the
   entry's published `ground.shelf`. GATE PREMISES rules 3 (every landed entry built), 8c and 9c.
+- **v1.6 (2026-09-13, the bench's dressing, v5).** Two more object kinds in `layers.objects`, both ONE
+  record in the premises frame: `{ kind:'prop', key, x, z, yaw, dy, on:'ground'|'flat' }` stands a prop
+  registry key on the composed ground (`y = ground + dy`, tilted to the ground when `on` is 'ground');
+  `{ kind:'billboard', key, x, z, yaw, w }` stands a painted sign's key on its posts at width `w`. The
+  composer publishes them as `records.objects` with `y` resolved; a keyless one is an issue. The pickers
+  read the prop registry (floor-standing props by group) and the sign painter's roadside keys at call
+  time, so a pack loaded later is offered - the editor names no key. The DRESSING of a sown plot (the
+  garden path, the fences with a neighbour's fence shared, the outbuilding, the car, the boat, the lot's
+  ground patch) is the renderer's, on the BUILT house, through the village's own plan functions
+  (`finishPlot`, `buildFence`, `gateLeaf`, `clipToLand`, `lotGround`); the lot material is ONE keeper in
+  `src/viewer/lot_tex.js` (`LOT_GROUND.material / mesh`) for both benches. A park's dressing (the
+  footpath from the road's verge to the lawn, the rail fence with its gate where the path comes in) is
+  the composer's, on `records.parks[].path / fences`. The lights every build publishes into its lights
+  slot are COUNTED on the plaque (not drawn); GATE PREMISES rule 14.

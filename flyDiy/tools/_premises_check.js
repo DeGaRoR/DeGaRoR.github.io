@@ -61,6 +61,9 @@
 //      flat to 1 cm, the entry's fill standing in its slot as an item.
 //  9c  THE REAL CABLE: the catalogue's two stations (by tag) and the
 //      village's tramLine solve six ropes in the band, lineDeg on both.
+//  14  THE DRESSING (v5): a park's footpath from the road verge to the lawn,
+//      its rail fence with the gate where the path comes in; a prop and a
+//      billboard compose on the ground in the premises frame; keyless = issue.
 //  13  THE CONTRACT HELD: no catalogue key appears as a string literal in any
 //      _premises_* file — the editor accepts a new asset without an edit.
 //
@@ -480,6 +483,33 @@ for (const fx of fixtures) {
     check(deg >= 15 && deg <= 45, '9c the line is in the band', String(deg));
     check(O.records.items.every(it => isFinite(it.P.lineDeg)), '9c lineDeg reaches both stations');
     check(Date.now() - t0 < 8000, '9c the built solve is under 8 s', (Date.now() - t0) + ' ms');
+  }
+  // 14 THE PARK'S DRESSING (v5): its footpath starts on the road's verge and ends at the lawn's front,
+  // its rail fence rounds the plot with the gate on the front edge where the path comes in
+  if (CAT.byTag && CAT.byTag('park').length && GENS.TOTEM_GEN && GENS.VILLAGE_GEN) {
+    const road = { id: 'r', pts: [[-200, 0], [200, 0]], w: 4, cls: 'gravel', graded: true };
+    const zone = { id: 'z', kind: 'park', poly: [[-210, -80], [210, -80], [210, 80], [-210, 80]], density: 1 };
+    const rec = PG.normalise({ seed: 5, layers: { roads: [road], zones: [zone] } });
+    const O = PG.compose(rec, synth, { catalogue: CAT, globals: GENS });
+    const pk = O.records.parks[0];
+    if (pk) {
+      const a = pk.path.pts[0], b = pk.path.pts[pk.path.pts.length - 1];
+      check(PG.roadDist({ pts: road.pts }, a[0], a[1]) < road.w / 2 + 1.0, '14 the park path starts on the road verge', PG.roadDist({ pts: road.pts }, a[0], a[1]).toFixed(1) + ' m from the centreline');
+      check(PG.sdPoly(pk.plan.lawn, b[0], b[1]) < 1.5, '14 the park path ends at the lawn', PG.sdPoly(pk.plan.lawn, b[0], b[1]).toFixed(1) + ' m off');
+      check(pk.fences.length === 4 && pk.fences.filter(f => f.gap).length === 1 && pk.fences.find(f => f.gap).kind === 'front', '14 the park fence rounds the plot with one gate on the front');
+      const fr = pk.fences.find(f => f.gap), tg = [fr.b[0] - fr.a[0], fr.b[1] - fr.a[1]], L = Math.hypot(tg[0], tg[1]);
+      const t = ((b[0] - fr.a[0]) * tg[0] + (b[1] - fr.a[1]) * tg[1]) / L;
+      check(t > fr.gap[0] - 3 && t < fr.gap[1] + 3, '14 the gate is where the path comes in', t.toFixed(1) + ' vs ' + fr.gap.map(v => v.toFixed(1)).join('..'));
+    } else check(false, '14 a park stood for the dressing check');
+  }
+  // 14 THE OBJECTS: a prop and a billboard compose on the ground in the premises frame, a keyless one is an issue
+  {
+    const rec = PG.normalise({ seed: 2, layers: { objects: [{ id: 'o1', kind: 'prop', key: 'x_thing', x: 10, z: 20, yaw: 0.5, dy: 0.2 }, { id: 'o2', kind: 'billboard', key: 'sign_x', x: -30, z: 5, yaw: 1, w: 4 }, { id: 'o3', kind: 'prop', key: '', x: 0, z: 0 }] } });
+    const O = PG.compose(rec, synth, { catalogue: { entries: new Map(), aliases: {}, keys: () => [], byTag: () => [] } });
+    const o1 = O.records.objects.find(q => q.id === 'o1'), o2 = O.records.objects.find(q => q.id === 'o2');
+    check(!!o1 && Math.abs(o1.y - (O.localH(10, 20) + 0.2)) < 1e-6 && o1.on === 'ground', '14 a prop composes on the ground plus its lift');
+    check(!!o2 && o2.w === 4 && Math.abs(o2.y - O.localH(-30, 5)) < 1e-6, '14 a billboard composes at its width on the ground');
+    check(O.records.objects.length === 2 && O.records.issues.some(i => /o3: no key/.test(i)) && PG.issues(rec).some(i => /o3: no key/.test(i)), '14 a keyless object is an issue, not an object');
   }
   // 5 THE GROUND UNDER AN ITEM: an entry's ground block is honoured before placement -
   // a published shelf (the mill's law), a slab at the high corner, a median flatten

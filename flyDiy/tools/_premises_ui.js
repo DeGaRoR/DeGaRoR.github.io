@@ -35,10 +35,11 @@ const SECTIONS = [
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
   { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'cable', 'probe'] },
+  { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -56,14 +57,30 @@ const TOOL_HELP = {
   building: 'pick a building in the inspector, click the ground to stand it there (its own site); drag its disc to move it',
   theme: 'click the ground: the Kennecott theme stands there as ONE site - the mill, the shop, the row, the receiving shed, the conveyor link and the gravel yard',
   cable: 'click a tram station, then the other: the line is solved between them (the village\'s tramLine, once its branch lands) and the ropes drawn',
+  prop: 'pick a prop in the inspector, click the ground to stand it there (on the ground, tilted to it); drag its disc to move it',
+  billboard: 'pick a painted sign in the inspector, click the verge to stand it on its posts; turn it in the inspector',
 };
 const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', zone: 'zones', forest: 'zones', clear: 'zones' };
 const TWO_POINT_TOOLS = { runway: 'runways' };
 const LINE_TOOLS = { road: 'roads' };
-const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites' };
+const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects' };
+const OBJ_PICK = { prop: null, billboard: null };   // what the prop and billboard tools stand
 let PALETTE_KEY = null;   // the building the 'building' tool stands
 const LS_WIP = 'flydiy.premises.wip';
 
+// the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
+// the sign painter's roadside keys - read at call time, so a pack loaded later is offered
+function objectKeys(kind) {
+  if (kind === 'prop') {
+    const PR = typeof PROP_REG !== 'undefined' ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null);   // a script-scope const of flight_core.js
+    if (!PR || !PR.props) return [];
+    const groups = new Map((PR.groups || []).map(g => [g[0], g[1]]));
+    return (PR.order || Object.keys(PR.props)).filter(k => PR.props[k] && !PR.props[k].lodOf).map(k => [k, (groups.get(PR.props[k].group) || PR.props[k].group || '') + ' · ' + (PR.props[k].label || k)]);
+  }
+  const BG = (typeof window !== 'undefined' && window.BIG_GEN) || null;
+  if (!BG || !BG.signKeys) return [];
+  return BG.signKeys().filter(k => (BG.signMeta(k) || {}).kind === 'roadside').map(k => [k, k]);
+}
 function mount(host, ctx) {
   const { THREE, world, R, rows, els } = ctx;
   const $ = (t, a, kids) => { const e = document.createElement(t); if (a) for (const k in a) { if (k === 'text') e.textContent = a[k]; else if (k === 'style') e.style.cssText = a[k]; else if (k === 'class') e.className = a[k]; else e.setAttribute(k, a[k]); } if (kids) for (const c of kids) e.appendChild(c); return e; };
@@ -150,7 +167,7 @@ function mount(host, ctx) {
     const s = R.stats;
     const n = PG.LAYERS.reduce((a, k) => a + rec.layers[k].length, 0);
     els.plaque.innerHTML = '<b>' + (s.tris || 0).toLocaleString() + '</b> ground tris · ' + (s.chunks || 0) + ' chunks · rebuild ' + (s.ms || 0).toFixed(0) + ' ms (' + (s.rebuilt || 0) + ')<br>' +
-      '<b>' + (s.houses || 0) + '</b> houses ' + (s.houseTris || 0).toLocaleString() + ' tris' + (s.queued ? ' · ' + s.queued + ' queued' : '') + ' · <b>' + (s.trees || 0) + '</b> trees ' + (s.treeTris || 0).toLocaleString() + ' tris<br>' +
+      '<b>' + (s.houses || 0) + '</b> houses ' + (s.houseTris || 0).toLocaleString() + ' tris · <b>' + (s.lights || 0) + '</b> lights · <b>' + (s.objects || 0) + '</b> objects' + (s.queued ? ' · ' + s.queued + ' queued' : '') + ' · <b>' + (s.trees || 0) + '</b> trees ' + (s.treeTris || 0).toLocaleString() + ' tris<br>' +
       n + ' feature' + (n === 1 ? '' : 's') + ' · ' + (R.plots ? R.plots().length : 0) + ' plots · undo ' + undoS.length + (ctx.frameText ? '<br>' + ctx.frameText() : '');
   }
 
@@ -276,7 +293,7 @@ function mount(host, ctx) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
         if (!found) return false;
         const e = found.entry, before = clone(e);
-        if (e.kind === 'tree') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
+        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
         if (found.layer === 'runways') {
           if (h.key.indexOf('hold:') === 0) {
             // the pattern becomes AUTHORED the moment a hold is touched: the derived graph, saved verbatim, the hold moved along the centreline
@@ -414,6 +431,15 @@ function mount(host, ctx) {
       }
       select(sid); return;
     }
+    if (tool === 'prop' || tool === 'billboard') {
+      const key = OBJ_PICK[tool] || (objectKeys(tool)[0] || [null])[0];
+      if (!key) { strip.status('no ' + tool + ' to place here'); return; }
+      const e = tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
+                                : { id: PG.newId(rec, 'objects'), kind: 'billboard', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, w: 3.6 };
+      run({ layer: 'objects', id: e.id, before: null, after: e, label: tool + ' ' + e.id });
+      select(e.id);
+      return;
+    }
     if (POINT_TOOLS[tool]) {
       const pool = ctx.pool ? ctx.pool() : [];
       const e = { id: PG.newId(rec, 'objects'), kind: 'tree', x: +L[0].toFixed(2), z: +L[1].toFixed(2), key: pool.length ? pool[0].key : 'stub|tree', size: 1, yaw: +(Math.random() * 6.28).toFixed(2) };
@@ -464,6 +490,15 @@ function mount(host, ctx) {
         if (!PALETTE_KEY) PALETTE_KEY = keys[0] || null;
         rows.select(insp, 'building', keys.map(k => [k, k]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
         rows.note(insp, keys.length + ' entries in the catalogue (derived from the generators\' presets until each exports its own); pick one, then click the ground with the building tool');
+      }
+      if (section === 'objects') {
+        for (const kind of ['prop', 'billboard']) {
+          const keys = objectKeys(kind);
+          if (!keys.length) { rows.note(insp, 'no ' + kind + 's registered here'); continue; }
+          if (!OBJ_PICK[kind]) OBJ_PICK[kind] = keys[0][0];
+          rows.select(insp, kind, keys, () => OBJ_PICK[kind] || '', v => { OBJ_PICK[kind] = v; });
+        }
+        rows.note(insp, 'a prop stands on the composed ground where you click, tilted to it; a billboard is a painted sign on its posts. Each is ONE record: drag its disc to move it.');
       }
       if (section === 'airfield') rows.note(insp, 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. ?world=A stands it on the flight world.');
       if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a no-trees polygon keeps it out; a tree by hand is one record.');
@@ -551,6 +586,14 @@ function mount(host, ctx) {
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         rows.button(insp, 'remove ' + it.id, () => ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id));
       }
+    } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard')) {
+      const keys = objectKeys(e.kind);
+      if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
+      rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
+      if (e.kind === 'prop') {
+        rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
+        rows.select(insp, 'stands', [['ground', 'on the ground, tilted to it'], ['flat', 'level']], () => e.on || 'ground', v => ed(x => { x.on = v; }, 'stance of ' + id));
+      } else rows.slider(insp, 'width (m)', 2, 6, 0.1, () => e.w || 3.6, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1));
     } else if (layer === 'objects' && e.kind === 'tree') {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));

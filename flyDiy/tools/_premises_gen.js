@@ -856,6 +856,27 @@ function compose(rec0, world, opts) {
           for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
           for (const i of S.issues) O.records.issues.push(i);
         }
+        // THE PARK'S DRESSING (placePark's, in the composer): the footpath from the road's verge to the
+        // lawn's front, swaying a little; a rail fence round the plot with its gate where the path comes in
+        {
+          const rd = roadObjs.find(r => r.id === p.road);
+          const n = p.n, tg = p.tg, w = p.w;
+          const prnd = mulberry32(hash32(seed, 0x9a7));
+          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.w / 2 - 0.6) : 0;
+          const p0 = [p.front[0] - n[0] * back, p.front[1] - n[1] * back];
+          const front = plan.toWorld(0, plan.local.patch.z1 + 0.6);
+          const sway = (prnd() < 0.5 ? -1 : 1) * (3 + prnd() * 3);
+          const pts = [];
+          for (let i = 0; i <= 10; i++) { const u = i / 10, sw = Math.sin(u * Math.PI) * sway; pts.push([+(p0[0] + (front[0] - p0[0]) * u + tg[0] * sw).toFixed(3), +(p0[1] + (front[1] - p0[1]) * u + tg[1] * sw).toFixed(3)]); }
+          park.path = { pts, width: 1.4 };
+          const q = p.poly;
+          park.fences = [
+            { a: q[0], b: q[1], kind: 'front', style: 'rail', gap: [w / 2 - 1.2, w / 2 + 1.2] },
+            { a: q[1], b: q[2], kind: 'side', style: 'rail', gap: null },
+            { a: q[2], b: q[3], kind: 'back', style: 'rail', gap: null },
+            { a: q[3], b: q[0], kind: 'side', style: 'rail', gap: null },
+          ];
+        }
         O.records.parks.push(park);
       }
       O.n = mods.length;
@@ -866,6 +887,14 @@ function compose(rec0, world, opts) {
       for (const t of planForest(z, tctx)) O.records.trees.push(t);
     // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
+    // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
+    // composed ground (tilted to it when `on` is 'ground'), a billboard a painted sign's key on its
+    // posts at the width given; both in the premises frame, their y the ground plus `dy`
+    O.records.objects = [];
+    for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard') {
+      if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
+      O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
+    }
     for (const t of O.records.trees) t.y = O.localH(t.x, t.z);
   }
   return O;
@@ -900,7 +929,7 @@ function issues(rec0) {
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
-  for (const ob of rec.layers.objects) if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species');
+  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
