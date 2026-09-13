@@ -44880,3 +44880,26 @@ is the frame before the floats' own 79 kg), the sea at (0, 1600):
   settles to a 3.3 m/s taxi with 3.6 / 3.0 m2 wet. screenshots/hydro/
   game_spawn.jpg, game_hump.jpg, game_rollout.jpg, game_taxi.jpg.
 - Gates: FLOATS, HYDRODYN, BUILD, JOIN, PARTS, DESIGN, UISMOKE.
+
+## G384 — GATE GEN FLIES FOUR CIRCUITS UNDER CORE, SIXTEEN UNDER --all
+## (2026-09-13, the user: "that's an ill-designed test, being so long, no?")
+
+GEN's CONFIGURATIONS sweep flew a full circuit — up to 480 s of sim at
+73-86 substeps — for each of sixteen builds, then AP GAINS and CRUISE.
+Recorded at 901 s alone on 29 August, one second under the runner's old
+cap; on 2026-09-13, against a peer's ARCHETYPES battery, it took 64 min
+of CPU and the 1800 s cap turned it into a red with no failed check. A
+core gate that cannot finish inside a peer's battery is not a core gate.
+Under `GATES_CORE=1` (the runner's plain `node tools/run_gates.js`) every
+configuration is still BUILT, rigidity-ranked and stood on its wheels —
+where a generator regression shows first — and four fly the circuit: the
+stock build, the tricycle, the twin boom and the pusher (`CORE_FLY` in
+test_gen.js). `--all`, and `--only=GEN` (which implies full), fly all
+sixteen exactly as before; the verdict names the mode on its header line.
+Measured, core GEN under the same load (two of my gates and a peer's
+battery alongside): 43 min against 85 for the full sweep — the twelve
+circuits were half the gate, and the other half is AP GAINS (several
+specs flown), CRUISE and the placement sweep's shakedowns. Alone it should
+read ~15 min. Still too long for a core gate; the next cut is the same
+subset rule on AP GAINS, a decision for whoever next touches the gate.
+The full run stays the delivery verdict.
