@@ -128,6 +128,7 @@ function makeSim(def, world) {
   // stiffness the members would have needed. The members inside the cluster
   // still run (the drawing, the mass and the strain readouts want them);
   // their forces are tiny once the shape is held.
+  let clusterFresh = false;                    // G348: rest re-taken at the first step after a reset
   const clusters = (def.clusters || []).map(C => {
     const idx = Int32Array.from(C.nodes);
     // `omega` (rad/s) is the cluster's STIFFNESS: the projection is applied
@@ -592,6 +593,16 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
     ctl.eng = null;                                  // G194: every lever back to full
+    // G348: ...AND AGAIN AT THE FIRST STEP. placeAtAerodrome rotates the
+    // airframe AFTER reset — a strip at heading 0 is the built pose turned
+    // 180° about y, and a rotation extraction warm-started from identity
+    // has no gradient at exactly 180° (Müller 2016's one blind spot): the
+    // fin cluster's goal was the fin as built, mirrored, 2 m of pull on the
+    // tail — every conventional aeroplane placed at heading 0 stood on its
+    // nose (GATE HONEST's paved strip rolled 0.7 m in 8 s from G327 on). The
+    // rest shape is re-taken from the pose the first step finds, R identity
+    // there by construction; every later turn is incremental.
+    clusterFresh = true;
     simT = 0;
   }
   function stance() {
@@ -1141,6 +1152,8 @@ function makeSim(def, world) {
     let vmx=0, vmy=0, vmz=0;
     for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
     vmx/=totalM; vmy/=totalM; vmz/=totalM;
+    // G348: a fresh reset's clusters take their rest from THIS pose (placed)
+    if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     const dp = Math.max(0, 1 - DEFDAMP * dt);
     for (let i = 0; i < n; i++) {
       const i3 = i*3, im = dt/m[i];

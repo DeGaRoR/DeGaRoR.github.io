@@ -42607,3 +42607,34 @@ door's glass).
   into the village as a civic plot is queued behind the tram's ropes and
   the stations in a theme (this session cannot message that session
   back - this note is the reply).
+
+## G348 — A CLUSTER'S REST IS THE POSE THE FIRST STEP FINDS: EVERY
+## CONVENTIONAL AEROPLANE PLACED AT HEADING 0 STOOD ON ITS NOSE SINCE G327
+## (2026-09-13, found by the regression sweep the user asked for)
+
+**What it was.** GATE HONEST's surface row read "1 m on pavement vs 63 m
+grass in 8 s" — and it was not the surface. Bisected over the day's 130
+commits: green through G324, red from **G327 (the fin cluster)**. The
+cluster's rest shape is taken in `reset` from the BUILT pose, and
+`placeAtAerodrome` rotates the airframe afterwards — a strip at heading 0
+(Morford A0, Holtorham A1) is the built pose turned 180° about y. The
+rotation extraction (Müller 2016, warm-started from identity) has exactly
+one blind spot, a rotation of 180°: no gradient, so the fin cluster's goal
+stayed the fin AS BUILT, mirrored — 2 m of pull on the tail, and the stock
+build placed at heading 0 stood on its nose in 0.5 s (tailwheel 4.7 m up)
+on a flat stub world, at HOME, anywhere. Heading 0.05 rolled 27 m, 0.3
+rolled the full 67. HOME is heading π, the battery's datum, so nothing
+else saw it; a player rolling out at either of those two strips would
+have.
+
+**What it is.** `clusterFresh`: set by `reset`, consumed by the first
+substep, which re-takes every cluster's rest from the pose it finds —
+the placed one; R is identity there by construction, and every later
+turn is incremental, which is what the warm start is for. Rigid-invariant
+rest data (the twist's rest angles) need no re-take.
+
+**Measured.** Stub world, stock build, 8 s at full throttle: heading 0
+0.6 m → 62.9 m, heading π 62.9 m unchanged. GATE HONEST surface: 69 m
+pavement vs 63 m grass — green.
+
+- Gates: HONEST, FLEX, TAKEOFF, GEN green.
