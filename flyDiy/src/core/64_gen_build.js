@@ -473,7 +473,7 @@ function genShakedown(def, opts) {
   }
   const cgS = st.cgPos(), axX = st.p[iAx*3], axY = aglOf(iAx);
   const noseOver = Math.atan2(cgS[0] - axX, Math.max(0.05, cgS[1] - axY)) * 180 / Math.PI;
-  const onWheels = iAx >= 0 && Math.abs(aglOf(iAx)) < 0.06 && Math.abs(aglOf(iTw)) < 0.06;
+  const onWheels = iAx >= 0 && Math.abs(aglOf(iAx)) < 0.06 && iTw >= 0 && Math.abs(aglOf(iTw)) < 0.06;
 
   // G134: the def's own engine facts outrank the registry row — a garage
   // build flies (and is judged by) the engine its dials resolved to. The
@@ -538,12 +538,14 @@ function genShakedown(def, opts) {
   if (S && P) {
     // contactR, not wheelR: a cambered wheel touches down above its own radius
     const ground = S.gear.y - S.gear.contactR;
-    const tw = def.nodes[P.TW];
+    // H1 (G383): a float build has no third wheel (P.TW -1): its deck angle
+    // is what it floats at, which the water decides, not the geometry
+    const tw = P.TW >= 0 ? def.nodes[P.TW] : null;
     out.AR = g.AR;
     // atan, not atan2: this is the slope of the line through the two contacts,
     // and a nosewheel sits AHEAD of the mains so atan2 wraps it to ~180 deg
-    out.deckAngle = Math.atan(((tw.p[1] - S.gear.twR) - ground) /
-                              (P.twX - P.gx)) * 180 / Math.PI;
+    out.deckAngle = tw ? Math.atan(((tw.p[1] - S.gear.twR) - ground) /
+                              (P.twX - P.gx)) * 180 / Math.PI : 0;
     out.gearType = S.gear.type;
     // G133: the fairing state joins the footer's gear label — one word, so
     // the plaque names what the L/D and cruise rows are already pricing
@@ -627,8 +629,8 @@ function genShakedown(def, opts) {
     // aeroplane cannot disagree again.
     out.propThrust = S.prop.Tstatic * (def.params.nEngines || 1);
     out.propTW = out.propThrust / W;
-    out.thirdLeg = S.gear.type === 'tricycle' ? -0.02 - tw.p[1]
-                                             : def.nodes[P.TPB].p[1] - tw.p[1];
+    out.thirdLeg = !tw ? 0 : S.gear.type === 'tricycle' ? -0.02 - tw.p[1]
+                                                    : def.nodes[P.TPB].p[1] - tw.p[1];
     out.camber = S.gear.camber;
   }
   // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the

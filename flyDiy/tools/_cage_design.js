@@ -266,6 +266,9 @@ function iconSide(o) {
   if (gr === 'trike') paths.push({ d: 'M10 26 L10 32', w: 1 }, { d: 'M30 26 L30 32', w: 1 },
                                  { d: 'M10 32 a2.6 2.6 0 1 0 0.1 0', w: 1 },
                                  { d: 'M30 32 a2.6 2.6 0 1 0 0.1 0', w: 1 });
+  // a pair of floats: two struts down to a long hull with a step
+  if (gr === 'floats') paths.push({ d: 'M14 26 L12 32', w: 1 }, { d: 'M26 26 L28 32', w: 1 },
+                                  { d: 'M4 32 L8 30 L24 30 L24 32 L32 33 L32 35 L4 35 Z', w: 1 });
   if (o.bigTyres) paths.push({ d: 'M18 30 a5 5 0 1 0 0.1 0', w: 1 });
   // THE PROPELLER IS WHERE THE MOUNT PUTS IT (2026-09-04, the user: "the
   // pusher does not push"): `prop: true` stays the nose line; 'pusher' is
@@ -1351,7 +1354,7 @@ const DESIGN_ROWS = [
     pair: [{ cage: 's2Leg', spec: 'gear.type', via: 'join' }],
     help: 'different aeroplanes on the ground — the placement rule ' +
           'inverts and the rest attitude follows',
-    read: P => +P.s2Leg === 3 ? 'tail' : 'trike',
+    read: P => +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
     // the spec channel carries the INTENT (`gear.type` is a real spec field
     // with a default); the join then measures the built cage and overwrites
     // it, and the two agreeing is exactly what the starter's cage values are
@@ -1361,7 +1364,8 @@ const DESIGN_ROWS = [
       { value: 'tail', label: 'Taildragger',
         icon: iconSide({ canopy: 'screen', gear: 'tail' }),
         writes: { cage: { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07,
-                          s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0 },
+                          s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0,
+                          s1On: 1, gearFloats: 0 },
                   spec: { gear: { type: 'taildragger' } } } },
       // THE STRUT IS THE LONG PART AND THE FORK IS THE SHORT ONE
       // (2026-09-11, alongside the nose-fairing repair). The height from the
@@ -1375,8 +1379,17 @@ const DESIGN_ROWS = [
         icon: iconSide({ canopy: 'screen', gear: 'trike' }),
         writes: { cage: { s2On: 1, s2Leg: 2, s2Z: 2.60, s2X: 0, s2R: 0.14,
                           s2Steer: 1, s2Brake: 0, s1Z: 0.95, s1Steer: 0,
-                          s2Drop: 0.30, s2_twLegDrop: 0.09 },
+                          s2Drop: 0.30, s2_twLegDrop: 0.09,
+                          s1On: 1, gearFloats: 0 },
                   spec: { gear: { type: 'tricycle' } } } },
+      // THE FLOATS (H1, G383): both wheel stations off, the flag on; the
+      // frame builds two floats sized by the gross (32_hydro's
+      // floatParamsFor) and the flight starts on the water. Not drawn in the
+      // garage until H2 draws the float and the join measures it.
+      { value: 'floats', label: 'Floats',
+        icon: iconSide({ canopy: 'screen', gear: 'floats' }),
+        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 1 },
+                  spec: { gear: { type: 'floats' } } } },
     ] },
 
   { key: 'retract', label: 'Retraction', kind: 'discriminator',

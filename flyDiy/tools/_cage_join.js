@@ -950,7 +950,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     const P = window.CAGE_UI ? window.CAGE_UI.P : {};
     const M = {};
     const G2 = window.CAGE_GEAR || {};
-    if (G2.contacts && G2.contacts.length) {
+    // H1 (G383): a float build declares itself — there are no contacts to
+    // measure, and the frame sizes the floats from the gross
+    if (+P.gearFloats) M.gearType = 'floats';
+    else if (G2.contacts && G2.contacts.length) {
       const mains = G2.contacts.filter(c => c.st && !isSingle(c));
       const single = G2.contacts.find(isSingle);
       if (mains.length) {

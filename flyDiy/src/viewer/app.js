@@ -3217,6 +3217,18 @@
     // attitude and the tail would fall a metre onto the tail wheel on the
     // first frame. The solver pitches the airframe onto its three points here,
     // in the design frame, before the placement rotates it onto the site.
+    // H1 (G383): A SEAPLANE STARTS ON THE WATER. No stance (no third
+    // wheel), no stand, no taxi: the float build is placed on the sea south
+    // of HOME — 1.25 km down the shore, heading out over 1.5 km of water
+    // 15-95 m deep — with its step keels a centimetre above the surface.
+    // The route (and the HUD) still read HOME; the pilot does not know it
+    // is on water (H4 is the water taxi), so fly it yourself.
+    if (sim.hydro) {
+      placeAtAerodrome(sim, { hdg: Math.PI / 2, spawn: [0, 1250], elev: 0 });
+      patternVisFor(from, (typeof siteOf === 'function') ? siteOf(from.id) : null);
+      ap.setRoute(from, to);
+      return;
+    }
     if (typeof sim.stance === 'function') sim.stance();
     const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
     patternVisFor(from, st);
@@ -3268,10 +3280,49 @@
     // garage it simply decides who flies the next roll-out
     if (!inGarage) fullReset();
   };
+  // THE FLOATS IN FLIGHT (H1, G383). A float build carries sim.hydro — the
+  // hull each float declares (32_hydro.js) and the four frame nodes its
+  // vertices ride by barycentrics. Until H2 draws the float in the cage and
+  // the join measures it, what flies is the PHYSICS HULL ITSELF: one mesh
+  // per float, its vertices copied from the float's world vertex table
+  // (out.W, which the hydro pass fills every substep and ctx.fill fills
+  // on demand) — so what you see is exactly what the water pushes on, in
+  // world coordinates on `craft` (which sits at identity, like the truss).
+  let floatMeshes = [];
+  function buildFloatMeshes() {
+    for (const m of floatMeshes) { craft.remove(m); m.geometry.dispose(); }
+    floatMeshes = [];
+    const HY = sim && sim.hydro;
+    if (!HY) return;
+    for (const fx of HY.floats) {
+      const F = fx.F, n = F.panels.length;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
+      m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
+      m.userData.fx = fx;
+      craft.add(m); floatMeshes.push(m);
+    }
+  }
+  function syncFloats() {
+    for (const m of floatMeshes) {
+      const fx = m.userData.fx, F = fx.F, W = fx.out.W;
+      fx.ctx.fill(W);
+      const a = m.geometry.attributes.position.array;
+      for (let k = 0; k < F.panels.length; k++) {
+        const v = F.panels[k].v;
+        for (let j = 0; j < 3; j++) { const w = W[v[j]]; a[k * 9 + j * 3] = w[0]; a[k * 9 + j * 3 + 1] = w[1]; a[k * 9 + j * 3 + 2] = w[2]; }
+      }
+      m.geometry.attributes.position.needsUpdate = true;
+      m.geometry.computeVertexNormals();
+    }
+  }
   function setAircraft(key) {
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
     sim.reset(0);
+    buildFloatMeshes();
+    if (typeof window !== 'undefined') window.FLYDIY_SIM = sim;   // H1: the headless rig reads it
     ap = mkPilot(key);
     // G200: the flap notches and the engine count are the aeroplane's
     if (INP) INP.aircraft({ flaps: def.params.flaps, nEngines: def.params.nEngines || 1 });
@@ -4846,7 +4897,7 @@
   // aeroplane, put down on its wheels.
   function standOnWheels() {
     const P = def.parts, iM = P.GAL, iT = P.TW;
-    if (iM == null || iT == null) return;
+    if (iM == null || iT == null || iT < 0) return;   // H1: a float build has no third wheel
     const x0 = sim.p[iM * 3], y0 = sim.p[iM * 3 + 1];
     const rM = def.nodes[iM].r, rT = def.nodes[iT].r;
     const ux = sim.p[iT * 3] - x0, uy = sim.p[iT * 3 + 1] - y0;
@@ -7635,6 +7686,7 @@
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
+    if (floatMeshes.length) syncFloats();
     poseModel();
     if (++frame % 6 === 0) {
       hud();

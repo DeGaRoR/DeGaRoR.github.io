@@ -44834,3 +44834,49 @@ is the frame before the floats' own 79 kg), the sea at (0, 1600):
   wheels on a float build (onWheels false, harmless).
 - Gates: FLOATS, HYDRODYN green; the rest of the core battery on the
   branch's worktree before landing.
+
+## G383 — A SEAPLANE IN THE GAME: FLOATS AS THE THIRD UNDERCARRIAGE, THE HULL
+## DRAWN IN FLIGHT, THE ROLL-OUT ONTO THE SEA (2026-09-13, the user: "I'd love
+## to see something in game, a plane land on its floats")
+
+- The undercarriage starter (`gearLayout`, _cage_design.js) has a third
+  tile, FLOATS: both wheel stations off (`s1On`/`s2On` 0), the cage flag
+  `gearFloats` 1 (a new gear-page param, _cage_gear.js), the spec's
+  `gear.type` 'floats'. The join (_cage_join.js `measure`) reads the flag
+  before it looks for contacts — there are none to measure — and the
+  frame builds the floats (G382). The two wheel tiles now write the flag
+  0 and `s1On` 1 back, so a float build can go back to wheels.
+- IN FLIGHT THE PHYSICS HULL IS DRAWN (app.js `buildFloatMeshes` /
+  `syncFloats`): one mesh per float, its vertices copied every frame from
+  the float's world vertex table (`out.W`, filled by the hydro pass and by
+  `ctx.fill`), on `craft` in world coordinates like the truss. What you
+  see is exactly what the water pushes on. Nothing is drawn in the garage:
+  the drawn float and the join measuring it are H2.
+- A SEAPLANE STARTS ON THE WATER (app.js `applyRoute`): a build with
+  `sim.hydro` skips the stance, the stand and the taxi and is placed on
+  the sea south of HOME — (0, 1250), heading out over 1.5 km of water
+  15-95 m deep — with its step keels a centimetre above the surface. The
+  route and the HUD still read HOME; the pilot does not know it is on
+  water (H4), so fly it by hand.
+- Three wheel assumptions met on the way, each guarded: `standOnWheels`
+  (app.js) and the shakedown's `deckAngle` / `thirdLeg` (64_gen_build.js)
+  read the third wheel's node at index -1 and threw ("build sync:
+  TypeError"); `onWheels` reads false on floats. `window.FLYDIY_SIM` is
+  the live sim, for the headless rig.
+- 32_hydro.js is WRAPPED: dev.html loads every core file as its own
+  classic script and its top-level `const API` / `G` / `D2R` collided
+  with the tool files' (measured: _vessel_gen.js refused to load, "API
+  already declared"). `HYDRO` is the one global; the frame and the solver
+  read `HYDRO.floatParamsFor` / `sectionOf` / `hydroBuild` /
+  `hydroSolverPass`; the bench declares its own D2R and G again.
+- MEASURED in the game (headless Chrome, the sim stepped from the rig
+  because the world renders at a frame a second under swiftshader):
+  the DEFAULT garage build on floats cannot get over the hump — its one
+  engine gives 0.23 W of static thrust against a hump of R/W 0.22 plus
+  friction, and it plateaus at 6.7 m/s in the displacement regime, which
+  is honest (real light seaplanes carry 0.3+). The user's twin-582
+  ultralight (0.41 W) planes at 89 km/h with the bow up, lifts off, and
+  with a fixed stick comes back in a phugoid, skips once at 23 m/s and
+  settles to a 3.3 m/s taxi with 3.6 / 3.0 m2 wet. screenshots/hydro/
+  game_spawn.jpg, game_hump.jpg, game_rollout.jpg, game_taxi.jpg.
+- Gates: FLOATS, HYDRODYN, BUILD, JOIN, PARTS, DESIGN, UISMOKE.

@@ -56,6 +56,12 @@ Object.assign(gearDef, {
   // legs (a trike's nose unit) keep the absolute station.
   s2On: 1, s2Z: 0.06, s2X: 0, s2Leg: 3, s2R: 0.10, s2Drop: 0.20,
   s2Brake: 0, s2Steer: 1, s2Fair: 0,
+  // THE FLOATS (H1, G383): 1 = the undercarriage is a pair of floats. The
+  // wheel stations go off with it; the join reads it as gear.type 'floats'
+  // and the frame builds the floats (61_gen_frame). Nothing is drawn in the
+  // cage for them yet — the drawn float is H2; in flight the physics hull
+  // itself is drawn (app.js).
+  gearFloats: 0,
   shockKind: 1, linkSwing: -42,
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
 });
