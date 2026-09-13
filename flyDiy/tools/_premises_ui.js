@@ -30,7 +30,7 @@ const PG = window.PREMISES_GEN;
 
 const SECTIONS = [
   { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'flatten', 'raise', 'ramp', 'surface', 'probe'] },
-  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'probe'] },
+  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'stand', 'probe'] },
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
@@ -39,7 +39,7 @@ const SECTIONS = [
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -54,6 +54,7 @@ const TOOL_HELP = {
   probe: 'click the ground to read its height, slope and surface',
   runway: 'click one end of the strip, then the other — it is graded to its profile, its class reaches the wheels, the pattern is derived',
   apron: 'click the corners of the paved apron or taxiway, close',
+  stand: 'click the ground beside a strip: the aeroplane stands there, its way out a straight taxi to the centreline; drag the discs, add taxi points in the inspector',
   building: 'pick a building in the inspector, click the ground to stand it there (its own site); drag its disc to move it',
   theme: 'click the ground: the Kennecott theme stands there as ONE site - the mill, the shop, the row, the receiving shed, the conveyor link and the gravel yard',
   cable: 'click a tram station, then the other: the line is solved between them (the village\'s tramLine, once its branch lands) and the ropes drawn',
@@ -239,6 +240,12 @@ function mount(host, ctx) {
     hs.sort((a, b) => a - b);
     return +(hs.length ? hs[hs.length >> 1] : 0).toFixed(2);
   }
+  // the falloff a flatten needs so its bank never passes 3:1 (a smoothstep's steepest is 1.5 x drop / falloff):
+  // the drop is the most the ground differs from the level round the polygon's corners; the least is the tool's own
+  function bankFor(poly, level, least) {
+    const F = R.overlay.frame;
+    return PG.bankFalloff(poly, (lx, lz) => { const w = F.toWorld(lx, lz); return world.terrainH(w[0], w[1]) - F.y0; }, level, least);
+  }
   function commitDrawing() {
     if (T.state !== 'drawing') return;
     if (TWO_POINT_TOOLS[tool]) {
@@ -263,7 +270,7 @@ function mount(host, ctx) {
     const poly = PG.ensureCCW(T.pts);
     const layer = POLY_TOOLS[tool];
     let e;
-    if (tool === 'flatten') e = { id: PG.newId(rec, 'terrain'), kind: 'flatten', poly, level: medianLevel(poly), falloff: 10, abs: false, order: 0 };
+    if (tool === 'flatten') { const lv = medianLevel(poly); e = { id: PG.newId(rec, 'terrain'), kind: 'flatten', poly, level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
     else if (tool === 'raise') e = { id: PG.newId(rec, 'terrain'), kind: 'raise', poly, dh: 2, falloff: 10 };
     else if (tool === 'ramp') e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, plane: [0.02, 0, medianLevel(poly)], falloff: 8 };
     else if (tool === 'surface') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL };
@@ -346,10 +353,21 @@ function mount(host, ctx) {
         if (it) { const a = e.at, c = Math.cos(a.yaw || 0), sn = Math.sin(a.yaw || 0), dx = L[0] - a.x, dz = L[1] - a.z; it.x = +(dx * c - dz * sn).toFixed(2); it.z = +(dx * sn + dz * c).toFixed(2); }
       }
     }
+    else if (drag.runway === 'stand' || drag.runway.indexOf('tx') === 0) {
+      // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
+      const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
+      if (drag.runway === 'stand') { e.stand.x = +L[0].toFixed(2); e.stand.z = +L[1].toFixed(2); }
+      else {
+        const i = +drag.runway.slice(2);
+        if (i === e.taxiOut.length - 1) { const along = (L[0] - e.c[0]) * E.d[0] + (L[1] - e.c[1]) * E.d[1]; e.taxiOut[i] = [+(e.c[0] + E.d[0] * along).toFixed(2), +(e.c[1] + E.d[1] * along).toFixed(2)]; }
+        else e.taxiOut[i] = [+L[0].toFixed(2), +L[1].toFixed(2)];
+      }
+    }
     else if (drag.runway) {
       // a strip moved or turned drops its authored pattern: the graph was in the world frame of the old strip
       if (found.entry.site && found.entry.site.pattern) { const st = Object.assign({}, found.entry.site); delete st.pattern; found.entry.site = Object.keys(st).length ? st : null; }
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
+      // the way out follows the strip: its entry point stays on the centreline
       if (drag.runway === 'c') { e.c = [+L[0].toFixed(2), +L[1].toFixed(2)]; }
       else {
         const fixed = drag.runway === 'e0' ? E.end1 : E.end0, mv = [L[0], L[1]];
@@ -427,9 +445,21 @@ function mount(host, ctx) {
         // the row, the shop, the office, the sheds, the receiving shed - flattened to its median; the mill climbs the hill above it
         const fpoly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, 30], [Y.x0, 30]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
         const fid = PG.newId(rec, 'terrain');
-        run({ layer: 'terrain', id: fid, before: null, after: { id: fid, kind: 'flatten', poly: PG.ensureCCW(fpoly), level: medianLevel(fpoly), falloff: 14, abs: false, order: 0 }, label: 'the works flat' });
+        run({ layer: 'terrain', id: fid, before: null, after: { id: fid, kind: 'flatten', poly: PG.ensureCCW(fpoly), level: medianLevel(fpoly), falloff: bankFor(fpoly, medianLevel(fpoly), 14), abs: false, order: 0 }, label: 'the works flat' });
       }
       select(sid); return;
+    }
+    if (tool === 'stand') {
+      // the nearest strip takes the stand; the way out is one point: the stand projected onto the centreline
+      let best = null;
+      for (const r of R.overlay.runways) { const E = PG.runwayEnds(r); const d = PG.distPtSeg(L[0], L[1], E.end0, E.end1); if (!best || d < best.d) best = { r, d, E }; }
+      if (!best || best.d > 400) { strip.status('no strip within 400 m'); return; }
+      const E = best.E, c = best.r.c;
+      const along = (L[0] - c[0]) * E.d[0] + (L[1] - c[1]) * E.d[1];
+      const entry = [+(c[0] + E.d[0] * along).toFixed(2), +(c[1] + E.d[1] * along).toFixed(2)];
+      edit(best.r.id, 'runways', x => { x.stand = { x: +L[0].toFixed(2), z: +L[1].toFixed(2), hdg: null }; x.taxiOut = [entry]; }, 'stand of ' + best.r.id);
+      setTool('select'); select(best.r.id);
+      return;
     }
     if (tool === 'prop' || tool === 'billboard') {
       const key = OBJ_PICK[tool] || (objectKeys(tool)[0] || [null])[0];
@@ -563,11 +593,18 @@ function mount(host, ctx) {
         rows.note(insp, 'elev ' + A.elev.toFixed(1) + ' m · heading ' + ((A.hdg * 180 / Math.PI + 360) % 360).toFixed(0) + '° in the world · tdz ' + A.tdz.map(v => v.toFixed(0)).join(', '));
         if (ctx.site && ctx.site.sitePattern) {
           let iss = [];
-          try { iss = ctx.site.sitePatternIssues(ctx.site.sitePattern(A, e.site || null), A, e.site || null, 0, ctx.site.patternPath || null); } catch (err) { iss = [err.message]; }
+          const siteC = ((R.overlay.runways || []).find(q => q.id === id) || {}).site || e.site || null;
+          try { iss = ctx.site.sitePatternIssues(ctx.site.sitePattern(A, siteC), A, siteC, 0, ctx.site.patternPath || null); } catch (err) { iss = [err.message]; }
           const d = $('div', { class: 'note', style: iss.length ? 'color:#ff6b5a' : 'color:#6fd08c' }); d.textContent = iss.length ? iss.join(' · ') : 'the pattern is sound: two holds on the centreline, the two approaches on the strip'; insp.appendChild(d);
         }
       }
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
+      if (e.stand && e.taxiOut) {
+        rows.note(insp, 'THE STAND: the aeroplane starts here, parked toward its first taxi point; the way out runs through ' + e.taxiOut.length + ' point' + (e.taxiOut.length > 1 ? 's' : '') + ' to the centreline');
+        rows.button(insp, 'add a taxi point', () => ed(x => { const t = x.taxiOut, n = t.length, a = n > 1 ? t[n - 2] : [x.stand.x, x.stand.z], b = t[n - 1]; t.splice(n - 1, 0, [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)]); }, 'taxi point of ' + id));
+        if (e.taxiOut.length > 1) rows.button(insp, 'drop the last taxi point before the entry', () => ed(x => { x.taxiOut.splice(x.taxiOut.length - 2, 1); }, 'taxi point of ' + id));
+        rows.button(insp, 'remove the stand', () => ed(x => { x.stand = null; x.taxiOut = null; }, 'stand of ' + id));
+      } else rows.note(insp, 'no stand: the aeroplane starts 35 m in from end 0 (the stand tool puts one beside the strip)');
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {

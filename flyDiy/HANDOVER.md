@@ -44638,3 +44638,54 @@ PARTS, MEDIA.
   proven from a clean worktree.
 - OWED (the bench's close): the authored stand + taxi-out, the harbour, the
   showcase record, premises_perf.js.
+
+## G379 — THE PREMISES BENCH v6: THE STAND AND ITS WAY OUT, THE HARBOUR, ONE
+## BANK LAW, THE ROAD THAT FOLLOWS THE GROUND, THE SHOWCASE (2026-09-13,
+## closing the bench's owed list)
+
+- **THE STAND** (contract v1.7): the stand tool puts the aeroplane's stand
+  beside a strip, its way out a straight taxi to the centreline; the stand's
+  disc and one per taxi point drag (the entry stays on the centreline), the
+  inspector adds and drops taxi points. The record holds `stand` and
+  `taxiOut` in the premises frame; the composer hands them to the pattern in
+  the world on the runway's site, the stand's heading DERIVED toward its
+  first taxi point (parked the way it will leave - the core's own ruling at
+  HOME). The core's `sitePattern` gained its THIRD branch: a declared stand
+  with a way out and no apron row - stand, the taxi points, the entry on the
+  centreline, hold0; out[1] onto the lane and the generic U-turn - so the
+  pilot flies it untouched. The strip's flat is its graded box OR any
+  authored flatten: a stand on an apron cut beside the strip is sound, one
+  dragged off it "leaves the flat ground". GATE PREMISES 10b; GATE SITE
+  green (HOME's branch untouched).
+- **THE HARBOUR**: a zone kind that sows only the plots whose ground reaches
+  the water - the village's water house on each, its piles in the water, the
+  pier off the landing, the boat; a harbour whose road never nears the water
+  sows nothing and says so. Rule 8d, on a shore of its own.
+- **ONE BANK LAW**: a shelf's margins, a park's lawn, a tool's flatten - the
+  falloff is max(the least, drop / 1.8) with the drop measured WHERE THE
+  BANK RUNS (the boundary offset outward by the margin itself, iterated),
+  so no bank passes 3:1 on any flank. The base station on a 35 % flank had
+  a 14 m wall over its 6 m margin; the mill's cut face on the showcase's
+  mountain answers with 20 m margins.
+- **THE ROAD FOLLOWS THE GROUND**: its grade is read every 6 m along the
+  traced line, not only at the traced points - between two points 45 m
+  apart a flatten's bank rose 14 m and the straight grade cut a 3.5:1 step
+  through it; smoothed four times, its first and last 7 m held level (a spur
+  off the shore road lifted the road's edge). Rule 9's across bar is 8 cm at
+  a bend on a grade (the two feet of an across sample fall a metre either
+  side of the node).
+- **A FIXTURE NAMES ITS WORLD**: an anchor keyed `village-bench` (size, seed)
+  composes the fixture on the village's own terrain, built headless from the
+  generators; the gate's baked-vs-live compares the composed height with the
+  modifiers' bilinear bound over the cell's worst corner PLUS the world's own
+  raster miss at the point (the village terrain folds a quarter-metre wide).
+- **THE SHOWCASE** `tools/fixtures/premises_v1_showcase.json`, authored in the
+  pane by script: a shore road with its village, a harbour on its own road,
+  a totem park, the mine on the spur with its tram to the ridge, a lakeside
+  strip with its apron and stand, two signs and a junk car - no issue, every
+  panel line green, 36 houses, 69 lights. The acceptance places the design
+  named (the harbour, the air-taxi base, the mine + tram, the park, the
+  lakeside strip) stand in one record.
+- Gates: PREMISES green (186 checks over 4 fixtures), SITE, AERO, PILOT,
+  TAKEOFF green; proven from a clean worktree.
+- OWED: premises_perf.js (the measurement), then the game host.

@@ -519,3 +519,26 @@ after the freeze, against this document.
   footpath from the road's verge to the lawn, the rail fence with its gate where the path comes in) is
   the composer's, on `records.parks[].path / fences`. The lights every build publishes into its lights
   slot are COUNTED on the plaque (not drawn); GATE PREMISES rule 14.
+- **v1.7 (2026-09-13, the bench's v6: the stand, the harbour, the showcase).** (a) A runway record may
+  carry `stand: { x, z, hdg|null }` and `taxiOut: [[x, z], ...]` in the premises frame: the aeroplane's
+  stand and its way out, the taxi points stated in order from the stand to the centreline, the last one
+  AT it. The composer hands them to the pattern in the world frame on the runway's `site` (merged over an
+  authored pattern), the stand's heading derived toward its first taxi point when the record gives none;
+  the CORE's `sitePattern` gained its third branch for a declared stand with a way out and no apron row
+  (`stand -> tx0.. -> c0 -> hold0`, out[1] onto the lane), so the pilot flies it untouched; the aerodrome
+  record's `spawn` is the stand; its `flat` is the graded box OR any authored flatten (an apron cut beside
+  the strip is flat ground). (b) A HARBOUR zone sows only the plots whose ground reaches the water (the
+  village's water house with its pier on each); a harbour whose road never nears the water sows nothing
+  and says so. (c) THE BANK LAW, one for every level the composer cuts: a shelf's margins (the entry's are
+  the least), a park's lawn, a tool's flatten - the falloff is `max(least, drop / 1.8)` with the drop
+  measured WHERE THE BANK RUNS (the boundary offset outward by the margin, iterated), so no bank passes
+  3:1 on any flank. (d) A ROAD FOLLOWS THE GROUND: its grade is read every 6 m along the traced line (a
+  straight grade between two far points cut a 3.5:1 step through a flatten's bank), smoothed, its first
+  and last 7 m held level (a spur off a road must not lift the road's edge); rule 9's across bar is 8 cm
+  at a bend. (e) A FIXTURE NAMES ITS WORLD by an anchor keyed `village-bench` (with `size`, `seed`): the
+  gate composes it on the village's own terrain, headless; every other fixture composes on synth. (f)
+  Baked-vs-live compares the composed height with a tolerance of the modifiers' bilinear bound over the
+  cell's worst corner PLUS the world's own raster miss at the point (a crease of the world's is the
+  world's). The showcase record `premises_v1_showcase.json` is the acceptance place: a shore road with
+  its village, a harbour on its own road, a totem park, the mine on the spur with its tram to the ridge,
+  a lakeside strip with its apron and stand, two signs and a junk car - 186 checks over four fixtures.

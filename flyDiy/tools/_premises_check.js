@@ -41,7 +41,7 @@
 //      water side of a plot reaches the water; a zone with no road sows none;
 //      the same seed sows the same plots, another seed different ones.
 //   9  ROADS (v1): a graded road is flat across (the two shoulders within
-//      5 cm of the centreline - at a bend two straight segments meet) and its class answers as the surface inside
+//      8 cm of the centreline - at a bend two graded segments meet) and its class answers as the surface inside
 //      its width; a forest keeps 3 m off it.
 //  10  SURFACE: a surface polygon answers its class inside and -1 outside.
 //      RUNWAYS (v2): a strip composes on its profile (the centreline at
@@ -61,6 +61,9 @@
 //      flat to 1 cm, the entry's fill standing in its slot as an item.
 //  9c  THE REAL CABLE: the catalogue's two stations (by tag) and the
 //      village's tramLine solve six ropes in the band, lineDeg on both.
+//  10b THE STAND (v6): a strip's stand and its way out become the pattern's
+//      route out (the core's third branch); sound on a flatten, refused off it.
+//  8d  THE HARBOUR (v6): only water plots; none off the water, and said.
 //  14  THE DRESSING (v5): a park's footpath from the road verge to the lawn,
 //      its rail fence with the gate where the path comes in; a prop and a
 //      billboard compose on the ground in the premises frame; keyless = issue.
@@ -129,11 +132,23 @@ check(fixtures.length > 0, '2 there is at least one fixture');
 const rnd = PG.mulberry32(11);
 const sampleIn = (bb, n, f) => { for (let k = 0; k < n; k++) f(bb.x0 + rnd() * (bb.x1 - bb.x0), bb.z0 + rnd() * (bb.z1 - bb.z0)); };
 
+// the world a fixture names: an anchor keyed 'village-bench' asks for the village's own terrain (its
+// size and seed on the anchor), built headless from the generators; every other fixture composes on synth
+function worldFor(rec) {
+  const a = rec.frame && rec.frame.anchors && rec.frame.anchors['village-bench'];
+  if (a && GENS.VILLAGE_GEN && GENS.VILLAGE_GEN.makeTerrain) {
+    const V = Object.assign({}, GENS.VILLAGE_GEN.VDEF, { size: a.size || 640, seed: a.seed || 3 });
+    const T = GENS.VILLAGE_GEN.makeTerrain(V);
+    return { id: 'village-bench', terrainH: T.h, waterH: () => T.waterY };
+  }
+  return synth;
+}
 for (const fx of fixtures) {
   const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', fx), 'utf8');
   let U;
   try { U = PG.unwrap(txt); } catch (e) { check(false, '2 ' + fx + ' unwraps', e.message); continue; }
   const rec = U.rec;
+  const synth = worldFor(rec);   // shadows the module's synth for this fixture: the world it was made on
   check(rec.v === PG.PREMISES_V, '2 ' + fx + ' is at PREMISES_V');
   // 1 round trip
   const back = PG.unwrap(PG.envelope(U.name, rec)).rec;
@@ -215,10 +230,14 @@ for (const fx of fixtures) {
       }
       const bb = PG.polyBBox(m.poly);
       let worst = 0, n = 0;
+      const later = rec.layers.terrain.slice(rec.layers.terrain.indexOf(m) + 1);
       sampleIn(bb, 400, (lx, lz) => {
         if (!PG.inPoly(m.poly, lx, lz)) return;
+        const w = F.toWorld(lx, lz);
+        // what cuts the flat LATER is not the flat's fault: a road graded through it, a site's shelf, a later modifier
+        if (O1.roadNear(w[0], w[1]) < 12 || later.some(q => q.poly && PG.inPoly(q.poly, lx, lz)) || (O1.shelves || []).some(sh => PG.shelfCovers(sh, lx, lz))) return;
         n++;
-        const w = F.toWorld(lx, lz), h = O1.terrainAt(w[0], w[1]);
+        const h = O1.terrainAt(w[0], w[1]);
         let target;
         if (m.kind === 'flatten') target = (m.abs ? 0 : F.y0) + m.level;
         else if (m.kind === 'raise') target = synth.terrainH(w[0], w[1]) + m.dh;
@@ -245,8 +264,10 @@ for (const fx of fixtures) {
   for (const e of rec.layers.exclude) {
     const bb = PG.polyBBox(e.poly);
     let ok = true;
+    const others = (O1.records.excludes || []).filter(q => q !== e.poly && JSON.stringify(q) !== JSON.stringify(e.poly));
     sampleIn({ x0: bb.x0 - 20, z0: bb.z0 - 20, x1: bb.x1 + 20, z1: bb.z1 + 20 }, 1000, (lx, lz) => {
       const w = O1.frame.toWorld(lx, lz);
+      if (!PG.inPoly(e.poly, lx, lz) && others.some(q => PG.inPoly(q, lx, lz))) return;   // another exclude's ground
       if (O1.excludeAt(w[0], w[1], 'trees') !== PG.inPoly(e.poly, lx, lz)) ok = false;
     });
     check(ok, '11 exclude ' + e.id + ' answers inside and not outside');
@@ -283,9 +304,11 @@ for (const fx of fixtures) {
         const c = O1.localH(a.p[0], a.p[1]), l = O1.localH(a.p[0] + a.n[0] * hw, a.p[1] + a.n[1] * hw), rr = O1.localH(a.p[0] - a.n[0] * hw, a.p[1] - a.n[1] * hw);
         worst = Math.max(worst, Math.abs(l - c), Math.abs(rr - c));
         const w = O1.frame.toWorld(a.p[0], a.p[1]);
-        if (O1.surfaceAt(w[0], w[1]) !== (r.surface !== undefined ? r.surface : PG.ROAD_CLS[r.cls])) surfOk = false;
+        if (!rec.layers.surface.some(sp => sp.poly && PG.inPoly(sp.poly, a.p[0], a.p[1])) && O1.surfaceAt(w[0], w[1]) !== (r.surface !== undefined ? r.surface : PG.ROAD_CLS[r.cls])) surfOk = false;
       }
-      check(worst < 0.05, '9 road ' + r.id + ' is flat across (5 cm: at a bend two straight segments meet)', worst.toFixed(3) + ' m');
+      // 8 cm: at a bend on a grade the two feet of an across sample fall a metre either side of the node on
+      // segments of different slope (v6: the grade follows the ground every 6 m, so the slopes are the ground's)
+      check(worst < 0.08, '9 road ' + r.id + ' is flat across (8 cm: at a bend two graded segments meet)', worst.toFixed(3) + ' m');
       check(surfOk, '9 road ' + r.id + ' answers its surface inside its width');
     }
     const Tn = O1.records.trees;
@@ -318,7 +341,7 @@ for (const fx of fixtures) {
         const R = FLIGHT_FNS.siteRunway(A);
         check(Math.abs(Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z) - r.len) < 1e-6, '10 siteRunway derives ' + r.id);
         let iss;
-        try { iss = FLIGHT_FNS.sitePatternIssues(FLIGHT_FNS.sitePattern(A, null), A, null, 0, FLIGHT_FNS.patternPath); } catch (e) { iss = [e.message]; }
+        try { iss = FLIGHT_FNS.sitePatternIssues(FLIGHT_FNS.sitePattern(A, r.site || null), A, r.site || null, 0, FLIGHT_FNS.patternPath); } catch (e) { iss = [e.message]; }   // r.site: the composed stand and way out (v6)
         check(iss.length === 0, '10 sitePatternIssues empty for ' + r.id, iss[0]);
       }
     });
@@ -331,17 +354,20 @@ for (const fx of fixtures) {
   }
   // 12 baked vs live
   {
-    const B = PG.bake(O1, synth, O1.extent, 1);
+    // the composed height rastered; the tolerance is the modifiers' bilinear bound plus the WORLD's own
+    // raster miss at the point (a crease of the world's is the world's, not the layer's)
+    const B = PG.bake(O1, synth, O1.extent, 1), B0 = PG.bake(PG.compose(PG.DEF(), synth, { noPlace: true }), synth, O1.extent, 1);
     let worst = -Infinity;
     sampleIn(O1.extent, 10000, (lx, lz) => {
       const w = O1.frame.toWorld(lx, lz);
       const live = O1.terrainAt(w[0], w[1]), baked = B.sample(lx, lz);
-      worst = Math.max(worst, Math.abs(live - baked) - (0.02 + PG.curvTol(O1, O1.frame, lx, lz, 1)));
+      const worldMiss = Math.abs(synth.terrainH(w[0], w[1]) - B0.sample(lx, lz));
+      worst = Math.max(worst, Math.abs(live - baked) - (0.02 + PG.cellTol(O1, O1.frame, lx, lz, 1) + worldMiss));
     });
     check(worst <= 0, '12 ' + fx + ' baked and live agree', 'over by ' + worst.toFixed(3) + ' m');
   }
   // the panel's own lines all green on the golden
-  const lines = PG.checks(rec, synth);
+  const lines = PG.checks(rec, synth, { site: FLIGHT_FNS || null, overlay: PG.compose(rec, synth, { catalogue: CAT, globals: GENS, build: r => (GENS[r.gen] ? GENS[r.gen].build(r.P, 0) : null) }) });
   check(lines.every(l => l.ok), '12 the #chk lines are green on ' + fx, lines.filter(l => !l.ok).map(l => l.label).join('; '));
 }
 
@@ -483,6 +509,43 @@ for (const fx of fixtures) {
     check(deg >= 15 && deg <= 45, '9c the line is in the band', String(deg));
     check(O.records.items.every(it => isFinite(it.P.lineDeg)), '9c lineDeg reaches both stations');
     check(Date.now() - t0 < 8000, '9c the built solve is under 8 s', (Date.now() - t0) + ' ms');
+  }
+  // 10b THE STAND AND ITS WAY OUT (v6): a strip with a stand beside it and two taxi points gets a pattern
+  // whose route out starts at the stand, walks the taxi points, enters the centreline and reaches
+  // hold0 - sound when the stand is on a flatten, "leaves the flat ground" when it is not
+  if (FLIGHT_FNS) {
+    const strip = { id: 'w', c: [0, 0], hdg: 0, len: 600, wid: 24, slope: 0, stand: { x: 60, z: 90, hdg: null }, taxiOut: [[20, 70], [-40, 0]] };
+    const flat = { id: 'f', kind: 'flatten', poly: [[-60, 40], [90, 40], [90, 110], [-60, 110]], level: 0, falloff: 12 };
+    const recOff = PG.normalise({ seed: 1, layers: { runways: [strip] } });
+    const recOn = PG.normalise({ seed: 1, layers: { runways: [strip], terrain: [flat] } });
+    const off = PG.compose(recOff, synth, { noPlace: true }), on = PG.compose(recOn, synth, { noPlace: true });
+    const pat = FLIGHT_FNS.sitePattern(on.aerodromes[0], on.runways[0].site);
+    const st = pat.nodes.find(nd => nd.id === 'stand');
+    check(!!st && st.kind === 'stand' && pat.routes.out[0][0] === 'stand' && pat.routes.out[0][pat.routes.out[0].length - 1] === 'hold0' && pat.routes.out[0].indexOf('tx0') === 1, '10b the pattern starts at the stand, walks the taxi point, ends at hold0', pat.routes.out[0].join('>'));
+    check(!!st && Math.abs(st.hdg - Math.atan2(70 - 90, 20 - 60)) < 1e-3, '10b the stand faces its first taxi point', st && st.hdg);
+    const c0 = pat.nodes.find(nd => nd.id === 'c0');
+    check(!!c0 && Math.abs(c0.z) < 1e-6, '10b the entry is on the centreline');
+    check(Math.abs(on.aerodromes[0].spawn[0] - 60) < 1e-6 && Math.abs(on.aerodromes[0].spawn[1] - 90) < 1e-6, '10b the aeroplane is placed at the stand');
+    const issOn = FLIGHT_FNS.sitePatternIssues(pat, on.aerodromes[0], on.runways[0].site, 0, FLIGHT_FNS.patternPath);
+    check(issOn.length === 0, '10b on a flatten the route out is sound', issOn[0]);
+    const patOff = FLIGHT_FNS.sitePattern(off.aerodromes[0], off.runways[0].site);
+    const issOff = FLIGHT_FNS.sitePatternIssues(patOff, off.aerodromes[0], off.runways[0].site, 0, FLIGHT_FNS.patternPath);
+    check(issOff.some(i => /leaves the flat ground/.test(i)), '10b off the flat the validator says so', issOff.join('; ') || 'no issue');
+    const P1 = FLIGHT_FNS.patternPath(pat, pat.routes.out[1], 1.0);
+    check(!!P1 && P1.pts.length > 2, '10b the route out in the other direction samples');
+  }
+  // 8d THE HARBOUR (v6): a harbour zone sows only the plots whose ground reaches the water, every one a
+  // water plot; on a road nowhere near the water it sows none and says so
+  {
+    // a shore of its own: the ground climbs 10 % away from the water at z 0
+    const shore = { id: 'shore', terrainH: (x, z) => 0.1 * z + 0.5 * Math.sin(x / 30), waterH: () => 0 };
+    const zone = { id: 'h', kind: 'harbour', poly: [[-200, -60], [200, -60], [200, 200], [-200, 200]] };
+    const near = PG.normalise({ seed: 7, layers: { roads: [{ id: 'r', pts: [[-190, 25], [190, 25]], w: 4, cls: 'gravel', graded: true }], zones: [zone] } });
+    const O = PG.compose(near, shore, { catalogue: { entries: new Map(), aliases: {}, keys: () => [], byTag: () => [] } });
+    check(O.records.plots.length > 0 && O.records.plots.every(p => p.side === 'water'), '8d a harbour zone sows water plots only', O.records.plots.length + ' plots, ' + O.records.plots.filter(p => p.side !== 'water').length + ' on land');
+    const far = PG.normalise({ seed: 7, layers: { roads: [{ id: 'r', pts: [[-190, 150], [190, 150]], w: 4, cls: 'gravel', graded: true }], zones: [zone] } });
+    const Of = PG.compose(far, shore, { catalogue: { entries: new Map(), aliases: {}, keys: () => [], byTag: () => [] } });
+    check(Of.records.plots.length === 0 && Of.records.issues.some(i => /harbour h: no plot/.test(i)), '8d a harbour off the water sows nothing and says so', Of.records.plots.length + ' plots; ' + (Of.records.issues[0] || 'no issue'));
   }
   // 14 THE PARK'S DRESSING (v5): its footpath starts on the road's verge and ends at the lawn's front,
   // its rail fence rounds the plot with the gate on the front edge where the path comes in

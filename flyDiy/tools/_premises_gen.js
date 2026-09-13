@@ -61,7 +61,11 @@ const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park'
 const ZONE_RULES = { plotMin: 20, plotMax: 34, plotDepth: 30, riparian: 16, gapOdds: 0.18, sides: 'both' };
 // what a KIND changes before the zone's own rules: a park plot is the village's park (36 x 40) with
 // a gap after it, so two lawns' falloffs (6 m each) never meet; every other kind takes ZONE_RULES
-const KIND_RULES = { park: { plotMin: 36, plotMax: 44, plotDepth: 40, gap: 16, bankMax: 10, setback: 12 } };   // a lawn is refused past a 10 m bank; the plot 12 m back from the road so the bank never re-grades the road
+const KIND_RULES = { park: { plotMin: 36, plotMax: 44, plotDepth: 40, gap: 16, bankMax: 10, setback: 12 },
+  // a HARBOUR sows only the plots whose ground reaches the water: the village's water house on each
+  // (its piles in the water, the pier growing off the landing, the boat); a harbour zone whose road
+  // never nears the water sows nothing and says so
+  harbour: { waterOnly: true, plotMin: 18, plotMax: 30, plotDepth: 34 } };   // a lawn is refused past a 10 m bank; the plot 12 m back from the road so the bank never re-grades the road
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 // ---------------------------------------------------------------------------
@@ -204,6 +208,33 @@ function shoreDepth(T, waterY, p, n) {
   let d = 0;
   while (d < 80 && T(p[0] + n[0] * d, p[1] + n[1] * d) > waterY + 0.05) d += 0.5;
   return d;
+}
+
+// ---------------------------------------------------------------------------
+// THE BANK LAW (v6): a level's falloff (its margin) so the bank never passes
+// 3:1. A smoothstep's steepest is 1.5 x drop / falloff, and the drop is
+// measured WHERE THE BANK RUNS - along the boundary offset outward by the
+// margin itself (on a 40 % flank the ground keeps falling across the feather),
+// so it is iterated: f = max(least, drop(f) / 1.8), three times.
+// ---------------------------------------------------------------------------
+function polyDrop(poly, T, level, off) {
+  let drop = 0;
+  const n = poly.length;
+  for (let i = 0; i < n; i++) {
+    const a = poly[i], b = poly[(i + 1) % n], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L < 1e-6) continue;
+    let nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;   // a normal; flipped outward below
+    const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+    if (inPoly(poly, mx + nx * 0.5, mz + nz * 0.5)) { nx = -nx; nz = -nz; }
+    const k = Math.max(1, Math.ceil(L / 3));
+    for (let j = 0; j <= k; j++) { const u = j / k, x = a[0] + (b[0] - a[0]) * u + nx * off, z = a[1] + (b[1] - a[1]) * u + nz * off; drop = Math.max(drop, Math.abs(T(x, z) - level)); }
+  }
+  return drop;
+}
+function bankFalloff(poly, T, level, least) {
+  let f = Math.max(0.5, +least || 6);
+  for (let it = 0; it < 3; it++) f = Math.max(+least || 6, polyDrop(poly, T, level, f) / 1.8);
+  return +f.toFixed(2);
 }
 
 // ---------------------------------------------------------------------------
@@ -390,6 +421,7 @@ function sowPlots(zone, roads, ctx) {
           // the water side is where the ground goes under within the plot's depth
           const sd0 = shoreDepth(ctx.T, ctx.waterY, f0, an), sd1 = shoreDepth(ctx.T, ctx.waterY, f1, bn);
           const side = (sd0 < V.plotDepth + 10 || sd1 < V.plotDepth + 10) && sd0 < 80 && sd1 < 80 ? 'water' : 'land';
+          if (V.waterOnly && side !== 'water') continue;
           let b0, b1, depth;
           const back = cut => {
             if (side === 'water') {
@@ -482,7 +514,7 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null };
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -494,7 +526,21 @@ function runwayBox(r, margin) {
   return [[a[0] + E.n[0] * hw, a[1] + E.n[1] * hw], [b[0] + E.n[0] * hw, b[1] + E.n[1] * hw], [b[0] - E.n[0] * hw, b[1] - E.n[1] * hw], [a[0] - E.n[0] * hw, a[1] - E.n[1] * hw]];
 }
 // the record in W.aerodromes' shape, in WORLD coordinates (24_world_aero's push)
-function runwayAerodrome(r, F, elev) {
+// THE STAND AND ITS WAY OUT, in the world (v6): the record's `stand` {x, z, hdg|null} and `taxiOut`
+// [[x, z], ...] are in the premises frame; the site the pattern reads gets them in the world, the
+// stand's heading DERIVED toward its first taxi point when the record gives none (an aeroplane is
+// parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
+// `site` (an authored pattern rides there untouched)
+function runwaySite(r, F) {
+  if (!r.stand || !r.taxiOut || !r.taxiOut.length) return r.site || null;
+  const W = q => F.toWorld(q[0], q[1]);
+  const st = W([r.stand.x, r.stand.z]), tx = r.taxiOut.map(W);
+  let hdg;
+  if (r.stand.hdg !== null && r.stand.hdg !== undefined) hdg = +r.stand.hdg - F.yaw;
+  else hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
+  return Object.assign({}, r.site || {}, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
+}
+function runwayAerodrome(r, F, elev, flats) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
   const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
@@ -506,8 +552,14 @@ function runwayAerodrome(r, F, elev) {
   // the strip's own flat, in the world: its graded box (the width and the shoulder) - siteOnFlat asks it
   const shoulder = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
   const flatBox = runwayBox(r, shoulder).map(q => F.toWorld(q[0], q[1]));
-  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: (x, z) => inPoly(flatBox, x, z),
-           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn, flyIn: false, premises: true,
+  // ... and every authored flatten (an apron cut beside the strip is flat ground too)
+  const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
+  const flat = (x, z) => inPoly(flatBox, x, z) || flatPolys.some(pl => inPoly(pl, x, z));
+  // the aeroplane is placed at the stand when the strip has one
+  const S = runwaySite(r, F);
+  const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
+  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
 
@@ -598,8 +650,13 @@ function siteShelves(site, cat, T) {
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
     if (entry.ground.need === 'flatten' && typeof entry.ground.shelf === 'function') {
       const M = entry.ground.shelf(P);
-      const ahead = toWorld(0, M.zLevel || 0);
-      out.push({ id, kind: 'shelf', c, yaw, rect: { x0: M.rect[0], z0: M.rect[1], x1: M.rect[2], z1: M.rect[3] }, level: T(ahead[0], ahead[1]), marginF: M.marginF, marginB: M.marginB });
+      const ahead = toWorld(0, M.zLevel || 0), level = T(ahead[0], ahead[1]);
+      // the entry's margins are the least; each bank widens with its own drop so neither passes 3:1 (v6)
+      // the entry's margins are the least; the bank law widens both where the ground asks (the pad's
+      // rect in the world, the bank measured where it runs)
+      const rectW = [[M.rect[0], M.rect[1]], [M.rect[2], M.rect[1]], [M.rect[2], M.rect[3]], [M.rect[0], M.rect[3]]].map(q => toWorld(q[0], q[1]));
+      const fF = bankFalloff(rectW, T, level, M.marginF), fB = bankFalloff(rectW, T, level, M.marginB);
+      out.push({ id, kind: 'shelf', c, yaw, rect: { x0: M.rect[0], z0: M.rect[1], x1: M.rect[2], z1: M.rect[3] }, level, marginF: fF, marginB: fB, drop: +polyDrop(rectW, T, level, 0).toFixed(2) });
       return;
     }
     const foot = entry.foot ? entry.foot(P) : null;
@@ -614,8 +671,12 @@ function siteShelves(site, cat, T) {
       for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { const w = toWorld(fb.x0 + (i + 0.5) / 8 * (fb.x1 - fb.x0), fb.z0 + (j + 0.5) / 8 * (fb.z1 - fb.z0)); hs.push(T(w[0], w[1])); }
       hs.sort((a, b) => a - b); level = hs[hs.length >> 1];
     }
-    const f = entry.ground.falloff || 6;
-    out.push({ id, kind: 'shelf', c, yaw, rect: { x0: fb.x0, z0: fb.z0, x1: fb.x1, z1: fb.z1 }, level, marginF: f, marginB: f });
+    // THE BANK (v6): the entry's falloff is the least margin; the bank widens with the drop between
+    // the level and the ground at the foot's corners so it never passes 3:1 (a smoothstep's steepest
+    // is 1.5 x drop / margin) - a station on a 35 % flank had a 14 m wall over its 6 m margin
+    const rectW = [[fb.x0, fb.z0], [fb.x1, fb.z0], [fb.x1, fb.z1], [fb.x0, fb.z1]].map(q => toWorld(q[0], q[1]));
+    const f = bankFalloff(rectW, T, level, entry.ground.falloff || 6);
+    out.push({ id, kind: 'shelf', c, yaw, rect: { x0: fb.x0, z0: fb.z0, x1: fb.x1, z1: fb.z1 }, level, marginF: f, marginB: f, drop: +polyDrop(rectW, T, level, 0).toFixed(2) });
   });
   return out;
 }
@@ -709,15 +770,25 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: [[E.end0[0], E.end0[1], elev - rise], [E.end1[0], E.end1[1], elev + rise]], width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev));
+    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly)));
+    r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
   for (const r of roads) {
     if (r.graded === false) continue;
-    const hs = r.pts.map(p => T1r(p[0], p[1]));
-    const sm = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: r.pts.map((p, i) => [p[0], p[1], sm[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
+    // THE ROAD FOLLOWS THE GROUND (v6): its grade is read every 6 m along the traced line, not only at
+    // the traced points - between two points 45 m apart a flatten's bank rose 14 m and a straight
+    // grade cut a 3.5:1 step through it; smoothed four times over three samples so it stays a road
+    const dense = [];
+    for (let i = 0; i + 1 < r.pts.length; i++) { const a = r.pts[i], b = r.pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 6)); for (let k = 0; k < n; k++) { const u = k / n; dense.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]); } }
+    dense.push(r.pts[r.pts.length - 1]);
+    let hs = dense.map(p => T1r(p[0], p[1]));
+    for (let pass = 0; pass < 4; pass++) hs = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
+    // a level approach at both ends: a road that starts on another road (a spur off the shore road) must
+    // not lift the first road's edge on its first metres - the height is held for 7 m from each end
+    { let acc = 0; for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc < 7) hs[i] = hs[0]; else break; } acc = 0; for (let i = dense.length - 2; i >= 0; i--) { acc += Math.hypot(dense[i][0] - dense[i + 1][0], dense[i][1] - dense[i + 1][1]); if (acc < 7) hs[i] = hs[dense.length - 1]; else break; } }
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -805,7 +876,8 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); }
+        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); n++; }
+          if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
     // plot by the entry's own stand (totemPlot's shape: (plot, T, o) -> a plan with footprint, level,
@@ -830,11 +902,10 @@ function compose(rec0, world, opts) {
           // the falloff widens with it so the bank never passes 3:1 (a smoothstep's steepest is 1.5 x
           // drop / falloff), up to half the gap the kind keeps between plots - beyond that the plot is
           // too steep for a lawn and is refused, with the reason
-          let drop = 0;
-          for (const q of lawnOf(plan)) drop = Math.max(drop, Math.abs(O.localH(q[0], q[1]) - plan.level));
+          const drop = polyDrop(lawnOf(plan), O.localH, plan.level, 0);
           const KR = KIND_RULES[p.kind] || {}, bankMax = KR.bankMax || 16, gap = KR.gap || 0;
           if (drop > bankMax) { O.records.issues.push('plot ' + p.id + ': the lawn would need a ' + drop.toFixed(0) + ' m bank - too steep for ' + p.pick); continue; }
-          const falloff = Math.max(e.ground.falloff || 6, Math.min(gap / 2 || 8, drop / 2));
+          const falloff = Math.min(gap / 2 || 8, bankFalloff(lawnOf(plan), O.localH, plan.level, e.ground.falloff || 6));
           const sh = { id: 'park:' + p.id, kind: 'flatten', poly: lawnOf(plan).map(q => [q[0], q[1]]), level: plan.level - F.y0, falloff, derived: true, plot: p.id, drop: +drop.toFixed(2) };
           const M = makeModifier(sh, F.y0);
           if (M) { mods.push(M); index.add(M.bbox, M); shelves.push(sh); }
@@ -963,8 +1034,27 @@ function bake(overlay, world, extent, cell) {
 
 // the baked-vs-live tolerance beyond the 1 cm quantisation: bilinear's own bound,
 // cell^2 / 8 times the second differences at the cell spacing (|hxx| + |hzz| + 2|hxz|)
-function curvTol(O, F, lx, lz, c) {
-  const at = (dx, dz) => { const w = F.toWorld(lx + dx, lz + dz); return O.terrainAt(w[0], w[1]); };
+// a shelf's ground in the premises frame: the pad's rect grown by its larger margin, in the item's frame
+function shelfCovers(sh, lx, lz) {
+  if (sh.kind !== 'shelf') return sh.poly ? inPoly(sh.poly, lx, lz) : false;
+  const dx = lx - sh.c[0], dz = lz - sh.c[1], cy = Math.cos(sh.yaw), sy = Math.sin(sh.yaw);
+  const x = dx * cy - dz * sy, z = dx * sy + dz * cy, m = Math.max(+sh.marginF || 0, +sh.marginB || 0);
+  return x >= sh.rect.x0 - m && x <= sh.rect.x1 + m && z >= sh.rect.z0 - m && z <= sh.rect.z1 + m;
+}
+// the baked-vs-live tolerance over a CELL: the curvature bound at its worst corner, not at the point (the
+// bilinear error is bounded by the second differences anywhere in the cell)
+function cellTol(O, F, lx, lz, c, world) {
+  const i = Math.floor(lx / c) * c, j = Math.floor(lz / c) * c;
+  let t = curvTol(O, F, lx, lz, c, world);
+  for (const [a, b] of [[i, j], [i + c, j], [i, j + c], [i + c, j + c]]) t = Math.max(t, curvTol(O, F, a, b, c, world));
+  return t;
+}
+// THE DELTA (v6): what the modifiers ADD to the world at a point - the surface the baked-vs-live law
+// is about. The world's own creases are the world's (its raster answers for them); the modifier
+// layer's promise is that ITS contribution rasters within the bilinear bound.
+function deltaAt(O, F, world, lx, lz) { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]) - world.terrainH(w[0], w[1]); }
+function curvTol(O, F, lx, lz, c, world) {
+  const at = world ? (dx, dz) => deltaAt(O, F, world, lx + dx, lz + dz) : (dx, dz) => { const w = F.toWorld(lx + dx, lz + dz); return O.terrainAt(w[0], w[1]); };
   const h0 = at(0, 0);
   const hxx = at(c, 0) - 2 * h0 + at(-c, 0), hzz = at(0, c) - 2 * h0 + at(0, -c);
   const hxz = (at(c, c) - at(c, -c) - at(-c, c) + at(-c, -c)) / 4;
@@ -1024,8 +1114,12 @@ function checks(rec0, world, opts) {
       const lx = ex.x0 + rnd() * (ex.x1 - ex.x0), lz = ex.z0 + rnd() * (ex.z1 - ex.z0);
       const i = Math.floor(lx / cell) * cell, j = Math.floor(lz / cell) * cell, fu = (lx - i) / cell, fv = (lz - j) / cell;
       const g = (a, b) => q(O.localH(a, b));
-      const baked = (g(i, j) * (1 - fu) + g(i + cell, j) * fu) * (1 - fv) + (g(i, j + cell) * (1 - fu) + g(i + cell, j + cell) * fu) * fv;
-      const err = Math.abs(O.localH(lx, lz) - baked) - (0.02 + curvTol(O, F, lx, lz, cell));
+      const bil = h => (h(i, j) * (1 - fu) + h(i + cell, j) * fu) * (1 - fv) + (h(i, j + cell) * (1 - fu) + h(i + cell, j + cell) * fu) * fv;
+      const baked = bil(g);
+      // the world's own raster miss at this point: a crease of the world's is the world's, not the layer's
+      const w0 = (a, b) => { const w = F.toWorld(a, b); return world.terrainH(w[0], w[1]); };
+      const worldMiss = Math.abs(w0(lx, lz) - bil(w0));
+      const err = Math.abs(O.localH(lx, lz) - baked) - (0.02 + cellTol(O, F, lx, lz, cell) + worldMiss);
       if (err > worst) worst = err;
     }
     put(worst <= 0, 'baked and live agree at 1 m (' + (worst <= 0 ? 'within tolerance' : 'over by ' + worst.toFixed(3) + ' m') + ')');
@@ -1106,10 +1200,10 @@ function collect(globals) {
   return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

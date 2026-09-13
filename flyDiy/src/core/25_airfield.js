@@ -396,6 +396,26 @@ function sitePattern(aero, site) {
     const c1 = add('c1', at(tx, R.cz, n, laneSg * lane), 'taxi', { r: GP_FILLET });
     link(ed, c1); link(c1, 'l1a');
     routes.out[1] = [st, ap, ga, ed, c1].concat(routes.back[1]);
+  } else if (site && site.stand && site.taxiOut && site.taxiOut.length) {
+    // A DECLARED STAND WITH ITS WAY OUT and no apron row (a premises strip,
+    // the editor's - G379): the taxi points are stated in order from the
+    // stand to the centreline, the last one AT it (projected onto it here,
+    // so the entry keeps its meaning); out[0] turns onto the centreline and
+    // taxis to hold0, out[1] steps onto the lane and takes the generic
+    // U-turn. Nothing else is invented: no gate, no fence, no apron.
+    const st = add('stand', [site.stand.x, site.stand.z], 'stand', { hdg: site.stand.hdg });
+    const tx = site.taxiOut, ids = [];
+    let prev = st;
+    for (let i = 0; i + 1 < tx.length; i++) { const id = add('tx' + i, tx[i], 'taxi', { r: GP_FILLET }); link(prev, id); ids.push(id); prev = id; }
+    const last = tx[tx.length - 1];
+    const along = (last[0] - R.cx) * d[0] + (last[1] - R.cz) * d[1];
+    const ex = R.cx + d[0] * along, ez = R.cz + d[1] * along;
+    const c0 = add('c0', [ex, ez], 'taxi', { r: GP_FILLET });
+    link(prev, c0); link(c0, holds[0]);
+    routes.out[0] = [st].concat(ids, [c0, holds[0]]);
+    const c1 = add('c1', at(ex, ez, n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    link(prev, c1); link(c1, 'l1a');
+    routes.out[1] = [st].concat(ids, [c1]).concat(routes.back[1]);
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
     const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',

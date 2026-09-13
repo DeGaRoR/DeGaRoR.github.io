@@ -1,0 +1,674 @@
+{
+ "what": "flydiy-premises",
+ "v": 1,
+ "name": "showcase",
+ "premises": {
+  "v": 1,
+  "id": "showcase",
+  "name": "the showcase: a shore road with its village, a harbour on its own road, a totem park, the mine on the spur with its tram to the ridge, a lakeside strip with its apron and stand, two signs and a junk car (v6)",
+  "seed": 5,
+  "frame": {
+   "kind": "free",
+   "extent": {
+    "x0": -310,
+    "z0": -180,
+    "x1": 270,
+    "z1": 230
+   },
+   "anchors": {
+    "village-bench": {
+     "x": 0,
+     "z": 0,
+     "yaw": 0,
+     "size": 640,
+     "seed": 3
+    },
+    "*": {
+     "x": 0,
+     "z": 0,
+     "yaw": 0
+    }
+   }
+  },
+  "layers": {
+   "terrain": [
+    {
+     "id": "t2",
+     "kind": "flatten",
+     "poly": [
+      [
+       -160,
+       -79
+      ],
+      [
+       -110,
+       -79
+      ],
+      [
+       -110,
+       -104
+      ],
+      [
+       -160,
+       -104
+      ]
+     ],
+     "level": -16.48,
+     "falloff": 8,
+     "abs": false,
+     "order": 0
+    },
+    {
+     "id": "t3",
+     "kind": "flatten",
+     "poly": [
+      [
+       -20,
+       86
+      ],
+      [
+       76,
+       86
+      ],
+      [
+       76,
+       134
+      ],
+      [
+       -20,
+       134
+      ]
+     ],
+     "level": 65.29,
+     "falloff": 17.27,
+     "abs": false,
+     "order": 0
+    }
+   ],
+   "surface": [
+    {
+     "id": "y1",
+     "poly": [
+      [
+       -160,
+       -79
+      ],
+      [
+       -110,
+       -79
+      ],
+      [
+       -110,
+       -104
+      ],
+      [
+       -160,
+       -104
+      ]
+     ],
+     "surface": 5
+    },
+    {
+     "id": "y2",
+     "poly": [
+      [
+       -20,
+       86
+      ],
+      [
+       76,
+       86
+      ],
+      [
+       76,
+       254
+      ],
+      [
+       -20,
+       254
+      ]
+     ],
+     "surface": 6,
+     "yard": "s1"
+    }
+   ],
+   "material": [],
+   "exclude": [
+    {
+     "id": "x1",
+     "poly": [
+      [
+       -60,
+       90
+      ],
+      [
+       0,
+       90
+      ],
+      [
+       0,
+       140
+      ],
+      [
+       -60,
+       140
+      ]
+     ],
+     "what": [
+      "trees"
+     ]
+    }
+   ],
+   "roads": [
+    {
+     "id": "r1",
+     "pts": [
+      [
+       -180,
+       20
+      ],
+      [
+       -90,
+       26
+      ],
+      [
+       0,
+       18
+      ],
+      [
+       90,
+       24
+      ],
+      [
+       180,
+       16
+      ],
+      [
+       230,
+       10
+      ]
+     ],
+     "w": 3.6,
+     "cls": "gravel",
+     "graded": true,
+     "falloff": 6
+    },
+    {
+     "id": "r2",
+     "pts": [
+      [
+       0,
+       18
+      ],
+      [
+       10,
+       60
+      ],
+      [
+       30,
+       100
+      ],
+      [
+       60,
+       103
+      ],
+      [
+       125,
+       105
+      ]
+     ],
+     "w": 3,
+     "cls": "track",
+     "graded": true,
+     "falloff": 5
+    },
+    {
+     "id": "r3",
+     "pts": [
+      [
+       30,
+       -112
+      ],
+      [
+       110,
+       -116
+      ],
+      [
+       180,
+       -114
+      ],
+      [
+       250,
+       -118
+      ]
+     ],
+     "w": 4,
+     "cls": "gravel",
+     "graded": true
+    }
+   ],
+   "runways": [
+    {
+     "id": "w1",
+     "name": "the lakeside strip",
+     "c": [
+      -60,
+      -55
+     ],
+     "hdg": 0,
+     "len": 380,
+     "wid": 22,
+     "surface": 0,
+     "slope": 0,
+     "crossfall": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      true,
+      true
+     ],
+     "falloff": 14,
+     "site": null,
+     "pattern": null,
+     "stand": {
+      "x": -140,
+      "z": -94,
+      "hdg": null
+     },
+     "taxiOut": [
+      [
+       -115,
+       -82
+      ],
+      [
+       -100,
+       -55
+      ]
+     ]
+    }
+   ],
+   "zones": [
+    {
+     "id": "z1",
+     "kind": "residential",
+     "poly": [
+      [
+       -190,
+       -30
+      ],
+      [
+       235,
+       -30
+      ],
+      [
+       235,
+       70
+      ],
+      [
+       -190,
+       70
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    },
+    {
+     "id": "z2",
+     "kind": "forest",
+     "poly": [
+      [
+       -190,
+       70
+      ],
+      [
+       -160,
+       70
+      ],
+      [
+       -140,
+       90
+      ],
+      [
+       40,
+       90
+      ],
+      [
+       60,
+       70
+      ],
+      [
+       190,
+       70
+      ],
+      [
+       190,
+       190
+      ],
+      [
+       -190,
+       190
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    },
+    {
+     "id": "z3",
+     "kind": "clear",
+     "poly": [
+      [
+       60,
+       80
+      ],
+      [
+       110,
+       80
+      ],
+      [
+       110,
+       130
+      ],
+      [
+       60,
+       130
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    },
+    {
+     "id": "z4",
+     "kind": "harbour",
+     "poly": [
+      [
+       20,
+       -175
+      ],
+      [
+       260,
+       -175
+      ],
+      [
+       260,
+       -80
+      ],
+      [
+       20,
+       -80
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    },
+    {
+     "id": "z5",
+     "kind": "park",
+     "poly": [
+      [
+       165,
+       -125
+      ],
+      [
+       260,
+       -125
+      ],
+      [
+       260,
+       -45
+      ],
+      [
+       165,
+       -45
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    }
+   ],
+   "sites": [
+    {
+     "id": "s1",
+     "name": "Kennecott - the mine",
+     "at": {
+      "x": 78,
+      "z": 104,
+      "yaw": 0
+     },
+     "items": [
+      {
+       "id": "kennecott_mill_0",
+       "key": "house/kennecott mill",
+       "x": -4,
+       "z": 24,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": true
+      },
+      {
+       "id": "mine_shop_1",
+       "key": "big/mine shop",
+       "x": -34,
+       "z": 12,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_office_2",
+       "key": "house/mine office",
+       "x": 22,
+       "z": 9,
+       "yaw": -0.08,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_cottage_3",
+       "key": "house/mine cottage",
+       "x": -22,
+       "z": 5,
+       "yaw": 0.2,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "storage_shed_4",
+       "key": "house/storage shed",
+       "x": 8,
+       "z": 7,
+       "yaw": 0.4,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_bunkhouse_5",
+       "key": "house/mine bunkhouse",
+       "x": -32,
+       "z": -10,
+       "yaw": 3.202,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_dormer_hall_6",
+       "key": "house/mine dormer hall",
+       "x": -4,
+       "z": -11,
+       "yaw": 3.142,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_mess_hall_7",
+       "key": "house/mine mess hall",
+       "x": 24,
+       "z": -10,
+       "yaw": 3.062,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_cottage_8",
+       "key": "house/mine cottage",
+       "x": 40,
+       "z": -9,
+       "yaw": 3.242,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "rcv",
+       "key": "big/tram shed",
+       "x": 0,
+       "z": -2,
+       "yaw": 0,
+       "P": {},
+       "onRoad": true,
+       "bottomOnRoad": false
+      }
+     ],
+     "yard": {
+      "x0": -48,
+      "x1": 48,
+      "z0": -18,
+      "z1": 150
+     }
+    },
+    {
+     "id": "s2",
+     "name": "the tram",
+     "at": {
+      "x": -280,
+      "z": -40,
+      "yaw": 0
+     },
+     "items": [
+      {
+       "id": "b",
+       "key": "house/tram base station",
+       "x": 0,
+       "z": 0,
+       "yaw": 0,
+       "P": {}
+      },
+      {
+       "id": "t",
+       "key": "house/tram top station",
+       "x": 0,
+       "z": 150,
+       "yaw": 0,
+       "P": {}
+      }
+     ],
+     "yard": null
+    }
+   ],
+   "links": [
+    {
+     "id": "l1",
+     "kind": "conveyor",
+     "from": {
+      "site": "s1",
+      "item": "kennecott_mill_0",
+      "hook": "head"
+     },
+     "to": {
+      "site": "s1",
+      "item": "rcv",
+      "hook": "roof"
+     },
+     "P": {},
+     "dynamic": true
+    },
+    {
+     "id": "l2",
+     "kind": "cable",
+     "from": {
+      "site": "s2",
+      "item": "b",
+      "hook": "track0"
+     },
+     "to": {
+      "site": "s2",
+      "item": "t",
+      "hook": "track0"
+     },
+     "P": {},
+     "dynamic": true
+    }
+   ],
+   "objects": [
+    {
+     "id": "o1",
+     "kind": "tree",
+     "x": -150,
+     "z": 60,
+     "key": "stub|tree",
+     "size": 1.2,
+     "yaw": 0.4
+    },
+    {
+     "id": "o2",
+     "kind": "billboard",
+     "key": "air_taxi",
+     "x": -150,
+     "z": 12,
+     "yaw": 3.141592653589793,
+     "w": 3.6
+    },
+    {
+     "id": "o3",
+     "kind": "billboard",
+     "key": "north_motel",
+     "x": 200,
+     "z": -105,
+     "yaw": 3.141592653589793,
+     "w": 3.2
+    },
+    {
+     "id": "o4",
+     "kind": "prop",
+     "key": "car_junk",
+     "x": -156,
+     "z": -100,
+     "yaw": 0.4,
+     "dy": 0,
+     "on": "ground"
+    }
+   ]
+  },
+  "budget": {
+   "tris": 400000,
+   "lights": 24,
+   "smoke": 6,
+   "people": 40
+  }
+ },
+ "plaque": null,
+ "log": {
+  "built": null,
+  "tests": [],
+  "flights": []
+ }
+}
