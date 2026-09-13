@@ -1,0 +1,102 @@
+{
+ "date": "2026-09-13T19:37:42.222Z",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "fixture": "premises_v1_showcase.json",
+ "world": "village-bench",
+ "frames": 120,
+ "build": {
+  "loadMs": 1291,
+  "composeMs": 1290,
+  "built": 39,
+  "buildMs": 3405,
+  "perBuildMs": 87.3,
+  "worstBuildMs": 194
+ },
+ "counts": {
+  "houses": 36,
+  "houseTris": 663374,
+  "lights": 69,
+  "objects": 3,
+  "trees": 565,
+  "treeTris": 6344417,
+  "groundTris": 819200,
+  "chunks": 100,
+  "plots": 23,
+  "items": 13,
+  "parks": 1,
+  "links": 2,
+  "issues": 0
+ },
+ "rows": [
+  {
+   "station": "map",
+   "median": 17.3,
+   "p90": 21.8,
+   "worst": 28.2,
+   "calls": 4551,
+   "tris": 8235039,
+   "cam": [
+    -20,
+    1314,
+    25
+   ],
+   "above": 1281
+  },
+  {
+   "station": "strip",
+   "median": 17.6,
+   "p90": 21.8,
+   "worst": 27.4,
+   "calls": 4299,
+   "tris": 7723506,
+   "cam": [
+    470,
+    123,
+    -55
+   ],
+   "above": 118
+  },
+  {
+   "station": "harbour",
+   "median": 14.8,
+   "p90": 18.7,
+   "worst": 26.3,
+   "calls": 3718,
+   "tris": 6683829,
+   "cam": [
+    140,
+    108,
+    -421
+   ],
+   "above": 133
+  },
+  {
+   "station": "mine",
+   "median": 10.8,
+   "p90": 13.3,
+   "worst": 15.1,
+   "calls": 2819,
+   "tris": 5018571,
+   "cam": [
+    78,
+    171,
+    -39
+   ],
+   "above": 166
+  },
+  {
+   "station": "village",
+   "median": 12.7,
+   "p90": 16.3,
+   "worst": 20.6,
+   "calls": 3146,
+   "tris": 5814154,
+   "cam": [
+    177,
+    76,
+    17
+   ],
+   "above": 48
+  }
+ ]
+}

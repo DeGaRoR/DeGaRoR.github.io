@@ -44734,3 +44734,30 @@ read the bake, both sides bake, the skin's VS carries it; selftest probes
 for a zero bake, a sign flip, a unit-blind bake and an unread varying.
 Proof from a clean worktree: WEATHER, SKINMAT, JOIN, BUILD, UISMOKE,
 PARTS, MEDIA. Pictures: screenshots/weather/g3455_*.png.
+
+## G380 — THE PREMISES BENCH v7: premises_perf.js, THE FIRST HONEST NUMBER
+## (2026-09-13, the bench's owed list closed)
+
+- **THE MEASUREMENT** `tools/premises_perf.js`, in tree_perf's style: headless
+  Chrome on this machine's GPU, the bench page with a fixture loaded, the
+  build queue drained with every build timed, the tree payload waited for
+  (cones refused), then camera STATIONS derived from the record itself - the
+  map overview always; the strip, the harbour, the mine, the village row when
+  the record has them - 120 frames each round the page's own draw, the
+  renderer's calls and triangles read after. `--compare` prints the delta per
+  station. A measurement, not a gate (a GPU and a browser).
+- **THE NUMBER** (RTX 3080, the showcase on the village's terrain): compose
+  1.3 s; 39 builds in 3.4 s (87 ms each, the worst 194); 36 houses 0.66 M
+  triangles, 69 lights, 565 trees 6.3 M triangles, the ground 0.8 M in 100
+  chunks. The frame: 17 ms median at the overview with 4 551 draw calls and
+  8.2 M triangles; 11-15 ms at the mine and the harbour. THE DRAW CALLS, NOT
+  THE TRIANGLES, are the budget's first problem: every house is a dozen bag
+  meshes and every fence, lot patch and prop its own, and the bench draws the
+  trees at their full rungs (the game's impostor ladder is not on the bench).
+  The port's renderer owes the houses an instancing or merging path and the
+  trees the game's own streamer; the platform is not the constraint, the
+  batching is. Written to `tools/perf/premises_perf.json`.
+- The bench's close: v0-v7 landed (G356 - G380). What the design named is
+  built: the record and its contract (v1 + seven amendments), the composer,
+  the renderer, the editor with its nine sections, the gate (186 checks over
+  four fixtures), the showcase, the measurement. What is not: the game host.

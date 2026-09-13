@@ -12,7 +12,9 @@ real catalogue built by the gate, the real tramLine solving the cable, a park zo
 plots with derived lawns and a filled slot, contract v1.5) and v5 (G378: the dressing per plot and park through the
 village's plan functions, the lot material one keeper, lights counted, props and billboards placed by hand, contract v1.6)
 and v6 (G379: the stand and its way out - the core's third pattern branch - the harbour, one bank law, the road that follows
-the ground, the showcase record, contract v1.7) LANDED 2026-09-13** (`tools/_premises.html`, port
+the ground, the showcase record, contract v1.7) and v7 (G380: premises_perf.js - 17 ms and 4 551 draw calls at the
+showcase overview on an RTX 3080; the draw calls are the budget's first problem) LANDED 2026-09-13. THE BENCH IS CLOSED;
+what remains is the PORT (section 8 and Appendix A).** (`tools/_premises.html`, port
 8401, GATE PREMISES, three goldens). Next: the cable link once the house session lands, the game host. Companion
 to `PREMISES-CONTRACT-2026-09-13.md` (the record and the asset contract, frozen v1). Appendix A is
 THE SPLIT — how the parallel sessions divide the work, land, unify and port; every session reads it.
