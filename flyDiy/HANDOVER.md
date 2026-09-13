@@ -44329,3 +44329,12 @@ MEASURED (the check prints every number before its verdict):
 - OWED: an authored stand + taxi-out (the site block's other half) and the
   hold's lane nodes following it; fences / paths / lots per plot after the
   village lands; `premises_perf.js`; the game host.
+
+## G373 — THE PARKING BRAKE UNDER THE DASH'S CENTRE (2026-09-13, WS-8; the
+## user: "the parking brake under the dash, central, right of the foot light")
+
+- `buildBrakeKnob` hung its bracket 19 cm OUTBOARD of the pilot; it hangs
+  9 cm to the pilot's RIGHT (cage −x) of the pedalier lamp's station now
+  (the lamp is at the pilot's x, 8 cm forward of the dash's aft face —
+  G291/G296), on the dash's measured underside as before. Same bracket,
+  rod and T handle; same pick ('brake', click = park on/off).

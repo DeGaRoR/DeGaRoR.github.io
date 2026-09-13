@@ -1313,8 +1313,9 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
 function buildBrakeKnob(g0, A, P, sx) {
   const K = window.GEAR_KIT;
   if (!K || A.dashLip == null || A.dashAftZ == null) return null;
-  const sd = Math.sign(sx || 1);
-  const x = sx + sd * 0.19, zB = A.dashAftZ + 0.030;
+  // G373: 9 cm to the pilot's RIGHT (cage −x) of the pedalier lamp's station
+  // (the pilot's x), not 19 cm outboard — the dash's centre on a single seat
+  const x = sx - 0.09, zB = A.dashAftZ + 0.030;
   // the dash's bottom, over a wider net than the lamps' (its vertices are
   // sparse across x: a 4 cm net at the pilot's x found only the roll's
   // underside, and hung the knob at the ASI's height)
