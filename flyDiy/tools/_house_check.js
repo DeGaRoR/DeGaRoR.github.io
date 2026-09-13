@@ -1234,73 +1234,122 @@ function battery(name, P) {
 for (const name of Object.keys(HG.PRESETS))
   if (!HG.PRESETS[name].mill && !HG.PRESETS[name].station) rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
 
-// 37 — THE MILL, A COMPOSITE OF HOUSES (G329): it builds in both LODs,
-//   finite, the low mesh lower; every tier's floor above the one below and
-//   its front out of the roof below (the step shorter than the depth);
-//   something stands above the top tier (the head house, the stacks); the
-//   whole within its reach (the power house and its guy anchors, the chutes);
-//   NO WINDOW OPENS INTO A JOINT: every window's centre on a tier's wall is
-//   read back in the mill's frame and must not lie inside another tier's
-//   box under its roof; and the same seed builds the same mill twice.
+// 37 — THE MILL, A COMPOSITE OF HOUSES (G329; G350 to the reference): it
+//   builds in both LODs, finite, the low mesh lower; THE TOP HOUSE stands on
+//   the shoulder (every volume of it on the pad's level, a hand over it) and
+//   is fused the one way - the upper block's back flush with the main's and
+//   its front wall over the main's roof, the lean's high edge under the
+//   main's eave with its back wall a hand inside the main's front, the wing's
+//   gable end a hand inside the main's side with its ridge under the main's
+//   roof there, the annex likewise, the crusher floor's high edge under the
+//   main's back roof; the roofs run three ways and more; NO ROOF DRAINS INTO
+//   A WALL (every low edge, a hand out, hangs over nothing but the ground or
+//   a lower roof); NO WINDOW OPENS INTO A JOINT; no two houses share a plan;
+//   the stations stand above the hill under their corners; every conveyor
+//   leaves a chute head and lands in a portal and falls between 2 and maxDeg
+//   degrees; lanterns; the whole within its reach; the same seed builds twice.
 for (const name of Object.keys(HG.PRESETS)) {
   if (!HG.PRESETS[name].mill) continue;
   const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
   let hi = null, lo = null, threw = null;
   try { hi = HG.build(P, 0); lo = HG.build(P, 1); } catch (e) { threw = e; }
   if (!check(!threw, 'mill ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
-  let nan = 0, x1 = -1e9, z1 = -1e9, y1 = -1e9, y0 = 1e9;
+  let nan = 0, x1 = -1e9, z1 = -1e9, z0 = 1e9, y1 = -1e9, y0 = 1e9;
   for (const k of HG.BAGS) {
     const d = hi.bags[k].data();
     for (let i = 0; i < d.pos.length; i += 3) {
       if (!isFinite(d.pos[i]) || !isFinite(d.pos[i + 1]) || !isFinite(d.pos[i + 2])) { nan++; continue; }
-      x1 = Math.max(x1, Math.abs(d.pos[i])); z1 = Math.max(z1, Math.abs(d.pos[i + 2]));
+      x1 = Math.max(x1, Math.abs(d.pos[i])); z1 = Math.max(z1, d.pos[i + 2]); z0 = Math.min(z0, d.pos[i + 2]);
       y1 = Math.max(y1, d.pos[i + 1]); y0 = Math.min(y0, d.pos[i + 1]);
     }
   }
   check(nan === 0, 'mill ' + name + ': NaN in the mesh', String(nan));
   check(hi.stats.tris > 5000, 'mill ' + name + ': too few triangles', String(hi.stats.tris));
   check(lo.stats.tris < hi.stats.tris * 0.75, 'mill ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
-  const M = hi.stats.mill;
-  check(M.tiers.length === Math.round(P.tiers) + Math.round(P.frameBack || 0), 'mill ' + name + ': not all tiers built');
-  for (let k = 1; k < M.tiers.length; k++) {
-    // THE STAIRCASE (G348): the next front wall a hand inside the back wall
-    // below, the next floor set from the roof edge below - under it for a
-    // wall to come down over, on it for a frame's floor to sit on - unless
-    // the hill itself is higher
-    const A = M.tiers[k - 1], B = M.tiers[k];
-    check(B.fy > A.fy + 1, 'mill ' + name + ': tier ' + k + ' does not climb');
-    check(Math.abs(B.zF - (A.zB - (A.roof === 'frame' ? 0.35 : 0.3))) < 1e-6, 'mill ' + name + ': tier ' + k + ' does not stand in the back wall below', (B.zF - A.zB).toFixed(2));
-    const want = (B.roof !== 'frame' && A.roof !== 'frame') ? A.roofHigh - 0.35 : A.roofHigh + 0.05;
-    check(B.fy >= want - 1e-6, 'mill ' + name + ': tier ' + k + ' floor under the roof edge below', B.fy.toFixed(2) + ' vs ' + want.toFixed(2));
-    if (B.roof !== 'frame') check(B.x0 >= A.x0 - 1e-6 && B.x1 <= A.x1 + 1e-6 || A.roof === 'frame', 'mill ' + name + ': tier ' + k + ' runs past the tier below');
-    check(A.roof === 'frame' || A.fro === 'mono', 'mill ' + name + ': a closed tier is not a shed roof rising uphill');
+  const M = hi.stats.mill, T = M.top, g = hi.stats.ground;
+  const near = (a, b, tol) => Math.abs(a - b) <= (tol || 1e-6);
+  // THE SHOULDER: the pad flat at the level, every top volume's floor a hand over it
+  check(isFinite(M.level) && near(g(0, M.plateau.zLevel), M.level) && near(g(0, M.plateau.zF), M.level) && near(g(0, M.plateau.zB), M.level), 'mill ' + name + ': the pad is not flat at the level');
+  for (const k of ['main', 'lean', 'wing', 'annex', 'stair', 'crusher']) check(near(T[k].fy, M.level + 0.5), 'mill ' + name + ': the ' + k + ' is not on the pad', T[k].fy.toFixed(2) + ' vs ' + M.level.toFixed(2));
+  // THE FUSION
+  check(near(T.upper.zB, T.main.zB) && T.upper.x0 > T.main.x0 + 1 && T.upper.x1 < T.main.x1 - 1, 'mill ' + name + ': the upper block does not ride the main\'s back');
+  check(T.upper.fy < T.upper.roofUnder - 0.3 + 1e-6 && T.upper.fy > T.upper.roofUnder - 0.5, 'mill ' + name + ': the upper block\'s front wall does not stand over the main\'s roof', (T.upper.roofUnder - T.upper.fy).toFixed(2));
+  check(T.lean.zB > T.main.zF - 0.35 && T.lean.zB < T.main.zF && T.lean.roofHigh < T.main.eave - 0.2, 'mill ' + name + ': the lean does not meet the main\'s front under its eave', (T.main.eave - T.lean.roofHigh).toFixed(2));
+  check(T.wing.x0 > T.main.x1 - 0.35 && T.wing.x0 < T.main.x1 && T.wing.zB > T.main.zB && T.wing.zF < T.main.zF && T.wing.ridge < T.main.roofAtWing - 0.5, 'mill ' + name + ': the wing does not meet the main\'s side with its gable end under the roof', (T.main.roofAtWing - T.wing.ridge).toFixed(2));
+  check(T.annex.x1 > T.main.x0 && T.annex.x1 < T.main.x0 + 0.35 && T.annex.roofHigh < T.main.roofAtAnnex - 0.5, 'mill ' + name + ': the annex does not meet the main\'s far side under the roof');
+  check(T.crusher.zF < T.main.zB && T.crusher.zF > T.main.zB - 0.4 && T.crusher.roofHigh < T.main.roofHigh - 1, 'mill ' + name + ': the crusher floor does not meet the main\'s back under its roof', (T.main.roofHigh - T.crusher.roofHigh).toFixed(2));
+  check(T.stair.x0 > T.wing.x1 - 0.35 && T.stair.x0 < T.wing.x1 && T.stair.top > T.wing.ridge + 0.5, 'mill ' + name + ': the stair tower does not stand on the wing\'s end over its ridge');
+  // THE ROOFS RUN MORE THAN ONE WAY (the user: "roofs should have different orientations")
+  const ways = new Set(M.vols.filter(v => ['main', 'upper', 'lean', 'wing', 'annex', 'crusher'].includes(v.tag)).map(v => v.roof));
+  check(ways.size >= 4, 'mill ' + name + ': the top house\'s roofs run only ' + ways.size + ' ways', [...ways].join(', '));
+  // NO ROOF DRAINS INTO A WALL: along every low edge, a point a hand out at
+  // the eave's height must be inside no other volume (a lower roof under it
+  // is not inside: the point is above that volume's top)
+  const inside = (x, y, z, self) => M.vols.find((v, j) => j !== self && x > v.x0 + 0.02 && x < v.x1 - 0.02 && z > v.z0 + 0.02 && z < v.z1 - 0.02 && y > v.y0 - 0.1 && y < v.yTop(x, z) + 0.15);
+  const traps = [];
+  M.vols.forEach((v, j) => {
+    const edges = [];                                       // [x0, z0, x1, z1] along the low edge, and the outward normal
+    if (v.roof === 'shed +z' || v.roof === 'gable +-z') edges.push([v.x0, v.z1, v.x1, v.z1, 0, 1]);
+    if (v.roof === 'shed -z' || v.roof === 'gable +-z') edges.push([v.x0, v.z0, v.x1, v.z0, 0, -1]);
+    if (v.roof === 'shed -x' || v.roof === 'gable +-x') edges.push([v.x0, v.z0, v.x0, v.z1, -1, 0]);
+    if (v.roof === 'shed +x' || v.roof === 'gable +-x') edges.push([v.x1, v.z0, v.x1, v.z1, 1, 0]);
+    for (const e of edges) {
+      const n = Math.max(2, Math.ceil(Math.hypot(e[2] - e[0], e[3] - e[1]) / 1.5));
+      for (let k = 0; k <= n; k++) {
+        const ex = e[0] + (e[2] - e[0]) * k / n, ez = e[1] + (e[3] - e[1]) * k / n;
+        const x = ex + e[4] * 0.6, z = ez + e[5] * 0.6, y = v.yTop(ex, ez) - 0.05;
+        if (inside(ex, y, ez, j)) continue;                 // the edge itself is buried in the joint here: it ends at that wall
+        const hit = inside(x, y, z, j);
+        if (hit) traps.push(v.tag + ' -> ' + hit.tag + ' @' + x.toFixed(1) + ',' + y.toFixed(1) + ',' + z.toFixed(1));
+      }
+    }
+  });
+  check(traps.length === 0, 'mill ' + name + ': ' + traps.length + ' roof edges drain into a wall', traps.slice(0, 5).join(' · '));
+  // NO TWO HOUSES SHARE A PLAN (the user: "no station should have the exact same dimension")
+  const same = [];
+  for (let i = 0; i < M.vols.length; i++) for (let j = i + 1; j < M.vols.length; j++) {
+    const a = M.vols[i], b = M.vols[j];
+    if (near(a.x1 - a.x0, b.x1 - b.x0, 0.05) && near(a.z1 - a.z0, b.z1 - b.z0, 0.05)) same.push(a.tag + ' = ' + b.tag);
   }
-  check(hi.stats.ridgeY > M.tiers[M.tiers.length - 1].ridge - 0.5, 'mill ' + name + ': nothing stands above the top tier');
-  // the reach up the hill: the tiers, the frames behind them (each up to
-  // 1.4 depths), the terminal 16 m behind the last and the tram's ropes 40 m
-  // on; down the hill: the receiving house and its gap
-  // (G348: the tiers' own extents - their depths follow the hill now)
-  const reachX = Math.max(...M.tiers.map(t => Math.max(Math.abs(t.x0), Math.abs(t.x1)))) + 14 + 10 + 7;
-  const reachZ = Math.max(...M.tiers.map(t => Math.abs(t.zB))) + 16 + 6 + (P.tram ? 42 : 0) + (P.bottom ? P.bottomGap + (P.bottomW || 9) + 2 : 0) + M.tiers[0].zF;
-  check(x1 <= reachX + 1e-3 && z1 <= reachZ + 1e-3, 'mill ' + name + ': something stands past the reach of the mill', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZ.toFixed(2));
-  // the windows: the glass bag's quads, each centre against every other tier's box
+  check(same.length === 0, 'mill ' + name + ': houses of one plan', same.join(', '));
+  // THE STATIONS on the slope, above the hill under their corners, below the pad, above the road
+  for (const S of M.stations) {
+    let gU = -1e9;
+    for (const x of [S.x0, S.x1]) for (const z of [S.zF, S.zB]) gU = Math.max(gU, g(x, z));
+    check(S.fy > gU + 0.1 && S.fy < gU + 1.0, 'mill ' + name + ': ' + S.tag + ' floats or sinks', (S.fy - gU).toFixed(2));
+    check(S.zB > M.plateau.zF + M.plateau.marginF && (!M.bottom || S.zF < M.bottom.z - M.bottom.w / 2 - 2), 'mill ' + name + ': ' + S.tag + ' is not on the slope between the pad and the road');
+  }
+  check(M.stations[0].zM < M.stations[1].zM - 10, 'mill ' + name + ': the stations are not one below the other');
+  // THE CONVEYORS: from a chute head to a portal, each falling between 2 and maxDeg degrees
+  check(M.conveyors.length === 3 + (P.tram ? 1 : 0), 'mill ' + name + ': ' + M.conveyors.length + ' conveyors');
+  const inBox = (p, b) => p[0] > b.x0 - 0.2 && p[0] < b.x1 + 0.2 && p[2] > b.z0 - 0.2 && p[2] < b.z1 + 0.2 && p[1] > b.y0 - 0.1 && p[1] < b.y1 + 0.1;
+  for (const C of M.conveyors) {
+    if (C.rope) { check(C.deg > 5 && C.deg < 55, 'mill ' + name + ': the ropeway ' + C.from + ' -> ' + C.to + ' runs at ' + C.deg.toFixed(1) + ' deg'); continue; }
+    check(C.deg > 2 && C.deg <= M.maxDeg + 1e-6, 'mill ' + name + ': the conveyor ' + C.from + ' -> ' + C.to + ' runs at ' + C.deg.toFixed(1) + ' deg');
+    const head = M.hung.find(h => h.tag === C.from), portal = M.portals.find(p => p.tag === C.to);
+    check(!!head && inBox(C.a, head), 'mill ' + name + ': the conveyor from ' + C.from + ' does not leave its chute head');
+    check(!!portal && inBox(C.b, portal), 'mill ' + name + ': the conveyor to ' + C.to + ' does not land in its portal');
+  }
+  check(M.lamps >= 8, 'mill ' + name + ': only ' + M.lamps + ' lanterns');
+  // THE REACH: the tramway's guys up the hill, the stacks' guys beside the power house, the receiving house at the road
+  const reachX = Math.max(...M.vols.map(v => Math.max(Math.abs(v.x0), Math.abs(v.x1)))) + (M.power ? 9 : 0) + 2;
+  const reachZ0 = (M.terminal ? M.terminal.zB : M.plateau.zB) - 2, reachZ1 = (M.bottom ? M.bottom.z + M.bottom.w / 2 : M.stations[1].zF) + 10;
+  check(x1 <= reachX && z0 >= reachZ0 && z1 <= reachZ1, 'mill ' + name + ': something stands past the reach of the mill', x1.toFixed(1) + '/' + reachX.toFixed(1) + ' ' + z0.toFixed(1) + '/' + reachZ0.toFixed(1) + ' ' + z1.toFixed(1) + '/' + reachZ1.toFixed(1));
+  // THE WINDOWS: the glass bag's quads, each centre against every volume's box under its roof
   {
     const d = hi.bags.glass.data();
-    const tiers = M.tiers;
-    const yRoofOf = T => (x, z) => T.roof === 'x' || T.roof === 'frame' ? T.eave + (P.tierW / 2 - Math.abs(z - T.zM)) * Math.tan(P.pitch * Math.PI / 180)
-      : T.roof === 'z' ? T.ridge - Math.min(T.L / 2, Math.abs(x - T.xo)) * ((T.ridge - T.eave) / (T.L / 2)) : T.eave + (T.zF - z) * Math.tan(P.pitch * Math.PI / 180);
     let inJoint = 0, n = 0; const where = [];
     for (let i = 0; i + 11 < d.pos.length; i += 12) {          // a window pane is one quad: four vertices
       const cx = (d.pos[i] + d.pos[i + 3] + d.pos[i + 6] + d.pos[i + 9]) / 4, cy = (d.pos[i + 1] + d.pos[i + 4] + d.pos[i + 7] + d.pos[i + 10]) / 4, cz = (d.pos[i + 2] + d.pos[i + 5] + d.pos[i + 8] + d.pos[i + 11]) / 4;
+      // (a lantern's glass is a hand across; a pane is a window's)
+      let ex = 0;
+      for (let q = 0; q < 12; q += 3) ex = Math.max(ex, Math.abs(d.pos[i + q] - cx), Math.abs(d.pos[i + q + 1] - cy), Math.abs(d.pos[i + q + 2] - cz));
+      if (ex < 0.2) continue;
       n++;
-      for (const T of tiers) {
-        if (T.roof === 'frame') continue;
-        const inBox = cx > T.x0 + 0.2 && cx < T.x1 - 0.2 && cz > T.zB + 0.2 && cz < T.zF - 0.2 && cy > T.fy + 0.1 && cy < yRoofOf(T)(cx, cz) - 0.1;
-        if (inBox) { inJoint++; if (where.length < 6) where.push('tier ' + T.i + ' @' + cx.toFixed(1) + ',' + cy.toFixed(1) + ',' + cz.toFixed(1)); break; }
-      }
+      const hit = inside(cx, cy, cz, -1);
+      if (hit && cy < hit.yTop(cx, cz) - 0.1 && cx > hit.x0 + 0.2 && cx < hit.x1 - 0.2 && cz > hit.z0 + 0.2 && cz < hit.z1 - 0.2) { inJoint++; if (where.length < 6) where.push(hit.tag + ' @' + cx.toFixed(1) + ',' + cy.toFixed(1) + ',' + cz.toFixed(1)); }
     }
-    check(inJoint === 0, 'mill ' + name + ': ' + inJoint + ' of ' + n + ' panes open into another tier', where.join(' · ') +
-          ' | parts ' + hi.stats.parts.map(q => q.preset + ' fy' + q.floorY.toFixed(1) + ' eave' + (q.eaveY || 0).toFixed(1) + ' ridge' + (q.ridgeY || 0).toFixed(1) + ' @' + q.x.toFixed(1) + ',' + q.z.toFixed(1) + ' yaw' + q.yaw.toFixed(2)).join('; '));
+    check(inJoint === 0, 'mill ' + name + ': ' + inJoint + ' of ' + n + ' panes open into another volume', where.join(' · '));
   }
   const again = HG.build(P, 0);
   check(again.stats.tris === hi.stats.tris, 'mill ' + name + ': the build is not deterministic');

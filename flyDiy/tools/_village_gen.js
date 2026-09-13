@@ -546,6 +546,21 @@ function makeVillage(V0) {
     const a = spur.at(spur.tAnchor);
     T = makeTerrain(V, [a.p[0], a.p[1] - T.zShore + th.foot]);
     site = { name: V.site, t: spur.tAnchor, at: a, road: spur, jt: tJ, theme: th };
+    // THE SHOULDER (G350): the mill's top house on a flat pad cut into the
+    // mountain, at the hill's own height a third of the way in - the same
+    // numbers the mill builds to (HG.millPlan), in the mill's frame on the spur
+    const mi = th.items.find(it => it.gen === 'house' && HG.PRESETS[it.preset] && HG.PRESETS[it.preset].mill);
+    if (mi) {
+      const Pm = Object.assign({}, HG.DEF, HG.PRESETS[mi.preset], mi.P || {}, { recvZ: mi.z });
+      const Mp = HG.millPlan(Pm);
+      const am = spur.at(spur.tAnchor + mi.x), upm = [-am.n[0], -am.n[1]];
+      const cm = [am.p[0] + upm[0] * mi.z, am.p[1] + upm[1] * mi.z];
+      const yawm = Math.atan2(-upm[0], -upm[1]) + (mi.yaw || 0);
+      const lv = T.h(cm[0] + Mp.zLevel * Math.sin(yawm), cm[1] + Mp.zLevel * Math.cos(yawm));
+      const rect = { x0: Mp.x0, x1: Mp.x1, z0: Mp.zPB, z1: Mp.zPF };
+      T = withShelf(T, cm, yawm, rect, lv, Mp.marginF, Mp.marginB);
+      site.shelf = { c: cm, yaw: yawm, rect, level: lv, marginF: Mp.marginF, marginB: Mp.marginB };
+    }
     if (th.tram) site.tram = { t: road.length * th.tram.t, back: th.tram.back, topZ: th.tram.topZ };
   }
   const plots = makePlots(T, V, road, rnd, site);
@@ -651,7 +666,7 @@ const THEMES = {
     // THE GRAVEL YARD (G334): the ground the whole works stands on, in the
     // site's frame - along the spur, from the far side of the row to the
     // terminal up the mountain
-    yard: { x0: -48, x1: 48, z0: -18, z1: 118 },
+    yard: { x0: -48, x1: 48, z0: -18, z1: 150 },
     // THE TRAM (G348): the base station off the shore road at `t` of its
     // length, `back` metres behind it with its open end to the mountain;
     // the top station straight inland `topZ` behind the road, up the
@@ -670,6 +685,24 @@ function withHill(T, c, h, r) {
     return base(x, z) + h * k * k;
   };
   return { h: hh, size: T.size, waterY: T.waterY };
+}
+
+// THE SHOULDER (G350, the user: "the central structure sits atop the
+// mountain, not on a slope anymore"): a flat pad at `level` over `rect` in
+// the frame (c, yaw) - cut into the mountain where it is higher, filled
+// where it is lower - blended back to the terrain over `marginF` metres in
+// front and beside (the fill) and `marginB` behind (the cut face, up the hill)
+function withShelf(T, c, yaw, rect, level, marginF, marginB) {
+  const base = T.h, cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const hh = (x, z) => {
+    const dx = x - c[0], dz = z - c[1];
+    const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;   // the world into the frame (the inverse of the site's toWorld)
+    const k = Math.max(Math.max(0, rect.z0 - lz) / marginB, Math.max(0, rect.x0 - lx, lx - rect.x1, lz - rect.z1) / marginF);
+    if (k >= 1) return base(x, z);
+    const s = k * k * (3 - 2 * k);
+    return level + (base(x, z) - level) * s;
+  };
+  return { h: hh, size: T.size, waterY: T.waterY, zShore: T.zShore };
 }
 
 function placeSite(vil) {
@@ -700,19 +733,18 @@ function placeSite(vil) {
         // a shed the road runs through sits on the road: no plinth, its slab a hand over the ground
         P.floorY = hiC + (it.onRoad ? 0.06 : Math.max(0.3, P.floorY));
         if (it.onRoad) P.plinth = 0;
-      } else P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+      } else P.floorY = ground(0, 0) + 0.6;
     } else {
       P = Object.assign({}, HG.DEF, HG.PRESETS[it.preset] || {}, it.P || {});
       P.preset = it.preset; P.slopeX = 0; P.slopeZ = 0; P.water = 0; P.pier = 0;
       P.ground = ground; P.waterY = T.waterY - oy;
       if (P.mill) {
-        P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
-        // the hill the tiers climb, read off the terrain behind the mill (G348)
-        P.hillDeg = Math.atan2(ground(0, -70) - ground(0, 0), 70) * 180 / Math.PI;
         // THE RECEIVING HOUSE ON THE ROAD (G333): the mill's own bottom house
-        // sits astride the road - its gap below the lowest tier is whatever
-        // puts its centre on the anchor line
-        if (it.bottomOnRoad) { P.bottomGap = it.z - P.tierW / 2 - (P.bottomW || 9) / 2; P.bottomL = 16; }
+        // sits astride the road - the road is `z` below the mill's origin
+        // (G350: `recvZ`); the top house stands on the shoulder the terrain
+        // was cut to from the same plan
+        if (it.bottomOnRoad) { P.recvZ = it.z; P.bottomL = 16; }
+        P.floorY = ground(0, HG.millPlan(P).zLevel) + 0.5;
       }
       else {
         let hiC = -1e9;
@@ -725,9 +757,10 @@ function placeSite(vil) {
     const rec = { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed: 500 + out.length, gen: it.gen, site: true, item: it };
     out.push(rec);
     // the keep-out for the trees: the footprint and a margin, in the world
-    const L = P.mill ? P.tierL0 + 24 : P.L, w = P.mill ? 150 : P.w;
-    const zc = P.mill ? -(w / 2 - P.tierW / 2) : 0;
-    keepOut.push([[-L / 2 - 3, zc + w / 2 + 3], [L / 2 + 3, zc + w / 2 + 3], [L / 2 + 3, zc - w / 2 - 3], [-L / 2 - 3, zc - w / 2 - 3]].map(q => toWorld(q[0], q[1])));
+    const Mp = P.mill ? HG.millPlan(P) : null;
+    const kx0 = Mp ? Mp.x0 - 3 : -P.L / 2 - 3, kx1 = Mp ? Mp.x1 + 3 : P.L / 2 + 3;
+    const kz0 = Mp ? Mp.termZ - 8 : -P.w / 2 - 3, kz1 = Mp ? Mp.R + 8 : P.w / 2 + 3;
+    keepOut.push([[kx0, kz1], [kx1, kz1], [kx1, kz0], [kx0, kz0]].map(q => toWorld(q[0], q[1])));
   }
   // THE TRAMWAY'S FAR END (G329): the mill's conveyor runs to the shed the
   // road goes through - that shed's position in the mill's own frame
@@ -1507,12 +1540,16 @@ function siteGround(vil, occ) {
   for (const h of vil.siteHouses || []) {
     const P = h.P;
     if (P.mill && h.built && h.built.stats.mill) {
-      // the tiers up the hill: gravel only a few steps around each (the
-      // hill keeps its grass between and beside them)
-      for (const t of h.built.stats.mill.tiers) { const c = h.toWorld(t.xo, t.zM); rects.push({ x: c[0], z: c[1], yaw: h.yaw, hx: t.L / 2 + 1, hz: (t.w || P.tierW) / 2 + 1, reach: 2.5, fade: 5 }); }
-      const B = h.built.stats.mill.bottom;
+      // the top house on its pad and the stations down the hill: gravel only
+      // a few steps around each volume (the hill keeps its grass between and
+      // beside them); the receiving house and the power house at the road
+      // spread the works' gravel
+      const Mi = h.built.stats.mill;
+      for (const v of Mi.vols) { const c = h.toWorld((v.x0 + v.x1) / 2, (v.z0 + v.z1) / 2); rects.push({ x: c[0], z: c[1], yaw: h.yaw, hx: (v.x1 - v.x0) / 2 + 1, hz: (v.z1 - v.z0) / 2 + 1, reach: 2.5, fade: 5 }); }
+      const B = Mi.bottom;
       if (B) { const c = h.toWorld(B.x, B.z); rects.push({ x: c[0], z: c[1], yaw: h.yaw, hx: B.L / 2 + 1, hz: B.w / 2 + 1, reach: 9, fade: 12 }); }
-    } else rects.push({ x: h.x, z: h.z, yaw: h.yaw, hx: (P.L || P.tierL0) / 2 + 1, hz: (P.w || P.tierW) / 2 + 1, reach: 8, fade: 12 });
+      if (Mi.power) { const c = h.toWorld(Mi.power.x, Mi.power.z); rects.push({ x: c[0], z: c[1], yaw: h.yaw, hx: Mi.power.L / 2 + 1, hz: Mi.power.w / 2 + 1, reach: 6, fade: 8 }); }
+    } else rects.push({ x: h.x, z: h.z, yaw: h.yaw, hx: P.L / 2 + 1, hz: P.w / 2 + 1, reach: 8, fade: 12 });
   }
   // under a building (1), and the gravel's weight from the buildings
   const nearBuilding = (x, z) => {

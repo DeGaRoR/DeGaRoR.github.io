@@ -360,15 +360,24 @@ function battery(name, vil) {
       for (const p of vil.plots) check(!VG.inPoly(p.poly, h.x, h.z), name + ': ' + h.P.preset + ' stands on plot ' + p.id);
       check(T.h(h.x, h.z) > T.waterY + 0.3, name + ': ' + h.P.preset + ' stands in the water');
       if (h.P.mill) {
-        for (const tier of st.mill.tiers) {
+        // THE SHOULDER (G350): the top house on a flat pad cut into the
+        // mountain - the ground under the main block's corners level, its
+        // floor a hand over it; the stations on the slope each above the
+        // hill under their corners; the mill climbs from the road to the pad;
+        // the conveyors fall within bounds on the real hill
+        const Mi = st.mill, Tm = Mi.top.main;
+        let gT0 = 1e9, gT1 = -1e9;
+        for (const x of [Tm.x0, Tm.x1]) for (const z of [Tm.zF, Tm.zB]) { const gy = h.ground(x, z); gT0 = Math.min(gT0, gy); gT1 = Math.max(gT1, gy); }
+        check(gT1 - gT0 < 0.05, name + ': the top house does not stand on the flat', (gT1 - gT0).toFixed(2));
+        check(Tm.fy > gT1 + 0.1 && Tm.fy < gT1 + 1.0, name + ': the top house floats or sinks', (Tm.fy - gT1).toFixed(2));
+        for (const S of Mi.stations) {
           let gU = -1e9;
-          for (const x of [tier.x0, tier.x1]) for (const z of [tier.zF, tier.zB]) gU = Math.max(gU, h.ground(x, z));
-          check(tier.fy > gU + 0.1, name + ': mill tier ' + tier.i + ' is in the hill', tier.fy.toFixed(2) + ' vs ' + gU.toFixed(2));
+          for (const x of [S.x0, S.x1]) for (const z of [S.zF, S.zB]) gU = Math.max(gU, h.ground(x, z));
+          check(S.fy > gU + 0.1, name + ': the ' + S.tag + ' is in the hill', S.fy.toFixed(2) + ' vs ' + gU.toFixed(2));
         }
-        // the mill climbs the mountain: the top tier's floor well above the base's, and the ground under it too
-        const top = st.mill.tiers[st.mill.tiers.length - 1], base = st.mill.tiers[0];
-        check(top.fy - base.fy > 20, name + ': the mill does not climb', (top.fy - base.fy).toFixed(1));
-        check(h.ground(top.xo, top.zM) - h.ground(base.xo, base.zM) > 12, name + ': the mill stands on the flat', (h.ground(top.xo, top.zM) - h.ground(base.xo, base.zM)).toFixed(1));
+        check(!!Mi.bottom && Mi.level - Mi.bottom.fy > 20, name + ': the mill does not climb', Mi.bottom ? (Mi.level - Mi.bottom.fy).toFixed(1) : 'no receiving house');
+        check(h.ground(0, Mi.plateau.zB - Mi.plateau.marginB - 2) > Mi.level + 2, name + ': the pad is not cut into the mountain', (h.ground(0, Mi.plateau.zB - Mi.plateau.marginB - 2) - Mi.level).toFixed(1));
+        for (const C of Mi.conveyors) if (!C.rope) check(C.deg > 2 && C.deg <= Mi.maxDeg + 1e-6, name + ': the conveyor ' + C.from + ' -> ' + C.to + ' runs at ' + C.deg.toFixed(1) + ' deg on the real hill');
       } else {
         const L = h.P.L, w = h.P.w;
         let gU = -1e9;
@@ -402,10 +411,11 @@ function battery(name, vil) {
       const at = (x, z) => { let bi = 0, bd = 1e9; for (let i = 0; i < Y.verts; i++) { const d = Math.hypot(Y.pos[i * 3] - x, Y.pos[i * 3 + 2] - z); if (d < bd) { bd = d; bi = i; } } return { grav: Y.splat[bi * 4 + 2], under: Y.splat[bi * 4 + 1], d: bd }; };
       const mill = items.find(h => h.P.mill);
       if (mill) {
-        const foot = mill.toWorld(0, mill.P.tierW / 2 + 5);
+        const Mi = mill.built.stats.mill, Bm = Mi.bottom;
+        const foot = mill.toWorld(Bm.x, Bm.z - Bm.w / 2 - 5);
         const q = at(foot[0], foot[1]);
         check(q.d < 1.5 && q.grav > 0.5, name + ': no gravel at the mill\'s foot', q.grav.toFixed(2));
-        const u = at(mill.x, mill.z);
+        const S1 = Mi.stations[1], wS = mill.toWorld(S1.xo, S1.zM), u = at(wS[0], wS[1]);
         check(u.under > 0.5, name + ': the yard is not dry under the mill');
       }
       const far = Y.poly[3], mid = [(Y.poly[2][0] + Y.poly[3][0]) / 2, (Y.poly[2][1] + Y.poly[3][1]) / 2];

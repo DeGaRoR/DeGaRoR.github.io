@@ -897,8 +897,13 @@ function compositeChecks(hi, lo) {
   row('what', S.kind || 'composite', '', S.parts.length + ' houses');
   row('footprint', S.footprint.toFixed(0) + ' m&sup2;', '', 'top at ' + S.ridgeY.toFixed(1) + ' m');
   if (S.mill) {
-    head('THE TIERS');
-    for (const T of S.mill.tiers) row('tier ' + T.i, T.roof + (T.derelict ? ' (derelict)' : ''), '', T.L.toFixed(1) + ' m, ' + T.storeys + ' storeys, floor ' + T.fy.toFixed(1));
+    head('THE TOP HOUSE');
+    row('the pad', S.mill.level.toFixed(1) + ' m', '', 'z ' + S.mill.plateau.zB.toFixed(0) + ' to ' + S.mill.plateau.zF.toFixed(0));
+    for (const k of ['main', 'upper', 'lean', 'wing', 'annex', 'stair', 'crusher']) { const T = S.mill.top[k]; if (T) row(k, T.L.toFixed(1) + ' x ' + T.w.toFixed(1) + ' m', '', T.roof + ', floor ' + T.fy.toFixed(1)); }
+    head('THE STATIONS');
+    for (const T of S.mill.stations) row(T.tag, T.L.toFixed(1) + ' x ' + T.w.toFixed(1) + ' m', '', T.storeys + ' storeys, ' + T.roof + ', floor ' + T.fy.toFixed(1));
+    head('THE CONVEYORS');
+    for (const C of S.mill.conveyors) row(C.from + ' &rarr; ' + C.to, C.deg.toFixed(1) + '&deg;', C.deg > S.mill.maxDeg || C.deg < 2 ? 'bad' : 'ok', C.len.toFixed(1) + ' m');
   }
   head('THE MESH');
   row('high / low', hi.stats.tris.toLocaleString() + ' / ' + lo.stats.tris.toLocaleString() + ' tris', '',
@@ -999,6 +1004,20 @@ function draw() {
   camera.lookAt(C);
   renderer.render(scene, camera);
 }
+// THE VIEW FROM OUTSIDE (G350): a screenshot rig asks for a camera by name -
+// the centre, the yaw and pitch of the orbit, the distance - and gets the
+// frame it fits to back
+window.benchView = o => {
+  if (o.reset) { centreOv = null; ZOOM = 1; }
+  // (the centre and the yaw in the MODEL's frame: the root is turned by the sky's azimuth)
+  if (o.centre) centreOv = new THREE.Vector3(o.centre[0], o.centre[1], o.centre[2]).applyAxisAngle(new THREE.Vector3(0, 1, 0), skyRot);
+  if (o.yaw !== undefined) yaw = o.yaw + skyRot;
+  if (o.pitch !== undefined) pitch = o.pitch;
+  if (o.dist) ZOOM = fitR / o.dist;
+  draw();
+  const bb = new THREE.Box3().setFromObject(scene);
+  return { fitR, centre: (centreOv || centre).toArray(), fit: centre.toArray(), box: [bb.min.toArray(), bb.max.toArray()], yaw, pitch, ZOOM, skyRot };
+};
 
 // ---- panel ----------------------------------------------------------------
 // One row per parameter, grouped, with the family-dependent rows HIDDEN rather

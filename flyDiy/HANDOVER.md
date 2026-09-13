@@ -43904,3 +43904,93 @@ checks; selftest.
 - Gates on the worktree: HOUSE, VILLAGE, CABIN, MEDIA green.
 - Queued: the ropes drawn in the house bench; `tram_run.js`; the totem park
   on a village plot; the r186 rebase.
+
+## G350 (village-tram branch, provisional number) — THE MILL TO THE REFERENCE:
+## A MASSIVE TOP HOUSE ON A SHOULDER OF THE MOUNTAIN, TWO STATIONS DOWN THE
+## SLOPE, CONVEYORS HOUSE TO HOUSE (2026-09-13, on the worktree
+## D:/Dev/wt-village, branch village-tram, rebased on master 1b90136c = r186)
+
+The user, with the Kennecott photograph: "this is not at all a stepped
+regular series over a long distance, these are a massive top house, with
+different parts and roofs, and 2-3 bottom houses, and a lot of little
+appendixes ... roofs should have different orientations, yet offering a
+monotonous way down for the water, fitments should be tight, conveyors should
+go from one building to another ... constructed around a central massive
+structure ... the central structure sits atop the mountain, not on a slope
+anymore. The slope is the domain of the conveyor and the intermediate
+stations. No station should have the exact same dimension." The G348
+staircase is gone.
+
+- `buildMill` (tools/_house_gen.js) is rewritten around ONE PLAN
+  (`millPlan(P)`, exported): the receiving house at `recvZ` on the road, the
+  top house `topDist` above it, the pad between `zPB` and `zPF`, the
+  tramway terminal behind. THE TOP HOUSE is fused from a three-storey MAIN
+  (shed roof rising to its back, so it drains forward), an UPPER two-storey
+  block with a gable across riding on the main's back (its front wall over
+  the main's roof, its floor a hand under the roof there, its back flush), a
+  LEAN across the front (high against the main, under its eave, draining off
+  the pad), a WING meeting the main's side with its GABLE END (its eaves run
+  along the main, never into it), a shed ANNEX on the far side, a STAIR tower
+  on the wing's end over its ridge, the bare CRUSHER floor behind (its shed
+  roof high against the main's back wall), two BAY boxes and three chute
+  HEADS hung on brackets (no posts), and PORTALS astride the ridges below.
+  Every joint is the same joint: the lower volume's wall a hand inside the
+  taller one, its roof edge under the taller wall's eave. No window into a
+  joint: every part's windows are read back in the mill's frame, pushed a
+  hand out of their wall, and dropped where that is inside another volume
+  under its roof (`winKeep`, testing sill, middle and head).
+- THE SHOULDER: the pad is flat at the hill's own height a few steps in
+  (`zLevel`, 15 % in from the front), a low podium in front (`marginF` 10 m)
+  and a cut face behind (`marginB` 18 m). The village cuts the same shoulder
+  into its terrain (`withShelf`, from `HG.millPlan` in the mill's frame on
+  the spur, BEFORE the site is placed); the bench blends its own slope the
+  same way, with a flat at the road.
+- THE STATIONS on the slope, each its own plan: the transfer house 12 x 8,
+  two storeys, ridge DOWN the hill, a shed annex; the sorting house 9 x 6.5,
+  two taller storeys, ridge ACROSS, a stair tower. The conveyors go house to
+  house: the lean's head -> a portal astride the transfer house's ridge; its
+  downhill end -> the sorting house's portal; its upper storey -> the
+  receiving house's portal. On any hill the runs stay between 2 and `maxDeg`
+  (28) degrees: each head takes the storey that keeps its run in the band
+  and the stations slide up or down the slope (`storeyFor` + the slide loop).
+  The aerial tramway is a ROPEWAY now (two track ropes on saddle beams, the
+  haul rope, six ore buckets) from a bare terminal 36 m up the natural slope
+  into the crusher's top storey - a rope may come down at 40-50 degrees
+  where a belt may not.
+- Published: `stats.mill = { level, plateau, top: {main, upper, lean, wing,
+  annex, stair, crusher}, stations, vols (every volume with its yTop
+  function and roof kind), hung, portals, conveyors (with deg, len, rope),
+  bottom, power, terminal, lamps, maxDeg }`. Dials: `mainL, mainW, recvZ,
+  topDist, tierPitch, maxDeg`; gone: tiers, tierStep, tierRise, tierW,
+  tierL0, tierL1, hillDeg, millTiers, frameBack, bottomGap, derelict.
+- GATE HOUSE 37 rewritten: the pad flat at the level and every top volume
+  on it; the fusion (upper on the back over the roof, lean under the eave,
+  wing gable-end in the side under the roof, annex, crusher, stair); the
+  roofs run four ways or more; NO ROOF DRAINS INTO A WALL (every low edge
+  sampled every 1.5 m, a hand out at the eave's height, inside no other
+  volume - a lower roof under it is not inside; an edge buried in a joint is
+  skipped, it ends at that wall); no two houses of one plan; the stations
+  above the hill under their corners, between the pad and the road; every
+  conveyor leaves its chute head, lands in its portal, falls 2..maxDeg; the
+  ropeway 5..55; lanterns >= 8; the reach; no pane into another volume
+  (lantern glass, a hand across, is not a pane); deterministic.
+- GATE VILLAGE 15/13 follow: the top house on the flat (the ground under
+  the main's corners within 5 cm), floating nor sinking, the stations in
+  the hill, the mill climbs 20 m+, the pad is a cut (the mountain 2 m+
+  higher behind its back margin), the conveyors in the band on the real
+  hill; the yard's gravel by the receiving house and dry under the sorting
+  house; the yard polygon to 150 m (the old 118 put its far edge on the
+  terminal: that was the red the branch carried before the rebase).
+- The benches got `window.benchView({centre, yaw, pitch, dist, reset})` (the
+  house bench in the model's frame, the village in the world's) and
+  `window.lastVil` - a screenshot rig sets the camera by name instead of
+  reaching for the bench's lets, which are not globals.
+- The rebase onto r186: only HANDOVER conflicted; one `sRGBEncoding` in the
+  cabin's sign mesh became `colorSpace = SRGBColorSpace`. GATE MEDIA is red
+  on master itself (index.html 6.53 MiB against 6.5): the upgrade's, not
+  this branch's.
+- Gates on the worktree: HOUSE, VILLAGE, CABIN green. Screenshots:
+  screenshots/lods/mill350_*.jpg (the village ones in the mountain's
+  shadow under the afternoon sky).
+- Queued: the ropes drawn in the house bench; `tram_run.js`; the totem park
+  on a village plot; landing the branch on master with a real G-number.

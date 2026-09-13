@@ -723,6 +723,7 @@ function build() {
   scene.add(root);
   FINISHES = []; LIGHTS = [];
   const vil = VG.makeVillage(V);
+  window.lastVil = vil;                        // (G350: the screenshot rig reads the village back)
   VIL = vil;
   $('seedLbl').textContent = 'seed ' + V.seed + ' · ' + vil.plots.length + ' plots';
   let tris = 0, houses = 0, piers = 0, water = 0, outs = 0;
@@ -949,6 +950,18 @@ function draw() {
   camera.lookAt(C);
   renderer.render(scene, camera);
 }
+// THE VIEW FROM OUTSIDE (G350): a screenshot rig asks for a camera by name -
+// the centre, the yaw and pitch of the orbit, the distance, in the WORLD's
+// frame (the root is turned by the sky's azimuth) - and reads the village back
+window.benchView = o => {
+  if (o.reset) { centreOv = null; ZOOM = 1; }
+  if (o.centre) centreOv = new THREE.Vector3(o.centre[0], o.centre[1], o.centre[2]).applyAxisAngle(new THREE.Vector3(0, 1, 0), skyRot);
+  if (o.yaw !== undefined) yaw = o.yaw + skyRot;
+  if (o.pitch !== undefined) pitch = o.pitch;
+  if (o.dist) ZOOM = fitR / o.dist;
+  draw();
+  return { fitR, centre: (centreOv || centre).toArray(), yaw, pitch, ZOOM, skyRot };
+};
 
 // ---- interaction -------------------------------------------------------------
 const viewEl = $('view');
