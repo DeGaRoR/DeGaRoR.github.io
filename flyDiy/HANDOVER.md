@@ -42922,3 +42922,83 @@ rebuild the payload triggers reaches only the garage) — probed on r128 and
 r186 alike, 12 s after a 25 s boot on a loaded machine: no crew; after a 70 s
 boot: the pilot's skinned body 1.3 x 1.1 x 1.4 m at the seat on both. A
 user waits longer than a script, but the door should refuse or re-bake.
+
+## G353 — THE PREMISES: THE CONTRACT FROZEN, THE WORLD EDITOR DESIGNED, THE
+## SESSIONS SPLIT (2026-09-13, the user: "We may want to fork in different
+## sessions from now on for the buildings editor; one on the cable car, one on
+## the factory, and one on the integration of the totems and other props […]
+## Let's do first a bench of the editor, into its own session, and a contract
+## proposal.")
+
+**What it was.** Two worlds that never touched: the shipped 24 km analytic
+world (`20_world.js` + `render_world.js`) and the bench village where every
+building generator lives (`tools/_village_gen.js` and its kin — nothing in
+`index.html` references them). Half a contract already written by accident:
+THEMES / placeSite (a site in the road's frame), the tram's
+`stats.station.hooks` + `tramLine` (the cable solved between two placed
+stations, village-tram branch), the mill's `tramTo` (the conveyor),
+`totemPlan.footprint` (the park publishes the shape, the world owns the
+height), `TREE_PLACE` waiting for "the map-and-hand editor". The editor's
+foundation ruled twice over (WORLD-V2 §6 the modifier layer; ROADMAP Phase 4
+"the editor may only ever write modifier records"), and `sitePattern` /
+`sitePatternIssues` already written as its write slot and validator.
+
+**What it is.** Two documents, both under `futureDesigns/`:
+- `PREMISES-CONTRACT-2026-09-13.md` — **v1, FROZEN at this commit.** The
+  PREMISES RECORD (pure data, heights relative to an anchor, a local frame so
+  a world change orphans the anchor and not the premises; layers terrain /
+  surface / material / exclude / roads / runways / zones / sites / links /
+  objects; a fixed ten-stage composition; per-element seeding), the CATALOGUE
+  ENTRY every generator exports on its own API object (key, kind, frame,
+  `foot(P)`, ground need, hooks / `hooksOf(built)`, four lod distances, the
+  published slots, tags; eight rules; derived entries for generators without
+  one), LINKS with a solver per kind (cable = `tramLine`, conveyor = `tramTo`,
+  path, roadThrough, pier; re-solved on move), the SOWING engine (`makePlots`
+  generalised to every road inside a polygon; pickers by tag), the three hooks
+  that reach physics (`terrainH` seam dead when empty, `surfaceAt` before
+  `regSurf` — aprons stop being decals, `excludeAt`), GATE PREMISES (13 rules,
+  incl. baked-vs-live and "the contract held" = no catalogue key literal in
+  the editor), the Kennecott + tram record as the worked example, and what
+  each session delivers.
+- `PREMISES-EDITOR-2026-09-13.md` — the editor: city-builder feel, MSFS
+  capability, ONE module with two hosts (`PREMISES_UI.mount(host, ctx)`, the
+  `GFX.mount` pattern; the bench now, a WORLD rail entry beside GRAPHICS
+  later). Sections TERRAIN / AIRFIELD (a runway OBJECT with a profile; the
+  pattern editor over `sitePatternIssues`) / ROADS / ZONES / SITES + LINKS /
+  VEGETATION / OBJECTS / WORLD-VIEW / FILE / BUDGET; which F8 rows move (the
+  place's and the view's) and which stay (the assets'); the interaction model
+  (MSFS mouse layout, ghost + validity that refuses red, snapping, concave
+  polygons, the PIN, Blender-modal G/R/S, overlays as a second canvas on the
+  terrain material, orbit / free / map cameras, a command stack); the bench
+  page (`tools/_premises.html`, port 8401, World B by default with a switch to
+  World A, 64 m ground chunks with dirty-bbox rebuilds, the analytic ray
+  march, the watchdog pump, the sink); stages v0-v3 and five acceptance places
+  (harbour, air-taxi base, mine + tram, totem park, a one-way lakeside strip).
+  **Appendix A is THE SPLIT**: the rulings (the tram and the factory stay with
+  the running house session until it lands; the factory is the Kennecott mill
+  EXTENDED — power house, crusher, ore bins, the tramway to the adit; the
+  editor is a developer tool designed to become the player's), the sessions
+  table with worktree / branch / port / owned files, the named anchors in the
+  shared hot files, the landing recipe (content into the working copy first,
+  the commit from those blobs, the ref, the index — never a fast-forward on a
+  shared checkout), the landing order, UNIFY (the union catalogue with zero
+  editor edits, the showcase record, `premises_perf.js`) and PORT (generators
+  to `src/world/`, `27_premises.js`, `render_premises.js`, `premises_ui.js`,
+  the three hooks, the goldens).
+
+**Measured.** Nothing runs yet; this commit is documents. The survey's
+numbers that shaped them: the shared tree's HANDOVER last heading G352 on
+HEAD and in the working copy (353 taken here, at landing); `village-tram`
+one commit on `1b90136c`, unmerged, 11 paths (+1136 / -451), G348 provisional
+and taken on master; free ports 8393-8470 (8401 premises, 8398 park, 8395
+mill); `terrainH` today `h = tV2; g = AERO.grade - h; …` at the seam the
+premises layer takes.
+
+- Gates: none added (documents). The docs-only commit is proven not to
+  disturb the battery from a clean worktree (`--only=MEDIA,UISMOKE`).
+- OWED: the bench v0 (`_premises.html`, `_premises_gen.js`, `_premises_ui.js`,
+  `_premises_draw.js`, `_premises_check.js`, the fixture, the `PREMISES` gate
+  row, the `flydiy-premises` launch entry) — this session's next chantier; the
+  house session's landing (its G number read at that instant, 354 if nothing
+  lands between); the park session's worktree; the ROADMAP Phase 4 note
+  landed with this entry.

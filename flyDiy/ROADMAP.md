@@ -405,6 +405,17 @@ here they get to be in the official game." This is WORLD-V2 §9, pulled far
 forward from its W7 slot, because it is playable content and its foundation
 is already sitting hardcoded in the physics hot path.*
 
+> **2026-09-13 (G353) — THE PREMISES EDITOR PULLS 3 / 3b FORWARD AS A BENCH, AND THE
+> CONTRACT IS v1.** `futureDesigns/PREMISES-CONTRACT-2026-09-13.md` (frozen) and
+> `PREMISES-EDITOR-2026-09-13.md` (design + Appendix A, the split of the sessions).
+> The editor writes RECORDS only (rule 3 above, kept); the strip is a profile (2);
+> the modifier layer (1) is the record's terrain layer composed at ONE seam in
+> `20_world.js`, dead with no premises loaded. The bench first (World B's terrain,
+> a switch to World A for airfields), the port last (Appendix A §A.5); zones sow
+> themselves, dedicated sites are placed from a catalogue with their links
+> (cable, conveyor) solved live. Item 4 (the base aerodrome through the layer)
+> and 5 (sites as destinations) are the port's.
+
 1. **The modifier layer** [M]. Generalise the two hardcoded rectangles inside
    `h0` into §9.2's typed list — flatten / grade / surface / exclude first.
    The spec's own words: this is "simultaneously the editor's foundation and
