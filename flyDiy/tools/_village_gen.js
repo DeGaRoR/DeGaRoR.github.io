@@ -162,7 +162,8 @@ function makePlots(T, V, road, rnd, site) {
       if (rnd() < V.gapOdds) continue;
       // the site's span of the road: no plots on the land side, nor on
       // the water side across from the tram shed (G321)
-      if (site && t + w > site.t - site.theme.span[0] && t < site.t + site.theme.span[1] && (side === 'land' || Math.abs(t + w / 2 - site.t - site.theme.shedT) < 14)) continue;
+      // (G334: both sides - the bunkhouse row stands across the road)
+      if (site && t + w > site.t - site.theme.span[0] && t < site.t + site.theme.span[1]) continue;
       const a = road.at(t), b = road.at(t + w);
       const sgn = side === 'water' ? 1 : -1;      // along the water normal, or against it
       const off = road.w / 2 + 1.0;
@@ -532,12 +533,22 @@ const THEMES = {
       // (the gap below the lowest tier is set from `z` in placeSite)
       { gen: 'house', preset: 'kennecott mill', x: -4, z: 24, yaw: 0, bottomOnRoad: true },
       { gen: 'big', preset: 'mine shop', x: -34, z: 12, yaw: 0 },
-      { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 14, yaw: 0 },
-      { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 26, yaw: 0.15 },
-      { gen: 'house', preset: 'mine cottage', x: 8, z: 9, yaw: -0.1 },
+      // THE LOWER BUILDINGS (G334): the dormer hall and the office beside
+      // the mill, the bunkhouse row ACROSS THE ROAD on the water side
+      // (yaw pi: facing back toward the road), the cottages, a shed
+      { gen: 'house', preset: 'mine dormer hall', x: 30, z: 14, yaw: 0.05 },
+      { gen: 'house', preset: 'mine office', x: 20, z: 9, yaw: -0.08 },
+      { gen: 'house', preset: 'mine bunkhouse', x: -30, z: -10, yaw: Math.PI },
+      { gen: 'house', preset: 'mine bunkhouse', x: -8, z: -10, yaw: Math.PI + 0.1 },
+      { gen: 'house', preset: 'mine bunkhouse', x: 16, z: -10, yaw: Math.PI - 0.08 },
+      { gen: 'house', preset: 'mine cottage', x: 36, z: -9, yaw: Math.PI },
       { gen: 'house', preset: 'mine cottage', x: -22, z: 5, yaw: 0.2 },
-      { gen: 'house', preset: 'storage shed', x: 16, z: 8, yaw: 0.4 },
+      { gen: 'house', preset: 'storage shed', x: 8, z: 7, yaw: 0.4 },
     ],
+    // THE GRAVEL YARD (G334): the ground the whole works stands on, in the
+    // road's frame - along the span, from the shore's side of the row to
+    // the terminal up the hill
+    yard: { x0: -46, x1: 50, z0: -18, z1: 118 },
   },
 };
 
@@ -619,6 +630,10 @@ function placeSite(vil) {
   }
   vil.siteHouses = out;
   vil.siteKeepOut = keepOut;
+  if (th.yard) {
+    const corner = (x, z) => { const a = road.at(S.t + x); return [a.p[0] - a.n[0] * z, a.p[1] - a.n[1] * z]; };
+    S.yardPoly = [corner(th.yard.x0, th.yard.z0), corner(th.yard.x1, th.yard.z0), corner(th.yard.x1, th.yard.z1), corner(th.yard.x0, th.yard.z1)];
+  }
   return out;
 }
 
@@ -1220,6 +1235,7 @@ function planTrees(vil, pool) {
     if (roadNear(px, pz) < 5) continue;
     if (vil.plots.some(p => nearPoly(p.poly, px, pz, 0) < 1.5)) continue;
     if ((vil.siteKeepOut || []).some(poly => inPoly(poly, px, pz))) continue;      // the mine's ground (G321)
+    if (vil.site && vil.site.yardPoly && inPoly(vil.site.yardPoly, px, pz) && rnd() < 0.85) continue;   // the gravel yard (G334): a few stragglers
     if (!clearOf(px, pz, gap ? 2.8 : 3.2)) continue;
     // ONLY SMALL TREES IN THE VILLAGE (G323, the user): the tall species
     // are the wood behind; a gap between plots grows the small ones
@@ -1277,6 +1293,116 @@ function planTrees(vil, pool) {
   return trees;
 }
 
+// THE GRAVEL YARD (G334): one ground patch under the whole site, on the
+// terrain, the lot patch's own channels - gravel (the dirt set with pebbles
+// through it) where the works are, the grass returning at the yard's edge
+// and beyond every building's reach, dry under every building, the
+// buildings' occluders darkening it, alpha fading into the terrain across
+// the margin. The patch is a quad in the road's frame, so it follows the
+// bend the site follows. `occ` are the site buildings' occluders in the
+// world (the bench hands them in; the gate hands none).
+function siteGround(vil, occ) {
+  const S = vil.site, th = S.theme, T = vil.T, road = vil.road, Y = th.yard;
+  const cell = 0.9, M = 6;
+  // the quad's corners along the road's frame
+  const corner = (x, z) => { const a = road.at(S.t + x); return [a.p[0] - a.n[0] * z, a.p[1] - a.n[1] * z]; };
+  const poly = [corner(Y.x0, Y.z0), corner(Y.x1, Y.z0), corner(Y.x1, Y.z1), corner(Y.x0, Y.z1)];
+  let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
+  for (const p of poly) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]); }
+  x0 -= M; z0 -= M; x1 += M; z1 += M;
+  const nx = Math.ceil((x1 - x0) / cell), nz = Math.ceil((z1 - z0) / cell);
+  const edgeDist = (x, z) => {
+    let d = 1e9;
+    for (let i = 0; i < 4; i++) {
+      const a = poly[i], b = poly[(i + 1) % 4], dx = b[0] - a[0], dz = b[1] - a[1];
+      const t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+      d = Math.min(d, Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t)));
+    }
+    return d;
+  };
+  // every building's footprint (the mill's: each tier, its receiving house, its power house)
+  const rects = [];
+  for (const h of vil.siteHouses || []) {
+    const P = h.P;
+    if (P.mill && h.built && h.built.stats.mill) {
+      // the tiers up the hill: gravel only a few steps around each (the
+      // hill keeps its grass between and beside them)
+      for (const t of h.built.stats.mill.tiers) { const c = h.toWorld(t.xo, t.zM); rects.push({ x: c[0], z: c[1], yaw: h.yaw, hx: t.L / 2 + 1, hz: (t.w || P.tierW) / 2 + 1, reach: 2.5, fade: 5 }); }
+      const B = h.built.stats.mill.bottom;
+      if (B) { const c = h.toWorld(B.x, B.z); rects.push({ x: c[0], z: c[1], yaw: h.yaw, hx: B.L / 2 + 1, hz: B.w / 2 + 1, reach: 9, fade: 12 }); }
+    } else rects.push({ x: h.x, z: h.z, yaw: h.yaw, hx: (P.L || P.tierL0) / 2 + 1, hz: (P.w || P.tierW) / 2 + 1, reach: 8, fade: 12 });
+  }
+  // under a building (1), and the gravel's weight from the buildings
+  const nearBuilding = (x, z) => {
+    let best = 1e9, g = 0;
+    for (const r of rects) {
+      const c = Math.cos(r.yaw), s = Math.sin(r.yaw);
+      const dx = x - r.x, dz = z - r.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+      const d = Math.hypot(Math.max(0, Math.abs(lx) - r.hx), Math.max(0, Math.abs(lz) - r.hz));
+      best = Math.min(best, d);
+      g = Math.max(g, clamp(1 - (d - r.reach) / r.fade, 0, 1));
+    }
+    return { d: best, g };
+  };
+  // the road's verge is gravel too, on the flat (the works' level, not up the hill)
+  const yRoad = T.h(S.at.p[0], S.at.p[1]);
+  const roadNear = (x, z) => {
+    let d = 1e9;
+    for (let i = 1; i < road.pts.length; i++) {
+      const a = road.pts[i - 1], b = road.pts[i], dx = b[0] - a[0], dz = b[1] - a[1];
+      const t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+      d = Math.min(d, Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t)));
+    }
+    return d;
+  };
+  const darkAt = (x, z) => {
+    let keep = 1;
+    for (const o of occ || []) {
+      const c = Math.cos(o.ry || 0), s = Math.sin(o.ry || 0);
+      const dx = x - o.x, dz = z - o.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+      let out;
+      if (o.hx !== undefined) out = Math.hypot(Math.max(0, Math.abs(lx) - o.hx), Math.max(0, Math.abs(lz) - o.hz));
+      else out = Math.max(0, Math.hypot(lx, lz) - o.r);
+      if (out > 4) continue;
+      const soft = o.soft === undefined ? 0.5 : o.soft;
+      const t = 1 - clamp(out / Math.max(0.05, soft), 0, 1);
+      keep *= 1 - (o.k === undefined ? 0.4 : o.k) * t * t;
+    }
+    return Math.min(0.85, 1 - keep);
+  };
+  const pos = [], uv = [], splat = [], tone = [], alpha = [], idx = [];
+  const id = new Int32Array((nx + 1) * (nz + 1)).fill(-1);
+  const s = vil.V.seed * 0.618 + 31;
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    const x = x0 + i * cell, z = z0 + j * cell;
+    const inside = inPoly(poly, x, z);
+    const d = edgeDist(x, z);
+    if (!inside && d > M) continue;
+    if (T.h(x, z) < T.waterY + 0.2) continue;
+    const y = T.h(x, z);
+    id[j * (nx + 1) + i] = pos.length / 3;
+    pos.push(x, y + 0.025, z);
+    uv.push(x, z);
+    // gravel where the works are: within a walk of any building, the road's
+    // verge, and the whole space between the mill and the road; grass creeps
+    // back beyond, on a noise
+    const nb = nearBuilding(x, z), rd = roadNear(x, z);
+    const n1 = fbm(x * 0.06 + 3.3, z * 0.06 + 1.1, s, 3);
+    const flat = clamp(1 - (y - yRoad - 3) / 6, 0, 1);
+    const grav = Math.max(nb.g, flat * clamp(1 - (rd - 3 - 7) / 10, 0, 1)) * (0.55 + 0.45 * n1);
+    const under = nb.d < 0.01 ? 1 : 0;
+    splat.push(n1, under, grav, grav * (0.35 + 0.35 * fbm(x * 0.2, z * 0.2, s + 7, 2)));
+    tone.push(darkAt(x, z), 0);
+    alpha.push(inside ? 1 : 1 - d / M);
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = id[j * (nx + 1) + i], b = id[j * (nx + 1) + i + 1], c = id[(j + 1) * (nx + 1) + i + 1], dd = id[(j + 1) * (nx + 1) + i];
+    if (a < 0 || b < 0 || c < 0 || dd < 0) continue;
+    idx.push(a, dd, c, a, c, b);
+  }
+  return { pos, uv, splat, tone, alpha, idx, verts: pos.length / 3, poly };
+}
+
 // THE ROADSIDE BILLBOARDS (G313): the user's signs that name a business up
 // the road - the air taxi, the bear tours, the motel - on timber posts on
 // the road's inland verge where no plot is, facing the road, thirty metres
@@ -1321,6 +1447,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, siteGround,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

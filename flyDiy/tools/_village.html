@@ -566,7 +566,9 @@ function lotMaterial() {
   return m;
 }
 function lotMesh(parent, vil, plot, house, built, occ) {
-  const L = VG.lotGround(vil, plot, house, built, occ);
+  return groundMesh(parent, VG.lotGround(vil, plot, house, built, occ));
+}
+function groundMesh(parent, L) {
   if (!L.idx.length) return null;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(L.pos), 3));
@@ -760,6 +762,18 @@ function build() {
     }
     FINISHES.push(F);
     siteTris += built.stats.tris;
+  }
+  // THE GRAVEL YARD (G334): one patch under the works, darkened by every
+  // site building's occluders
+  if (vil.site && vil.siteHouses) {
+    const occ = [];
+    for (const h of vil.siteHouses) for (const o of h.built.stats.groundAO || []) {
+      const w = h.toWorld(o.x, o.z);
+      occ.push(Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + h.yaw }));
+    }
+    const Y = VG.siteGround(vil, occ);
+    groundMesh(root, Y);
+    siteTris += Y.idx.length / 3;
   }
   const fe = placeFences(root, vil);
   // THE TREES (G306): planned after every plot is finished (they keep off

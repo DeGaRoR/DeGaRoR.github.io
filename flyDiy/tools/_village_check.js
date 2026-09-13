@@ -369,7 +369,29 @@ function battery(name, vil) {
       }
     }
     for (const p of vil.plots)
-      check(!(p.side === 'land' && p.s1 > S.t - th.span[0] && p.s0 < S.t + th.span[1]), name + ': a plot on the span of road the mine owns');
+      check(!(p.s1 > S.t - th.span[0] && p.s0 < S.t + th.span[1]), name + ': a plot on the span of road the mine owns');
+    // THE GRAVEL YARD (G334): a patch on the terrain, gravel by the mill's
+    // foot, grass again at its far corner, the lower buildings on it
+    {
+      const Y = VG.siteGround(vil, []);
+      check(Y.verts > 500 && Y.idx.length > 0, name + ': the yard has no ground');
+      let off = 0;
+      for (let i = 0; i < Y.verts; i++) if (Math.abs(Y.pos[i * 3 + 1] - (T.h(Y.pos[i * 3], Y.pos[i * 3 + 2]) + 0.025)) > 0.002) off++;
+      check(off === 0, name + ': the yard is not on the terrain', off + ' vertices');
+      const at = (x, z) => { let bi = 0, bd = 1e9; for (let i = 0; i < Y.verts; i++) { const d = Math.hypot(Y.pos[i * 3] - x, Y.pos[i * 3 + 2] - z); if (d < bd) { bd = d; bi = i; } } return { grav: Y.splat[bi * 4 + 2], under: Y.splat[bi * 4 + 1], d: bd }; };
+      const mill = items.find(h => h.P.mill);
+      if (mill) {
+        const foot = mill.toWorld(0, mill.P.tierW / 2 + 5);
+        const q = at(foot[0], foot[1]);
+        check(q.d < 1.5 && q.grav > 0.5, name + ': no gravel at the mill\'s foot', q.grav.toFixed(2));
+        const u = at(mill.x, mill.z);
+        check(u.under > 0.5, name + ': the yard is not dry under the mill');
+      }
+      const far = Y.poly[3], mid = [(Y.poly[2][0] + Y.poly[3][0]) / 2, (Y.poly[2][1] + Y.poly[3][1]) / 2];
+      const g2 = at(mid[0] * 0.9 + far[0] * 0.1, mid[1] * 0.9 + far[1] * 0.1);
+      check(g2.d > 3 || g2.grav < 0.6, name + ': the yard is gravel to its far edge');
+      for (const h of items) if (!h.P.mill) check(VG.inPoly(Y.poly, h.x, h.z), name + ': ' + h.P.preset + ' stands off the yard');
+    }
   }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot
@@ -501,7 +523,9 @@ const SEEDS = [3, 11, 27, 5, 8, 20, 44, 61];
 for (const seed of SEEDS) {
   const V = Object.assign({}, VG.VDEF, { seed, site: (seed === 3 || seed === 20) ? 'kennecott' : '' });
   const vil = buildVillage(V);
-  check(vil.plots.length >= 6, 'seed ' + seed + ': only ' + vil.plots.length + ' plots');
+  // (G334: the mine's span takes both sides of the road now - its own row
+  // of bunkhouses stands across from it - so a site seed keeps fewer plots)
+  check(vil.plots.length >= (vil.site ? 3 : 6), 'seed ' + seed + ': only ' + vil.plots.length + ' plots');
   check(vil.houses.length === vil.plots.length, 'seed ' + seed + ': a plot has no house');
   // 1 — determinism
   const again = buildVillage(V);

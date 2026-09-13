@@ -2097,6 +2097,34 @@ const PRESETS = {
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
     deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
   },
+  // THE DORMER HALL (G334, Kennecott's lower building with the row of
+  // dormers): twenty-four metres, two storeys, six dormers along the
+  // front roof, a canopy over the door, a masonry stack, boarded in
+  'mine dormer hall': {
+    L: 24.0, w: 8.0, storeys: 2, floorH: 2.7, roofFam: 0, pitch: 32,
+    stance: 1, floorY: 0.6, slopeZ: 3, eaveOver: 0.5, rakeOver: 0.35, skirt: 2,
+    nFront: 8, nBack: 6, nLeft: 2, nRight: 2, winW: 0.9, winH: 1.2, winSill: 0.9,
+    doorPos: 0.5, doorW: 1.1, porch: 1, porchD: 1.5, porchLenF: 0.25, porchRoof: 1, railStyle: 1, stairs: 1,
+    dormers: 6, dormW: 1.6, dormPitch: 30, chim: 2, chimR: 0.14, chimXF: -0.7, gutter: 0, downpipe: 0, backDoor: 1, backPorch: 1,
+    weather: 0.85, dirt: 0.75, dirtH: 1.5, paintPunch: 0.5, clouds: 0.5, curtains: 0.3, yard: 0, woodpile: 1, boat: 0, people: 1,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 10,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  // THE MINE OFFICE: square, hipped, a deck with its rail, the manager's
+  'mine office': {
+    L: 10.0, w: 8.5, storeys: 2, floorH: 2.7, roofFam: 0, pitch: 28, hip: 1,
+    stance: 1, floorY: 0.7, slopeZ: 3, eaveOver: 0.7, skirt: 2,
+    nFront: 3, nBack: 3, nLeft: 2, nRight: 2, winW: 1.0, winH: 1.3, winSill: 0.85,
+    doorPos: 0.5, doorW: 1.1, porch: 1, porchD: 2.0, porchLenF: 0.6, porchRoof: 2, railStyle: 3, stairs: 1,
+    chim: 2, chimR: 0.14, chimXF: 0.45, chimZF: 0.3, gutter: 1, downpipe: 1, backDoor: 1, backPorch: 1,
+    weather: 0.7, dirt: 0.6, dirtH: 1.2, paintPunch: 0.6, clouds: 0.4, yard: 0, woodpile: 0, boat: 0,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 10,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'veneer'),
+  },
   'mine cottage': {
     L: 8.5, w: 6.2, storeys: 1, floorH: 2.6, roofFam: 0, pitch: 36, gableWin: 1,
     stance: 1, floorY: 0.5, slopeZ: 3, eaveOver: 0.4, rakeOver: 0.3,

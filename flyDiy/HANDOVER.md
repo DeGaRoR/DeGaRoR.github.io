@@ -41600,3 +41600,41 @@ mainsDy 0, mm 0} — from 48 mm. The frame's tail stands where the drawing's
 does at every station, not just the mains.
 
 - Gates: JOIN, SKIN, UISMOKE green.
+
+## G338 — THE LOWER BUILDINGS OF THE MINE, THE BUNKHOUSE ROW ACROSS THE ROAD,
+## THE GRAVEL YARD UNDER THE WORKS
+## (2026-09-13, the user: "keep going on the mine, the lower buildings and the
+## gravel yard. Present the full village updated, including the smaller trees
+## where I asked")
+
+- **TWO HOUSE PRESETS** (`tools/_house_gen.js`): `mine dormer hall` -
+  Kennecott's long lower building, 24 m, two storeys, six dormers along
+  the front roof, a canopy over the door, two masonry stacks, worn
+  corrugated roof; `mine office` - square, hipped, galvanised, a deck
+  with its rail, the manager's. Both in the presets battery.
+- **THE THEME GROWS** (`THEMES.kennecott.items`): the dormer hall and the
+  office beside the mill on the land side; three bunkhouses and a
+  cottage ACROSS THE ROAD on the water side (negative z in the road's
+  frame, yaw pi so they face back to the road). The site's span takes
+  BOTH sides of the road now (`makePlots`); a site seed keeps three
+  plots at least, not six.
+- **THE GRAVEL YARD** (`siteGround(vil, occ)`, `tools/_village_gen.js`):
+  one ground patch under the whole works, a quad in the road's frame
+  (`theme.yard {x0,x1,z0,z1}`, from the shore's side of the row to the
+  terminal up the hill), the lot patch's own channels: gravel (the dirt
+  set, pebbles through it) within a walk of every building - the lower
+  buildings reach 8 m and fade over 12, the receiving house 9/12, the
+  tiers up the hill only 2.5/5 so the hill keeps its grass - and along
+  the road's verge on the flat (the road's level plus a few metres);
+  dry (splat.y) under every footprint; the site buildings' occluders
+  darken it (`stats.groundAO` through each house's transform, the bench
+  hands them in); alpha fades over a 6 m margin; no vertex in the water.
+  The bench draws it through `groundMesh(parent, L)` (`lotMesh` is that
+  over `lotGround` now). The trees keep off the yard but for a few
+  stragglers (`site.yardPoly`).
+- GATE VILLAGE 15: the yard has ground, on the terrain, gravel at the
+  mill's foot, dry under the mill, grass again at its far corner, every
+  lower building on it; no plot on either side of the span.
+- Gates: HOUSE, VILLAGE green.
+- Queued (the user's order): the front lot + parking alley + the user's
+  road-facing cars; the optimisation tour; the world join.
