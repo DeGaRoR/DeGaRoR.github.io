@@ -218,6 +218,16 @@ own joints (panel joint station + split azimuth per engine in uWxAd, from
 COWL_GEN.P); kappaMax 40. The layers publish CAGE-LOCAL points: the editor
 maps them with the cage convention directly, never through uCraftInv.
 
+## 6e. G345.4 — spots by count (2026-09-14)
+
+Chips, stone pits and insect splats are no longer a threshold on a noise
+(which grows blob and count together): aeroWxSpots draws ONE antialiased
+disc per winning cell of a lattice in the part's own frame, and the macro
+changes only how many cells win. Densities at full: insects 1 in 12 of
+5 cm cells, chips 1 in 16 of 6 cm cells, pits 1 in 20 of 4 cm cells —
+measured on the cub's cowl front in the game: ~3 chips at 0.25, ~12 at
+0.7/0.8, ~25 at 1/1, the same size throughout.
+
 ## 7. Owed
 
 - The glass legibility measurement (pilot's eye, chart, contrast bound) —

@@ -44569,3 +44569,32 @@ rows under LIVERY, the aeroplane weathered live in the hangar.
   door scan read 1400 characters after `function applySpec(` for the
   `build();`, and G334's registration lines pushed it out of the window. The
   door does say loaded() first; the window is 3000 now.
+
+## G345.4 — SPOTS BY COUNT: THE SLIDER DRAWS MORE CHIPS, NEVER BIGGER OR DENSER ONES (2026-09-14)
+
+The user, on the game page after G345.3: "the speckles on the cowl are
+still much too intense. It's their density which is too high. They should
+be very sparse. The slider should increase the density, not the intensity."
+
+The three speckle layers — paint chips, stone pits, insect splats — were a
+threshold on a noise: `smoothstep(thr, thr + w, noise)` with the threshold
+lowered by the macro. Lowering a threshold on a noise grows every blob and
+adds new ones at the same time, so the cowl front went from nothing to a
+third covered with no setting in between that read as "a few chips".
+
+Now each is `aeroWxSpots(uv, cell, dens, rad, seed)`: a cell lattice of
+pitch `cell` in the part's own frame (the cowl's cylindrical read, the
+skin's fielded read, the wheel's unwrap), every cell rolls one hash against
+`dens`, and a winning cell draws ONE antialiased disc of radius `rad`
+(x0.7..1.3 by a second hash) at a jittered centre. The macro changes how
+many cells win and nothing else. Densities at full: insects one 5 cm cell
+in twelve, chips one 6 cm cell in sixteen (radius 6-10 mm, shaped a little
+by the fine noise), pits one 4 cm cell in twenty. Measured on the cub's
+cowl front in the game (screenshots/weather/g3454_cowl_low|mid|full.png):
+about 3 chips at age/flight 0.25, 12 at 0.7/0.8, 25 at 1/1 — the same size
+throughout.
+
+Gate: `aeroWxSpots(` at least four times; the old thresholds
+(`smoothstep(thr, thr + 0.05, gB.g)`, `smoothstep(thrI, ...)`) refused.
+Proof from a clean worktree: WEATHER, SKINMAT, JOIN, BUILD, UISMOKE,
+PARTS, MEDIA.

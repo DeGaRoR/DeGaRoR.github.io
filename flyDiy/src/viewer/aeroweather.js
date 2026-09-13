@@ -617,6 +617,27 @@ float aeroWxKappa(vec3 gN, vec3 P) {
 }
 // one dirt layer onto the running colour: cover unions (screen), the floor
 // rides up to the layer's own
+// SPOTS BY COUNT (G345.4, the user: "it's their density which is too high
+// ... the slider should increase the density, not the intensity"). A cell
+// lattice of pitch cell in the part's own frame; every cell rolls one
+// hash against dens, a winning cell draws ONE disc of radius rad
+// (x0.7..1.3 by a second hash) at a jittered centre, antialiased on the
+// footprint. So the slider changes HOW MANY cells win and nothing else —
+// a threshold on a noise, which is what these were, grows the blobs and
+// their count together and covers a third of a cowl at full. The jitter
+// stays inside the cell (0.3) and the radius under 0.2 cell, so a disc
+// is never clipped by its neighbour and one cell per fragment suffices.
+float aeroWxSpots(vec2 uv, float cell, float dens, float rad, float seed) {
+  vec2 c = floor(uv / cell);
+  float r0 = aeroHash(c + seed);
+  float r1 = aeroHash(c + seed + 17.3);
+  float r2 = aeroHash(c + seed + 41.7);
+  vec2 ctr = (c + 0.5 + 0.6 * (vec2(r1, r2) - 0.5)) * cell;
+  float rr = rad * (0.7 + 0.6 * aeroHash(c + seed + 5.9));
+  float d = length(uv - ctr);
+  float aa = max(length(fwidth(uv)), 1e-4) * 0.8;
+  return step(r0, dens) * (1.0 - smoothstep(rr - aa, rr + aa, d));
+}
 void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C) {
   float cc = clamp(c, 0.0, 1.0);
   col = mix(col, C.rgb, cc);
@@ -927,11 +948,12 @@ const AERO_WX_SURF_FS = `
       // with the density rather than ringing sub-pixel bodies
       float wxFwdB = clamp((wxFwd - 0.10) / 0.90, 0.0, 1.0);
       float wxDens = wx_bug * pow(wxFwdB, 0.7) * wxOut;
-      float thr = 1.0 - 0.30 * wxDens;         // small splats (0.55 put coins on the cowl front)
-      vec4 gB = texture2D(tGrunge, vec2(wxAlong, wxAcross) / uWxR.w + vec2(0.13, 0.71));
-      float body = smoothstep(thr, thr + 0.05, gB.g) * step(0.08, wxDens);
-      float halo = (smoothstep(thr - 0.08, thr, gB.g) - body) * smoothstep(0.12, 0.45, wxDens);
-      col = mix(col, vec3(0.55, 0.50, 0.34), 0.35 * halo);
+      // by COUNT: at full, one 5 cm cell in twelve carries one 3-8 mm splat
+      // (a third of them put seventy on the cowl front; the ask is VERY sparse)
+      vec2 wxBuv = vec2(wxAlong, wxAcross);
+      float body = aeroWxSpots(wxBuv, 0.05, 0.08 * wxDens, 0.0035, 3.0) * step(0.02, wxDens);
+      float halo = aeroWxSpots(wxBuv, 0.05, 0.08 * wxDens, 0.0065, 3.0) * step(0.02, wxDens) - body;
+      col = mix(col, vec3(0.55, 0.50, 0.34), 0.35 * clamp(halo, 0.0, 1.0));
       aeroWxLay(col, cov, flo, body, uWxC[4]);
     }
 
@@ -995,13 +1017,13 @@ const AERO_WX_SURF_FS = `
       // read — the coarse mottle's high ground is hand-sized, and on a thin
       // blade whose whole convex back counts as an edge it showed as one tan
       // patch of maple (measured: gone at zero macros, so it was this)
+      // by COUNT (G345.4): at full, one 6 cm cell in sixteen carries one
+      // 4-10 mm chip, shaped a little by the fine noise so it is not a disc
       float wxMot = mix(gF.b, mix(gWh.b, gPr.b, wxProp), wxRot);
-      float thr = 1.0 - 0.35 * wxChipP;
-      float ch = smoothstep(thr - 0.03, thr, wxMot) * step(0.01, wxChipP);
-      // stone chips on the forward faces: small round pits
+      float ch = aeroWxSpots(wxUV, 0.06, 0.06 * wxChipP, 0.006 + 0.004 * wxMot, 11.0) * step(0.01, wxChipP);
+      // stone chips on the forward faces: small round pits, sparser still
       float wxImpP = wx_impact * uWxSub2.z * pow(wxFwd, 2.0) * wxOut;
-      float thrI = 1.0 - 0.22 * wxImpP;      // small pits, not coins (the cub's cowl at 0.45 wore coins)
-      ch = max(ch, smoothstep(thrI, thrI + 0.05, gF.g) * step(0.01, wxImpP));
+      ch = max(ch, aeroWxSpots(wxUV, 0.04, 0.05 * wxImpP, 0.0025, 23.0) * step(0.01, wxImpP));
       // scratches along the flanks: the stretched read, thresholded high
       // A SCRATCH IS SHORT AND RARE (G345.3, the user: "scratches should be
       // a lot more parsimonious"): its own read at a 0.45 m period, not the

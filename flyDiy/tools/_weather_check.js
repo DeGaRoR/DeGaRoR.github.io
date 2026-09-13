@@ -84,6 +84,9 @@ function audit(ctx) {
     // G345.3: scratches read their OWN short period, never the aft streaks' long one
     check(/vec2\(wxAcross \/ uWxV\.w, wxAlong \/ uWxV\.z\)/.test(S) && !/, gSa\) \* step\(0\.01, wxScP\)/.test(S), 'scratches ride the aft-streak read (2.6 m long)');
     check(/wxCrev = s \* uWxAd\[i\]\.w \* max\(wxJ, wxSpl\);/.test(S), 'the cowl\'s joints put no dirt in their crevices');
+    // G345.4: spots by COUNT — the three speckle layers draw cells, never a noise threshold
+    check((S.match(/aeroWxSpots\(/g) || []).length >= 4, 'chips, pits and insects are not drawn by count (aeroWxSpots)');
+    check(!/smoothstep\(thr, thr \+ 0\.05, gB\.g\)|smoothstep\(thrI, thrI \+ 0\.05, gF\.g\)/.test(S), 'a speckle layer is back on a noise threshold');
     // the unpack matches the table, slot by slot
     layers.forEach((L, i) => {
       const want = 'float wx_' + L.k + ' = uWxL[' + (i >> 2) + '].' + 'xyzw'[i & 3] + ' * wxK;';
