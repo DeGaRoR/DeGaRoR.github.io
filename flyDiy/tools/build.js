@@ -47,6 +47,11 @@ const MANIFEST = {
     // engine — pure arithmetic on dims and PROP_REG, no THREE, so GATE HANGAR
     // proves placement in plain node and hangar.js only stands the meshes.
     '26_hangar_fit.js',
+    // THE PREMISES (G385): the world editor's record composed over the world
+    // - pure, no THREE; makeWorld (20_) reads it at call time through the
+    // PREMISES_GEN global, so it only has to be in the bundle; after 25_
+    // because its runway records take the airfield's shape.
+    '27_premises.js',
     '30_solver.js',
     // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
     // cockpit and the gates; after the solver only by kinship
@@ -155,6 +160,25 @@ const MANIFEST = {
   chars: (() => { try { return JSON.parse(fs.readFileSync(
       path.join(ROOT, 'src', 'chars', 'chars_index.json'), 'utf8')); }
     catch (e) { return []; } })(),
+  // THE WORLD PACK (G385, the premises port): the building generators the
+  // editor composes with and the textures they read - the bench's files
+  // (tools/_house_gen.js and its kin, the tram, the totem park, the village's
+  // plan functions, the cabin), shipped as <script src> REFS after the
+  // viewer and before app.js (the generators read viewer globals at build
+  // time and app.js makes the world). Refs, not inlined: 900 KB of code that
+  // a player who never opens the editor still downloads once and caches,
+  // but that never counts against index.html's budget. ORDER is the bench
+  // page's (tools/_premises.html).
+  world: [
+    ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
+    ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
+    ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
+    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
+    ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
+    ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
+    ['tools', '_village_gen.js'],
+    ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_ui.js'],
+  ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -524,7 +548,8 @@ window.FLYDIY_BOOT.then(function () {
   art = fill(art, 'RENDER', [LAZY]
     .concat(editor.map(s => `<script>\n${s}</script>`))
     .concat(scripts.slice(0, -1).map(s => `<script>\n${s}</script>`)).join('\n'));
-  art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
+  const worldRefs = MANIFEST.world.map(([d, f]) => ref(path.join(ROOT, d), d, f)).join('\n');
+  art = fill(art, 'APP', worldRefs + `\n<script>\n${scripts[scripts.length - 1]}</script>`);
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
   if (!art.includes('function makeAutopilot')) {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
@@ -550,6 +575,11 @@ window.FLYDIY_BOOT.then(function () {
       console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
       process.exit(1);
     }
+  for (const [d, f] of MANIFEST.world)
+    if (!art.includes(`src="${d}/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: artifact lost the world pack ref ${f}`);
+      process.exit(1);
+    }
   const artFile = path.join(ROOT, 'index.html');
   fs.writeFileSync(artFile, art);
 
@@ -566,7 +596,7 @@ window.FLYDIY_BOOT.then(function () {
     .concat(MANIFEST.editor.map(f => dref(__dirname, 'tools', f)))
     .concat(V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f)))
     .join('\n'));
-  dev = fill(dev, 'APP', dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
+  dev = fill(dev, 'APP', MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n') + '\n' + dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
   const devFile = path.join(ROOT, 'dev.html');
   fs.writeFileSync(devFile, dev);

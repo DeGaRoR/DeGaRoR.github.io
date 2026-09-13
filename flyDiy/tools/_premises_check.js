@@ -6,7 +6,7 @@
 //   node tools/_premises_check.js --selftest   -> negative verification
 //   node tools/_premises_check.js --sink 8402  -> a screenshot sink for the bench (POST /save?name=x, PNG body)
 //
-// Holds, headless (no THREE, no DOM), on tools/_premises_gen.js:
+// Holds, headless (no THREE, no DOM), on src/core/27_premises.js (the ported composer):
 //
 //   1  ROUND TRIP: the envelope unwraps to the record it wrapped, nulls and
 //      all; a bare record is accepted; a foreign document is refused.
@@ -81,7 +81,7 @@ const SELFTEST = process.argv.includes('--selftest');
 const SINK = process.argv.indexOf('--sink');
 if (SINK >= 0) { sink(+process.argv[SINK + 1] || 8402); return; }
 
-const PG = require(path.join(TOOLS, '_premises_gen.js'));
+const PG = require(path.join(TOOLS, '..', 'src', 'core', '27_premises.js'));
 const vm = require('vm');
 function makeTHREE() {
   function Col(c) { this.hex = c; }
@@ -510,6 +510,31 @@ for (const fx of fixtures) {
     check(O.records.items.every(it => isFinite(it.P.lineDeg)), '9c lineDeg reaches both stations');
     check(Date.now() - t0 < 8000, '9c the built solve is under 8 s', (Date.now() - t0) + ' ms');
   }
+  // 5b THE WORLD TAKES A PREMISES (the port, G385): makeWorld(0, { premises }) composes the strip
+  // fixture over the flight world - inside the extent the ground is the composed one and the strip's
+  // surface answers, outside every height is byte-identical to the bare world, the strip is in
+  // W.aerodromes with its site registered for the pilot, and the premises block on the world answers
+  if (FLIGHT && FLIGHT_FNS && typeof require('./flight_core.js').makeWorld === 'function') {
+    const fc = require('./flight_core.js');
+    const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'premises_v1_strip.json'), 'utf8');
+    const rec = PG.unwrap(txt).rec;
+    const W = fc.makeWorld(0, { premises: txt });
+    check(!!W.premises && !!W.premises.overlay && W.premises.overlay.n > 0, '5b the world carries the composed premises');
+    const F = PG.frameOf(rec, W), ex = W.premises.overlay.extent;
+    let differs = 0, same = 0, outside = true;
+    const r2 = PG.mulberry32(3);
+    for (let k = 0; k < 400; k++) { const lx = ex.x0 + r2() * (ex.x1 - ex.x0), lz = ex.z0 + r2() * (ex.z1 - ex.z0); const w = F.toWorld(lx, lz); if (W.terrainH(w[0], w[1]) !== FLIGHT.terrainH(w[0], w[1])) differs++; else same++; }
+    for (let k = 0; k < 400; k++) { const x = (r2() - 0.5) * 20000, z = (r2() - 0.5) * 20000; if (W.premises.overlay.inExtent(x, z)) continue; if (W.terrainH(x, z) !== FLIGHT.terrainH(x, z)) outside = false; }
+    check(differs > 0, '5b inside the extent the ground is the composed one', differs + ' of ' + (differs + same) + ' samples differ');
+    check(outside, '5b outside the extent every height is the bare world\'s');
+    const A = W.aerodromes.find(a => a.premises);
+    check(!!A && A.kind === 'strip', '5b the strip is in W.aerodromes');
+    check(!!A && fc.siteOf(A.id) === (W.premises.overlay.runways[0].site || null), '5b the strip\'s site (its stand, its way out) is registered for the pilot');
+    const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, rec.layers.runways[0])), cw = F.toWorld(rec.layers.runways[0].c[0], rec.layers.runways[0].c[1]);
+    check(W.surface(cw[0], cw[1]) === (rec.layers.runways[0].surface === undefined ? PG.SURFACE.GRASS : rec.layers.runways[0].surface), '5b the strip\'s surface answers through the world', String(W.surface(cw[0], cw[1])));
+    const bare = fc.makeWorld(0);
+    check(bare.premises && bare.premises.overlay === null && bare.terrainH(cw[0], cw[1]) === FLIGHT.terrainH(cw[0], cw[1]), '5b a world with no premises is the bare world');
+  }
   // 10b THE STAND AND ITS WAY OUT (v6): a strip with a stand beside it and two taxi points gets a pattern
   // whose route out starts at the stand, walks the taxi points, enters the centreline and reaches
   // hold0 - sound when the stand is on a flatten, "leaves the flat ground" when it is not
@@ -612,11 +637,12 @@ for (const fx of fixtures) {
 
 // 13 the contract held: no catalogue key literal in the editor's files
 {
-  const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js');
+  const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js').map(f => path.join(TOOLS, f))
+    .concat([path.join(TOOLS, '..', 'src', 'core', '27_premises.js'), path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), path.join(TOOLS, '..', 'src', 'viewer', 'premises_ui.js')].filter(f => fs.existsSync(f)));
   const re = /['"](house|big|shed|tram|totem|factory)\/[a-z]/;
   for (const f of files) {
-    const src = fs.readFileSync(path.join(TOOLS, f), 'utf8');
-    check(!re.test(src), '13 no catalogue key literal in ' + f);
+    const src = fs.readFileSync(f, 'utf8');
+    check(!re.test(src), '13 no catalogue key literal in ' + path.basename(f));
   }
 }
 

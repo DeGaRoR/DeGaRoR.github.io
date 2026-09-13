@@ -45046,3 +45046,36 @@ FLYDIY_RENDERER — scratch shot.js).
   crosswind touchdown (hold the tail down through the first bounce); the
   trikes' low-speed nosewheel weave (+/-1.5 deg, 45-57 reversals on the
   pusher and the rv, pre-existing); the AGAIN case's U-turn coverage.
+
+## G385 — THE PREMISES PORT, L1: THE COMPOSER IN THE CORE, THE WORLD TAKES A
+## PREMISES, THE WORLD PACK (2026-09-14, the user: "do the port")
+
+- **THE COMPOSER IN THE CORE**: `tools/_premises_gen.js` moved whole to
+  `src/core/27_premises.js` (after 25_, its runway records take the
+  airfield's shape); `PREMISES_GEN` is a global of the bundle and a node
+  export; the bench page and GATE PREMISES read it from there.
+- **makeWorld(seed, opts)**: `opts.premises` (a record or its envelope text)
+  is composed over the stage 0-4 ground as the modifier layer WORLD-V2 §6
+  ruled - `terrainH` reads the layer at call time, the surface answers a
+  premises surface first (an apron, a strip, a road), the tree loop keeps
+  out of its excludes, its strips join `W.aerodromes` with their sites
+  registered for the pilot (`siteOf` answers the stand and the way out).
+  `W.premises = { overlay, rec, set(rec), base }` - `set` recomposes live
+  (the ground and the surface follow; the trees were placed once). With
+  nothing loaded every hook is a dead branch: GATE WORLD's goldens hold,
+  and rule 5b of GATE PREMISES composes the strip fixture over the flight
+  world and checks the inside differs, the outside is byte-identical, the
+  strip is in the registry with its site, and the bare world is bare.
+- **THE WORLD PACK** (build.js `MANIFEST.world`): the generators the editor
+  composes with and the textures they read - house_tex, lot_tex, sign_tex,
+  the pier packs, the totem poles, the kit, the house / mill / big / tram /
+  totem generators, the cabin and its run, the village's plan functions -
+  shipped as `<script src>` REFS after the viewer and before app.js, in the
+  bench page's order; the artifact asserts every ref. 900 KB a player
+  downloads once and caches, outside the budget by design; the composer
+  core is 78 KB inside it, so the ceiling is 7.0 with the reason written.
+  dev.html loads the pack with no error; the catalogue answers 39 entries
+  in the game.
+- Gates: WORLD, PREMISES (5b), MEDIA, BUILD green.
+- NEXT: L2 the renderer in the game (render_premises.js, the ground patch,
+  the road ribbons), L3 the editor host (the WORLD rail entry), L4 the gates.

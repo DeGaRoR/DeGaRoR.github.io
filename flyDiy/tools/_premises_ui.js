@@ -3,7 +3,7 @@
 // bench page today (tools/_premises.html), the game's WORLD rail entry at the
 // port (src/viewer/premises_ui.js). It writes RECORDS ONLY — every visual is
 // the renderer's rebuild from the record (tools/_premises_draw.js), every
-// height the core's composition (tools/_premises_gen.js). No tool touches
+// height the core's composition (src/core/27_premises.js). No tool touches
 // terrain, trees or meshes.
 //
 //   PREMISES_UI.mount(host, ctx) -> handle

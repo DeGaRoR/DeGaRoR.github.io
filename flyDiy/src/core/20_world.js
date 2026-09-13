@@ -7,7 +7,7 @@
 // GATE WORLD freezes seed-0 data with golden hashes — intentional terrain
 // changes must re-capture goldens in the same commit.
 // ============================================================
-function makeWorld(seed) {
+function makeWorld(seed, opts) {
   const SEED = seed | 0;                     // undefined -> 0: no-arg callers get the validated world
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
@@ -214,12 +214,43 @@ function makeWorld(seed) {
     meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
   for (const st of AERO.strips) aerodromes.push(st);
 
-  function terrainH(x, z) {
+  // stage 0-4 terrain: the world as the generator makes it
+  function baseH(x, z) {
     // strip grading must never fill a carved river bed (same rule as
     // roads) — fade it out by carve depth, sampled in the tV2 call
     const h = tV2(x, z);
     const g = AERO.grade(x, z, h) - h;
     return g !== 0 ? h + g * (1 - Math.min(1, _cd / 1.5)) : h;
+  }
+  // ---- THE PREMISES (G385, PREMISES-CONTRACT §5, WORLD-V2 §6): the world
+  // editor's record composed over THIS world as a layer of typed modifiers -
+  // the ground it grades, the surfaces it answers, the trees it keeps out,
+  // the strips it adds to the registry with their sites for the pilot. With
+  // nothing loaded every hook below is a dead branch and the world is the
+  // bare world byte for byte (GATE WORLD's goldens; GATE PREMISES 5b). The
+  // layer composes on the stage 0-4 ground, so the strips the generator
+  // sites keep their grading under it.
+  let PM = null, PMrec = null;
+  const baseWorld = { id: 'W-24km', terrainH: baseH, waterH: (x, z) => HYD.water(x, z) };
+  function setPremises(rec0) {
+    for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
+    PM = null; PMrec = null;
+    if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
+    const rec = PREMISES_GEN.unwrap(rec0).rec;
+    const globals = typeof window !== 'undefined' ? window : {};
+    const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
+    PM = PREMISES_GEN.compose(rec, baseWorld, { catalogue: cat, globals });
+    PMrec = rec;
+    // the strips join the registry as the generator's do; a strip's site (its stand, its way out,
+    // an authored pattern) is what siteOf answers the pilot with
+    PM.aerodromes.forEach((a, i) => { aerodromes.push(a); if (typeof AIRFIELD_SITES !== 'undefined') { const st = PM.runways[i] && PM.runways[i].site; if (st) AIRFIELD_SITES[a.id] = st; else delete AIRFIELD_SITES[a.id]; } });
+    return PM;
+  }
+  if (opts && opts.premises) setPremises(opts.premises);
+
+  function terrainH(x, z) {
+    const h = baseH(x, z);
+    return PM ? PM.terrainH(x, z, h) : h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
@@ -253,6 +284,7 @@ function makeWorld(seed) {
     return -1;
   };
   const aeroSurfAll = (x, z) => {
+    if (PM) { const s = PM.surfaceAt(x, z); if (s >= 0) return s; }   // a premises surface (an apron, a strip, a road) answers first
     const r = regSurf(x, z);
     return r >= 0 ? r : AERO.surfaceAt(x, z);
   };
@@ -284,6 +316,7 @@ function makeWorld(seed) {
       if (SET.roadNear(x, z) < 12) continue;   // clear of roads
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
+      if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > tp.p) continue;
       const idx = trees.length;
@@ -464,5 +497,8 @@ function makeWorld(seed) {
     setWeather,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
+    // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
+    // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
+    premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },
   };
 }

@@ -1,7 +1,7 @@
 // _premises_draw.js — THE PREMISES DRAWN (G353 / GPREM): the record turned into
 // a scene, per layer, with dirty tracking — shared by the bench and, at the
 // port, by the game (src/viewer/render_premises.js). Nothing here is a control:
-// it draws what tools/_premises_gen.js composes and publishes the HANDLES the
+// it draws what src/core/27_premises.js composes and publishes the HANDLES the
 // editor's PIN lights, from the build, never re-derived.
 //
 //   RENDER_PREMISES.make(THREE, scene, world, rec, opts) -> R
@@ -24,7 +24,7 @@
 // payload's rungs in a THREE.LOD (a cone when the payload is not here).
 (function () {
 'use strict';
-const PG = (typeof window !== 'undefined' && window.PREMISES_GEN) || (typeof require === 'function' && require('./_premises_gen.js'));
+const PG = (typeof window !== 'undefined' && window.PREMISES_GEN) || (typeof require === 'function' && require('../src/core/27_premises.js'));
 
 const CHUNK = 64;
 const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff };

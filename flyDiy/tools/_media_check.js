@@ -53,7 +53,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              CLEAN WORKTREE BUILDS CRLF (autocrlf): the same artifact
 //              measures 6.44 MiB in the LF tree and 6.53 in a worktree, so
 //              the budget carries the line-ending margin too.
-const BUDGET_MIB = 6.75;
+//   6.75 -> 7.0 (G385, 2026-09-14): the premises composer (src/core/27_premises.js,
+//              78 KB) joins the core - makeWorld composes the editor's record
+//              in the physics' own frame, so it cannot ride as a ref; the
+//              WORLD PACK it composes with (900 KB: the generators, their
+//              textures, the cabin) ships as <script src> refs after the
+//              viewer and stays outside this number by design.
+const BUDGET_MIB = 7.0;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

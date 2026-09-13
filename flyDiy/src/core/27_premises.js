@@ -1,8 +1,10 @@
-// _premises_gen.js — THE PREMISES (G353 / GPREM): the record the world editor
+// 27_premises.js — THE PREMISES (G353 / G385): the record the world editor
 // writes, and everything that reads it headless. PREMISES-CONTRACT-2026-09-13.md
-// is the document; this is its code. Pure: no THREE, no DOM, loads in node
-// for GATE PREMISES and in the page for the bench and (later) the game, where
-// it becomes src/core/27_premises.js.
+// is the document; this is its code. Pure: no THREE, no DOM. It sits in the
+// core because makeWorld (20_world.js) composes the record over the world in
+// the same frame the physics reads - the ported bench's tools/_premises_gen.js
+// (G356-G380), moved here whole at the port's first landing. The bench page
+// and GATE PREMISES read it from here.
 //
 // WHAT IS HERE:
 //   the record        DEF / normalise / migrate / envelope / unwrap (the garage's
@@ -48,7 +50,7 @@
 //
 // Heights in the record are RELATIVE to y0, the BASE terrain at the anchor —
 // the modifiers add y0 back. A world change moves the anchor, not the record.
-(function () {
+const PREMISES_GEN = (function () {
 'use strict';
 
 const PREMISES_V = 1;
@@ -1207,5 +1209,8 @@ const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, 
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
+// standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
+// bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
+return API;
 })();
