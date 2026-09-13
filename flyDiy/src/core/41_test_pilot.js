@@ -93,7 +93,7 @@ function makeTestPilot(sim, def, world) {
     const td = (PT && PT.approaches && PT.approaches[1]) ? PT.approaches[1].td : a.tdz;
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k };
   };
-  const HOMEISH = { hdg: Math.PI, tdz: [-450, 0], elev: 0, len: 1100 };
+  const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100 };
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
     VCruise: A.VCruise, VAppr: A.VAppr,

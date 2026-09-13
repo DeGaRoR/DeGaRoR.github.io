@@ -1877,6 +1877,322 @@ function buildCage2(S, step) {
 }
 
 // ---------------------------------------------------------------------------
+// THE JOINT STRIP, AS A SWEEP (G381, factored out of cageRims verbatim so the
+// wing's landing-light lens can wear the SAME strip as the windows — the
+// user: "I just wanted a joint on the outline of the transparent piece ...
+// in the style of the window joints, metallic with rivets"). `pts` is the
+// closed outline on the surface, `ns` its surface normals, `r` the strip's
+// in-surface half-width; `o` = { kind, arc, sides, rise, rivet, debug,
+// unit } — the window's rimArc / rimSides / rimRise / rimRivet. `unit`
+// scales the one absolute constant (the rivet head's floor, 1.2 mm in cage
+// units) when the outline is in another unit. Returns local vertices and
+// quads ({ v, m, rivet }), the processed `path`, and the debug stages;
+// cageRims appends them with its own index base, which keeps its output
+// bit-identical to the inline code this was cut from.
+// ---------------------------------------------------------------------------
+function cageJointSweep(pts, ns, r, o) {
+  o = o || {};
+  const LV = [], LF = [], res = { V: LV, F: LF, path: null };
+  const sub = (A, B) => [A[0] - B[0], A[1] - B[1], A[2] - B[2]];
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1;
+                     return [v[0] / l, v[1] / l, v[2] / l]; };
+  const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],
+                           a[0]*b[1]-a[1]*b[0]];
+  // ROUND SHARP CORNERS of the sweep path (user: shading at the seal
+  // elbows): corners sharper than ~35 deg are Chaikin-cut into two
+  // points a small way down each arm — a physical seal rounds its
+  // corners, parallel transport stays smooth, and the miter stretch
+  // goes small. The recorded outline keeps the TRUE boundary; only the
+  // swept path is rounded.
+  {
+    // merge micro-segments FIRST: the sill-clip junction points sit a
+    // hair from their neighbours, splitting a 90-deg corner across two
+    // vertices with tiny arms — the fillet size (0.4 x arm) collapsed
+    // and door corners stayed chamfered (user report). Points closer
+    // than 0.6 r to the kept predecessor drop.
+    const P0 = [], N0 = [];
+    for (let i = 0; i < pts.length; i++) {
+      const prev = P0.length ? P0[P0.length - 1] : null;
+      if (prev && Math.hypot(pts[i][0]-prev[0], pts[i][1]-prev[1],
+                             pts[i][2]-prev[2]) < r * 0.6) continue;
+      P0.push(pts[i]); N0.push(ns[i]);
+    }
+    if (o.debug) res.stageMerge = P0.map(p => p.slice());
+    if (P0.length > 2) {
+      const a = P0[0], b = P0[P0.length - 1];
+      if (Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]) < r * 0.6) {
+        P0.pop(); N0.pop();
+      }
+    }
+    // SPLIT-CORNER RECONSTRUCTION (replaces the fold-to-chord collapse,
+    // measured harmful): a corner split across two NEARBY vertices
+    // (segment < ~2.5 r, combined turn > ~30 deg) becomes ONE point
+    // where the outer arms meet (closest approach of the two arm
+    // lines; the pair midpoint when the arms are parallel or the meet
+    // runs away) — the exact inverse of the split, so the path passes
+    // through the TRUE corner and the fillet sees one full turn.
+    // The old pass folded any low-deviation vertex onto its
+    // neighbours' chord, which was scale-dependent (fired at one
+    // subsurf level and not the next: the windshield top apex folded
+    // at L2 only — the user's "missing mid interpolation point"),
+    // order-dependent (L/R doors diverged, 108 vs 114 path points)
+    // and CASCADING — each fold re-based the next test, flattening
+    // whole curved runs (pane top corner at L3: 0.056 off the drawn
+    // boundary, 4.6 r, measured). Reconstruction cannot cascade: it
+    // only fires on sub-seal-scale segments and the new point is
+    // clamped within 3 r of the pair it replaces.
+    for (let pass = 0; pass < 4; pass++) {
+      let did = false;
+      for (let i = 0; P0.length > 4 && i < P0.length; i++) {
+        const Np = P0.length, i1 = (i + 1) % Np;
+        const p = P0[i], q = P0[i1];
+        const seg = Math.hypot(...sub(q, p));
+        if (seg >= r * 2.5) continue;
+        const a = P0[(i - 1 + Np) % Np], b = P0[(i1 + 1) % Np];
+        const dIn = nrm(sub(p, a)), dMid = nrm(sub(q, p)),
+              dOut = nrm(sub(b, q));
+        const t0 = dIn[0]*dMid[0] + dIn[1]*dMid[1] + dIn[2]*dMid[2];
+        const t1 = dMid[0]*dOut[0] + dMid[1]*dOut[1] + dMid[2]*dOut[2];
+        const turn = Math.acos(Math.max(-1, Math.min(1, t0)))
+                   + Math.acos(Math.max(-1, Math.min(1, t1)));
+        if (turn < 0.52) continue;
+        const mid = [(p[0]+q[0])/2, (p[1]+q[1])/2, (p[2]+q[2])/2];
+        // closest approach of line(p, dIn) and line(q, dOut)
+        const c = dIn[0]*dOut[0] + dIn[1]*dOut[1] + dIn[2]*dOut[2];
+        const w0 = sub(p, q);
+        const den = 1 - c * c;
+        let X = mid;
+        if (Math.abs(den) > 1e-6) {
+          const wA = w0[0]*dIn[0] + w0[1]*dIn[1] + w0[2]*dIn[2];
+          const wB = w0[0]*dOut[0] + w0[1]*dOut[1] + w0[2]*dOut[2];
+          const tt = (c * wB - wA) / den;
+          const ss = (wB - c * wA) / den;
+          X = [(p[0]+dIn[0]*tt + q[0]+dOut[0]*ss) / 2,
+               (p[1]+dIn[1]*tt + q[1]+dOut[1]*ss) / 2,
+               (p[2]+dIn[2]*tt + q[2]+dOut[2]*ss) / 2];
+          if (Math.hypot(X[0]-mid[0], X[1]-mid[1], X[2]-mid[2]) > r * 3)
+            X = mid;
+        }
+        const n = nrm([N0[i][0]+N0[i1][0], N0[i][1]+N0[i1][1],
+                       N0[i][2]+N0[i1][2]]);
+        P0[i] = X; N0[i] = n;
+        P0.splice(i1, 1); N0.splice(i1, 1);
+        did = true;
+      }
+      if (!did) break;
+    }
+    if (o.debug) res.stageFold = P0.map(p => p.slice());
+    const NPP = P0.length;
+    const outP = [], outN = [];
+    for (let i = 0; i < NPP; i++) {
+      const pm = P0[(i - 1 + NPP) % NPP], pc = P0[i], pp = P0[(i + 1) % NPP];
+      const d0 = nrm(sub(pc, pm)), d1 = nrm(sub(pp, pc));
+      // bends gentler than ~8 deg pass through; everything else gets
+      // the rimArc bezier — so the windshield's curved top and bottom
+      // runs smooth with the same slider as the 90-deg corners
+      // (user ask), not only sharp turns
+      if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.99) {
+        outP.push(pc); outN.push(N0[i]); continue;
+      }
+      const l0 = Math.hypot(...sub(pc, pm)), l1 = Math.hypot(...sub(pp, pc));
+      const d = Math.min(r * 2.2, 0.4 * Math.min(l0, l1));
+      // rimArc = SECTIONS PER CORNER (user param): the fillet is a
+      // quadratic bezier through the corner point, tangent to both
+      // arms — extra points concentrate AT the bend only, straight
+      // runs stay two-point. rimArc 1 = the plain chamfer.
+      const AR = Math.max(1, Math.round(o.arc || 1));
+      const A2 = [pc[0]-d0[0]*d, pc[1]-d0[1]*d, pc[2]-d0[2]*d];
+      const B2 = [pc[0]+d1[0]*d, pc[1]+d1[1]*d, pc[2]+d1[2]*d];
+      for (let j = 0; j <= AR; j++) {
+        const t = j / AR, u = 1 - t;
+        outP.push([
+          u*u*A2[0] + 2*u*t*pc[0] + t*t*B2[0],
+          u*u*A2[1] + 2*u*t*pc[1] + t*t*B2[1],
+          u*u*A2[2] + 2*u*t*pc[2] + t*t*B2[2]]);
+        outN.push(N0[i]);
+      }
+    }
+    pts = outP; ns = outN;
+  }
+  const path = pts;
+  // the PROCESSED sweep path is recorded next to the true boundary —
+  // outline.pts is the contract, outline.path is what the bead actually
+  // follows; their divergence is the seal-mismatch instrument
+  res.path = pts.map(p => p.slice());
+  const pN = ns;
+  const NP = path.length;
+  // section sides are budgetable: the seals are ~half the face count at
+  // L2, so rimSides 6 buys a visible chunk back (default 8 = octagon)
+  const SS = Math.max(4, Math.round(o.sides || 8));
+  // MITER JOINTS: at each path vertex the section sits on the corner
+  // BISECTOR plane and is stretched 1/cos(half-turn) along the miter
+  // axis — the exact ellipse where the two straight tube runs intersect
+  // (SVG stroke-miter / a plumber's elbow). A circular section on the
+  // averaged tangent pinches to r*cos(half-turn) at every corner, which
+  // was the notched elbows on the door outline. Arms are normalized
+  // per-segment first (raw central difference biases the bisector toward
+  // the longer arm — the sill run's crossings are much shorter than the
+  // rail edges they meet).
+  const MITER_MAX = 2.5;                 // clamp for very sharp turns
+  const sec = [];
+  let bPrev = null;
+  for (let i = 0; i < NP; i++) {
+    let d0 = sub(path[i], path[(i - 1 + NP) % NP]);
+    let d1 = sub(path[(i + 1) % NP], path[i]);
+    const l0 = Math.hypot(d0[0], d0[1], d0[2]);
+    const l1 = Math.hypot(d1[0], d1[1], d1[2]);
+    d0 = l0 < 1e-9 ? null : [d0[0]/l0, d0[1]/l0, d0[2]/l0];
+    d1 = l1 < 1e-9 ? null : [d1[0]/l1, d1[1]/l1, d1[2]/l1];
+    if (!d0) d0 = d1 || [0, 0, 1];
+    if (!d1) d1 = d0;
+    const ts = [d0[0]+d1[0], d0[1]+d1[1], d0[2]+d1[2]];
+    const tl = Math.hypot(ts[0], ts[1], ts[2]);
+    const t = tl < 1e-6 ? d1 : [ts[0]/tl, ts[1]/tl, ts[2]/tl];
+    const stretch = Math.min(MITER_MAX, 1 / Math.max(tl / 2, 1e-3)) - 1;
+    let mit = [d1[0]-d0[0], d1[1]-d0[1], d1[2]-d0[2]];  // in-plane, ⊥ t
+    const ml = Math.hypot(mit[0], mit[1], mit[2]);
+    mit = ml < 1e-6 ? null : [mit[0]/ml, mit[1]/ml, mit[2]/ml];
+    let b = bPrev
+      ? nrm([bPrev[0] - t[0]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2]),
+             bPrev[1] - t[1]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2]),
+             bPrev[2] - t[2]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2])])
+      : nrm(cross(t, pN[i]));
+    // parallel transport keeps the frame continuous; seed once so the
+    // section's "out" is the surface normal
+    let n2 = nrm(cross(b, t));
+    if (i === 0 &&
+        n2[0]*pN[0][0] + n2[1]*pN[0][1] + n2[2]*pN[0][2] < 0) {
+      b = [-b[0], -b[1], -b[2]];
+      n2 = nrm(cross(b, t));
+    }
+    bPrev = b;
+    sec.push({ t, b, n2, mit, stretch });
+  }
+  // CLOSED-LOOP HOLONOMY: parallel transport around a loop returns the
+  // frame TWISTED by some angle, and the whole mismatch used to land on
+  // the seam quads (user report: skylight joint vertices rotate).
+  // Measure the twist and distribute the correction around the loop.
+  {
+    const f0 = sec[0], fL = sec[NP - 1];
+    const t0 = f0.t;
+    const d = fL.b[0]*t0[0] + fL.b[1]*t0[1] + fL.b[2]*t0[2];
+    const bT = nrm([fL.b[0]-t0[0]*d, fL.b[1]-t0[1]*d, fL.b[2]-t0[2]*d]);
+    const cx = [f0.b[1]*bT[2]-f0.b[2]*bT[1], f0.b[2]*bT[0]-f0.b[0]*bT[2],
+                f0.b[0]*bT[1]-f0.b[1]*bT[0]];
+    const hol = Math.atan2(cx[0]*t0[0]+cx[1]*t0[1]+cx[2]*t0[2],
+      Math.max(-1, Math.min(1,
+        f0.b[0]*bT[0]+f0.b[1]*bT[1]+f0.b[2]*bT[2])));
+    for (let i = 0; i < NP; i++) {
+      const ph = -hol * i / NP, c = Math.cos(ph), s2 = Math.sin(ph);
+      const f = sec[i], t = f.t;
+      const rot = v => {
+        const tv = [t[1]*v[2]-t[2]*v[1], t[2]*v[0]-t[0]*v[2],
+                    t[0]*v[1]-t[1]*v[0]];
+        return [v[0]*c + tv[0]*s2, v[1]*c + tv[1]*s2, v[2]*c + tv[2]*s2];
+      };
+      f.b = rot(f.b); f.n2 = rot(f.n2);
+    }
+  }
+  const secIds = [];
+  for (let i = 0; i < NP; i++) {
+    const { b, n2, mit, stretch } = sec[i];
+    const sN = [];
+    for (let k = 0; k < SS; k++) {
+      const a = k * 2 * Math.PI / SS;
+      // FLAT SEAL (G28, user: "slim across the window"): the bead is a
+      // low strip straddling the seam, not a full round tube — the
+      // in-surface half-width keeps r, the out-of-surface rise drops
+      // to a fraction of it (n2 is the surface normal by construction)
+      // ...AND A RETAINING STRIP ON A WINDOW (G206): the rise is the
+      // builder's `rimRise` (0.22 = 2.6 mm on the stock 12 mm), and the
+      // section is flat-topped — the sine is clipped so the crown is a
+      // face, not a ridge. A DOOR keeps the round-topped rubber at 0.38.
+      // ...and a DOOR'S is the flat dark seal in its gap (G207): low, so
+      // it reads as the shadow line a door gap is from any distance
+      const rise = o.kind === 'door' ? 0.12
+                 : (o.rise != null ? o.rise : 0.38);
+      const sn = Math.sin(a);
+      const cb = Math.cos(a) * r;
+      const cn = Math.max(-1, Math.min(1, sn * 1.5)) * r * rise;
+      let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
+          qz = b[2]*cb + n2[2]*cn;
+      if (mit) {
+        const dm = (qx*mit[0] + qy*mit[1] + qz*mit[2]) * stretch;
+        qx += mit[0]*dm; qy += mit[1]*dm; qz += mit[2]*dm;
+      }
+      sN.push(LV.push([
+        path[i][0] + qx, path[i][1] + qy, path[i][2] + qz,
+      ]) - 1);
+    }
+    secIds.push(sN);
+  }
+  const first = LF.length;
+  for (let i = 0; i < NP; i++) {
+    const a = secIds[i], bq = secIds[(i + 1) % NP];
+    for (let j = 0; j < SS; j++) {
+      const j2 = (j + 1) % SS;
+      LF.push({ v: [a[j], bq[j], bq[j2], a[j2]],
+                 m: o.kind === 'door' ? 'doorSeal' : 'joint' });
+    }
+  }
+  // THE RIVETS (G214): a low six-sided dome every `rimRivet` along the
+  // strip's crown, in the strip's own material — a painted head is a
+  // normal, not a colour. Walked by arc length so the pitch is even round
+  // the corners; skipped on doors (a seal has no rivets) and at 0.
+  if (o.kind !== 'door' && o.rivet > 0) {
+    const rr = Math.max(0.0012 * (o.unit || 1), r * 0.18), rh = rr * 0.55;   // radius, rise
+    const riseW = o.rise != null ? o.rise : 0.38;
+    const top = r * riseW;                                   // the crown
+    let acc = 0;
+    for (let i = 0; i < NP; i++) {
+      const A0 = path[i], B0 = path[(i + 1) % NP];
+      const segL = Math.hypot(B0[0]-A0[0], B0[1]-A0[1], B0[2]-A0[2]);
+      const { b, n2 } = sec[i];
+      const tg = nrm(sub(B0, A0));
+      let sAt = o.rivet - acc;
+      while (sAt < segL) {
+        const t = sAt / Math.max(segL, 1e-9);
+        const c = [A0[0] + (B0[0]-A0[0]) * t + n2[0] * top,
+                   A0[1] + (B0[1]-A0[1]) * t + n2[1] * top,
+                   A0[2] + (B0[2]-A0[2]) * t + n2[2] * top];
+        // a six-sided low frustum: base ring on the crown, a smaller ring
+        // rh above it — quads only, no degenerate fan, no cap (a 1 mm
+        // hole nobody sees, and every pass here expects four corners)
+        const lo = [], hi = [];
+        for (let q = 0; q < 6; q++) {
+          const a = q * Math.PI / 3;
+          const ca = Math.cos(a), sa = Math.sin(a);
+          lo.push(LV.push([c[0] + (tg[0]*ca + b[0]*sa) * rr,
+                          c[1] + (tg[1]*ca + b[1]*sa) * rr,
+                          c[2] + (tg[2]*ca + b[2]*sa) * rr]) - 1);
+          hi.push(LV.push([c[0] + (tg[0]*ca + b[0]*sa) * rr * 0.5 + n2[0] * rh,
+                          c[1] + (tg[1]*ca + b[1]*sa) * rr * 0.5 + n2[1] * rh,
+                          c[2] + (tg[2]*ca + b[2]*sa) * rr * 0.5 + n2[2] * rh]) - 1);
+        }
+        for (let q = 0; q < 6; q++)
+          LF.push({ v: [lo[q], lo[(q + 1) % 6], hi[(q + 1) % 6], hi[q]],
+                     m: 'joint', rivet: 1 });
+        sAt += o.rivet;
+      }
+      acc = (acc + segL) % o.rivet;
+    }
+  }
+  // the tube is a disjoint component: orient it outward by its own volume
+  let vol = 0;
+  for (let k = first; k < LF.length; k++) {
+    if (LF[k].rivet) continue;              // G214: the domes orient themselves
+    const p = LF[k].v.map(i => LV[i]);
+    for (const [x, y, z] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
+      vol += x[0]*(y[1]*z[2]-y[2]*z[1]) - x[1]*(y[0]*z[2]-y[2]*z[0])
+           + x[2]*(y[0]*z[1]-y[1]*z[0]);
+  }
+  if (vol < 0)
+    for (let k = first; k < LF.length; k++) LF[k].v.reverse();
+  return res;
+}
+if (typeof window !== 'undefined') window.CAGE_JOINT_SWEEP = cageJointSweep;
+
+// ---------------------------------------------------------------------------
 // WINDOW JOINTS — the rim strategy (user ruling after the inset detour):
 // windows stay MATERIAL ZONES on the untouched surface; the joint is a
 // separate closed tube bead swept along the zone outline at the LIMIT
@@ -2257,298 +2573,23 @@ function cageRims(m, S) {
         return [p[0] + n[0] * li, p[1] + n[1] * li, p[2] + n[2] * li];
       });
     }
-    // ROUND SHARP CORNERS of the sweep path (user: shading at the seal
-    // elbows): corners sharper than ~35 deg are Chaikin-cut into two
-    // points a small way down each arm — a physical seal rounds its
-    // corners, parallel transport stays smooth, and the miter stretch
-    // goes small. The recorded outline keeps the TRUE boundary; only the
-    // swept path is rounded.
-    {
-      // merge micro-segments FIRST: the sill-clip junction points sit a
-      // hair from their neighbours, splitting a 90-deg corner across two
-      // vertices with tiny arms — the fillet size (0.4 x arm) collapsed
-      // and door corners stayed chamfered (user report). Points closer
-      // than 0.6 r to the kept predecessor drop.
-      const P0 = [], N0 = [];
-      for (let i = 0; i < pts.length; i++) {
-        const prev = P0.length ? P0[P0.length - 1] : null;
-        if (prev && Math.hypot(pts[i][0]-prev[0], pts[i][1]-prev[1],
-                               pts[i][2]-prev[2]) < r * 0.6) continue;
-        P0.push(pts[i]); N0.push(ns[i]);
-      }
-      if (m.rimDebug)
-        m.outlines[m.outlines.length - 1].stageMerge = P0.map(p => p.slice());
-      if (P0.length > 2) {
-        const a = P0[0], b = P0[P0.length - 1];
-        if (Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]) < r * 0.6) {
-          P0.pop(); N0.pop();
-        }
-      }
-      // SPLIT-CORNER RECONSTRUCTION (replaces the fold-to-chord collapse,
-      // measured harmful): a corner split across two NEARBY vertices
-      // (segment < ~2.5 r, combined turn > ~30 deg) becomes ONE point
-      // where the outer arms meet (closest approach of the two arm
-      // lines; the pair midpoint when the arms are parallel or the meet
-      // runs away) — the exact inverse of the split, so the path passes
-      // through the TRUE corner and the fillet sees one full turn.
-      // The old pass folded any low-deviation vertex onto its
-      // neighbours' chord, which was scale-dependent (fired at one
-      // subsurf level and not the next: the windshield top apex folded
-      // at L2 only — the user's "missing mid interpolation point"),
-      // order-dependent (L/R doors diverged, 108 vs 114 path points)
-      // and CASCADING — each fold re-based the next test, flattening
-      // whole curved runs (pane top corner at L3: 0.056 off the drawn
-      // boundary, 4.6 r, measured). Reconstruction cannot cascade: it
-      // only fires on sub-seal-scale segments and the new point is
-      // clamped within 3 r of the pair it replaces.
-      for (let pass = 0; pass < 4; pass++) {
-        let did = false;
-        for (let i = 0; P0.length > 4 && i < P0.length; i++) {
-          const Np = P0.length, i1 = (i + 1) % Np;
-          const p = P0[i], q = P0[i1];
-          const seg = Math.hypot(...sub(q, p));
-          if (seg >= r * 2.5) continue;
-          const a = P0[(i - 1 + Np) % Np], b = P0[(i1 + 1) % Np];
-          const dIn = nrm(sub(p, a)), dMid = nrm(sub(q, p)),
-                dOut = nrm(sub(b, q));
-          const t0 = dIn[0]*dMid[0] + dIn[1]*dMid[1] + dIn[2]*dMid[2];
-          const t1 = dMid[0]*dOut[0] + dMid[1]*dOut[1] + dMid[2]*dOut[2];
-          const turn = Math.acos(Math.max(-1, Math.min(1, t0)))
-                     + Math.acos(Math.max(-1, Math.min(1, t1)));
-          if (turn < 0.52) continue;
-          const mid = [(p[0]+q[0])/2, (p[1]+q[1])/2, (p[2]+q[2])/2];
-          // closest approach of line(p, dIn) and line(q, dOut)
-          const c = dIn[0]*dOut[0] + dIn[1]*dOut[1] + dIn[2]*dOut[2];
-          const w0 = sub(p, q);
-          const den = 1 - c * c;
-          let X = mid;
-          if (Math.abs(den) > 1e-6) {
-            const wA = w0[0]*dIn[0] + w0[1]*dIn[1] + w0[2]*dIn[2];
-            const wB = w0[0]*dOut[0] + w0[1]*dOut[1] + w0[2]*dOut[2];
-            const tt = (c * wB - wA) / den;
-            const ss = (wB - c * wA) / den;
-            X = [(p[0]+dIn[0]*tt + q[0]+dOut[0]*ss) / 2,
-                 (p[1]+dIn[1]*tt + q[1]+dOut[1]*ss) / 2,
-                 (p[2]+dIn[2]*tt + q[2]+dOut[2]*ss) / 2];
-            if (Math.hypot(X[0]-mid[0], X[1]-mid[1], X[2]-mid[2]) > r * 3)
-              X = mid;
-          }
-          const n = nrm([N0[i][0]+N0[i1][0], N0[i][1]+N0[i1][1],
-                         N0[i][2]+N0[i1][2]]);
-          P0[i] = X; N0[i] = n;
-          P0.splice(i1, 1); N0.splice(i1, 1);
-          did = true;
-        }
-        if (!did) break;
-      }
-      if (m.rimDebug)
-        m.outlines[m.outlines.length - 1].stageFold = P0.map(p => p.slice());
-      const NPP = P0.length;
-      const outP = [], outN = [];
-      for (let i = 0; i < NPP; i++) {
-        const pm = P0[(i - 1 + NPP) % NPP], pc = P0[i], pp = P0[(i + 1) % NPP];
-        const d0 = nrm(sub(pc, pm)), d1 = nrm(sub(pp, pc));
-        // bends gentler than ~8 deg pass through; everything else gets
-        // the rimArc bezier — so the windshield's curved top and bottom
-        // runs smooth with the same slider as the 90-deg corners
-        // (user ask), not only sharp turns
-        if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.99) {
-          outP.push(pc); outN.push(N0[i]); continue;
-        }
-        const l0 = Math.hypot(...sub(pc, pm)), l1 = Math.hypot(...sub(pp, pc));
-        const d = Math.min(r * 2.2, 0.4 * Math.min(l0, l1));
-        // rimArc = SECTIONS PER CORNER (user param): the fillet is a
-        // quadratic bezier through the corner point, tangent to both
-        // arms — extra points concentrate AT the bend only, straight
-        // runs stay two-point. rimArc 1 = the plain chamfer.
-        const AR = Math.max(1, Math.round(W.rimArc || 1));
-        const A2 = [pc[0]-d0[0]*d, pc[1]-d0[1]*d, pc[2]-d0[2]*d];
-        const B2 = [pc[0]+d1[0]*d, pc[1]+d1[1]*d, pc[2]+d1[2]*d];
-        for (let j = 0; j <= AR; j++) {
-          const t = j / AR, u = 1 - t;
-          outP.push([
-            u*u*A2[0] + 2*u*t*pc[0] + t*t*B2[0],
-            u*u*A2[1] + 2*u*t*pc[1] + t*t*B2[1],
-            u*u*A2[2] + 2*u*t*pc[2] + t*t*B2[2]]);
-          outN.push(N0[i]);
-        }
-      }
-      pts = outP; ns = outN;
-    }
-    const path = pts;
+    // the sweep itself: cageJointSweep (G381), the shared strip builder
+    const SW = cageJointSweep(pts, ns, r, {
+      kind, arc: W.rimArc, sides: W.rimSides, rise: W.rimRise,
+      rivet: W.rimRivet, debug: m.rimDebug, unit: 1 });
+    const OL = m.outlines[m.outlines.length - 1];
+    if (m.rimDebug) { OL.stageMerge = SW.stageMerge; OL.stageFold = SW.stageFold; }
     // the PROCESSED sweep path is recorded next to the true boundary —
     // outline.pts is the contract, outline.path is what the bead actually
     // follows; their divergence is the seal-mismatch instrument
-    m.outlines[m.outlines.length - 1].path = pts.map(p => p.slice());
-    const pN = ns;
-    const NP = path.length;
-    // section sides are budgetable: the seals are ~half the face count at
-    // L2, so rimSides 6 buys a visible chunk back (default 8 = octagon)
-    const SS = Math.max(4, Math.round(W.rimSides || 8));
-    // MITER JOINTS: at each path vertex the section sits on the corner
-    // BISECTOR plane and is stretched 1/cos(half-turn) along the miter
-    // axis — the exact ellipse where the two straight tube runs intersect
-    // (SVG stroke-miter / a plumber's elbow). A circular section on the
-    // averaged tangent pinches to r*cos(half-turn) at every corner, which
-    // was the notched elbows on the door outline. Arms are normalized
-    // per-segment first (raw central difference biases the bisector toward
-    // the longer arm — the sill run's crossings are much shorter than the
-    // rail edges they meet).
-    const MITER_MAX = 2.5;                 // clamp for very sharp turns
-    const sec = [];
-    let bPrev = null;
-    for (let i = 0; i < NP; i++) {
-      let d0 = sub(path[i], path[(i - 1 + NP) % NP]);
-      let d1 = sub(path[(i + 1) % NP], path[i]);
-      const l0 = Math.hypot(d0[0], d0[1], d0[2]);
-      const l1 = Math.hypot(d1[0], d1[1], d1[2]);
-      d0 = l0 < 1e-9 ? null : [d0[0]/l0, d0[1]/l0, d0[2]/l0];
-      d1 = l1 < 1e-9 ? null : [d1[0]/l1, d1[1]/l1, d1[2]/l1];
-      if (!d0) d0 = d1 || [0, 0, 1];
-      if (!d1) d1 = d0;
-      const ts = [d0[0]+d1[0], d0[1]+d1[1], d0[2]+d1[2]];
-      const tl = Math.hypot(ts[0], ts[1], ts[2]);
-      const t = tl < 1e-6 ? d1 : [ts[0]/tl, ts[1]/tl, ts[2]/tl];
-      const stretch = Math.min(MITER_MAX, 1 / Math.max(tl / 2, 1e-3)) - 1;
-      let mit = [d1[0]-d0[0], d1[1]-d0[1], d1[2]-d0[2]];  // in-plane, ⊥ t
-      const ml = Math.hypot(mit[0], mit[1], mit[2]);
-      mit = ml < 1e-6 ? null : [mit[0]/ml, mit[1]/ml, mit[2]/ml];
-      let b = bPrev
-        ? nrm([bPrev[0] - t[0]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2]),
-               bPrev[1] - t[1]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2]),
-               bPrev[2] - t[2]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2])])
-        : nrm(cross(t, pN[i]));
-      // parallel transport keeps the frame continuous; seed once so the
-      // section's "out" is the surface normal
-      let n2 = nrm(cross(b, t));
-      if (i === 0 &&
-          n2[0]*pN[0][0] + n2[1]*pN[0][1] + n2[2]*pN[0][2] < 0) {
-        b = [-b[0], -b[1], -b[2]];
-        n2 = nrm(cross(b, t));
-      }
-      bPrev = b;
-      sec.push({ t, b, n2, mit, stretch });
+    OL.path = SW.path;
+    const base = V.length;
+    for (const p of SW.V) V.push(p);
+    for (const f of SW.F) {
+      const q = { v: f.v.map(i => i + base), m: f.m };
+      if (f.rivet) q.rivet = 1;
+      add.push(q);
     }
-    // CLOSED-LOOP HOLONOMY: parallel transport around a loop returns the
-    // frame TWISTED by some angle, and the whole mismatch used to land on
-    // the seam quads (user report: skylight joint vertices rotate).
-    // Measure the twist and distribute the correction around the loop.
-    {
-      const f0 = sec[0], fL = sec[NP - 1];
-      const t0 = f0.t;
-      const d = fL.b[0]*t0[0] + fL.b[1]*t0[1] + fL.b[2]*t0[2];
-      const bT = nrm([fL.b[0]-t0[0]*d, fL.b[1]-t0[1]*d, fL.b[2]-t0[2]*d]);
-      const cx = [f0.b[1]*bT[2]-f0.b[2]*bT[1], f0.b[2]*bT[0]-f0.b[0]*bT[2],
-                  f0.b[0]*bT[1]-f0.b[1]*bT[0]];
-      const hol = Math.atan2(cx[0]*t0[0]+cx[1]*t0[1]+cx[2]*t0[2],
-        Math.max(-1, Math.min(1,
-          f0.b[0]*bT[0]+f0.b[1]*bT[1]+f0.b[2]*bT[2])));
-      for (let i = 0; i < NP; i++) {
-        const ph = -hol * i / NP, c = Math.cos(ph), s2 = Math.sin(ph);
-        const f = sec[i], t = f.t;
-        const rot = v => {
-          const tv = [t[1]*v[2]-t[2]*v[1], t[2]*v[0]-t[0]*v[2],
-                      t[0]*v[1]-t[1]*v[0]];
-          return [v[0]*c + tv[0]*s2, v[1]*c + tv[1]*s2, v[2]*c + tv[2]*s2];
-        };
-        f.b = rot(f.b); f.n2 = rot(f.n2);
-      }
-    }
-    const secIds = [];
-    for (let i = 0; i < NP; i++) {
-      const { b, n2, mit, stretch } = sec[i];
-      const sN = [];
-      for (let k = 0; k < SS; k++) {
-        const a = k * 2 * Math.PI / SS;
-        // FLAT SEAL (G28, user: "slim across the window"): the bead is a
-        // low strip straddling the seam, not a full round tube — the
-        // in-surface half-width keeps r, the out-of-surface rise drops
-        // to a fraction of it (n2 is the surface normal by construction)
-        // ...AND A RETAINING STRIP ON A WINDOW (G206): the rise is the
-        // builder's `rimRise` (0.22 = 2.6 mm on the stock 12 mm), and the
-        // section is flat-topped — the sine is clipped so the crown is a
-        // face, not a ridge. A DOOR keeps the round-topped rubber at 0.38.
-        // ...and a DOOR'S is the flat dark seal in its gap (G207): low, so
-        // it reads as the shadow line a door gap is from any distance
-        const rise = kind === 'door' ? 0.12
-                   : (W.rimRise != null ? W.rimRise : 0.38);
-        const sn = Math.sin(a);
-        const cb = Math.cos(a) * r;
-        const cn = Math.max(-1, Math.min(1, sn * 1.5)) * r * rise;
-        let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
-            qz = b[2]*cb + n2[2]*cn;
-        if (mit) {
-          const dm = (qx*mit[0] + qy*mit[1] + qz*mit[2]) * stretch;
-          qx += mit[0]*dm; qy += mit[1]*dm; qz += mit[2]*dm;
-        }
-        sN.push(V.push([
-          path[i][0] + qx, path[i][1] + qy, path[i][2] + qz,
-        ]) - 1);
-      }
-      secIds.push(sN);
-    }
-    const first = add.length;
-    for (let i = 0; i < NP; i++) {
-      const a = secIds[i], bq = secIds[(i + 1) % NP];
-      for (let j = 0; j < SS; j++) {
-        const j2 = (j + 1) % SS;
-        add.push({ v: [a[j], bq[j], bq[j2], a[j2]],
-                   m: kind === 'door' ? 'doorSeal' : 'joint' });
-      }
-    }
-    // THE RIVETS (G214): a low six-sided dome every `rimRivet` along the
-    // strip's crown, in the strip's own material — a painted head is a
-    // normal, not a colour. Walked by arc length so the pitch is even round
-    // the corners; skipped on doors (a seal has no rivets) and at 0.
-    if (kind !== 'door' && W.rimRivet > 0) {
-      const rr = Math.max(0.0012, r * 0.18), rh = rr * 0.55;   // radius, rise
-      const riseW = W.rimRise != null ? W.rimRise : 0.38;
-      const top = r * riseW;                                   // the crown
-      let acc = 0;
-      for (let i = 0; i < NP; i++) {
-        const A0 = path[i], B0 = path[(i + 1) % NP];
-        const segL = Math.hypot(B0[0]-A0[0], B0[1]-A0[1], B0[2]-A0[2]);
-        const { b, n2 } = sec[i];
-        const tg = nrm(sub(B0, A0));
-        let sAt = W.rimRivet - acc;
-        while (sAt < segL) {
-          const t = sAt / Math.max(segL, 1e-9);
-          const c = [A0[0] + (B0[0]-A0[0]) * t + n2[0] * top,
-                     A0[1] + (B0[1]-A0[1]) * t + n2[1] * top,
-                     A0[2] + (B0[2]-A0[2]) * t + n2[2] * top];
-          // a six-sided low frustum: base ring on the crown, a smaller ring
-          // rh above it — quads only, no degenerate fan, no cap (a 1 mm
-          // hole nobody sees, and every pass here expects four corners)
-          const lo = [], hi = [];
-          for (let q = 0; q < 6; q++) {
-            const a = q * Math.PI / 3;
-            const ca = Math.cos(a), sa = Math.sin(a);
-            lo.push(V.push([c[0] + (tg[0]*ca + b[0]*sa) * rr,
-                            c[1] + (tg[1]*ca + b[1]*sa) * rr,
-                            c[2] + (tg[2]*ca + b[2]*sa) * rr]) - 1);
-            hi.push(V.push([c[0] + (tg[0]*ca + b[0]*sa) * rr * 0.5 + n2[0] * rh,
-                            c[1] + (tg[1]*ca + b[1]*sa) * rr * 0.5 + n2[1] * rh,
-                            c[2] + (tg[2]*ca + b[2]*sa) * rr * 0.5 + n2[2] * rh]) - 1);
-          }
-          for (let q = 0; q < 6; q++)
-            add.push({ v: [lo[q], lo[(q + 1) % 6], hi[(q + 1) % 6], hi[q]],
-                       m: 'joint', rivet: 1 });
-          sAt += W.rimRivet;
-        }
-        acc = (acc + segL) % W.rimRivet;
-      }
-    }
-    // the tube is a disjoint component: orient it outward by its own volume
-    let vol = 0;
-    for (let k = first; k < add.length; k++) {
-      if (add[k].rivet) continue;              // G214: the domes orient themselves
-      const p = add[k].v.map(i => V[i]);
-      for (const [x, y, z] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
-        vol += x[0]*(y[1]*z[2]-y[2]*z[1]) - x[1]*(y[0]*z[2]-y[2]*z[0])
-             + x[2]*(y[0]*z[1]-y[1]*z[0]);
-    }
-    if (vol < 0)
-      for (let k = first; k < add.length; k++) add[k].v.reverse();
   }
   m.F = F.concat(add);
   return m;
@@ -8039,7 +8080,7 @@ function cageSheet(P, opts) {
 }
 
 if (typeof module !== 'undefined')
-  module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+  module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,

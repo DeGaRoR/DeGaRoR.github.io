@@ -186,8 +186,12 @@ function checkCardHeld(r) {
 function checkAgain(r) {
   const s = r.again;
   check(!!s && !s.nan, 'again: a second leg was flown from the stopped pose');
-  check(!!s && s.phases.includes('TAXI') && s.phases.includes('HOLD'),
-        'again: it taxied to a hold before rolling', s ? s.phases.join(' ') : 'none');
+  // G381: the touchdown target moved to 20 % of the strip, so the stock
+  // build now stops with ~600 m ahead and the planner rolls straight on
+  // from a hold — a taxi (the U-turn) is only owed when the run ahead does
+  // not fit. Either is the honest answer; a hold before the roll is not optional.
+  check(!!s && s.phases.includes('HOLD') && s.phases.includes('ROLL'),
+        'again: it held (taxiing first when the run ahead did not fit) before rolling', s ? s.phases.join(' ') : 'none');
   check(!!s && s.report.outcome === 'completed' && s.phase === 'STOPPED' && s.t < 450,
         'again: the second circuit completes inside 450 s', s ? s.report.outcome + ' at ' + s.t.toFixed(0) + ' s' : '—');
   check(!!s && !has(s, 'rejected-takeoff') && !has(s, 'taxi-lost'),

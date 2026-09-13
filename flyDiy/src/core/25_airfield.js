@@ -429,11 +429,18 @@ function sitePattern(aero, site) {
   // pilots' slope meets the ground: 70 m SHORT of the target along the
   // landing direction (A.xAim -520 against the frame's -450), the flare
   // carrying the aeroplane the rest of the way; it read 70 m past before.
-  const mk = (k, u, thr, td) => ({
-    k, u: [u[0], u[1]], thr: [thr.x, thr.z], td: [td[0], td[1]],
-    aimAP: [+(td[0] - u[0] * 70).toFixed(3), +(td[1] - u[1] * 70).toFixed(3)],
-    gs: null, ga: { hdg: Math.atan2(u[1], u[0]) },
-  });
+  // G381: with the target 20 % in from the threshold, a 340 m strip puts
+  // 70 m short of it 2 m outside the bar — the aim keeps 40 m inside the
+  // threshold, the same clamp the pilot's own planArrival applies (sThr + 40)
+  const mk = (k, u, thr, td) => {
+    const dT = Math.hypot(td[0] - thr.x, td[1] - thr.z);
+    const back = Math.min(70, Math.max(0, dT - 40));
+    return {
+      k, u: [u[0], u[1]], thr: [thr.x, thr.z], td: [td[0], td[1]],
+      aimAP: [+(td[0] - u[0] * back).toFixed(3), +(td[1] - u[1] * back).toFixed(3)],
+      gs: null, ga: { hdg: Math.atan2(u[1], u[0]) },
+    };
+  };
   const approaches = [
     mk(0, [-d[0], -d[1]], R.thr1, [R.td0.x, R.td0.z]),
     mk(1, [d[0], d[1]], R.thr0, [R.td1.x, R.td1.z]),

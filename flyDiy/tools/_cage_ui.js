@@ -927,6 +927,9 @@ const secResolveAuto = name => {
     { cons: g.cons || consOf(), fin: g.fin });
 };
 if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
+// G381: the fuselage's own resolver, so a layer can wear EXACTLY a cage
+// section's material (the wing lens's joint strip = the windows' joint)
+if (typeof window !== 'undefined') window.CAGE_MAT_OF = matOf;
 
 // THE SURFACE FIELD on the geometry (G66). aStruct = [sL, sC, st, lv] —
 // metres along the body, metres around the section, station, rail. It is

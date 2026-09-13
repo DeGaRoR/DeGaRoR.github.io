@@ -44903,3 +44903,146 @@ specs flown), CRUISE and the placement sweep's shakedowns. Alone it should
 read ~15 min. Still too long for a core gate; the next cut is the same
 subset rule on AP GAINS, a decision for whoever next touches the gate.
 The full run stays the delivery verdict.
+
+## G381 — THE PILOT IS NOT A BRUTE: ARC TURNS, A LATCHED LEVEL, A HOLD-OFF
+## FLARE, A TAIL THAT STAYS STRAIGHT, THE TOUCHDOWN AT 20 %, AND THE LENS
+## JOINT AS THE WINDOWS' STRIP (2026-09-13)
+
+The user: "the new autopilot flying the circuit is a brute. It climbs like
+at max speed, it turns really low and slow, it does not seem to follow the
+glideslope that well, he is bad at anticipating turns according to speed
+and turn radius, and most importantly, he slams planes real hard on the
+ground, and real quick when landing. It's like it does not even flare. On
+the runway, he tends to amplify tail oscillations, sometimes to the point
+of having the plane uncontrollable. Also, the touchdown point are placed
+stupid ... 20% the length ... Here it's like 70%. Just noticing the very
+bad joint treatment on the wing cut lights ... I just wanted a joint on
+the outline of the transparent piece ... in the style of the window
+joints, metallic with rivets."
+
+**THE INSTRUMENT FIRST.** A scratch trace runner (arch_fly's loader, the
+pilot flown to a stop, a CSV at 0.1 s through FINAL/FLARE/ROLLOUT) on the
+cub archetype, calm, BEFORE any change:
+- every leg joined 13 s late from one radius inside (the pursuit tapers
+  the bank as the error shrinks); the base-to-final turn crossed the
+  centreline by 147 m because FINAL capped the bank at 10 deg while the
+  turn was planned at 23, and took 45 s to settle;
+- the level segment before the slope SAGGED 25 m: its ALT target was
+  `min(cg[1], hGS + 10)` re-read every tick, so a sag was never corrected;
+- the flare rotated 2.7 deg in 3 s and touched at 1.37 Vs, 1.1 m/s (the
+  ramp asked 11 deg; the cruise pitch loop moved 1 deg in 3 s at idle);
+- the tail: stearman calm and cub in 2 m/s across swung 72 and 76 deg
+  with the rudder on its stop as the tail came down at 17-19 m/s — the
+  tail-down steer gains (3.2 / 1.2) never eased with speed, the tail-up
+  ones do, and the transition halves the damping at 1.5x the rudder
+  authority they were sized for. A wheel landing hides it on take-off
+  (the tail is up by then).
+- and DECRAB steered the wrong way: `-K x (nose angle from the runway)`
+  against groundSteer's proven `-K x e` (e = the runway's angle from the
+  nose) — opposite signs. A 7 deg crab became a 16 deg swing in the
+  hold-off. GATE PILOT's WIND case blows along the strip, so it never saw it.
+
+**What changed (43_pilot.js, all under the G381 comments):**
+1. THE ARC TURN. A leg change arms `arc` (arcInto): a constant-bank turn
+   (HDG at a 50 deg lead, bank = bankLim, or 0.35 in a climb) until the
+   nose is within 11 deg of the new course, then the pursuit. The fly-by
+   distance uses the GROUND speed at that bank plus half the roll-in
+   (V x bank / bankSlew / 2). The crosswind leg is planned to begin where
+   the arc from the climb-out ends. FINAL flies the arc too, then bankLim
+   (0.30 cap) while off the centreline by more than 60 m, then 0.18.
+   Measured: every join within 4-22 m; base-to-final 8 m.
+2. The crosswind turn at 0.6 of the circuit height (was 0.35 = 45 m on the
+   cub); climbing turns banked at most 0.35; a CRUISE CLIMB (1.1 Vy) above
+   twice the screen height.
+3. FINAL: `finalLevel` latched once on entry, the ALT climb-back allowed
+   1.5 m/s; the base speed kept through the arc, the approach speed once
+   aligned. The slope holds within +/-2 m after capture.
+4. THE FLARE IS A HOLD-OFF (default; `flareMode: 'ramp'` keeps the old
+   law, 'vs' the other). Entry at 1.3 x flareAgl; the sink is flown to
+   -max(0.35, agl/tau) (tau from the entry sink, so it is continuous),
+   easing the floor to 0.7 m/s within 0.1 VRot of 1.15 VRot; a pitch law
+   of its own — P 0.20 + I 0.30 on the sink error from the entry attitude,
+   never below it, capped at the three-point attitude + 2 deg on a
+   taildragger (thRest) and thMax on a tricycle; the inner loop firmer
+   (pitchK 2.0, the rotation's integrator authority at 0.4); the integrator
+   unwinds when the elevator is on its stop. MEASURED, calm circuits:
+   cub 1.1 -> 0.94 m/s at 1.37 -> 1.21 Vs; stearman 1.29 -> 0.93;
+   savannah 1.37 -> 0.96; rv 1.30 -> 1.12; motorglider 0.47; pusher 0.99;
+   tigermoth 1.59; pietenpol 1.54. The C172 archetype is the exception:
+   it runs OUT OF ELEVATOR at idle with full flap (de 0.35 at 21 m/s, the
+   nose drops) and mushes on at 1.9 m/s, 0.99 Vs — an airframe limit
+   (elevator / flap moment), the old ramp did 2.09 at 1.13 Vs. OWED: that
+   archetype's tail volume or a partial-flap landing setting.
+   Tried and rejected on the way: pitchK 3.0 with half the damping (a
+   0.8 s PIO on both the cub and the C172).
+5. AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE, three-point or wheels
+   first alike: the stick comes back the moment the aeroplane is below
+   1.15 VRot (full back stick at 1.35 Vs lifted the cub off for six
+   seconds), the arrival attitude held until then. The ramp flare's
+   wheel-landing hold (tail up on -0.05 until VTailDown) stays under
+   flareMode 'ramp': at the hold-off's 1.05-1.2 Vs it kept the tailwheel
+   off the ground for six seconds in a crosswind, the rudder alone weaving
+   +/-9 deg against the weathercock, and the tail dropped onto a heading
+   8 deg off — an 88 deg ground loop on the stearman in 2 m/s across. The
+   tail-down steer gains ease as (VTailUp/V)^2 on both P and D (floor
+   0.30), the trike's cure applied to the taildragger. `tdInfo.three` says
+   whether the arrival was three-point. Stearman calm 72 -> 4.8 deg,
+   across 88 -> 11.2; cub across 76 -> 10.7 (a skip at the touchdown
+   weathercocks it while the wheels are off).
+6. DECRAB on -K x e. The cub in 2 m/s across arrives with e -0.6 deg
+   (was -16.5).
+7. speedThrottle: -0.25 x accF (the measured acceleration) damps the 40 s
+   speed hunt on the approach (+/-2 -> +/-1.6 m/s).
+8. The attitude filters start FROM the attitude on the first update:
+   ROLL read its rest attitude off the first filtered frame, 0.7 x the
+   truth (attFilt), so a cub carried thRest 6.5 deg instead of 9.2 for the
+   whole flight (the tail-up test and now the flare cap read it).
+
+**THE TOUCHDOWN AT 20 %** (20_world.js HOME tdz [-450,0] -> [-845,0]:
+thr1 at -1065 + 220; 24_world_aero.js 0.25 -> 0.30 len from the centre =
+20 % from the threshold; the three HOMEISH fallbacks). Everything downstream
+derives (siteRunway td0/td1, the paint, the pattern, the frame). The
+pattern's aimAP keeps 40 m inside the threshold (25_airfield.js mk), the
+clamp planArrival already applies — 70 m short of a 20 % target on a 340 m
+strip was 2 m off the bar (GATE SITE said so). GATE PILOT's AGAIN check
+now accepts a straight-on departure: with 600 m ahead the planner rolls
+from a hold without a U-turn, which is the honest answer; the U-turn
+itself is no longer exercised by that case (OWED: a case that stops short).
+
+**THE LENS JOINT** (tools/_cage_gen.js cageJointSweep, _cage_wing.js
+lensStrip, _cage_ui.js CAGE_MAT_OF). The windows' strip sweep (corner
+reconstruction, fillets, the mitred flat section, the rivet domes, the
+orientation) is factored out of cageRims VERBATIM into `cageJointSweep(pts,
+ns, r, o)` — cageRims appends its result with an index base; the cage mesh
+is bit-identical (three-build sha1 fingerprint before and after). The lens
+walks its boundary loop as G316 did, but skips the zero-length self-loop
+the loft leaves at each rib's leading-edge seam (a degenerate triangle):
+G316's walker stepped onto it, met its own vertex and stopped, so the
+"joint" was ONE RIB, a round tube. Now the whole outline — both ribs and
+the aft edges — wears the strip in the fuselage's own `joint` material
+instance (matOf('joint'), exported as CAGE_MAT_OF), rivets at rimRivet x
+FS, and bakes into the flown model's `sjoint` group. Verified by CDP
+screenshots in the garage (the camera driven through a render hook on
+FLYDIY_RENDERER — scratch shot.js).
+
+- Gates: SITE (after the aim clamp), TAKEOFF, HONEST, NAV, SKIN, BUILD,
+  SKINMAT, SURF, LIGHT, DESIGN, VIEW, PILOT, HOTHIGH green on the final
+  build. ARCHETYPES: 18 of 19 circuits complete; the CARAVAN-ALIKE goes
+  around twice for 'terrain under the approach' and lands 3 km short —
+  and it does the SAME with the HEAD pilot on the HEAD world (both swapped
+  in, built, flown through the gate's own loop with the drawn tail: two
+  terrain go-arounds at 214 s and 359 s, pastAim -3187). Not this
+  session's: the drawn-tail Caravan-alike cannot hold its nose up at idle
+  (elevator on its stop at 36 m/s, pitch 1 deg, 3 m/s below a 2.2 deg
+  slope) — something in today's shared tree (the cage/tail layers or the
+  G350/G351 re-baseline, all uncommitted by other sessions) moved it; the
+  G351 battery had it green. The gate also hit the runner's 3600 s cap
+  under two concurrent batteries; re-run alone it reports only that one
+  build (19 flown).
+- OWED: the flapped trikes' elevator at idle + full flap (C172 2.09 -> 1.9
+  m/s at 0.99 Vs; Caravan-alike 2.1 m/s at 1.39 Vs, de on its stop from the
+  first second of the flare — a partial-flap landing setting or a trickle
+  of power, `flareThr`, is the pilot-side door); a skip-proof
+  crosswind touchdown (hold the tail down through the first bounce); the
+  trikes' low-speed nosewheel weave (+/-1.5 deg, 45-57 reversals on the
+  pusher and the rv, pre-existing); the AGAIN case's U-turn coverage.

@@ -74,6 +74,38 @@
 // outcome ∈ completed | rejected-takeoff | gave-up (| broke-up by a runner).
 // Units are SI throughout; PILOT_UNITS converts for a panel that wants kt,
 // fpm and ft.
+// G381 (2026-09-13, the user: "the new autopilot flying the circuit is a
+// brute ... it turns really low and slow, it does not seem to follow the
+// glideslope that well, he is bad at anticipating turns according to speed
+// and turn radius, and most importantly, he slams planes real hard on the
+// ground, and real quick when landing. It's like it does not even flare.
+// On the runway, he tends to amplify tail oscillations"). Measured on the
+// cub archetype's own circuit before this: the base-to-final turn crossed
+// the centreline by 147 m (FINAL capped the bank at 10 deg while the turn
+// was planned at 23), the level segment before the slope sagged 25 m (its
+// ALT target was re-read from the aeroplane every tick), every leg was
+// joined 13 s late (the pursuit tapers the bank as the error shrinks), the
+// flare rotated 2.7 deg in 3 s and touched at 1.37 Vs with 1.1 m/s, and on
+// two taildraggers the heading swung 60-70 deg as the tail came down at
+// 17 m/s with the rudder on its stop (the tail-down steer gains never eased
+// with speed; the tail-up ones do). What changed:
+//   1. THE ARC TURN: a leg change is flown as a constant-bank turn at the
+//      bank the arc was planned with, until the nose is within 11 deg of
+//      the new course; only then does the pursuit take over. The fly-by
+//      distance uses the GROUND speed and a roll-in allowance.
+//   2. The crosswind turn at 0.6 of the circuit height (was 0.35), a
+//      climbing turn banked at most 20 deg, the crosswind leg planned to
+//      begin where the arc ends.
+//   3. FINAL: the level altitude is latched once; the bank limit is the
+//      planned one until established on the centreline.
+//   4. THE FLARE IS A HOLD-OFF: the sink is flown to -max(0.35, agl/tau)
+//      with a pitch law of its own (P + I on the sink error), capped at the
+//      three-point attitude on a taildragger and thMax on a tricycle, so
+//      the speed bleeds and the wheels arrive at ~0.35 m/s. The old attitude
+//      ramp stays under flareMode 'ramp'.
+//   5. A three-point touchdown pins the tail from the first frame; the
+//      tail-down steer gains ease as (VTailUp/V)^2 like the trike's.
+//   6. The speed hold's throttle gets a term on the measured acceleration.
 // ============================================================
 const PILOT_STYLES = {
   cautious: { name: 'cautious', rejectFrac: 0.50, bank: 0.80, VapprK: 1.06, gaHigh: 40,
@@ -153,7 +185,7 @@ function makePilot(sim, def, world, opts) {
     const td = (PT && PT.approaches && PT.approaches[k]) ? PT.approaches[k].td : a.tdz;
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k, td: [td[0], td[1]] };
   };
-  const HOMEISH = { hdg: Math.PI, tdz: [-450, 0], elev: 0, len: 1100, x: -520, z: 0 };
+  const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100, x: -520, z: 0 };
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
     VCruise: A.VCruise, VAppr: A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
@@ -231,6 +263,9 @@ function makePilot(sim, def, world, opts) {
   // until the nose comes up, and unwinds as it does. Off the ground both go
   // back to the air's numbers.
   let IthMax = 0.15, IthMaxT = 0.15, IthGain = null;
+  // G381: the flare's own inner-loop gains (P up, rate damping down) — the
+  // cruise loop moved 1 deg in 3 s at idle, which is no flare at all
+  let pitchK = 1, pitchDK = 1;
   let taxiI = 0, taxiLastT = -1e9;
   let thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   let eAP = 0, eAR = 0, eARslow = 0;
@@ -239,6 +274,10 @@ function makePilot(sim, def, world, opts) {
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
+  // G381: the arc turn in progress, the latched level altitude before the
+  // slope, the flare's own integrator / cap / timescale, a three-point flag
+  let arc = null, finalLevel = null;
+  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -473,7 +512,15 @@ function makePilot(sim, def, world, opts) {
     ap.t += dt; phaseT += dt;
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
-    if (ap.restAlt === null) { ap.restAlt = cg[1]; ap.refAlt = cg[1]; }
+    if (ap.restAlt === null) {
+      ap.restAlt = cg[1]; ap.refAlt = cg[1];
+      // G381: the attitude filters start FROM the attitude, not from zero —
+      // ROLL read its rest attitude (thRest) off the first filtered frame,
+      // which was 0.7 x the truth (attFilt), so a cub's three-point
+      // attitude was carried as 6.5 deg instead of 9.2 for the whole flight
+      const th0 = Math.asin(clamp(-xA[1], -1, 1)), ph0 = Math.atan2(-zR[1], yU[1]);
+      thF = thP = th0; phF = phP = ph0;
+    }
     const agl = cg[1] - ap.refAlt;
     const F = ap.frame;
     const rxF = cg[0] - F.ox, rzF = cg[2] - F.oz;
@@ -559,7 +606,7 @@ function makePilot(sim, def, world, opts) {
       thCA += clamp(thC - thCA, -sl, sl);
       IthMax += clamp(IthMaxT - IthMax, -0.10 * dt, 0.10 * dt);
       Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
-      c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
+      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, 0.35);
     };
     const airLateral = (bl = bankLim) => {
       // THE COURSE TRIM IS NOT ABOUT THE WIND (2026-09-08). It was gated on
@@ -585,7 +632,10 @@ function makePilot(sim, def, world, opts) {
     };
     const speedThrottle = (Vtgt) => {
       It = clamp(It + 0.010 * (Vtgt - V) * dt, -0.30, 0.30);
-      const base = thrC + 0.05 * (Vtgt - V), lo = A.thrFloor ?? 0.12;
+      // G381: a term on the measured acceleration (accF, the 2 s filter)
+      // damps the 40 s speed hunt the approach flew (+/-2 m/s, throttle
+      // 0.15..0.63 on the cub); 0 keeps the G352 law to the bit
+      const base = thrC + 0.05 * (Vtgt - V) - (A.spdD ?? 0.25) * accF, lo = A.thrFloor ?? 0.12;
       // G352: anti-windup — on a stop, the integrator holds the stop's value
       if (base + It < lo) It = lo - base;
       else if (base + It > 1) It = 1 - base;
@@ -608,11 +658,20 @@ function makePilot(sim, def, world, opts) {
       // ~12 m/s: a 1.25 Hz weave, rudder on its stop, on the user's pusher.
       // Same form, the trike's own reference speed (genAP VSteer, 0.6 VRot),
       // and a floor measured on that build. Taildraggers: bit-identical.
-      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0) : 1;
+      // G381: ...AND A TAILDRAGGER'S TAIL-DOWN GAINS EASE THE SAME WAY. The
+      // tail-up branch schedules on (VTailUp/V)^2; the tail-down branch ran
+      // the fixed 3.2 / 1.2 at any speed, which is fine below VTailUp (the
+      // roll it was tuned on) and unstable above it: a wheel landing at
+      // 26 m/s drops its tail at 17-19, the rudder's authority is 1.5x what
+      // the gains were sized for, and the weave grew 2 -> 7 -> 12 -> 52 deg
+      // with the rudder on its stop (stearman and cub archetypes, measured).
+      // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
+      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
+               : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
       const kP = tailUp
         ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
         : 3.2 * kS;
-      const kD = tailUp ? 3.0 : 1.2 * Math.sqrt(kS);
+      const kD = tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS);
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
       // ground roll, and the pilot had only the first. This held the wings
@@ -673,6 +732,33 @@ function makePilot(sim, def, world, opts) {
       if (sel) Object.assign(SEL, sel);
       ap.trackHold = (lat === 'LOC' || lat === 'RWY' || lat === 'DECRAB');
     };
+    // G381: THE ARC TURN. arcBank is the bank a leg change is flown at (a
+    // climbing turn is gentler); arcInto arms a constant-bank turn from leg
+    // L into leg N when the course changes by more than 20 deg; arcFly flies
+    // it — HDG at a lead of 50 deg in the turn's direction keeps the
+    // lateral loop on its bank limit — and returns false once the nose is
+    // within 11 deg of the new course (or after 30 s), when the pursuit
+    // takes over. Before this every turn was the pursuit's, whose bank
+    // tapers with the error: the leg was joined 13 s late from R inside, or
+    // crossed by 80-150 m when the leg was short.
+    const arcBank = () => climbMode ? Math.min(bankLim, A.bankClimb ?? 0.35) : bankLim;
+    const arcInto = (L, N) => {
+      arc = null;
+      if (!L || !N || !L.A || !N.A || !N.B) return;
+      const g1 = legGeom(L), g2 = legGeom(N);
+      const cr = g1.ux * g2.uz - g1.uz * g2.ux;
+      const dot = clamp(g1.ux * g2.ux + g1.uz * g2.uz, -1, 1);
+      if (Math.acos(dot) < 0.35) return;
+      arc = { sign: cr >= 0 ? 1 : -1, ux: g2.ux, uz: g2.uz, t0: ap.t };
+    };
+    const arcFly = () => {
+      if (!arc) return false;
+      const eC = Math.atan2(arc.uz * nose[0] - arc.ux * nose[1], arc.ux * nose[0] + arc.uz * nose[1]);
+      if (arc.sign * eC < 0.19 || ap.t - arc.t0 > 30) { arc = null; return false; }
+      const h = Math.atan2(nose[1], nose[0]);
+      SEL.hdg = h + arc.sign * 0.9; SEL.bank = arcBank();
+      return true;
+    };
     // NAV: pursuit along a leg with a lookahead; done at the turn-anticipation
     // distance before the corner into the next leg (R tan(dTheta/2))
     const navLeg = (L, look, nextL) => {
@@ -687,7 +773,12 @@ function makePilot(sim, def, world, opts) {
       if (nextL && nextL.A) {
         const g2 = legGeom(nextL);
         const dot = clamp(g.ux * g2.ux + g.uz * g2.uz, -1, 1);
-        ant = Rturn * Math.tan(Math.min(Math.acos(dot), 2.6) / 2);
+        // G381: the fly-by distance from the GROUND speed at the bank the
+        // arc will fly, plus half the roll-in (the bank reaches its limit
+        // bankLim/bankSlew seconds after the switch)
+        const bA = arcBank();
+        const Rg = Math.max(Vg, 8) ** 2 / (9.81 * Math.tan(bA));
+        ant = Rg * Math.tan(Math.min(Math.acos(dot), 2.6) / 2) + 0.5 * Vg * bA / (A.bankSlew ?? 0.18);
       }
       return { done: rem <= ant, rem, xt: -rx * g.uz + rz * g.ux, s, len: g.len };
     };
@@ -727,10 +818,15 @@ function makePilot(sim, def, world, opts) {
         case 'LOC': airLateral(SEL.bank ?? bankLim); break;
         case 'DECRAB': {
           airLateral(0.12);
-          const nS = nose[0] * F.ux + nose[1] * F.uz;
-          const nC = -nose[0] * F.uz + nose[1] * F.ux;
-          const hdg = Math.atan2(nC, nS);
-          c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
+          // G381: THE RUDDER WENT THE WRONG WAY. This kicked the crab off with
+          // -K x (the nose's angle FROM the runway), while groundSteer, the
+          // proven loop, steers with -K x e, and e is the runway's angle from
+          // the nose — the opposite sign. Measured on the cub in a 2 m/s
+          // crosswind: a 7 deg crab became a 16 deg swing in the hold-off
+          // and the rollout opened with the rudder on its stop. The same
+          // law as the ground's now, on the same error (which also carries
+          // the centreline correction trackHold folds into e).
+          c.dr = clamp(-(A.decrabK ?? 2.2) * e - 0.6 * eR, -0.35, 0.35);
           break;
         }
         case 'RWY': groundSteer(); break;
@@ -749,7 +845,7 @@ function makePilot(sim, def, world, opts) {
       if (climbMode && dh < 8) { climbMode = false; thrC = A.thrCruise; thcI = 0.04; }
       else if (!climbMode && dh > 40) climbMode = true;
       if (climbMode) {
-        engage(nav, 'FLC', 'FULL', { ias: ap.VClimb, bank: bl });
+        engage(nav, 'FLC', 'FULL', { ias: ap.VClimb, bank: Math.min(bl, A.bankClimb ?? 0.35) });   // G381: a climbing turn is gentler
         ceilT += dt;
         const stalled = ceilT > 60 && vsSlow < 0.15, marginal = ceilT > 75 && vsSlow < 0.4;
         if ((stalled || marginal) && !ceilingSaid) {
@@ -777,7 +873,7 @@ function makePilot(sim, def, world, opts) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0;
+      go('GOAROUND'); gaT = 0; arc = null; finalLevel = null;
       thrC = A.thrCruise; thLift0 = th;
     };
     // the arrival at the destination, planned from where the aeroplane is now
@@ -791,8 +887,16 @@ function makePilot(sim, def, world, opts) {
       const FL = P.F;
       const sNow = alongOf(FL, cg), cNow = leftOf(FL, cg);
       if (!ap.xc) {
-        startLegs([{ name: 'CROSSWIND', A: wp(FL, sNow, 0), B: wp(FL, sNow, P.W), h: P.hC, V: 'cruise' }]
-          .concat(patternLegs(P, sNow, 1)));
+        // G381: the crosswind leg begins where the ARC ends — one turn
+        // radius ahead at the climbing bank — and the arc is armed from the
+        // climb-out direction, so the aeroplane rolls out ON the leg
+        // instead of R inside it
+        const bC = Math.min(bankLim, A.bankClimb ?? 0.35);
+        const Rc = (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bC)) + 0.5 * V * bC / (A.bankSlew ?? 0.18);
+        const sA = sNow + Rc;
+        startLegs([{ name: 'CROSSWIND', A: wp(FL, sA, 0), B: wp(FL, sA, P.W), h: P.hC, V: 'cruise' }]
+          .concat(patternLegs(P, sA, 1)));
+        arcInto({ A: [cg[0], cg[2]], B: [cg[0] + climbDir[0] * 100, cg[2] + climbDir[2] * 100] }, ap.legs[0]);
         return 'CROSSWIND';
       }
       const toIaf = wp(FL, P.sIaf, 0);
@@ -1140,10 +1244,17 @@ function makePilot(sim, def, world, opts) {
       case 'CLIMB': {
         // straight ahead on the runway heading; the circuit turns at hTurn,
         // a cross-country climbs to its cruise height first (W10 rule 3)
-        engage('LOC', 'FLC', 'FULL', { ias: ap.VClimb, bank: bankLim });
+        // G381: a CRUISE CLIMB once clear of the screen height — Vy plus a
+        // tenth, the nose a little lower — instead of the best-rate attitude
+        // held all the way to the circuit (the user: "it climbs like at max
+        // speed"); the flaps come up at the same height
+        const iasC = agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
+        engage('LOC', 'FLC', 'FULL', { ias: iasC, bank: bankLim });
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
+        // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
+        // 45 m on the cub, "it turns really low"), never above hCruise - 15
         const hTurn = ap.xc ? ap.hCruise - 8
-                    : Math.max(A.hSafe + 10, ST.hTurnK * 0.35 * ap.hCruise);
+                    : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         const stalled = phaseT > 60 && vsSlow < 0.15, marginal = phaseT > 75 && vsSlow < 0.4;
         setStatus(ap.xc ? 'climbing to cruise height on the runway heading' : 'climbing straight ahead to the crosswind turn', [
           cond('height', Math.round(agl), Math.round(hTurn), agl >= hTurn, 'm'),
@@ -1186,8 +1297,11 @@ function makePilot(sim, def, world, opts) {
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
         const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;
-        altMode(hTgt, legSpeed(L), bankLim, holdOut ? 'HDG' : 'NAV');
+        // G381: the arc turn first (it sets SEL.hdg and SEL.bank), then the pursuit
+        const inArc = !holdOut && arcFly();
+        altMode(hTgt, legSpeed(L), inArc ? arcBank() : bankLim, (holdOut || inArc) ? 'HDG' : 'NAV');
         if (holdOut) SEL.hdg = Math.atan2(ap.holdDir[2], ap.holdDir[0]);
+        else if (inArc) { const h = Math.atan2(nose[1], nose[0]); SEL.hdg = h + arc.sign * 0.9; }
         flapTgt = 0;
         // the card is judged on the settled downwind (41_test_pilot.js)
         if (cardAcc && ap.phase === 'DOWNWIND' && !climbMode && phaseT > 8) {
@@ -1211,9 +1325,11 @@ function makePilot(sim, def, world, opts) {
           if (!r.done) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s — moving to ' + (next ? next.name : 'FINAL'));
           ap.legI++;
           const N = ap.legs[ap.legI];
+          arcInto(L, N);                          // G381
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
             slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr;
+            finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
         }
@@ -1229,11 +1345,30 @@ function makePilot(sim, def, world, opts) {
         const hGS = ap.refAlt + Math.max(0, d) * ap.gs;
         const above = cg[1] - hGS;
         if (!slopeCaptured && above < 4) slopeCaptured = true;
+        // G381: THE LEVEL SEGMENT IS LATCHED — its target was min(cg[1],
+        // hGS + 10) re-read every tick, so a sag was never corrected (25 m
+        // on the cub, then a climb back into the slope). And THE BANK: the
+        // base-to-final turn is the arc's (bankLim) until the nose is on the
+        // course, then the planned limit while still off the centreline,
+        // then the tracking bank of 0.18 — the 10 deg cap alone could not
+        // finish a turn planned at 23 and crossed the centreline by 147 m.
+        if (finalLevel == null) finalLevel = Math.min(cg[1], hGS + 10);
+        const inArc = arcFly();
+        const bF = inArc ? arcBank() : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
+        const latF = inArc ? 'HDG' : 'LOC';
+        // the approach speed is asked from the leg change, through the turn
+        // (keeping the base speed through the arc arrived on the slope 6 m/s
+        // fast on the Caravan-alike, whose drawn tail cannot hold the nose
+        // up at idle — the elevator on its stop, 3 m/s below a 2.2 deg
+        // slope, two terrain go-arounds; GATE ARCHETYPES)
+        const iasF = ap.VAppr * ST.VapprK;
         if (slopeCaptured || above < 0)
-          engage('LOC', 'GS', 'SPD', { gs: ap.gs, ias: ap.VAppr * ST.VapprK, bank: 0.18 });
+          engage(latF, 'GS', 'SPD', { gs: ap.gs, ias: iasF, bank: bF });
         else
-          engage('LOC', 'ALT', 'SPD', { alt: Math.min(cg[1], hGS + 10), ias: ap.VAppr * ST.VapprK, bank: 0.18,
-                                        vsDn: Math.min(-3.0, -1.6 * V * ap.gs), vsUp: 0.5 });
+          engage(latF, 'ALT', 'SPD', { alt: finalLevel, ias: iasF, bank: bF,
+                                       vsDn: Math.min(-3.0, -1.6 * V * ap.gs), vsUp: 1.5 });
+        if (inArc) { const h = Math.atan2(nose[1], nose[0]); SEL.hdg = h + arc.sign * 0.9; }
+        ap.trackHold = !inArc;
         flapTgt = fLDG;
         const canGA = (ap.gaN || 0) < 2 && !committed;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
@@ -1254,7 +1389,19 @@ function makePilot(sim, def, world, opts) {
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
         }
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
-        if (agl < A.flareAgl) { go('FLARE'); thFlare0 = th; }
+        // G381: the hold-off begins 1.3x higher than the ramp did — it has a
+        // sink to arrest AND a speed to bleed, and the pull takes a second to bite
+        if (agl < (A.flareK ?? 1.3) * A.flareAgl) {
+          go('FLARE'); thFlare0 = th; arc = null;
+          // G381: the hold-off's timescale (continuous with the sink it
+          // arrives with), its cap (the three-point attitude on a
+          // taildragger, thMax on a tricycle), its integrator and filter
+          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
+          flCap = trike ? A.thMax
+                : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
+          flCap = Math.max(flCap, thFlare0 + 0.03);
+          flI = 0; flVsF = vcg[1];
+        }
         break;
       }
 
@@ -1264,7 +1411,7 @@ function makePilot(sim, def, world, opts) {
         ap.dirX = 1;
         engage('LOC', 'FLC', 'FULL', { ias: ap.VClimb, bank: 0.20 });
         flapTgt = fTO;
-        const hTurn = Math.max(A.hSafe + 10, ST.hTurnK * 0.35 * ap.hCruise);
+        const hTurn = Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         setStatus('going around: climbing on the runway heading', [
           cond('height', Math.round(agl), Math.round(hTurn), agl >= hTurn, 'm')]);
         if (agl >= hTurn || (phaseT > 60 && vsSlow < 0.15)) {
@@ -1280,15 +1427,49 @@ function makePilot(sim, def, world, opts) {
         const to = ap.route.to;
         const left = (to.x + F.ux * to.len / 2 - cg[0]) * F.ux + (to.z + F.uz * to.len / 2 - cg[2]) * F.uz;
         setStatus('flaring', [cond('wheels down', onG, 1, onG > 0, ''), cond('runway left', Math.round(left), 0, left > 0, 'm')]);
-        if (phaseT > 20 && left < 2 * stopDist(V) + 100 && (ap.gaN || 0) < 2 && !committed) { goAround('floating with ' + Math.round(left) + ' m left'); break; }
+        if (phaseT > 20 && left < 2 * stopDist(V) + 100 && (ap.gaN || 0) < 2 && !committed) { pitchK = pitchDK = 1; IthMaxT = 0.15; IthGain = null; goAround('floating with ' + Math.round(left) + ' m left'); break; }
         const decrab = agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) + Math.abs(o_.windX || 0) > 0.5;
         if (A.flareMode === 'vs')
           engage(decrab ? 'DECRAB' : 'LOC', 'VS', 'IDLE', { vs: -(0.15 + 0.28 * Math.max(0, agl)), thMax: A.flareThMax ?? A.thMax, bank: 0.10, idle: A.flareThr ?? 0 });
-        else
+        else if (A.flareMode === 'ramp')
           engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: Math.min(thFlare0 + A.flareRate * phaseT, A.flareThMax ?? A.thMax), bank: 0.10, idle: A.flareThr ?? 0 });
+        else {
+          // G381: THE HOLD-OFF. The sink is flown to -max(0.35, agl/tau): the
+          // approach sink at the flare height, easing to 0.35 m/s in the
+          // last metre, and held there while the speed bleeds — the wheels
+          // touch when the wing can no longer hold it, which is the flare
+          // a pilot flies. The pitch is its own law (P + I on the sink
+          // error, from the attitude the flare began at, never below it),
+          // because the VS servo's gains are the cruise's and were measured
+          // too slow for this (genTuneAP, 'vs' rejected); the cap is the
+          // three-point attitude on a taildragger (+2 deg), thMax on a
+          // tricycle. The old ramp reached 5.8 deg of its 11 in 3 s and
+          // touched at 1.37 Vs, 1.1 m/s.
+          flVsF += 0.5 * (vcg[1] - flVsF);
+          // the sink asked for: the hold-off's 0.35 m/s, easing to 0.7 as the
+          // speed nears Vs — the C172 held off to 0.99 Vs and mushed on at
+          // 1.5 m/s with the elevator on its stop; a firm arrival at 1.1 Vs
+          // beats a stall from a metre
+          const vr = A.VRot || 18;
+          const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
+          const vsC = -Math.max(sinkF, Math.max(0, agl) / flTau);
+          const ev = vsC - flVsF;
+          // the elevator has no more to give: stop winding the demand up
+          const deSat = aDe > 0.30;
+          flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
+          const thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
+          // the pull: a firmer inner loop and the rotation's integrator authority
+          pitchK = A.flarePK ?? 2.0; pitchDK = A.flareDK ?? 1.0;
+          IthMaxT = A.rotateIMax ?? 0.30; IthGain = A.flareIth ?? 0.4;
+          engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
+        }
         if (onG > 0) {
           go('ROLLOUT');
-          ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V, drift: -vcg[0] * F.uz + vcg[2] * F.ux };
+          pitchK = pitchDK = 1; IthMaxT = 0.15; IthGain = null;
+          // G381: a three-point arrival (the attitude at or above the rest
+          // attitude, less 3 deg) is pinned from the first frame
+          tdThree = !trike && th > (thRest != null ? thRest : A.liftoffTh) - 0.05;
+          ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V, drift: -vcg[0] * F.uz + vcg[2] * F.ux, three: tdThree, th };
         }
         break;
       }
@@ -1297,6 +1478,20 @@ function makePilot(sim, def, world, opts) {
         if (trike) {
           if (V > (A.VDerotate ?? 20)) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
           else engage('RWY', 'DE', 'SET', { de: 0.15, thr: 0 });
+        } else if (A.flareMode !== 'ramp' && A.flareMode !== 'vs') {
+          // G381: AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE. The stick
+          // comes back the moment the wing cannot fly it again (1.15 VRot;
+          // full back stick at 1.35 Vs lifted the cub off for six seconds),
+          // the arrival attitude held until then — three-point or wheels
+          // first alike. The wheel-landing hold (tail up on -0.05 until
+          // VTailDown) belongs to the ramp flare's 1.3-1.4 Vs arrivals: at
+          // the hold-off's 1.05-1.2 Vs it kept the tailwheel off the ground
+          // for six seconds in a crosswind, the rudder alone weaving against
+          // the weathercock (+/-9 deg, saturating), and the tail dropped
+          // onto a heading 8 deg off — an 88 deg ground loop on the stearman
+          // in 2 m/s across. The tailwheel steers from the first second now.
+          if (V < 1.15 * (A.VRot || 18)) engage('RWY', 'DE', 'SET', { thr: 0, de: 0.35 });
+          else engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         } else engage('RWY', 'DE', 'SET', { thr: 0, de: V > (A.VTailDown ?? A.VTailUp) ? -0.05
                     : (th > (A.thPinMax ?? 0.26) ? 0.05 : V > (A.VPinFull ?? 0) ? 0.14 : 0.35) });
         if (Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
@@ -1309,7 +1504,7 @@ function makePilot(sim, def, world, opts) {
             V: Math.round(ap.tdInfo.V * 10) / 10,
             offCentre: Math.round(ap.tdInfo.z * 10) / 10,
             pastAim: Math.round(ap.tdInfo.x - ap.xAim),
-            k: F.k,
+            k: F.k, three: !!ap.tdInfo.three,
           };
           ap.report.outcome = ap.report.outcome || 'completed';
           go('STOPPED');
@@ -1339,7 +1534,7 @@ function makePilot(sim, def, world, opts) {
       aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
     } else { aDa = c.da; aDr = c.dr; }
     holdWas = holdActive; holdActive = false;
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, thRest, flCap,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };
     // the measurements a panel reads (ap.instruments), SI
     ap._m = { ias: V, tas: Vt, gs: Vg, alt: cg[1], agl, aglT, vs: vcg[1], pitch: th, bank: ph,
