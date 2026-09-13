@@ -7786,7 +7786,10 @@ function cageDoorEdges(mesh) {
   const skip = new Set(['joint', 'doorSeal', 'paneEdge']);
   const byDoor = new Map();
   F.forEach((f, i) => {
-    if (!f.doorKey || f.v.length !== 4 || skip.has(f.m)) return;
+    // the shoulder's door segment (G325) carries the door's key so it
+    // explodes with it, but it is trim INSIDE the door, not the door's
+    // outline — the hinge was placed 109 mm inboard off it (GATE CLIP)
+    if (!f.doorKey || f.v.length !== 4 || skip.has(f.m) || f.shoulder) return;
     const k = f.doorKey + ':' + (V[f.v[0]][0] >= 0 ? 'P' : 'M');
     if (!byDoor.has(k)) byDoor.set(k, []);
     byDoor.get(k).push(i);

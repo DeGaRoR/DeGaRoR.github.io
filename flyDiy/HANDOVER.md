@@ -41993,3 +41993,10 @@ futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
   gate running: stop the child too, then rerun the gate alone.
 - Captures: screenshots/shoulder/41..45 (shed interior), 51..53 (flight);
   the PNGs stay untracked like every session's.
+- **G325.2, from the worktree proof**: the shoulder's door segment carries
+  `doorKey` (so it explodes with the door), and `cageDoorEdges` gathered it
+  into the DOOR'S OUTLINE — the hinge was placed 109 mm inboard off the
+  polluted outline (GATE CLIP, green on the commit before, red on G325).
+  Door-keyed trim is skipped there now. And a gate's verdict is the WHOLE
+  line `GATE <ID>: PASS` (the runner's regex), which the first check did
+  not print — it read as red on the worktree with every row passing.

@@ -75,5 +75,6 @@ console.log('--- throttle');
     if (!closed) for (const r of res) console.log('     ', r);
   }
 }
-console.log(fails ? `SHOULDER: ${fails} FAIL` : 'SHOULDER: all PASS');
+// the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code
+console.log(fails ? `GATE SHOULDER: FAIL (${fails})` : 'GATE SHOULDER: PASS');
 process.exit(fails ? 1 : 0);
