@@ -646,7 +646,7 @@ const propMat = (sec) => {
   if (A && A.aeroHardOn && A.aeroHardOn() && A.AERO_PROP_FIN[i])
     return A.aeroMaterial(THREE, { finish: A.AERO_PROP_FIN[i], tint: M.col,
       surf: 0, fieldM: 1, side: THREE.DoubleSide,
-      tileK: M.tileK, detRot: M.detRot });
+      tileK: M.tileK, detRot: M.detRot, spin: sec === 'spinner' ? 2 : 1 });
   propM.color.setHex(M.col); propM.metalness = M.met; propM.roughness = M.rgh;
   return propM;
 };

@@ -114,7 +114,20 @@ const AERO_WX_KNOB = {
   coarseTile: 2.40,  // uWxG.y  m, the large blotch
   streakAcross: 0.22,// uWxG.z  m, streak width period
   streakAlong: 2.60, // uWxG.w  m, streak length period
+  // THE TURNING PARTS (G345.1): a blade's radius and a spinner's, in metres
+  // (the dirt weights by them), the leading edge's erosion gain, the gain on
+  // what the rotation flings outward
+  propR:     0.95,   // uWxT.x  m, a blade's tip radius
+  spinR:     0.15,   // uWxT.y  m, the spinner's base radius
+  leGain:    1.00,   // uWxT.z  leading-edge insects and stone pits
+  flingGain: 1.00,   // uWxT.w  centrifugal streaks
 };
+// THE SPINNER'S SPIRAL (the user: "the little typical spiral and choose its
+// colour"): a marking, so it lives in the decal block (AERO_DEC_DEF's
+// spiral* keys, deviations in finish.decals) and is painted here in the
+// spinner's own polar frame — one stroke, thin at the tip and widening to
+// the base, turning with the cone. Null colour = white.
+const AERO_WX_SPIRAL_DEF = { spiralOn: 0, spiralCol: null, spiralHand: 0, spiralPitch: 0.10, spiralW: 0.30 };
 
 // THE SUBSTRATE under the paint, per finish: what a chip exposes.
 // col linear, metal, rough, rust (1 = it rusts), chip (0 = this finish does
@@ -311,6 +324,9 @@ function aeroWxSharedU(THREE) {
     uWxR:   { value: new THREE.Vector4(K.dustFlat, K.ccRough, K.kappaMax, K.bugTile) },
     uWxG:   { value: new THREE.Vector4(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong) },
     uWxDbg: { value: 0 },
+    uWxT:   { value: new THREE.Vector4(K.propR, K.spinR, K.leGain, K.flingGain) },
+    uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
+    uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
   };
   AERO_WX.U = U;
   aeroWxLabLoad();
@@ -318,8 +334,12 @@ function aeroWxSharedU(THREE) {
   return U;
 }
 // the PER-MATERIAL pair, a pure function of the finish (nothing on userData)
-function aeroWxFinishU(THREE, U, finish) {
+// `o.spin` (G345.1): 0 a fixed part, 1 a propeller blade, 2 the spinner —
+// named by the section in the editor and by the join's part walk in flight
+function aeroWxFinishU(THREE, U, finish, o) {
   const s = AERO_WX_SUB[finish] || AERO_WX_SUB_NONE;
+  if (!U.uWxTurn) U.uWxTurn = { value: 0 };
+  U.uWxTurn.value = (o && o.spin) ? +o.spin : 0;
   if (!U.uWxSub) U.uWxSub = { value: new THREE.Vector4() };
   if (!U.uWxSub2) U.uWxSub2 = { value: new THREE.Vector4() };
   U.uWxSub.value.set(s.col[0], s.col[1], s.col[2], s.metal);
@@ -338,6 +358,7 @@ function aeroWxRefresh() {
   const K = AERO_WX_KNOB;
   U.uWxR.value.set(K.dustFlat, K.ccRough, K.kappaMax, K.bugTile);
   U.uWxG.value.set(K.fineTile, K.coarseTile, K.streakAcross, K.streakAlong);
+  U.uWxT.value.set(K.propR, K.spinR, K.leGain, K.flingGain);
   const m = AERO_WX.macro;
   U.uWear.value.set(aeroWxClamp01(m.age), aeroWxClamp01(m.flight),
                     aeroWxClamp01(m.bush), aeroWxClamp01(m.rain));
@@ -347,6 +368,17 @@ function aeroWxRefresh() {
   // came back 24 x 0 %). A thousandth of age is invisible everywhere else.
   if (Object.keys(AERO_WX.pin).length)
     U.uWear.value.x = Math.max(U.uWear.value.x, 1e-3);
+}
+// the spiral off a decal block (the editor's live DEC, or the flown build's
+// merged finish.decals); sRGB hex -> linear here, as the factory does
+function aeroWxSetSpiral(THREE, D) {
+  const U = aeroWxSharedU(THREE);
+  const d = Object.assign({}, AERO_WX_SPIRAL_DEF, D || {});
+  const hex = d.spiralCol == null ? 0xffffff : (d.spiralCol >>> 0);
+  const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  U.uSpiral.value.set(d.spiralOn ? 1 : 0, (+d.spiralHand === 1) ? -1 : 1,
+                      Math.max(0.02, +d.spiralPitch || 0.10), Math.max(0.02, Math.min(0.6, +d.spiralW || 0.30)));
+  U.uSpiralC.value.set(lin((hex >> 16) & 255), lin((hex >> 8) & 255), lin(hex & 255), 1);
 }
 function aeroWxSetMacro(THREE, m) {
   if (THREE) aeroWxSharedU(THREE);
@@ -507,6 +539,7 @@ const AERO_WX_PARS_FS = `
 #define AEROWX_NL 6
 #define AEROWX_NE 4
 #define AEROWX_NW 6
+#define AEROWX_LE_SIGN 1.0
 uniform sampler2D tGrunge;
 uniform vec4 uWxL[AEROWX_NL];
 uniform vec4 uWxC[8];
@@ -520,6 +553,10 @@ uniform vec4 uWxN;      // x nE  y nW  z object space is the turning part's own 
 uniform vec4 uWxR;      // x dust flatten  y cc rough add  z kappa max (1/m)  w bug tile m
 uniform vec4 uWxG;      // x fine tile m  y coarse tile m  z streak across m  w streak along m
 uniform float uWxDbg;
+uniform vec4 uWxT;      // x blade tip radius m  y spinner base radius m  z LE gain  w fling gain
+uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
+uniform vec4 uSpiralC;  // linear rgb, strength
+uniform float uWxTurn;  // per material: 0 fixed, 1 a blade, 2 the spinner
 uniform vec4 uWxSub;    // substrate rgb, metal   (per material)
 uniform vec4 uWxSub2;   // substrate rough, rust, chip, hands
 
@@ -554,6 +591,36 @@ void aeroWxLay(inout vec3 col, inout float cov, inout float flo, float c, vec4 C
 const AERO_WX_SURF_FS = `
 {
   float wxK = uWearK;
+  // THE TURNING PARTS' OWN FRAME (G345.1, the user: "weathering on blades
+  // and nose cone should be dominated by the rotation movement"). Polar
+  // about the shaft in OBJECT space — the engine group's z in the editor,
+  // the flown prop group's x (uWxN.z) — so everything read here turns with
+  // the part; the tangential direction is what a blade meets the air with,
+  // and its leading edge is the face whose normal has that component.
+  float wxTurn = uWxTurn;
+  float wxPr = 0.0, wxPth = 0.0, wxTanN = 0.0; vec2 wxPd = vec2(0.0);
+  if (wxTurn > 0.5) {
+    wxPd = ((uWxN.z > 0.5) ? vObjPos.yz : vObjPos.xy) * uFieldM;
+    vec2 nd = (uWxN.z > 0.5) ? vObjNrm.yz : vObjNrm.xy;
+    wxPr = length(wxPd);
+    wxPth = atan(wxPd.y, wxPd.x);
+    // the same hand in both frames: cage (x,y,z) -> model (-z, y, x)
+    vec2 t = (uWxN.z > 0.5) ? vec2(wxPd.y, -wxPd.x) : vec2(-wxPd.y, wxPd.x);
+    wxTanN = dot(nd, t) / max(length(t) * max(length(nd), 1e-4), 1e-4);
+  }
+  // THE SPINNER'S SPIRAL: one stroke in the cone's polar frame, phase =
+  // angle x hand + radius / pitch, a width that grows from nothing at the
+  // tip to uSpiral.w of a turn at the base. Painted under the weathering.
+  // Antialiased on the radius and the arc separately: the phase itself
+  // jumps by exactly one turn at the seam, so fract is continuous there
+  // while fwidth(phase) is not.
+  if (wxTurn > 1.5 && uSpiral.x > 0.5) {
+    float ph = wxPth / 6.2831853 * uSpiral.y + wxPr / uSpiral.z;
+    float w = uSpiral.w * clamp(wxPr / max(uWxT.y, 0.02), 0.0, 1.0);
+    float aa = 1.5 * (fwidth(wxPr) / uSpiral.z + length(fwidth(wxPd)) / max(wxPr, 0.01) / 6.2831853);
+    float sm = smoothstep(w + aa, max(w - aa, 0.0), fract(ph)) * step(0.004, wxPr);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uSpiralC.rgb, sm * uSpiralC.a);
+  }
   float aeroWxOn = max(max(uWear.x, uWear.y), max(uWear.z, uWear.w)) * wxK;
   if (aeroWxOn > 0.0) {
 ` + AERO_WX_UNPACK + `
@@ -595,20 +662,31 @@ const AERO_WX_SURF_FS = `
     float wxRad = clamp(wxRr / wxR, 0.0, 1.2);
     vec2 wxWheelUV = vec2(wxTh * wxR, mix(wxLat, sign(wxLat) * (wxHW + max(wxR - wxRr, 0.0)), wxFlankW));
     vec4 gWh = texture2D(tGrunge, wxWheelUV / 0.12);
-    // ...and the PROPELLER turns too: the blade rows are the one material
-    // that transposes its detail sheet (uDetRot, G125.1), a per-material
-    // fact that already crosses the join — so it names the blade here. Its
-    // read is the blade's own plane in its own frame: the disc plane, which
-    // is (lateral, up) in the editor's engine frame and (up, left) in the
-    // flown model frame.
-    float wxProp = step(0.5, uDetRot);
-    vec2 wxPropUV = (uWxN.z > 0.5) ? vObjPos.yz : vObjPos.xy;
-    vec4 gPr = texture2D(tGrunge, wxPropUV * uFieldM / 0.15);
-    // a turning part has no top, no front, no flank: nothing directional
+    // ...and the PROPELLER (G345.1): named by the part (uWxTurn, from the
+    // section in the editor and the join's part walk in flight — the spinner
+    // used to be named by a wooden row's transposed sheet and an alloy cone
+    // read its dirt in craft space, standing still while it turned). The
+    // read is the part's own unwrap: along = the radius, across = the arc.
+    float wxProp = step(0.5, wxTurn);
+    float wxSp = step(1.5, wxTurn);            // the spinner
+    float wxBl = wxProp * (1.0 - wxSp);        // a blade
+    vec2 wxPropUV = vec2(wxPr, wxPth * wxPr);
+    vec4 gPr = texture2D(tGrunge, wxPropUV / 0.15);
+    // THE ROTATION IS THE AIRFLOW: a blade meets the air with its LEADING
+    // EDGE, at a speed that grows with the radius — so the insects and the
+    // stone pits go there, thickest toward the tip; a spinner meets it with
+    // its tip. Nothing on a turning part has a top, a flank or an aft face.
+    float wxLE = wxBl * clamp(wxTanN * AEROWX_LE_SIGN, 0.0, 1.0)
+               * smoothstep(0.15, uWxT.x, wxPr) * uWxT.z;
     float wxRot = max(wxSpin, wxProp);
-    wxUp *= 1.0 - wxRot; wxFwd *= 1.0 - wxRot; wxAft *= 1.0 - wxRot;
+    wxUp *= 1.0 - wxRot; wxAft *= 1.0 - wxRot;
+    wxFwd = mix(wxFwd, max(wxFwd * mix(1.0, 0.35, wxBl), wxLE), wxRot);
     wxDown = mix(wxDown, mix(0.25, 0.5, wxSpin), wxRot);
-    float wxFA = wxFwd * wxFwd + wxAft * wxAft;
+    // dirt stays at a blade's ROOT and a spinner's BASE (the tip and the
+    // cone's point are scoured); what the rotation FLINGS runs outward
+    float wxRadW = mix(1.0, mix(1.0 - smoothstep(0.25, uWxT.x, wxPr),
+                                smoothstep(0.0, uWxT.y, wxPr), wxSp), wxRot);
+    float wxFA = (wxFwd * wxFwd + wxAft * wxAft) * (1.0 - wxRot);
     // a FLANK is what faces sideways — not a nose or a tail face, which the
     // first cut counted as flanks and swept "aft" streaks across (the user's
     // hangar shot: the whole cowl front thrashed with smears)
@@ -665,7 +743,7 @@ const AERO_WX_SURF_FS = `
     wxPure = max(wxPure, wxCyl);
     #endif
     // ...and on a wheel or a blade, the part's own unwrap in its own frame
-    wxUV = mix(mix(wxUV, wxWheelUV, wxSpin), wxPropUV * uFieldM, wxProp);
+    wxUV = mix(mix(wxUV, wxWheelUV, wxSpin), wxPropUV, wxProp);
     float wxAlong = wxUV.x, wxAcross = wxUV.y;
     vec4 gF = texture2D(tGrunge, vec2(wxAlong, wxAcross) / uWxG.x);
     vec4 gC = texture2D(tGrunge, vec2(wxAlong, wxAcross) / uWxG.y + vec2(0.37, 0.61));
@@ -755,12 +833,12 @@ const AERO_WX_SURF_FS = `
     // a 2.4 m blotch lands as one pale patch across a 1.8 m blade
     float wxBlot = mix(gC.a, mix(gWh.a, gPr.a, wxProp), wxRot);
     // dust on the tops (rain takes it off: the coefficient is negative)
-    float wxDust = wx_dust * (0.35 + 0.65 * wxBlot) * (0.7 + 0.3 * gF.r)
+    float wxDust = wxRadW * wx_dust * (0.35 + 0.65 * wxBlot) * (0.7 + 0.3 * gF.r)
                  * (wxUp * wxOut + 0.5 * wxUp * wxIn);
     aeroWxLay(col, cov, flo, 0.55 * wxDust, uWxC[0]);
     dustCov = clamp(wxDust, 0.0, 1.0);
     // belly dirt on everything that faces down
-    float wxBelly = wx_belly * pow(wxDown, 1.5) * (0.5 + 0.5 * wxBlot) * (0.6 + 0.4 * gF.r) * wxOut;
+    float wxBelly = wxRadW * wx_belly * pow(wxDown, 1.5) * (0.5 + 0.5 * wxBlot) * (0.6 + 0.4 * gF.r) * wxOut;
     aeroWxLay(col, cov, flo, 0.65 * wxBelly, uWxC[1]);
     // the grammar's own cavities: rivet flanks, tape edges, seams, the sag
     aeroWxLay(col, cov, flo, wx_cav * wxCav * (0.6 + 0.4 * gF.r), uWxC[7]);
@@ -778,6 +856,11 @@ const AERO_WX_SURF_FS = `
     float wxSpat = smoothstep(1.0 - 0.75 * wxMud, 1.0 - 0.75 * wxMud + 0.06, gF.g) * step(0.02, wxMud);
     aeroWxLay(col, cov, flo, 0.75 * wxMud * (0.55 + 0.45 * gC.a) + 0.6 * wxSpat, uWxC[2]);
     aeroWxLay(col, cov, flo, wxWheelDust, uWxC[0]);
+    // what the rotation flings: oil and dirt in radial streaks from the hub
+    // outward, on the blades and the cone alike (gSa runs along the radius
+    // on a turning part)
+    aeroWxLay(col, cov, flo, wxProp * uWxT.w * (0.5 * wx_streakA + 0.5 * wx_belly)
+              * pow(gSa, 2.0) * (0.3 + 0.7 * wxBlot) * (0.5 + 0.5 * wxRadW) * wxOut, uWxC[7]);
     aeroWxLay(col, cov, flo, 0.85 * wxWheelMud, uWxC[2]);
     // tar and oil: a few large drops on the belly and low flanks
     aeroWxLay(col, cov, flo, wx_tar * (wxDown + 0.4 * wxSide) * smoothstep(0.84, 0.90, gC.g) * wxOut * (1.0 - wxRot), uWxC[5]);
@@ -974,7 +1057,7 @@ const AEROWX_API = {
   aeroWxResolve, aeroWxMacroFromSpec, aeroWxMacroToSpec,
   aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX,
   aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin,
-  aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf,
+  aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
   aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabExport, AERO_WX_LAB_KEY,
   AERO_WX_PARS_FS, AERO_WX_SURF_FS, AERO_WX_CC_FS, AERO_WX_GLASS_FS,
   AERO_WX_GTINT_VS, AERO_WX_GTINT_FS,

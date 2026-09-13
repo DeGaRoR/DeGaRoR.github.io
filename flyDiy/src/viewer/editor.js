@@ -888,7 +888,7 @@ function editorInit(api) {
       // `data-dec` tag every row carries
       const dec = CU.DECBODY;
       if (dec) {
-        const by = { reg: [], kit: [], body: [], wing: [], stk: [], other: [] };
+        const by = { reg: [], kit: [], body: [], wing: [], stk: [], spiral: [], other: [] };
         for (const el of Array.from(dec.children))
           (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
         emitEls(p0, 'registration', by.reg.concat(by.other),
@@ -900,6 +900,9 @@ function editorInit(api) {
         if (by.stk.length)
           emitEls(p0, 'certification stickers', by.stk,
                   'where the bench\'s roundels are worn — a place, then fine tuning');
+        // G345.1: the spinner's spiral
+        if (by.spiral.length)
+          emitEls(p0, 'spinner spiral', by.spiral, 'the stroke on the nose cone, and its colour');
       }
     }
     // THE GLAZING DIALS FOLLOW THE GLASS (2026-08-31, the user editing the

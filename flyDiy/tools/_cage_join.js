@@ -1815,7 +1815,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // first cut sliced wheels out PER TRIANGLE and produced severed
       // forks and a tailwheel that spun with its castor (user: "the
       // weirdest thing"); identity beats surgery.
-      let part = null;
+      let part = null, spinKind = 0;
       {
         // G300: the walk asks ONE pure function per ancestor (cagePartMatch,
         // module scope, exported for GATE JOIN) — and a `userData.partOf` tag
@@ -1826,7 +1826,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         while (a && a !== mount) {
           const m = cagePartMatch(a.name, a.userData, TBp);
           if (m) {
-            if (m.prop) part = propPart(unitOf(a.name));
+            if (m.prop) { part = propPart(unitOf(a.name));
+              // G345.1: WHAT TURNS, named for the weathering — the cone or a
+              // blade; they may share a material row and must not share a bucket
+              spinKind = a.name.lastIndexOf('edSpinner', 0) === 0 ? 2 : 1; }
             else if (m.wheel) part = PARTS.wheels.find(w => w.kind === m.wheel) || null;
             else part = PARTS.others.find(u => u.src === m.src) || null;
             // G240: a cockpit control's pivot and axes, IN THE CAGE'S FRAME,
@@ -1894,7 +1897,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // would merge them irreversibly (the exact failure the paragraph
         // above records for the cage).
         const kud = m0.userData || {};
-        const key = sec ? 's' + sec
+        const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
             // ...AND A TANK IS NOT THE AEROPLANE. The vessel materials are
@@ -1941,7 +1944,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             (kud.aeroDetRot ? 'D' : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
-            (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
+            (kud.aeroPlane ? 'P' + kud.aeroPlane : ''));
         // AEROSKIN (G67) rides across as WHAT IT IS, not as what it looked
         // like: the finish key and the shader branch, so the game rebuilds
         // the same material from the same factory rather than approximating
@@ -1951,6 +1954,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // a layer that is not AEROSKIN — still reads correctly.
         const ud = m0.userData || {};
         if (!mats[key]) mats[key] = { color: m0.color.getHex(),
+          ...(spinKind ? { spin: spinKind } : {}),          // G345.1
           ...(m0.transparent ? { opacity: m0.opacity } : {}),
           ...(sec ? { sec } : {}),
           ...(ud.aeroFinish ? { fin: ud.aeroFinish } : {}),

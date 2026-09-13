@@ -899,6 +899,9 @@ function secMat(name, g) {
     // engine, the mount, the gear, the struts, the crew do not
     decals: A.aeroDecOk ? A.aeroDecOk(name) : 1,
     detRot: g && g.detRot ? 1 : 0,
+    // G345.1: which TURNING part this section dresses — the weathering
+    // reads a blade and the spinner in their own polar frame
+    spin: name === 'spinner' ? 2 : (name === 'prop' ? 1 : 0),
   });
 }
 // the panel's view of the walk, for its own rows' labels and wells: the
@@ -3080,6 +3083,8 @@ function applyDecals() {
   if (DEC.regLock) DEC.regW = DEC.regH * Math.max(1.2, R.aspect);
   if (SYNC.regW) SYNC.regW();
   A.aeroSetDecals(THREE, R.list);
+  // G345.1: the spinner's spiral rides the same block
+  if (window.AEROWX && window.AEROWX.aeroWxSetSpiral) window.AEROWX.aeroWxSetSpiral(THREE, DEC);
 }
 
 // ---- THE IMAGE PAGES, IN AND OUT (G190) ------------------------------------
@@ -3872,6 +3877,26 @@ function buildDecPanel() {
   num('stickers up', 'stkC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the place\'s own height', 'up');
   num('sticker size', 'stkSize', 0.06, 0.30, 0.01, 'the roundel\'s diameter, metres (120 mm is a real placard)');
   num('stickers turn', 'stkRot', -0.6, 0.6, 0.01, 'radians');
+  // THE SPINNER'S SPIRAL (G345.1, the user: "the nose cone option to draw
+  // the little typical spiral and choose its colour"). Painted by the
+  // weathering module in the cone's own polar frame, so it turns with it.
+  DECG.cur = 'spiral';
+  flag('spinner spiral', 'spiralOn', 'one stroke from the tip, widening to the base — the classic mark that shows the propeller is turning');
+  {
+    const d = row('spiral colour', 'unset it is white; double-click the label to go back to white');
+    const c = document.createElement('input');
+    c.type = 'color'; c.style.flex = 'none';
+    wellRecent(c);
+    const paint = () => { c.value = '#' + ((DEC.spiralCol != null ? DEC.spiralCol : 0xffffff) >>> 0).toString(16).padStart(6, '0'); };
+    paint();
+    c.oninput = () => { DEC.spiralCol = parseInt(c.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+    const k = d.querySelector('span.k');
+    if (k) { k.style.cursor = 'pointer'; k.ondblclick = () => { DEC.spiralCol = null; paint(); decSavePrefs(); applyDecals(); draw(); }; }
+    d.appendChild(c);
+  }
+  pick('spiral hand', 'spiralHand', ['one way', 'the other'], 'which way the stroke winds');
+  num('spiral pitch', 'spiralPitch', 0.03, 0.30, 0.005, 'metres of radius per turn — smaller winds tighter');
+  num('spiral width', 'spiralW', 0.05, 0.60, 0.01, 'the stroke\'s width at the base, as a fraction of one turn');
   bodyLock(); wingLock();
 
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was

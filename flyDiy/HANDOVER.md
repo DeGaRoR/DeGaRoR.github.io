@@ -43270,3 +43270,68 @@ the shell and `navigate` on the URL.
   the rest builder, GATE SKIN/VIEW measure it); orthonormalising it would
   be the root fix but touches the rest frame, the tail gauge and the live
   crew's twin (G246) — a ruling for the frame's owner.
+
+## G345.1 — THE TURNING PARTS TURN: A BLADE HAS A LEADING EDGE, THE ROTATION IS THE AIRFLOW, THE CONE WEARS ITS DIRT AND ITS SPIRAL IN ITS OWN FRAME (2026-09-14)
+
+The user, on G345: "in a previous version the weathering on the nose cone
+was static — the nose cone would not move at all any more"; "can we have
+the nose cone option to draw the little typical spiral and choose its
+colour"; and "weathering on blades and nose cone should be dominated by the
+rotation movement, orders of magnitude faster than the forward movement.
+That seems wrong in our approach." All three were right.
+
+WHAT TURNS IS NAMED, NOT GUESSED. G345 named the propeller by the one wooden
+row that transposes its detail sheet (`uDetRot`) — so a spun-alloy spinner
+(`spinMat` > 0) was not a turning part at all and read its dirt through the
+cowl's cylindrical craft-space map: a pattern standing still while the cone
+spun under it, which is exactly what the user saw. Now `spin` is a material
+fact: 1 a blade, 2 the spinner. The editor names it from the SECTION in
+`secMat` (`_cage_ui.js`); the join names it from its own PART WALK
+(`edSpinner` / `edProp`, `_cage_join.js`) onto the material record — the
+section name never crossed for the prop, whose buckets are colour-keyed —
+and prefixes the bucket key so a cone and a blade sharing one row (`spinMat`
+0) do not share a bucket; `app.js` hands `m.spin` to the factory; the pool
+key carries it (`'P' + spin`); `aeroWxFinishU` takes `o` and sets
+`uWxTurn`. Nothing on userData: the JOIN CENSUS is untouched.
+
+THE FRAME IS POLAR ABOUT THE SHAFT, IN OBJECT SPACE: the engine group's z
+in the editor, the flown prop group's x (`uWxN.z`, the pivot flag app.js
+sets) — radius, angle, and the tangential direction, the same hand in both
+frames through the cage→model rotation ((x,y,z)_m = (−z, y, x)_c). Every
+read on a turning part is (radius, arc): a blade's dirt runs radially, and
+it turns with the blade because the coordinates do.
+
+THE ROTATION IS THE AIRFLOW. A blade meets the air with its LEADING EDGE at
+a speed that grows with the radius, so the insects and the stone pits go
+there — `wxLE` = the object normal's component along the tangential
+direction, times a ramp in radius toward the tip, times `uWxT.z`; the
+section is lofted with index 0 at the leading edge and the chord centred
+at 0.35 c, so the leading edge sits at −x in the blade frame, which is what
+the default-hand tangential points at (`AEROWX_LE_SIGN`). A spinner meets
+the air with its tip (craft-space forward, rotation-invariant). Neither has
+a top, a flank or an aft face. Dirt stays at a blade's ROOT and a spinner's
+BASE (`wxRadW`: the tip and the point are scoured); what the rotation
+FLINGS runs outward — the stretched read along the radius, a grime layer
+gated by `uWxT.w`. Knobs: `propR`, `spinR`, `leGain`, `flingGain` in the
+lab and the bench.
+
+THE SPIRAL is a MARKING, so it lives in the decal block — `spiralOn`,
+`spiralCol` (null = white), `spiralHand`, `spiralPitch` (metres of radius
+per turn), `spiralW` (the stroke's width at the base, of one turn) in
+`AERO_DEC_DEF`, persisted as deviations in `finish.decals` like every
+marking, five rows under the stickers in the decal panel (`data-dec`
+"spiral", their own heading in the game's tree), a colour well with the
+recent-colours strip. Painted by aeroweather.js in the cone's polar frame,
+under the weathering: phase = angle × hand + radius / pitch, a width that
+grows from nothing at the tip, antialiased on the radius and the arc
+separately (the phase jumps by exactly one turn at the seam, so `fract` is
+continuous there while `fwidth(phase)` is not). `aeroWxSetSpiral` takes the
+editor's live DEC or the flown build's `aeroDecalMerge(genSpec)`.
+
+MEASURED: the blades read 1 and the spinner 2 on the stock build; no program
+failed; the spiral draws as one comma from the tip (screenshots/weather/
+spiral_on.png, spiral_front.png); the leading-edge debug view lights the
+blade's pressure face by its pitch, as it should. Gate: the join's walk and
+record, `m.spin` in app.js, `secMat`'s naming, the spiral on both sides,
+the keys in `AERO_DEC_DEF`; the uniform census cap raised to 60 (the thrust
+lines and these sit on G345's 48, against a WebGL2 floor of 224).

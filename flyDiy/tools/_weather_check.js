@@ -96,7 +96,10 @@ function audit(ctx) {
       }
       vec += n;
     }
-    check(vec <= 48, 'uniform census: more than 48 vec4-equivalents', String(vec));
+    // 48 was the plan's budget; the thrust lines (8), the turning parts'
+    // knobs and the spiral (3) sit on top of it, against a WebGL2 floor of
+    // 224 with ~165 spent before this module
+    check(vec <= 60, 'uniform census: more than 60 vec4-equivalents', String(vec));
   }
 
   // ---- THE TABLES ----------------------------------------------------------
@@ -210,12 +213,19 @@ function strip(t) { return t.replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').map(l
   chk(!/wearFieldAt/.test(UI), 'editor: G70 nearest-vertex field lookup is back');
   chk(!/WEAR\.amount/.test(UI), 'editor: WEAR.amount survives somewhere');
   // the join: the record, every unit and every contact
-  chk(/weather = \{ exhaust, wheels, engines, floor:/.test(JN) && /footwell, holes,\s*weather \}/.test(JN), 'join: no weather record in the snapshot');
+  chk(/weather = \{ exhaust, wheels, engines, floor:/.test(JN) && /footwell, holes,\s*weather[,\s}]/.test(JN), 'join: no weather record in the snapshot');
   chk(/for \(const u of \(E && E\.units\) \|\| \[\]\)/.test(JN) && /for \(const c of \(G3 && G3\.contacts\) \|\| \[\]\)/.test(JN), 'join: the sources are not all units and all contacts');
   // the flight: the sources, the macros, the pane's multiplier
   chk(/AEROWX\.aeroWxSetSources\(THREE, Object\.assign\(\{ pivot: 1 \}, data\.weather \|\| \{\}\)\)/.test(AP), 'app: the flown build never receives the sources (with the pivot flag)');
   chk(/AEROWX\.aeroWxSetMacro\(THREE, AEROWX\.aeroWxMacroFromSpec\(genSpec\)\)/.test(AP), 'app: the flown build never receives the macros (G70\'s open gap)');
   chk(/wear: m\.wearM != null \? m\.wearM : 1,\s*screen: m\.sec === 'windshield' \? 1 : 0/.test(AP), 'app: the flown pane has no multiplier / screen flag');
+  // G345.1: what turns is named — the join's walk, the record, the flown
+  // material, the editor's section, the spiral on both sides
+  chk(/spinKind = a\.name\.lastIndexOf\('edSpinner', 0\) === 0 \? 2 : 1;/.test(JN) && /spin: spinKind/.test(JN), 'join: the spinner and the blades are not named on the record');
+  chk(/spin: m\.spin \|\| 0,/.test(AP), 'app: the flown blade/spinner material does not know it turns');
+  chk(/spin: name === 'spinner' \? 2 : \(name === 'prop' \? 1 : 0\),/.test(UI), 'editor: secMat does not name the turning parts');
+  chk(/aeroWxSetSpiral\(THREE, DEC\)/.test(UI) && /aeroWxSetSpiral\(THREE, window\.AEROSKIN\.aeroDecalMerge\(genSpec\)\)/.test(AP), 'the spiral does not reach both the editor and the flown build');
+  chk(/spiralOn: 0, spiralCol: null/.test(rd(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'))), 'the spiral keys are not in AERO_DEC_DEF (they would not persist)');
   // the engine: the direction is published
   chk(/ports\.exhaustDir/.test(EM), 'engine mesh: the pipe direction is not published beside its exit');
   chk(/exhaustDir = \[d\.x, d\.y, d\.z\]/.test(EG) && /exhaustAt, exhaustDir,/.test(EG), 'engine layer: the pipe direction does not reach CAGE_ENG.units');

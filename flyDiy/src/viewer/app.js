@@ -1536,6 +1536,7 @@
               opacity: op, fieldM: m.fieldM || 1, surf: m.surf ? 1 : 0,
               boxDet: m.boxDet || 0, boxPlane: m.boxPlane || 0,
               detRot: m.detRot || 0,
+              spin: m.spin || 0,           // G345.1: a blade (1), the spinner (2)
               // G279: the instrument facia is cut open behind the AI
               hole: m.sec === 'dashFace' ? 1 : 0,
               // THE FLOWN AEROPLANE IS PAINTED LIKE THE EDITOR'S (G108). Two
@@ -3336,6 +3337,9 @@
         // Before this nothing on the flight side set the condition at all.
         if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetMacro)
           AEROWX.aeroWxSetMacro(THREE, AEROWX.aeroWxMacroFromSpec(genSpec));
+        // ...and the spinner's spiral, off the same merged decal block
+        if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetSpiral && window.AEROSKIN.aeroDecalMerge)
+          AEROWX.aeroWxSetSpiral(THREE, window.AEROSKIN.aeroDecalMerge(genSpec));
       } catch (e) {
         // IT STILL SWALLOWS, IT JUST SAYS SO FIRST — the same ruling
         // _cage_ui.js reached about its own finish panels. One layer failing

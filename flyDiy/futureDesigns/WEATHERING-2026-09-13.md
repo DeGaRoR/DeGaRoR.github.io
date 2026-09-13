@@ -186,6 +186,19 @@ and at 1 — a surface outside the branch (a part whose `wear x` is 0 in the
 person's own prefs, most likely the propeller), which the unlit debug view
 shows lit. Measure before believing a picture.
 
+## 6b. G345.1 — the turning parts (2026-09-14)
+
+`spin` is a material fact (1 blade, 2 spinner): named by the section in the
+editor, by the join's part walk in flight (the prop's buckets are colour-
+keyed, so the section never crossed), carried on the record and the pool
+key. Every read on a turning part is polar about the shaft in OBJECT space
+(radius, arc), the same hand in both frames. The rotation is the airflow:
+insects and stone pits on a blade's leading edge (the section's index 0,
+at −x in the blade frame) growing toward the tip; dirt at the root and the
+cone's base; what the rotation flings runs outward. The spinner's SPIRAL
+is a marking in AERO_DEC_DEF (`spiral*`), five decal rows with a colour
+well, painted in the cone's polar frame under the weathering.
+
 ## 7. Owed
 
 - The glass legibility measurement (pilot's eye, chart, contrast bound) —

@@ -1818,6 +1818,9 @@ const AERO_DEC_DEF = {
   // visible"). Place 3 in STICKER_PLACES; the rear fuselage (0) was the first
   // cut and it is the one panel a pod, a rod boom or a twin boom may not have.
   stkOn: 1, stkPlace: 3, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
+  // G345.1: THE SPINNER'S SPIRAL — a marking, painted by aeroweather.js in
+  // the cone's own frame; null colour = white; hand 0 / 1
+  spiralOn: 0, spiralCol: null, spiralHand: 0, spiralPitch: 0.10, spiralW: 0.30,
 };
 const AERO_DEC_ON = [
   { body: 1 },                        // 0 the fuselage
@@ -3827,7 +3830,8 @@ function aeroMaterial(THREE, o) {
                'I' + (+o.inside || 0),
                'K' + (o.decals != null ? +o.decals : 1),
                'S' + (o.memF ? o.memF.join(',') : ''),
-               'Q' + (o.metalK != null ? o.metalK : 0)].join('|');
+               'Q' + (o.metalK != null ? o.metalK : 0),
+               'P' + (o.spin || 0)].join('|');            // G345.1: a blade, the spinner
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
@@ -3868,7 +3872,7 @@ function aeroMaterial(THREE, o) {
   });
   aeroGrammarU(THREE, U, o);
   // the substrate under this finish's paint (G345): what a chip exposes
-  if (aeroWx()) aeroWx().aeroWxFinishU(THREE, U, o.finish);
+  if (aeroWx()) aeroWx().aeroWxFinishU(THREE, U, o.finish, o);   // + which turning part (G345.1)
   aeroFinishU(THREE, null, U, row, o);
   // ALPHA-TESTED CUT-OUTS ARE DELIBERATELY ABSENT. r128's getDepthMaterial
   // copies neither `map` nor `alphaTest` onto the depth variants, so an
