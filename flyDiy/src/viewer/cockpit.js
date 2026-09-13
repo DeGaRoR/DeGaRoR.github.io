@@ -398,6 +398,7 @@ function make(THREE) {
       else if (g.pick === 'brake') { CK.park = !CK.park; did = true; }
       else if (g.pick === 'fuel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
       else if (g.pick === 'trim' && INP3 && INP3.setTrim) { INP3.setTrim((INP3.trim() || 0) + 0.05); did = true; }
+      else if (g.pick === 'thr') did = true;               // G364: a click holds it; the drag moves it
       return did;
     }
     if (c.law === 'switch') { CK.sw[drv] = +CK.sw[drv] > 0.5 ? 0 : 1; did = true; }
@@ -423,11 +424,12 @@ function make(THREE) {
     if (!g || !g.c) return false;
     // G318: the trim wheel, the fuel selector and the flap lever move under
     // the mouse too (the 4e idiom: up is clockwise / a notch up / lever up)
-    if (g.pick === 'trim' || g.pick === 'fuel' || g.pick === 'flap') {
+    if (g.pick === 'trim' || g.pick === 'fuel' || g.pick === 'flap' || g.pick === 'thr') {
       const W4 = typeof window !== 'undefined' ? window : {};
       const INP4 = W4.FLYDIY_INPUT;
       const v0 = g.pick === 'trim' ? (INP4 && INP4.trim ? INP4.trim() : 0)
                : g.pick === 'fuel' ? clamp(Math.round(+CK.sw.fuel || 0), 0, 3)
+               : g.pick === 'thr' ? (INP4 && INP4.axis ? +INP4.axis('throttle') || 0 : 0)   // G364
                : (INP4 && INP4.state ? INP4.state().flapI : 0);
       CK.grab = { g, y0: y, v0, moved: false };
       return true;
@@ -446,6 +448,10 @@ function make(THREE) {
       if (W5.FLYDIY_INPUT && W5.FLYDIY_INPUT.setTrim) W5.FLYDIY_INPUT.setTrim(G.v0 + dy * 0.004);
     }
     else if (G.g.pick === 'fuel') CK.sw.fuel = clamp(Math.round(G.v0 + dy / 28), 0, 3);
+    else if (G.g.pick === 'thr') {                      // G364: the lever follows the hand, 150 px the travel
+      const W7 = typeof window !== 'undefined' ? window : {};
+      if (W7.FLYDIY_INPUT && W7.FLYDIY_INPUT.setAxis) W7.FLYDIY_INPUT.setAxis('throttle', clamp(G.v0 + dy / 150, 0, 1));
+    }
     else if (G.g.pick === 'flap') {                     // the lever pulled up is a notch of flap
       const W6 = typeof window !== 'undefined' ? window : {};
       const I6 = W6.FLYDIY_INPUT, st = I6 && I6.state ? I6.state() : null;

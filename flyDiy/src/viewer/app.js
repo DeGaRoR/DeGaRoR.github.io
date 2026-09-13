@@ -2141,14 +2141,18 @@
           ctlMoves.push({ obj: pg, c: pt.ctl, home: pt.pivot });
           // G318: the four controls the cockpit's click reaches, with an
           // unseen pad each (the switches' idiom, cockpit.js padSwitches)
-          const mp = /^edCtl_(flap|brake|fuel|trim)(#|$)/.exec(pt.ctl.name || '');
+          // G364: ...and the throttle (key 'thr'): its lever is big enough
+          // to be its own pad, in every ctlThr mode
+          const mp = /^edCtl_(flap|brake|fuel|trim|throttle)(#|$)/.exec(pt.ctl.name || '');
           if (mp) {
-            picks.push({ obj: pg, key: mp[1] });
-            const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-              new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
-            pad.userData.pickPad = 1;
-            if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
-            pg.add(pad);
+            picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
+            if (mp[1] !== 'throttle') {
+              const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
+                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+              pad.userData.pickPad = 1;
+              if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
+              pg.add(pad);
+            }
           }
         }
         else if (pt.kind === 'gauge' && pt.ctl) {
@@ -7142,6 +7146,7 @@
         flyEye = headCam.update(flEyeLoc.p, flEyeLoc.f, model.grp.matrixWorld);
         target.copy(flyEye);
         setNear(EYE_NEAR);
+        if (window.__flHover) window.__flHover();       // G364: the reticle / the hand
         return;
       }
       if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
@@ -7178,6 +7183,37 @@
   // THE COCKPIT'S SWITCHES (the panel arc, session 4): in the cockpit view a
   // click on a toggle, a knob, a rocker or the key works it; the orbit drag
   // still happens underneath (a click is a very short drag).
+  // G364: WHERE THE CLICK GOES. Under pointer lock (a right-drag that turned
+  // the head asks for it) the mouse has no place on the screen and the click
+  // works what the head looks straight at — so a reticle marks the centre
+  // and lights on a clickable thing; with the mouse free, the hand shows
+  // over one. The pick is the same raycast the click uses, asked at most
+  // every 80 ms (it walks the whole aeroplane).
+  const flReticle = document.createElement('div');
+  flReticle.id = 'flReticle'; flReticle.hidden = true;
+  ($('ui') || document.body).appendChild(flReticle);
+  let hoverAt = 0, hoverX = 0, hoverY = 0, hoverHit = false;
+  const cockpitHover = () => {
+    const locked = document.pointerLockElement === canvas;
+    const on = !inGarage && cam.mode === 'cockpit' && !!CK && !!model;
+    flReticle.hidden = !(on && locked);
+    if (!on) { if (hoverHit) { hoverHit = false; canvas.style.cursor = ''; } return; }
+    const now = performance.now();
+    if (now - hoverAt < 80) return;
+    hoverAt = now;
+    let hit = null;
+    if (locked) hit = CK.pick(camera, 0, 0, model);
+    else {
+      const r = canvas.getBoundingClientRect();
+      if (r.width && r.height && hoverX >= r.left && hoverX <= r.right && hoverY >= r.top && hoverY <= r.bottom)
+        hit = CK.pick(camera, ((hoverX - r.left) / r.width) * 2 - 1, -((hoverY - r.top) / r.height) * 2 + 1, model);
+    }
+    hoverHit = !!hit;
+    flReticle.classList.toggle('hot', hoverHit && locked);
+    canvas.style.cursor = hoverHit && !locked ? 'pointer' : '';
+  };
+  window.addEventListener('pointermove', e => { hoverX = e.clientX; hoverY = e.clientY; });
+  if (typeof window !== 'undefined') window.__flHover = cockpitHover;   // the frame loop calls it
   $('c').addEventListener('pointerdown', e => {
     if (inGarage || cam.mode !== 'cockpit' || !CK || !model || e.button !== 0) return;   // the left button is the switch's (4c)
     const r = canvas.getBoundingClientRect();

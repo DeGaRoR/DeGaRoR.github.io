@@ -43771,3 +43771,28 @@ checks; selftest.
 - OWED: the real ropes and the cabins the moment the branch lands (nothing
   to change here but deleting the copied `placeHouse`); `tram_run.js` ticked
   from the page's pump.
+
+## G364 — THE COCKPIT CLICK AUDIT (2026-09-13, WS-3; the user: "the flap
+## button is not clickable from the cockpit, ensure everything is")
+
+- Audited with real pointer events from the default head pose on the
+  user's build (the pads projected to the screen, a pointerdown dispatched
+  at each): the key, the three rockers, the four toggles, the four dimmers,
+  the floor flap lever, the brake, the fuel selector — and the dash flap
+  switch — all answer at their own centre. The miss the user hit is the
+  LOCK: a right-drag that turns the head asks for pointer lock (G264), and
+  once locked the mouse has no place on the screen — the click works what
+  the head looks straight at, and nothing on screen said so.
+- Now: a **reticle** at the screen centre while the pointer is locked in
+  the cockpit (`#flReticle`, flight.css), lit amber when the centre is on
+  something clickable; with the mouse free the **hand cursor** shows over
+  a clickable thing. Both ask the click's own raycast (`CK.pick`) at most
+  every 80 ms from the head-cam frame (`cockpitHover`, app.js).
+- The **throttle** is clickable in every ctlThr mode: the join's
+  `edCtl_throttle` group is a pick (`thr`, its own geometry the pad);
+  a drag up opens it (150 px the travel) through `FLYDIY_INPUT.setAxis`
+  (new, with `axis(id)`): the axis takes the value and the mouse owns it
+  until a device or a key speaks. Proven: manual mode, a drag down took
+  ctl.thr 0.85 → 0.
+- Seen, not mine: a saved 'cockpit' camera mode does not resolve the eye
+  at boot (HEAD_CAM.p stays 0 until the pill is clicked again).

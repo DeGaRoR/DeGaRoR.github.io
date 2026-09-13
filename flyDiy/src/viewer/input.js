@@ -660,6 +660,12 @@
       setProfile, resetDefaults, exportJSON, importJSON,
       devices, state, active: () => t - touchedAt < ACTIVE_FOR,
       trim: () => trim, setTrim: v => { trim = clamp(fin(v, 0), -TRIM_MAX, TRIM_MAX); },
+      // G364: the cockpit's own hand on a lever (the throttle dragged in the
+      // 3D cockpit): the axis takes the value and the mouse owns it until a
+      // device or a key speaks — a latch, like a key's own step
+      axis: id => S[id] ? S[id].out : 0,
+      setAxis: (id, v) => { const a = BY_ID[id], s = S[id]; if (!a || !s || a.kind !== 'axis') return;
+                            s.kb = s.out = clamp(fin(v, a.lo), a.lo, a.hi); s.owner = 'mouse'; touchedAt = t; },
       fire: id => { fireQ.push(String(id)); },       // G318
       onChange: f => { onChange = typeof f === 'function' ? f : null; },
       keyLabel,
