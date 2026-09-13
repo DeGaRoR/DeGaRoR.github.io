@@ -68,7 +68,11 @@ const SUB = 'tex/house';
 // GATE HOUSE refuses a role that offers the wrong kind. `use` is gone: it said
 // the same thing twice and the two could drift.
 //
-// kind: 'plank' | 'veneer' | 'roof' | 'log' | 'plain' | 'stone' | 'end'
+// kind: 'plank' | 'veneer' | 'roof' | 'log' | 'plain' | 'stone' | 'end' | 'steel'
+//
+// STEEL (G342) is structural plate - a lattice chord, a girder web, a wheel
+// rim - not a covering; no house role offers it. The tram's steel wears two
+// of them at once, mixed by geometry.
 //
 // PLAIN is G236's kind and it is not a synonym for veneer: a veneer is one
 // piece of FINISHED wood (a casing, a baluster, a milled board) and a plain
@@ -97,6 +101,8 @@ const SETS = [
   ['shingle', 'roof', 'shakes / shingles', 2.6, 512, 0.00, false, false],
   ['galv', 'roof', 'galvanised sheet', 1.0, 256, 0.85, false, false],
   ['rust', 'roof', 'rusted steel', 1.8, 512, 0.60, false, false],
+  ['steelgrey', 'steel', 'painted steel, weathered', 2.0, 512, 0.80, false, false],
+  ['steelrust', 'steel', 'rusting steel plate', 2.0, 512, 0.65, false, false],
   ['shakes', 'plank', 'shake siding', 2.2, 512, 0.00, false, false],
   ['paintwood', 'plank', 'painted planks', 1.9, 512, 0.00, true, false],
   ['greenwood', 'plank', 'rough painted planks', 1.9, 512, 0.00, true, false],

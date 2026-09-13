@@ -92,6 +92,11 @@ function makeMats() {
   logend: std(0xb9a583),
   stone:  std(0x8e8b85),
   metal:  std(0xb4bcc2, { roughness: 0.45, metalness: 0.75 }),
+  // THE TRAM'S STEEL (G342): two slots, both wearing the grey set with the
+  // rust set mixed in by geometry (steelMix) - the lattice mostly grey, the
+  // saddle girder and the wheel mostly rust
+  steel:  std(0x8d9296, { roughness: 0.6, metalness: 0.8 }),
+  girder: std(0x8a6a55, { roughness: 0.7, metalness: 0.7 }),
   floor:  std(0x6d6154),
   // THE SMOKE (G254, the user: "Do you think we could have cheap chimney
   // smoke too?"): a basic material - it is not lit, it is a haze - drawn
@@ -118,7 +123,8 @@ function makeMats() {
 }
 const MAT = makeMats();
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
-              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend', 'flag', 'star'];
+              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend', 'flag', 'star',
+              'steel', 'girder'];   // the tram's structure (G342)
 // AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
 // soft crossed quads with no surface to them - no occlusion to bake, no
 // texel density to hold, no silhouette to keep - so it stands outside the
@@ -213,6 +219,7 @@ function handOff(P, p, x, z, k, m) {
 const SET_KIND = {
   boxprof: 'roof', corrworn: 'roof', corrrust: 'roof', shingle: 'roof',
   galv: 'roof', rust: 'roof',
+  steelgrey: 'steel', steelrust: 'steel',   // structural plate (G342): the tram's steel, no house role offers it
   shakes: 'plank', paintwood: 'plank', greenwood: 'plank', board: 'plank',
   roughwood: 'plank', brownwood: 'plank', greywood: 'plank',
   wornwood: 'plank', deckwood: 'plank', darkwood: 'plank',
@@ -452,6 +459,7 @@ const ROLE_KIND = {
   deck: ['plank', 'plain', 'stone'],
   post: ['plain', 'log', 'veneer'], metal: ['roof'],
   stone: ['stone'],
+  steel: ['steel'],      // G342: the tram's structure
 };
 const ORDER = {
   wall: ['paintwood', 'greenwood', 'board', 'brownwood', 'roughwood',
@@ -472,6 +480,7 @@ const ORDER = {
   // sixteen-times blur) 0.015 for the first and 0.036 for the second, which is
   // darker in all three channels as well.
   stone: ['concrete', 'concretec'],
+  steel: ['steelgrey', 'steelrust'],
 };
 const ROLE_SETS = (() => {
   const out = {};
@@ -816,7 +825,7 @@ function shadeHouse(m, U) {
 // own profile, so it stays near 1.
 const NRM = { siding: 1.7, trim: 1.3, deck: 1.6, post: 1.5, floor: 1.6,
               stone: 1.4, roof: 1.1, rib: 1.0, metal: 1.0, pile: 1.5,
-              log: 1.4, logend: 1.2 };
+              log: 1.4, logend: 1.2, steel: 1.2, girder: 1.3 };
 
 // THE GLASS PATCH (the user: "enhance the window material. We don't need
 // transparency, but it has to take the light better. Glares, reflections,
@@ -1356,6 +1365,16 @@ function applyFinish(P, F) {
           { flat: 0x8e8b85, nrm: NRM.stone });
   dressMat(MAT.metal, setFor(P, 'metal'), P.metalCol,
           { flat: 0xb4bcc2, nrm: NRM.metal, rough: 0.85 });
+  // THE TRAM'S STEEL (G342): the grey set on, the rust set mixed in by
+  // geometry - rain on the up-facing plate, streaks down the webs, the
+  // joints - at the slot's own level (`steelRust` for the lattice, the
+  // girder and the wheel a good deal rustier)
+  if (MAT.steel) {
+    dressMat(MAT.steel, 'steelgrey', 0, { flat: 0x8d9296, nrm: NRM.steel, rough: 0.9 });
+    steelMix(MAT.steel, 'steelrust', P.steelRust === undefined ? 0.3 : P.steelRust);
+    dressMat(MAT.girder, 'steelgrey', 0, { flat: 0x8a6a55, nrm: NRM.girder, rough: 0.95 });
+    steelMix(MAT.girder, 'steelrust', P.girderRust === undefined ? 0.72 : P.girderRust);
+  }
   MAT.pane.map = null; MAT.pane.normalMap = null; MAT.pane.roughnessMap = null;
   // the far mesh's pane is the same glass one step duller: it is seen from far
   // enough that a hard glint would twinkle as the camera moves
@@ -1419,6 +1438,12 @@ const DEF = {
   chim: 1, chimXF: -0.45, chimZF: 0.30, chimR: 0.10, chimUp: 0.95,
   flagpole: 0, flagXF: 0.62,
   clouds: 0, roofClouds: undefined, roofTile: 1, roofNrm: 1, openFront2: 0,
+  // THE TRAM'S TOP STATION (G342): a composite of houses on a steel mast -
+  // see tools/_tram_gen.js
+  station: 0, mastH: 22, mastTop: 3.6, mastBase: 5.4, panel: 2.4, deckFront: 9.5, deckBack: 8, deckW: 5.0, deckD: 1.2,
+  portalH: 4.5, girderR: 8, girderW: 2.2, girderD: 2.4, girderDn: 1.3, noseDeg: 48, lineDeg: 32, anchorDeg: 62,
+  trackX: 0.75, wheelR: 1.8, haulDrop: 0.9, houseL: 10.5, passage: 1, terminal: 1, terminalZ: 38, strut: 1, strutZ: 14,
+  dockDrop: 5.5, steelRust: 0.3, girderRust: 0.72,
   // THE MILL (G329): a composite of houses up a hill - see buildMill
   mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
   tram: 1, tramTo: null, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, millTiers: null, frameBack: 2,
@@ -1682,6 +1707,23 @@ const ROWS = [
     ['cupSpire', 'spire height', 0.3, 3.0, 0.05, null, P => !!P.cupola],
     ['cupXF', 'along the ridge', -1, 1, 0.01, null, P => !!P.cupola],
     ['cupCross', 'cross', 0, 1, 1, null, P => !!P.cupola],
+  ]],
+  ['the tram station', [
+    ['station', 'the tram top station', 0, 1, 1],
+    ['mastH', 'mast height', 10, 40, 0.5, null, P => !!P.station], ['mastTop', 'mast top width', 2.5, 6, 0.1, null, P => !!P.station],
+    ['mastBase', 'mast base width', 3, 10, 0.1, null, P => !!P.station], ['panel', 'panel height', 1.5, 4, 0.1, null, P => !!P.station],
+    ['deckFront', 'deck forward of the mast', 6, 16, 0.5, null, P => !!P.station], ['deckBack', 'deck behind the mast', 4, 14, 0.5, null, P => !!P.station],
+    ['deckW', 'deck width', 4, 8, 0.1, null, P => !!P.station], ['houseL', 'the houses across', 7, 16, 0.5, null, P => !!P.station],
+    ['portalH', 'the portal above the mast', 2, 8, 0.1, null, P => !!P.station], ['girderR', 'girder radius', 4, 12, 0.1, null, P => !!P.station],
+    ['girderW', 'girder width', 1, 3.5, 0.1, null, P => !!P.station], ['girderD', 'girder depth at the foot', 0.8, 2.5, 0.05, null, P => !!P.station],
+    ['girderDn', 'girder depth at the nose', 0.5, 1.6, 0.05, null, P => !!P.station], ['noseDeg', 'the nose past the apex', 30, 70, 1, null, P => !!P.station],
+    ['lineDeg', 'the line comes up at', 15, 45, 1, null, P => !!P.station], ['anchorDeg', 'the anchor ropes go down at', 40, 80, 1, null, P => !!P.station],
+    ['trackX', 'track ropes off centre', 0.3, 1.5, 0.05, null, P => !!P.station], ['wheelR', 'bull wheel radius', 0.8, 2.5, 0.05, null, P => !!P.station],
+    ['haulDrop', 'haul rope under the girder', 0.3, 2, 0.05, null, P => !!P.station],
+    ['passage', 'the passageway', 0, 1, 1, null, P => !!P.station], ['terminal', 'the terminal house', 0, 1, 1, null, P => !!P.station],
+    ['terminalZ', 'the terminal behind', 20, 60, 0.5, null, P => !!P.station], ['strut', 'the raked strut', 0, 1, 1, null, P => !!P.station],
+    ['strutZ', 'its footing forward', 6, 30, 0.5, null, P => !!P.station], ['dockDrop', 'the dock guides down', 2, 10, 0.1, null, P => !!P.station],
+    ['steelRust', 'rust on the lattice', 0, 1, 0.02, null, P => !!P.station], ['girderRust', 'rust on the girder', 0, 1, 0.02, null, P => !!P.station],
   ]],
   ['the mill', [
     ['mill', 'a mill up the hill', 0, 1, 1], ['tiers', 'tiers', 3, 10, 1, null, P => !!P.mill],
@@ -2062,6 +2104,17 @@ const PRESETS = {
   // THE MILL (G329): a composite of houses up a 27-degree hill - see
   // buildMill. Every tier a house on the house's own posts and braces,
   // with the house's windows, roof edges, paint, dirt and weather.
+  // THE TRAM'S TOP STATION (G342, the Goldbelt tram's top terminal for the
+  // structure): a lattice mast on a ridge, the deck with its three staggered
+  // station houses, the curved saddle girder with the bull wheel under its
+  // nose, the raked strut, the passageway back to the red terminal house
+  'tram top station': {
+    station: 1, slopeZ: 28, slopeX: 0, floorY: 22.3, L: 11, w: 7, storeys: 1, stance: 0,
+    weather: 0.5, dirt: 0.2, dirtH: 0.8, paintPunch: 0.2, clouds: 0.25, ao: 0.85, aoRange: 0.9,
+    yard: 0, woodpile: 0, people: 0, boat: 0, chim: 0, lights: 0, curtains: 0, pier: 0, water: 0,
+    wallSet: SET_IDX('wall', 'boxprof'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
+  },
   'kennecott mill': {
     mill: 1, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
     tram: 1, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, frameBack: 3,
@@ -5617,6 +5670,7 @@ function pathPlan(P, V, dk, stoop, front, pier, g) {
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   if (P.mill) return buildMill(P, lod, F);          // a composite of houses (G329)
+  if (P.station && window.TRAM_GEN) return window.TRAM_GEN.buildStation(P, lod, F);   // the tram's top station (G342)
   const SU = F ? F.SHADE_U : SHADE_U;             // the finish the sag goes to
   const Q = { lod: lod | 0 };
   const bags = {};
@@ -5910,7 +5964,9 @@ function buildComposite(parts, opts, lod, F) {
     const P = Object.assign({}, DEF, part.P, {
       ao: 0, aoGround: 0, smoke: 0, yard: 0, woodpile: 0, people: 0, pier: 0, lights: 0, barrel: 0, flagpole: 0,
       slopeX: 0, slopeZ: 0, water: 0, lean: 0, bay: 0, dormers: 0, chim: part.P.chim || 0,
-      ground: (lx, lz) => { const w = toW(lx, lz); return g(w[0], w[1]); } });
+      // a part may bring its own ground (G342: a house on a steel deck stands
+      // on the deck, not on the hill twenty metres below)
+      ground: typeof part.ground === 'function' ? part.ground : (lx, lz) => { const w = toW(lx, lz); return g(w[0], w[1]); } });
     const b = build(P, lod, F);
     for (const k of BAGS) bags[k].append(b.bags[k], { yaw, dx: part.x, dz: part.z });
     for (const o of b.stats.groundAO || []) {
@@ -6386,6 +6442,62 @@ const CLOUD_GLSL = `
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.3, 0.29, 0.28), smoothstep(0.55, 0.9, _c3) * uCloudK * 0.4);
     }
   }`;
+// THE STEEL MIX (G342, the user: "use the attached textures for the main
+// beam, and mix them both, ideally seamlessly and based on geometry"). The
+// material wears one set through its ordinary maps and a second set through
+// three more samplers, and the fragment decides how much of the second to
+// show from WHERE IT IS: the world normal (rain sits on an up-facing plate,
+// so it rusts; an underside stays paint), streaks running DOWN the surface
+// (a noise stretched along y), a slow patchiness, and the slot's own level.
+// Both sets are the same plate weathered two ways, so the blend between them
+// is seamless by construction; the geometry only says where.
+function steelMix(m, key2, level) {
+  const ud = m.userData || (m.userData = {});
+  const set2 = key2 && libSets() && libSets()[key2];
+  if (!ud.steelMixed) {
+    ud.steelMixed = true;
+    ud.uRustLevel = { value: level };
+    ud.uMap2 = { value: null }; ud.uNor2 = { value: null }; ud.uRough2 = { value: null };
+    ud.uHasMap2 = { value: 0 };
+    const prev = m.onBeforeCompile;
+    m.onBeforeCompile = sh => {
+      if (prev) prev(sh);
+      sh.uniforms.uRustLevel = ud.uRustLevel; sh.uniforms.uMap2 = ud.uMap2;
+      sh.uniforms.uNor2 = ud.uNor2; sh.uniforms.uRough2 = ud.uRough2; sh.uniforms.uHasMap2 = ud.uHasMap2;
+      sh.vertexShader = 'varying vec3 vSteelN;' + String.fromCharCode(10) + sh.vertexShader
+        .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + String.fromCharCode(10) + '  vSteelN = normalize((modelMatrix * vec4(objectNormal, 0.0)).xyz);');
+      sh.fragmentShader = 'uniform float uRustLevel, uHasMap2; uniform sampler2D uMap2, uNor2, uRough2; varying vec3 vSteelN; float sMix;' + String.fromCharCode(10) + sh.fragmentShader
+        .replace('#include <map_fragment>', '#include <map_fragment>' + String.fromCharCode(10) + STEEL_GLSL)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + String.fromCharCode(10) +
+          '  if (uHasMap2 > 0.5) roughnessFactor = roughness * mix(texture2D(roughnessMap, vUv).g, texture2D(uRough2, vUv).g, sMix);')
+        .replace('#include <normal_fragment_maps>',
+          '  if (uHasMap2 > 0.5) { vec3 mapN2 = mix(texture2D(normalMap, vUv).xyz, texture2D(uNor2, vUv).xyz, sMix) * 2.0 - 1.0; mapN2.xy *= normalScale;' +
+          ' normal = perturbNormal2Arb(-vViewPosition, normal, mapN2, faceDirection); } else {' + String.fromCharCode(10) +
+          '#include <normal_fragment_maps>' + String.fromCharCode(10) + '  }');
+    };
+    m.needsUpdate = true;
+  }
+  ud.uRustLevel.value = level;
+  if (set2) {
+    ud.uMap2.value = tex(key2, 'diff'); ud.uNor2.value = tex(key2, 'nor'); ud.uRough2.value = tex(key2, 'rough');
+    ud.uHasMap2.value = (ud.uMap2.value && ud.uNor2.value && ud.uRough2.value) ? 1 : 0;
+  }
+}
+const STEEL_GLSL =
+  '  {' + String.fromCharCode(10) +
+  '    vec3 sn = normalize(vSteelN);' + String.fromCharCode(10) +
+  '    float sUp = clamp(sn.y, 0.0, 1.0), sDown = clamp(-sn.y, 0.0, 1.0);' + String.fromCharCode(10) +
+  '    float sStreak = hNoise(vHouseP * vec3(1.1, 0.16, 1.1) + 7.0) - 0.5;' + String.fromCharCode(10) +
+  '    float sPatch = hNoise(vHouseP * 0.33 + 2.0) - 0.5;' + String.fromCharCode(10) +
+  '    float sFine = hNoise(vHouseP * 2.3 + 11.0) - 0.5;' + String.fromCharCode(10) +
+  '    float sk = uRustLevel + 0.28 * sUp - 0.18 * sDown + 0.42 * sStreak + 0.5 * sPatch + 0.16 * sFine;' + String.fromCharCode(10) +
+  '    sMix = smoothstep(0.3, 0.7, sk);' + String.fromCharCode(10) +
+  '    if (uHasMap2 > 0.5) {' + String.fromCharCode(10) +
+  '      vec4 c2 = texture2D(uMap2, vUv);' + String.fromCharCode(10) +
+  '      diffuseColor.rgb = mix(diffuseColor.rgb, c2.rgb, sMix);' + String.fromCharCode(10) +
+  '    } else diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.24, 0.14), sMix * 0.8);' + String.fromCharCode(10) +
+  '  }';
+
 function cloudWeather(m, k, mode) {
   const ud = m.userData || (m.userData = {});
   if (ud.clouded) { ud.uCloudK.value = k; ud.uCloudMode.value = mode || 0; return; }
@@ -6581,6 +6693,7 @@ window.HOUSE_GEN = {
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   makeFinish, shadeGround, buildGroundAO, shadeSkirt,
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
+  steelMix,   // the tram's steel (G342)
   buildComposite, buildMill,   // composites of houses: the mill (G329)
   dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,
 };

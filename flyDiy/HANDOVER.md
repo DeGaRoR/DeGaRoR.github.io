@@ -42000,3 +42000,82 @@ futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
   Door-keyed trim is skipped there now. And a gate's verdict is the WHOLE
   line `GATE <ID>: PASS` (the runner's regex), which the first check did
   not print — it read as red on the worktree with every row passing.
+
+## G342 — THE AERIAL TRAMWAY'S TOP STATION: A COMPOSITE OF HOUSES ON A LATTICE
+## MAST, THE CURVED SADDLE GIRDER AND ITS BULL WHEEL, THE STEEL THAT WEARS TWO
+## SETS AT ONCE
+## (2026-09-13, the user: "We'll be modeling a cable car using the house
+## standard building procedure too ... We'll need a proper metal beam structure
+## and material though. We'll take inspiration from the Goldbelt tram. We'll
+## focus on modeling the top station first ... a more complex truss, metal, a
+## couple of houses like we can do on top, a suspended passageway, and the big
+## metal beam overarching structure holding the wheels. Don't bother modeling
+## the lines or the cabins for now ... think of the appropriate hooks for the
+## cables ... reproduce meaningful structural elements ... mix [the two
+## textures] ideally seamlessly and based on geometry. The main beam and the
+## wheels are important, model them correctly")
+
+- **`tools/_tram_gen.js`** (`TRAM_GEN.buildStation(P, lod, F)`; the house
+  preset `tram top station`, `P.station` → `build()` hands off; every dial
+  under "the tram station"): a `buildComposite` the way the mill is. THE
+  STRUCTURE, read off the Goldbelt terminal: a tapered four-chord lattice
+  MAST on four footings (struts at every panel, an X on every face, a
+  plan diaphragm every second panel, a ladder up the inside); the DECK
+  of two plate girders along the line on top of it, cantilevered toward
+  the valley and toward the ridge, cross beams, a floor plate, knee
+  braces off the mast's chords, a handrail; THREE STAGGERED STATION
+  HOUSES on the deck (house builds: box-profile sheet, ribbon windows, no
+  window into a joint, their posts stubs into the deck - a part may bring
+  its own `ground` now); the PORTAL frame behind the machine house; the
+  curved SADDLE GIRDER - a track rope cannot bend sharply, so the saddle
+  is an arc of large radius: a tapered box girder with flange plates and
+  stiffener ribs, from the portal's crossbar up over the houses and down
+  to the nose, the two saddle strips the track ropes ride, a prop under
+  the arch; the BULL WHEEL under the nose - rim, hub, axle, eight spokes,
+  hangers and bearings - placed so the haul rope arrives tangent at the
+  line's angle; the RAKED LEG (a two-chord lattice, laced) from a footing
+  forward on the slope up to an outrigger off the girder's nose, beside
+  the houses - the rope pulls the nose down the valley and the leg takes
+  it in compression; the DOCK guide frames hanging under the tip; the
+  PASSAGEWAY (a house turned lengthways) on a Warren truss with trestle
+  bents to the ground, back to the terminal house on the ridge (a plain
+  house on the real ground; in one composite it wears the station's
+  cladding - in the village it will be its own red house).
+- **THE HOOKS** (`stats.station.hooks`): the track ropes' tangent points
+  and directions on the saddle, front (down the line at `lineDeg`) and
+  back (down to the anchors at `anchorDeg`); the haul rope's two strands
+  off the wheel, parallel to the line; the dock. `stats.station.girder`
+  (centre, radius, angles, foot/apex/nose), `.wheel` (centre, radius,
+  axis), `.mast`, `.boxes`.
+- **THE STEEL** (`steelgrey` = Metal041B, `steelrust` = Metal041C, kind
+  `steel`, role `steel`, CC0 ambientCG through the house importer;
+  `media/tex/house/steel*`): two new material slots and bags, `steel`
+  (the lattice, the deck, the trusses, hub and spokes) and `girder` (the
+  arc, the wheel's rim, the hangers). `steelMix(m, key2, level)` chains
+  after the house shader: the grey set through the ordinary maps, the
+  rust set through three more samplers, and the fragment decides how
+  much rust to show FROM WHERE IT IS - the world normal (rain sits on an
+  up-facing plate; an underside keeps its paint), streaks running down
+  (a noise stretched along y), a slow patchiness, a fine grain, and the
+  slot's level (`steelRust` 0.3 on the lattice, `girderRust` 0.72 on the
+  girder). Diffuse, normal and roughness all mix; the two sets are the
+  same plate weathered two ways, so the blend is seamless by
+  construction.
+- GATE HOUSE 38: builds in both LODs, finite; the deck the mast's height
+  up, the mast on the ground, the portal above the deck, every station
+  house on the deck and no house post under it; the girder an arc - its
+  foot on it, its apex the highest steel, its nose forward of the deck;
+  the hooks: track ropes leave the saddle at the line's angle, anchor
+  ropes down and back, haul strands tangent to the wheel and parallel to
+  the line, the wheel clear of the girder and above the deck; no pane
+  into another house; deterministic. The station is not in the presets
+  battery (a composite), like the mill.
+- Two traps: a front door on a 28-degree slope drew a stair that chased
+  the ground forty metres down the hill (the terminal's door is at the
+  back); a pane check that walked the vertex array by threes read quads
+  as triangles (walk the index).
+- Gates: HOUSE, VILLAGE, MEDIA green. Not done, by the user's word: the
+  cables and the cabins; the station in a village theme; the yellow
+  anchor frame at the leg's foot.
+- Queued (the user's order): the front lot + parking alley + the user's
+  road-facing cars; the optimisation tour; the world join.

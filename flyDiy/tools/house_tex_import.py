@@ -72,6 +72,11 @@ SETS = [
     # metal
     ('galv',      'Metal037_1K-JPG.zip',                  'acg',    'ambientCG',  'CC0', 'Metal037',                 1.0, False),
     ('rust',      'rust_coarse_01_1k.gltf.zip',           'ph',    'Poly Haven', 'CC0', 'rust_coarse_01',           1.8, False),
+    # G342, STEEL: two weatherings of the same painted plate - grey with rust
+    # streaks, rust with grey patches - the tram's structure mixes them in the
+    # shader by geometry (see steelMix in _house_gen.js)
+    ('steelgrey', 'Metal041B_1K-JPG.zip',                 'acg',   'ambientCG',  'CC0', 'Metal041B',                2.0, False),
+    ('steelrust', 'Metal041C_1K-JPG.zip',                 'acg',   'ambientCG',  'CC0', 'Metal041C',                2.0, False),
     ('boxprof',   'box_profile_metal_sheet_1k.gltf.zip',  'ph',    'Poly Haven', 'CC0', 'box_profile_metal_sheet',  3.2, True),
     ('corrworn',  'worn_corrugated_iron_1k.gltf.zip',     'ph',    'Poly Haven', 'CC0', 'worn_corrugated_iron',     3.6, False),
     ('corrrust',  'rusty_corrugated_iron_1k.gltf.zip',    'ph',    'Poly Haven', 'CC0', 'rusty_corrugated_iron',    4.8, False),

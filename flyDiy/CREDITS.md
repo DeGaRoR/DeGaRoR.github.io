@@ -253,7 +253,10 @@ library that is never recoloured: a stain is a finish that shows the wood, and
 neutralising it to take a tint is no longer a stain at all),
 `WoodSiding010` (`shakes`, the weathered shake siding),
 and `Bark015` (`bark`, G232.4 — a driven pile is a tree with its skin still
-on, and it is the only `log`-kind set in the library).
+on, and it is the only `log`-kind set in the library); and from the tram
+(G342): `Metal041B` (`steelgrey`) and `Metal041C` (`steelrust`), the same
+painted plate weathered two ways, which the tram's structure mixes in the
+shader by geometry - rust where rain sits and streaks down, paint under.
 
 **The two VENEERS are not a new import.** `veneer` and `veneerdark` are
 `assets/wood/maple` and `assets/wood/walnutfig` — the aeroplane's own CC0

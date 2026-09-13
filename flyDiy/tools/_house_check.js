@@ -86,7 +86,7 @@ let VMCTX = null;          // kept: the PBR check has to inject a stub library
   ctx.globalThis = ctx;
   VMCTX = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }
@@ -1232,7 +1232,7 @@ function battery(name, P) {
            posts: hi.stats.posts, sil: worst };
 }
 for (const name of Object.keys(HG.PRESETS))
-  if (!HG.PRESETS[name].mill) rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
+  if (!HG.PRESETS[name].mill && !HG.PRESETS[name].station) rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
 
 // 37 — THE MILL, A COMPOSITE OF HOUSES (G329): it builds in both LODs,
 //   finite, the low mesh lower; every tier's floor above the one below and
@@ -1294,6 +1294,83 @@ for (const name of Object.keys(HG.PRESETS)) {
   }
   const again = HG.build(P, 0);
   check(again.stats.tris === hi.stats.tris, 'mill ' + name + ': the build is not deterministic');
+}
+
+// 38 — THE TRAM'S TOP STATION (G342): a composite of houses on a lattice
+//   mast with a curved saddle girder. It builds in both LODs, finite; the
+//   deck stands the mast's height over the footings; the mast's chords reach
+//   the ground; every station house's floor is on the deck and no house post
+//   reaches below it (a house on the deck stands on the deck); the girder is
+//   an arc - its foot on the portal, its apex the highest steel, its nose
+//   forward of the deck's tip; the hooks are real: the track ropes leave the
+//   saddle top at the line's angle (down and forward), the anchor ropes down
+//   and back, the haul rope's two strands are tangent to the bull wheel and
+//   parallel to the line, the wheel hangs under the girder without touching
+//   it; no window opens into another house; the same seed builds twice.
+for (const name of Object.keys(HG.PRESETS)) {
+  if (!HG.PRESETS[name].station) continue;
+  const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
+  let hi = null, lo = null, threw = null;
+  try { hi = HG.build(P, 0); lo = HG.build(P, 1); } catch (e) { threw = e; }
+  if (!check(!threw, 'station ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
+  let nan = 0, yTop = -1e9, yBot = 1e9;
+  const range = k => { const d = hi.bags[k].data(); let y0 = 1e9, y1 = -1e9, z1 = -1e9; for (let i = 0; i < d.pos.length; i += 3) { if (!isFinite(d.pos[i]) || !isFinite(d.pos[i + 1]) || !isFinite(d.pos[i + 2])) { nan++; continue; } y0 = Math.min(y0, d.pos[i + 1]); y1 = Math.max(y1, d.pos[i + 1]); z1 = Math.max(z1, d.pos[i + 2]); } return { y0, y1, z1, n: d.pos.length / 3 }; };
+  const per = {};
+  for (const k of HG.BAGS) { per[k] = range(k); if (per[k].n) { yTop = Math.max(yTop, per[k].y1); yBot = Math.min(yBot, per[k].y0); } }
+  check(nan === 0, 'station ' + name + ': NaN in the mesh', String(nan));
+  check(hi.stats.tris > 8000, 'station ' + name + ': too few triangles', String(hi.stats.tris));
+  check(lo.stats.tris < hi.stats.tris * 0.8, 'station ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
+  const S = hi.stats.station, g = hi.stats.ground;
+  check(!!S && S.deckY > g(0, 0) + P.mastH - 0.01, 'station ' + name + ': the deck is not the mast up');
+  check(per.steel.y0 < g(0, 0) + 0.5, 'station ' + name + ': the mast does not reach the ground', per.steel.y0.toFixed(2));
+  check(per.steel.y1 > S.deckY + P.portalH - 0.1, 'station ' + name + ': no portal above the deck');
+  for (const b of S.boxes) if (b.tag !== 'terminal house') check(b.y0 > S.deckY + 0.05, 'station ' + name + ': ' + b.tag + ' is not on the deck');
+  // no house post below the deck: the post bag's lowest vertex above the deck
+  // less a step (the terminal house on the ridge stands on the ground behind)
+  const dPost = hi.bags.post.data();
+  let low = 0;
+  for (let i = 0; i < dPost.pos.length; i += 3) if (dPost.pos[i + 1] < S.deckY - 1.0 && dPost.pos[i + 2] > -P.terminalZ + 6) low++;
+  check(low === 0, 'station ' + name + ': house posts hang under the deck', String(low));
+  // the girder
+  const G = S.girder;
+  const apexY = G.C[1] + G.R;
+  check(Math.abs(G.apex[1] - apexY) < 1e-6 && yTop >= apexY + G.dNose / 2 - 0.05, 'station ' + name + ': the girder is not the highest steel');
+  check(G.nose[2] > P.deckFront - 1.5, 'station ' + name + ': the nose is not forward of the deck', G.nose[2].toFixed(2));
+  check(Math.abs(Math.hypot(G.foot[1] - G.C[1], G.foot[2] - G.C[2]) - G.R) < 1e-6, 'station ' + name + ': the foot is off the arc');
+  // the hooks
+  const H = S.hooks;
+  const onArc = h => Math.abs(Math.hypot(h.p[1] - G.C[1], h.p[2] - G.C[2]) - G.R) < G.dFoot / 2 + 0.3;
+  for (const h of H.track) {
+    check(onArc(h), 'station ' + name + ': a track hook is off the saddle');
+    check(h.dir[2] > 0 && h.dir[1] < 0 && Math.abs(Math.atan2(-h.dir[1], h.dir[2]) - P.lineDeg * Math.PI / 180) < 1e-6, 'station ' + name + ': the track rope does not leave at the line angle');
+  }
+  for (const h of H.anchor) {
+    check(onArc(h), 'station ' + name + ': an anchor hook is off the saddle');
+    check(h.dir[2] < 0 && h.dir[1] < 0, 'station ' + name + ': the anchor rope does not go down and back');
+  }
+  const W = S.wheel;
+  for (const h of H.haul) {
+    const d = Math.hypot(h.p[1] - W.c[1], h.p[2] - W.c[2]);
+    check(Math.abs(d - W.r) < 1e-6, 'station ' + name + ': a haul strand is not on the wheel');
+    const rad = [(h.p[1] - W.c[1]) / d, (h.p[2] - W.c[2]) / d];
+    check(Math.abs(rad[0] * h.dir[1] + rad[1] * h.dir[2]) < 1e-6, 'station ' + name + ': a haul strand is not tangent to the wheel');
+    check(Math.abs(h.dir[1] - H.track[0].dir[1]) < 1e-6 && Math.abs(h.dir[2] - H.track[0].dir[2]) < 1e-6, 'station ' + name + ': the haul strand is not parallel to the line');
+  }
+  const dWheel = Math.hypot(W.c[1] - G.C[1], W.c[2] - G.C[2]);
+  check(dWheel + W.r < G.R - G.dNose / 2 - 0.05, 'station ' + name + ': the wheel touches the girder', (dWheel + W.r).toFixed(2) + ' vs ' + (G.R - G.dNose / 2).toFixed(2));
+  check(W.c[1] > S.deckY + 0.5, 'station ' + name + ': the wheel hangs below the deck');
+  // no pane into another house
+  const dPane = hi.bags.glass.data();
+  let inJoint = 0;
+  for (let t = 0; t < dPane.idx.length; t += 3) {
+    const a = dPane.idx[t] * 3, b2 = dPane.idx[t + 1] * 3, c2 = dPane.idx[t + 2] * 3;
+    const x = (dPane.pos[a] + dPane.pos[b2] + dPane.pos[c2]) / 3, y = (dPane.pos[a + 1] + dPane.pos[b2 + 1] + dPane.pos[c2 + 1]) / 3, z = (dPane.pos[a + 2] + dPane.pos[b2 + 2] + dPane.pos[c2 + 2]) / 3;
+    const inside = S.boxes.filter(b => x > b.x0 + 0.2 && x < b.x1 - 0.2 && z > b.z0 + 0.2 && z < b.z1 - 0.2 && y > b.y0 + 0.2 && y < b.y1 - 0.2);
+    if (inside.length) inJoint++;
+  }
+  check(inJoint === 0, 'station ' + name + ': ' + inJoint + ' pane triangles open into another house');
+  const again = HG.build(P, 0);
+  check(again.stats.tris === hi.stats.tris, 'station ' + name + ': the build is not deterministic');
 }
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use
@@ -1639,7 +1716,7 @@ if (SELFTEST) {
   if (HG.build(Object.assign({}, HG.DEF, { chim: 0 }), 0).stats.chimney)
     neg.push('a house with no chimney published one');
   for (const nm in HG.PRESETS)
-    if (!HG.PRESETS[nm].openFront && !HG.PRESETS[nm].outbuilding && !HG.PRESETS[nm].mill && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
+    if (!HG.PRESETS[nm].openFront && !HG.PRESETS[nm].outbuilding && !HG.PRESETS[nm].mill && !HG.PRESETS[nm].station && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
       neg.push('preset ' + nm + ' has no chimney');
   // THE YARD (G273): the default house grows props and a woodpile with
   // rounds in it; with the dials off it grows neither; the same seed twice is
