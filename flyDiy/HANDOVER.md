@@ -44178,3 +44178,89 @@ are clear and can be picked up with rigor by other sessions?"
   per futureDesigns/VILLAGE-TRAM-MILL-PARK-PROCEDURES-2026-09-14.md section 9).
   The user: "I think we can close the session here, leave that to the world
   editor. Commit according to the procedure."
+
+## G370 — THE FLOAT IN WATER, H0: ONE FLOAT DROPPED ON THE TANK, AND THE FOUR
+## QUESTIONS ANSWERED WITH NUMBERS (2026-09-13, from WATER-2026-09-13.md §5)
+
+The spike the water design asked for before anything is built into the
+solver: `tools/_hydro_gen.js` (the model), `_hydro_check.js` (GATE HYDRODYN,
+core, ~30 s), `_hydro.html` (the bench, launch `flydiy-hydro`, port 8420;
+`window.BENCH` drives it headless; shots in screenshots/hydro/). Nothing in
+src/ touched; no vessel, float or hull in the game yet.
+
+THE MODEL. A closed hull lofted from stations in the model frame (x aft, y
+up, z right; origin at the step's keel): V-bottom of declared deadrise to
+the chine, sides, deck, bow cap, transom, and THE STEP (the afterbody's keel
+`hs` higher, rising aft at `aftAngle`). Every panel is a planar triangle
+CLIPPED against the free surface each substep (Sutherland-Hodgman on the
+signed depth at its corners) — wet area, depth-weighted vector area,
+centroid, all exact for a planar surface, zero when dry: there is no
+boolean anywhere. Four smooth terms: hydrostatic (Gauss on the clipped
+polygons, faded to atmospheric toward a trailing edge only AS FAR AS THAT
+EDGE IS VENTILATED), planing lift (Savitsky's dynamic term as a per-panel
+pressure concentrated at the wet leading edge, his deadrise correction, in
+quadrature with a Newtonian sin^2 for a square-on entry, one-sided), drag
+(ITTC-57 friction along the local flow, cross-flow pressure on sides/bow/
+transom, the pressure terms' own aft components — no separate wave curve),
+and the slam (von Karman / Wagner wedge entry on the keel depth, ON THE
+UNSTEADY ENTRY ONLY: heave, pitch rate and the water's motion; the steady
+forward entry over the inclined bottom IS the planing lift, and counting it
+twice porpoised the tow to 20 deg and out of the water at 17 m/s). Plus a
+linear radiation damping (kRad, INFERRED from the 2D heaving-section curve)
+and the unventilated step's base suction (CpBase, INFERRED). THE STEP WORKS
+BY GEOMETRY: aft of it the surface the afterbody sees is the forebody's
+wake (a streamline off the edge falling under gravity, recovering over
+kWake V^2/g) by as much as the step is ventilated — the flow separating
+(cavity number 2 g d / V^2 under 1) AND air reaching it at the chine line
+(the cavity is hs deep; a ramp dVent over the chine's depth there). At rest
+the afterbody is fully wet; risen, it dries from the step back.
+
+MEASURED (the check prints every number before its verdict):
+- ARCHIMEDES: level float, clipper vs the analytic sections 0.993-0.997 at
+  drafts 0.12-0.30 m; the drop settles at 0.9988 W, draft 0.255 m at the
+  step, 2.7 deg nose-up; Monte-Carlo submerged volume (ray parity, 200k
+  samples, sharing nothing with the clipper) 0.991 W; zeta ~0.04 on the bob.
+  The hull's vector area closes to 1e-7 (the step faces first came out
+  INWARD: a level float felt 71 N fore-aft at rest, closure -2x their area).
+- STABILITY, the go/no-go: on a 3 kg node share, omega*dt 0.010 at 24
+  substeps / 0.006 at 45 (envelope 0.50); the slam's linearised c*dt 0.19
+  at 24 / 0.10 at 45 for a 5 m/s entry (envelope 0.73); nothing diverges
+  capped or uncapped. The design's arithmetic held, and its named risk
+  (term 4) is two to seven times inside the bound. `slamCap` (a panel's
+  impulse bounded by the node's normal momentum, as the solver bounds
+  ground friction) is in place and was never needed.
+- THE HUMP: the seaplane tow (free heave and trim, the wing unloading as
+  V^2 to 20 m/s, a Cub's half-tail holding 6 deg): R/W 0.213 at 9 m/s
+  (Cv 3.4), trim peaking 12.5 deg at 10 m/s just past it, the afterbody
+  going from 1.36 m2 wet to dry, R/W 0.008 at 20 m/s. Trim held at 5 deg
+  (the NACA tank's form): 0.215 at Cv 3.4. The lone float at full load, no
+  tail: 0.305 at Cv 3.8 and over. Tank floats at this loading (C_delta
+  0.8) read ~0.2-0.3 at Cv 2.5-3.5: the right band, from geometry.
+- THE GRADIENT: 16 m/s, sinking 1.32 m/s at the touch, 85 % on the wing,
+  free to decelerate: the drag frame by frame 0 / 0.016 / 0.057 / 0.106 /
+  0.140 W, first peak 0.152 W after 10 frames, largest one-frame rise
+  0.049 W; the sink arrested in 0.20 s, peak 1.45 W vertical (0.87 slam),
+  one skip at +0.55 s, then the run-out to 4.3 m/s at 12 s. KSP's step is
+  not here.
+- Two of the design's findings retracted by measurement: the transom fade
+  cannot be unconditional (the hull sat 0.20 m deep at 10 m/s with a third
+  of its Archimedes and a lone float never got over its hump — a
+  water-filled wake keeps its head; only air behind the edge takes it), and
+  a lone float free to trim above the hump is not a tank convention: with
+  the CP a quarter of the wetted length behind the stagnation line and the
+  CG 0.25 m ahead of the step, the float alone trims to 15 deg; the tail
+  holds a seaplane's attitude on the water, so the tow and the landing
+  carry one (K 1700 N m/rad, C 470 at 16 m/s, scaled by V^2 and V).
+- Named cuts, each in the header: the spray-root wave rise, whisker spray,
+  the added-mass inertia m_a dVn/dt, current, and roll — the tank locks roll
+  and yaw (a single float with an aeroplane on it has GM < 0 and capsizes,
+  which `free` shows honestly). INFERRED constants for H3's calibration
+  against the NACA tank curves: kTr 0.15 (the Savitsky comparison the
+  check prints reads 1.1-1.2 at Cv 3, 0.6 at Cv 5), kWake 0.5, dVent 0.05,
+  CpBase -0.15, kRad 0.02, kBeta at CL0 0.10.
+- Not touched: WATER-2026-09-13.md is a peer's uncommitted file; the H0
+  results are in futureDesigns/WATER-H0-2026-09-13.md for its author to
+  fold in. The float's frame is the solver's, so H1 (panels as strips on
+  float nodes) is a placement; H2 (the drawn float measured by the join)
+  reads the same `makeFloat` parameters.
+- Gates: HYDRODYN green (30 s); nothing else touched.

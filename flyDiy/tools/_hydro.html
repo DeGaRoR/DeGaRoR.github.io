@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<!--
+  THE FLOAT IN WATER — the H0 bench (see _hydro_gen.js; WATER-2026-09-13.md §5).
+
+  One float on the tank's water, drawn from the SAME panels the physics
+  clips: every panel is coloured by how wet it is and how hard it is pushed
+  (grey dry, blue under hydrostatic head, through yellow to red under
+  dynamic pressure), each panel's total force is an arrow from its wet
+  centroid, and the wake behind the step — the effective free surface the
+  afterbody sees — is drawn as a line so the step's ventilation can be
+  watched happening.
+
+  What to judge here, and the controls that judge it:
+    - DROP: the float settles to its draft (Archimedes) with a bob that
+      dies; the slam on entry (red panels, then blue).
+    - TOW: the carriage ramps the speed; watch the bow rise, the trim
+      climb through the hump, the step ventilate (the wake line falls away
+      from the afterbody), the wetted area collapse forward of the step.
+      The chart is the resistance curve — the HUMP — and its components.
+    - LAND: a 1 m/s touchdown at 16 m/s: the drag must GROW (the chart),
+      never arrive in one frame; the skip, the settle, the run-out.
+    - FREE: throttle and elevator; taxi, take off.
+  Every constant of the model is a slider (MODEL); every dimension of the
+  float too (FLOAT) — the float is rebuilt on the fly.
+
+  Serve from the repo root (node flyDiy/tools/_serve.js <port>) and open
+  /flyDiy/tools/_hydro.html. `?sink=1` posts screenshots to /save on the
+  same origin (the scratch serve+sink rig), and window.BENCH drives it
+  headless: BENCH.set('tow'); BENCH.run(600); BENCH.shot('name').
+-->
+<meta charset="utf-8">
+<title>flyDiy — the float in water</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:6px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:10px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0 6px 0 0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit;cursor:pointer}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  main{display:flex;height:calc(100vh - 36px)}
+  #view{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
+  #c{display:block;width:100%;flex:1;min-height:0}
+  #chart{display:block;width:100%;height:170px;flex:none;background:#0e1115;border-top:1px solid var(--grid)}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;
+    padding:8px 10px;width:330px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:3px 0;min-width:0}
+  .r span.k{color:var(--dim);width:92px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:58px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--fg);z-index:2;
+    white-space:pre;line-height:1.45;pointer-events:none;text-shadow:0 0 4px #000,0 0 2px #000}
+  h2{font-size:11px;color:var(--dim);margin:12px 0 3px;text-transform:uppercase;cursor:pointer}
+  h2.closed + div{display:none}
+  .ok{color:#6fd08c} .bad{color:#ff6b5a} .warn{color:#ffbe5a}
+  p.note{color:var(--dim);margin:8px 0}
+</style>
+
+<header>
+  <h1>the float in water</h1>
+  <label>experiment <select id="exp">
+    <option value="drop">drop</option>
+    <option value="tow" selected>tow</option>
+    <option value="land">land</option>
+    <option value="free">free</option>
+  </select></label>
+  <button id="run" class="on">pause</button>
+  <button id="stepBtn">step</button>
+  <button id="reset">reset</button>
+  <label>speed <select id="spd">
+    <option value="0.25">x0.25</option><option value="0.5">x0.5</option><option value="1" selected>x1</option>
+    <option value="2">x2</option><option value="4">x4</option><option value="8">x8</option>
+  </select></label>
+  <label><input type="checkbox" id="arrows" checked> forces</label>
+  <label><input type="checkbox" id="wakeOn" checked> wake</label>
+  <label><input type="checkbox" id="follow" checked> follow</label>
+  <button data-view="side">side</button>
+  <button data-view="quarter">3/4</button>
+  <button data-view="bow">bow</button>
+  <button data-view="below">below</button>
+  <button data-view="stern">stern</button>
+  <button id="shot">shot</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><canvas id="chart"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_hydro_gen.js"></script>
+<script>
+'use strict';
+const H = window.HYDRO_GEN;
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180, G = 9.81;
+const SINK = /[?&]sink=1/.test(location.search);
+
+// ---- the parameters ---------------------------------------------------------
+// [key, label, min, max, step, group]; FLOAT and LOAD rebuild the hull, MODEL
+// writes into F.P live, EXP into the experiment's options (reset to apply)
+const ROWS = [
+  ['L', 'length', 3, 7, 0.05, 'float'], ['xs', 'step from bow', 1.5, 4, 0.05, 'float'],
+  ['B', 'beam', 0.4, 1.2, 0.01, 'float'], ['beta', 'deadrise', 0, 35, 0.5, 'float'],
+  ['betaA', 'aft deadrise', 0, 35, 0.5, 'float'], ['hs', 'step depth', 0, 0.12, 0.005, 'float'],
+  ['aftAngle', 'afterbody keel', 0, 12, 0.25, 'float'], ['xFlat', 'keel flat', 0, 2.5, 0.05, 'float'],
+  ['yBow', 'bow rise', 0, 0.8, 0.01, 'float'], ['hSide', 'side height', 0.1, 0.5, 0.01, 'float'],
+  ['nSta', 'stations', 8, 48, 1, 'float'],
+  ['mLoad', 'load kg', 0, 800, 5, 'load'], ['cgLoadX', 'load x (aft+)', -1.5, 1.5, 0.01, 'load'],
+  ['cgLoadY', 'load height', 0, 2.5, 0.05, 'load'], ['mFloat', 'float kg', 10, 200, 1, 'load'],
+  ['rho', 'water rho', 900, 1100, 5, 'load'],
+  ['Cpl', 'Cpl planing', 0, 1, 0.01, 'model'], ['kBeta', 'kBeta deadrise', 0, 0.04, 0.001, 'model'],
+  ['xi0', 'xi0 LE core', 0.001, 0.2, 0.001, 'model'], ['kTr', 'kTr transom', 0, 0.6, 0.01, 'model'],
+  ['kWake', 'kWake', 0, 2, 0.02, 'model'], ['dVent', 'dVent', 0.005, 0.2, 0.005, 'model'],
+  ['CpBase', 'Cp base', -0.5, 0, 0.01, 'model'], ['kRad', 'kRad', 0, 0.2, 0.005, 'model'],
+  ['kw', 'kw Wagner', 0.5, 2, 0.01, 'model'], ['Cd', 'Cd cross', 0, 2.5, 0.05, 'model'],
+  ['slamCap', 'slam cap', 0, 1, 1, 'model'],
+  ['sub', 'substeps', 4, 96, 1, 'exp'],
+  ['dropY', 'drop height', -0.3, 1.5, 0.01, 'exp'],
+  ['V1', 'tow V max', 2, 30, 0.5, 'exp'], ['rate', 'tow ramp', 0.1, 3, 0.05, 'exp'],
+  ['Vlo', 'lift-off V (0=no wing)', 0, 40, 0.5, 'exp'], ['towTrim', 'tow trim', -2, 15, 0.25, 'exp'],
+  ['fixedTrim', 'tow: hold trim', 0, 1, 1, 'exp'], ['tailOn', 'tail', 0, 1, 1, 'exp'],
+  ['Vx', 'land V', 5, 30, 0.5, 'exp'], ['sink', 'land sink', 0, 3, 0.05, 'exp'],
+  ['liftK', 'land wing lift', 0, 1, 0.01, 'exp'], ['landTrim', 'land trim', -2, 15, 0.25, 'exp'],
+  ['thr', 'free: throttle', 0, 1, 0.01, 'exp'], ['elev', 'free: elevator (trim)', -5, 15, 0.25, 'exp'],
+  ['T0', 'free: static thrust /W', 0, 0.6, 0.01, 'exp'],
+  ['waveA', 'wave amplitude', 0, 0.5, 0.01, 'wave'], ['waveL', 'wave length', 1, 40, 0.5, 'wave'],
+  ['waveDir', 'wave heading', 0, 360, 5, 'wave'],
+  ['arrowK', 'arrow m/kN', 0.5, 30, 0.5, 'view'],
+];
+const P = Object.assign({}, H.DEF, {
+  cgLoadX: H.DEF.cgLoad[0], cgLoadY: H.DEF.cgLoad[1],
+  sub: 24, dropY: 0.3, V1: 20, rate: 0.6, Vlo: 20, towTrim: 6, fixedTrim: 0, tailOn: 1,
+  Vx: 16, sink: 1.0, liftK: 0.85, landTrim: 4, thr: 0, elev: 4, T0: 0.35,
+  waveA: 0, waveL: 8, waveDir: 0, arrowK: 8,
+});
+const GROUPS = { float: 'the float', load: 'the load', model: 'the model', exp: 'the experiment', wave: 'the water', view: 'the view' };
+const VAL = {};
+{
+  const ui = $('ui');
+  let lastG = null, box = null;
+  for (const [k, lab, lo, hi, st, g] of ROWS) {
+    if (g !== lastG) {
+      const h = document.createElement('h2'); h.textContent = GROUPS[g]; ui.append(h);
+      box = document.createElement('div'); ui.append(box);
+      h.onclick = () => h.classList.toggle('closed');
+      if (g === 'view' || g === 'wave') h.classList.add('closed');
+      lastG = g;
+    }
+    const r = document.createElement('div'); r.className = 'r';
+    const kk = document.createElement('span'); kk.className = 'k'; kk.textContent = lab; kk.title = k;
+    const inp = document.createElement('input'); inp.type = 'range'; inp.min = lo; inp.max = hi; inp.step = st; inp.value = P[k];
+    const v = document.createElement('span'); v.className = 'v'; v.textContent = fmt(P[k], st);
+    VAL[k] = v;
+    inp.oninput = () => { P[k] = Number(inp.value); v.textContent = fmt(P[k], st); onParam(k, g); };
+    r.append(kk, inp, v); box.append(r);
+  }
+  const note = document.createElement('p'); note.className = 'note';
+  note.textContent = 'drag: orbit · wheel: zoom · right-drag: pan. The tank holds roll and yaw (a lone float with an aeroplane on it capsizes). Panels: grey dry, blue hydrostatic, yellow-red dynamic; arrows per panel; the wake line is the free surface the afterbody sees.';
+  ui.append(note);
+}
+function fmt(v, st) { const d = st >= 1 ? 0 : st >= 0.1 ? 1 : st >= 0.01 ? 2 : 3; return Number(v).toFixed(d); }
+
+// ---- the float and the experiment ------------------------------------------------
+let F = null, E = null, water = H.stillWater, paused = false, frame = 0;
+function buildFloat() {
+  const over = {};
+  for (const k of Object.keys(H.DEF)) if (k in P) over[k] = P[k];
+  over.cgLoad = [P.cgLoadX, P.cgLoadY, 0];
+  F = H.makeFloat(over);
+  buildHullMesh();
+}
+function buildWater() {
+  water = P.waveA > 0 ? H.gerstner([{ A: P.waveA, L: P.waveL, dir: [Math.cos(P.waveDir * D2R), Math.sin(P.waveDir * D2R)] }]) : H.stillWater;
+}
+function makeExp() {
+  const kind = $('exp').value, sub = Math.round(P.sub);
+  const tail = P.tailOn ? true : null;
+  if (kind === 'drop') E = H.expDrop(F, { keelY: P.dropY, tEnd: 1e9, sub, water });
+  else if (kind === 'tow') E = H.expTow(F, { V1: P.V1, rate: P.rate, sub, Vlo: P.Vlo, fixedTrim: !!P.fixedTrim, trim: P.towTrim, tail: tail, water });
+  else if (kind === 'land') E = H.expLand(F, { Vx: P.Vx, sink: P.sink, liftK: P.liftK, trim: P.landTrim, keelY: 0.25, tEnd: 1e9, sub, tail: P.tailOn ? undefined : null, water });
+  else E = makeFree(sub);
+  E.kind = kind;
+  frame = 0;
+}
+// FREE: the seaplane in the tank — thrust along the float's axis, the wing
+// lifting as V^2 toward Vlo, the tail holding the elevator's trim
+function makeFree(sub) {
+  const dt = 1 / (60 * sub);
+  const S = H.makeBody(F, { keelY: -0.2, trim: 2 });
+  const out = H.makeScratch(F), log = [];
+  const ext = { lift: 0, tail: { K: 1700, C: 470, th0: P.elev * D2R, Vref: 16 }, F: [0, 0, 0] };
+  const Ex = { F, S, out, water, dt, sub, log, done: false,
+    step() {
+      for (let s = 0; s < sub; s++) {
+        const V = -S.v[0];
+        ext.lift = P.Vlo > 0 ? Math.min(0.98 * F.m * G, F.m * G * Math.max(0, V / P.Vlo) * (V / P.Vlo)) : 0;
+        ext.tail.th0 = P.elev * D2R;
+        const T = P.thr * P.T0 * F.m * G;
+        ext.F[0] = -T * S.R[0]; ext.F[1] = -T * S.R[3]; ext.F[2] = 0;   // along the float's forward axis
+        H.bodyStep(F, S, dt, water, out, ext);
+      }
+      const r = H.readState(F, S, water);
+      const T = out.terms;
+      log.push({ t: S.t, V: r.vx, R: out.F[0], Rs: T.static[0], Rp: T.plan[0], Rf: T.fric[0], Rk: T.suck[0], Fy: out.F[1], trim: r.trimDeg, draft: r.draft, wetF: out.wetF, wetA: out.wetA, vent: out.vent, lift: ext.lift });
+      return r;
+    } };
+  return Ex;
+}
+function onParam(k, g) {
+  if (g === 'float' || g === 'load') { buildFloat(); makeExp(); }
+  else if (g === 'model') { for (const key of Object.keys(H.DEF)) if (key in P && F) F.P[key] = P[key]; }
+  else if (g === 'wave') { buildWater(); if (E) E.water = water; makeExp(); }
+  else if (g === 'exp' && (k === 'sub' || k === 'dropY' || k === 'V1' || k === 'rate' || k === 'fixedTrim' || k === 'Vx' || k === 'sink' || k === 'liftK' || k === 'landTrim' || k === 'towTrim')) makeExp();
+}
+
+// ---- scene ------------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a2330);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 400);
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xfff0dc, 1.4 * LU); sun.position.set(6, 10, 4); scene.add(sun);
+const hemi = new THREE.HemisphereLight(0xa9c4e6, 0x1c2a3a, 0.55 * LU); scene.add(hemi);
+// the tank's window: a fill from below so the bottom can be read
+const under = new THREE.DirectionalLight(0x9fc8ff, 0.7 * LU); under.position.set(-3, -8, 5); scene.add(under);
+
+// the hull: one triangle per panel, coloured per panel
+let hull = null, hullPos = null, hullCol = null;
+function buildHullMesh() {
+  if (hull) { scene.remove(hull); hull.geometry.dispose(); }
+  const n = F.panels.length;
+  hullPos = new Float32Array(n * 9); hullCol = new Float32Array(n * 9);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(hullPos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(hullCol, 3));
+  hull = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
+  scene.add(hull);
+  buildArrows();
+}
+let arrows = null, arrowPos = null, arrowCol = null;
+function buildArrows() {
+  if (arrows) { scene.remove(arrows); arrows.geometry.dispose(); }
+  const n = F.panels.length;
+  arrowPos = new Float32Array(n * 6); arrowCol = new Float32Array(n * 6);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(arrowPos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(arrowCol, 3));
+  arrows = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 }));
+  scene.add(arrows);
+}
+// the water: a grid displaced by the surface function, centred on the float
+const WN = 90, WS = 36;
+const waterGeo = new THREE.PlaneGeometry(WS, WS, WN, WN); waterGeo.rotateX(-Math.PI / 2);
+const waterMat = new THREE.MeshStandardMaterial({ color: 0x1f5f9a, roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+const waterMesh = new THREE.Mesh(waterGeo, waterMat); scene.add(waterMesh);
+const waterGrid = new THREE.GridHelper(WS, WS, 0x4a7fb0, 0x2f5a80); waterGrid.material.transparent = true; waterGrid.material.opacity = 0.35; scene.add(waterGrid);
+// the wake line under the afterbody, the CG, the datum
+const wakeGeo = new THREE.BufferGeometry(); wakeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 40), 3));
+const wakeLine = new THREE.Line(wakeGeo, new THREE.LineBasicMaterial({ color: 0x8ff0ff })); scene.add(wakeLine);
+const cgMark = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff70b0 })); scene.add(cgMark);
+const keelLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 })); scene.add(keelLine);
+
+// ---- the camera ---------------------------------------------------------------
+// the float's length runs along x (bow at -x): a SIDE view stands on +z
+const cam = { az: 0.55, el: 0.28, dist: 9, tgt: [0, 0.2, 0] };
+function placeCam() {
+  const t = cam.tgt;
+  camera.position.set(t[0] + cam.dist * Math.cos(cam.el) * Math.sin(cam.az), t[1] + cam.dist * Math.sin(cam.el), t[2] + cam.dist * Math.cos(cam.el) * Math.cos(cam.az));
+  camera.lookAt(t[0], t[1], t[2]);
+}
+const VIEWS = { side: [0, 0.06, 9], quarter: [0.55, 0.28, 9], bow: [-Math.PI / 2, 0.18, 8], below: [0.7, -0.35, 8], stern: [Math.PI / 2, 0.2, 8] };
+for (const b of document.querySelectorAll('button[data-view]')) b.onclick = () => { const v = VIEWS[b.dataset.view]; cam.az = v[0]; cam.el = v[1]; cam.dist = v[2]; };
+{
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, b: e.button }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.b === 2) { $('follow').checked = false; cam.tgt[0] -= dx * 0.004 * cam.dist * Math.cos(cam.az); cam.tgt[2] += dx * 0.004 * cam.dist * Math.sin(cam.az); cam.tgt[1] += dy * 0.004 * cam.dist; }
+    else { cam.az -= dx * 0.006; cam.el = Math.max(-1.4, Math.min(1.4, cam.el + dy * 0.006)); }
+  });
+  cv.addEventListener('pointerup', () => { drag = null; });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('wheel', e => { cam.dist = Math.max(1.5, Math.min(80, cam.dist * Math.exp(e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
+}
+
+// ---- drawing the state --------------------------------------------------------------
+const tmp = new THREE.Color();
+function colourOf(o, pn, k) {
+  // grey dry; wet: hydrostatic blue, the dynamic terms (planing/slam/cross) toward yellow-red by pressure
+  if (!o.wet || o.A < 1e-6) { tmp.setRGB(0.66, 0.66, 0.62); if (pn.kind === 'deck') tmp.setRGB(0.55, 0.52, 0.45); return tmp; }
+  const ps = Math.hypot(o.Fs[0], o.Fs[1], o.Fs[2]) / o.A;
+  const pd = (Math.hypot(o.Fp[0], o.Fp[1], o.Fp[2]) + Math.hypot(o.Fm[0], o.Fm[1], o.Fm[2]) + Math.hypot(o.Fx[0], o.Fx[1], o.Fx[2]) + Math.hypot(o.Fk[0], o.Fk[1], o.Fk[2])) / o.A;
+  const s = Math.min(1, ps / 3000), d = Math.min(1, pd / 6000);
+  // blue by head, then blend to yellow->red by dynamic pressure
+  const r = 0.10 + 0.90 * d, g = 0.55 + 0.35 * s * (1 - d) + 0.35 * d * (1 - d), b = 0.60 + 0.40 * s * (1 - d) - 0.55 * d;
+  tmp.setRGB(Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b)));
+  return tmp;
+}
+function draw() {
+  if (!E) return;
+  const out = E.out, S = E.S, W = out.W;
+  if (!W[0] || (W[0][0] === 0 && W[0][1] === 0 && W[0][2] === 0)) H.hydroForces(F, S, water, out);
+  const n = F.panels.length, aK = P.arrowK / 1000;
+  for (let k = 0; k < n; k++) {
+    const pn = F.panels[k], o = out.per[k], c = colourOf(o, pn, k);
+    for (let j = 0; j < 3; j++) {
+      const w = W[pn.v[j]];
+      hullPos[k * 9 + j * 3] = w[0]; hullPos[k * 9 + j * 3 + 1] = w[1]; hullPos[k * 9 + j * 3 + 2] = w[2];
+      hullCol[k * 9 + j * 3] = c.r; hullCol[k * 9 + j * 3 + 1] = c.g; hullCol[k * 9 + j * 3 + 2] = c.b;
+    }
+    // the arrow: the panel's total force from its wet centroid
+    let fx = 0, fy = 0, fz = 0;
+    if (o.wet && $('arrows').checked) for (const key of ['Fs', 'Fp', 'Ff', 'Fx', 'Fm', 'Fr', 'Fk']) { fx += o[key][0]; fy += o[key][1]; fz += o[key][2]; }
+    const slam = o.wet ? Math.hypot(o.Fm[0], o.Fm[1], o.Fm[2]) / (Math.hypot(fx, fy, fz) + 1e-9) : 0;
+    arrowPos[k * 6] = o.c[0]; arrowPos[k * 6 + 1] = o.c[1]; arrowPos[k * 6 + 2] = o.c[2];
+    arrowPos[k * 6 + 3] = o.c[0] + fx * aK; arrowPos[k * 6 + 4] = o.c[1] + fy * aK; arrowPos[k * 6 + 5] = o.c[2] + fz * aK;
+    const ar = 1, ag = 1 - 0.8 * slam, ab = 0.2;
+    arrowCol[k * 6] = ar; arrowCol[k * 6 + 1] = ag; arrowCol[k * 6 + 2] = ab; arrowCol[k * 6 + 3] = ar; arrowCol[k * 6 + 4] = ag; arrowCol[k * 6 + 5] = ab;
+  }
+  hull.geometry.attributes.position.needsUpdate = true; hull.geometry.attributes.color.needsUpdate = true;
+  hull.geometry.computeVertexNormals(); hull.geometry.computeBoundingSphere();
+  arrows.geometry.attributes.position.needsUpdate = true; arrows.geometry.attributes.color.needsUpdate = true;
+  arrows.visible = $('arrows').checked;
+  // the water, centred on the float, displaced by the surface
+  const cx = Math.round(S.p[0]), cz = Math.round(S.p[2]);
+  const wp = waterGeo.attributes.position, t = S.t;
+  for (let i = 0; i < wp.count; i++) {
+    const x = wp.getX(i) + cx, z = wp.getZ(i) + cz;
+    wp.setY(i, water.h(x, z, t) - 0.002);
+  }
+  wp.needsUpdate = true; waterGeo.computeVertexNormals();
+  waterMesh.position.set(cx, 0, cz); waterGrid.position.set(cx, 0.001, cz);
+  waterGrid.visible = P.waveA === 0;
+  // the wake line: the effective surface behind the step on the centreline
+  const wk = wakeGeo.attributes.position, eK = W[F.edge.K], xhatY = S.R[3], xhatX = S.R[0], xhatZ = S.R[6];
+  const V = out.Vflow || 0.3, lr = out.lr || 0.02, vent = out.vent || 0;
+  for (let i = 0; i < 40; i++) {
+    const dx = (i / 39) * (F.xStern + 0.6);
+    const x = eK[0] + dx * xhatX, z = eK[2] + dx * xhatZ;
+    const h = water.h(x, z, t);
+    const yW = eK[1] + dx * xhatY - 0.5 * G * (dx / V) * (dx / V);
+    const y = h - vent * Math.max(0, h - yW) * Math.exp(-dx / lr);
+    wk.setXYZ(i, x, y + 0.003, z);
+  }
+  wk.needsUpdate = true; wakeLine.visible = $('wakeOn').checked;
+  cgMark.position.set(S.p[0], S.p[1], S.p[2]);
+  keelLine.geometry.setFromPoints([new THREE.Vector3(W[F.sta[0].K][0], W[F.sta[0].K][1], W[F.sta[0].K][2]), new THREE.Vector3(S.p[0], S.p[1], S.p[2])]);
+  if ($('follow').checked) { cam.tgt[0] = S.p[0]; cam.tgt[1] = Math.max(-0.5, Math.min(2, S.p[1] - 0.6)); cam.tgt[2] = S.p[2]; }
+  placeCam();
+  renderer.render(scene, camera);
+  stat();
+  chart();
+}
+function stat() {
+  const out = E.out, r = H.readState(F, E.S, water), Wt = F.m * G, T = out.terms;
+  const V = E.kind === 'tow' ? E.V() : r.vx;
+  const lines = [
+    `${E.kind}  t ${E.S.t.toFixed(2)} s   V ${V.toFixed(2)} m/s   Cv ${(V / Math.sqrt(G * F.P.B)).toFixed(2)}`,
+    `trim ${r.trimDeg.toFixed(2)} deg   draft at step ${r.draft.toFixed(3)} m   vy ${r.vy.toFixed(3)}`,
+    `R/W ${(out.F[0] / Wt).toFixed(3)}  = static ${(T.static[0] / Wt).toFixed(3)} planing ${(T.plan[0] / Wt).toFixed(3)} fric ${(T.fric[0] / Wt).toFixed(3)} suck ${(T.suck[0] / Wt).toFixed(3)} slam ${(T.slam[0] / Wt).toFixed(3)}`,
+    `L/W ${(out.F[1] / Wt).toFixed(3)}  = static ${(T.static[1] / Wt).toFixed(3)} planing ${(T.plan[1] / Wt).toFixed(3)} slam ${(T.slam[1] / Wt).toFixed(3)} rad ${(T.rad[1] / Wt).toFixed(3)}`,
+    `wet fore ${out.wetF.toFixed(2)} m2  aft ${out.wetA.toFixed(2)} m2  sides ${out.wetOther.toFixed(2)} m2   vent ${(out.vent || 0).toFixed(2)} (air ${(out.air || 0).toFixed(2)} sep ${(out.sep || 0).toFixed(2)})`,
+    `W ${Wt.toFixed(0)} N   CG [${F.cg.map(v => v.toFixed(2)).join(', ')}]   sub ${E.sub}  dt ${(E.dt * 1e3).toFixed(2)} ms   c_eff max ${(out.cEffMax || 0).toFixed(0)} N s/m`,
+  ];
+  $('stat').textContent = lines.join('\n');
+}
+// ---- the chart --------------------------------------------------------------------
+const ch = $('chart'), cg = ch.getContext('2d');
+const SER = {
+  drop: [['draft', 'draft m', '#8ff0ff', 1], ['Fy', 'L/W', '#ffd35a', 'W'], ['trim', 'trim/30', '#ff8fb0', 30]],
+  tow: [['R', 'R/W', '#ffd35a', 'W'], ['Rf', 'fric/W', '#8fd0ff', 'W'], ['Rp', 'planing/W', '#ff9f5a', 'W'], ['Rk', 'suck/W', '#d08fff', 'W'], ['trim', 'trim/30', '#ff8fb0', 30], ['wetA', 'aft wet m2/3', '#6fd08c', 3]],
+  land: [['R', 'R/W', '#ffd35a', 'W'], ['Fy', 'L/W', '#8fd0ff', 'W'], ['Fm', 'slam/W', '#ff5a5a', 'W'], ['draft', 'draft m', '#8ff0ff', 1], ['trim', 'trim/30', '#ff8fb0', 30]],
+  free: [['R', 'R/W', '#ffd35a', 'W'], ['trim', 'trim/30', '#ff8fb0', 30], ['draft', 'draft m', '#8ff0ff', 1], ['wetA', 'aft wet m2/3', '#6fd08c', 3]],
+};
+function chart() {
+  const Wd = ch.clientWidth, Hd = ch.clientHeight;
+  if (ch.width !== Wd || ch.height !== Hd) { ch.width = Wd; ch.height = Hd; }
+  cg.clearRect(0, 0, Wd, Hd);
+  const L = E.log; if (L.length < 2) return;
+  const Wt = F.m * G, xKey = E.kind === 'tow' ? 'V' : 't';
+  const x0 = L[0][xKey], x1 = Math.max(L[L.length - 1][xKey], x0 + 1e-6);
+  const pad = 34, ph = Hd - 22, yMax = E.kind === 'drop' ? 1.6 : E.kind === 'land' ? 1.6 : 0.6;
+  cg.strokeStyle = '#2a3340'; cg.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const y = 6 + (ph - 6) * i / 4; cg.beginPath(); cg.moveTo(pad, y); cg.lineTo(Wd - 6, y); cg.stroke();
+    cg.fillStyle = '#7d8996'; cg.fillText((yMax * (1 - i / 4)).toFixed(2), 2, y + 4); }
+  cg.fillStyle = '#7d8996'; cg.fillText(xKey === 'V' ? 'V m/s' : 't s', Wd - 40, Hd - 6);
+  for (let i = 0; i <= 8; i++) { const xv = x0 + (x1 - x0) * i / 8, x = pad + (Wd - pad - 6) * i / 8; cg.fillText(xv.toFixed(1), x - 8, Hd - 6); }
+  let lx = pad;
+  for (const [key, lab, col, sc] of SER[E.kind]) {
+    cg.strokeStyle = col; cg.lineWidth = 1.2; cg.beginPath();
+    let first = true;
+    for (let i = 0; i < L.length; i += Math.max(1, Math.floor(L.length / 1500))) {
+      const r = L[i]; const v = sc === 'W' ? r[key] / Wt : r[key] / sc;
+      const x = pad + (Wd - pad - 6) * (r[xKey] - x0) / (x1 - x0), y = 6 + (ph - 6) * (1 - Math.max(-0.2, Math.min(1.05, v / yMax)));
+      if (first) { cg.moveTo(x, y); first = false; } else cg.lineTo(x, y);
+    }
+    cg.stroke();
+    cg.fillStyle = col; cg.fillText(lab, lx, 14); lx += cg.measureText(lab).width + 14;
+  }
+}
+
+// ---- the loop --------------------------------------------------------------------
+function resize() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (w && h && (cv.width !== w || cv.height !== h)) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+}
+function tick() {
+  resize();
+  if (!paused && E) { const n = Number($('spd').value); const k = n >= 1 ? n : (frame % Math.round(1 / n) === 0 ? 1 : 0); for (let i = 0; i < k; i++) E.step(); }
+  frame++;
+  draw();
+}
+// rAF when the page has it; a timer when it does not (the agent's Browser
+// pane throttles rAF to nothing while it is not the fronted, composited view)
+let lastTick = 0;
+function loop() { lastTick = performance.now(); tick(); requestAnimationFrame(loop); }
+setInterval(() => { if (performance.now() - lastTick > 200) { lastTick = performance.now(); tick(); } }, 40);
+$('run').onclick = () => { paused = !paused; $('run').textContent = paused ? 'run' : 'pause'; $('run').classList.toggle('on', !paused); };
+$('stepBtn').onclick = () => { if (E) E.step(); };
+$('reset').onclick = () => makeExp();
+$('exp').onchange = () => makeExp();
+$('shot').onclick = () => shot('hydro_' + E.kind + '_' + Math.round(E.S.t * 10));
+async function shot(name) {
+  draw();
+  // the view, the readouts and the chart in one image
+  const o = document.createElement('canvas'); o.width = cv.width; o.height = cv.height + ch.height;
+  const g = o.getContext('2d');
+  g.drawImage(cv, 0, 0); g.drawImage(ch, 0, cv.height, cv.width, ch.height);
+  g.font = '13px ui-monospace, Consolas, monospace'; g.fillStyle = '#000';
+  const lines = $('stat').textContent.split('\n');
+  for (let i = 0; i < lines.length; i++) { g.fillStyle = '#000'; g.fillText(lines[i], 11, 21 + i * 17); g.fillStyle = '#dfe6ee'; g.fillText(lines[i], 10, 20 + i * 17); }
+  const blob = await new Promise(res => o.toBlob(res, 'image/jpeg', 0.9));
+  if (!SINK) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + '.jpg'; a.click(); return name; }
+  await fetch(`/save?name=${encodeURIComponent(name)}`, { method: 'POST', body: blob });
+  return name;
+}
+window.BENCH = {
+  set(kind, over) { if (over) for (const k in over) { P[k] = over[k]; if (VAL[k]) VAL[k].textContent = String(over[k]); } buildWater(); buildFloat(); if (over) for (const key of Object.keys(H.DEF)) if (key in P) F.P[key] = P[key]; $('exp').value = kind; makeExp(); paused = true; $('run').textContent = 'run'; $('run').classList.remove('on'); },
+  run(n) { for (let i = 0; i < n; i++) E.step(); draw(); return H.readState(F, E.S, water); },
+  view(v, dist) { const q = VIEWS[v]; cam.az = q[0]; cam.el = q[1]; cam.dist = dist || q[2]; draw(); },
+  cam, P, shot, state: () => ({ t: E.S.t, ...H.readState(F, E.S, water), R: E.out.F[0], Fy: E.out.F[1], wetF: E.out.wetF, wetA: E.out.wetA, vent: E.out.vent }),
+  get E() { return E; }, get F() { return F; },
+};
+buildWater(); buildFloat(); makeExp(); placeCam(); loop();
+</script>

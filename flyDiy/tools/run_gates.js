@@ -238,6 +238,11 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // THE FLOAT IN WATER (G370): the H0 spike, headless — Archimedes against
+  // the analytic sections and a Monte-Carlo volume, omega*dt / c*dt of the
+  // water terms against the fleet's envelope, the hump on three tows, the
+  // touchdown's drag climbing over frames (~30 s)
+  { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two

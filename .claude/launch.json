@@ -582,6 +582,15 @@
         "8401"
       ],
       "port": 8401
+    },
+    {
+      "name": "flydiy-hydro",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8420"
+      ],
+      "port": 8420
     }
   ]
 }
