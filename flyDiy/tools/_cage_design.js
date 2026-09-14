@@ -1704,7 +1704,15 @@ const ARCHETYPES = [
            engFamily: 'inline', engModel: 'rotax 582', engMount: 'nose',
            engCount: 2, gearLayout: 'floats', suspension: 'spring', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xc7c9cc, trim: 0x1b3a5c },
-    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 11.8, wgChord: 1.5 }) } },
+    // ...and the fixture's ENGINE BLOCK: the user's twin sits 0.51 m aft and
+    // 0.09 m down from the layer's default nacelle (engBlockZ/Y). Measured:
+    // at the default the thrust line is 0.72 m over the CG and the card
+    // noses over into the sea in the first second of full power (pitch -16
+    // at 1 s, -52 at 2, capsized); at the fixture's it rides the hump at -5
+    // and is on the step in 4 s. THE THRUST LINE IS A SEAPLANE'S FIRST
+    // NUMBER, and the fixture's is the one that flies.
+    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 11.8, wgChord: 1.5,
+                                                  engBlockZ: -0.51, engBlockY: -0.09, engNacAt: 0.28 }) } },
   // 2026-09-04: LIVE. The pod ends at the aft bulkhead (no mirror — a
   // mirrored pod has no bulkhead face, its aft half is a second nose), the
   // rod runs from there and the engine sits on the bulkhead's back.

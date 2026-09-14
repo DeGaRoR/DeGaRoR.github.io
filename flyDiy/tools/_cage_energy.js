@@ -1168,8 +1168,16 @@ function balanceCompute(job, core) {
   let gearX = null;
   if (P.GAL != null && P.GAR != null && def.nodes[P.GAL] && def.nodes[P.GAR])
     gearX = 0.5 * (def.nodes[P.GAL].p[0] + def.nodes[P.GAR].p[0]);
+  // THE MODEL-FRAME CG TOO (G396): the mass-weighted node CG in the def's
+  // own frame — byte for byte what app.js publishes as FLYDIY_CG_MODEL at
+  // roll-out — so the float layer places the step off THIS aeroplane's CG,
+  // not the last one rolled out (a freshly baked card read the previous
+  // aeroplane's CG, stood its step 0.6 m aft, and nosed over into the sea)
+  let cx = 0, cy = 0, mm = 0;
+  for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
   return { kind: 'balance', cgX: sh.cgX, npX: sh.npX, staticMargin: sh.staticMargin,
-           cBar: sh.cBar, xLEmac: sh.xLEmac, mass: sh.mass, gearX, ms: Date.now() - t0 };
+           cBar: sh.cBar, xLEmac: sh.xLEmac, mass: sh.mass, gearX, ms: Date.now() - t0,
+           cgMX: mm > 0 ? cx / mm : null, cgMY: mm > 0 ? cy / mm : null };
 }
 // ONE JOB IN FLIGHT (2026-09-11): a job is ~1 s in the worker and boot
 // commits three or four times, so posting every request queued seconds of
@@ -1179,6 +1187,21 @@ let balSeq = 0, balSeen = 0, balErr = null, balBusy = false, balPending = false,
 function balanceApply(r) {
   if (!r || r.gearX == null) return;
   LAST_BAL = r;
+  // G396: THE CG HANDSHAKE, LIVE. Publish the model-frame CG for the float
+  // layer; when the floats are on and the CG has moved more than 2 cm from
+  // what the step was placed off, build once more — the step follows the
+  // CG, the CG follows the step (15 % of the mass), and the loop closes in
+  // one pass at this threshold
+  if (r.cgMX != null && isFinite(r.cgMX) && isFinite(r.cgMY)) {
+    const prev = window.FLYDIY_CG_MODEL;
+    window.FLYDIY_CG_MODEL = [r.cgMX, r.cgMY];
+    const moved = !prev || Math.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
+    const UI = window.CAGE_UI, P = UI && UI.P;
+    if (moved && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
+      clearTimeout(balanceApply._t);
+      balanceApply._t = setTimeout(() => { try { UI.build(); } catch (e) {} }, 60);
+    }
+  }
   for (const fn of (window.BALANCE_LISTENERS || [])) { try { fn(r); } catch (e) {} }
 }
 function balanceDone() {
