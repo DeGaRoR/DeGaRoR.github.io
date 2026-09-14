@@ -191,6 +191,16 @@
       rows.push(R); live.push(R);
       K.appendChild(n);
     }
+    // ---- THE ATMOSPHERE (SKY S3): the day's air as the sky sees it -------------------
+    const A = fold(root, 'atmosphere', true);
+    A.appendChild(slider('turbidity', 1.5, 10, 0.1, () => (dy() ? dy().turbidity : NaN), v => { if (ck()) ck().set({ turbidity: v }); }, v => v.toFixed(1) + (v < 3 ? ' clear' : v < 6 ? ' hazy' : ' thick')));
+    A.appendChild(slider('ozone', 100, 500, 10, () => (dy() ? dy().ozone : NaN), v => { if (ck()) ck().set({ ozone: v }); }, v => v + ' DU'));
+    A.appendChild(slider('ground albedo', 0, 0.6, 0.01, () => (dy() ? dy().groundAlbedo : NaN), v => { if (ck()) ck().set({ groundAlbedo: v }); }));
+    A.appendChild(slider('humidity', 0.05, 1, 0.01, () => (dy() ? dy().rh : NaN), v => { if (ck()) ck().set({ rh: v }); }, v => (v * 100).toFixed(0) + ' %'));
+    A.appendChild(slider('cloud cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }));
+    A.appendChild(slider('stars', 0, 3, 0.1, () => (W.ATMO && W.ATMO.U.stars ? W.ATMO.U.stars.value : NaN), v => { if (W.ATMO && W.ATMO.U.stars) W.ATMO.U.stars.value = v; }));
+    { const n = note(''); const R = { el: n, refresh: () => { const S = W.SKY_LIGHT, K = S && S.K(); n.textContent = K && K.K_SUN ? `K_sun ${K.K_SUN.toFixed(2)} K_hemi ${K.K_HEMI.toFixed(2)} · ${S.isMoon ? 'the moon is the key' : 'the sun is the key'} · exposure base ${(W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : 0).toFixed(3)}` : 'atmosphere off (painted dome)'; } }; rows.push(R); live.push(R); A.appendChild(n); }
+    A.appendChild(note('the rig row’s sun / hemisphere / exposure below are GAINS on the alps anchors (2.8 / 0.274 / 0.92) under the physical sky'));
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
     E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],

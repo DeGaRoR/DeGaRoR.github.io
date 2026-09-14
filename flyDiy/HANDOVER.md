@@ -47238,3 +47238,84 @@ stearman's calm rollout swing 5.9 -> 6.5 deg, the threshold at 6).
 - OWED (P0.7): retiring the old modes and their exceptions once a full
   `--all` run has judged every archetype under the defaults; the A5
   overshoot metric; the hold on a slope (the hold's brake holds it today).
+=======
+## G409 — THE SKY CHANTIER, SESSION B: THE ATMOSPHERE (2026-09-14, the user:
+## "a top-class lighting and atmosphere generator")
+
+- THE MODEL, BY HAND: src/viewer/atmo.js is Hillaire 2020 ("A Scalable and
+  Production Ready Sky and Atmosphere Rendering Technique") on the shipped
+  WebGLRenderer, port-cheap per RENDERER-DECISION §4k: the medium (Rayleigh
+  H 8 km, Mie H 1.2 km g 0.8 absorbing, an ozone tent 25 +/- 15 km - the
+  paper's Table 1), the transmittance table 256 x 64 (Bruneton's mapping,
+  40 steps) and the multi-scatter table 32 x 32 (Psi_ms = L2 / (1 - f_ms)
+  from 64 directions) computed IN JS into HalfFloat DataTextures on the
+  day's version; the sky-view LUT 192 x 108 (azimuth x a non-linear
+  elevation about the horizon) marched on the GPU every frame from the
+  eye's altitude, for the SUN and the MOON together (the moonlit sky for
+  free); the dome a standalone program - the sky-view sample, a
+  limb-darkened sun disc through its own transmittance, the moon as a
+  sphere lit by the sun (its phase is geometry), a hashed star field
+  hidden by the sky's own light - and TONE-MAPPED WITH THE SCENE through
+  three's chunks: the raw-palette convention retires with the palette.
+  Every number is per unit sun illuminance; the day's turbidity scales Mie
+  on a power law (T10 = 15x: a 10.6 deg sun at 45 % of clear), its ozone
+  the tent, its albedo the ground.
+- THE LIGHT THROUGH LIGHT_RIG (ruling (af)): src/viewer/sky_light.js
+  applyDay(day, room) - the ONE DirectionalLight is the sun, and below the
+  horizon the moon (hysteresis -0.5..-1.2 deg); its colour is the
+  transmittance along its own path, normalised (at 10.6 deg that is
+  1 0.66 0.33 - the sunset row's ffa652 the user judged, out of the
+  physics); its intensity K_SUN x max T x the room's unit; the hemisphere
+  from ATMO.skyIrradiance (sun + moon, a cosine-weighted 8 x 4
+  quadrature); the dome's scale K_SUN x unit so the dome and the terrain
+  it meets are on one scale; the exposure from light_rig.exposureFor - a
+  SCHEDULE in stops over the alps base (0 at 33 deg and up, +0.6 at 10.6,
+  +2.5 at sunset, +6 civil dusk, +10 at -9, +13 nautical, +15 astro, +15.5
+  night) declared as a BASE through GFX.setExposure, never read back.
+  CALIBRATED ONCE: K_SUN = 2.8 / max T(33.4 deg), K_HEMI = 0.274 /
+  lum E_sky(33.4 deg) - the alps afternoon the user judged comes out of
+  the model unchanged (GATE ATMO: 2.576 = 2.576), the sunset row's product
+  within 2 %; the rows' sunI / hemi / exposure are GAINS on those anchors
+  (the island's doubled hemisphere is a hemiBoost of 2).
+- IN THE WORLD: render_world.js takes ATMO.init(renderer) (the two tables
+  bake in ~300 ms at boot), the dome mesh takes ATMO.domeMat(), the PMREM
+  bakes the physical sky at the boot hour (S5 makes it follow the sun) with
+  its ground cap LIT BY THE DAY (the cap's level follows the ground's
+  irradiance relative to the alps anchor - a constant cap was 1000x the
+  dusk sky and lit every Standard material green from below), dayApply
+  runs ATMO.update every frame and SKY_LIGHT.applyDay on the sun's
+  threshold, the interim dimmer stays only as the fallback under the TSL
+  flag, the billboard clouds are lit as white surfaces at the cloud base
+  (T x cos + sky + moon; a puff's lit side faces the sun), and until S4
+  three's flat fog takes the physical horizon's radiance through the
+  dome's scale and the exposure (it is laid on after the tone map, so it is
+  folded by a soft knee). F8: an `atmosphere` fold (turbidity, ozone,
+  albedo, humidity, cloud cover, stars, the K's and the exposure base).
+- GATE ATMO (core, tools/_atmo_check.js): the transmittance against the
+  numpy mirror (tools/atmo_lut.py -> tools/atmo_ref.json) at 13 cells and 8
+  sun elevations (2 %, 5 % on the horizon row), single scatter along 16 rays
+  with the multi-scatter off (0.2 % worst), physical sanity (zenith T 0.94
+  0.86 0.76, a 2 deg path R/B 53, the noon zenith blue, the horizon
+  brighter and whiter, the sky a tenth of the sun, civil dusk 9.8 stops
+  under noon, astronomical night dark, every texel finite, turbidity
+  dims), the calibration products, the schedule monotone, and the sources
+  (the dome tone-mapped by three's chunks, no chunk override, no
+  onBeforeCompile in the atmosphere). 45 checks.
+- SEEN (headless CDP, four hours): noon a blue sky with a pale horizon and
+  white light; golden hour warm and no longer blown; dusk a purple-to-orange
+  twilight with the first stars and a grey-lit ground; a December night
+  moonlit under stars, the wing catching the moon; June's -11.5 deg is an
+  honest nautical twilight, dark, with the glow to the north. THREE UNITS
+  BUGS, all the same bug: the stars written at radiance ~1 in the sun's
+  units blurred into a white environment in the probe (a star is 1e-5
+  here); the probe's cap above; and an eye at exactly sea level sits ON
+  the ground sphere, so every ray hit the ground at t = 0 (a 10 m floor).
+- OWED: the exposure schedule is authored and wants the user's eye (the
+  F8 dials: exposureK / hemiBoost on the row, the atmosphere fold); S4 the
+  aerial perspective (the interim fog goes); S5 the probe re-baked on the
+  sun (today's is the boot hour's) and the shed's sky; the sun-disc pixel
+  against the almanac and the frame cost of the sky-view pass on the real
+  GPU (tree_perf with the rig) - the swiftshader rig cannot time it.
+- THE CENSUS (§4k rule 5): `node tools/tsl_census.js` - two new standalone
+  programs (the sky-view pass and the dome, ShaderMaterials, no splice) on
+  the register; no hook.

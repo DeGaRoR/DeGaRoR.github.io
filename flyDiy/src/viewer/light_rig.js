@@ -214,9 +214,41 @@
     return { lights: lights, emissive: emissive, unlit: unlit, unclaimed: unclaimed };
   }
 
+  // ---- 4. THE DAY'S EXPOSURE (SKY S3, 2026-09-14) --------------------------
+  // The physical sky spans twenty stops between noon and a moonlit night and
+  // a tone curve holds six, so the exposure is a SCHEDULE on the sun's
+  // elevation - the eye's adaptation, authored. It is one curve for both
+  // rooms (the rule this file exists for), expressed in STOPS over the
+  // alps-afternoon base the user judged (0.92 at 33 deg):
+  //     33 deg and up   0 stops (the base)
+  //     10.6 deg      +1.0 (the sunset row's 1.12 x its dimmer key: the
+  //                        calibration in sky_light.js fits the product)
+  //     sunset         +2.5     civil dusk (-6)  +6     nautical (-12)  +13
+  //     astro (-18)     +15     night         +15.5  (a full moon at 2.5e-6
+  //                        of the sun reads at ~7 % of noon: a game night;
+  //                        June's -11.5 deg at 55 N is a dim but readable dusk)
+  // Piecewise-linear in elevation, monotone, no discontinuity: the stops
+  // move ~0.4 a degree through the twilight, which at 1x is a stop every
+  // 5 minutes - imperceptible frame to frame.
+  var EV_BASE = 0.92;
+  var EV_KNOTS = [[-90, 15.5], [-18, 15], [-12, 13], [-9, 10], [-6, 6], [-0.833, 2.5], [10.6, 0.6], [33, 0], [90, 0]];
+  function exposureStops(el) {
+    var k = EV_KNOTS;
+    if (el <= k[0][0]) return k[0][1];
+    for (var i = 1; i < k.length; i++) if (el <= k[i][0]) {
+      var t = (el - k[i - 1][0]) / (k[i][0] - k[i - 1][0]);
+      return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]);
+    }
+    return k[k.length - 1][1];
+  }
+  function exposureFor(el, k) { return EV_BASE * Math.pow(2, exposureStops(el)) * (k == null ? 1 : k); }
+  // the illuminance ratios the sky's two lights stand in (sun = 1)
+  var MOON_RATIO = 2.5e-6;        // a full moon: 0.25 lux against 1e5
+
   var API = {
     PHYS: PHYS,
     applyRig: applyRig,
+    exposureFor: exposureFor, exposureStops: exposureStops, EV_BASE: EV_BASE, MOON_RATIO: MOON_RATIO,
     board: board,
     census: census,
     rowByKey: rowByKey,

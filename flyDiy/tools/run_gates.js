@@ -40,6 +40,8 @@ const GATES = [
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
+  // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
+  { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
