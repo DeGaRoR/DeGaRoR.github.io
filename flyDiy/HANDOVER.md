@@ -45389,3 +45389,27 @@ this session's.
   join until the next roll-out — verify on a live GPU); waves in the game's
   water (the model has Gerstner, the world's `waterH` has no time argument
   — ruling ap); the water rudder and the taxi (H4).
+
+## G390 — THE PREMISES PORT, L4: THE PROOF, THE DOCS (2026-09-14)
+
+- The full battery (--all, 57 gates, 156 min) from a clean worktree at G387:
+  every gate green but ARCHETYPES, which hit the runner's one-hour cap under
+  the load of the battery itself and a peer's (the runner's own words: a
+  timeout is not a verdict; G384 met the same on GEN). It flies fourteen
+  builds through the pilot on the BARE world - the premises hooks are dead
+  branches there. Rerun alone from a clean worktree at G387, uncapped:
+  GATE ARCHETYPES: PASS, 25 archetypes flown, 0 skipped.
+- The editor's design document carries the port as landed (section 7 "as
+  landed", the STATUS line) and what the port left for later: the F8 rows
+  stay on F8; a strip edited in the game keeps its boot-time decal until a
+  reload; the world's trees do not follow a live edit; the premises' own
+  forest and hand trees are not planted in the game (the world's species
+  vocabulary is an index, the bench's a pack key); the shed rail has no
+  WORLD entry; the boot builds every house whole; the draw calls.
+- Pictures: `port_game_showcase.png` / `port_game_strip.png` (L2, the record
+  in the game), `port_game_editor_orbit.png` (L3, the editor open over the
+  flight scene at dusk: the zone outlines, the strip's discs and holds, the
+  pattern route, the plots).
+- THE CHANTIER, END TO END: G353 the contract and the design; G356-G380 the
+  bench v0-v7 (eight landings); G385-G387 and G390 the port (four). The user opens
+  the game, rolls out, and finds WORLD on the flight rail.

@@ -13,9 +13,14 @@ plots with derived lawns and a filled slot, contract v1.5) and v5 (G378: the dre
 village's plan functions, the lot material one keeper, lights counted, props and billboards placed by hand, contract v1.6)
 and v6 (G379: the stand and its way out - the core's third pattern branch - the harbour, one bank law, the road that follows
 the ground, the showcase record, contract v1.7) and v7 (G380: premises_perf.js - 17 ms and 4 551 draw calls at the
-showcase overview on an RTX 3080; the draw calls are the budget's first problem) LANDED 2026-09-13. THE BENCH IS CLOSED;
-what remains is the PORT (section 8 and Appendix A).** (`tools/_premises.html`, port
-8401, GATE PREMISES, three goldens). Next: the cable link once the house session lands, the game host. Companion
+showcase overview on an RTX 3080; the draw calls are the budget's first problem) LANDED 2026-09-13. THE BENCH IS CLOSED.
+THE PORT LANDED 2026-09-14 (G385 L1: the composer in the core, makeWorld(seed, { premises }) with the three hooks,
+the world pack as refs; G386 L2: render_premises.js in game mode built by the world scene, the saved record composed at
+the boot, ?premises=<fixture>; G387 L3: the WORLD rail entry opens the same module over the flight scene, the sim held,
+premises_host.js one keeper of the cameras / pick / mouse for bench and game, every edit recomposed live with the
+ground rings re-sampled; G390 L4: the full battery green from a clean worktree). THE EDITOR IS IN THE GAME: roll out,
+open WORLD on the flight rail. What the port left for later is listed in section 7.** (`tools/_premises.html`, port
+8401, GATE PREMISES, five fixtures). Companion
 to `PREMISES-CONTRACT-2026-09-13.md` (the record and the asset contract, frozen v1). Appendix A is
 THE SPLIT — how the parallel sessions divide the work, land, unify and port; every session reads it.
 
@@ -306,6 +311,19 @@ as `graphics(body)` calls `GFX.mount`. The 3D sections (TERRAIN, ROADS, …) sho
 editor" pill that pauses the sim and hands the module the flight camera; WORLD / VIEW and FILE work
 from the flyout directly. The physics side is the contract's three hooks in `20_world.js`, no-ops
 with no premises loaded.
+
+**As landed (G385-G387 and G390, 2026-09-14).** The host is `src/viewer/premises_host.js` (the cameras, the analytic ground
+pick, the mouse, the row builders, the site functions - the bench page and the game both stand on it); the WORLD
+entry's flyout offers "open the world editor", which holds the sim, hangs a right-hand panel for the module's rail
+and inspector and a transparent sheet over the canvas for the mouse, and lets the host place the game's own camera
+(DEVCAM's precedent in placeCamera and the world update's eye). The record autosaves to `flydiy.premises.game`,
+which app.js composes at the next boot (`?premises=<fixture>` loads one from tools/fixtures, `?premises=none` a bare
+world). The world pack (the generators, their textures, the cabin, this module) rides the artifact as refs ahead of
+app.js, outside the budget; the composer core is inside it (7.0 MiB). NOT YET: the F8 rows the design wanted moved
+stay on F8; a strip edited in the game keeps its boot-time decal until a reload; the world's trees do not follow a
+live edit (placed once, at the make); the premises' own forest and hand trees are not planted in the game (the
+world's species vocabulary is an index, the bench's a pack key); the shed rail has no WORLD entry; the boot builds
+every house whole (4.7 s for the showcase - a worker or a ladder is owed); the houses' draw calls (premises_perf).
 
 **Why this satisfies the ONE EDITOR ruling.** Nothing lives only on the bench: the module has no
 page-specific path (the bench is one host; `app.js` and `editor.js` are two more), the record is the
