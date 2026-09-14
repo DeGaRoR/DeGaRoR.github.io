@@ -166,7 +166,16 @@
     if (typeof window !== 'undefined') window.FLYDIY_READY = B._readyP;
     armWatch(); B._watchArmed = now(); if (hasTimer) setTimeout(watch, 2000);
     rotate();
-    next();
+    // the first step is its own task too (LOADING S2): run() is called at the
+    // end of app.js's eval, and a step run inside that task would keep the
+    // overlay from painting the step's own label first
+    if (hasTimer) setTimeout(next, 0); else next();
+  }
+  // are these keys all in (or never asked for)? - a step that wants the
+  // scene complete before it works on it (the shader compile) asks this
+  function settled(keys) {
+    for (const k of keys) { const e = B.keys[k]; if (e && e.landed < e.expected) return false; }
+    return true;
   }
   function next() {
     if (B.stepI >= B.steps.length) {
@@ -179,11 +188,21 @@
     B.current = { id: s.id, label: s.label, w: s.w || 1 }; B.frac = 0;
     setPhase(s.label || s.id); paint(); armWatch();
     const t = now(); const e = rec('step', { id: s.id });
-    try { if (typeof s.fn === 'function') s.fn(); }
-    catch (err) { rec('error', { id: s.id, msg: String(err && err.message || err) }); note('a step failed (' + s.id + '): ' + String(err && err.message || err)); if (typeof console !== 'undefined') console.error('boot step ' + s.id + ':', err); }
-    e.ms = Math.round(now() - t);
-    B.doneW += s.w || 1; armWatch(); paint();
-    if (hasTimer) setTimeout(next, 0); else next();
+    const failed = err => { rec('error', { id: s.id, msg: String(err && err.message || err) }); note('a step failed (' + s.id + '): ' + String(err && err.message || err)); if (typeof console !== 'undefined') console.error('boot step ' + s.id + ':', err); };
+    const finish = () => {
+      e.ms = Math.round(now() - t);
+      if (B.opt.probe) { try { Object.assign(e, B.opt.probe()); } catch (err) {} }   // e.g. the renderer's program count
+      B.doneW += s.w || 1; armWatch(); paint();
+      if (hasTimer) setTimeout(next, 0); else next();
+    };
+    let r;
+    try { if (typeof s.fn === 'function') r = s.fn(); }
+    catch (err) { failed(err); }
+    // a step may hand back a promise (LOADING S2: the parallel shader compile
+    // polls the driver); the chain waits for it. GATE UISMOKE's harness has
+    // no such renderer, so there every step stays synchronous.
+    if (r && typeof r.then === 'function') r.then(finish, err => { failed(err); finish(); });
+    else finish();
   }
   function frame() {
     if (B.state === 'gone') return;
@@ -226,7 +245,7 @@
     if (k) key(k).bytes += en.transferSize || en.encodedBodySize || 0; } paint(); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
 
   B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
-  B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.hasUI = HAS_UI;
+  B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
   if (typeof module !== 'undefined') module.exports = B;
   rec('boot.js');

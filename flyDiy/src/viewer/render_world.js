@@ -561,14 +561,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // first, so the fill's walk paid it on every one of a chunk's 12 544 grid
   // points; most points are not within 90 m of a woodland tree and never
   // reach it now. Same conjunction, same answer.
-  const forestHere = (x, z) => {
+  // `sc`: the caller's own classification of (x, z) when it has one (the
+  // colour bake, LOADING S2) - the classifier is 2.7 us and was asked twice
+  const forestHere = (x, z, sc) => {
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
     for (const e of treeEx) if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) return false;
     // THE WOODLAND GATE IS THE ANALYTIC WORLD'S (G400): on an island the map
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
     if (!world.island && nearTree(x, z) < 0) return false;
-    if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) return false;
+    if ((sc === undefined ? world.surface(x, z) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
@@ -605,7 +607,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const c = new THREE.Color(), c2 = new THREE.Color();
     let _h = 0, _low = 0, _for = 0;
     const colorAt = (x, z) => {
-      const h = world.terrainH(x, z), e = 16;
+      // THE SLOPE STENCIL IS THE CLASSIFIER'S (LOADING S2, G407): +-8 m, not
+      // +-16, so the four taps are the same four the biome classifier takes
+      // for the same texel and the height memo answers them (20_world.js):
+      // nine height samples a texel became five. Measured: the colour bake
+      // was 3.7 s of the boot, and the taps were the cost, not the height.
+      // A finer stencil reads a hillside a shade rougher; the classifier,
+      // the far canopy mask and the tree placement are untouched.
+      const h = world.terrainH(x, z), e = 8;
       const slope = Math.min(1, Math.hypot(
         world.terrainH(x + e, z) - world.terrainH(x - e, z),
         world.terrainH(x, z + e) - world.terrainH(x, z - e)) / (2 * e) * 1.15);
@@ -631,7 +640,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const sc = world.surface(x, z);
       // the forest floor's own colour, and the far tier's mask, only where
       // a forest IS (forestHere): the classifier alone painted the corridor
-      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z)) ? 1 : 0;
+      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z, sc)) ? 1 : 0;
       if (_for) c.lerp(c2.setHex(0x51602f), 0.42);
       else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
       else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);

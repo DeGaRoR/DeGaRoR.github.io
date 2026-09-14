@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 9f376dc33c1b3253
+// body-sha256: a5e17947abb67efd
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1720,6 +1720,7 @@ function makeWorld(seed, opts) {
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
+    if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
     if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
@@ -1735,9 +1736,27 @@ function makeWorld(seed, opts) {
   }
   if (opts && opts.premises) setPremises(opts.premises);
 
+  // THE HEIGHT IS MEMOISED (LOADING S2, G407). One ground texel of the
+  // colour bake asked for the same (x, z) up to sixteen times - colorAt's
+  // own sample, the biome classifier's (once from colorAt, once again from
+  // forestHere), each with its slope taps - and the tree walks ask twice per
+  // point; measured 2.5 s of the boot in h0a/vnoise. A direct-mapped cache
+  // keyed on the EXACT doubles (a hit is the same x and the same z, so the
+  // answer is the same bits: every golden holds) folds the repeats. `var`,
+  // not const: terrainH is a hoisted declaration called before this line
+  // runs, and a const would be in its dead zone. Cleared when the premises
+  // change (setPremises), the one thing that moves the ground after make.
+  var thX, thZ, thH;
+  const TH_N = 16384;
+  function terrainClear() { if (thX) thX.fill(NaN); }
   function terrainH(x, z) {
-    const h = baseH(x, z);
-    return PM ? PM.terrainH(x, z, h) : h;
+    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
+    const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
+    if (thX[i] === x && thZ[i] === z) return thH[i];
+    const h0 = baseH(x, z);
+    const h = PM ? PM.terrainH(x, z, h0) : h0;
+    thX[i] = x; thZ[i] = z; thH[i] = h;
+    return h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
@@ -4620,11 +4639,33 @@ function makeModifier(m, y0) {
     for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     const bbox = { x0: x0 - hw - fall, z0: z0 - hw - fall, x1: x1 + hw + fall, z1: z1 + hw + fall };
     const abs = !!m.abs;
+    // THE SEGMENTS ARE INDEXED (LOADING S2, G407). This apply ran for every
+    // terrain vertex, ground texel and tree-walk point inside the road's
+    // bbox and scanned the WHOLE polyline each time: 6.3 s of the island's
+    // boot in this one function (measured, tools/boot_perf.js). A segment can
+    // only move a point within `reach` = hw + fall of itself (weight is 0
+    // past it), so each segment is filed under every cell its bbox grown by
+    // `reach` touches, and a query reads its own cell's list. Byte-identical
+    // to the scan: a segment within reach of the point is always in the
+    // list, one beyond it weighs nothing whether it is scanned or not, and
+    // the list keeps the polyline's order so ties resolve to the same index.
+    const reach = hw + fall, CS = Math.max(64, 2 * reach), cells = new Map();
+    const ck = (i, j) => i + ',' + j;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const i0 = Math.floor((Math.min(a[0], b[0]) - reach) / CS), i1 = Math.floor((Math.max(a[0], b[0]) + reach) / CS);
+      const j0 = Math.floor((Math.min(a[1], b[1]) - reach) / CS), j1 = Math.floor((Math.max(a[1], b[1]) + reach) / CS);
+      for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) {
+        const k = ck(ci, cj); let l = cells.get(k); if (!l) { l = []; cells.set(k, l); } l.push(i);
+      }
+    }
     return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
+      const list = cells.get(ck(Math.floor(x / CS), Math.floor(z / CS)));
+      if (!list) return h;
       let best = Infinity, ty = 0;
-      for (let i = 0; i + 1 < pts.length; i++) {
-        const a = pts[i], b = pts[i + 1];
+      for (let n = 0; n < list.length; n++) {
+        const i = list[n], a = pts[i], b = pts[i + 1];
         const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
         const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
         const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
@@ -4878,7 +4919,10 @@ const RUNWAY_LOOKS = {
   worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked' },
   gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble' },
 };
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+// THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
+// the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
+// leaves the pilot its choice (the runway direction nearest its inbound track)
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null };
 
 // THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
 // [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
@@ -4973,8 +5017,13 @@ function runwayAerodrome(r, F, elev, flats) {
   // the aeroplane is placed at the stand when the strip has one
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
+  // THE GROUND UNDER THE STAND (v9): a profiled strip's stand is not at the strip's elevation - the placer reads it
+  if (S && S.stand) S.stand.elev = +T1(S.stand.x, S.stand.z).toFixed(2);
+  const spawnElev = +T1(spawnAt[0], spawnAt[1]).toFixed(2);
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
-           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
+           // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
+           landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
 
@@ -5394,8 +5443,11 @@ function compose(rec0, world, opts) {
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
     // composed ground (tilted to it when `on` is 'ground'), a billboard a painted sign's key on its
     // posts at the width given; both in the premises frame, their y the ground plus `dy`
+    // ...and the PARKED AEROPLANES (G409, contract v1.8): kind 'aircraft', its key naming a build
+    // ('arch:cub', 'stock:<name>', 'mine:<slot>' - src/viewer/parked.js), stood on its wheels on the
+    // composed ground, nose along its yaw. Same record shape as a prop; the renderer tells them apart.
     O.records.objects = [];
-    for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard') {
+    for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
     }
@@ -5424,6 +5476,7 @@ function issues(rec0) {
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
+    if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -5435,7 +5488,7 @@ function issues(rec0) {
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
-  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
+  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
@@ -5605,8 +5658,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -11671,8 +11724,20 @@ function makePilot(sim, def, world, opts) {
       else tIthr = clamp(tIthr + kI * eT * dt, -0.4, 0.4);
       c.thr = clamp(ff + kP * eT + tIthr, tThrFloor, 1);
       // the speed weight: toward the elevator as the throttle saturates or the speed is low
-      const sat = c.thr >= 0.99 || c.thr <= tThrFloor + 0.005;
-      const wKt = (sat && Math.abs(Vc - V) > 1) || V < 1.1 * tVs0 ? 2 : 1;
+      // the weight when the throttle is on a stop: under 1.1 Vs0 the speed
+      // is the elevator's whatever the reference; in a CLIMB (a vs reference,
+      // full throttle by design) the speed is the elevator's too (Vy, the
+      // climb rate is what the thrust allows); holding a HEIGHT or a SLOPE
+      // with the throttle at its stop the height is the elevator's and the
+      // speed settles where the thrust allows — GATE PILOT's FAST card (45
+      // m/s the cub does not have) had it pitch down for a speed it could
+      // never reach and fly the circuit into the ground
+      const satHi = c.thr >= 0.99, satLo = c.thr <= tThrFloor + 0.005;
+      const wKt = V < 1.1 * tVs0 ? 2
+                : (o.vs != null && satHi && Vc - V > 1) ? 2
+                : (satHi && Vc - V > 1) ? 0
+                : (satLo && V - Vc > 1 && o.vs == null) ? 0.5
+                : 1;
       tWk += clamp(wKt - tWk, -0.5 * dt, 0.5 * dt);
       // the balance: pitch = trim(V) + gamma demanded + P + I on the balance-rate error
       const SEBr = (2 - tWk) * tHdot - tWk * V * accF / g9, SEBrC = (2 - tWk) * hdotC - tWk * V * VdotC / g9;

@@ -288,6 +288,7 @@ function makeWorld(seed, opts) {
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
+    if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
     if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
@@ -303,9 +304,27 @@ function makeWorld(seed, opts) {
   }
   if (opts && opts.premises) setPremises(opts.premises);
 
+  // THE HEIGHT IS MEMOISED (LOADING S2, G407). One ground texel of the
+  // colour bake asked for the same (x, z) up to sixteen times - colorAt's
+  // own sample, the biome classifier's (once from colorAt, once again from
+  // forestHere), each with its slope taps - and the tree walks ask twice per
+  // point; measured 2.5 s of the boot in h0a/vnoise. A direct-mapped cache
+  // keyed on the EXACT doubles (a hit is the same x and the same z, so the
+  // answer is the same bits: every golden holds) folds the repeats. `var`,
+  // not const: terrainH is a hoisted declaration called before this line
+  // runs, and a const would be in its dead zone. Cleared when the premises
+  // change (setPremises), the one thing that moves the ground after make.
+  var thX, thZ, thH;
+  const TH_N = 16384;
+  function terrainClear() { if (thX) thX.fill(NaN); }
   function terrainH(x, z) {
-    const h = baseH(x, z);
-    return PM ? PM.terrainH(x, z, h) : h;
+    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
+    const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
+    if (thX[i] === x && thZ[i] === z) return thH[i];
+    const h0 = baseH(x, z);
+    const h = PM ? PM.terrainH(x, z, h0) : h0;
+    thX[i] = x; thZ[i] = z; thH[i] = h;
+    return h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----

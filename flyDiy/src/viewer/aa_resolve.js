@@ -382,6 +382,10 @@
 
     return {
       render, setSize, setTier, dispose, setDither,
+      // the pass's own target (LOADING S2): a program compiled with it bound
+      // carries the canvas's tone mapping and colour space, which is what the
+      // first frame will ask for - null at tier 'off', where the canvas is the target
+      target: () => S.rt || null,
       dither: () => S.dither,
       tier: () => S.tier,
       able: () => S.able,

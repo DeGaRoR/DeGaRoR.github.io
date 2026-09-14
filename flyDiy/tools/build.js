@@ -607,8 +607,11 @@ window.FLYDIY_BOOT.then(function () {
   // ...and the loading screen's markers: one line after the vendor and one
   // after the core, so the phase line moves while the 7 MB of scripts parse
   const MARK = id => `<script>window.BOOT&&BOOT.phase('${id}','${id === 'vendor' ? 'reading the renderer' : 'reading the model'}')</script>`;
+  // the core's sha (LOADING S2): a cache of something the physics computed
+  // (the shakedown) is only valid for the core that computed it
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}'</script>`;
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}`);
-  art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}`);
+  art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}\n${CORE_SHA}`);
   art = fill(art, 'MODELS', payloadRefs);
   // THE WORLD PACK'S PLACE (G386): after every viewer script the generators read and BEFORE app.js,
   // which makes the world - app.js is not the last viewer script (dev_panel.js is), so the refs go
@@ -667,7 +670,7 @@ window.FLYDIY_BOOT.then(function () {
     .join('\n'));
   dev = fill(dev, 'BODY', bodyDev);
   dev = fill(dev, 'VENDOR', DEV_LOADER);
-  dev = fill(dev, 'CORE', MANIFEST.core.map(f => dref(CORE_DIR, 'src/core', f)).join('\n'));
+  dev = fill(dev, 'CORE', MANIFEST.core.map(f => dref(CORE_DIR, 'src/core', f)).join('\n') + '\n' + CORE_SHA);
   dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));
   const devRender = V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f));
   devRender.splice(APP_AT, 0, MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n'));

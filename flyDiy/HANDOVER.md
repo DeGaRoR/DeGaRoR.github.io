@@ -47458,3 +47458,78 @@ half weight. The card: 143 km/h held, completed, the landing 1.1 m/s.
   the two passes on the real GPU; mist as a height-limited volume (F).
 - THE CENSUS (§4k rule 5): `node tools/tsl_census.js` - one more standalone
   program (the AP pass); the five chunk overrides are one splice by design.
+
+## G407 — THE SHADERS COMPILE IN PARALLEL, AND THE CPU CUTS (2026-09-14, LOADING S2)
+
+Session 2 of `futureDesigns/LOADING-2026-09-14.md`. MEASURED FIRST on the
+commit's own build against HEAD's, both from clean worktrees on the same
+rig (`tools/boot_perf.js`, `tools/perf/boot_perf_{head,s2wt}_{cold,warm}.json`):
+
+|                          | HEAD (G406)            | this commit           |
+|--------------------------|------------------------|-----------------------|
+| COLD (fresh shader cache) overlay gone | > 60 s (landing at 66 s) | **28.1 s**  |
+| cold, main thread blocked in long tasks | 65.3 s                | 26.7 s                |
+| cold, bakeHangarEnv (first draw = the compile) | 22.5 s        | 1.8 s                 |
+| WARM overlay gone (2nd / 3rd boot)    | 25.9 s                 | 23.4 s / 20.2 s       |
+| stillness after the lift              | 0 / 0 / 0              | 0 / 0 / 0             |
+| programs after the compile step / after frame 1 | —            | 127 / 131 (four depth variants left for the frame) |
+
+WHAT LANDED:
+- THE COMPILE STEP (app.js, before `firstFrame`): `renderer.compileAsync`
+  issues every compile and link at once and polls KHR_parallel_shader_compile
+  (present on this rig) while the loading screen keeps moving - the driver
+  links on its own threads. TWO PASSES, because a program's key carries the
+  target it draws into (three r186: tone mapping and the output colour space
+  come from the renderer only for the canvas and an XR-flagged target - the AA
+  pass's; a plain target is linear and un-tone-mapped): the env probe's cube
+  target first, for the bake's set, then the AA pass's target (`aa.target()`,
+  new) for the frame's. The step WAITS (8 s at most) for props, crew and the
+  crew's rebuild to be in, or their materials would compile on their first
+  draw after it; and it gives the room a PLACEHOLDER ENVIRONMENT before the
+  first pass (a PMREM of the still-black probe target: zero radiance, the
+  same key as the real bake's) so the room is not compiled once without an
+  env map and again with one. The bake itself is HELD while the step is
+  pending (`envDeferred`: a bake asked for by a landing texture is only
+  noted) and runs between the two passes; a page without compileAsync (the
+  harness) takes the old road. `renderer.debug.checkShaderErrors = false` is
+  NOT a lever: it moves the stall from getProgramInfoLog to the uniform
+  introspection (read in the vendor at line 4165/4172).
+- boot.js: a step may return a promise (the chain waits; the harness never
+  gets one); `opt.probe` rides on every step's log entry (the program count);
+  the first step is its own task (run() used to call it inside app.js's eval,
+  so the overlay could not paint its label first); `BOOT.settled(keys)`.
+- THE ROAD-GRADE SEGMENT INDEX (27_premises.js grade.apply): every terrain
+  vertex, ground texel and tree-walk point in a road's bbox scanned the whole
+  polyline - 6.3 s of the island's boot in one function. Segments filed per
+  cell (CS = max(64, 2 x (hw + falloff))); a query reads its cell. Bit-exact
+  against HEAD over 43 431 samples on three roads (a segment within reach is
+  always listed, one beyond weighs nothing, the list keeps the polyline's
+  order so ties resolve alike); 28 x faster on the synthetic.
+- THE HEIGHT MEMO (20_world.js terrainH): a direct-mapped 16 384-entry cache
+  keyed on the exact doubles, cleared by setPremises; `var`, because
+  terrainH is hoisted and called before the line runs. Exact by construction.
+  What it revealed: the colour bake's cost is NOT the height, it is the SLOPE
+  TAPS - nine height samples a texel (colorAt's own +-16 m, the classifier's
+  +-8 m, asked twice). So colorAt's stencil is now the classifier's (+-8 m:
+  the same four points, answered by the memo) and forestHere takes the
+  caller's classification (`sc`) instead of classifying again: 9 samples a
+  texel became 5; the classifier, the far canopy mask and the tree placement
+  are untouched; the render compared on the roll-out shot is unchanged to
+  the eye. bakeGround 4.6 -> 4.1 s warm; the remaining 2.6 M height samples
+  at 1 us are the terrain function itself (S3 moves the whole bake under the
+  roll-out screen).
+- THE SHAKEDOWN MEMO (app.js shakeOf): keyed by a hash of the spec, in memory
+  and in localStorage under the core's own sha (build.js writes
+  `FLYDIY_CORE_SHA` into both pages; a rebuilt core is a new store; eight
+  entries). The boot built the same aeroplane three times and paid the settle
+  each time; the second boot pays none. genShakedown 4.7 -> 2.4 -> 1.2 s
+  (the 1.2 s left is the bench's own slim sheets, a different call).
+
+NOT DONE / OWED: the world's programs still compile at the first roll-out
+frame (S3, under the roll-out screen with the world scene, the tree ring and
+the atlases); the first `setAircraft('gen')` at script eval is still paid
+before the steps (the bridges may read it - not traced); the cold compile is
+9 s of wall on this rig (117 programs through ANGLE's HLSL compiler in
+parallel) - fewer, simpler programs is the only lever left there. HEAD was
+red on SITE, ENERGY and AERO before G406 (verified at G405 in a clean
+worktree: the same three) - another session's landing, not this chantier's.

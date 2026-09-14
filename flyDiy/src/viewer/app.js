@@ -567,7 +567,19 @@
   // PMREMGenerator.dispose() frees its ping-pong target, never the one it hands
   // back, and a mood change re-bakes.
   let skyPM = null;
+  // THE BAKE WAITS FOR THE COMPILE (LOADING S2, G407). The cube probe is the
+  // first draw of every hangar material, and on a cold shader cache that
+  // first draw is the whole compile of the bake's program set, synchronous,
+  // 7 s in the middle of a boot step. While the boot's compile step is
+  // pending, a bake asked for (the room's textures landing, a prop) is only
+  // noted; the compile step runs it once the driver has linked the programs.
+  let envDeferred = false, envDirty = false;
+  function ensureEnvRT() {
+    if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+    return envRT;
+  }
   function bakeHangarEnv() {
+    if (envDeferred) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
     const pm = new THREE.PMREMGenerator(renderer);
@@ -590,7 +602,7 @@
       pm.compileEquirectangularShader();
       rt = pm.fromEquirectangular(sky);
     } else if (THREE.WebGLCubeRenderTarget) {
-      if (!envRT) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+      ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
       cam.position.set(0, 3.2, 0);
       // THE AEROPLANE WAS IN ITS OWN REFLECTION PROBE (G62.3, found chasing
@@ -4687,6 +4699,21 @@
   // rebuild. The panel and the indicators both want it, so it is memoised on
   // the fiche: one solve per aeroplane, not one per reader.
   let shakeFor = null, shakeVal = null;
+  // ...AND ON THE SPEC, ACROSS BUILDS AND BOOTS (LOADING S2, G407). The boot
+  // builds the same aeroplane three times (the first setAircraft, the
+  // aircraft step, syncBuild's re-export) and each new `def` paid the settle
+  // again: 1-4 s of the boot in substep(). genShakedown is a function of the
+  // spec and the core alone, so the result is kept by a hash of the spec,
+  // in memory and in localStorage under the core's own sha (build.js writes
+  // FLYDIY_CORE_SHA; a rebuilt core is a new store). Eight entries, newest last.
+  const SHAKE_KEY = 'flydiy.shake', shakeMem = new Map();
+  const shakeHash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
+  const shakeStore = () => {
+    const core = (typeof window !== 'undefined' && window.FLYDIY_CORE_SHA) || null;
+    if (!core) return null;
+    try { const st = JSON.parse(prefGet(SHAKE_KEY, 'null')); return (st && st.core === core) ? st : { core, entries: {} }; }
+    catch (e) { return { core, entries: {} }; }
+  };
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
     // G208: WITHOUT THE FOUR LOADING CORNERS (the user: "drop the four corner
@@ -4694,7 +4721,21 @@
     // the underlying machines fly OK"). Four extra shakedowns per bench check
     // went with them; the balance chart still draws its own corners, because
     // a loading sheet is not a test.
-    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def, { corners: false }); }
+    if (shakeFor !== def) {
+      shakeFor = def;
+      let key = null;
+      try { key = def && def.spec ? shakeHash(JSON.stringify(def.spec)) : null; } catch (e) { key = null; }
+      let v = key ? shakeMem.get(key) : undefined;
+      if (v === undefined && key) { const st = shakeStore(); if (st && st.entries[key]) v = st.entries[key]; }
+      if (v === undefined) {
+        v = genShakedown(def, { corners: false });
+        if (key) {
+          shakeMem.set(key, v);
+          try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
+        }
+      }
+      shakeVal = v;
+    }
 
     return shakeVal;
   };
@@ -7784,6 +7825,9 @@
   // the first aeroplane is the garage build on its defaults; the garage
   // bridge below re-applies the restored WIP over it before the first frame
   BOOT.phase('aeroplane', 'building your aeroplane');
+  // hold the env bake until the compile step (see there); a page without
+  // compileAsync never defers
+  envDeferred = typeof renderer.compileAsync === 'function';
   setAircraft('gen');
   syncEnvBtn();               // garage-only buttons start hidden
 
@@ -8156,11 +8200,49 @@
         && window.GARAGE_SPEC.plaque)
       window.BENCH_RESTORE(window.GARAGE_SPEC.plaque());
   });
+  // THE SHADERS COMPILE IN PARALLEL (LOADING S2, G407). Every program used
+  // to be compiled synchronously on its first draw: measured 25 s of a cold
+  // boot inside three's link-status query. renderer.compileAsync issues every
+  // compile and link at once and polls KHR_parallel_shader_compile while the
+  // loading screen keeps moving; the driver links on its own threads. Two
+  // passes, because a program's key carries the target it draws into: the
+  // env probe's cube target (linear, no tone map) for the bake, then the AA
+  // pass's target (the canvas's look) for the frame. The bake itself, held
+  // back while this was pending, runs between the two. A page without
+  // compileAsync (the harness) takes the old road: bake now, compile on draw.
+  bootStep('compile', 'compiling the shaders', 14, () => {
+    const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
+    if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
+    // A PLACEHOLDER ENVIRONMENT FIRST: a program's key says whether the scene
+    // has an environment map (and its size), so a room compiled without one
+    // and then baked would compile every material a second time on the
+    // first frame. A PMREM of the still-black probe target is that map with
+    // zero radiance: same key, same look, and the real bake replaces it.
+    if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
+      try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
+            hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
+    }
+    const pass = target => {
+      const prev = renderer.getRenderTarget();
+      try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(hangarScene, camera); }
+      finally { renderer.setRenderTarget(prev); }
+    };
+    // ...once the room is complete: a prop or the crew landing AFTER the
+    // compile would compile its materials on their first draw, synchronously.
+    // Wait (8 s at most) for the bytes that add materials to the scene.
+    const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
+    const t0 = performance.now();
+    const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
+    return whenComplete().then(() => pass(ensureEnvRT())).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .catch(e => { console.warn('boot compile:', e && e.message); done(); });
+  });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed
   // here behind the splash; a reference plane fetches its own on pick.)
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => { hud(); loop(); });
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
-    require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'] });
+    require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
+    // the program count rides on every step's log entry: what each step compiled
+    probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
 })();

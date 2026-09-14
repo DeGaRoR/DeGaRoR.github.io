@@ -3240,7 +3240,16 @@ body.benchBusy #edInfo { opacity:.72; }
     if (typeof window !== 'undefined') window.FLYDIY_READY = B._readyP;
     armWatch(); B._watchArmed = now(); if (hasTimer) setTimeout(watch, 2000);
     rotate();
-    next();
+    // the first step is its own task too (LOADING S2): run() is called at the
+    // end of app.js's eval, and a step run inside that task would keep the
+    // overlay from painting the step's own label first
+    if (hasTimer) setTimeout(next, 0); else next();
+  }
+  // are these keys all in (or never asked for)? - a step that wants the
+  // scene complete before it works on it (the shader compile) asks this
+  function settled(keys) {
+    for (const k of keys) { const e = B.keys[k]; if (e && e.landed < e.expected) return false; }
+    return true;
   }
   function next() {
     if (B.stepI >= B.steps.length) {
@@ -3253,11 +3262,21 @@ body.benchBusy #edInfo { opacity:.72; }
     B.current = { id: s.id, label: s.label, w: s.w || 1 }; B.frac = 0;
     setPhase(s.label || s.id); paint(); armWatch();
     const t = now(); const e = rec('step', { id: s.id });
-    try { if (typeof s.fn === 'function') s.fn(); }
-    catch (err) { rec('error', { id: s.id, msg: String(err && err.message || err) }); note('a step failed (' + s.id + '): ' + String(err && err.message || err)); if (typeof console !== 'undefined') console.error('boot step ' + s.id + ':', err); }
-    e.ms = Math.round(now() - t);
-    B.doneW += s.w || 1; armWatch(); paint();
-    if (hasTimer) setTimeout(next, 0); else next();
+    const failed = err => { rec('error', { id: s.id, msg: String(err && err.message || err) }); note('a step failed (' + s.id + '): ' + String(err && err.message || err)); if (typeof console !== 'undefined') console.error('boot step ' + s.id + ':', err); };
+    const finish = () => {
+      e.ms = Math.round(now() - t);
+      if (B.opt.probe) { try { Object.assign(e, B.opt.probe()); } catch (err) {} }   // e.g. the renderer's program count
+      B.doneW += s.w || 1; armWatch(); paint();
+      if (hasTimer) setTimeout(next, 0); else next();
+    };
+    let r;
+    try { if (typeof s.fn === 'function') r = s.fn(); }
+    catch (err) { failed(err); }
+    // a step may hand back a promise (LOADING S2: the parallel shader compile
+    // polls the driver); the chain waits for it. GATE UISMOKE's harness has
+    // no such renderer, so there every step stays synchronous.
+    if (r && typeof r.then === 'function') r.then(finish, err => { failed(err); finish(); });
+    else finish();
   }
   function frame() {
     if (B.state === 'gone') return;
@@ -3300,7 +3319,7 @@ body.benchBusy #edInfo { opacity:.72; }
     if (k) key(k).bytes += en.transferSize || en.encodedBodySize || 0; } paint(); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
 
   B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
-  B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.hasUI = HAS_UI;
+  B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
   if (typeof module !== 'undefined') module.exports = B;
   rec('boot.js');
@@ -9780,6 +9799,7 @@ function makeWorld(seed, opts) {
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
+    if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
     if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
@@ -9795,9 +9815,27 @@ function makeWorld(seed, opts) {
   }
   if (opts && opts.premises) setPremises(opts.premises);
 
+  // THE HEIGHT IS MEMOISED (LOADING S2, G407). One ground texel of the
+  // colour bake asked for the same (x, z) up to sixteen times - colorAt's
+  // own sample, the biome classifier's (once from colorAt, once again from
+  // forestHere), each with its slope taps - and the tree walks ask twice per
+  // point; measured 2.5 s of the boot in h0a/vnoise. A direct-mapped cache
+  // keyed on the EXACT doubles (a hit is the same x and the same z, so the
+  // answer is the same bits: every golden holds) folds the repeats. `var`,
+  // not const: terrainH is a hoisted declaration called before this line
+  // runs, and a const would be in its dead zone. Cleared when the premises
+  // change (setPremises), the one thing that moves the ground after make.
+  var thX, thZ, thH;
+  const TH_N = 16384;
+  function terrainClear() { if (thX) thX.fill(NaN); }
   function terrainH(x, z) {
-    const h = baseH(x, z);
-    return PM ? PM.terrainH(x, z, h) : h;
+    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
+    const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
+    if (thX[i] === x && thZ[i] === z) return thH[i];
+    const h0 = baseH(x, z);
+    const h = PM ? PM.terrainH(x, z, h0) : h0;
+    thX[i] = x; thZ[i] = z; thH[i] = h;
+    return h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
@@ -12680,11 +12718,33 @@ function makeModifier(m, y0) {
     for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     const bbox = { x0: x0 - hw - fall, z0: z0 - hw - fall, x1: x1 + hw + fall, z1: z1 + hw + fall };
     const abs = !!m.abs;
+    // THE SEGMENTS ARE INDEXED (LOADING S2, G407). This apply ran for every
+    // terrain vertex, ground texel and tree-walk point inside the road's
+    // bbox and scanned the WHOLE polyline each time: 6.3 s of the island's
+    // boot in this one function (measured, tools/boot_perf.js). A segment can
+    // only move a point within `reach` = hw + fall of itself (weight is 0
+    // past it), so each segment is filed under every cell its bbox grown by
+    // `reach` touches, and a query reads its own cell's list. Byte-identical
+    // to the scan: a segment within reach of the point is always in the
+    // list, one beyond it weighs nothing whether it is scanned or not, and
+    // the list keeps the polyline's order so ties resolve to the same index.
+    const reach = hw + fall, CS = Math.max(64, 2 * reach), cells = new Map();
+    const ck = (i, j) => i + ',' + j;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const i0 = Math.floor((Math.min(a[0], b[0]) - reach) / CS), i1 = Math.floor((Math.max(a[0], b[0]) + reach) / CS);
+      const j0 = Math.floor((Math.min(a[1], b[1]) - reach) / CS), j1 = Math.floor((Math.max(a[1], b[1]) + reach) / CS);
+      for (let ci = i0; ci <= i1; ci++) for (let cj = j0; cj <= j1; cj++) {
+        const k = ck(ci, cj); let l = cells.get(k); if (!l) { l = []; cells.set(k, l); } l.push(i);
+      }
+    }
     return { id: m.id, kind: 'grade', bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1 || pts.length < 2) return h;
+      const list = cells.get(ck(Math.floor(x / CS), Math.floor(z / CS)));
+      if (!list) return h;
       let best = Infinity, ty = 0;
-      for (let i = 0; i + 1 < pts.length; i++) {
-        const a = pts[i], b = pts[i + 1];
+      for (let n = 0; n < list.length; n++) {
+        const i = list[n], a = pts[i], b = pts[i + 1];
         const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
         const t = l2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
         const d = Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
@@ -12938,7 +12998,10 @@ const RUNWAY_LOOKS = {
   worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked' },
   gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble' },
 };
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+// THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
+// the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
+// leaves the pilot its choice (the runway direction nearest its inbound track)
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null };
 
 // THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
 // [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
@@ -13033,8 +13096,13 @@ function runwayAerodrome(r, F, elev, flats) {
   // the aeroplane is placed at the stand when the strip has one
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
+  // THE GROUND UNDER THE STAND (v9): a profiled strip's stand is not at the strip's elevation - the placer reads it
+  if (S && S.stand) S.stand.elev = +T1(S.stand.x, S.stand.z).toFixed(2);
+  const spawnElev = +T1(spawnAt[0], spawnAt[1]).toFixed(2);
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
-           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
+           // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
+           landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
 
@@ -13454,8 +13522,11 @@ function compose(rec0, world, opts) {
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
     // composed ground (tilted to it when `on` is 'ground'), a billboard a painted sign's key on its
     // posts at the width given; both in the premises frame, their y the ground plus `dy`
+    // ...and the PARKED AEROPLANES (G409, contract v1.8): kind 'aircraft', its key naming a build
+    // ('arch:cub', 'stock:<name>', 'mine:<slot>' - src/viewer/parked.js), stood on its wheels on the
+    // composed ground, nose along its yaw. Same record shape as a prop; the renderer tells them apart.
     O.records.objects = [];
-    for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard') {
+    for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
     }
@@ -13484,6 +13555,7 @@ function issues(rec0) {
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
+    if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -13495,7 +13567,7 @@ function issues(rec0) {
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
-  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
+  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
@@ -13665,8 +13737,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -19731,8 +19803,20 @@ function makePilot(sim, def, world, opts) {
       else tIthr = clamp(tIthr + kI * eT * dt, -0.4, 0.4);
       c.thr = clamp(ff + kP * eT + tIthr, tThrFloor, 1);
       // the speed weight: toward the elevator as the throttle saturates or the speed is low
-      const sat = c.thr >= 0.99 || c.thr <= tThrFloor + 0.005;
-      const wKt = (sat && Math.abs(Vc - V) > 1) || V < 1.1 * tVs0 ? 2 : 1;
+      // the weight when the throttle is on a stop: under 1.1 Vs0 the speed
+      // is the elevator's whatever the reference; in a CLIMB (a vs reference,
+      // full throttle by design) the speed is the elevator's too (Vy, the
+      // climb rate is what the thrust allows); holding a HEIGHT or a SLOPE
+      // with the throttle at its stop the height is the elevator's and the
+      // speed settles where the thrust allows — GATE PILOT's FAST card (45
+      // m/s the cub does not have) had it pitch down for a speed it could
+      // never reach and fly the circuit into the ground
+      const satHi = c.thr >= 0.99, satLo = c.thr <= tThrFloor + 0.005;
+      const wKt = V < 1.1 * tVs0 ? 2
+                : (o.vs != null && satHi && Vc - V > 1) ? 2
+                : (satHi && Vc - V > 1) ? 0
+                : (satLo && V - Vc > 1 && o.vs == null) ? 0.5
+                : 1;
       tWk += clamp(wKt - tWk, -0.5 * dt, 0.5 * dt);
       // the balance: pitch = trim(V) + gamma demanded + P + I on the balance-rate error
       const SEBr = (2 - tWk) * tHdot - tWk * V * accF / g9, SEBrC = (2 - tWk) * hdotC - tWk * V * VdotC / g9;
@@ -33035,6 +33119,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
+<script>window.FLYDIY_CORE_SHA='a5e17947abb6'</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -88105,6 +88190,10 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 
     return {
       render, setSize, setTier, dispose, setDither,
+      // the pass's own target (LOADING S2): a program compiled with it bound
+      // carries the canvas's tone mapping and colour space, which is what the
+      // first frame will ask for - null at tier 'off', where the canvas is the target
+      target: () => S.rt || null,
       dither: () => S.dither,
       tier: () => S.tier,
       able: () => S.able,
@@ -88841,6 +88930,127 @@ var ATMO = (function () {
     }`;
   const QUAD_VERT = `varying vec2 vUv2; void main(){ vUv2 = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
+  // ---- the aerial-perspective atlas (S4) -------------------------------------
+  // Hillaire's froxel volume, made camera-independent for a forward renderer:
+  // AP_N slices of DISTANCE (quadratic, 0 .. AP_DMAX km), each a 64 x 32 map of
+  // DIRECTION (azimuth x the sky-view's non-linear elevation), laid side by side
+  // in one 2048 x 32 target. A texel holds the in-scattered radiance to that
+  // distance along that direction (rgb) and the path's transmittance (a). Every
+  // material samples it by its own view vector and distance (the splice below),
+  // so the far ridge fades into the sky it stands under and the fog wall goes.
+  const AP_N = 32, AP_W = 64, AP_H = 32, AP_DMAX = 120.0;   // km
+  const AP_FRAG = GLSL_LIB + `
+    uniform float uR, uEMoon, uDmax;
+    uniform vec3 uSun, uMoon;
+    varying vec2 vUv2;
+    void main() {
+      float fx = vUv2.x * ${AP_N}.0;
+      float k = floor(fx), u = fract(fx);
+      vec3 d = skyDir(vec2(u, vUv2.y));
+      float dist = uDmax * pow((k + 0.5) / ${AP_N}.0, 2.0);
+      float Rg = uAtm[0].x, Rt = uAtm[0].y, mu = d.y, r = uR;
+      float tg = raySphere(r, mu, Rg);
+      float tEnd = tg >= 0.0 ? tg : raySphere(r, mu, Rt);
+      tEnd = min(tEnd, dist);
+      vec3 L = vec3(0.0), Tp = vec3(1.0);
+      if (tEnd > 0.0) {
+        float dt = tEnd / 12.0;
+        float cs = dot(d, uSun), pRs = phaseR(cs), pMs = phaseM(cs);
+        float cm = dot(d, uMoon), pRm = phaseR(cm), pMm = phaseM(cm);
+        for (int s = 0; s < 12; s++) {
+          float t = (float(s) + 0.5) * dt;
+          vec3 p = vec3(0.0, r, 0.0) + d * t;
+          float rr = length(p), h = rr - Rg;
+          vec3 sR, e; float sM; medium(h, sR, sM, e);
+          float muS = dot(p, uSun) / rr;
+          float shadow = raySphere(rr, muS, Rg) >= 0.0 ? 0.0 : 1.0;
+          vec3 S = (sR * pRs + vec3(sM * pMs)) * T(rr, muS) * shadow + (sR + vec3(sM)) * MS(rr, muS);
+          if (uEMoon > 0.0) { float muM = dot(p, uMoon) / rr; float shm = raySphere(rr, muM, Rg) >= 0.0 ? 0.0 : 1.0;
+            S += uEMoon * ((sR * pRm + vec3(sM * pMm)) * T(rr, muM) * shm + (sR + vec3(sM)) * MS(rr, muM)); }
+          vec3 seg = (1.0 - exp(-e * dt)) / max(vec3(1e-9), e);
+          L += Tp * S * seg;
+          Tp *= exp(-e * dt);
+        }
+      }
+      gl_FragColor = vec4(L, Tp.g);
+    }`;
+  // THE ONE SPLICE (RENDERER-DECISION §4k rule 3). three lays its fog on AFTER
+  // the tone map, in display space (r186: opaque -> tonemapping -> colorspace ->
+  // fog), so a physical in-scatter cannot live in fog_fragment: it goes at the
+  // head of tonemapping_fragment, where gl_FragColor is still linear radiance,
+  // guarded by USE_FOG (a material's own `fog` flag, and a scene with a fog
+  // object) and by the shared flag uAtmoAP.z (the world sets it; the shed,
+  // which keeps its dark-wall smoothstep, clears it). fog_vertex exports the
+  // view-space position; the fragment rebuilds the world view ray from it
+  // through viewMatrix (rigid: the transpose is the inverse rotation).
+  const AP_PARS_VERT = `varying vec3 vAtmoV;`;
+  const AP_VERT = `vFogDepth = - mvPosition.z; vAtmoV = mvPosition.xyz;`;
+  const AP_PARS_FRAG = `
+    varying vec3 vAtmoV;
+    uniform sampler2D uApAtlas;
+    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+    vec4 atmoAP() {
+      float dist = length(vAtmoV) * 0.001;
+      vec3 d = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz);
+      float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
+      float v = 0.5 + 0.5 * sign(el) * sqrt(abs(el) / 1.57079632679);
+      float u = az / 6.28318530718 + 0.5;
+      float s = sqrt(clamp(dist / uAtmoAP.y, 0.0, 1.0)) * ${AP_N}.0 - 0.5;
+      float k0 = floor(s), f = s - k0;
+      float k1 = min(k0 + 1.0, ${AP_N}.0 - 1.0);
+      float uu = clamp(u, 0.5 / ${AP_W}.0, 1.0 - 0.5 / ${AP_W}.0);
+      vec4 a = k0 < 0.0 ? vec4(0.0, 0.0, 0.0, 1.0) : texture2D(uApAtlas, vec2((k0 + uu) / ${AP_N}.0, v));
+      vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
+      return mix(a, b, f);
+    }`;
+  const AP_APPLY = `
+    #ifdef USE_FOG
+    if (uAtmoAP.z > 0.5) { vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a; }
+    #endif
+  `;
+  // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
+  const AP_FOG_FRAG = `
+    #ifdef USE_FOG
+    if (uAtmoAP.z < 0.5) {
+      #ifdef FOG_EXP2
+      float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+      #else
+      float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+      #endif
+      gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+    }
+    #endif
+  `;
+  const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
+  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars } };
+  let installed = false;
+  function install() {
+    if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk || !THREE.ShaderLib) return false;
+    if (typeof window !== 'undefined' && window.FLYDIY_RENDERER && window.FLYDIY_RENDERER.isWebGPURenderer) return false;   // the node renderer reads no chunk
+    const SC = THREE.ShaderChunk;
+    SC.fog_pars_vertex = (SC.fog_pars_vertex || '') + '\n' + AP_PARS_VERT;
+    SC.fog_vertex = '#ifdef USE_FOG\n' + AP_VERT + '\n#endif\n';
+    SC.fog_pars_fragment = (SC.fog_pars_fragment || '') + '\n#ifdef USE_FOG\n' + AP_PARS_FRAG + '\n#endif\n';
+    SC.fog_fragment = AP_FOG_FRAG;
+    SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
+    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
+      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) lib.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+    }
+    // every default material takes the sampler through the prototype; a hook of its own calls inject itself
+    const proto = THREE.Material.prototype;
+    proto.onBeforeCompile = function (sh) { inject(sh); };
+    installed = true;
+    return true;
+  }
+  // inject(shader): the atlas sampler (a render-target texture cannot ride ShaderLib: cloneUniforms nulls it) - idempotent, text-guarded
+  function inject(sh) {
+    if (!sh || !sh.uniforms || sh.uniforms.uApAtlas) return;
+    if (!/fog_pars_fragment|USE_FOG/.test(sh.fragmentShader || '')) return;
+    sh.uniforms.uApAtlas = apUniforms.uApAtlas;
+    if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+  }
+  function setAP(on) { apScalars[2] = on ? 1 : 0; }
+
   // ---- the dome ------------------------------------------------------------
   // The sky-view sample, the sun and moon discs from the transmittance, the
   // stars. Radiance x uScale (= K_SUN, sky_light.js), then three's own tone
@@ -88910,7 +89120,7 @@ var ATMO = (function () {
   const DOME_VERT = `varying vec3 vD; void main(){ vD = (modelMatrix * vec4(position,1.0)).xyz - cameraPosition; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
 
   // ---- the GPU half ---------------------------------------------------------
-  const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, quad: null, cam: null, skyMat: null, atmU: null };
+  const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
   };
@@ -88950,6 +89160,12 @@ var ATMO = (function () {
     G.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), G.skyMat); G.quad.frustumCulled = false;
     G.scene = new THREE.Scene(); G.scene.add(G.quad);
     G.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    // the aerial-perspective atlas and its pass
+    G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    G.rtAP.texture.wrapS = THREE.ClampToEdgeWrapping; G.rtAP.texture.wrapT = THREE.ClampToEdgeWrapping;
+    G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uDmax: { value: AP_DMAX } }, G.atmU),
+      vertexShader: QUAD_VERT, fragmentShader: AP_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
+    apUniforms.uApAtlas.value = G.rtAP.texture;
     G.enabled = true;
     return true;
   }
@@ -88965,7 +89181,9 @@ var ATMO = (function () {
     const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
     renderer.autoClear = true;
     renderer.setRenderTarget(G.rtSky); renderer.render(G.scene, G.cam);
+    if (installed && G.rtAP) { G.quad.material = G.apMat; renderer.setRenderTarget(G.rtAP); renderer.render(G.scene, G.cam); G.quad.material = G.skyMat; }
     renderer.setRenderTarget(prev); renderer.autoClear = ac;
+    apScalars[0] = U.scale.value;
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
@@ -88985,9 +89203,10 @@ var ATMO = (function () {
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
+    install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
   };
 })();
-if (typeof window !== 'undefined') window.ATMO = ATMO;
+if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks
 if (typeof module !== 'undefined' && module.exports) module.exports = ATMO;
 </script>
 <script>
@@ -89351,6 +89570,7 @@ function siteEdgeFade(THREE, mat, soft, w, d) {
   mat.transparent = true;
   mat.onBeforeCompile = sh => {
     sh.uniforms.uFadeSize = { value: new THREE.Vector2(w, d) };
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
     sh.uniforms.uFadeK = { value: soft == null ? 0.34 : soft };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>' + NL + 'varying vec2 vFadeUv;')
@@ -89681,6 +89901,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     HOOKED.push(mat);
     mat.onBeforeCompile = sh => {
       sh.uniforms.uLeaf = mat.userData.uLeaf;
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uWrap = U_WRAP; sh.uniforms.uSSS = U_SSS;
       sh.uniforms.uSSSP = U_SSSP; sh.uniforms.uAoBake = U_AO;
       sh.uniforms.uBakeAlb = U_BAKEALB;
@@ -89932,7 +90153,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const MAX_ANISO = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? renderer.capabilities.getMaxAnisotropy()
                   : (renderer && renderer.getMaxAnisotropy) ? renderer.getMaxAnisotropy() : 8;
   // the fog wall hid the analytic ring's edge at 5.2 km; an island's edge is the sea (the user: "remove the fog")
-  scene.fog = world.island ? new THREE.Fog(C(HAZE), 20000, 90000) : new THREE.Fog(C(HAZE), 600, 5200);
+  // THE FOG (S4): under the atmosphere the world's distance is the aerial
+  // perspective (atmo.js's one splice in every fogged material) and this
+  // object is only what defines USE_FOG - a sentinel a light-year out. The
+  // painted haze walls (600-5200 m; 20-90 km on an island) stand only when
+  // the atmosphere is off (the TSL flag, the headless gate).
+  scene.fog = ATMO_ON && ATMO.installed ? new THREE.Fog(C(HAZE), 1e9, 2e9)
+            : world.island ? new THREE.Fog(C(HAZE), 20000, 90000) : new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
   // Sky shader, factored out because the W18 environment bake below renders the
@@ -90368,14 +90595,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // first, so the fill's walk paid it on every one of a chunk's 12 544 grid
   // points; most points are not within 90 m of a woodland tree and never
   // reach it now. Same conjunction, same answer.
-  const forestHere = (x, z) => {
+  // `sc`: the caller's own classification of (x, z) when it has one (the
+  // colour bake, LOADING S2) - the classifier is 2.7 us and was asked twice
+  const forestHere = (x, z, sc) => {
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
     for (const e of treeEx) if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) return false;
     // THE WOODLAND GATE IS THE ANALYTIC WORLD'S (G400): on an island the map
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
     if (!world.island && nearTree(x, z) < 0) return false;
-    if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) return false;
+    if ((sc === undefined ? world.surface(x, z) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
   };
@@ -90412,7 +90641,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const c = new THREE.Color(), c2 = new THREE.Color();
     let _h = 0, _low = 0, _for = 0;
     const colorAt = (x, z) => {
-      const h = world.terrainH(x, z), e = 16;
+      // THE SLOPE STENCIL IS THE CLASSIFIER'S (LOADING S2, G407): +-8 m, not
+      // +-16, so the four taps are the same four the biome classifier takes
+      // for the same texel and the height memo answers them (20_world.js):
+      // nine height samples a texel became five. Measured: the colour bake
+      // was 3.7 s of the boot, and the taps were the cost, not the height.
+      // A finer stencil reads a hillside a shade rougher; the classifier,
+      // the far canopy mask and the tree placement are untouched.
+      const h = world.terrainH(x, z), e = 8;
       const slope = Math.min(1, Math.hypot(
         world.terrainH(x + e, z) - world.terrainH(x - e, z),
         world.terrainH(x, z + e) - world.terrainH(x, z - e)) / (2 * e) * 1.15);
@@ -90438,7 +90674,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const sc = world.surface(x, z);
       // the forest floor's own colour, and the far tier's mask, only where
       // a forest IS (forestHere): the classifier alone painted the corridor
-      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z)) ? 1 : 0;
+      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z, sc)) ? 1 : 0;
       if (_for) c.lerp(c2.setHex(0x51602f), 0.42);
       else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
       else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
@@ -90645,6 +90881,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       });
       GROUND.on = true;
       islandGroundHook = sh => {
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU);
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;')
@@ -90833,6 +91070,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // position rather than their own uv — the inner mesh and the outer ring
     // have completely different uv layouts, and the mask is one domain-wide bake.
     const canopyHook = sh => {
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uFMask = { value: forestMask };
       sh.uniforms.uCanopy = { value: cnpTex };
       sh.uniforms.uFloor = uFloor; sh.uniforms.uFloorLod = uFloorLod; sh.uniforms.uFloorEdge = uFloorEdge;
@@ -90906,6 +91144,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shared close-range grain hook (W13.2): uvScale sets tiles/uv-unit so
     // materials with different uv extents get the same on-ground density
     detailApply = (mat, uvScale) => { mat.onBeforeCompile = sh => {
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -90927,6 +91166,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the close grain is the analytic ground's; an island's ground is the live stack
     if (islandGroundHook) gMat.onBeforeCompile = islandGroundHook;
     else gMat.onBeforeCompile = sh => {
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -91145,6 +91385,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // real reflection, no per-cell geometry at all.
         const lakeMat = waterMat.clone();
         lakeMat.onBeforeCompile = sh => {
+          if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
           sh.uniforms.uGLake = gU.uGLake; sh.uniforms.uGGrid = gU.uGGrid;
           sh.vertexShader = sh.vertexShader
             .replace('#include <common>', '#include <common>\nvarying vec3 vWL;')
@@ -91621,6 +91862,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         sh.uniforms.uNearB = uNear;
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uFadeB = { value: FAR_FADE };
@@ -91930,6 +92172,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const prev = mat.onBeforeCompile, E = bandEdges(r, n);
       m.onBeforeCompile = sh => {
         if (prev) prev(sh);
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         sh.uniforms.uNearB = E.near;
         sh.uniforms.uFarB = E.far;
         sh.uniforms.uNoBand = uNoBand;
@@ -91993,6 +92236,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const nearOnly = mat => {
       mat.onBeforeCompile = sh => {
         sh.uniforms.uNearB = uNear;
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform float uNearB;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
@@ -93578,7 +93822,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function dayApply() {
     const day = world.day;
     if (!day || rigCur.manual) return;
-    if (ATMO_ON) ATMO.update(renderer, day, camera.position.y);     // the sky-view LUT follows the sun and the eye every frame
+    if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -93603,20 +93847,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
-    if (scene.fog && scene.fog.color && scene.fog.color.setRGB) {
-      if (ATMO_ON) {
-        // INTERIM (until S4's aerial perspective): three's fog is a flat colour
-        // laid on AFTER the tone map, so it takes the physical horizon's
-        // radiance (four azimuths at 2 deg up) through the dome's own scale and
-        // the exposure, folded by a soft knee - the terrain fades into the sky it
-        // stands under, in every hour, instead of into a painted haze
-        const ex = (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null) ? window.GFX.exposureBase() : 1;
-        const S = ATMO.U.scale.value * ex, L = [0, 0, 0], acc = [0, 0, 0];
-        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ATMO.skyRadiance(6360 + camera.position.y / 1000, [Math.sin(a) * 0.9994, 0.0349, -Math.cos(a) * 0.9994], day.sun, 1, 12, L); acc[0] += L[0]; acc[1] += L[1]; acc[2] += L[2]; }
-        const f = v => { const x = v * S * 0.25; return x / (1 + x); };
-        scene.fog.color.setRGB(f(acc[0]), f(acc[1]), f(acc[2]));
-      } else if (rigCur.dome && scene.fog.color.setHex) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);
-    }
+    if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
     if (clouds && clouds.material) {
       clouds.position.y = Math.max(-600, day.cloudBase - 690);              // the puffs were drawn 480-900 m up
       const cover = Math.min(1, Math.max(0, day.cloudCover / 0.6));
@@ -94104,6 +94335,7 @@ function dustMaterial(m, d) {
   const NL = String.fromCharCode(10);
   m.onBeforeCompile = sh => {
     if (prev) prev(sh);
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
     sh.uniforms.uDustH = ud.dust.uDustH;
     sh.uniforms.uDustK = ud.dust.uDustK;
     sh.vertexShader = 'varying float vDustY;' + NL + sh.vertexShader
@@ -98873,6 +99105,7 @@ const AERO_NMAT_FS = 'uniform mat3 normalMatrix;\n';
 // (see the header), so every AEROSKIN material shares it by REFERENCE and the
 // build compiles one program per AEROSKIN_SURF value — two, not thirty.
 const AEROSKIN_HOOK = function (shader) {
+  if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   // THE WEATHERING (G345): read here, at compile, and spliced in as text —
   // the same text for every material, so the one-program rule holds
   const W = aeroWx();
@@ -98945,6 +99178,7 @@ const AERO_CABIN_FS = `
 // and for the same r128 reason (the cache key is its source). It reads the
 // same shared block, attached the same way.
 const AERO_CABIN_HOOK = function (shader) {
+  if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
@@ -99789,6 +100023,7 @@ function aeroGlass(THREE, o) {
   // the exemption was unjustified complexity, so it went.
   m.envMapIntensity = m.userData.env0 * AERO_ENV_F;
   m.onBeforeCompile = AEROGLASS_HOOK;
+  m.fog = false;      // S4: the pane is an additive pass in the near field - no aerial perspective on it
   AERO_POOL.set(key, m);
   AERO_BUILT.push(m);
   return m;
@@ -114804,7 +115039,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
 <script src="src/viewer/house_tex.js?v=3d332680"></script>
-<script src="src/viewer/lot_tex.js?v=a3532127"></script>
+<script src="src/viewer/lot_tex.js?v=7028621f"></script>
 <script src="src/viewer/sign_tex.js?v=e3e0b1ad"></script>
 <script src="src/pier/pier_pier.js?v=ba429deb"></script>
 <script src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
@@ -114823,10 +115058,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="tools/_totem_gen.js?v=725d9e05"></script>
 <script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
 <script src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
-<script src="src/viewer/cabin.js?v=27e21ad5"></script>
+<script src="src/viewer/cabin.js?v=e6c4b01d"></script>
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
 <script src="tools/_village_gen.js?v=172a0d65"></script>
-<script src="src/viewer/render_premises.js?v=94d16067"></script>
+<script src="src/viewer/render_premises.js?v=e1a5648b"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
 <script src="src/viewer/premises_ui.js?v=05f5efd7"></script>
 <script>
@@ -115399,7 +115634,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // PMREMGenerator.dispose() frees its ping-pong target, never the one it hands
   // back, and a mood change re-bakes.
   let skyPM = null;
+  // THE BAKE WAITS FOR THE COMPILE (LOADING S2, G407). The cube probe is the
+  // first draw of every hangar material, and on a cold shader cache that
+  // first draw is the whole compile of the bake's program set, synchronous,
+  // 7 s in the middle of a boot step. While the boot's compile step is
+  // pending, a bake asked for (the room's textures landing, a prop) is only
+  // noted; the compile step runs it once the driver has linked the programs.
+  let envDeferred = false, envDirty = false;
+  function ensureEnvRT() {
+    if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+    return envRT;
+  }
   function bakeHangarEnv() {
+    if (envDeferred) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // (one light model everywhere since W0.5a: r186 has only the physical one)
     const pm = new THREE.PMREMGenerator(renderer);
@@ -115422,7 +115669,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       pm.compileEquirectangularShader();
       rt = pm.fromEquirectangular(sky);
     } else if (THREE.WebGLCubeRenderTarget) {
-      if (!envRT) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+      ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
       cam.position.set(0, 3.2, 0);
       // THE AEROPLANE WAS IN ITS OWN REFLECTION PROBE (G62.3, found chasing
@@ -119519,6 +119766,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // rebuild. The panel and the indicators both want it, so it is memoised on
   // the fiche: one solve per aeroplane, not one per reader.
   let shakeFor = null, shakeVal = null;
+  // ...AND ON THE SPEC, ACROSS BUILDS AND BOOTS (LOADING S2, G407). The boot
+  // builds the same aeroplane three times (the first setAircraft, the
+  // aircraft step, syncBuild's re-export) and each new `def` paid the settle
+  // again: 1-4 s of the boot in substep(). genShakedown is a function of the
+  // spec and the core alone, so the result is kept by a hash of the spec,
+  // in memory and in localStorage under the core's own sha (build.js writes
+  // FLYDIY_CORE_SHA; a rebuilt core is a new store). Eight entries, newest last.
+  const SHAKE_KEY = 'flydiy.shake', shakeMem = new Map();
+  const shakeHash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
+  const shakeStore = () => {
+    const core = (typeof window !== 'undefined' && window.FLYDIY_CORE_SHA) || null;
+    if (!core) return null;
+    try { const st = JSON.parse(prefGet(SHAKE_KEY, 'null')); return (st && st.core === core) ? st : { core, entries: {} }; }
+    catch (e) { return { core, entries: {} }; }
+  };
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
     // G208: WITHOUT THE FOUR LOADING CORNERS (the user: "drop the four corner
@@ -119526,7 +119788,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // the underlying machines fly OK"). Four extra shakedowns per bench check
     // went with them; the balance chart still draws its own corners, because
     // a loading sheet is not a test.
-    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def, { corners: false }); }
+    if (shakeFor !== def) {
+      shakeFor = def;
+      let key = null;
+      try { key = def && def.spec ? shakeHash(JSON.stringify(def.spec)) : null; } catch (e) { key = null; }
+      let v = key ? shakeMem.get(key) : undefined;
+      if (v === undefined && key) { const st = shakeStore(); if (st && st.entries[key]) v = st.entries[key]; }
+      if (v === undefined) {
+        v = genShakedown(def, { corners: false });
+        if (key) {
+          shakeMem.set(key, v);
+          try { const st = shakeStore(); if (st) { st.entries[key] = v; const ks = Object.keys(st.entries); while (ks.length > 8) delete st.entries[ks.shift()]; prefSet(SHAKE_KEY, JSON.stringify(st)); } } catch (e) {}
+        }
+      }
+      shakeVal = v;
+    }
 
     return shakeVal;
   };
@@ -122616,6 +122892,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // the first aeroplane is the garage build on its defaults; the garage
   // bridge below re-applies the restored WIP over it before the first frame
   BOOT.phase('aeroplane', 'building your aeroplane');
+  // hold the env bake until the compile step (see there); a page without
+  // compileAsync never defers
+  envDeferred = typeof renderer.compileAsync === 'function';
   setAircraft('gen');
   syncEnvBtn();               // garage-only buttons start hidden
 
@@ -122776,6 +123055,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
     }
     if (inGarage) {
+      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would
@@ -122987,13 +123267,51 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         && window.GARAGE_SPEC.plaque)
       window.BENCH_RESTORE(window.GARAGE_SPEC.plaque());
   });
+  // THE SHADERS COMPILE IN PARALLEL (LOADING S2, G407). Every program used
+  // to be compiled synchronously on its first draw: measured 25 s of a cold
+  // boot inside three's link-status query. renderer.compileAsync issues every
+  // compile and link at once and polls KHR_parallel_shader_compile while the
+  // loading screen keeps moving; the driver links on its own threads. Two
+  // passes, because a program's key carries the target it draws into: the
+  // env probe's cube target (linear, no tone map) for the bake, then the AA
+  // pass's target (the canvas's look) for the frame. The bake itself, held
+  // back while this was pending, runs between the two. A page without
+  // compileAsync (the harness) takes the old road: bake now, compile on draw.
+  bootStep('compile', 'compiling the shaders', 14, () => {
+    const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
+    if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
+    // A PLACEHOLDER ENVIRONMENT FIRST: a program's key says whether the scene
+    // has an environment map (and its size), so a room compiled without one
+    // and then baked would compile every material a second time on the
+    // first frame. A PMREM of the still-black probe target is that map with
+    // zero radiance: same key, same look, and the real bake replaces it.
+    if (!hangarScene.environment && THREE.PMREMGenerator && ensureEnvRT()) {
+      try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
+            hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
+    }
+    const pass = target => {
+      const prev = renderer.getRenderTarget();
+      try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(hangarScene, camera); }
+      finally { renderer.setRenderTarget(prev); }
+    };
+    // ...once the room is complete: a prop or the crew landing AFTER the
+    // compile would compile its materials on their first draw, synchronously.
+    // Wait (8 s at most) for the bytes that add materials to the scene.
+    const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
+    const t0 = performance.now();
+    const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
+    return whenComplete().then(() => pass(ensureEnvRT())).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .catch(e => { console.warn('boot compile:', e && e.message); done(); });
+  });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed
   // here behind the splash; a reference plane fetches its own on pick.)
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => { hud(); loop(); });
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
-    require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'] });
+    require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
+    // the program count rides on every step's log entry: what each step compiled
+    probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
 })();
 </script>
 <script>
@@ -123213,9 +123531,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
     E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
-    const fog = () => world() && world().scene && world().scene.fog;
-    E.appendChild(slider('fog from', 0, 20000, 100, () => fog() ? fog().near : NaN, v => { if (fog()) fog().near = v; }, v => (v / 1000).toFixed(1) + ' km'));
-    E.appendChild(slider('fog full by', 500, 90000, 500, () => fog() ? fog().far : NaN, v => { if (fog()) fog().far = v; }, v => (v / 1000).toFixed(1) + ' km'));
+    E.appendChild(note('distance is the atmosphere’s aerial perspective (S4): no fog rows - turbidity and humidity above are the haze'));
     const Es = fold(E, 'shadows and floor', false, true);
     Es.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
     Es.appendChild(slider('forest floor', 0, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));

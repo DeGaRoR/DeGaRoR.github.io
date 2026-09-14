@@ -182,7 +182,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     byFile.set(f, (byFile.get(f) || 0) + us); byFn.set(fn, (byFn.get(fn) || 0) + us); }
   const top = (m, n) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => [k, +(v / 1000).toFixed(0)]);
   const parent = new Map(); for (const n of prof.nodes) for (const c of (n.children || [])) parent.set(c, n.id);
-  const KEYS = ['buildWorldScene', 'makeWorld', 'genHangarBuild', 'buildGen', 'CAGE_UI_BOOT', 'bakeImpostorAtlasNow', 'plantWoodland', 'bakeHangarEnv', 'renderSky', 'openEditor', 'setAircraft', 'seedEditor', 'buildModel', 'makeIsland', 'bakeGroundShadow', 'syncBuild', 'fromScene', 'fillStep', 'compileAsync', 'compile', 'makeSim', 'getHangar', 'enterGarage', 'treeBuild', 'coverageMips', 'decodeModel', 'fillPropMesh', 'genShakedown', 'bakeGround', 'apply', 'render'];
+  const KEYS = ['buildWorldScene', 'makeWorld', 'genHangarBuild', 'buildGen', 'CAGE_UI_BOOT', 'bakeImpostorAtlasNow', 'plantWoodland', 'bakeHangarEnv', 'renderSky', 'openEditor', 'setAircraft', 'seedEditor', 'buildModel', 'makeIsland', 'bakeGroundShadow', 'syncBuild', 'fromScene', 'fillStep', 'compileAsync', 'compile', 'makeSim', 'getHangar', 'enterGarage', 'treeBuild', 'coverageMips', 'decodeModel', 'fillPropMesh', 'genShakedown', 'bakeGround', 'apply', 'render', 'colorAt', 'terrainH', 'surface', 'h0a', 'forestHere', 'walk', 'treeSettle'];
   const incl = new Map();
   for (const [nid, us] of selfByNode) { let p = nid; const seen = new Set();
     while (p !== undefined) { const n = nodes.get(p); const fn = n.callFrame.functionName; const key = fn + ' @' + base(n.callFrame.url);
