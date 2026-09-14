@@ -54,7 +54,7 @@ const ICONS = {
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
 const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
 const TOOL_HELP = {
-  select: 'click a feature to select it; drag its discs; Del deletes',
+  select: 'click a feature to select it; drag its discs; Ctrl+click adds a corner after the last, Ctrl+click a disc removes it; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
   raise: 'click the corners, close; then set the lift in the inspector',
   ramp: 'click the corners, close: a constant slope, the middle at the height you set, rising toward the heading you set',
@@ -240,8 +240,37 @@ function mount(host, ctx) {
 
   // ---- the tool state machine ----------------------------------------------------
   const T = { state: 'armed', pts: [] };
-  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
-  const isLine = () => !!LINE_TOOLS[tool];
+  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; T.resume = null; T.line = false; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
+  const isLine = () => !!LINE_TOOLS[tool] || !!T.line;
+  // RESUME (G398.2, MSFS's way): the selected polygon or road re-opens as the drawing - its corners are
+  // the points, a click (or Ctrl+click) adds one after the last, Backspace drops the last, Enter / the
+  // ✓ pill validates back into the SAME entry, Esc leaves it as it was
+  function resumeDrawing(id) {
+    const f = PG.findById(rec, id); if (!f) return false;
+    const arr = f.entry.poly || f.entry.pts; if (!arr) return false;
+    cancelTool(); setTool('select'); select(id);
+    T.state = 'drawing'; T.resume = id; T.line = !!f.entry.pts; T.pts = arr.map(q => [q[0], q[1]]);
+    if (drawBtns) drawBtns.style.display = '';
+    R.ghost(ghostFeature(), ghostOk());
+    strip.status('resuming ' + id + ': click to add corners after the last, Enter validates, Esc leaves it');
+    ctx.redraw && ctx.redraw();
+    return true;
+  }
+  // Ctrl+click with the select tool (G398.2): a corner after the last (a road grows at the end nearer the
+  // click); on a disc, that corner removed (a polygon keeps three, a road two)
+  function ctrlEdit(id, L, h) {
+    const f = PG.findById(rec, id); if (!f) return false;
+    const e = f.entry, arr = e.poly || e.pts; if (!arr) return false;
+    if (h && !h.mid && h.key && /^v[0-9]+$/.test(h.key)) {
+      const min = e.poly ? 3 : 2;
+      if (arr.length <= min) { strip.status('a ' + (e.poly ? 'polygon keeps three corners' : 'road keeps two points')); return true; }
+      edit(id, f.layer, x => { (x.poly || x.pts).splice(h.index, 1); }, 'corner of ' + id + ' removed'); strip.status('corner removed - ' + (e.poly || e.pts).length + ' left');
+      return true;
+    }
+    const q = [+L[0].toFixed(2), +L[1].toFixed(2)];
+    edit(id, f.layer, x => { const a = x.poly || x.pts; if (x.pts && a.length >= 2 && Math.hypot(a[0][0] - q[0], a[0][1] - q[1]) < Math.hypot(a[a.length - 1][0] - q[0], a[a.length - 1][1] - q[1])) a.unshift(q); else a.push(q); }, 'corner added to ' + id); strip.status('corner added - ' + (e.poly || e.pts).length + ' now; Ctrl+click adds another');
+    return true;
+  }
   function ghostFeature() {
     if (!T.pts.length) return null;
     if (TWO_POINT_TOOLS[tool]) return T.pts.length >= 2 ? { pts: [T.pts[0], T.pts[1]], width: 24 } : { kind: 'tree', x: T.pts[0][0], z: T.pts[0][1] };
@@ -278,6 +307,16 @@ function mount(host, ctx) {
   }
   function commitDrawing() {
     if (T.state !== 'drawing') return;
+    if (T.resume) {
+      const id = T.resume, f = PG.findById(rec, id);
+      if (!f) { cancelTool(); return; }
+      if (f.entry.poly && (T.pts.length < 3 || !PG.polySimple(T.pts))) { strip.status(T.pts.length < 3 ? 'a polygon needs three corners' : 'refused: the polygon crosses itself'); return; }
+      if (f.entry.pts && T.pts.length < 2) { strip.status('a road needs two points'); return; }
+      const pts = T.pts.map(q => [q[0], q[1]]);
+      edit(id, f.layer, x => { if (x.poly) x.poly = pts; else x.pts = pts; }, 'corners of ' + id);
+      cancelTool(); select(id); strip.status(id + ' validated with ' + pts.length + (f.entry.poly ? ' corners' : ' points'));
+      return;
+    }
     if (TWO_POINT_TOOLS[tool]) {
       if (T.pts.length < 2) { strip.status('click the other end'); return; }
       const a = T.pts[0], b = T.pts[1];
@@ -320,6 +359,12 @@ function mount(host, ctx) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
       const h = R.pickHandle(ctx.ray(ev.clientX, ev.clientY));
+      if ((ev.ctrlKey || ev.metaKey) && T.state !== 'drawing') {
+        const g = ctx.ground(ev.clientX, ev.clientY); if (!g) return false;
+        const L = R.overlay.frame.toLocal(g[0], g[2]);
+        if (ctrlEdit(selected, L, h)) { swallowClick = true; return true; }
+        return false;
+      }
       return startDrag(h);
     }
     return false;
@@ -431,6 +476,7 @@ function mount(host, ctx) {
   // a click at a WORLD ground point: the tools' one entry, from the mouse or from a script
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
+    if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2)); return; }
     if (tool === 'select') { const h = R.hit(g[0], g[2]); select(h ? h.id : null); return; }
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
@@ -733,7 +779,10 @@ function mount(host, ctx) {
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));
       rows.slider(insp, 'turn (°)', 0, 360, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
     }
-    if (e.poly || e.pts) rows.note(insp, (e.poly ? e.poly.length + ' corners' : e.pts.length + ' points') + ' — drag a disc to move it, a faint one to add a corner');
+    if (e.poly || e.pts) {
+      rows.note(insp, (e.poly ? e.poly.length + ' corners' : e.pts.length + ' points') + ' — drag a disc to move it, a faint one to add a corner between two; Ctrl+click the ground adds one after the last, Ctrl+click a disc removes it');
+      rows.button(insp, 'resume drawing', () => resumeDrawing(id));
+    }
     rows.button(insp, 'delete ' + id, deleteSelected);
   } };
   function profileGraph(host, e, ed) {
@@ -831,10 +880,10 @@ function mount(host, ctx) {
 
   // ---- wire up ---------------------------------------------------------------------
   const view = ctx.viewEl;
-  let downAt = null;
+  let downAt = null, swallowClick = false;
   view.addEventListener('mousedown', ev => { if (!active) return; if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
   addEventListener('mousemove', ev => { if (active) onMove(ev); });
-  addEventListener('mouseup', ev => { if (!active) return; if (onUp()) return; if (ev.button === 0 && downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) < 4 && (ev.target === view || ev.target === view.querySelector('canvas'))) onClick(ev); downAt = null; });   // the sheet itself, or the bench's canvas in it - never a plate or a pill over it (G398.1)
+  addEventListener('mouseup', ev => { if (!active) return; if (swallowClick) { swallowClick = false; downAt = null; return; } if (onUp()) return; if (ev.button === 0 && downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) < 4 && (ev.target === view || ev.target === view.querySelector('canvas'))) onClick(ev); downAt = null; });   // the sheet itself, or the bench's canvas in it - never a plate or a pill over it (G398.1)
   view.addEventListener('dblclick', ev => { if (active && ev.button === 0) onDblClick(ev); });
   addEventListener('keydown', ev => { if (active) onKey(ev); });
 
@@ -870,6 +919,8 @@ function mount(host, ctx) {
         return true;
       }
       if (name === 'commit') { commitDrawing(); return selected; }
+      if (name === 'resume') { return resumeDrawing(args.id || selected); }
+      if (name === 'ctrl') { const hs = R.handles(selected); const h = args.key ? hs.find(q => q.key === args.key) : null; return ctrlEdit(selected, [args.x, args.z], h ? { key: h.key, index: +(h.key.slice(1)) || 0, mid: h.mid } : null); }
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }
       throw new Error('premises: unknown cmd ' + name);

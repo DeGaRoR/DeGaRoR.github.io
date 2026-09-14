@@ -46632,3 +46632,19 @@ to the stack. Seen: screenshots/lots/09_diamond_centre.png.
   fixture when it is the same premises at an older `rev` (rev 2 now).
 - Seen: the aeroplane on the apron among the base's sheds, 13/31 ahead,
   Tamgas with snow behind. GATE WORLD + PREMISES green.
+
+## G398.2 — POLYGONS THE MSFS WAY: RESUME, CTRL+CLICK (2026-09-14, the user: "do we have
+## a point-and-click way of defining custom polygons? MSFS does it with ctrl+click to add
+## one, enter to validate. Then there are options to resume the edition. Do the same?")
+
+- Drawing was already point-and-click (a click per corner, Enter / double-click / the ✓ pill
+  validates, Backspace drops the last, Esc cancels). What was missing is the second half:
+- **RESUME DRAWING** (a pill on every polygon and road, `cmd('resume')`): the selected
+  entry re-opens as the drawing with its own corners; clicks add after the last, Backspace
+  drops, Enter validates back into the SAME entry (a crossing polygon is refused, the entry
+  untouched), Esc leaves it as it was.
+- **Ctrl+click** with the select tool: on the ground, a corner after the last (a road grows at
+  the end nearer the click); on a disc, that corner removed (a polygon keeps three, a road
+  two). Each is one undo step. The faint mid discs still add between two corners.
+- Proved in the game with the real mouse (Ctrl+click added a fifth corner, Ctrl+click on its
+  disc took it back) and by script (resume + commit, road end, three undos). GATE PREMISES green.
