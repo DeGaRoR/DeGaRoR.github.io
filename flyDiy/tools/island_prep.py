@@ -6,10 +6,19 @@ part that needs a raster library — mosaic, clip, reproject, resample — and
 nothing else, then writes a format so dull that `terrain_bake.js` needs
 twenty lines to read it:
 
-    <out>.f32     heights, raw float32, row-major, SOUTH row first (+z north)
-    <out>.u8      WorldCover class per cell, same grid (10 tree, 20 shrub,
-                  30 grass, 60 bare, 70 snow, 80 water, 90 wetland; 0 = none)
-    <out>.json    { w, h, x0, z0, cell, crs, ... }
+    <out>.f32         heights, raw float32, row-major, SOUTH row first (+z north)
+    <out>.u8          WorldCover class per cell, same grid (10 tree, 20 shrub,
+                      30 grass, 60 bare, 70 snow, 80 water, 90 wetland; 0 = none)
+    <out>.canopy.u8   canopy height, metres (DSM - DTM, 0..120), if raw/dsm/tif
+    <out>.ori.u8      radar backscatter, stretched 2..98 % over land, if raw/ori/tif
+    <out>.tint.rgb    Landsat surface reflectance, u8 RGB interleaved, if raw/landsat
+    <out>.ndvi.u8     (NDVI + 1) * 127, same source
+    <out>.json        { w, h, x0, z0, cell, crs, layers: {...}, ... }
+
+Every layer is on the DEM's grid, masked to the island, south row first.
+The layers are the three real inputs ISLAND-PREPACK section 3.2 named —
+class (WorldCover), height (DSM - DTM), density (ORI) — plus the macro tint
+ISLAND-ANNETTE section 6 ruled in. None is a texture; all are masks.
 
 THE LIBRARY IS rasterio, NOT THE GDAL COMMAND LINE. rasterio's wheel bundles
 GDAL, so the whole toolchain is one `pip install rasterio` on the developer's
@@ -26,9 +35,9 @@ convert again — this project has paid twice for a quantity that lived in two
 frames.
 
 USAGE
-    py -3.11 tools/island_prep.py --island annette              # 10 m
-    py -3.11 tools/island_prep.py --island annette --cell 5     # native
-    py -3.11 tools/island_prep.py --island annette --cell 25 --out bench/annette/coarse
+    py -3.11 tools/island_prep.py --island jolene               # 10 m
+    py -3.11 tools/island_prep.py --island jolene --cell 5      # native
+    py -3.11 tools/island_prep.py --island jolene --cell 25 --out bench/jolene/coarse
 
 REQUIRES  py -3.11 -m pip install numpy rasterio
 """
@@ -43,7 +52,9 @@ import argparse, glob, json, os, sys, time
 #   island added to the same world shares the origin, so they stay in one
 #   frame without a conversion.
 ISLANDS = {
-    "annette": {"bbox": (-131.75, 54.95, -131.25, 55.35), "pad": 4000.0,
+    # JOLENE ISLAND = Annette Island, Alaska (the source name stays out of the
+    # shipped data: GATE ISLAND 1)
+    "jolene":  {"bbox": (-131.75, 54.95, -131.25, 55.35), "pad": 4000.0,
                 "origin": (1408000.0, 808000.0)},
     "ursoy":   {"bbox": (-134.95, 57.05, -133.75, 58.25), "pad": 8000.0,
                 "origin": (1220000.0, 1080000.0)},
@@ -54,7 +65,7 @@ COVER_NODATA = 0
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--island", default="annette", choices=sorted(ISLANDS))
+    ap.add_argument("--island", default="jolene", choices=sorted(ISLANDS))
     ap.add_argument("--raw", default=None,
                     help="raw directory (default assets/island/raw/<island>)")
     ap.add_argument("--out", default=None,
@@ -221,13 +232,117 @@ def main():
         print("  cover:", "  ".join(f"{v}:{100*n/max(land,1):.1f}%" for v, n in cov_classes.items()
                                      if v not in (0, 80)), "(of land)")
 
+    # ---- the layers: canopy, radar, tint -------------------------------
+    # Each is optional (present when its raw directory is) and each lands on
+    # the DEM's grid through one warp, then the island mask, then the flip.
+    layers = {}
+    landmask = dem > 0                                    # already flipped
+    def onto_grid(paths, dtype, resampling, nodata=None, band=1, count=1):
+        """warp each source onto the grid, first non-empty wins; flipped south-first.
+        One warp per source (not a mosaic): the sources need not share a frame
+        (Landsat comes in UTM, IFSAR in Albers), and GDAL reads only the window
+        each one contributes."""
+        dst = np.zeros((count, H, W), dtype=dtype)
+        for t in paths:
+            with rasterio.open(t) as src:
+                src_crs = CRS if src.crs.to_dict().get("proj") == "aea" else src.crs
+                part = np.zeros((count, H, W), dtype=dtype)
+                for b in range(count):
+                    reproject(rasterio.band(src, band + b), part[b], src_crs=src_crs,
+                              dst_transform=dst_transform, dst_crs=CRS,
+                              src_nodata=nodata, dst_nodata=0, resampling=resampling)
+                if nodata is not None:
+                    part[np.isclose(part, nodata)] = 0    # a tile with no data is empty, not a value
+                empty = dst[0] == 0
+                dst[:, empty] = part[:, empty]
+        return dst[:, ::-1, :] if count > 1 else dst[0, ::-1, :]
+
+    avg = Resampling.average if cell > 5 else Resampling.bilinear
+    # CANOPY HEIGHT. Two sources, in order of trust:
+    #  1. Meta/WRI global canopy height (1.2 m, imagery + lidar model, CC BY
+    #     4.0), tiles under raw/canopy/meta_chm_*.tif, decimated on read.
+    #     GEDI-calibrated maps (GLAD, ETH) stop at 52 N; the island is at 55.
+    #  2. IFSAR DSM - DTM, under raw/dsm/tif. On this island it is NOT the
+    #     forest: at a lake shore in closed canopy the DSM equals the DTM
+    #     (2026-09-14, ISLAND-ANNETTE.md), so it is written only as a
+    #     fallback and its statistics say so.
+    chms = sorted(glob.glob(os.path.join(raw, "canopy", "meta_chm_*.tif")))
+    dsms = sorted(glob.glob(os.path.join(raw, "dsm", "tif", "*.tif")))
+    tree = (cov == 10) if covers else landmask
+    if chms:
+        canopy = np.zeros((H, W), dtype="float32")
+        for cp in chms:
+            with rasterio.open(cp) as c:
+                k = max(1, int(cell / c.res[0]))          # 1.2 m -> 10 m: read at 1/8
+                oh, ow = c.height // k, c.width // k
+                a = c.read(1, out_shape=(oh, ow), resampling=Resampling.average).astype("float32")
+                t = c.transform * c.transform.scale(c.width / ow, c.height / oh)
+                part = np.zeros((H, W), dtype="float32")
+                reproject(a, part, src_transform=t, src_crs=c.crs, dst_transform=dst_transform,
+                          dst_crs=CRS, src_nodata=None, dst_nodata=0, resampling=Resampling.average)
+                canopy = np.maximum(canopy, part)
+        canopy = np.clip(canopy[::-1, :], 0, 120); canopy[~landmask] = 0
+        canopy.astype("uint8").tofile(out + ".canopy.u8")
+        layers["canopy"] = {"file": ".canopy.u8", "unit": "m", "source": "meta_chm", "tiles": len(chms),
+                            "meanOverTreeCover": float(canopy[tree].mean()) if tree.any() else 0,
+                            "p90OverTreeCover": float(np.percentile(canopy[tree], 90)) if tree.any() else 0}
+        print(f"  canopy: Meta CHM, {len(chms)} tiles; over tree cover mean {layers['canopy']['meanOverTreeCover']:.1f} m, "
+              f"p90 {layers['canopy']['p90OverTreeCover']:.1f} m")
+    if dsms:
+        dsm = onto_grid(dsms, "float32", avg, nodata=-999999.0)
+        dsm = np.where(dsm < -1000, 0, dsm)
+        ifsar = np.clip(dsm - dem, 0, 120); ifsar[~landmask] = 0
+        ifsar.astype("uint8").tofile(out + ".ifsar_canopy.u8")
+        layers["ifsarCanopy"] = {"file": ".ifsar_canopy.u8", "unit": "m", "tiles": len(dsms),
+                                 "meanOverTreeCover": float(ifsar[tree].mean()) if tree.any() else 0,
+                                 "verdict": "DSM equals DTM under closed canopy on this island; not the forest"}
+        print(f"  ifsar canopy (DSM-DTM, fallback only): {len(dsms)} tiles; over tree cover mean "
+              f"{layers['ifsarCanopy']['meanOverTreeCover']:.1f} m")
+
+    oris = sorted(glob.glob(os.path.join(raw, "ori", "tif", "*.tif")))
+    if oris:
+        ori = onto_grid(oris, "float32", Resampling.average, nodata=0)
+        # stretch over land that is not water (lakes are ~1) — 5..95 % so the
+        # mask keeps its mid-tones and only the extremes clip
+        lo, hi = np.percentile(ori[landmask & (ori > 5)], [5, 95])
+        o8 = np.clip((ori - lo) / max(hi - lo, 1) * 255, 0, 255).astype("uint8")
+        o8[~landmask] = 0
+        o8.tofile(out + ".ori.u8")
+        layers["ori"] = {"file": ".ori.u8", "tiles": len(oris), "stretch": [float(lo), float(hi)]}
+        print(f"  ori: {len(oris)} tiles; stretched {lo:.0f}..{hi:.0f} -> 0..255")
+
+    lsat = sorted(glob.glob(os.path.join(raw, "landsat", "*.tif")))
+    if lsat:
+        # bands as written by the fetch: red, green, blue, nir, qa_pixel
+        # (Collection 2 Level-2: reflectance = DN * 2.75e-5 - 0.2)
+        L = onto_grid(lsat, "float32", Resampling.bilinear, nodata=0, band=1, count=5)
+        refl = L[:4] * 2.75e-5 - 0.2
+        qa = L[4].astype("uint16")
+        cloud = ((qa >> 3) & 1) | ((qa >> 4) & 1) | ((qa >> 1) & 1) | ((qa >> 2) & 1)
+        cloud = (cloud == 1) & landmask
+        # a gentle stretch: reflectance 0..0.35 -> 0..255 with a gamma, so
+        # the dark rainforest keeps its greens without being lifted to grey
+        rgb = np.clip(refl[:3] / 0.35, 0, 1) ** 0.7
+        rgb8 = (rgb * 255).astype("uint8")
+        rgb8[:, ~landmask] = 0
+        np.ascontiguousarray(rgb8.transpose(1, 2, 0)).tofile(out + ".tint.rgb")
+        ndvi = (refl[3] - refl[0]) / np.maximum(refl[3] + refl[0], 1e-3)
+        n8 = np.clip((ndvi + 1) * 127, 0, 254).astype("uint8"); n8[~landmask] = 0
+        n8.tofile(out + ".ndvi.u8")
+        layers["tint"] = {"file": ".tint.rgb", "source": [os.path.basename(f) for f in lsat],
+                          "cloudCells": int(cloud.sum()),
+                          "meanReflRGB": [float(v) for v in refl[:3][:, landmask].mean(axis=1)]}
+        layers["ndvi"] = {"file": ".ndvi.u8", "meanOverLand": float(ndvi[landmask].mean())}
+        print(f"  tint: {len(lsat)} scene(s); cloud/shadow over land {100*cloud.sum()/max(landmask.sum(),1):.2f} %; "
+              f"NDVI over land mean {ndvi[landmask].mean():.2f}")
+
     oE, oN = isl["origin"]
     meta = {"island": args.island, "w": W, "h": H,
             "x0": float(x0 - oE), "z0": float(z0 - oN),        # game frame
             "origin": [oE, oN], "albers": {"x0": float(x0), "z0": float(z0)},
             "cell": cell, "crs": CRS, "nodata": 0.0,
             "hMin": float(dem.min()), "hMax": float(dem.max()),
-            "cover": bool(covers), "coverClasses": cov_classes,
+            "cover": bool(covers), "coverClasses": cov_classes, "layers": layers,
             "neighbours": bool(args.neighbours),
             "source": [os.path.basename(t) for t in tiles + covers],
             "bboxLonLat": isl["bbox"]}
@@ -239,7 +354,7 @@ def main():
           f"{' + %.1f MB u8' % (W*H/1048576) if covers else ''}   {time.time()-t0:.1f} s")
     print(f"  game frame: x {x0-oE:.0f}..{x1-oE:.0f}  z {z0-oN:.0f}..{z1-oN:.0f}  "
           f"(Albers minus origin {oE:.0f} E {oN:.0f} N)")
-    print(f"  wrote {out}.{{f32,{'u8,' if covers else ''}json}}")
+    print(f"  wrote {out}.{{f32,{'u8,' if covers else ''}{''.join(l['file'][1:]+',' for l in layers.values())}json}}")
     print(f"\n  next:  node tools/terrain_bake.js --source grid "
           f"--grid {os.path.relpath(out, root)} --eps 4 --out bench/terrain/{args.island}")
 

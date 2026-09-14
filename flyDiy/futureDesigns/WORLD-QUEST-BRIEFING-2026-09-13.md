@@ -142,6 +142,16 @@ and §2's U1 / W4 / W5 rows:
   weight, never sampled as colour; the structure comes from ORI + canopy
   height + WorldCover (ANNETTE §6).
 - The order is unchanged: W0.5b → W2 (the quadtree in the game, analytic
-  first, then `annette5_e2` as the first real content) → W1 → W3 → W4.
+  first, then `jolene5_e2` as the first real content) → W1 → W3 → W4.
 - New rulings owed: the island's game name; Metlakatla survives?; the derelict
   WWII field as the opening (ANNETTE §10).
+
+**Same afternoon (G392):** the island is **JOLENE**; Metlakatla survives; the
+WWII field is the opening airfield. Every layer is on the bench
+(`tools/_island.html`): WorldCover class, **Meta/WRI canopy height** (the
+IFSAR DSM − DTM is NOT the forest here — ANNETTE §12.3; GEDI maps stop at
+52° N), IFSAR radar, a **Landsat tint** (two scenes of one July pass, read as
+windows through the Planetary Computer mirror), NDVI; the composite on
+sliders; trees planted from class × canopy. The game toggle is designed
+(§12.5: `?world=jolene`, defaults unchanged, the editor unchanged) and not
+built — the layers are settled on the bench first, by the user's ruling.

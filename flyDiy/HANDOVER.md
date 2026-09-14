@@ -45711,3 +45711,51 @@ small".
   strip fixture's new hump (a 2 m rise over the middle): the far end drops
   out of sight, as it should.
 - Gates: PREMISES green (244 checks over 5 fixtures).
+
+## G392 — JOLENE ISLAND: THE RULINGS, EVERY LAYER ON THE BENCH, TREES SIZED BY
+## THE CANOPY (2026-09-14, the user: "Call it Jolene Island. Metlakatla
+## survives. The WWII is the opening airfield ... I'd rather manage all the
+## layers properly in the bench before putting in game")
+
+- RULED: the island is JOLENE (key `jolene` everywhere; the source name
+  stays in the doc, the raw data and tool comments); Metlakatla survives,
+  renamed; the WWII cross of runways is the opening airfield (the DTM is
+  continuous across it, the built class and the tint show it).
+- THE LAYERS, ALL ON ONE 10 m GRID (`bench/jolene/dem.*`), island_prep.py:
+  class (WorldCover), canopy (Meta/WRI 1 m CC-BY 4.0, four quadkey tiles
+  1.2 GB, decimated on read: over tree cover mean 7 m / p90 15 m / max 38),
+  radar (IFSAR ORI 2.5 m, twelve tiles, 5-95 % stretch over non-water land),
+  tint (Landsat 8 C2 L2, TWO scenes of ONE pass 2022-07-27 rows 022+021,
+  3.3 % cloud over land) + NDVI. Every source warped alone onto the grid,
+  first non-empty wins, a source's nodata emptied first (a -999999 tile had
+  claimed the whole grid).
+- THE VERDICT THAT REVERSED THE PREPACK: IFSAR DSM - DTM is NOT the forest on
+  this island. A native 5 m profile through the lake chain: DSM == DTM to
+  the metre across a forested shore; the pair differ only in patches on
+  steep ground (<= 22 m). Written as .ifsar_canopy.u8 with the verdict in
+  the sidecar; never used. GEDI-based maps (GLAD, ETH) stop at 52 N.
+- THE TINT'S ROUTE: USGS portals need a login, AWS is requester-pays; the
+  bytes are read as island windows from the band COGs through Microsoft's
+  Planetary Computer (anonymous STAC + one container token; the per-asset
+  sign endpoint 429s; GDAL's curl trips on Avast - GDAL_HTTP_UNSAFESSL for
+  the read). island_landsat.py pins the scenes per island; --search lists.
+- THE BENCH `tools/_island.html`: the baked quadtree under ONE shader that
+  samples every layer by world position - paint composite / cover / canopy /
+  radar / tint / NDVI / height; composite = class colour -> tint (hue only,
+  luminance matched) x radar x canopy shade, snow above the line north faces
+  first; weights and class colours on sliders/pickers. Trees: instanced
+  cones on stems from class x canopy (one per 10 m cell in tree cover, two
+  over 15 m canopy, fewer in shrub/muskeg, none under the min canopy; height
+  = canopy x jitter; crown colour from NDVI), 60-70k in 2.5 km, replanted on
+  move. r186 physical light units: crowns at sun 0.75 PI + hemi 0.3 PI.
+- THE GAME TOGGLE, DESIGNED NOT BUILT (ANNETTE section 12.5): ?world=jolene
+  + a GRAPHICS row, defaults unchanged; makeWorld gains { island } (the
+  codec's sampler, bounds from the asset, cover -> surface, cover x canopy
+  -> the ladder); the editor works unchanged (premises compose over
+  makeWorld's hooks); owed first: the WWII field as a sitePattern. Order
+  stands: W2 -> W1 -> W3 -> W4.
+- CREDITS.md: the world's data section (USGS PD, WorldCover CC-BY, Meta/WRI
+  CC-BY, Landsat PD) - nothing ships yet.
+- OWED: the palette by eye (the composite runs dark); the muskeg's own class;
+  the 3.3 % cloud cells; the 20 m overlay pack for the shipped asset (~10
+  MB); a licence-text check on Meta/WRI before shipping.

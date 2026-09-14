@@ -1,10 +1,12 @@
-# ANNETTE — the first island, taken whole, seen on the bench the same day
-## The ruling that replaced Admiralty, the data as found, the pipeline as run, the numbers
-### (2026-09-14, from the user's design session; U1 done on the bench)
+# JOLENE ISLAND — the first island, taken whole from Annette, seen on the bench the same day
+## The ruling that replaced Admiralty, the data as found, the pipeline as run, the numbers, the layers
+### (2026-09-14, from the user's design session; U1 done on the bench; §12 the same afternoon)
 
-STATUS: **RULED AND RUN.** The island is on the bench (`tools/_terrain.html`),
-the pipeline runs end to end on this machine, the numbers below are measured.
-Nothing is in the game yet: that is W2 → W4, in WORLD-V2 §11's order.
+STATUS: **RULED AND RUN.** The island is on the bench (`tools/_terrain.html`
+for the quadtree, `tools/_island.html` for every layer and the trees), the
+pipeline runs end to end on this machine, the numbers below are measured.
+**The game name is JOLENE ISLAND (§12.1)**; "Annette" below is the source.
+Nothing is in the game yet: that is W2 → W4, in WORLD-V2 §11's order (§12.5).
 
 SUPERSEDES, in part: `ISLAND-ADMIRALTY.md` (the island; its fantasy pass,
 premise and gates STAND), `ISLAND-PREPACK.md` (the manifest and the
@@ -40,7 +42,7 @@ edges", which both island documents asked for. W5 stops being "the whole
 island, the step that invalidates every golden" and becomes **"add an
 island"** — a wider domain baked by the same tool into the same frame.
 
-**What the picture confirmed (`bench/annette/dem.png`, 10 m, hillshade over
+**What the picture confirmed (`bench/jolene/dem.png`, 10 m, hillshade over
 WorldCover):** a 1 096 m mountain (Tamgas) rising out of salt water in the
 south-east with the island's one bare summit; a chain of inland lakes in the
 middle; deeply indented harbours; muskeg flats on the south-west lobe; the
@@ -100,7 +102,7 @@ against this document:**
 | NAIP optical | absent in SE Alaska (confirmed 2026-09-01) | — |
 
 **Total for the first look: 0.9 GB** (DTM + WorldCover) instead of Admiralty's
-1.6; **~3 GB for everything** instead of ~10. Under `assets/island/raw/annette/`,
+1.6; **~3 GB for everything** instead of ~10. Under `assets/island/raw/jolene/`,
 gitignored.
 
 **The DEM's own frame is Alaska Albers.** The tile carries an Albers conic on
@@ -232,13 +234,13 @@ over a rainforest island possible at all.
 ## 7. THE PIPELINE — as run today, on this machine
 
     py -3.11 -m pip install numpy rasterio scipy         # once
-    node tools/island_fetch.js --island annette --dtm-only   # 0.9 GB, resumable
-    py -3.11 tools/island_prep.py --island annette           # 10 m  -> bench/annette/dem.{f32,u8,json}
-    py -3.11 tools/island_prep.py --island annette --cell 5 --out bench/annette/dem5
-    py -3.11 tools/island_look.py bench/annette/dem          # -> dem.png, the quicklook
-    node tools/terrain_bake.js --source grid --grid bench/annette/dem5 --eps 2 --out bench/terrain/annette5_e2
+    node tools/island_fetch.js --island jolene --dtm-only   # 0.9 GB, resumable
+    py -3.11 tools/island_prep.py --island jolene           # 10 m  -> bench/jolene/dem.{f32,u8,json}
+    py -3.11 tools/island_prep.py --island jolene --cell 5 --out bench/jolene/dem5
+    py -3.11 tools/island_look.py bench/jolene/dem          # -> dem.png, the quicklook
+    node tools/terrain_bake.js --source grid --grid bench/jolene/dem5 --eps 2 --out bench/terrain/jolene5_e2
     node tools/_serve.js 8430   (from the repo root)
-    http://localhost:8430/flyDiy/tools/_terrain.html?asset=flyDiy/bench/terrain/annette5_e2
+    http://localhost:8430/flyDiy/tools/_terrain.html?asset=flyDiy/bench/terrain/jolene5_e2
 
 **The toolchain is rasterio, not the GDAL command line.** rasterio's wheel
 bundles GDAL 3.10, so the whole raster side is one `pip install` — no
@@ -311,19 +313,11 @@ the pipeline's, and the DSM or a coarser DEM would have to fill them.
 
 ## 10. OPEN QUESTIONS
 
-1. **The name.** URSOY was Admiralty's — *ursus* for the bears — and Annette
-   has bears too, but the grammar was Admiralty's. Same rule as before: not
-   the Tlingit or Tsimshian name of a real place; one word that survives a
-   filename; a naming grammar for the map. The user names it.
-2. **Does Metlakatla survive?** (R3's new form.) Renamed and reimagined it is
-   the somewhere-to-fly-FROM; removed, the island is pristine and the derelict
-   runway is the only human trace on day one — which may be the stronger
-   opening. Both are good games; they are different games. Step 4 of the
-   chain (clean the town's grading) needs the answer; nothing before W4 does.
-3. **The derelict field as the opening airfield.** A 2.3 km WWII runway on a
-   flat muskeg lobe is the best landing shelf on the island by a mile. Does
-   the player START there, or NOMINATE it (W6) like any other site? The
-   premise (§9 of ADMIRALTY) says the player builds the first everything.
+1. ~~**The name.**~~ **RULED: JOLENE ISLAND** (§12.1).
+2. ~~**Does Metlakatla survive?**~~ **RULED: it survives**, renamed and
+   reimagined — the somewhere-to-fly-FROM (§12.1).
+3. ~~**The derelict field as the opening airfield.**~~ **RULED: it is** —
+   room for tests, weathered scenery (§12.1). Owed: its `sitePattern`.
 4. **The muskeg.** WorldCover reads Annette's bogs as grassland (10.7 %) with
    almost no class 90. The ORI (wet, flat = dark backscatter) and the canopy
    height (short) will separate bog from meadow when they are fetched; until
@@ -341,9 +335,111 @@ the pipeline's, and the DSM or a coarser DEM would have to fill them.
 
 In WORLD-V2 §11's order, unchanged: **W0.5b** (the TSL hooks) → **W2** the
 quadtree in the game, proved on the analytic world first, then
-"second world = first world" with `bench/terrain/annette5_e2` as the first
+"second world = first world" with `bench/terrain/jolene5_e2` as the first
 real content → **W1** the splat material, WorldCover-driven, with the macro
 tint → **W3** trees per class (fetch the DSM/ORI cells then) → **W4** the
 island as THE SHIPPED WORLD → W6/W7. What changed today is that W4 no longer
 waits on a data chantier: the asset exists, it is 4.4 MB, and it was looked
 at.
+
+---
+
+## 12. THE SAME AFTERNOON — JOLENE, AND EVERY LAYER ON THE BENCH (2026-09-14)
+
+### 12.1 Rulings taken (the user)
+
+- **The name is JOLENE ISLAND.** The source name stays in this document, in
+  the raw data and in tool comments; the island key everywhere else is
+  `jolene` (`bench/jolene/`, `assets/island/raw/jolene/`, the island tables).
+- **Metlakatla survives** — renamed, reimagined: the somewhere-to-fly-FROM.
+- **The WWII field is the opening airfield** — *"plenty of room for tests
+  and opportunity for great, weathered scenery."* A 2.3 km cross of paved
+  runways on a flat muskeg lobe, at 33 m: the DTM is continuous across it
+  (no pit, no bench), the built-up class marks it, the tint shows it.
+- **The layers are managed on the bench BEFORE anything goes in the game.**
+
+### 12.2 The layers, as sourced — what was found, and one verdict reversed
+
+| layer | source | as found |
+|---|---|---|
+| class | ESA WorldCover 10 m | as before; the muskeg reads as grassland (10.7 %) |
+| **canopy height** | **Meta/WRI global canopy height 1 m, CC-BY 4.0** — four quadkey tiles from the `dataforgood-fb-data` bucket (1.2 GB), decimated to the grid on read | over tree cover **mean 7 m, p90 15 m, max 38 m**: the tall stands stand out along the valleys and the sheltered slopes, the muskeg scrub is 2–6 m. Enough to SIZE trees; species come later from the ladder |
+| ~~canopy from IFSAR DSM − DTM~~ | the prepack's "free canopy model" | **NOT the forest on this island.** At a lake shore in closed canopy the DSM equals the DTM to the metre (a 4 km native-resolution profile, §12.3); the pair only differ in patches on steep ground (≤ 22 m). Written as `.ifsar_canopy.u8` with its verdict in the sidecar; a fallback nobody should use |
+| density | IFSAR ORI 2.5 m, twelve 15′ tiles from the two cells, averaged to the grid, stretched 5–95 % over non-water land | lakes black, closed canopy bright, the muskeg mid-grey — exactly the variation mask §3.1 of the prepack wanted |
+| **macro tint** | **USGS Landsat 8 C2 L2 surface reflectance, two scenes of ONE pass, 27 July 2022, path 055 rows 022 + 021** (0.06 % and 3.2 % cloud); the island's window read from each band's COG through Microsoft's Planetary Computer mirror — 13 + 31 MB, not two 1 GB scenes | 3.3 % of land under cloud/shadow (the QA band says where); NDVI 0.76 over land; the seam between rows is invisible because it is one pass |
+| GEDI-based height maps (GLAD, ETH) | — | **stop at 52° N**; the island is at 55°. Not available here, ever |
+
+Tools: `island_landsat.py` (scenes pinned per island, `--search` to choose),
+`island_prep.py` (every layer onto the grid: `.canopy.u8`, `.ori.u8`,
+`.tint.rgb`, `.ndvi.u8`; each source warped alone onto the grid, first
+non-empty wins, a source's declared nodata emptied first — a tile of
+−999999 had claimed the whole grid), `island_look.py --layer all` (one
+quicklook per layer; `layers.png` is the contact sheet).
+
+### 12.3 The DSM verdict, so nobody re-derives it
+
+Native 5 m, west–east through the lake chain (Albers 1 406 500 → 1 410 500 E
+at 809 000 N): the lake at 71.6 m with ORI 1 (water); at the shore the DTM
+rises 74.4 → 138.6 m over 250 m of forested slope and the DSM is the SAME
+NUMBER at every sample. Across the runway (built class both sides): DTM 33.8
+→ 34.0 m, no step. The GeoSAR metadata says X-band DSM and P-band DTM; on
+this island the delivered pair do not carry the canopy. The DTM is fine to
+fly over — that is all it has to be.
+
+### 12.4 The bench — `tools/_island.html`
+
+    node tools/_serve.js 8430   (repo root)
+    /flyDiy/tools/_island.html?asset=flyDiy/bench/terrain/jolene5_e2&grid=flyDiy/bench/jolene/dem
+
+The baked quadtree (drawn as `_terrain.html` draws it, distance LOD) under
+ONE shader that samples every layer by world position: paint = composite ·
+cover · canopy · radar · tint · NDVI · height. The composite is *class colour
+→ tint (hue only; the tint's luminance is matched to the palette's so the
+weight moves colour, not exposure) × radar variation × canopy shading, snow
+above the line on north faces first*; every weight is a slider, every class
+colour a picker. **Trees** are cones on stems, instanced, planted around the
+camera from *class × canopy*: one per 10 m cell at full density in tree
+cover (two where the canopy is over 15 m), fewer in shrub and muskeg, none
+below a minimum canopy; height = the canopy layer × jitter; crown colour
+from NDVI. 60–70 k trees in a 2.5 km radius, replanted when the target
+moves. Nothing here is W1's material (that is written once, in TSL): this is
+the calibration of what W1 is given.
+
+First reading, by eye: the class palette at 10 m is blocky (WorldCover's
+nearest-neighbour edges) — W1 blends across class boundaries with the radar
+and the tint, and the bench already shows that the tint alone carries the
+macro pattern; the canopy layer separates the tall stands from the scrub
+convincingly enough to size trees; the runway cross reads from 3 km.
+
+### 12.5 The game — how the world will be chosen (answering "what boots first")
+
+Not done today, by the user's own priority. The plan, so it is written:
+
+- **A toggle, defaults unchanged.** `?world=jolene` on the URL and a row in
+  the GRAPHICS menu (stored like `flydiy.cm`); absent, the analytic 24 km
+  world boots exactly as today. This is W2's switch (WORLD-V2 §11 W2a).
+- **What the switch changes:** `makeWorld(seed, { premises })` gains
+  `{ island }` — the terrain sampler becomes `TERRAIN_CODEC.sampler` over
+  the decoded asset (the bench already runs it for the trees), `bounds` come
+  from the asset (not centred on 0: every consumer that assumed a 24 km world
+  around the origin reads `bounds`), the surface classifier reads the cover
+  grid, the tree ladder's density-by-class reads cover × canopy.
+- **The editor works unchanged** — the premises compose over
+  `makeWorld`'s own hooks (G385: terrain, surface, sites); an anchor is a
+  position and a world; a Jolene premises record is a different world with
+  the same contract. What is owed first is `sitePattern` at the WWII field:
+  the opening airfield as a premises record, not a hardcoded rectangle.
+- **The order stands:** W2 (the quadtree in the game — analytic first, then
+  Jolene as the second world) → W1 (the material, with these layers) → W3
+  (the ladder driven by cover × canopy) → W4 (Jolene as THE SHIPPED WORLD).
+  The bench is where each layer's weights are settled before W1 is written.
+
+### 12.6 Owed
+
+The palette by eye (the composite runs dark at the shipped weights; the
+sliders exist); the muskeg's own class (grassland below 200 m on flat ground
+= bog, until ORI and canopy separate it properly); the 3.3 % cloud cells in
+the tint (fill from the QA mask by neighbours, or a second date); the 20 m
+overlay pack for the shipped asset (the bench reads the 10 m grids, ~85 MB
+over localhost — the game asset is the quadtree + overlays at 20 m, ~10 MB);
+a credit line check on the Meta/WRI licence text before anything ships.

@@ -580,7 +580,7 @@ the hero tiles). The stages are §11's.*
    `ISLAND-ANNETTE.md`; Admiralty is what "add islands" may reach. The
    fantasy pass, premise and gates of `ISLAND-ADMIRALTY.md` stand.
 1. **U1 — the data** — ✔ **DONE ON THE BENCH 2026-09-14.** `island_fetch.js
-   --island annette --dtm-only` (0.9 GB), `island_prep.py` (rasterio, not
+   --island jolene --dtm-only` (0.9 GB), `island_prep.py` (rasterio, not
    GDAL CLI) → 5 m grid, `terrain_bake.js` → **4.4 MB at ε 2 m, 8.4 MB at
    1 m** for the whole island, looked at in `_terrain.html`. **R2 decided:
    EPSG:3338 + a fixed local origin.** The DSM and ORI cells are pinned and

@@ -3,7 +3,7 @@
 // ISLAND FETCH — download the raw source data for ONE island.
 // ===========================================================================
 //
-//   node tools/island_fetch.js --island annette       from the flyDiy folder
+//   node tools/island_fetch.js --island jolene       from the flyDiy folder
 //
 // That is the whole thing. No bash, no jq, no Python — the same `node` you
 // already run the gates and the server with.
@@ -25,7 +25,7 @@
 // point — no live dependency on a third-party service in the pipeline.
 //
 // FLAGS (all optional)
-//   --island <name>   annette (default) or ursoy. See ISLANDS below.
+//   --island <name>   jolene (default) or ursoy. See ISLANDS below.
 //   --dtm-only        just the ground — enough to see the island. The DSM
 //                     and radar cells are only needed for trees and surface
 //                     variation.
@@ -50,8 +50,10 @@ const WC = 'https://esa-worldcover.s3.amazonaws.com/v200/2021/map';
 // result is merged over them, so a pin never goes stale and a new tile the
 // API finds is not lost.
 const ISLANDS = {
-  annette: {
-    title: 'ANNETTE — the first island (2026-09-14)',
+  jolene: {
+    // JOLENE ISLAND (the game's name, ruled 2026-09-14). Source: Annette
+    // Island, Alaska — the real name lives here and in the raw data only.
+    title: 'JOLENE — the first island (source: Annette, 2026-09-14)',
     bbox: [-131.75, 54.95, -131.25, 55.35],
     cover: ['N54W132'],
     pins: {
@@ -78,7 +80,7 @@ const ISLANDS = {
 const argv = process.argv.slice(2);
 const has = f => argv.includes('--' + f);
 const val = (f, d) => { const i = argv.indexOf('--' + f); return i < 0 ? d : argv[i + 1]; };
-const NAME = val('island', 'annette');
+const NAME = val('island', 'jolene');
 const ISLAND = ISLANDS[NAME];
 if (!ISLAND) {
   console.error(`island_fetch: unknown island '${NAME}' — one of ` +

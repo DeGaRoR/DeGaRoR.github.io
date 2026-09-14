@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<!--
+  ISLAND BENCH — the layers on the terrain, and trees sized by the canopy.
+
+  ISLAND-ANNETTE.md ruled the world's inputs: elevation (IFSAR 5 m), class
+  (WorldCover), canopy height (Meta/WRI 1 m), density (IFSAR radar), and one
+  macro tint (Landsat, low weight, never sampled as colour). This is where
+  they are LOOKED AT together before any of it goes near the game: every
+  layer alone, then the composite with each one's weight on a slider, then
+  trees planted from class x canopy around the camera, so the question
+  "is the canopy layer good enough to size the trees" has a picture.
+
+  The terrain is the baked quadtree asset (terrain_bake.js), drawn exactly as
+  _terrain.html draws it; the layers are island_prep.py's raw grids, uploaded
+  as textures and sampled by world position. Nothing here is the game's
+  material (W1 is written once, in TSL); this is the calibration of what W1
+  will be given.
+
+  Serve from the repo root and open
+  /flyDiy/tools/_island.html?asset=flyDiy/bench/terrain/jolene5_e2&grid=flyDiy/bench/jolene/dem
+-->
+<meta charset="utf-8">
+<title>flyDiy — island bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:12px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button,input[type=text]{background:#1a1f27;color:var(--fg);
+    border:1px solid var(--grid);padding:3px 8px;border-radius:4px;font:inherit}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  main{display:flex;height:calc(100vh - 41px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;padding:10px;width:300px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;text-shadow:0 1px 3px #000;white-space:pre}
+  h2{font-size:10px;color:var(--dim);margin:14px 0 5px;letter-spacing:.12em}
+  table{border-collapse:collapse;width:100%;font-size:11px}
+  td{padding:1px 0} td.n{text-align:right;color:var(--acc)}
+  .row{display:flex;align-items:center;gap:6px;margin:3px 0}
+  .row label{flex:1} .row input[type=range]{flex:2} .row output{width:44px;text-align:right;color:var(--acc)}
+  .row input[type=color]{width:26px;height:18px;border:0;padding:0;background:none}
+  .hint{color:var(--dim);font-size:10px;margin-top:8px;line-height:1.5}
+</style>
+
+<header>
+  <h1>island bench</h1>
+  <label>terrain <input type="text" id="asset" size="28"></label>
+  <label>grid <input type="text" id="grid" size="22"></label>
+  <button id="load">load</button>
+  <label>paint <select id="paint">
+    <option value="composite">composite</option>
+    <option value="cover">cover class</option>
+    <option value="canopy">canopy height</option>
+    <option value="ori">radar (ORI)</option>
+    <option value="tint">Landsat tint</option>
+    <option value="ndvi">NDVI</option>
+    <option value="height">height</option>
+  </select></label>
+  <button id="trees" class="on">trees</button>
+  <button id="wire">wireframe</button>
+  <button id="lod" class="on">distance LOD</button>
+  <span id="msg" style="color:var(--dim)"></span>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="terrain_codec.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search);
+$('asset').value = P.get('asset') || 'flyDiy/bench/terrain/jolene5_e2';
+$('grid').value = P.get('grid') || 'flyDiy/bench/jolene/dem';
+
+// ---- the knobs (one table, the aside is generated from it) -----------------
+const K = {
+  tintW:   { label: 'tint weight',      min: 0, max: 1, step: 0.01, v: 0.45 },
+  oriW:    { label: 'radar variation',  min: 0, max: 1, step: 0.01, v: 0.5 },
+  canopyW: { label: 'canopy shading',   min: 0, max: 1, step: 0.01, v: 0.5 },
+  snow:    { label: 'snowline (m)',     min: 300, max: 1200, step: 10, v: 900 },
+  treeR:   { label: 'tree radius (km)', min: 0.5, max: 6, step: 0.25, v: 2.5 },
+  treeD:   { label: 'tree density',     min: 0.05, max: 1, step: 0.05, v: 0.5 },
+  treeS:   { label: 'tree height x',    min: 0.5, max: 2, step: 0.05, v: 1.0 },
+  treeMin: { label: 'min canopy (m)',   min: 0, max: 10, step: 0.5, v: 2 },
+};
+// WorldCover class colours — the bench's palette, tuned by eye here first
+const CLASSES = [
+  [10, 'tree cover',   '#2f5a2c'], [20, 'shrubland',   '#7e8a44'],
+  [30, 'grassland',    '#9aa75a'], [40, 'cropland',    '#b8a36a'],
+  [50, 'built-up',     '#8a7d75'], [60, 'bare/sparse', '#8b8177'],
+  [70, 'snow and ice', '#f2f4f8'], [80, 'water',       '#1f3b63'],
+  [90, 'wetland',      '#6f8c6a'], [100,'moss/lichen', '#a3a06a'],
+];
+
+// ---- scene ---------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fb6cc);
+scene.fog = new THREE.Fog(0x9fb6cc, 15000, 60000);
+const camera = new THREE.PerspectiveCamera(45, 1, 2, 150000);
+const LU = Math.PI;
+// r186 physical units: a Lambert crown sees sun/PI + hemisphere/PI; keep the sum near 1
+scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.3 * LU));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75 * LU);
+sun.position.set(-0.5, 0.8, 0.3); scene.add(sun);
+const SUN = sun.position.clone().normalize();
+
+let yaw = -0.7, pitch = 0.55, dist = 20000, drag = null;
+const target = new THREE.Vector3(0, 0, 0);
+function place() {
+  camera.position.set(
+    target.x + dist * Math.cos(pitch) * Math.sin(yaw),
+    target.y + dist * Math.sin(pitch),
+    target.z + dist * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(target);
+}
+cv.addEventListener('pointerdown', e => drag = { x: e.clientX, y: e.clientY, b: e.button });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('pointerup', () => { if (drag) { drag = null; replantIfMoved(); } });
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 0) { yaw -= dx * 0.005; pitch = Math.max(0.02, Math.min(1.5, pitch + dy * 0.005)); }
+  else { const k = dist * 0.0015;
+         target.x -= (Math.cos(yaw) * dx - Math.sin(yaw) * dy) * k;
+         target.z += (Math.sin(yaw) * dx + Math.cos(yaw) * dy) * k;
+         if (H) target.y = Math.max(0, H(target.x, target.z)); }
+  place();
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  dist = Math.max(20, Math.min(90000, dist * (e.deltaY > 0 ? 1.12 : 0.89)));
+  place(); rebuildIfLod();
+}, { passive: false });
+function resize() {
+  const w = $('view').clientWidth, h = $('view').clientHeight;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+// ---- the material: every layer, sampled by world position -----------------
+const VS = `
+  varying vec3 vW; varying vec3 vN;
+  void main(){ vW = position; vN = normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+const FS = `
+  precision highp float;
+  uniform sampler2D uCover, uCanopy, uOri, uNdvi, uTint;
+  uniform vec4 uBounds;            // x0, z0, w, h of the grid, world metres
+  uniform float uHas;              // bit 1 canopy, 2 ori, 4 tint, 8 ndvi
+  uniform int uMode;               // 0 composite 1 cover 2 canopy 3 ori 4 tint 5 ndvi 6 height
+  uniform float uTintW, uOriW, uCanopyW, uSnow, uHMax;
+  uniform vec3 uSun;
+  uniform vec3 uCol[10]; uniform float uCls[10];
+  varying vec3 vW; varying vec3 vN;
+  vec3 classColour(float c){
+    vec3 col = vec3(0.5);
+    for (int i = 0; i < 10; i++) if (abs(c - uCls[i]) < 0.5) col = uCol[i];
+    return col;
+  }
+  void main(){
+    vec2 uv = (vW.xz - uBounds.xy) / uBounds.zw;
+    float cls = texture2D(uCover, uv).r * 255.0;
+    float canopy = texture2D(uCanopy, uv).r * 255.0;         // metres
+    float ori = texture2D(uOri, uv).r;                        // 0..1
+    float ndvi = texture2D(uNdvi, uv).r * 2.0 - 1.0;
+    vec3 tint = texture2D(uTint, uv).rgb;
+    bool sea = vW.y < 0.05;
+    vec3 n = normalize(vN);
+    float lambert = max(0.0, dot(n, uSun));
+    float light = 0.45 + 0.7 * lambert;
+    vec3 col;
+    if (uMode == 1) col = classColour(cls);
+    else if (uMode == 2) col = mix(vec3(0.60,0.55,0.43), vec3(0.08,0.43,0.12), clamp(canopy / 40.0, 0.0, 1.0));
+    else if (uMode == 3) col = vec3(ori);
+    else if (uMode == 4) col = tint;
+    else if (uMode == 5) col = mix(vec3(0.7,0.63,0.47), vec3(0.04,0.35,0.08), clamp(ndvi, 0.0, 1.0));
+    else if (uMode == 6) { float t = clamp(vW.y / uHMax, 0.0, 1.0);
+      col = mix(mix(vec3(0.16,0.42,0.18), vec3(0.72,0.66,0.45), min(1.0, t*1.6)), vec3(0.95), max(0.0, t-0.6)*2.5); }
+    else {
+      // THE COMPOSITE. Class colour is the base. The tint pulls it toward the
+      // scene's real macro colour (blurred by the 30 m source itself). Radar
+      // multiplies as variation around 1. Canopy darkens the closed stands.
+      // Above the snowline, north faces first.
+      col = classColour(cls);
+      if (mod(uHas / 4.0, 2.0) >= 1.0) {
+        // match the tint's luminance to the palette's so weight only moves hue
+        float lt = dot(tint, vec3(0.3,0.59,0.11)) + 1e-3, lc = dot(col, vec3(0.3,0.59,0.11));
+        col = mix(col, tint * (lc / lt), uTintW);
+      }
+      if (mod(uHas / 2.0, 2.0) >= 1.0) col *= mix(1.0, 0.55 + 0.9 * ori, uOriW);
+      if (mod(uHas, 2.0) >= 1.0 && cls < 15.0) col *= mix(1.0, 1.05 - 0.35 * clamp(canopy / 30.0, 0.0, 1.0), uCanopyW);
+      float north = 0.5 - 0.5 * n.z;   // +z is north; a north face has n.z < 0
+      float snowH = uSnow - 250.0 * north;
+      float snow = smoothstep(snowH - 60.0, snowH + 60.0, vW.y) * step(0.5, 1.0 - float(cls > 75.0 && cls < 85.0));
+      col = mix(col, vec3(0.93, 0.95, 1.0), snow);
+    }
+    if (sea) { col = vec3(0.12, 0.23, 0.38); light = 0.9; }
+    gl_FragColor = vec4(col * light, 1.0);
+  }`;
+
+const U = {
+  uCover: { value: null }, uCanopy: { value: null }, uOri: { value: null }, uNdvi: { value: null }, uTint: { value: null },
+  uBounds: { value: new THREE.Vector4() }, uHas: { value: 0 }, uMode: { value: 0 },
+  uTintW: { value: K.tintW.v }, uOriW: { value: K.oriW.v }, uCanopyW: { value: K.canopyW.v },
+  uSnow: { value: K.snow.v }, uHMax: { value: 1100 }, uSun: { value: SUN },
+  uCol: { value: CLASSES.map(c => new THREE.Color(c[2])) }, uCls: { value: CLASSES.map(c => c[0]) },
+};
+const blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat); blank.needsUpdate = true;
+for (const k of ['uCover', 'uCanopy', 'uOri', 'uNdvi', 'uTint']) U[k].value = blank;
+const MAT = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: THREE.DoubleSide });
+const MAT_WIRE = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x9ad0ff });
+
+// ---- the asset + the grid --------------------------------------------------
+async function gunzip(buf) {
+  const ds = new DecompressionStream('gzip');
+  return new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer());
+}
+let ASSET = null, root = null, H = null, group = null, GRID = null, L = {};
+
+function tex8(data, w, h, nearest) {
+  const t = new THREE.DataTexture(data, w, h, THREE.RedFormat, THREE.UnsignedByteType);
+  t.magFilter = t.minFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
+  t.generateMipmaps = false; t.needsUpdate = true; return t;
+}
+async function fetchU8(url) {
+  const r = await fetch(url); if (!r.ok) return null;
+  return new Uint8Array(await r.arrayBuffer());
+}
+
+async function load(asset, grid) {
+  $('msg').textContent = 'loading…';
+  const [h, t, b] = await Promise.all([
+    fetch('../../' + asset + '.json').then(r => r.json()),
+    fetch('../../' + asset + '.topo').then(r => r.arrayBuffer()),
+    fetch('../../' + asset + '.bin').then(r => r.arrayBuffer()),
+  ]);
+  root = TERRAIN_CODEC.decodeRaw(h, new Uint8Array(t), await gunzip(b));
+  ASSET = h; H = TERRAIN_CODEC.sampler(root, h);
+  U.uHMax.value = Math.max(100, h.hMax || 1100);
+
+  GRID = await fetch('../../' + grid + '.json').then(r => r.json());
+  const { w, h: gh } = GRID;
+  U.uBounds.value.set(GRID.x0, GRID.z0, w * GRID.cell, gh * GRID.cell);
+  const [cover, canopy, ori, ndvi, tint] = await Promise.all([
+    fetchU8('../../' + grid + '.u8'), fetchU8('../../' + grid + '.canopy.u8'),
+    fetchU8('../../' + grid + '.ori.u8'), fetchU8('../../' + grid + '.ndvi.u8'),
+    fetchU8('../../' + grid + '.tint.rgb')]);
+  L = { cover, canopy, ori, ndvi, tint };
+  let has = 0;
+  if (cover) U.uCover.value = tex8(cover, w, gh, true);
+  if (canopy) { U.uCanopy.value = tex8(canopy, w, gh, false); has |= 1; }
+  if (ori) { U.uOri.value = tex8(ori, w, gh, false); has |= 2; }
+  if (ndvi) { U.uNdvi.value = tex8(ndvi, w, gh, false); has |= 8; }
+  if (tint) {
+    const rgba = new Uint8Array(w * gh * 4);
+    for (let i = 0, j = 0; i < tint.length; i += 3, j += 4) { rgba[j] = tint[i]; rgba[j+1] = tint[i+1]; rgba[j+2] = tint[i+2]; rgba[j+3] = 255; }
+    const tt = new THREE.DataTexture(rgba, w, gh, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tt.magFilter = tt.minFilter = THREE.LinearFilter; tt.generateMipmaps = false; tt.needsUpdate = true;
+    U.uTint.value = tt; has |= 4;
+  }
+  U.uHas.value = has;
+
+  target.set((h.bounds.x0 + h.bounds.x1) / 2, 0, (h.bounds.z0 + h.bounds.z1) / 2);
+  dist = h.side * 0.85; place();
+  build(); plant();
+  $('msg').textContent = '';
+}
+
+// ---- terrain -----------------------------------------------------------------
+function drawnLeaves() {
+  const out = [], useLod = $('lod').classList.contains('on');
+  (function walk(n) {
+    if (!n.kids) { out.push(n); return; }
+    if (!useLod) { n.kids.forEach(walk); return; }
+    const s = ASSET.side / (1 << n.d);
+    const cx = ASSET.bounds.x0 + (n.ix + 0.5) * s, cz = ASSET.bounds.z0 + (n.iz + 0.5) * s;
+    const d = Math.hypot(camera.position.x - cx, camera.position.z - cz);
+    if (d > s * 6) out.push(n); else n.kids.forEach(walk);
+  })(root);
+  return out;
+}
+let IDX = null;
+function build() {
+  if (group) { group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); scene.remove(group); }
+  group = new THREE.Group(); scene.add(group);
+  const N = ASSET.patch + 1, Pn = ASSET.patch;
+  if (!IDX) { IDX = [];
+    for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) {
+      const a = j * N + i; IDX.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); } }
+  const leaves = drawnLeaves(); let tris = 0;
+  const wire = $('wire').classList.contains('on');
+  for (const n of leaves) {
+    const s = ASSET.side / (1 << n.d), step = s / Pn;
+    const ox = ASSET.bounds.x0 + n.ix * s, oz = ASSET.bounds.z0 + n.iz * s;
+    const pos = new Float32Array(N * N * 3);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const k = j * N + i; pos[k*3] = ox + i * step; pos[k*3+1] = n.h[k]; pos[k*3+2] = oz + j * step; }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setIndex(IDX); g.computeVertexNormals();
+    tris += IDX.length / 3;
+    group.add(new THREE.Mesh(g, wire ? MAT_WIRE : MAT));
+  }
+  STAT.patches = leaves.length; STAT.tris = tris; stat();
+}
+let lodTimer = null;
+function rebuildIfLod() {
+  if (!ASSET || !$('lod').classList.contains('on')) return;
+  clearTimeout(lodTimer); lodTimer = setTimeout(build, 120);
+}
+
+// ---- trees: class says where, canopy says how tall ----------------------------
+// A bench tree is a cone on a stem, instanced. What is being judged is the
+// PLACEMENT and the SIZE the layers give, not the tree — the species and the
+// models come from the tree ladder (TREE-IMPORT.md) once the sizing is trusted.
+let TREES = null, plantedAt = new THREE.Vector3(1e9, 0, 1e9);
+const DENSITY = { 10: 1.0, 20: 0.35, 30: 0.15, 90: 0.12, 100: 0.05 };   // per class, of treeD
+const coneGeo = new THREE.ConeGeometry(1, 1, 6, 1); coneGeo.translate(0, 0.5, 0);
+const stemGeo = new THREE.CylinderGeometry(0.06, 0.09, 1, 5); stemGeo.translate(0, 0.5, 0);
+const treeMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: false });
+const stemMat = new THREE.MeshLambertMaterial({ color: 0x4a3524 });
+function plant() {
+  if (TREES) { scene.remove(TREES); TREES.children.forEach(m => m.dispose()); TREES = null; }
+  STAT.trees = 0;
+  if (!GRID || !L.cover || !$('trees').classList.contains('on')) { stat(); return; }
+  const { w, h, cell, x0, z0 } = GRID;
+  const R = K.treeR.v * 1000, dens = K.treeD.v, hx = K.treeS.v, minC = K.treeMin.v;
+  const ci0 = Math.max(0, Math.floor((target.x - R - x0) / cell)), ci1 = Math.min(w - 1, Math.ceil((target.x + R - x0) / cell));
+  const cj0 = Math.max(0, Math.floor((target.z - R - z0) / cell)), cj1 = Math.min(h - 1, Math.ceil((target.z + R - z0) / cell));
+  // one candidate per cell at full density; a cell is 10 m, a spruce crown ~5 m
+  const MAX = 250000, out = [];
+  let s = 1234567;
+  const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  for (let j = cj0; j <= cj1; j++) for (let i = ci0; i <= ci1; i++) {
+    const k = j * w + i, cls = L.cover[k];
+    const d = (DENSITY[cls] || 0) * dens;
+    if (d <= 0) continue;
+    const can = L.canopy ? L.canopy[k] : 12;
+    if (can < minC) continue;
+    const x = x0 + (i + rnd()) * cell, z = z0 + (j + rnd()) * cell;
+    if ((x - target.x) ** 2 + (z - target.z) ** 2 > R * R) continue;
+    // two trees per 10 m cell at full density where the canopy is tall
+    const n = d * (can > 15 ? 2 : 1);
+    for (let q = 0; q < n; q++) if (rnd() < n - q) {
+      const y = H(x + (q ? rnd() * cell : 0), z + (q ? rnd() * cell : 0));
+      if (y <= 0.1) continue;
+      const th = Math.max(1.5, can * (0.75 + 0.5 * rnd())) * hx;
+      out.push(x, y, z, th, cls, L.ndvi ? L.ndvi[k] : 200);
+      if (out.length / 6 >= MAX) break;
+    }
+  }
+  const count = out.length / 6;
+  const crowns = new THREE.InstancedMesh(coneGeo, treeMat, count);
+  const stems = new THREE.InstancedMesh(stemGeo, stemMat, count);
+  const m = new THREE.Matrix4(), c = new THREE.Color();
+  for (let t = 0; t < count; t++) {
+    const x = out[t*6], y = out[t*6+1], z = out[t*6+2], th = out[t*6+3], cls = out[t*6+4], nd = out[t*6+5];
+    const r = th * (cls === 10 ? 0.22 : 0.4);
+    m.makeScale(r, th * 0.8, r); m.setPosition(x, y + th * 0.2, z); crowns.setMatrixAt(t, m);
+    m.makeScale(r * 1.2, th * 0.25, r * 1.2); m.setPosition(x, y, z); stems.setMatrixAt(t, m);
+    // colour: greener where NDVI says so, yellower on the muskeg scrub
+    const g = Math.min(1, Math.max(0, (nd / 127 - 1)));
+    c.setHSL(0.27 + 0.07 * g, 0.35 + 0.25 * g, 0.10 + 0.08 * (1 - g) + 0.04 * rnd());
+    crowns.setColorAt(t, c);
+  }
+  crowns.instanceMatrix.needsUpdate = true; stems.instanceMatrix.needsUpdate = true;
+  if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
+  TREES = new THREE.Group(); TREES.add(crowns, stems); scene.add(TREES);
+  plantedAt.copy(target);
+  STAT.trees = count; stat();
+}
+function replantIfMoved() {
+  if (!GRID) return;
+  if (target.distanceTo(plantedAt) > K.treeR.v * 300) plant();
+}
+
+// ---- ui --------------------------------------------------------------------------
+const STAT = { patches: 0, tris: 0, trees: 0 };
+function stat() {
+  $('stat').textContent = `${STAT.patches} patches  ${(STAT.tris/1000).toFixed(0)}k tris  ${STAT.trees} trees`;
+}
+function ui() {
+  const knob = (id, k) => `<div class="row"><label>${k.label}</label>` +
+    `<input type="range" id="k_${id}" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.v}">` +
+    `<output id="o_${id}">${k.v}</output></div>`;
+  $('ui').innerHTML =
+    `<h2>COMPOSITE</h2>` + ['tintW', 'oriW', 'canopyW', 'snow'].map(id => knob(id, K[id])).join('') +
+    `<h2>TREES</h2>` + ['treeR', 'treeD', 'treeS', 'treeMin'].map(id => knob(id, K[id])).join('') +
+    `<div class="row"><button id="replant">replant here</button></div>` +
+    `<h2>CLASSES</h2>` + CLASSES.map((c, i) =>
+      `<div class="row"><input type="color" id="c_${i}" value="${c[2]}"><label>${c[0]} ${c[1]}</label>` +
+      `<output id="p_${i}"></output></div>`).join('') +
+    `<h2>LAYERS</h2><table id="layers"></table>` +
+    `<p class="hint">drag: orbit · right-drag: pan (trees replant when you have moved) · wheel: zoom.
+     Composite = class colour → tint (hue only, luminance kept) × radar × canopy shade, snow above the line
+     on north faces first. Trees: one per 10 m cell at full density in tree cover, fewer in shrub /
+     muskeg, none below the min canopy; height = canopy layer × jitter.</p>`;
+  for (const id in K) {
+    const el = $('k_' + id);
+    el.oninput = () => { K[id].v = +el.value; $('o_' + id).textContent = el.value;
+      if (id in U) U[id].value = K[id].v;
+      if (id === 'tintW') U.uTintW.value = K[id].v; if (id === 'oriW') U.uOriW.value = K[id].v;
+      if (id === 'canopyW') U.uCanopyW.value = K[id].v; if (id === 'snow') U.uSnow.value = K[id].v; };
+    el.onchange = () => { if (id.startsWith('tree')) plant(); };
+  }
+  CLASSES.forEach((c, i) => { $('c_' + i).oninput = e => U.uCol.value[i].set(e.target.value); });
+  $('replant').onclick = plant;
+}
+function layerTable() {
+  if (!GRID) return;
+  const land = Object.entries(GRID.coverClasses || {}).filter(([k]) => k !== '0' && k !== '80').reduce((a, [, n]) => a + n, 0);
+  CLASSES.forEach((c, i) => { const n = (GRID.coverClasses || {})[c[0]]; $('p_' + i).textContent = n && c[0] !== 80 ? (100 * n / land).toFixed(1) + '%' : ''; });
+  const rows = Object.entries(GRID.layers || {}).map(([k, v]) =>
+    `<tr><td>${k}</td><td class="n">${v.source && typeof v.source === 'string' ? v.source : ''}${v.meanOverTreeCover !== undefined ? ' mean ' + v.meanOverTreeCover.toFixed(1) + ' m / p90 ' + (v.p90OverTreeCover||0).toFixed(1) : ''}${v.cloudCells !== undefined ? ' cloud ' + v.cloudCells + ' cells' : ''}</td></tr>`).join('');
+  $('layers').innerHTML = `<tr><td>grid</td><td class="n">${GRID.w}×${GRID.h} @ ${GRID.cell} m</td></tr>` +
+    `<tr><td>cover</td><td class="n">${GRID.cover ? 'WorldCover 10 m' : '—'}</td></tr>` + rows;
+}
+const MODES = { composite: 0, cover: 1, canopy: 2, ori: 3, tint: 4, ndvi: 5, height: 6 };
+$('paint').onchange = () => { U.uMode.value = MODES[$('paint').value]; };
+$('load').onclick = () => load($('asset').value, $('grid').value).then(layerTable).catch(e => {
+  $('msg').textContent = 'failed: ' + e.message; console.error(e); });
+for (const id of ['wire', 'lod']) $(id).onclick = () => { $(id).classList.toggle('on'); ASSET && build(); };
+$('trees').onclick = () => { $('trees').classList.toggle('on'); plant(); };
+
+ui(); resize(); place();
+(function tick() { requestAnimationFrame(tick); renderer.render(scene, camera); })();
+$('load').click();
+</script>

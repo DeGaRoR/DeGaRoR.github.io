@@ -859,3 +859,31 @@ signs on a clear ground (`assets/billboards/signs_sheet_1.png`), cut by
 `media/tex/signs/`. Admiralty Air Taxi, Harbor Fuel & Bait, Kootz Landing
 General Store, Tidal Cup Cafe, Bear Coast Tours, Sitka Spruce Lumber, North
 Channel Motel, Tongass Marine Supply. No third-party licence applies.
+
+## The world's data — Jolene Island (`assets/island/raw/jolene/`, baked to `bench/jolene/` today; the shipped asset will live in media/)
+
+Jolene Island is Annette Island, Southeast Alaska, taken whole from public
+data and renamed (`futureDesigns/ISLAND-ANNETTE.md`). Nothing from this list
+ships yet (2026-09-14: the bench only); when the baked world asset lands in
+`media/`, this section is its attribution.
+
+- **Elevation** — USGS 3DEP Alaska IFSAR 5 m DTM (GeoSAR, Fugro EarthData
+  for USGS, 2012). **US federal public domain**; USGS asks for citation as a
+  courtesy: *U.S. Geological Survey, 3D Elevation Program, Alaska IFSAR.*
+  Also the IFSAR DSM and ORI (radar intensity) cells, same programme.
+- **Land cover** — ESA WorldCover 10 m 2021 v200. **CC-BY 4.0.**
+  Attribution: *© ESA WorldCover project 2021 / Contains modified Copernicus
+  Sentinel data (2021) processed by ESA WorldCover consortium.*
+- **Canopy height** — Meta / World Resources Institute global canopy height
+  map (1 m, Tolan et al. 2024), tiles from the `dataforgood-fb-data` public
+  bucket. **CC-BY 4.0.** Attribution: *Canopy height data © Meta and WRI
+  (2024), CC BY 4.0.*
+- **Macro tint** — USGS Landsat 8 Collection 2 Level-2 surface reflectance,
+  scenes LC08_L2SP_055022_20220727 and LC08_L2SP_055021_20220727. **US
+  federal public domain.** Courtesy: *Landsat-8 image courtesy of the U.S.
+  Geological Survey.* The bytes were read through Microsoft's Planetary
+  Computer mirror (a route, not a source).
+- Modifications, as CC-BY asks to be indicated: cropped to the island, the
+  neighbours drowned, resampled to 5/10 m on Alaska Albers, WorldCover's
+  water overridden by the DEM's coast, the canopy decimated from 1 m, all
+  layers used as masks and weights — never drawn as imagery.
