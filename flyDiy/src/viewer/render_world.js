@@ -3096,7 +3096,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const mkTex = kind => {
       const cv2 = document.createElement('canvas'); cv2.width = 512; cv2.height = 64;
       const q = cv2.getContext('2d');
-      if (kind === 'paved') {
+      if (kind === 'marks') {
+        // THE MARKINGS ALONE (G398): the sheet is transparent - the strip's ground is whatever lies
+        // under it (the bare terrain, a surface or material polygon, or a PBR set drawn by mkLook)
+        q.clearRect(0, 0, 512, 64);
+        q.fillStyle = '#e9e4d6';
+        for (const u of [10, 496]) for (let k = 0; k < 4; k++) q.fillRect(u, 8 + k * 14, 6, 8);
+        q.fillStyle = '#d9d3c0';
+        for (let u = 40; u < 470; u += 32) q.fillRect(u, 30, 14, 3);
+      } else if (kind === 'paved') {
         q.fillStyle = '#63636a'; q.fillRect(0, 0, 512, 64);
         q.fillStyle = '#e9e4d6';
         for (const u of [10, 496]) for (let k = 0; k < 4; k++) q.fillRect(u, 8 + k * 14, 6, 8);
@@ -3123,6 +3131,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return t;
     };
     const texes = {};
+    // THE LOOK'S GROUND (G398): a PBR set of the site's or the lot's tiled along the strip at the set's
+    // own period; the image shared, the texture per strip (its repeat is the strip's)
+    const lookSets = () => Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
+    const mkLook = (setKey, len, wid) => {
+      const S = lookSets()[setKey];
+      if (!S || !S.diff) return null;
+      const t = new THREE.Texture(S.diff);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(8, MAX_ANISO);
+      const tile = S.tile || 4;
+      t.repeat.set(Math.max(1, Math.round(len / tile)), Math.max(1, Math.round(wid / tile)));
+      if (S.diff.complete && S.diff.naturalWidth) t.needsUpdate = true; else S.diff.addEventListener('load', () => { t.needsUpdate = true; }, { once: true });
+      return t;
+    };
     const poleMat = worldLambert({ color: C(0xd8d2c4) });
     const sockMat = worldLambert({ color: C(0xe4622e), side: THREE.DoubleSide });
     const patchMat = worldLambert({ map: outerTexShared });
@@ -3179,11 +3200,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (let i = 0; i < dp.count; i++)
         dp.setY(i, world.terrainH(dp.getX(i), dp.getZ(i)) + 0.07);
       geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo,
-        worldLambert({ map: texes[kind], depthWrite: false }));
-      m.renderOrder = 2;
-      m.receiveShadow = true;
-      scene.add(keep(m));
+      // THE LOOK (G398): 'none' stands the markings alone on the composed ground; a look with a set
+      // stands the set's sheet under the same markings; 'grass' (and every strip without a look) the
+      // painted strip of old
+      const LK = (typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.RUNWAY_LOOKS && a.look) ? PREMISES_GEN.RUNWAY_LOOKS[a.look] : null;
+      if (LK && (a.look === 'none' || LK.set)) {
+        const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
+        if (lookTex) {
+          const gm = new THREE.Mesh(geo, worldLambert({ map: lookTex, depthWrite: false }));
+          gm.renderOrder = 2; gm.receiveShadow = true; scene.add(keep(gm));
+        }
+        if (!texes.marks) texes.marks = mkTex('marks');
+        const geo2 = geo.clone(); const p2 = geo2.attributes.position; for (let i = 0; i < p2.count; i++) p2.setY(i, p2.getY(i) + 0.02);
+        const mm = new THREE.Mesh(geo2, worldLambert({ map: texes.marks, transparent: true, depthWrite: false }));
+        mm.renderOrder = 3; mm.receiveShadow = true; scene.add(keep(mm));
+        if (!lookTex) geo.dispose();
+      } else {
+        const m = new THREE.Mesh(geo,
+          worldLambert({ map: texes[kind], depthWrite: false }));
+        m.renderOrder = 2;
+        m.receiveShadow = true;
+        scene.add(keep(m));
+      }
       // windsock off the strip edge
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);

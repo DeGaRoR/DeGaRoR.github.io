@@ -39,6 +39,19 @@ const SECTIONS = [
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
+// the sections' icons in the flight ribbon's own grammar (18 x 18, stroked paths, '|' between them)
+const ICONS = {
+  terrain: 'M2 14.5l4.5-7.5 3 4.5 2-3 4.5 6Z|M2 14.5h14',
+  airfield: 'M4.5 16L8 2|M10 2l3.5 14|M9 6v1.5|M9 9.5V11|M9 13v1.5',
+  roads: 'M3 15.5c3-5 9-3 12-8.5|M3 11.5c3-5 9-3 12-8.5|M7 12.5l.6-1|M10 8.5l.6-1',
+  zones: 'M3 3h12v12H3Z|M3 9h12|M9 3v12',
+  vegetation: 'M9 2l5 8h-3l3 5H4l3-5H4Z|M9 15v1.5',
+  sites: 'M3 9l6-6 6 6|M5 8v7h8V8|M8 15v-4h2v4',
+  objects: 'M5 16V2|M5 3h9l-2 3 2 3H5',
+  file: 'M5 2h6l3 3v11H5Z|M11 2v3h3|M7 9h4|M7 12h4',
+  view: 'M2 9s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5Z|M9 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+};
+const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
 const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
@@ -73,6 +86,7 @@ const LINE_TOOLS = { road: 'roads' };
 const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects' };
 const OBJ_PICK = { prop: null, billboard: null };   // what the prop and billboard tools stand
 let PALETTE_KEY = null;   // the building the 'building' tool stands
+let PALETTE_CAT = null;   // the category the palette shows (v9)
 const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
@@ -196,7 +210,8 @@ function mount(host, ctx) {
   function buildRail() {
     rail.innerHTML = '';
     for (const s of SECTIONS) {
-      const b = $('button', { class: 'pr-sec' + (s.k === section ? ' on' : ''), title: s.label }, [$('span', { class: 'ic', text: s.icon }), $('span', { class: 'lb', text: s.label })]);
+      const ic = $('span', { class: 'ic' }); const svg = iconSvg(s.k); if (svg) ic.appendChild(svg); else ic.textContent = s.icon;
+      const b = $('button', { class: 'pr-sec' + (s.k === section ? ' on' : ''), title: s.label, type: 'button' }, [ic, $('span', { class: 'lb', text: s.label })]);
       b.onclick = () => { setSection(s.k); b.blur(); };
       rail.appendChild(b);
     }
@@ -206,7 +221,7 @@ function mount(host, ctx) {
     els.strip.innerHTML = ''; toolBtns = {};
     const S = SECTIONS.find(s => s.k === section);
     for (const t of S.tools) {
-      const b = $('button', { class: 'pr-tool' + (t === tool ? ' on' : ''), text: TOOL_LABEL[t] || t, title: TOOL_HELP[t] || '' });
+      const b = $('button', { class: 'pr-tool pill' + (t === tool ? ' on' : ''), text: TOOL_LABEL[t] || t, title: TOOL_HELP[t] || '', type: 'button' });
       b.onclick = () => { setTool(t); b.blur(); };
       els.strip.appendChild(b); toolBtns[t] = b;
     }
@@ -214,11 +229,11 @@ function mount(host, ctx) {
     statusEl = $('span', { class: 'pr-status', text: '' });
     els.strip.appendChild(helpEl); els.strip.appendChild(statusEl);
     drawBtns = $('span', { class: 'pr-draw', style: 'display:none' });
-    const ok = $('button', { class: 'pr-tool', text: '✓ close', title: 'close the polygon (Enter)' }); ok.onclick = () => { commitDrawing(); ok.blur(); };
-    const no = $('button', { class: 'pr-tool', text: '✕ cancel', title: 'drop the points (Esc)' }); no.onclick = () => { cancelTool(); no.blur(); };
+    const ok = $('button', { class: 'pr-tool pill', text: '✓ close', title: 'close the polygon (Enter)', type: 'button' }); ok.onclick = () => { commitDrawing(); ok.blur(); };
+    const no = $('button', { class: 'pr-tool pill', text: '✕ cancel', title: 'drop the points (Esc)', type: 'button' }); no.onclick = () => { cancelTool(); no.blur(); };
     drawBtns.appendChild(ok); drawBtns.appendChild(no); els.strip.appendChild(drawBtns);
   }
-  function setSection(k) { section = k; cancelTool(); tool = 'select'; buildRail(); buildStrip(); inspector.refresh(); }
+  function setSection(k) { section = k; cancelTool(); tool = 'select'; buildRail(); buildStrip(); inspector.refresh(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === k)); }
   function setTool(t) { cancelTool(); tool = t; for (const k in toolBtns) toolBtns[k].classList.toggle('on', k === t); strip.help(TOOL_HELP[t] || ''); if (t !== 'select') select(null); }
 
   // ---- the tool state machine ----------------------------------------------------
@@ -530,10 +545,19 @@ function mount(host, ctx) {
       if (feats.length) rows.select(insp, 'features', feats, () => '', v => select(v));
       if (section === 'zones') rows.note(insp, 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.');
       if (section === 'sites' && ctx.catalogue) {
-        const keys = ctx.catalogue.keys();
-        if (!PALETTE_KEY) PALETTE_KEY = keys[0] || null;
-        rows.select(insp, 'building', keys.map(k => [k, k]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
-        rows.note(insp, keys.length + ' entries in the catalogue (derived from the generators\' presets until each exports its own); pick one, then click the ground with the building tool');
+        // THE PALETTE BY CATEGORY (v9): the theme's seven words as pills, the entries of the one picked
+        // in the select (a preset's name and its generator's word); 'all' lists the whole catalogue
+        const TH = PG.themeOf(rec), cats = TH.categories || PG.CATEGORIES;
+        const keysOf = c => (c === 'all' ? ctx.catalogue.keys() : ctx.catalogue.byCat(c).map(q => q.key));
+        const nOf = c => keysOf(c).length;
+        if (!PALETTE_CAT || (PALETTE_CAT !== 'all' && !nOf(PALETTE_CAT))) PALETTE_CAT = cats.find(c => nOf(c)) || 'all';
+        const label = k => { const i = k.indexOf('/'); return i < 0 ? k : k.slice(i + 1) + ' · ' + k.slice(0, i); };
+        rows.pills(insp, 'category', [['all', 'all', 'the whole catalogue']].concat(cats.map(c => [c, c, nOf(c) + ' in the catalogue'])), () => PALETTE_CAT, v => { PALETTE_CAT = v; const ks = keysOf(v); if (ks.indexOf(PALETTE_KEY) < 0) PALETTE_KEY = ks[0] || null; inspector.refresh(); });
+        const keys = keysOf(PALETTE_CAT);
+        if (!PALETTE_KEY || keys.indexOf(PALETTE_KEY) < 0) PALETTE_KEY = keys[0] || null;
+        if (keys.length) rows.select(insp, 'building', keys.map(k => [k, label(k)]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
+        else rows.note(insp, 'nothing of that category in this catalogue');
+        rows.note(insp, ctx.catalogue.keys().length + ' entries in the catalogue under the ' + TH.name + ' theme; pick one, then click the ground with the building tool');
       }
       if (section === 'objects') {
         for (const kind of ['prop', 'billboard']) {
@@ -594,6 +618,16 @@ function mount(host, ctx) {
         rows.check(insp, 'clearings', () => !(e.rules && e.rules.clearings === false), v => ed(x => { x.rules = Object.assign({}, x.rules, { clearings: v }); }, 'clearings of ' + id));
       } else if (e.kind !== 'clear') {
         rows.select(insp, 'kind', PG.ZONE_KINDS.filter(k => k !== 'forest' && k !== 'clear').map(k => [k, k]), () => e.kind, v => ed(x => { x.kind = v; }, 'kind of ' + id));
+        // WHAT IT DRAWS FROM (v9): the theme's categories for this kind, or the zone's own - toggle the
+        // pills; none lit = the theme's
+        { const TH = PG.themeOf(rec), rule = (TH.plots || {})[e.kind] || {}, own = (e.rules && Array.isArray(e.rules.cats)) ? e.rules.cats : [];
+          const d = $('div', { class: 'r' }); d.appendChild($('span', { class: 'k', text: 'draws from', title: 'the categories this zone\'s plots draw from' }));
+          const w = $('span', { class: 'pills' });
+          for (const c of TH.categories || PG.CATEGORIES) { const on = own.length ? own.indexOf(c) >= 0 : (rule.cats || []).indexOf(c) >= 0; const b = $('button', { class: 'pill' + (on ? ' on' : ''), text: c, type: 'button', title: own.length ? 'this zone\'s own list' : 'the ' + TH.name + ' theme\'s list for a ' + e.kind + ' zone' }); b.onclick = () => ed(x => { const cur = (x.rules && Array.isArray(x.rules.cats) && x.rules.cats.length) ? x.rules.cats.slice() : (rule.cats || []).slice(); const i = cur.indexOf(c); if (i >= 0) cur.splice(i, 1); else cur.push(c); x.rules = Object.assign({}, x.rules, { cats: cur }); }, 'categories of ' + id); w.appendChild(b); }
+          d.appendChild(w); insp.appendChild(d);
+          if (own.length) rows.button(insp, 'back to the theme\'s categories', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.cats; x.rules = r2; }, 'categories of ' + id));
+          else if (rule.tag) rows.note(insp, 'a ' + e.kind + ' zone stands what the theme tags ' + rule.tag + ' (' + (ctx.catalogue ? ctx.catalogue.byTag(rule.tag).length : 0) + ' in the catalogue)');
+          else if (rule.sampler) rows.note(insp, Math.round(rule.sampler * 100) + ' % of the plots draw the house generator\'s own random house, the rest a named preset of those categories'); }
         rows.slider(insp, 'density', 0, 1, 0.05, () => e.density === undefined ? 1 : e.density, v => ed(x => { x.density = v; }, 'density of ' + id, 'density'), v => v.toFixed(2));
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
@@ -609,11 +643,18 @@ function mount(host, ctx) {
       rows.slider(insp, 'length (m)', 150, 1400, 5, () => e.len, v => ed(x => { x.len = v; }, 'length of ' + id, 'len'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
-      rows.select(insp, 'surface', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // THE LOOK (v9): what the strip is drawn as; picking one proposes the class the wheels feel, which
+      // the surface row below may still overrule (a paved look on a grass class is a painted strip)
+      rows.pills(insp, 'look', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
+        v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
+      rows.select(insp, 'wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
       profileGraph(insp, e, ed);
-      rows.slider(insp, 'shoulder (m)', 10, 200, 5, () => e.falloff === null || e.falloff === undefined ? Math.min(120, 40 + e.len * 0.06) : e.falloff, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      // THE SHOULDER (v9): the strip's radius of terraforming - the grade's falloff either side of the
+      // box, the band the composed ground takes to come back to the terrain; outlined when selected
+      rows.slider(insp, 'shoulder (m)', 10, 200, 5, () => PG.runwayShoulder(e), v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
+      rows.note(insp, 'the shoulder is how far the ground is terraformed either side of the strip and past its ends: the box is graded to the profile, the shoulder is the bank back to the terrain (a 3:1 bank at the steepest). Aprons and flats beside it are flatten polygons of their own.');
       rows.check(insp, 'PAPI at end 0', () => !!(e.papi || [true, true])[0], v => ed(x => { x.papi = [v, (x.papi || [true, true])[1]]; }, 'papi of ' + id));
       rows.check(insp, 'PAPI at end 1', () => !!(e.papi || [true, true])[1], v => ed(x => { x.papi = [(x.papi || [true, true])[0], v]; }, 'papi of ' + id));
       const A = (R.aerodromes ? R.aerodromes() : []).find(a => a.id === id);
@@ -623,7 +664,7 @@ function mount(host, ctx) {
           let iss = [];
           const siteC = ((R.overlay.runways || []).find(q => q.id === id) || {}).site || e.site || null;
           try { iss = ctx.site.sitePatternIssues(ctx.site.sitePattern(A, siteC), A, siteC, 0, ctx.site.patternPath || null); } catch (err) { iss = [err.message]; }
-          const d = $('div', { class: 'note', style: iss.length ? 'color:#ff6b5a' : 'color:#6fd08c' }); d.textContent = iss.length ? iss.join(' · ') : 'the pattern is sound: two holds on the centreline, the two approaches on the strip'; insp.appendChild(d);
+          rows.note(insp, iss.length ? iss.join(' · ') : 'the pattern is sound: two holds on the centreline, the two approaches on the strip', iss.length ? 'bad' : 'ok');
         }
       }
       rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
@@ -642,12 +683,12 @@ function mount(host, ctx) {
       rows.note(insp, items.length + ' item' + (items.length === 1 ? '' : 's') + ' - the faint discs move each in the site\'s frame; the bright one moves the site whole');
       const links = rec.layers.links.filter(L => (L.from.site === id) || (L.to.site === id));
       const solved = (R.links ? R.links() : []);
-      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note', style: sol && sol.ok ? 'color:#6fd08c' : 'color:#ff6b5a' }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d); }
+      for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note ' + (sol && sol.ok ? 'ok' : 'bad') }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d); }
       const iss = (R.overlay.records.issues || []).filter(t => t.indexOf(id) >= 0);
       if (iss.length) rows.note(insp, '⚠ ' + iss[0]);
       for (const it of items) {
         rows.section(insp, 'ITEM ' + it.id);
-        if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, k]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
+        if (ctx.catalogue) { const E = ctx.catalogue.entries; rows.select(insp, 'building', ctx.catalogue.keys().map(k => { const e = E.get(k), i = k.indexOf('/'); return [k, (i < 0 ? k : k.slice(i + 1)) + (e && e.cat ? ' · ' + e.cat : '')]; }), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id)); }
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
         rows.button(insp, 'remove ' + it.id, () => ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id));
       }
@@ -672,7 +713,7 @@ function mount(host, ctx) {
     const pts = () => (Array.isArray(e.profile) && e.profile.length >= 2) ? e.profile : [[0, -(e.slope || 0) * e.len / 2], [1, (e.slope || 0) * e.len / 2]];
     const wrap = $('div', { class: 'r', style: 'display:block' });
     wrap.appendChild($('span', { class: 'k', text: 'profile: height along the strip' }));
-    const cv = $('canvas', { width: '300', height: '110', style: 'display:block;width:300px;height:110px;background:#0e1218;border:1px solid #242a33;border-radius:4px;cursor:crosshair' });
+    const cv = $('canvas', { width: '300', height: '110', style: 'display:block;width:100%;max-width:300px;aspect-ratio:300/110;background:#0e1218;border:1px solid #242a33;border-radius:4px;cursor:crosshair' });
     wrap.appendChild(cv);
     const note = $('div', { class: 'note' });
     wrap.appendChild(note);
@@ -695,7 +736,7 @@ function mount(host, ctx) {
       g.fillStyle = '#7d8996'; g.fillText('end 0', PADL, H - 5); g.fillText('end 1', W - PADR - 28, H - 5);
       const iss = PG.profileIssues(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P }));
       note.textContent = iss.length ? iss.join(' · ') : 'a monotone spline through the points; drag one, double-click the curve to add, ✕ removes the selected';
-      note.style.color = iss.length ? '#ff6b5a' : '';
+      note.className = 'note' + (iss.length ? ' bad' : '');
     };
     const near = ev => { const rct = cv.getBoundingClientRect(), px = (ev.clientX - rct.left) * W / rct.width, py = (ev.clientY - rct.top) * H / rct.height; const P = pts(); let best = -1, bd = 9; P.forEach((q, i) => { const d = Math.hypot(X(q[0]) - px, Y(q[1]) - py); if (d < bd) { bd = d; best = i; } }); return { i: best, px, py }; };
     cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; draw(); ev.preventDefault(); ev.stopPropagation(); });
@@ -703,8 +744,8 @@ function mount(host, ctx) {
     addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
     cv.addEventListener('dblclick', ev => { const n = near(ev); if (n.i >= 0) return; const P = pts().map(q => q.slice()); const t = +tOf(n.px).toFixed(3); const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P })); P.push([t, +pr.at(t * e.len).toFixed(2)]); P.sort((a, b) => a[0] - b[0]); ed(x => { x.profile = P; }, 'profile point of ' + e.id); ev.stopPropagation(); });
     const btns = $('div', { style: 'display:flex;gap:6px;margin-top:4px' });
-    const del = $('button', { class: 'btn', text: '✕ remove the selected point' }); del.onclick = () => { const P = pts(); if (sel <= 0 || sel >= P.length - 1) return; const Q = P.filter((q, i) => i !== sel); sel = -1; ed(x => { x.profile = Q; }, 'profile point of ' + e.id); };
-    const flat = $('button', { class: 'btn', text: 'level' }); flat.onclick = () => ed(x => { x.profile = [[0, 0], [1, 0]]; x.slope = 0; }, 'profile of ' + e.id);
+    const del = $('button', { class: 'btn pill', type: 'button', text: '✕ remove the selected point' }); del.onclick = () => { const P = pts(); if (sel <= 0 || sel >= P.length - 1) return; const Q = P.filter((q, i) => i !== sel); sel = -1; ed(x => { x.profile = Q; }, 'profile point of ' + e.id); };
+    const flat = $('button', { class: 'btn pill', type: 'button', text: 'level' }); flat.onclick = () => ed(x => { x.profile = [[0, 0], [1, 0]]; x.slope = 0; }, 'profile of ' + e.id);
     btns.appendChild(del); btns.appendChild(flat); wrap.appendChild(btns);
     draw();
   }
@@ -728,6 +769,9 @@ function mount(host, ctx) {
       if (slots.length) rows.select(insp, 'load slot', slots.map(s => [s, s]), () => '', v => { try { load(storage.getItem('flydiy.premises.slot.' + v)); } catch (e) { strip.status(e.message); } });
     }
     rows.slider(insp, 'premises seed', 1, 99, 1, () => rec.seed, v => { rec.seed = v; dirty('zones'); }, v => String(v));
+    // THE THEME (v9): one word on the record; the themes are the composer's table
+    rows.pills(insp, 'theme', Object.keys(PG.THEMES).map(k => [k, PG.THEMES[k].name, PG.THEMES[k].blurb || '']), () => rec.theme || PG.THEME_DEF, v => { rec.theme = v; dirty('zones'); });
+    rows.note(insp, PG.themeOf(rec).blurb || '');
     rows.note(insp, 'autosaved to ' + LS_WIP + ' a second after every edit; a load replaces');
   }
   function viewRows() {
@@ -770,7 +814,7 @@ function mount(host, ctx) {
   // the record the host hands in (the game's: the one its world composed at the boot) comes first; else the wip slot
   if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = U.rec; recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
   else if (!ctx.fresh) loadWip();
-  buildRail(); buildStrip();
+  buildRail(); buildStrip(); ctx.onSection && ctx.onSection(SECTIONS.find(s => s.k === section));
   R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
 
   const handle = {
@@ -811,7 +855,7 @@ function mount(host, ctx) {
 const CSS = `
 .pr-rail{display:flex;flex-direction:column;gap:4px;padding:8px 6px;border-right:1px solid var(--grid,#242a33);width:64px;flex:none}
 .pr-sec{background:transparent;color:var(--dim,#7d8996);border:1px solid transparent;border-radius:6px;padding:8px 2px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
-.pr-sec .ic{font-size:18px} .pr-sec .lb{font-size:9px;letter-spacing:.1em}
+.pr-sec .ic{font-size:18px;line-height:1} .pr-sec .ic svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round} .pr-sec .lb{font-size:9px;letter-spacing:.1em}
 .pr-sec.on{color:var(--fg,#dfe6ee);border-color:var(--grid,#242a33);background:#1a1f27}
 .pr-insp{overflow-y:auto;padding:10px;width:320px;flex:none;border-left:1px solid var(--grid,#242a33)}
 .pr-tool{background:#1a1f27;color:var(--fg,#dfe6ee);border:1px solid var(--grid,#242a33);padding:4px 10px;border-radius:4px;font:inherit;cursor:pointer;margin-right:4px}

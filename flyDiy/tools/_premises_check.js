@@ -688,6 +688,47 @@ for (const fx of fixtures) {
   check(dup.issues.length === 1, '3 a key collision is reported');
 }
 
+// 16 THE THEME AND THE LOOK (v9, contract v1.10): the record carries a theme the composer knows (an
+// unknown one normalises to the default); every zone kind's draw names categories of the seven (or a
+// tag); the picker draws a named preset of the category on a plot and never a generator the theme
+// keeps for sites; every look proposes a class the registry has or none, and an unknown look is an issue
+{
+  const d = PG.DEF();
+  check(PG.THEMES[d.theme] && d.theme === PG.THEME_DEF, '16 the default record carries the default theme (' + PG.THEME_DEF + ')');
+  check(PG.normalise({ theme: 'mars' }).theme === PG.THEME_DEF, '16 an unknown theme normalises to the default');
+  for (const k in PG.THEMES) {
+    const T = PG.THEMES[k];
+    check(Array.isArray(T.categories) && T.categories.every(c => PG.CATEGORIES.indexOf(c) >= 0), '16 theme ' + k + ': its categories are of the seven');
+    for (const z of PG.ZONE_KINDS) { if (z === 'forest' || z === 'clear') continue; const r = T.plots[z]; check(!!r && (r.tag || (Array.isArray(r.cats) && r.cats.length && r.cats.every(c => PG.CATEGORIES.indexOf(c) >= 0))), '16 theme ' + k + ': ' + z + ' zones draw by categories or a tag'); }
+  }
+  // the picker under a catalogue that carries the categories: a commercial plot gets a commercial entry
+  // of the house generator (never the big one, which the theme keeps for sites), a residential plot a
+  // residential preset or the sampler, a zone's own list overrides
+  const cat = PG.collect({ HOUSE_GEN: { CATALOGUE: [{ key: 'h/a', kind: 'building', gen: 'HOUSE_GEN', cat: 'commercial', tags: ['house'] }, { key: 'h/b', kind: 'building', gen: 'HOUSE_GEN', cat: 'residential', tags: ['house'] }, { key: 'h/c', kind: 'building', gen: 'HOUSE_GEN', cat: 'official', tags: ['house'] }] },
+                           BIG_GEN: { CATALOGUE: [{ key: 'b/a', kind: 'building', gen: 'BIG_GEN', cat: 'commercial', tags: ['big'] }] } });
+  const rnd = PG.mulberry32(7);
+  const picks = new Set(); for (let i = 0; i < 40; i++) picks.add(PG.pickFor({ kind: 'commercial' }, cat, rnd, PG.THEMES.alaska, null));
+  check(picks.size === 1 && picks.has('h/a'), '16 a commercial plot draws the commercial entry of the house generator, never the big one', Array.from(picks).join(','));
+  const res = new Set(); for (let i = 0; i < 60; i++) res.add(PG.pickFor({ kind: 'residential' }, cat, rnd, PG.THEMES.alaska, null));
+  check(res.has('sampler') && res.has('h/b') && res.size === 2, '16 a residential plot draws the sampler or a residential preset', Array.from(res).join(','));
+  const own = new Set(); for (let i = 0; i < 20; i++) own.add(PG.pickFor({ kind: 'residential' }, cat, rnd, PG.THEMES.alaska, { rules: { cats: ['official'] } }));
+  check(own.size === 1 && own.has('h/c'), '16 a zone\'s own categories override the theme\'s', Array.from(own).join(','));
+  check(cat.byCat('commercial').length === 2 && cat.byCat('sports').length === 0, '16 the catalogue answers byCat');
+  // the derived entries carry catOf
+  const der = PG.collect({ SHED_GEN: { PRESETS: { 'lean-to': {} }, DEF: {}, catOf: () => 'shed' } });
+  check(der.entries.get('shed/lean-to').cat === 'shed' && der.byCat('shed').length === 1, '16 a derived entry carries its generator\'s category');
+  // the looks
+  for (const k in PG.RUNWAY_LOOKS) { const L = PG.RUNWAY_LOOKS[k]; check(typeof L.name === 'string' && (L.surface === null || PG.SURFACE_NAMES[L.surface] !== undefined), '16 look ' + k + ' names a class the registry has, or none'); }
+  check(PG.RUNWAY_LOOKS.none.surface === null && PG.RUNWAY_LOOKS.none.set === null, '16 the markings-only look proposes no class and no set');
+  check(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].set).length >= 3, '16 at least three looks wear a PBR set');
+  const rw = PG.normalise(PG.DEF()); rw.layers.runways.push({ id: 'w1', c: [0, 0], hdg: 0, len: 400, wid: 20, look: 'velvet' });
+  check(PG.issues(rw).some(t => /unknown look/.test(t)), '16 an unknown look is an issue');
+  rw.layers.runways[0].look = 'asphalt';
+  check(!PG.issues(rw).some(t => /look/.test(t)), '16 a known look is not');
+  const O = PG.compose(rw, synth);
+  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
+}
+
 // 13 the contract held: no catalogue key literal in the editor's files
 {
   const files = fs.readdirSync(TOOLS).filter(f => /^_premises.*\.(js|html)$/.test(f) && f !== '_premises_check.js').map(f => path.join(TOOLS, f))

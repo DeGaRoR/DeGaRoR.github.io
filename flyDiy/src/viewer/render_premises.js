@@ -335,6 +335,16 @@ function make(THREE, scene, world, rec0, opts) {
       G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e });
       if (e.id === selectedId) { const l2 = lineFor(layer, e, 0xffffff, true); l2.material.opacity = 0.9; l2.position.y = 0.06; G.outlines.add(l2); LINES.set(e.id + ':sel', { line: l2, layer, entry: e }); }
     }
+    // THE SELECTED STRIP (v9): its box in white and its SHOULDER - the radius of terraforming, where the
+    // grade's bank has come back to the terrain - as a fainter loop around it
+    const rSel = selectedId ? O.runways.find(r => r.id === selectedId) : null;
+    if (rSel) {
+      const F = O.frame;
+      const loop = (poly, col, op, lift, what) => { const pts = poly.map(q => F.toWorld(q[0], q[1])); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + lift), 3)); const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthTest: false })); line.renderOrder = 8; line.name = 'runway:' + rSel.id + ':' + what; line.userData.premId = rSel.id; return line; };
+      const box = loop(PG.runwayBox(rSel, 0), 0xffffff, 0.9, 0.06, 'box'), sh = loop(PG.runwayBox(rSel, PG.runwayShoulder(rSel)), 0xffb03a, 0.8, 0.04, 'shoulder');
+      G.outlines.add(box); LINES.set(rSel.id + ':box', { line: box, layer: 'runways', entry: rSel });
+      G.outlines.add(sh); LINES.set(rSel.id + ':shoulder', { line: sh, layer: 'runways', entry: rSel });
+    }
     // the site items' feet (cyan) and the links (a line from hook to hook)
     for (const it of O.records.items) {
       const geo = new THREE.BufferGeometry();
@@ -409,6 +419,21 @@ function make(THREE, scene, world, rec0, opts) {
       for (let a = 0; a < na; a++) for (let c = 0; c < nc; c++) { const v = a * (nc + 1) + c; idx.push(v, v + 1, v + nc + 2, v, v + nc + 2, v + nc + 1); }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+      // THE LOOK (v9): a set of the site's or the lot's under the markings; 'none' and 'grass' the bare
+      // ribbon with the markings (the bench's ground carries the grass; the game paints its own)
+      const LK = PG.RUNWAY_LOOKS && r.look ? PG.RUNWAY_LOOKS[r.look] : null;
+      if (LK && LK.set) {
+        const sets = Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
+        const S = sets[LK.set];
+        if (S && S.diff) {
+          const t = new THREE.Texture(S.diff); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+          const tile = S.tile || 4; t.repeat.set(Math.max(1, Math.round(A.len / tile)), Math.max(1, Math.round(A.wid / tile)));
+          if (S.diff.complete && S.diff.naturalWidth) t.needsUpdate = true; else S.diff.addEventListener('load', () => { t.needsUpdate = true; }, { once: true });
+          const gm = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+          gm.receiveShadow = true; gm.renderOrder = 5; gm.name = 'runway:' + r.id + ':look'; gm.userData.premId = r.id; gm.userData.ownMap = true;
+          G.runways.add(gm);
+        }
+      }
       let mat;
       if (R && SITE.sitePaintStrip) {
         const RW = 2048, RH = Math.max(64, Math.round(RW * A.wid / A.len));

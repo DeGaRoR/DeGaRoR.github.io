@@ -718,3 +718,128 @@
   #arrCard { width:calc(100% - 24px); padding:16px 16px 14px; }
   #arrRows { grid-template-columns:1fr; }
 }
+
+/* =========================================================================
+   9. THE WORLD EDITOR (G398). The premises module (premises_ui.js) mounts
+   in #premPanel and draws its tool strip, checks, plaque and camera word in
+   #premView, both inside #ui. It is a different screen and the same
+   controls: the flyout's plate, its rail buttons for the sections, its rows
+   for the inspector (.r is .fr, span.k / span.v the same widths), its pills
+   for every button, its switch, slider and select for every input (the row
+   builders in premises_host.js give them the classes; the bench page styles
+   the same classes its own way). The flight's chrome - the brief, the PFD,
+   the verbs, the ribbon and its flyout - steps aside while it is open
+   (body.premOpen), because the editor pauses the flight and owns the mouse;
+   the way back is the header's pill and the WORLD flyout's.
+   ========================================================================= */
+body.premOpen #flTop, body.premOpen #flActs, body.premOpen #flRail,
+body.premOpen #flFly { display:none; }
+
+/* the sheet: the editor's mouse surface, up to the panel's margin */
+#ui #premView { position:absolute; left:0; top:0; bottom:0; right:436px;
+  cursor:crosshair; z-index:5; }
+
+/* the tool strip, top-left, a plate of pills; the help and the last status
+   are one line each and never wrap the plate wider than the sheet */
+#ui #premStrip { position:absolute; left:22px; top:18px;
+  max-width:calc(60% - 30px); display:flex; flex-wrap:wrap; gap:6px;
+  align-items:center; padding:8px 10px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15); }
+#ui #premStrip:empty { display:none; }
+#ui #premStrip .pr-tool { margin:0; }
+#ui #premStrip .pr-help { font:400 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-faint);
+  margin-left:6px; max-width:440px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#ui #premStrip .pr-help:empty, #ui #premStrip .pr-status:empty { display:none; }
+#ui #premStrip .pr-status { font:500 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-acc);
+  margin-left:6px; max-width:320px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#ui #premStrip .pr-draw { display:inline-flex; gap:6px; margin-left:6px; }
+
+/* the plaque (top-right of the sheet) and the checks (bottom-left): read
+   through, never clicked - the glass of the PFD */
+#ui #premPlaque, #ui #premChk { position:absolute; padding:8px 11px;
+  background:var(--fl-glass); border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  font:400 10.5px/1.55 'IBM Plex Sans'; color:var(--ed-dim); pointer-events:none; }
+#ui #premPlaque { right:22px; top:18px; text-align:right; max-width:calc(40% - 30px); }
+#ui #premPlaque b { font-weight:500; color:var(--ed-ink); }
+#ui #premChk { left:22px; bottom:18px; max-width:min(46%, 420px); }
+#ui #premPlaque:empty, #ui #premChk:empty { display:none; }
+#ui #premChk .ok { color:var(--ed-acc); }
+#ui #premChk .warn { color:var(--ed-warn); }
+#ui #premChk .bad { color:var(--ed-bad); }
+#ui #premCam { position:absolute; right:22px; bottom:22px; max-width:40%; text-align:right;
+  font:500 9px/1 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ed-faint); white-space:nowrap; pointer-events:none;
+  text-shadow:0 1px 2px rgba(0,0,0,.6); }
+
+/* the panel: a plate standing the right edge, the header, then the rail
+   and the inspector side by side; only the inspector scrolls */
+#ui #premPanel { position:absolute; right:22px; top:18px; bottom:18px; width:392px;
+  display:flex; flex-direction:column; z-index:20; overflow:hidden;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+#ui #premHead { display:flex; align-items:center; gap:10px; flex:none;
+  padding:12px 14px 10px; border-bottom:1px solid var(--ed-hair); }
+#ui #premHead .t { flex:none; font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); white-space:nowrap; }
+#ui #premHead .s { flex:1; min-width:0; font:500 10px/1 'IBM Plex Sans';
+  letter-spacing:.2em; text-transform:uppercase; color:var(--ed-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#ui #premHead .pill { flex:none; }
+#ui #premBody { flex:1; min-height:0; display:flex; }
+
+/* the sections: the ribbon's buttons, standing inside the panel */
+#ui #premBody .pr-rail { flex:none; width:62px; display:flex; flex-direction:column;
+  gap:4px; padding:8px 6px; border-right:1px solid var(--ed-hair); border-left:0;
+  overflow-y:auto; scrollbar-width:none; }
+#ui #premBody .pr-sec { display:flex; flex-direction:column; align-items:center;
+  gap:3px; flex:none; width:50px; padding:8px 0; border:0; border-radius:6px;
+  background:transparent; color:var(--ed-dim); cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+#ui #premBody .pr-sec:hover { background:rgba(255,255,255,.06); }
+#ui #premBody .pr-sec.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+#ui #premBody .pr-sec .ic { display:block; line-height:1; font-size:15px; }
+#ui #premBody .pr-sec .ic svg { display:block; width:15px; height:15px; fill:none;
+  stroke:currentColor; stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; }
+#ui #premBody .pr-sec .lb { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
+  text-transform:uppercase; }
+
+/* the inspector: the flyout's rows */
+#ui #premBody .pr-insp { flex:1; min-width:0; width:auto; border:0;
+  overflow-y:auto; overflow-x:hidden; padding:4px 14px 14px; scrollbar-width:thin; }
+#ui .pr-insp .hd { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); padding:14px 0 8px; margin:0 0 2px;
+  border-bottom:1px solid var(--ed-hair); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#ui .pr-insp .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint);
+  margin:8px 0; overflow-wrap:anywhere; }
+#ui .pr-insp .note.ok { color:var(--ed-acc); }
+#ui .pr-insp .note.warn { color:var(--ed-warn); }
+#ui .pr-insp .note.bad { color:var(--ed-bad); }
+#ui .pr-insp .r { display:flex; gap:10px; align-items:center; margin:7px 0;
+  min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+#ui .pr-insp .r > span.k { width:104px; flex:none; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+#ui .pr-insp .r > span.v { flex:none; width:48px; text-align:right;
+  font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+#ui .pr-insp .r > .fsel { flex:1; min-width:0; }
+#ui .pr-insp .r > .pills { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:5px; }
+#ui .pr-insp .pills .pill { padding:5px 8px; }
+#ui .pr-insp .r > .fsw + span.v { flex:none; width:auto; text-align:left;
+  font:400 11px/1 'IBM Plex Sans'; color:var(--ed-faint); }
+#ui .pr-insp .btn { display:inline-block; width:auto; margin:3px 6px 3px 0; }
+#ui .pr-insp .pr-name, #ui .pr-insp .pr-paste { display:block; width:100%;
+  box-sizing:border-box; margin:6px 0; padding:6px 8px;
+  font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:text; }
+#ui .pr-insp .pr-paste { resize:vertical; min-height:56px; }
+#ui .pr-insp .pr-name::placeholder, #ui .pr-insp .pr-paste::placeholder { color:var(--ed-faint); }
+#ui .pr-insp canvas { display:block; max-width:100%; height:auto;
+  background:var(--ed-track); border:1px solid var(--ed-hair); border-radius:5px; }

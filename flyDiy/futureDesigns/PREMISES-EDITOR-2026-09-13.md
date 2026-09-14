@@ -520,3 +520,37 @@ junction) · leftover worktrees (`wt350`, `wt351`, `aw352`, `wt5`, `zz-wt`, `str
 removes its own) · the headless stub (`_village_check.js`'s `makeTHREE()` has no Vector3 / Object3D —
 the tram runner and every link solver stay pure so the gates stay headless, which is also the port's
 precondition).
+
+## 10. THE GAME UI (G398, as landed)
+
+The user (2026-09-14): "a phase of UI polishing. Proper menus, in the current style. Treat this as game
+interface and reuse the proven components. Nothing overflows, everything readable, consistent with the
+existing." What landed:
+
+- **Inside `#ui`.** `#premView` (the mouse sheet) and `#premPanel` (the plate) are children of the
+  flight screen's `#ui`, so the flight's scoped resets and palette apply. Nothing is styled inline any
+  more: flight.css section 9 owns the look. The panel is a plate standing the right edge (22 px in,
+  18 px top and bottom, 392 px wide) with a header (WORLD EDITOR · the section · the way back as a pill),
+  then the section rail and the inspector side by side; only the inspector scrolls.
+- **The flight chrome steps aside.** `body.premOpen` hides the brief, the PFD, the verbs, the ribbon and
+  its flyout while the editor is open - it pauses the flight and owns the mouse; the way back is the
+  header's pill or the WORLD flyout's after it. Nothing shows through the sheet any more.
+- **The flyout's grammar, reused.** The section rail wears `.flRailBtn`'s rules (50 px column, an svg
+  icon in the ribbon's 18 x 18 stroked grammar - the module's `ICONS` - and an 8 px uppercase word; the
+  lit one on `--ed-acc`). The inspector's rows are the flyout's `.fr` (11.5 px Plex, the key 104 px with
+  an ellipsis, the value 48 px right). Every control is the flyout's own: the row builders in
+  `premises_host.js` give the slider `.frng`, the select `.fsel`, the switch `.fsw` (with its on/off
+  word), every button `.pill`; a new `rows.pills` is a pill row (the look, the theme, the palette's
+  category). The tool strip is a plate of pills top-left; the checks and the plaque are glass plates
+  (`--fl-glass`) that are read through; the camera word is a 9 px uppercase caption bottom-centre.
+- **Nothing overflows.** Section heads, keys, the help and the status are single lines with an ellipsis;
+  notes wrap anywhere; the profile graph is 100 % wide; long labels carry their full text in `title`;
+  the strip's width is capped at the sheet's; the plaque and the checks at fractions of it.
+- **The bench is unchanged in look**: the same classes, styled the bench's way by its page.
+- **The theme, the categories, the look, the shoulder**: contract v1.10. The SITES palette groups by
+  category (pills, then the select of that category's presets); a zone shows what it draws from as
+  pills to toggle; the runway inspector has the look pills over the class it proposes; the selected
+  strip is outlined with its shoulder - the radius of terraforming.
+- **Owed**: the F8 rows the design gives the editor (forest fill / LOD, the light rig, frame, camera) are
+  still on F8; the world's own trees do not follow a live edit; the premises' trees are not planted in the
+  game; the shed rail has no WORLD entry; a polygon's falloff band is not outlined (the strip's is).

@@ -59,6 +59,29 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
+// THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
+// same seven in every catalogue entry's `cat` - what the palette groups by and a zone draws from
+const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official', 'landmark', 'sports'];
+// THE THEME (v9, contract v1.10, the user: "take these new categories, under the global Alaska theme -
+// the only one for a long time, but let's have a data model like it"). The record carries ONE word
+// (rec.theme); the theme says what a sown plot of each zone kind draws from - the categories, and how
+// often the house generator's own sampler (a random house) stands instead of a named preset - and which
+// generators' entries a plot may stand (the house frame; the rest of the catalogue is for SITES, placed
+// by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
+// rewrite: the same seven categories, other draws.
+const THEMES = {
+  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+    categories: CATEGORIES,
+    // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
+    // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
+    laws: { residential: 'zoned', shed: 'zoned', commercial: 'zoned', industrial: 'zoned', official: 'hand', landmark: 'hand', sports: 'hand' },
+    plots: { residential: { cats: ['residential'], sampler: 0.7 }, commercial: { cats: ['commercial'], sampler: 0 },
+             industrial: { cats: ['industrial'], sampler: 0 }, harbour: { cats: ['industrial', 'residential'], sampler: 0.5 },
+             park: { tag: 'park' }, airfield: { cats: ['commercial'], sampler: 0 } },
+    plotGens: ['HOUSE_GEN'] },
+};
+const THEME_DEF = 'alaska';
+const themeOf = rec => THEMES[rec && rec.theme] || THEMES[THEME_DEF];
 // the plot rules a zone starts from (the village's VDEF numbers)
 const ZONE_RULES = { plotMin: 20, plotMax: 34, plotDepth: 30, riparian: 16, gapOdds: 0.18, sides: 'both' };
 // what a KIND changes before the zone's own rules: a park plot is the village's park (36 x 40) with
@@ -336,7 +359,7 @@ function SpatialIndex(cell) {
 // the record
 // ---------------------------------------------------------------------------
 function DEF() {
-  return { v: PREMISES_V, id: 'premises', name: '', seed: 1,
+  return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
            layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
@@ -361,6 +384,7 @@ function normalise(rec) {
   for (const k of LAYERS) if (!Array.isArray(r.layers[k])) r.layers[k] = [];
   r.budget = Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
+  if (!THEMES[r.theme]) r.theme = THEME_DEF;
   return r;
 }
 const envelope = (name, rec, plaque, log) => JSON.stringify({
@@ -482,11 +506,22 @@ function sowPlots(zone, roads, ctx) {
 // 'sampler' is the house generator's own draw (what a residential plot gets, and what any kind
 // gets when no entry carries its tag: the generators tag their entries, the editor names none)
 const PICK_TAGS = { residential: null, commercial: 'commercial', industrial: 'industrial', harbour: 'harbour', park: 'park' };
-function pickFor(plot, cat, rnd) {
-  const tag = PICK_TAGS[plot.kind];
-  if (!tag || !cat || !cat.byTag) return 'sampler';
-  const list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park');
+// (v9) by the THEME: the zone kind's categories (the zone's own when it names some), among the entries
+// the plot builder stands; the theme's sampler share draws the random house instead; a kind the theme
+// routes by TAG (the park) keeps the tag route
+function pickFor(plot, cat, rnd, theme, zone) {
+  const TH = theme || THEMES[THEME_DEF];
+  const rule = (TH.plots || {})[plot.kind] || null;
+  const own = zone && zone.rules && Array.isArray(zone.rules.cats) && zone.rules.cats.length ? zone.rules.cats : null;
+  const cats = own || (rule && rule.cats) || null;
+  if (!cat) return 'sampler';
+  let list = [];
+  if (cats && cat.entries) cat.entries.forEach(e => { if (e.kind === 'building' && e.cat && cats.indexOf(e.cat) >= 0 && (!TH.plotGens || TH.plotGens.indexOf(e.gen) >= 0)) list.push(e); });
+  // no entry of those categories (a catalogue without them, a kind the theme routes by tag): the tag route
+  if (!list.length) { const tag = rule && rule.tag !== undefined ? rule.tag : PICK_TAGS[plot.kind]; if (tag && cat.byTag) list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park'); }
   if (!list.length) return 'sampler';
+  const samp = own ? 0 : +((rule && rule.sampler) || 0);
+  if (samp > 0 && rnd() < samp) return 'sampler';
   return list[Math.floor(rnd() * list.length) % list.length].key;
 }
 
@@ -526,7 +561,21 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+// THE LOOK (v9, contract v1.10, the user: "allow for transparent runways, yet the marking can show, only
+// it would not feature a ground texture; give a couple of possible materials"): what the strip's ground
+// is DRAWN as, apart from the surface CLASS the wheels feel (grass / gravel / paved / sand, the physics
+// the registry already has). 'none' paints the markings on the bare composed ground - a surface or
+// material polygon under it is what shows; a set names a PBR set of the site's or the lot's (read by the
+// renderer at call time). Each look proposes a class; the record's surface may still say otherwise.
+const RUNWAY_LOOKS = {
+  grass:    { name: 'grass strip',    surface: SURFACE.GRASS,  set: null },
+  none:     { name: 'markings only',  surface: null,           set: null },
+  asphalt:  { name: 'asphalt',        surface: SURFACE.PAVED,  set: 'asphalt' },
+  concrete: { name: 'concrete',       surface: SURFACE.PAVED,  set: 'brushed' },
+  worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked' },
+  gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble' },
+};
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
 
 // THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
 // [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
@@ -574,6 +623,10 @@ function profileIssues(r) {
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
   return out;
 }
+// THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
+// ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
+// length law: 40 m + 6 % of the length, at most 120 m
+function runwayShoulder(r) { return r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + (+r.len || 0) * 0.06); }
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -609,7 +662,7 @@ function runwayAerodrome(r, F, elev, flats) {
   const tdz = [c[0] + dw[0] * (hl - 5 - aimIn), c[1] + dw[1] * (hl - 5 - aimIn)];
   const spawn = [c[0] - dw[0] * (hl - 35), c[1] - dw[1] * (hl - 35)];
   // the strip's own flat, in the world: its graded box (the width and the shoulder) - siteOnFlat asks it
-  const shoulder = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+  const shoulder = runwayShoulder(r);
   const flatBox = runwayBox(r, shoulder).map(q => F.toWorld(q[0], q[1]));
   // ... and every authored flatten (an apron cut beside the strip is flat ground too)
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
@@ -618,7 +671,7 @@ function runwayAerodrome(r, F, elev, flats) {
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
-           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
 
@@ -824,7 +877,7 @@ function compose(rec0, world, opts) {
   for (const r of runways) {
     const E = runwayEnds(r);
     const elev = T1(r.c[0], r.c[1]);
-    const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+    const fall = runwayShoulder(r);
     // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
     const pr = runwayProfile(r), gpts = [];
     const nS = Math.max(1, Math.ceil(r.len / 6));
@@ -953,7 +1006,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
@@ -1067,6 +1120,7 @@ function issues(rec0) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -1267,22 +1321,25 @@ function collect(globals) {
         const key = ns + '/' + name;
         if (entries.has(key)) continue;
         const isMill = !!(G.PRESETS[name] && G.PRESETS[name].mill);
-        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true,
+        const cat = typeof G.catOf === 'function' ? (G.catOf(name) || null) : null;   // G393: every generator answers one of the seven words
+        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true, cat,
           params: ov => Object.assign({}, G.DEF, G.PRESETS[name] || {}, ov || {}),
           // the mill's foot is its tiers' footprint (placeSite :718-720); a house's its L x w
           foot: P => { if (P.mill) { const L = P.tierL0 + 24, w = P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW, zc = -(w / 2 - P.tierW / 2); return [[-L / 2, zc - w / 2], [L / 2, zc - w / 2], [L / 2, zc + w / 2], [-L / 2, zc + w / 2]]; } const L = (P.L || 8) / 2, w = (P.w || 6) / 2; return [[-L, -w], [L, -w], [L, w], [-L, w]]; },
           keepOut: 3, ground: { need: 'none' }, size: P => ({ L: P.L || 8, w: P.w || 6 }),
-          hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: [ns], headless: true });
+          hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: cat ? [ns, cat] : [ns], headless: true });
       }
     }
   }
-  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
+  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; },
+           // by CATEGORY (v9): the entries whose `cat` is the word (a park entry without one is a landmark)
+           byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

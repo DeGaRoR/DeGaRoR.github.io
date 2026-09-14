@@ -566,3 +566,24 @@ after the freeze, against this document.
   wears up to four sets) that the ground shader mixes in after the base map, on the bench's ground and on
   the game's patch alike. `surface` polygons take the same `z` for the physics class where two overlap.
   A material without a set is an issue. GATE PREMISES rule 15.
+- **v1.10 (2026-09-14, the user: "take these new categories, under the global Alaska theme - the only
+  one for a long time, but let's have a data model like it. Also allow for transparent runways, yet the
+  marking can show, only it would not feature a ground texture. Give a couple of possible materials").**
+  THE THEME: the record carries `theme` (default `'alaska'`; an unknown word normalises to it). The
+  composer's `THEMES` table is the model: `{ name, blurb, categories, plots: { <zone kind>: { cats,
+  sampler } | { tag } }, plotGens }` - what a sown plot of each kind draws from among the seven
+  CATEGORIES the generators answer (`catOf`, G393: residential, shed, commercial, industrial, official,
+  landmark, sports), how often the house generator's own random house stands instead (`sampler`), and
+  which generators' entries a plot may stand (`plotGens`: the house frame today; the rest of the
+  catalogue is for SITES). A zone overrides with `rules.cats`. Every catalogue entry carries `cat`
+  (collect() derives it from the generator's `catOf` when the entry is derived); the catalogue answers
+  `byCat(word)`. The picker: `pickFor(plot, cat, rnd, theme, zone)`. THE LOOK: a runway carries
+  `look` (default `'grass'`), one of `RUNWAY_LOOKS`: grass (the painted strip), none (the markings
+  alone on the composed ground - a transparent sheet; what shows is the terrain, or a surface / material
+  polygon under it), asphalt, concrete, worn (old concrete), gravel - each with the PBR set the renderer
+  reads at call time (site_tex / lot_tex; the editor names none) and the surface CLASS it proposes
+  (`surface` on the record stays the physics' own fact: the wheels feel the class, the eye sees the
+  look; the editor sets the class when a look is picked, the row below may overrule). The aerodrome record
+  carries `look`; an unknown look is an issue. THE SHOULDER: `runwayShoulder(r)` is the one keeper of
+  the strip's radius of terraforming (the falloff, or 40 m + 6 % of the length, at most 120 m); the
+  renderer outlines it around the selected strip. GATE PREMISES rule 16.

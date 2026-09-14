@@ -46077,3 +46077,59 @@ G393 declared, closed, and the new assets stood in the world editor.
 - LESSON: the gate flies the BIRTH spec, the game flies the JOINED one — a
   card is not proven until the joined spec has flown (`--only=` plus a
   spec pulled from the page, `GARAGE_SPEC.get()`).
+
+## G398 — THE EDITOR'S GAME UI: THE FLYOUT'S GRAMMAR, THE THEME, THE RUNWAY LOOK,
+## THE SHOULDER (2026-09-14, the user: "a phase of UI polishing ... proper menus, in
+## the current style ... reuse the proven components ... take the new categories under
+## the global Alaska theme ... transparent runways ... a couple of materials ... how do
+## you terraform around your airports?")
+
+- **INSIDE #ui**: the editor's sheet (#premView) and panel (#premPanel) are
+  children of the flight screen's #ui; nothing is styled inline any more,
+  flight.css section 9 owns the look. The panel is a plate standing the right
+  edge (22 px in, 18 px top and bottom, 392 px) with a header - WORLD EDITOR ·
+  the section · BACK TO THE FLIGHT as a pill - then the section rail and the
+  inspector side by side; only the inspector scrolls. The flight's chrome (the
+  brief, the PFD, the verbs, the ribbon, its flyout) steps aside while the
+  editor is open (body.premOpen) - nothing shows through the sheet any more.
+- **THE FLYOUT'S GRAMMAR, REUSED**: the section rail wears .flRailBtn's rules
+  with svg icons in the ribbon's 18 x 18 stroked grammar (the module's ICONS);
+  the inspector's rows are .fr (11.5 px Plex, key 104 px with an ellipsis, value
+  48 px right); every control is the flyout's own - the row builders in
+  premises_host.js give the slider .frng, the select .fsel, the switch .fsw
+  (with its on/off word), every button .pill; a new rows.pills is a pill row.
+  The tool strip is a plate of pills top-left; the checks and the plaque are
+  glass plates read through; the camera word a 9 px caption bottom-right. The
+  bench keeps its own look through the same classes (its page styles them).
+- **THE THEME** (contract v1.10): rec.theme = 'alaska' (an unknown word
+  normalises to it); the composer's THEMES table is the model - the seven
+  CATEGORIES the generators answer (G393's catOf, carried on every catalogue
+  entry, derived ones included; the catalogue answers byCat), each category's
+  placement law (zoned / by hand, THEME-ALASKA-RURAL's table), what a sown plot
+  of each zone kind draws from (residential 70 % the sampler's random house,
+  30 % a residential preset; commercial and industrial their presets - a
+  commercial zone used to fall to the sampler, no entry carried the tag; the
+  harbour half and half; the park by tag) and which generators a plot may stand
+  (the house frame; the rest is for SITES). A zone overrides with its own
+  categories (pills in the inspector); the SITES palette groups by category.
+- **THE LOOK**: a runway carries `look` - grass strip, markings only (the
+  markings alone on a transparent sheet: what shows is the composed ground, a
+  surface or material polygon under it), asphalt, concrete, old concrete,
+  gravel - each a PBR set of the site's or the lot's, read at call time, and a
+  surface CLASS it proposes (the wheels feel the class, the eye sees the look;
+  the editor sets the class on a pick, the WHEELS FEEL row may overrule). The
+  game's strip decal is built by look (the set's sheet under a shared markings
+  sheet); the bench's ribbon too.
+- **THE SHOULDER**: runwayShoulder(r) is the one keeper of the strip's radius
+  of terraforming (the falloff, or 40 m + 6 % of the length, at most 120 m -
+  the grade's bank back to the terrain, 3:1 at the steepest); the selected
+  strip is outlined with its box (white) and its shoulder (amber).
+- Pictures: screenshots/premises/v9_game_*.jpg (the editor in dev.html at
+  1920 x 1080, headless Chrome: the flyout, the sections, the asphalt and the
+  markings-only strip, the palette, a zone, the file section, a 1280 x 640
+  window, the flight back) and v9_look_worn_bench.jpg.
+- Gates: PREMISES green (rule 16 added: the theme, the picker by category, the
+  looks; 276 checks), UISMOKE, BUILD, MEDIA, WORLDRENDER.
+- OWED (unchanged): the F8 rows the design gives the editor, the world's own
+  trees under a live edit, the premises' trees in the game, the shed rail's
+  WORLD entry; new: a polygon's falloff band is not outlined (the strip's is).

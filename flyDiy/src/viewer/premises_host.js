@@ -138,15 +138,27 @@ PREMISES_HOST.make = function (o) {
   return { cameras, camera, place, ray, ground, centre, persp, ortho, saveView, attach, detach, rows: PREMISES_HOST.rows(), site: PREMISES_HOST.site() };
 };
 
-// the inspector's row builders: the bench's own DOM shapes (.hd / .note / .btn / .r rows), one keeper
+// the inspector's row builders: the bench's own DOM shapes (.hd / .note / .btn / .r rows), one keeper.
+// Every control also wears the flight flyout's class (pill / fsel / fsw / frng, G398): in the game
+// flight.css styles them as the flyout's own controls; the bench page styles the same DOM its way.
 PREMISES_HOST.rows = function () {
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   return {
-    section: (p, t) => { const d = document.createElement('div'); d.className = 'hd'; d.textContent = t; p.appendChild(d); return d; },
-    note: (p, t) => { const d = document.createElement('div'); d.className = 'note'; d.textContent = t; p.appendChild(d); return d; },
-    button: (p, t, on) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = t; b.onclick = on; p.appendChild(b); return b; },
+    section: (p, t) => { const d = document.createElement('div'); d.className = 'hd'; d.textContent = t; d.title = t; p.appendChild(d); return d; },
+    note: (p, t, cls) => { const d = document.createElement('div'); d.className = 'note' + (cls ? ' ' + cls : ''); d.textContent = t; p.appendChild(d); return d; },
+    button: (p, t, on) => { const b = document.createElement('button'); b.className = 'btn pill'; b.type = 'button'; b.textContent = t; b.onclick = on; p.appendChild(b); return b; },
+    // a row of pills: one is on; opts = [[value, label, title?], ...]
+    pills: (p, label, opts, get, set) => {
+      const d = document.createElement('div'); d.className = 'r';
+      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span>';
+      const w = document.createElement('span'); w.className = 'pills';
+      const paint = () => { const cur = String(get()); for (const b of w.children) b.classList.toggle('on', b.dataset.v === cur); };
+      for (const q of opts) { const b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.dataset.v = String(q[0]); b.textContent = q[1]; if (q[2]) b.title = q[2]; b.onclick = () => { set(q[0]); paint(); b.blur(); }; w.appendChild(b); }
+      paint(); d.appendChild(w); p.appendChild(d); return d;
+    },
     slider: (p, label, lo, hi, st, get, set, fmt) => {
       const d = document.createElement('div'); d.className = 'r';
-      d.innerHTML = '<span class="k" title="' + label + '">' + label + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '"><span class="v"></span>';
+      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span><input type="range" class="frng" min="' + lo + '" max="' + hi + '" step="' + st + '"><span class="v"></span>';
       const inp = d.querySelector('input'), val = d.querySelector('.v');
       const show = v => { val.textContent = fmt ? fmt(v) : (+v).toFixed(2); };
       let v0 = +get(); if (!isFinite(v0)) v0 = lo;
@@ -156,18 +168,21 @@ PREMISES_HOST.rows = function () {
     },
     select: (p, label, opts, get, set) => {
       const d = document.createElement('div'); d.className = 'r';
-      const sel = document.createElement('select');
+      const sel = document.createElement('select'); sel.className = 'fsel';
       if (get() === '') sel.appendChild(new Option('…', ''));
       for (const q of opts) sel.appendChild(new Option(q[1], q[0]));
       sel.value = String(get());
       sel.onchange = () => set(sel.value);
-      d.innerHTML = '<span class="k">' + label + '</span>'; d.appendChild(sel); p.appendChild(d); return d;
+      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span>'; d.appendChild(sel); p.appendChild(d); return d;
     },
     check: (p, label, get, set) => {
       const d = document.createElement('div'); d.className = 'r';
-      const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!get();
-      c.onchange = () => set(c.checked);
-      d.innerHTML = '<span class="k">' + label + '</span>'; d.appendChild(c); p.appendChild(d); return d;
+      const c = document.createElement('input'); c.type = 'checkbox'; c.className = 'fsw'; c.checked = !!get();
+      const v = document.createElement('span'); v.className = 'v';
+      const word = () => { v.textContent = c.checked ? 'on' : 'off'; };
+      c.onchange = () => { set(c.checked); word(); };
+      word();
+      d.innerHTML = '<span class="k" title="' + esc(label) + '">' + esc(label) + '</span>'; d.appendChild(c); d.appendChild(v); p.appendChild(d); return d;
     },
   };
 };

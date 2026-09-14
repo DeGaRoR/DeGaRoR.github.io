@@ -42,17 +42,27 @@
       window.PREMISES_HOST_OPEN = true;
       running = false;
       if (!PREM.panel) {
-        const v = document.createElement('div'); v.id = 'premView'; v.style.cssText = 'position:fixed;left:0;top:0;right:392px;bottom:0;z-index:40;cursor:crosshair;';
-        const strip = document.createElement('div'); strip.id = 'premStrip'; strip.style.cssText = 'position:absolute;left:10px;top:10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:70%;';
-        const plaque = document.createElement('div'); plaque.id = 'premPlaque'; plaque.style.cssText = 'position:absolute;right:10px;top:10px;font:11px/1.4 system-ui;color:#dfe6ee;background:rgba(12,15,20,.7);padding:6px 8px;border-radius:6px;pointer-events:none;';
-        const chk = document.createElement('div'); chk.id = 'premChk'; chk.style.cssText = 'position:absolute;left:10px;bottom:10px;font:11px/1.5 system-ui;color:#dfe6ee;background:rgba(12,15,20,.7);padding:6px 8px;border-radius:6px;pointer-events:none;max-width:46%;';
-        const lbl = document.createElement('div'); lbl.id = 'premCam'; lbl.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:10px;font:11px system-ui;color:#9fb0c0;pointer-events:none;';
-        v.appendChild(strip); v.appendChild(plaque); v.appendChild(chk); v.appendChild(lbl);
-        const panel = document.createElement('div'); panel.id = 'premPanel'; panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:392px;z-index:41;display:flex;background:#12161c;color:#dfe6ee;font:12px system-ui;border-left:1px solid #242a33;';
-        document.body.appendChild(v); document.body.appendChild(panel);
-        PREM.panel = panel; PREM.view = v;
+        // THE EDITOR'S CHROME (G398): inside #ui, so it wears the flight screen's own grammar
+        // (flight.css section 9: the plate, the rail buttons, the rows, pills, switches and
+        // sliders of the flyout) - a different screen, the same controls. Nothing is styled here.
+        const mk = (tag, id, cls) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; return e; };
+        const v = mk('div', 'premView');
+        for (const id of ['premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
+        const panel = mk('div', 'premPanel');
+        const head = mk('div', 'premHead');
+        const t = mk('span', null, 't'); t.textContent = 'world editor';
+        const sec = mk('span', 'premSec', 's');
+        const back = mk('button', 'premClose', 'pill'); back.type = 'button'; back.textContent = 'back to the flight'; back.title = 'close the editor; the record autosaved and is the world at the next boot';
+        back.onclick = () => PREM.close();
+        head.appendChild(t); head.appendChild(sec); head.appendChild(back);
+        const body = mk('div', 'premBody');
+        panel.appendChild(head); panel.appendChild(body);
+        const ui = $('ui') || document.body;
+        ui.appendChild(v); ui.appendChild(panel);
+        PREM.panel = panel; PREM.view = v; PREM.body = body;
       }
-      PREM.panel.style.display = 'flex'; PREM.view.style.display = '';
+      PREM.panel.style.display = ''; PREM.view.style.display = '';
+      document.body.classList.add('premOpen');   // the flight's chrome steps aside (flight.css)
       const dirtyDraw = () => {};
       PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
         onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms'; } });
@@ -63,7 +73,8 @@
       PREM.host.cameras.set(PREM.host.cameras.mode());
       const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip') };
       const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
-      PREM.ed = window.PREMISES_UI.mount(PREM.panel, {
+      PREM.ed = window.PREMISES_UI.mount(PREM.body, {
+        onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
         rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
@@ -78,6 +89,7 @@
       if (PREM.ed) { PREM.ed.close(); PREM.ed = null; }
       if (PREM.host) { PREM.host.detach(); }
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
+      document.body.classList.remove('premOpen');
       camera.up.set(0, 1, 0);
       if (PREM.R) PREM.R.rebuild(null);   // the outlines and handles go (editing() is false now)
     } };
