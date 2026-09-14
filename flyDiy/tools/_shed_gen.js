@@ -630,17 +630,19 @@ function randomShed(seed) {
 
 // the shed's "walls" are its cladding boards, so the siding slot is dressed
 // from the BOARD role rather than the wall role
-function applyFinish(P) {
-  HG.applyFinish(P);
-  HG.dressSlot('siding', 'deck', P.wallSet, P.wallCol, 0x9c8a6f);
+function applyFinish(P, F) {
+  HG.applyFinish(P, F);
+  HG.dressSlot('siding', 'deck', P.wallSet, P.wallCol, 0x9c8a6f, F);
 }
+// a finish of its own for the premises' per-item build (G393.3): the house's, since the shed wears the house's materials
+const makeFinish = () => HG.makeFinish();
 
 // every plank-by-plank shed is a SHED (G393's categories: HOUSE_GEN.CATEGORIES)
 const catOf = () => 'shed';
 window.SHED_GEN = {
   catOf,
   DEF: DEF, ROWS: ROWS, PRESETS: PRESETS, BAGS: BAGS, MAT: HG.MAT,
-  build: build, randomShed: randomShed, applyFinish: applyFinish,
+  build: build, randomShed: randomShed, applyFinish: applyFinish, makeFinish,
   libSets: HG.libSets, isShed: true,
 };
 })();

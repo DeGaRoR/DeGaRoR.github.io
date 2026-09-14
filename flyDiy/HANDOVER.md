@@ -46408,3 +46408,43 @@ me TECS" (the assist, the arc, now the ladder). P0.5 next.
 - Gates: PILOT unchanged (the flag is off; `ap.sheet` is lazy and read by
   nothing yet). PILOTMATRIX: the baseline holds (no cell touched with the
   flag off).
+
+## G393.3 — THE SPORTS GROUND IS A SITE, THE BASES BY CATEGORY, THE THEME TOOL TAKES ANY THEME (2026-09-14)
+
+The user: "the sports series is good, but do the surroundings with more
+detail. The ground cover, the small buildings. Let's have these be a site
+rather than just an asset. Including fences (... the same fence method as
+the village generator - or just let the editor/village generator do it?"
+and "the industrial and commercial also need their bases, mostly parking
+lots, preferably old and weathered concrete ... a job for the village
+generator? Does the in-game editor inherit automatically ...?"
+
+- THE ANSWER ON THE PIPELINE: the house bench is the asset workshop
+  (generators, GATE HOUSE); the village bench is the legacy composition
+  bench; the premises bench and the in-game WORLD editor are the SAME code
+  (27_premises + render_premises + premises_ui + the generators, spliced
+  into index.html by build.js) - no port, a rebuild. Dressing per category
+  is the composer's/editor's job, not each building's.
+- THE SPORTS GROUND THEME (`VILLAGE_GEN.THEMES['sports ground']`): the ball
+  park, the CLUBHOUSE and the CONCESSION STAND (new HOUSE_GEN presets, cat
+  sports, unheated outbuildings), the tool shed, a gravel car park (yard),
+  and the village's rail fence round the ground with a gap at the entrance
+  (`fences` in the site's frame -> premises coordinates on the site entry
+  -> render_premises `buildSiteFences` through the same fenceGroup/
+  buildFence the lots use). The theme tool takes ANY site theme (a select
+  in the sites section; `ed.cmd('siteTheme', {key})`); item keys by
+  generator namespace (house/big/shed/sport/totem); a theme without a
+  mountain gets its yard without the kennecott cut.
+- THE BASES: the building tool lays a base by the entry's category -
+  commercial: a PAVED car park in front wearing the cracked-concrete
+  material; official: a paved forecourt; industrial: a gravel apron round
+  the foot and out to the road side. Features of their own (move/delete).
+  `ed.cmd('palette', {key})` picks the building (and lifts the category
+  filter).
+- SHED_GEN in the premises: `makeFinish` (the house's) + `applyFinish(P, F)`
+  (dressSlot takes F), `_shed_gen.js` loaded by the bench and the pack.
+- SEEN (world B): general store + cracked car park, warehouse + gravel
+  apron, the sports ground with its fence - "6 of 6 site items resolved".
+- Green: HOUSE, PREMISES, MEDIA; the pack rebuilt in the clean worktree
+  (G393.2 had landed sources only - HEAD's build.js named the pilot
+  session's `44_machine_sheet.js` before it landed; it is in now).

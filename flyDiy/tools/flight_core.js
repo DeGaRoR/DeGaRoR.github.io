@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 10ad07819e4a27e8
+// body-sha256: f0896f2a013c73d1
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1252,8 +1252,12 @@ function makeWorld(seed, opts) {
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
     // bake, so the same physical rivers emerge at any grid resolution)
+    // the island: the DEM already holds its river beds (no carve to add) and
+    // its lakes are the cover's water class (waterAt), not flooded sinks
     { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
-      lakeMin: 1.5, A0m2: 274650, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
+      // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
+      // judgment on procedural hydrology - maps first, procedural on top")
+      lakeMin: ISL ? 1e9 : 1.5, A0m2: ISL ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -1652,7 +1656,8 @@ function makeWorld(seed, opts) {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
     bounds: BOUNDS,
-    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, WC: ISL.WC, hMax: ISL.hMax } : null,
+    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt,
+                    WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
@@ -3953,6 +3958,29 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
+// THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
+// same seven in every catalogue entry's `cat` - what the palette groups by and a zone draws from
+const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official', 'landmark', 'sports'];
+// THE THEME (v9, contract v1.10, the user: "take these new categories, under the global Alaska theme -
+// the only one for a long time, but let's have a data model like it"). The record carries ONE word
+// (rec.theme); the theme says what a sown plot of each zone kind draws from - the categories, and how
+// often the house generator's own sampler (a random house) stands instead of a named preset - and which
+// generators' entries a plot may stand (the house frame; the rest of the catalogue is for SITES, placed
+// by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
+// rewrite: the same seven categories, other draws.
+const THEMES = {
+  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+    categories: CATEGORIES,
+    // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
+    // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
+    laws: { residential: 'zoned', shed: 'zoned', commercial: 'zoned', industrial: 'zoned', official: 'hand', landmark: 'hand', sports: 'hand' },
+    plots: { residential: { cats: ['residential'], sampler: 0.7 }, commercial: { cats: ['commercial'], sampler: 0 },
+             industrial: { cats: ['industrial'], sampler: 0 }, harbour: { cats: ['industrial', 'residential'], sampler: 0.5 },
+             park: { tag: 'park' }, airfield: { cats: ['commercial'], sampler: 0 } },
+    plotGens: ['HOUSE_GEN'] },
+};
+const THEME_DEF = 'alaska';
+const themeOf = rec => THEMES[rec && rec.theme] || THEMES[THEME_DEF];
 // the plot rules a zone starts from (the village's VDEF numbers)
 const ZONE_RULES = { plotMin: 20, plotMax: 34, plotDepth: 30, riparian: 16, gapOdds: 0.18, sides: 'both' };
 // what a KIND changes before the zone's own rules: a park plot is the village's park (36 x 40) with
@@ -4230,7 +4258,7 @@ function SpatialIndex(cell) {
 // the record
 // ---------------------------------------------------------------------------
 function DEF() {
-  return { v: PREMISES_V, id: 'premises', name: '', seed: 1,
+  return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
            layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
@@ -4255,6 +4283,7 @@ function normalise(rec) {
   for (const k of LAYERS) if (!Array.isArray(r.layers[k])) r.layers[k] = [];
   r.budget = Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
+  if (!THEMES[r.theme]) r.theme = THEME_DEF;
   return r;
 }
 const envelope = (name, rec, plaque, log) => JSON.stringify({
@@ -4376,11 +4405,22 @@ function sowPlots(zone, roads, ctx) {
 // 'sampler' is the house generator's own draw (what a residential plot gets, and what any kind
 // gets when no entry carries its tag: the generators tag their entries, the editor names none)
 const PICK_TAGS = { residential: null, commercial: 'commercial', industrial: 'industrial', harbour: 'harbour', park: 'park' };
-function pickFor(plot, cat, rnd) {
-  const tag = PICK_TAGS[plot.kind];
-  if (!tag || !cat || !cat.byTag) return 'sampler';
-  const list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park');
+// (v9) by the THEME: the zone kind's categories (the zone's own when it names some), among the entries
+// the plot builder stands; the theme's sampler share draws the random house instead; a kind the theme
+// routes by TAG (the park) keeps the tag route
+function pickFor(plot, cat, rnd, theme, zone) {
+  const TH = theme || THEMES[THEME_DEF];
+  const rule = (TH.plots || {})[plot.kind] || null;
+  const own = zone && zone.rules && Array.isArray(zone.rules.cats) && zone.rules.cats.length ? zone.rules.cats : null;
+  const cats = own || (rule && rule.cats) || null;
+  if (!cat) return 'sampler';
+  let list = [];
+  if (cats && cat.entries) cat.entries.forEach(e => { if (e.kind === 'building' && e.cat && cats.indexOf(e.cat) >= 0 && (!TH.plotGens || TH.plotGens.indexOf(e.gen) >= 0)) list.push(e); });
+  // no entry of those categories (a catalogue without them, a kind the theme routes by tag): the tag route
+  if (!list.length) { const tag = rule && rule.tag !== undefined ? rule.tag : PICK_TAGS[plot.kind]; if (tag && cat.byTag) list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park'); }
   if (!list.length) return 'sampler';
+  const samp = own ? 0 : +((rule && rule.sampler) || 0);
+  if (samp > 0 && rnd() < samp) return 'sampler';
   return list[Math.floor(rnd() * list.length) % list.length].key;
 }
 
@@ -4420,7 +4460,21 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+// THE LOOK (v9, contract v1.10, the user: "allow for transparent runways, yet the marking can show, only
+// it would not feature a ground texture; give a couple of possible materials"): what the strip's ground
+// is DRAWN as, apart from the surface CLASS the wheels feel (grass / gravel / paved / sand, the physics
+// the registry already has). 'none' paints the markings on the bare composed ground - a surface or
+// material polygon under it is what shows; a set names a PBR set of the site's or the lot's (read by the
+// renderer at call time). Each look proposes a class; the record's surface may still say otherwise.
+const RUNWAY_LOOKS = {
+  grass:    { name: 'grass strip',    surface: SURFACE.GRASS,  set: null },
+  none:     { name: 'markings only',  surface: null,           set: null },
+  asphalt:  { name: 'asphalt',        surface: SURFACE.PAVED,  set: 'asphalt' },
+  concrete: { name: 'concrete',       surface: SURFACE.PAVED,  set: 'brushed' },
+  worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked' },
+  gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble' },
+};
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
 
 // THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
 // [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
@@ -4468,6 +4522,10 @@ function profileIssues(r) {
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
   return out;
 }
+// THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
+// ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
+// length law: 40 m + 6 % of the length, at most 120 m
+function runwayShoulder(r) { return r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + (+r.len || 0) * 0.06); }
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -4503,7 +4561,7 @@ function runwayAerodrome(r, F, elev, flats) {
   const tdz = [c[0] + dw[0] * (hl - 5 - aimIn), c[1] + dw[1] * (hl - 5 - aimIn)];
   const spawn = [c[0] - dw[0] * (hl - 35), c[1] - dw[1] * (hl - 35)];
   // the strip's own flat, in the world: its graded box (the width and the shoulder) - siteOnFlat asks it
-  const shoulder = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+  const shoulder = runwayShoulder(r);
   const flatBox = runwayBox(r, shoulder).map(q => F.toWorld(q[0], q[1]));
   // ... and every authored flatten (an apron cut beside the strip is flat ground too)
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
@@ -4512,7 +4570,7 @@ function runwayAerodrome(r, F, elev, flats) {
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
-           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
 
@@ -4718,7 +4776,7 @@ function compose(rec0, world, opts) {
   for (const r of runways) {
     const E = runwayEnds(r);
     const elev = T1(r.c[0], r.c[1]);
-    const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+    const fall = runwayShoulder(r);
     // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
     const pr = runwayProfile(r), gpts = [];
     const nS = Math.max(1, Math.ceil(r.len / 6));
@@ -4847,7 +4905,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
@@ -4961,6 +5019,7 @@ function issues(rec0) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -5161,22 +5220,25 @@ function collect(globals) {
         const key = ns + '/' + name;
         if (entries.has(key)) continue;
         const isMill = !!(G.PRESETS[name] && G.PRESETS[name].mill);
-        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true,
+        const cat = typeof G.catOf === 'function' ? (G.catOf(name) || null) : null;   // G393: every generator answers one of the seven words
+        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true, cat,
           params: ov => Object.assign({}, G.DEF, G.PRESETS[name] || {}, ov || {}),
           // the mill's foot is its tiers' footprint (placeSite :718-720); a house's its L x w
           foot: P => { if (P.mill) { const L = P.tierL0 + 24, w = P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW, zc = -(w / 2 - P.tierW / 2); return [[-L / 2, zc - w / 2], [L / 2, zc - w / 2], [L / 2, zc + w / 2], [-L / 2, zc + w / 2]]; } const L = (P.L || 8) / 2, w = (P.w || 6) / 2; return [[-L, -w], [L, -w], [L, w], [-L, w]]; },
           keepOut: 3, ground: { need: 'none' }, size: P => ({ L: P.L || 8, w: P.w || 6 }),
-          hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: [ns], headless: true });
+          hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: cat ? [ns, cat] : [ns], headless: true });
       }
     }
   }
-  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
+  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; },
+           // by CATEGORY (v9): the entries whose `cat` is the word (a park entry without one is a landmark)
+           byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
@@ -5221,8 +5283,9 @@ var ISLAND_GEN = (function () {
     if (typeof TERRAIN_CODEC === 'undefined') throw new Error('island: no TERRAIN_CODEC');
     const H = src.header;
     const root = TERRAIN_CODEC.decodeRaw(H, src.topo, src.payload);
-    const terrainH = TERRAIN_CODEC.sampler(root, H);
+    const terrainQ = TERRAIN_CODEC.sampler(root, H);
     const g = src.grid.meta, cover = src.grid.cover, canopy = src.grid.canopy || null;
+    const coast = src.grid.coast || null;      // signed distance to the waterline, 128 = 0, 4 m a unit, + inland
     const W = g.w, Hn = g.h, cell = g.cell, gx0 = g.x0, gz0 = g.z0;
     const reclass = src.reclass != null ? src.reclass : 2.5;
 
@@ -5232,6 +5295,25 @@ var ISLAND_GEN = (function () {
       return j * W + i;
     };
     const classAt = (x, z) => { const k = cellAt(x, z); return k < 0 ? WC.WATER : cover[k]; };
+    // the signed coast, bilinear (the field's whole point: a smooth line through the cells)
+    const coastAt = (x, z) => {
+      if (!coast) return 1e9;
+      const u = (x - gx0) / cell - 0.5, v = (z - gz0) / cell - 0.5;
+      const i = Math.max(0, Math.min(W - 2, Math.floor(u))), j = Math.max(0, Math.min(Hn - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j));
+      const p = j * W + i;
+      const a = coast[p], b = coast[p + 1], c = coast[p + W], d = coast[p + W + 1];
+      return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
+    };
+    // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
+    // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
+    // sea is a shelf off the coast field: -1.5 m at the line, -12 m by 500 m
+    // out, the DEM's own value wherever the field says land.
+    const terrainH = coast
+      ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
+                    if (sd >= 0) return h;
+                    const t = Math.min(1, -sd / 500); return Math.min(h, -1.5 - 10.5 * t * t * (3 - 2 * t)); }
+      : terrainQ;
     const canopyAt = (x, z) => { if (!canopy) return 0; const k = cellAt(x, z); return k < 0 ? 0 : canopy[k]; };
     const effClass = (x, z) => {
       const k = cellAt(x, z);
@@ -5246,7 +5328,8 @@ var ISLAND_GEN = (function () {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
+      albedo: src.grid.albedo || null,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
     };
@@ -10423,6 +10506,17 @@ function makePilot(sim, def, world, opts) {
   const A = def.params.ap;
   const ST = PILOT_STYLES[opts.style] || PILOT_STYLES.normal;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  // P0.4 (PILOT-ROADMAP §6.3 rule 5): THE MACHINE SHEET — built lazily (the
+  // shakedown behind it costs ~2 s; the garage memoises one, a gate may pass
+  // one, `opts.shakedown` is a value or a getter). `opts.sheet` (the flag)
+  // makes the pilot fly the sheet's ladder — Vref = 1.30 Vs0 for the
+  // approach, 1.20 Vs0 short-field — instead of genAP's 1.42 Vs; off until
+  // the matrix says it wins (the ramp-flare precedent). Either way the sheet
+  // is published as `ap.sheet` for the panel and the planner to come.
+  let sheetV = null;
+  const sheetOf = () => sheetV || (sheetV = (typeof machineSheet === 'function'
+    ? machineSheet(def, { shakedown: opts.shakedown }) : null));
+  const useSheet = !!opts.sheet;
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
@@ -10473,9 +10567,13 @@ function makePilot(sim, def, world, opts) {
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k, td: [td[0], td[1]] };
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100, x: -520, z: 0 };
+  // the speed ladder: the sheet's when the flag is on and the stall is measured
+  const SH0 = useSheet ? sheetOf() : null;
+  const sheetVAppr = SH0 && SH0.src.Vs0 === 'measured' ? SH0.Vref : null;
+  const VApprShort = sheetVAppr != null ? 1.20 * SH0.Vs0 : A.VApprShort;
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
-    VCruise: A.VCruise, VAppr: A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
+    VCruise: A.VCruise, VAppr: sheetVAppr ?? A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
     route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
@@ -10508,12 +10606,22 @@ function makePilot(sim, def, world, opts) {
     PATS[key] = P;
     return P;
   };
+  // P0 (PILOT-ROADMAP): the watchdog's budget is the ROUTE's — 600 s was the
+  // circuit's and a 10 km cross-country to A3 (300 s enroute for a cub, a
+  // go-around, a second circuit) was "out of patience" at 600 s on the
+  // matrix. The distance at the cruise speed, times 1.6 for the wind and the
+  // circuit, on top of the circuit's own 600.
+  const routeBudget = (from, to) => {
+    const d = (from && to && from !== to) ? Math.hypot(to.x - from.x, to.z - from.z) : 0;
+    return 600 + 1.6 * d / Math.max(15, ap.VCruise || A.VCruise || 30);
+  };
   ap.setRoute = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
     ap.altRef = from.elev;
     ap.shortFld = false;
+    ap.budget = Math.max(ap.budget, routeBudget(from, to));
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
@@ -10529,6 +10637,7 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = false;
     ap.trackHold = false;
     ap.legs = null; ap.legI = 0; ap.plan = null;
+    ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
     go('DEPART');
   };
 
@@ -10573,6 +10682,8 @@ function makePilot(sim, def, world, opts) {
     if (o && typeof o.phase === 'string' && o.phase !== ap.phase) go(o.phase);
   };
   ap.taxiFF = taxiFF;
+  Object.defineProperty(ap, 'sheet', { get: sheetOf, enumerable: false });
+  ap.useSheet = useSheet;
 
   // ---- THE AP BOX (G202.1): the modes as a device -------------------------
   // engage({lat, vert, thr}, sel): a mode per axis (undefined = keep, null =
@@ -10688,7 +10799,7 @@ function makePilot(sim, def, world, opts) {
     ap.xAim = Math.max(A.xAim, sThr + 40);
     ap.shortFld = to.len < 450;
     if (to.len < 700) ap.xAim = sThr + Math.max(60, 0.12 * to.len);
-    if (ap.shortFld && A.VApprShort) ap.VAppr = A.VApprShort; else ap.VAppr = A.VAppr;
+    if (ap.shortFld && VApprShort) ap.VAppr = VApprShort; else ap.VAppr = sheetVAppr ?? A.VAppr;
     const hC = ap.hCruise;
     const Dfaf = hC / ap.gs;
     const Diaf = Dfaf + Math.max(400, 10 * VTurn);
@@ -11618,7 +11729,12 @@ function makePilot(sim, def, world, opts) {
           const base = ap.altRef + P.hC;
           const cruise = Math.min(base + Math.max(0, dRem - 800) * 0.05,
                                   Math.max(ap.route.from.elev + A.hCruise, base));
-          const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 7500) + (A.hClear ?? 130);
+          // P0 (PILOT-ROADMAP, found by the matrix): the look-ahead stops at the
+          // LEG'S END. It scanned 7.5 km whatever remained, so the cub bound
+          // for A3 read the ridge 2 km PAST the strip (292 m) as its floor,
+          // arrived over the threshold at 420 m, and went around from 255 m
+          // above the slope
+          const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
         const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;
@@ -11882,6 +11998,226 @@ function makePilot(sim, def, world, opts) {
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
   };
   return ap;
+}
+// ============================================================
+// THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
+// the pilot reads the aeroplane from.
+//
+// PILOT-ROADMAP §6.3 rule 5: "the machine is a sheet of measured numbers,
+// and the sheet is the only source." Before this the pilot knew the
+// aeroplane through genAP's constants (ratios of the analytic stall) and
+// genTuneAP's fits; the bench measured the same aeroplane — the stall in
+// both configurations, the climb gradient, the glide ratio and its speed,
+// the take-off run, the ground power cap — and the pilot never read it.
+//
+// WHAT IT IS. One flat record, SI, built from what exists: `def.params.gen`
+// (the tunnel's measured block), `def.params.ap` (the speed ladder genAP
+// derived, kept as the fallback), and `genShakedown`'s output when the
+// caller has one (the garage memoises it; a gate passes it; the pilot asks
+// for it lazily and does without — the fields that need it read null).
+// Every field says where it came from (`src`): 'measured' (the tunnel or
+// the shakedown), 'derived' (a textbook ratio over a measured number, named
+// in the comment), 'genAP' (the old constant, until a measurement replaces
+// it). Nothing here is tuned; a number the bench cannot measure yet is null
+// and the consumer falls back, never a guess dressed as a fact.
+//
+// THE V-SPEEDS AND THE RATIOS (light-aeroplane practice, the same for a Cub
+// and a flying boat):
+//   Vs      clean stall (VsMeas when the tunnel measured it, else analytic)
+//   Vs0     stall in the landing configuration (VsFlap; = Vs when flapless)
+//   Vref    1.30 Vs0 — the approach reference speed
+//   Vrot    genAP's VRot (0.99 Vs, G159: the derived rotation)
+//   Vy      genAP's VClimb (1.38 Vs), where gammaClimb was measured
+//   Vx      0.87 Vy — derived; the best-angle speed is not measured yet
+//   Vbg     the best-glide speed, measured (the shakedown's L/D sweep)
+//   Vms     0.76 Vbg — the minimum-sink speed (3^-1/4, a parabolic polar)
+//   Vcruise genAP's VCruise (1.71 Vs)
+//   Vne     null — not measured; a consumer that needs a ceiling uses 1.5 Vcruise and says so
+// THE ENERGY LIMITS (what TECS reads, P0.5):
+//   climbMax  gammaClimb x Vy (m/s) — measured at full thrust
+//   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
+//             from the measured glide (3^(3/4)/2 on a parabolic polar)
+//   sinkBg    Vbg / LDbest — the sink at best glide
+//   gammaClimb, LDbest — measured
+// THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
+// 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
+// THE ATTITUDES (rad, measured): alphaAppr, alphaTD (1.10 Vs0), alphaCruise,
+// aStall, thMax / flareThMax / liftoffTh (genTuneAP's, from the measured
+// attitudes). THE THROTTLE: thrCruise (measured), thrAppr (genAP), groundCap
+// (measured: the power nose-over cap). THE EFFECTORS: what this machine
+// has — engines, flaps (and their landing setting), the gear type, floats.
+// ============================================================
+function machineSheet(def, opts) {
+  opts = opts || {};
+  const A = def.params.ap || {}, G = def.params.gen || {}, P = def.params;
+  const sh = typeof opts.shakedown === 'function' ? opts.shakedown() : (opts.shakedown || null);
+  const src = {};
+  const put = (k, v, s) => { src[k] = v == null ? null : s; return v == null ? null : v; };
+  const r2 = v => v == null ? null : Math.round(v * 100) / 100;
+  const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
+  const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
+  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
+  const Vy = put('Vy', A.VClimb ?? null, 'genAP');
+  const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
+  const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');
+  const gammaClimb = put('gammaClimb', G.gammaClimb ?? null, 'measured');
+  const trike = P.ap && P.ap.rolloutMode === 'trike' || (P.twSteer || 0.5) < 0;
+  // the stop from 1.15 Vs0: the pilot's accelerate-stop law (43_pilot.js aStop)
+  const aStop = A.aStop || 9.81 * ((typeof CRR === 'number' ? CRR : 0.05) + (A.brakeMax || 0.3) * (typeof MU_BRAKE === 'number' ? MU_BRAKE : 0.5)) * 0.8;
+  const Vtd = Vs0 != null ? 1.15 * Vs0 : null;
+  const S = {
+    Vs, Vs0, Vref: put('Vref', Vs0 != null ? 1.30 * Vs0 : null, 'derived'),
+    Vrot: put('Vrot', A.VRot ?? null, 'genAP'), Vy, Vx: put('Vx', Vy != null ? 0.87 * Vy : null, 'derived'),
+    Vbg, Vms: put('Vms', Vbg != null ? 0.76 * Vbg : null, 'derived'),
+    Vcruise: put('Vcruise', A.VCruise ?? null, 'genAP'), Vne: put('Vne', null, 'derived'),
+    climbMax: put('climbMax', gammaClimb != null && Vy != null ? gammaClimb * Vy : null, 'measured'),
+    sinkBg: put('sinkBg', Vbg != null && LDbest ? Vbg / LDbest : null, 'measured'),
+    sinkMin: put('sinkMin', Vbg != null && LDbest ? 0.877 * Vbg / LDbest : null, 'derived'),
+    gammaClimb, LDbest,
+    TORun: put('TORun', A.TORun ?? (sh && sh.TORun) ?? null, 'measured'),
+    LDGrun: put('LDGrun', Vtd != null ? Vtd * Vtd / (2 * aStop) + Vtd * 1.0 : null, 'derived'),
+    alphaAppr: put('alphaAppr', G.alphaAppr ?? null, 'measured'),
+    alphaTD: put('alphaTD', G.alphaTD ?? null, 'measured'),
+    alphaCruise: put('alphaCruise', G.alphaCruise ?? null, 'measured'),
+    aStall: put('aStall', G.aStall ?? null, 'measured'),
+    thMax: put('thMax', A.thMax ?? null, 'genAP'), flareThMax: put('flareThMax', A.flareThMax ?? null, 'genAP'),
+    liftoffTh: put('liftoffTh', A.liftoffTh ?? null, 'genAP'),
+    thrCruise: put('thrCruise', A.thrCruise ?? null, 'measured'), thrAppr: put('thrAppr', A.thrAppr ?? null, 'genAP'),
+    groundCap: put('groundCap', sh && sh.groundThrCap != null ? sh.groundThrCap : null, 'measured'),
+    mass: put('mass', G.W != null ? G.W / 9.81 : (sh && sh.mass) || null, 'measured'),
+    W: put('W', G.W ?? (sh && sh.W) ?? null, 'measured'),
+    wingLoad: put('wingLoad', sh && sh.wingLoad != null ? sh.wingLoad : null, 'measured'),
+    staticMargin: put('staticMargin', sh && sh.staticMargin != null ? sh.staticMargin : null, 'measured'),
+    xwindLimit: put('xwindLimit', opts.xwind != null ? opts.xwind : null, 'measured'),
+    elevIdle: put('elevIdle', null, 'measured'),            // elevator authority at idle: not measured yet (the C172 / Caravan finding)
+    effectors: {
+      engines: P.nEngines || 1,
+      flaps: !!P.flaps, flapLdg: P.flaps ? (P.flaps.ldg ?? 1) : 0, flapTO: P.flaps ? (P.flaps.to ?? 0) : 0,
+      gear: trike ? 'trike' : 'taildragger',
+      floats: !!(def.hydro || (def.parts && def.parts.floats)),
+      spoilers: false,
+    },
+    src,
+    shakedown: !!sh,
+  };
+  // the same numbers, rounded, for a plaque or a status line
+  S.show = () => {
+    const o = {};
+    for (const k of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vx', 'Vy', 'Vbg', 'Vms', 'Vcruise', 'climbMax', 'sinkMin', 'LDbest', 'TORun', 'LDGrun', 'mass'])
+      o[k] = r2(S[k]);
+    return o;
+  };
+  return S;
+}
+// ============================================================
+// THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
+// the pilot reads the aeroplane from.
+//
+// PILOT-ROADMAP §6.3 rule 5: "the machine is a sheet of measured numbers,
+// and the sheet is the only source." Before this the pilot knew the
+// aeroplane through genAP's constants (ratios of the analytic stall) and
+// genTuneAP's fits; the bench measured the same aeroplane — the stall in
+// both configurations, the climb gradient, the glide ratio and its speed,
+// the take-off run, the ground power cap — and the pilot never read it.
+//
+// WHAT IT IS. One flat record, SI, built from what exists: `def.params.gen`
+// (the tunnel's measured block), `def.params.ap` (the speed ladder genAP
+// derived, kept as the fallback), and `genShakedown`'s output when the
+// caller has one (the garage memoises it; a gate passes it; the pilot asks
+// for it lazily and does without — the fields that need it read null).
+// Every field says where it came from (`src`): 'measured' (the tunnel or
+// the shakedown), 'derived' (a textbook ratio over a measured number, named
+// in the comment), 'genAP' (the old constant, until a measurement replaces
+// it). Nothing here is tuned; a number the bench cannot measure yet is null
+// and the consumer falls back, never a guess dressed as a fact.
+//
+// THE V-SPEEDS AND THE RATIOS (light-aeroplane practice, the same for a Cub
+// and a flying boat):
+//   Vs      clean stall (VsMeas when the tunnel measured it, else analytic)
+//   Vs0     stall in the landing configuration (VsFlap; = Vs when flapless)
+//   Vref    1.30 Vs0 — the approach reference speed
+//   Vrot    genAP's VRot (0.99 Vs, G159: the derived rotation)
+//   Vy      genAP's VClimb (1.38 Vs), where gammaClimb was measured
+//   Vx      0.87 Vy — derived; the best-angle speed is not measured yet
+//   Vbg     the best-glide speed, measured (the shakedown's L/D sweep)
+//   Vms     0.76 Vbg — the minimum-sink speed (3^-1/4, a parabolic polar)
+//   Vcruise genAP's VCruise (1.71 Vs)
+//   Vne     null — not measured; a consumer that needs a ceiling uses 1.5 Vcruise and says so
+// THE ENERGY LIMITS (what TECS reads, P0.5):
+//   climbMax  gammaClimb x Vy (m/s) — measured at full thrust
+//   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
+//             from the measured glide (3^(3/4)/2 on a parabolic polar)
+//   sinkBg    Vbg / LDbest — the sink at best glide
+//   gammaClimb, LDbest — measured
+// THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
+// 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
+// THE ATTITUDES (rad, measured): alphaAppr, alphaTD (1.10 Vs0), alphaCruise,
+// aStall, thMax / flareThMax / liftoffTh (genTuneAP's, from the measured
+// attitudes). THE THROTTLE: thrCruise (measured), thrAppr (genAP), groundCap
+// (measured: the power nose-over cap). THE EFFECTORS: what this machine
+// has — engines, flaps (and their landing setting), the gear type, floats.
+// ============================================================
+function machineSheet(def, opts) {
+  opts = opts || {};
+  const A = def.params.ap || {}, G = def.params.gen || {}, P = def.params;
+  const sh = typeof opts.shakedown === 'function' ? opts.shakedown() : (opts.shakedown || null);
+  const src = {};
+  const put = (k, v, s) => { src[k] = v == null ? null : s; return v == null ? null : v; };
+  const r2 = v => v == null ? null : Math.round(v * 100) / 100;
+  const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
+  const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
+  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
+  const Vy = put('Vy', A.VClimb ?? null, 'genAP');
+  const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
+  const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');
+  const gammaClimb = put('gammaClimb', G.gammaClimb ?? null, 'measured');
+  const trike = P.ap && P.ap.rolloutMode === 'trike' || (P.twSteer || 0.5) < 0;
+  // the stop from 1.15 Vs0: the pilot's accelerate-stop law (43_pilot.js aStop)
+  const aStop = A.aStop || 9.81 * ((typeof CRR === 'number' ? CRR : 0.05) + (A.brakeMax || 0.3) * (typeof MU_BRAKE === 'number' ? MU_BRAKE : 0.5)) * 0.8;
+  const Vtd = Vs0 != null ? 1.15 * Vs0 : null;
+  const S = {
+    Vs, Vs0, Vref: put('Vref', Vs0 != null ? 1.30 * Vs0 : null, 'derived'),
+    Vrot: put('Vrot', A.VRot ?? null, 'genAP'), Vy, Vx: put('Vx', Vy != null ? 0.87 * Vy : null, 'derived'),
+    Vbg, Vms: put('Vms', Vbg != null ? 0.76 * Vbg : null, 'derived'),
+    Vcruise: put('Vcruise', A.VCruise ?? null, 'genAP'), Vne: put('Vne', null, 'derived'),
+    climbMax: put('climbMax', gammaClimb != null && Vy != null ? gammaClimb * Vy : null, 'measured'),
+    sinkBg: put('sinkBg', Vbg != null && LDbest ? Vbg / LDbest : null, 'measured'),
+    sinkMin: put('sinkMin', Vbg != null && LDbest ? 0.877 * Vbg / LDbest : null, 'derived'),
+    gammaClimb, LDbest,
+    TORun: put('TORun', A.TORun ?? (sh && sh.TORun) ?? null, 'measured'),
+    LDGrun: put('LDGrun', Vtd != null ? Vtd * Vtd / (2 * aStop) + Vtd * 1.0 : null, 'derived'),
+    alphaAppr: put('alphaAppr', G.alphaAppr ?? null, 'measured'),
+    alphaTD: put('alphaTD', G.alphaTD ?? null, 'measured'),
+    alphaCruise: put('alphaCruise', G.alphaCruise ?? null, 'measured'),
+    aStall: put('aStall', G.aStall ?? null, 'measured'),
+    thMax: put('thMax', A.thMax ?? null, 'genAP'), flareThMax: put('flareThMax', A.flareThMax ?? null, 'genAP'),
+    liftoffTh: put('liftoffTh', A.liftoffTh ?? null, 'genAP'),
+    thrCruise: put('thrCruise', A.thrCruise ?? null, 'measured'), thrAppr: put('thrAppr', A.thrAppr ?? null, 'genAP'),
+    groundCap: put('groundCap', sh && sh.groundThrCap != null ? sh.groundThrCap : null, 'measured'),
+    mass: put('mass', G.W != null ? G.W / 9.81 : (sh && sh.mass) || null, 'measured'),
+    W: put('W', G.W ?? (sh && sh.W) ?? null, 'measured'),
+    wingLoad: put('wingLoad', sh && sh.wingLoad != null ? sh.wingLoad : null, 'measured'),
+    staticMargin: put('staticMargin', sh && sh.staticMargin != null ? sh.staticMargin : null, 'measured'),
+    xwindLimit: put('xwindLimit', opts.xwind != null ? opts.xwind : null, 'measured'),
+    elevIdle: put('elevIdle', null, 'measured'),            // elevator authority at idle: not measured yet (the C172 / Caravan finding)
+    effectors: {
+      engines: P.nEngines || 1,
+      flaps: !!P.flaps, flapLdg: P.flaps ? (P.flaps.ldg ?? 1) : 0, flapTO: P.flaps ? (P.flaps.to ?? 0) : 0,
+      gear: trike ? 'trike' : 'taildragger',
+      floats: !!(def.hydro || (def.parts && def.parts.floats)),
+      spoilers: false,
+    },
+    src,
+    shakedown: !!sh,
+  };
+  // the same numbers, rounded, for a plaque or a status line
+  S.show = () => {
+    const o = {};
+    for (const k of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vx', 'Vy', 'Vbg', 'Vms', 'Vcruise', 'climbMax', 'sinkMin', 'LDbest', 'TORun', 'LDGrun', 'mass'])
+      o[k] = r2(S[k]);
+    return o;
+  };
+  return S;
 }
 // model_codec.js — decode baked model payloads (see tools/model_prep.py).
 // Pure JS, no three.js: same code runs in the artifact and in the node gates.
@@ -23962,4 +24298,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

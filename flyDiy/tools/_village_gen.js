@@ -800,6 +800,32 @@ const THEMES = {
     // mountain, its dock to the valley; the line between their hooks
     tram: { t: 0.3, back: 24, topZ: 150 },
   },
+  // THE SPORTS GROUND (G393.3, the user: "the sports series is good, but do
+  // the surroundings with more detail. The ground cover, the small
+  // buildings. Let's have these be a site rather than just an asset.
+  // Including fences ... generated with the same fence method as the
+  // village generator"): the ball park in the site's frame with the road
+  // side +z, the clubhouse and the concession stand behind the backstop
+  // facing the field, the tool shed in the corner, a gravel car park
+  // toward the road, and the village's rail fence round the whole ground
+  // with its gap at the car park's entrance. `fences` are segments in the
+  // site's frame ({ a, b, gap: [u0, u1] along the segment }), drawn by the
+  // premises through the same buildFence the lots use.
+  'sports ground': {
+    name: 'the sports ground',
+    items: [
+      { gen: 'sport', preset: 'ball park, lit', x: 0, z: -6, yaw: 0 },
+      { gen: 'house', preset: 'clubhouse', x: 28, z: 46, yaw: Math.PI },
+      { gen: 'house', preset: 'concession stand', x: -22, z: 44, yaw: Math.PI },
+      { gen: 'shed', preset: 'tool shed', x: 52, z: 40, yaw: Math.PI * 0.5 },
+    ],
+    yard: { x0: -26, x1: 26, z0: 52, z1: 78 },          // the car park (gravel)
+    fences: [
+      { a: [-64, -52], b: [64, -52] }, { a: [64, -52], b: [64, 82] },
+      { a: [64, 82], b: [-64, 82], gap: [56, 72] },      // the entrance, 16 m wide, opposite the car park
+      { a: [-64, 82], b: [-64, -52] },
+    ],
+  },
 };
 
 // the base terrain with a hill folded in: a smooth bump, zero at r

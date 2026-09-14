@@ -735,6 +735,11 @@ function make(THREE, scene, world, rec0, opts) {
     if (fg) extra.push(fg);
     return { grp, tris: Math.round(tris), house: pk, extra };
   }
+  function buildSiteFences(st) {
+    const Tp = { h: (lx, lz) => O.localH(lx, lz), size: Math.max(W, H), waterY: world.waterH ? world.waterH(0, 0) : -1e9 };
+    const fg = fenceGroup(st.fences, Tp, (PG.fnv(String(st.id)) % 1000) * 7 + 3, []);
+    return { grp: fg || new THREE.Group(), tris: 0, house: st, extra: [] };
+  }
   const parkSeed = pk => PG.hash32(pk.seed, PG.fnv(JSON.stringify([pk.plan.centre, pk.plan.yaw, pk.level, pk.key])));
   function syncHouses() {
     const want = new Map();
@@ -742,6 +747,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const it of O.records.items) want.set(it.id, Object.assign({ seed: itemSeed(it), isItem: true, rec: it }, { id: it.id }));
     for (const pk of O.records.parks || []) want.set(pk.id, { id: pk.id, seed: parkSeed(pk), isPark: true, rec: pk });
     for (const ob of O.records.objects || []) want.set('ob:' + ob.id, { id: 'ob:' + ob.id, seed: objectSeed(ob), isObject: true, rec: ob });
+    // a site's own fences (G393.3): the theme's segments in premises coordinates, the village's fence
+    for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) want.set('sf:' + st.id, { id: 'sf:' + st.id, seed: PG.fnv(JSON.stringify(st.fences)), isFence: true, rec: st });
     const VGe = window.VILLAGE_GEN;
     for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) {
       for (const g of [h.grp].concat(h.extra || [])) if (g) { if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
@@ -756,7 +763,7 @@ function make(THREE, scene, world, rec0, opts) {
     let built = 0;
     while (queue.length && built < (n || 2)) {
       const p = queue.shift();
-      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
+      try { const h = p.isPark ? buildPark(p.rec) : p.isItem ? buildItem(p.rec) : p.isObject ? buildObject(p.rec) : p.isFence ? buildSiteFences(p.rec) : buildHouse(p); if (h) HOUSES.set(p.id, { seed: p.seed, grp: h.grp, tris: h.tris, plot: p, house: h.house, extra: h.extra || [], lights: h.lights || 0, isObject: !!p.isObject }); }
       catch (e) { console.warn('premises house', p.id, e && e.message); HOUSES.set(p.id, { seed: p.seed, grp: new THREE.Group(), tris: 0, plot: p, failed: true }); }
       built++;
     }

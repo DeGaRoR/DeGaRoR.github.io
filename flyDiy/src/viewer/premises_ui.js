@@ -86,6 +86,7 @@ const LINE_TOOLS = { road: 'roads' };
 const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects' };
 const OBJ_PICK = { prop: null, billboard: null };   // what the prop and billboard tools stand
 let PALETTE_KEY = null;   // the building the 'building' tool stands
+let SITE_THEME = null;    // the site theme the 'theme' tool stands (VILLAGE_GEN.THEMES; G393.3)
 let PALETTE_CAT = null;   // the category the palette shows (v9)
 const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
@@ -452,21 +453,47 @@ function mount(host, ctx) {
         if (!key) { strip.status('no catalogue - no generator loaded'); return; }
         const e = { id: PG.newId(rec, 'sites'), name: key.split('/')[1], at: { x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }, items: [{ id: 'i1', key, x: 0, z: 0, yaw: 0, P: {} }], yard: null };
         run({ layer: 'sites', id: e.id, before: null, after: e, label: 'site ' + e.id + ' (' + key + ')' });
+        // THE BASE (G393.3, the user: "the industrial and commercial also need their bases, mostly
+        // parking lots, preferably old and weathered concrete"): a building's ground is the composer's
+        // by CATEGORY, not the building's - a commercial front gets a cracked-concrete car park (a
+        // material polygon, PAVED), an industrial one a gravel apron round it and out to the road
+        // side, an official one a paved forecourt; the polygon is a feature of its own (move or
+        // delete it like any other)
+        const ent = ctx.catalogue && ctx.catalogue.entries && ctx.catalogue.entries.get(key);
+        const cat = ent && (ent.cat || null);
+        if (ent && ent.foot && (cat === 'commercial' || cat === 'industrial' || cat === 'official')) {
+          const fb = PG.polyBBox(ent.foot(ent.P || {}));
+          const SF = PG.siteFrame(e);
+          const rect = cat === 'industrial' ? [fb.x0 - 4, fb.z0 - 3, fb.x1 + 4, fb.z1 + 16] : [fb.x0 - 2, fb.z1 + 1, fb.x1 + 2, fb.z1 + (cat === 'commercial' ? 14 : 10)];
+          const poly = [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
+          const sid = PG.newId(rec, 'surface');
+          run({ layer: 'surface', id: sid, before: null, after: { id: sid, poly, surface: cat === 'industrial' ? PG.SURFACE.GRAVEL : PG.SURFACE.PAVED, yard: e.id }, label: 'the base of ' + e.id });
+          if (cat !== 'industrial') { const mid = PG.newId(rec, 'material'); run({ layer: 'material', id: mid, before: null, after: { id: mid, poly, set: 'cracked', tile: null, fade: 3, z: 0 }, label: 'the concrete of ' + e.id }); }
+        }
         select(e.id); return;
       }
-      const TH = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES && window.VILLAGE_GEN.THEMES.kennecott;
+      const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;
+      const TH = THS && (THS[SITE_THEME] || THS.kennecott);
       if (!TH) { strip.status('the village generator is not loaded'); return; }
       const sid = PG.newId(rec, 'sites');
-      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: (it.gen === 'big' ? 'big/' : 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
+      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: ({ big: 'big/', shed: 'shed/', sport: 'sport/', totem: 'totem/' }[it.gen] || 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
       // the receiving shed the mill's conveyor runs to: the theme on master has none (its mill's own bottom house
       // straddles the road); the branch's has the tram shed astride the road - stand one when the theme lacks it
       // (the key is FOUND in the live catalogue, never written here - rule 13: the editor names no asset)
-      if (!items.some(i => i.onRoad)) { const keys = ctx.catalogue ? ctx.catalogue.keys() : []; const rcvKey = (PALETTE_KEY && /shed/.test(PALETTE_KEY)) ? PALETTE_KEY : keys.find(k => k.indexOf('big') === 0 && /shed/.test(k)) || keys.find(k => /shed/.test(k)); if (rcvKey) items.push({ id: 'rcv', key: rcvKey, x: 0, z: -2, yaw: 0, P: {}, onRoad: true, bottomOnRoad: false }); }
+      if (TH.tram && !items.some(i => i.onRoad)) { const keys = ctx.catalogue ? ctx.catalogue.keys() : []; const rcvKey = (PALETTE_KEY && /shed/.test(PALETTE_KEY)) ? PALETTE_KEY : keys.find(k => k.indexOf('big') === 0 && /shed/.test(k)) || keys.find(k => /shed/.test(k)); if (rcvKey) items.push({ id: 'rcv', key: rcvKey, x: 0, z: -2, yaw: 0, P: {}, onRoad: true, bottomOnRoad: false }); }
       const e = { id: sid, name: TH.name, at: { x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }, items, yard: TH.yard || null };
+      // THE SITE'S FENCES (G393.3): the theme's segments carried into premises coordinates on the entry; render_premises draws them with the village's fence
+      if (TH.fences) { const SF0 = PG.siteFrame(e); e.fences = TH.fences.map(f => ({ a: SF0.toLocal(f.a[0], f.a[1]).map(v => +v.toFixed(2)), b: SF0.toLocal(f.b[0], f.b[1]).map(v => +v.toFixed(2)), gap: f.gap || null, style: f.style || 'rail' })); }
       run({ layer: 'sites', id: sid, before: null, after: e, label: 'site ' + sid + ' (' + TH.name + ')' });
       const mill = items.find(i => /mill/.test(i.key)), rcv = items.find(i => i.onRoad);
       if (mill && rcv) run({ layer: 'links', id: PG.newId(rec, 'links'), before: null, after: { id: PG.newId(rec, 'links'), kind: 'conveyor', from: { site: sid, item: mill.id, hook: 'head' }, to: { site: sid, item: rcv.id, hook: 'roof' }, P: {}, dynamic: true }, label: 'conveyor' });
-      if (TH.yard) {
+      if (TH.yard && !TH.tram) {
+        // a theme without a mountain works: the yard is its gravel, no cut (G393.3)
+        const SF = PG.siteFrame(e), Y = TH.yard;
+        const poly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, Y.z1], [Y.x0, Y.z1]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
+        run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
+      }
+      if (TH.yard && TH.tram) {
         const SF = PG.siteFrame(e), Y = TH.yard;
         const poly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, Y.z1], [Y.x0, Y.z1]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
         run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
@@ -558,6 +585,9 @@ function mount(host, ctx) {
         if (keys.length) rows.select(insp, 'building', keys.map(k => [k, label(k)]), () => PALETTE_KEY || '', v => { PALETTE_KEY = v; });
         else rows.note(insp, 'nothing of that category in this catalogue');
         rows.note(insp, ctx.catalogue.keys().length + ' entries in the catalogue under the ' + TH.name + ' theme; pick one, then click the ground with the building tool');
+        // THE SITE THEMES (G393.3): a whole site - the mine, the sports ground - stood by the theme tool
+        const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;
+        if (THS) { const tk = Object.keys(THS); if (!SITE_THEME || tk.indexOf(SITE_THEME) < 0) SITE_THEME = tk[0]; rows.select(insp, 'site theme', tk.map(k => [k, THS[k].name]), () => SITE_THEME, v => { SITE_THEME = v; }); }
       }
       if (section === 'objects') {
         for (const kind of ['prop', 'billboard']) {
@@ -821,6 +851,8 @@ function mount(host, ctx) {
     record: () => rec, load, save, undo, redo, checks, select, setTool, setSection, plaque,
     get tool() { return tool; }, get section() { return section; }, get selected() { return selected; },
     cmd: (name, args) => {
+      if (name === 'siteTheme') { SITE_THEME = args.key; return SITE_THEME; }   // the theme tool's pick, scriptable (G393.3)
+      if (name === 'palette') { PALETTE_KEY = args.key; PALETTE_CAT = 'all'; return PALETTE_KEY; }   // the building tool's pick, scriptable (G393.3)
       if (name === 'add') { const e = Object.assign({ id: PG.newId(rec, args.layer) }, args.entry); run({ layer: args.layer, id: e.id, before: null, after: e, label: 'add ' + e.id }); return e.id; }
       if (name === 'set') { edit(args.id, PG.findById(rec, args.id).layer, x => Object.assign(x, args.patch), 'set ' + args.id); return true; }
       if (name === 'delete') { const f = PG.findById(rec, args.id); if (f) run({ layer: f.layer, id: args.id, before: clone(f.entry), after: null, label: 'delete ' + args.id }); return !!f; }

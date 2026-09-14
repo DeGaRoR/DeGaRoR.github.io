@@ -2546,6 +2546,131 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 }
 
 /* =========================================================================
+   9. THE WORLD EDITOR (G398). The premises module (premises_ui.js) mounts
+   in #premPanel and draws its tool strip, checks, plaque and camera word in
+   #premView, both inside #ui. It is a different screen and the same
+   controls: the flyout's plate, its rail buttons for the sections, its rows
+   for the inspector (.r is .fr, span.k / span.v the same widths), its pills
+   for every button, its switch, slider and select for every input (the row
+   builders in premises_host.js give them the classes; the bench page styles
+   the same classes its own way). The flight's chrome - the brief, the PFD,
+   the verbs, the ribbon and its flyout - steps aside while it is open
+   (body.premOpen), because the editor pauses the flight and owns the mouse;
+   the way back is the header's pill and the WORLD flyout's.
+   ========================================================================= */
+body.premOpen #flTop, body.premOpen #flActs, body.premOpen #flRail,
+body.premOpen #flFly { display:none; }
+
+/* the sheet: the editor's mouse surface, up to the panel's margin */
+#ui #premView { position:absolute; left:0; top:0; bottom:0; right:436px;
+  cursor:crosshair; z-index:5; }
+
+/* the tool strip, top-left, a plate of pills; the help and the last status
+   are one line each and never wrap the plate wider than the sheet */
+#ui #premStrip { position:absolute; left:22px; top:18px;
+  max-width:calc(60% - 30px); display:flex; flex-wrap:wrap; gap:6px;
+  align-items:center; padding:8px 10px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15); }
+#ui #premStrip:empty { display:none; }
+#ui #premStrip .pr-tool { margin:0; }
+#ui #premStrip .pr-help { font:400 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-faint);
+  margin-left:6px; max-width:440px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#ui #premStrip .pr-help:empty, #ui #premStrip .pr-status:empty { display:none; }
+#ui #premStrip .pr-status { font:500 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-acc);
+  margin-left:6px; max-width:320px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#ui #premStrip .pr-draw { display:inline-flex; gap:6px; margin-left:6px; }
+
+/* the plaque (top-right of the sheet) and the checks (bottom-left): read
+   through, never clicked - the glass of the PFD */
+#ui #premPlaque, #ui #premChk { position:absolute; padding:8px 11px;
+  background:var(--fl-glass); border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  font:400 10.5px/1.55 'IBM Plex Sans'; color:var(--ed-dim); pointer-events:none; }
+#ui #premPlaque { right:22px; top:18px; text-align:right; max-width:calc(40% - 30px); }
+#ui #premPlaque b { font-weight:500; color:var(--ed-ink); }
+#ui #premChk { left:22px; bottom:18px; max-width:min(46%, 420px); }
+#ui #premPlaque:empty, #ui #premChk:empty { display:none; }
+#ui #premChk .ok { color:var(--ed-acc); }
+#ui #premChk .warn { color:var(--ed-warn); }
+#ui #premChk .bad { color:var(--ed-bad); }
+#ui #premCam { position:absolute; right:22px; bottom:22px; max-width:40%; text-align:right;
+  font:500 9px/1 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ed-faint); white-space:nowrap; pointer-events:none;
+  text-shadow:0 1px 2px rgba(0,0,0,.6); }
+
+/* the panel: a plate standing the right edge, the header, then the rail
+   and the inspector side by side; only the inspector scrolls */
+#ui #premPanel { position:absolute; right:22px; top:18px; bottom:18px; width:392px;
+  display:flex; flex-direction:column; z-index:20; overflow:hidden;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+#ui #premHead { display:flex; align-items:center; gap:10px; flex:none;
+  padding:12px 14px 10px; border-bottom:1px solid var(--ed-hair); }
+#ui #premHead .t { flex:none; font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); white-space:nowrap; }
+#ui #premHead .s { flex:1; min-width:0; font:500 10px/1 'IBM Plex Sans';
+  letter-spacing:.2em; text-transform:uppercase; color:var(--ed-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#ui #premHead .pill { flex:none; }
+#ui #premBody { flex:1; min-height:0; display:flex; }
+
+/* the sections: the ribbon's buttons, standing inside the panel */
+#ui #premBody .pr-rail { flex:none; width:62px; display:flex; flex-direction:column;
+  gap:4px; padding:8px 6px; border-right:1px solid var(--ed-hair); border-left:0;
+  overflow-y:auto; scrollbar-width:none; }
+#ui #premBody .pr-sec { display:flex; flex-direction:column; align-items:center;
+  gap:3px; flex:none; width:50px; padding:8px 0; border:0; border-radius:6px;
+  background:transparent; color:var(--ed-dim); cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+#ui #premBody .pr-sec:hover { background:rgba(255,255,255,.06); }
+#ui #premBody .pr-sec.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+#ui #premBody .pr-sec .ic { display:block; line-height:1; font-size:15px; }
+#ui #premBody .pr-sec .ic svg { display:block; width:15px; height:15px; fill:none;
+  stroke:currentColor; stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; }
+#ui #premBody .pr-sec .lb { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
+  text-transform:uppercase; }
+
+/* the inspector: the flyout's rows */
+#ui #premBody .pr-insp { flex:1; min-width:0; width:auto; border:0;
+  overflow-y:auto; overflow-x:hidden; padding:4px 14px 14px; scrollbar-width:thin; }
+#ui .pr-insp .hd { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); padding:14px 0 8px; margin:0 0 2px;
+  border-bottom:1px solid var(--ed-hair); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#ui .pr-insp .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint);
+  margin:8px 0; overflow-wrap:anywhere; }
+#ui .pr-insp .note.ok { color:var(--ed-acc); }
+#ui .pr-insp .note.warn { color:var(--ed-warn); }
+#ui .pr-insp .note.bad { color:var(--ed-bad); }
+#ui .pr-insp .r { display:flex; gap:10px; align-items:center; margin:7px 0;
+  min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+#ui .pr-insp .r > span.k { width:104px; flex:none; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+#ui .pr-insp .r > span.v { flex:none; width:48px; text-align:right;
+  font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+#ui .pr-insp .r > .fsel { flex:1; min-width:0; }
+#ui .pr-insp .r > .pills { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:5px; }
+#ui .pr-insp .pills .pill { padding:5px 8px; }
+#ui .pr-insp .r > .fsw + span.v { flex:none; width:auto; text-align:left;
+  font:400 11px/1 'IBM Plex Sans'; color:var(--ed-faint); }
+#ui .pr-insp .btn { display:inline-block; width:auto; margin:3px 6px 3px 0; }
+#ui .pr-insp .pr-name, #ui .pr-insp .pr-paste { display:block; width:100%;
+  box-sizing:border-box; margin:6px 0; padding:6px 8px;
+  font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:text; }
+#ui .pr-insp .pr-paste { resize:vertical; min-height:56px; }
+#ui .pr-insp .pr-name::placeholder, #ui .pr-insp .pr-paste::placeholder { color:var(--ed-faint); }
+#ui .pr-insp canvas { display:block; max-width:100%; height:auto;
+  background:var(--ed-track); border:1px solid var(--ed-hair); border-radius:5px; }
+
+/* =========================================================================
    THE CONTROLS PANEL (G200) — the one mapping interface, on both screens.
 
    WHY A FOURTH SHEET. style.css is the game's, editor.css the workshop's
@@ -8889,8 +9014,12 @@ function makeWorld(seed, opts) {
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
     // bake, so the same physical rivers emerge at any grid resolution)
+    // the island: the DEM already holds its river beds (no carve to add) and
+    // its lakes are the cover's water class (waterAt), not flooded sinks
     { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
-      lakeMin: 1.5, A0m2: 274650, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
+      // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
+      // judgment on procedural hydrology - maps first, procedural on top")
+      lakeMin: ISL ? 1e9 : 1.5, A0m2: ISL ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -9289,7 +9418,8 @@ function makeWorld(seed, opts) {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
     bounds: BOUNDS,
-    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, WC: ISL.WC, hMax: ISL.hMax } : null,
+    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt,
+                    WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
@@ -11590,6 +11720,29 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
+// THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
+// same seven in every catalogue entry's `cat` - what the palette groups by and a zone draws from
+const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official', 'landmark', 'sports'];
+// THE THEME (v9, contract v1.10, the user: "take these new categories, under the global Alaska theme -
+// the only one for a long time, but let's have a data model like it"). The record carries ONE word
+// (rec.theme); the theme says what a sown plot of each zone kind draws from - the categories, and how
+// often the house generator's own sampler (a random house) stands instead of a named preset - and which
+// generators' entries a plot may stand (the house frame; the rest of the catalogue is for SITES, placed
+// by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
+// rewrite: the same seven categories, other draws.
+const THEMES = {
+  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+    categories: CATEGORIES,
+    // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
+    // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
+    laws: { residential: 'zoned', shed: 'zoned', commercial: 'zoned', industrial: 'zoned', official: 'hand', landmark: 'hand', sports: 'hand' },
+    plots: { residential: { cats: ['residential'], sampler: 0.7 }, commercial: { cats: ['commercial'], sampler: 0 },
+             industrial: { cats: ['industrial'], sampler: 0 }, harbour: { cats: ['industrial', 'residential'], sampler: 0.5 },
+             park: { tag: 'park' }, airfield: { cats: ['commercial'], sampler: 0 } },
+    plotGens: ['HOUSE_GEN'] },
+};
+const THEME_DEF = 'alaska';
+const themeOf = rec => THEMES[rec && rec.theme] || THEMES[THEME_DEF];
 // the plot rules a zone starts from (the village's VDEF numbers)
 const ZONE_RULES = { plotMin: 20, plotMax: 34, plotDepth: 30, riparian: 16, gapOdds: 0.18, sides: 'both' };
 // what a KIND changes before the zone's own rules: a park plot is the village's park (36 x 40) with
@@ -11867,7 +12020,7 @@ function SpatialIndex(cell) {
 // the record
 // ---------------------------------------------------------------------------
 function DEF() {
-  return { v: PREMISES_V, id: 'premises', name: '', seed: 1,
+  return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
            layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
@@ -11892,6 +12045,7 @@ function normalise(rec) {
   for (const k of LAYERS) if (!Array.isArray(r.layers[k])) r.layers[k] = [];
   r.budget = Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
+  if (!THEMES[r.theme]) r.theme = THEME_DEF;
   return r;
 }
 const envelope = (name, rec, plaque, log) => JSON.stringify({
@@ -12013,11 +12167,22 @@ function sowPlots(zone, roads, ctx) {
 // 'sampler' is the house generator's own draw (what a residential plot gets, and what any kind
 // gets when no entry carries its tag: the generators tag their entries, the editor names none)
 const PICK_TAGS = { residential: null, commercial: 'commercial', industrial: 'industrial', harbour: 'harbour', park: 'park' };
-function pickFor(plot, cat, rnd) {
-  const tag = PICK_TAGS[plot.kind];
-  if (!tag || !cat || !cat.byTag) return 'sampler';
-  const list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park');
+// (v9) by the THEME: the zone kind's categories (the zone's own when it names some), among the entries
+// the plot builder stands; the theme's sampler share draws the random house instead; a kind the theme
+// routes by TAG (the park) keeps the tag route
+function pickFor(plot, cat, rnd, theme, zone) {
+  const TH = theme || THEMES[THEME_DEF];
+  const rule = (TH.plots || {})[plot.kind] || null;
+  const own = zone && zone.rules && Array.isArray(zone.rules.cats) && zone.rules.cats.length ? zone.rules.cats : null;
+  const cats = own || (rule && rule.cats) || null;
+  if (!cat) return 'sampler';
+  let list = [];
+  if (cats && cat.entries) cat.entries.forEach(e => { if (e.kind === 'building' && e.cat && cats.indexOf(e.cat) >= 0 && (!TH.plotGens || TH.plotGens.indexOf(e.gen) >= 0)) list.push(e); });
+  // no entry of those categories (a catalogue without them, a kind the theme routes by tag): the tag route
+  if (!list.length) { const tag = rule && rule.tag !== undefined ? rule.tag : PICK_TAGS[plot.kind]; if (tag && cat.byTag) list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park'); }
   if (!list.length) return 'sampler';
+  const samp = own ? 0 : +((rule && rule.sampler) || 0);
+  if (samp > 0 && rnd() < samp) return 'sampler';
   return list[Math.floor(rnd() * list.length) % list.length].key;
 }
 
@@ -12057,7 +12222,21 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+// THE LOOK (v9, contract v1.10, the user: "allow for transparent runways, yet the marking can show, only
+// it would not feature a ground texture; give a couple of possible materials"): what the strip's ground
+// is DRAWN as, apart from the surface CLASS the wheels feel (grass / gravel / paved / sand, the physics
+// the registry already has). 'none' paints the markings on the bare composed ground - a surface or
+// material polygon under it is what shows; a set names a PBR set of the site's or the lot's (read by the
+// renderer at call time). Each look proposes a class; the record's surface may still say otherwise.
+const RUNWAY_LOOKS = {
+  grass:    { name: 'grass strip',    surface: SURFACE.GRASS,  set: null },
+  none:     { name: 'markings only',  surface: null,           set: null },
+  asphalt:  { name: 'asphalt',        surface: SURFACE.PAVED,  set: 'asphalt' },
+  concrete: { name: 'concrete',       surface: SURFACE.PAVED,  set: 'brushed' },
+  worn:     { name: 'old concrete',   surface: SURFACE.PAVED,  set: 'cracked' },
+  gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble' },
+};
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
 
 // THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
 // [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
@@ -12105,6 +12284,10 @@ function profileIssues(r) {
   if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
   return out;
 }
+// THE SHOULDER (v9): the strip's radius of terraforming - how far past the box (either side and past the
+// ends) the grade's falloff runs before the ground is the terrain's again; authored (falloff) or a
+// length law: 40 m + 6 % of the length, at most 120 m
+function runwayShoulder(r) { return r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + (+r.len || 0) * 0.06); }
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -12140,7 +12323,7 @@ function runwayAerodrome(r, F, elev, flats) {
   const tdz = [c[0] + dw[0] * (hl - 5 - aimIn), c[1] + dw[1] * (hl - 5 - aimIn)];
   const spawn = [c[0] - dw[0] * (hl - 35), c[1] - dw[1] * (hl - 35)];
   // the strip's own flat, in the world: its graded box (the width and the shoulder) - siteOnFlat asks it
-  const shoulder = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+  const shoulder = runwayShoulder(r);
   const flatBox = runwayBox(r, shoulder).map(q => F.toWorld(q[0], q[1]));
   // ... and every authored flatten (an apron cut beside the strip is flat ground too)
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
@@ -12149,7 +12332,7 @@ function runwayAerodrome(r, F, elev, flats) {
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
-           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
+           surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, flyIn: false, premises: true,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
 
@@ -12355,7 +12538,7 @@ function compose(rec0, world, opts) {
   for (const r of runways) {
     const E = runwayEnds(r);
     const elev = T1(r.c[0], r.c[1]);
-    const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+    const fall = runwayShoulder(r);
     // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
     const pr = runwayProfile(r), gpts = [];
     const nS = Math.max(1, Math.ceil(r.len / 6));
@@ -12484,7 +12667,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
@@ -12598,6 +12781,7 @@ function issues(rec0) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
+    if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -12798,22 +12982,25 @@ function collect(globals) {
         const key = ns + '/' + name;
         if (entries.has(key)) continue;
         const isMill = !!(G.PRESETS[name] && G.PRESETS[name].mill);
-        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true,
+        const cat = typeof G.catOf === 'function' ? (G.catOf(name) || null) : null;   // G393: every generator answers one of the seven words
+        entries.set(key, { key, kind: isMill ? 'complex' : 'building', gen: g, preset: name, P: {}, frame: 'house', derived: true, cat,
           params: ov => Object.assign({}, G.DEF, G.PRESETS[name] || {}, ov || {}),
           // the mill's foot is its tiers' footprint (placeSite :718-720); a house's its L x w
           foot: P => { if (P.mill) { const L = P.tierL0 + 24, w = P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW, zc = -(w / 2 - P.tierW / 2); return [[-L / 2, zc - w / 2], [L / 2, zc - w / 2], [L / 2, zc + w / 2], [-L / 2, zc + w / 2]]; } const L = (P.L || 8) / 2, w = (P.w || 6) / 2; return [[-L, -w], [L, -w], [L, w], [-L, w]]; },
           keepOut: 3, ground: { need: 'none' }, size: P => ({ L: P.L || 8, w: P.w || 6 }),
-          hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: [ns], headless: true });
+          hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: cat ? [ns, cat] : [ns], headless: true });
       }
     }
   }
-  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; } };
+  return { entries, aliases, issues: issuesOut, keys: () => Array.from(entries.keys()), byTag(t) { const out = []; entries.forEach(e => { if ((e.tags || []).indexOf(t) >= 0) out.push(e); }); return out; },
+           // by CATEGORY (v9): the entries whose `cat` is the word (a park entry without one is a landmark)
+           byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
@@ -12858,8 +13045,9 @@ var ISLAND_GEN = (function () {
     if (typeof TERRAIN_CODEC === 'undefined') throw new Error('island: no TERRAIN_CODEC');
     const H = src.header;
     const root = TERRAIN_CODEC.decodeRaw(H, src.topo, src.payload);
-    const terrainH = TERRAIN_CODEC.sampler(root, H);
+    const terrainQ = TERRAIN_CODEC.sampler(root, H);
     const g = src.grid.meta, cover = src.grid.cover, canopy = src.grid.canopy || null;
+    const coast = src.grid.coast || null;      // signed distance to the waterline, 128 = 0, 4 m a unit, + inland
     const W = g.w, Hn = g.h, cell = g.cell, gx0 = g.x0, gz0 = g.z0;
     const reclass = src.reclass != null ? src.reclass : 2.5;
 
@@ -12869,6 +13057,25 @@ var ISLAND_GEN = (function () {
       return j * W + i;
     };
     const classAt = (x, z) => { const k = cellAt(x, z); return k < 0 ? WC.WATER : cover[k]; };
+    // the signed coast, bilinear (the field's whole point: a smooth line through the cells)
+    const coastAt = (x, z) => {
+      if (!coast) return 1e9;
+      const u = (x - gx0) / cell - 0.5, v = (z - gz0) / cell - 0.5;
+      const i = Math.max(0, Math.min(W - 2, Math.floor(u))), j = Math.max(0, Math.min(Hn - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j));
+      const p = j * W + i;
+      const a = coast[p], b = coast[p + 1], c = coast[p + W], d = coast[p + W + 1];
+      return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
+    };
+    // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
+    // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
+    // sea is a shelf off the coast field: -1.5 m at the line, -12 m by 500 m
+    // out, the DEM's own value wherever the field says land.
+    const terrainH = coast
+      ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
+                    if (sd >= 0) return h;
+                    const t = Math.min(1, -sd / 500); return Math.min(h, -1.5 - 10.5 * t * t * (3 - 2 * t)); }
+      : terrainQ;
     const canopyAt = (x, z) => { if (!canopy) return 0; const k = cellAt(x, z); return k < 0 ? 0 : canopy[k]; };
     const effClass = (x, z) => {
       const k = cellAt(x, z);
@@ -12883,7 +13090,8 @@ var ISLAND_GEN = (function () {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
+      albedo: src.grid.albedo || null,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
     };
@@ -18060,6 +18268,17 @@ function makePilot(sim, def, world, opts) {
   const A = def.params.ap;
   const ST = PILOT_STYLES[opts.style] || PILOT_STYLES.normal;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  // P0.4 (PILOT-ROADMAP §6.3 rule 5): THE MACHINE SHEET — built lazily (the
+  // shakedown behind it costs ~2 s; the garage memoises one, a gate may pass
+  // one, `opts.shakedown` is a value or a getter). `opts.sheet` (the flag)
+  // makes the pilot fly the sheet's ladder — Vref = 1.30 Vs0 for the
+  // approach, 1.20 Vs0 short-field — instead of genAP's 1.42 Vs; off until
+  // the matrix says it wins (the ramp-flare precedent). Either way the sheet
+  // is published as `ap.sheet` for the panel and the planner to come.
+  let sheetV = null;
+  const sheetOf = () => sheetV || (sheetV = (typeof machineSheet === 'function'
+    ? machineSheet(def, { shakedown: opts.shakedown }) : null));
+  const useSheet = !!opts.sheet;
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
@@ -18110,9 +18329,13 @@ function makePilot(sim, def, world, opts) {
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k, td: [td[0], td[1]] };
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100, x: -520, z: 0 };
+  // the speed ladder: the sheet's when the flag is on and the stall is measured
+  const SH0 = useSheet ? sheetOf() : null;
+  const sheetVAppr = SH0 && SH0.src.Vs0 === 'measured' ? SH0.Vref : null;
+  const VApprShort = sheetVAppr != null ? 1.20 * SH0.Vs0 : A.VApprShort;
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
-    VCruise: A.VCruise, VAppr: A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
+    VCruise: A.VCruise, VAppr: sheetVAppr ?? A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
     route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
@@ -18145,12 +18368,22 @@ function makePilot(sim, def, world, opts) {
     PATS[key] = P;
     return P;
   };
+  // P0 (PILOT-ROADMAP): the watchdog's budget is the ROUTE's — 600 s was the
+  // circuit's and a 10 km cross-country to A3 (300 s enroute for a cub, a
+  // go-around, a second circuit) was "out of patience" at 600 s on the
+  // matrix. The distance at the cruise speed, times 1.6 for the wind and the
+  // circuit, on top of the circuit's own 600.
+  const routeBudget = (from, to) => {
+    const d = (from && to && from !== to) ? Math.hypot(to.x - from.x, to.z - from.z) : 0;
+    return 600 + 1.6 * d / Math.max(15, ap.VCruise || A.VCruise || 30);
+  };
   ap.setRoute = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
     ap.altRef = from.elev;
     ap.shortFld = false;
+    ap.budget = Math.max(ap.budget, routeBudget(from, to));
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
@@ -18166,6 +18399,7 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = false;
     ap.trackHold = false;
     ap.legs = null; ap.legI = 0; ap.plan = null;
+    ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
     go('DEPART');
   };
 
@@ -18210,6 +18444,8 @@ function makePilot(sim, def, world, opts) {
     if (o && typeof o.phase === 'string' && o.phase !== ap.phase) go(o.phase);
   };
   ap.taxiFF = taxiFF;
+  Object.defineProperty(ap, 'sheet', { get: sheetOf, enumerable: false });
+  ap.useSheet = useSheet;
 
   // ---- THE AP BOX (G202.1): the modes as a device -------------------------
   // engage({lat, vert, thr}, sel): a mode per axis (undefined = keep, null =
@@ -18325,7 +18561,7 @@ function makePilot(sim, def, world, opts) {
     ap.xAim = Math.max(A.xAim, sThr + 40);
     ap.shortFld = to.len < 450;
     if (to.len < 700) ap.xAim = sThr + Math.max(60, 0.12 * to.len);
-    if (ap.shortFld && A.VApprShort) ap.VAppr = A.VApprShort; else ap.VAppr = A.VAppr;
+    if (ap.shortFld && VApprShort) ap.VAppr = VApprShort; else ap.VAppr = sheetVAppr ?? A.VAppr;
     const hC = ap.hCruise;
     const Dfaf = hC / ap.gs;
     const Diaf = Dfaf + Math.max(400, 10 * VTurn);
@@ -19255,7 +19491,12 @@ function makePilot(sim, def, world, opts) {
           const base = ap.altRef + P.hC;
           const cruise = Math.min(base + Math.max(0, dRem - 800) * 0.05,
                                   Math.max(ap.route.from.elev + A.hCruise, base));
-          const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 7500) + (A.hClear ?? 130);
+          // P0 (PILOT-ROADMAP, found by the matrix): the look-ahead stops at the
+          // LEG'S END. It scanned 7.5 km whatever remained, so the cub bound
+          // for A3 read the ridge 2 km PAST the strip (292 m) as its floor,
+          // arrived over the threshold at 420 m, and went around from 255 m
+          // above the slope
+          const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
         const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;
@@ -19519,6 +19760,226 @@ function makePilot(sim, def, world, opts) {
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
   };
   return ap;
+}
+// ============================================================
+// THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
+// the pilot reads the aeroplane from.
+//
+// PILOT-ROADMAP §6.3 rule 5: "the machine is a sheet of measured numbers,
+// and the sheet is the only source." Before this the pilot knew the
+// aeroplane through genAP's constants (ratios of the analytic stall) and
+// genTuneAP's fits; the bench measured the same aeroplane — the stall in
+// both configurations, the climb gradient, the glide ratio and its speed,
+// the take-off run, the ground power cap — and the pilot never read it.
+//
+// WHAT IT IS. One flat record, SI, built from what exists: `def.params.gen`
+// (the tunnel's measured block), `def.params.ap` (the speed ladder genAP
+// derived, kept as the fallback), and `genShakedown`'s output when the
+// caller has one (the garage memoises it; a gate passes it; the pilot asks
+// for it lazily and does without — the fields that need it read null).
+// Every field says where it came from (`src`): 'measured' (the tunnel or
+// the shakedown), 'derived' (a textbook ratio over a measured number, named
+// in the comment), 'genAP' (the old constant, until a measurement replaces
+// it). Nothing here is tuned; a number the bench cannot measure yet is null
+// and the consumer falls back, never a guess dressed as a fact.
+//
+// THE V-SPEEDS AND THE RATIOS (light-aeroplane practice, the same for a Cub
+// and a flying boat):
+//   Vs      clean stall (VsMeas when the tunnel measured it, else analytic)
+//   Vs0     stall in the landing configuration (VsFlap; = Vs when flapless)
+//   Vref    1.30 Vs0 — the approach reference speed
+//   Vrot    genAP's VRot (0.99 Vs, G159: the derived rotation)
+//   Vy      genAP's VClimb (1.38 Vs), where gammaClimb was measured
+//   Vx      0.87 Vy — derived; the best-angle speed is not measured yet
+//   Vbg     the best-glide speed, measured (the shakedown's L/D sweep)
+//   Vms     0.76 Vbg — the minimum-sink speed (3^-1/4, a parabolic polar)
+//   Vcruise genAP's VCruise (1.71 Vs)
+//   Vne     null — not measured; a consumer that needs a ceiling uses 1.5 Vcruise and says so
+// THE ENERGY LIMITS (what TECS reads, P0.5):
+//   climbMax  gammaClimb x Vy (m/s) — measured at full thrust
+//   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
+//             from the measured glide (3^(3/4)/2 on a parabolic polar)
+//   sinkBg    Vbg / LDbest — the sink at best glide
+//   gammaClimb, LDbest — measured
+// THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
+// 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
+// THE ATTITUDES (rad, measured): alphaAppr, alphaTD (1.10 Vs0), alphaCruise,
+// aStall, thMax / flareThMax / liftoffTh (genTuneAP's, from the measured
+// attitudes). THE THROTTLE: thrCruise (measured), thrAppr (genAP), groundCap
+// (measured: the power nose-over cap). THE EFFECTORS: what this machine
+// has — engines, flaps (and their landing setting), the gear type, floats.
+// ============================================================
+function machineSheet(def, opts) {
+  opts = opts || {};
+  const A = def.params.ap || {}, G = def.params.gen || {}, P = def.params;
+  const sh = typeof opts.shakedown === 'function' ? opts.shakedown() : (opts.shakedown || null);
+  const src = {};
+  const put = (k, v, s) => { src[k] = v == null ? null : s; return v == null ? null : v; };
+  const r2 = v => v == null ? null : Math.round(v * 100) / 100;
+  const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
+  const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
+  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
+  const Vy = put('Vy', A.VClimb ?? null, 'genAP');
+  const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
+  const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');
+  const gammaClimb = put('gammaClimb', G.gammaClimb ?? null, 'measured');
+  const trike = P.ap && P.ap.rolloutMode === 'trike' || (P.twSteer || 0.5) < 0;
+  // the stop from 1.15 Vs0: the pilot's accelerate-stop law (43_pilot.js aStop)
+  const aStop = A.aStop || 9.81 * ((typeof CRR === 'number' ? CRR : 0.05) + (A.brakeMax || 0.3) * (typeof MU_BRAKE === 'number' ? MU_BRAKE : 0.5)) * 0.8;
+  const Vtd = Vs0 != null ? 1.15 * Vs0 : null;
+  const S = {
+    Vs, Vs0, Vref: put('Vref', Vs0 != null ? 1.30 * Vs0 : null, 'derived'),
+    Vrot: put('Vrot', A.VRot ?? null, 'genAP'), Vy, Vx: put('Vx', Vy != null ? 0.87 * Vy : null, 'derived'),
+    Vbg, Vms: put('Vms', Vbg != null ? 0.76 * Vbg : null, 'derived'),
+    Vcruise: put('Vcruise', A.VCruise ?? null, 'genAP'), Vne: put('Vne', null, 'derived'),
+    climbMax: put('climbMax', gammaClimb != null && Vy != null ? gammaClimb * Vy : null, 'measured'),
+    sinkBg: put('sinkBg', Vbg != null && LDbest ? Vbg / LDbest : null, 'measured'),
+    sinkMin: put('sinkMin', Vbg != null && LDbest ? 0.877 * Vbg / LDbest : null, 'derived'),
+    gammaClimb, LDbest,
+    TORun: put('TORun', A.TORun ?? (sh && sh.TORun) ?? null, 'measured'),
+    LDGrun: put('LDGrun', Vtd != null ? Vtd * Vtd / (2 * aStop) + Vtd * 1.0 : null, 'derived'),
+    alphaAppr: put('alphaAppr', G.alphaAppr ?? null, 'measured'),
+    alphaTD: put('alphaTD', G.alphaTD ?? null, 'measured'),
+    alphaCruise: put('alphaCruise', G.alphaCruise ?? null, 'measured'),
+    aStall: put('aStall', G.aStall ?? null, 'measured'),
+    thMax: put('thMax', A.thMax ?? null, 'genAP'), flareThMax: put('flareThMax', A.flareThMax ?? null, 'genAP'),
+    liftoffTh: put('liftoffTh', A.liftoffTh ?? null, 'genAP'),
+    thrCruise: put('thrCruise', A.thrCruise ?? null, 'measured'), thrAppr: put('thrAppr', A.thrAppr ?? null, 'genAP'),
+    groundCap: put('groundCap', sh && sh.groundThrCap != null ? sh.groundThrCap : null, 'measured'),
+    mass: put('mass', G.W != null ? G.W / 9.81 : (sh && sh.mass) || null, 'measured'),
+    W: put('W', G.W ?? (sh && sh.W) ?? null, 'measured'),
+    wingLoad: put('wingLoad', sh && sh.wingLoad != null ? sh.wingLoad : null, 'measured'),
+    staticMargin: put('staticMargin', sh && sh.staticMargin != null ? sh.staticMargin : null, 'measured'),
+    xwindLimit: put('xwindLimit', opts.xwind != null ? opts.xwind : null, 'measured'),
+    elevIdle: put('elevIdle', null, 'measured'),            // elevator authority at idle: not measured yet (the C172 / Caravan finding)
+    effectors: {
+      engines: P.nEngines || 1,
+      flaps: !!P.flaps, flapLdg: P.flaps ? (P.flaps.ldg ?? 1) : 0, flapTO: P.flaps ? (P.flaps.to ?? 0) : 0,
+      gear: trike ? 'trike' : 'taildragger',
+      floats: !!(def.hydro || (def.parts && def.parts.floats)),
+      spoilers: false,
+    },
+    src,
+    shakedown: !!sh,
+  };
+  // the same numbers, rounded, for a plaque or a status line
+  S.show = () => {
+    const o = {};
+    for (const k of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vx', 'Vy', 'Vbg', 'Vms', 'Vcruise', 'climbMax', 'sinkMin', 'LDbest', 'TORun', 'LDGrun', 'mass'])
+      o[k] = r2(S[k]);
+    return o;
+  };
+  return S;
+}
+// ============================================================
+// THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
+// the pilot reads the aeroplane from.
+//
+// PILOT-ROADMAP §6.3 rule 5: "the machine is a sheet of measured numbers,
+// and the sheet is the only source." Before this the pilot knew the
+// aeroplane through genAP's constants (ratios of the analytic stall) and
+// genTuneAP's fits; the bench measured the same aeroplane — the stall in
+// both configurations, the climb gradient, the glide ratio and its speed,
+// the take-off run, the ground power cap — and the pilot never read it.
+//
+// WHAT IT IS. One flat record, SI, built from what exists: `def.params.gen`
+// (the tunnel's measured block), `def.params.ap` (the speed ladder genAP
+// derived, kept as the fallback), and `genShakedown`'s output when the
+// caller has one (the garage memoises it; a gate passes it; the pilot asks
+// for it lazily and does without — the fields that need it read null).
+// Every field says where it came from (`src`): 'measured' (the tunnel or
+// the shakedown), 'derived' (a textbook ratio over a measured number, named
+// in the comment), 'genAP' (the old constant, until a measurement replaces
+// it). Nothing here is tuned; a number the bench cannot measure yet is null
+// and the consumer falls back, never a guess dressed as a fact.
+//
+// THE V-SPEEDS AND THE RATIOS (light-aeroplane practice, the same for a Cub
+// and a flying boat):
+//   Vs      clean stall (VsMeas when the tunnel measured it, else analytic)
+//   Vs0     stall in the landing configuration (VsFlap; = Vs when flapless)
+//   Vref    1.30 Vs0 — the approach reference speed
+//   Vrot    genAP's VRot (0.99 Vs, G159: the derived rotation)
+//   Vy      genAP's VClimb (1.38 Vs), where gammaClimb was measured
+//   Vx      0.87 Vy — derived; the best-angle speed is not measured yet
+//   Vbg     the best-glide speed, measured (the shakedown's L/D sweep)
+//   Vms     0.76 Vbg — the minimum-sink speed (3^-1/4, a parabolic polar)
+//   Vcruise genAP's VCruise (1.71 Vs)
+//   Vne     null — not measured; a consumer that needs a ceiling uses 1.5 Vcruise and says so
+// THE ENERGY LIMITS (what TECS reads, P0.5):
+//   climbMax  gammaClimb x Vy (m/s) — measured at full thrust
+//   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
+//             from the measured glide (3^(3/4)/2 on a parabolic polar)
+//   sinkBg    Vbg / LDbest — the sink at best glide
+//   gammaClimb, LDbest — measured
+// THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
+// 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
+// THE ATTITUDES (rad, measured): alphaAppr, alphaTD (1.10 Vs0), alphaCruise,
+// aStall, thMax / flareThMax / liftoffTh (genTuneAP's, from the measured
+// attitudes). THE THROTTLE: thrCruise (measured), thrAppr (genAP), groundCap
+// (measured: the power nose-over cap). THE EFFECTORS: what this machine
+// has — engines, flaps (and their landing setting), the gear type, floats.
+// ============================================================
+function machineSheet(def, opts) {
+  opts = opts || {};
+  const A = def.params.ap || {}, G = def.params.gen || {}, P = def.params;
+  const sh = typeof opts.shakedown === 'function' ? opts.shakedown() : (opts.shakedown || null);
+  const src = {};
+  const put = (k, v, s) => { src[k] = v == null ? null : s; return v == null ? null : v; };
+  const r2 = v => v == null ? null : Math.round(v * 100) / 100;
+  const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
+  const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
+  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
+  const Vy = put('Vy', A.VClimb ?? null, 'genAP');
+  const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
+  const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');
+  const gammaClimb = put('gammaClimb', G.gammaClimb ?? null, 'measured');
+  const trike = P.ap && P.ap.rolloutMode === 'trike' || (P.twSteer || 0.5) < 0;
+  // the stop from 1.15 Vs0: the pilot's accelerate-stop law (43_pilot.js aStop)
+  const aStop = A.aStop || 9.81 * ((typeof CRR === 'number' ? CRR : 0.05) + (A.brakeMax || 0.3) * (typeof MU_BRAKE === 'number' ? MU_BRAKE : 0.5)) * 0.8;
+  const Vtd = Vs0 != null ? 1.15 * Vs0 : null;
+  const S = {
+    Vs, Vs0, Vref: put('Vref', Vs0 != null ? 1.30 * Vs0 : null, 'derived'),
+    Vrot: put('Vrot', A.VRot ?? null, 'genAP'), Vy, Vx: put('Vx', Vy != null ? 0.87 * Vy : null, 'derived'),
+    Vbg, Vms: put('Vms', Vbg != null ? 0.76 * Vbg : null, 'derived'),
+    Vcruise: put('Vcruise', A.VCruise ?? null, 'genAP'), Vne: put('Vne', null, 'derived'),
+    climbMax: put('climbMax', gammaClimb != null && Vy != null ? gammaClimb * Vy : null, 'measured'),
+    sinkBg: put('sinkBg', Vbg != null && LDbest ? Vbg / LDbest : null, 'measured'),
+    sinkMin: put('sinkMin', Vbg != null && LDbest ? 0.877 * Vbg / LDbest : null, 'derived'),
+    gammaClimb, LDbest,
+    TORun: put('TORun', A.TORun ?? (sh && sh.TORun) ?? null, 'measured'),
+    LDGrun: put('LDGrun', Vtd != null ? Vtd * Vtd / (2 * aStop) + Vtd * 1.0 : null, 'derived'),
+    alphaAppr: put('alphaAppr', G.alphaAppr ?? null, 'measured'),
+    alphaTD: put('alphaTD', G.alphaTD ?? null, 'measured'),
+    alphaCruise: put('alphaCruise', G.alphaCruise ?? null, 'measured'),
+    aStall: put('aStall', G.aStall ?? null, 'measured'),
+    thMax: put('thMax', A.thMax ?? null, 'genAP'), flareThMax: put('flareThMax', A.flareThMax ?? null, 'genAP'),
+    liftoffTh: put('liftoffTh', A.liftoffTh ?? null, 'genAP'),
+    thrCruise: put('thrCruise', A.thrCruise ?? null, 'measured'), thrAppr: put('thrAppr', A.thrAppr ?? null, 'genAP'),
+    groundCap: put('groundCap', sh && sh.groundThrCap != null ? sh.groundThrCap : null, 'measured'),
+    mass: put('mass', G.W != null ? G.W / 9.81 : (sh && sh.mass) || null, 'measured'),
+    W: put('W', G.W ?? (sh && sh.W) ?? null, 'measured'),
+    wingLoad: put('wingLoad', sh && sh.wingLoad != null ? sh.wingLoad : null, 'measured'),
+    staticMargin: put('staticMargin', sh && sh.staticMargin != null ? sh.staticMargin : null, 'measured'),
+    xwindLimit: put('xwindLimit', opts.xwind != null ? opts.xwind : null, 'measured'),
+    elevIdle: put('elevIdle', null, 'measured'),            // elevator authority at idle: not measured yet (the C172 / Caravan finding)
+    effectors: {
+      engines: P.nEngines || 1,
+      flaps: !!P.flaps, flapLdg: P.flaps ? (P.flaps.ldg ?? 1) : 0, flapTO: P.flaps ? (P.flaps.to ?? 0) : 0,
+      gear: trike ? 'trike' : 'taildragger',
+      floats: !!(def.hydro || (def.parts && def.parts.floats)),
+      spoilers: false,
+    },
+    src,
+    shakedown: !!sh,
+  };
+  // the same numbers, rounded, for a plaque or a status line
+  S.show = () => {
+    const o = {};
+    for (const k of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vx', 'Vy', 'Vbg', 'Vms', 'Vcruise', 'climbMax', 'sinkMin', 'LDbest', 'TORun', 'LDGrun', 'mass'])
+      o[k] = r2(S[k]);
+    return o;
+  };
+  return S;
 }
 // model_codec.js — decode baked model payloads (see tools/model_prep.py).
 // Pure JS, no three.js: same code runs in the artifact and in the node gates.
@@ -31599,7 +32060,7 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
@@ -87740,7 +88201,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // renderer answers on itself, after init)
   const MAX_ANISO = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? renderer.capabilities.getMaxAnisotropy()
                   : (renderer && renderer.getMaxAnisotropy) ? renderer.getMaxAnisotropy() : 8;
-  scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
+  // the fog wall hid the analytic ring's edge at 5.2 km; an island's edge is the sea (the user: "remove the fog")
+  scene.fog = world.island ? new THREE.Fog(C(HAZE), 20000, 90000) : new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
   // Sky shader, factored out because the W18 environment bake below renders the
@@ -88356,8 +88818,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       t.anisotropy = MAX_ANISO;
       return t;
     }
-    const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
-    const outerTex = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
+    // THE ISLAND'S OWN GROUND COLOUR (W2, 2026-09-14 evening): the bench's stack
+    // baked by island_prep (unlit), one texture over the whole grid, mapped by
+    // world position on both rings. The analytic bake still runs for the
+    // forest mask and the minimap; its colours are not drawn on an island.
+    const ISLA = world.island && world.island.albedo && world.island.grid ? world.island : null;
+    let islandTex = null, islandUV = null;
+    if (ISLA) {
+      const G = ISLA.grid, n = G.w * G.h, rgba = new Uint8Array(n * 4), src = ISLA.albedo;
+      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
+      islandTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      islandTex.colorSpace = THREE.SRGBColorSpace; islandTex.magFilter = islandTex.minFilter = THREE.LinearFilter;
+      islandTex.generateMipmaps = false; islandTex.anisotropy = MAX_ANISO; islandTex.flipY = false; islandTex.needsUpdate = true;
+      // row 0 of the grid is its north edge (z0): v runs with z, no flip
+      islandUV = (x, z) => [(x - G.x0) / (G.w * G.cell), (z - G.z0) / (G.h * G.cell)];
+    }
+    const tex = islandTex || bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
+    const outerBake = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
+    const outerTex = islandTex || outerBake;
     outerTexShared = outerTex;
 
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
@@ -88365,6 +88843,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const posA = geo.attributes.position;
     for (let i = 0; i < posA.count; i++)
       posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
+    if (islandUV) { const uvA = geo.attributes.uv;
+      for (let i = 0; i < posA.count; i++) { const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
     geo.computeVertexNormals();
     groundGeos.push(geo);
     // close-range detail: fine tiling grain multiplied in, faded out with distance
@@ -88513,8 +88993,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     }; };
     const gMat = worldLambert({ map: tex });
-    innerPatchShared = { mat: gMat, half: INNER, uv: (x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)] };
-    gMat.onBeforeCompile = sh => {
+    innerPatchShared = { mat: gMat, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
+    // the close grain is the analytic ground's; an island's texture stands alone until W1
+    if (!islandUV) gMat.onBeforeCompile = sh => {
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -88549,7 +89030,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (let i = 0; i < p.count; i++) {
           const x = p.getX(i), z = p.getZ(i);
           p.setY(i, world.terrainH(x, z) - 2);
-          uv.setXY(i, (x - BX0) / SIZE, 1 - (z - BZ0) / SIZE);
+          if (islandUV) { const t = islandUV(x, z); uv.setXY(i, t[0], t[1]); }
+          else uv.setXY(i, (x - BX0) / SIZE, 1 - (z - BZ0) / SIZE);
         }
         g2.computeVertexNormals();
         const m = new THREE.Mesh(g2, oMat);
@@ -89934,7 +90416,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: 100 };         // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26)
+      const FILL = { ng: 100,           // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26)
+        // the island's knobs (F8 > trees > from the map): coverage ramps from
+        // `from` to `full` metres of canopy; a tree is canopy x gain over the
+        // model's own height, clamped
+        island: { from: 1.0, full: 12.0, gain: 1.0, min: 0.3, max: 2.2 } };
+      const ISLC = world.island && world.island.canopyAt ? world.island : null;
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
       // shared with the terrain's colour bake and the far canopy mask
@@ -89987,9 +90474,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // distance. Three bands, the generated rungs, one rule.
             const forKey = key => {
               const col = treeList().find(e => e.key === key).col;
+              const sub = treeList().find(e => e.key === key).sub;
               return { dead: (col.place && col.place.dead) || 0, white: true,
                        sink: (col.place && col.place.sink) || 0,
                        size: (col.place && col.place.size) || 1,
+                       h: (sub && sub.h) || 15,                    // the model's height, metres (W2: the canopy sizes it)
                        series: SERIES.map(ser => Object.assign(ladderFor(key, ser), { imp: null })) };
             };
             const pool = treePool();
@@ -90041,12 +90530,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const x = cx * CH + (gx + 0.5) * SP2 + (hsh(ix + 7, iz) - 0.5) * SP2 * 1.6;
           const z = cz * CH + (gz + 0.5) * SP2 + (hsh(ix, iz + 7) - 0.5) * SP2 * 1.6;
           if (!forestHere(x, z)) continue;  // ONE rule, the bake's too
+          // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
+          // says how much of the grid stands - nothing below `from`, everything
+          // above `full`, a ramp between - and rides with the record to size it.
+          let can = 0;
+          if (ISLC) {
+            can = ISLC.canopyAt(x, z);
+            const p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
+            if (p < 1 && hsh(ix + 13, iz + 29) > p) continue;
+          }
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
           const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
           const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
-          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8));
+          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -90060,14 +90558,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, gi) => {
-          const n = r.length / 5;
+          const n = r.length / 6;
           if (!n) return;
           const SH = SHAPE.list[gi];
           // deal every instance its series first, so each series' meshes are
           // sized to what they will hold and nothing empty is submitted
           const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
           for (let i = 0; i < n; i++) {
-            ser[i] = SH.series.length > 1 ? seriesOf(r[i * 5 + 4], SH.dead) : 0;
+            ser[i] = SH.series.length > 1 ? seriesOf(r[i * 6 + 4], SH.dead) : 0;
             cnt[ser[i]]++;
           }
           // one InstancedMesh per PART per series: a real tree is a bark part
@@ -90105,11 +90603,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
             mm.position.set(ox, 0, oz); mm.userData.ser = si; mm.userData.fill = true; } });
           for (let i = 0; i < n; i++) {
-            const o = i * 5, sp = r[o + 3], w = r[o + 4];
+            const o = i * 6, sp = r[o + 3], w = r[o + 4], can = r[o + 5];
             const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
-            const s = SH.white ? sizeOf(SH.size, w)
-                               : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
+            // THE MAP'S SIZE: on an island a tree is as tall as the canopy
+            // map says (x gain), over the model's own height, with the mix's
+            // spread as jitter; elsewhere the collection's size
+            const s = (ISLC && can > 0 && SH.h)
+              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9))
+              : SH.white ? sizeOf(SH.size, w)
+                         : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             // the stand series is drawn stretched - the dial, not the bake
             sv.set(s, s * (SH.white ? 1 : 0.9 + w * 0.25) * S.scaleY, s);
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
@@ -90180,6 +90683,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
+          island: () => Object.assign({}, FILL.island),
+          setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
+          onIsland: () => !!ISLC,
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(320, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
       let tick = 0;
@@ -90733,7 +91239,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const mkTex = kind => {
       const cv2 = document.createElement('canvas'); cv2.width = 512; cv2.height = 64;
       const q = cv2.getContext('2d');
-      if (kind === 'paved') {
+      if (kind === 'marks') {
+        // THE MARKINGS ALONE (G398): the sheet is transparent - the strip's ground is whatever lies
+        // under it (the bare terrain, a surface or material polygon, or a PBR set drawn by mkLook)
+        q.clearRect(0, 0, 512, 64);
+        q.fillStyle = '#e9e4d6';
+        for (const u of [10, 496]) for (let k = 0; k < 4; k++) q.fillRect(u, 8 + k * 14, 6, 8);
+        q.fillStyle = '#d9d3c0';
+        for (let u = 40; u < 470; u += 32) q.fillRect(u, 30, 14, 3);
+      } else if (kind === 'paved') {
         q.fillStyle = '#63636a'; q.fillRect(0, 0, 512, 64);
         q.fillStyle = '#e9e4d6';
         for (const u of [10, 496]) for (let k = 0; k < 4; k++) q.fillRect(u, 8 + k * 14, 6, 8);
@@ -90760,6 +91274,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return t;
     };
     const texes = {};
+    // THE LOOK'S GROUND (G398): a PBR set of the site's or the lot's tiled along the strip at the set's
+    // own period; the image shared, the texture per strip (its repeat is the strip's)
+    const lookSets = () => Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
+    const mkLook = (setKey, len, wid) => {
+      const S = lookSets()[setKey];
+      if (!S || !S.diff) return null;
+      const t = new THREE.Texture(S.diff);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(8, MAX_ANISO);
+      const tile = S.tile || 4;
+      t.repeat.set(Math.max(1, Math.round(len / tile)), Math.max(1, Math.round(wid / tile)));
+      if (S.diff.complete && S.diff.naturalWidth) t.needsUpdate = true; else S.diff.addEventListener('load', () => { t.needsUpdate = true; }, { once: true });
+      return t;
+    };
     const poleMat = worldLambert({ color: C(0xd8d2c4) });
     const sockMat = worldLambert({ color: C(0xe4622e), side: THREE.DoubleSide });
     const patchMat = worldLambert({ map: outerTexShared });
@@ -90816,11 +91343,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (let i = 0; i < dp.count; i++)
         dp.setY(i, world.terrainH(dp.getX(i), dp.getZ(i)) + 0.07);
       geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo,
-        worldLambert({ map: texes[kind], depthWrite: false }));
-      m.renderOrder = 2;
-      m.receiveShadow = true;
-      scene.add(keep(m));
+      // THE LOOK (G398): 'none' stands the markings alone on the composed ground; a look with a set
+      // stands the set's sheet under the same markings; 'grass' (and every strip without a look) the
+      // painted strip of old
+      const LK = (typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.RUNWAY_LOOKS && a.look) ? PREMISES_GEN.RUNWAY_LOOKS[a.look] : null;
+      if (LK && (a.look === 'none' || LK.set)) {
+        const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
+        if (lookTex) {
+          const gm = new THREE.Mesh(geo, worldLambert({ map: lookTex, depthWrite: false }));
+          gm.renderOrder = 2; gm.receiveShadow = true; scene.add(keep(gm));
+        }
+        if (!texes.marks) texes.marks = mkTex('marks');
+        const geo2 = geo.clone(); const p2 = geo2.attributes.position; for (let i = 0; i < p2.count; i++) p2.setY(i, p2.getY(i) + 0.02);
+        const mm = new THREE.Mesh(geo2, worldLambert({ map: texes.marks, transparent: true, depthWrite: false }));
+        mm.renderOrder = 3; mm.receiveShadow = true; scene.add(keep(mm));
+        if (!lookTex) geo.dispose();
+      } else {
+        const m = new THREE.Mesh(geo,
+          worldLambert({ map: texes[kind], depthWrite: false }));
+        m.renderOrder = 2;
+        m.receiveShadow = true;
+        scene.add(keep(m));
+      }
       // windsock off the strip edge
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
@@ -108111,11 +108655,16 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       if (expBase == null) expBase = R.toneMappingExposure;
       R.toneMappingExposure = expBase * S.exposure; applied.exposure = S.exposure;
     }
-    if (rig && applied.lighting !== S.lighting) {
-      rig.row(S.lighting);
+    // an island boots in the alps rig - the one the trees were judged in - whatever
+    // the preset says (the user, 2026-09-14: "boot that on the alps HDR for now")
+    // (the loader's ISLAND_BOOT, not FLIGHT_PROBE: onWorld() runs before the probe exists)
+    const onIsland = !!W.ISLAND_BOOT;
+    const lighting = onIsland ? 'alps' : S.lighting;
+    if (rig && applied.lighting !== lighting) {
+      rig.row(lighting);
       // the row carries its own shadow / floor numbers: re-assert ours
       applied.shadows = null; applied.canopy = null;
-      applied.lighting = S.lighting;
+      applied.lighting = lighting;
       apply();
     }
   };
@@ -112128,19 +112677,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/pier/pier_lods.js?v=2b2f0c92"></script>
 <script src="src/totems/totems_poles.js?v=3aa55574"></script>
 <script src="tools/_house_kit.js?v=64fd4ef1"></script>
-<script src="tools/_house_gen.js?v=bb35681e"></script>
-<script src="tools/_big_gen.js?v=1c85844d"></script>
+<script src="tools/_house_gen.js?v=5bf5c32a"></script>
+<script src="tools/_big_gen.js?v=b40e76b1"></script>
 <script src="tools/_sport_gen.js?v=cfe637e8"></script>
+<script src="tools/_shed_gen.js?v=54236357"></script>
 <script src="tools/_tram_gen.js?v=b91a8a59"></script>
 <script src="tools/_totem_gen.js?v=725d9e05"></script>
 <script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
 <script src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
 <script src="src/viewer/cabin.js?v=27e21ad5"></script>
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script src="tools/_village_gen.js?v=e6742f63"></script>
-<script src="src/viewer/render_premises.js?v=42c391b9"></script>
-<script src="src/viewer/premises_host.js?v=e3984a20"></script>
-<script src="src/viewer/premises_ui.js?v=ecb0e4da"></script>
+<script src="tools/_village_gen.js?v=b3144376"></script>
+<script src="src/viewer/render_premises.js?v=2228de4b"></script>
+<script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
+<script src="src/viewer/premises_ui.js?v=fefa98ef"></script>
 <script>
 (() => {
   // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
@@ -112186,17 +112736,27 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       window.PREMISES_HOST_OPEN = true;
       running = false;
       if (!PREM.panel) {
-        const v = document.createElement('div'); v.id = 'premView'; v.style.cssText = 'position:fixed;left:0;top:0;right:392px;bottom:0;z-index:40;cursor:crosshair;';
-        const strip = document.createElement('div'); strip.id = 'premStrip'; strip.style.cssText = 'position:absolute;left:10px;top:10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:70%;';
-        const plaque = document.createElement('div'); plaque.id = 'premPlaque'; plaque.style.cssText = 'position:absolute;right:10px;top:10px;font:11px/1.4 system-ui;color:#dfe6ee;background:rgba(12,15,20,.7);padding:6px 8px;border-radius:6px;pointer-events:none;';
-        const chk = document.createElement('div'); chk.id = 'premChk'; chk.style.cssText = 'position:absolute;left:10px;bottom:10px;font:11px/1.5 system-ui;color:#dfe6ee;background:rgba(12,15,20,.7);padding:6px 8px;border-radius:6px;pointer-events:none;max-width:46%;';
-        const lbl = document.createElement('div'); lbl.id = 'premCam'; lbl.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:10px;font:11px system-ui;color:#9fb0c0;pointer-events:none;';
-        v.appendChild(strip); v.appendChild(plaque); v.appendChild(chk); v.appendChild(lbl);
-        const panel = document.createElement('div'); panel.id = 'premPanel'; panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:392px;z-index:41;display:flex;background:#12161c;color:#dfe6ee;font:12px system-ui;border-left:1px solid #242a33;';
-        document.body.appendChild(v); document.body.appendChild(panel);
-        PREM.panel = panel; PREM.view = v;
+        // THE EDITOR'S CHROME (G398): inside #ui, so it wears the flight screen's own grammar
+        // (flight.css section 9: the plate, the rail buttons, the rows, pills, switches and
+        // sliders of the flyout) - a different screen, the same controls. Nothing is styled here.
+        const mk = (tag, id, cls) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; return e; };
+        const v = mk('div', 'premView');
+        for (const id of ['premStrip', 'premPlaque', 'premChk', 'premCam']) v.appendChild(mk('div', id));
+        const panel = mk('div', 'premPanel');
+        const head = mk('div', 'premHead');
+        const t = mk('span', null, 't'); t.textContent = 'world editor';
+        const sec = mk('span', 'premSec', 's');
+        const back = mk('button', 'premClose', 'pill'); back.type = 'button'; back.textContent = 'back to the flight'; back.title = 'close the editor; the record autosaved and is the world at the next boot';
+        back.onclick = () => PREM.close();
+        head.appendChild(t); head.appendChild(sec); head.appendChild(back);
+        const body = mk('div', 'premBody');
+        panel.appendChild(head); panel.appendChild(body);
+        const ui = $('ui') || document.body;
+        ui.appendChild(v); ui.appendChild(panel);
+        PREM.panel = panel; PREM.view = v; PREM.body = body;
       }
-      PREM.panel.style.display = 'flex'; PREM.view.style.display = '';
+      PREM.panel.style.display = ''; PREM.view.style.display = '';
+      document.body.classList.add('premOpen');   // the flight's chrome steps aside (flight.css)
       const dirtyDraw = () => {};
       PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
         onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms'; } });
@@ -112207,7 +112767,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       PREM.host.cameras.set(PREM.host.cameras.mode());
       const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip') };
       const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
-      PREM.ed = window.PREMISES_UI.mount(PREM.panel, {
+      PREM.ed = window.PREMISES_UI.mount(PREM.body, {
+        onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
         rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
@@ -112222,6 +112783,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (PREM.ed) { PREM.ed.close(); PREM.ed = null; }
       if (PREM.host) { PREM.host.detach(); }
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
+      document.body.classList.remove('premOpen');
       camera.up.set(0, 1, 0);
       if (PREM.R) PREM.R.rebuild(null);   // the outlines and handles go (editing() is false now)
     } };
@@ -115558,7 +116120,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (pilotChoice === 'classic') return makeAutopilot(sim, def, world);
     if (pilotChoice === 'test' && typeof makeTestPilot === 'function') return makeTestPilot(sim, def, world);
     if (typeof makePilot === 'function') {
-      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice });
+      // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
+      // memoised one (shakeOf), handed as a getter — a TDZ before the bench
+      // block runs reads as "no shakedown yet", never as a throw
+      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice,
+                                             shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
       if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
       return p;
     }
@@ -120274,6 +120840,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 #devPanel .hd i{color:#8fb3ff;font-style:normal}
 #devPanel .note{color:#7d8696;font-size:10px;margin:2px 0 4px}
 #devPanel button{background:#1c2028;color:#d6dbe4;border:1px solid #3a4150;border-radius:3px;font:inherit;padding:1px 6px;cursor:pointer}
+#devPanel h4.fold{cursor:pointer;user-select:none;display:flex;justify-content:space-between}
+#devPanel h4.fold::after{content:'▾';color:#5f6b80}
+#devPanel h4.fold.shut::after{content:'▸'}
+#devPanel .fb{margin-left:4px;border-left:1px solid #2a3140;padding-left:6px}
+#devPanel .fb.shut{display:none}
+#devPanel h4.sub{font-size:9px;color:#7d9bd6;margin:6px 0 2px}
 `;
   // one row: a range over a getter/setter; `fmt` renders the readout
   const slider = (label, min, max, step, get, set, fmt) => {
@@ -120295,6 +120867,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     return row;
   };
   const note = t => $('div', { class: 'note', text: t });
+  // A FOLD (2026-09-14, the user: "unify the world sliders with the F8 menu ...
+  // the settings on individual species can be collapsed, grouped under an
+  // overall tree section, but we need to surface the environment controls"):
+  // a heading that opens and shuts its block; the state is remembered.
+  const folds = (() => { try { return JSON.parse(localStorage.getItem('flydiy.devpanel.folds') || '{}'); } catch (e) { return {}; } })();
+  const fold = (parent, title, open, sub) => {
+    const shut = folds[title] === undefined ? !open : folds[title];
+    const h = $('h4', { class: 'fold' + (sub ? ' sub' : '') + (shut ? ' shut' : ''), text: title });
+    const body = $('div', { class: 'fb' + (shut ? ' shut' : '') });
+    h.onclick = () => { const s = body.classList.toggle('shut'); h.classList.toggle('shut', s); folds[title] = s;
+      try { localStorage.setItem('flydiy.devpanel.folds', JSON.stringify(folds)); } catch (e) {} };
+    parent.appendChild(h); parent.appendChild(body);
+    return body;
+  };
   const refresh = () => { for (const r of rows) r.refresh(); };
 
   const lod = () => W.TREE_LOD, leaf = () => W.TREE_LEAF, rig = () => W.WORLD_RIG, world = () => W.WORLD;
@@ -120307,76 +120893,93 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     root.appendChild($('div', { class: 'hd' }, [$('b', { text: 'DEVELOPER' }), fpsEl,
       (() => { const b = $('button', { text: 'close (F8)' }); b.onclick = toggle; return b; })()]));
 
-    root.appendChild($('h4', { text: 'forest' }));
-    root.appendChild(slider('fill density', 16, 320, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
+    // ---- TREES: everything about the forest, folded by concern ----------------
+    const T = fold(root, 'trees', true);
+    if (W.TREE_FILL && W.TREE_FILL.onIsland && W.TREE_FILL.onIsland()) {
+      const Ti = fold(T, 'from the map (the island)', true, true);
+      const isl = k => v => W.TREE_FILL.setIsland({ [k]: v });
+      Ti.appendChild(note('the canopy layer says where and how tall: coverage ramps from `cover from` to `full cover`; a tree is canopy x gain over its model\'s height'));
+      Ti.appendChild(slider('cover from', 0, 10, 0.5, () => W.TREE_FILL.island().from, isl('from'), v => v + ' m'));
+      Ti.appendChild(slider('full cover', 2, 30, 1, () => W.TREE_FILL.island().full, isl('full'), v => v + ' m'));
+      Ti.appendChild(slider('size gain', 0.3, 2.5, 0.05, () => W.TREE_FILL.island().gain, isl('gain')));
+      Ti.appendChild(slider('size min', 0.1, 1, 0.05, () => W.TREE_FILL.island().min, isl('min')));
+      Ti.appendChild(slider('size max', 1, 4, 0.1, () => W.TREE_FILL.island().max, isl('max')));
+    }
+    T.appendChild(slider('fill density', 16, 320, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
       v => v + ' (' + (1024 / v).toFixed(1) + ' m)'));
-    root.appendChild(slider('L0 to (m)', 20, 600, 10, () => lod().get()[0], v => setLod(0, v), v => v + ' m'));
-    root.appendChild(slider('L1 to (m)', 20, 600, 10, () => lod().get()[1], v => setLod(1, v), v => v + ' m'));
-    root.appendChild(slider('L2 to (m)', 20, 800, 10, () => lod().get()[2], v => setLod(2, v), v => v + ' m'));
-    root.appendChild(slider('fade window', 0, 100, 2, () => lod().fade(), v => lod().fade(v), v => v + ' m'));
-    root.appendChild(note('impostors beyond L2; L1 to = L2 to (the default) skips the half-foliage L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
-    // the streamer's clock (W0c.30): what a fill chunk costs to generate
-    genEl = note('');
-    root.appendChild(genEl);
-    root.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
-    root.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
-    root.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
     const mix = k => v => { W.TREE_MIX[k] = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); };
-    root.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, mix('furnished')));
-    root.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, mix('spread')));
-    root.appendChild(note('furnished = share of living trees drawn as the specimen (the rest as the stand shape); both replant on release'));
-
-    root.appendChild($('h4', { text: 'leaf' }));
-    root.appendChild(slider('wrap', 0, 1, 0.02, () => leaf().get().wrap, v => leaf().set({ wrap: v })));
-    root.appendChild(slider('sss', 0, 2, 0.02, () => leaf().get().sss, v => leaf().set({ sss: v })));
-    root.appendChild(slider('sss power', 1, 8, 0.25, () => leaf().get().sssp, v => leaf().set({ sssp: v })));
-    root.appendChild(slider('ao bake', 0, 4, 0.1, () => leaf().get().ao, v => leaf().set({ ao: v })));
-    root.appendChild(slider('sharp', 0, 3, 0.05, () => leaf().sharp(), v => leaf().sharp(v)));
-    root.appendChild(slider('master hue', -0.2, 0.2, 0.005, () => leaf().master().hue, v => leaf().tint({ hue: v }), v => v.toFixed(3)));
-    root.appendChild(slider('master sat', 0, 2, 0.02, () => leaf().master().sat, v => leaf().tint({ sat: v })));
-    root.appendChild(slider('master light', 0.2, 2, 0.02, () => leaf().master().light, v => leaf().tint({ light: v })));
-
-    root.appendChild($('h4', { text: 'collections' }));
-    root.appendChild(note('the bench’s per-collection tint, live on both tiers'));
+    T.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, mix('furnished')));
+    T.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, mix('spread')));
+    T.appendChild(note('furnished = share of living trees drawn as the specimen (the rest as the stand shape); both replant on release'));
+    genEl = note('');
+    T.appendChild(genEl);
+    const Tl = fold(T, 'ladder', false, true);
+    Tl.appendChild(slider('L0 to (m)', 20, 600, 10, () => lod().get()[0], v => setLod(0, v), v => v + ' m'));
+    Tl.appendChild(slider('L1 to (m)', 20, 600, 10, () => lod().get()[1], v => setLod(1, v), v => v + ' m'));
+    Tl.appendChild(slider('L2 to (m)', 20, 800, 10, () => lod().get()[2], v => setLod(2, v), v => v + ' m'));
+    Tl.appendChild(slider('fade window', 0, 100, 2, () => lod().fade(), v => lod().fade(v), v => v + ' m'));
+    Tl.appendChild(note('impostors beyond L2; L1 to = L2 to (the default) skips the half-foliage L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
+    Tl.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
+    Tl.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
+    Tl.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
+    const Tf = fold(T, 'leaf', false, true);
+    Tf.appendChild(slider('wrap', 0, 1, 0.02, () => leaf().get().wrap, v => leaf().set({ wrap: v })));
+    Tf.appendChild(slider('sss', 0, 2, 0.02, () => leaf().get().sss, v => leaf().set({ sss: v })));
+    Tf.appendChild(slider('sss power', 1, 8, 0.25, () => leaf().get().sssp, v => leaf().set({ sssp: v })));
+    Tf.appendChild(slider('ao bake', 0, 4, 0.1, () => leaf().get().ao, v => leaf().set({ ao: v })));
+    Tf.appendChild(slider('sharp', 0, 3, 0.05, () => leaf().sharp(), v => leaf().sharp(v)));
+    Tf.appendChild(slider('master hue', -0.2, 0.2, 0.005, () => leaf().master().hue, v => leaf().tint({ hue: v }), v => v.toFixed(3)));
+    Tf.appendChild(slider('master sat', 0, 2, 0.02, () => leaf().master().sat, v => leaf().tint({ sat: v })));
+    Tf.appendChild(slider('master light', 0.2, 2, 0.02, () => leaf().master().light, v => leaf().tint({ light: v })));
+    const Tc = fold(T, 'species', false, true);
+    Tc.appendChild(note('the bench’s per-collection tint, live on both tiers'));
     for (const c of (leaf().collections ? leaf().collections() : [])) {
       const short = c.name.replace(/\.glb$/, '').replace(/_tree|_trees_pack_lods_gameready|realistic_/g, '').slice(0, 14);
-      root.appendChild(note(short));
-      root.appendChild(slider('  hue', -0.2, 0.2, 0.005, () => c.tint.hue || 0, v => leaf().tintOf(c.name, { hue: v }), v => v.toFixed(3)));
-      root.appendChild(slider('  sat', 0, 1.5, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => leaf().tintOf(c.name, { sat: v })));
-      root.appendChild(slider('  light', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => leaf().tintOf(c.name, { light: v })));
-      root.appendChild(slider('  bark', 0.2, 2, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => leaf().tintOf(c.name, { bark: v })));
+      const Ts = fold(Tc, short, false, true);
+      Ts.appendChild(slider('hue', -0.2, 0.2, 0.005, () => c.tint.hue || 0, v => leaf().tintOf(c.name, { hue: v }), v => v.toFixed(3)));
+      Ts.appendChild(slider('sat', 0, 1.5, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => leaf().tintOf(c.name, { sat: v })));
+      Ts.appendChild(slider('light', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => leaf().tintOf(c.name, { light: v })));
+      Ts.appendChild(slider('bark', 0.2, 2, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => leaf().tintOf(c.name, { bark: v })));
     }
-
-    root.appendChild($('h4', { text: 'light' }));
-    root.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)']],
+    // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
+    const E = fold(root, 'environment', true);
+    E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
-    root.appendChild(slider('sun elev', 0, 90, 0.5, () => rig().get().elev, v => rig().set({ elev: v }), v => v.toFixed(1) + '°'));
-    root.appendChild(slider('sun azimuth', -180, 180, 1, () => rig().get().azim, v => rig().set({ azim: v }), v => v.toFixed(0) + '°'));
-    root.appendChild(slider('sun', 0, 5, 0.05, () => rig().get().sunI, v => rig().set({ sunI: v })));
-    root.appendChild(slider('sun warmth', 0, 1, 0.02, () => sunWarm(), v => rig().set({ sunCol: warmHex(v) })));
-    root.appendChild(slider('hemisphere', 0, 1.5, 0.02, () => rig().get().hemi, v => rig().set({ hemi: v })));
-    root.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
-    root.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
+    E.appendChild(slider('sun elev', 0, 90, 0.5, () => rig().get().elev, v => rig().set({ elev: v }), v => v.toFixed(1) + '°'));
+    E.appendChild(slider('sun azimuth', -180, 180, 1, () => rig().get().azim, v => rig().set({ azim: v }), v => v.toFixed(0) + '°'));
+    E.appendChild(slider('sun', 0, 5, 0.05, () => rig().get().sunI, v => rig().set({ sunI: v })));
+    E.appendChild(slider('sun warmth', 0, 1, 0.02, () => sunWarm(), v => rig().set({ sunCol: warmHex(v) })));
+    E.appendChild(slider('hemisphere', 0, 1.5, 0.02, () => rig().get().hemi, v => rig().set({ hemi: v })));
+    E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
+    E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
-    root.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
-    root.appendChild(slider('forest floor', 0, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));
-    root.appendChild(slider('floor blur', 2, 7, 0.25, () => rig().get().floorBlur, v => rig().set({ floorBlur: v }), v => v.toFixed(2) + ' (' + Math.round(1.37 * Math.pow(2, v)) + ' m)'));
-    root.appendChild(slider('floor edge', 0.08, 0.8, 0.02, () => rig().get().floorEdge, v => rig().set({ floorEdge: v })));
-    root.appendChild(select('shadow snap', [['1', 'texel-snapped (still)'], ['0', 'free (swims)']],
+    const fog = () => world() && world().scene && world().scene.fog;
+    E.appendChild(slider('fog from', 0, 20000, 100, () => fog() ? fog().near : NaN, v => { if (fog()) fog().near = v; }, v => (v / 1000).toFixed(1) + ' km'));
+    E.appendChild(slider('fog full by', 500, 90000, 500, () => fog() ? fog().far : NaN, v => { if (fog()) fog().far = v; }, v => (v / 1000).toFixed(1) + ' km'));
+    const Es = fold(E, 'shadows and floor', false, true);
+    Es.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
+    Es.appendChild(slider('forest floor', 0, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));
+    Es.appendChild(slider('floor blur', 2, 7, 0.25, () => rig().get().floorBlur, v => rig().set({ floorBlur: v }), v => v.toFixed(2) + ' (' + Math.round(1.37 * Math.pow(2, v)) + ' m)'));
+    Es.appendChild(slider('floor edge', 0.08, 0.8, 0.02, () => rig().get().floorEdge, v => rig().set({ floorEdge: v })));
+    Es.appendChild(select('shadow snap', [['1', 'texel-snapped (still)'], ['0', 'free (swims)']],
       () => (rig().get().snap === false ? '0' : '1'), v => rig().set({ snap: v === '1' })));
-    root.appendChild(select('far shadows', [['1', 'on (impostor cascade)'], ['0', 'off']],
+    Es.appendChild(select('far shadows', [['1', 'on (impostor cascade)'], ['0', 'off']],
       () => (rig().get().farShadow === false ? '0' : '1'), v => rig().set({ farShadow: v === '1' })));
-    root.appendChild(select('shadow map', [['1024', '1024'], ['2048', '2048'], ['4096', '4096']],
+    Es.appendChild(select('shadow map', [['1024', '1024'], ['2048', '2048'], ['4096', '4096']],
       () => rig().get().shadowMap, v => rig().set({ shadowMap: +v })));
-
-    root.appendChild($('h4', { text: 'frame' }));
-    root.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['off', 'off (4x MSAA)']],
+    const wsea = () => (W.FLIGHT_PROBE && W.FLIGHT_PROBE.world) ? W.FLIGHT_PROBE.world() : null;
+    const Ew = fold(E, 'the sea', false, true);
+    Ew.appendChild(slider('swell (m)', 0, 1.5, 0.05, () => wsea() && wsea().sea ? wsea().sea.A : NaN, v => { const w = wsea(); if (w && w.setSea) w.setSea({ A: v, L: w.sea.L || 12, dir: w.sea.dir || 0 }); }));
+    Ew.appendChild(slider('wavelength', 3, 60, 1, () => wsea() && wsea().sea ? wsea().sea.L : NaN, v => { const w = wsea(); if (w && w.setSea) w.setSea({ A: w.sea.A, L: v, dir: w.sea.dir || 0 }); }, v => v + ' m'));
+    Ew.appendChild(note('the sea follows the wind through the DAY (setWeather); these override it until the next wind'));
+    // ---- FRAME, CAMERA -------------------------------------------------------
+    const F = fold(root, 'frame', false);
+    F.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['off', 'off (4x MSAA)']],
       () => (W.FLYDIY_AA && W.FLYDIY_AA.tier) ? W.FLYDIY_AA.tier() : 'full', v => { if (W.FLYDIY_AA) W.FLYDIY_AA.setTier(v); }));
-    root.appendChild(note('measured (tree_perf, densest stand, bands 60/132/270, NG 112): smooth ~24 ms, smoothest ~29; with geometry to 450 m: 32 / 38'));
-
-    root.appendChild($('h4', { text: 'camera' }));
-    root.appendChild(slider('free cam speed', 1, 400, 1, () => W.DEV_CAM.speed, v => { W.DEV_CAM.speed = v; }, v => v + ' m/s'));
-    root.appendChild(note('CAMERA → free: WASD/ZQSD, R/F up-down, Shift x5, drag to look'));
+    F.appendChild(note('measured (tree_perf, densest stand, bands 60/132/270, NG 112): smooth ~24 ms, smoothest ~29; with geometry to 450 m: 32 / 38'));
+    const C = fold(root, 'camera', false);
+    C.appendChild(slider('free cam speed', 1, 400, 1, () => W.DEV_CAM.speed, v => { W.DEV_CAM.speed = v; }, v => v + ' m/s'));
+    C.appendChild(note('CAMERA → free: WASD/ZQSD, R/F up-down, Shift x5, drag to look'));
     document.body.appendChild(root);
   }
   let rigRowName = 'sunset';

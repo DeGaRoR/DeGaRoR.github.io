@@ -2303,6 +2303,36 @@ const PRESETS = {
     roofSet: SET_IDX('roof', 'boxprof'), roofCol: 9, metalSet: SET_IDX('metal', 'galv'), metalCol: 9,
     deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
   },
+  // THE SPORTS GROUND'S SMALL BUILDINGS (G393.3, the user: "do the
+  // surroundings with more detail ... the small buildings"): the clubhouse
+  // (changing rooms - a long low shed-roofed block with two doors, a bench
+  // on its deck) and the concession stand (a hut with a serving window
+  // under its awning). Both category `sports`; the site theme stands them.
+  'clubhouse': {
+    L: 12.0, w: 6.0, storeys: 1, floorH: 2.8, roofFam: 1, pitch: 9, eaveOver: 0.45, rakeOver: 0.35, corner: 0,
+    stance: 0, floorY: 0.35, slopeZ: 0,
+    nFront: 3, nBack: 3, nLeft: 1, nRight: 1, winW: 0.9, winH: 0.7, winSill: 1.6, muntin: 0,
+    door: 1, doorN: 2, doorPos: 0.25, doorW: 1.0, doorH: 2.1, doorLight: 0,
+    shopWin: 0, awning: 0, falseFront: 0,
+    porch: 1, porchD: 1.8, porchLenF: 1.0, porchOff: 0, porchRoof: 2, railStyle: 0, stairs: 1,
+    chim: 0, gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 0,
+    yard: 1, yardK: 0.3, woodpile: 0, boat: 0, people: 1, curtains: 0,
+    weather: 0.3, paintPunch: 0.9, civic: 1, cat: 'sports', role: 'clubhouse', outbuilding: 1,   // unheated: no chimney owed (rule 33)
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 13, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8, deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  'concession stand': {
+    L: 5.0, w: 4.0, storeys: 1, floorH: 2.6, roofFam: 0, pitch: 22, eaveOver: 0.45, rakeOver: 0.35, corner: 0,
+    stance: 0, floorY: 0.3, slopeZ: 0,
+    nFront: 0, nBack: 1, nLeft: 1, nRight: 0, winW: 0.9, winH: 0.9, winSill: 1.1, muntin: 0,
+    doorPos: 0.8, doorW: 0.9, doorH: 2.05, doorLight: 0,
+    shopWin: 1, shopW: 2.2, shopH: 1.1, shopSill: 1.05, awning: 1, awningCol: 12, falseFront: 0,
+    porch: 0, stairs: 0, chim: 0, gutter: 0, downpipe: 0, barrel: 0, skirt: 0, ribs: 1, backDoor: 0,
+    yard: 1, yardK: 0.3, woodpile: 0, boat: 0, people: 0, curtains: 0,
+    weather: 0.35, paintPunch: 0.9, civic: 1, cat: 'sports', role: 'concession', outbuilding: 1,   // unheated: no chimney owed (rule 33)
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 12,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0, deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
   // sits on skids rather than on a stance.
@@ -7831,10 +7861,10 @@ function randomHouse(seed) {
 
 // one slot, dressed from any role: the shed uses it to put its board finish on
 // the siding material
-function dressSlot(matKey, role, idx, col, flat) {
+function dressSlot(matKey, role, idx, col, flat, F) {
   const list = ROLE_SETS[role];
   const key = list[clamp(Math.round(idx || 0), 0, list.length - 1)];
-  dressMat(MAT[matKey], key, col, { flat: flat });
+  dressMat((F ? F.MAT : MAT)[matKey], key, col, { flat: flat });   // a finish of its own when handed one (G393.3)
 }
 
 window.HOUSE_GEN = {
