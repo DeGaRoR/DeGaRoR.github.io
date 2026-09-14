@@ -1805,6 +1805,7 @@
     const wheelParts = [], stretchRigs = [], surfParts = [], linkRigs = [];
     const ctlMoves = [], gauges = [], picks = [];                    // G240; the panel arc; G318
     const engRigs = [], strutRigs = [];                              // G179.2
+    const floatRigs = [];                                            // H2 (G389)
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
     if (data.cage && Array.isArray(data.parts)) {
@@ -1993,6 +1994,48 @@
                              rest0: nodeOfMember.map(n => n == null ? null : nodeRest(n)) });
           });
         }
+        else if (pt.tetra && pt.tetra.length === 4) {
+          // H2 (G389): A FLOAT RIDES ITS FOUR NODES. The hull the layer drew
+          // is the loft the water pushes on, and the physics moves it as a
+          // rigid cluster on the step keel, the bow keel and the step's two
+          // deck edges. Every vertex takes its BARYCENTRICS in that tetra at
+          // rest (nodeRest, the same projection the legs' rests use) and is
+          // rebuilt from the four nodes' live positions (nodeLocal) each
+          // frame: exact under any rigid motion, and the pose's shear
+          // (G357) cancels because rest and live go through the same map.
+          grp.add(pg);
+          const idxs = pt.tetra.map(a => nearNodeVis(a));
+          if (idxs.every(i => i != null) && new Set(idxs).size === 4) {
+            const R4 = idxs.map(i => nodeRest(i));
+            const bary = (q, o) => {
+              const [P0, P1, P2, P3] = R4;
+              const ax = P1[0] - P0[0], ay = P1[1] - P0[1], az = P1[2] - P0[2];
+              const bx = P2[0] - P0[0], by = P2[1] - P0[1], bz = P2[2] - P0[2];
+              const cx = P3[0] - P0[0], cy = P3[1] - P0[1], cz = P3[2] - P0[2];
+              const dx = q[0] - P0[0], dy = q[1] - P0[1], dz = q[2] - P0[2];
+              const det = ax * (by * cz - bz * cy) - bx * (ay * cz - az * cy) + cx * (ay * bz - az * by);
+              const inv = Math.abs(det) > 1e-12 ? 1 / det : 0;
+              const l1 = (dx * (by * cz - bz * cy) - bx * (dy * cz - dz * cy) + cx * (dy * bz - dz * by)) * inv;
+              const l2 = (ax * (dy * cz - dz * cy) - dx * (ay * cz - az * cy) + cx * (ay * dz - az * dy)) * inv;
+              const l3 = (ax * (by * dz - bz * dy) - bx * (ay * dz - az * dy) + dx * (ay * bz - az * by)) * inv;
+              o[0] = 1 - l1 - l2 - l3; o[1] = l1; o[2] = l2; o[3] = l3;
+            };
+            pg.traverse(o => {
+              if (!o.isMesh || !o.geometry) return;
+              const pa = o.geometry.attributes.position;
+              if (!pa || !pa.array) return;
+              const src = pt.groups[Object.keys(pt.groups)
+                .find(k => pt.groups[k].pos === pa.array)] || null;
+              if (src) { if (!src.base0) src.base0 = pa.array.slice(); else pa.array.set(src.base0); }
+              const lam = new Float32Array(pa.count * 4), l = [0, 0, 0, 0], q = [0, 0, 0];
+              for (let i = 0; i < pa.count; i++) {
+                q[0] = pa.array[i * 3]; q[1] = pa.array[i * 3 + 1]; q[2] = pa.array[i * 3 + 2];
+                bary(q, l); lam[i * 4] = l[0]; lam[i * 4 + 1] = l[1]; lam[i * 4 + 2] = l[2]; lam[i * 4 + 3] = l[3];
+              }
+              floatRigs.push({ posAttr: pa, lam, idxs });
+            });
+          } else console.warn('float part: its tetra found no four distinct nodes', idxs);
+        }
         else if (pt.anchors && pt.anchors.length && !pt.surf && pt.kind !== 'ctlLink') {
           // G267.2: THE TAIL ASSEMBLY IS RIGID ON ITS ANCHOR (the user: "the
           // rest should just keep its anchor point super stable"). Every
@@ -2019,7 +2062,8 @@
         else if ((pt.kind === 'cabane' || pt.kind === 'interplane' || pt.kind === 'wire' ||
                   // G267.2: the twin booms — two-end parts on the same
                   // contract, the tip end on the tail's anchor
-                  pt.kind === 'boom') &&
+                  pt.kind === 'boom' ||
+                  pt.kind === 'floatStrut') &&                      // H2 (G389): the float struts
                  pt.members && pt.members.length) {
           // G185: THE TRUSS FOLLOWS ITS OWN TWO ENDS. Each drawn member's
           // pin and tip find the physics node nearest them at rest (within
@@ -2604,6 +2648,7 @@
                         engRigs: engRigs.length ? engRigs : null,       // G179.2
                         strutRigs: strutRigs.length ? strutRigs : null, // G179.2
                         anchorRigs: anchorRigs.length ? anchorRigs : null, // G267.2
+                        floatRigs: floatRigs.length ? floatRigs : null,   // H2 (G389)
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
@@ -3038,6 +3083,18 @@
       s.posAttr.needsUpdate = true;
     }
     // G267.2: THE TAIL ASSEMBLY — rigid on its anchor's mean travel
+    // H2 (G389): the floats, rebuilt from their four nodes by barycentrics
+    if (model.floatRigs) for (const r of model.floatRigs) {
+      if (!r.posAttr || !r.posAttr.array) continue;
+      const N4 = r.idxs.map(i => nodeLocal(i)), p2 = r.posAttr.array, lam = r.lam;
+      for (let i = 0, n = p2.length / 3; i < n; i++) {
+        const a = lam[i * 4], b = lam[i * 4 + 1], c = lam[i * 4 + 2], d = lam[i * 4 + 3];
+        p2[i * 3]     = a * N4[0][0] + b * N4[1][0] + c * N4[2][0] + d * N4[3][0];
+        p2[i * 3 + 1] = a * N4[0][1] + b * N4[1][1] + c * N4[2][1] + d * N4[3][1];
+        p2[i * 3 + 2] = a * N4[0][2] + b * N4[1][2] + c * N4[2][2] + d * N4[3][2];
+      }
+      r.posAttr.needsUpdate = true;
+    }
     if (model.anchorRigs) for (const r of model.anchorRigs) {
       if (!r.posAttr || !r.posAttr.array) continue;
       const d = anchorDelta(r), p2 = r.posAttr.array, b = r.base;
@@ -3358,6 +3415,9 @@
     floatMeshes = [];
     const HY = sim && sim.hydro;
     if (!HY) return;
+    // H2 (G389): a cage build carries its DRAWN floats as parts (floatRigs);
+    // the physics hull is drawn only for a spec-only build with none
+    if (model && model.floatRigs) return;
     for (const fx of HY.floats) {
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
@@ -3366,6 +3426,122 @@
       m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
       m.userData.fx = fx;
       craft.add(m); floatMeshes.push(m);
+    }
+  }
+  // WATER CONTACT, SEEN (H2, G389; WATER-2026-09-13.md §3.4: "driven by the
+  // physics, not authored"). Two effects, both read off the per-panel state
+  // the hydro pass already computes, so they are right by construction:
+  //   SPRAY — every wet CHINE-side bottom panel carrying dynamic pressure
+  //   (planing or slam) throws droplets outward and up from its wet centroid,
+  //   the rate with the pressure, the speed with the hull's; ballistic, a
+  //   short life, additive white points. The twin fans of a planing float.
+  //   WAKE — a ribbon of foam trailing each step keel while it is wet and
+  //   moving: a strip of quads through the last N keel positions, widening
+  //   and fading with age. Two per float when planing: the step's own.
+  // Cheap: one Points and one ribbon mesh per float, fixed buffers, on
+  // `craft` in world coordinates. Nothing here touches the physics.
+  const SPRAY_N = 600, WAKE_N = 48;
+  let waterFx = null;
+  function buildWaterFx() {
+    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); o.geometry.dispose(); } waterFx = null; }
+    const HY = sim && sim.hydro;
+    if (!HY) return;
+    const nF = HY.floats.length;
+    const pg = new THREE.BufferGeometry();
+    const sp = new Float32Array(SPRAY_N * nF * 3);
+    pg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+    const pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85,
+      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+    pts2.frustumCulled = false; pts2.renderOrder = 4;
+    craft.add(pts2);
+    const drops = { p: new Float32Array(SPRAY_N * nF * 3), v: new Float32Array(SPRAY_N * nF * 3), age: new Float32Array(SPRAY_N * nF).fill(9), next: 0 };
+    const ribbons = HY.floats.map(() => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(WAKE_N * 2 * 3), 3));
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(WAKE_N * 2 * 3), 3));
+      const idx = [];
+      for (let i = 0; i + 1 < WAKE_N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      g.setIndex(idx);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+      m.frustumCulled = false; m.renderOrder = 3;
+      craft.add(m);
+      return Object.assign(m, { trail: [], lastT: 0 });
+    });
+    waterFx = { pts: pts2, drops, ribbons, t: 0 };
+  }
+  function syncWaterFx(dt) {
+    if (!waterFx || !sim || !sim.hydro) return;
+    const HY = sim.hydro, D = waterFx.drops, G = 9.81;
+    waterFx.t += dt;
+    for (let k = 0; k < HY.floats.length; k++) {
+      const fx = HY.floats[k], F = fx.F, out = fx.out;
+      if (!fx.wet) { const rb = waterFx.ribbons[k]; if (rb.trail.length && waterFx.t - rb.lastT > 4) rb.trail.length = 0; continue; }
+      // the hull's own velocity at the step keel, for the spray's throw
+      const eK = out.W[F.edge.K];
+      const vK = fx.ctx.velAt(eK, [0, 0, 0]);
+      const V = Math.hypot(vK[0], vK[2]);
+      // SPRAY from the wet chine-side bottom panels under dynamic pressure
+      if (V > 2.5) {
+        for (let i = 0; i < F.panels.length; i++) {
+          const pn = F.panels[i], o = out.per[i];
+          if (!o.wet || (pn.kind !== 'bottomF' && pn.kind !== 'bottomA')) continue;
+          const pd = Math.hypot(o.Fp[0] + o.Fm[0], o.Fp[1] + o.Fm[1], o.Fp[2] + o.Fm[2]) / Math.max(1e-6, o.A);
+          if (pd < 800) continue;
+          // outward: the panel's world normal's horizontal part (a deadrise
+          // bottom faces down and out; the heading is whatever it is)
+          const hn = Math.hypot(o.n[0], o.n[2]) || 1, ox = o.n[0] / hn, oz = o.n[2] / hn;
+          const rate = Math.min(6, pd / 2500) * dt * 60;
+          let n = Math.floor(rate); if (Math.random() < rate - n) n++;
+          for (let j = 0; j < n; j++) {
+            const q = D.next; D.next = (D.next + 1) % D.age.length;
+            D.p[q * 3] = o.c[0] + (Math.random() - 0.5) * 0.15; D.p[q * 3 + 1] = Math.max(fx.h, o.c[1]) + 0.02; D.p[q * 3 + 2] = o.c[2] + (Math.random() - 0.5) * 0.15;
+            const up = 1.0 + 1.5 * Math.random(), outw = (0.8 + 1.2 * Math.random()) * Math.min(1, V / 12);
+            D.v[q * 3] = vK[0] * 0.35 + ox * outw * 2.2 + (Math.random() - 0.5) * 0.6;
+            D.v[q * 3 + 1] = up * Math.min(1.2, V / 10);
+            D.v[q * 3 + 2] = vK[2] * 0.35 + oz * outw * 2.2 + (Math.random() - 0.5) * 0.6;
+            D.age[q] = 0;
+          }
+        }
+      }
+      // WAKE: the step keel's trail while wet and moving
+      const rb = waterFx.ribbons[k];
+      if (V > 1.0 && waterFx.t - rb.lastT > 0.08) {
+        rb.trail.push([eK[0], fx.h + 0.01, eK[2], waterFx.t, Math.min(1, V / 8)]);
+        if (rb.trail.length > WAKE_N) rb.trail.shift();
+        rb.lastT = waterFx.t;
+      }
+    }
+    // integrate the droplets
+    const life = 0.9, sp = waterFx.pts.geometry.attributes.position.array;
+    for (let q = 0; q < D.age.length; q++) {
+      if (D.age[q] >= life) { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; continue; }
+      D.age[q] += dt;
+      D.v[q * 3 + 1] -= G * dt;
+      D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
+      sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2];
+    }
+    waterFx.pts.geometry.attributes.position.needsUpdate = true;
+    // the ribbons
+    for (const rb of waterFx.ribbons) {
+      const pa = rb.geometry.attributes.position.array, ca = rb.geometry.attributes.color.array, T = rb.trail;
+      for (let i = 0; i < WAKE_N; i++) {
+        const j = T.length - 1 - i;      // newest first
+        const t = j >= 0 ? T[j] : null;
+        let x = 0, y = -1e4, z = 0, w = 0, c = 0;
+        if (t) {
+          const age = waterFx.t - t[3];
+          const fade = Math.max(0, 1 - age / 6);
+          w = (0.25 + 0.35 * age) * t[4]; c = fade * 0.9;
+          // the ribbon's width across the direction of travel
+          const nxt = T[Math.max(0, j - 1)], dx = t[0] - nxt[0], dz = t[2] - nxt[2], L = Math.hypot(dx, dz) || 1;
+          x = t[0]; y = t[1]; z = t[2];
+          const px = -dz / L * w, pz = dx / L * w;
+          pa[i * 6] = x + px; pa[i * 6 + 1] = y; pa[i * 6 + 2] = z + pz;
+          pa[i * 6 + 3] = x - px; pa[i * 6 + 4] = y; pa[i * 6 + 5] = z - pz;
+        } else { pa[i * 6] = pa[i * 6 + 3] = 0; pa[i * 6 + 1] = pa[i * 6 + 4] = -1e4; pa[i * 6 + 2] = pa[i * 6 + 5] = 0; }
+        for (let m2 = 0; m2 < 2; m2++) { ca[(i * 2 + m2) * 3] = c; ca[(i * 2 + m2) * 3 + 1] = c; ca[(i * 2 + m2) * 3 + 2] = c; }
+      }
+      rb.geometry.attributes.position.needsUpdate = true; rb.geometry.attributes.color.needsUpdate = true;
     }
   }
   function syncFloats() {
@@ -3385,7 +3561,6 @@
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
     sim.reset(0);
-    buildFloatMeshes();
     if (typeof window !== 'undefined') window.FLYDIY_SIM = sim;   // H1: the headless rig reads it
     ap = mkPilot(key);
     // G200: the flap notches and the engine count are the aeroplane's
@@ -3424,6 +3599,15 @@
       }
     }
     model = buildModel(key, def);
+    buildFloatMeshes();          // H2: after the model, which says whether the floats are drawn parts
+    buildWaterFx();              // H2: the spray and the wakes, per float
+    // H2 (G389): THE AEROPLANE'S OWN CG, model frame, design pose — the float
+    // layer places the step 12 deg aft of it (the gear page's hand-set cgZ
+    // was 0.5 m off on the user's ultralight: the floats stood 0.7 m aft of
+    // the CG and the aeroplane nosed over into the sea)
+    { let cx = 0, cy = 0, mm = 0;
+      for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
+      if (mm > 0 && typeof window !== 'undefined') window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; }
     if (model) craft.add(model.grp);
     // THE COCKPIT (the panel arc, session 4): the readings, the switches,
     // the bus and the lamps bind to this aeroplane; the altimeter's datum
@@ -4935,7 +5119,7 @@
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], CYAN);
     // ground contacts: where it actually touches, wheel by wheel
     for (const k of ['GAL', 'GAR', 'TW']) {
-      const i = P[k]; if (i == null) continue;
+      const i = P[k]; if (i == null || i < 0) continue;   // H2: a float build has no third wheel
       const n = def.nodes[i], y = sim.p[i * 3 + 1] - n.r;
       const px = sim.p[i * 3], pz = sim.p[i * 3 + 2];
       for (const [dx, dz] of [[0.28, 0], [0, 0.28]])
@@ -7767,6 +7951,7 @@
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     if (floatMeshes.length) syncFloats();
+    if (waterFx && !inGarage) syncWaterFx(running ? 1 / 60 : 0);
     poseModel();
     if (++frame % 6 === 0) {
       hud();

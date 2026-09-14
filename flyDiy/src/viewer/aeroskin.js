@@ -894,6 +894,10 @@ const AERO_SEC = {
   // bare steel back still has the row.
   gearLeg:  { parent: 'body', fin: 'steelTube', label: 'the gear legs',
               layer: 'gear', wears: 'parent' },
+  // THE FLOATS (H2, G389): a pontoon is skinned like a fuselage and painted
+  // with it — the body's own finish and colour unless the builder says so
+  float:    { parent: 'body', role: 'skin', label: 'the floats',
+              layer: 'gear', wears: 'parent' },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',

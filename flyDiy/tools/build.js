@@ -358,6 +358,9 @@ const MANIFEST = {
     // gear MODULES (_gear_kit/_gear_gen/_gear_page) stay early: _cage_fin
     // and _cage_stab read GEAR_GEN.CAGE_MATS at load time.
     '_cage_gear.js',
+    // THE FLOATS (H2, G389): drawn from 32_hydro's own loft, after the gear
+    // (the same airframe contract, the same fitting sites)
+    '_cage_float.js',
     '_cage_fin.js', '_cage_stab.js',              // (_fin_gen.js loads above, with the design rows)
     // THE HEADLESS TAIL (TAIL CHANTIER 2 P5): the layers' build with no page,
     // for the birth seed (designBake sizes the drawn tail off the rule once)

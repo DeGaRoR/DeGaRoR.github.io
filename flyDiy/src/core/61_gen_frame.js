@@ -1845,12 +1845,18 @@ function genLattice(S, gearX, track, kScale, gross) {
     // hand under the wheel contact plane. No third wheel: refs.tw is -1,
     // the stance and the power nose-over read none, the mains refs are the
     // two step keels (r 0) so the ground pass and the viewer keep a pair.
-    const FP = HYDRO.floatParamsFor(gross || 400);
-    const yK = gy - S.gear.contactR - 0.10;
+    // H2 (G389): the DRAWN float when the join measured one (its own hull
+    // parameters, its keel height over the keel datum — the same datum
+    // gear.y reads — and its track); the sizing rule otherwise
+    const FM = S.gear.floats;
+    const FP = FM ? Object.assign({}, HYDRO.DEF, FM, { mFloat: HYDRO.DEF.mFloat * Math.pow(FM.L / HYDRO.DEF.L, 2), mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
+                  : HYDRO.floatParamsFor(gross || 400);
+    const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
     const stas = [-FP.xs, -FP.xFlat, 0, FP.L - FP.xs];
     FLOATS = [];
+    const trF = FM && FM.track != null ? 2 * FM.track : tr;
     for (const sd of [-1, 1]) {
-      const zc = sd * 0.5 * tr;
+      const zc = sd * 0.5 * trF;
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
@@ -1874,8 +1880,21 @@ function genLattice(S, gearX, track, kScale, gross) {
       B(Din[1], fB, 'gear', true, 'leg'); B(Din[2], aB, 'gear', true);
       B(Dout[2], fT, 'gear', false, 'inner'); B(Dout[1], fB, 'gear', true, 'wire');
       B(Din[2], fB, 'gear', true, 'wire'); B(Din[1], aB, 'gear', true, 'wire');
+      // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
+      // belly nodes the four points of the side truss are nearly collinear
+      // and its pitch stiffness goes as the square of nothing — measured, a
+      // float 0.44 m under the belly pitched itself nose-down to -35 deg in
+      // a second on a 5 cm drop, its legs at 8 % strain, where 0.9 m held
+      // at 1 deg. The loads go up to the top longerons as well: two
+      // diagonals to the frames' top corners, inside the covering
+      const aT = sd < 0 ? AA.TL : AA.TR;
+      B(Din[1], aT, 'gear', false, 'inner'); B(Din[2], fT, 'gear', false, 'inner');
+      // the slab table for 32_hydro's force distribution: every station's
+      // keel and deck edges, float-frame rest coordinates (x aft of the step)
+      const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
+        K: [Q[i * 3][1], Q[i * 3][2]], DL: [Q[i * 3 + 1][1], Q[i * 3 + 1][2]], DR: [Q[i * 3 + 2][1], Q[i * 3 + 2][2]] })) };
       FLOATS.push({ side: sd, K, DL, DR, tetra: [K[2], K[0], DL[2], DR[2]],
-                    tetraLocal: [Q[6], Q[0], Q[7], Q[8]], P: FP, pos: [gx, yK, zc] });
+                    tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: FP, pos: [gx, yK, zc] });
     }
     const [FL, FR] = FLOATS;
     for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire'); }
@@ -2284,7 +2303,29 @@ function genFrame(S) {
   // the taildragger's rake; and the wheels' axle station (S.gear.x, the
   // editor's or a fixture's) is not the step's, so it is not read for floats
   const floatsGear = S.gear.type === 'floats';
-  const stepGx = floatsGear ? cg[0] + Math.tan(12 * D) * (cg[1] - (gy - S.gear.contactR - 0.10)) : null;
+  // ...unless the join measured the drawn float's step (S.gear.floats.x).
+  // THE FLOATS' OWN MASS MOVES WITH THE STEP (H2, G389): the first pass
+  // stood them at the wheels' station, and their 80 kg walking 0.9 m aft
+  // moved the CG 0.12 m — the step landed 0.02 m aft of the final CG
+  // instead of 0.30, and the aeroplane sat nose-up at 17 deg. So the rule
+  // is solved on the AIRFRAME's CG (the lattice less its float nodes) with
+  // the floats' mass placed where the step puts it: step = cgFinal + k,
+  // cgFinal = (Ma ca + Mf (step + off)) / M  =>  step = (Ma ca + Mf off + k M) / Ma
+  const stepGx = floatsGear
+    ? (S.gear.floats && S.gear.floats.x != null ? S.gear.floats.x
+       : (() => {
+           const yK0 = (S.gear.floats && S.gear.floats.y != null) ? S.gear.floats.y : gy - S.gear.contactR - 0.10;
+           let Ma = 0, Mf = 0, xa = 0, xf = 0;
+           for (const nd of a.nodes) {
+             const isF = nd.tag === 'FLK' || nd.tag === 'FLD';
+             if (isF) { Mf += nd.m; xf += nd.p[0] * nd.m; } else { Ma += nd.m; xa += nd.p[0] * nd.m; }
+           }
+           const ca = Ma > 0 ? xa / Ma : cg[0];
+           const off = Mf > 0 ? xf / Mf - (a.parts && a.parts.gx != null ? a.parts.gx : cg[0]) : 0;   // the floats' CG from their step, pass 1
+           const k = Math.tan(12 * D) * (cg[1] - yK0);
+           return Ma > 0 ? (Ma * ca + Mf * off + k * (Ma + Mf)) / Ma : cg[0] + k;
+         })())
+    : null;
   const gx = (floatsGear ? stepGx
               : (S.gear.x !== null && S.gear.x !== undefined ? S.gear.x : autoGx))
              + S.place.gearDx;

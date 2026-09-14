@@ -890,6 +890,23 @@ const CAGE_PARTS = [
                   's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
     ] },
 
+  // THE FLOATS (H2, G389): one part, both pontoons and their struts; the
+  // section is the hull's paint, the struts wear gearLeg with the mains'
+  { key: 'floats', name: 'Floats', parent: 'gear', layer: 'gear',
+    // a product, not `&&`: the reachability probe reads `when` with a spy over
+    // CAGE_PARAMS (where neither key lives), and a short-circuit would hide
+    // the second key from it
+    when: P => (+P.gearFloats) * (+P.gearOn) > 0,
+    gate: 'gearFloats',        // a switched-off part collapses to its switch
+    place: { on: 'gearFloats', fore: 'fltZ', out: 'fltTrack', up: 'fltDrop', at: 'the step' },
+    sections: ['float'],
+    groups: [
+      ['hull', ['gearFloats', 'fltL', 'fltStep', 'fltB', 'fltBeta', 'fltBetaA', 'fltHs', 'fltAft',
+                'fltFlat', 'fltBow', 'fltBowB', 'fltStern', 'fltSide']],
+      ['placement', ['fltZ', 'fltDrop', 'fltTrack']],
+      ['struts', ['fltStrutR', 'fltStrutAng', 'fltSpread', 'fltWires']],
+    ] },
+
   { key: 'third', name: 'Third wheel', parent: 'gear', layer: 'gear',
     when: P => +P.gearOn,
     place: { on: 's2On',

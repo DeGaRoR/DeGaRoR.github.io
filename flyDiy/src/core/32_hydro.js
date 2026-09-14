@@ -946,7 +946,7 @@ function baryOf(pt, P0, P1, P2, P3, o) {
 // the provider over the solver's flat arrays: T = the four node ids, Q = their
 // float-frame rest positions (the float's frame: origin at the step keel,
 // the same as the hull's), p / v = the solver's position and velocity arrays
-function tetraCtx(F, T, Q, p, v) {
+function tetraCtx(F, T, Q, p, v, slab) {
   const nV = F.V.length, lam = new Float64Array(nV * 4), l = [0, 0, 0, 0];
   for (let i = 0; i < nV; i++) { baryOf(F.V[i], Q[0], Q[1], Q[2], Q[3], l); for (let k = 0; k < 4; k++) lam[i * 4 + k] = l[k]; }
   const lO = baryOf([0, 0, 0], Q[0], Q[1], Q[2], Q[3], [0, 0, 0, 0]);
@@ -966,6 +966,46 @@ function tetraCtx(F, T, Q, p, v) {
     scl(ctx.p, 0.25, ctx.p);
   };
   ctx.bary = (pt, o) => baryOf(pt, P[0], P[1], P[2], P[3], o);
+  // THE SLAB DISTRIBUTION (H2, G389). A force handed to the tetra by
+  // barycentrics is statically exact, but a panel at the stern — two
+  // metres outside the tetra — lands as +1.9 F on the step's nodes and
+  // -0.9 F on the bow's: a pair of hammer blows the short strut beams pass
+  // into the fuselage before the cluster's projection has averaged them.
+  // Measured: a float 0.44 m under the belly nosed over at -35 deg in a
+  // second from a 5 cm drop, the slam's first contact reading -2800 N m.
+  // So the frame gives every station (bow, the flat's end, the step, the
+  // stern: keel + two deck edges, in float-frame rest coordinates), and a
+  // force at a point goes to the SIX nodes of the slab it lies in —
+  // linear in x between the two stations, barycentric in each station's
+  // triangle: an affine map on each slab, so the force and its torque are
+  // exactly what they were, with no weight outside [-1, 2] and none
+  // beyond the slab.
+  ctx.slab = slab || null;
+  ctx.distribute = (pt, f, o) => {
+    if (!ctx.slab) { ctx.bary(pt, l); for (let j = 0; j < 4; j++) { const i3 = T[j] * 3, a = l[j]; f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2]; } return; }
+    const S = ctx.slab, q = ctx.toLocal(pt, v3());
+    const xs = S.x, n = xs.length;
+    let i = 0; while (i + 2 < n && q[0] > xs[i + 1]) i++;
+    const t = Math.max(0, Math.min(1, (q[0] - xs[i]) / Math.max(1e-6, xs[i + 1] - xs[i])));
+    for (const [k, w] of [[i, 1 - t], [i + 1, t]]) {
+      if (w <= 0) continue;
+      // the station's triangle in its own (y, z) plane: K, DL, DR rest coords
+      const st = S.st[k];
+      const [ky, kz] = st.K, [ly, lz] = st.DL, [ry, rz] = st.DR;
+      const det = (ly - ky) * (rz - kz) - (lz - kz) * (ry - ky);
+      let b1 = 0, b2 = 0;
+      if (Math.abs(det) > 1e-12) {
+        b1 = ((q[1] - ky) * (rz - kz) - (q[2] - kz) * (ry - ky)) / det;
+        b2 = ((ly - ky) * (q[2] - kz) - (lz - kz) * (q[1] - ky)) / det;
+      }
+      const b0 = 1 - b1 - b2;
+      const ids = st.ids;   // [K, DL, DR] node ids
+      for (const [nid, b] of [[ids[0], b0], [ids[1], b1], [ids[2], b2]]) {
+        const a = w * b, i3 = nid * 3;
+        f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2];
+      }
+    }
+  };
   ctx.velAt = (pt, o) => { ctx.bary(pt, l); o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { o[0] += l[k] * Vn[k][0]; o[1] += l[k] * Vn[k][1]; o[2] += l[k] * Vn[k][2]; } return o; };
   ctx.toLocal = (pt, o) => { ctx.bary(pt, l); o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { o[0] += l[k] * Q[k][0]; o[1] += l[k] * Q[k][1]; o[2] += l[k] * Q[k][2]; } return o; };
   return ctx;
@@ -978,7 +1018,7 @@ function hydroBuild(def, p, v) {
   if (!fl || !fl.length) return null;
   const floats = fl.map(rec => {
     const F = makeFloat(rec.P);
-    const ctx = tetraCtx(F, rec.tetra, rec.tetraLocal, p, v);
+    const ctx = tetraCtx(F, rec.tetra, rec.tetraLocal, p, v, rec.slab || null);
     const out = makeScratch(F);
     let mMin = Infinity; for (const i of rec.tetra) mMin = Math.min(mMin, def.nodes[i].m || 1);
     return { rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] };
@@ -1008,20 +1048,16 @@ function hydroSolverPass(HY, world, f, simT, dt) {
       const o = out.per[k];
       if (!o.wet) continue;
       // the hydrostatic term at its pressure centroid, the rest at the wet centroid
-      ctx.bary(o.cp, l);
-      for (let j = 0; j < 4; j++) { const a = l[j], i3 = ctx.T[j] * 3; f[i3] += a * o.Fs[0]; f[i3 + 1] += a * o.Fs[1]; f[i3 + 2] += a * o.Fs[2]; }
-      const gx = o.Fp[0] + o.Ff[0] + o.Fx[0] + o.Fm[0] + o.Fr[0] + o.Fk[0];
-      const gy = o.Fp[1] + o.Ff[1] + o.Fx[1] + o.Fm[1] + o.Fr[1] + o.Fk[1];
-      const gz = o.Fp[2] + o.Ff[2] + o.Fx[2] + o.Fm[2] + o.Fr[2] + o.Fk[2];
-      if (gx || gy || gz) {
-        ctx.bary(o.c, l);
-        for (let j = 0; j < 4; j++) { const a = l[j], i3 = ctx.T[j] * 3; f[i3] += a * gx; f[i3 + 1] += a * gy; f[i3 + 2] += a * gz; }
-      }
+      ctx.distribute(o.cp, f, o.Fs);
+      ZERO3b[0] = o.Fp[0] + o.Ff[0] + o.Fx[0] + o.Fm[0] + o.Fr[0] + o.Fk[0];
+      ZERO3b[1] = o.Fp[1] + o.Ff[1] + o.Fx[1] + o.Fm[1] + o.Fr[1] + o.Fk[1];
+      ZERO3b[2] = o.Fp[2] + o.Ff[2] + o.Fx[2] + o.Fm[2] + o.Fr[2] + o.Fk[2];
+      if (ZERO3b[0] || ZERO3b[1] || ZERO3b[2]) ctx.distribute(o.c, f, ZERO3b);
     }
   }
   return wetAny;
 }
-const ZERO3 = [0, 0, 0];
+const ZERO3 = [0, 0, 0], ZERO3b = [0, 0, 0];
 function zeroTerms(out) {
   out.F[0] = out.F[1] = out.F[2] = 0; out.tau[0] = out.tau[1] = out.tau[2] = 0;
   for (const k in out.terms) out.terms[k][0] = out.terms[k][1] = out.terms[k][2] = 0;

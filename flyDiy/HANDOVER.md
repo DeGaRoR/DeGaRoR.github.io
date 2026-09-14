@@ -45313,4 +45313,79 @@ run clamped to the lower panel or a `bottom` option in `hgDoorEdge`. The
 user has said a review of every slider and option is overdue and is not
 this session's.
 
+## G389 — THE DRAWN FLOAT, H2: THE PONTOONS IN THE EDITOR, MEASURED BY THE
+## JOIN, RIGGED IN FLIGHT ON THEIR NODES, WITH SPRAY AND A WAKE (2026-09-14,
+## the user: "see something in the editor, fit it, roll out... tune the
+## stands and their position, mesh present with a material, full water
+## physics, and some water contact visual feedback")
 
+- `tools/_cage_float.js`, a layer after the gear's: two pontoons drawn from
+  32_hydro's OWN loft (`HYDRO.makeFloat`, so the mesh the builder sees and
+  the panels the water pushes on are one shape), rows for the hull (length,
+  step fraction, beam, both deadrises, step depth, afterbody keel, keel
+  flat, bow rise and half-beam, stern beam, side height), the placement
+  (step fore/aft as an OFFSET from the rule, keel below the belly, half
+  track) and the struts (radius, root angle, spreaders, wires). Group
+  '9b · floats', part `floats` under the running gear (gate `gearFloats`,
+  section `float` — painted with the aeroplane, `wears: 'parent'` in
+  AERO_SEC), the switch row on the group so it is reachable without the
+  starter (GATE PARTS: a `when` written as a PRODUCT, since the probe's spy
+  over CAGE_PARAMS would short-circuit on a key it does not hold).
+- THE STEP IS PLACED OFF THE FLOWN AEROPLANE'S CG: app.js publishes
+  `FLYDIY_CG_MODEL` on every build, the join publishes its datums
+  (`CAGE_DATUM`: zFw, yD), the layer brings the CG into the cage frame and
+  puts the step 12 deg aft of it. The gear page's hand-set `cgZ` (the
+  fallback before the first build) was 0.5 m off on the user's ultralight:
+  the floats stood 0.7 m aft of the CG and the aeroplane nosed over into
+  the sea. One build stale, converging on the next.
+- THE JOIN MEASURES IT (ruling as): `spec.gear.floats` = the hull's own
+  parameters + the step's x aft of the firewall, the keel's y over the keel
+  datum, the half track, the displacement to the deck (clamped in
+  clampSpec; null = H1's sizing rule). The frame builds the float's nodes
+  and the solver's hull from them. The frame's own rule, when nothing is
+  measured, is SOLVED ON THE AIRFRAME'S CG with the floats' mass placed
+  where the step puts it — the two-pass estimate had the 80 kg of floats
+  walking 0.9 m aft between passes and the step landing 0.02 m aft of the
+  CG instead of 0.30 (17 deg nose-up at rest).
+- IN FLIGHT THE DRAWN PART RIDES ITS FOUR NODES: the join emits `edFloatL/R`
+  as parts with `tetraC` (the step keel, the bow keel, the step's deck
+  edges — the physics' own tetra), the snapshot brings the tetra through
+  rotP, and app.js's `floatRigs` rebuild every vertex from the four nodes'
+  live positions by the barycentrics it had at rest — exact under rigid
+  motion, the pose's shear cancelling because rest and live share the map.
+  The struts are two-end members (`edFloatStruts`, `strutMembers`) on the
+  G179.2 contract. The G383 physics-hull drawing stays as the fallback for
+  a spec-only build. Three more `TW -1` readers guarded (the garage's
+  ground contacts).
+- THE TRUSS MUST BE TALL. A float 0.44 m under the belly pitched itself
+  nose-down to -35 deg in a second on a 5 cm drop, its legs at 8 % strain,
+  where 0.9 m held at 1 deg: the side truss's four points were nearly
+  collinear and its pitch stiffness went as the square of its height. Two
+  diagonals from each float's deck to the frames' TOP corners (inside the
+  covering) hold every mounting height at 1-3 deg, strains under 1 %.
+  Found by static-moment sweeps (stable at every height) against the
+  dynamic settle (unstable below 0.65 m), then the worst beam's tag.
+- THE SLAB DISTRIBUTION (32_hydro `ctx.distribute`): a panel's force goes
+  to the six nodes of the slab it lies in (linear between stations,
+  barycentric in each station's triangle) instead of the tetra's
+  extrapolated barycentrics (+1.9 / -0.9 on a stern panel). Equivalent
+  force and torque, no weight outside the slab. Kept: it is the better
+  conditioning even though the truss was the actual cause.
+- WATER CONTACT, SEEN (app.js `buildWaterFx` / `syncWaterFx`): SPRAY —
+  droplets thrown outward and up from every wet chine-side bottom panel
+  carrying dynamic pressure over 800 Pa, the rate with the pressure, the
+  throw with the hull's speed, ballistic, additive white points; WAKE — a
+  foam ribbon through the last 48 positions of each step keel while wet
+  and moving, widening and fading over 6 s. Both read the per-panel state
+  the hydro pass already computes (§3.4: driven by the physics).
+- GATE FLOATS (the seaplane technique now: stick back from the start,
+  eased on the step; with the CG 0.28 m ahead of the step and the twin's
+  tail out of the propwash the hump is flown at -5 deg, plowing, R/W 0.25;
+  rest trim 3.0 deg, touch 0.79 m/s, lift over 9 frames). Headless layer
+  lists (`_parts_check`, `_design_check`, `_arch_check`, `_save_check`,
+  `_starter_check`, `arch_fly`, `tail_sweep`) carry `_cage_float.js`.
+- Not done: the floats in the GARAGE view (the cage shows them when the
+  editor is open; the flown craft under it keeps the wheels of the last
+  join until the next roll-out — verify on a live GPU); waves in the game's
+  water (the model has Gerstner, the world's `waterH` has no time argument
+  — ruling ap); the water rudder and the taxi (H4).

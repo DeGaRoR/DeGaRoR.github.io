@@ -314,6 +314,14 @@ function cageJoinSpec(P, M, T) {
       spec.gear.x = M.gearX;
     if (typeof M.gearY === 'number' && isFinite(M.gearY))
       spec.gear.y = M.gearY;
+    // H2 (G389): the measured floats ride the gear record; the frame reads
+    // them in place of its own sizing rule
+    if (M.floats) {
+      spec.gear.floats = {};
+      for (const k of ['L', 'xs', 'B', 'beta', 'betaA', 'hs', 'aftAngle', 'xFlat', 'yBow', 'bBow', 'bStern', 'hSide', 'y', 'track', 'volDeck'])
+        if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
+      if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
+    }
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
     if (typeof M.twY === 'number' && isFinite(M.twY))
@@ -707,8 +715,10 @@ function cagePartMatch(name, ud, twin) {
   // G179.2: the struts and the engine units (the prop and spinner under a
   // unit were matched above, deeper in the walk); G267.2: the boom and tail
   // skins, on twin booms
+  if (name === 'edFloatL' || name === 'edFloatR')            // H2 (G389): the hulls
+    return { src: name, ctl: true };
   if (name === 'edFit_liftstrut' || name === 'edFit_cabane' || name === 'edFit_interplane' ||
-      name === 'edFit_wire' || name.lastIndexOf('edEng', 0) === 0 ||
+      name === 'edFit_wire' || name === 'edFloatStruts' || name.lastIndexOf('edEng', 0) === 0 ||
       (twin && (name.lastIndexOf('edBoom', 0) === 0 || name.lastIndexOf('edFinSkin', 0) === 0 ||
                 name.lastIndexOf('edFinVentral', 0) === 0 || name.lastIndexOf('edFinFillet', 0) === 0 ||
                 name.lastIndexOf('edStabSkin', 0) === 0)))
@@ -1020,6 +1030,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // y is measured from the cabin keel — the same outer-skin datum
       // cab.h declares (interior is smaller by structure).
       const yD = AF.surf(zs, 0)[1];
+      // H2 (G389): THE DATUMS, PUBLISHED — the float layer places the step
+      // off the flown aeroplane's own CG (app.js publishes it in the model
+      // frame), and needs the firewall and keel datums to bring it into the
+      // cage's frame: cage z = zFw - x, cage y = y + yD
+      window.CAGE_DATUM = { zFw, yD, fwOk };
       // G266.1: the wing's height — the wing layer maps the frame's root
       // front-spar node onto its anchor (deck / waist / belly band, plus
       // the up/down nudge); read it back in the frame's own y
@@ -1073,6 +1088,20 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const mainsY = G2.contacts.filter(c => c.st && !isSingle(c));
         if (mainsY.length)
           M.gearY = mainsY.reduce((s, c) => s + c.p[1], 0) / mainsY.length - yD;
+      }
+      // THE FLOATS ARE MEASURED (H2, G389; ruling as): the drawn hull's
+      // own parameters (the layer draws 32_hydro's loft, so they ARE the
+      // planing length, beam, deadrise and step station), plus where it
+      // stands — the step keel x aft of the firewall, y over the keel datum
+      // (the mains' own datums), the half track — and the displacement to
+      // the deck, published for the plaque
+      {
+        const CF = window.CAGE_FLOAT;
+        if (CF && CF.P && +P.gearFloats) {
+          M.floats = Object.assign({}, CF.P, {
+            x: fwOk ? zFw - CF.zStep : null, y: CF.keelY - yD, track: CF.track, volDeck: CF.vol });
+          if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
+        }
       }
       // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
@@ -1655,6 +1684,21 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // and the two turning laws (a periodic hand, the attitude ball)
       for (const m of ((window.CAGE_PANEL && window.CAGE_PANEL.moving) || []))
         PARTS.others.push({ src: m.name, kind: 'gauge', ctl: m, groups: {} });
+      // H2 (G389): THE FLOATS ARE PARTS. Each hull rides the four physics
+      // nodes its panels ride (the tetra: step keel, bow keel, the step's
+      // deck edges) by barycentrics — exact under the float's rigid motion,
+      // through the same projection the legs' rests use; the struts are
+      // two-end members on the G179.2 contract
+      {
+        const CF = window.CAGE_FLOAT;
+        if (CF && CF.tetraC) {
+          for (const sd of ['L', 'R'])
+            PARTS.others.push({ src: 'edFloat' + sd, kind: 'float' + sd,
+              stretch: true, tetraC: CF.tetraC[sd], groups: {} });
+          PARTS.others.push({ src: 'edFloatStruts', kind: 'floatStrut',
+            stretch: true, groups: {} });
+        }
+      }
       if (GB.units && GB.units.castor)
         PARTS.others.push({ src: 'edCastorT', kind: 'castorT',
           topC: GB.units.castor.top, axC: GB.units.castor.ax,
@@ -2277,6 +2321,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // part translates by (the two boom tails on twin booms); on a boom, the
       // anchor its TIP end takes instead of its member's own tip node
       if (pt.anchorsC) out2.anchors = pt.anchorsC.map(a => rotP(-a[2], a[1], a[0]));
+      if (pt.tetraC) out2.tetra = pt.tetraC.map(a => rotP(-a[2], a[1], a[0]));   // H2: the float's four nodes
       if (pt.tipAnchorsC) out2.tipAnchors = pt.tipAnchorsC.map(a => rotP(-a[2], a[1], a[0]));
       if (pt.surf) {                       // G59: what drives it, and how
         out2.surf = pt.surf;

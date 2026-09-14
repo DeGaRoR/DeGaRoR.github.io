@@ -3072,6 +3072,8 @@ const GEN_DEFAULT = {
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
           legDrop: null, twLeg: null, camber: 0,
+          // H2 (G389): the measured floats, or null (the frame sizes a pair)
+          floats: null,
           place: { dx: 0, dtrack: 0 } },
   // `regX` places the registration along the body: 0 just aft of the cabin, 1 at
   // the fin. It was pinned at 45-78% of the run, which on a long fuselage put it
@@ -3765,6 +3767,26 @@ function clampSpec(spec) {
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
   if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
+  // H2 (G389): the measured floats — the drawn hull's parameters and its
+  // placement; absent, the frame sizes a pair from the gross (H1's rule)
+  if (S.gear.floats && typeof S.gear.floats === 'object') {
+    const f = S.gear.floats;
+    f.L = genClamp(f.L || 4.3, 2.0, 8.0);
+    f.xs = genClamp(f.xs || 0.54 * f.L, 0.3 * f.L, 0.7 * f.L);
+    f.B = genClamp(f.B || 0.67, 0.3, 1.5);
+    f.beta = genClamp(f.beta == null ? 20 : f.beta, 0, 40);
+    f.betaA = genClamp(f.betaA == null ? f.beta : f.betaA, 0, 40);
+    f.hs = genClamp(f.hs == null ? 0.045 : f.hs, 0, 0.15);
+    f.aftAngle = genClamp(f.aftAngle == null ? 6.5 : f.aftAngle, 0, 15);
+    f.xFlat = genClamp(f.xFlat == null ? 0.3 * f.xs : f.xFlat, 0, f.xs);
+    f.yBow = genClamp(f.yBow == null ? 0.36 : f.yBow, 0, 1.0);
+    f.bBow = genClamp(f.bBow == null ? 0.15 * f.B : f.bBow, 0.02, 0.5 * f.B);
+    f.bStern = genClamp(f.bStern == null ? 0.75 : f.bStern, 0.3, 1.0);
+    f.hSide = genClamp(f.hSide == null ? 0.22 : f.hSide, 0.08, 0.6);
+    f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.x = f.x == null ? null : genClamp(f.x, -3, 6);
+    f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
+  } else S.gear.floats = null;
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once
