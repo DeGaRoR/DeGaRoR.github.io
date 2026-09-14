@@ -439,6 +439,7 @@ def main():
         layers["albedo"] = {"file": ".albedo.rgb", "recipe": "tint > radar(ori1) overlay 0.75 > canopy shade x0.7 > shore > snow; unlit"}
         print("  albedo: the bench's stack baked, unlit")
 
+    oE, oN = isl["origin"]
     # ---- THE LAKES (G405): the cover's water class over land, as a SIGNED
     # distance like the coast (128 = the edge, + inside the lake, 4 m a unit),
     # so the water's edge is a smooth line through the cells; the renderer
@@ -464,8 +465,30 @@ def main():
             lab, nl = ndimage.label(lake)
             layers["lake"] = {"file": ".lake.u8", "unit": "signed m/4, 128 = the edge, + inside", "lakes": int(nl),
                               "km2": float(lake.sum() * cell * cell / 1e6), "source": "class 80 | NDWI > 0"}
-            # the lake mask itself (the renderer floods it into components, one level each)
+            # the lake mask itself, and THE LAKES FLATTENED IN THE DEM (G407, the user:
+            # "flatten within the outline, no need for additional geometry, impact
+            # the terrain directly"): each component to one level - the 20th
+            # percentile of the DEM under it (a water surface sits on the lowest
+            # flat, the rest is radar noise on the water) - written back into the
+            # heights the asset is baked from and the sampler reads; the renderer
+            # lays ONE quad per lake at that level and its material discards
+            # outside the field. lakes.json lists them (bbox + level).
             lake.astype("uint8").tofile(out + ".lakemask.u8")
+            lakes = []
+            idx = ndimage.find_objects(lab)
+            for li, sl in enumerate(idx, start=1):
+                if sl is None: continue
+                comp = (lab[sl] == li)
+                if comp.sum() < 3: continue
+                lvl = float(np.percentile(dem[sl][comp], 20))
+                dem[sl][comp] = lvl
+                j0, j1 = sl[0].start, sl[0].stop; i0, i1 = sl[1].start, sl[1].stop
+                lakes.append({"x0": round(x0 - oE + i0 * cell, 1), "x1": round(x0 - oE + i1 * cell, 1),
+                              "z0": round(oN - z1 + j0 * cell, 1), "z1": round(oN - z1 + j1 * cell, 1), "level": round(lvl, 2), "cells": int(comp.sum())})
+            dem.tofile(out + ".f32")                       # the heights again, lakes flat
+            json.dump(lakes, open(out + ".lakes.json", "w"))
+            layers["lake"]["listed"] = len(lakes)
+            print(f"  lakes flattened in the DEM: {len(lakes)} levels; .lakes.json written")
             print(f"  lakes: {nl} from the cover's water class, {lake.sum()*cell*cell/1e6:.1f} km2")
         except ImportError:
             pass

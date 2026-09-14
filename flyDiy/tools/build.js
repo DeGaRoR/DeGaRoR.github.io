@@ -552,10 +552,10 @@ function buildViewer(coreBody) {
     return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
                         get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
                         opt(G + '.coast.u8'), opt(G + '.albedo.rgb'), opt(G + '.tint.rgb'), opt(G + '.ori1.u8'), opt(G + '.ndvi.u8'),
-                        opt(G + '.lake.u8'), opt(G + '.ttype.u8'), opt(G + '.lakemask.u8'),
+                        opt(G + '.lake.u8'), opt(G + '.ttype.u8'), get(G + '.lakes.json', 'json').then(null, function () { return null; }),
                         get(F + '.json', 'json').then(null, function () { return null; }), opt(F + '.topo'), opt(F + '.bin').then(function (b) { return b ? gz(b.buffer) : null; })])
       .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
-        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakemask: r[13] },
+        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakes: r[13] },
         far: (r[14] && r[15] && r[16]) ? { header: r[14], topo: r[15], payload: r[16] } : null,
         hydro: new URLSearchParams(location.search).get('hydro') || 'map' }; });
   });

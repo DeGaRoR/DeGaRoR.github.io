@@ -47064,3 +47064,27 @@ approximated leaves).
   deg thins to a third; species stay the pool's (altitude, wet, steep).
   Written in F8 > trees > from the map.
 - The terrain type legend is in F8 > map layers.
+
+## G407 — WATER WITHOUT POLYGONS: FLAT IN THE DEM, ONE QUAD PER LAKE CUT BY THE
+## FIELD, AND THE A/B AGAINST THE BAKE (2026-09-14, the user: "why even bother with
+## polygons? you have a good outline, just give it a material, and maybe flatten
+## within the outline, no need for additional geometry ... an A/B shot, this one
+## VS the procedural one")
+
+- island_prep flattens every lake component IN THE DEM to one level (the
+  20th percentile under it - the water sits on the lowest flat, the rest is
+  radar noise), writes the heights again and .lakes.json (bbox + level per
+  lake); the assets re-baked (eps 2: 4.4 -> 9.9 MB, eps 4: 1.8 -> 4.7 - the
+  outline is a step now; a two-cell rim blend is owed).
+- The renderer lays ONE quad per lake over its bbox at its level in the
+  sea's material, whose fragments the lake field puts outside the water are
+  DISCARDED (the smooth edge, a real reflection); the per-cell quads and the
+  runtime flood-fill are gone.
+- tools/island_shot.js: one picture from a declared spot (x, AGL, z) on the
+  harness's rig - two URLs, one eye = an A/B. bench/jolene/water_ab.png:
+  LEFT the maps' water (class 80 | NDWI), RIGHT ?hydro=proc (227 flooded
+  lakes, 413 reaches, the map's paint off under proc for a clean shot).
+  Read: the bake finds real drainage lines the map has no source for, at
+  76 m cells and with flooding the DEM's radar noise; the map's lakes are
+  the right shapes at 10 m. The ruling is the user's: maps first, the bake's
+  rivers as the procedural layer on top when wanted.

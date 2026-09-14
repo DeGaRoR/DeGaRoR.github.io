@@ -770,7 +770,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the bench's paint modes, in the game: 0 the stack, then each map alone
     const GROUND_MODES = ['stack', 'tint', 'radar', 'canopy', 'class', 'ndvi', 'coast', 'height', 'snow', 'terrain type', 'lakes'];
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
-    Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: 1 });
+    Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {};
     let islandGroundHook = null;
     if (ISLA && ISLA.tint && ISLA.ori1) {
@@ -1292,30 +1292,32 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // THE MAP'S LAKES (G405): a flat quad per class-80 cell of the cover, at the
       // DEM's own level (the lake is flat in the DEM), 0.15 m under it like the
       // bake's; the ground shader paints the water's smooth edge underneath
-      if (world.island && (world.island.lakemask || world.island.cover) && world.island.hydro !== 'proc') {
-        // ONE LEVEL PER LAKE (G406): the mask (class 80 | NDWI water) flooded
-        // into components; each lake's surface at the 85th percentile of the
-        // DEM under it plus a hand's breadth, so it covers its own banks
-        // (per-cell heights had cut the terrain into hatching)
-        const G = world.island.grid, W = G.w, Hh = G.h, half = G.cell / 2;
-        const mk = world.island.lakemask || null, cv = world.island.cover;
-        const isLake = k => mk ? mk[k] > 0 : cv[k] === 80;
-        const seen = new Uint8Array(W * Hh); const stack = new Int32Array(W * Hh); let lakes = 0, nq = 0;
-        for (let k0 = 0; k0 < W * Hh; k0++) {
-          if (seen[k0] || !isLake(k0)) continue;
-          let sp = 0; stack[sp++] = k0; seen[k0] = 1; const cells = [];
-          while (sp) { const k = stack[--sp]; cells.push(k); const i = k % W, j = (k / W) | 0;
-            for (const nk of [k - 1, k + 1, k - W, k + W]) { if (nk < 0 || nk >= W * Hh || seen[nk]) continue;
-              const ni = nk % W; if (Math.abs(ni - i) > 1) continue; if (!isLake(nk)) continue; seen[nk] = 1; stack[sp++] = nk; } }
-          if (cells.length < 3) continue;
-          const hs = cells.map(k => world.terrainH(G.x0 + ((k % W) + 0.5) * G.cell, G.z0 + (((k / W) | 0) + 0.5) * G.cell)).sort((a, b) => a - b);
-          const lvl = hs[Math.min(hs.length - 1, Math.floor(hs.length * 0.85))] + 0.15;
-          if (lvl <= 0.2) continue;                    // the sea is the plane's
-          for (const k of cells) { const x = G.x0 + ((k % W) + 0.5) * G.cell, z = G.z0 + (((k / W) | 0) + 0.5) * G.cell;
-            quad(x - half - 1, z - half - 1, x + half + 1, z + half + 1, lvl); nq++; }
-          lakes++;
+      if (world.island && world.island.lakes && world.island.hydro !== 'proc' && gU.uGLake) {
+        // ONE QUAD PER LAKE (G407, the user: "why even bother with polygons? you
+        // have a good outline, just give it a material"): the DEM is flat under
+        // each lake now (island_prep), so a single rectangle over its bounding
+        // box at its level, in the sea's own material, discarding every
+        // fragment the lake field puts outside the water - a smooth edge, a
+        // real reflection, no per-cell geometry at all.
+        const lakeMat = waterMat.clone();
+        lakeMat.onBeforeCompile = sh => {
+          sh.uniforms.uGLake = gU.uGLake; sh.uniforms.uGGrid = gU.uGGrid;
+          sh.vertexShader = sh.vertexShader
+            .replace('#include <common>', '#include <common>\nvarying vec3 vWL;')
+            .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWL = (modelMatrix * vec4(position, 1.0)).xyz;');
+          sh.fragmentShader = sh.fragmentShader
+            .replace('#include <common>', '#include <common>\nvarying vec3 vWL; uniform sampler2D uGLake; uniform vec4 uGGrid;')
+            .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' +
+              'if ((texture2D(uGLake, (vWL.xz - uGGrid.xy) / uGGrid.zw).r * 255.0 - 128.0) * 4.0 <= 0.0) discard;');
+        };
+        let n = 0;
+        for (const L of world.island.lakes) {
+          if (L.level <= 0.2 || L.cells < 3) continue;
+          const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
+          const m = new THREE.Mesh(g, lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
+          m.receiveShadow = true; scene.add(m); n++;
         }
-        console.log('island lakes: ' + lakes + ' lakes, ' + nq + ' cells, one level each');
+        console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge');
       }
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
       for (const [lx, lz, ws, mask] of world.hydro.lakeSurf) {
