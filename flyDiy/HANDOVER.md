@@ -47902,3 +47902,16 @@ headless for the gate), and the user's two trucks as props.
   place none yet); a person in the cab; the derelict's weeds; a rotating
   beacon (the light is steady); the concrete shaft reads dark under the
   house's dirt shader.
+
+## G399.6 — THE PILOT TRACK: THE BASELINE MOVED FORWARD TO G399.5's BUILD
+## (2026-09-15)
+
+`tools/pilot_baseline.json` is the quick set flown from G399.5's clean
+worktree build (GATE PILOT green there, 12 cases): 9 cells, 5 good, 2
+warn, 2 bad — from 0 / 3 / 6 at G399.1. Nothing regressed against the old
+baseline under the ratchet. The two bad are P1's: the cross-country to A3
+(the 318 m hill at the initial fix, the pattern side over the ridge) and
+the downhill strip (the approach over the hill the strip sits on — the
+pilot refuses it, correctly, and does not yet choose the other direction).
+The warns: the stearman's rollout swings (6.7 deg calm, 11.1 in 2 m/s
+across). GATE PILOTMATRIX ratchets against this file from here.
