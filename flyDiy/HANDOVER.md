@@ -45910,3 +45910,54 @@ the categorization in the asset editor".
   cover without a canopy is reclassed to shrubland - heath colour, scattered
   1.5 m krummholz - for the weight fields AND the planting, on a knob
   (`tree->heath below canopy`, 0 = off). effClass() is the one keeper.
+
+## G396 — THE FLOATPLANE IS A CARD; THE FLOAT'S OWN TRUSS WEIGHED 77 kg OF
+## NOTHING; THE HUMP MEASURED (2026-09-14, the user: "register that plane as a
+## default game plane, along the cub and the jodel ... The base plane do not
+## even reach 30 km/h, is that all normal?")
+
+- `tools/_cage_design.js`: ARCHETYPES gains `floatplane` — "Twin-582
+  floatplane", the single-seat ultralight (class ul1, pod and rod) on a 582
+  a side at the front spar and the Floats undercarriage, the fixture's own
+  wing (11.8 x 1.5): the build GATE FLOATS and GATE SEAPLANE fly, as a birth
+  card next to the Cub-alike and the Jodel-alike. `archIcon` draws the
+  floats. The user's `UltraLight3.json` is byte-identical to the fixture.
+- `tools/_arch_check.js`: a float card departs from the SEA lane (the
+  world's water aerodrome) and lands back on it — `placeAtAerodrome` +
+  `setRoute(sea, sea)`, the game's own routing. `--only=<key>` flies ONE
+  card and prints the pilot's verdicts (the whole table stays the gate).
+  The card: DRAWN tail, shakedown clear, the circuit completes, full stop
+  at ~5 min.
+- `src/core/61_gen_frame.js`: THE FLOAT'S INTERNAL TRUSS IS `noMass`. The 35
+  members that hold each float's 12 nodes rigid are the shell's stiffness,
+  and the shell is `mFloat` (billed as points); billed as gear tube they
+  were 73 m of steel at 1.05 kg/m — 77 kg on top of the 73 kg pair. The
+  single-582 card on floats: 522 -> 443 kg; the fixture twin 624 -> 542.
+  Struts, spreaders and wires stay billed (real).
+- THE HUMP, MEASURED (scratch bench, full throttle, the SEA lane): with the
+  mass right the single-582 card still sits AT the hump — 7.9 m/s at 6.3
+  deg trim, hydro R/W 0.219 (friction 0.096, planing 0.060, afterbody
+  suction 0.052, static 0.008), stick back 6.2 m/s at 9.4 deg with R/W
+  0.184 — against T/W 0.255. The literature's hump band for a lightly
+  loaded NACA float is R/Delta 0.18-0.22: the water is honest. What is
+  short is the THRUST: the same twin throttled to T/W 0.30 gets over the
+  hump and lifts off at 30 s, at 0.33 in 21 s; the single 582 at 1107 N
+  (113 kgf static) is 15-25 % under a real 582/IVO's 130-150 kgf, and the
+  Cub-alike's A-65 at 122 kgf is 10 % under a J-3's — the prop model's
+  matter (PROP-THRUST-2026-09-02.md), not the hydro's. "Not even 30 km/h"
+  = the hump at 7 m/s, exactly what a T/W of 0.22 does on real water. The
+  twin card is the one that flies off the water; the wheels-first cards on
+  the Floats tile need ~0.30.
+- SHIPPED WITH ITS BUILD: G389 and G393 landed sources without
+  `flight_core.js`/`index.html`/`dev.html` — the built game on master was a
+  peer's G392 build (no SEA lane in the gates' core; the played game a
+  version behind). This landing carries the outputs; the recipe is
+  "commit the three outputs with the sources", every time.
+- Gates: DESIGN, STARTER, HYDRODYN, FLOATS, MASS, HONEST, GEAR, PARTS,
+  HYDRO green on the branch; SEAPLANE green; ARCHETYPES `--only=floatplane`
+  green (the full table not re-flown here: 40 min).
+- OWED: the user's screenshot of a Cub-like on flat floats without struts —
+  not reproduced on dev.html (the Cub card on the Floats tile draws hull and
+  struts and sprays); most likely the stale built index.html. To re-check
+  on this build. Pilot TAXI on water, a seaplane HOME/dock, the far sea at
+  true level, the water rudder blade turning, the prop's static thrust.
