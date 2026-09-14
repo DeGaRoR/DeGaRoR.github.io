@@ -1741,9 +1741,9 @@ for (const name of Object.keys(HG.PRESETS)) {
     check(lo.stats.tris <= hi.stats.tris && (lo.stats.tris < hi.stats.tris || !(P.stand || P.fence || P.goals || P.lights)), 'sport ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
     const y = P.floorY;
     let off = 0, lineOff = 0, lineTris = 0;
-    for (const k of ['turf', 'dirt', 'court', 'track']) { const d = hi.bags[k].data(); for (let i = 1; i < d.pos.length; i += 3) if (Math.abs(d.pos[i] - y) > 0.03) off++; }
+    for (const k of ['turf', 'dirt', 'court', 'track']) { const d = hi.bags[k].data(); for (let i = 1; i < d.pos.length; i += 3) if (Math.abs(d.pos[i] - y) > 0.1) off++; }
     check(off === 0, 'sport ' + name + ': the surface is not on the ground', String(off));
-    { const d = hi.bags.line.data(); for (let i = 1; i < d.pos.length; i += 3) if (d.pos[i] < y + 0.005 || d.pos[i] > y + 0.03) lineOff++; lineTris = hi.bags.line.tris; }
+    { const d = hi.bags.line.data(); for (let i = 1; i < d.pos.length; i += 3) if (d.pos[i] < y + 0.005 || d.pos[i] > y + 0.15) lineOff++; lineTris = hi.bags.line.tris; }   // the diamond's lines ride its 3 cm layers (G401.1)
     if (P.lines) {
       check(lineTris > 8, 'sport ' + name + ': no lines', String(lineTris));
       check(lineOff === 0, 'sport ' + name + ': a line is not a centimetre over the surface', String(lineOff));

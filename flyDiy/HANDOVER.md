@@ -46586,3 +46586,14 @@ screenshots documenting your work".
   refreshed. It is a LIST now: one row per item (what stands there · its category, its turn);
   clicking a row, or dragging the item's disc, opens that item's building, turn and removal.
 - Gates: PREMISES green.
+
+## G401.1 — THE DIAMOND'S CENTRE (2026-09-14)
+
+The user: "Your ballpark has an issue with overlapping geometry/texture at
+its centre." The infield skin, the inner grass, the mound and the plate's
+circle stood 1-3 MILLIMETRES apart: at a hundred metres the depth buffer
+cannot tell them and they fought. The layers now stand 3 cm apart (track
++2, skin +3, inner grass +6, mound and plate circle +9, lines and bases
++12/+13) and the dirt, court and track materials carry a polygon offset of
+their own under the lines' (-5) and the lot patch's (-3). Rule 41 widened
+to the stack. Seen: screenshots/lots/09_diamond_centre.png.

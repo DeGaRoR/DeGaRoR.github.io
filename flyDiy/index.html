@@ -2656,6 +2656,9 @@ body.premOpen #flFly { display:none; }
 #ui .pr-insp .r > span.v { flex:none; width:48px; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 #ui .pr-insp .r > .fsel { flex:1; min-width:0; }
+#ui .pr-insp .r.item { padding:5px 8px; margin:3px 0; border-radius:6px; background:var(--ed-btn-bg); }
+#ui .pr-insp .r.item.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
+#ui .pr-insp .r.item > span.k { width:auto; flex:1; }
 #ui .pr-insp .r > .pills { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:5px; }
 #ui .pr-insp .pills .pill { padding:5px 8px; }
 #ui .pr-insp .r > .fsw + span.v { flex:none; width:auto; text-align:left;
@@ -9418,7 +9421,7 @@ function makeWorld(seed, opts) {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
     bounds: BOUNDS,
-    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt,
+    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
@@ -13071,12 +13074,13 @@ var ISLAND_GEN = (function () {
     };
     // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
     // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
-    // sea is a shelf off the coast field: -1.5 m at the line, -12 m by 500 m
-    // out, the DEM's own value wherever the field says land.
+    // sea is a shelf off the coast field: -5 m at the line (the far mesh is
+    // eps 4: a shallower start let it lift the floor above the water plane in
+    // patches - G402), -14 m by 500 m out, the DEM's own value on land.
+    const seaFloor = sd => { const t = Math.min(1, -sd / 500); return -5.0 - 9.0 * t * t * (3 - 2 * t); };
     const terrainH = coast
       ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
-                    if (sd >= 0) return h;
-                    const t = Math.min(1, -sd / 500); return Math.min(h, -1.5 - 10.5 * t * t * (3 - 2 * t)); }
+                    return sd >= 0 ? h : Math.min(h, seaFloor(sd)); }
       : terrainQ;
     const canopyAt = (x, z) => { if (!canopy) return 0; const k = cellAt(x, z); return k < 0 ? 0 : canopy[k]; };
     const effClass = (x, z) => {
@@ -13092,7 +13096,7 @@ var ISLAND_GEN = (function () {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null,
@@ -88910,7 +88914,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane
-            '  if (sd < 0.0) t = mix(vec3(0.10, 0.20, 0.22), vec3(0.03, 0.10, 0.16), smoothstep(0.0, 300.0, -sd));\n' +
+            '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
             '  t = mix(t, vec3(0.85, 0.88, 0.95), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
@@ -89139,8 +89143,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250) return;   // fully under the inner ring
         const qs = FH.side / 4, key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
         let g = groups.get(key); if (!g) groups.set(key, g = { pos: [], uv: [], idx: [], base: 0 });
+        const seaFloor = world.island.seaFloor;
         for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
           const x = ox + i * step, z = oz + j * step; let y = n.h[j * N + i];
+          // the asset's sea is the DEM's 0, ABOVE the water plane: the far
+          // mesh takes the island's shelf like the sampler does (G402 - the
+          // painted floor had shown over the plane as "a different tile")
+          if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
           g.pos.push(x, y, z);
@@ -89187,7 +89196,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     const waterMat = new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), waterMat);
+    // INFINITE WATER ON AN ISLAND (G402, the user): the plane ran to the domain's
+    // edge and the dome's ground showed past it as another sea. 400 km is the
+    // horizon from any height this game flies; the logarithmic depth buffer
+    // does not mind the size
+    const WSZ = world.island ? 400000 : SIZE;
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(WSZ, WSZ), waterMat);
     water.rotation.x = -Math.PI / 2; water.position.set((BX0 + BX1) / 2, -0.4, (BZ0 + BZ1) / 2);
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
@@ -112835,7 +112849,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="tools/_house_kit.js?v=64fd4ef1"></script>
 <script src="tools/_house_gen.js?v=5bf5c32a"></script>
 <script src="tools/_big_gen.js?v=b40e76b1"></script>
-<script src="tools/_sport_gen.js?v=cfe637e8"></script>
+<script src="tools/_sport_gen.js?v=d1ddac33"></script>
 <script src="tools/_shed_gen.js?v=54236357"></script>
 <script src="tools/_tram_gen.js?v=b91a8a59"></script>
 <script src="tools/_totem_gen.js?v=725d9e05"></script>
@@ -112846,7 +112860,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="tools/_village_gen.js?v=9c49aa6e"></script>
 <script src="src/viewer/render_premises.js?v=f3bd9d67"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=96e8ede4"></script>
+<script src="src/viewer/premises_ui.js?v=90dcb0ed"></script>
 <script>
 (() => {
   // THE PREMISES (G386): the world editor's saved record composes into the world at boot -

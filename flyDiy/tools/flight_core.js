@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 9c3e5b0e1c4dcd36
+// body-sha256: d6da08e30fec3341
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1656,7 +1656,7 @@ function makeWorld(seed, opts) {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
     bounds: BOUNDS,
-    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt,
+    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
@@ -5309,12 +5309,13 @@ var ISLAND_GEN = (function () {
     };
     // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
     // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
-    // sea is a shelf off the coast field: -1.5 m at the line, -12 m by 500 m
-    // out, the DEM's own value wherever the field says land.
+    // sea is a shelf off the coast field: -5 m at the line (the far mesh is
+    // eps 4: a shallower start let it lift the floor above the water plane in
+    // patches - G402), -14 m by 500 m out, the DEM's own value on land.
+    const seaFloor = sd => { const t = Math.min(1, -sd / 500); return -5.0 - 9.0 * t * t * (3 - 2 * t); };
     const terrainH = coast
       ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
-                    if (sd >= 0) return h;
-                    const t = Math.min(1, -sd / 500); return Math.min(h, -1.5 - 10.5 * t * t * (3 - 2 * t)); }
+                    return sd >= 0 ? h : Math.min(h, seaFloor(sd)); }
       : terrainQ;
     const canopyAt = (x, z) => { if (!canopy) return 0; const k = cellAt(x, z); return k < 0 ? 0 : canopy[k]; };
     const effClass = (x, z) => {
@@ -5330,7 +5331,7 @@ var ISLAND_GEN = (function () {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null,

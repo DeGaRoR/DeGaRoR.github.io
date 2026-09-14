@@ -42,8 +42,9 @@ const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ color: co
 // makeFinish / applyFinish(P, F) / build(P, lod, F), one finish per item
 function makeMats() {
   return {
-    turf: std(0x4f7a34), dirt: std(0x9a7a55, { roughness: 1.0 }), court: std(0x5c6a63, { roughness: 0.85 }),
-    track: std(0x9a3f33, { roughness: 0.9 }),
+    turf: std(0x4f7a34), dirt: std(0x9a7a55, { roughness: 1.0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    court: std(0x5c6a63, { roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+    track: std(0x9a3f33, { roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
     // the lines win the depth fight with the lot patch (which pulls itself toward the camera by 3 units)
     line: std(0xf2f2ee, { roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }),
     metal: std(0xd9dcdf, { roughness: 0.45, metalness: 0.6 }), post: std(0x6b5a45, { roughness: 0.9 }),
@@ -387,27 +388,29 @@ function build(P0, lod, F) {
     // the warning track: a band inside the fence
     for (let i = 0; i < 40; i++) {
       const c0 = a0 + (a1 - a0) * i / 40, c1 = a0 + (a1 - a0) * (i + 1) / 40;
-      flat(bags.dirt, [[Math.cos(c0) * (R - 3), hz + Math.sin(c0) * (R - 3)], [Math.cos(c0) * R, hz + Math.sin(c0) * R], [Math.cos(c1) * R, hz + Math.sin(c1) * R], [Math.cos(c1) * (R - 3), hz + Math.sin(c1) * (R - 3)]], y + 0.004);
+      flat(bags.dirt, [[Math.cos(c0) * (R - 3), hz + Math.sin(c0) * (R - 3)], [Math.cos(c0) * R, hz + Math.sin(c0) * R], [Math.cos(c1) * R, hz + Math.sin(c1) * R], [Math.cos(c1) * (R - 3), hz + Math.sin(c1) * (R - 3)]], y + 0.02);
     }
     // the infield: the square on its corner
     const d = b / Math.SQRT2;                 // the diagonal's half = the square's half-width, the plate to 2nd base is b*sqrt2
     const plate = [0, hz], first = [d, hz - d], second = [0, hz - 2 * d], third = [-d, hz - d];
     const skinR = b * 0.95;
-    fan(bags.dirt, 0, hz, skinR, a0, a1, y + 0.006, 24);      // the skin arc round the infield
+    // THE LAYERS STAND 3 CM APART (G401.1): at a hundred metres the depth buffer cannot tell 3 mm, and the
+    // skin, the inner grass, the mound and the plate's circle fought - the user's "overlapping at the centre"
+    fan(bags.dirt, 0, hz, skinR, a0, a1, y + 0.03, 24);      // the skin arc round the infield
     if (!Math.round(P.skin)) {                                 // grass inside the paths
       const k = 0.82;
-      flat(surfBag, [[0, hz - 2.4], [first[0] * k, hz - (hz - first[1]) * k - 1.2], [0, hz - 2 * d * 0.9], [third[0] * k, hz - (hz - third[1]) * k - 1.2]].map(p => p), y + 0.009);
+      flat(surfBag, [[0, hz - 2.4], [first[0] * k, hz - (hz - first[1]) * k - 1.2], [0, hz - 2 * d * 0.9], [third[0] * k, hz - (hz - third[1]) * k - 1.2]].map(p => p), y + 0.06);
     }
     // the mound and the plate's circle
-    fan(bags.dirt, 0, hz - d, 2.6, 0, 2 * Math.PI, y + 0.011, 16);
-    fan(bags.dirt, 0, hz, 3.5, 0, 2 * Math.PI, y + 0.010, 16);
+    fan(bags.dirt, 0, hz - d, 2.6, 0, 2 * Math.PI, y + 0.09, 16);
+    fan(bags.dirt, 0, hz, 3.5, 0, 2 * Math.PI, y + 0.09, 16);
     if (P.lines) {
       // the foul lines out to the fence, the bases, the batter's boxes
-      line(bags.line, plate, [Math.cos(a1) * (R - 0.5), hz + Math.sin(a1) * (R - 0.5)], y + 0.014, wd);
-      line(bags.line, plate, [Math.cos(a0) * (R - 0.5), hz + Math.sin(a0) * (R - 0.5)], y + 0.014, wd);
-      for (const bs of [first, second, third]) flat(bags.line, [[bs[0] - 0.2, bs[1] - 0.2], [bs[0] + 0.2, bs[1] - 0.2], [bs[0] + 0.2, bs[1] + 0.2], [bs[0] - 0.2, bs[1] + 0.2]], y + 0.016);
-      flat(bags.line, [[-0.22, hz + 0.2], [0.22, hz + 0.2], [0.22, hz - 0.2], [0, hz - 0.4], [-0.22, hz - 0.2]], y + 0.016);
-      for (const s of [-1, 1]) rectLines(bags.line, s * 0.4, hz + 0.9, s * 1.6, hz - 0.9, y + 0.014, 0.08);
+      line(bags.line, plate, [Math.cos(a1) * (R - 0.5), hz + Math.sin(a1) * (R - 0.5)], y + 0.12, wd);
+      line(bags.line, plate, [Math.cos(a0) * (R - 0.5), hz + Math.sin(a0) * (R - 0.5)], y + 0.12, wd);
+      for (const bs of [first, second, third]) flat(bags.line, [[bs[0] - 0.2, bs[1] - 0.2], [bs[0] + 0.2, bs[1] - 0.2], [bs[0] + 0.2, bs[1] + 0.2], [bs[0] - 0.2, bs[1] + 0.2]], y + 0.13);
+      flat(bags.line, [[-0.22, hz + 0.2], [0.22, hz + 0.2], [0.22, hz - 0.2], [0, hz - 0.4], [-0.22, hz - 0.2]], y + 0.13);
+      for (const s of [-1, 1]) rectLines(bags.line, s * 0.4, hz + 0.9, s * 1.6, hz - 0.9, y + 0.12, 0.08);
     }
     // the backstop: a curved fence behind the plate, posts and mesh, 4.5 m high
     if (P.backstop) {
