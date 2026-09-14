@@ -543,7 +543,7 @@ comes from in `tools/_island.html` (the bench) and in `dev.html?world=jolene`
 | how TALL trees | the canopy height layer (Meta/WRI 1 m → 10 m) | ✔ height = canopy × jitter | ✔ (G399) the fill scales each tree to canopy × `size gain` / the model's own height (clamped `size min`..`max`), the mix's spread as jitter; the woodland too (canopy / 16) |
 | which SPECIES | — | ✗ (cones) | procedural: the ladder's pool weighted by altitude / patches / wet-or-steep (W0c.29). By canopy: owed (W3) |
 | the trees themselves | the ladder's five collections, three rungs, impostors | ✗ (cones for placement only) | ✔ the real ladder, measured |
-| snow | the DEM above the snowline | ✔ live, north faces first | ✔ baked into the albedo at 830–950 m; not live |
+| snow | the DEM above the snowline, SHED OFF STEEP GROUND (G409: full under 25°, none by 40° — the user: "no snow on high slopes") | ✔ live, north faces first, slope from the normal | ✔ live in the ground hook (slope from the world position's screen derivatives — `normal` is not yet defined at `map_fragment`); the baked albedo and the terrain type (900 m+, slope < 35°) carry the same rule |
 | the light | — | the bench's sun knobs | the rig rows (`alps` at boot on an island), F8 › environment |
 | fog | — | none | none on an island (20–90 km); F8 › environment › fog |
 

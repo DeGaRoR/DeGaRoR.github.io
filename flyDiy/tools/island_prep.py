@@ -433,7 +433,8 @@ def main():
             rgb = rgb + (rock[None, None, :] - rgb) * (shore * 0.8)[..., None]
             seabed = np.array([0.30, 0.42, 0.44], dtype="float32")
             rgb = np.where((sd < 0)[..., None], seabed[None, None, :], rgb)
-        snow = np.clip((dem - 830.0) / 120.0, 0, 1)
+        gz_, gx_ = np.gradient(dem, cell); slope_deg = np.degrees(np.arctan(np.hypot(gx_, gz_)))
+        snow = np.clip((dem - 830.0) / 120.0, 0, 1) * np.clip((40.0 - slope_deg) / 15.0, 0, 1)   # sheds off steep ground (G409)
         rgb = rgb + (np.array([0.93, 0.95, 1.0], dtype="float32")[None, None, :] - rgb) * snow[..., None]
         np.clip(rgb * 255.0, 0, 255).astype("uint8").tofile(out + ".albedo.rgb")
         layers["albedo"] = {"file": ".albedo.rgb", "recipe": "tint > radar(ori1) overlay 0.75 > canopy shade x0.7 > shore > snow; unlit"}
@@ -512,7 +513,7 @@ def main():
         tt[(slope > 38) | (((cov == 60) | (cov == 100)) & (slope > 28))] = 6
         tt[(csd > 0) & (csd < 25) & (ndv < 0.35)] = 4
         tt[cov == 50] = 10
-        tt[dem >= 900] = 9
+        tt[(dem >= 900) & (slope < 35)] = 9
         tt[(cov == 80) & landmask] = 1
         if os.path.exists(out + ".lakemask.u8"): tt[np.fromfile(out + ".lakemask.u8", dtype="uint8").reshape(H, W) > 0] = 1
         tt[~landmask] = 0

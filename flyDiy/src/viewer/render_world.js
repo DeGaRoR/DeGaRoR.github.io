@@ -891,7 +891,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '      tint = mix(tint, texture2D(uGTint, guv + outw).rgb, smoothstep(-45.0, 0.0, lsd)); } }\n' +
             '  float r1 = texture2D(uGOri, guv).r;\n' +
             '  float can = texture2D(uGCan, guv).r * 255.0;\n' +
-            '  float snowA = smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y);\n' +
+            // SNOW SHEDS OFF STEEP GROUND (G409, the user): full below 25 deg, none by 40
+            // (`normal` is not yet defined at map_fragment: the slope comes from the world position's screen derivatives)
+            '  vec3 gN = normalize(cross(dFdx(vWPi), dFdy(vWPi))); gN *= sign(gN.y);\n' +
+            '  float gSlope = acos(clamp(gN.y, 0.0, 1.0));\n' +
+            '  float snowA = smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y) * (1.0 - smoothstep(0.436, 0.698, gSlope));\n' +
             '  vec3 t = vec3(0.5);\n' +
             '  for (int i = 0; i < 5; i++) {\n' +
             '    if (uLOn[i] == 0) continue;\n' +
@@ -927,7 +931,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 10) t = lsd > 0.0 ? mix(vec3(0.3,0.6,1.0), vec3(0.02,0.1,0.6), clamp(lsd / 200.0, 0.0, 1.0)) : vec3(0.85);\n' +
             '  else if (uGMode == 6) t = sd < 0.0 ? vec3(0.02, 0.05, 0.25) * clamp(-sd / 400.0, 0.1, 1.0) : mix(vec3(0.5, 0.45, 0.3), vec3(0.05, 0.2, 0.05), clamp(sd / 400.0, 0.0, 1.0));\n' +
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
-            '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
+            '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' +
             '  diffuseColor.rgb = t; }');
       };
     }

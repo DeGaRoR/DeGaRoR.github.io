@@ -290,7 +290,8 @@ const FS = `
     if (id == 6) { float t = clamp(vW.y / uHMax, 0.0, 1.0);
       return mix(mix(vec3(0.16,0.42,0.18), vec3(0.72,0.66,0.45), min(1.0, t*1.6)), vec3(0.95), max(0.0, t-0.6)*2.5); }
     if (id == 7) { float north = 0.5 - 0.5 * n.z; float snowH = uSnow - 250.0 * north;   // north is -z: a north face has n.z < 0
-      alpha = smoothstep(snowH - 60.0, snowH + 60.0, vW.y); return vec3(0.93, 0.95, 1.0); }
+      // snow sheds off steep ground (G409): full below 25 deg, none by 40
+      alpha = smoothstep(snowH - 60.0, snowH + 60.0, vW.y) * (1.0 - smoothstep(0.436, 0.698, acos(clamp(n.y, 0.0, 1.0)))); return vec3(0.93, 0.95, 1.0); }
     if (id == 8) return n * 0.5 + 0.5;
     if (id == 9) return vec3(0.5 + band(uv) * 2.0);
     return vec3(1.0, 0.0, 1.0);

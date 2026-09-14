@@ -47319,3 +47319,29 @@ stearman's calm rollout swing 5.9 -> 6.5 deg, the threshold at 6).
 - THE CENSUS (§4k rule 5): `node tools/tsl_census.js` - two new standalone
   programs (the sky-view pass and the dome, ShaderMaterials, no splice) on
   the register; no hook.
+
+## G409 — SNOW SHEDS OFF STEEP GROUND (2026-09-14, the user: "the snow mask
+## should account for slope. No snow on high slopes")
+
+- THE RULE, in the three places the snow is made, so they agree: full snow
+  under 25°, none by 40° (a smoothstep on the slope angle), on top of the
+  altitude ramp that was there.
+  - the game's ground hook (render_world.js `islandGroundHook`): stack
+    layer 4's alpha and view mode 8 both take `snowA`, now the altitude
+    ramp × (1 − smoothstep(25°, 40°, slope)). `normal` is NOT defined at
+    `map_fragment` (three computes it in `normal_fragment_begin`, later):
+    the first cut read it and the whole ground failed to compile — the
+    slope comes from `cross(dFdx(vWPi), dFdy(vWPi))` instead, sign-fixed
+    upward. Per-fragment, so the far mesh and the inner ring agree.
+  - island_prep.py: the baked albedo's `snow` (830–950 m) × clip((40 −
+    slope)/15); the terrain type's snow class is `dem ≥ 900 & slope < 35`
+    (it was altitude alone). Re-run for jolene: snow 0.1 % of land; the
+    DEM is rebuilt from the source tif, identical lakes — the terrain
+    assets stand.
+  - the bench (`tools/_island.html`): the snow source's alpha × the same
+    smoothstep on its normal's y.
+  - F8 legend note: "white snow (900 m+, slope under 35°)".
+- Proof: `tools/island_shot.js --at 7500,700,-3300` (Tamgas from the
+  east): snow only on the summit's flatter crown, the flanks green rock.
+  The G-number: G408 went to the sky chantier on master while this was in
+  hand; renumbered before landing.
