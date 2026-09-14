@@ -903,7 +903,7 @@ const CAGE_PARTS = [
     groups: [
       ['hull', ['gearFloats', 'fltL', 'fltStep', 'fltB', 'fltBeta', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltFlat', 'fltBow', 'fltBowB', 'fltStern', 'fltSide']],
-      ['placement', ['fltZ', 'fltDrop', 'fltTrack']],
+      ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
       ['struts', ['fltStrutR', 'fltStrutAng', 'fltSpread', 'fltWires']],
     ] },
 

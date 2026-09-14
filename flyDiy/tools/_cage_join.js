@@ -318,7 +318,7 @@ function cageJoinSpec(P, M, T) {
     // them in place of its own sizing rule
     if (M.floats) {
       spec.gear.floats = {};
-      for (const k of ['L', 'xs', 'B', 'beta', 'betaA', 'hs', 'aftAngle', 'xFlat', 'yBow', 'bBow', 'bStern', 'hSide', 'y', 'track', 'volDeck'])
+      for (const k of ['L', 'xs', 'B', 'beta', 'betaA', 'hs', 'aftAngle', 'xFlat', 'yBow', 'bBow', 'bStern', 'hSide', 'y', 'track', 'volDeck', 'inc'])
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
     }

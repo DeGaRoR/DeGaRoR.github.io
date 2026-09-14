@@ -1856,6 +1856,12 @@ function genLattice(S, gearX, track, kScale, gross) {
                   : HYDRO.floatParamsFor(gross || 400);
     const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
     const stas = [-FP.xs, -FP.xFlat, 0, FP.L - FP.xs];
+    // THE RIGGING (G396.3): the keel incidence, bow down positive, about the
+    // step keel — the layer draws the hull through the same rotation. The
+    // tetra and the slab stay float-local (the pose is read off the nodes).
+    const incR = ((FM && FM.inc != null) ? FM.inc : 0) * Math.PI / 180;
+    const cI = Math.cos(incR), sI = Math.sin(incR);
+    const rig = (x, y) => [x * cI - y * sI, x * sI + y * cI];
     FLOATS = [];
     const trF = FM && FM.track != null ? 2 * FM.track : tr;
     for (const sd of [-1, 1]) {
@@ -1863,9 +1869,10 @@ function genLattice(S, gearX, track, kScale, gross) {
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
-        K.push(N(gx + xs, yK + sc.yk, zc, 'FLK'));
-        DL.push(N(gx + xs, yK + sc.yd, zc - sc.b, 'FLD'));
-        DR.push(N(gx + xs, yK + sc.yd, zc + sc.b, 'FLD'));
+        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, sc.yd);
+        K.push(N(gx + kx, yK + ky, zc, 'FLK'));
+        DL.push(N(gx + dx, yK + dy, zc - sc.b, 'FLD'));
+        DR.push(N(gx + dx, yK + dy, zc + sc.b, 'FLD'));
         Q.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
       }
       const all = [...K, ...DL, ...DR];
@@ -1880,16 +1887,14 @@ function genLattice(S, gearX, track, kScale, gross) {
       // (T/W 0.216). The struts, spreaders and wires below are real and stay
       // billed.
       // ...and STIFF: the gear class is the suspension's (30x softer than a
-      // fuselage tube); the hull is a rigid body, x8 (still under the engine
-      // bearer's omega, so no substep is paid). THE STRUTS STAY AT THE GEAR
-      // CLASS — measured (2026-09-14, the fixture's circuit, three builds):
-      // struts at x8 or x3 and the pilot's approach goes into a lateral
-      // limit cycle (ailerons on the stops, circling at 25 m/s, 190-300 m
-      // off on short final, go-around); the hull and the spreaders at x8
-      // with the struts as they were flies the circuit as before. The
-      // struts' compliance is damping the pilot's roll loop, which is the
-      // pilot's matter (PILOT-ROADMAP), not the float's.
-      const NM = { noMass: true, kMul: 8 }, KM = { kMul: 1 };
+      // fuselage tube); the hull is a rigid body and its struts are tubes,
+      // x8 (still under the engine bearer's omega, so no substep is paid).
+      // G396.2 measured the pilot's approach limit-cycling with stiff
+      // struts and left them soft; G396.3 found the cause in the SOLVER
+      // (extractRotation never converged about a long thin cluster's axis:
+      // an angular damper the soft struts had been hiding) and with the
+      // Newton step the struts go rigid, as a real installation is.
+      const NM = { noMass: true, kMul: 8 }, KM = { kMul: 8 };
       for (let i = 0; i + 1 < 4; i++) {
         B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NM); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
         B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);

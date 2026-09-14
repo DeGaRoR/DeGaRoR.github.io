@@ -50,7 +50,7 @@ Object.assign(PAGE.defaults = PAGE.defaults || {}, {
   fltL: 4.30, fltStep: 0.54, fltB: 0.67, fltBeta: 20, fltBetaA: 20,
   fltHs: 0.045, fltAft: 6.5, fltFlat: 0.30, fltBow: 0.36, fltBowB: 0.15,
   fltStern: 0.75, fltSide: 0.22,
-  fltZ: 0, fltDrop: 0.55, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
+  fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
   fltStrutAng: 55, fltSpread: 1,
 });
 
@@ -76,6 +76,7 @@ const GROUP = ['9b · floats', [
   ['placement', [
     ['fltZ',     'step fore / aft (from the rule)', -1.5, 1.5, 0.01, onM],
     ['fltDrop',  'keel below the belly',  0.20, 1.50, 0.01, onM],
+    ['fltInc',   'keel incidence °',     -5, 10, 0.5, onM],
     ['fltTrack', 'half track',            0.40, 1.60, 0.01, onM],
   ], on],
   ['struts', [
@@ -92,7 +93,8 @@ function hullParams(P) {
   const L = +P.fltL, xs = +P.fltStep * L;
   return { L, xs, B: +P.fltB, beta: +P.fltBeta, betaA: +P.fltBetaA, hs: +P.fltHs,
            aftAngle: +P.fltAft, xFlat: +P.fltFlat * xs, yBow: +P.fltBow,
-           bBow: +P.fltBowB * +P.fltB, bStern: +P.fltStern, hSide: +P.fltSide, nSta: 24 };
+           bBow: +P.fltBowB * +P.fltB, bStern: +P.fltStern, hSide: +P.fltSide, nSta: 24,
+           inc: +P.fltInc };
 }
 
 // ---- the build ------------------------------------------------------------
@@ -103,7 +105,15 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 // model (x aft, y up, z right) -> cage (+x port, +y up, +z forward)
-const toCage = (m, at) => [-m[2] + at[0], m[1] + at[1], -m[0] + at[2]];
+// THE RIGGING (G396.3): the hull is rotated about its step keel by the
+// keel incidence — positive is bow DOWN relative to the datum, the way a
+// real float is rigged (2-5 deg keel to the wing chord), so that on the
+// step, keel level with the water, the wing flies at a useful angle. The
+// frame rotates its twelve nodes by the same angle about the same point
+// (61_gen_frame.js), so the drawn hull and the flown one agree.
+let INC = 0;
+const rotInc = m => { const c = Math.cos(INC), s = Math.sin(INC); return [m[0] * c - m[1] * s, m[0] * s + m[1] * c, m[2]]; };
+const toCage = (m, at) => { const r = rotInc(m); return [-r[2] + at[0], r[1] + at[1], -r[0] + at[2]]; };
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
@@ -119,6 +129,7 @@ PAGE.post = ctx => {
   if (!AF) { if (stat) stat.textContent += '  ·  floats: no skin to hang on'; return; }
 
   const HP = hullParams(P);
+  INC = (+P.fltInc || 0) * D2R;
   const F = HY.makeFloat(Object.assign({}, HP, { mFloat: 40, mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }));
   // THE STEP STATION: 12 deg aft of the CG at the keel's depth below it,
   // plus the builder's offset. THE CG IS THE FLOWN AEROPLANE'S (app.js
@@ -185,6 +196,14 @@ PAGE.post = ctx => {
     const rF = root(d.fwdIn[2], sd), rA = root(d.aftIn[2], sd);
     member(rF, d.fwdIn, sg, r); member(rF, d.fwdOut, sg, r);
     member(rA, d.aftIn, sg, r); member(rA, d.aftOut, sg, r);
+    // G396.3: THE SIDE TRUSS IS DRAWN AS IT IS FLOWN — the frame's two
+    // fore-aft diagonal wires a side (aft deck edge to the forward root,
+    // forward deck edge to the aft root), which is what keeps a float pair
+    // from racking fore and aft under the water's drag
+    if (+P.fltWires) {
+      GK.tube(wg, d.aftIn, rF, 0.003, 6); GK.tube(wg, d.fwdIn, rA, 0.003, 6);
+      rec.members.push({ pin: rF, tip: d.aftIn }, { pin: rA, tip: d.fwdIn });
+    }
   }
   if (+P.fltSpread) {
     const L = rec.deck.L, R = rec.deck.R;

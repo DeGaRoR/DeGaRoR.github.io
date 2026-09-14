@@ -3784,6 +3784,7 @@ function clampSpec(spec) {
     f.bStern = genClamp(f.bStern == null ? 0.75 : f.bStern, 0.3, 1.0);
     f.hSide = genClamp(f.hSide == null ? 0.22 : f.hSide, 0.08, 0.6);
     f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
     f.x = f.x == null ? null : genClamp(f.x, -3, 6);
     f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
   } else S.gear.floats = null;

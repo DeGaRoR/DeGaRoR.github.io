@@ -1543,8 +1543,14 @@ function makePilot(sim, def, world, opts) {
         // integrator's 0.15 could not, the nose fell, the floats touched
         // again and it skimmed the step to 145 km/h. The water's own
         // integrator ceiling and gain, until CLIMB.
-        if (sim.hydro && aglG < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
-        if (aglG > A.hSafe)
+        // G396.3: ON THE WATER THE HEIGHT IS OVER THE WATER. P0.8's aglG
+        // reads the terrain under the CG and the SEA lane's floor runs 15 to
+        // 95 m deep along it: a seaplane on the step read 10 m "up" and this
+        // phase handed over to CLIMB with the floats wet (the card skimmed to
+        // 135 km/h). The sea is the flat datum `agl` was built on.
+        const aglL = sim.hydro ? agl : aglG;
+        if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        if (aglL > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
@@ -1560,7 +1566,7 @@ function makePilot(sim, def, world, opts) {
         // the game on a marginal build (a 53 s roll to Vr, airborne with
         // 150 m left), the old rule dropped it three seconds after lift-off
         // into the last of the grass, which is the worse of the two ends.
-        const lowStuck = aglG < A.hSafe * 0.6;
+        const lowStuck = aglL < A.hSafe * 0.6;
         const canStop = left > stopDist(V) + 40;
         if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
           say('wont-climb', 'airborne ' + Math.round(phaseT) + ' s and still at ' + agl.toFixed(1) +
@@ -1574,7 +1580,7 @@ function makePilot(sim, def, world, opts) {
         }
         // ...and clearly away (twice the screen height) goes to CLIMB whatever
         // its speed — CLIMB's law finishes the acceleration (G208.3)
-        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) {
+        if (aglL > A.hSafe && (V > A.VClimbMin || aglL > 2 * A.hSafe)) {
           go('CLIMB'); climbMode = true; ceilT = 0;
           // G396.2: the water's integrator stays on the water (left in, it
           // hunted the whole circuit: 240 s on final, never down). WATER

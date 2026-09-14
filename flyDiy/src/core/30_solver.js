@@ -234,32 +234,65 @@ function makeSim(def, world) {
     }
     C.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   }
-  // the rotation of a linear map A (row-major 3x3), warm-started from R:
-  // Müller, Bender, Chentanez, Macklin 2016, "A robust method to extract
-  // the rotational part of deformations"
+  // the rotation of a linear map A (row-major 3x3), warm-started from R.
+  // G396.3 (found by the strut task session, unlanded at the crash): A
+  // NEWTON STEP, NOT MÜLLER'S GRADIENT STEP. Müller, Bender,
+  // Chentanez, Macklin 2016 ("A robust method to extract the rotational
+  // part of deformations") turns R toward A by omega = sum(r_c x a_c) /
+  // |sum(r_c . a_c)| — the exact correction for a round body, but that
+  // scalar is the whole trace of A, and on a LONG THIN cluster (a float: a
+  // hull 100:1 in its second moments, a boom tube likewise) a rotation
+  // about the long axis is under-relaxed by the ratio of the short moments
+  // to the trace: four iterations recovered a tenth of one substep's roll
+  // (measured, scratch: 2.7e-4 of 3e-4 rad left). The projection then
+  // pulled the float back toward a STALE roll every substep — an angular
+  // damper that lived in the solver, not in the aeroplane: on the fixture's
+  // floats the aileron doublet rolled 3 deg/s where the plant says 27, with
+  // the angular momentum bleeding 75 % in 0.3 s and the pilot's approach in
+  // a limit cycle on the stops; with the float struts soft the floats hung
+  // loose and hid it (20 deg/s, decaying), stiff, they carried it into the
+  // airframe. G350's own words on the boom — its hold on torsion "an order
+  // below its hold on bending" — were this same lag about the tube's axis.
+  // The Newton step: B = R^T A, S = sym(B), k = axial(skew(B)), the
+  // linearised optimality (R^T A symmetric) reads (tr S . I - S) d = 2 k,
+  // R <- R exp([d]x). Per axis the right divisor is the OTHER two moments,
+  // which is why it converges in one step for a small rotation and in
+  // three for half a radian, on any aspect ratio (scratch rot_test.js:
+  // 2e-8 rad on the 100:1 body against Müller's 2.7e-4 at four
+  // iterations, 7e-8 at four hundred). Degenerate S (a line of nodes) has
+  // no rotation about the line to find; the ridge on the diagonal keeps
+  // the solve finite there and returns the warm start about that axis.
   function extractRotation(A, R, iters) {
     for (let it = 0; it < iters; it++) {
-      let ox = 0, oy = 0, oz = 0, den = 0;
-      for (let c = 0; c < 3; c++) {
-        // column c of R and of A
-        const rx = R[c], ry = R[3 + c], rz = R[6 + c];
-        const ax = A[c], ay = A[3 + c], az = A[6 + c];
-        ox += ry * az - rz * ay; oy += rz * ax - rx * az; oz += rx * ay - ry * ax;
-        den += rx * ax + ry * ay + rz * az;
+      // B = R^T A  (row j of B = column j of R dotted with the columns of A)
+      const B = new Array(9);
+      for (let j = 0; j < 3; j++) {
+        const rx = R[j], ry = R[3 + j], rz = R[6 + j];
+        for (let c = 0; c < 3; c++) B[j*3 + c] = rx * A[c] + ry * A[3 + c] + rz * A[6 + c];
       }
-      den = Math.abs(den) + 1e-9;
-      ox /= den; oy /= den; oz /= den;
-      const w = Math.hypot(ox, oy, oz);
+      const s01 = 0.5 * (B[1] + B[3]), s02 = 0.5 * (B[2] + B[6]), s12 = 0.5 * (B[5] + B[7]);
+      const kx = 0.5 * (B[7] - B[5]), ky = 0.5 * (B[2] - B[6]), kz = 0.5 * (B[3] - B[1]);
+      const t = B[0] + B[4] + B[8], eps = 1e-9 * (Math.abs(t) + 1e-12);
+      // M = tr(S) I - S, ridged
+      const M0 = t - B[0] + eps, M4 = t - B[4] + eps, M8 = t - B[8] + eps;
+      const M1 = -s01, M2 = -s02, M5 = -s12;
+      const det = M0 * (M4 * M8 - M5 * M5) - M1 * (M1 * M8 - M5 * M2) + M2 * (M1 * M5 - M4 * M2);
+      if (!(Math.abs(det) > 1e-300)) break;
+      const bx = 2 * kx, by = 2 * ky, bz = 2 * kz;
+      const dx = (bx * (M4 * M8 - M5 * M5) - M1 * (by * M8 - M5 * bz) + M2 * (by * M5 - M4 * bz)) / det;
+      const dy = (M0 * (by * M8 - M5 * bz) - bx * (M1 * M8 - M5 * M2) + M2 * (M1 * bz - by * M2)) / det;
+      const dz = (M0 * (M4 * bz - by * M5) - M1 * (M1 * bz - by * M2) + bx * (M1 * M5 - M4 * M2)) / det;
+      const w = Math.hypot(dx, dy, dz);
       if (w < 1e-9) break;
-      // R <- Rot(axis, w) * R  (Rodrigues)
-      const kx = ox / w, ky = oy / w, kz = oz / w;
-      const cw = Math.cos(w), sw = Math.sin(w), t = 1 - cw;
-      const Q = [cw + kx*kx*t,    kx*ky*t - kz*sw, kx*kz*t + ky*sw,
-                 ky*kx*t + kz*sw, cw + ky*ky*t,    ky*kz*t - kx*sw,
-                 kz*kx*t - ky*sw, kz*ky*t + kx*sw, cw + kz*kz*t];
+      // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
+      const ax = dx / w, ay = dy / w, az = dz / w;
+      const cw = Math.cos(w), sw = Math.sin(w), tt = 1 - cw;
+      const Q = [cw + ax*ax*tt,    ax*ay*tt - az*sw, ax*az*tt + ay*sw,
+                 ay*ax*tt + az*sw, cw + ay*ay*tt,    ay*az*tt - ax*sw,
+                 az*ax*tt - ay*sw, az*ay*tt + ax*sw, cw + az*az*tt];
       const N2 = new Array(9);
       for (let r2 = 0; r2 < 3; r2++) for (let c = 0; c < 3; c++)
-        N2[r2*3 + c] = Q[r2*3] * R[c] + Q[r2*3 + 1] * R[3 + c] + Q[r2*3 + 2] * R[6 + c];
+        N2[r2*3 + c] = R[r2*3] * Q[c] + R[r2*3 + 1] * Q[3 + c] + R[r2*3 + 2] * Q[6 + c];
       R = N2;
     }
     return R;
