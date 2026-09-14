@@ -221,12 +221,22 @@ function makePilot(sim, def, world, opts) {
     PATS[key] = P;
     return P;
   };
+  // P0 (PILOT-ROADMAP): the watchdog's budget is the ROUTE's — 600 s was the
+  // circuit's and a 10 km cross-country to A3 (300 s enroute for a cub, a
+  // go-around, a second circuit) was "out of patience" at 600 s on the
+  // matrix. The distance at the cruise speed, times 1.6 for the wind and the
+  // circuit, on top of the circuit's own 600.
+  const routeBudget = (from, to) => {
+    const d = (from && to && from !== to) ? Math.hypot(to.x - from.x, to.z - from.z) : 0;
+    return 600 + 1.6 * d / Math.max(15, ap.VCruise || A.VCruise || 30);
+  };
   ap.setRoute = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
     ap.altRef = from.elev;
     ap.shortFld = false;
+    ap.budget = Math.max(ap.budget, routeBudget(from, to));
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
@@ -242,6 +252,7 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = false;
     ap.trackHold = false;
     ap.legs = null; ap.legI = 0; ap.plan = null;
+    ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
     go('DEPART');
   };
 
@@ -1331,7 +1342,12 @@ function makePilot(sim, def, world, opts) {
           const base = ap.altRef + P.hC;
           const cruise = Math.min(base + Math.max(0, dRem - 800) * 0.05,
                                   Math.max(ap.route.from.elev + A.hCruise, base));
-          const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 7500) + (A.hClear ?? 130);
+          // P0 (PILOT-ROADMAP, found by the matrix): the look-ahead stops at the
+          // LEG'S END. It scanned 7.5 km whatever remained, so the cub bound
+          // for A3 read the ridge 2 km PAST the strip (292 m) as its floor,
+          // arrived over the threshold at 420 m, and went around from 255 m
+          // above the slope
+          const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
         const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;

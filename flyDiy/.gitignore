@@ -13,3 +13,5 @@ bench/
 # shipped asset. The ones already committed stay in history; new captures
 # are not picked up.
 screenshots/
+# the pilot matrix's run files (tools/pilot_matrix.js --out): measurements, not sources
+pilot_runs/

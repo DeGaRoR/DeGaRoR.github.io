@@ -46133,3 +46133,95 @@ G393 declared, closed, and the new assets stood in the world editor.
 - OWED (unchanged): the F8 rows the design gives the editor, the world's own
   trees under a live edit, the premises' trees in the game, the shed rail's
   WORLD entry; new: a polygon's falloff band is not outlined (the strip's is).
+
+## G399 — THE PILOT TRACK, P0.1-P0.2: THE TRACE TOOL AND THE MATRIX — THE
+## JUDGE EXISTS BEFORE THE CHANGE (2026-09-14; PILOT-ROADMAP-2026-09-14.md)
+
+The user (2026-09-14): "I plan for the autopilot to be central to the game,
+and to fly routes autonomously ... design the best pilot there is first,
+then downgrade it ... Can you perform a gap analysis?" — then "how do we do
+against real autopilots, and real literature? ... ensure that we have great
+principles, so we should not code exceptions and specifics all the time" —
+then "Clear on how to start? Publish a tabular list of steps, then start".
+
+**THE DOCUMENT.** `futureDesigns/PILOT-ROADMAP-2026-09-14.md`: the
+inventory (what the pilot assumes that the brief breaks: one flat plane per
+aerodrome, level dry grass, a rectangle with a heading, one approach recipe,
+genAP's constants instead of the plaque, no water, wheel contact as the
+truth, three presets instead of a person, cases instead of a matrix), the
+gaps by capability (A-J) with sizes, the data the pilot asks of the
+premises contract (§3), five phases (§4), and THE CRITIQUE (§6): against
+certified autopilots (guidance / control / management, the exponential
+flare law, TECS — Lambregts 1983 — one longitudinal law for every phase,
+L1 — Park/Deyst/How 2004 — one lateral law over Dubins paths, Garmin
+Autoland's runway scoring), the human-pilot literature (McRuer's crossover
+model: gain + delay + remnant; DCS/IL-2's skill = reaction, accuracy,
+aggressiveness) and sim AI. The honest score: the guidance ideas are right
+(the hold-off IS the autoland flare law), the control layer is where the
+exceptions accrete (five vertical modes plus a throttle loop plus the
+G381.1 power assist — the saturation TECS handles by construction), the
+management layer does not exist. Eleven principles (§6.3): one law per axis
+every phase; everything is a trajectory; plans are geometry planned once;
+saturation is the law's job; the machine is one measured sheet; techniques
+are parameter sets; gains schedule on physics; dimensionless and gated; the
+person is a filter never a gain; decisions are scored not branched; every
+phase bounded. P0 therefore gains a chantier — TECS + L1 over Dubins paths
+behind a flag, judged by the matrix — BEFORE any technique is added.
+
+**THE STEPS (P0).** 1 the trace tool · 2 the matrix · 3 the cases the gate
+lacks (crosswind touchdown, 340 m gravel, a sloped plateau) · 4 the machine
+sheet from the plaque · 5 TECS · 6 Dubins + L1 · 7 retire the exceptions ·
+8 the ground (gradient, surface, bump debounce) · 9 land each. This entry
+is 1 and 2.
+
+**`tools/pilot_trace.js`** — one flight, measured: any archetype or spec
+file, `--from/--to` any aerodrome, `--wind x,z --gust --oat --qnh`,
+`--style`, `--drawn-tail` (the headless tail, as GATE ARCHETYPES flies it),
+`--csv` (the 0.1 s trace incl. `aglT`, x, z), a JSON summary on the last
+line: phases, take-off run and lift-off speed, the crosswind-turn height,
+per leg the OVERSHOOT (the largest cross-track after first reaching the
+leg) and the settle time and the ROLL LIMIT CYCLE (rms of the bank about
+its 2 s mean), on final the slope rms / speed rms / throttle range after
+capture, the flare's entry height and sink, the landing (sink, V, V/Vs in
+the LANDING configuration — VsFlap when the flaps go down; the first run
+judged the C172 at 0.95 Vs against the clean stall), the rollout's max
+heading swing / reversals / rudder, wall time. `runTrace(opts)` exported;
+`worldMod(world)` is the hook a fixture (a slope) will use.
+
+**`tools/pilot_matrix.js`** — the judge: cells = machines x runways x
+weather (x styles, x drawn tail), one `pilot_trace` process per cell, N at
+a time, thresholds per metric (good / warn / bad), a table, a JSON
+(`--out`), deltas against a `--baseline`. Sets: `quick` (7 cells, ~13 min
+on a loaded machine), `core` (36), `all` (~180). `pilot_runs/` is
+gitignored (measurements, not sources).
+
+**WHAT THE FIRST RUNS FOUND** (the point of building the instrument first):
+- THE ARC TURN IS OPEN-LOOP AND UNDER-BANKS ON THE FASTER MACHINES. The
+  C172-alike's roll loop limit-cycles 9-22 deg with a 2 s period around a
+  23 deg command (roll cycle 2.8-4.9 deg), the arc flies at ~17 deg average,
+  R = 705 m against the 513 m the fly-by was planned at, and the downwind
+  line is crossed by 639 m; the stearman 378-502 m. The cub (the G381
+  fixture) 58-73 m. No feedback on the path exists in a constant-bank arc —
+  the argument for L1 over a Dubins path (P0.6), made by the matrix on the
+  first day. Until then, GATE PILOT and ARCHETYPES stay green because the
+  pursuit recovers the leg afterwards.
+- THE CROSS-COUNTRY TO A3 (480 m grass, 10 km, hdg 90) GAVE UP: (a) the
+  watchdog budget was the circuit's 600 s — `routeBudget` now adds
+  1.6 x distance / VCruise on `setRoute` / `departFrom`; (b) the enroute
+  terrain floor looked 7.5 km ahead WHATEVER REMAINED, so a ridge 2 km PAST
+  the strip (292 m) held the cub at 420 m to the IAF — the look-ahead is
+  bounded by the leg now (min 1.5 km); (c) what is left is P1's: the
+  straight-in from the north crosses a 318 m hill at the IAF that a 3.3 deg
+  slope from a 44 m threshold cannot clear, and the circuit's pattern side
+  (+z, the ridge side) put the base leg over 300 m terrain — `aglT` 1.2 m
+  on the third final. The obstacle-aware approach and pattern side
+  (PILOT-ROADMAP §2.A/B, C.2) are the fix; the cell stays red on purpose.
+- The stearman's calm rollout swings 7 deg (the G381 number was 4.8 on the
+  scratch runner's spec; the drawn tail differs) — a warn.
+
+- Gates: PILOT unchanged in substance (the budget only grows; the
+  look-ahead only shortens past a leg's end) — run on the commit's
+  worktree. The quick matrix's baseline is `pilot_runs/matrix_quick_g399.json`
+  (5 bad of 7: the C172 and stearman overshoots, the A3 cross-country).
+- NEXT: P0.3 the cases (the sloped-plateau fixture through `worldMod`),
+  P0.4 the machine sheet, P0.5 TECS.
