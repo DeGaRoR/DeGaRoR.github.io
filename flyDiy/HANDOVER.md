@@ -46263,3 +46263,19 @@ V/Vs 1.37.
 
 - Gates: PILOT green on G399's worktree (12 cases); PILOTMATRIX = the
   baseline by construction.
+
+## G397.1 — THE SHORELINE IS A SIGNED DISTANCE (2026-09-14, the user: "the
+## shore lines are still super edgy and pixelated, what can we do? Try your
+## best option")
+
+- The staircase was the mesh deciding sea-or-land by its own height at a
+  DEM that steps 5-10 m at the shore. island_prep's .coast.u8 is now a
+  SIGNED distance to the waterline (128 = the line, +inland, 4 m per unit,
+  one cell of Gaussian to round the EDT's corners); sampled bilinearly it
+  reconstructs the coast as a smooth curve through the 10 m cells.
+- The bench reads that one field for everything at the shore: sea = sd < 0;
+  the shelf deepens with -sd; a pale rocky shore band (grey rock lit by
+  the radar, the wet line) over 16 m inland; the bank's normal flattened
+  into a tidal flat within 25 m; the seabed under the shallows is sand and
+  rock, not the extended forest. The game's own sea (the plane at -0.4,
+  the analytic palette) is W1's.

@@ -198,7 +198,7 @@ const FS = `
   uniform float uCell;             // grid cell, metres
   uniform float uHas;              // bit 1 canopy, 2 ori, 4 tint, 8 ndvi
   uniform int uMode;               // 0 stack, else a solo source (1 + index into SOURCES)
-  uniform float uSnow, uHMax, uBlur, uEdge, uBump, uBumpScale, uBumpNear, uBumpFar, uCanP90, uShadeK, uSeaFade;
+  uniform float uSnow, uHMax, uBlur, uEdge, uBump, uBumpScale, uBumpNear, uBumpFar, uCanP90, uShadeK, uSeaFade, uHasCoast;
   uniform vec3 uCam;
   uniform int uRadarLevel, uBumpFine, uBumpCoarse;
   uniform vec3 uSun;
@@ -301,8 +301,13 @@ const FS = `
     float ori = oriLevel(uRadarLevel, uv);
     float ndvi = texture2D(uNdvi, uv).r * 2.0 - 1.0;
     vec3 tint = texture2D(uTint, uv).rgb;
-    bool sea = vW.y < 0.05;
+    // THE COASTLINE IS A SIGNED DISTANCE, not the mesh's height: sampled
+    // bilinearly it is a smooth curve through the 10 m cells. Positive inland.
+    float sd = (texture2D(uCoast, uv).r * 255.0 - 128.0) * 4.0;
+    bool sea = uHasCoast > 0.5 ? sd < 0.0 : vW.y < 0.05;
     vec3 n = normalize(vN);
+    // the bank the DEM steps up at the shore flattens into a tidal flat
+    if (uHasCoast > 0.5) n = normalize(mix(n, vec3(0.0, 1.0, 0.0), smoothstep(25.0, 0.0, abs(sd)) * 0.85));
     // the bump is a macro variation: it fades out as the camera comes down to
     // the ground, where the detail must come from W1's textures, not a 10 m radar
     float bumpW = smoothstep(uBumpNear, uBumpFar, distance(vW, uCam));
@@ -323,14 +328,20 @@ const FS = `
       // no bathymetry: the shelf deepens with the distance from the shore. The
       // shallows show the ground's own colour (the layers are extended past the
       // coastline) through a turquoise, the deep is the sea's blue.
-      float dc = texture2D(uCoast, uv).r * 255.0 * 4.0;
-      float deep = smoothstep(0.0, uSeaFade, dc);
-      vec3 shallow = mix(col * 0.9, vec3(0.22, 0.45, 0.48), 0.55);
+      float deep = smoothstep(0.0, uSeaFade, -sd);
+      // the seabed is sand and rock, lit by the radar's variation, seen through a turquoise
+      vec3 bed = vec3(0.50, 0.46, 0.36) * (0.7 + 0.6 * ori);
+      vec3 shallow = mix(bed, vec3(0.22, 0.45, 0.48), 0.55);
       col = mix(shallow, vec3(0.10, 0.21, 0.36), deep); light = 0.95;
+      // the waterline: a thin pale lap where the sea meets the land
+      col = mix(col, vec3(0.75, 0.8, 0.78), smoothstep(3.0, 0.0, -sd) * 0.35);
     } else {
-      // the wet strip: the first metre above the sea darkens toward it
-      float wet = 1.0 - smoothstep(0.0, 1.2, vW.y);
-      col = mix(col, col * 0.55, wet * 0.8);
+      // the beach band: the first metres inland darken and dull toward the wet
+      // a rocky shore is PALE: grey rock, the barnacle line, dry sand above the wet
+      float shore = uHasCoast > 0.5 ? smoothstep(16.0, 0.0, sd) : 1.0 - smoothstep(0.0, 1.2, vW.y);
+      vec3 rock = vec3(0.56, 0.54, 0.48) * (0.75 + 0.5 * ori);
+      col = mix(col, rock, shore * 0.8);
+      col = mix(col, rock * 0.78, smoothstep(2.5, 0.0, sd) * 0.5);   // the wet metre
     }
     gl_FragColor = vec4(col * light, 1.0);
   }`;
@@ -343,7 +354,7 @@ const U = {
   uSnow: { value: K.snow.v }, uHMax: { value: 1100 }, uBlur: { value: K.classBlur.v }, uEdge: { value: K.edgeNoise.v },
   uBump: { value: K.bump.v }, uBumpScale: { value: K.bumpScale.v }, uSun: { value: new THREE.Vector3() },
   uBumpNear: { value: K.bumpNear.v }, uBumpFar: { value: K.bumpFar.v }, uCanP90: { value: 15 }, uShadeK: { value: K.shadeK.v }, uSeaFade: { value: K.seaFade.v },
-  uCam: { value: camera.position }, uCoast: { value: null },
+  uCam: { value: camera.position }, uCoast: { value: null }, uHasCoast: { value: 0 },
   uCol: { value: CLASSES.map(c => new THREE.Color(c[2])) }, uCls: { value: CLASSES.map(c => c[0]) },
   uLN: { value: 0 }, uLSrc: { value: new Array(MAXL).fill(0) }, uLMode: { value: new Array(MAXL).fill(0) }, uLOp: { value: new Float32Array(MAXL) },
 };
@@ -437,7 +448,7 @@ async function load(asset, grid) {
   }
   if (ori) { U.uOri.value = tex8(ori, w, gh, false); has |= 2; }
   [o1, o2, o3, o4].forEach((d, i) => { if (d) U['uOri' + (i + 1)].value = tex8(d, w, gh, false); else U['uOri' + (i + 1)].value = U.uOri.value; });
-  if (coastU8) U.uCoast.value = tex8(coastU8, w, gh, false);
+  if (coastU8) { U.uCoast.value = tex8(coastU8, w, gh, false); U.uHasCoast.value = 1; }
   if (GRID.layers && GRID.layers.canopy && GRID.layers.canopy.p90OverTreeCover) U.uCanP90.value = Math.max(4, GRID.layers.canopy.p90OverTreeCover);
   if (ndvi) { U.uNdvi.value = tex8(ndvi, w, gh, false); has |= 8; }
   if (tint) {

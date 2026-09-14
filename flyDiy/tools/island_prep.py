@@ -252,8 +252,18 @@ def main():
         from scipy import ndimage
         dist, (ni, nj) = ndimage.distance_transform_edt(~landmask, return_indices=True)
         dist_m = dist * cell
-        np.clip(dist_m / 4.0, 0, 255).astype("uint8").tofile(out + ".coast.u8")
-        layers["coast"] = {"file": ".coast.u8", "unit": "m/4"}
+        # SIGNED, so a bilinear sample reconstructs the coastline as a smooth
+        # curve (the iso-contour at 128) instead of the mesh's 10 m staircase:
+        # 128 + inland distance / 4 on land, 128 - sea distance / 4 at sea,
+        # clamped at +-508 m. The shelf, the beach band, the waterline and the
+        # flattened bank all read this one field.
+        inland_m = ndimage.distance_transform_edt(landmask) * cell
+        sdf = np.where(landmask, 128.0 + np.minimum(inland_m, 508.0) / 4.0,
+                                 128.0 - np.minimum(dist_m, 508.0) / 4.0)
+        # one cell of Gaussian rounds the corners a binary mask's EDT leaves
+        sdf = ndimage.gaussian_filter(sdf.astype("float32"), 1.0)
+        np.clip(np.round(sdf), 0, 255).astype("uint8").tofile(out + ".coast.u8")
+        layers["coast"] = {"file": ".coast.u8", "unit": "signed m/4, 128 = the waterline, + inland"}
         ext = (~landmask) & (dist_m <= 300.0)
         def extend(a):
             """fill the 300 m sea fringe of a layer with its nearest land value"""
