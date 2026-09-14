@@ -1913,8 +1913,16 @@
       const m0 = curDef.refs.mains && curDef.refs.mains[0],
             m1 = curDef.refs.mains && curDef.refs.mains[1];
       const zPos = m0 != null && curDef.nodes[m0].p[2] > 0;
-      const nodeOf = { mainsL: zPos ? m0 : m1, mainsR: zPos ? m1 : m0,
-                       tw: twi };
+      // G396.2: ON FLOATS THERE ARE NO WHEEL NODES. refs.mains are the step
+      // keels and refs.tw is -1 — a stale wheel part (the previous
+      // aeroplane's, on the first bake of a float card from a wheeled one)
+      // read nodeRest(-1) and threw out of buildModel, which left the
+      // birth half-done on a fresh profile. Every wheel node is null here,
+      // so every wheel part below is skipped.
+      const onFloats = !!(curDef.parts && curDef.parts.floats && curDef.parts.floats.length);
+      const nodeOf = onFloats ? { mainsL: null, mainsR: null, tw: null }
+                   : { mainsL: zPos ? m0 : m1, mainsR: zPos ? m1 : m0,
+                       tw: (twi != null && twi >= 0) ? twi : null };
       let twWheel = null;
       const legNode = { legL: nodeOf.mainsL, legR: nodeOf.mainsR,
                         legT: nodeOf.tw };
@@ -2434,7 +2442,7 @@
                             tip: M0.tip });
           });
         }
-        else if (pt.kind === 'castorT') {
+        else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);

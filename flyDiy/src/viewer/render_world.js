@@ -1269,18 +1269,53 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const seaNear = new THREE.Mesh(seaGeo, waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
     scene.add(seaNear);
+    // THE SEA LANE IS MARKED (G396.2; the user: "we need to visualize the
+    // limits and the touchdown points"). Buoys on the water: orange every
+    // 100 m down both edges of every water aerodrome, a white pair across
+    // the lane at each end, a green pair at the touchdown target. They
+    // ride the waves (their y is the same waterH the floats read), so
+    // they are also the calm day's water line — the one thing on a flat
+    // sea that says where the surface is.
+    const buoys = [];
+    {
+      const geoB = new THREE.SphereGeometry(0.9, 12, 8);
+      const matOf = {};
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));
+      const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, mat(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
+      for (const a of (world.aerodromes || [])) {
+        if (a.kind !== 'water') continue;
+        const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);        // along the lane: (ca, sa) in x,z
+        const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];
+        const half = a.len / 2, hw = a.wid / 2;
+        for (let s = -half; s <= half + 1e-6; s += 100) for (const w of [-hw, hw]) { const [x, z] = along(s, w); put(x, z, 0xff6a00); }
+        for (const s of [-half, half]) for (const w of [-hw * 0.5, 0, hw * 0.5]) { const [x, z] = along(s, w); put(x, z, 0xf4f2ea, 1.6); }
+        if (a.tdz) for (const w of [-hw, -hw * 0.5, hw * 0.5, hw]) { const dx = a.tdz[0] - a.x, dz = a.tdz[1] - a.z; const st = dx * ca + dz * sa; const [tx, tz] = along(st, w); put(tx, tz, 0x35c46a, 1.6); }
+      }
+    }
     let seaT = 0;
     function seaUpdate(cx, cz, dt) {
       const S = world.sea;
-      if (!S || !(S.A > 0) || world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
       seaT += dt;
+      // the buoys ride the wave (and mark the level on a calm day)
+      for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, seaT) : 0) + 0.15; }
+      // THE NEAR SEA IS AT THE TRUE LEVEL, WAVES OR NOT (G396.2; the user:
+      // "it's important that we get the water line right"): the far flat
+      // sea sits 0.4 m under it (the shore seam), so on a calm day the
+      // floats read 0.4 m too high against the water they were drawn on.
+      // The patch stays around the aeroplane, flat at 0 in calm, displaced
+      // by the wave otherwise.
+      if (world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
       const step = SEAW / SEAN;
       const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
       seaNear.position.set(ox, 0.0, oz);
       const pa = seaGeo.attributes.position;
-      for (let i = 0; i < pa.count; i++) pa.setY(i, world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT));
-      pa.needsUpdate = true;
-      seaGeo.computeVertexNormals();
+      const waves = !!(S && S.A > 0);
+      if (waves || seaNear.userData.wavy !== false) {
+        for (let i = 0; i < pa.count; i++) pa.setY(i, waves ? world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT) : 0);
+        pa.needsUpdate = true;
+        seaGeo.computeVertexNormals();
+        seaNear.userData.wavy = waves;
+      }
       seaNear.visible = true;
     }
 

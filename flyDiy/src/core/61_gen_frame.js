@@ -243,8 +243,11 @@ function genLattice(S, gearX, track, kScale, gross) {
     const bK = ((S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
                  P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
       ? rodK() : 1) * ((opt && opt.kx > 0) ? opt.kx : 1);
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK,
-                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
+    // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
+    // float truss: gear-class tube that is NOT a spring), c by its root
+    const kMul = (opt && opt.kMul) || 1;
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
+                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -1876,7 +1879,17 @@ function genLattice(S, gearX, track, kScale, gross) {
       // top of the 73 kg pair, and the single 582 sat at the hump at 6.7 m/s
       // (T/W 0.216). The struts, spreaders and wires below are real and stay
       // billed.
-      const NM = { noMass: true };
+      // ...and STIFF: the gear class is the suspension's (30x softer than a
+      // fuselage tube); the hull is a rigid body, x8 (still under the engine
+      // bearer's omega, so no substep is paid). THE STRUTS STAY AT THE GEAR
+      // CLASS — measured (2026-09-14, the fixture's circuit, three builds):
+      // struts at x8 or x3 and the pilot's approach goes into a lateral
+      // limit cycle (ailerons on the stops, circling at 25 m/s, 190-300 m
+      // off on short final, go-around); the hull and the spreaders at x8
+      // with the struts as they were flies the circuit as before. The
+      // struts' compliance is damping the pilot's roll loop, which is the
+      // pilot's matter (PILOT-ROADMAP), not the float's.
+      const NM = { noMass: true, kMul: 8 }, KM = { kMul: 1 };
       for (let i = 0; i + 1 < 4; i++) {
         B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NM); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
         B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
@@ -1886,9 +1899,14 @@ function genLattice(S, gearX, track, kScale, gross) {
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
-      B(Din[1], fB, 'gear', true, 'leg'); B(Din[2], aB, 'gear', true);
-      B(Dout[2], fT, 'gear', false, 'inner'); B(Dout[1], fB, 'gear', true, 'wire');
-      B(Din[2], fB, 'gear', true, 'wire'); B(Din[1], aB, 'gear', true, 'wire');
+      // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
+      // flexible, almost springy"). The forward strut was the gear's `leg`
+      // member — the suspension spring, KS x SUS — so the whole float pair
+      // rode on two bungees; every member here is BRACING (KS x ARCH.k),
+      // a streamlined steel tube like the rest of the truss.
+      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[2], aB, 'gear', true, undefined, undefined, KM);
+      B(Dout[2], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
+      B(Din[2], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
       // belly nodes the four points of the side truss are nearly collinear
       // and its pitch stiffness goes as the square of nothing — measured, a
@@ -1897,7 +1915,7 @@ function genLattice(S, gearX, track, kScale, gross) {
       // at 1 deg. The loads go up to the top longerons as well: two
       // diagonals to the frames' top corners, inside the covering
       const aT = sd < 0 ? AA.TL : AA.TR;
-      B(Din[1], aT, 'gear', false, 'inner'); B(Din[2], fT, 'gear', false, 'inner');
+      B(Din[1], aT, 'gear', false, 'inner', undefined, KM); B(Din[2], fT, 'gear', false, 'inner', undefined, KM);
       // the slab table for 32_hydro's force distribution: every station's
       // keel and deck edges, float-frame rest coordinates (x aft of the step)
       const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
@@ -1906,7 +1924,7 @@ function genLattice(S, gearX, track, kScale, gross) {
                     tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: FP, pos: [gx, yK, zc] });
     }
     const [FL, FR] = FLOATS;
-    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire'); }
+    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
   }
 

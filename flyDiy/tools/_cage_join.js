@@ -1558,8 +1558,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             mfy = (mains[0][1] + mains[1][1]) / 2;
       const G2 = window.CAGE_GEAR;
       const cm = G2.contacts.filter(c => c.st && !isSingle(c));
-      const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
-            cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
+      // G396.2: ON FLOATS THE STEP KEEL IS THE MAINS. The frame's refs.mains
+      // are the two step keels and the float layer publishes the drawn
+      // step keel (CAGE_FLOAT.zStep / keelY, the cage frame the wheel
+      // contacts are in); with no wheel contact this mean was 0/0 = NaN,
+      // `off` came out NaN, app.js read it as [0, 0] and the whole drawn
+      // aeroplane stood metres from its lattice (the user: "big offset
+      // between physical and 3d model", the tail nowhere near the frame's).
+      const FLT = window.CAGE_FLOAT;
+      const onFloats = !cm.length && FLT && FLT.zStep != null && FLT.keelY != null;
+      const cz = onFloats ? FLT.zStep : cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
+            cy = onFloats ? FLT.keelY : cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has
       // rotated... would you get confused with the plane's resting
       // position?" — yes, for three rounds). poseModel maps the visual's

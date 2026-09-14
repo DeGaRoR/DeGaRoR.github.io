@@ -711,6 +711,7 @@ function makePilot(sim, def, world, opts) {
     vPrev = V;
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
+    let deFloor = 0;                          // G396.2: the water roll's back-stick floor, read by the servo
     // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
     // on the ground for 0.3 s (a rough strip's contact flickers)
     onGT = onG > 0 ? onGT + dt : 0;
@@ -739,7 +740,15 @@ function makePilot(sim, def, world, opts) {
       thCA += clamp(thC - thCA, -sl, sl);
       IthMax += clamp(IthMaxT - IthMax, -0.10 * dt, 0.10 * dt);
       Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
-      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, 0.35);
+      // G396.2: ON THE STEP THE STICK COMES ALL THE WAY BACK. The 0.35 stop
+      // is a wheel's rotation (the ground never pins the tail); a planing
+      // float rides nose-low against the thrust line and the servo sat on
+      // its stop from 20 m/s to a 145 km/h lift-off (Vs 66) — a seaplane
+      // pilot holds full back stick until the hull lets go, then eases.
+      // Measured on the card: 0.7 lifts at 102 km/h, the fixture at 86.
+      const deTop = (sim.hydro && onG > 0) ? (A.deWater ?? 0.70) : 0.35;
+      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, deTop);
+      if (deFloor > 0 && deFloor > c.de) c.de = deFloor;   // (a zero floor is no floor: it clamped every nose-down command on every aeroplane for one build)
     };
     // the roll servo alone: a bank command in, the aileron and the yaw damper out
     const rollTo = (phC) => {
@@ -1492,6 +1501,13 @@ function makePilot(sim, def, world, opts) {
         IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
         IthGain = rotating ? (A.rotateI ?? 0.8) : null;
         engage('RWY', vert, 'SET', { pitch, de: A.rollDe, thr: ap.t > 0.5 ? thrRoll : 0 });
+        // G396.2: ON THE WATER, FULL BACK STICK THROUGH THE HUMP AND OFF THE
+        // STEP. The attitude servo asks for the lift-off pitch and its gains
+        // (an air loop) reach 0.38 of stick, which a planing float ignores:
+        // the card rode the step nose-low to a 145 km/h lift-off (Vs 66).
+        // A seaplane pilot holds the stick back from the hump until the hull
+        // lets go; the servo eases it from there. Measured: 102 km/h.
+        if (sim.hydro && onG > 0 && V > 0.45 * vr) deFloor = A.deWater ?? 0.70;
         c.brake = 0;
         if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
         break;
@@ -1522,6 +1538,12 @@ function makePilot(sim, def, world, opts) {
         // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
         // default garage build did exactly that; see 41_test_pilot.js)
         let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        // G396.2: a seaplane's lift-off is TRIMMED, not held — the thrust line
+        // over the CG asks ~0.5 of stick to hold the attitude at 27 m/s, the
+        // integrator's 0.15 could not, the nose fell, the floats touched
+        // again and it skimmed the step to 145 km/h. The water's own
+        // integrator ceiling and gain, until CLIMB.
+        if (sim.hydro && aglG < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
         if (aglG > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
@@ -1552,7 +1574,15 @@ function makePilot(sim, def, world, opts) {
         }
         // ...and clearly away (twice the screen height) goes to CLIMB whatever
         // its speed — CLIMB's law finishes the acceleration (G208.3)
-        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) {
+          go('CLIMB'); climbMode = true; ceilT = 0;
+          // G396.2: the water's integrator stays on the water (left in, it
+          // hunted the whole circuit: 240 s on final, never down). WATER
+          // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
+          // and its approach is tuned with it — reset there, the trike went
+          // around "high on the slope" and never landed (GATE PILOT).
+          if (sim.hydro) { IthMaxT = 0.15; IthGain = null; }
+        }
         break;
       }
 
