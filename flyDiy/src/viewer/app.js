@@ -1,5 +1,17 @@
 (() => {
-  const world = makeWorld();
+  // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
+  // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
+  // fixture from tools/fixtures (a test's door; read synchronously because the world is made
+  // here, during the script's own evaluation)
+  const premisesAtBoot = (() => {
+    try {
+      const q = new URLSearchParams(location.search).get('premises');
+      if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
+      if (q === 'none') return null;
+      return localStorage.getItem('flydiy.premises.game');
+    } catch (e) { return null; }
+  })();
+  const world = makeWorld(0, { premises: premisesAtBoot });
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
   // (src/core/6x_gen_*.js). `window.GARAGE_SPEC` is the editor's handle on it —
   // and it is now actually ASSIGNED, in garage.js. This comment claimed it from

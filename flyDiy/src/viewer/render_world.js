@@ -10,6 +10,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
+  let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
@@ -866,6 +867,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     }; };
     const gMat = worldLambert({ map: tex });
+    innerPatchShared = { mat: gMat, half: INNER, uv: (x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)] };
     gMat.onBeforeCompile = sh => {
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
@@ -3029,6 +3031,30 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
   }
 
+  // THE PREMISES (G386): the world editor's record, drawn by the same module as the bench's
+  // (render_premises.js, game mode): the houses, the sites, the parks, the objects, the lots and
+  // the fences, a fine ground patch over the extent in the outer ring's texture, road ribbons.
+  // The world composed the record at its make (20_world.js); the strips it registered are
+  // painted with every other below. The build queue drains here at the boot, whole (36 houses,
+  // 3 s on an RTX 3080 - a worker or a ladder is owed); after a live edit worldUpdate drains it.
+  let premisesR = null;
+  if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
+    try {
+      // the patch wears the ring it lies in: the inner ring's material (its baked map, its detail grain)
+      // and uv law inside ±INNER, the outer ring's texture beyond
+      const ov = world.premises.overlay, F = ov.frame, e = ov.extent;
+      const corners = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
+      const inner = innerPatchShared && corners.every(q => Math.abs(q[0]) < innerPatchShared.half - 60 && Math.abs(q[1]) < innerPatchShared.half - 60);
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
+        game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST && window.PREMISES_HOST.open),
+        patchMat: inner ? innerPatchShared.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null),
+        patchUV: inner ? innerPatchShared.uv : (x, z) => [(x + 12000) / 24000, 1 - (z + 12000) / 24000],
+        site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
+      });
+      premisesR.rebuild();
+      while (premisesR.stats.queued) premisesR.step(4);
+    } catch (e) { console.warn('premises: the record did not render', e); }
+  }
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
     const mkTex = kind => {
       const cv2 = document.createElement('canvas'); cv2.width = 512; cv2.height = 64;
@@ -3206,6 +3232,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // sun frustum (grown with hysteresis so the map isn't re-projected every frame)
   let shadowHalf = 0;
   function worldUpdate(cg) {
+    if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
     // parallax at the near edge of the band. One frame stale (the viewer places
@@ -3355,7 +3382,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR,
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            // the world's own light panel — the same shape the shed exposes, so

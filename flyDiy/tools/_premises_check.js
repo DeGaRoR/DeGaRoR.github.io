@@ -135,6 +135,9 @@ const sampleIn = (bb, n, f) => { for (let k = 0; k < n; k++) f(bb.x0 + rnd() * (
 // the world a fixture names: an anchor keyed 'village-bench' asks for the village's own terrain (its
 // size and seed on the anchor), built headless from the generators; every other fixture composes on synth
 function worldFor(rec) {
+  // ... and a fixture anchored to the flight world alone composes on it (the game's own record)
+  const ak = rec.frame && rec.frame.anchors ? Object.keys(rec.frame.anchors) : [];
+  if (FLIGHT && ak.indexOf('W-24km') >= 0 && ak.indexOf('village-bench') < 0) return FLIGHT;
   const a = rec.frame && rec.frame.anchors && rec.frame.anchors['village-bench'];
   if (a && GENS.VILLAGE_GEN && GENS.VILLAGE_GEN.makeTerrain) {
     const V = Object.assign({}, GENS.VILLAGE_GEN.VDEF, { size: a.size || 640, seed: a.seed || 3 });

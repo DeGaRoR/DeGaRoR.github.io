@@ -232,14 +232,14 @@ function makeWorld(seed, opts) {
   // sites keep their grading under it.
   let PM = null, PMrec = null;
   const baseWorld = { id: 'W-24km', terrainH: baseH, waterH: (x, z) => HYD.water(x, z) };
-  function setPremises(rec0) {
+  function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
     if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
-    PM = PREMISES_GEN.compose(rec, baseWorld, { catalogue: cat, globals });
+    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     PMrec = rec;
     // the strips join the registry as the generator's do; a strip's site (its stand, its way out,
     // an authored pattern) is what siteOf answers the pilot with

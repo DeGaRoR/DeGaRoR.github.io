@@ -545,11 +545,17 @@ window.FLYDIY_BOOT.then(function () {
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
   art = fill(art, 'MODELS', payloadRefs);
+  // THE WORLD PACK'S PLACE (G386): after every viewer script the generators read and BEFORE app.js,
+  // which makes the world - app.js is not the last viewer script (dev_panel.js is), so the refs go
+  // into the RENDER slot right ahead of it, in both pages
+  const APP_AT = V.scripts.indexOf('app.js');
+  const worldRefs = MANIFEST.world.map(([d, f]) => ref(path.join(ROOT, d), d, f)).join('\n');
+  const renderTags = scripts.slice(0, -1).map(s => `<script>\n${s}</script>`);
+  renderTags.splice(APP_AT, 0, worldRefs);
   art = fill(art, 'RENDER', [LAZY]
     .concat(editor.map(s => `<script>\n${s}</script>`))
-    .concat(scripts.slice(0, -1).map(s => `<script>\n${s}</script>`)).join('\n'));
-  const worldRefs = MANIFEST.world.map(([d, f]) => ref(path.join(ROOT, d), d, f)).join('\n');
-  art = fill(art, 'APP', worldRefs + `\n<script>\n${scripts[scripts.length - 1]}</script>`);
+    .concat(renderTags).join('\n'));
+  art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
   if (!art.includes('function makeAutopilot')) {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
@@ -592,11 +598,13 @@ window.FLYDIY_BOOT.then(function () {
   dev = fill(dev, 'VENDOR', DEV_LOADER);
   dev = fill(dev, 'CORE', MANIFEST.core.map(f => dref(CORE_DIR, 'src/core', f)).join('\n'));
   dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));
+  const devRender = V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f));
+  devRender.splice(APP_AT, 0, MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n'));
   dev = fill(dev, 'RENDER', [LAZY]
     .concat(MANIFEST.editor.map(f => dref(__dirname, 'tools', f)))
-    .concat(V.scripts.slice(0, -1).map(f => dref(VIEW_DIR, 'src/viewer', f)))
+    .concat(devRender)
     .join('\n'));
-  dev = fill(dev, 'APP', MANIFEST.world.map(([d, f]) => dref(path.join(ROOT, d), d, f)).join('\n') + '\n' + dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
+  dev = fill(dev, 'APP', dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
   const devFile = path.join(ROOT, 'dev.html');
   fs.writeFileSync(devFile, dev);

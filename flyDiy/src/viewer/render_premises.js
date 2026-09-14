@@ -1,4 +1,4 @@
-// _premises_draw.js — THE PREMISES DRAWN (G353 / GPREM): the record turned into
+// render_premises.js — THE PREMISES DRAWN (G353 / GPREM; the bench's tools/_premises_draw.js, ported whole at G386): the record turned into
 // a scene, per layer, with dirty tracking — shared by the bench and, at the
 // port, by the game (src/viewer/render_premises.js). Nothing here is a control:
 // it draws what src/core/27_premises.js composes and publishes the HANDLES the
@@ -34,21 +34,32 @@ const TREE_BANDS = [0, 60, 132];
 
 // the prop registry is a script-scope const of flight_core.js (51_prop_codec), never on window: read it where it lives
 const propReg = () => (typeof PROP_REG !== 'undefined' ? PROP_REG : (typeof window !== 'undefined' && window.PROP_REG) || null);
+// make(THREE, scene, world, rec, opts): the bench hands a bare world and the renderer composes; the GAME
+// (opts.game) hands ITS world, whose terrainH already carries the premises (20_world.js composes it) -
+// the renderer then reads the world's own overlay, recomposes through world.premises.set(rec, ...)
+// with its builder, draws no ground of its own but a local fine PATCH over the extent (the inner
+// ring is 17.6 m polys; the graded strip and the lawns need better), road RIBBONS (the wear canvas
+// is the bench's), no trees (the world's stand, its excludes applied at the make) and no strip paint
+// (the world paints every registry strip); outlines and handles only while opts.editing() says so
 function make(THREE, scene, world, rec0, opts) {
-  const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null }, opts || {});
+  const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null, game: false, editing: () => true, patchMat: null, patchUV: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
   // the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
   const buildFor = r => { const GEN = window[r.gen]; return GEN ? GEN.build(r.P, 0) : null; };
-  let O = PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
+  const composeNow = () => o.game && world.premises ? (world.premises.set(rec, { build: buildFor, pool: o.pool() }) || PG.compose(rec, world.premises.base, { pool: o.pool(), globals: window, build: buildFor }))
+                                                     : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
+  let O = composeNow();
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
   placeLots();
   scene.add(root);
   const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0 };
-  const bounds = world.bounds || { x0: -160, z0: -160, x1: 160, z1: 160 };
+  // the bench's bounds are the world's window; the game's are the premises' extent in the world (+ a margin)
+  const extentWorld = () => { const F = O.frame, e = O.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; return { x0: Math.min(...c.map(q => q[0])) - 40, z0: Math.min(...c.map(q => q[1])) - 40, x1: Math.max(...c.map(q => q[0])) + 40, z1: Math.max(...c.map(q => q[1])) + 40 }; };
+  const bounds = o.game ? extentWorld() : (world.bounds || { x0: -160, z0: -160, x1: 160, z1: 160 });
   const W = bounds.x1 - bounds.x0, H = bounds.z1 - bounds.z0;
 
   // ---- the ground, with the overlay and the wear -----------------------------
@@ -84,7 +95,7 @@ function make(THREE, scene, world, rec0, opts) {
   };
   const chunks = new Map();
   const ci0 = Math.floor(bounds.x0 / CHUNK), ci1 = Math.ceil(bounds.x1 / CHUNK) - 1, cj0 = Math.floor(bounds.z0 / CHUNK), cj1 = Math.ceil(bounds.z1 / CHUNK) - 1;
-  function heightAt(x, z) { return O.terrainH(x, z, world.terrainH(x, z)); }
+  function heightAt(x, z) { return o.game ? world.terrainH(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
   function buildChunk(i, j) {
     const k = i + ',' + j;
     const old = chunks.get(k);
@@ -118,6 +129,52 @@ function make(THREE, scene, world, rec0, opts) {
 
   // ---- the water --------------------------------------------------------------
   let water = null;
+  // THE PATCH (game): one fine mesh over the extent, 2 m polys, its border tucked 2.2 m under the ring
+  // (the strips' own W13.2 law), the world's outer texture on it; re-sampled in place on a rebuild
+  let patch = null, patchKey = '';
+  function buildPatch() {
+    const b = extentWorld(), key = [b.x0, b.z0, b.x1, b.z1].join(',');
+    const RES = 2, LX = b.x1 - b.x0, LZ = b.z1 - b.z0;
+    if (!patch || patchKey !== key) {
+      if (patch) { G.ground.remove(patch); patch.geometry.dispose(); }
+      const g = new THREE.PlaneGeometry(LX, LZ, Math.ceil(LX / RES), Math.ceil(LZ / RES));
+      g.rotateX(-Math.PI / 2); g.translate((b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2);
+      patch = new THREE.Mesh(g, o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c }));
+      patch.receiveShadow = true; patch.name = 'premises:patch';
+      G.ground.add(patch); patchKey = key;
+    }
+    const pa = patch.geometry.attributes.position, uv = patch.geometry.attributes.uv;
+    for (let i = 0; i < pa.count; i++) {
+      const x = pa.getX(i), z = pa.getZ(i);
+      const edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z), r = Math.min(1, Math.max(0, edge) / 40);
+      pa.setY(i, world.terrainH(x, z) - 2.2 * (1 - r) * (1 - r));
+      if (o.patchUV) { const q = o.patchUV(x, z); uv.setXY(i, q[0], q[1]); }
+    }
+    pa.needsUpdate = true; uv.needsUpdate = true;
+    patch.geometry.computeVertexNormals();
+    patch.geometry.computeBoundingSphere();
+  }
+  // THE ROADS (game): a draped ribbon per road in its class's tone (the bench wears them into its own
+  // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge
+  const ROAD_TONE = { 6: 0x8f8574, 5: 0x63636a, 7: 0xb8a57e, 0: 0x6e6a4a, 3: 0x5d5844 };
+  let roadMat = null;
+  function buildRoads() {
+    for (const c of G.roads.children.slice()) { G.roads.remove(c); if (c.geometry) c.geometry.dispose(); }
+    if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    for (const rd of O.roads) {
+      const pr = PG.polyRoad(rd.pts, rd.w), n = Math.max(2, Math.ceil(pr.length / 3));
+      const pos = [], col = [], idx = [], hw = rd.w / 2 + 0.6;
+      const tone = new THREE.Color(ROAD_TONE[rd.surface] || 0x8f8574);
+      for (let k = 0; k <= n; k++) {
+        const a = pr.at(pr.length * k / n);
+        for (const sgn of [-1, 1]) { const lx = a.p[0] + a.n[0] * hw * sgn, lz = a.p[1] + a.n[1] * hw * sgn; const w = O.frame.toWorld(lx, lz); pos.push(w[0], heightAt(w[0], w[1]) + 0.06, w[1]); col.push(tone.r, tone.g, tone.b); }
+        if (k) { const b = 2 * k; idx.push(b - 2, b, b - 1, b - 1, b, b + 1); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, roadMat); m.renderOrder = 2; m.receiveShadow = true; m.name = 'road:' + rd.id;
+      G.roads.add(m);
+    }
+  }
   function buildWater() {
     if (water) { G.water.remove(water); water.geometry.dispose(); water = null; }
     if (!o.water) return;
@@ -251,6 +308,17 @@ function make(THREE, scene, world, rec0, opts) {
     for (const c of G.runways.children.slice()) { G.runways.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); if (m.material && m.material.map && m.userData.ownMap) m.material.map.dispose(); }); }
     O.runways.forEach((r, i) => {
       const A = O.aerodromes[i];
+      // the game paints every registry strip itself (render_world's decals); here only the pattern, while editing
+      if (o.game) {
+        if (o.editing() && SITE.sitePattern && window.PATTERN_VIS) {
+          try {
+            const pat = SITE.sitePattern(A, r.site || null);
+            const pv = window.PATTERN_VIS.buildPatternVis(THREE, pat, (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway });
+            const grp = pv.group || pv; if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true }); grp.name = 'pattern:' + r.id; G.runways.add(grp);
+          } catch (e) { console.warn('premises pattern', r.id, e && e.message); }
+        }
+        return;
+      }
       const R = SITE.siteRunway ? SITE.siteRunway(A) : null;
       // the strip as a ribbon following the composed ground, 4 m along, 3 across
       const dx = Math.cos(A.hdg), dz = Math.sin(A.hdg), nx = -dz, nz = dx, hl = A.len / 2, hw = A.wid / 2;
@@ -649,9 +717,20 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- rebuild ---------------------------------------------------------------------------------
   function rebuild(dirty) {
     const t0 = performance.now();
-    O = PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
+    O = composeNow();
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
+    if (o.game) {
+      if (groundDirty) { buildPatch(); n = 1; }
+      placeLots();
+      buildRoads();
+      buildRunways();
+      if (o.editing()) { buildOutlines(); buildHandles(); }
+      else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
+      syncHouses();
+      stats.tris = patch ? patch.geometry.index.count / 3 : 0; stats.chunks = patch ? 1 : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
+      return stats;
+    }
     if (!dirty || !dirty.bbox) {
       if (groundDirty) { for (let i = ci0; i <= ci1; i++) for (let j = cj0; j <= cj1; j++) { buildChunk(i, j); n++; } buildWater(); }
     } else if (groundDirty) {
@@ -709,6 +788,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function dispose() {
     for (const [, m] of chunks) m.geometry.dispose();
+    if (patch) { patch.geometry.dispose(); patch = null; }
     chunks.clear();
     for (const [, L] of LINES) { L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
@@ -719,6 +799,7 @@ function make(THREE, scene, world, rec0, opts) {
     root, groups: G, stats,
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt,
     setRecord: r => { rec = PG.normalise(r); },
+    get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },
     select: id => { selectedId = id || null; buildOutlines(); buildHandles(); },

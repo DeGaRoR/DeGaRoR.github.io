@@ -4,8 +4,8 @@
  "name": "showcase",
  "premises": {
   "v": 1,
-  "id": "showcase",
-  "name": "the showcase: a shore road with its village, a harbour on its own road, a totem park, the mine on the spur with its tram to the ridge, a lakeside strip with its apron and stand, two signs and a junk car (v6)",
+  "id": "game",
+  "name": "the showcase on the flight world: the same record re-levelled for the flat shore 1.8 km west of HOME (its flattens at the local median ground; no tram - a flat shore has no ridge for one)",
   "seed": 5,
   "frame": {
    "kind": "free",
@@ -16,13 +16,6 @@
     "z1": 230
    },
    "anchors": {
-    "village-bench": {
-     "x": 0,
-     "z": 0,
-     "yaw": 0,
-     "size": 640,
-     "seed": 3
-    },
     "*": {
      "x": 0,
      "z": 0,
@@ -58,7 +51,7 @@
        -104
       ]
      ],
-     "level": -16.48,
+     "level": 0,
      "falloff": 8,
      "abs": false,
      "order": 0
@@ -84,8 +77,8 @@
        134
       ]
      ],
-     "level": 65.29,
-     "falloff": 17.27,
+     "level": 0.02,
+     "falloff": 12,
      "abs": false,
      "order": 0
     }
@@ -559,34 +552,6 @@
       "z0": -18,
       "z1": 150
      }
-    },
-    {
-     "id": "s2",
-     "name": "the tram",
-     "at": {
-      "x": -280,
-      "z": -40,
-      "yaw": 0
-     },
-     "items": [
-      {
-       "id": "b",
-       "key": "house/tram base station",
-       "x": 0,
-       "z": 0,
-       "yaw": 0,
-       "P": {}
-      },
-      {
-       "id": "t",
-       "key": "house/tram top station",
-       "x": 0,
-       "z": 150,
-       "yaw": 0,
-       "P": {}
-      }
-     ],
-     "yard": null
     }
    ],
    "links": [
@@ -602,22 +567,6 @@
       "site": "s1",
       "item": "rcv",
       "hook": "roof"
-     },
-     "P": {},
-     "dynamic": true
-    },
-    {
-     "id": "l2",
-     "kind": "cable",
-     "from": {
-      "site": "s2",
-      "item": "b",
-      "hook": "track0"
-     },
-     "to": {
-      "site": "s2",
-      "item": "t",
-      "hook": "track0"
      },
      "P": {},
      "dynamic": true

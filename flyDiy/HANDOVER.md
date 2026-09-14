@@ -45127,3 +45127,45 @@ weather kind through aeroWxLabSet / ResetRow, the bench on the one range
 table; selftest probes for an unbent normal and a knob without a range.
 Proof from a clean worktree: WEATHER, SKINMAT, JOIN, BUILD, UISMOKE,
 PARTS, MEDIA.
+
+## G386 — THE PREMISES PORT, L2: THE RENDERER IN THE GAME (2026-09-14)
+
+- **render_premises.js**: `tools/_premises_draw.js` moved whole to
+  `src/viewer/render_premises.js` with a GAME mode: the world's own overlay
+  (the game's terrainH already carries the premises - the renderer
+  recomposes through `world.premises.set(rec, { build, pool })` with its
+  builder, so the cable's phase B solves in the game), no bench ground but
+  a local fine PATCH over the extent (2 m polys, the border tucked 2.2 m
+  under the ring - the strips' own W13.2 law - wearing the INNER ring's
+  material and uv law inside ±4500 m, the outer texture beyond), road
+  RIBBONS in the class's tone (the wear canvas is the bench's), no bench
+  trees (the world's stand, its excludes applied at the make), no bench
+  strip paint (the world paints every registry strip), outlines and handles
+  only while the editor host says it is open. The bench page reads it from
+  the viewer; rule 13 scans it.
+- **buildWorldScene** builds it after the settlements and drains the build
+  queue whole at the boot (31 houses, 4.7 s on an RTX 3080 - a worker or a
+  ladder is owed); `worldUpdate` drains a live edit's builds one a frame;
+  `WORLD.premises` is the renderer's handle.
+- **app.js** composes the saved record at the boot: localStorage
+  `flydiy.premises.game`, or `?premises=<name>` for a fixture (the test's
+  door; `?premises=none` for a bare world).
+- **THE WORLD PACK BEFORE app.js**: app.js is not the last viewer script
+  (dev_panel.js is), so the pack's refs go into the RENDER slot right ahead
+  of it in both pages - the first build put them after it, and the game
+  made its world before the generators existed.
+- **THE GAME FIXTURE** `premises_v1_game.json`: the showcase re-levelled for
+  the flight world's flat shore 1.8 km west of HOME (its flattens at the
+  local median ground: a record's heights are the anchor's world's; the
+  mountain's 65 m works flat stood a hill on the plain), no tram (a flat
+  shore has no ridge). The showcase and the village fixtures carry a
+  `W-24km` anchor too. In dev.html with `?premises=game`: the village row
+  with its fences and lit windows, the strip painted by the game with its
+  markings, the mine's mill, the harbour houses on their piles - pictures
+  `port_game_showcase.png`, `port_game_strip.png` (under the garage's rig,
+  hence the sunset).
+- The gate composes a fixture anchored to the flight world alone on the
+  flight world. Gates: PREMISES green (235 checks over 5 fixtures),
+  WORLDRENDER, UISMOKE, BUILD, MEDIA, WORLD green.
+- NEXT: L3 the editor host (the WORLD rail entry, the live recompose), L4
+  the gates and the proof.
