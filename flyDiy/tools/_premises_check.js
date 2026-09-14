@@ -61,6 +61,9 @@
 //      flat to 1 cm, the entry's fill standing in its slot as an item.
 //  9c  THE REAL CABLE: the catalogue's two stations (by tag) and the
 //      village's tramLine solve six ropes in the band, lineDeg on both.
+//  10c THE PROFILE (v8): control points, a monotone spline, the pilot's
+//      limits (5 % anywhere, 2.5 % in the touchdown zone, 1.5 % / 30 m at a crest).
+//  7b  THE SLOPE POLYGON (v8): level at the middle, a constant slope to a heading.
 //  10b THE STAND (v6): a strip's stand and its way out become the pattern's
 //      route out (the core's third branch); sound on a flatten, refused off it.
 //  8d  THE HARBOUR (v6): only water plots; none off the water, and said.
@@ -327,7 +330,7 @@ for (const fx of fixtures) {
       let worst = 0, across = 0, surfOk = true;
       for (let t = 0; t <= r.len; t += 4) {
         const lx = E.end0[0] + E.d[0] * t, lz = E.end0[1] + E.d[1] * t;
-        const want = A.elev + (+r.slope || 0) * (t - r.len / 2), c = O1.localH(lx, lz);
+        const want = A.elev + PG.runwayProfile(r).at(t), c = O1.localH(lx, lz);
         worst = Math.max(worst, Math.abs(c - want));
         const hw = r.wid / 2 - 0.05;
         across = Math.max(across, Math.abs(O1.localH(lx + E.n[0] * hw, lz + E.n[1] * hw) - c), Math.abs(O1.localH(lx - E.n[0] * hw, lz - E.n[1] * hw) - c));
@@ -351,7 +354,7 @@ for (const fx of fixtures) {
     if (rec.layers.runways.length) {
       const bad = JSON.parse(JSON.stringify(rec)); bad.layers.runways[0].len = 120;
       check(PG.issues(bad).length > 0, '10 a strip under 150 m is refused');
-      const steep = JSON.parse(JSON.stringify(rec)); steep.layers.runways[0].slope = 0.08;
+      const steep = JSON.parse(JSON.stringify(rec)); steep.layers.runways[0].slope = 0.08; delete steep.layers.runways[0].profile;   // a profile outranks the slope (v8)
       check(PG.issues(steep).length > 0, '10 a strip over 5 % is refused');
     }
   }
@@ -537,6 +540,34 @@ for (const fx of fixtures) {
     check(W.surface(cw[0], cw[1]) === (rec.layers.runways[0].surface === undefined ? PG.SURFACE.GRASS : rec.layers.runways[0].surface), '5b the strip\'s surface answers through the world', String(W.surface(cw[0], cw[1])));
     const bare = fc.makeWorld(0);
     check(bare.premises && bare.premises.overlay === null && bare.terrainH(cw[0], cw[1]) === FLIGHT.terrainH(cw[0], cw[1]), '5b a world with no premises is the bare world');
+  }
+  // 10c THE PROFILE (v8): a strip with a hump composes on its monotone spline (the centreline at the
+  // profile to 5 cm, no overshoot past a control point), the pilot's limits answer - a 4 % hump in the
+  // middle passes, a 6 % one is refused, a hump in the touchdown zone is refused, a sharp crest is refused
+  {
+    const mk = prof => PG.normalise({ seed: 1, layers: { runways: [{ id: 'w', c: [0, 0], hdg: 0, len: 600, wid: 24, profile: prof }] } });
+    const rec = mk([[0, 0], [0.5, 5], [1, 0]]);
+    const O = PG.compose(rec, synth, { noPlace: true });
+    const A = O.aerodromes[0], r = O.runways[0], pr = PG.runwayProfile(r);
+    let worst = 0, over = 0;
+    for (let t = 0; t <= 600; t += 4) { const h = O.localH(-300 + t, 0); worst = Math.max(worst, Math.abs(h - (A.elev + pr.at(t)))); if (pr.at(t) > 5.0001) over = Math.max(over, pr.at(t) - 5); }
+    check(worst < 0.05, '10c the centreline is on its profile (5 cm)', worst.toFixed(3) + ' m');
+    check(over === 0 && Math.abs(pr.at(300) - 5) < 1e-9, '10c the spline is monotone: no overshoot past the hump\'s point', String(over));
+    check(PG.issues(rec).length === 0, '10c a 5 m hump over 600 m passes the pilot\'s limits', PG.issues(rec)[0]);
+    check(PG.issues(mk([[0, 0], [0.5, 12], [1, 0]])).some(i => /over 5 %/.test(i)), '10c a 12 m hump is over 5 % and refused');
+    check(PG.issues(mk([[0, 0], [0.1, 3], [1, 0]])).some(i => /touchdown zone/.test(i)), '10c a hump in the touchdown zone is refused');
+    check(PG.issues(mk([[0, 0], [0.45, 4], [0.5, 4.2], [0.55, 1], [1, 0]])).some(i => /crest/.test(i)), '10c a sharp crest is refused');
+    // the old linear slope still reads as a two-point profile
+    const lin = PG.compose(PG.normalise({ seed: 1, layers: { runways: [{ id: 'w', c: [0, 0], hdg: 0, len: 600, wid: 24, slope: 0.02 }] } }), synth, { noPlace: true });
+    check(Math.abs(lin.localH(300, 0) - lin.localH(-300, 0) - 12) < 0.05, '10c a linear slope is a two-point profile', (lin.localH(300, 0) - lin.localH(-300, 0)).toFixed(2));
+  }
+  // 7b THE SLOPE POLYGON (v8): level at the middle, a constant slope toward a heading
+  {
+    const rec = PG.normalise({ seed: 1, layers: { terrain: [{ id: 's', kind: 'ramp', poly: [[-50, -50], [50, -50], [50, 50], [-50, 50]], level: 10, slope: 0.04, hdg: 90, falloff: 10 }] } });
+    const O = PG.compose(rec, synth, { noPlace: true });
+    const y0 = O.frame.y0;
+    check(Math.abs(O.localH(0, 0) - (y0 + 10)) < 0.01, '7b the slope polygon holds its level at the middle', (O.localH(0, 0) - y0).toFixed(2));
+    check(Math.abs((O.localH(25, 0) - O.localH(-25, 0)) - 2) < 0.02 && Math.abs(O.localH(0, 25) - O.localH(0, -25)) < 0.02, '7b it rises 4 % toward +x and not along z', ((O.localH(25, 0) - O.localH(-25, 0))).toFixed(2));
   }
   // 10b THE STAND AND ITS WAY OUT (v6): a strip with a stand beside it and two taxi points gets a pattern
   // whose route out starts at the stand, walks the taxi points, enters the centreline and reaches

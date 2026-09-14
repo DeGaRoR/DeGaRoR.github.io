@@ -542,3 +542,15 @@ after the freeze, against this document.
   world's). The showcase record `premises_v1_showcase.json` is the acceptance place: a shore road with
   its village, a harbour on its own road, a totem park, the mine on the spur with its tram to the ridge,
   a lakeside strip with its apron and stand, two signs and a junk car - 186 checks over four fixtures.
+- **v1.8 (2026-09-14, the user: runways with elevation profiles, MSFS style; polygons imposing a constant
+  slope with the middle at a set altitude).** (a) A runway record may carry `profile: [[t, dy], ...]` -
+  control points along the length, `t` 0..1 from end 0, `dy` relative to the strip's elevation (the ground at
+  its centre before it is graded); the ends are always control points. The centreline between them is a
+  MONOTONE cubic (Fritsch-Carlson: the ground never overshoots a point), sampled every 6 m into the grade;
+  `slope` alone is a two-point profile. The pilot's limits are the record's issues, not the editor's taste:
+  under 5 % anywhere, under 2.5 % over a fifth of the run from each threshold (the touchdown zone), and no
+  crest changing the slope more than 1.5 % over 30 m (a flare must not meet a hump it cannot see over).
+  (b) A `ramp` terrain polygon reads `level` (at the polygon's centroid, relative to y0 unless `abs`),
+  `slope` (a fraction) and `hdg` (degrees, 0 = +z, 90 = +x: the direction of the rise); the old `plane`
+  [a, b, c] form still reads. GATE PREMISES rules 10c and 7b. In the game the premises' strips are painted
+  again after a live edit (their decal, sock and far patch stood again from the registry as it is).

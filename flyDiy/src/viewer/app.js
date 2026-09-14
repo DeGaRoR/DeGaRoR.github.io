@@ -64,7 +64,7 @@
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
         rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
-        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); } },
+        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');

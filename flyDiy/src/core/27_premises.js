@@ -113,6 +113,7 @@ function fbm(x, y, s, oct) {
 // ---------------------------------------------------------------------------
 // the polygons — poly = [[x, z], ...], any winding, concave allowed
 // ---------------------------------------------------------------------------
+function polyCentroid(poly) { let x = 0, z = 0; for (const q of poly) { x += q[0]; z += q[1]; } return [x / Math.max(1, poly.length), z / Math.max(1, poly.length)]; }
 function polyBBox(poly) {
   let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
   for (const p of poly) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < z0) z0 = p[1]; if (p[1] > z1) z1 = p[1]; }
@@ -253,7 +254,16 @@ function makeModifier(m, y0) {
     let target;
     if (m.kind === 'flatten') { const lv = (m.abs ? 0 : y0) + (+m.level || 0); target = () => lv; }
     else if (m.kind === 'raise') { const dh = +m.dh || 0; target = (x, z, h) => h + dh; }
-    else { const pl = m.plane || [0, 0, 0]; target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0); }
+    else {
+      // a SLOPE polygon (v8): `level` at the polygon's centroid, `slope` (a fraction) rising toward `hdg`
+      // (degrees, 0 = +z, 90 = +x); the old `plane` [a, b, c] form still reads
+      let pl;
+      if (m.slope !== undefined && m.slope !== null && m.level !== undefined) {
+        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * Math.sin(hd), b = (+m.slope || 0) * Math.cos(hd);
+        pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
+      } else pl = m.plane || [0, 0, 0];
+      target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
+    }
     return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const w = weight(sdPoly(poly, x, z));
@@ -516,7 +526,54 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+
+// THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
+// [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
+// before it is graded) - with a MONOTONE cubic between them (Fritsch-Carlson: the ground never
+// overshoots a point, a hump is a hump and a dip a dip). No profile = the old linear slope. The ends
+// are always control points (the thresholds); the editor keeps them.
+function runwayProfile(r) {
+  let P = Array.isArray(r.profile) && r.profile.length >= 2 ? r.profile.map(q => [+q[0], +q[1]]).filter(q => isFinite(q[0]) && isFinite(q[1])) : null;
+  if (!P || P.length < 2) { const rise = (+r.slope || 0) * r.len / 2; P = [[0, -rise], [1, rise]]; }
+  P.sort((a, b) => a[0] - b[0]);
+  if (P[0][0] > 0) P.unshift([0, P[0][1]]); if (P[P.length - 1][0] < 1) P.push([1, P[P.length - 1][1]]);
+  P[0][0] = 0; P[P.length - 1][0] = 1;
+  const n = P.length, x = P.map(q => q[0] * r.len), y = P.map(q => q[1]);
+  const h = [], d = [];
+  for (let i = 0; i + 1 < n; i++) { h.push(Math.max(1e-6, x[i + 1] - x[i])); d.push((y[i + 1] - y[i]) / h[i]); }
+  const m = new Array(n).fill(0);
+  if (n === 2) { m[0] = m[1] = d[0]; }
+  else {
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (let i = 1; i + 1 < n; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i + 1 < n; i++) { if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; } const a = m[i] / d[i], b = m[i + 1] / d[i], q = a * a + b * b; if (q > 9) { const tau = 3 / Math.sqrt(q); m[i] = tau * a * d[i]; m[i + 1] = tau * b * d[i]; } }
+  }
+  const at = sAlong => {
+    const sx = Math.max(0, Math.min(r.len, sAlong));
+    let i = 0; while (i + 2 < n && sx > x[i + 1]) i++;
+    const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
+  };
+  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  return { points: P, at, slopeAt, n };
+}
+// THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
+// touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
+// change of slope over 30 m - a flare must not meet a hump it cannot see over
+function profileIssues(r) {
+  const out = [], pr = runwayProfile(r), L = r.len;
+  let worst = 0, tdz = 0, crest = 0;
+  for (let a = 0; a <= L; a += 3) {
+    const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
+    if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
+    if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
+  if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
+  if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
+  return out;
+}
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -767,9 +824,12 @@ function compose(rec0, world, opts) {
   for (const r of runways) {
     const E = runwayEnds(r);
     const elev = T1(r.c[0], r.c[1]);
-    const rise = (+r.slope || 0) * r.len / 2;
     const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: [[E.end0[0], E.end0[1], elev - rise], [E.end1[0], E.end1[1], elev + rise]], width: r.wid, falloff: fall, abs: true }, F.y0);
+    // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
+    const pr = runwayProfile(r), gpts = [];
+    const nS = Math.max(1, Math.ceil(r.len / 6));
+    for (let k = 0; k <= nS; k++) { const a = r.len * k / nS; gpts.push([E.end0[0] + E.d[0] * a, E.end0[1] + E.d[1] * a, elev + pr.at(a)]); }
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
     aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly)));
@@ -990,7 +1050,7 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else if (Math.abs(+r.slope || 0) > 0.05) out.push('runway ' + r.id + ': a slope over 5 % is not a strip');
+    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -1151,9 +1211,10 @@ function checks(rec0, world, opts) {
   for (let i = 0; i < O.runways.length; i++) {
     const r = O.runways[i], A = O.aerodromes[i], E = runwayEnds(r);
     let worst = 0;
+    const prof = runwayProfile(r);
     for (let t = 0; t <= r.len; t += Math.max(2, r.len / 60)) {
       const lx = E.end0[0] + E.d[0] * t, lz = E.end0[1] + E.d[1] * t;
-      const want = A.elev + (+r.slope || 0) * (t - r.len / 2);
+      const want = A.elev + prof.at(t);
       worst = Math.max(worst, Math.abs(O.localH(lx, lz) - want));
     }
     put(worst < 0.05, 'runway ' + r.id + ' on its profile (' + (worst * 100).toFixed(1) + ' cm)');
@@ -1204,8 +1265,8 @@ function collect(globals) {
 
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
-  polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

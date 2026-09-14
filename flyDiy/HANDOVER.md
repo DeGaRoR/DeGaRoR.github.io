@@ -45678,3 +45678,36 @@ small".
 - Owed: the pilot's TAXI phases on water (no site = no taxi graph; the
   lane has no dock); a seaplane's HOME (it starts on the sea); the far sea
   at the true level; the water rudder's blade does not turn visually.
+
+## G394 — RUNWAY PROFILES, MSFS STYLE; THE SLOPE POLYGON; THE STRIP REPAINTED
+## LIVE IN THE GAME (2026-09-14, the user: "runways with elevation profiles,
+## MSFS style (edit a 2D graph length vs elevation, control points and spline)")
+
+- **THE PROFILE** (contract v1.8): a strip's centreline height along its
+  length as control points, a MONOTONE cubic between them (the ground never
+  overshoots a point - a hump is a hump, a dip a dip), sampled every 6 m
+  into the grade the composer already ran on two points. The old linear
+  slope is a two-point profile; every fixture still reads.
+- **THE GRAPH** in the AIRFIELD inspector: length against height, the curve
+  drawn from the same spline, drag a point (the ends slide only in height),
+  double-click the curve to add one, ✕ removes the selected, "level" flattens
+  - the validator's answer under it as the strip's line in the checks.
+- **THE PILOT'S LIMITS**, which the MSFS editor never asks and this one does:
+  under 5 % anywhere, under 2.5 % over the touchdown zone (a fifth of the
+  run from each threshold), no crest changing the slope more than 1.5 % over
+  30 m. They are the RECORD's issues (refused at the commit), rule 10c holds
+  each with a hump that passes and three that do not.
+- **THE SLOPE POLYGON**: the ramp re-expressed as what it is - a constant
+  slope with the polygon's middle at a set height, rising toward a heading;
+  the old plane form still reads and a record with one shows the new rows.
+  Rule 7b.
+- **THE STRIP REPAINTED LIVE** in the game: the world renderer keeps what
+  each premises strip stood (its decal, its sock, its far patch) under the
+  strip's id and stands it again from the registry after a live edit
+  (`WORLD.repaintStrips`); the decal is draped at 6 m along now, since a
+  profile can hump within twelve. In dev.html the game fixture's strip took
+  a 3 m hump: the ground, the decal and the graph agree.
+- Pictures: `v8_profile_hump.png` - the pilot's eye at the threshold of the
+  strip fixture's new hump (a 2 m rise over the middle): the far end drops
+  out of sight, as it should.
+- Gates: PREMISES green (244 checks over 5 fixtures).

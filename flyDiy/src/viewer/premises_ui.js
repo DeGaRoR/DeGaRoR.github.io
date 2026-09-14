@@ -39,12 +39,12 @@ const SECTIONS = [
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
   raise: 'click the corners, close; then set the lift in the inspector',
-  ramp: 'click the corners, close; then set the plane in the inspector',
+  ramp: 'click the corners, close: a constant slope, the middle at the height you set, rising toward the heading you set',
   road: 'click the road\'s points, then ✓ close (or double-click) — it is graded and worn; zones grow plots off it',
   surface: 'click the corners of the paved / gravel / sand patch, close',
   zone: 'click the corners of the zone, close; its kind, density and seed are in the inspector — plots grow along the roads inside it',
@@ -279,7 +279,7 @@ function mount(host, ctx) {
     let e;
     if (tool === 'flatten') { const lv = medianLevel(poly); e = { id: PG.newId(rec, 'terrain'), kind: 'flatten', poly, level: lv, falloff: bankFor(poly, lv, 10), abs: false, order: 0 }; }
     else if (tool === 'raise') e = { id: PG.newId(rec, 'terrain'), kind: 'raise', poly, dh: 2, falloff: 10 };
-    else if (tool === 'ramp') e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, plane: [0.02, 0, medianLevel(poly)], falloff: 8 };
+    else if (tool === 'ramp') { const lv = medianLevel(poly); e = { id: PG.newId(rec, 'terrain'), kind: 'ramp', poly, level: lv, slope: 0.02, hdg: 0, falloff: bankFor(poly, lv, 8) }; }
     else if (tool === 'surface') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL };
     else if (tool === 'apron') e = { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.PAVED, apron: true };
     else if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
@@ -550,9 +550,11 @@ function mount(host, ctx) {
         rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
       } else if (e.kind === 'raise') rows.slider(insp, 'lift (m)', -30, 30, 0.1, () => e.dh, v => ed(x => { x.dh = v; }, 'lift of ' + id, 'dh'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' m');
       else if (e.kind === 'ramp') {
-        rows.slider(insp, 'rise along x (‰)', -150, 150, 1, () => e.plane[0] * 1000, v => ed(x => { x.plane[0] = v / 1000; }, 'plane of ' + id, 'a'), v => v.toFixed(0) + ' ‰');
-        rows.slider(insp, 'rise along z (‰)', -150, 150, 1, () => e.plane[1] * 1000, v => ed(x => { x.plane[1] = v / 1000; }, 'plane of ' + id, 'b'), v => v.toFixed(0) + ' ‰');
-        rows.slider(insp, 'height at origin', -40, 80, 0.1, () => e.plane[2], v => ed(x => { x.plane[2] = v; }, 'plane of ' + id, 'c'), v => v.toFixed(1) + ' m');
+        if (e.slope === undefined || e.slope === null) { const c = PG.polyCentroid(e.poly), pl = e.plane || [0, 0, 0]; e.level = +(pl[0] * c[0] + pl[1] * c[1] + pl[2]).toFixed(2); e.slope = +Math.hypot(pl[0], pl[1]).toFixed(4); e.hdg = +(Math.atan2(pl[0], pl[1]) * 180 / Math.PI).toFixed(0); }
+        rows.slider(insp, 'height at the middle (m)', -40, 80, 0.1, () => e.level, v => ed(x => { x.level = v; }, 'level of ' + id, 'level'), v => v.toFixed(1) + ' m');
+        rows.slider(insp, 'slope (%)', 0, 15, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => v.toFixed(1) + ' %');
+        rows.slider(insp, 'rising toward (°)', 0, 360, 1, () => ((e.hdg || 0) + 360) % 360, v => ed(x => { x.hdg = v; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
+        rows.check(insp, 'absolute height', () => !!e.abs, v => ed(x => { x.abs = v; }, 'absolute ' + id));
       } else if (e.kind === 'grade') {
         rows.slider(insp, 'width (m)', 2, 30, 0.5, () => e.width, v => ed(x => { x.width = v; }, 'width of ' + id, 'width'), v => v.toFixed(1) + ' m');
         e.pts.forEach((p, i) => rows.slider(insp, 'point ' + (i + 1) + ' height', -40, 80, 0.1, () => p[2] || 0, v => ed(x => { x.pts[i][2] = v; }, 'height of ' + id, 'p' + i), v => v.toFixed(1) + ' m'));
@@ -591,7 +593,9 @@ function mount(host, ctx) {
       rows.slider(insp, 'width (m)', 8, 45, 1, () => e.wid, v => ed(x => { x.wid = v; }, 'width of ' + id, 'wid'), v => v.toFixed(0) + ' m');
       rows.slider(insp, 'heading (°)', -180, 180, 1, () => e.hdg * 180 / Math.PI, v => ed(x => { x.hdg = v * Math.PI / 180; }, 'heading of ' + id, 'hdg'), v => v.toFixed(0) + '°');
       rows.select(insp, 'surface', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
-      rows.slider(insp, 'slope along (%)', -5, 5, 0.1, () => (e.slope || 0) * 100, v => ed(x => { x.slope = v / 100; }, 'slope of ' + id, 'slope'), v => (v >= 0 ? '+' : '') + v.toFixed(1) + ' % (up toward end 1)');
+      // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
+      // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
+      profileGraph(insp, e, ed);
       rows.slider(insp, 'shoulder (m)', 10, 200, 5, () => e.falloff === null || e.falloff === undefined ? Math.min(120, 40 + e.len * 0.06) : e.falloff, v => ed(x => { x.falloff = v; }, 'shoulder of ' + id, 'falloff'), v => v.toFixed(0) + ' m');
       rows.check(insp, 'PAPI at end 0', () => !!(e.papi || [true, true])[0], v => ed(x => { x.papi = [v, (x.papi || [true, true])[1]]; }, 'papi of ' + id));
       rows.check(insp, 'PAPI at end 1', () => !!(e.papi || [true, true])[1], v => ed(x => { x.papi = [(x.papi || [true, true])[0], v]; }, 'papi of ' + id));
@@ -647,6 +651,46 @@ function mount(host, ctx) {
     if (e.poly || e.pts) rows.note(insp, (e.poly ? e.poly.length + ' corners' : e.pts.length + ' points') + ' — drag a disc to move it, a faint one to add a corner');
     rows.button(insp, 'delete ' + id, deleteSelected);
   } };
+  function profileGraph(host, e, ed) {
+    const pts = () => (Array.isArray(e.profile) && e.profile.length >= 2) ? e.profile : [[0, -(e.slope || 0) * e.len / 2], [1, (e.slope || 0) * e.len / 2]];
+    const wrap = $('div', { class: 'r', style: 'display:block' });
+    wrap.appendChild($('span', { class: 'k', text: 'profile: height along the strip' }));
+    const cv = $('canvas', { width: '300', height: '110', style: 'display:block;width:300px;height:110px;background:#0e1218;border:1px solid #242a33;border-radius:4px;cursor:crosshair' });
+    wrap.appendChild(cv);
+    const note = $('div', { class: 'note' });
+    wrap.appendChild(note);
+    host.appendChild(wrap);
+    let sel = -1, dragging = false;
+    const W = 300, H = 110, PADL = 34, PADR = 8, PADT = 10, PADB = 18;
+    const range = () => { const P = pts(); let lo = Math.min(0, ...P.map(q => q[1])), hi = Math.max(0, ...P.map(q => q[1])); const span = Math.max(4, hi - lo); const mid = (lo + hi) / 2; return { lo: mid - span * 0.65, hi: mid + span * 0.65 }; };
+    const X = t => PADL + t * (W - PADL - PADR), Y = dy => { const r = range(); return PADT + (1 - (dy - r.lo) / (r.hi - r.lo)) * (H - PADT - PADB); };
+    const tOf = px => Math.max(0, Math.min(1, (px - PADL) / (W - PADL - PADR))), dyOf = py => { const r = range(); return r.lo + (1 - (py - PADT) / (H - PADT - PADB)) * (r.hi - r.lo); };
+    const draw = () => {
+      const g = cv.getContext('2d'), P = pts(), r = range();
+      g.clearRect(0, 0, W, H);
+      g.strokeStyle = '#242a33'; g.lineWidth = 1;
+      for (const dy of [r.lo, 0, r.hi]) { const y = Y(dy); g.beginPath(); g.moveTo(PADL, y); g.lineTo(W - PADR, y); g.stroke(); g.fillStyle = '#7d8996'; g.font = '10px system-ui'; g.fillText((dy >= 0 ? '+' : '') + dy.toFixed(1) + ' m', 2, y + 3); }
+      const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P }));
+      g.strokeStyle = '#6fd08c'; g.lineWidth = 2; g.beginPath();
+      for (let i = 0; i <= 120; i++) { const t = i / 120, y = Y(pr.at(t * e.len)); if (i) g.lineTo(X(t), y); else g.moveTo(X(t), y); }
+      g.stroke();
+      P.forEach((q, i) => { g.fillStyle = i === sel ? '#ffb03a' : '#dfe6ee'; g.beginPath(); g.arc(X(q[0]), Y(q[1]), i === 0 || i === P.length - 1 ? 4 : 5, 0, 6.283); g.fill(); });
+      g.fillStyle = '#7d8996'; g.fillText('end 0', PADL, H - 5); g.fillText('end 1', W - PADR - 28, H - 5);
+      const iss = PG.profileIssues(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P }));
+      note.textContent = iss.length ? iss.join(' · ') : 'a monotone spline through the points; drag one, double-click the curve to add, ✕ removes the selected';
+      note.style.color = iss.length ? '#ff6b5a' : '';
+    };
+    const near = ev => { const rct = cv.getBoundingClientRect(), px = (ev.clientX - rct.left) * W / rct.width, py = (ev.clientY - rct.top) * H / rct.height; const P = pts(); let best = -1, bd = 9; P.forEach((q, i) => { const d = Math.hypot(X(q[0]) - px, Y(q[1]) - py); if (d < bd) { bd = d; best = i; } }); return { i: best, px, py }; };
+    cv.addEventListener('mousedown', ev => { if (ev.button !== 0) return; const n = near(ev); sel = n.i; dragging = sel >= 0; draw(); ev.preventDefault(); ev.stopPropagation(); });
+    addEventListener('mousemove', ev => { if (!dragging || sel < 0 || !active) return; const n = near(ev); const P = pts().map(q => q.slice()); const t = (sel === 0) ? 0 : (sel === P.length - 1) ? 1 : Math.max(P[sel - 1][0] + 0.01, Math.min(P[sel + 1][0] - 0.01, tOf(n.px))); P[sel] = [+t.toFixed(3), +dyOf(n.py).toFixed(2)]; e.profile = P; R.setRecord(rec); draw(); });
+    addEventListener('mouseup', () => { if (!dragging) return; dragging = false; const P = pts(); ed(x => { x.profile = P.map(q => q.slice()); }, 'profile of ' + e.id); });
+    cv.addEventListener('dblclick', ev => { const n = near(ev); if (n.i >= 0) return; const P = pts().map(q => q.slice()); const t = +tOf(n.px).toFixed(3); const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, e, { profile: P })); P.push([t, +pr.at(t * e.len).toFixed(2)]); P.sort((a, b) => a[0] - b[0]); ed(x => { x.profile = P; }, 'profile point of ' + e.id); ev.stopPropagation(); });
+    const btns = $('div', { style: 'display:flex;gap:6px;margin-top:4px' });
+    const del = $('button', { class: 'btn', text: '✕ remove the selected point' }); del.onclick = () => { const P = pts(); if (sel <= 0 || sel >= P.length - 1) return; const Q = P.filter((q, i) => i !== sel); sel = -1; ed(x => { x.profile = Q; }, 'profile point of ' + e.id); };
+    const flat = $('button', { class: 'btn', text: 'level' }); flat.onclick = () => ed(x => { x.profile = [[0, 0], [1, 0]]; x.slope = 0; }, 'profile of ' + e.id);
+    btns.appendChild(del); btns.appendChild(flat); wrap.appendChild(btns);
+    draw();
+  }
   function fileRows() {
     rows.section(insp, 'FILE');
     const nm = $('input', { type: 'text', placeholder: 'name', value: recName || '' }); nm.className = 'pr-name';

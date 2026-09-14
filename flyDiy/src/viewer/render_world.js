@@ -12,6 +12,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
+  let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
@@ -3121,11 +3122,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // patch uvs span the full 24 km domain: 613 tiles ~= the inner ring's
     // on-ground grain density (230 tiles over 9 km)
     if (detailApply) detailApply(patchMat, 613);
-    for (const a of world.aerodromes) {
-      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+    // ONE STRIP'S FURNITURE, re-runnable (v8): the premises' strips are painted again after a live edit
+    // (repaintStrips below); everything a strip stands is kept under its id so it can be taken away
+    const stripStood = new Map();
+    const standStrip = a => {
       const kind = a.surface === world.SURFACE.PAVED ? 'paved'
         : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
       if (!texes[kind]) texes[kind] = mkTex(kind);
+      const stood = []; stripStood.set(a.id, stood);
+      const keep = o => { stood.push(o); return o; };
       // W13.2 ground patch: every strip outside the inner ring sits on the
       // coarse outer mesh (~100 m polys, tucked 2 m LOW) — the graded
       // bench and its banks exist in terrainH but were unrenderable, so
@@ -3153,12 +3158,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         g2.computeVertexNormals();
         const pm = new THREE.Mesh(g2, patchMat);
         pm.receiveShadow = true;
-        scene.add(pm);
+        scene.add(keep(pm));
       }
       // the strip decal is DRAPED (per-vertex terrainH), not a flat plane
-      // at a.elev — wheels roll on terrainH, and the two now agree
+      // at a.elev — wheels roll on terrainH, and the two now agree; 6 m
+      // along since a profile (v8) can hump within twelve
       const geo = new THREE.PlaneGeometry(a.len, a.wid,
-        Math.ceil(a.len / 12), Math.max(2, Math.ceil(a.wid / 8)));
+        Math.ceil(a.len / 6), Math.max(2, Math.ceil(a.wid / 8)));
       geo.rotateX(-Math.PI / 2);
       geo.rotateY(-a.hdg);
       geo.translate(a.x, 0, a.z);
@@ -3170,16 +3176,31 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         worldLambert({ map: texes[kind], depthWrite: false }));
       m.renderOrder = 2;
       m.receiveShadow = true;
-      scene.add(m);
+      scene.add(keep(m));
       // windsock off the strip edge
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6), poleMat);
-      pole.position.set(px2, a.elev + 3, pz2); pole.castShadow = true; scene.add(pole);
+      pole.position.set(px2, a.elev + 3, pz2); pole.castShadow = true; scene.add(keep(pole));
       const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true), sockMat);
-      sock.castShadow = true; scene.add(sock);
-      socks.push({ pole: [px2, a.elev + 5.5, pz2], mesh: sock });   // W13 wind-driven
+      sock.castShadow = true; scene.add(keep(sock));
+      const sk = { pole: [px2, a.elev + 5.5, pz2], mesh: sock }; socks.push(sk); stood.push(sk);   // W13 wind-driven
+    };
+    for (const a of world.aerodromes) {
+      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      standStrip(a);
     }
+    // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
+    // every premises strip are taken away and stood again from the registry as it is now
+    repaintStrips = () => {
+      for (const [id, stood] of stripStood) {
+        const a0 = world.aerodromes.find(q => q.id === id);
+        if (a0 && !a0.premises) continue;
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); }
+        stripStood.delete(id);
+      }
+      for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow') standStrip(a);
+    };
   }
 
   { // landing meadows: marker ring + beacon
@@ -3422,7 +3443,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
