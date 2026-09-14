@@ -423,16 +423,25 @@ JSON is what W1 will be handed. Default stack = class → tint (colour 0.6) →
 radar (overlay 0.5) → canopy (multiply 0.35) → snow. Lighting is applied
 after the stack, with the sun on two knobs.
 
-**Contour smoothing** for the class map, two knobs, neither inventing a
-class: the palette colour is averaged over a ring of 16 taps (blur, metres,
-default 40) and the sample point is pushed by a per-cell hash (edge noise,
-metres, default 20) so no boundary stays a 10 m staircase.
+**Contour smoothing** for the class map (G392.2, after the user's screenshot
+showed the first version still pixelated at max blur): the class map is
+carried as **eight per-class weight fields** in two linearly-filtered RGBA
+textures (built at load from the cover grid); the blur averages WEIGHTS over
+a ring of 24 taps (metres) and the sample point is wobbled by a smooth value
+noise (metres) — a smooth field by construction. The first version blurred
+nearest-filtered class texels and pushed whole cells with a hash; a blur of
+texels is still texels. Neither version invents a class.
 
-**The radar as a normal map**: the ORI's gradient bends the vertex normal
-(strength, scale in metres) — the runway edges, the lake rims and the canopy
-texture become micro-relief that answers the sun. Not a measurement of
-height; a variation mask used as bump, live in the shader from the same
-texture, so it costs no extra file. `paint = normal` shows it.
+**The radar as a normal map** — with a band-pass (G392.2). The raw radar has
+single-texel speckle, and finite differences on a bilinear texture jump at
+every texel edge (G345's "a texel's gradient is a sparkle"): the first
+version bumped from the raw texture and drew a fine weave. `island_prep.py`
+now writes a **Gaussian pyramid** of the ORI (levels at 10 / 25 / 60 / 140 m,
+normalised convolution so the coast does not bleed sea), and the bump
+height is *fine level − coarse level* — the features between two
+wavelengths, both on knobs (`paint = bump band` shows what survives). The
+radar COLOUR layer reads a level too (0 = raw speckle). `paint = normal`
+shows the bent normal.
 
 **Frame times** (the pane's canvas, 2334 × 1233, the bench's unoptimised
 per-patch terrain at 2.5 M tris, RTX 3080): terrain alone with the 8-layer

@@ -45882,3 +45882,17 @@ the categorization in the asset editor".
 - NDVI explained in the doc; the layer census: everything usable at 55 N is
   in; owed derivations: slope/aspect/curvature guides, a winter Landsat for
   the real snowline, a second date for the 3 % cloud.
+
+## G392.2 — SMOOTH MEANS SMOOTH: CLASS WEIGHT FIELDS AND A RADAR PYRAMID
+## (2026-09-14, the user: "your smoothing algorithm is not real smooth ... the
+## radar bump generates a small pattern that looks like pixelisation")
+
+- Both were the same mistake: sampling a 10 m texel grid and calling the
+  average smooth. The class map is now EIGHT per-class weight fields in two
+  linear RGBA textures (built at load); the contour blur averages weights
+  over 24 taps and a smooth value noise wobbles the sample point. The
+  per-cell hash push is gone (it moved whole cells).
+- island_prep.py writes an ORI pyramid (10/25/60/140 m, normalised
+  convolution); the bump height is fine level - coarse level, both knobs;
+  the radar colour layer reads a level (0 = raw); `paint = bump band`.
+- Seen at 600 m over the airfield: no weave, no texels.

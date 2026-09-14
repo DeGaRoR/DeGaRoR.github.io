@@ -310,6 +310,25 @@ def main():
         o8.tofile(out + ".ori.u8")
         layers["ori"] = {"file": ".ori.u8", "tiles": len(oris), "stretch": [float(lo), float(hi)]}
         print(f"  ori: {len(oris)} tiles; stretched {lo:.0f}..{hi:.0f} -> 0..255")
+        # THE PYRAMID, for the bump. A normal taken from the raw radar is a
+        # texel-grid weave: single-texel speckle plus the gradient jumps of a
+        # bilinear texture (G345's "a texel's gradient is a sparkle"). The bench
+        # bumps from the DIFFERENCE of two levels - the features between two
+        # wavelengths - so both ends are options. Normalised convolution keeps
+        # the coast from bleeding sea into the land's mean.
+        try:
+            from scipy import ndimage
+            m = (landmask & (ori > 5)).astype("float32")
+            base = o8.astype("float32") * m
+            for lvl, wl in enumerate([10.0, 25.0, 60.0, 140.0], start=1):
+                sig = wl / cell / 2.0
+                num = ndimage.gaussian_filter(base, sig); den = ndimage.gaussian_filter(m, sig)
+                sm = np.where(den > 1e-3, num / np.maximum(den, 1e-3), 0).astype("float32")
+                np.clip(sm, 0, 255).astype("uint8").tofile(out + f".ori{lvl}.u8")
+                layers[f"ori{lvl}"] = {"file": f".ori{lvl}.u8", "wavelength_m": wl}
+            print("  ori pyramid: levels at 10 / 25 / 60 / 140 m")
+        except ImportError:
+            print("  (no scipy: ori pyramid skipped)")
 
     lsat = sorted(glob.glob(os.path.join(raw, "landsat", "*.tif")))
     if lsat:
