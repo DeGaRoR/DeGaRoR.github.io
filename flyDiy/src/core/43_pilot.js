@@ -875,8 +875,20 @@ function makePilot(sim, def, world, opts) {
       else tIthr = clamp(tIthr + kI * eT * dt, -0.4, 0.4);
       c.thr = clamp(ff + kP * eT + tIthr, tThrFloor, 1);
       // the speed weight: toward the elevator as the throttle saturates or the speed is low
-      const sat = c.thr >= 0.99 || c.thr <= tThrFloor + 0.005;
-      const wKt = (sat && Math.abs(Vc - V) > 1) || V < 1.1 * tVs0 ? 2 : 1;
+      // the weight when the throttle is on a stop: under 1.1 Vs0 the speed
+      // is the elevator's whatever the reference; in a CLIMB (a vs reference,
+      // full throttle by design) the speed is the elevator's too (Vy, the
+      // climb rate is what the thrust allows); holding a HEIGHT or a SLOPE
+      // with the throttle at its stop the height is the elevator's and the
+      // speed settles where the thrust allows — GATE PILOT's FAST card (45
+      // m/s the cub does not have) had it pitch down for a speed it could
+      // never reach and fly the circuit into the ground
+      const satHi = c.thr >= 0.99, satLo = c.thr <= tThrFloor + 0.005;
+      const wKt = V < 1.1 * tVs0 ? 2
+                : (o.vs != null && satHi && Vc - V > 1) ? 2
+                : (satHi && Vc - V > 1) ? 0
+                : (satLo && V - Vc > 1 && o.vs == null) ? 0.5
+                : 1;
       tWk += clamp(wKt - tWk, -0.5 * dt, 0.5 * dt);
       // the balance: pitch = trim(V) + gamma demanded + P + I on the balance-rate error
       const SEBr = (2 - tWk) * tHdot - tWk * V * accF / g9, SEBrC = (2 - tWk) * hdotC - tWk * V * VdotC / g9;

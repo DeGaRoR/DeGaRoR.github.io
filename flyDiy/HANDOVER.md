@@ -47384,3 +47384,25 @@ stearman's calm rollout swing 5.9 -> 6.5 deg, the threshold at 6).
   east): snow only on the summit's flatter crown, the flanks green rock.
   The G-number: G408 went to the sky chantier on master while this was in
   hand; renumbered before landing.
+
+## G399.5 — THE PILOT TRACK: TECS'S WEIGHT ON A STOP — A SPEED IT CANNOT
+## HAVE IS NOT FLOWN INTO THE GROUND (2026-09-14; found by GATE PILOT's
+## FAST card on G399.4's worktree)
+
+The FAST card asks the stock cub for 45 m/s it does not have. Under the
+mode zoo the throttle sat at 1 and ALT kept the height on the elevator —
+"full throttle holds 141 of the 162 km/h asked", the circuit completed.
+Under TECS the speed weight went to 2 (speed on the elevator) whenever
+the throttle saturated with a speed error, so the cub pitched down for a
+speed it could never reach and flew the circuit into the ground (outcome
+null). The weight on a stop now depends on the REFERENCE: under 1.1 Vs0
+the speed is the elevator's whatever the reference; in a CLIMB (a `vs`
+reference — full throttle by design) the speed is the elevator's too
+(Vy, the rate is what the thrust allows); holding a HEIGHT or a SLOPE with
+the throttle at its top the height is the elevator's and the speed settles
+where the thrust allows (0); at the idle stop too fast in a level hold, a
+half weight. The card: 143 km/h held, completed, the landing 1.1 m/s.
+
+- Gates: PILOT (12 cases) on this commit's worktree — the proof of G399.4
+  and G399.5 together; PILOTMATRIX's baseline moved forward in the same
+  proof (see the next entry).
