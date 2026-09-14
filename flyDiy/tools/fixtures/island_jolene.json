@@ -1,0 +1,341 @@
+{
+ "what": "flydiy-premises",
+ "v": 1,
+ "name": "jolene",
+ "premises": {
+  "v": 1,
+  "id": "jolene-field",
+  "name": "Jolene Field - the old WWII cross, read off the built-up class; 13/31 is HOME",
+  "seed": 11,
+  "frame": {
+   "kind": "free",
+   "extent": {
+    "x0": -1700,
+    "z0": -900,
+    "x1": 1500,
+    "z1": 1400
+   },
+   "anchors": {
+    "*": {
+     "x": 0,
+     "z": 0,
+     "yaw": 0
+    }
+   }
+  },
+  "layers": {
+   "terrain": [
+    {
+     "id": "t1",
+     "kind": "flatten",
+     "poly": [
+      [
+       -320,
+       480
+      ],
+      [
+       -10,
+       480
+      ],
+      [
+       -10,
+       740
+      ],
+      [
+       -320,
+       740
+      ]
+     ],
+     "level": 30.4,
+     "falloff": 40,
+     "abs": true,
+     "order": 0
+    },
+    {
+     "id": "t2",
+     "kind": "flatten",
+     "poly": [
+      [
+       -190,
+       400
+      ],
+      [
+       -40,
+       400
+      ],
+      [
+       -40,
+       500
+      ],
+      [
+       -190,
+       500
+      ]
+     ],
+     "level": 30.4,
+     "falloff": 30,
+     "abs": true,
+     "order": 1
+    }
+   ],
+   "material": [],
+   "zones": [],
+   "links": [],
+   "objects": [],
+   "runways": [
+    {
+     "id": "HOME",
+     "name": "Jolene Field 13/31",
+     "c": [
+      -301,
+      221
+     ],
+     "hdg": 0.7156,
+     "len": 2325,
+     "wid": 45,
+     "surface": 5,
+     "look": "worn",
+     "crossfall": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      true,
+      true
+     ],
+     "falloff": 60,
+     "site": null,
+     "pattern": null,
+     "profile": [
+      [
+       0,
+       5.2
+      ],
+      [
+       0.5,
+       0.0
+      ],
+      [
+       1,
+       -5.1
+      ]
+     ],
+     "stand": {
+      "x": -150,
+      "z": 560,
+      "hdg": null
+     },
+     "taxiOut": [
+      [
+       -150,
+       430
+      ],
+      [
+       -71,
+       421
+      ]
+     ]
+    },
+    {
+     "id": "w2",
+     "name": "Jolene Field 02/20",
+     "c": [
+      584,
+      -94
+     ],
+     "hdg": 1.9897,
+     "len": 1835,
+     "wid": 45,
+     "surface": 5,
+     "look": "worn",
+     "crossfall": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      false,
+      false
+     ],
+     "falloff": 60,
+     "site": null,
+     "pattern": null,
+     "profile": null
+    }
+   ],
+   "surface": [
+    {
+     "id": "y1",
+     "poly": [
+      [
+       -300,
+       500
+      ],
+      [
+       -20,
+       500
+      ],
+      [
+       -20,
+       720
+      ],
+      [
+       -300,
+       720
+      ]
+     ],
+     "surface": 5,
+     "apron": true
+    }
+   ],
+   "exclude": [
+    {
+     "id": "x1",
+     "poly": [
+      [
+       -340,
+       470
+      ],
+      [
+       20,
+       470
+      ],
+      [
+       20,
+       760
+      ],
+      [
+       -340,
+       760
+      ]
+     ],
+     "what": [
+      "trees",
+      "rocks",
+      "settle"
+     ]
+    }
+   ],
+   "roads": [
+    {
+     "id": "r1",
+     "pts": [
+      [
+       -160,
+       500
+      ],
+      [
+       -150,
+       430
+      ],
+      [
+       -120,
+       380
+      ]
+     ],
+     "w": 8,
+     "cls": "gravel",
+     "graded": true,
+     "falloff": 8
+    }
+   ],
+   "sites": [
+    {
+     "id": "s1",
+     "name": "the old base",
+     "at": {
+      "x": -160,
+      "z": 610,
+      "yaw": 0
+     },
+     "yard": {
+      "x0": -130,
+      "x1": 130,
+      "z0": -100,
+      "z1": 100
+     },
+     "items": [
+      {
+       "id": "shop_0",
+       "key": "big/mine shop",
+       "x": -70,
+       "z": -40,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "shed_0",
+       "key": "house/storage shed",
+       "x": 20,
+       "z": -50,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "shed_1",
+       "key": "house/storage shed",
+       "x": 50,
+       "z": -50,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "bunk_0",
+       "key": "house/mine bunkhouse",
+       "x": -40,
+       "z": 50,
+       "yaw": 1.5708,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mess_0",
+       "key": "house/mine mess hall",
+       "x": 40,
+       "z": 50,
+       "yaw": 1.5708,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "office_0",
+       "key": "house/mine office",
+       "x": 90,
+       "z": 0,
+       "yaw": 3.1416,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "junk_0",
+       "key": "car_junk",
+       "x": -100,
+       "z": 60,
+       "yaw": 0.6,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      }
+     ]
+    }
+   ]
+  },
+  "budget": {
+   "tris": 400000,
+   "lights": 24,
+   "smoke": 6,
+   "people": 40
+  },
+  "rev": 2
+ }
+}

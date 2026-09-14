@@ -753,6 +753,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
     const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.0, sat: 1.0, snow: 890, shore: 1.0, mode: 0 };
+    // THE STACK (G404, the user: "a way to edit the stack, like I did in the
+    // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
+    // a fixed order, each with the bench's twelve blend modes and an opacity.
+    // The defaults are the bench's (the user's, 2026-09-14): class normal 1 >
+    // tint normal 1 > radar overlay 0.75 > canopy shade multiply 0.7 > snow.
+    const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'soft light', 'hard light', 'darken', 'lighten', 'add', 'colour', 'luminosity', 'hue'];
+    const STACK = [
+      { src: 'class', on: 1, mode: 0, op: 1.0 },
+      { src: 'tint',  on: 1, mode: 0, op: 1.0 },
+      { src: 'radar', on: 1, mode: 3, op: 0.75 },
+      { src: 'shade', on: 1, mode: 1, op: 0.7 },
+      { src: 'snow',  on: 1, mode: 0, op: 1.0 },
+    ];
+    try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.stack') || 'null'); if (sv && sv.length === 5) sv.forEach((l, i) => Object.assign(STACK[i], { on: l.on, mode: l.mode, op: l.op })); } catch (e) {}
     // the bench's paint modes, in the game: 0 the stack, then each map alone
     const GROUND_MODES = ['stack', 'tint', 'radar', 'canopy', 'class', 'ndvi', 'coast', 'height', 'snow'];
     const gU = {};
@@ -775,6 +789,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
         uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1100) },
+        uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
         uGCover: { value: ISLA.cover ? (() => { const t = mk8(ISLA.cover); t.magFilter = t.minFilter = THREE.NearestFilter; return t; })() : mk8(new Uint8Array(n)) },
         uGNdvi: { value: ISLA.ndvi ? mk8(ISLA.ndvi) : mk8(new Uint8Array(n)) },
       });
@@ -788,24 +803,44 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\n' +
             'uniform sampler2D uGTint, uGOri, uGCan, uGCoast, uGCover, uGNdvi; uniform vec4 uGGrid;\n' +
             'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
+            'uniform int uLOn[5]; uniform int uLMode[5]; uniform float uLOp[5];\n' +
+            'float gLuma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }\n' +
+            'vec3 gBlend(vec3 b, vec3 s, int m){\n' +
+            '  if (m == 1) return b * s; if (m == 2) return 1.0 - (1.0 - b) * (1.0 - s);\n' +
+            '  if (m == 3) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, b));\n' +
+            '  if (m == 4) return mix(b - (1.0 - 2.0 * s) * b * (1.0 - b), b + (2.0 * s - 1.0) * (sqrt(b) - b), step(0.5, s));\n' +
+            '  if (m == 5) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, s));\n' +
+            '  if (m == 6) return min(b, s); if (m == 7) return max(b, s); if (m == 8) return b + s;\n' +
+            '  if (m == 9) { float lb = gLuma(b), ls = max(gLuma(s), 1e-3); return s * (lb / ls); }\n' +
+            '  if (m == 10) { float lb = max(gLuma(b), 1e-3), ls = gLuma(s); return b * (ls / lb); }\n' +
+            '  if (m == 11) { float lb = gLuma(b), ls = max(gLuma(s), 1e-3); return mix(vec3(lb), s * (lb / ls), 0.7); }\n' +
+            '  return s; }\n' +
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
             '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }')
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
-            '  vec3 t = texture2D(uGTint, guv).rgb;\n' +
+            '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
             '  float r1 = texture2D(uGOri, guv).r;\n' +
-            '  vec3 ov = mix(2.0 * t * r1, 1.0 - 2.0 * (1.0 - t) * (1.0 - r1), step(0.5, t));\n' +
-            '  t = mix(t, ov, uGOverlay);\n' +
             '  float can = texture2D(uGCan, guv).r * 255.0;\n' +
-            '  t *= mix(1.0, 1.0 - 0.45 * clamp(can / uGP90, 0.0, 1.2), uGShade);\n' +
+            '  float snowA = smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y);\n' +
+            '  vec3 t = vec3(0.5);\n' +
+            '  for (int i = 0; i < 5; i++) {\n' +
+            '    if (uLOn[i] == 0) continue;\n' +
+            '    vec3 s; float a = 1.0;\n' +
+            '    if (i == 0) s = gClassCol(texture2D(uGCover, guv).r * 255.0);\n' +
+            '    else if (i == 1) s = tint;\n' +
+            '    else if (i == 2) s = vec3(r1);\n' +
+            '    else if (i == 3) s = vec3(1.0 - 0.45 * clamp(can / uGP90, 0.0, 1.2));\n' +
+            '    else { s = vec3(0.85, 0.88, 0.95); a = snowA; }\n' +
+            '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
+            '  }\n' +
             '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane
             '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
-            '  t = mix(t, vec3(0.85, 0.88, 0.95), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
             '  if (uGMode == 1) t = texture2D(uGTint, guv).rgb;\n' +
@@ -823,6 +858,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),
+      blends: () => BLENDS.slice(),
+      stack: () => STACK.map(l => Object.assign({}, l)),
+      setLayer: (i, o) => { const l = STACK[i]; if (!l) return null; Object.assign(l, o);
+        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; }
+        try { localStorage.setItem('flydiy.ground.stack', JSON.stringify(STACK)); } catch (e) {}
+        return Object.assign({}, l); },
       set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
         const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode' }[k];
         if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },

@@ -46597,3 +46597,38 @@ cannot tell them and they fought. The layers now stand 3 cm apart (track
 +12/+13) and the dirt, court and track materials carry a polygon offset of
 their own under the lines' (-5) and the lot patch's (-3). Rule 41 widened
 to the stack. Seen: screenshots/lots/09_diamond_centre.png.
+
+## G404 — THE STACK ON F8, AND THE START SCENE ON THE FIELD (2026-09-14, the
+## user: "a way to edit the stack, like I did in the bench - every layer, on/off,
+## blend mode, alpha ... did you use the actual editor ... how do we declare an
+## airport, give it an ICAO ... I'd like for the starting scene to be properly
+## setup according to the actual layout")
+
+- HONESTLY: the field was written straight into the editor's file format
+  (tools/fixtures/island_jolene.json), not through the editor's UI; the
+  editor opens it like any premises. THE CONCEPTS: there is no airport
+  object - the registry is a list of RUNWAYS (id = the code, no ICAO
+  field), each with an optional SITE (stand, the way out, hangar/apron/
+  fence furniture) and a PATTERN (authored or built by sitePattern); the
+  game starts at the runway called HOME. An airport with an ICAO holding
+  several runways is a contract amendment to write (v1.9: `airports:
+  [{ icao, name, runways: [...] }]`), owed.
+- THE STACK IN THE GROUND HOOK: five albedo layers in the bench's order -
+  class, tint, radar, shade, snow - each on/off, twelve blend modes, an
+  opacity (uLOn/uLMode/uLOp); defaults the bench's (class normal 1 > tint
+  normal 1 > radar overlay 0.75 > shade multiply 0.7 > snow); remembered in
+  localStorage; WORLD.ground.stack/setLayer/blends. F8 > map layers > the
+  stack. The two redundant sliders (radar overlay, canopy shade) removed.
+  Owed from the bench: the class contour blur, the bump.
+- THE START SCENE: the long runway IS HOME ("Jolene Field 13/31", 2 325 m,
+  worn concrete, PAPI), its stand on the old apron at (-150, 560) facing the
+  way out, taxiOut down the taxi road to the centreline at (-71, 421); two
+  flattens (the apron, the taxi corridor) at the runway's height there
+  (30.4 m) so the pattern check is clean; 02/20 stays w2. On an island with
+  premises: no analytic cut at the origin, the analytic HOME record is
+  replaced by the premises' HOME, the analytic base-aerodrome furniture
+  (shed, fence, windsock, paving) is not built - the premises renderer
+  draws the field. A saved WIP (the WORLD rail's) loses to the island's
+  fixture when it is the same premises at an older `rev` (rev 2 now).
+- Seen: the aeroplane on the apron among the base's sheds, 13/31 ahead,
+  Tamgas with snow behind. GATE WORLD + PREMISES green.
