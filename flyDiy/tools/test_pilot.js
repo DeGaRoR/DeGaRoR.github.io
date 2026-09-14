@@ -108,6 +108,22 @@ function fly(spec, maxS, card, opts) {
   const r = leg(ap);
   r.def = def;
   if (opts.again && r.report.outcome === 'completed') {
+    // G381.1: THE TURN-AROUND IS KEPT UNDER TEST. With the touchdown at
+    // 20 % of the strip (G381) the stock build stops with ~600 m ahead and
+    // the planner honestly rolls straight on — so the stopped aeroplane is
+    // slid along the strip (a rigid translation on the flat pad, every node
+    // and its velocity) to 150 m from the end it faces, less than the run
+    // it needs, and the departure has to turn it around: the U-turn at the
+    // pose, the backtrack, the hold — the flight everyone failed.
+    {
+      const cg = sim.cgPos();
+      const ux = r.landDir ? r.landDir[0] : 1, uz = r.landDir ? r.landDir[1] : 0;
+      const ex = a.x + ux * a.len / 2, ez = a.z + uz * a.len / 2;     // the end it faces
+      const ahead = (ex - cg[0]) * ux + (ez - cg[2]) * uz;
+      const dx = ux * (ahead - 150), dz = uz * (ahead - 150);
+      for (let i = 0; i < sim.n; i++) { sim.p[i * 3] += dx; sim.p[i * 3 + 2] += dz; }
+      r.againSlid = Math.round(ahead - 150);
+    }
     const ap2 = mk();
     ap2.departFrom(a, a);                  // from the stopped pose, no site: the strip's own pattern
     r.again = leg(ap2);
@@ -190,8 +206,8 @@ function checkAgain(r) {
   // build now stops with ~600 m ahead and the planner rolls straight on
   // from a hold — a taxi (the U-turn) is only owed when the run ahead does
   // not fit. Either is the honest answer; a hold before the roll is not optional.
-  check(!!s && s.phases.includes('HOLD') && s.phases.includes('ROLL'),
-        'again: it held (taxiing first when the run ahead did not fit) before rolling', s ? s.phases.join(' ') : 'none');
+  check(!!s && s.phases.includes('TAXI') && s.phases.includes('HOLD'),
+        'again: it taxied (the turn-around) to a hold before rolling', s ? s.phases.join(' ') : 'none');
   check(!!s && s.report.outcome === 'completed' && s.phase === 'STOPPED' && s.t < 450,
         'again: the second circuit completes inside 450 s', s ? s.report.outcome + ' at ' + s.t.toFixed(0) + ' s' : '—');
   check(!!s && !has(s, 'rejected-takeoff') && !has(s, 'taxi-lost'),

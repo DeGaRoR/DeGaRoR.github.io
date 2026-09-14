@@ -278,6 +278,8 @@ function makePilot(sim, def, world, opts) {
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let arc = null, finalLevel = null;
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
+  // G381.1: the power assist on the approach (see apply)
+  let pAsst = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -834,6 +836,32 @@ function makePilot(sim, def, world, opts) {
         case 'NONE': c.dr = 0; c.da = 0; break;
         default: break;
       }
+      // G381.1: POWER WHEN THE ELEVATOR RUNS OUT. On the approach and in the
+      // flare, an aeroplane whose elevator sits on its nose-up stop cannot
+      // hold the slope or the hold-off at idle — the drawn-tail Caravan-alike
+      // fell 3 m/s below a 2.2 deg slope with de at 0.35 and went around
+      // twice for the terrain; the C172-alike mushed on at 0.99 Vs with full
+      // flap, de on its stop, at 1.9 m/s. What a pilot does is add power: the
+      // slipstream gives the tail its authority back and the thrust carries
+      // the sink. The assist winds up while the elevator is past 0.30
+      // (0.35 is the stop), unwinds once it is back under 0.22, is capped at
+      // `apAssistMax` (0.40) and is ADDED to whatever the thrust mode set —
+      // the speed hold's floor, the flare's idle. It never fires when the
+      // elevator has room, so every aeroplane that flies its approach at
+      // idle is unchanged.
+      if ((ap.phase === 'FINAL' || ap.phase === 'FLARE') && (AF.thr === 'SPD' || AF.thr === 'IDLE')) {
+        const sat = aDe > 0.30, free = aDe < 0.22;
+        // in the flare the assist depends on the SPEED: a slow arrival (the
+        // C172-alike at 1.13 VRot, full flap) needs the power to finish its
+        // hold-off (1.9 -> 1.0 m/s); a fast one (the Caravan-alike at 1.6
+        // VRot, no flap, the tail out of authority) only floats on it — 836 m
+        // of run, stopped 8 m from the end — so it gets a trickle (0.12: 0.59 m/s, 669 m; at 0.05 it arrived at 2.3 m/s)
+        const fast = V > 1.35 * (A.VRot || 18);
+        const cap = ap.phase === 'FLARE' ? (fast ? (A.apAssistFlareFast ?? 0.12) : (A.apAssistFlare ?? 0.30))
+                  : (A.apAssistMax ?? 0.40);
+        pAsst = clamp(pAsst + (sat ? (A.apAssistRate ?? 0.20) : free ? -0.25 : 0) * dt, 0, cap);
+        if (pAsst > 0) c.thr = clamp(c.thr + pAsst, 0, 1);
+      } else pAsst = 0;
       AF.fd = { pitch: thCA, bank: phCA };
     };
 
@@ -1494,7 +1522,21 @@ function makePilot(sim, def, world, opts) {
           else engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         } else engage('RWY', 'DE', 'SET', { thr: 0, de: V > (A.VTailDown ?? A.VTailUp) ? -0.05
                     : (th > (A.thPinMax ?? 0.26) ? 0.05 : V > (A.VPinFull ?? 0) ? 0.14 : 0.35) });
-        if (Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
+        // G381.1: A TRICYCLE BRAKES AS SOON AS THE NOSEWHEEL IS DOWN. VBrakeOn
+        // (0.75 Vs) is the taildragger's rule — brake hard with the tail up
+        // and it noses over — and a trike landed fast (the drawn-tail
+        // Caravan-alike at 1.6 Vs) rolled 836 m waiting for it, stopping 8 m
+        // from the end of an 1100 m strip.
+        if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
+          brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
+        // G381.1: THROUGH A SKIP THE PILOT KEEPS FLYING IT. A bounce in a
+        // crosswind put the wheels back in the air for a second, the ground
+        // law's rudder let the nose weathercock 10 deg while nothing steered,
+        // and the tailwheel then swung it (cub, 2 m/s across: 10.7 deg). Off
+        // the wheels in the first seconds the flare's DECRAB flies the
+        // lateral — wings level, the nose held on the centreline — until the
+        // wheels are back.
+        if (onG === 0 && phaseT < 6 && AF.lat === 'RWY') { AF.lat = 'DECRAB'; ap.trackHold = true; }
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
         setStatus('rolling out', [cond('ground speed', Vg, A.VStop, Vg < A.VStop, 'm/s')]);
         if (Vg < A.VStop || phaseT > 120) {

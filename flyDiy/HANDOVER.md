@@ -45047,6 +45047,60 @@ FLYDIY_RENDERER — scratch shot.js).
   trikes' low-speed nosewheel weave (+/-1.5 deg, 45-57 reversals on the
   pusher and the rv, pre-existing); the AGAIN case's U-turn coverage.
 
+## G381.1 — POWER WHEN THE ELEVATOR RUNS OUT; A TRICYCLE BRAKES ON THE
+## NOSEWHEEL; DECRAB THROUGH A SKIP; THE TURN-AROUND BACK UNDER TEST
+## (2026-09-14, the owed items of G381, in urgency order)
+
+**THE POWER ASSIST (43_pilot.js `apply`).** The two flapped-trike landings
+G381 left owed were the same defect: an elevator on its nose-up stop at
+idle. The drawn-tail Caravan-alike (GATE ARCHETYPES' build) fell 3 m/s
+below a 2.2 deg slope with de at 0.35 from the first second of FINAL and
+went around twice for the terrain (with the HEAD pilot too); the C172-alike
+mushed on at 0.99 Vs, 1.9 m/s, full flap, de on the stop. What a pilot does
+is ADD POWER: the slipstream gives the tail its authority back and the
+thrust carries the sink. On FINAL and in FLARE, while the elevator is past
+0.30, `pAsst` winds up (0.20/s) and is added to whatever the thrust mode
+set (the speed hold's floor, the flare's idle); it unwinds once the
+elevator is back under 0.22; it never fires when the elevator has room, so
+every approach that flies at idle is unchanged. Caps: 0.40 on final; in
+the flare BY SPEED — 0.30 for a slow arrival (V < 1.35 VRot: the C172 at
+1.13 VRot needs it to finish the hold-off, 1.9 -> 1.02 m/s), a 0.12 trickle
+for a fast one (the Caravan at 1.6 VRot only floats on power: at 0.40 it
+ran 836 m and stopped 8 m from the end; at 0.12 it arrives at 0.59 m/s in
+669 m; at 0.05 it hit at 2.3). The Caravan-alike now COMPLETES its circuit
+(no go-around, pastAim 23) — landing fast, at 1.57 Vs, because that tail
+cannot slow it: still the airframe's, owed to the tail chantier.
+
+**A TRICYCLE BRAKES AS SOON AS THE NOSEWHEEL IS DOWN** (ROLLOUT). VBrakeOn
+(0.75 Vs) is the taildragger's rule — brake hard with the tail up and it
+noses over — and a trike landed fast rolled 836 m waiting for it. With all
+three wheels down and V below VDerotate the ramp starts. RV-alike 410 ->
+342 m, C172 179 -> 141 m.
+
+**DECRAB THROUGH A SKIP** (ROLLOUT): off the wheels in the first six
+seconds the flare's DECRAB flies the lateral, not the ground law.
+Measured on the cub in 2 m/s across: no change (10.7 -> 10.6 deg) — the
+swing is on the WHEELS, not in the air: at the touchdown the mains grip,
+the crosswind yaws the aeroplane 10 deg in a second while the scheduled
+tail-down gain (0.46 at 22 m/s) answers with 0.15-0.35 of rudder, and it
+recovers with no reversal (zero-crossings 0, 0.5 m off centre). Kept
+because it is right; the swing stays on the owed list as a number, not a
+loss of control.
+
+**THE TURN-AROUND BACK UNDER TEST** (test_pilot.js AGAIN). With the target
+at 20 % the stock build stopped with ~600 m ahead and rolled straight on,
+so the case no longer flew the U-turn. The stopped aeroplane is now SLID
+along the strip — a rigid translation of every node on the flat pad — to
+150 m from the end it faces, less than the run it needs, and the departure
+has to turn it around: TAXI (the U-turn at the pose, the backtrack) and
+HOLD are required again.
+
+- Gates: PILOT (with the slide), TAKEOFF, HONEST — see the commit.
+- OWED: the drawn-tail Caravan-alike's approach speed (1.57 Vs at idle
+  with full-up elevator: the tail chantier's); the 10 deg touchdown swing
+  in a crosswind on the cub/stearman; the trikes' low-speed nosewheel
+  weave.
+
 ## G385 — THE PREMISES PORT, L1: THE COMPOSER IN THE CORE, THE WORLD TAKES A
 ## PREMISES, THE WORLD PACK (2026-09-14, the user: "do the port")
 
