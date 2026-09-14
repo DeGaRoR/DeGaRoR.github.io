@@ -433,6 +433,56 @@ def main():
         layers["albedo"] = {"file": ".albedo.rgb", "recipe": "tint > radar(ori1) overlay 0.75 > canopy shade x0.7 > shore > snow; unlit"}
         print("  albedo: the bench's stack baked, unlit")
 
+    # ---- THE LAKES (G405): the cover's water class over land, as a SIGNED
+    # distance like the coast (128 = the edge, + inside the lake, 4 m a unit),
+    # so the water's edge is a smooth line through the cells; the renderer
+    # lays a flat surface per lake at the DEM's own level.
+    if covers:
+        try:
+            from scipy import ndimage
+            lake = (cov == 80) & landmask
+            d_in = ndimage.distance_transform_edt(lake) * cell
+            d_out = ndimage.distance_transform_edt(~lake) * cell
+            lsd = np.where(lake, 128.0 + np.minimum(d_in, 508.0) / 4.0, 128.0 - np.minimum(d_out, 508.0) / 4.0)
+            lsd = ndimage.gaussian_filter(lsd.astype("float32"), 1.0)
+            np.clip(np.round(lsd), 0, 255).astype("uint8").tofile(out + ".lake.u8")
+            lab, nl = ndimage.label(lake)
+            layers["lake"] = {"file": ".lake.u8", "unit": "signed m/4, 128 = the edge, + inside", "lakes": int(nl),
+                              "km2": float(lake.sum() * cell * cell / 1e6)}
+            print(f"  lakes: {nl} from the cover's water class, {lake.sum()*cell*cell/1e6:.1f} km2")
+        except ImportError:
+            pass
+
+    # ---- THE TERRAIN TYPE (G405, the user: "a precise vegetation map with
+    # clear tree-bush-stone-sand-grass for splatting and spawning"): ONE map
+    # derived from class x NDVI x canopy x slope x coast. Codes:
+    #   0 sea  1 lake  2 heath/grass  3 muskeg (bog)  4 sand/beach  5 scree
+    #   6 rock  7 scrub  8 forest  9 snow  10 built
+    if covers and "canopy" in layers and "ndvi" in layers and "coast" in layers:
+        can = np.fromfile(out + ".canopy.u8", dtype="uint8").reshape(H, W).astype("float32")
+        ndv = np.fromfile(out + ".ndvi.u8", dtype="uint8").reshape(H, W).astype("float32") / 127.0 - 1.0
+        csd = (np.fromfile(out + ".coast.u8", dtype="uint8").reshape(H, W).astype("float32") - 128.0) * 4.0
+        gz, gx = np.gradient(dem, cell); slope = np.degrees(np.arctan(np.hypot(gx, gz)))
+        tt = np.full((H, W), 2, dtype="uint8")                                   # heath/grass by default
+        tt[(cov == 30) | (cov == 90)] = 2
+        tt[((cov == 30) | (cov == 90)) & (slope < 5) & (ndv > 0.45) & (dem < 250)] = 3   # the bogs
+        tt[(cov == 10) | (cov == 20)] = 7                                           # scrub until the canopy says forest
+        tt[(cov == 10) & (can >= 2.5)] = 8
+        tt[(cov == 60) | (cov == 100)] = 5
+        tt[(slope > 38) | (((cov == 60) | (cov == 100)) & (slope > 28))] = 6
+        tt[(csd > 0) & (csd < 25) & (ndv < 0.35)] = 4
+        tt[cov == 50] = 10
+        tt[dem >= 900] = 9
+        tt[(cov == 80) & landmask] = 1
+        tt[~landmask] = 0
+        tt.tofile(out + ".ttype.u8")
+        vals, counts = np.unique(tt, return_counts=True)
+        names = {0: "sea", 1: "lake", 2: "heath", 3: "muskeg", 4: "sand", 5: "scree", 6: "rock", 7: "scrub", 8: "forest", 9: "snow", 10: "built"}
+        land = int(landmask.sum())
+        layers["ttype"] = {"file": ".ttype.u8", "codes": names,
+                           "shareOfLand": {names[int(v)]: round(100.0 * int(n) / land, 2) for v, n in zip(vals, counts) if int(v) not in (0,)}}
+        print("  terrain type:", "  ".join(f"{names[int(v)]} {100*int(n)/land:.1f}%" for v, n in zip(vals, counts) if int(v) != 0), "(of land)")
+
     oE, oN = isl["origin"]
     meta = {"island": args.island, "w": W, "h": H,
             "x0": float(x0 - oE), "z0": float(oN - z1),        # game frame: row 0 is the north edge

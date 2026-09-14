@@ -83,7 +83,8 @@ var ISLAND_GEN = (function () {
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
-      coverU8: cover, ndvi: src.grid.ndvi || null,
+      coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null,
+      hydro: src.hydro || 'map',     // 'map': the cover's lakes, no bake water; 'proc': the analytic bake's lakes and rivers (G405, to compare)
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
       farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,

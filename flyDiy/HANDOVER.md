@@ -46838,3 +46838,36 @@ geometry stays as-is), the media manifest + prefetch, the media-only service
 worker with version numbers and a refresh button. In S1 itself: a
 'loading…' label for dev.html's promote wait (index.html has the vendor/core
 markers, dev.html has none until app.js speaks).
+
+## G405 — THE MAPS AS METADATA: THE TERRAIN-TYPE MAP, THE VIEWS RECOLOURED, THE
+## CLASS SMOOTHING BACK, LAKES FROM THE MAP, ?hydro=proc (2026-09-14, the user:
+## "water using the class map ... then the procedural water, and let's check the
+## difference ... remap the canopy into a clear blue to red scale, the class into
+## clearly distinct colors ... what are we after exactly? A precise vegetation map
+## with clear tree-bush-stone-sand-grass for splatting and spawning")
+
+- THE TERRAIN TYPE, derived in island_prep from class x NDVI x canopy x slope
+  x coast (.ttype.u8; codes sea/lake/heath/muskeg/sand/scree/rock/scrub/
+  forest/snow/built): Jolene is forest 49.6 %, scrub 24.4 %, rock 9.4 % (a
+  slope over 38 deg, or bare over 28), lakes 6.9 %, heath 6.5 %, muskeg 2.9 %.
+  This is the splat-and-spawn map; the others are its inputs.
+- THE VIEWS: canopy = dark grey at zero, then blue > cyan > green > yellow >
+  red to 1.5 x the p90; class = eight DISTINCT colours (and smoothed);
+  NDVI = blue-grey under 0.2, brown to yellow to deep green; terrain type
+  and lakes as views of their own.
+- THE CLASS SMOOTHING in the game hook (the bench's): eight weight fields
+  in two linear textures, a 24-tap ring blur (metres) and a smooth wobble,
+  F8 > map layers > class blur / wobble; the stack's class layer and the
+  class view both read it.
+- WATER FROM THE MAP: .lake.u8 is a signed field of the cover's water class
+  over land (1 079 lakes, 24.8 km2); the ground paints the water inside it
+  with a smooth edge (F8 > map layers > water), and the water mesh gets a
+  flat quad per class-80 cell at the DEM's own level (the lake is flat in
+  the DEM). ?hydro=proc boots the analytic bake's lakes and rivers on the
+  island instead, to compare (28_island.hydro -> 20_world's bake params).
+- ANSWERED: the shade layer is the canopy normalised as a darkening (the
+  user's own ask); with the stack off the texture that remains is the far
+  tier's canopy crown multiplier (GRAPHICS > canopy), not the stack; no
+  free imagery above 10 m exists here (NAIP absent, Sentinel share-alike,
+  commercial non-redistributable) - close range is splatting from these
+  maps.

@@ -96,6 +96,10 @@
       M.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
       M.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
       M.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
+      M.appendChild(slider('class blur', 0, 200, 5, () => world().ground.get().classBlur, gs('classBlur'), v => v + ' m'));
+      M.appendChild(slider('class wobble', 0, 60, 2, () => world().ground.get().edgeWobble, gs('edgeWobble'), v => v + ' m'));
+      M.appendChild(select('water', [['1', 'the map (class 80 lakes)'], ['0', 'off']], () => String(world().ground.get().waterMap), v => world().ground.set({ waterMap: +v })));
+      M.appendChild(note('water from the map: the cover\u2019s lakes as a signed field (a smooth edge) and flat surfaces at the DEM\u2019s level. The procedural bake instead: boot with ?hydro=proc and compare.'));
       M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
       // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
       const Ms = fold(M, 'the stack (bottom first)', true, true);

@@ -200,7 +200,8 @@ function makeWorld(seed, opts) {
     { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
       // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
       // judgment on procedural hydrology - maps first, procedural on top")
-      lakeMin: ISL ? 1e9 : 1.5, A0m2: ISL ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
+      // (G405: ?hydro=proc boots the analytic bake's water on the island, to compare with the map's)
+      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5, A0m2: (ISL && ISL.hydro !== 'proc') ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -606,7 +607,8 @@ function makeWorld(seed, opts) {
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
-                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
+                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, hydro: ISL.hydro,
+                    farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,

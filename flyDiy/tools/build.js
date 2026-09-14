@@ -552,10 +552,12 @@ function buildViewer(coreBody) {
     return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
                         get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
                         opt(G + '.coast.u8'), opt(G + '.albedo.rgb'), opt(G + '.tint.rgb'), opt(G + '.ori1.u8'), opt(G + '.ndvi.u8'),
+                        opt(G + '.lake.u8'), opt(G + '.ttype.u8'),
                         get(F + '.json', 'json').then(null, function () { return null; }), opt(F + '.topo'), opt(F + '.bin').then(function (b) { return b ? gz(b.buffer) : null; })])
       .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
-        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10] },
-        far: (r[11] && r[12] && r[13]) ? { header: r[11], topo: r[12], payload: r[13] } : null }; });
+        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12] },
+        far: (r[13] && r[14] && r[15]) ? { header: r[13], topo: r[14], payload: r[15] } : null,
+        hydro: new URLSearchParams(location.search).get('hydro') || 'map' }; });
   });
 })();
 </script>`;
