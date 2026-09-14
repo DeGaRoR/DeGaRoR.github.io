@@ -204,18 +204,22 @@ function build(P0, lod, F) {
   const litOn = P.lights ? 1 : 0;
   // THE SHELL FROM hangar.js, baked into bags (browser, near mesh only); null headless
   const ext = (Q.lod === 0 && !P.restated && typeof document !== 'undefined' && typeof genHangarBuild === 'function') ? bakeShell(P, S, fy, bags, litOn, F) : null;
+  const R = !ext;                                             // the restated shell draws only where hangar.js's does not
 
-  // ---- THE SLAB AND THE STEM: concrete from below the lowest corner to the floor, the brick course over it
-  let gLo = 1e9;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) gLo = Math.min(gLo, g(sx * HW, sz * HD));
-  const pt = 0.25;
-  const ring = [[-HW - pt / 2, HD + pt / 2], [HW + pt / 2, HD + pt / 2], [HW + pt / 2, -HD - pt / 2], [-HW - pt / 2, -HD - pt / 2]];
-  for (let i = 0; i < 4; i++) {
-    const A = ring[i], B = ring[(i + 1) % 4];
-    wall(bags.stem, { A, B, y0: gLo - 0.35, t: pt, topAt: () => fy + (timber ? 0 : S.STEM), ext: [pt / 2, pt / 2], inner: false, endCap: [false, false], capBot: false, capTop: true, sub: 2.5 });
+  if (R) {
+    // ---- THE SLAB AND THE STEM: concrete from below the lowest corner to the floor, the brick course over it
+    let gLo = 1e9;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) gLo = Math.min(gLo, g(sx * HW, sz * HD));
+    const pt = 0.25;
+    const ring = [[-HW - pt / 2, HD + pt / 2], [HW + pt / 2, HD + pt / 2], [HW + pt / 2, -HD - pt / 2], [-HW - pt / 2, -HD - pt / 2]];
+    for (let i = 0; i < 4; i++) {
+      const A = ring[i], B = ring[(i + 1) % 4];
+      wall(bags.stem, { A, B, y0: gLo - 0.35, t: pt, topAt: () => fy + (timber ? 0 : S.STEM), ext: [pt / 2, pt / 2], inner: false, endCap: [false, false], capBot: false, capTop: true, sub: 2.5 });
+    }
+    face(bags.stem, [[-HW, fy, -HD], [-HW, fy, HD], [HW, fy, HD], [HW, fy, -HD]], [0, 1, 0], uvFrame([-HW, fy, -HD], [1, 0, 0], [0, 0, 1]));
+  
   }
-  face(bags.stem, [[-HW, fy, -HD], [-HW, fy, HD], [HW, fy, HD], [HW, fy, -HD]], [0, 1, 0], uvFrame([-HW, fy, -HD], [1, 0, 0], [0, 0, 1]));
-
+  const pt = 0.25;
   // ---- THE OPENINGS, per wall: the front gable (the big door), the flanks (the band / the windows), the back (the doors)
   const yW = fy + (timber ? 0 : S.STEM);                      // the walls stand on the stem
   const plan = [[-HW, HD], [HW, HD], [HW, -HD], [-HW, -HD]];   // front (+z), right (+x), back (-z), left (-x) - the outside on +N
@@ -247,7 +251,7 @@ function build(P0, lod, F) {
         holes.push(band); bands.push({ i, h: band });
       }
     }
-    const W = wall(bags.wall, { A, B, y0: yW, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, capTop: true,
+    const W = wall(R ? bags.wall : Bag('x'), { A, B, y0: yW, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, capTop: true,
                                 sub: Q.lod === 0 ? 3.0 : 0, splits: gable ? [L / 2] : [] });
     walls.push({ W, A, B, L, at, topAt, N: W.N, X: W.X, holes });
   }
@@ -263,102 +267,106 @@ function build(P0, lod, F) {
   const casing = (Wl, h) => { if (Q.lod === 0) HG.dressOpening(bags, Ph, Q, Wl.W, Object.assign({}, h, { kind: 'roller' }), h.y1); };
   for (const b of bands) {
     const Wl = walls[b.i], h = b.h;
-    casing(Wl, h); paneAt(Wl, h, litOn);
-    if (Q.lod === 0) {                                         // the band's mullions, every 1.3 m, and its transom
+    casing(Wl, h); if (R) paneAt(Wl, h, litOn);
+    if (Q.lod === 0 && R) {                                    // the band's mullions (hangar.js's band carries its own)
       const n = Math.max(1, Math.round((h.s1 - h.s0) / 1.3));
       for (let k = 1; k < n; k++) { const s = h.s0 + (h.s1 - h.s0) * k / n; beam(bags.metal, Wl.W.P(s, h.y0 + 0.02, 0.86), Wl.W.P(s, h.y1 - 0.02, 0.86), 0.022, 0.018, Wl.N, 0); }
       beam(bags.metal, Wl.W.P(h.s0 + 0.02, (h.y0 + h.y1) / 2, 0.86), Wl.W.P(h.s1 - 0.02, (h.y0 + h.y1) / 2, 0.86), 0.022, 0.018, Wl.N, 0);
     }
   }
-  for (const wT of winsT) { casing(walls[wT.i], wT.h); paneAt(walls[wT.i], wT.h, litOn); }
-  if (hiWin) { casing(walls[2], hiWin); paneAt(walls[2], hiWin, litOn); }
-  if (pdoor) HG.dressOpening(bags, Ph, Q, walls[2].W, pdoor, pdoor.y1);            // the leaf, the casing, the lamp (on the lights)
+  for (const wT of winsT) { casing(walls[wT.i], wT.h); if (R) paneAt(walls[wT.i], wT.h, litOn); }
+  if (hiWin) { casing(walls[2], hiWin); if (R) paneAt(walls[2], hiWin, litOn); }
+  if (pdoor) { if (R) HG.dressOpening(bags, Ph, Q, walls[2].W, pdoor, pdoor.y1); else { casing(walls[2], pdoor); HG.buildLamp(bags, Ph, Q, walls[2].W, pdoor, 1); } }   // hangar.js's leaf stays; the casing and the lamp are the polish
   casing(walls[0], bigDoor);
   if (backDoor) casing(walls[2], backDoor);
 
-  // ---- THE BIG DOOR, SHUT: six leaves across the opening (three a side meeting in the middle), each a
-  // corrugated skin in a channel frame with its diagonal brace, hung on three tracks over the head;
-  // the timber shed's one leaf on its track
-  const leafSkin = (Wl, s0, s1, y0, y1, depth) => {
-    const q = [Wl.W.P(s0, y0, depth), Wl.W.P(s1, y0, depth), Wl.W.P(s1, y1, depth), Wl.W.P(s0, y1, depth)];
-    face(bags.door, q, Wl.N, uvFrame(q[0], Wl.X, [0, 1, 0]));      // (the door sets' ribs run up the sheet as delivered)
-    face(bags.door, q.slice().reverse(), mul(Wl.N, -1), uvFrame(q[0], Wl.X, [0, 1, 0]));
-  };
-  const leafFrame = (Wl, s0, s1, y0, y1, depth) => {
-    if (Q.lod !== 0) return;
-    const p = (s, y) => Wl.W.P(s, y, depth);
-    const o = mul(Wl.N, 0.05);
-    beam(bags.metal, add(p(s0, y0 + 0.09), o), add(p(s1, y0 + 0.09), o), 0.05, 0.09, [0, 1, 0], 0);   // the sill channel
-    beam(bags.metal, add(p(s0, y1 - 0.09), o), add(p(s1, y1 - 0.09), o), 0.05, 0.09, [0, 1, 0], 0);   // the head channel
-    for (const s of [s0 + 0.07, s1 - 0.07]) beam(bags.metal, add(p(s, y0), o), add(p(s, y1), o), 0.05, 0.07, Wl.N, 0);   // the stiles
-    beam(bags.metal, add(p(s0 + 0.12, y0 + 0.2), o), add(p(s1 - 0.12, y1 - 0.2), o), 0.04, 0.05, Wl.N, 0);           // the brace
-  };
-  {
-    const Wl = walls[0], d = bigDoor;
-    if (timber) {
-      leafSkin(Wl, d.s0 + 0.02, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.55);
-      leafFrame(Wl, d.s0 + 0.02, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.55);
-      // the track over the head, along the wall to its corners (a leaf wider than the wall beside it parks half open)
-      const tr0 = Wl.W.P(Math.max(0.3, d.s0 - (d.s1 - d.s0)), d.y1 + 0.18, -0.35), tr1 = Wl.W.P(Math.min(2 * HW - 0.3, d.s1 + 0.1), d.y1 + 0.18, -0.35);
-      beam(bags.metal, tr0, tr1, 0.05, 0.05, [0, 1, 0], 0);
-    } else {
-      const LW = S.DOOR_W / 6;
-      for (let k = 0; k < 6; k++) {
-        const s0 = d.s0 + k * LW + 0.01, s1 = d.s0 + (k + 1) * LW - 0.01;
-        const depth = -0.45 - (k % 3) * 0.3;                   // three tracks: the leaves stand one behind the other
-        leafSkin(Wl, s0, s1, d.y0 + 0.02, d.y1 - 0.02, depth);
-        leafFrame(Wl, s0, s1, d.y0 + 0.02, d.y1 - 0.02, depth);
-      }
-      if (Q.lod === 0) for (let tk = 0; tk < 3; tk++) {
-        const dp = -0.35 - tk * 0.3;
-        beam(bags.metal, Wl.W.P(0.6, d.y1 + 0.3, dp), Wl.W.P(2 * HW - 0.6, d.y1 + 0.3, dp), 0.06, 0.08, [0, 1, 0], 0);
-      }
-    }
-  }
-  if (backDoor) {                                              // the bi-parting pair, shut, in one plane
-    const Wl = walls[2], d = backDoor, mid = (d.s0 + d.s1) / 2;
-    leafSkin(Wl, d.s0 + 0.02, mid - 0.01, d.y0 + 0.02, d.y1 - 0.02, -0.5); leafFrame(Wl, d.s0 + 0.02, mid - 0.01, d.y0 + 0.02, d.y1 - 0.02, -0.5);
-    leafSkin(Wl, mid + 0.01, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.5); leafFrame(Wl, mid + 0.01, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.5);
-    if (Q.lod === 0) beam(bags.metal, Wl.W.P(d.s0 - 0.5, d.y1 + 0.25, -0.35), Wl.W.P(d.s1 + 0.5, d.y1 + 0.25, -0.35), 0.06, 0.08, [0, 1, 0], 0);
-  }
-
-  // ---- THE ROOF: two slopes from the ridge along z down to the eaves at x = +-HW, past the gables by the rake
   const zA = -HD - P.rakeOver, zB = HD + P.rakeOver;
   const roofLights = [];
-  for (const side of [-1, 1]) {
-    const xE = side * (HW + P.eaveOver), yE = eave - P.eaveOver * tp;
-    const ring = [[0, ridge + rT, zA], [0, ridge + rT, zB], [xE, yE + rT, zB], [xE, yE + rT, zA]];
-    const Sd = nrm([xE, yE - ridge, 0]);
-    plate(bags.roof, ring, rT, [0, -1, 0], uvFrame(ring[0], [0, 0, 1], Sd));
-    // THE ROOF LIGHTS: opaque panels on the slope between 30 and 62 % of the way down, kerbed (nothing to see inside)
-    if (P.roofLights && S.NLIGHT) for (let k = 0; k < S.NLIGHT; k++) {
-      const zc = -HD + 3.4 + k * (2 * HD - 6.8) / Math.max(1, S.NLIGHT - 1);
-      const tOn = u => [side * HW * u, ridge + (eave - ridge) * u + rT, 0];      // a point down the slope at fraction u
-      const p0 = tOn(0.30), p1 = tOn(0.62);
-      const up = nrm([-side * (ridge - eave), HW, 0]);
-      const q = [[p0[0], p0[1], zc - 1.8], [p1[0], p1[1], zc - 1.8], [p1[0], p1[1], zc + 1.8], [p0[0], p0[1], zc + 1.8]].map(p => add(p, mul(up, 0.09)));
-      bags.pane.setGlow(litOn);
-      face(bags.pane, q, up, uvFrame(q[0], nrm(sub(p1, p0)), [0, 0, 1]));
-      bags.pane.setGlow(0);
-      if (Q.lod === 0) {                                       // the kerb round it, in the roof's metal
-        const rim = [q[0], q[1], q[2], q[3]].map(p => add(p, mul(up, -0.09)));
-        for (let e = 0; e < 4; e++) beam(bags.metal, rim[e], rim[(e + 1) % 4], 0.04, 0.05, up, 0.04);
+  if (R) {
+    // ---- THE BIG DOOR, SHUT: six leaves across the opening (three a side meeting in the middle), each a
+    // corrugated skin in a channel frame with its diagonal brace, hung on three tracks over the head;
+    // the timber shed's one leaf on its track
+    const leafSkin = (Wl, s0, s1, y0, y1, depth) => {
+      const q = [Wl.W.P(s0, y0, depth), Wl.W.P(s1, y0, depth), Wl.W.P(s1, y1, depth), Wl.W.P(s0, y1, depth)];
+      face(bags.door, q, Wl.N, uvFrame(q[0], Wl.X, [0, 1, 0]));      // (the door sets' ribs run up the sheet as delivered)
+      face(bags.door, q.slice().reverse(), mul(Wl.N, -1), uvFrame(q[0], Wl.X, [0, 1, 0]));
+    };
+    const leafFrame = (Wl, s0, s1, y0, y1, depth) => {
+      if (Q.lod !== 0) return;
+      const p = (s, y) => Wl.W.P(s, y, depth);
+      const o = mul(Wl.N, 0.05);
+      beam(bags.metal, add(p(s0, y0 + 0.09), o), add(p(s1, y0 + 0.09), o), 0.05, 0.09, [0, 1, 0], 0);   // the sill channel
+      beam(bags.metal, add(p(s0, y1 - 0.09), o), add(p(s1, y1 - 0.09), o), 0.05, 0.09, [0, 1, 0], 0);   // the head channel
+      for (const s of [s0 + 0.07, s1 - 0.07]) beam(bags.metal, add(p(s, y0), o), add(p(s, y1), o), 0.05, 0.07, Wl.N, 0);   // the stiles
+      beam(bags.metal, add(p(s0 + 0.12, y0 + 0.2), o), add(p(s1 - 0.12, y1 - 0.2), o), 0.04, 0.05, Wl.N, 0);           // the brace
+    };
+    {
+      const Wl = walls[0], d = bigDoor;
+      if (timber) {
+        leafSkin(Wl, d.s0 + 0.02, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.55);
+        leafFrame(Wl, d.s0 + 0.02, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.55);
+        // the track over the head, along the wall to its corners (a leaf wider than the wall beside it parks half open)
+        const tr0 = Wl.W.P(Math.max(0.3, d.s0 - (d.s1 - d.s0)), d.y1 + 0.18, -0.35), tr1 = Wl.W.P(Math.min(2 * HW - 0.3, d.s1 + 0.1), d.y1 + 0.18, -0.35);
+        beam(bags.metal, tr0, tr1, 0.05, 0.05, [0, 1, 0], 0);
+      } else {
+        const LW = S.DOOR_W / 6;
+        for (let k = 0; k < 6; k++) {
+          const s0 = d.s0 + k * LW + 0.01, s1 = d.s0 + (k + 1) * LW - 0.01;
+          const depth = -0.45 - (k % 3) * 0.3;                   // three tracks: the leaves stand one behind the other
+          leafSkin(Wl, s0, s1, d.y0 + 0.02, d.y1 - 0.02, depth);
+          leafFrame(Wl, s0, s1, d.y0 + 0.02, d.y1 - 0.02, depth);
+        }
+        if (Q.lod === 0) for (let tk = 0; tk < 3; tk++) {
+          const dp = -0.35 - tk * 0.3;
+          beam(bags.metal, Wl.W.P(0.6, d.y1 + 0.3, dp), Wl.W.P(2 * HW - 0.6, d.y1 + 0.3, dp), 0.06, 0.08, [0, 1, 0], 0);
+        }
       }
-      roofLights.push({ x: (p0[0] + p1[0]) / 2, z: zc });
-      LIT.panes++;
     }
+    if (backDoor) {                                              // the bi-parting pair, shut, in one plane
+      const Wl = walls[2], d = backDoor, mid = (d.s0 + d.s1) / 2;
+      leafSkin(Wl, d.s0 + 0.02, mid - 0.01, d.y0 + 0.02, d.y1 - 0.02, -0.5); leafFrame(Wl, d.s0 + 0.02, mid - 0.01, d.y0 + 0.02, d.y1 - 0.02, -0.5);
+      leafSkin(Wl, mid + 0.01, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.5); leafFrame(Wl, mid + 0.01, d.s1 - 0.02, d.y0 + 0.02, d.y1 - 0.02, -0.5);
+      if (Q.lod === 0) beam(bags.metal, Wl.W.P(d.s0 - 0.5, d.y1 + 0.25, -0.35), Wl.W.P(d.s1 + 0.5, d.y1 + 0.25, -0.35), 0.06, 0.08, [0, 1, 0], 0);
+    }
+  
+    // ---- THE ROOF: two slopes from the ridge along z down to the eaves at x = +-HW, past the gables by the rake
+    // (zA, zB declared above)
+    // (roofLights declared above)
+    for (const side of [-1, 1]) {
+      const xE = side * (HW + P.eaveOver), yE = eave - P.eaveOver * tp;
+      const ring = [[0, ridge + rT, zA], [0, ridge + rT, zB], [xE, yE + rT, zB], [xE, yE + rT, zA]];
+      const Sd = nrm([xE, yE - ridge, 0]);
+      plate(bags.roof, ring, rT, [0, -1, 0], uvFrame(ring[0], [0, 0, 1], Sd));
+      // THE ROOF LIGHTS: opaque panels on the slope between 30 and 62 % of the way down, kerbed (nothing to see inside)
+      if (P.roofLights && S.NLIGHT) for (let k = 0; k < S.NLIGHT; k++) {
+        const zc = -HD + 3.4 + k * (2 * HD - 6.8) / Math.max(1, S.NLIGHT - 1);
+        const tOn = u => [side * HW * u, ridge + (eave - ridge) * u + rT, 0];      // a point down the slope at fraction u
+        const p0 = tOn(0.30), p1 = tOn(0.62);
+        const up = nrm([-side * (ridge - eave), HW, 0]);
+        const q = [[p0[0], p0[1], zc - 1.8], [p1[0], p1[1], zc - 1.8], [p1[0], p1[1], zc + 1.8], [p0[0], p0[1], zc + 1.8]].map(p => add(p, mul(up, 0.09)));
+        bags.pane.setGlow(litOn);
+        face(bags.pane, q, up, uvFrame(q[0], nrm(sub(p1, p0)), [0, 0, 1]));
+        bags.pane.setGlow(0);
+        if (Q.lod === 0) {                                       // the kerb round it, in the roof's metal
+          const rim = [q[0], q[1], q[2], q[3]].map(p => add(p, mul(up, -0.09)));
+          for (let e = 0; e < 4; e++) beam(bags.metal, rim[e], rim[(e + 1) % 4], 0.04, 0.05, up, 0.04);
+        }
+        roofLights.push({ x: (p0[0] + p1[0]) / 2, z: zc });
+        LIT.panes++;
+      }
+    }
+    beam(bags.metal, [0, ridge + rT + 0.03, zA], [0, ridge + rT + 0.03, zB], 0.16, 0.05, [0, 1, 0], 0);   // the ridge cap
+    // the fascia along both eaves and the barge boards up the gables
+    for (const side of [-1, 1]) {
+      const xE = side * (HW + P.eaveOver), yE = eave - P.eaveOver * tp;
+      beam(bags.trim, [xE, yE - 0.09, zA], [xE, yE - 0.09, zB], 0.02, 0.11, [0, 1, 0], 0);
+    }
+    if (Q.lod === 0) for (const zg of [zA, zB]) for (const side of [-1, 1]) {
+      const xE = side * (HW + P.eaveOver), yE = eave - P.eaveOver * tp;
+      beam(bags.trim, [0, ridge + rT - 0.02, zg + (zg < 0 ? 0.02 : -0.02)], [xE, yE + rT - 0.02, zg + (zg < 0 ? 0.02 : -0.02)], 0.02, 0.11, [0, 1, 0], 0);
+    }
+  
   }
-  beam(bags.metal, [0, ridge + rT + 0.03, zA], [0, ridge + rT + 0.03, zB], 0.16, 0.05, [0, 1, 0], 0);   // the ridge cap
-  // the fascia along both eaves and the barge boards up the gables
-  for (const side of [-1, 1]) {
-    const xE = side * (HW + P.eaveOver), yE = eave - P.eaveOver * tp;
-    beam(bags.trim, [xE, yE - 0.09, zA], [xE, yE - 0.09, zB], 0.02, 0.11, [0, 1, 0], 0);
-  }
-  if (Q.lod === 0) for (const zg of [zA, zB]) for (const side of [-1, 1]) {
-    const xE = side * (HW + P.eaveOver), yE = eave - P.eaveOver * tp;
-    beam(bags.trim, [0, ridge + rT - 0.02, zg + (zg < 0 ? 0.02 : -0.02)], [xE, yE + rT - 0.02, zg + (zg < 0 ? 0.02 : -0.02)], 0.02, 0.11, [0, 1, 0], 0);
-  }
-
   // ---- THE WATER: a half-round gutter along each eave, a downpipe at each corner down to a shoe on the ground
   let gutterLen = 0, downpipes = 0;
   if (P.gutter) {
@@ -453,6 +461,13 @@ function build(P0, lod, F) {
 // and uvs kept - the material object itself is the hangar's, so the baked
 // sheets read exactly as they do by the strip. Glass bakes opaque.
 let PANE_MAT = null;
+// THE GLOBAL LIBRARY (the user: "these should be available as a global
+// library"): hangar.js makes its materials afresh per build; the first bake
+// of each shell keeps them here, by name, and every later bake of that shell
+// wears the SAME objects (the fresh ones disposed) - one wall sheet, one
+// stem, one door skin for every club hangar on the page. `window.HANGAR_LIB`
+// is the same table for anything else that wants the hangar's finish.
+const LIB = {};
 function bakeShell(P, S, fy, bags, litOn, F) {
   let ext = null;
   try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
@@ -463,6 +478,8 @@ function bakeShell(P, S, fy, bags, litOn, F) {
   const nameOf = new Map(); for (const k in M) nameOf.set(M[k], k);
   if (!PANE_MAT) PANE_MAT = new THREE.MeshStandardMaterial({ color: 0x2c3a42, roughness: 0.28, metalness: 0.10 });
   const paneMat = litOn ? new THREE.MeshStandardMaterial({ color: 0x3a2e1c, roughness: 0.4, emissive: 0xffc68a, emissiveIntensity: 0.9 }) : PANE_MAT;
+  const shellName = SHELLS[Math.round(P.shell)];
+  const lib = LIB[shellName] || (LIB[shellName] = {});
   const mats = {}, keys = [];
   let panes = 0;
   const v3 = new THREE.Vector3(), n3 = new THREE.Vector3(), nm = new THREE.Matrix3();
@@ -470,7 +487,12 @@ function bakeShell(P, S, fy, bags, litOn, F) {
     if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
     const isGlass = o.material === M.glass;
     const key = 'h_' + (isGlass ? 'pane' : (nameOf.get(o.material) || 'misc'));
-    if (!bags[key]) { bags[key] = Bag(key); keys.push(key); mats[key] = isGlass ? paneMat : o.material; }
+    if (!bags[key]) {
+      bags[key] = Bag(key); keys.push(key);
+      const name = nameOf.get(o.material) || 'misc';
+      if (isGlass) mats[key] = paneMat;
+      else { if (!lib[name]) lib[name] = o.material; else if (lib[name] !== o.material && o.material.dispose) o.material.dispose(); mats[key] = lib[name]; }
+    }
     const bag = bags[key];
     const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv;
     nm.getNormalMatrix(o.matrixWorld);
@@ -535,7 +557,8 @@ function randomHangar(seed) {
   return P;
 }
 
-window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar };
+window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null };
+window.HANGAR_LIB = LIB;
 // THE CATALOGUE: a building with its door hook toward the road side
 window.HANGAR_GEN.CATALOGUE_V = 1;
 window.HANGAR_GEN.CATALOGUE_ALIASES = {};

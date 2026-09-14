@@ -47040,6 +47040,45 @@ approximated leaves).
   the premises = the garage's shell (14_club_hangar_close.png); the field
   shed = the timber shell with its board leaf (front view).
 
+## G405.2 — NO BLANK SIGN BOARD OVER A HANGAR DOOR (2026-09-14)
+
+A sign slot without a billboard drew a black board over the works' door
+(it read as a black hole): the sign stands only with a `signKey`.
+
+## G405.3 — THE SHELL AS-IS, THE GLOBAL MATERIAL LIBRARY (2026-09-14, the user:
+## "you should really use the same materials, and these should be available as a
+## global library. I see that you're trying to approximate here, but really why
+## not take the geometry and textures as-is?")
+
+G405.1 baked hangar.js's shell and then DREW THE RESTATED ONE OVER IT: the
+galvanised leaf frames and their tracks, the band's mullions, the panes, the
+ridge cap, the fascia and barge, the roof plates and the roof-light kerbs
+all stood a few centimetres off hangar.js's own - the "approximation" the
+user saw was the double.
+
+- `const R = !ext`: when the bake stands, NOTHING restated is drawn. The
+  stem and slab, the walls (built into a throwaway bag - the casings still
+  need the wall's frame), the mullions, the panes, the leaf skins, frames
+  and tracks, the roof plates, the roof lights and their kerbs, the ridge
+  cap, the fascia and the barge are all under `if (R)`. What stays is the
+  polish hangar.js never had: the casings round the band, the windows and
+  the doors (the personnel door keeps hangar.js's leaf, takes the casing
+  and the lamp), the gutters and downpipes, the flue with its smoke, the
+  bulkheads, the sign when it has a billboard.
+- THE LIBRARY: hangar.js makes its materials afresh per build; the first
+  bake of a shell keeps its material objects in `LIB[shell]` (`field: 13,
+  club: 15, works: 15` materials), every later bake of that shell reuses
+  them and disposes the fresh duplicates - one corrugation, one stem, one
+  door skin for every club hangar on the page. `HANGAR_GEN.LIB`,
+  `HANGAR_GEN.library(shell)`, `window.HANGAR_LIB`.
+- Headless the restated shell still stands (rule 43 measures it); in the
+  browser `stats.source` says `hangar.js`.
+- SEEN (premises bench, screenshots/lots/): 18b_club_hangar_door - the club's
+  six leaves in hangar.js's skins with the rust streaks down its sheets, the
+  band, the roof lights; 19_works_hangar_front - the works' dark steel and
+  its leaves; 17_field_shed_front - the timber shell with its Z-braced board
+  leaf; 15_three_hangars.
+
 ## G406 — ONE LEVEL PER LAKE, THE SHORE DE-MIXED, NDWI, THE TREE RULE (2026-09-14,
 ## the user: "big artifacts in the water, and large dark patch around them ... we
 ## are underestimating the amount of water ... what's the rule for spawning trees?

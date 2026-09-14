@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6de7dcaeec84f16f
+// body-sha256: 9f376dc33c1b3253
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -807,6 +807,375 @@ function atmosPropScale(sig, aspiration, flat = 1, critSig = 1) {
   const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
   return { kT, kV: sig, power: pr };
 }
+// ============================================================
+// THE SUN AND THE MOON — where they are, from when and where you stand.
+// (SKY S2, 2026-09-14.) Pure: no THREE, no DOM, no Date. Degrees in, degrees
+// out; the one vector it hands back is in the GAME FRAME.
+//
+// THE SUN is the NOAA Solar Calculator's algorithm (Meeus, "Astronomical
+// Algorithms", as NOAA's spreadsheet lays it out): mean longitude and
+// anomaly of the sun, the equation of centre, the apparent longitude with
+// the nutation term, the obliquity, the declination, the equation of time,
+// the hour angle, then altitude with NOAA's refraction and azimuth from
+// north. Published accuracy ±1' for 1800–2100; delta-T ignored, as NOAA's
+// own page ignores it, so the two agree. GATE DAY holds it to 0.1° and to
+// the minute against USNO's rise / transit / set.
+//
+// THE MOON is Paul Schlyter's low-precision series ("How to compute
+// planetary positions": the twelve longitude, five latitude, two distance
+// perturbations), then topocentric parallax — up to a degree, so it is
+// kept. Good to a few arcminutes; published as "about a degree". Its phase
+// is the illuminated fraction from the elongation. A flight sim needs the
+// moon in the right part of the sky with the right face lit, not an
+// eclipse.
+//
+// THE FRAME. The game is x east, y up, z SOUTH (north is -z: 28_island.js).
+// A compass azimuth A (clockwise from TRUE north) and altitude h become
+//     [ cos h sin A',  sin h,  -cos h cos A' ]      A' = A - convergence
+// where the convergence is how far the world's grid north stands east of
+// true north (the island frame is Alaska Albers, 19.3° at Jolene; the
+// analytic world declares 0). Without it the noon sun lights from 19° off.
+// ============================================================
+var SOLAR = (function () {
+  'use strict';
+  const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+  const sin = x => Math.sin(x * D2R), cos = x => Math.cos(x * D2R), tan = x => Math.tan(x * D2R);
+  const mod = (a, n) => ((a % n) + n) % n;
+
+  // Julian day number of a civil date (Fliegel & Van Flandern), and back.
+  function jdn(y, m, d) {
+    const a = Math.floor((14 - m) / 12), yy = y + 4800 - a, mm = m + 12 * a - 3;
+    return d + Math.floor((153 * mm + 2) / 5) + 365 * yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) - 32045;
+  }
+  function civil(j) {
+    const a = j + 32044, b = Math.floor((4 * a + 3) / 146097), c = a - Math.floor(146097 * b / 4);
+    const d = Math.floor((4 * c + 3) / 1461), e = c - Math.floor(1461 * d / 4), m = Math.floor((5 * e + 2) / 153);
+    return { y: 100 * b + d - 4800 + Math.floor(m / 10), m: m + 3 - 12 * Math.floor(m / 10), d: e - Math.floor((153 * m + 2) / 5) + 1 };
+  }
+  // the Julian DATE of a civil day at `utc` seconds after 0h UT
+  const jd = (dayJdn, utc) => dayJdn - 0.5 + utc / 86400;
+
+  // ---- the sun, geocentric: declination, equation of time, apparent longitude ----
+  function sunGeo(JD) {
+    const JC = (JD - 2451545) / 36525;
+    const L0 = mod(280.46646 + JC * (36000.76983 + 0.0003032 * JC), 360);
+    const M = 357.52911 + JC * (35999.05029 - 0.0001537 * JC);
+    const e = 0.016708634 - JC * (0.000042037 + 0.0000001267 * JC);
+    const C = sin(M) * (1.914602 - JC * (0.004817 + 0.000014 * JC)) + sin(2 * M) * (0.019993 - 0.000101 * JC) + 0.000289 * sin(3 * M);
+    const trueLon = L0 + C;
+    const Om = 125.04 - 1934.136 * JC;
+    const lam = trueLon - 0.00569 - 0.00478 * sin(Om);
+    const eps0 = 23 + (26 + (21.448 - JC * (46.815 + JC * (0.00059 - 0.001813 * JC))) / 60) / 60;
+    const eps = eps0 + 0.00256 * cos(Om);
+    const dec = Math.asin(sin(eps) * sin(lam)) * R2D;
+    const y = tan(eps / 2) * tan(eps / 2);
+    const eot = 4 * R2D * (y * sin(2 * L0) - 2 * e * sin(M) + 4 * e * y * sin(M) * cos(2 * L0) - 0.5 * y * y * sin(4 * L0) - 1.25 * e * e * sin(2 * M));
+    return { dec, eot, lam, eps };           // deg, minutes, deg, deg
+  }
+
+  // NOAA's refraction on the geometric altitude (degrees)
+  function refraction(h) {
+    if (h > 85) return 0;
+    const t = tan(h);
+    let r;
+    if (h > 5) r = 58.1 / t - 0.07 / (t * t * t) + 0.000086 / (t * t * t * t * t);
+    else if (h > -0.575) r = 1735 + h * (-518.2 + h * (103.4 + h * (-12.79 + 0.711 * h)));
+    else r = -20.774 / t;
+    return r / 3600;
+  }
+
+  // altitude/azimuth from an hour angle H (deg, + west), declination, latitude
+  function altAz(H, dec, lat) {
+    const cz = sin(lat) * sin(dec) + cos(lat) * cos(dec) * cos(H);
+    const z = Math.acos(Math.max(-1, Math.min(1, cz))) * R2D;
+    const h0 = 90 - z;
+    let az;
+    const sz = sin(z);
+    if (sz < 1e-9) az = 180;
+    else {
+      const ca = Math.max(-1, Math.min(1, (sin(lat) * cz - sin(dec)) / (cos(lat) * sz)));
+      const a = Math.acos(ca) * R2D;
+      az = H > 0 ? mod(a + 180, 360) : mod(540 - a, 360);
+    }
+    return { h0, az };
+  }
+
+  // sun({ jdn, utc, lat, lon }) -> { el, el0, az, dec, eot, H }   lon east-positive
+  function sun(o) {
+    const JD = jd(o.jdn, o.utc);
+    const g = sunGeo(JD);
+    const tst = mod(o.utc / 60 + g.eot + 4 * o.lon, 1440);
+    const H = tst / 4 - 180;                                    // NOAA: tst in [0, 1440) -> H in [-180, 180), + west
+    const aa = altAz(H, g.dec, o.lat);
+    return { el: aa.h0 + refraction(aa.h0), el0: aa.h0, az: aa.az, dec: g.dec, eot: g.eot, H, lam: g.lam };
+  }
+
+  // ---- rise, transit, set (UT seconds on the civil day; null when none) ----
+  // NOAA's own formulation: solar noon = 720 - 4 lon - EoT; the hour angle of
+  // the -0.833° (refracted limb) horizon from the declination; iterated once
+  // at the event's own time so an equinox day (0.4°/day of declination) does
+  // not carry noon's declination to the horizon.
+  function events(o, h0) {
+    const H0 = h0 == null ? -0.833 : h0;
+    const noonAt = (utcGuess) => { const g = sunGeo(jd(o.jdn, utcGuess)); return (720 - 4 * o.lon - g.eot) * 60; };
+    let noon = noonAt(43200); noon = noonAt(noon);
+    const haAt = (utc) => {
+      const g = sunGeo(jd(o.jdn, utc));
+      const c = (sin(H0) - sin(o.lat) * sin(g.dec)) / (cos(o.lat) * cos(g.dec));
+      return Math.abs(c) > 1 ? null : Math.acos(c) * R2D;          // deg
+    };
+    let ha = haAt(noon);
+    if (ha == null) return { noon, rise: null, set: null, up: sin(o.lat) * sin(sunGeo(jd(o.jdn, noon)).dec) > sin(H0) };
+    let rise = noon - ha * 240, set = noon + ha * 240;
+    const hr = haAt(rise), hs = haAt(set);
+    if (hr != null) rise = noon - hr * 240;
+    if (hs != null) set = noon + hs * 240;
+    return { noon, rise, set, up: true };
+  }
+
+  // ---- the moon (Schlyter), topocentric altitude/azimuth and phase ----
+  function moon(o) {
+    const JD = jd(o.jdn, o.utc);
+    const d = JD - 2451543.5;
+    const N = 125.1228 - 0.0529538083 * d, i = 5.1454, w = 318.0634 + 0.1643573223 * d;
+    const a = 60.2666, e = 0.054900, M = mod(115.3654 + 13.0649929509 * d, 360);
+    const ws = 282.9404 + 4.70935e-5 * d, Ms = mod(356.0470 + 0.9856002585 * d, 360), Ls = ws + Ms;
+    let E = M + R2D * e * sin(M) * (1 + e * cos(M));
+    for (let k = 0; k < 3; k++) E = E - (E - R2D * e * sin(E) - M) / (1 - e * cos(E));
+    const xv = a * (cos(E) - e), yv = a * Math.sqrt(1 - e * e) * sin(E);
+    const v = Math.atan2(yv, xv) * R2D, r = Math.hypot(xv, yv);
+    const vw = v + w;
+    const xe = r * (cos(N) * cos(vw) - sin(N) * sin(vw) * cos(i));
+    const ye = r * (sin(N) * cos(vw) + cos(N) * sin(vw) * cos(i));
+    const ze = r * sin(vw) * sin(i);
+    let lon = Math.atan2(ye, xe) * R2D, lat = Math.atan2(ze, Math.hypot(xe, ye)) * R2D;
+    const Lm = N + w + M, D = Lm - Ls, F = Lm - N;
+    lon += -1.274 * sin(M - 2 * D) + 0.658 * sin(2 * D) - 0.186 * sin(Ms) - 0.059 * sin(2 * M - 2 * D)
+         - 0.057 * sin(M - 2 * D + Ms) + 0.053 * sin(M + 2 * D) + 0.046 * sin(2 * D - Ms) + 0.041 * sin(M - Ms)
+         - 0.035 * sin(D) - 0.031 * sin(M + Ms) - 0.015 * sin(2 * F - 2 * D) + 0.011 * sin(M - 4 * D);
+    lat += -0.173 * sin(F - 2 * D) - 0.055 * sin(M - F - 2 * D) - 0.046 * sin(M + F - 2 * D) + 0.033 * sin(F + 2 * D) + 0.017 * sin(2 * M + F);
+    const rr = r - 0.58 * cos(M - 2 * D) - 0.46 * cos(2 * D);
+    // ecliptic -> equatorial
+    const ecl = 23.4393 - 3.563e-7 * d;
+    const xh = rr * cos(lon) * cos(lat), yh = rr * sin(lon) * cos(lat), zh = rr * sin(lat);
+    const xq = xh, yq = yh * cos(ecl) - zh * sin(ecl), zq = yh * sin(ecl) + zh * cos(ecl);
+    const RA = mod(Math.atan2(yq, xq) * R2D, 360), Dec = Math.atan2(zq, Math.hypot(xq, yq)) * R2D;
+    // sidereal time, hour angle, then the same alt/az as the sun (no refraction: it is not the point)
+    const GMST0 = mod(Ls + 180, 360);                       // deg
+    const LST = mod(GMST0 + o.utc / 240 + o.lon, 360);      // utc s -> deg: 360/86400 = 1/240
+    const H = mod(LST - RA + 180, 360) - 180;
+    const aa = altAz(H, Dec, o.lat);
+    const mpar = Math.asin(1 / rr) * R2D;                   // parallax, Earth radii -> deg
+    const el = aa.h0 - mpar * cos(aa.h0);
+    // phase: elongation from the sun's ecliptic longitude
+    const sunLam = sunGeo(JD).lam;
+    const cosPsi = cos(lat) * cos(lon - sunLam);
+    const phase = (1 - cosPsi) / 2;                          // illuminated fraction 0..1
+    const waxing = sin(lon - sunLam) > 0;
+    return { el, az: aa.az, phase, waxing, lon: mod(lon, 360), lat, dist: rr };
+  }
+
+  // ---- the game-frame vector of a sky direction ----
+  function toFrame(el, az, convergence) {
+    const A = az - (convergence || 0);
+    return [cos(el) * sin(A), sin(el), -cos(el) * cos(A)];
+  }
+  // and the rig's own azimuth (render_world.js: atan2(SUN.x, SUN.z), 0 = +z = south)
+  const rigAzim = (az, convergence) => mod(180 - (az - (convergence || 0)) + 180, 360) - 180;
+
+  return { jdn, civil, jd, sun, sunGeo, moon, events, refraction, altAz, toFrame, rigAzim };
+})();
+if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = SOLAR;
+// ============================================================
+// THE DAY — one object that is everything a day is (SKY S1, 2026-09-14).
+//
+// The physics already had a day: setWeather({ oatC, qnhPa, wind }) makes the
+// air (05_atmos) and the wind, read live by the solver. The sky had none — a
+// constant sun vector. The rule (SKY-ATMOSPHERE §1, the user's own): EXTEND
+// THE DAY, NEVER ADD A SECOND ONE. So this object carries
+//
+//   WHEN     date + utc seconds, and a rate (0 = frozen, 1 = real, 60 = a
+//            minute a second); it ADVANCES only when the viewer ticks it —
+//            the solver never does (the gate battery is deterministic)
+//   WHERE    the world's geo: lat, lon (east +), tz, grid convergence
+//   AIR      oatC | dISA, qnhPa — THE SAME FIELDS makeAtmos reads
+//   WATER    dewC or rh          -> the dewpoint, the cloud base, the haze
+//   AEROSOL  turbidity, ozone, groundAlbedo -> what the atmosphere looks like
+//   CLOUD    cover, type          (a data slot: the cloud chantier draws them)
+//
+// and DERIVES, never declares, the sun and moon (06_solar), the twilight
+// class, the cloud base (125 m per degree of dewpoint spread), a visibility.
+// `version` bumps on every set() and never on advance(), so a consumer that
+// re-bakes on a change (the atmosphere's LUTs) is not re-baking every frame.
+//
+// Never the wall clock: the default is 2026-06-21 18:00 UT — 10:00 AKDT on
+// the summer solstice — so a screenshot, a fixture and a gate all see the
+// same sun until somebody sets another. No Date, no THREE, no DOM.
+// ============================================================
+var DAY = (function () {
+  'use strict';
+  const DEFAULT = Object.freeze({
+    date: '2026-06-21', utc: 18 * 3600, rate: 1,
+    rh: 0.5, turbidity: 2.5, ozone: 300, groundAlbedo: 0.15,
+    cloudCover: 0.2, cloudType: 'cu',
+  });
+  // the geo a world declares; this default is Jolene's origin (28_island.js)
+  // with NO convergence — the analytic world's own -z is true north
+  const GEO_DEFAULT = Object.freeze({ lat: 55.04327, lon: -131.57222, convergenceDeg: 0,
+                                      tz: { std: -9, dst: 'us', name: 'AKST', dstName: 'AKDT' } });
+  const AIR_KEYS = ['oatC', 'dISA', 'qnhPa'];
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const pad2 = n => String(n).padStart(2, '0');
+
+  function parseDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
+    if (!m) throw new Error('day: date must be YYYY-MM-DD, got ' + s);
+    return SOLAR.jdn(+m[1], +m[2], +m[3]);
+  }
+  const dateOf = j => { const c = SOLAR.civil(j); return c.y + '-' + pad2(c.m) + '-' + pad2(c.d); };
+  const dow = j => (j + 1) % 7;                        // 0 = Sunday
+  // the US rule: second Sunday of March 02:00 standard -> first Sunday of November 02:00 daylight
+  function usDst(j, utc, std) {
+    const y = SOLAR.civil(j).y;
+    const mar1 = SOLAR.jdn(y, 3, 1), nov1 = SOLAR.jdn(y, 11, 1);
+    const start = mar1 + ((7 - dow(mar1)) % 7) + 7;   // second Sunday
+    const end = nov1 + ((7 - dow(nov1)) % 7);         // first Sunday
+    const t = j + utc / 86400;                          // UT instant as a day fraction
+    return t >= start + (2 - std) / 24 && t < end + (2 - (std + 1)) / 24;
+  }
+  // Magnus (a 17.625, b 243.04 °C): dewpoint from relative humidity
+  function dewFromRh(T, rh) { const g = Math.log(clamp(rh, 0.01, 1)) + 17.625 * T / (243.04 + T); return 243.04 * g / (17.625 - g); }
+  function rhFromDew(T, Td) { return clamp(Math.exp(17.625 * Td / (243.04 + Td) - 17.625 * T / (243.04 + T)), 0, 1); }
+
+  function makeDay(spec0, geo0) {
+    const geo = Object.assign({}, GEO_DEFAULT, geo0 || {});
+    const s = {};                                        // the declared spec (what round-trips)
+    let jdn = 0, utc = 0, version = 0;
+    const d = {};                                        // the derived block, rebuilt by recompute()
+    let sunCache = null;
+
+    function recompute() {
+      const o = { jdn, utc, lat: geo.lat, lon: geo.lon };
+      const su = SOLAR.sun(o), mo = SOLAR.moon(o);
+      const conv = geo.convergenceDeg || 0;
+      d.sunEl = su.el; d.sunAz = su.az; d.sunAzGrid = ((su.az - conv) % 360 + 360) % 360;
+      d.sun = SOLAR.toFrame(su.el, su.az, conv);
+      d.rigAzim = SOLAR.rigAzim(su.az, conv);
+      d.sunUp = su.el >= -0.833;
+      d.illumClass = su.el >= -0.833 ? 'day' : su.el >= -6 ? 'civil' : su.el >= -12 ? 'nautical' : su.el >= -18 ? 'astro' : 'night';
+      d.isNight = su.el < -6;
+      d.moonEl = mo.el; d.moonAz = mo.az; d.moonPhase = mo.phase; d.moonWaxing = mo.waxing;
+      d.moon = SOLAR.toFrame(mo.el, mo.az, conv);
+      d.moonUp = mo.el >= 0;
+      if (!sunCache || sunCache.jdn !== jdn) {          // the day's events, once per civil day
+        const ev = SOLAR.events(o);
+        sunCache = { jdn, noonUtc: ev.noon, sunriseUtc: ev.rise, sunsetUtc: ev.set, polar: ev.rise == null ? (ev.up ? 'day' : 'night') : null };
+      }
+      d.noonUtc = sunCache.noonUtc; d.sunriseUtc = sunCache.sunriseUtc; d.sunsetUtc = sunCache.sunsetUtc; d.polar = sunCache.polar;
+      // the air and the water
+      const T = s.oatC != null ? s.oatC : 15 + (s.dISA || 0);
+      const Td = s.dewC != null ? s.dewC : dewFromRh(T, s.rh != null ? s.rh : DEFAULT.rh);
+      d.oatC = T; d.dewC = Td; d.rh = s.dewC != null ? rhFromDew(T, Td) : (s.rh != null ? s.rh : DEFAULT.rh);
+      d.cloudBase = clamp(125 * (T - Td), 0, 6000);
+      // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
+      const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
+      d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
+      // local time
+      const std = geo.tz ? geo.tz.std : 0;
+      const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
+      d.offsetH = std + (dst ? 1 : 0);
+      let ls = utc + d.offsetH * 3600, lj = jdn;
+      if (ls < 0) { ls += 86400; lj--; } else if (ls >= 86400) { ls -= 86400; lj++; }
+      d.localSeconds = ls; d.localDate = dateOf(lj);
+      d.local = d.localDate + ' ' + pad2(Math.floor(ls / 3600)) + ':' + pad2(Math.floor(ls / 60) % 60) + ':' + pad2(Math.floor(ls) % 60)
+              + ' ' + (geo.tz ? (dst ? geo.tz.dstName || 'DST' : geo.tz.name || ('UTC' + (std >= 0 ? '+' : '') + std)) : 'UTC');
+      d.tzLabel = geo.tz ? (dst ? geo.tz.dstName || 'DST' : geo.tz.name || 'UTC') : 'UTC';
+    }
+
+    // set(spec) -> true when an AIR field changed (the world rebuilds atmos then, and only then)
+    function set(spec) {
+      const p = spec || {};
+      let airChanged = false;
+      for (const k of Object.keys(p)) {
+        const v = p[k];
+        if (k === 'date') { jdn = parseDate(v); s.date = v; sunCache = null; }
+        else if (k === 'utc') { utc = +v; }
+        else if (k === 'localHours') { /* below, needs the offset */ }
+        else if (k === 'rate') { s.rate = +v; }
+        else if (AIR_KEYS.includes(k)) { if (s[k] !== v) airChanged = true; if (v == null) delete s[k]; else s[k] = v; }
+        else if (k === 'rh' || k === 'dewC') { delete s.rh; delete s.dewC; if (v != null) s[k] = v; }   // one fact, two spellings
+        else if (v == null) delete s[k];
+        else s[k] = v;
+      }
+      if (p.localHours != null) {                          // set by the local clock on the current date
+        recompute();
+        utc = p.localHours * 3600 - d.offsetH * 3600;
+      }
+      // normalise the instant onto a civil day
+      while (utc < 0) { utc += 86400; jdn--; }
+      while (utc >= 86400) { utc -= 86400; jdn++; }
+      s.date = dateOf(jdn); s.utc = utc;
+      version++;
+      recompute();
+      return airChanged;
+    }
+    // advance(dt seconds of play): the clock. Never bumps the version.
+    function advance(dt) {
+      const r = s.rate != null ? s.rate : 1;
+      if (!(r > 0) || !(dt > 0)) return;
+      utc += dt * r;
+      while (utc >= 86400) { utc -= 86400; jdn++; }
+      s.date = dateOf(jdn); s.utc = utc;
+      recompute();
+    }
+    const air = () => { const a = {}; for (const k of AIR_KEYS) if (s[k] != null) a[k] = s[k]; return a; };
+
+    const day = {
+      set, advance,
+      spec: () => { const o = {}; for (const k of Object.keys(s).sort()) o[k] = s[k]; return JSON.parse(JSON.stringify(o)); },
+      air, get hasAir() { return AIR_KEYS.some(k => s[k] != null); },
+      get version() { return version; },
+      get geo() { return geo; },
+      get date() { return s.date; }, get utc() { return utc; }, get jdn() { return jdn; },
+      get jd() { return SOLAR.jd(jdn, utc); },
+      get rate() { return s.rate != null ? s.rate : 1; },
+      get turbidity() { return s.turbidity != null ? s.turbidity : DEFAULT.turbidity; },
+      get ozone() { return s.ozone != null ? s.ozone : DEFAULT.ozone; },
+      get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
+      get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
+      get cloudType() { return s.cloudType || DEFAULT.cloudType; },
+      get qnhPa() { return s.qnhPa != null ? s.qnhPa : 101325; },
+      // utcFor(elDeg, rising) — the UT second on THIS civil day when the sun crosses an
+      // elevation (bisection on the monotone half-day); null when it never does.
+      // The presets (dawn, golden, dusk...) are built on it by the clock.
+      utcFor(elDeg, rising) {
+        const o = { jdn, lat: geo.lat, lon: geo.lon };
+        const el = u => SOLAR.sun(Object.assign({ utc: u }, o)).el;
+        const noon = d.noonUtc;
+        let a = rising ? noon - 43200 : noon, b = rising ? noon : noon + 43200;   // the half-day, in UT seconds (may leave the civil day)
+        const fa = el(a) - elDeg, fb = el(b) - elDeg;
+        if (fa * fb > 0) return null;
+        let lo = a, hi = b, flo = fa;
+        for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2, fm = el(m) - elDeg; if (fm * flo <= 0) hi = m; else { lo = m; flo = fm; } }
+        return (lo + hi) / 2;
+      },
+    };
+    // the derived block as read-only getters
+    for (const k of ['sun', 'sunEl', 'sunAz', 'sunAzGrid', 'rigAzim', 'sunUp', 'illumClass', 'isNight',
+                     'moon', 'moonEl', 'moonAz', 'moonPhase', 'moonWaxing', 'moonUp',
+                     'noonUtc', 'sunriseUtc', 'sunsetUtc', 'polar',
+                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm',
+                     'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
+      Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
+    }
+    set(Object.assign({}, DEFAULT, spec0 || {}));
+    version = 0;
+    return day;
+  }
+
+  return { makeDay, DEFAULT, GEO_DEFAULT, dewFromRh, rhFromDew, usDst };
+})();
+if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = DAY;
 // ===========================================================================
 // TERRAIN CODEC — the asset format (futureDesigns/WORLD-V2.md §9).
 // ===========================================================================
@@ -1081,6 +1450,10 @@ function makeWorld(seed, opts) {
   const ISL = (opts && opts.island) || null;
   const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
                      : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
+  // WHERE THE WORLD STANDS (SKY S1): the island declares its own geo (28_island.js:
+  // the origin's lat/lon, the grid's convergence, the time zone); the analytic
+  // world stands at Jolene's latitude with its -z as TRUE north (convergence 0).
+  const GEO = (ISL && ISL.geo) || DAY.GEO_DEFAULT;
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
@@ -1654,13 +2027,28 @@ function makeWorld(seed, opts) {
   // change live, exactly as it already does for wind — no reset, mid-flight.
   // Absent weather is the standard day and the zero wind vector, so every
   // existing gate is untouched by the mere existence of this.
+  //
+  // THE DAY (SKY S1, 2026-09-14) extends this rather than standing beside it:
+  // `day` (07_day.js) holds WHEN and WHERE and WATER and AEROSOL as well as
+  // the air, and `atmos` is rebuilt ONLY when an air field moved — the same
+  // object otherwise, so a consumer holding it (and GATE DAY) can tell. The
+  // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
+  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  function setDay(spec) {
+    const airChanged = day.set(spec);
+    if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
+    if (spec && 'wind' in spec) setWind(spec.wind || null);
+  }
+  // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
+  // absent fields are CLEARED (the standard day, the zero wind), so the
+  // CONDITIONS presets and every gate read exactly what they read before.
   function setWeather(spec) {
     weather = spec || null;
-    const hasAir = spec && (spec.oatC != null || spec.qnhPa != null || spec.dISA != null);
-    atmos = hasAir ? makeAtmos(spec) : ATMOS_ISA;
-    setWind(spec ? (spec.wind || null) : null);
+    const p = { wind: spec ? (spec.wind || null) : null };
+    for (const k of ['oatC', 'dISA', 'qnhPa']) p[k] = spec && spec[k] != null ? spec[k] : null;
+    setDay(p);
   }
 
   return {
@@ -1670,7 +2058,7 @@ function makeWorld(seed, opts) {
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
-                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakemask: ISL.lakemask || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
+                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
@@ -1685,6 +2073,8 @@ function makeWorld(seed, opts) {
     get atmos() { return atmos; },
     get weather() { return weather; },
     setWeather,
+    // ---- THE DAY (SKY S1): the whole day, read live; the sun in its sky ----
+    day, setDay, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----
@@ -5289,6 +5679,10 @@ var ISLAND_GEN = (function () {
   'use strict';
   const WC = { TREE: 10, SHRUB: 20, GRASS: 30, CROP: 40, BUILT: 50, BARE: 60,
                SNOW: 70, WATER: 80, WETLAND: 90, MOSS: 100 };
+  const ISLAND_GEO = {
+    jolene: { lat: 55.04327, lon: -131.57222, convergenceDeg: 19.32,
+              tz: { std: -9, dst: 'us', name: 'AKST', dstName: 'AKDT' } },
+  };
 
   // src: { id, header, topo: Uint8Array, payload: Uint8Array (gunzipped),
   //        grid: { meta, cover: Uint8Array, canopy: Uint8Array | null },
@@ -5342,11 +5736,17 @@ var ISLAND_GEN = (function () {
     return {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
+      // WHERE IT STANDS (SKY S1): the origin's lat/lon, and how far the
+      // grid's north (Alaska Albers, EPSG:3338) leans east of true north here
+      // — measured with rasterio at the origin (19.32°; the analytic conic
+      // formula n(λ-λ0) gives 19.35). A sun placed by true azimuth without
+      // it would light from 19° off at noon. The header may override.
+      geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
-      coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakemask: src.grid.lakemask || null,
+      coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakes: src.grid.lakes || null,
       hydro: src.hydro || 'map',     // 'map': the cover's lakes, no bake water; 'proc': the analytic bake's lakes and rivers (G405, to compare)
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
@@ -5357,7 +5757,7 @@ var ISLAND_GEN = (function () {
     };
   }
 
-  return { makeIsland, WC };
+  return { makeIsland, WC, ISLAND_GEO };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = ISLAND_GEN;
 // ============================================================
@@ -10565,13 +10965,23 @@ function makePilot(sim, def, world, opts) {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
-    return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+    // the surface's rolling resistance and the slope's pull, both live (P0.8)
+    return () => Math.min(0.5, (((gSurf && gSurf[0]) ?? CRR) + Math.max(0, -gGrade)) * sim.totalM * 9.81 / T0);
   })();
   // the stopping deceleration the accelerate-stop call plans with: the grass
   // datum's rolling + braking coefficients at the pilot's own brake limit,
   // taken at 80 % (a wet-side margin; the measured stop goes on the report)
-  const aStop = A.aStop || 9.81 * (CRR + (A.brakeMax || 0.3) * MU_BRAKE) * 0.8;
-  const stopDist = v => v * v / (2 * aStop) + v * 1.0;
+  // P0.8 (PILOT-ROADMAP §0.2): THE GROUND IS NOT LEVEL GRASS. The stop
+  // decelerates on the SURFACE under the wheels (GROUND_SURF's rolling and
+  // braking coefficients per class — the solver's own table) and on the
+  // GRADIENT along the run (g sin: uphill helps a stop, hurts a take-off);
+  // both read live (`groundHere`), the grass datum as the fallback.
+  let gSurf = null, gGrade = 0;                  // the surface row and the gradient under the aeroplane, per update
+  const aStopOf = () => {
+    const row = gSurf || (typeof GROUND_SURF === 'object' && GROUND_SURF[0]) || [CRR, MU_BRAKE, 0.8];
+    return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
+  };
+  const stopDist = v => v * v / (2 * Math.max(0.5, aStopOf())) + v * 1.0;
   // the run a take-off needs from a standstill: most of the sheet's roll
   // (Vr is reached before the sheet's lift-off point), the stop from Vr, the
   // reserve — the SAME arithmetic the roll rejects with, so the planner and
@@ -10703,6 +11113,7 @@ function makePilot(sim, def, world, opts) {
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
+  let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
   // P0.5 (PILOT-ROADMAP §6.3 rule 1): TECS's own state — the throttle and the
   // balance integrators, the filtered rates, the speed weight
   const useTecs = opts.tecs !== false;
@@ -10807,6 +11218,14 @@ function makePilot(sim, def, world, opts) {
   };
   // a point in a landing frame: s along u, c to the LEFT of u
   const wp = (F, s, c) => [F.ox + s * F.ux + c * F.uz, F.oz + s * F.uz - c * F.ux];
+  // P0.8: the slope ends on the AIM POINT'S GROUND — the CG's rest altitude
+  // there (terrain + gearH), not the flat datum; the runway's profile is
+  // read straight off the terrain (the premises' `profile` grades it)
+  const aimAlt = () => {
+    if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
+    const P0 = wp(ap.frame, ap.xAim, 0);
+    return world.terrainH(P0[0], P0[1]) + (gearH || 0);
+  };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
   const legGeom = (L) => {
@@ -10839,7 +11258,13 @@ function makePilot(sim, def, world, opts) {
     const hC = ap.hCruise;
     const Dfaf = hC / ap.gs;
     const Diaf = Dfaf + Math.max(400, 10 * VTurn);
-    const W = clamp(ST.patW * Rturn, 300, 1800);
+    // P0.8: the crosswind leg carries TWO fillets, each of the radius the
+    // aeroplane turns at the speed it flies there (the cruise speed plus the
+    // wind, at the planned bank) — a width planned on VTurn alone put the
+    // beaver's two 365 m fillets on a 565 m leg, patternPath halved them,
+    // and the aeroplane crossed the downwind by 240 m at its bank limit
+    const wv0 = windAt(to, 30), RcW = (ap.VCruise + Math.hypot(wv0[0], wv0[1])) ** 2 / (9.81 * Math.tan(bankLim)) * 1.05;
+    const W = clamp(Math.max(ST.patW * Rturn, 2.2 * RcW), 300, 1800);
     ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side: 1 };
     return ap.plan;
   };
@@ -10866,7 +11291,13 @@ function makePilot(sim, def, world, opts) {
     const nodes = [], ids = [];
     const add = (x, z, r) => { const id = 'p' + nodes.length; nodes.push({ id, x, z, kind: 'air', r }); ids.push(id); };
     const speedOf = L => L.V === 'turn' ? VTurn : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
-    const rOf = (Vl, climbing) => Vl * Vl / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
+    // P0.8: the fillet is followed over the GROUND (L1 on the ground track),
+    // so it is planned at the ground speed a turn can reach — the airspeed
+    // plus the wind (the beaver / twin in 2 m/s across crossed the crosswind
+    // leg by 190-240 m on a fillet planned in still air); a wider fillet is
+    // always flyable, the aeroplane banks a little less
+    const wv = windAt(ap.route.to || ap.route.from, 30), wMag = Math.hypot(wv[0], wv[1]);
+    const rOf = (Vl, climbing) => (Vl + wMag) * (Vl + wMag) / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
     if (from) add(from[0], from[1], 0);
     for (let k = 0; k < legs.length; k++) {
       const L = legs[k], N = legs[k + 1];
@@ -11000,6 +11431,22 @@ function makePilot(sim, def, world, opts) {
     nose[0] /= nL; nose[1] /= nL;
     const terrainNow = (world && typeof world.terrainH === 'function') ? world.terrainH(cg[0], cg[2]) : ap.refAlt;
     const aglT = cg[1] - terrainNow;
+    // P0.8: THE HEIGHT ABOVE THE GROUND UNDER THE WHEELS — `agl` is the height
+    // above one flat datum (the rest height at the spawn), and on a sloped
+    // strip that datum meets the ground 770 m before the aim or 34 m above it
+    // (G399.1's fixture). aglG subtracts the CG's rest height above the
+    // terrain (gearH, measured once at rest) from aglT; without a world it
+    // is agl. The flare, the screen height, the balk and the hold-off read it.
+    if (gearH == null && world && typeof world.terrainH === 'function') gearH = cg[1] - terrainNow;
+    const aglG = (world && typeof world.terrainH === 'function') ? aglT - (gearH || 0) : agl;
+    // the surface class and the gradient along the nose, read on the ground
+    if (world && typeof world.surface === 'function' && typeof GROUND_SURF === 'object') {
+      const sc = world.surface(cg[0], cg[2]); gSurf = GROUND_SURF[sc] || null;
+    }
+    if (world && typeof world.terrainH === 'function') {
+      const nx0 = -xA[0], nz0 = -xA[2], nl0 = Math.hypot(nx0, nz0) || 1;
+      gGrade = (world.terrainH(cg[0] + nx0 / nl0 * 40, cg[2] + nz0 / nl0 * 40) - world.terrainH(cg[0] - nx0 / nl0 * 40, cg[2] - nz0 / nl0 * 40)) / 80;
+    }
 
     let tx = ap.targetDir[0], tz = ap.targetDir[2];
     if (ap.trackHold) {
@@ -11046,7 +11493,10 @@ function makePilot(sim, def, world, opts) {
     vPrev = V;
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
-    if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
+    // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
+    // on the ground for 0.3 s (a rough strip's contact flickers)
+    onGT = onG > 0 ? onGT + dt : 0;
+    if (onGT > 0.3 && aglG < A.aglGuard && V < A.VRot * 0.9
         && ['LIFTOFF', 'CLIMB'].includes(ap.phase)) {
       rollN++;
       if (rollN >= 3) {
@@ -11205,7 +11655,7 @@ function makePilot(sim, def, world, opts) {
       let hdotC;
       if (o.vs != null) hdotC = o.vs;
       else if (o.gs != null) {
-        const d = ap.xAim - sAl, hGS = ap.refAlt + Math.max(0, d) * o.gs;
+        const d = ap.xAim - sAl, hGS = aimAlt() + Math.max(0, d) * o.gs;
         hdotC = -(o_.Vg ?? V) * o.gs + 0.2 * (hGS - cg[1]);
       } else hdotC = 0.2 * ((o.alt ?? cg[1]) - cg[1]);
       hdotC = clamp(hdotC, vsDn, vsUp);
@@ -11315,7 +11765,7 @@ function makePilot(sim, def, world, opts) {
       c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
-    const vsAgl = v => agl < A.hSafe ? Math.max(v, 1.0) : v;
+    const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
 
     // ---- THE AFCS: modes and selected targets --------------------------------------
@@ -11395,7 +11845,7 @@ function makePilot(sim, def, world, opts) {
         case 'FLC': holdPitch(clamp(A.climbThBase + A.climbThGain * (V - SEL.ias), 0.02, A.thMax)); break;
         case 'GS': {
           const d = ap.xAim - sAl;
-          const hGS = ap.refAlt + Math.max(0, d) * SEL.gs;
+          const hGS = aimAlt() + Math.max(0, d) * SEL.gs;
           holdVS(clamp(-(o_.Vg ?? V) * SEL.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * SEL.gs), 0.5));
           break;
         }
@@ -11842,13 +12292,13 @@ function makePilot(sim, def, world, opts) {
         // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
         // default garage build did exactly that; see 41_test_pilot.js)
         let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
-        if (agl > A.hSafe)
+        if (aglG > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
-          cond('height', agl, A.hSafe, agl > A.hSafe, 'm'),
+          cond('height', aglG, A.hSafe, aglG > A.hSafe, 'm'),
           cond('airspeed', V, A.VClimbMin, V > A.VClimbMin, 'm/s')]);
         // THE PUT-DOWN, and V1. A hover in ground effect goes back on the
         // wheels after 25 s (the HOVER fixture) — or at once, while a stop on
@@ -11858,7 +12308,7 @@ function makePilot(sim, def, world, opts) {
         // the game on a marginal build (a 53 s roll to Vr, airborne with
         // 150 m left), the old rule dropped it three seconds after lift-off
         // into the last of the grass, which is the worse of the two ends.
-        const lowStuck = agl < A.hSafe * 0.6;
+        const lowStuck = aglG < A.hSafe * 0.6;
         const canStop = left > stopDist(V) + 40;
         if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
           say('wont-climb', 'airborne ' + Math.round(phaseT) + ' s and still at ' + agl.toFixed(1) +
@@ -11872,7 +12322,7 @@ function makePilot(sim, def, world, opts) {
         }
         // ...and clearly away (twice the screen height) goes to CLIMB whatever
         // its speed — CLIMB's law finishes the acceleration (G208.3)
-        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
         break;
       }
 
@@ -11996,7 +12446,7 @@ function makePilot(sim, def, world, opts) {
         // throttle at the approach speed
         ap.dirX = 1;
         const d = ap.xAim - sAl;
-        const hGS = ap.refAlt + Math.max(0, d) * ap.gs;
+        const hGS = aimAlt() + Math.max(0, d) * ap.gs;
         const above = cg[1] - hGS;
         if (!slopeCaptured && above < 4) slopeCaptured = true;
         // G381: THE LEVEL SEGMENT IS LATCHED — its target was min(cg[1],
@@ -12039,7 +12489,7 @@ function makePilot(sim, def, world, opts) {
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
           cond('above slope', Math.round(above), ST.gaHigh, above < ST.gaHigh, 'm'),
           cond('off centre', Math.round(Math.abs(sCr)), ST.gaXT, Math.abs(sCr) < ST.gaXT, 'm'),
-          cond('flare at', agl.toFixed(1), A.flareAgl, agl < A.flareAgl, 'm')]);
+          cond('flare at', aglG.toFixed(1), A.flareAgl, aglG < A.flareAgl, 'm')]);
         gaT = above > ST.gaHigh && d < 600 ? gaT + dt : 0;
         if (gaT > 3) { if (canGA) { goAround('high on the slope ' + Math.round(d) + ' m out'); break; }
                        else if (!committed) { committed = true; say('committed-landing', 'high but committed'); } }
@@ -12055,7 +12505,7 @@ function makePilot(sim, def, world, opts) {
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
-        if (agl < (A.flareK ?? 1.3) * A.flareAgl) {
+        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
           go('FLARE'); thFlare0 = th; arc = null;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
@@ -12117,7 +12567,7 @@ function makePilot(sim, def, world, opts) {
           // beats a stall from a metre
           const vr = A.VRot || 18;
           const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
-          const vsC = -Math.max(sinkF, Math.max(0, agl) / flTau);
+          const vsC = -Math.max(sinkF, Math.max(0, aglG) / flTau);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
           const deSat = aDe > 0.30;
@@ -12213,7 +12663,7 @@ function makePilot(sim, def, world, opts) {
       aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
     } else { aDa = c.da; aDr = c.dr; }
     holdWas = holdActive; holdActive = false;
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, aglG, grade: gGrade, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };
     // the measurements a panel reads (ap.instruments), SI
     ap._m = { ias: V, tas: Vt, gs: Vg, alt: cg[1], agl, aglT, vs: vcg[1], pitch: th, bank: ph,
@@ -24522,4 +24972,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
