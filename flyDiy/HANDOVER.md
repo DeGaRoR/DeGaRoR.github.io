@@ -45961,3 +45961,33 @@ the categorization in the asset editor".
   struts and sprays); most likely the stale built index.html. To re-check
   on this build. Pilot TAXI on water, a seaplane HOME/dock, the far sea at
   true level, the water rudder blade turning, the prop's static thrust.
+
+## G393.1 — FINISHED AND MOUNTED (2026-09-14)
+
+The user: "finish properly and mount in browser please". The three gaps
+G393 declared, closed, and the new assets stood in the world editor.
+
+- THE SPORTS GROUNDS IN THE EDITOR AND THE GAME: SPORT_GEN carries a finish
+  of its own (`makeFinish` / `applyFinish(P, F)` / `build(P, lod, F)` - the
+  premises' per-item contract), its catalogue entries are kind `building`
+  (a site item the composer flattens at its foot's median; `park` is the
+  plot-stood kind with a `stand`), `_sport_gen.js` is loaded by
+  tools/_premises.html and spliced into the world pack (build.js), and
+  render_premises' placeBuilt draws `stats.turf` through LOT_GROUND over
+  the flat turf. SEEN on the village terrain (world B, fresh): one site
+  with `sport/ball park, lit`, `house/lighthouse`, `house/general store`
+  and `big/fire hall` - "4 of 4 site items resolved from the catalogue",
+  16 lights, the park's ground flattened, the diamond's fan and stand from
+  the orbit camera.
+- THE OVERHEAD DOOR: `buildDoor` gives any opening over two metres a
+  SECTIONAL leaf (four stacked panels with raised fields, two tracks up
+  the jambs) instead of a hinged house leaf; `buildStoop` gives a wide
+  front door a CONCRETE APRON falling from the threshold to the ground
+  (stone bag, `apron: true`) instead of a stoop and steps. Seen on the
+  police post's bay.
+- THE INTERIOR BEHIND THE GLASS: a shop window and a strip get a dark warm
+  panel in the pane bag 35 cm behind the inner face, carrying the pane's
+  glow - no black hole by day, lit with its window at night.
+- Landed HEAD + my hunks only for build.js and render_premises.js (the
+  island session holds uncommitted work in both); the pack rebuilt in the
+  clean worktree. Green: HOUSE, MEDIA, PREMISES.
