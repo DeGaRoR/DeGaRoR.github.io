@@ -830,6 +830,9 @@ body.premOpen #flFly { display:none; }
 #ui .pr-insp .r > span.v { flex:none; width:48px; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 #ui .pr-insp .r > .fsel { flex:1; min-width:0; }
+#ui .pr-insp .r.item { padding:5px 8px; margin:3px 0; border-radius:6px; background:var(--ed-btn-bg); }
+#ui .pr-insp .r.item.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
+#ui .pr-insp .r.item > span.k { width:auto; flex:1; }
 #ui .pr-insp .r > .pills { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:5px; }
 #ui .pr-insp .pills .pill { padding:5px 8px; }
 #ui .pr-insp .r > .fsw + span.v { flex:none; width:auto; text-align:left;

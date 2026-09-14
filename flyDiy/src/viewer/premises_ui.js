@@ -88,6 +88,7 @@ const OBJ_PICK = { prop: null, billboard: null };   // what the prop and billboa
 let PALETTE_KEY = null;   // the building the 'building' tool stands
 let SITE_THEME = null;    // the site theme the 'theme' tool stands (VILLAGE_GEN.THEMES; G393.3)
 let PALETTE_CAT = null;   // the category the palette shows (v9)
+let ITEM_FOCUS = null;    // the site item whose rows are open in the inspector (G398.1: a list, one row per item)
 const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
@@ -342,7 +343,7 @@ function mount(host, ctx) {
           drag = { id: selected, layer: 'runways', runway: h.key, before, F };
           return true;
         }
-        if (found.layer === 'sites') { drag = { id: selected, layer: 'sites', site: h.key, before, F }; return true; }
+        if (found.layer === 'sites') { drag = { id: selected, layer: 'sites', site: h.key, before, F }; if (h.key.indexOf('i:') === 0) ITEM_FOCUS = h.key.slice(2); return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
           const a = arr[h.index], b = arr[(h.index + 1) % arr.length];
@@ -700,11 +701,23 @@ function mount(host, ctx) {
       for (const L of links) { const sol = solved.find(q => q.link.id === L.id); const d = $('div', { class: 'note ' + (sol && sol.ok ? 'ok' : 'bad') }); d.textContent = L.kind + ' ' + L.from.item + ' → ' + L.to.item + ': ' + (sol ? (sol.ok ? 'solved' : (sol.issues || ['?'])[0]) : 'not solved'); insp.appendChild(d); }
       const iss = (R.overlay.records.issues || []).filter(t => t.indexOf(id) >= 0);
       if (iss.length) rows.note(insp, '⚠ ' + iss[0]);
+      // THE ITEMS AS A LIST (G398.1): one row per item - what stands there and its turn - and the
+      // focused one (clicked here, or its disc dragged) opens into its building, its turn, its removal
+      rows.section(insp, items.length + ' ITEM' + (items.length === 1 ? '' : 'S'));
+      const E = ctx.catalogue ? ctx.catalogue.entries : null;
+      const labelOf = k => { const en = E && E.get(k), i = k.indexOf('/'); return (i < 0 ? k : k.slice(i + 1)) + (en && en.cat ? ' · ' + en.cat : ''); };
+      if (ITEM_FOCUS && !items.some(q => q.id === ITEM_FOCUS)) ITEM_FOCUS = null;
       for (const it of items) {
-        rows.section(insp, 'ITEM ' + it.id);
-        if (ctx.catalogue) { const E = ctx.catalogue.entries; rows.select(insp, 'building', ctx.catalogue.keys().map(k => { const e = E.get(k), i = k.indexOf('/'); return [k, (i < 0 ? k : k.slice(i + 1)) + (e && e.cat ? ' · ' + e.cat : '')]; }), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id)); }
+        const open = ITEM_FOCUS === it.id;
+        const d = $('div', { class: 'r item' + (open ? ' on' : ''), style: 'cursor:pointer' });
+        d.appendChild($('span', { class: 'k', text: (open ? '▾ ' : '▸ ') + labelOf(it.key), title: it.id + ' - ' + it.key }));
+        d.appendChild($('span', { class: 'v', text: ((it.yaw || 0) * 180 / Math.PI).toFixed(0) + '°' }));
+        d.onclick = () => { ITEM_FOCUS = open ? null : it.id; inspector.refresh(); };
+        insp.appendChild(d);
+        if (!open) continue;
+        if (ctx.catalogue) rows.select(insp, 'building', ctx.catalogue.keys().map(k => [k, labelOf(k)]), () => it.key, v => ed(x => { x.items.find(q => q.id === it.id).key = v; }, 'building of ' + it.id));
         rows.slider(insp, 'turn (°)', -180, 180, 1, () => (it.yaw || 0) * 180 / Math.PI, v => ed(x => { x.items.find(q => q.id === it.id).yaw = v * Math.PI / 180; }, 'turn of ' + it.id, 'yaw:' + it.id), v => v.toFixed(0) + '°');
-        rows.button(insp, 'remove ' + it.id, () => ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id));
+        rows.button(insp, 'remove ' + labelOf(it.key).split(' · ')[0], () => { ITEM_FOCUS = null; ed(x => { x.items = x.items.filter(q => q.id !== it.id); }, 'remove ' + it.id); });
       }
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard')) {
       const keys = objectKeys(e.kind);
@@ -821,7 +834,7 @@ function mount(host, ctx) {
   let downAt = null;
   view.addEventListener('mousedown', ev => { if (!active) return; if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
   addEventListener('mousemove', ev => { if (active) onMove(ev); });
-  addEventListener('mouseup', ev => { if (!active) return; if (onUp()) return; if (ev.button === 0 && downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) < 4 && ev.target === view.querySelector('canvas')) onClick(ev); downAt = null; });
+  addEventListener('mouseup', ev => { if (!active) return; if (onUp()) return; if (ev.button === 0 && downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) < 4 && (ev.target === view || ev.target === view.querySelector('canvas'))) onClick(ev); downAt = null; });   // the sheet itself, or the bench's canvas in it - never a plate or a pill over it (G398.1)
   view.addEventListener('dblclick', ev => { if (active && ev.button === 0) onDblClick(ev); });
   addEventListener('keydown', ev => { if (active) onKey(ev); });
 

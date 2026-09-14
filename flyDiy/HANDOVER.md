@@ -46571,3 +46571,18 @@ screenshots documenting your work".
   flare height - W2b, the quadtree refining round the aircraft (the bench
   has the LOD), when the user flies low far from the field or islands are
   added.
+
+## G398.1 — THE MOUSE NEVER SELECTED IN THE GAME; A SITE'S ITEMS AS A LIST (2026-09-14,
+## the user: "the editor UI does not refresh the menus well; I select a site, then all the
+## panel options are the same until the last ones")
+
+- **THE CLICK**: since the port (G387) the module counted a click only when its target was a
+  canvas INSIDE the sheet - the bench's; the game's sheet is a transparent div over the flight
+  canvas, so a left click there never selected anything (only the FEATURES select and the
+  scripted cmd('click') did). The guard now takes the sheet itself or the bench's canvas, never
+  a plate or a pill over it.
+- **A SITE'S ITEMS**: the inspector repeated the same three rows (building / turn / remove) for
+  every item - ten identical blocks for the mine, which read as a panel that had not
+  refreshed. It is a LIST now: one row per item (what stands there · its category, its turn);
+  clicking a row, or dragging the item's disc, opens that item's building, turn and removal.
+- Gates: PREMISES green.
