@@ -13,9 +13,10 @@
 //   node tools/pilot_matrix.js --set all       everything below (an hour+)
 //   node tools/pilot_matrix.js --cells cub:HOME:calm,c172:HOME:x2   named cells
 //   node tools/pilot_matrix.js --jobs 4 --out matrix.json --baseline matrix_prev.json
+//   node tools/pilot_matrix.js --ratchet tools/pilot_baseline.json     GATE PILOTMATRIX: no cell worse
 //
-// A cell is { key, from, to, weather, style, drawnTail }; the weather names
-// are in WEATHERS. The verdict per cell is the worst of its metrics; a
+// A cell is { key, from, to, weather, fixture, style, drawnTail }; the weather
+// names are in WEATHERS, the fixtures (a sloped strip) in FIXTURES. The verdict per cell is the worst of its metrics; a
 // baseline file (a previous --out) prints the deltas so a change is read as
 // "what moved", not "what is red".
 // ============================================================
@@ -33,21 +34,29 @@ const WEATHERS = {
   tail3: { wind: [3, 0] },            // a tailwind on the landing direction the pilot picks against
   hot:   { oat: 35, qnh: 100800, wind: [-2.2, 2.6], gust: 0.7 },   // GATE HOTHIGH's day
 };
+// THE FIXTURES (pilot_trace --slope): HOME tilted along its axis, zero at the
+// spawn, a hillside — `up4`: the landing runs UPHILL 4 % (the flat datum meets
+// the rising ground 770 m before the aim: lands short, no flare); `dn4`: the
+// landing runs DOWNHILL over the hill the approach must cross (the pilot goes
+// around for terrain, and has to choose the other direction — P1)
+const FIXTURES = { flat: {}, up4: { slope: -0.04 }, dn4: { slope: 0.04 }, up2: { slope: -0.02 }, dn2: { slope: 0.02 } };
 const MACHINES_QUICK = ['cub', 'c172', 'stearman'];
 const MACHINES_CORE = ['cub', 'pietenpol', 'tigermoth', 'stearman', 'jodel', 'c172', 'rv', 'savannah', 'ul1', 'pusherPod', 'motorglider', 'etrainer', 'vtail', 'twinBush', 'beaver'];
 const MACHINES_ALL = MACHINES_CORE.concat(['pittsAlike', 'sesqui', 'caravan', 'radial', 'ttail', 'mw5', 'archaeopteryx', 'da62', 'skymaster', 'p38']);
 
 function cellsOf(set) {
   const cells = [];
-  const add = (key, from, to, weather, style, drawnTail) => cells.push({ key, from, to: to || from, weather, style: style || 'normal', drawnTail: !!drawnTail });
+  const add = (key, from, to, weather, style, drawnTail, fixture) => cells.push({ key, from, to: to || from, weather, style: style || 'normal', drawnTail: !!drawnTail, fixture: fixture || 'flat' });
   if (set === 'quick') {
     for (const k of MACHINES_QUICK) add(k, 'HOME', null, 'calm');
     add('cub', 'HOME', null, 'x2'); add('stearman', 'HOME', null, 'x2'); add('c172', 'HOME', null, 'x2');
     add('cub', 'HOME', 'A3', 'calm');                       // a 480 m grass strip, 10 km out
+    add('cub', 'HOME', null, 'calm', null, false, 'up4'); add('cub', 'HOME', null, 'calm', null, false, 'dn4');
   } else if (set === 'core') {
     for (const k of MACHINES_CORE) { add(k, 'HOME', null, 'calm'); add(k, 'HOME', null, 'x2'); }
     for (const k of ['cub', 'c172', 'savannah']) { add(k, 'HOME', 'A3', 'calm'); add(k, 'HOME', 'A5', 'calm'); }
     add('cub', 'HOME', null, 'hot'); add('c172', 'HOME', null, 'head6');
+    for (const k of ['cub', 'c172', 'savannah']) for (const f of ['up4', 'dn4', 'up2']) add(k, 'HOME', null, 'calm', null, false, f);
   } else if (set === 'all') {
     for (const k of MACHINES_ALL) for (const w of ['calm', 'x2', 'x4', 'hot']) add(k, 'HOME', null, w);
     for (const k of MACHINES_ALL) { add(k, 'HOME', null, 'calm', null, true); }
@@ -56,11 +65,12 @@ function cellsOf(set) {
   }
   return cells;
 }
-const cellId = c => [c.key, c.from + (c.to !== c.from ? '-' + c.to : ''), c.weather, c.style !== 'normal' ? c.style : '', c.drawnTail ? 'drawn' : ''].filter(Boolean).join(':');
+const cellId = c => [c.key, c.from + (c.to !== c.from ? '-' + c.to : ''), c.weather, c.fixture && c.fixture !== 'flat' ? c.fixture : '', c.style !== 'normal' ? c.style : '', c.drawnTail ? 'drawn' : ''].filter(Boolean).join(':');
 function parseCell(s) {
   const p = s.split(':');
   const [from, to] = (p[1] || 'HOME').split('-');
-  return { key: p[0], from, to: to || from, weather: p[2] || 'calm', style: p.includes('cautious') ? 'cautious' : p.includes('brisk') ? 'brisk' : 'normal', drawnTail: p.includes('drawn') };
+  return { key: p[0], from, to: to || from, weather: p[2] || 'calm', style: p.includes('cautious') ? 'cautious' : p.includes('brisk') ? 'brisk' : 'normal', drawnTail: p.includes('drawn'),
+           fixture: p.find(x => FIXTURES[x] && x !== 'flat') || 'flat' };
 }
 
 // THE THRESHOLDS — the numbers a good pilot flies to, on every machine. A
@@ -103,6 +113,8 @@ function runCell(c, extra) {
     if (w.oat != null) args.push('--oat', String(w.oat));
     if (w.qnh != null) args.push('--qnh', String(w.qnh));
     if (c.drawnTail) args.push('--drawn-tail');
+    const fx = FIXTURES[c.fixture] || {};
+    if (fx.slope) args.push('--slope', String(fx.slope));
     for (const a of extra || []) args.push(a);
     const p = spawn(process.execPath, args, { cwd: T, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
@@ -166,14 +178,43 @@ function report(results, baseline) {
   return { text: lines.join('\n'), nBad, nWarn };
 }
 
+// THE RATCHET (GATE PILOTMATRIX): against a committed baseline, a cell may
+// not get WORSE — its verdict may not drop (good -> warn -> bad), a metric
+// that was good may not turn bad, and a landing's sink / aim / swing may not
+// grow past a tolerance. Cells the baseline does not know are reported, not
+// judged. The baseline moves forward only by hand (a re-run with --out onto
+// tools/pilot_baseline.json, said in the HANDOVER), never by the gate.
+const rank = v => v === true ? 2 : v === 'warn' ? 1 : 0;
+function ratchet(results, baseline) {
+  const B = Object.fromEntries(baseline.map(r => [r.cell, r]));
+  const bad = [];
+  for (const r of results) {
+    const b = B[r.cell]; if (!b) continue;
+    if (r.error) { bad.push(r.cell + ': errored (' + String(r.error).slice(0, 60) + ')'); continue; }
+    const jr = judge(r), jb = judge(b);
+    if (rank(jr.verdict) < rank(jb.verdict)) bad.push(r.cell + ': verdict ' + String(jb.verdict) + ' -> ' + String(jr.verdict));
+    for (let i = 0; i < jr.cols.length; i++) {
+      const cr = jr.cols[i], cb = jb.cols[i];
+      if (cb && cb.ok === true && cr.ok === false) bad.push(r.cell + ': ' + cr.label + ' ' + cb.s + ' -> ' + cr.s);
+    }
+    if (r.landing && b.landing) {
+      if (r.landing.sink > b.landing.sink + 0.5) bad.push(r.cell + ': sink ' + b.landing.sink + ' -> ' + r.landing.sink);
+      if (Math.abs(r.landing.pastAim) > Math.abs(b.landing.pastAim) + 60) bad.push(r.cell + ': aim ' + b.landing.pastAim + ' -> ' + r.landing.pastAim);
+      if (r.rollout && b.rollout && r.rollout.maxE > b.rollout.maxE + 5) bad.push(r.cell + ': swing ' + b.rollout.maxE + ' -> ' + r.rollout.maxE);
+    }
+  }
+  return bad;
+}
+
 if (require.main === module) {
   const argv = process.argv.slice(2);
   const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
   const set = opt('--set', 'quick');
   const cells = opt('--cells') ? opt('--cells').split(',').map(parseCell) : cellsOf(set);
   const jobs = +opt('--jobs', Math.max(1, Math.min(4, require('os').cpus().length - 2)));
-  const out = opt('--out', null), base = opt('--baseline', null);
-  const baseline = base && fs.existsSync(base) ? JSON.parse(fs.readFileSync(base, 'utf8')).results : null;
+  const out = opt('--out', null), base = opt('--baseline', null), rat = opt('--ratchet', null);
+  const loadRes = f => f && fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).results : null;
+  const baseline = loadRes(base) || loadRes(rat);
   const extra = argv.includes('--csv') ? ['--csv'] : [];
   console.log('PILOT MATRIX: ' + cells.length + ' cells, ' + jobs + ' at a time (' + set + ')');
   const t0 = Date.now();
@@ -186,8 +227,15 @@ if (require.main === module) {
     console.log('\n' + rep.text);
     console.log('wall ' + Math.round((Date.now() - t0) / 1000) + ' s');
     if (out) fs.writeFileSync(out, JSON.stringify({ set, when: new Date().toISOString(), results }, null, 1));
+    if (rat) {
+      const rb = loadRes(rat);
+      const worse = rb ? ratchet(results, rb) : ['no baseline at ' + rat];
+      for (const w of worse) console.log('  REGRESSED ' + w);
+      console.log('GATE PILOTMATRIX: ' + (worse.length ? 'FAIL (' + worse.length + ' regressed against ' + path.basename(rat) + ')' : 'PASS (no cell worse than ' + path.basename(rat) + '; ' + rep.nBad + ' known bad, ' + rep.nWarn + ' warn)'));
+      process.exit(worse.length ? 1 : 0);
+    }
     console.log('PILOT MATRIX: ' + (rep.nBad ? 'FAIL (' + rep.nBad + ' bad)' : rep.nWarn ? 'PASS with ' + rep.nWarn + ' warnings' : 'PASS'));
     process.exit(rep.nBad ? 1 : 0);
   });
 }
-module.exports = { WEATHERS, cellsOf, parseCell, cellId, runCell, runMatrix, judge, report, CHECKS };
+module.exports = { ratchet, WEATHERS, FIXTURES, cellsOf, parseCell, cellId, runCell, runMatrix, judge, report, CHECKS };

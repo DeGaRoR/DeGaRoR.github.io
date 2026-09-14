@@ -216,6 +216,9 @@ const GATES = [
   // peer sessions' load — the 1800 s cap below bit twice with no failed check
   // to point at, the exact false red its own paragraph describes. Doubled.
   { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'full', timeout: 3600_000 },
+  // THE PILOT MATRIX as a ratchet (G399 / PILOT-ROADMAP P0.3): the quick set
+  // against tools/pilot_baseline.json — no cell may get worse
+  { id: 'PILOTMATRIX', file: '_pilotmatrix_check.js', tier: 'full', timeout: 3600_000 },
   { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared

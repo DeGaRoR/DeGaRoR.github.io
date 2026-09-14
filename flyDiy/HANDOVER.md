@@ -46225,3 +46225,41 @@ gitignored (measurements, not sources).
   (5 bad of 7: the C172 and stearman overshoots, the A3 cross-country).
 - NEXT: P0.3 the cases (the sloped-plateau fixture through `worldMod`),
   P0.4 the machine sheet, P0.5 TECS.
+
+## G399.1 — THE PILOT TRACK, P0.3: THE SLOPED STRIP, AND THE MATRIX AS A
+## RATCHET — GATE PILOTMATRIX (2026-09-14)
+
+**THE FIXTURE** (`pilot_trace.js --slope g`, the matrix's `up4` / `dn4` /
+`up2` / `dn2`): HOME's ground tilted along the strip's axis — a plane, zero
+at the spawn so the aeroplane starts on the ground, `g` per metre, covering
+the strip and 20 % beyond each end, fading over 40 % of the length — a
+HILLSIDE, through HOTHIGH's `Object.assign({}, world, { terrainH })` trick:
+the solver's wheels and the pilot's `aglT` read the new ground, the
+aerodrome record keeps its one `elev`, which is exactly what a sloped strip
+tests. `worldMod(world)` may return a replacement world for the same reason.
+
+**WHAT THE CUB DID ON IT** (the two assumptions of PILOT-ROADMAP §0.1-2,
+measured, before P0.8 touches them):
+- `up4` (the landing runs uphill): the flat datum's slope meets the rising
+  ground 770 m before the aim — the flare had 1.8 s, the touchdown came at
+  1.37 Vs with 1.22 m/s, 43 m short of the aim and 800 m short of where it
+  meant to land. The take-off run 352 m against 231 flat (uphill, unplanned).
+- `dn4` (downhill): the approach comes over the hill the strip sits on
+  (aglT 15 m at 1 km out on a 3.3 deg slope from the datum), the pilot goes
+  around for terrain — correctly — and never chooses the other direction
+  (P1's obstacle-aware direction choice); gave up at 420 s. The run 173 m.
+
+**THE RATCHET** (`pilot_matrix.js --ratchet tools/pilot_baseline.json`,
+`tools/_pilotmatrix_check.js`, `run_gates.js` full tier): no cell may get
+WORSE than the committed baseline — a verdict may not drop, a good metric
+may not turn bad, a landing's sink / aim / swing may not grow past a
+tolerance (0.5 m/s, 60 m, 5 deg). Known-bad cells stay known-bad; the
+baseline moves forward only by hand (`--out tools/pilot_baseline.json`,
+said here with the numbers). `tools/pilot_baseline.json` at this commit:
+9 cells, 0 good, 3 warn, 6 bad — the C172 and stearman arc overshoots
+(639 / 832 / 378 / 502 m), the A3 cross-country, `dn4`; the warns are the
+cub's 58-73 m overshoot, the crosswind swings (10.7 / 11.2 deg), `up4`'s
+V/Vs 1.37.
+
+- Gates: PILOT green on G399's worktree (12 cases); PILOTMATRIX = the
+  baseline by construction.

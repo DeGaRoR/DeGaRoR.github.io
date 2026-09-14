@@ -14,6 +14,7 @@
 //   node tools/pilot_trace.js stearman --from HOME --to A3 --oat 30
 //   node tools/pilot_trace.js caravan --drawn-tail --csv
 //   node tools/pilot_trace.js my_build.json --to A5
+//   node tools/pilot_trace.js cub --slope 0.04     HOME tilted 4 % (the landing runs downhill)
 //
 // Options: --from ID --to ID (aerodrome ids, HOME default; --to alone flies a
 // cross-country from HOME) · --wind x,z (m/s, the air's velocity) · --gust g ·
@@ -86,13 +87,37 @@ function runTrace(o) {
   const C = require(path.join(T, 'flight_core.js'));
   const t0 = Date.now();
   const S = specOf(o.key, o.drawnTail);
-  const world = C.makeWorld();
+  const world0 = C.makeWorld();
   const weather = {};
   if (o.wind || o.gust) weather.wind = { base: [o.wind ? o.wind[0] : 0, 0, o.wind ? o.wind[1] : 0], gust: o.gust || 0, refH: 10 };
   if (o.oat != null) weather.oatC = o.oat;
   if (o.qnh != null) weather.qnhPa = o.qnh;
-  if (Object.keys(weather).length) world.setWeather(weather);
-  if (typeof o.worldMod === 'function') o.worldMod(world);           // a fixture's hook (a slope, a plateau)
+  if (Object.keys(weather).length) world0.setWeather(weather);
+  // A FIXTURE'S HOOK: `worldMod(world)` returns a replacement world (HOTHIGH's
+  // `Object.assign({}, W, { terrainH })` trick — the solver's wheels and the
+  // pilot's aglT both read `world.terrainH`, the aerodrome record keeps its
+  // single `elev`, which is exactly what a sloped strip tests)
+  let world = world0;
+  if (typeof o.worldMod === 'function') world = o.worldMod(world0) || world0;
+  // --slope g: the ground under the departure aerodrome tilts along the strip's
+  // axis, zero at the spawn (so the aeroplane starts on the ground), g per metre
+  // toward +hdg-direction... in HOME's frame +x: g > 0 = the landing (along -x
+  // in calm air, the take-off direction) runs DOWNHILL, g < 0 uphill
+  if (o.slope) {
+    const a0 = world.aerodromes.find(a => a.id === (o.from || 'HOME'));
+    const sp = a0.spawn || [a0.x, a0.z];
+    const ux = Math.cos(a0.hdg), uz = Math.sin(a0.hdg);     // +hdg direction; HOME: -x
+    const base = world.terrainH;
+    const tilt = (x, z) => {
+      const s0 = (x - sp[0]) * ux + (z - sp[1]) * uz;          // along +hdg from the spawn
+      const c0 = -(x - sp[0]) * uz + (z - sp[1]) * ux;         // across
+      // the plane covers the strip and 20 % beyond each end, then fades over 40 % of the length
+      const along = Math.abs(s0), inside = Math.max(0, Math.min(1, (a0.len * 1.6 - along) / (a0.len * 0.4)));
+      const wide = Math.max(0, Math.min(1, (400 - Math.abs(c0)) / 200));
+      return -o.slope * s0 * inside * wide;                    // g > 0: ground FALLS along -hdg... see the sign note in the summary
+    };
+    world = Object.assign({}, world, { terrainH: (x, z) => base(x, z) + tilt(x, z) });
+  }
   const from = world.aerodromes.find(a => a.id === (o.from || 'HOME'));
   const to = o.to ? world.aerodromes.find(a => a.id === o.to) : from;
   if (!from) throw new Error('unknown aerodrome ' + o.from);
@@ -176,7 +201,7 @@ function runTrace(o) {
   let zeroX = 0;
   for (let i = 1; i < roll.e.length; i++) if (roll.e[i - 1] * roll.e[i] < 0 && Math.abs(roll.e[i]) > 0.5) zeroX++;
   const out = {
-    key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail,
+    key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail, slope: o.slope || 0,
     weather: Object.keys(weather).length ? weather : null,
     outcome: nan ? 'broke-up' : (rep.outcome || 'gave-up'), phase: ap.phase, t: r1(tEnd),
     phases: phases.map(p => p.ph + '@' + p.t),
@@ -217,6 +242,7 @@ function parseArgs(argv) {
     else if (a === '--qnh') o.qnh = +nx();
     else if (a === '--style') o.style = nx();
     else if (a === '--max') o.maxS = +nx();
+    else if (a === '--slope') o.slope = +nx();
     else if (a === '--drawn-tail') o.drawnTail = true;
     else if (a === '--csv') o.csv = (argv[i + 1] && !argv[i + 1].startsWith('--')) ? nx() : true;
     else if (a === '--json') o.json = nx();
