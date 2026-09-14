@@ -99,7 +99,8 @@
       M.appendChild(slider('class blur', 0, 200, 5, () => world().ground.get().classBlur, gs('classBlur'), v => v + ' m'));
       M.appendChild(slider('class wobble', 0, 60, 2, () => world().ground.get().edgeWobble, gs('edgeWobble'), v => v + ' m'));
       M.appendChild(select('water', [['1', 'the map (class 80 lakes)'], ['0', 'off']], () => String(world().ground.get().waterMap), v => world().ground.set({ waterMap: +v })));
-      M.appendChild(note('water from the map: the cover\u2019s lakes as a signed field (a smooth edge) and flat surfaces at the DEM\u2019s level. The procedural bake instead: boot with ?hydro=proc and compare.'));
+      M.appendChild(note('water from the map: the cover\u2019s class 80 UNIONED with the imagery\u2019s NDWI (green vs NIR - water absorbs NIR), as a signed field (a smooth edge) and one flat surface per lake at the 85th percentile of the DEM under it. The procedural bake instead: boot with ?hydro=proc and compare.'));
+      M.appendChild(note('TERRAIN TYPE legend (recomputed, not recoloured): dark blue sea \u00b7 blue lake \u00b7 yellow-green heath (grass/moss) \u00b7 olive muskeg (grass, flat, wet, low) \u00b7 pale sand (shore, low NDVI) \u00b7 grey-brown scree (bare) \u00b7 dark grey rock (slope > 38\u00b0, or bare > 28\u00b0) \u00b7 mustard scrub (tree cover under 2.5 m canopy, shrub) \u00b7 dark green forest (tree cover, canopy 2.5 m+) \u00b7 white snow (900 m+) \u00b7 red built'));
       M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
       // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
       const Ms = fold(M, 'the stack (bottom first)', true, true);
@@ -118,7 +119,7 @@
     if (W.TREE_FILL && W.TREE_FILL.onIsland && W.TREE_FILL.onIsland()) {
       const Ti = fold(T, 'from the map (the island)', true, true);
       const isl = k => v => W.TREE_FILL.setIsland({ [k]: v });
-      Ti.appendChild(note('the canopy layer says where and how tall: coverage ramps from `cover from` to `full cover`; a tree is canopy x gain over its model\'s height'));
+      Ti.appendChild(note('THE RULE: the terrain type says the kind of stand (forest full, scrub half, muskeg a stunted few, heath almost none, rock/sand/water none); the canopy says how much of it stands (the ramp from `cover from` to `full cover`) and how tall (canopy x gain over the model\'s height); NDVI is the vigour (a weak stand thins); a slope over 35\u00b0 thins to a third; species by altitude, wet ground and steepness (the pool)'));
       Ti.appendChild(slider('cover from', 0, 10, 0.5, () => W.TREE_FILL.island().from, isl('from'), v => v + ' m'));
       Ti.appendChild(slider('full cover', 2, 30, 1, () => W.TREE_FILL.island().full, isl('full'), v => v + ' m'));
       Ti.appendChild(slider('size gain', 0.3, 2.5, 0.05, () => W.TREE_FILL.island().gain, isl('gain')));

@@ -854,6 +854,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
+            '  float lsd = (texture2D(uGLake, guv).r * 255.0 - 128.0) * 4.0;\n' +
+            // THE SHORE IS A MIXED PIXEL (G406): a 30 m Landsat texel over a 20 m pond is half
+            // water, dark; within 45 m of a lake edge the tint is taken from 45 m further out
+            // (the field's own gradient says which way out is)
+            '  if (lsd > -45.0 && lsd <= 0.0) { vec2 e = vec2(10.0 / uGGrid.z, 10.0 / uGGrid.w);\n' +
+            '    vec2 gr = vec2(texture2D(uGLake, guv + vec2(e.x, 0.0)).r - texture2D(uGLake, guv - vec2(e.x, 0.0)).r, texture2D(uGLake, guv + vec2(0.0, e.y)).r - texture2D(uGLake, guv - vec2(0.0, e.y)).r);\n' +
+            '    if (dot(gr, gr) > 1e-10) { vec2 outw = -normalize(gr) * vec2(45.0 / uGGrid.z, 45.0 / uGGrid.w);\n' +
+            '      tint = mix(tint, texture2D(uGTint, guv + outw).rgb, smoothstep(-45.0, 0.0, lsd)); } }\n' +
             '  float r1 = texture2D(uGOri, guv).r;\n' +
             '  float can = texture2D(uGCan, guv).r * 255.0;\n' +
             '  float snowA = smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y);\n' +
@@ -869,8 +877,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
             '  }\n' +
             '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
-            '  float lsd = (texture2D(uGLake, guv).r * 255.0 - 128.0) * 4.0;\n' +
-            '  if (uGWaterMap > 0.5 && lsd > 0.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(0.0, 6.0, lsd));\n' +
+            '  if (uGWaterMap > 0.5 && lsd > -4.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-4.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
@@ -1285,16 +1292,30 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // THE MAP'S LAKES (G405): a flat quad per class-80 cell of the cover, at the
       // DEM's own level (the lake is flat in the DEM), 0.15 m under it like the
       // bake's; the ground shader paints the water's smooth edge underneath
-      if (world.island && world.island.cover && world.island.hydro !== 'proc') {
-        const G = world.island.grid, cv = world.island.cover, half = G.cell / 2;
-        let nq = 0;
-        for (let j = 0; j < G.h; j++) for (let i = 0; i < G.w; i++) {
-          if (cv[j * G.w + i] !== 80) continue;
-          const x = G.x0 + (i + 0.5) * G.cell, z = G.z0 + (j + 0.5) * G.cell;
-          const h = world.terrainH(x, z); if (h <= 0.05) continue;   // the sea is the plane's
-          quad(x - half, z - half, x + half, z + half, h - 0.15); nq++;
+      if (world.island && (world.island.lakemask || world.island.cover) && world.island.hydro !== 'proc') {
+        // ONE LEVEL PER LAKE (G406): the mask (class 80 | NDWI water) flooded
+        // into components; each lake's surface at the 85th percentile of the
+        // DEM under it plus a hand's breadth, so it covers its own banks
+        // (per-cell heights had cut the terrain into hatching)
+        const G = world.island.grid, W = G.w, Hh = G.h, half = G.cell / 2;
+        const mk = world.island.lakemask || null, cv = world.island.cover;
+        const isLake = k => mk ? mk[k] > 0 : cv[k] === 80;
+        const seen = new Uint8Array(W * Hh); const stack = new Int32Array(W * Hh); let lakes = 0, nq = 0;
+        for (let k0 = 0; k0 < W * Hh; k0++) {
+          if (seen[k0] || !isLake(k0)) continue;
+          let sp = 0; stack[sp++] = k0; seen[k0] = 1; const cells = [];
+          while (sp) { const k = stack[--sp]; cells.push(k); const i = k % W, j = (k / W) | 0;
+            for (const nk of [k - 1, k + 1, k - W, k + W]) { if (nk < 0 || nk >= W * Hh || seen[nk]) continue;
+              const ni = nk % W; if (Math.abs(ni - i) > 1) continue; if (!isLake(nk)) continue; seen[nk] = 1; stack[sp++] = nk; } }
+          if (cells.length < 3) continue;
+          const hs = cells.map(k => world.terrainH(G.x0 + ((k % W) + 0.5) * G.cell, G.z0 + (((k / W) | 0) + 0.5) * G.cell)).sort((a, b) => a - b);
+          const lvl = hs[Math.min(hs.length - 1, Math.floor(hs.length * 0.85))] + 0.15;
+          if (lvl <= 0.2) continue;                    // the sea is the plane's
+          for (const k of cells) { const x = G.x0 + ((k % W) + 0.5) * G.cell, z = G.z0 + (((k / W) | 0) + 0.5) * G.cell;
+            quad(x - half - 1, z - half - 1, x + half + 1, z + half + 1, lvl); nq++; }
+          lakes++;
         }
-        console.log('island lakes: ' + nq + ' cells from the cover');
+        console.log('island lakes: ' + lakes + ' lakes, ' + nq + ' cells, one level each');
       }
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
       for (const [lx, lz, ws, mask] of world.hydro.lakeSurf) {
@@ -2688,7 +2709,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           let can = 0;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
-            const p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
+            // THE RULE (G406, the user: "with the crazy amount of layers we have, we
+            // should be able to be quite clever"): the TERRAIN TYPE says what kind of
+            // stand can be here (forest full, scrub half, muskeg a stunted few, heath
+            // almost none, rock/sand/water none); the CANOPY says how much of it stands
+            // (the ramp) and how tall; NDVI is the vigour (a weak stand thins); a slope
+            // over 35 deg thins to a third. Species stay the pool's (altitude, wet, steep).
+            let kind = 1.0;
+            if (ISLC.ttype) { const tt = ISLC.ttype[ISLC.cellAt ? ISLC.cellAt(x, z) : -1];
+              kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
+              if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
+              if (kind <= 0.0) continue; }
+            let p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
+            if (ISLC.ndvi) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
+            { const d = 8, gx2 = ISLC.terrainH ? 0 : 0; const s2 = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+              if (s2 > 0.7) p *= 0.33; }
+            p *= kind;
             if (p < 1 && hsh(ix + 13, iz + 29) > p) continue;
           }
           const ti = nearTree(x, z);

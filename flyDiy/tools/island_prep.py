@@ -390,6 +390,12 @@ def main():
         rgb8 = extend(rgb8)
         rgb8.tofile(out + ".tint.rgb")
         ndvi = (refl[3] - refl[0]) / np.maximum(refl[3] + refl[0], 1e-3)
+        # NDWI (McFeeters): water absorbs the near infrared - the imagery's own
+        # water map, at 30 m, for the lakes the 10 m class under-calls (G406)
+        ndwi = (refl[1] - refl[3]) / np.maximum(refl[1] + refl[3], 1e-3)
+        w8 = np.clip((ndwi + 1) * 127, 0, 254).astype("uint8"); w8[~landmask] = 0
+        w8 = extend(w8); w8.tofile(out + ".ndwi.u8")
+        layers["ndwi"] = {"file": ".ndwi.u8", "waterOverLandPct": float(100.0 * ((ndwi > 0.0) & landmask).sum() / max(1, landmask.sum()))}
         n8 = np.clip((ndvi + 1) * 127, 0, 254).astype("uint8"); n8[~landmask] = 0
         n8 = extend(n8)
         n8.tofile(out + ".ndvi.u8")
@@ -441,6 +447,15 @@ def main():
         try:
             from scipy import ndimage
             lake = (cov == 80) & landmask
+            if os.path.exists(out + ".ndwi.u8"):
+                nw = np.fromfile(out + ".ndwi.u8", dtype="uint8").reshape(H, W).astype("float32") / 127.0 - 1.0
+                wet = (nw > -0.2) & landmask       # -0.2: a 30 m pixel half over a 20 m pond (measured G406)
+                # the imagery's water joins the class's; specks (< 5 cells) and one-cell fringes go
+                lake = lake | wet
+                lake = ndimage.binary_opening(lake, iterations=1)
+                lab0, n0 = ndimage.label(lake); sizes = ndimage.sum(lake, lab0, range(1, n0 + 1))
+                small = np.isin(lab0, [i + 1 for i, sz in enumerate(sizes) if sz < 5]); lake[small] = False
+                print(f"  water: class {int(((cov == 80) & landmask).sum())} cells, NDWI adds {int((wet & ~(cov == 80)).sum())}, union {int(lake.sum())}")
             d_in = ndimage.distance_transform_edt(lake) * cell
             d_out = ndimage.distance_transform_edt(~lake) * cell
             lsd = np.where(lake, 128.0 + np.minimum(d_in, 508.0) / 4.0, 128.0 - np.minimum(d_out, 508.0) / 4.0)
@@ -448,7 +463,9 @@ def main():
             np.clip(np.round(lsd), 0, 255).astype("uint8").tofile(out + ".lake.u8")
             lab, nl = ndimage.label(lake)
             layers["lake"] = {"file": ".lake.u8", "unit": "signed m/4, 128 = the edge, + inside", "lakes": int(nl),
-                              "km2": float(lake.sum() * cell * cell / 1e6)}
+                              "km2": float(lake.sum() * cell * cell / 1e6), "source": "class 80 | NDWI > 0"}
+            # the lake mask itself (the renderer floods it into components, one level each)
+            lake.astype("uint8").tofile(out + ".lakemask.u8")
             print(f"  lakes: {nl} from the cover's water class, {lake.sum()*cell*cell/1e6:.1f} km2")
         except ImportError:
             pass
@@ -474,6 +491,7 @@ def main():
         tt[cov == 50] = 10
         tt[dem >= 900] = 9
         tt[(cov == 80) & landmask] = 1
+        if os.path.exists(out + ".lakemask.u8"): tt[np.fromfile(out + ".lakemask.u8", dtype="uint8").reshape(H, W) > 0] = 1
         tt[~landmask] = 0
         tt.tofile(out + ".ttype.u8")
         vals, counts = np.unique(tt, return_counts=True)

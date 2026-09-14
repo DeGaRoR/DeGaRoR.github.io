@@ -47039,3 +47039,28 @@ approximated leaves).
 - SEEN: the club hangar on the house bench and by the flying club's apron in
   the premises = the garage's shell (14_club_hangar_close.png); the field
   shed = the timber shell with its board leaf (front view).
+
+## G406 — ONE LEVEL PER LAKE, THE SHORE DE-MIXED, NDWI, THE TREE RULE (2026-09-14,
+## the user: "big artifacts in the water, and large dark patch around them ... we
+## are underestimating the amount of water ... what's the rule for spawning trees?
+## with the crazy amount of layers we have, we should be able to be quite clever")
+
+- THE HATCHING was a quad per cell at that cell's DEM height (a lake is not
+  flat to the centimetre in the radar DEM): the mask is flooded into
+  components now, one surface per lake at the 85th percentile of the DEM
+  under it + 0.15 m (it covers its own banks).
+- THE DARK RIM WAS NOT WATER. Measured: lakes NDWI -0.14, their 40 m rims
+  -0.68 with NDVI 0.75 - land. A 30 m Landsat texel over a 20 m pond is half
+  water and dark: within 45 m of a lake edge the ground takes the tint from
+  45 m further out along the lake field's gradient.
+- NDWI (green vs NIR, McFeeters) from the Landsat bands - the imagery's own
+  water map - unioned with class 80 at -0.2 (a mixed pixel's water), opened,
+  specks under 5 cells dropped: 239 761 cells, 1 078 lakes, 24.0 km2.
+  .ndwi.u8 and .lakemask.u8 written; the terrain type reads the union.
+- THE TREE RULE, on the island's fill: the TERRAIN TYPE says the kind of
+  stand (forest 1, scrub 0.5, muskeg 0.12 stunted to 3 m, heath 0.04, rock/
+  sand/water none); the CANOPY says how much stands (the ramp) and how tall;
+  NDVI is the vigour (p x (ndvi-0.3)/0.35, floored 0.25); a slope over 35
+  deg thins to a third; species stay the pool's (altitude, wet, steep).
+  Written in F8 > trees > from the map.
+- The terrain type legend is in F8 > map layers.
