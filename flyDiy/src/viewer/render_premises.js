@@ -135,6 +135,7 @@ function make(THREE, scene, world, rec0, opts) {
   // the game's bounds follow the extent (the material map is painted over them): refreshed on a rebuild
   const refreshBounds = () => { if (!o.game) return; const b = extentWorld(); bounds.x0 = b.x0; bounds.z0 = b.z0; bounds.x1 = b.x1; bounds.z1 = b.z1; W = bounds.x1 - bounds.x0; H = bounds.z1 - bounds.z0; uB.value.set(bounds.x0, bounds.z0, W, H); };
   groundMat.onBeforeCompile = sh => {
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
     sh.uniforms.uOv = uOv; sh.uniforms.uWear = uWear; sh.uniforms.uB = uB; sh.uniforms.uOvOn = uOvOn; sh.uniforms.uWaterY = uWaterY;
     sh.vertexShader = 'varying vec3 vPW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPW = transformed;');
     sh.fragmentShader = 'varying vec3 vPW;\nuniform sampler2D uOv, uWear;\nuniform vec4 uB;\nuniform float uOvOn, uWaterY;\n' +
@@ -209,7 +210,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (!patchMatOwn) {
         const base = o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
         patchMatOwn = base.clone(); const inner = base.onBeforeCompile;
-        patchMatOwn.onBeforeCompile = sh => { if (inner) inner(sh); injectMaterials(sh); };
+        patchMatOwn.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); injectMaterials(sh); };   // S4
         patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
       }
       patch = new THREE.Mesh(g, patchMatOwn);

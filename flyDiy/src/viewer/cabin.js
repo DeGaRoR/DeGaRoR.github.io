@@ -542,7 +542,9 @@ function decalMat(THREE, HG, livery) {
     m.map = t;
   }
   m.onBeforeCompile = sh => {
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
     sh.vertexShader = 'attribute vec2 aUvN; varying vec2 vUvN;\n' + sh.vertexShader
+
       .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vUvN = aUvN;');
     sh.fragmentShader = 'varying vec2 vUvN;\n' + sh.fragmentShader
       .replace('#include <normal_fragment_maps>',

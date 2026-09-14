@@ -292,6 +292,7 @@
     HOOKED.push(mat);
     mat.onBeforeCompile = sh => {
       sh.uniforms.uLeaf = mat.userData.uLeaf;
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uWrap = U_WRAP; sh.uniforms.uSSS = U_SSS;
       sh.uniforms.uSSSP = U_SSSP; sh.uniforms.uAoBake = U_AO;
       sh.uniforms.uBakeAlb = U_BAKEALB;

@@ -195,6 +195,7 @@ function siteEdgeFade(THREE, mat, soft, w, d) {
   mat.transparent = true;
   mat.onBeforeCompile = sh => {
     sh.uniforms.uFadeSize = { value: new THREE.Vector2(w, d) };
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
     sh.uniforms.uFadeK = { value: soft == null ? 0.34 : soft };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>' + NL + 'varying vec2 vFadeUv;')

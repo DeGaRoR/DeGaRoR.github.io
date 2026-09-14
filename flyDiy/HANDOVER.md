@@ -47406,3 +47406,55 @@ half weight. The card: 143 km/h held, completed, the landing 1.1 m/s.
 - Gates: PILOT (12 cases) on this commit's worktree — the proof of G399.4
   and G399.5 together; PILOTMATRIX's baseline moved forward in the same
   proof (see the next entry).
+=======
+## G410 — THE SKY CHANTIER, SESSION C: AERIAL PERSPECTIVE (2026-09-14, the user:
+## "the fog wall" - WORLD-V2 §8.3 R3 / §8.4, deleted)
+
+- THE ONE SPLICE (RENDERER-DECISION §4k rule 3). three lays its fog on
+  AFTER the tone map, in display space (r186: opaque -> tonemapping ->
+  colorspace -> fog - measured in vendor/three.min.js), so a physical
+  in-scatter cannot live in fog_fragment. atmo.js install() - at eval,
+  before any program compiles - overrides the five fog/tonemapping chunks
+  once: fog_vertex exports the view-space position, fog_pars_fragment
+  carries the sampler and one function atmoAP(), tonemapping_fragment
+  takes `col = col x T + L x scale x alpha` at its HEAD (still linear
+  radiance), and fog_fragment becomes the flag-gated legacy smoothstep (the
+  shed keeps its dark walls: app.js clears the flag in the garage's frames,
+  render_world sets it in the world's). The scalars ride ONE Float32Array
+  uniform on ShaderLib (a typed array survives cloneUniforms by reference;
+  a render-target texture does NOT - it is nulled - so the atlas sampler
+  goes in through Material.prototype.onBeforeCompile for every default
+  material and an `ATMO.inject(sh)` first line in the 17 hooks that define
+  their own: render_world x8, render_premises x2, props, lot_tex,
+  site_ground, trees, cabin, aeroskin x2; the glass pane, an additive
+  pass, takes `fog: false`). Never per material; under TSL one fogNode.
+- THE ATLAS: Hillaire's froxel volume made camera-independent for a forward
+  renderer - 32 slices of DISTANCE (quadratic to 120 km), each a 64 x 32 map
+  of DIRECTION (azimuth x the sky-view's elevation), one 2048 x 32 HalfFloat
+  target marched 12 steps a texel every frame for the sun and the moon;
+  a material samples it by its own view vector and distance (two slices
+  lerped; under the first slice the identity). scene.fog is a sentinel a
+  light-year out (it is what defines USE_FOG); the 600-5200 m and 20-90 km
+  haze walls stand only when the atmosphere is off; F8's fog rows retire
+  (turbidity and humidity are the haze).
+- SEEN: the analytic world's 12 km mountains in blue haze at noon and pale
+  warm haze at golden hour, the horizon meeting the sky it stands under;
+  Jolene at noon with Tamgas and the far ridges in aerial perspective and
+  no wall at any distance (the worktree serves the island through a
+  junction onto the shared tree's untracked bench/); the shed as it was.
+- GATE ATMO grew the splice rules (59 checks): exactly the five chunks,
+  written in install(); the splice at the head of tonemapping_fragment;
+  both paths gated on the one flag; the prototype hook; the atmosphere's
+  own programs hook-free; every hooking file injects (counted); the glass
+  fog-free; the sentinel fog; the flag set by the world and cleared by the
+  shed. WORLDRENDER / LIGHT / GFX / UISMOKE / BOOT / MEDIA / PROPS / CABIN /
+  TREES / SKINMAT / PREMISES / VIEW green; SITE the known foreign red.
+- TRAP: an anchor without its trailing newline put the inject AFTER a
+  multi-line expression in cabin.js (a SyntaxError the page reported and
+  build.js's blob check did not - it checks the bundle, the page loads the
+  loose file under dev.html).
+- OWED: R5 is answered (the canopy shell does not replace the wall - the
+  atmosphere does; the shell is W0d's own question now); the frame cost of
+  the two passes on the real GPU; mist as a height-limited volume (F).
+- THE CENSUS (§4k rule 5): `node tools/tsl_census.js` - one more standalone
+  program (the AP pass); the five chunk overrides are one splice by design.

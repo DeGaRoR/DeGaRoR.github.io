@@ -7944,6 +7944,7 @@
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
     }
     if (inGarage) {
+      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would

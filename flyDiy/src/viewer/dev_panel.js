@@ -214,9 +214,7 @@
     E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
     E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
-    const fog = () => world() && world().scene && world().scene.fog;
-    E.appendChild(slider('fog from', 0, 20000, 100, () => fog() ? fog().near : NaN, v => { if (fog()) fog().near = v; }, v => (v / 1000).toFixed(1) + ' km'));
-    E.appendChild(slider('fog full by', 500, 90000, 500, () => fog() ? fog().far : NaN, v => { if (fog()) fog().far = v; }, v => (v / 1000).toFixed(1) + ' km'));
+    E.appendChild(note('distance is the atmosphere’s aerial perspective (S4): no fog rows - turbidity and humidity above are the haze'));
     const Es = fold(E, 'shadows and floor', false, true);
     Es.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
     Es.appendChild(slider('forest floor', 0, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));

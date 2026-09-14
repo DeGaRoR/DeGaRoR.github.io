@@ -350,6 +350,127 @@ var ATMO = (function () {
     }`;
   const QUAD_VERT = `varying vec2 vUv2; void main(){ vUv2 = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
+  // ---- the aerial-perspective atlas (S4) -------------------------------------
+  // Hillaire's froxel volume, made camera-independent for a forward renderer:
+  // AP_N slices of DISTANCE (quadratic, 0 .. AP_DMAX km), each a 64 x 32 map of
+  // DIRECTION (azimuth x the sky-view's non-linear elevation), laid side by side
+  // in one 2048 x 32 target. A texel holds the in-scattered radiance to that
+  // distance along that direction (rgb) and the path's transmittance (a). Every
+  // material samples it by its own view vector and distance (the splice below),
+  // so the far ridge fades into the sky it stands under and the fog wall goes.
+  const AP_N = 32, AP_W = 64, AP_H = 32, AP_DMAX = 120.0;   // km
+  const AP_FRAG = GLSL_LIB + `
+    uniform float uR, uEMoon, uDmax;
+    uniform vec3 uSun, uMoon;
+    varying vec2 vUv2;
+    void main() {
+      float fx = vUv2.x * ${AP_N}.0;
+      float k = floor(fx), u = fract(fx);
+      vec3 d = skyDir(vec2(u, vUv2.y));
+      float dist = uDmax * pow((k + 0.5) / ${AP_N}.0, 2.0);
+      float Rg = uAtm[0].x, Rt = uAtm[0].y, mu = d.y, r = uR;
+      float tg = raySphere(r, mu, Rg);
+      float tEnd = tg >= 0.0 ? tg : raySphere(r, mu, Rt);
+      tEnd = min(tEnd, dist);
+      vec3 L = vec3(0.0), Tp = vec3(1.0);
+      if (tEnd > 0.0) {
+        float dt = tEnd / 12.0;
+        float cs = dot(d, uSun), pRs = phaseR(cs), pMs = phaseM(cs);
+        float cm = dot(d, uMoon), pRm = phaseR(cm), pMm = phaseM(cm);
+        for (int s = 0; s < 12; s++) {
+          float t = (float(s) + 0.5) * dt;
+          vec3 p = vec3(0.0, r, 0.0) + d * t;
+          float rr = length(p), h = rr - Rg;
+          vec3 sR, e; float sM; medium(h, sR, sM, e);
+          float muS = dot(p, uSun) / rr;
+          float shadow = raySphere(rr, muS, Rg) >= 0.0 ? 0.0 : 1.0;
+          vec3 S = (sR * pRs + vec3(sM * pMs)) * T(rr, muS) * shadow + (sR + vec3(sM)) * MS(rr, muS);
+          if (uEMoon > 0.0) { float muM = dot(p, uMoon) / rr; float shm = raySphere(rr, muM, Rg) >= 0.0 ? 0.0 : 1.0;
+            S += uEMoon * ((sR * pRm + vec3(sM * pMm)) * T(rr, muM) * shm + (sR + vec3(sM)) * MS(rr, muM)); }
+          vec3 seg = (1.0 - exp(-e * dt)) / max(vec3(1e-9), e);
+          L += Tp * S * seg;
+          Tp *= exp(-e * dt);
+        }
+      }
+      gl_FragColor = vec4(L, Tp.g);
+    }`;
+  // THE ONE SPLICE (RENDERER-DECISION §4k rule 3). three lays its fog on AFTER
+  // the tone map, in display space (r186: opaque -> tonemapping -> colorspace ->
+  // fog), so a physical in-scatter cannot live in fog_fragment: it goes at the
+  // head of tonemapping_fragment, where gl_FragColor is still linear radiance,
+  // guarded by USE_FOG (a material's own `fog` flag, and a scene with a fog
+  // object) and by the shared flag uAtmoAP.z (the world sets it; the shed,
+  // which keeps its dark-wall smoothstep, clears it). fog_vertex exports the
+  // view-space position; the fragment rebuilds the world view ray from it
+  // through viewMatrix (rigid: the transpose is the inverse rotation).
+  const AP_PARS_VERT = `varying vec3 vAtmoV;`;
+  const AP_VERT = `vFogDepth = - mvPosition.z; vAtmoV = mvPosition.xyz;`;
+  const AP_PARS_FRAG = `
+    varying vec3 vAtmoV;
+    uniform sampler2D uApAtlas;
+    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+    vec4 atmoAP() {
+      float dist = length(vAtmoV) * 0.001;
+      vec3 d = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz);
+      float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
+      float v = 0.5 + 0.5 * sign(el) * sqrt(abs(el) / 1.57079632679);
+      float u = az / 6.28318530718 + 0.5;
+      float s = sqrt(clamp(dist / uAtmoAP.y, 0.0, 1.0)) * ${AP_N}.0 - 0.5;
+      float k0 = floor(s), f = s - k0;
+      float k1 = min(k0 + 1.0, ${AP_N}.0 - 1.0);
+      float uu = clamp(u, 0.5 / ${AP_W}.0, 1.0 - 0.5 / ${AP_W}.0);
+      vec4 a = k0 < 0.0 ? vec4(0.0, 0.0, 0.0, 1.0) : texture2D(uApAtlas, vec2((k0 + uu) / ${AP_N}.0, v));
+      vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
+      return mix(a, b, f);
+    }`;
+  const AP_APPLY = `
+    #ifdef USE_FOG
+    if (uAtmoAP.z > 0.5) { vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a; }
+    #endif
+  `;
+  // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
+  const AP_FOG_FRAG = `
+    #ifdef USE_FOG
+    if (uAtmoAP.z < 0.5) {
+      #ifdef FOG_EXP2
+      float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+      #else
+      float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+      #endif
+      gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+    }
+    #endif
+  `;
+  const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
+  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars } };
+  let installed = false;
+  function install() {
+    if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk || !THREE.ShaderLib) return false;
+    if (typeof window !== 'undefined' && window.FLYDIY_RENDERER && window.FLYDIY_RENDERER.isWebGPURenderer) return false;   // the node renderer reads no chunk
+    const SC = THREE.ShaderChunk;
+    SC.fog_pars_vertex = (SC.fog_pars_vertex || '') + '\n' + AP_PARS_VERT;
+    SC.fog_vertex = '#ifdef USE_FOG\n' + AP_VERT + '\n#endif\n';
+    SC.fog_pars_fragment = (SC.fog_pars_fragment || '') + '\n#ifdef USE_FOG\n' + AP_PARS_FRAG + '\n#endif\n';
+    SC.fog_fragment = AP_FOG_FRAG;
+    SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
+    for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
+      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) lib.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+    }
+    // every default material takes the sampler through the prototype; a hook of its own calls inject itself
+    const proto = THREE.Material.prototype;
+    proto.onBeforeCompile = function (sh) { inject(sh); };
+    installed = true;
+    return true;
+  }
+  // inject(shader): the atlas sampler (a render-target texture cannot ride ShaderLib: cloneUniforms nulls it) - idempotent, text-guarded
+  function inject(sh) {
+    if (!sh || !sh.uniforms || sh.uniforms.uApAtlas) return;
+    if (!/fog_pars_fragment|USE_FOG/.test(sh.fragmentShader || '')) return;
+    sh.uniforms.uApAtlas = apUniforms.uApAtlas;
+    if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+  }
+  function setAP(on) { apScalars[2] = on ? 1 : 0; }
+
   // ---- the dome ------------------------------------------------------------
   // The sky-view sample, the sun and moon discs from the transmittance, the
   // stars. Radiance x uScale (= K_SUN, sky_light.js), then three's own tone
@@ -419,7 +540,7 @@ var ATMO = (function () {
   const DOME_VERT = `varying vec3 vD; void main(){ vD = (modelMatrix * vec4(position,1.0)).xyz - cameraPosition; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
 
   // ---- the GPU half ---------------------------------------------------------
-  const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, quad: null, cam: null, skyMat: null, atmU: null };
+  const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
   };
@@ -459,6 +580,12 @@ var ATMO = (function () {
     G.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), G.skyMat); G.quad.frustumCulled = false;
     G.scene = new THREE.Scene(); G.scene.add(G.quad);
     G.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    // the aerial-perspective atlas and its pass
+    G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    G.rtAP.texture.wrapS = THREE.ClampToEdgeWrapping; G.rtAP.texture.wrapT = THREE.ClampToEdgeWrapping;
+    G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uDmax: { value: AP_DMAX } }, G.atmU),
+      vertexShader: QUAD_VERT, fragmentShader: AP_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
+    apUniforms.uApAtlas.value = G.rtAP.texture;
     G.enabled = true;
     return true;
   }
@@ -474,7 +601,9 @@ var ATMO = (function () {
     const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
     renderer.autoClear = true;
     renderer.setRenderTarget(G.rtSky); renderer.render(G.scene, G.cam);
+    if (installed && G.rtAP) { G.quad.material = G.apMat; renderer.setRenderTarget(G.rtAP); renderer.render(G.scene, G.cam); G.quad.material = G.skyMat; }
     renderer.setRenderTarget(prev); renderer.autoClear = ac;
+    apScalars[0] = U.scale.value;
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
@@ -494,7 +623,8 @@ var ATMO = (function () {
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
+    install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
   };
 })();
-if (typeof window !== 'undefined') window.ATMO = ATMO;
+if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks
 if (typeof module !== 'undefined' && module.exports) module.exports = ATMO;

@@ -3187,6 +3187,7 @@ const AERO_NMAT_FS = 'uniform mat3 normalMatrix;\n';
 // (see the header), so every AEROSKIN material shares it by REFERENCE and the
 // build compiles one program per AEROSKIN_SURF value — two, not thirty.
 const AEROSKIN_HOOK = function (shader) {
+  if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   // THE WEATHERING (G345): read here, at compile, and spliced in as text —
   // the same text for every material, so the one-program rule holds
   const W = aeroWx();
@@ -3259,6 +3260,7 @@ const AERO_CABIN_FS = `
 // and for the same r128 reason (the cache key is its source). It reads the
 // same shared block, attached the same way.
 const AERO_CABIN_HOOK = function (shader) {
+  if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
@@ -4103,6 +4105,7 @@ function aeroGlass(THREE, o) {
   // the exemption was unjustified complexity, so it went.
   m.envMapIntensity = m.userData.env0 * AERO_ENV_F;
   m.onBeforeCompile = AEROGLASS_HOOK;
+  m.fog = false;      // S4: the pane is an additive pass in the near field - no aerial perspective on it
   AERO_POOL.set(key, m);
   AERO_BUILT.push(m);
   return m;

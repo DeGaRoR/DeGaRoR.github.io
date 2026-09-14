@@ -119,7 +119,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const MAX_ANISO = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? renderer.capabilities.getMaxAnisotropy()
                   : (renderer && renderer.getMaxAnisotropy) ? renderer.getMaxAnisotropy() : 8;
   // the fog wall hid the analytic ring's edge at 5.2 km; an island's edge is the sea (the user: "remove the fog")
-  scene.fog = world.island ? new THREE.Fog(C(HAZE), 20000, 90000) : new THREE.Fog(C(HAZE), 600, 5200);
+  // THE FOG (S4): under the atmosphere the world's distance is the aerial
+  // perspective (atmo.js's one splice in every fogged material) and this
+  // object is only what defines USE_FOG - a sentinel a light-year out. The
+  // painted haze walls (600-5200 m; 20-90 km on an island) stand only when
+  // the atmosphere is off (the TSL flag, the headless gate).
+  scene.fog = ATMO_ON && ATMO.installed ? new THREE.Fog(C(HAZE), 1e9, 2e9)
+            : world.island ? new THREE.Fog(C(HAZE), 20000, 90000) : new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
   // Sky shader, factored out because the W18 environment bake below renders the
@@ -832,6 +838,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       });
       GROUND.on = true;
       islandGroundHook = sh => {
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU);
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;')
@@ -1020,6 +1027,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // position rather than their own uv — the inner mesh and the outer ring
     // have completely different uv layouts, and the mask is one domain-wide bake.
     const canopyHook = sh => {
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uFMask = { value: forestMask };
       sh.uniforms.uCanopy = { value: cnpTex };
       sh.uniforms.uFloor = uFloor; sh.uniforms.uFloorLod = uFloorLod; sh.uniforms.uFloorEdge = uFloorEdge;
@@ -1093,6 +1101,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shared close-range grain hook (W13.2): uvScale sets tiles/uv-unit so
     // materials with different uv extents get the same on-ground density
     detailApply = (mat, uvScale) => { mat.onBeforeCompile = sh => {
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -1114,6 +1123,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the close grain is the analytic ground's; an island's ground is the live stack
     if (islandGroundHook) gMat.onBeforeCompile = islandGroundHook;
     else gMat.onBeforeCompile = sh => {
+      if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -1332,6 +1342,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // real reflection, no per-cell geometry at all.
         const lakeMat = waterMat.clone();
         lakeMat.onBeforeCompile = sh => {
+          if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
           sh.uniforms.uGLake = gU.uGLake; sh.uniforms.uGGrid = gU.uGGrid;
           sh.vertexShader = sh.vertexShader
             .replace('#include <common>', '#include <common>\nvarying vec3 vWL;')
@@ -1808,6 +1819,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         sh.uniforms.uNearB = uNear;
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uFadeB = { value: FAR_FADE };
@@ -2117,6 +2129,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const prev = mat.onBeforeCompile, E = bandEdges(r, n);
       m.onBeforeCompile = sh => {
         if (prev) prev(sh);
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         sh.uniforms.uNearB = E.near;
         sh.uniforms.uFarB = E.far;
         sh.uniforms.uNoBand = uNoBand;
@@ -2180,6 +2193,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const nearOnly = mat => {
       mat.onBeforeCompile = sh => {
         sh.uniforms.uNearB = uNear;
+        if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform float uNearB;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
@@ -3765,7 +3779,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function dayApply() {
     const day = world.day;
     if (!day || rigCur.manual) return;
-    if (ATMO_ON) ATMO.update(renderer, day, camera.position.y);     // the sky-view LUT follows the sun and the eye every frame
+    if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -3790,20 +3804,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
-    if (scene.fog && scene.fog.color && scene.fog.color.setRGB) {
-      if (ATMO_ON) {
-        // INTERIM (until S4's aerial perspective): three's fog is a flat colour
-        // laid on AFTER the tone map, so it takes the physical horizon's
-        // radiance (four azimuths at 2 deg up) through the dome's own scale and
-        // the exposure, folded by a soft knee - the terrain fades into the sky it
-        // stands under, in every hour, instead of into a painted haze
-        const ex = (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null) ? window.GFX.exposureBase() : 1;
-        const S = ATMO.U.scale.value * ex, L = [0, 0, 0], acc = [0, 0, 0];
-        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ATMO.skyRadiance(6360 + camera.position.y / 1000, [Math.sin(a) * 0.9994, 0.0349, -Math.cos(a) * 0.9994], day.sun, 1, 12, L); acc[0] += L[0]; acc[1] += L[1]; acc[2] += L[2]; }
-        const f = v => { const x = v * S * 0.25; return x / (1 + x); };
-        scene.fog.color.setRGB(f(acc[0]), f(acc[1]), f(acc[2]));
-      } else if (rigCur.dome && scene.fog.color.setHex) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);
-    }
+    if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
     if (clouds && clouds.material) {
       clouds.position.y = Math.max(-600, day.cloudBase - 690);              // the puffs were drawn 480-900 m up
       const cover = Math.min(1, Math.max(0, day.cloudCover / 0.6));

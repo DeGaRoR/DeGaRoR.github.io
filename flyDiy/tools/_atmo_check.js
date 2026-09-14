@@ -118,8 +118,29 @@ console.log('5. the sources');
 {
   const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'atmo.js'), 'utf8');
   yes(/#include <tonemapping_fragment>/.test(src) && /#include <colorspace_fragment>/.test(src), 'the dome is tone-mapped and encoded by three\'s own chunks');
-  yes(!/ShaderChunk\.\w+\s*=/.test(src.replace(/\/\/[^\n]*/g, '')), 'no chunk is overridden yet (S4 installs the one aerial-perspective splice)');
-  yes(!/onBeforeCompile/.test(src), 'no onBeforeCompile hook in the atmosphere: standalone programs only');
+  // S4: THE ONE SPLICE. The aerial perspective is applied at the head of tonemapping_fragment (linear
+  // radiance; three's own fog runs AFTER the tone map) and fog_fragment is replaced by the flag-gated
+  // legacy - both inside install(), nowhere else; and every material that defines its own
+  // onBeforeCompile (and so loses the prototype's) calls ATMO.inject first.
+  const code = src.replace(/\/\/[^\n]*/g, '');
+  const chunkWrites = (code.match(/SC\.\w+\s*=/g) || []).map(s => s.replace(/\s*=.*/, ''));
+  yes(chunkWrites.length === 5 && ['SC.fog_pars_vertex', 'SC.fog_vertex', 'SC.fog_pars_fragment', 'SC.fog_fragment', 'SC.tonemapping_fragment'].every(k => chunkWrites.includes(k)),
+      'the atmosphere overrides exactly the five fog/tonemapping chunks, in install(): ' + chunkWrites.join(' '));
+  yes(/SC\.tonemapping_fragment = AP_APPLY \+/.test(code), 'the aerial perspective is spliced at the HEAD of tonemapping_fragment (before the tone map, in linear radiance)');
+  yes(/if \(uAtmoAP\.z > 0\.5\)/.test(src) && /if \(uAtmoAP\.z < 0\.5\)/.test(src), 'the splice and the legacy fog are gated on the one shared flag');
+  yes(/proto\.onBeforeCompile = function \(sh\) \{ inject\(sh\); \}/.test(src), 'the prototype hook injects the sampler for every default material');
+  yes(!/\.onBeforeCompile\s*=\s*sh\s*=>/.test(src), 'the atmosphere\'s own programs are standalone (no hook of their own)');
+  const hooked = { 'render_world.js': 8, 'render_premises.js': 2, 'props.js': 1, 'lot_tex.js': 1, 'site_ground.js': 1, 'trees.js': 1, 'cabin.js': 1, 'aeroskin.js': 2 };
+  for (const f in hooked) {
+    const t = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+    const n = (t.match(/ATMO\.inject\(/g) || []).length;
+    yes(n >= hooked[f], f + ' injects the aerial-perspective sampler in its own hooks (' + n + ' of ' + hooked[f] + ')');
+  }
+  const ask = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'aeroskin.js'), 'utf8');
+  yes(/m\.onBeforeCompile = AEROGLASS_HOOK;\s*\n\s*m\.fog = false;/.test(ask), 'the glass pane (an additive pass) takes no aerial perspective');
+  const rw2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
+  yes(/scene\.fog = ATMO_ON && ATMO\.installed \? new THREE\.Fog\(C\(HAZE\), 1e9, 2e9\)/.test(rw2), 'the world\'s fog is a sentinel under the atmosphere (USE_FOG on, the walls gone)');
+  yes(/ATMO\.setAP\(true\)/.test(rw2) && /ATMO\.setAP\(false\)/.test(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8')), 'the world sets the flag, the shed clears it');
   const rw = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
   yes(/ATMO\.init\(renderer\)/.test(rw) && /SKY_LIGHT\.applyDay\(/.test(rw), 'render_world takes the atmosphere and applies the day through sky_light');
   const sl = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'sky_light.js'), 'utf8');

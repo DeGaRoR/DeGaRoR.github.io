@@ -87,6 +87,7 @@ const LOT_GROUND = (() => {
   };
   m.onBeforeCompile = sh => {
     for (const k in U) sh.uniforms[k] = U[k];
+    if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
     sh.vertexShader = 'attribute vec4 aSplat;\nattribute vec2 aTone;\nattribute float aAlpha;\n' +
       'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
       sh.vertexShader.replace('#include <begin_vertex>',
