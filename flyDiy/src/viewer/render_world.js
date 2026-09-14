@@ -804,7 +804,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane
-            '  if (sd < 0.0) t = mix(vec3(0.10, 0.20, 0.22), vec3(0.03, 0.10, 0.16), smoothstep(0.0, 300.0, -sd));\n' +
+            '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
             '  t = mix(t, vec3(0.85, 0.88, 0.95), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
@@ -1033,8 +1033,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250) return;   // fully under the inner ring
         const qs = FH.side / 4, key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
         let g = groups.get(key); if (!g) groups.set(key, g = { pos: [], uv: [], idx: [], base: 0 });
+        const seaFloor = world.island.seaFloor;
         for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
           const x = ox + i * step, z = oz + j * step; let y = n.h[j * N + i];
+          // the asset's sea is the DEM's 0, ABOVE the water plane: the far
+          // mesh takes the island's shelf like the sampler does (G402 - the
+          // painted floor had shown over the plane as "a different tile")
+          if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
           g.pos.push(x, y, z);
@@ -1081,7 +1086,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     const waterMat = new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), waterMat);
+    // INFINITE WATER ON AN ISLAND (G402, the user): the plane ran to the domain's
+    // edge and the dome's ground showed past it as another sea. 400 km is the
+    // horizon from any height this game flies; the logarithmic depth buffer
+    // does not mind the size
+    const WSZ = world.island ? 400000 : SIZE;
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(WSZ, WSZ), waterMat);
     water.rotation.x = -Math.PI / 2; water.position.set((BX0 + BX1) / 2, -0.4, (BZ0 + BZ1) / 2);
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's

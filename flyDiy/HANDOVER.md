@@ -46553,3 +46553,21 @@ screenshots documenting your work".
   on a pad (today the garage stays at the back corner and the drive goes to
   it); the user's cars; the base under a site on a slope (the lot is not
   flattened - the store's stair ran 20 m downhill on the mountain flank).
+
+## G402 — ONE SEA (2026-09-14, the user: "the water is different for a
+## particular tile ... infinite water on the sides ... do we need a terrain LOD")
+
+- THE DIFFERENT TILE: the far mesh was built from the raw asset leaves, whose
+  sea is the DEM's 0 - ABOVE the water plane at -0.4 - so the ground's
+  painted water showed over the plane everywhere but the inner ring (which
+  samples the island's shelf). The far mesh takes the shelf now
+  (island.seaFloor(sd) published; the shelf starts at -5 m so an eps-4 leaf
+  cannot breach the plane), the ground's water colour matches the plane's.
+- INFINITE WATER: the plane is 400 km on an island (it ran to the domain's
+  edge and the dome's ground showed past it as a second sea).
+- TERRAIN LOD: not for the frame yet (4.7 M static tris at eps 4 + the
+  17.6 m inner ring, the frame unmoved); the real gap is that the inner
+  ring is centred on HOME, so far from the field the ground is eps 4 at
+  flare height - W2b, the quadtree refining round the aircraft (the bench
+  has the LOD), when the user flies low far from the field or islands are
+  added.
