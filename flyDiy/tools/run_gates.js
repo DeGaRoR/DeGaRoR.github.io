@@ -38,6 +38,8 @@ const GATES = [
   // re-engage after hand flying, flown headless on both pilots.
   { id: 'INPUT', file: 'test_input.js', tier: 'core' },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
+  // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
+  { id: 'DAY', file: 'test_day.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },

@@ -40,6 +40,8 @@
   const islandAtBoot = (typeof window !== 'undefined' && window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined')
     ? ISLAND_GEN.makeIsland(window.ISLAND_BOOT) : null;
   const world = makeWorld(0, { premises: premisesAtBoot, island: islandAtBoot });
+  // THE CLOCK (SKY S1): the day boots fixed (07_day.js), then the pref or ?day= moves it
+  if (typeof DAY_CLOCK !== 'undefined') DAY_CLOCK.bind(world);
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
   // (src/core/6x_gen_*.js). `window.GARAGE_SPEC` is the editor's handle on it —
   // and it is now actually ASSIGNED, in garage.js. This comment claimed it from
@@ -7935,6 +7937,8 @@
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
     inpEv = INP ? INP.update(1 / 60) : null;
+    // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
+    if (typeof DAY_CLOCK !== 'undefined' && (running || inGarage)) DAY_CLOCK.tick(1 / 60);
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();

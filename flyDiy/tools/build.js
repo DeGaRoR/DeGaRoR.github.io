@@ -29,6 +29,10 @@ const MANIFEST = {
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
     // rather than with the world.
     '05_atmos.js',
+    // THE SUN AND THE DAY (SKY S1/S2, 2026-09-14): pure almanac and the one
+    // day object the world carries; before the world, which makes the day.
+    '06_solar.js',
+    '07_day.js',
     // THE TERRAIN CODEC (W2, 2026-09-14): the quadtree asset's reader, one
     // global; before the world because an island world is built on it.
     '19_terrain_codec.js',
@@ -277,7 +281,7 @@ const MANIFEST = {
     // treeWarm/treeBuild, and the world asks whether the payload is ready
     // before it decides between a real tree and the cone it drew for a year.
     scripts: ['assets.js', 'aa_resolve.js',
-              'light_rig.js', 'site_tex.js', 'site_ground.js',
+              'light_rig.js', 'day_clock.js', 'site_tex.js', 'site_ground.js',
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',

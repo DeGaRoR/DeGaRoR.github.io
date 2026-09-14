@@ -47088,3 +47088,97 @@ approximated leaves).
   76 m cells and with flooding the DEM's radar noise; the map's lakes are
   the right shapes at 10 m. The ruling is the user's: maps first, the bake's
   rivers as the procedural layer on top when wanted.
+=======
+=======
+=======
+## G408 — THE SKY CHANTIER, SESSION A: THE DAY AND THE SUN (2026-09-14, the user:
+## "We really need a full day-night cycle by now, and a top-class lighting and
+## atmosphere generator ... It's time")
+
+- THE PLAN: futureDesigns/SKY-CHANTIER-2026-09-14.md executes
+  SKY-ATMOSPHERE-2026-09-11.md (with its §4b: the sky by hand in GLSL,
+  port-cheap). Rulings taken: (aj) a REAL CLOCK that advances with play at a
+  set rate, one clock for shed and world, frame-locked, never the wall
+  clock; (ai) REAL latitude, every world declares `geo`; clouds the next
+  chantier (the data slot lands now); ONE SKY for the hangar (S5); the
+  engine is Hillaire 2020 by hand on the WebGLRenderer (the TSL port
+  counted at 27 hooks + 6 depth materials + the passes = 10-14 sessions;
+  @pmndrs/sky is WebGPU-only; @takram needs the EffectComposer and lights
+  as a Lambertian post-process).
+- FOUND: the island frame is Alaska Albers and its grid north stands 19.32
+  deg EAST of true north at Jolene (rasterio) - a sun placed by true azimuth
+  would light from 19 deg off at noon; `geo.convergenceDeg` carries it. The
+  rig's azimuth is not a compass (0 = +z = south; rigAzim = 180 - azGrid).
+  And three r186 facts for S3-S5: fog is applied AFTER tone mapping (the
+  aerial perspective goes at the head of tonemapping_fragment, not in
+  fog_fragment); ShaderLib uniforms are cloned at load (scalars per lib,
+  samplers through onBeforeCompile; a render-target texture is NULLED by
+  cloneUniforms); `scene.environmentIntensity` OVERRIDES envMapIntensity on
+  every material without its own envMap - aeroSetEnv(WORLD_ENV), propSetEnv
+  and the hangar's ENV0 loop have been inert since W0.5a (measured in D).
+- S1 THE DAY: src/core/07_day.js `DAY.makeDay(spec, geo)` - WHEN (date,
+  utc, rate), WHERE (the world's geo), AIR (the same fields makeAtmos
+  reads), WATER (dewC | rh, one fact), AEROSOL (turbidity, ozone, albedo),
+  CLOUD (cover, type: the slot); derived sun/moon, illumClass, sunrise/noon/
+  sunset, cloudBase = 125 (T - Td), an authored visibility, local time with
+  the US daylight rule; `version` bumps on set(), never on advance(); spec()
+  round-trips. 20_world.js: `day`, `setDay`, `geo`; atmos rebuilt ONLY when
+  an air field moved (the same object otherwise); setWeather is the AIR +
+  WIND subset as it always was. 28_island.js: ISLAND_GEO.jolene on the
+  record. Default 2026-06-21 18:00 UT = 10:00 AKDT.
+- S2 THE SUN: src/core/06_solar.js - the NOAA sun (Meeus as NOAA lays it
+  out: declination, equation of time, hour angle, NOAA's refraction, azimuth
+  from north), rise/transit/set iterated at the event's own time, Schlyter's
+  moon with topocentric parallax and the illuminated fraction, toFrame() ->
+  [cos el sin A', sin el, -cos el cos A'] with A' = az - convergence.
+  render_world.js: SUN_SKY (true) beside SUN (2 deg floor for every shadow
+  pass; the follow no longer divides by ~0 at sunset); dayApply() first in
+  worldUpdate writes both, rigCur.elev/azim agree with the almanac, an
+  INTERIM DIMMER (retired by atmo.js in B) fades sun/hemisphere/dome/fog
+  through the twilight and warms the key below 12 deg, the clouds sit at
+  day.cloudBase by day.cloudCover; rigApply writes SUN only when `manual`.
+- THE CLOCK: src/viewer/day_clock.js (bind/tick/set/preset/rate/label;
+  presets solved on the day's own almanac - dawn -6 rising, morning 25,
+  noon, golden 8 falling, sunset, dusk -6, night = solar midnight; pref
+  flydiy.day; ?day=YYYY-MM-DDTHH:MM[Z] or ?day=<preset>); app.js binds it
+  after makeWorld and ticks it 1/60 in loop() (running or in the garage).
+  F8: a `clock` fold (preset, local hour, date, rate, the sun's driver, a
+  live almanac readout); the environment fold's sun sliders take the rig
+  MANUAL.
+- GATE DAY (core): USNO rise/transit/set at four sites to the minute
+  (Jolene Jun 21 / Dec 21, the equator at the equinox, 35 S), noon altitude
+  = 90 - |lat - dec|, the June lower culmination -11.5 deg (never below
+  nautical twilight at 55 N), the moon's fraction on three days and at the
+  four 2026 eclipses, atmos identity under visual-only changes, ISA restored
+  by setWeather(null), the cloud-base rule, Magnus round-trips, monotone
+  visibility, the spec round-trip, the clock's determinism and date roll,
+  the frame (analytic noon -> +z, 06:00 -> +x; island noon 19.32 deg east
+  of +z), the twilight ladder, no Date/THREE/DOM in core. ATMOS, WORLDRENDER,
+  LIGHT, GFX, VIEW, WORLD, UISMOKE green; the core battery green.
+- SEEN (headless CDP, dev.html?day=<preset>, the analytic world): morning
+  the sun from the east-north-east at 25 deg, golden at 8 deg in the
+  west-north-west with the long shadows, dusk with the key off, night at
+  -11.5 deg dark. The painted band is still the sunset row's at every hour
+  - that is the palette S3 replaces.
+- TRAPS: the Browser pane is HIDDEN under a script (canvas 0x0) so nothing
+  renders and the clock does not tick - headless Chrome + CDP is the
+  instrument, and the first navigation of a fresh profile never rolls out;
+  a clean worktree checks out CRLF (edit scripts normalise the files they
+  touch); Python's non-raw strings eat ``.
+- FOREIGN REDS, proved on a clean master worktree (G406) before landing:
+  GATE SITE (1 of 192: render_world.js `ISLA.hMax || 1100`, G400's island
+  stack fallback, trips the ONE RUNWAY source scan), GATE ENERGY (the core
+  bundle carries `require('zlib')` from 19_terrain_codec.js, W2, so the
+  readout worker's import check reads red), GATE AERO (5 of 11: centreline
+  flat/slope, strips dry, tdz on pad, reachable - the analytic aerodromes
+  after G404's HOME changes). None is this chantier's; the peers told. GEN
+  and PILOT hit the runner's 1800 s cap under six sessions' load and were
+  run directly (green).
+- THE CENSUS (RENDERER-DECISION §4k rule 5): `node tools/tsl_census.js`
+  46 GLSL sites, 3 TSL variants - unchanged by this session (the dome's
+  `uDim` is a uniform on an existing program, not a new site).
+- OWED (the sessions): B the atmosphere + dome + key light (GATE ATMO), C
+  aerial perspective, D the probe + one sky in the hangar, E the clock on
+  every rail + persistence + the pilot's night, F the night's consumers
+  (mist + glare if the budget allows). The peer's SKY-ATMOSPHERE §4b
+  amendment and RENDERER-DECISION §4k are read and taken.

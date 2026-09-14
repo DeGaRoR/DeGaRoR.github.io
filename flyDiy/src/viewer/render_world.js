@@ -8,6 +8,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
+  // THE DAY'S SUN (SKY S2, 2026-09-14). `SUN` is what every SHADOW pass reads
+  // (the follow, the far cascade, the impostor depth) and it is held 2 deg
+  // above the horizon so agl / SUN.y never blows up at sunset; `SUN_SKY` is
+  // the true direction, which is what the dome draws the disc at. Both are
+  // written from world.day in dayApply() unless the rig is set to manual.
+  const SUN_SKY = SUN.clone();
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
@@ -132,7 +138,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const skyMatTSL = (encode, extra) => {
     const T = THREE.TSL;
     const U = { uTop: T.uniform(C(0x3f7fbe)), uMid: T.uniform(C(0x9dc4dd)),
-                uHaze: T.uniform(C(HAZE)), uSun: T.uniform(SUN), uSunCol: T.uniform(C(SUNC)) };
+                uHaze: T.uniform(C(HAZE)), uSun: T.uniform(SUN_SKY), uSunCol: T.uniform(C(SUNC)), uDim: T.uniform(1.0) };
     const dome = T.Fn(() => {
       const d = T.normalize(T.positionWorld.sub(T.cameraPosition));
       const h = d.y;
@@ -141,7 +147,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       col = T.mix(col, U.uHaze.mul(0.82), T.smoothstep(0.0, -0.30, h));
       const sd = T.max(T.dot(d, T.normalize(U.uSun)), 0.0);
       const glow = T.pow(sd, 900.0).mul(3.0).add(T.pow(sd, 14.0).mul(0.42)).add(T.pow(sd, 3.0).mul(0.13));
-      return T.colorSpaceToWorking(col.add(U.uSunCol.mul(glow)), THREE.SRGBColorSpace);
+      return T.colorSpaceToWorking(col.add(U.uSunCol.mul(glow)).mul(U.uDim), THREE.SRGBColorSpace);
     });
     const m = new THREE.MeshBasicNodeMaterial();
     m.colorNode = dome();
@@ -153,11 +159,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const skyMat = (encode, extra) => (TSL_ON ? skyMatTSL : skyMatGLSL)(encode, extra);
   const skyMatGLSL = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
       uniforms: { uTop:{value:C(0x3f7fbe)}, uMid:{value:C(0x9dc4dd)},
-                  uHaze:{value:C(HAZE)}, uSun:{value:SUN}, uSunCol:{value:C(SUNC)} },
+                  uHaze:{value:C(HAZE)}, uSun:{value:SUN_SKY}, uSunCol:{value:C(SUNC)}, uDim:{value:1.0} },
       vertexShader: `varying vec3 vD;
         void main(){ vD = (modelMatrix * vec4(position,1.0)).xyz - cameraPosition;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform vec3 uTop,uMid,uHaze,uSunCol,uSun; varying vec3 vD;
+      fragmentShader: `uniform vec3 uTop,uMid,uHaze,uSunCol,uSun; uniform float uDim; varying vec3 vD;
         void main(){
           vec3 d = normalize(vD);
           float h = d.y;
@@ -166,7 +172,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           col = mix(col, uHaze * 0.82, smoothstep(0.0, -0.30, h));
           float sd = max(dot(d, normalize(uSun)), 0.0);
           col += uSunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 14.0) * 0.42 + pow(sd, 3.0) * 0.13);
-          gl_FragColor = vec4(col, 1.0);
+          gl_FragColor = vec4(col * uDim, 1.0);   // INTERIM S2: the painted day fades through twilight (atmo.js replaces this dome)
           ` + (encode ? `
           // This palette is authored in DISPLAY space: the on-screen dome
           // writes gl_FragColor raw into an sRGB-encoded target and nothing
@@ -3684,11 +3690,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
     uCG.value.set(cg[0], cg[1], cg[2]);
+    dayApply();
     fillUpdate(cg);
     lodUpdate(cg);
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
-    const reach = Math.min(agl / SUN.y, 520);
+    const reach = Math.min(agl / Math.max(SUN.y, SUN_MIN_Y), 520);
     const tx = cg[0] - SUN.x * reach * 0.5, tz = cg[2] - SUN.z * reach * 0.5;
     const half = Math.max(RIG.shadowMin, Math.min(540, 105 + reach * 0.55));
     // snapped to the map's texel grid at the half-width the map will have
@@ -3719,6 +3726,43 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // 0.274, ex 0.92) with the alps panorama as an INVISIBLE environment -
   // rebuilt from the hangar's base + gain pair the way the bench does it,
   // at 2048 x 1024, and PMREM'd. The visible sky stays the dome.
+  // ---- THE DAY DRIVES THE SUN (SKY S2, 2026-09-14) -----------------------
+  // world.day (07_day.js) is the almanac; each frame its sun direction is
+  // written into SUN (2 deg floor for the shadow maths) and SUN_SKY (true),
+  // and the F8 readouts (rigCur.elev/azim) agree with it. The INTERIM DIMMER
+  // fades the row's own sun/hemisphere/dome through the twilight and warms
+  // the key below 12 deg — it is retired by atmo.js (S3), where the key's
+  // colour is the transmittance along the sun's own path. Clouds sit at the
+  // day's cloud base, by its cover.
+  const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
+  const WARM_SUN = C(0xffa652);
+  let dayVer = -1, dayEl = NaN, dayAz = NaN;
+  function dayApply() {
+    const day = world.day;
+    if (!day || rigCur.manual) return;
+    const el = day.sunEl, az = day.sunAzGrid;
+    if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
+    dayVer = day.version; dayEl = el; dayAz = az;
+    const v = day.sun;
+    SUN_SKY.set(v[0], v[1], v[2]);
+    SUN.copy(SUN_SKY);
+    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
+    rigCur.elev = el; rigCur.azim = day.rigAzim;
+    // INTERIM S2 DIMMER — retired by atmo.js
+    const t = Math.min(1, Math.max(0, (el + 6) / 12)), k = t * t * (3 - 2 * t);
+    sun.intensity = RIG.sun * LIGHT_UNIT * k;
+    hemi.intensity = RIG.hemi * LIGHT_UNIT * Math.max(0.06, k);
+    if (sun.color && sun.color.setHex && sun.color.lerp) { const w = Math.min(1, Math.max(0, 1 - el / 12)); sun.color.setHex(rigCur.sunCol).lerp(WARM_SUN, w * w); }
+    const dim = Math.max(0.03, k);
+    if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
+    if (scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);
+    if (clouds && clouds.material) {
+      clouds.position.y = Math.max(-600, day.cloudBase - 690);              // the puffs were drawn 480-900 m up
+      const cover = Math.min(1, Math.max(0, day.cloudCover / 0.6));
+      clouds.material.opacity = 0.92 * cover; clouds.visible = cover > 0.02;
+      if (clouds.material.color && clouds.material.color.setScalar) clouds.material.color.setScalar(dim);   // as dark as the dome they hang in
+    }
+  }
   const rigRows = {};
   const hexOf = (c, d) => (c && c.getHex) ? c.getHex() : d;   // the gate's stub has no Color
   const rigSnapshot = () => ({
@@ -3728,7 +3772,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     exposure: (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null)
       ? window.GFX.exposureBase() : ((renderer && renderer.toneMappingExposure) || 1),   // the BASE, never the menu's step over it
     env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
-    farShadow: true, snap: true,
+    farShadow: true, snap: true, manual: false,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     dome: (worldSky && worldSky.material.uniforms) ? {
       top: hexOf(worldSky.material.uniforms.uTop.value, 0x3f7fbe),
@@ -3793,7 +3837,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   };
   const rigApply = () => {
     const R = rigCur, el = R.elev * Math.PI / 180, az = R.azim * Math.PI / 180;
-    SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
+    // the row's direction only when the rig is MANUAL (or the world has no day); otherwise the day's (dayApply)
+    if (R.manual || !world.day) { SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize(); SUN_SKY.copy(SUN); }
+    dayVer = -1;                                   // a row write re-arms the day's pass on the next frame
     sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
     hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
     if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
@@ -3831,7 +3877,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;

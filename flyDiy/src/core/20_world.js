@@ -18,6 +18,10 @@ function makeWorld(seed, opts) {
   const ISL = (opts && opts.island) || null;
   const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
                      : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
+  // WHERE THE WORLD STANDS (SKY S1): the island declares its own geo (28_island.js:
+  // the origin's lat/lon, the grid's convergence, the time zone); the analytic
+  // world stands at Jolene's latitude with its -z as TRUE north (convergence 0).
+  const GEO = (ISL && ISL.geo) || DAY.GEO_DEFAULT;
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
@@ -591,13 +595,28 @@ function makeWorld(seed, opts) {
   // change live, exactly as it already does for wind — no reset, mid-flight.
   // Absent weather is the standard day and the zero wind vector, so every
   // existing gate is untouched by the mere existence of this.
+  //
+  // THE DAY (SKY S1, 2026-09-14) extends this rather than standing beside it:
+  // `day` (07_day.js) holds WHEN and WHERE and WATER and AEROSOL as well as
+  // the air, and `atmos` is rebuilt ONLY when an air field moved — the same
+  // object otherwise, so a consumer holding it (and GATE DAY) can tell. The
+  // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
+  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  function setDay(spec) {
+    const airChanged = day.set(spec);
+    if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
+    if (spec && 'wind' in spec) setWind(spec.wind || null);
+  }
+  // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
+  // absent fields are CLEARED (the standard day, the zero wind), so the
+  // CONDITIONS presets and every gate read exactly what they read before.
   function setWeather(spec) {
     weather = spec || null;
-    const hasAir = spec && (spec.oatC != null || spec.qnhPa != null || spec.dISA != null);
-    atmos = hasAir ? makeAtmos(spec) : ATMOS_ISA;
-    setWind(spec ? (spec.wind || null) : null);
+    const p = { wind: spec ? (spec.wind || null) : null };
+    for (const k of ['oatC', 'dISA', 'qnhPa']) p[k] = spec && spec[k] != null ? spec[k] : null;
+    setDay(p);
   }
 
   return {
@@ -622,6 +641,8 @@ function makeWorld(seed, opts) {
     get atmos() { return atmos; },
     get weather() { return weather; },
     setWeather,
+    // ---- THE DAY (SKY S1): the whole day, read live; the sun in its sky ----
+    day, setDay, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----

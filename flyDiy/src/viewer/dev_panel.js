@@ -17,6 +17,7 @@
   const W = window;
   let root = null, rows = [], raf = 0, fpsEl = null, frames = 0, tLast = 0
   let genEl = null;   // the streamer's readout (W0c.30)
+  const live = [];    // rows re-read on the fps tick (the clock's readout; sliders are not, a drag would fight it)
   const $ = (t, a, kids) => { const e = document.createElement(t); if (a) for (const k in a) { if (k === 'text') e.textContent = a[k]; else if (k === 'style') e.style.cssText = a[k]; else e.setAttribute(k, a[k]); } if (kids) for (const c of kids) e.appendChild(c); return e; };
   const have = k => { try { return !!W[k]; } catch (e) { return false; } };
   const CSS = `
@@ -166,12 +167,37 @@
       Ts.appendChild(slider('light', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => leaf().tintOf(c.name, { light: v })));
       Ts.appendChild(slider('bark', 0.2, 2, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => leaf().tintOf(c.name, { bark: v })));
     }
+    // ---- THE CLOCK (SKY S1/S2): the day the world is on, and its sun --------------
+    const ck = () => W.DAY_CLOCK, dy = () => (W.DAY_CLOCK ? W.DAY_CLOCK.day() : null);
+    const K = fold(root, 'clock', true);
+    K.appendChild(select('preset', ['dawn', 'morning', 'noon', 'golden', 'sunset', 'dusk', 'night'].map(p => [p, p]),
+      () => (ck() ? ck().nearestPreset() : 'noon'), v => { if (ck()) ck().preset(v); }));
+    K.appendChild(slider('local hour', 0, 24, 1 / 12, () => (ck() ? ck().localHours() : NaN), v => { if (ck()) ck().set({ localHours: v }); },
+      v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0')));
+    { // the date: an input row in the slider grid
+      const inp = $('input', { type: 'date' }), out = $('output');
+      inp.onchange = () => { if (ck() && inp.value) ck().set({ date: inp.value }); };
+      const row = $('div', { class: 'r' }, [$('label', { text: 'date' }), inp, out]);
+      rows.push({ el: row, refresh: () => { const d = dy(); if (d) { inp.value = d.date; out.textContent = d.tzLabel; } } });
+      K.appendChild(row);
+    }
+    K.appendChild(select('rate', [['0', 'frozen'], ['1', 'real time'], ['10', '10x'], ['60', '60x (a minute a second)'], ['600', '600x']],
+      () => (dy() ? String(dy().rate) : '1'), v => { if (ck()) ck().rate(+v); }));
+    K.appendChild(select('the sun', [['day', 'the day’s (almanac)'], ['manual', 'manual (the sliders below)']],
+      () => (rig().get().manual ? 'manual' : 'day'), v => rig().set({ manual: v === 'manual' })));
+    { // the almanac, read out
+      const n = note('');
+      const R = { el: n, refresh: () => { const d = dy(); n.textContent = d ? `${d.local} · sun ${d.sunEl.toFixed(1)}° at ${d.sunAz.toFixed(0)}° true (${d.illumClass}) · moon ${d.moonEl.toFixed(0)}° ${(d.moonPhase * 100).toFixed(0)}% · cloud base ${d.cloudBase.toFixed(0)} m · vis ${d.visibilityKm.toFixed(0)} km` : 'no day'; } };
+      rows.push(R); live.push(R);
+      K.appendChild(n);
+    }
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
     E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
-    E.appendChild(slider('sun elev', 0, 90, 0.5, () => rig().get().elev, v => rig().set({ elev: v }), v => v.toFixed(1) + '°'));
-    E.appendChild(slider('sun azimuth', -180, 180, 1, () => rig().get().azim, v => rig().set({ azim: v }), v => v.toFixed(0) + '°'));
+    // dragging either sun slider takes the rig MANUAL (the clock fold above hands it back)
+    E.appendChild(slider('sun elev', 0, 90, 0.5, () => rig().get().elev, v => rig().set({ manual: true, elev: v }), v => v.toFixed(1) + '°'));
+    E.appendChild(slider('sun azimuth', -180, 180, 1, () => rig().get().azim, v => rig().set({ manual: true, azim: v }), v => v.toFixed(0) + '°'));
     E.appendChild(slider('sun', 0, 5, 0.05, () => rig().get().sunI, v => rig().set({ sunI: v })));
     E.appendChild(slider('sun warmth', 0, 1, 0.02, () => sunWarm(), v => rig().set({ sunCol: warmHex(v) })));
     E.appendChild(slider('hemisphere', 0, 1.5, 0.02, () => rig().get().hemi, v => rig().set({ hemi: v })));
@@ -216,6 +242,7 @@
     frames++;
     if (t - tLast > 500) {
       fpsEl.textContent = (frames * 1000 / (t - tLast)).toFixed(0) + ' fps'; frames = 0; tLast = t;
+      for (const r of live) r.refresh();
       if (genEl && W.TREE_FILL && W.TREE_FILL.stat) { const S = W.TREE_FILL.stat();
         genEl.textContent = 'fill chunks: ' + S.live + ' live, ' + S.queued + ' queued; gen ' + S.gens + ' x ' +
           (S.gens ? ((S.walkMs + S.buildMs) / S.gens).toFixed(1) : '-') + ' ms (walk ' + (S.gens ? (S.walkMs / S.gens).toFixed(1) : '-') +

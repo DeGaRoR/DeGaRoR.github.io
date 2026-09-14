@@ -617,7 +617,15 @@ the hero tiles). The stages are §11's.*
    graded-panorama adoption decision (G62.2 — 1.66 MB for every hour there
    will ever be) and the outdoor grass still lit by the room's lights.
 
-## PHASE 8 — DEPTH, WHEN YOU WANT IT
+   > 2026-09-14 — THE SKY CHANTIER OPENED (futureDesigns/SKY-CHANTIER-2026-09-14.md,
+   > the user: "it's time"). Rulings: a REAL clock advancing with play, one clock for
+   > shed and world; real latitude (every world declares `geo`); Hillaire 2020 by hand
+   > in GLSL on the WebGLRenderer; the hangar sees the world's sky (the graded panorama
+   > retires as a light source — the adoption decision above is answered: NO);
+   > clouds next. Session A LANDED (HANDOVER): `world.day` (07_day.js), the NOAA sun +
+   > Schlyter moon (06_solar.js), the sun moves in the world, GATE DAY. Owed: B the
+   > atmosphere, C aerial perspective (deletes the fog walls — item 5 above), D the
+   > probe + the hangar's sky (this item), E the clock on every rail, F the night.
 *Everything deliberately deferred. Not "someday" — each has a trigger, and the
 trigger is you asking for it.*
 

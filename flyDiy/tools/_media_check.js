@@ -59,7 +59,14 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              WORLD PACK it composes with (900 KB: the generators, their
 //              textures, the cabin) ships as <script src> refs after the
 //              viewer and stays outside this number by design.
-const BUDGET_MIB = 7.0;
+//   7.0 -> 7.25 (G408, 2026-09-14): THE SKY CHANTIER is code - the almanac
+//              (06_solar.js 9 KB), the day (07_day.js 11 KB), the clock
+//              (day_clock.js 6 KB), then Hillaire's atmosphere (atmo.js 25 KB)
+//              and the sky's light (sky_light.js 6 KB): ~60 KB, and the
+//              worktree's CRLF margin measured the artifact at 7.01 MiB the
+//              day the sun first moved. Nothing heavy; the 6.3 MB of graded
+//              hangar sky LEAVES the media store when the shed takes this sky (S5).
+const BUDGET_MIB = 7.25;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

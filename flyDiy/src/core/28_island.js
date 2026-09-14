@@ -26,6 +26,10 @@ var ISLAND_GEN = (function () {
   'use strict';
   const WC = { TREE: 10, SHRUB: 20, GRASS: 30, CROP: 40, BUILT: 50, BARE: 60,
                SNOW: 70, WATER: 80, WETLAND: 90, MOSS: 100 };
+  const ISLAND_GEO = {
+    jolene: { lat: 55.04327, lon: -131.57222, convergenceDeg: 19.32,
+              tz: { std: -9, dst: 'us', name: 'AKST', dstName: 'AKDT' } },
+  };
 
   // src: { id, header, topo: Uint8Array, payload: Uint8Array (gunzipped),
   //        grid: { meta, cover: Uint8Array, canopy: Uint8Array | null },
@@ -79,6 +83,12 @@ var ISLAND_GEN = (function () {
     return {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
+      // WHERE IT STANDS (SKY S1): the origin's lat/lon, and how far the
+      // grid's north (Alaska Albers, EPSG:3338) leans east of true north here
+      // — measured with rasterio at the origin (19.32°; the analytic conic
+      // formula n(λ-λ0) gives 19.35). A sun placed by true azimuth without
+      // it would light from 19° off at noon. The header may override.
+      geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
@@ -94,6 +104,6 @@ var ISLAND_GEN = (function () {
     };
   }
 
-  return { makeIsland, WC };
+  return { makeIsland, WC, ISLAND_GEO };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = ISLAND_GEN;
