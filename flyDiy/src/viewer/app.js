@@ -8,7 +8,18 @@
       const q = new URLSearchParams(location.search).get('premises');
       if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
       if (q === 'none') return null;
-      return localStorage.getItem('flydiy.premises.game');
+      const saved = localStorage.getItem('flydiy.premises.game');
+      // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE
+      // PREMISES composes every premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field.
+      // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
+      // (G404: a stale first version had shadowed the field)
+      let fixture = null;
+      if (window.ISLAND_BOOT) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
+      if (saved && fixture) {
+        try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
+          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem('flydiy.premises.game'); return fixture; } } catch (e) {}
+      }
+      return saved || fixture;
     } catch (e) { return null; }
   })();
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
@@ -151,7 +162,11 @@
   window.FLYDIY_COCKPIT_I = CK;
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
+  // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
+  // completely in the background"): 7 km was the analytic world's, behind its
+  // fog wall; an island shows its whole geometry - the far mesh is the asset at
+  // eps 4 - and the logarithmic depth buffer makes 100 km free
+  const camera = new THREE.PerspectiveCamera(46, 1, 0.5, (typeof window !== 'undefined' && window.ISLAND_BOOT) ? 100000 : 7000);
   const target = new THREE.Vector3(2.2, 1, 0);
   // THE ORBIT IS SMOOTHED (G39, user: "very shaky ... slightly jumps
   // when moving", and the old garage always had it). Input writes the

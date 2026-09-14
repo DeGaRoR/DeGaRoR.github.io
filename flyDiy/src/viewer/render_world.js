@@ -2856,7 +2856,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
   }
 
-  { // THE BASE AERODROME, from the ONE declaration (G123)
+  // ...unless HOME is a premises runway with no declared site furniture (an
+  // island's field, G404): the premises renderer draws its strip, apron and
+  // buildings, and there is no analytic shed, fence or windsock to stand
+  if (!(world.island && !(siteOf('HOME') && siteOf('HOME').hangar))) { // THE BASE AERODROME, from the ONE declaration (G123)
     // Every number in this block used to be a literal: a 1100 x 30 strip at
     // (-520, 0) restated by hand beside the 'HOME' record that already said
     // so, three coloured boxes for buildings, and decals for an apron that ran

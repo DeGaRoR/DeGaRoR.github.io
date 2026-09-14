@@ -46648,3 +46648,25 @@ to the stack. Seen: screenshots/lots/09_diamond_centre.png.
   two). Each is one undo step. The faint mid discs still add between two corners.
 - Proved in the game with the real mouse (Ctrl+click added a fifth corner, Ctrl+click on its
   disc took it back) and by script (resume + commit, road end, three undos). GATE PREMISES green.
+
+## G404.1 — THE RECOVERY: G401 AND G403 HAD BEEN DROPPED FROM MASTER (2026-09-14)
+
+- Found while landing G404: 36fbe7b4 (G401, the old field + the far plane)
+  and bef12df1 (G403, map layers atop F8) are no longer ancestors of master
+  - a peer's commit landed on a stale parent and moved the ref WITHOUT the
+  expected-old guard (docs/SHARED-TREE-PRACTICES.md section 2 exists for
+  exactly this). G402 and G404 chained on the overwritten ref, so their
+  replays silently lacked G401's hunks; and G404's own replay script
+  crashed on a dev_panel anchor while the shell chain went on, so fa63b052
+  carried the stack in the hook and the fixture but not the HOME
+  replacement, the base-furniture guard, the rev rule or the panel rows -
+  an island booted into `SITE.buildings is not iterable`.
+- This commit restores, from HEAD + the exact edits: app.js (the 100 km far
+  plane on an island; the island fixture with the rev rule), 20_world.js
+  (no generated strips or grades on an island; ISL_CUT; the premises HOME
+  replacing the analytic one), render_world.js (the base-aerodrome
+  furniture skipped when HOME is a premises runway), dev_panel.js (map
+  layers atop F8 with the stack rows; the two redundant sliders gone).
+- THE LESSON, again: `git update-ref refs/heads/master NEW OLD` - never
+  without OLD; and a replay script's failure must stop the commit (the
+  chain now checks the replay's exit code before anything is hashed).

@@ -86,6 +86,29 @@
     root.appendChild($('div', { class: 'hd' }, [$('b', { text: 'DEVELOPER' }), fpsEl,
       (() => { const b = $('button', { text: 'close (F8)' }); b.onclick = toggle; return b; })()]));
 
+    // ---- MAP LAYERS: the bench's layer views and the stack's knobs, top-level (G403) ----
+    if (world() && world().ground && world().ground.on()) {
+      const M = fold(root, 'map layers (the island)', true);
+      const gs = k => v => world().ground.set({ [k]: v });
+      M.appendChild(select('view', world().ground.modes().map((m, i) => [String(i), m]),
+        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
+      M.appendChild(note('the bench’s layer views: the stack, then each map alone - tint (Landsat), radar (IFSAR), canopy (Meta/WRI), class (WorldCover), NDVI, coast (the signed field), height, snow'));
+      M.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
+      M.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
+      M.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
+      M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
+      // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
+      const Ms = fold(M, 'the stack (bottom first)', true, true);
+      const G = world().ground, BL = G.blends().map((b, i) => [String(i), b]);
+      G.stack().forEach((l, i) => {
+        Ms.appendChild(note(l.src));
+        Ms.appendChild(select('  on', [['1', 'on'], ['0', 'off']], () => String(G.stack()[i].on ? 1 : 0), v => G.setLayer(i, { on: +v })));
+        Ms.appendChild(select('  blend', BL, () => String(G.stack()[i].mode), v => G.setLayer(i, { mode: +v })));
+        Ms.appendChild(slider('  alpha', 0, 1, 0.01, () => G.stack()[i].op, v => G.setLayer(i, { op: v })));
+      });
+      Ms.appendChild(note('class (WorldCover palette) > tint (Landsat) > radar (IFSAR, level 1) > shade (canopy, normalised) > snow (its own mask). Remembered in this browser.'));
+      M.appendChild(note('after the stack: the rocky shore off the coast field, then lightness and saturation; lit by the sun after'));
+    }
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
     if (W.TREE_FILL && W.TREE_FILL.onIsland && W.TREE_FILL.onIsland()) {
@@ -150,19 +173,6 @@
     E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
     E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
-    if (world() && world().ground && world().ground.on()) {
-      const Eg = fold(E, 'ground (the island\'s stack, live)', true, true);
-      const gs = k => v => world().ground.set({ [k]: v });
-      Eg.appendChild(select('paint', world().ground.modes().map((m, i) => [String(i), m]),
-        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
-      Eg.appendChild(note('the bench\'s layer views: the stack, then each map alone (the bench retires as these fill in)'));
-      Eg.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
-      Eg.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
-      Eg.appendChild(slider('radar overlay', 0, 1, 0.02, () => world().ground.get().overlay, gs('overlay')));
-      Eg.appendChild(slider('canopy shade', 0, 1, 0.02, () => world().ground.get().shade, gs('shade')));
-      Eg.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
-      Eg.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
-    }
     const fog = () => world() && world().scene && world().scene.fog;
     E.appendChild(slider('fog from', 0, 20000, 100, () => fog() ? fog().near : NaN, v => { if (fog()) fog().near = v; }, v => (v / 1000).toFixed(1) + ' km'));
     E.appendChild(slider('fog full by', 500, 90000, 500, () => fog() ? fog().far : NaN, v => { if (fog()) fog().far = v; }, v => (v / 1000).toFixed(1) + ' km'));
