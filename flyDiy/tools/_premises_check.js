@@ -129,7 +129,7 @@ function check(ok, what, detail) {
 const synth = { id: 'synth', terrainH: (x, z) => 3 * Math.sin(x / 40) + 2 * Math.cos(z / 33) + 0.02 * z + 0.4 * Math.sin(x / 7 + z / 9) + (z < -60 ? (z + 60) * 0.15 : 0), waterH: () => -4 };
 // the flight world, when the build exists (run_gates builds first; a loose run may not have it)
 let FLIGHT = null, FLIGHT_FNS = null;
-try { const fc = require(path.join(TOOLS, 'flight_core.js')); if (fc && fc.makeWorld) { FLIGHT = fc.makeWorld(); FLIGHT_FNS = { siteRunway: fc.siteRunway, sitePattern: fc.sitePattern, sitePatternIssues: fc.sitePatternIssues, patternPath: fc.patternPath }; } } catch (e) { FLIGHT = null; }
+try { const fc = require(path.join(TOOLS, 'flight_core.js')); if (fc && fc.makeWorld) { FLIGHT = fc.makeWorld(); if (!FLIGHT.id) FLIGHT.id = (FLIGHT.premises && FLIGHT.premises.base && FLIGHT.premises.base.id) || 'W-24km';   /* the composer anchors by the WORLD ID (G398.3): makeWorld returns none, its base carries it - without it every W-24km fixture composed at the origin */ FLIGHT_FNS = { siteRunway: fc.siteRunway, sitePattern: fc.sitePattern, sitePatternIssues: fc.sitePatternIssues, patternPath: fc.patternPath }; } } catch (e) { FLIGHT = null; }
 
 const fixtures = fs.readdirSync(path.join(TOOLS, 'fixtures')).filter(f => /^premises_v\d+_.*\.json$/.test(f)).sort();
 check(fixtures.length > 0, '2 there is at least one fixture');

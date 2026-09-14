@@ -29,6 +29,11 @@
       // (G404: a stale first version had shadowed the field)
       let fixture = null;
       if (window.ISLAND_BOOT) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
+      // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3, the user: "a new airport somewhere, with
+      // scenery ... that should impact the real game, and become a new official airport"): Skarvik,
+      // authored in the editor, shipped as a fixture and composed at every boot; its strip is an
+      // aerodrome of the world, so it is a destination like any other
+      else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_official.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
       if (saved && fixture) {
         try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
           if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem('flydiy.premises.game'); return fixture; } } catch (e) {}

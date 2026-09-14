@@ -17,6 +17,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
+  let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
@@ -1165,6 +1166,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;
+      outerMatShared = oMat;
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch;
       const groups = new Map();
       const leafIdx = []; for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) { const a = j * N + i; leafIdx.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
@@ -1203,6 +1205,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;   // the far tier lives mostly out here
+      outerMatShared = oMat;
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
         g2.rotateX(-Math.PI / 2);
@@ -3476,7 +3479,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const inner = innerPatchShared && corners.every(q => Math.abs(q[0]) < innerPatchShared.half - 60 && Math.abs(q[1]) < innerPatchShared.half - 60);
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
-        patchMat: inner ? innerPatchShared.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null),
+        // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
+        patchMat: inner ? innerPatchShared.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)),
         patchUV: inner ? innerPatchShared.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
       });
@@ -3728,8 +3732,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
   }
+  let premTramLast = 0;
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
+    if (premisesR && premisesR.tick && premisesR.stats.trams) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
@@ -3950,7 +3957,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
-        patchMat: inner ? inner.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
+        patchMat: inner ? inner.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath } });
       return premisesR; },
            setShedDims: d => setShedDims(d),

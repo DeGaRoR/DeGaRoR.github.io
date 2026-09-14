@@ -50,7 +50,7 @@ function make(THREE, scene, world, rec0, opts) {
                                                      : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   let O = composeNow();
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
@@ -354,16 +354,8 @@ function make(THREE, scene, world, rec0, opts) {
       line.renderOrder = 8; line.name = 'item:' + it.id;
       G.plots.add(line);
     }
-    for (const L of O.records.links) if (L.geom && L.geom.ropes) for (const rope of L.geom.ropes) {
-      // a rope from a to b (the village's frame = the premises frame, heights absolute), with the sag the motion plan draws
-      const a = O.frame.toWorld(rope.a[0], rope.a[2]), b = O.frame.toWorld(rope.b[0], rope.b[2]);
-      const n = 24, pos = new Float32Array((n + 1) * 3), S = 0.012 * Math.hypot(b[0] - a[0], rope.b[1] - rope.a[1], b[1] - a[1]);
-      for (let i = 0; i <= n; i++) { const t = i / n; pos[i * 3] = a[0] + (b[0] - a[0]) * t; pos[i * 3 + 1] = rope.a[1] + (rope.b[1] - rope.a[1]) * t - 4 * S * t * (1 - t); pos[i * 3 + 2] = a[1] + (b[1] - a[1]) * t; }
-      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: rope.kind === 'haul' ? 0x9aa0a8 : 0x30343a, transparent: true, opacity: 0.95 }));
-      line.renderOrder = 8; line.name = 'rope:' + L.link.id;
-      G.plots.add(line);
-    }
+    // the plots: thin, dim, not hittable
+    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
     for (const L of O.records.links) if (L.geom && L.geom.from) {
       const a = O.frame.toWorld(L.geom.from[0], L.geom.from[2]), b = O.frame.toWorld(L.geom.to[0], L.geom.to[2]);
       const geo = new THREE.BufferGeometry();
@@ -372,13 +364,12 @@ function make(THREE, scene, world, rec0, opts) {
       line.renderOrder = 8; line.name = 'link:' + L.link.id;
       G.plots.add(line);
     }
-    // the plots: thin, dim, not hittable
-    for (const c of G.plots.children.slice()) { G.plots.remove(c); c.geometry.dispose(); c.material.dispose(); }
     for (const p of O.records.plots) {
       const F = O.frame, pts = p.poly.map(q => F.toWorld(q[0], q[1]));
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT * 0.6), 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: p.side === 'water' ? 0x4fc7d0 : 0x8fd0a0, transparent: true, opacity: 0.45, depthTest: false }));
+
       line.renderOrder = 7; line.name = 'plot:' + p.id;
       G.plots.add(line);
     }
@@ -459,6 +450,40 @@ function make(THREE, scene, world, rec0, opts) {
     });
     stats.runways = O.runways.length;
   }
+
+  // ---- THE TRAM RUNS (G398.3): a cable link's stations tied by their ropes as tubes and two cabins in a
+  // jig-back - the village's tram_run on the solved line (its geom is vil.tram's shape: docks, ropes,
+  // slots, in the premises frame with absolute heights) - ticked by the host's clock (R.tick). Rebuilt
+  // only when the solved line changes; the cabins are the cabin pack's when it is here, else the rope
+  // curves alone. The group carries the frame's transform, so the run works in premises coordinates.
+  const TRAMS = new Map();
+  const tramKey = L => JSON.stringify([L.geom.docks.map(d => [d.p, d.yaw]), L.geom.ropes.map(r => [r.a, r.b, r.kind, r.line])]);
+  function syncTrams() {
+    const TR = window.TRAM_RUN, CB = window.CABIN, F = O.frame;
+    const want = new Map();
+    if (TR) for (const L of O.records.links) if (L.ok && L.geom && L.geom.docks && L.geom.ropes && L.geom.ropes.length >= 2) want.set(L.link.id, L);
+    for (const [id, t] of TRAMS) { const L = want.get(id); if (!L || tramKey(L) !== t.key) { G.tram.remove(t.grp); t.grp.traverse(m => { if (m.geometry) m.geometry.dispose(); }); TRAMS.delete(id); } }
+    for (const [id, L] of want) {
+      if (TRAMS.has(id)) continue;
+      const grp = new THREE.Group(); grp.name = 'tram:' + id; grp.position.set(F.anchor.x, 0, F.anchor.z); grp.rotation.y = F.yaw || 0;
+      const cabs = [0, 1].map(() => (CB ? { pivot: CB.PIVOT, ropeUp: CB.ROPE_UP } : null));
+      let run = null;
+      try { run = TR.make(L.geom, cabs, { sag: 0.012 }); } catch (e) { console.warn('premises tram', id, e && e.message); continue; }
+      const ropeMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
+      L.geom.ropes.forEach((rp, k) => {
+        const Ln = run.lines[rp.line === undefined ? (k >> 1) : rp.line];
+        const rc = TR.ropeCurve(rp.a, rp.b, 0.012, Ln.rope.t0, Ln.rope.t1);
+        const pts = []; for (let i = 0; i <= 48; i++) { const q = rc.at(i / 48); pts.push(new THREE.Vector3(q[0], q[1], q[2])); }
+        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, rp.kind === 'track' ? 0.055 : 0.035, 6, false);
+        const m = new THREE.Mesh(geo, ropeMat); m.castShadow = true; grp.add(m);
+      });
+      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 0 }); grp.add(c); return c; }); run.attach(objs); } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
+      G.tram.add(grp); TRAMS.set(id, { key: tramKey(L), grp, run });
+    }
+    stats.trams = TRAMS.size;
+  }
+  // the clock: the host's dt in seconds; the cabins move
+  function tick(dt) { for (const [, t] of TRAMS) t.run.tick(dt).apply(); return TRAMS.size; }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -916,6 +941,7 @@ function make(THREE, scene, world, rec0, opts) {
       placeLots();
       buildRoads();
       buildRunways();
+      syncTrams();   // the trams run in the game whether or not the editor is open (G398.3)
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
@@ -936,6 +962,7 @@ function make(THREE, scene, world, rec0, opts) {
     paintWear();
     paintMaterials();
     buildOutlines();
+    syncTrams();
     buildRunways();
     buildHandles();
     syncHouses();
@@ -989,7 +1016,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
-    rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt,
+    rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     setRecord: r => { rec = PG.normalise(r); },
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point

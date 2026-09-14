@@ -27,7 +27,7 @@ function placeAtAerodrome(sim, a) {
     const x = sim.p[i * 3], z = sim.p[i * 3 + 2];
     sim.p[i * 3] = x * c + z * s + sp[0];
     sim.p[i * 3 + 2] = -x * s + z * c + sp[1];
-    sim.p[i * 3 + 1] += a.elev;
+    sim.p[i * 3 + 1] += (a.spawnElev !== undefined ? a.spawnElev : a.elev);   // G398.3: a premises strip's spawn may sit on its profile, not at the strip's elevation
   }
 }
 
@@ -46,7 +46,7 @@ function placeAtAerodrome(sim, a) {
 // just another pose to hand it. One transform, one place, as ever.
 function placeAtStand(sim, a, st) {
   return placeAtAerodrome(sim, st
-    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: a.elev } : a);
+    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: st.elev !== undefined ? st.elev : a.elev } : a);   // G398.3: the stand's own ground when the site names it
 }
 
 function makeAutopilot(sim, def, world) {

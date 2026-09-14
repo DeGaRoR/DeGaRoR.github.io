@@ -1,0 +1,537 @@
+{
+ "what": "flydiy-premises",
+ "v": 1,
+ "name": "skarvik",
+ "premises": {
+  "v": 1,
+  "id": "skarvik",
+  "name": "Skarvik - the headland field across the Sound: a gravel strip on the shore, the village along its road, the mine and its tram on the ridge",
+  "seed": 7,
+  "theme": "alaska",
+  "frame": {
+   "kind": "free",
+   "extent": null,
+   "anchors": {
+    "*": {
+     "x": 0,
+     "z": 0,
+     "yaw": 0
+    },
+    "W-24km": {
+     "x": -2700,
+     "z": 7300,
+     "yaw": 0
+    }
+   }
+  },
+  "layers": {
+   "terrain": [
+    {
+     "id": "t1",
+     "kind": "flatten",
+     "poly": [
+      [
+       -298,
+       -73
+      ],
+      [
+       -202,
+       -73
+      ],
+      [
+       -202,
+       -25
+      ],
+      [
+       -298,
+       -25
+      ]
+     ],
+     "level": 10.32,
+     "falloff": 14,
+     "abs": false,
+     "order": 0
+    }
+   ],
+   "surface": [
+    {
+     "id": "y1",
+     "poly": [
+      [
+       458,
+       -90
+      ],
+      [
+       522,
+       -90
+      ],
+      [
+       522,
+       -58
+      ],
+      [
+       458,
+       -58
+      ]
+     ],
+     "surface": 6,
+     "z": 0
+    },
+    {
+     "id": "y2",
+     "poly": [
+      [
+       -298,
+       -73
+      ],
+      [
+       -202,
+       -73
+      ],
+      [
+       -202,
+       95
+      ],
+      [
+       -298,
+       95
+      ]
+     ],
+     "surface": 6,
+     "yard": "s1"
+    }
+   ],
+   "material": [
+    {
+     "id": "m1",
+     "poly": [
+      [
+       458,
+       -90
+      ],
+      [
+       522,
+       -90
+      ],
+      [
+       522,
+       -58
+      ],
+      [
+       458,
+       -58
+      ]
+     ],
+     "set": "pebble",
+     "tile": null,
+     "fade": 5,
+     "z": 1
+    }
+   ],
+   "exclude": [],
+   "roads": [
+    {
+     "id": "r1",
+     "pts": [
+      [
+       -400,
+       -55
+      ],
+      [
+       -200,
+       -55
+      ],
+      [
+       200,
+       -55
+      ],
+      [
+       350,
+       5
+      ],
+      [
+       500,
+       85
+      ],
+      [
+       600,
+       165
+      ],
+      [
+       700,
+       250
+      ],
+      [
+       800,
+       340
+      ],
+      [
+       850,
+       420
+      ]
+     ],
+     "w": 4,
+     "cls": "gravel",
+     "graded": true,
+     "name": "the shore road"
+    }
+   ],
+   "runways": [
+    {
+     "id": "w1",
+     "name": "Skarvik Field",
+     "c": [
+      280,
+      -105
+     ],
+     "hdg": 0,
+     "len": 520,
+     "wid": 24,
+     "surface": 6,
+     "look": "gravel",
+     "profile": [
+      [
+       0,
+       -5
+      ],
+      [
+       1,
+       5
+      ]
+     ],
+     "papi": [
+      true,
+      true
+     ],
+     "stand": {
+      "x": 490,
+      "z": -76,
+      "hdg": 2.792
+     },
+     "taxiOut": [
+      [
+       490,
+       -105
+      ]
+     ],
+     "approach": 0
+    }
+   ],
+   "zones": [
+    {
+     "id": "z1",
+     "kind": "residential",
+     "poly": [
+      [
+       240.9,
+       -157.1
+      ],
+      [
+       396.5,
+       -94.7
+      ],
+      [
+       559.3,
+       -7.6
+      ],
+      [
+       670,
+       80.1
+      ],
+      [
+       772.4,
+       167.2
+      ],
+      [
+       882.5,
+       267.2
+      ],
+      [
+       943.3,
+       361.7
+      ],
+      [
+       790.6,
+       457.1
+      ],
+      [
+       747.5,
+       386.3
+      ],
+      [
+       653.9,
+       302.7
+      ],
+      [
+       555.5,
+       219
+      ],
+      [
+       462.3,
+       144
+      ],
+      [
+       320.4,
+       68.4
+      ],
+      [
+       174,
+       10
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    },
+    {
+     "id": "z2",
+     "kind": "park",
+     "poly": [
+      [
+       790,
+       330
+      ],
+      [
+       900,
+       380
+      ],
+      [
+       910,
+       480
+      ],
+      [
+       820,
+       480
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    },
+    {
+     "id": "z3",
+     "kind": "clear",
+     "poly": [
+      [
+       -269,
+       -180
+      ],
+      [
+       -269,
+       -415
+      ],
+      [
+       -251,
+       -415
+      ],
+      [
+       -251,
+       -180
+      ]
+     ],
+     "density": 1,
+     "seed": null,
+     "palette": null,
+     "rules": {}
+    }
+   ],
+   "sites": [
+    {
+     "id": "s1",
+     "name": "Kennecott - the mine",
+     "at": {
+      "x": -250,
+      "z": -58,
+      "yaw": 3.141592653589793
+     },
+     "items": [
+      {
+       "id": "kennecott_mill_0",
+       "key": "house/kennecott mill",
+       "x": -4,
+       "z": 24,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": true
+      },
+      {
+       "id": "mine_shop_1",
+       "key": "big/mine shop",
+       "x": -34,
+       "z": 12,
+       "yaw": 0,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_office_2",
+       "key": "house/mine office",
+       "x": 22,
+       "z": 9,
+       "yaw": -0.08,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_cottage_3",
+       "key": "house/mine cottage",
+       "x": -22,
+       "z": 5,
+       "yaw": 0.2,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "storage_shed_4",
+       "key": "house/storage shed",
+       "x": 8,
+       "z": 7,
+       "yaw": 0.4,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_bunkhouse_5",
+       "key": "house/mine bunkhouse",
+       "x": -32,
+       "z": -10,
+       "yaw": 3.202,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_dormer_hall_6",
+       "key": "house/mine dormer hall",
+       "x": -4,
+       "z": -11,
+       "yaw": 3.142,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_mess_hall_7",
+       "key": "house/mine mess hall",
+       "x": 24,
+       "z": -10,
+       "yaw": 3.062,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "mine_cottage_8",
+       "key": "house/mine cottage",
+       "x": 40,
+       "z": -9,
+       "yaw": 3.242,
+       "P": {},
+       "onRoad": false,
+       "bottomOnRoad": false
+      },
+      {
+       "id": "rcv",
+       "key": "big/fuel shed",
+       "x": 0,
+       "z": -2,
+       "yaw": 0,
+       "P": {},
+       "onRoad": true,
+       "bottomOnRoad": false
+      }
+     ],
+     "yard": {
+      "x0": -48,
+      "x1": 48,
+      "z0": -18,
+      "z1": 150
+     }
+    },
+    {
+     "id": "s2",
+     "name": "the mine tram",
+     "at": {
+      "x": -260,
+      "z": -210,
+      "yaw": 3.141592653589793
+     },
+     "items": [
+      {
+       "id": "b",
+       "key": "house/tram base station",
+       "x": 0,
+       "z": 0,
+       "yaw": 0,
+       "P": {}
+      },
+      {
+       "id": "t",
+       "key": "house/tram top station",
+       "x": 0,
+       "z": 175,
+       "yaw": 0,
+       "P": {}
+      }
+     ],
+     "yard": null
+    }
+   ],
+   "links": [
+    {
+     "id": "l1",
+     "kind": "conveyor",
+     "from": {
+      "site": "s1",
+      "item": "kennecott_mill_0",
+      "hook": "head"
+     },
+     "to": {
+      "site": "s1",
+      "item": "rcv",
+      "hook": "roof"
+     },
+     "P": {},
+     "dynamic": true
+    },
+    {
+     "id": "l2",
+     "kind": "cable",
+     "from": {
+      "site": "s2",
+      "item": "b",
+      "hook": "track0"
+     },
+     "to": {
+      "site": "s2",
+      "item": "t",
+      "hook": "track0"
+     },
+     "P": {},
+     "dynamic": true
+    }
+   ],
+   "objects": []
+  },
+  "budget": {
+   "tris": 400000,
+   "lights": 24,
+   "smoke": 6,
+   "people": 40
+  },
+  "rev": 3
+ },
+ "plaque": null,
+ "log": {
+  "built": null,
+  "tests": [],
+  "flights": []
+ }
+}

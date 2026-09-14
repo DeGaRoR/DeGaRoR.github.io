@@ -587,6 +587,13 @@ after the freeze, against this document.
   carries `look`; an unknown look is an issue. THE SHOULDER: `runwayShoulder(r)` is the one keeper of
   the strip's radius of terraforming (the falloff, or 40 m + 6 % of the length, at most 120 m); the
   renderer outlines it around the selected strip. GATE PREMISES rule 16.
+- **v1.11 (2026-09-14, the official premises).** A world may ship an OFFICIAL premises: the analytic
+  world's is `tools/fixtures/premises_v1_official.json` (Skarvik, id `skarvik`, `rev`), composed at every
+  boot of that world; an island's is `tools/fixtures/island_<id>.json`. A saved WIP of the same id wins
+  unless its `rev` is older than the fixture's. A premises' strip is a W.aerodromes entry, so it is a
+  departure and a destination with no list of its own. The gate composes a W-24km fixture at its anchor
+  on the flight world (the world id on the gate's world). The renderer stands a solved cable as ropes
+  and two cabins (tram_run) and ticks them (`R.tick(dt)`, `R.trams()`, `stats.trams`).
 - **v1.12 (2026-09-14, G411, the user: "builds as props ... place in the scenery and automatically
   manage the LOD levels ... rough hitbox").** A third object kind in `layers.objects`, ONE record in the
   premises frame: `{ kind:'aircraft', key, x, z, yaw }` parks a BUILD on its wheels on the composed ground,

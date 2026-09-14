@@ -554,3 +554,34 @@ existing." What landed:
 - **Owed**: the F8 rows the design gives the editor (forest fill / LOD, the light rig, frame, camera) are
   still on F8; the world's own trees do not follow a live edit; the premises' trees are not planted in the
   game; the shed rail has no WORLD entry; a polygon's falloff band is not outlined (the strip's is).
+
+## 11. SKARVIK — THE FIRST OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3, as landed)
+
+The user (2026-09-14): "build a demo in the normal world using the editor. A new airport somewhere,
+with scenery that you find decent. Preferably with the working skytram ... add this to the list of
+destinations a plane can fly to (maybe that should even be automatic?). That should impact the real
+game, and become a new official airport."
+
+- **Where**: the headland across the Sound, 7.7 km south-south-west of HOME, anchored at world
+  (-2700, 7300): a shore on the south side, a 108 m ridge behind it, the sea on both sides.
+- **What** (`tools/fixtures/premises_v1_official.json`, id `skarvik`, rev 1, authored through the
+  editor's command surface - the mouse's own entry - on a bare world, then saved): the shore road
+  west along the beach and down the bay; Skarvik Field, a 520 x 24 m gravel strip on the shore's
+  contour with a 2 % rise to the east end, its stand and gravel apron (a pebble material polygon on
+  it), PAPI both ends; a residential zone along the bay road (43 plots sown, both sides, the water side
+  on piles); a totem park at the road's end; the Kennecott mine by the theme tool on the west of the
+  road, the works flat and the yard, the conveyor; the mine tram - two stations placed by hand above
+  the works and the line solved by the cable tool at 21 deg - with a cleared corridor under it.
+- **How it reaches the game**: app.js boots the analytic world with the official fixture (an island
+  keeps its own) unless a saved WIP of the same id at a newer rev, or `?premises=`, says otherwise.
+  The strip is an aerodrome of the world, so the departure and destination selects list it with no
+  code of their own: it IS automatic. GATE PREMISES composes every `premises_v1_*` fixture, this one
+  at its W-24km anchor (the gate's flight world now carries the world id; before, every W-24km
+  fixture composed at the origin, silently).
+- **The tram runs**: render_premises stands a cable link's ropes as tubes and two cabins in the
+  village's jig-back (tram_run.js on the solved line, the cabin pack's cabins), ticked from the
+  game's worldUpdate on the wall clock and from the bench's frame. The rope lines drawn since v3 had
+  been wiped by the plots' clearing that followed them - no rope had ever shown.
+- **The patch beyond the inner ring** wears the outer ring's material (its canopy tint), not a bare
+  Lambert on the bake: it had read as sand under the woods.
+- Pictures: `screenshots/premises/v9_skarvik_*.jpg`.

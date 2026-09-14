@@ -230,10 +230,13 @@ aimSun();
 addEventListener('resize', draw);
 
 // ---- the pump: rAF with a watchdog (the Browser pane's rAF is dead) ---------------------------
-let rafSeen = false, pumpIv = 0;
+let rafSeen = false, pumpIv = 0, tramLast = 0;
 function tick(t) {
   rafSeen = true;
   if (R.stats.queued) { R.step(2); PREMISES_PAGE && PREMISES_PAGE.ed.plaque(); dirtyDraw = true; }
+  // the tram runs (G398.3): the renderer's clock, and a frame while a cabin moves
+  if (R.tick && R.stats.trams) { const dt = tramLast ? Math.min(0.1, (t - tramLast) / 1000) : 0; if (R.tick(dt)) dirtyDraw = true; }
+  tramLast = t;
   if (dirtyDraw) render(t);
   requestAnimationFrame(tick);
 }

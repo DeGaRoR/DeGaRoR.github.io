@@ -715,6 +715,9 @@ function mount(host, ctx) {
       rows.pills(insp, 'look', Object.keys(PG.RUNWAY_LOOKS).map(k => [k, PG.RUNWAY_LOOKS[k].name]), () => e.look || 'grass',
         v => ed(x => { x.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.surface = L.surface; }, 'look of ' + id));
       rows.select(insp, 'wheels feel', [['0', 'grass'], ['6', 'gravel'], ['5', 'paved'], ['7', 'sand']], () => String(e.surface === undefined ? 0 : e.surface), v => ed(x => { x.surface = +v; }, 'surface of ' + id));
+      // THE ONE-WAY STRIP (v9): which end the landing comes over in calm air; a ridge at one end wants the other
+      rows.pills(insp, 'approach', [['', 'either end', 'the pilot picks the runway direction nearest its inbound track'], ['0', 'over end 0', 'land toward end 1, depart the other way'], ['1', 'over end 1', 'land toward end 0']], () => (e.approach === 0 || e.approach === 1) ? String(e.approach) : '',
+        v => ed(x => { x.approach = v === '' ? null : +v; }, 'approach of ' + id));
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
       profileGraph(insp, e, ed);

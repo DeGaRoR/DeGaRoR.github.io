@@ -47649,3 +47649,55 @@ worktree: the same three) - another session's landing, not this chantier's.
   boot phrase lost its apostrophe twice); the pane's canvas is 0 x 0 until
   `renderer.setSize(1280, 720, false)` - then the app's own renderer with
   your camera + toDataURL + a POST sink is the picture.
+
+## G398.3 — SKARVIK: THE FIRST OFFICIAL PREMISES OF THE ANALYTIC WORLD, AUTHORED IN THE
+## EDITOR; THE TRAM RUNS IN THE GAME (2026-09-14, the user: "build a demo in the normal
+## world using the editor. A new airport somewhere, with scenery that you find decent.
+## Preferably with the working skytram ... add this to the list of destinations a plane
+## can fly to (maybe that should even be automatic?). That should impact the real game,
+## and become a new official airport")
+
+- **SKARVIK** (`tools/fixtures/premises_v1_official.json`, id skarvik, rev 1): the headland
+  across the Sound, 7.7 km SSW of HOME, anchored at (-2700, 7300) - a shore on the south, a
+  108 m ridge behind, the sea both sides. Authored through the editor's own command surface
+  on a bare world (the mouse's entry, scripted), then saved: the shore road west along the
+  beach and down the bay; Skarvik Field, a 520 x 24 m gravel strip on the shore's contour
+  with a 2 % rise to the east end, stand, gravel apron with a pebble material, PAPI; a
+  residential zone along the bay road (43 plots, the water side on piles); a totem park at
+  the road's end; the Kennecott mine by the theme tool (works flat, yard, conveyor); the
+  mine tram - two stations placed by hand above the works, the line solved by the cable
+  tool at 21 deg - with a cleared corridor under it. Ten checks green.
+- **OFFICIAL**: app.js boots the analytic world with the fixture (an island keeps its own)
+  unless a saved WIP of the same id at a newer rev, or ?premises=, says otherwise. The strip
+  is a W.aerodromes entry, so the departure and destination selects list "Skarvik Field"
+  with no code of their own - it IS automatic. Departed from it headless under the
+  autopilot (v9_skarvik_*.jpg).
+- **THE TRAM RUNS**: render_premises stands a solved cable as rope tubes and two cabins in
+  the village's jig-back (tram_run on the solved line; the cabin pack's cabins), rebuilt
+  only when the line changes, ticked from worldUpdate (wall clock) and the bench's frame
+  (R.tick, R.trams, stats.trams). The rope LINES drawn since v3 had been wiped by the
+  plots' clearing that followed them: no rope had ever shown.
+- **THE ONE-WAY STRIP**: a runway record names the end its approach comes over (`approach`
+  0 | 1 | null; pills in the inspector); the aerodrome carries `landHdg` and the pilot's dirAt
+  honours it in calm air (into wind still wins). Flying HOME -> Skarvik the pilot had picked the
+  direction nearest its inbound track - over the ridge - gone around twice for terrain and
+  STOPPED on the hillside 1.2 km short, alt 120 m, outcome 'completed'. Skarvik lands from
+  the sea (approach 0) and departs toward it: HOME -> Skarvik headless lands on the centreline
+  9 m before the aim point, no go-around; a departure from its stand lifts off at 71 s.
+- **THE STAND'S OWN GROUND**: placeAtAerodrome lifted every aeroplane by the strip's
+  elevation; a profiled strip's stand (or its spawn) is not at that height - the ultralight
+  was placed 5 m inside the bank and left the stand at 151 m/s. The aerodrome record carries
+  `spawnElev` and the site's stand its `elev` (the composed ground under it), the placer reads
+  them. And a stand's heading matters: the pilot departs the way the nose leans along the
+  runway, so a stand at one end faces the far end.
+- **TWO FIXES ON THE WAY**: the premises patch beyond the inner ring wears the outer ring's
+  material (its canopy tint) - a bare Lambert on the bake read as sand under the woods;
+  GATE PREMISES's flight world now carries the world id - without it every W-24km fixture
+  had composed at the ORIGIN, silently (the official one, with its tram, said so: 7 deg).
+- The working copy of 27_premises.js was swept into another landing (G410/G411) mid-edit: HEAD
+  carried a runwayAerodrome that referenced T1 out of scope - any premises with a runway threw
+  at compose. This landing carries the finished version.
+- Docs: editor design section 11, contract v1.11. Gates: PREMISES (309 checks, 6
+  fixtures), UISMOKE, BUILD, MEDIA, WORLD, WORLDRENDER, SITE.
+- OWED: the world's trees do not follow a live edit (a corridor cleared in the editor shows
+  at the next boot); the premises' own trees are not planted in the game; a name board.

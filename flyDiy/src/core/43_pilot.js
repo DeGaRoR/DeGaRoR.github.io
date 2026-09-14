@@ -417,6 +417,8 @@ function makePilot(sim, def, world, opts) {
     let dx = px, dz = pz;
     const w = windAt(a, 30);
     if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction; in calm air it wins over the preference
+    else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
   };
