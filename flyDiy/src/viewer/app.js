@@ -8191,6 +8191,14 @@
   // more, and it is what lets the old generated skin stop being a thing the
   // game can fall back into.
   bootStep('sync', 'committing the build', 10, syncBuild);
+  // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
+  // empty holders at the world step (the editor did not exist yet); each is
+  // captured now through the editor - a round trip, the user's build put back
+  // - under the loading screen, where the seconds belong. PARKED.ready after
+  // this: a build the world editor parks later captures on the spot.
+  bootStep('parked', 'parking the other aeroplanes', 8, () => {
+    if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
+  });
   // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
   // a dirty storm like any load — and the bench's rule (an empty bench
   // never nulls the store) is what let the WIP's stored plaque live

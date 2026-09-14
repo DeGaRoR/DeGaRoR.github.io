@@ -81,7 +81,32 @@
    "material": [],
    "zones": [],
    "links": [],
-   "objects": [],
+   "objects": [
+    {
+     "id": "o1",
+     "kind": "aircraft",
+     "key": "arch:cub",
+     "x": -178,
+     "z": 522,
+     "yaw": 0
+    },
+    {
+     "id": "o2",
+     "kind": "aircraft",
+     "key": "arch:c172",
+     "x": -122,
+     "z": 522,
+     "yaw": 3.1416
+    },
+    {
+     "id": "o3",
+     "kind": "aircraft",
+     "key": "arch:jodel",
+     "x": -182,
+     "z": 468,
+     "yaw": 0.35
+    }
+   ],
    "runways": [
     {
      "id": "HOME",
@@ -336,6 +361,6 @@
    "smoke": 6,
    "people": 40
   },
-  "rev": 2
+  "rev": 3
  }
 }

@@ -250,6 +250,11 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
+  // snapshot - the record, the stance off the wheels, the hitbox by identity,
+  // the ladder's membership, the cut (one bucket per triangle), the far rungs
+  // on the same ground, the material dupe, the island's parked objects (~2 s)
+  { id: 'PARKED', file: '_parked_check.js', tier: 'core' },
   // THE FLOAT IN WATER (G370): the H0 spike, headless — Archimedes against
   // the analytic sections and a Monte-Carlo volume, omega*dt / c*dt of the
   // water terms against the fleet's envelope, the hump on three tows, the

@@ -587,3 +587,13 @@ after the freeze, against this document.
   carries `look`; an unknown look is an issue. THE SHOULDER: `runwayShoulder(r)` is the one keeper of
   the strip's radius of terraforming (the falloff, or 40 m + 6 % of the length, at most 120 m); the
   renderer outlines it around the selected strip. GATE PREMISES rule 16.
+- **v1.12 (2026-09-14, G411, the user: "builds as props ... place in the scenery and automatically
+  manage the LOD levels ... rough hitbox").** A third object kind in `layers.objects`, ONE record in the
+  premises frame: `{ kind:'aircraft', key, x, z, yaw }` parks a BUILD on its wheels on the composed ground,
+  nose along its yaw (rotation.y; the object's frame is nose +x, up +y, right +z). `key` names the build:
+  `arch:<key>` an archetype of the design table, `stock:<name>` a stock design, `mine:<slot>` a saved
+  build of the player's. The composer publishes it in `records.objects` like a prop (`y` the ground);
+  a keyless one is an issue. The RENDERER (src/viewer/parked.js) captures the build through the editor
+  (the snapshot the game flies), stands a five-rung THREE.LOD (interior off past 30 m, decimated past 120
+  and 450 m, gone past 2.5 km) and carries a hitbox by identity (fuselage / wing / tail / engine / gear /
+  floats) on `userData.hitbox`. The picker reads `PARKED.keys()` at call time. GATE PARKED.

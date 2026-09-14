@@ -312,7 +312,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function worldPts(entry) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -739,6 +739,16 @@ function make(THREE, scene, world, rec0, opts) {
       let tris = 0; g.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
       return { grp: g, tris: Math.round(tris), house: ob };
     }
+    // A PARKED AEROPLANE (G411): src/viewer/parked.js stands the build the key names - captured
+    // through the editor at the boot's `parked` step (or now, once that step ran) - as a THREE.LOD
+    // with its own ladder; the holder comes back at once and fills when the capture lands
+    if (ob.kind === 'aircraft') {
+      const PK = window.PARKED;
+      if (!PK || !PK.place) return null;
+      const g = PK.place(THREE, ob.key, w[0], ob.y, w[1], yaw);
+      G.houses.add(g);
+      return { grp: g, tris: Math.round(PK.trisOf ? PK.trisOf(g) : 0), house: ob };
+    }
     if (ob.kind === 'billboard') {
       const BG = window.BIG_GEN;
       if (!BG || !BG.billboard) return null;
@@ -953,7 +963,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;

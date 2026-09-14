@@ -349,7 +349,7 @@ try {
     const B = sandbox.window.BOOT;
     if (!B || B.state !== 'gone') throw new Error('the loading screen never lifted (state ' + (B && B.state) + ', pending ' + (B && B.pending().join(', ')) + ')');
     const steps = B.log.filter(e => e.k === 'step').map(e => e.id);
-    const want = ['worldScene', 'aircraft', 'garage', 'editor', 'sync', 'restore', 'compile', 'firstFrame'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync)
+    const want = ['worldScene', 'aircraft', 'garage', 'editor', 'sync', 'parked', 'restore', 'compile', 'firstFrame'];   // compile: LOADING S2 (sync here: the stub renderer has no compileAsync); parked: G411 (a no-op without the world pack)
     if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
     if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
     if (B.log.some(e => e.k === 'fail')) throw new Error('the loading screen gave up: ' + JSON.stringify(B.log.filter(e => e.k === 'fail')));

@@ -99,6 +99,10 @@ const MANIFEST = {
     // the baked trees (W0b): decode only, no three.js — the same file the
     // node gate requires, so the payload has ONE reader
     '53_tree_codec.js',
+    // THE DECIMATOR (G411): one self-contained function, pure, no THREE — the
+    // pier baker (tools/prop_lod.js) and the parked aeroplanes' far levels
+    // (src/viewer/parked.js, in a Worker off its source) both cut with it.
+    '54_decimate.js',
     // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)
     '60_gen_spec.js',
     // the body's SHAPE, owned in one place: one C1 curve that both the truss
@@ -190,6 +194,8 @@ const MANIFEST = {
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
     ['tools', '_village_gen.js'],
+    // THE PARKED AEROPLANES (G411): builds as props, before the renderer that stands them
+    ['src/viewer', 'parked.js'],
     ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {

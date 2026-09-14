@@ -1121,7 +1121,7 @@ function compose(rec0, world, opts) {
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
     // composed ground (tilted to it when `on` is 'ground'), a billboard a painted sign's key on its
     // posts at the width given; both in the premises frame, their y the ground plus `dy`
-    // ...and the PARKED AEROPLANES (G409, contract v1.8): kind 'aircraft', its key naming a build
+    // ...and the PARKED AEROPLANES (G411, contract v1.12): kind 'aircraft', its key naming a build
     // ('arch:cub', 'stock:<name>', 'mine:<slot>' - src/viewer/parked.js), stood on its wheels on the
     // composed ground, nose along its yaw. Same record shape as a prop; the renderer tells them apart.
     O.records.objects = [];

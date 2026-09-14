@@ -1274,6 +1274,17 @@ function garageInit(api) {
                     return envelope(slotName || 'build', spec, plaque, log); },
       list: slotNames,
       stock: () => STOCK.map(s => s.name),
+      // G411: A BUILD AS A SPEC, WITHOUT OPENING IT. The parked aeroplanes
+      // (src/viewer/parked.js) stand a stock design or one of your own beside
+      // the taxiway; they need the whole spec the load door would produce and
+      // nothing else the door does — no rebuild, no editor seed, no ribbon.
+      // Both come back normalised the way `loadSpec` normalises (a stock
+      // design is a cage and nothing else; `whole` fills the rest), as a copy.
+      stockSpec: n => { const st = stockByName(n);
+                        return st ? JSON.parse(JSON.stringify(whole(st.spec))) : null; },
+      slotSpec: n => { const t = lsGet(SLOT + n); if (!t) return null;
+                       try { return JSON.parse(JSON.stringify(whole(unwrap(t).spec))); }
+                       catch (e) { return null; } },
       name: () => slotName,
       log: () => log,
       // the plaque and the logbook are WRITTEN here and read by the bench

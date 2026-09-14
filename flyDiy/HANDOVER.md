@@ -47533,3 +47533,119 @@ before the steps (the bridges may read it - not traced); the cold compile is
 parallel) - fewer, simpler programs is the only lever left there. HEAD was
 red on SITE, ENERGY and AERO before G406 (verified at G405 in a clean
 worktree: the same three) - another session's landing, not this chantier's.
+
+## G411 — BUILDS AS PROPS: THE PARKED AEROPLANES (2026-09-14, the user: "can we
+## have the game generate some airplanes-as-props, that we can place in the
+## scenery and automatically manage the LOD levels? ... layers after layers
+## are removed as we get away ... No physics, just visual. Maybe a rough
+## hitbox ... Fuselage, wing, engine+prop and tail separate and correct")
+
+- WHAT A PARKED AEROPLANE IS: the aeroplane the game flies — the editor's
+  build frozen by `CAGE_JOIN.snapshot` (buckets by material with their
+  AEROSKIN records, parts about their pivots, the surface field) — stood on
+  its wheels in the world with no solver under it. `src/viewer/parked.js`
+  (window.PARKED) is the whole of it; there is no second model path.
+- THE CAPTURE is a ROUND TRIP through the editor, synchronous in one task:
+  the user's aeroplane read as `GARAGE_SPEC.preview(CAGE_JOIN.export())`
+  (the shelf alone has no cage in a fresh session and applySpec of a
+  cage-less spec loads the TEMPLATE over the page's aeroplane), the parked
+  spec applied (`CAGE_UI.applySpec`, nobody aboard: dumOn / cabOcc /
+  paxOcc<n> / lightOn zeroed), the snapshot taken, the user's spec
+  re-applied, the decal images put back. The editor's debounced hooks (the
+  autosave's commit at 400 ms, the bench's fingerprint at 150 ms) then fire
+  on the RESTORED state. MEASURED: the join's export byte-identical before
+  and after, every time; per aeroplane in the Browser pane 6-8 s (apply
+  3.6, snapshot 5.1, restore 1.5 - the pane is ~5x the real machine; the
+  snapshot is 950 ms on the built artifact). It runs at boot as the
+  `parked` step after `sync` (the world's objects stood as empty holders at
+  the world step, before the editor exists; PARKED.captureAll fills them;
+  UISMOKE expects the step) and on the spot once `PARKED.ready` (the world
+  editor parks one).
+- THE ONE THING A SHARED SHADER NEEDS: AEROSKIN's decals, weathering
+  sources, cabin box and craft matrix are ONE block shared by reference
+  across every material (aeroskin.js: "a fact about THE aeroplane"). A
+  second aeroplane on it wears the player's registration in the player's
+  frame. So a parked one gets a block OF ITS OWN: after the snapshot the
+  flight side's own calls set the shared block up for the parked payload
+  (aeroSetCabin / Footwell / Holes, aeroApplySpecDecals with the bench's
+  sticker hook nulled, aeroWxSetSources / Spiral / Macro), the values are
+  CLONED with a 2048 px copy of the decal atlas and the panel's painted
+  atlas material, and the shared block's values are copied back (the
+  editor's own re-apply redraws the atlas). AND THE MATERIALS ARE POOLED
+  (AERO_POOL by key): the same finish and tint on the parked Cub and the
+  player's IS one object, so every pooled material is DUPLICATED (`dupe`:
+  a fresh instance of the same class, Material.copy with the userData
+  moved aside - it JSON-clones userData, textures and all - then the
+  userData shallow, the hook, the defines; a ShaderMaterial takes the
+  block into its own uniforms). The craft matrix (uCraftInv) is PER
+  PLACEMENT: two Cubs parked apart cannot share it, so each placed object
+  gets a block of its own over the record's entries and materials of its
+  own; the geometry stays the record's.
+- THE LADDER (THREE.LOD, by identity): L0 everything (190 draws on the
+  Cub); L1 past 30 m the exterior - no inside / char / panel / lamp
+  bucket, no gauge / ctlMove / ctlLink / wire part (106); L2 past 120 m
+  the exterior DECIMATED to 12 % (floor 6000) with the SAME materials, the
+  surface field and uv riding through the cut per wedge, the buckets
+  merged per material (59 draws, 20.7k tris of 259k - the livery and the
+  weathering stay: the first cut used vertex colours and the flash popped
+  off at 120 m); L3 past 450 m at 2.5 % (floor 1500), paint / metal /
+  glass vertex-coloured, three draws, 4.3k tris; nothing past 2.5 km. The
+  cut runs in a WORKER built from the decimator's own source (L1 stands in
+  until it lands, 8-9 s per aeroplane in the pane) and is cached in
+  IndexedDB (`flydiy.parked`) by key + payload size + GEN_SPEC_V - the
+  second boot skips it. The decimator MOVED: `tools/prop_lod.js`'s
+  `decimate` is `src/core/54_decimate.js`'s `meshDecimate` verbatim (one
+  self-contained function so its toString() runs off the main thread; the
+  three knobs ride in `opt`), prop_lod.js delegates - proven byte-identical
+  on person_andrew's three levels; `MESH_DECIMATE_SRC` in the exports.
+- THE STANCE off the wheel parts: the resting pitch is the angle at which
+  the mains' and the third wheel's tyre bottoms share a height ((xm-xt) sin
+  + (ym-yt) cos = Rm-Rt, the root nearest level), the lift puts the lowest
+  bottom on y = 0; no wheels stands on the lowest vertex. Agrees with the
+  gear layer's own ground plane to the join's pitch calibration (cub
+  -0.104 vs CAGE_GEAR.pitch -0.167, beta -0.064). Then nose to +x: the
+  object's frame is nose +x, up +y, right +z; `yaw` is rotation.y like
+  every premises object.
+- THE HITBOX, rough but the right part: fuselage (the `sec` buckets), wing
+  (surface class 1 + ailerons / flaps), tail (class 2 + rudder / elevators
+  + fin / stab parts), engine (the eng and prop parts + every hardware
+  bucket standing wholly ahead of the body - the cowl; one per unit), gear,
+  floats; axis-aligned in the object's frame on `userData.hitbox`;
+  `PARKED.boxes` draws them (Box3Helper). NOTE Box3.setFromObject on a
+  pitched long body reads 0.58 m under the ground - the box of a rotated
+  box; the vertices are on the ground (measured).
+- THE RECORD (contract v1.12): `{ kind:'aircraft', key, x, z, yaw }` in
+  layers.objects; keys `arch:<key>` (CAGE_DESIGN.designBake), `stock:<name>`
+  and `mine:<slot>` through two new GARAGE_SPEC doors (stockSpec /
+  slotSpec: the whole normalised spec, no load); the composer publishes it
+  like a prop; render_premises stands it through PARKED.place; the world
+  editor's OBJECTS layer has the `aircraft` tool and picker
+  (PARKED.keys()); island_jolene.json parks a Cub and a C172 either side of
+  the taxi road on the old apron (z 522, 26-28 m off the line) and a Jodel
+  on the grass of the taxi corridor, rev 3.
+- SEEN (the app's renderer, my camera): the four rungs of the Cub from one
+  eye; the boxes on it; the Tiger Moth parked at run time (8 s, the export
+  unchanged); the C172 level on its nosewheel, the Jodel low-winged; the
+  field from the stand with the Cub beside the taxi road.
+- GATE PARKED (58 checks, headless on a synthetic snapshot under the real
+  three): the record, the stance (tail down, tyres on 0, a trike near level,
+  the blade tip when wheel-less), the hitbox (engine ahead, span, the
+  interior in no box, the elevator joins the tail), the ladder's
+  membership and shared geometry, the cut (one bucket per triangle), the
+  far rungs through the inline path on the same ground, the dupe, the
+  fixture. PREMISES / PROPS / UISMOKE / WORLD / MEDIA / SAVE / DESIGN green.
+- OWED: the snapshot itself in IndexedDB (50 MB an aeroplane; the capture
+  is the boot's cost now, ~1.5-3 s each on the real machine); envMapIntensity
+  follows the pool's env0 for the flown build and not for the copies; an
+  aeroplane through the windows at L1 shows the far flank's decal (no
+  interior); a parked one at night has no lights; the AERO base paint
+  question is not this chantier's (the cage's colour is the finish's own
+  unless a section is dialled - the archetype's `paint.base` is the
+  generated skin's).
+- TRAPS: a peer's commit (bef50764) swept my 27_premises.js hunk into HEAD
+  hours before this landed - grep HEAD for your own hunks before replaying;
+  premises_ui.js is CRLF whole (a peer's Python write) - anchors must be
+  line-ending aware; the Bash heredoc eats a backslash before a quote (the
+  boot phrase lost its apostrophe twice); the pane's canvas is 0 x 0 until
+  `renderer.setSize(1280, 720, false)` - then the app's own renderer with
+  your camera + toDataURL + a POST sink is the picture.
