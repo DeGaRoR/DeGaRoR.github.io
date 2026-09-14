@@ -666,6 +666,7 @@ const rows = [];
 // the table is what it returns.
 function battery(name, P) {
   const hi = HG.build(P, 0), lo = HG.build(P, 1);
+  let again = null;   // the one rebuild (ao determinism + tris determinism)
   const mh = measure(hi), ml = measure(lo);
   runRules(name + ' hi', mh);
   runRules(name + ' lo', ml);
@@ -754,9 +755,11 @@ function battery(name, P) {
     }
     check(lit, name + ': ao 0 still darkened something');
     check(off.stats.ao === null, name + ': ao 0 still reported a bake');
-    // and the same build twice must bake the same shadows
+    // and the same build twice must bake the same shadows (one rebuild
+    // serves this and the determinism check below, 2026-09-14)
     const a1 = hi.bags.siding.data().ao;
-    const a2 = HG.build(P, 0).bags.siding.data().ao;
+    again = HG.build(P, 0);
+    const a2 = again.bags.siding.data().ao;
     let same = a1.length === a2.length;
     if (same) for (let i = 0; i < a1.length; i++)
       if (Math.abs(a1[i] - a2[i]) > 1e-9) { same = false; break; }
@@ -1222,7 +1225,7 @@ function battery(name, P) {
   }
 
   // determinism: the same numbers twice
-  const again = HG.build(P, 0);
+  if (!again) again = HG.build(P, 0);
   check(again.stats.tris === hi.stats.tris,
         name + ': the build is not deterministic',
         hi.stats.tris + ' then ' + again.stats.tris);
@@ -1843,7 +1846,7 @@ for (const name of Object.keys(HG.PRESETS)) {
     // the door bag spans the opening at the front
     { const d = hi.bags.door.data(); let x0 = 1e9, x1 = -1e9, n = 0; for (let i = 0; i < d.pos.length; i += 3) if (d.pos[i + 2] > P.HD - 1.5) { x0 = Math.min(x0, d.pos[i]); x1 = Math.max(x1, d.pos[i]); n++; }
       check(n > 0 && x1 - x0 > S.door.w - 0.2, 'hangar ' + name + ': the leaves do not span the opening', (x1 - x0).toFixed(2) + ' vs ' + S.door.w.toFixed(2)); }
-    check(hi.bags.glass.tris === (P.sign ? 2 : 0), 'hangar ' + name + ': a see-through pane (the shell has no inside)', String(hi.bags.glass.tris));
+    check(hi.bags.glass.tris === (P.sign && P.signKey ? 2 : 0), 'hangar ' + name + ': a see-through pane (the shell has no inside)', String(hi.bags.glass.tris));
     check(S.lit.panes >= 2, 'hangar ' + name + ': no panes', String(S.lit.panes));
     check(S.lit.lights.length === 0 && S.lit.windows === 0, 'hangar ' + name + ': lit with the switch off');
     const on = HN.build(Object.assign({}, P, { lights: 1 }), 0);

@@ -400,7 +400,7 @@ function build(P0, lod, F) {
 
   // ---- THE SIGN over the door (the works): the aspect is the sign's, the board narrowed to the gable's band
   let sign = null;
-  if (P.sign) {
+  if (P.sign && P.signKey) {   // no board without a billboard to fill it (a blank one read as a black hole over the door)
     const meta = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && P.signKey) ? SIGN_TEX_META[P.signKey] : null;
     const aspect = meta ? meta.aspect : 4;
     const y0 = bigDoor.y1 + 0.85, y1 = yRoof(0) - 0.35;
