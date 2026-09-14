@@ -537,7 +537,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // silhouette fidelity). Each ring bakes its own colour map from the
     // shared colorAt(); strips tuck 300 m under the inner rim, 2 m low,
     // so the seam never shows a crack.
-    const SIZE = 24000, HALF = 12000, INNER = 4500;
+    // THE DOMAIN IS THE WORLD'S (W2, 2026-09-14): the analytic world's
+    // bounds are +-12000 around HOME and every number below is what it was;
+    // an island's are its own square, not centred on the origin (HOME is
+    // where its strip is cut, not the middle of the map).
+    const BX0 = world.bounds.x0, BZ0 = world.bounds.z0;
+    const SIZE = world.bounds.x1 - BX0, HALF = SIZE / 2, INNER = 4500;
+    const BX1 = BX0 + SIZE, BZ1 = BZ0 + SIZE;
     const hsh = (ix, iz) => { let h = (ix * 374761393 + iz * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     // W8 colour pass: the old DRY band (sandy tan from 90 m up) made the
@@ -714,7 +720,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return t;
     }
     const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
-    const outerTex = bakeGround(-HALF, -HALF, HALF, HALF, 512, { mini: true, mask: true });
+    const outerTex = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
     outerTexShared = outerTex;
 
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
@@ -814,8 +820,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         .replace('#include <map_fragment>', '#include <map_fragment>\n' +
           // same uv convention as the outer ring's own texture: v runs the other
           // way down z, and the mask canvas is built in that same pass
-          'float fM = texture2D(uFMask, vec2((vWP.x + 12000.0) / 24000.0,\n' +
-          '                                  1.0 - (vWP.z + 12000.0) / 24000.0)).r;\n' +
+          'float fM = texture2D(uFMask, vec2((vWP.x - (' + BX0.toFixed(1) + ')) / ' + SIZE.toFixed(1) + ',\n' +
+          '                                  1.0 - (vWP.z - (' + BZ0.toFixed(1) + ')) / ' + SIZE.toFixed(1) + ')).r;\n' +
           // Full strength by the time the last impostor has shrunk away, and
           // nothing before they start shrinking — otherwise the two tiers
           // darken the same hillside twice through the whole overlap.
@@ -906,7 +912,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (let i = 0; i < p.count; i++) {
           const x = p.getX(i), z = p.getZ(i);
           p.setY(i, world.terrainH(x, z) - 2);
-          uv.setXY(i, (x + HALF) / SIZE, 1 - (z + HALF) / SIZE);
+          uv.setXY(i, (x - BX0) / SIZE, 1 - (z - BZ0) / SIZE);
         }
         g2.computeVertexNormals();
         const m = new THREE.Mesh(g2, oMat);
@@ -914,16 +920,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         scene.add(m);
       };
       const OV = 4200;                  // tuck under the inner rim
-      strip(-HALF, -HALF, HALF, -OV, 240, 78);
-      strip(-HALF, OV, HALF, HALF, 240, 78);
-      strip(-HALF, -OV, -OV, OV, 78, 84);
-      strip(OV, -OV, HALF, OV, 78, 84);
+      strip(BX0, BZ0, BX1, -OV, 240, 78);
+      strip(BX0, OV, BX1, BZ1, 240, 78);
+      strip(BX0, -OV, -OV, OV, 78, 84);
+      strip(OV, -OV, BX1, OV, 78, 84);
     }
 
     const waterMat = new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
     const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), waterMat);
-    water.rotation.x = -Math.PI / 2; water.position.y = -0.4;
+    water.rotation.x = -Math.PI / 2; water.position.set((BX0 + BX1) / 2, -0.4, (BZ0 + BZ1) / 2);
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
     // carve-out): a 360 m patch of the sea around the aeroplane, its
@@ -2569,7 +2575,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const cx = ccx + dx, cz = ccz + dz;
           const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
           if (mx2 * mx2 + mz2 * mz2 > R_ACT * R_ACT) continue;
-          if (Math.abs((cx + 0.5) * CH) > 12000 || Math.abs((cz + 0.5) * CH) > 12000) continue;
+          { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
+            if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
           const k = cx * 4096 + cz;
           if (!chunks.has(k)) { chunks.set(k, { cx, cz, meshes: null }); queue.push(k); }
         }
@@ -3078,7 +3085,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
         patchMat: inner ? innerPatchShared.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null),
-        patchUV: inner ? innerPatchShared.uv : (x, z) => [(x + 12000) / 24000, 1 - (z + 12000) / 24000],
+        patchUV: inner ? innerPatchShared.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
       });
       premisesR.rebuild();
@@ -3153,7 +3160,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const edge = Math.min(Math.min(u0, 1 - u0) * LX, Math.min(v0, 1 - v0) * WZ);
           const r = Math.min(1, edge / 60);            // 0 at border, 1 inside 60 m
           p.setY(i, world.terrainH(x, z) - 2.2 * (1 - r) * (1 - r));
-          uv.setXY(i, (x + 12000) / 24000, 1 - (z + 12000) / 24000);
+          uv.setXY(i, (x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0));
         }
         g2.computeVertexNormals();
         const pm = new THREE.Mesh(g2, patchMat);
@@ -3448,7 +3455,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
-        patchMat: inner ? inner.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null), patchUV: inner ? inner.uv : (x, z) => [(x + 12000) / 24000, 1 - (z + 12000) / 24000],
+        patchMat: inner ? inner.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath } });
       return premisesR; },
            setShedDims: d => setShedDims(d),

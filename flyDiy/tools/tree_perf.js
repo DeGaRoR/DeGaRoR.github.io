@@ -57,7 +57,9 @@ const getJSON = url => new Promise((res, rej) => {
 
 // ---- the probes, run in the page --------------------------------------
 const TELEPORT = `(() => {
-  const w = makeWorld(); const T = w.trees.filter(t => Math.hypot(t.x, t.z) < 2500);
+  // the world that booted (W2: an island, or the analytic one), not a fresh analytic make
+  const w = (window.FLIGHT_PROBE && FLIGHT_PROBE.world) ? FLIGHT_PROBE.world() : makeWorld();
+  const T = w.trees.filter(t => Math.hypot(t.x, t.z) < 2500);
   let best = null, bn = -1;
   for (let i = 0; i < T.length; i += 7) { const a = T[i]; let n = 0;
     for (const b of T) if (Math.abs(b.x - a.x) < 120 && Math.abs(b.z - a.z) < 120) n++;
@@ -132,6 +134,9 @@ const PROFILE = `(() => new Promise(res => {
     const r = await cmd('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(require('os').tmpdir(), 'tree_perf_' + name + '.png'), Buffer.from(r.result.data, 'base64')); };
   await snap('rolled');
+  // a fresh profile rolls out under the "new aeroplane" chooser, whose
+  // backdrop blur would be in every frame measured: keep the current build
+  await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());})()");
   await sleep(8000);
   const gpu = await ev("(()=>{const g=WORLD.renderer.getContext();const d=g.getExtension('WEBGL_debug_renderer_info');return d?g.getParameter(d.UNMASKED_RENDERER_WEBGL):g.getParameter(g.RENDERER);})()");
   const where = JSON.parse(await ev(TELEPORT));
@@ -169,7 +174,7 @@ const PROFILE = `(() => new Promise(res => {
   const gen = JSON.parse(await ev("JSON.stringify((window.TREE_FILL && TREE_FILL.stat) ? TREE_FILL.stat() : null)"));
   ws.close(); ch.kill();
 
-  const result = { date: new Date().toISOString(), gpu, rig: RIG, ng, stand: where.stand, settled, rows,
+  const result = { date: new Date().toISOString(), url: URL, gpu, rig: RIG, ng, stand: where.stand, settled, rows,
                    gen: gen && { chunks: gen.gens, walkMs: +(gen.walkMs / Math.max(1, gen.gens)).toFixed(1),
                                  buildMs: +(gen.buildMs / Math.max(1, gen.gens)).toFixed(1), worstMs: +gen.maxMs.toFixed(1),
                                  frameMaxMs: +(gen.frameMax || 0).toFixed(1), trees: gen.trees } };

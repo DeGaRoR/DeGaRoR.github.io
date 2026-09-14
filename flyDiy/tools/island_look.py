@@ -83,7 +83,8 @@ def main():
     demk = dec(dem, True); h, w = demk.shape; c = cell * k
 
     # hillshade, sun from the north-west, 45 deg up
-    gz, gx = np.gradient(demk, c)          # rows are +z north (island_prep flipped)
+    gz, gx = np.gradient(demk, c)          # rows run north to south
+    gz = -gz                               # so the gradient's z points north for the shade
     slope = np.arctan(np.hypot(gx, gz))
     aspect = np.arctan2(-gx, gz)
     az, alt = np.deg2rad(315.0), np.deg2rad(45.0)
@@ -117,7 +118,7 @@ def main():
         if step > 0:
             rgb[::step, :] = rgb[::step, :] * 0.6 + 90
             rgb[:, ::step] = rgb[:, ::step] * 0.6 + 90
-        img = np.clip(rgb, 0, 255).astype(np.uint8)[::-1]   # north up
+        img = np.clip(rgb, 0, 255).astype(np.uint8)         # row 0 is north: already north up
         out = prefix + (".png" if name == "cover" else f".{name}.png")
         png(out, img)
         print(f"  {out}  {w} x {h} px at {c:g} m/px")

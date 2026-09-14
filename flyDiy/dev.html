@@ -567,8 +567,30 @@
   window.FLYDIY_BOOT = ready;
 })();
 </script>
+<script>
+(function () {
+  // THE ISLAND (W2, 2026-09-14): ?world=jolene boots the data world. The asset
+  // (the quadtree) and the grids are fetched BEFORE any script runs, because
+  // makeWorld is called during app.js's own evaluation. From bench/ today
+  // (gitignored, the developer's machine); from media/ when the world ships.
+  // Absent, nothing here runs and the analytic world boots as it always has.
+  var name = new URLSearchParams(location.search).get('world');
+  if (!name || !/^[a-z0-9_]+$/.test(name)) return;
+  var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem';
+  var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
+  var u8 = function (b) { return new Uint8Array(b); };
+  var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
+  var opt = function (u) { return get(u).then(u8, function () { return null; }); };
+  window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
+    return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
+                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8')])
+      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5] } }; });
+  });
+})();
+</script>
 <script type="text/x-flydiy" src="src/core/00_registry.js?v=7f6abfd5"></script>
 <script type="text/x-flydiy" src="src/core/05_atmos.js?v=afded824"></script>
+<script type="text/x-flydiy" src="src/core/19_terrain_codec.js?v=0"></script>
 <script type="text/x-flydiy" src="src/core/20_world.js?v=ec1794df"></script>
 <script type="text/x-flydiy" src="src/core/21_world_hydro.js?v=0acf6b99"></script>
 <script type="text/x-flydiy" src="src/core/22_world_biomes.js?v=af3aadcc"></script>
@@ -577,6 +599,7 @@
 <script type="text/x-flydiy" src="src/core/25_airfield.js?v=b30a0d7b"></script>
 <script type="text/x-flydiy" src="src/core/26_hangar_fit.js?v=9d1aacd2"></script>
 <script type="text/x-flydiy" src="src/core/27_premises.js?v=f1546e36"></script>
+<script type="text/x-flydiy" src="src/core/28_island.js?v=0"></script>
 <script type="text/x-flydiy" src="src/core/30_solver.js?v=4e623d75"></script>
 <script type="text/x-flydiy" src="src/core/31_elec.js?v=f8e7a655"></script>
 <script type="text/x-flydiy" src="src/core/32_hydro.js?v=b4ca10da"></script>

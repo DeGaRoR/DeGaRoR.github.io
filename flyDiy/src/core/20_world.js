@@ -9,6 +9,15 @@
 // ============================================================
 function makeWorld(seed, opts) {
   const SEED = seed | 0;                     // undefined -> 0: no-arg callers get the validated world
+  // THE ISLAND (W2, 2026-09-14): a world source from data (28_island.js). With
+  // it, the data's ground stands in for the noise, its cover grid for the
+  // classifier, its canopy for the trees' size, its square for the domain;
+  // settlements and the sea lane are not sited (nothing is reproduced - the
+  // premise). Without it every line below is the analytic world, byte for
+  // byte (GATE WORLD's goldens).
+  const ISL = (opts && opts.island) || null;
+  const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
+                     : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
   const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
@@ -36,7 +45,18 @@ function makeWorld(seed, opts) {
   const wnoise = (x, z) =>
     vnoise(x, z, 1400) * 0.65 + vnoise(x + 47, z + 61, 650) * 0.35;
 
+  // THE ISLAND'S GROUND. HOME's strip is CUT into it at the field's own
+  // height (the premise: carve, never reproduce) through the same pad ramp
+  // the analytic flatten uses; the approach-corridor damping does not apply
+  // (the field sits on a flat lobe, and the DEM is the truth).
+  const PADH = ISL ? ISL.terrainH(-520, 0) : 0;
   function h0(x, z) {
+    if (!ISL) return h0a(x, z);
+    const h = ISL.terrainH(x, z);
+    const r = padRamp(x, z);
+    return r >= 1 ? h : PADH + (h - PADH) * r;
+  }
+  function h0a(x, z) {
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -125,6 +145,9 @@ function makeWorld(seed, opts) {
       len: 1500, wid: 200, surface: SURFACE.WATER, elev: 0, tdz: [0, 2530],
       spawn: [0, 1250] },
   ];
+  // the island keeps HOME alone - at the field's height; no meadows, no
+  // sea lane (the analytic coordinates mean nothing on it)
+  if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
   // landing meadows: blend terrain toward the height at each meadow centre.
   // v0 shim member, derived from the registry — same literals, same order,
   // same {x,z,r,h} shape as the pre-contract array.
@@ -166,7 +189,7 @@ function makeWorld(seed, opts) {
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
     // bake, so the same physical rivers emerge at any grid resolution)
-    { x0: -12000, z0: -12000, x1: 12000, z1: 12000, N: 512,
+    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
       lakeMin: 1.5, A0m2: 274650, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
@@ -182,7 +205,10 @@ function makeWorld(seed, opts) {
   // the stage-1 grids, organic road network grown from the home airfield,
   // bridges across water runs, building footprints. Roads add a shallow
   // grading term to terrainH below.
-  const SET = bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
+  const SET = ISL
+    ? { settlements: [], roads: [], buildings: [], roadNear: () => 1e9, roadDelta: (x, z, h) => h,
+        inCore: () => false, stats: { bakeMs: 0 } }
+    : bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
 
   // stage 0-3 terrain: tV1 + road grading, masked off the runway pad
   // (padRamp) and faded inside meadows (same blend weight — meadow
@@ -241,7 +267,7 @@ function makeWorld(seed, opts) {
   // layer composes on the stage 0-4 ground, so the strips the generator
   // sites keep their grading under it.
   let PM = null, PMrec = null;
-  const baseWorld = { id: 'W-24km', terrainH: baseH, waterH: (x, z) => HYD.water(x, z) };
+  const baseWorld = { id: ISL ? 'ISLAND-' + ISL.id : 'W-24km', terrainH: baseH, waterH: (x, z) => HYD.water(x, z) };
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -309,14 +335,22 @@ function makeWorld(seed, opts) {
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
   {
-    const G0 = -12000, GN = 375, GS = 64;  // ±12000 m (24 km domain, W6)
-    for (let gz = 0; gz < GN; gz++) for (let gx = 0; gx < GN; gx++) {
+    const GS = 64, G0x = BOUNDS.x0, G0z = BOUNDS.z0;   // ±12000 m (24 km domain, W6): GN 375
+    const GNx = Math.ceil((BOUNDS.x1 - BOUNDS.x0) / GS), GNz = Math.ceil((BOUNDS.z1 - BOUNDS.z0) / GS);
+    for (let gz = 0; gz < GNz; gz++) for (let gx = 0; gx < GNx; gx++) {
       const j1 = hash2(gx + 9173, gz - 2417), j2 = hash2(gx - 5807, gz + 7919),
             j3 = hash2(gx + 1229, gz + 4051);
-      const x = G0 + (gx + 0.15 + 0.70 * j1) * GS;
-      const z = G0 + (gz + 0.15 + 0.70 * j2) * GS;
+      const x = G0x + (gx + 0.15 + 0.70 * j1) * GS;
+      const z = G0z + (gz + 0.15 + 0.70 * j2) * GS;
       const h = terrainH(x, z);
       if (h < 2 || h > B.TREELINE) continue;
+      // the island: the collidable woodland stands where the effective class
+      // is tree cover, at the canopy's height (the v0 scale envelope)
+      let islS = 0;
+      if (ISL) {
+        if (ISL.effClass(x, z) !== ISL.WC.TREE) continue;
+        islS = Math.max(0.65, Math.min(1.75, ISL.canopyAt(x, z) / 16));
+      }
       if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
       let nearMeadow = false;
       for (const m of meadows)
@@ -328,9 +362,9 @@ function makeWorld(seed, opts) {
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
       const tp = B.treeAt(x, z, h);
-      if (!tp || j3 > tp.p) continue;
+      if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
-      trees.push({ x, z, h, s: tp.s, sp: tp.sp });
+      trees.push({ x, z, h, s: ISL ? islS : tp.s, sp: tp.sp });
       const key = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
       if (!grid.has(key)) grid.set(key, []);
       grid.get(key).push(idx);
@@ -354,6 +388,13 @@ function makeWorld(seed, opts) {
   function waterAt(t, x, z) {
     const ws = HYD.water(x, z);
     if (ws > t) return ws;
+    if (ISL) {
+      // the island: the sea is the DEM at 0 (sea level does the edges), a
+      // lake is the cover's water class over land (the DEM holds it flat)
+      if (t <= 0.05) return 0;
+      if (ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      return -Infinity;
+    }
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
@@ -394,7 +435,26 @@ function makeWorld(seed, opts) {
   // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
   // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
   // still reserved for stage 4)
-  const surface = B.surface;
+  // THE ISLAND'S CLASSIFIER: the registry and the premises answer first (a
+  // strip, an apron), then the sea, then the cover's effective class - tree
+  // cover is the forest floor, the built-up class (the WWII cross, the town's
+  // lots) is paved, bare ground is rock on a slope and scree below it, water
+  // is a lake, everything green and short is grass (the muskeg included).
+  const islandSurface = (x, z) => {
+    const a = aeroSurfAll(x, z); if (a >= 0) return a;
+    const h = terrainH(x, z);
+    if (h <= 0.05) return SURFACE.WATER;
+    const c = ISL.effClass(x, z);
+    if (c === ISL.WC.WATER) return SURFACE.WATER;
+    if (c === ISL.WC.TREE) return SURFACE.FOREST_FLOOR;
+    if (c === ISL.WC.BUILT || c === ISL.WC.CROP) return SURFACE.PAVED;
+    if (c === ISL.WC.BARE || c === ISL.WC.SNOW) {
+      const d = 8, g = Math.hypot(terrainH(x + d, z) - terrainH(x - d, z), terrainH(x, z + d) - terrainH(x, z - d)) / (2 * d);
+      return g > 0.7 ? SURFACE.ROCK : SURFACE.SCREE;
+    }
+    return SURFACE.GRASS;
+  };
+  const surface = ISL ? islandSurface : B.surface;
 
   // ---- v1 tiled features: lazy bucketing of the eager tree array plus
   // stage-1 river reaches (a reach spanning several tiles appears in each
@@ -528,7 +588,8 @@ function makeWorld(seed, opts) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
-    bounds: { x0: -12000, z0: -12000, x1: 12000, z1: 12000 },
+    bounds: BOUNDS,
+    island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, WC: ISL.WC, hMax: ISL.hMax } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,

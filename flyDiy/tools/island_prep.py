@@ -6,7 +6,9 @@ part that needs a raster library — mosaic, clip, reproject, resample — and
 nothing else, then writes a format so dull that `terrain_bake.js` needs
 twenty lines to read it:
 
-    <out>.f32         heights, raw float32, row-major, SOUTH row first (+z north)
+    <out>.f32         heights, raw float32, row-major, NORTH row first: the
+                      game's frame has north at -z (the analytic world's
+                      mountains are "northern" at z < 0), so row 0 is z0
     <out>.u8          WorldCover class per cell, same grid (10 tree, 20 shrub,
                       30 grass, 60 bare, 70 snow, 80 water, 90 wetland; 0 = none)
     <out>.canopy.u8   canopy height, metres (DSM - DTM, 0..120), if raw/dsm/tif
@@ -15,7 +17,7 @@ twenty lines to read it:
     <out>.ndvi.u8     (NDVI + 1) * 127, same source
     <out>.json        { w, h, x0, z0, cell, crs, layers: {...}, ... }
 
-Every layer is on the DEM's grid, masked to the island, south row first.
+Every layer is on the DEM's grid, masked to the island, north row first.
 The layers are the three real inputs ISLAND-PREPACK section 3.2 named —
 class (WorldCover), height (DSM - DTM), density (ORI) — plus the macro tint
 ISLAND-ANNETTE section 6 ruled in. None is a texture; all are masks.
@@ -47,15 +49,17 @@ import argparse, glob, json, os, sys, time
 # bbox: the island's own footprint in lon/lat (W,S,E,N), as in island_fetch.js.
 # pad: open sea kept on every side, metres. "Sea level does the edges."
 # origin: THE WORLD ORIGIN, Albers metres (E, N), chosen once per world and
-#   never moved. Game coordinates are Albers minus this: a float32 vertex at
-#   1.4e6 m has 12 cm of precision and jitters, at 20 km it has 2 mm. Every
-#   island added to the same world shares the origin, so they stay in one
-#   frame without a conversion.
+#   never moved. Game x = E - oE, game z = oN - N (north is -z, as in the
+#   analytic world): a float32 vertex at 1.4e6 m has 12 cm of precision and
+#   jitters, at 20 km it has 2 mm. Every island added to the same world
+#   shares the origin, so they stay in one frame without a conversion.
 ISLANDS = {
     # JOLENE ISLAND = Annette Island, Alaska (the source name stays out of the
     # shipped data: GATE ISLAND 1)
+    # the origin is the WWII field's centre (the centroid of the built-up
+    # class on the south-west lobe, 2026-09-14): HOME's strip is cut there
     "jolene":  {"bbox": (-131.75, 54.95, -131.25, 55.35), "pad": 4000.0,
-                "origin": (1408000.0, 808000.0)},
+                "origin": (1406524.0, 798714.0)},
     "ursoy":   {"bbox": (-134.95, 57.05, -133.75, 58.25), "pad": 8000.0,
                 "origin": (1220000.0, 1080000.0)},
 }
@@ -200,9 +204,9 @@ def main():
               f"{drowned*cell*cell/1e6:.0f} km2 of neighbours drowned")
         print(f"  domain x {x0:.0f}..{x1:.0f}  z {z0:.0f}..{z1:.0f}  "
               f"({(x1-x0)/1000:.1f} x {(z1-z0)/1000:.1f} km) = {W} x {H} cells")
-    # rows run NORTH to SOUTH in the raster; the baker indexes +z northward,
-    # so flip once, here, and never think about it again downstream.
-    dem = np.flipud(dem).astype("<f4", copy=False)
+    # rows run NORTH to SOUTH in the raster and in the game (+z is south):
+    # no flip, anywhere, ever.
+    dem = np.ascontiguousarray(dem, dtype="<f4")
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     dem.tofile(out + ".f32")
     land = int((dem > 0).sum())
@@ -220,7 +224,6 @@ def main():
                           dst_crs=CRS, src_nodata=COVER_NODATA, dst_nodata=COVER_NODATA,
                           resampling=Resampling.nearest)
                 cov = np.where(part != COVER_NODATA, part, cov)
-        cov = np.flipud(cov)
         # the DEM is the authority on where the sea is: a cover class over a
         # cell the DEM calls sea is a coastline disagreement at 10 m, and the
         # DEM's coast is the one the game will stand on.
@@ -236,7 +239,33 @@ def main():
     # Each is optional (present when its raw directory is) and each lands on
     # the DEM's grid through one warp, then the island mask, then the flip.
     layers = {}
-    landmask = dem > 0                                    # already flipped
+    landmask = dem > 0
+    # THE COAST (2026-09-14, the user: "extend the imagery slightly beyond the
+    # contours ... a very simple transparency as function of depth on the
+    # sea"). Two things from one distance transform: every layer is EXTENDED
+    # past the coastline with its nearest land value (300 m), so a texel
+    # straddling the shore never samples black; and `.coast.u8` carries the
+    # distance to land in metres / 4 (0 on land, 255 = 1 km+) - there is no
+    # bathymetry, and a shelf that deepens with distance from the shore is
+    # what the eye expects of one.
+    try:
+        from scipy import ndimage
+        dist, (ni, nj) = ndimage.distance_transform_edt(~landmask, return_indices=True)
+        dist_m = dist * cell
+        np.clip(dist_m / 4.0, 0, 255).astype("uint8").tofile(out + ".coast.u8")
+        layers["coast"] = {"file": ".coast.u8", "unit": "m/4"}
+        ext = (~landmask) & (dist_m <= 300.0)
+        def extend(a):
+            """fill the 300 m sea fringe of a layer with its nearest land value"""
+            if a.ndim == 3:
+                a[ext] = a[ni[ext], nj[ext]]
+            else:
+                a[ext] = a[ni[ext], nj[ext]]
+            return a
+        print(f"  coast: distance field written; layers extended {int(ext.sum())*cell*cell/1e6:.0f} km2 past the shore")
+    except ImportError:
+        extend = lambda a: a
+        print("  (no scipy: no coast field, layers not extended)")
     def onto_grid(paths, dtype, resampling, nodata=None, band=1, count=1):
         """warp each source onto the grid, first non-empty wins; flipped south-first.
         One warp per source (not a mosaic): the sources need not share a frame
@@ -255,7 +284,7 @@ def main():
                     part[np.isclose(part, nodata)] = 0    # a tile with no data is empty, not a value
                 empty = dst[0] == 0
                 dst[:, empty] = part[:, empty]
-        return dst[:, ::-1, :] if count > 1 else dst[0, ::-1, :]
+        return dst if count > 1 else dst[0]
 
     avg = Resampling.average if cell > 5 else Resampling.bilinear
     # CANOPY HEIGHT. Two sources, in order of trust:
@@ -281,7 +310,8 @@ def main():
                 reproject(a, part, src_transform=t, src_crs=c.crs, dst_transform=dst_transform,
                           dst_crs=CRS, src_nodata=None, dst_nodata=0, resampling=Resampling.average)
                 canopy = np.maximum(canopy, part)
-        canopy = np.clip(canopy[::-1, :], 0, 120); canopy[~landmask] = 0
+        canopy = np.clip(canopy, 0, 120); canopy[~landmask] = 0
+        canopy = extend(canopy)
         canopy.astype("uint8").tofile(out + ".canopy.u8")
         layers["canopy"] = {"file": ".canopy.u8", "unit": "m", "source": "meta_chm", "tiles": len(chms),
                             "meanOverTreeCover": float(canopy[tree].mean()) if tree.any() else 0,
@@ -307,6 +337,7 @@ def main():
         lo, hi = np.percentile(ori[landmask & (ori > 5)], [5, 95])
         o8 = np.clip((ori - lo) / max(hi - lo, 1) * 255, 0, 255).astype("uint8")
         o8[~landmask] = 0
+        o8 = extend(o8)
         o8.tofile(out + ".ori.u8")
         layers["ori"] = {"file": ".ori.u8", "tiles": len(oris), "stretch": [float(lo), float(hi)]}
         print(f"  ori: {len(oris)} tiles; stretched {lo:.0f}..{hi:.0f} -> 0..255")
@@ -324,7 +355,8 @@ def main():
                 sig = wl / cell / 2.0
                 num = ndimage.gaussian_filter(base, sig); den = ndimage.gaussian_filter(m, sig)
                 sm = np.where(den > 1e-3, num / np.maximum(den, 1e-3), 0).astype("float32")
-                np.clip(sm, 0, 255).astype("uint8").tofile(out + f".ori{lvl}.u8")
+                sm = extend(np.clip(sm, 0, 255).astype("uint8"))
+                sm.tofile(out + f".ori{lvl}.u8")
                 layers[f"ori{lvl}"] = {"file": f".ori{lvl}.u8", "wavelength_m": wl}
             print("  ori pyramid: levels at 10 / 25 / 60 / 140 m")
         except ImportError:
@@ -344,9 +376,12 @@ def main():
         rgb = np.clip(refl[:3] / 0.35, 0, 1) ** 0.7
         rgb8 = (rgb * 255).astype("uint8")
         rgb8[:, ~landmask] = 0
-        np.ascontiguousarray(rgb8.transpose(1, 2, 0)).tofile(out + ".tint.rgb")
+        rgb8 = np.ascontiguousarray(rgb8.transpose(1, 2, 0))
+        rgb8 = extend(rgb8)
+        rgb8.tofile(out + ".tint.rgb")
         ndvi = (refl[3] - refl[0]) / np.maximum(refl[3] + refl[0], 1e-3)
         n8 = np.clip((ndvi + 1) * 127, 0, 254).astype("uint8"); n8[~landmask] = 0
+        n8 = extend(n8)
         n8.tofile(out + ".ndvi.u8")
         layers["tint"] = {"file": ".tint.rgb", "source": [os.path.basename(f) for f in lsat],
                           "cloudCells": int(cloud.sum()),
@@ -357,8 +392,8 @@ def main():
 
     oE, oN = isl["origin"]
     meta = {"island": args.island, "w": W, "h": H,
-            "x0": float(x0 - oE), "z0": float(z0 - oN),        # game frame
-            "origin": [oE, oN], "albers": {"x0": float(x0), "z0": float(z0)},
+            "x0": float(x0 - oE), "z0": float(oN - z1),        # game frame: row 0 is the north edge
+            "origin": [oE, oN], "albers": {"x0": float(x0), "z0": float(z0), "z1": float(z1)},
             "cell": cell, "crs": CRS, "nodata": 0.0,
             "hMin": float(dem.min()), "hMax": float(dem.max()),
             "cover": bool(covers), "coverClasses": cov_classes, "layers": layers,
@@ -371,8 +406,8 @@ def main():
     mb = (W * H * 4) / 1048576
     print(f"  {W} x {H} = {W*H/1e6:.1f} M cells, {mb:.1f} MB f32"
           f"{' + %.1f MB u8' % (W*H/1048576) if covers else ''}   {time.time()-t0:.1f} s")
-    print(f"  game frame: x {x0-oE:.0f}..{x1-oE:.0f}  z {z0-oN:.0f}..{z1-oN:.0f}  "
-          f"(Albers minus origin {oE:.0f} E {oN:.0f} N)")
+    print(f"  game frame: x {x0-oE:.0f}..{x1-oE:.0f}  z {oN-z1:.0f}..{oN-z0:.0f} (north is -z)  "
+          f"origin {oE:.0f} E {oN:.0f} N")
     print(f"  wrote {out}.{{f32,{'u8,' if covers else ''}{''.join(l['file'][1:]+',' for l in layers.values())}json}}")
     print(f"\n  next:  node tools/terrain_bake.js --source grid "
           f"--grid {os.path.relpath(out, root)} --eps 4 --out bench/terrain/{args.island}")

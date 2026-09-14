@@ -45991,3 +45991,60 @@ G393 declared, closed, and the new assets stood in the world editor.
 - Landed HEAD + my hunks only for build.js and render_premises.js (the
   island session holds uncommitted work in both); the pack rebuilt in the
   clean worktree. Green: HOUSE, MEDIA, PREMISES.
+
+## G397 — JOLENE IN THE GAME: THE PORT (W2), THE REAL TREES ON THE ISLAND,
+## THE FRAME FLIPPED, THE FOREST MEASURED (2026-09-14, the user: "just get the
+## real trees from the game in there, with their lods and everything, we need
+## to benchmark and check the look, and see if we can afford the whole island
+## with impostors")
+
+- `dev.html?world=jolene` boots the data world; absent, the analytic world
+  boots byte for byte (GATE WORLD + PREMISES green, `--only`, no build).
+- THE FRAME FLIPPED FIRST: the game has north at -z (its mountains are
+  "northern" at z < 0); island_prep writes rows north-first now, no flip
+  anywhere, and the origin is the WWII field's centre (1406524 E, 798714 N)
+  - HOME's strip is cut where the real runways are. island_look and the
+  bench follow (sun azimuth from -z).
+- THE CORE: 19_terrain_codec.js (the codec as ONE global; tools/
+  terrain_codec.js a shim), 28_island.js (ISLAND_GEN.makeIsland: sampler,
+  classAt/canopyAt/effClass with the 2.5 m heath reclass, bounds), both in
+  MANIFEST.core, dev.html and 90_node_exports.
+- makeWorld(seed, { island }): the data's ground through the same padRamp,
+  HOME cut at PADH = 33.8 m (the field's own height; elev set), HOME alone
+  (no meadows, no sea lane), hydrology baked on the real DEM over the
+  island's square (1819 reaches, 237 lakes), SET stubbed (nothing sited -
+  the premise), the woodland where effClass is tree cover at the canopy's
+  scale, waterAt: sea at 0 / class-80 lakes at t+0.3, the island classifier
+  (registry/premises first, sea, tree->FOREST_FLOOR, built->PAVED, bare->
+  ROCK/SCREE by slope, rest GRASS), bounds = the island's square,
+  world.island published. 992 ms in node.
+- render_world.js: BX0/BZ0/SIZE from world.bounds - the outer ring's four
+  strips, its bake, the forest-mask shader string, the water plane's centre,
+  the fill's chunk cull, the three patchUV closures. INNER stays +-4500
+  round HOME.
+- THE BOOT: dev.html and build.js's template fetch bench/terrain/<name>5_e2
+  + bench/<name>/dem.{json,u8,canopy.u8} BEFORE any script runs (makeWorld
+  runs during app.js's evaluation), window.ISLAND_BOOT; app.js makes the
+  island and passes it; FLIGHT_PROBE.world() exposes the world that booted.
+- MEASURED (tree_perf.js --url dev.html?world=jolene, the harness teleports
+  from FLIGHT_PROBE.world now and dismisses the fresh profile's chooser
+  whose backdrop blur was in the frame): alps NG 100 1080p RTX 3080 - full
+  15.3 ms (render 14.2), off 9.5; 2778 near + 128846 impostors; 126793
+  trees streamed in 68 chunks at 7.0 ms. The island is never resident: the
+  4 km fill ring + the domain mask. Picture bench/jolene/game_settled.png;
+  tools/perf/tree_perf_jolene.json.
+- THE BENCH (the user's rulings on the way): the stack = class 1.0 -> tint
+  NORMAL 1.0 -> radar overlay 0.75 -> canopy SHADE multiply 0.7 -> snow;
+  `shade` = the canopy normalised by its p90 over tree cover as a neutral
+  darkness (taller stands darker, no hue shift); the bump fades out as the
+  camera nears the ground (150 -> 700 m); island_prep extends every layer
+  300 m past the coastline (nearest land value) and writes .coast.u8 (the
+  distance to land) - the sea is a shelf: shallows show the ground through
+  a turquoise, deep blue beyond `sea shelf width`; a wet strip in the first
+  metre. localStorage key v2.
+- NOT IN THIS COMMIT: index.html / flight_core.js (built with peers'
+  uncommitted sources in the tree - the next quiet build carries the
+  island boot to the published page). OWED: the GRAPHICS row for the world;
+  the media/ pack; the terrain colour in the game (W1 from the bench's
+  recipe); fill tree size from the canopy; the far mask's texel; the WWII
+  field as a sitePattern; species by canopy (W3).

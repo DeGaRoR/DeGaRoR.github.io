@@ -29,6 +29,9 @@ const MANIFEST = {
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
     // rather than with the world.
     '05_atmos.js',
+    // THE TERRAIN CODEC (W2, 2026-09-14): the quadtree asset's reader, one
+    // global; before the world because an island world is built on it.
+    '19_terrain_codec.js',
     // THE HAND-WRITTEN FLEET RETIRED 2026-09-05 (user ruling: every vessel is
     // a garage one). The seven fiches (cub, dc3, chinook, c172, jodel, drone,
     // pa18) that stood here, their circuit gates and make_perf are gone; the
@@ -52,6 +55,10 @@ const MANIFEST = {
     // PREMISES_GEN global, so it only has to be in the bundle; after 25_
     // because its runway records take the airfield's shape.
     '27_premises.js',
+    // THE ISLAND (W2, 2026-09-14): a world source from data - the baked
+    // quadtree as the ground, the cover grid as the classifier, the canopy
+    // grid as the trees' height. makeWorld(seed, { island }) takes it; pure.
+    '28_island.js',
     '30_solver.js',
     // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
     // cockpit and the gates; after the solver only by kinship
@@ -504,6 +511,27 @@ function buildViewer(coreBody) {
     ready = r.init();
   }
   window.FLYDIY_BOOT = ready;
+})();
+</script>
+<script>
+(function () {
+  // THE ISLAND (W2, 2026-09-14): ?world=jolene boots the data world. The asset
+  // (the quadtree) and the grids are fetched BEFORE any script runs, because
+  // makeWorld is called during app.js's own evaluation. From bench/ today
+  // (gitignored, the developer's machine); from media/ when the world ships.
+  // Absent, nothing here runs and the analytic world boots as it always has.
+  var name = new URLSearchParams(location.search).get('world');
+  if (!name || !/^[a-z0-9_]+$/.test(name)) return;
+  var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem';
+  var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
+  var u8 = function (b) { return new Uint8Array(b); };
+  var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
+  var opt = function (u) { return get(u).then(u8, function () { return null; }); };
+  window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
+    return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
+                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8')])
+      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5] } }; });
+  });
 })();
 </script>`;
   const DEV_PROMOTE = `<script>

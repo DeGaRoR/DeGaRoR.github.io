@@ -58,6 +58,7 @@
     <option value="tint">Landsat tint</option>
     <option value="radar">radar (ORI)</option>
     <option value="canopy">canopy height</option>
+    <option value="shade">canopy shade (normalised)</option>
     <option value="ndvi">NDVI</option>
     <option value="height">height</option>
     <option value="snow">snow mask</option>
@@ -76,7 +77,7 @@
 </main>
 
 <script src="../vendor/three.min.js"></script>
-<script src="terrain_codec.js"></script>
+<script src="../src/core/19_terrain_codec.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -86,18 +87,22 @@ $('grid').value = P.get('grid') || 'flyDiy/bench/jolene/dem';
 
 // ---- the knobs (one table, the aside is generated from it) -----------------
 const K = {
-  reclass:    { label: 'tree->heath below canopy (m)', min: 0, max: 5, step: 0.5, v: 1 },
-  classBlur:  { label: 'class contour blur (m)',   min: 0, max: 200, step: 5, v: 40 },
-  edgeNoise:  { label: 'class edge wobble (m)',    min: 0, max: 60, step: 2, v: 15 },
+  reclass:    { label: 'tree->heath below canopy (m)', min: 0, max: 5, step: 0.5, v: 2.5 },
+  classBlur:  { label: 'class contour blur (m)',   min: 0, max: 200, step: 5, v: 25 },
+  edgeNoise:  { label: 'class edge wobble (m)',    min: 0, max: 60, step: 2, v: 0 },
   radarLevel: { label: 'radar colour level (0=raw)', min: 0, max: 4, step: 1, v: 1 },
   bumpFine:   { label: 'bump fine level',          min: 0, max: 3, step: 1, v: 1 },
-  bumpCoarse: { label: 'bump coarse level',        min: 1, max: 4, step: 1, v: 3 },
-  bump:       { label: 'radar bump strength',      min: 0, max: 3, step: 0.05, v: 1.0 },
-  bumpScale:  { label: 'radar bump step (m)',      min: 10, max: 80, step: 5, v: 20 },
-  snow:       { label: 'snowline (m)',             min: 300, max: 1200, step: 10, v: 900 },
+  bumpCoarse: { label: 'bump coarse level',        min: 1, max: 4, step: 1, v: 4 },
+  bump:       { label: 'radar bump strength',      min: 0, max: 3, step: 0.05, v: 0.2 },
+  bumpScale:  { label: 'radar bump step (m)',      min: 10, max: 80, step: 5, v: 10 },
+  bumpNear:   { label: 'bump fades in from (m)',   min: 0, max: 1500, step: 25, v: 150 },
+  bumpFar:    { label: 'bump full by (m)',         min: 100, max: 4000, step: 50, v: 700 },
+  shadeK:     { label: 'canopy shade depth',       min: 0, max: 1, step: 0.05, v: 0.45 },
+  seaFade:    { label: 'sea shelf width (m)',      min: 50, max: 1000, step: 25, v: 350 },
+  snow:       { label: 'snowline (m)',             min: 300, max: 1200, step: 10, v: 890 },
   sunAz:      { label: 'sun azimuth (deg)',        min: 0, max: 360, step: 5, v: 300 },
   sunEl:      { label: 'sun elevation (deg)',      min: 5, max: 80, step: 1, v: 40 },
-  treeR:      { label: 'tree radius (km)',         min: 0.5, max: 6, step: 0.25, v: 2 },
+  treeR:      { label: 'tree radius (km)',         min: 0.5, max: 6, step: 0.25, v: 2.25 },
   treeD:      { label: 'stems per 100 m2 (tree cover)', min: 0.2, max: 8, step: 0.2, v: 3 },
   treeS:      { label: 'tree height x',            min: 0.5, max: 2, step: 0.05, v: 1.0 },
   treeMin:    { label: 'min canopy (m)',           min: 0, max: 10, step: 0.5, v: 1 },
@@ -108,17 +113,21 @@ const GROUPS = [10, 20, 30, 50, 60, 80, 90, 100];
 // THE STACK — Photoshop's model: layers bottom to top, each a SOURCE drawn
 // with a BLEND MODE at an OPACITY. The default stack is yesterday's composite.
 // The recipe is what W1 will be handed; `export` prints it.
-const SOURCES = ['class', 'tint', 'radar', 'canopy', 'ndvi', 'height', 'snow', 'normal', 'bump'];
+const SOURCES = ['class', 'tint', 'radar', 'canopy', 'shade', 'ndvi', 'height', 'snow', 'normal', 'bump'];
 const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'soft light', 'hard light',
                 'darken', 'lighten', 'add', 'colour', 'luminosity', 'hue'];
+// the user's recipe (2026-09-14, evening): the class is for the splat weights
+// and the vegetation; the tint IS the colour; the radar is an overlay and the
+// normals; the canopy, normalised, darkens the layers below (taller stands are
+// the darker green); snow on top, over everything
 let STACK = [
   { src: 'class',  mode: 'normal',     op: 1.0,  on: true },
-  { src: 'tint',   mode: 'colour',     op: 0.6,  on: true },
-  { src: 'radar',  mode: 'overlay',    op: 0.5,  on: true },
-  { src: 'canopy', mode: 'multiply',   op: 0.35, on: true },
+  { src: 'tint',   mode: 'normal',     op: 1.0,  on: true },
+  { src: 'radar',  mode: 'overlay',    op: 0.75, on: true },
+  { src: 'shade',  mode: 'multiply',   op: 0.7,  on: true },
   { src: 'snow',   mode: 'normal',     op: 1.0,  on: true },
 ];
-try { const saved = JSON.parse(localStorage.getItem('flydiy.island.stack') || 'null'); if (saved && saved.length) STACK = saved; } catch (e) {}
+try { const saved = JSON.parse(localStorage.getItem('flydiy.island.stack.v2') || 'null'); if (saved && saved.length) STACK = saved; } catch (e) {}
 const MAXL = 8;
 // WorldCover class colours — the bench's palette, tuned by eye here first
 const CLASSES = [
@@ -184,12 +193,13 @@ const VS = `
   void main(){ vW = position; vN = normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
 const FS = `
   precision highp float;
-  uniform sampler2D uCover, uCanopy, uOri, uNdvi, uTint, uW1, uW2, uOri1, uOri2, uOri3, uOri4;
+  uniform sampler2D uCover, uCanopy, uOri, uNdvi, uTint, uW1, uW2, uOri1, uOri2, uOri3, uOri4, uCoast;
   uniform vec4 uBounds;            // x0, z0, w, h of the grid, world metres
   uniform float uCell;             // grid cell, metres
   uniform float uHas;              // bit 1 canopy, 2 ori, 4 tint, 8 ndvi
   uniform int uMode;               // 0 stack, else a solo source (1 + index into SOURCES)
-  uniform float uSnow, uHMax, uBlur, uEdge, uBump, uBumpScale;
+  uniform float uSnow, uHMax, uBlur, uEdge, uBump, uBumpScale, uBumpNear, uBumpFar, uCanP90, uShadeK, uSeaFade;
+  uniform vec3 uCam;
   uniform int uRadarLevel, uBumpFine, uBumpCoarse;
   uniform vec3 uSun;
   uniform vec3 uCol[10]; uniform float uCls[10];
@@ -273,13 +283,16 @@ const FS = `
     if (id == 1) return tint;
     if (id == 2) return vec3(ori);
     if (id == 3) return mix(vec3(0.60,0.55,0.43), vec3(0.08,0.43,0.12), clamp(canopy / 40.0, 0.0, 1.0));
-    if (id == 4) return mix(vec3(0.7,0.63,0.47), vec3(0.04,0.35,0.08), clamp(ndvi, 0.0, 1.0));
-    if (id == 5) { float t = clamp(vW.y / uHMax, 0.0, 1.0);
+    // the canopy NORMALISED (by its p90 over tree cover) as a neutral darkness:
+    // multiply it under the colour and the tall stands go darker without a hue shift
+    if (id == 4) return vec3(1.0 - uShadeK * clamp(canopy / uCanP90, 0.0, 1.2));
+    if (id == 5) return mix(vec3(0.7,0.63,0.47), vec3(0.04,0.35,0.08), clamp(ndvi, 0.0, 1.0));
+    if (id == 6) { float t = clamp(vW.y / uHMax, 0.0, 1.0);
       return mix(mix(vec3(0.16,0.42,0.18), vec3(0.72,0.66,0.45), min(1.0, t*1.6)), vec3(0.95), max(0.0, t-0.6)*2.5); }
-    if (id == 6) { float north = 0.5 - 0.5 * n.z; float snowH = uSnow - 250.0 * north;
+    if (id == 7) { float north = 0.5 - 0.5 * n.z; float snowH = uSnow - 250.0 * north;   // north is -z: a north face has n.z < 0
       alpha = smoothstep(snowH - 60.0, snowH + 60.0, vW.y); return vec3(0.93, 0.95, 1.0); }
-    if (id == 7) return n * 0.5 + 0.5;
-    if (id == 8) return vec3(0.5 + band(uv) * 2.0);
+    if (id == 8) return n * 0.5 + 0.5;
+    if (id == 9) return vec3(0.5 + band(uv) * 2.0);
     return vec3(1.0, 0.0, 1.0);
   }
   void main(){
@@ -290,11 +303,14 @@ const FS = `
     vec3 tint = texture2D(uTint, uv).rgb;
     bool sea = vW.y < 0.05;
     vec3 n = normalize(vN);
-    if (uBump > 0.0 && mod(uHas / 2.0, 2.0) >= 1.0 && !sea) n = bumpNormal(n, uv);
+    // the bump is a macro variation: it fades out as the camera comes down to
+    // the ground, where the detail must come from W1's textures, not a 10 m radar
+    float bumpW = smoothstep(uBumpNear, uBumpFar, distance(vW, uCam));
+    if (uBump > 0.0 && bumpW > 0.0 && mod(uHas / 2.0, 2.0) >= 1.0 && !sea) n = normalize(mix(n, bumpNormal(n, uv), bumpW));
     float lambert = max(0.0, dot(n, uSun));
     float light = 0.45 + 0.7 * lambert;
     vec3 col; float alpha;
-    if (uMode > 0) { col = source(uMode - 1, uv, n, canopy, ori, ndvi, tint, alpha); if (uMode - 1 == 7 || uMode - 1 == 8) light = 1.0; }
+    if (uMode > 0) { col = source(uMode - 1, uv, n, canopy, ori, ndvi, tint, alpha); if (uMode - 1 == 8 || uMode - 1 == 9) light = 1.0; }
     else {
       col = vec3(0.5);
       for (int i = 0; i < 8; i++) {
@@ -303,7 +319,19 @@ const FS = `
         col = mix(col, blend(col, s, uLMode[i]), uLOp[i] * alpha);
       }
     }
-    if (sea) { col = vec3(0.12, 0.23, 0.38); light = 0.9; }
+    if (sea) {
+      // no bathymetry: the shelf deepens with the distance from the shore. The
+      // shallows show the ground's own colour (the layers are extended past the
+      // coastline) through a turquoise, the deep is the sea's blue.
+      float dc = texture2D(uCoast, uv).r * 255.0 * 4.0;
+      float deep = smoothstep(0.0, uSeaFade, dc);
+      vec3 shallow = mix(col * 0.9, vec3(0.22, 0.45, 0.48), 0.55);
+      col = mix(shallow, vec3(0.10, 0.21, 0.36), deep); light = 0.95;
+    } else {
+      // the wet strip: the first metre above the sea darkens toward it
+      float wet = 1.0 - smoothstep(0.0, 1.2, vW.y);
+      col = mix(col, col * 0.55, wet * 0.8);
+    }
     gl_FragColor = vec4(col * light, 1.0);
   }`;
 
@@ -314,6 +342,8 @@ const U = {
   uBounds: { value: new THREE.Vector4() }, uCell: { value: 10 }, uHas: { value: 0 }, uMode: { value: 0 },
   uSnow: { value: K.snow.v }, uHMax: { value: 1100 }, uBlur: { value: K.classBlur.v }, uEdge: { value: K.edgeNoise.v },
   uBump: { value: K.bump.v }, uBumpScale: { value: K.bumpScale.v }, uSun: { value: new THREE.Vector3() },
+  uBumpNear: { value: K.bumpNear.v }, uBumpFar: { value: K.bumpFar.v }, uCanP90: { value: 15 }, uShadeK: { value: K.shadeK.v }, uSeaFade: { value: K.seaFade.v },
+  uCam: { value: camera.position }, uCoast: { value: null },
   uCol: { value: CLASSES.map(c => new THREE.Color(c[2])) }, uCls: { value: CLASSES.map(c => c[0]) },
   uLN: { value: 0 }, uLSrc: { value: new Array(MAXL).fill(0) }, uLMode: { value: new Array(MAXL).fill(0) }, uLOp: { value: new Float32Array(MAXL) },
 };
@@ -321,17 +351,17 @@ function pushStack() {
   const live = STACK.filter(l => l.on).slice(0, MAXL);
   U.uLN.value = live.length;
   live.forEach((l, i) => { U.uLSrc.value[i] = SOURCES.indexOf(l.src); U.uLMode.value[i] = BLENDS.indexOf(l.mode); U.uLOp.value[i] = l.op; });
-  try { localStorage.setItem('flydiy.island.stack', JSON.stringify(STACK)); } catch (e) {}
+  try { localStorage.setItem('flydiy.island.stack.v2', JSON.stringify(STACK)); } catch (e) {}
 }
 function setSun() {
   const az = K.sunAz.v * Math.PI / 180, el = K.sunEl.v * Math.PI / 180;
-  // azimuth from north (+z) clockwise; +x is east on the Albers grid
-  U.uSun.value.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+  // azimuth from north clockwise; north is -z (the game's frame), +x is east
+  U.uSun.value.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
   sun.position.copy(U.uSun.value);
 }
 pushStack(); setSun();
 const blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat); blank.needsUpdate = true;
-for (const k of ['uCover', 'uCanopy', 'uOri', 'uNdvi', 'uTint', 'uW1', 'uW2', 'uOri1', 'uOri2', 'uOri3', 'uOri4']) U[k].value = blank;
+for (const k of ['uCover', 'uCanopy', 'uOri', 'uNdvi', 'uTint', 'uW1', 'uW2', 'uOri1', 'uOri2', 'uOri3', 'uOri4', 'uCoast']) U[k].value = blank;
 const MAT = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: THREE.DoubleSide });
 const MAT_WIRE = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x9ad0ff });
 
@@ -389,12 +419,12 @@ async function load(asset, grid) {
   GRID = await fetch('../../' + grid + '.json').then(r => r.json());
   const { w, h: gh } = GRID;
   U.uBounds.value.set(GRID.x0, GRID.z0, w * GRID.cell, gh * GRID.cell); U.uCell.value = GRID.cell;
-  const [cover, canopy, ori, ndvi, tint, o1, o2, o3, o4] = await Promise.all([
+  const [cover, canopy, ori, ndvi, tint, o1, o2, o3, o4, coastU8] = await Promise.all([
     fetchU8('../../' + grid + '.u8'), fetchU8('../../' + grid + '.canopy.u8'),
     fetchU8('../../' + grid + '.ori.u8'), fetchU8('../../' + grid + '.ndvi.u8'),
     fetchU8('../../' + grid + '.tint.rgb'),
     fetchU8('../../' + grid + '.ori1.u8'), fetchU8('../../' + grid + '.ori2.u8'),
-    fetchU8('../../' + grid + '.ori3.u8'), fetchU8('../../' + grid + '.ori4.u8')]);
+    fetchU8('../../' + grid + '.ori3.u8'), fetchU8('../../' + grid + '.ori4.u8'), fetchU8('../../' + grid + '.coast.u8')]);
   L = { cover, canopy, ori, ndvi, tint };
   let has = 0;
   if (canopy) { U.uCanopy.value = tex8(canopy, w, gh, false); has |= 1; }
@@ -407,6 +437,8 @@ async function load(asset, grid) {
   }
   if (ori) { U.uOri.value = tex8(ori, w, gh, false); has |= 2; }
   [o1, o2, o3, o4].forEach((d, i) => { if (d) U['uOri' + (i + 1)].value = tex8(d, w, gh, false); else U['uOri' + (i + 1)].value = U.uOri.value; });
+  if (coastU8) U.uCoast.value = tex8(coastU8, w, gh, false);
+  if (GRID.layers && GRID.layers.canopy && GRID.layers.canopy.p90OverTreeCover) U.uCanP90.value = Math.max(4, GRID.layers.canopy.p90OverTreeCover);
   if (ndvi) { U.uNdvi.value = tex8(ndvi, w, gh, false); has |= 8; }
   if (tint) {
     const rgba = new Uint8Array(w * gh * 4);
@@ -574,7 +606,8 @@ function ui() {
     `<div class="row"><button id="addL">+ layer</button><button id="resetL">default</button><button id="exportL">export</button></div>` +
     `<textarea id="recipe" rows="3" style="width:100%;display:none;background:#1a1f27;color:var(--fg);border:1px solid var(--grid);font:inherit;font-size:10px"></textarea>` +
     `<h2>CLASS MAP</h2>` + ['reclass', 'classBlur', 'edgeNoise'].map(id => knob(id, K[id])).join('') +
-    `<h2>RADAR</h2>` + ['radarLevel', 'bumpFine', 'bumpCoarse', 'bump', 'bumpScale'].map(id => knob(id, K[id])).join('') +
+    `<h2>RADAR</h2>` + ['radarLevel', 'bumpFine', 'bumpCoarse', 'bump', 'bumpScale', 'bumpNear', 'bumpFar'].map(id => knob(id, K[id])).join('') +
+    `<h2>CANOPY &middot; SEA</h2>` + ['shadeK', 'seaFade'].map(id => knob(id, K[id])).join('') +
     `<h2>LIGHT</h2>` + ['sunAz', 'sunEl', 'snow'].map(id => knob(id, K[id])).join('') +
     `<h2>TREES</h2>` + ['treeR', 'treeD', 'treeS', 'treeMin'].map(id => knob(id, K[id])).join('') +
     `<div class="row"><button id="replant">replant here</button></div>` +
@@ -593,7 +626,7 @@ function ui() {
      layer &times; jitter. Old growth is 3-10 stems per 100 m2.</p>`;
   renderStack();
   $('addL').onclick = () => { if (STACK.length < MAXL) { STACK.push({ src: 'radar', mode: 'overlay', op: 0.5, on: true }); renderStack(); } };
-  $('resetL').onclick = () => { localStorage.removeItem('flydiy.island.stack'); location.reload(); };
+  $('resetL').onclick = () => { localStorage.removeItem('flydiy.island.stack.v2'); location.reload(); };
   $('exportL').onclick = () => { const t = $('recipe'); t.style.display = 'block';
     t.value = JSON.stringify({ stack: STACK, knobs: Object.fromEntries(Object.entries(K).map(([k, v]) => [k, v.v])),
       classes: Object.fromEntries(CLASSES.map((c, i) => [c[0], '#' + U.uCol.value[i].getHexString()])) }); t.select(); };
@@ -604,6 +637,8 @@ function ui() {
       if (id === 'edgeNoise') U.uEdge.value = K[id].v; if (id === 'bump') U.uBump.value = K[id].v;
       if (id === 'bumpScale') U.uBumpScale.value = K[id].v; if (id === 'sunAz' || id === 'sunEl') setSun();
       if (id === 'radarLevel') U.uRadarLevel.value = K[id].v | 0;
+      if (id === 'bumpNear') U.uBumpNear.value = K[id].v; if (id === 'bumpFar') U.uBumpFar.value = K[id].v;
+      if (id === 'shadeK') U.uShadeK.value = K[id].v; if (id === 'seaFade') U.uSeaFade.value = K[id].v;
       if (id === 'bumpFine') { U.uBumpFine.value = K[id].v | 0; if (K.bumpCoarse.v <= K[id].v) { K.bumpCoarse.v = K[id].v + 1; U.uBumpCoarse.value = K.bumpCoarse.v; $('k_bumpCoarse').value = K.bumpCoarse.v; $('o_bumpCoarse').textContent = K.bumpCoarse.v; } }
       if (id === 'bumpCoarse') { U.uBumpCoarse.value = K[id].v | 0; if (K.bumpFine.v >= K[id].v) { K.bumpFine.v = K[id].v - 1; U.uBumpFine.value = K.bumpFine.v; $('k_bumpFine').value = K.bumpFine.v; $('o_bumpFine').textContent = K.bumpFine.v; } } };
     el.onchange = () => { if (id.startsWith('tree')) plant(); if (id === 'reclass' && GRID) { buildWeights(); plant(); } };

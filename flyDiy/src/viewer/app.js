@@ -11,7 +11,10 @@
       return localStorage.getItem('flydiy.premises.game');
     } catch (e) { return null; }
   })();
-  const world = makeWorld(0, { premises: premisesAtBoot });
+  // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
+  const islandAtBoot = (typeof window !== 'undefined' && window.ISLAND_BOOT && typeof ISLAND_GEN !== 'undefined')
+    ? ISLAND_GEN.makeIsland(window.ISLAND_BOOT) : null;
+  const world = makeWorld(0, { premises: premisesAtBoot, island: islandAtBoot });
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
   // (src/core/6x_gen_*.js). `window.GARAGE_SPEC` is the editor's handle on it —
   // and it is now actually ASSIGNED, in garage.js. This comment claimed it from
@@ -4368,6 +4371,7 @@
   // G179.2: the live model too, so a session can ask WHICH vertices follow
   // WHAT (rigs, parts, bindings) instead of reasoning about a screenshot
   window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def,
+                          world: () => world,                                   // W2: the world that booted (an island, or the analytic one)
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nav: () => flNav,                                         // G202.1
                           // 2026-09-11: the orbit's state, and a jump to where it

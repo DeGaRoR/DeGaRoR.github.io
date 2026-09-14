@@ -451,9 +451,48 @@ about 2 µs per instanced tree. The stack and the bump cost nothing
 measurable. The real trees' cost is the ladder's (W0c: 0.6 ms for the
 streamed forest); the bench cones are for placement and size only.
 
-### 12.5 The game — how the world will be chosen (answering "what boots first")
+### 12.5 The game — how the world is chosen (answering "what boots first")
 
-Not done today, by the user's own priority. The plan, so it is written:
+**LANDED the same evening (G397, the user: "just get the real trees from the
+game in there, with their lods and everything ... see if we can afford the
+whole island with impostors").** `dev.html?world=jolene` boots Jolene;
+absent, the analytic world boots byte for byte (GATE WORLD green). What it
+took: the codec into the core (`19_terrain_codec.js`, one global), the
+island source (`28_island.js`: the quadtree as the ground, the cover grid
+as the classifier, the canopy as the trees' size, the effective class with
+the heath reclass), `makeWorld(seed, { island })` (the data's ground under
+the same pad ramp — HOME's strip CUT into the lobe at 33.8 m, the field's
+own height; hydrology baked on the real DEM — 1 819 river reaches, 237
+lakes found; no settlements sited, no sea lane, HOME alone; the collidable
+woodland where the effective class is tree cover, scaled by the canopy),
+the renderer's 24 km constants read from `world.bounds` (the rings, the
+forest mask, the fill's chunk cull, the outer patch uv), the loader
+fetching the asset and the grids before any script runs. **THE FRAME
+FLIPPED FIRST:** the game has north at −z; the grids are written north
+row first and the origin moved to the WWII field's centre (1 406 524 E,
+798 714 N).
+
+**Measured (`tools/tree_perf.js --url dev.html?world=jolene`, the same
+harness as W0c, alps rig, NG 100, 1080p, RTX 3080):** full AA **15.3 ms**
+median (render 14.2) · AA off **9.5 ms** · 2 778 near-tier trees + 128 846
+impostors live · 126 793 trees streamed in 68 chunks at 7.0 ms each,
+worst frame 5.4 ms. The analytic world's own row on this harness was Off
+10.2 ms. **The whole island is affordable because it is never resident:**
+the streamer holds a 4 km ring (the fill) and the far tier is the domain
+forest mask; Jolene's 318 km² of tree cover changes the mask's texel (76 m
+over 39 km against 47 m over 24) and nothing else. The picture:
+`bench/jolene/game_settled.png`.
+
+Not built yet (owed): the GRAPHICS-menu row (the flag is the URL today);
+the shipped pack in `media/` (the loader reads `bench/` on the developer's
+machine); the terrain's COLOUR in the game is still the analytic palette
+(W1 takes the bench's recipe); the fill's tree SIZE from the canopy (the
+woodland has it, the fill does not yet); the far mask's resolution; the
+WWII field as a `sitePattern`; `index.html` not rebuilt in G397 (the shared
+tree carried peers' uncommitted sources at build time — the next quiet
+build carries the island boot into the published page).
+
+The plan as it was written the same afternoon, for the record:
 
 - **A toggle, defaults unchanged.** `?world=jolene` on the URL and a row in
   the GRAPHICS menu (stored like `flydiy.cm`); absent, the analytic 24 km
