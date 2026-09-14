@@ -109,7 +109,8 @@
         onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
-        rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
+        rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
+        redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
       });
       PREM.open = true;
@@ -939,13 +940,15 @@
   // the afternoon under nine tenths of cloud), the day drives the sky, and the row's
   // lamps/panel/card follow through moodFor
   const MOOD_PRESET = { AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night', OVERCAST: 'afternoon' };
-  function setMood(i) {
+  function setMood(i, opt) {
     // the room owns the list — it is a sky per row now (G62), and a build that
     // ships four of them and one that ships five must both clamp correctly
     const n = (hangar && hangar.moods) ? hangar.moods.length : MOOD_MAX;
     hangarMood = Math.max(0, Math.min(n - 1, i | 0));
     prefSet('flydiy.garageMood', hangarMood);
-    if (typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
+    // the select and the rail's label follow (the clock moved the mood, or the hand did)
+    if (typeof document !== 'undefined') { document.querySelectorAll('select[data-mood]').forEach(s => { s.selectedIndex = hangarMood; }); if (window.EDITOR_SYNC_NIGHT) window.EDITOR_SYNC_NIGHT(); }
+    if (!(opt && opt.fromClock) && typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
       const name = hangar.moods[hangarMood], p = MOOD_PRESET[name];
       if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set({ cloudCover: name === 'OVERCAST' ? 0.9 : 0.2 }); }
     }
@@ -4685,6 +4688,8 @@
       const stamp = r => {
         r.t = Math.max(0, Math.round(ap.t));
         r.on = new Date().toISOString().slice(0, 10);
+        // SKY chantier: the WORLD'S date-time at touchdown too (`on` is when you flew, `day` is when the aeroplane did)
+        if (world.day) r.day = world.day.local;
         return r;
       };
       if (t) {
@@ -6101,8 +6106,9 @@
     light: { wind: W10([-1.7, 0, 1.9], 0) },
     mod:   { wind: W10([-2.6, 0, 3.0], 0.5) },
     fresh: { wind: W10([-3.9, 0, 4.6], 0.9) },
-    hot:   { oatC: 35, qnhPa: 100800, wind: W10([-2.2, 0, 2.6], 0.7) },
-    cold:  { oatC: 0,  qnhPa: 103000, wind: null },
+    // SKY chantier: a day has WATER too - the dewpoint sets the cloud base (125 m a degree of spread) and the haze
+    hot:   { oatC: 35, qnhPa: 100800, dewC: 12, wind: W10([-2.2, 0, 2.6], 0.7) },
+    cold:  { oatC: 0,  qnhPa: 103000, dewC: -3, wind: null },
   };
   let windBase = null;
   $('selCond').onchange = e => {
@@ -6689,6 +6695,23 @@
     },
     slot_day(body) {
       flBorrow(flS('Cond'), flRow(body, 'standard day'));
+      // THE CLOCK (SKY chantier): the preset select IS the state (it lives in #flStore and is
+      // borrowed here), the hour scrubs the day's own local clock, the rate is how fast it runs
+      const CK = (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null;
+      if (CK && CK.day()) {
+        const sel = flS('Time');
+        sel.value = CK.nearestPreset();
+        sel.onchange = () => { CK.preset(sel.value); flRefreshDay(); };
+        flBorrow(sel, flRow(body, 'time of day'));
+        flRange(body, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => { CK.set({ localHours: v }); sel.value = CK.nearestPreset(); flRefreshDay(); },
+                v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
+        { const r = flRow(body, 'date'); const i = document.createElement('input'); i.type = 'date'; i.className = 'fsel'; i.value = CK.day().date;
+          i.onchange = () => { if (i.value) { CK.set({ date: i.value }); flRefreshDay(); } }; r.appendChild(i); }
+        flPills(body, CK.RATES.map(r => ({ label: r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x', value: r })),
+                o => o.value === CK.day().rate, o => CK.rate(o.value));
+        flNote(body, 'One clock for the shed and the world. It runs with play; ' +
+                     'the sun, the sky and the lights follow it.');
+      }
       flNote(body, 'A day is air AND wind. The weather changes live — the ' +
                    'pilot flies EAS and takes it mid-flight.');
     },
@@ -6881,10 +6904,9 @@
       flLive(body, 'density altitude', 'flAirDalt');
       flLive(body, 'wind', 'flAirWind');
       flLive(body, 'gusts', 'flAirGust');
-      // TIME OF DAY IS GREYED HERE and absent from the main screen: the world
-      // still flies one fixed midday sun (render_world.js SUN), the day cycle
-      // owns it, and when it lands this row is already its home.
-      flBorrow(flS('Time'), flRow(body, 'time of day', 'off'));
+      // THE TIME OF DAY is a live readout here (the control is the brief's `day` slot):
+      // which day it is, is the brief's; this is what it does to the aeroplane
+      flLive(body, 'time of day', 'flAirTime');
       flAirLive(sim.out);
       flNote(body, 'Which day it is, is the brief’s. This is what that ' +
                    'day is doing to the aeroplane right now.');
@@ -7205,7 +7227,11 @@
       ? Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s at 10 m'
       : 'calm';
     $('flAirGust').textContent = g ? '±' + (g * 100).toFixed(0) + ' %' : 'none';
+    const t = $('flAirTime');
+    if (t && typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day()) t.textContent = DAY_CLOCK.label();
   }
+  // the plate and the rail's day line follow the clock (called on a preset / hour / date change)
+  function flRefreshDay() { const a = $('flDayV'), b = $('flLineDay'); if (a) a.textContent = flDay(); if (b) b.textContent = flDay(); }
 
   // ---- THE CAMERA (new: the flight had no camera UI at all) ---------------
   // Five framings, and each one writes the SAME azT/elT/distT the mouse
@@ -7726,7 +7752,8 @@
   // has to say what it is among five others ("Standard day · calm"); the slot
   // already carries the word `day` as its own label, and the ⟳ belongs to the
   // menu row that has to be told apart from a list of aerodromes.
-  const flDay = () => flSel(flS('Cond')).replace(/^Standard day(?= )/, 'Standard');
+  const flDay = () => flSel(flS('Cond')).replace(/^Standard day(?= )/, 'Standard')
+    + ((typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day()) ? ' · ' + DAY_CLOCK.label().split(' · ')[0] : '');
   let flFolded = false, flFoldedByPlayer = false;
   function flFoldSet(on) {
     flFolded = !!on; flFoldedByPlayer = true;
@@ -8015,7 +8042,7 @@
       if (hangar && hangar.applyDay && world.day) {
         const r = hangar.applyDay(world.day, renderer);
         if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
-        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) { hangarMood = mi; hangar.setMood(mi); } }
+        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
       }
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
@@ -8051,7 +8078,7 @@
     else if (running && !inGarage) {
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property
-      if (CK) CK.frame(1 / 60, sim, ap);   // the panel arc: the readings, the bus, the lamps
+      if (CK) CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
         // with the door home on it, and the logbook gets its broke-up row

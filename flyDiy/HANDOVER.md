@@ -47915,3 +47915,47 @@ the downhill strip (the approach over the hill the strip sits on — the
 pilot refuses it, correctly, and does not yet choose the other direction).
 The warns: the stearman's rollout swings (6.7 deg calm, 11.1 in 2 m/s
 across). GATE PILOTMATRIX ratchets against this file from here.
+=======
+## G415 — THE SKY CHANTIER, SESSION E: THE CLOCK ON EVERY RAIL (2026-09-15)
+
+- THE FLIGHT RAIL: body.html's `#selTime` is the clock's PRESET select
+  (dawn, morning, noon, afternoon, golden, sunset, dusk, night - solved on
+  the day's own almanac by day_clock.js), no longer greyed; the brief's
+  `day` slot borrows it under `time of day` beside the standard-day select
+  and adds a `local hour` range (five-minute steps), a `date` input and the
+  rate pills (frozen / real time / 10x / 60x / 600x); the `air` flyout's
+  `time of day` row is a LIVE readout (`10:14 AKDT · sun 46° · civil`);
+  the plate's day line carries the hour. Which day it is, is the brief's;
+  the air says what it does to the aeroplane.
+- THE GARAGE: the `time of day` select is the clock's hand (D) and now
+  FOLLOWS the clock too - app.js setMood(i, {fromClock}) re-selects it and
+  the rail's night label (editor.js syncNightLabel via EDITOR_SYNC_NIGHT)
+  when moodFor moves the row, without snapping the clock to the preset.
+- THE WORLD EDITOR (premises_ui.js viewRows, the host's builders): a TIME
+  section (preset, local hour, rate) when the game host passes the clock,
+  the LIGHT section's sun sliders take the rig MANUAL when dragged and a
+  `the sun by hand` check hands it back; app.js's host passes
+  `rig: WORLD.rig, day: DAY_CLOCK` so the game's editor shows both (it
+  showed neither: rig was null).
+- THE COCKPIT CLOCK reads the day: CK.frame(dt, sim, ap, { day, byHand })
+  - the world's local time on the face, 12:00 + the flight's clock without
+  a day (GATE PANEL's call-shape rule updated).
+- THE PILOT'S NIGHT: 43_pilot.js setStatus carries `night` (civil twilight
+  ended) and ap.lights = { nav, beacon } by the sunset-to-sunrise rule off
+  day.sunUp - null without a day, so every headless fixture is unchanged;
+  cockpit.js applies ap.lights to the switches while no hand is on the
+  panel (ctx.byHand = the manual flag). tools/pilot_trace.js takes
+  --date YYYY-MM-DD --utc HH:MM (absent: the core's fixed default) and its
+  summary records `day`.
+- PERSISTENCE: the logbook row gains `day` (the world's date-time at
+  touchdown; `on` stays the real date you flew); flydiy.day (A) holds the
+  clock across reloads; the CONDITIONS presets carry a dewpoint (hot 12,
+  cold -3: the cloud base and the haze are the day's) and setWeather
+  forwards the WATER fields to the day.
+- GATES: DAY / ATMO / UISMOKE / VIEW / PANEL / INPUT / LIGHT / WORLDRENDER /
+  BOOT / MEDIA / HANGAR green; PREMISES red ("5b outside the extent every
+  height is the bare world's") on clean master c0343045 too - foreign.
+- OWED: the `flydiy.hangarEnvSrc = 'sky'` pref (it names the retired
+  equirect path); F (the night's consumers: the village lamps, the moon
+  and stars against them, the screenshot sheet); the 6.3 MB media
+  deletion; the exposure schedule's eye pass.

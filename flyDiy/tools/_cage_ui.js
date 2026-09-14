@@ -2146,6 +2146,7 @@ fillPresetSel();
       // the HDRI standing outside the door, and the light rig measured off it.
       const mr = row(hd, `<span class="k">time of day</span><select></select>`);
       const msel = mr.querySelector('select');
+      msel.dataset.mood = '1';                 // SKY chantier: app.js re-selects it when the clock moves the mood
       (GE.moods() || []).forEach((n, i) => {
         const o = document.createElement('option');
         o.value = i; o.textContent = String(n).toLowerCase();

@@ -863,11 +863,23 @@ function mount(host, ctx) {
     rows.section(insp, 'VIEW');
     if (ctx.cameras) rows.select(insp, 'camera', [['orbit', 'orbit (right-drag)'], ['map', 'map (top-down)']], () => ctx.cameras.mode(), v => ctx.cameras.set(v));
     rows.check(insp, 'surface overlay', () => ctx.overlayOn ? ctx.overlayOn() : true, v => { R.overlayOn(v); ctx.overlayOn && ctx.overlayOn(v); ctx.redraw && ctx.redraw(); });
+    // THE TIME (SKY chantier): the clock's hand in the world editor - one clock for the shed and the world
+    if (ctx.day && ctx.day.day && ctx.day.day()) {
+      const CK = ctx.day;
+      rows.section(insp, 'TIME');
+      rows.select(insp, 'time of day', CK.PRESETS.map(p => [p, p]), () => CK.nearestPreset(), v => { CK.preset(v); if (ctx.redraw) ctx.redraw(); });
+      rows.slider(insp, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => CK.set({ localHours: v }),
+                  v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
+      rows.select(insp, 'rate', CK.RATES.map(r => [String(r), r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x']), () => String(CK.day().rate), v => CK.rate(+v));
+      rows.note(insp, 'the sun, the sky and the lights follow the clock; drag a LIGHT slider below to take the sun by hand');
+    }
     if (ctx.rig) {
       rows.section(insp, 'LIGHT');
-      rows.slider(insp, 'sun elev', 2, 90, 0.5, () => ctx.rig.get().elev, v => ctx.rig.set({ elev: v }), v => v.toFixed(1) + '°');
-      rows.slider(insp, 'sun azimuth', -180, 180, 1, () => ctx.rig.get().azim, v => ctx.rig.set({ azim: v }), v => v.toFixed(0) + '°');
+      // dragging either sun slider takes the rig MANUAL (the day drives it otherwise - SKY chantier)
+      rows.slider(insp, 'sun elev', 2, 90, 0.5, () => ctx.rig.get().elev, v => ctx.rig.set({ manual: true, elev: v }), v => v.toFixed(1) + '°');
+      rows.slider(insp, 'sun azimuth', -180, 180, 1, () => ctx.rig.get().azim, v => ctx.rig.set({ manual: true, azim: v }), v => v.toFixed(0) + '°');
       rows.slider(insp, 'exposure', 0.3, 2.5, 0.02, () => ctx.rig.get().exposure, v => ctx.rig.set({ exposure: v }));
+      if (ctx.rig.get().manual !== undefined) rows.check(insp, 'the sun by hand', () => !!ctx.rig.get().manual, v => ctx.rig.set({ manual: !!v }));
     }
     rows.note(insp, 'Tab toggles the camera; Esc cancels; Del deletes; Ctrl+Z / Ctrl+Y undo and redo; 1-6 pick a section');
   }

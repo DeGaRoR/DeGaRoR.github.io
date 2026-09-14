@@ -607,11 +607,23 @@ function makePilot(sim, def, world, opts) {
   const setStatus = (goal, conds) => {
     const L = PILOT_PHASES[ap.phase] || [ap.phase, ap.phase];
     ap.status = { phase: ap.phase, label: L[0], goal, conds: conds || [], since: phaseT,
-                  gaN: ap.gaN, style: ST.name, afcs: ap.afcs };
+                  gaN: ap.gaN, style: ST.name, afcs: ap.afcs,
+                  // SKY chantier: the day's night (civil twilight ended); absent without a day
+                  night: !!(world && world.day && world.day.isNight) };
+  };
+  // THE LIGHTS A PILOT FLIES WITH (SKY chantier): navigation lights and the beacon from
+  // sunset to sunrise - the rule, read off the day's sun; the cockpit applies them while
+  // no hand is on the panel. Absent (null) without a day, so a headless fixture is unchanged.
+  ap.lights = null;
+  const lightsRule = () => {
+    if (!world || !world.day) { ap.lights = null; return; }
+    const up = world.day.sunUp;
+    if (!ap.lights || ap.lights.nav !== (up ? 0 : 1)) ap.lights = { nav: up ? 0 : 1, beacon: up ? 0 : 1 };
   };
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
+    lightsRule();
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) {

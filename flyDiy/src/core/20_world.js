@@ -656,7 +656,7 @@ function makeWorld(seed, opts) {
   function setWeather(spec) {
     weather = spec || null;
     const p = { wind: spec ? (spec.wind || null) : null };
-    for (const k of ['oatC', 'dISA', 'qnhPa']) p[k] = spec && spec[k] != null ? spec[k] : null;
+    for (const k of ['oatC', 'dISA', 'qnhPa', 'dewC', 'rh']) p[k] = spec && spec[k] != null ? spec[k] : null;   // the AIR, and the WATER when a preset names it
     setDay(p);
   }
 

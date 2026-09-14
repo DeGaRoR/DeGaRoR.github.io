@@ -167,6 +167,9 @@ function make(THREE) {
     const o = sim.out || {}, F = sim.fuel || {}, E = (sim.eng && sim.eng[0]) || { running: true, key: 'both', crank: 0 };
     const cg = sim.cgPos();
     const bus = CK.bus;
+    // THE PILOT'S LIGHTS (SKY chantier): nav and beacon from sunset to sunrise, the rule a pilot
+    // flies by (43_pilot.js ap.lights); applied only while no hand is on the panel
+    if (ap && ap.lights && !ctx.byHand) { for (const k in ap.lights) if (('sw_' + k) in CK.sw) CK.sw['sw_' + k] = ap.lights[k]; }
     // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
@@ -223,8 +226,9 @@ function make(THREE) {
     raw.volts = bus ? bus.V : 0;
     // the electric readings die with the bus
     if (!busOk) { raw.fuelFrac = 0; }
-    // the clock: 12:00 plus the flight's own clock (no day cycle yet)
-    const tClock = 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
+    // THE CLOCK IS THE DAY'S (SKY chantier): the world's local time when a day is on the
+    // context, else 12:00 plus the flight's own clock as it always was
+    const tClock = (ctx.day && ctx.day.localSeconds != null) ? ctx.day.localSeconds : 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
     CK.readings.clockH = (tClock / 3600) % 12;
     CK.readings.clockM = (tClock / 60) % 60;
     CK.readings.clockS = tClock % 60;

@@ -1584,6 +1584,7 @@ function editorInit(api) {
   // (addEventListener — its onchange belongs to _cage_ui), and every
   // fillRoots, because a mood can arrive without that event firing (a hangar
   // swap, a payload's own default).
+  if (typeof window !== 'undefined') window.EDITOR_SYNC_NIGHT = () => syncNightLabel();   // SKY chantier: the clock moves the mood
   function syncNightLabel() {
     const rail = $('edRail');
     if (!rail) return;

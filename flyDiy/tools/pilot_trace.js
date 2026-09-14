@@ -103,6 +103,9 @@ function runTrace(o) {
   if (o.oat != null) weather.oatC = o.oat;
   if (o.qnh != null) weather.qnhPa = o.qnh;
   if (Object.keys(weather).length) world0.setWeather(weather);
+  // THE DAY (SKY chantier): a fixture pins its date and hour (--date YYYY-MM-DD --utc HH:MM);
+  // absent, the core's fixed default (2026-06-21 10:00 AKDT) - never the wall clock
+  if (world0.setDay && (o.date || o.utc)) { const d = {}; if (o.date) d.date = o.date; if (o.utc) { const [h, m] = o.utc.split(':').map(Number); d.utc = h * 3600 + (m || 0) * 60; } world0.setDay(d); }
   // A FIXTURE'S HOOK: `worldMod(world)` returns a replacement world (HOTHIGH's
   // `Object.assign({}, W, { terrainH })` trick — the solver's wheels and the
   // pilot's aglT both read `world.terrainH`, the aerodrome record keeps its
@@ -216,6 +219,7 @@ function runTrace(o) {
   const out = {
     key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail, slope: o.slope || 0,
     weather: Object.keys(weather).length ? weather : null,
+    day: world0.day ? world0.day.local : null,                       // SKY chantier: the world's date-time the fixture flew in
     outcome: nan ? 'broke-up' : (rep.outcome || 'gave-up'), phase: ap.phase, t: r1(tEnd),
     phases: phases.map(p => p.ph + '@' + p.t),
     goArounds: ap.gaN || 0,
@@ -265,6 +269,8 @@ function parseArgs(argv) {
     else if (a === '--slope') o.slope = +nx();
     else if (a === '--sheet') o.sheet = true;
     else if (a === '--tecs') o.tecs = true;
+    else if (a === '--date') o.date = nx();
+    else if (a === '--utc') o.utc = nx();
     else if (a === '--no-sheet') o.sheet = false;
     else if (a === '--no-tecs') o.tecs = false;
     else if (a === '--no-path') o.path = false;
