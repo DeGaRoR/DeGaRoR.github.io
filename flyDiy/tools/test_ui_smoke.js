@@ -34,6 +34,16 @@ for (const [sub, f] of payloadFiles)
 const modelsBlock = payloadFiles.map(([sub, f]) =>
   fs.readFileSync(path.join(__dirname, '..', sub, f), 'utf8')).join('\n');
 const appBlock = pick('function setAircraft', 'app');
+// THE LOADING SCREEN (LOADING S1): boot.js is its own inline block, ahead of
+// the vendor. It is executed here so the boot's step chain runs the way the
+// browser runs it minus the waiting - this harness's setTimeout fires at
+// once, so BOOT.run unrolls synchronously inside app.js's eval - and so
+// the teardown is asserted on the real object, not a shim.
+const bootBlock = pick('window.BOOT = B', 'boot');
+if (html.indexOf('window.BOOT = B') > html.indexOf('function makeAutopilot'))
+  throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
+if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<canvas id="c">'))
+  throw new Error('#boot must be the first thing in <body>, ahead of the canvas');
 
 // ---- THE PANELS ARE PLACEABLE AND THEIR CONTROLS STILL PRESS (2026-09-04) --
 // Chrome 148 retargets pointerup and the click after it to whatever element
@@ -328,10 +338,24 @@ try {
                     sandbox, { filename: f });
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
+  vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
   if (!handlers['bSkin']) throw new Error('bSkin not wired');
   // drive the loop: HOLDING frames, then press Fly and run 2 s of circuit
   frames(30);
+  // ...and the loading screen has lifted: every step ran (the log names them
+  // in order), nothing was left pending, three quiet frames tore it down
+  {
+    const B = sandbox.window.BOOT;
+    if (!B || B.state !== 'gone') throw new Error('the loading screen never lifted (state ' + (B && B.state) + ', pending ' + (B && B.pending().join(', ')) + ')');
+    const steps = B.log.filter(e => e.k === 'step').map(e => e.id);
+    const want = ['worldScene', 'aircraft', 'garage', 'editor', 'sync', 'restore', 'firstFrame'];
+    if (steps.join(',') !== want.join(',')) throw new Error('boot steps ran as ' + steps.join(',') + ', expected ' + want.join(','));
+    if (B.log.some(e => e.k === 'error')) throw new Error('a boot step threw: ' + JSON.stringify(B.log.filter(e => e.k === 'error')));
+    if (B.log.some(e => e.k === 'fail')) throw new Error('the loading screen gave up: ' + JSON.stringify(B.log.filter(e => e.k === 'fail')));
+    if (!els['boot'].classList.contains('gone')) throw new Error('#boot did not get .gone');
+    console.log('the loading screen: ' + steps.length + ' steps in order, lifted on frame ' + B.log.find(e => e.k === 'ready').t);
+  }
   handlers['bGo'] && handlers['bGo']();
   frames(120);
   // ---- THE PILOT IS YOU (G200) ----

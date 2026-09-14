@@ -80,6 +80,18 @@ chantier touches them:
   with a playtest, and let it REORDER what follows. This plan is a proposal,
   not a queue that outranks what the aeroplane in front of you is doing.
 
+> **2026-09-14 — LOADING (G406, S1 of four).** The boot was MEASURED before it
+> was designed (`tools/boot_perf.js`): the cold boot is 25 s of synchronous
+> shader compile, the warm one a 9-15 s block, the island 6 s in one road-grade
+> scan, 146 MB over the wire, and the old splash dropped on frame 1 with the
+> aircraft a mirror and the pilot to come. S1 landed the loading screen (the
+> garage is FINISHED before it shows, stillness 0 after the lift, the user's
+> captures rotating, every step and landing on the ticker). Owed in order:
+> S2 parallel compile + the CPU cuts, S3 the roll-out screen + the tree ring's
+> subset/dither (no 3.5 km pop), S4 texture prep in the bakers + a media
+> manifest/prefetch + a media-only service worker with a refresh button.
+> `futureDesigns/LOADING-2026-09-14.md` is the whole design.
+
 ---
 
 ## PHASE 1 — THE FRICTION PASS

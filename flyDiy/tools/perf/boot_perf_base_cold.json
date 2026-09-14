@@ -1,0 +1,587 @@
+{
+ "url": "http://localhost:8361/flyDiy/dev.html",
+ "tag": "base_cold",
+ "cold": true,
+ "secs": 45,
+ "date": "2026-09-14",
+ "gpu": {
+  "programs": 131,
+  "geometries": 1497,
+  "textures": 388,
+  "parallel": true,
+  "gl": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+ },
+ "milestones": [
+  {
+   "k": "DOMContentLoaded",
+   "t": 170
+  },
+  {
+   "k": "def:CHAR_TEX_LANDED",
+   "t": 319
+  },
+  {
+   "k": "def:ASSET_FETCH",
+   "t": 384
+  },
+  {
+   "k": "def:treeReady",
+   "t": 386
+  },
+  {
+   "k": "def:TREE_FILL",
+   "t": 6769
+  },
+  {
+   "k": "def:WORLD",
+   "t": 6983
+  },
+  {
+   "k": "def:PROP_LANDED",
+   "t": 8271
+  },
+  {
+   "k": "def:CAGE_UI",
+   "t": 15914
+  },
+  {
+   "k": "bootGone",
+   "t": 27136
+  },
+  {
+   "k": "firstRAF",
+   "t": 27251
+  },
+  {
+   "k": "load",
+   "t": 46938
+  }
+ ],
+ "bootGone": 27136,
+ "bootLog": null,
+ "paints": [
+  {
+   "k": "first-paint",
+   "t": 124
+  },
+  {
+   "k": "first-contentful-paint",
+   "t": 124
+  }
+ ],
+ "propsLanded": 145,
+ "charsLanded": 2,
+ "fetches": 54,
+ "longTaskTotalMs": 57766,
+ "longTasks": [
+  {
+   "t": 503,
+   "d": 26638
+  },
+  {
+   "t": 27251,
+   "d": 15768
+  },
+  {
+   "t": 54640,
+   "d": 2903
+  },
+  {
+   "t": 48949,
+   "d": 2283
+  },
+  {
+   "t": 44737,
+   "d": 1596
+  },
+  {
+   "t": 47359,
+   "d": 1485
+  },
+  {
+   "t": 43325,
+   "d": 1257
+  },
+  {
+   "t": 52854,
+   "d": 1046
+  }
+ ],
+ "profileTotalMs": 59191,
+ "stillness": {
+  "drop_vs_2s": 0.61,
+  "drop_vs_5s": 0.61,
+  "s2_vs_5s": 0.01
+ },
+ "byFile": [
+  [
+   "three.min.js",
+   42119
+  ],
+  [
+   "30_solver.js",
+   4170
+  ],
+  [
+   "20_world.js",
+   3765
+  ],
+  [
+   "(native)",
+   1886
+  ],
+  [
+   "aeroskin.js",
+   835
+  ],
+  [
+   "aeroweather.js",
+   616
+  ],
+  [
+   "21_world_hydro.js",
+   565
+  ],
+  [
+   "render_world.js",
+   541
+  ],
+  [
+   "_cage_gen.js",
+   522
+  ],
+  [
+   "_strut_gen.js",
+   399
+  ],
+  [
+   "_cage_ui.js",
+   277
+  ],
+  [
+   "23_world_settle.js",
+   276
+  ],
+  [
+   "_cage_crew.js",
+   272
+  ],
+  [
+   "app.js",
+   254
+  ],
+  [
+   "_cage_join.js",
+   217
+  ],
+  [
+   "trees.js",
+   174
+  ],
+  [
+   "garage.js",
+   171
+  ],
+  [
+   "hangar.js",
+   163
+  ],
+  [
+   "24_world_aero.js",
+   154
+  ],
+  [
+   "_gear_kit.js",
+   147
+  ],
+  [
+   "_gear_gen.js",
+   139
+  ],
+  [
+   "_fit_site.js",
+   133
+  ],
+  [
+   "_shoulder_gen.js",
+   122
+  ],
+  [
+   "_eng_mesh.js",
+   91
+  ],
+  [
+   "_cage_wing.js",
+   86
+  ]
+ ],
+ "byFn": [
+  [
+   "three.min.js R:4165",
+   35667
+  ],
+  [
+   "three.min.js y:4199",
+   2408
+  ],
+  [
+   "30_solver.js substep:1136",
+   1642
+  ],
+  [
+   "(native) (program):0",
+   809
+  ],
+  [
+   "20_world.js vnoise:29",
+   806
+  ],
+  [
+   "20_world.js hash2:24",
+   765
+  ],
+  [
+   "30_solver.js aeroPass:750",
+   647
+  ],
+  [
+   "(native) (garbage collector):0",
+   528
+  ],
+  [
+   "20_world.js h0a:59",
+   461
+  ],
+  [
+   "20_world.js regSurf:312",
+   449
+  ],
+  [
+   "aeroweather.js aeroWxCavity:339",
+   395
+  ],
+  [
+   "20_world.js blendM:159",
+   377
+  ],
+  [
+   "_strut_gen.js radAt:279",
+   372
+  ],
+  [
+   "30_solver.js vkSegment:23",
+   359
+  ],
+  [
+   "30_solver.js buildAIC:547",
+   353
+  ],
+  [
+   "(native) (idle):0",
+   347
+  ],
+  [
+   "30_solver.js norm3:717",
+   259
+  ],
+  [
+   "three.min.js ii:4",
+   234
+  ],
+  [
+   "aeroskin.js h:1087",
+   226
+  ],
+  [
+   "aeroskin.js aeroDetailTex:1183",
+   200
+  ],
+  [
+   "three.min.js getX:4",
+   198
+  ],
+  [
+   "three.min.js x:4199",
+   186
+  ],
+  [
+   "30_solver.js vkSemi:40",
+   182
+  ],
+  [
+   "21_world_hydro.js scan:312",
+   180
+  ],
+  [
+   "three.min.js Jd.renderBufferDirect:4223",
+   166
+  ],
+  [
+   "20_world.js fbm:40",
+   156
+  ],
+  [
+   "20_world.js sstep:23",
+   146
+  ],
+  [
+   "24_world_aero.js grade:141",
+   140
+  ],
+  [
+   "30_solver.js applyInduction:613",
+   132
+  ],
+  [
+   "three.min.js fromBufferAttribute:4",
+   130
+  ],
+  [
+   "21_world_hydro.js lakeAt:333",
+   126
+  ],
+  [
+   "21_world_hydro.js bakeHydrology:10",
+   118
+  ],
+  [
+   "three.min.js getZ:4",
+   115
+  ],
+  [
+   "(native) getBoundingClientRect:0",
+   112
+  ],
+  [
+   "hangar.js normalFromHeight:512",
+   111
+  ],
+  [
+   "trees.js coverageMips:83",
+   108
+  ],
+  [
+   "aeroweather.js aeroWxHash:288",
+   106
+  ],
+  [
+   "20_world.js wnoise:45",
+   102
+  ],
+  [
+   "23_world_settle.js bakeSettlements:13",
+   99
+  ],
+  [
+   "three.min.js c:3826",
+   97
+  ]
+ ],
+ "inclusive": [
+  [
+   "render @aa_resolve.js",
+   28797
+  ],
+  [
+   "bakeHangarEnv @app.js",
+   10750
+  ],
+  [
+   "getHangar @app.js",
+   6513
+  ],
+  [
+   "buildWorldScene @render_world.js",
+   5344
+  ],
+  [
+   "genShakedown @64_gen_build.js",
+   4109
+  ],
+  [
+   "bakeGround @render_world.js",
+   3960
+  ],
+  [
+   "setAircraft @app.js",
+   3449
+  ],
+  [
+   "syncBuild @app.js",
+   2574
+  ],
+  [
+   "apply @app.js",
+   2457
+  ],
+  [
+   "openEditor @app.js",
+   2228
+  ],
+  [
+   "CAGE_UI_BOOT @_cage_ui.js",
+   2200
+  ],
+  [
+   "render @bench.js",
+   1136
+  ],
+  [
+   "genHangarBuild @hangar.js",
+   956
+  ],
+  [
+   "makeWorld @20_world.js",
+   943
+  ],
+  [
+   "renderSky @hangar.js",
+   899
+  ],
+  [
+   "plantWoodland @render_world.js",
+   702
+  ],
+  [
+   "fromScene @three.min.js",
+   630
+  ],
+  [
+   "buildModel @app.js",
+   309
+  ],
+  [
+   "buildGen @64_gen_build.js",
+   225
+  ],
+  [
+   "bakeImpostorAtlasNow @render_world.js",
+   201
+  ],
+  [
+   "coverageMips @trees.js",
+   169
+  ],
+  [
+   "enterGarage @app.js",
+   151
+  ],
+  [
+   "fillPropMesh @props.js",
+   78
+  ],
+  [
+   "render @editor.js",
+   60
+  ],
+  [
+   "treeBuild @trees.js",
+   21
+  ],
+  [
+   "makeSim @30_solver.js",
+   9
+  ],
+  [
+   "apply @gfx_settings.js",
+   1
+  ]
+ ],
+ "netTotalKB": 146426,
+ "netRequests": 697,
+ "netFailed": 0,
+ "netByType": {
+  "Document": 48,
+  "Other": 8,
+  "Stylesheet": 152,
+  "Font": 75,
+  "Script": 8190,
+  "Image": 114000,
+  "Fetch": 23953
+ },
+ "bytesByDir": [
+  [
+   "media/tex",
+   114000
+  ],
+  [
+   "media/geo",
+   23953
+  ],
+  [
+   "src/viewer",
+   2234
+  ],
+  [
+   "src/core",
+   1343
+  ],
+  [
+   "vendor/three.min.js",
+   726
+  ],
+  [
+   "tools/_house_gen.js",
+   442
+  ],
+  [
+   "tools/_cage_gen.js",
+   389
+  ],
+  [
+   "tools/_cage_ui.js",
+   223
+  ],
+  [
+   "src/pier",
+   210
+  ],
+  [
+   "tools/_cage_crew.js",
+   184
+  ],
+  [
+   "tools/_cage_join.js",
+   160
+  ],
+  [
+   "tools/_eng_mesh.js",
+   159
+  ]
+ ],
+ "samples": [
+  {
+   "t": 266,
+   "bootGone": 0,
+   "tree": null,
+   "fill": null,
+   "props": 0,
+   "chars": 0,
+   "boot": null
+  },
+  {
+   "t": 43024,
+   "bootGone": 27136,
+   "tree": false,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 0,
+   "chars": 0,
+   "boot": null
+  },
+  {
+   "t": 47084,
+   "bootGone": 27136,
+   "tree": false,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 0,
+   "chars": 0,
+   "boot": null
+  }
+ ]
+}

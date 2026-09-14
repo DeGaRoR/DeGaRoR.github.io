@@ -194,6 +194,7 @@ function texture(c, id, srgb) {
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; if (window.CHAR_TEX_LANDED) window.CHAR_TEX_LANDED(c.key); };
   img.onload = ok;
+  if (window.BOOT) window.BOOT.img(img, 'crewTex');   // the loading screen waits for the maps
   img.src = uri;
   return (TEX[k] = t);
 }

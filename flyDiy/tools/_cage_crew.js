@@ -2951,9 +2951,12 @@ const CHAR_WAIT = {};
 // several characters landing in one breath rebuild ONCE
 let charRebuildT = 0;
 const charRebuild = () => {
-  clearTimeout(charRebuildT);
+  if (charRebuildT) clearTimeout(charRebuildT);
+  else if (window.BOOT) window.BOOT.expect('crewBuild');   // the loading screen waits for the rebuild this arms
   charRebuildT = setTimeout(() => {
-    if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build();
+    charRebuildT = 0;
+    try { if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build(); }
+    finally { if (window.BOOT) window.BOOT.landed('crewBuild'); }
   }, 60);
 };
 if (typeof window !== 'undefined')
@@ -3203,9 +3206,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const ready = !!C.ready(c.key);
     if (!ready && !CHAR_WAIT[c.key]) {
       CHAR_WAIT[c.key] = 1;
+      if (window.BOOT) window.BOOT.expect('crew');   // the loading screen waits for the character
       C.load(c.key).then(d => {
         CHAR_WAIT[c.key] = 0;
-        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();
+        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands
+        if (window.BOOT) window.BOOT.landed('crew', !!d, c.key);
       });
     }
     return { key: c.key, label: c.label, rig, ready };

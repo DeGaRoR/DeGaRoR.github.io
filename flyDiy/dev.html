@@ -5,24 +5,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
-<link rel="stylesheet" href="src/viewer/style.css?v=21758916">
+<link rel="stylesheet" href="src/viewer/style.css?v=b0a68365">
 <link rel="stylesheet" href="src/viewer/editor.css?v=45eaed88">
 <link rel="stylesheet" href="src/viewer/flight.css?v=f1137db4">
 <link rel="stylesheet" href="src/viewer/controls.css?v=8a88fd4f">
 <link rel="stylesheet" href="src/viewer/bench.css?v=3f2ba9bf">
 </head>
 <body>
-<!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
-     MODELS blocks, so the browser paints it from the first few KB while the
-     rest of the (large — the 3D payloads are inlined) artifact still streams.
-     app.js removes it on the first rendered frame. -->
-<div id="boot">
-  <div id="bootInner">
+<!-- THE LOADING SCREEN (LOADING chantier S1, 2026-09-14). Sits at the very
+     top of <body>, ahead of the vendor/core/MODELS blocks, so the browser
+     paints it from the first few KB while the rest of the artifact streams.
+     The pictures rotate on CSS animations alone (compositor-driven: they keep
+     moving while the main thread is blocked by a build step); the words are
+     written by src/viewer/boot.js (window.BOOT, evaluated right after this
+     markup - the BOOT slot below) and the app reports its phases and the
+     landing of every asset into it. The overlay lifts when the garage is
+     FINISHED - every step run, every required asset landed, three quiet
+     frames rendered underneath - never on frame 1 (that was the mirror
+     aircraft and the empty back wall the user saw). The same element serves
+     the roll-out (data-set="rollout", the world pictures). -->
+<div id="boot" data-set="garage" role="status" aria-live="polite">
+  <div id="bootShots"><figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223450.c6277660.jpg" alt="" decoding="async" fetchpriority="high"><figcaption>the steel shed, afternoon</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_214350.023acbe1.jpg" alt="" decoding="async"><figcaption>cowl off, night</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223748.700b726c.jpg" alt="" decoding="async"><figcaption>the wooden shed, door open</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223607.c03488ba.jpg" alt="" decoding="async"><figcaption>a wing on the bench</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_224119.f0c40363.jpg" alt="" decoding="async"><figcaption>F-PGAR</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223943.2205afec.jpg" alt="" decoding="async"><figcaption>from the loft</figcaption></figure>
+<figure class="bs" data-set="rollout"><img src="media/tex/shots/shot_2026-09-12_022252.efc84a24.jpg" alt="" decoding="async"><figcaption>over the fields</figcaption></figure>
+<figure class="bs" data-set="rollout"><img src="media/tex/shots/shot_2026-09-09_011423.1425d277.jpg" alt="" decoding="async"><figcaption>the stand</figcaption></figure>
+<figure class="bs" data-set="rollout"><img src="media/tex/shots/shot_2026-09-09_012958.f1a58d6e.jpg" alt="" decoding="async"><figcaption>the alps behind</figcaption></figure></div>
+  <div id="bootVeil"></div>
+  <div id="bootPanel">
     <span id="bootBrand">Garage Flight Sim</span>
+    <div id="bootPhase">opening the shed</div>
     <div id="bootBar"><i></i></div>
-    <span id="bootNote">loading aircraft models…</span>
+    <div id="bootTick"></div>
+    <div id="bootNote" hidden></div>
+    <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>
 </div>
+<script src="src/viewer/boot.js?v=08f5871c"></script>
 <canvas id="c"></canvas>
 <!-- FLIGHT. Everything on this layer is about WATCHING AN AEROPLANE FLY,
      and none of it exists in the workshop (G86). One switch hides the lot —
@@ -671,8 +693,8 @@
 <script type="text/x-flydiy" src="tools/_knife_gen.js?v=60b2d1e0"></script>
 <script type="text/x-flydiy" src="tools/_shoulder_gen.js?v=6c21b616"></script>
 <script type="text/x-flydiy" src="tools/_cage_gen.js?v=718ff280"></script>
-<script type="text/x-flydiy" src="tools/_cage_char.js?v=de71f3d4"></script>
-<script type="text/x-flydiy" src="tools/_cage_crew.js?v=c412b76f"></script>
+<script type="text/x-flydiy" src="tools/_cage_char.js?v=87a0d488"></script>
+<script type="text/x-flydiy" src="tools/_cage_crew.js?v=b313b4ec"></script>
 <script type="text/x-flydiy" src="tools/_panel_gen.js?v=f3e827d7"></script>
 <script type="text/x-flydiy" src="tools/_cage_panel.js?v=961e8092"></script>
 <script type="text/x-flydiy" src="tools/_gear_kit.js?v=836bc671"></script>
@@ -713,26 +735,26 @@
 <script type="text/x-flydiy" src="src/viewer/site_tex.js?v=980cf0a1"></script>
 <script type="text/x-flydiy" src="src/viewer/site_ground.js?v=3537d5c3"></script>
 <script type="text/x-flydiy" src="src/viewer/trees_pack.js?v=9c0f0680"></script>
-<script type="text/x-flydiy" src="src/viewer/trees.js?v=a07847d9"></script>
+<script type="text/x-flydiy" src="src/viewer/trees.js?v=c90f08d6"></script>
 <script type="text/x-flydiy" src="src/viewer/render_world.js?v=1df72cf7"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_floor.js?v=44daf821"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_walls.js?v=d6843114"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_sky.js?v=b7ea6353"></script>
-<script type="text/x-flydiy" src="src/viewer/props.js?v=91821460"></script>
+<script type="text/x-flydiy" src="src/viewer/props.js?v=86949699"></script>
 <script type="text/x-flydiy" src="src/viewer/wood_tex.js?v=8124b86f"></script>
 <script type="text/x-flydiy" src="src/viewer/skin_tex.js?v=be4eb716"></script>
 <script type="text/x-flydiy" src="src/viewer/vessel_tex.js?v=75139b05"></script>
 <script type="text/x-flydiy" src="src/viewer/panel_tex.js?v=5525a0ab"></script>
 <script type="text/x-flydiy" src="src/viewer/aeroweather.js?v=d7efa167"></script>
-<script type="text/x-flydiy" src="src/viewer/aeroskin.js?v=43e518f7"></script>
-<script type="text/x-flydiy" src="src/viewer/hangar.js?v=0ed31276"></script>
+<script type="text/x-flydiy" src="src/viewer/aeroskin.js?v=0cf87c47"></script>
+<script type="text/x-flydiy" src="src/viewer/hangar.js?v=670b1996"></script>
 <script type="text/x-flydiy" src="src/viewer/garage.js?v=fc96ca31"></script>
 <script type="text/x-flydiy" src="src/viewer/workshop.js?v=0b02e453"></script>
 <script type="text/x-flydiy" src="src/viewer/plaque.js?v=54bb23a0"></script>
 <script type="text/x-flydiy" src="src/viewer/stickers.js?v=e43699be"></script>
 <script type="text/x-flydiy" src="src/viewer/bench.js?v=f25c3d93"></script>
 <script type="text/x-flydiy" src="src/viewer/refplane.js?v=ab23636b"></script>
-<script type="text/x-flydiy" src="src/viewer/design_flow.js?v=477e5800"></script>
+<script type="text/x-flydiy" src="src/viewer/design_flow.js?v=67b1d1a1"></script>
 <script type="text/x-flydiy" src="src/viewer/balance.js?v=2a8bb781"></script>
 <script type="text/x-flydiy" src="src/viewer/pattern_vis.js?v=9a104f0f"></script>
 <script type="text/x-flydiy" src="src/viewer/input.js?v=5d8b961f"></script>
@@ -766,7 +788,7 @@
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=f3bd9d67"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=05f5efd7"></script>
-<script type="text/x-flydiy" src="src/viewer/app.js?v=5ccec826"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=711f6717"></script>
 <script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=a3303759"></script>
 <script>
 window.FLYDIY_BOOT.then(function () {

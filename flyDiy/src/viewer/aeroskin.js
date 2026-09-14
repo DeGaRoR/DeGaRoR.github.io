@@ -1214,6 +1214,7 @@ function aeroDetailTex(THREE, key) {
       ctx.drawImage(pay.img, 0, 0, S, S);
       t.needsUpdate = true;
     };
+    if (typeof window !== 'undefined' && window.BOOT) window.BOOT.img(pay.img, 'skin');   // the loading screen waits for it
     if (pay.img.complete && pay.img.naturalWidth) draw();
     else {
       ctx.fillStyle = 'rgb(128,128,204)';   // 204 = the 0.80 mean, in bytes

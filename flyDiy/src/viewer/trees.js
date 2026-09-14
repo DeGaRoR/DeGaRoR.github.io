@@ -55,7 +55,9 @@
     if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
       return Promise.reject(new Error('trees: no ASSET_FETCH here'));
     WARM = Promise.all(PACK.collections.map(c =>
-      window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); })));
+      (window.BOOT && window.BOOT.expect('treeBin'),
+       window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); if (window.BOOT) window.BOOT.landed('treeBin'); },
+                                      e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; }))));
     return WARM;
   }
 

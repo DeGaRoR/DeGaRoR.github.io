@@ -118,9 +118,12 @@ before every battery so stale hand-edits get overwritten, loudly.
   shed with its own lights and four moods, built on demand and only if THREE can
   carry it — see G6), garage.js (the builder's panel + the procedurally baked
   paint — anything needing a canvas, which core cannot use),
-  app.js (renderer, camera, aircraft mesh, shadow proxy, phase rail, HUD, loop).
-  MANIFEST.viewer.scripts: the LAST entry fills the APP slot, everything before
-  it fills RENDER.
+  app.js (renderer, camera, aircraft mesh, shadow proxy, phase rail, HUD, loop),
+  boot.js (THE LOADING SCREEN, G406: window.BOOT - the boot's step chain, the
+  readiness aggregator, the overlay's words; in the BOOT slot of body.html,
+  before the vendor; the pictures are tools/shots_prep.py's, named by
+  shots_pack.json). MANIFEST.viewer.scripts: the LAST entry fills the APP
+  slot, everything before it fills RENDER.
 - `tools/build.js` — MANIFEST is the single ordering authority (registry →
   fiches → world → solver → autopilot → exports). Concats core →
   tools/flight_core.js (gates require it unchanged); assembles `index.html`
@@ -46735,3 +46738,103 @@ categories airport XS, S and M".
   linked to the garage's (the user: "at some point, we'll link them").
 - Numbers: G402 went to the island's sea while this was in flight; the
   code says G405.
+
+## G406 — THE LOADING SCREEN: THE GARAGE IS FINISHED BEFORE IT SHOWS (2026-09-14, LOADING S1)
+
+The user: "quite a bit of loading which is not real well managed ... the
+garage is loading before shaders and objects have fully loaded, that feels
+sketchy ... provide as much feedback as possible during load time, and have
+a mechanism for displaying screenshots ... no display before it looks good.
+Garage should be finished before it shows, the world might compromise a
+tad". The whole study (four sessions: S1 this one, S2 shaders + CPU, S3 the
+roll-out transition + the tree ring, S4 bytes) is
+`futureDesigns/LOADING-2026-09-14.md`; this row is S1.
+
+MEASURED FIRST (`tools/boot_perf.js`, new - a CDP rig like tree_perf: CPU
+profile from before the navigation, the network log, the long tasks, the
+page's own milestones, screenshots at the drop and 2 / 5 s later with a
+STILLNESS score = mean |Δpixel| between them; `tools/perf/boot_perf_base_*`):
+- the reference planes were NOT the boot's cost (G184 made them on-demand
+  manifests of 3-10 KB; the bin comes on pick) - the user's first premise;
+- COLD (fresh Chrome profile): 25-26 s of the 42 s profile is the
+  SYNCHRONOUS SHADER COMPILE (three's WebGLProgram link-status query, vendor
+  line 4165); one 17-18 s block before frame 1, then a SECOND 12-16 s block
+  right after the splash dropped (the props landing, the env re-bakes, the
+  crew rebuild, the character's textures); overlay gone at 27 s;
+- WARM: a 9-15 s block; buildWorldScene 3 s (20_world sampling 2.5), CAGE_UI
+  2.5 + 1.3, bakeHangarEnv 1.6, syncBuild 1.5 (the shakedown, run twice),
+  makeWorld 0.6; the island adds 6.3 s in ONE function (27_premises
+  grade.apply scans the whole road polyline per terrain sample);
+- 146 MB over the wire per boot (114 MB of images: the pilot Ch20 is 53 MB
+  of PNG; hangar wall normals ~18 MB), fetched in SERIAL chains (tree leaf
+  maps only after the bins, the character's maps only after its bin);
+- at the old splash-drop the aircraft was a chrome mirror (its sheets not
+  landed), the back wall empty, no pilot; the plaque went 459 -> 472 kg as
+  the crew landed; stillness 0.61 (the picture kept changing for 5 s).
+
+WHAT LANDED:
+- `src/viewer/boot.js` (window.BOOT, in the BOOT slot of body.html, a plain
+  script BEFORE the vendor in both pages so the overlay speaks from the
+  first ~100 ms): `run(steps)` chains the boot as ONE STEP PER TASK on
+  setTimeout(next, 0) - never await, never rAF, because GATE UISMOKE's vm
+  fires setTimeout at once and stores rAF, so the same chain unrolls
+  synchronously there; `expect(key, n)` / `landed(key, ok)` / `img(img, key)`
+  are the readiness aggregator; `frame()` counts the frames the loop renders
+  UNDER the overlay (the shaders compile there); the overlay lifts when every
+  step ran AND every required key balanced AND three frames rendered quietly
+  after the last landing. Required for the garage: sky, env (the debounced
+  bake), room (wall/floor maps), props, propTex, skin (the sheets + an
+  imported model's maps), crew, crewTex, crewBuild. Tracked, not required:
+  treeBin, trees. A required key nobody expected is nothing to wait for; so
+  every producer EXPECTS before it lands the thing that triggers the next
+  fetch (the char bin's landing arms crewBuild; the build requests the maps).
+  Watchdogs check elapsed and never re-arm themselves (an immediate timer
+  that re-armed would recurse): 'continue anyway' at 14 s of silence, the
+  overlay gives up at 30 s of silence / 2 min in all with a note of what
+  never landed; a failed fetch is a landing. `whenReady()` =
+  window.FLYDIY_READY (the rigs wait on it; tree_perf.js does).
+- body.html / style.css: the bone board, the user's own captures full-bleed
+  under a veil (CSS Ken Burns on a will-change layer: the compositor keeps
+  it moving while a step blocks the main thread), brand / phase line /
+  determinate bar (0.7 x steps by weight + 0.3 x assets) / a two-line ticker
+  with bytes from PerformanceObserver('resource') / note / the button.
+  z 70, above #dfBirth: the birth chooser waits on FLYDIY_READY.
+- `tools/shots_prep.py` -> `media/tex/shots/` + `src/viewer/shots_pack.json`
+  (GATE MEDIA names it): nine captures, the pill/debug text cropped, 1920
+  wide, JPEG q82, 2.2 MB in all; six for the garage, three for the roll-out
+  (S3). build.js splices them into the SHOTS slot as <figure>s and asserts
+  every one is on the page.
+- app.js: the tail is `BOOT.run([worldScene, aircraft, garage, editor, sync,
+  restore, firstFrame])`; `WF` is `let`, built in the worldScene step (three
+  readers guarded - the hook S3 uses to move it under the roll-out screen);
+  `BOOT.frame()` where `frame === 1` dropped the splash. The readiness
+  sites: hangar.js (roomTexLanded arms env; floorTex/partTex the room; the
+  sky's two maps; the jodel body's props), props.js (the bytes, the
+  textures), _cage_crew.js (the character, its rebuild), _cage_char.js (its
+  maps), aeroskin.js (the sheets), trees.js (tracked).
+- GATE BOOT (`tools/test_boot.js`, core): boot.js alone in a vm whose DOM
+  knows only the #boot* ids (any other id throws) - the chain, a throwing
+  step, required vs optional vs never-expected keys, the failed landing, the
+  three quiet frames, whenReady, the inert watchdogs, fail()'s note, a second
+  show(), img()'s dedupe of a shared Image. GATE UISMOKE now executes the
+  real boot block and asserts the seven steps ran in order and the overlay
+  lifted.
+
+MEASURED AFTER (same rig, warm): stillness 0 / 0 / 0 - NOTHING changes after
+the overlay lifts; overlay gone at 22 s vs 15 s before, because it now waits
+for the pieces that used to land in front of you (the second block). The
+steps, timed: worldScene 4.4 s, aircraft 1.1, editor 2.7, sync 2.5, first
+frame 0.3; script eval 8 s before the first step (the first setAircraft +
+shakedown, the bridges). Those are S2's targets, not S1's.
+
+OWED (the plan, in order): S2 parallel shader compile (compileAsync; stop
+compiling every hangar material twice: a black placeholder env before the
+first bake, dress before bake), the road-grade segment index, terrain sampled
+once per texel, the shakedown memo; S3 the roll-out screen (world scene +
+tree ring prefill + atlases + world compile under it; the far ring a subset
+of the near one, a distance dither instead of the 3.5 km pop); S4 texture
+prep in the bakers (the user's ruling: sizes and formats are the baker's,
+geometry stays as-is), the media manifest + prefetch, the media-only service
+worker with version numbers and a refresh button. In S1 itself: a
+'loading…' label for dev.html's promote wait (index.html has the vendor/core
+markers, dev.html has none until app.js speaks).

@@ -72,6 +72,9 @@ const GATES = [
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'SKIN', file: 'test_skin.js', tier: 'core' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js', tier: 'core' },
+  // the loading screen's brain alone (LOADING S1): the step chain, the
+  // readiness aggregator, the watchdogs, in the harness's synchronous shape
+  { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },

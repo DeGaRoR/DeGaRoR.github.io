@@ -20,30 +20,66 @@
     -webkit-user-select:none; user-select:none; }
   #c:active { cursor:grabbing; }
 
-  /* ---- boot splash ----------------------------------------------------
-     The artifact inlines its 3D payloads, so it is several MB and the browser
-     streams it. This paints from the first few KB (it is the first element in
-     <body>, ahead of the script blocks) and app.js drops it on frame 1.
-     Deliberately font-independent: IBM Plex has not loaded yet either. */
-  #boot { position:fixed; inset:0; z-index:50; display:flex;
-    align-items:center; justify-content:center; background:#cfe0ec;
-    transition:opacity .45s ease; }
+  /* ---- THE LOADING SCREEN (LOADING S1, 2026-09-14) ----------------------
+     First element in <body>, ahead of the script blocks, so it paints from
+     the first few KB. The bone board of the workshop (editor.css --ed-board),
+     the user's own captures full-bleed behind a veil, one phase line, one
+     determinate bar, one ticker of what is landing. The Ken Burns drift is a
+     CSS animation on a will-change layer: the compositor keeps it moving
+     while a build step blocks the main thread, which is the one signal of
+     life a blocked page can give. z 70: above #dfBirth / #gFleet / #ctlPanel
+     (60) - nothing opens over the loading screen. */
+  #boot { position:fixed; inset:0; z-index:70; background:#1a1815; color:#f4efe6;
+    font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    transition:opacity .6s ease; overflow:hidden; }
   #boot.gone { opacity:0; pointer-events:none; }
-  #bootInner { display:flex; flex-direction:column; align-items:center; gap:14px;
-    color:#4b3a2a; font:500 15px/1.4 ui-sans-serif, system-ui, sans-serif;
-    letter-spacing:.06em; }
-  #bootBrand { font-size:19px; font-weight:600; letter-spacing:.14em;
-    text-transform:uppercase; }
-  #bootNote { font-size:12px; letter-spacing:.10em; color:#7d6a56; }
-  #bootBar { width:190px; height:3px; border-radius:2px; overflow:hidden;
-    background:rgba(75,58,42,.16); }
-  #bootBar i { display:block; width:40%; height:100%; border-radius:2px;
-    background:#c07a2c; animation:bootSlide 1.15s ease-in-out infinite; }
+  #boot[hidden] { display:none; }
+  #bootShots { position:absolute; inset:0; }
+  #bootShots .bs { position:absolute; inset:0; margin:0; opacity:0;
+    transition:opacity 1.4s ease; will-change:opacity; }
+  #bootShots .bs.on { opacity:1; }
+  #boot[data-set="garage"] .bs[data-set="rollout"],
+  #boot[data-set="rollout"] .bs[data-set="garage"] { display:none; }
+  #bootShots .bs img { display:block; width:100%; height:100%; object-fit:cover;
+    transform-origin:50% 55%; will-change:transform; }
+  #bootShots .bs.on img { animation:bootKb 26s ease-in-out infinite alternate; }
+  @keyframes bootKb { 0% { transform:scale(1.04) translate(0,0); }
+    100% { transform:scale(1.12) translate(-1.2%, 0.8%); } }
+  #bootShots figcaption { position:absolute; right:28px; bottom:26px;
+    font:400 11.5px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing:.08em; text-transform:lowercase; color:#c0b8ac;
+    text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  #bootVeil { position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg, rgba(12,11,10,.10) 0%, rgba(12,11,10,0) 30%,
+      rgba(12,11,10,.55) 72%, rgba(12,11,10,.88) 100%); }
+  #bootPanel { position:absolute; left:32px; bottom:28px; width:min(460px, calc(100% - 64px));
+    display:flex; flex-direction:column; gap:8px;
+    text-shadow:0 1px 2px rgba(0,0,0,.55); }
+  #bootBrand { font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase;
+    color:#97907f; }
+  #bootPhase { font-size:15px; font-weight:500; line-height:1.35; color:#f4efe6;
+    min-height:1.35em; }
+  #bootBar { width:260px; height:3px; border-radius:2px; overflow:hidden;
+    background:rgba(255,248,236,.14); }
+  #bootBar i { display:block; height:100%; width:0; border-radius:2px; background:#e6dbc9;
+    transition:width .35s ease; }
+  /* until boot.js speaks (the first ~100 ms, and a page whose scripts never
+     ran): the old indeterminate slide */
+  #bootBar.idle i { width:40%; animation:bootSlide 1.15s ease-in-out infinite; }
   @keyframes bootSlide {
     0% { transform:translateX(-110%); } 100% { transform:translateX(360%); }
   }
+  #bootTick { font-size:11px; line-height:1.5; letter-spacing:.04em; color:#97907f;
+    min-height:1.5em; max-height:3em; overflow:hidden; }
+  #bootNote { font-size:11.5px; line-height:1.45; color:#d8a07a; }
+  #bootSkip { align-self:flex-start; margin-top:4px; padding:6px 12px; border-radius:6px;
+    font:600 10.5px/1 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing:.12em; text-transform:uppercase; color:#f4efe6; cursor:pointer;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18); }
+  #bootSkip:hover { background:rgba(255,255,255,.12); }
   @media (prefers-reduced-motion:reduce) {
-    #bootBar i { animation:none; width:100%; }
+    #bootShots .bs.on img { animation:none; }
+    #bootBar.idle i { animation:none; width:100%; }
   }
 
   /* ---- THE FLIGHT HUD LEFT THIS FILE (the flight-interface rebaseline).

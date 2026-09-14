@@ -1,14 +1,28 @@
-<!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
-     MODELS blocks, so the browser paints it from the first few KB while the
-     rest of the (large — the 3D payloads are inlined) artifact still streams.
-     app.js removes it on the first rendered frame. -->
-<div id="boot">
-  <div id="bootInner">
+<!-- THE LOADING SCREEN (LOADING chantier S1, 2026-09-14). Sits at the very
+     top of <body>, ahead of the vendor/core/MODELS blocks, so the browser
+     paints it from the first few KB while the rest of the artifact streams.
+     The pictures rotate on CSS animations alone (compositor-driven: they keep
+     moving while the main thread is blocked by a build step); the words are
+     written by src/viewer/boot.js (window.BOOT, evaluated right after this
+     markup - the BOOT slot below) and the app reports its phases and the
+     landing of every asset into it. The overlay lifts when the garage is
+     FINISHED - every step run, every required asset landed, three quiet
+     frames rendered underneath - never on frame 1 (that was the mirror
+     aircraft and the empty back wall the user saw). The same element serves
+     the roll-out (data-set="rollout", the world pictures). -->
+<div id="boot" data-set="garage" role="status" aria-live="polite">
+  <div id="bootShots"><!--__SHOTS_SLOT__--></div>
+  <div id="bootVeil"></div>
+  <div id="bootPanel">
     <span id="bootBrand">Garage Flight Sim</span>
+    <div id="bootPhase">opening the shed</div>
     <div id="bootBar"><i></i></div>
-    <span id="bootNote">loading aircraft models…</span>
+    <div id="bootTick"></div>
+    <div id="bootNote" hidden></div>
+    <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>
 </div>
+<!--__BOOT_SLOT__-->
 <canvas id="c"></canvas>
 <!-- FLIGHT. Everything on this layer is about WATCHING AN AEROPLANE FLY,
      and none of it exists in the workshop (G86). One switch hides the lot —

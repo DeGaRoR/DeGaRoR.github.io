@@ -210,6 +210,14 @@ const MANIFEST = {
     // the palette it uses for the same reason flight.css does.
     styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css'],
     body: 'body.html',
+    // THE LOADING SCREEN (LOADING S1, 2026-09-14): boot.js fills the BOOT slot
+    // of body.html - a plain script in BOTH pages (inlined here, a src ref in
+    // dev.html, never text/x-flydiy) so window.BOOT exists before the vendor
+    // parses and the overlay speaks from the first ~100 ms; shots_pack.json is
+    // the baker's manifest (tools/shots_prep.py) of the pictures it rotates,
+    // spliced into the SHOTS slot as <figure>s
+    boot: 'boot.js',
+    shots: 'shots_pack.json',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
     // (genHangarSupported) before it offers it as an environment
@@ -461,7 +469,18 @@ function buildViewer(coreBody) {
   }
   const shell = read(shellPath);
   const css = V.styles.map(f => read(path.join(VIEW_DIR, f))).join('\n');
-  const bodyHtml = read(path.join(VIEW_DIR, V.body));
+  const bootJs = read(path.join(VIEW_DIR, V.boot));
+  syntaxCheck(V.boot, bootJs);
+  const shotsPath = path.join(VIEW_DIR, V.shots);
+  const shots = fs.existsSync(shotsPath) ? JSON.parse(read(shotsPath)) : [];
+  const figures = shots.map((r, i) => {
+    const set = r.set === 'world' ? 'rollout' : 'garage';
+    return `<figure class="bs" data-set="${set}"><img src="${r.src}" alt="" decoding="async"${i === 0 ? ' fetchpriority="high"' : ''}><figcaption>${r.cap || ''}</figcaption></figure>`;
+  }).join('\n');
+  let bodyHtml = read(path.join(VIEW_DIR, V.body));
+  bodyHtml = fill(bodyHtml, 'SHOTS', figures);
+  const bodyArt = fill(bodyHtml, 'BOOT', `<script>\n${bootJs}</script>`);
+  const bodyDev = fill(bodyHtml, 'BOOT', `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`);
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
   const editor = MANIFEST.editor.map(f => read(path.join(__dirname, f)));
@@ -576,11 +595,14 @@ window.FLYDIY_BOOT.then(function () {
   // --- the served page: code inlined, payloads referenced ---
   let art = shell;
   art = fill(art, 'STYLE', `<style>\n${inlineFonts(css)}</style>`);
-  art = fill(art, 'BODY', bodyHtml);
+  art = fill(art, 'BODY', bodyArt);
   // the colour-management switch the GRAPHICS menu stores (flydiy.cm): read
   // right after the vendor, before any colour is made
-  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>`);
-  art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
+  // ...and the loading screen's markers: one line after the vendor and one
+  // after the core, so the phase line moves while the 7 MB of scripts parse
+  const MARK = id => `<script>window.BOOT&&BOOT.phase('${id}','${id === 'vendor' ? 'reading the renderer' : 'reading the model'}')</script>`;
+  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}`);
+  art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}`);
   art = fill(art, 'MODELS', payloadRefs);
   // THE WORLD PACK'S PLACE (G386): after every viewer script the generators read and BEFORE app.js,
   // which makes the world - app.js is not the last viewer script (dev_panel.js is), so the refs go
@@ -598,6 +620,12 @@ window.FLYDIY_BOOT.then(function () {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
     process.exit(1);
   }
+  // the loading screen precedes the vendor, and every baked picture is on the page
+  if (art.indexOf('window.BOOT = B') < 0 || art.indexOf('window.BOOT = B') > art.indexOf('function makeAutopilot')) {
+    console.error('POST-BUILD ASSERTION FAILED: boot.js must precede the core in index.html');
+    process.exit(1);
+  }
+  for (const r of shots) if (!art.includes(r.src)) { console.error('POST-BUILD ASSERTION FAILED: shot missing from index.html: ' + r.src); process.exit(1); }
   for (const f of MANIFEST.models)
     if (!art.includes(`src="src/models/${f}?v=`)) {
       console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
@@ -631,7 +659,7 @@ window.FLYDIY_BOOT.then(function () {
   dev = fill(dev, 'STYLE', V.styles.map(f =>
     `<link rel="stylesheet" href="src/viewer/${f}${ver(path.join(VIEW_DIR, f))}">`)
     .join('\n'));
-  dev = fill(dev, 'BODY', bodyHtml);
+  dev = fill(dev, 'BODY', bodyDev);
   dev = fill(dev, 'VENDOR', DEV_LOADER);
   dev = fill(dev, 'CORE', MANIFEST.core.map(f => dref(CORE_DIR, 'src/core', f)).join('\n'));
   dev = fill(dev, 'MODELS', payloadRefs.replace(/<script src=/g, '<script type="text/x-flydiy" src='));

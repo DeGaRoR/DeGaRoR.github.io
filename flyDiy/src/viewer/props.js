@@ -50,6 +50,7 @@ function propTexture(THREE, id, srgb) {
   t.flipY = false;                            // glTF uv origin is top-left
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; };
+  if (typeof window !== 'undefined' && window.BOOT) window.BOOT.img(img, 'propTex');   // the loading screen waits for it
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });
   img.src = uri;
@@ -215,15 +216,19 @@ function propMesh(THREE, key) {
   // emitter books, the env bake) hooks window.PROP_LANDED once. A failed
   // fetch leaves the group empty: the prop is absent, not the room broken.
   g.userData.propPending = true;
+  const B = (typeof window !== 'undefined' && window.BOOT) || null;   // the loading screen waits for the bytes
+  if (B) B.expect('props');
   propWarm(key).then(() => {
-    fillPropMesh(THREE, key, g);
+    fillPropMesh(THREE, key, g);      // expects its textures before the landing below
     g.userData.propPending = false;
     propSetEnv(PROP_ENV);             // late materials wear the current mood
     if (typeof window !== 'undefined' && typeof window.PROP_LANDED === 'function')
       window.PROP_LANDED(key, g);
+    if (B) B.landed('props');
   }).catch(e => {
     if (typeof console !== 'undefined')
       console.warn('prop ' + key + ' failed to load:', e && e.message);
+    if (B) B.landed('props', false, key);
   });
   return g;
 }

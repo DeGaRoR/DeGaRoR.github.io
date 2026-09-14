@@ -120,7 +120,12 @@ const PROFILE = `(() => new Promise(res => {
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
-  await sleep(20000);
+  // the loading screen says when the garage is finished (LOADING S1); a page
+  // without one gets the old twenty seconds
+  await sleep(1500);
+  try { await ev("(() => (window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)))()"); }
+  catch (e) { await sleep(18500); }
+  await sleep(500);
   let flying = false;
   for (let attempt = 0; attempt < 8 && !flying; attempt++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");

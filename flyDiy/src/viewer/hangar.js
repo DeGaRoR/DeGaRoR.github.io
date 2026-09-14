@@ -702,12 +702,15 @@ RSEED = 0x5f1d7a3b;
 // a texture cached-complete at script eval cannot touch the binding before
 // its `let` below has run.
 let roomTexTimer = null;
+const BOOT_ = () => (typeof window !== 'undefined' && window.BOOT) || null;
 const roomTexLanded = () => {
   if (roomTexTimer) clearTimeout(roomTexTimer);
+  else if (BOOT_()) BOOT_().expect('env');   // the loading screen waits for the bake this arms
   roomTexTimer = setTimeout(() => {
     roomTexTimer = null;
     skyDirty = true;
-    if (skyOnReady) skyOnReady();
+    try { if (skyOnReady) skyOnReady(); }
+    finally { if (BOOT_()) BOOT_().landed('env'); }
   }, 200);
 };
 
@@ -723,6 +726,7 @@ const floorTex = (img, srgb) => {
   // same material off the same Image, and whichever build came second used
   // to unhook the first (see siteGroundTex for the full account)
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
+  if (BOOT_()) BOOT_().img(img, 'room');
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });
   return t;
@@ -1459,6 +1463,7 @@ function gradeTextures() {
     // would apply the transform twice.
     t.colorSpace = THREE.LinearSRGBColorSpace;
     i.onload = () => { t.needsUpdate = true; skyDirty = true; if (skyOnReady) skyOnReady(); };
+    if (BOOT_()) BOOT_().img(i, 'sky');
     i.src = src;
     return t;
   };
@@ -1547,6 +1552,7 @@ function setSky(row) {
   // the data URI decodes asynchronously; whoever baked an environment off
   // the old picture is told when the new one has actually landed
   const ok = () => { st.needsUpdate = true; if (skyOnReady) skyOnReady(); };
+  if (BOOT_()) BOOT_().img(img, 'sky');
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok);
   const was = skyMat.map;
@@ -2522,12 +2528,14 @@ function wipBody(x, z, ry) {
   };
   if (typeof propReady === 'function' && !propReady('airframe_jodel_body')
       && typeof propWarm === 'function') {
+    if (BOOT_()) BOOT_().expect('props');
     Promise.all([propWarm('airframe_jodel_body'),
                  propWarm('work_trestle').catch(() => {})])
       .then(() => { run(); if (typeof window !== 'undefined'
         && typeof window.PROP_LANDED === 'function')
-        window.PROP_LANDED('airframe_jodel_body', null); })
-      .catch(() => {});
+        window.PROP_LANDED('airframe_jodel_body', null);
+        if (BOOT_()) BOOT_().landed('props'); })
+      .catch(() => { if (BOOT_()) BOOT_().landed('props', false, 'airframe_jodel_body'); });
     return;
   }
   run();
@@ -3273,6 +3281,7 @@ const partTex = (img, srgb) => {
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   // roomTexLanded: external media can land after the env bake — see floorTex
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
+  if (BOOT_()) BOOT_().img(img, 'room');
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });   // shared Image — see siteGroundTex
   return t;

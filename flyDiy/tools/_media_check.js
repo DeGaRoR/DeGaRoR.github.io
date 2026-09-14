@@ -126,7 +126,11 @@ function manifestFiles() {
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, trees);
+  // the loading screen's pictures (LOADING S1): tools/shots_prep.py bakes the
+  // user's captures into media/tex/shots and names them in this manifest
+  const shots = fs.existsSync(path.join(ROOT, 'src', 'viewer', 'shots_pack.json'))
+    ? [path.join(ROOT, 'src', 'viewer', 'shots_pack.json')] : [];
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, trees, shots);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;

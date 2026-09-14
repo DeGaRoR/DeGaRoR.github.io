@@ -613,9 +613,14 @@ function closeBirth() {
 // FIRST LAUNCH with nothing on the stand (no WIP ever written): the flow IS
 // the front door. Deliberately one narrow trigger — any saved session, named
 // or not, boots into its own build exactly as before.
+// ...and AFTER the loading screen has lifted (LOADING S1): the door opens
+// onto a finished shed, never under or over the overlay (window.FLYDIY_READY
+// is the boot's promise; a page without one - a bench - opens as before).
 function maybeAutoOpen() {
   try {
-    if (!window.localStorage.getItem('flydiy.wip')) setTimeout(openBirth, 400);
+    if (window.localStorage.getItem('flydiy.wip')) return;
+    const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
+    ready.then(() => setTimeout(openBirth, 400));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') {

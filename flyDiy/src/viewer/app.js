@@ -1,4 +1,18 @@
 (() => {
+  // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
+  // the vendor and owns #boot; this script reports its phases and every asset
+  // landing into it, and the overlay lifts when the garage is FINISHED (see
+  // the boot tail). The shim is for a page without it - GATE UISMOKE's vm,
+  // where the chain must still run to its end synchronously.
+  const BOOT = (typeof window !== 'undefined' && window.BOOT) || (() => {
+    const no = () => {};
+    let frames = 0;
+    return { phase: no, expect: no, landed: no, img: no, note: no, fail: no, hide: no, show: no, log: [],
+      run: (steps, opt) => { for (const st of steps) { try { st.fn(); } catch (e) { console.error('boot step ' + st.id + ':', e); } } if (opt && opt.done) opt.done(); },
+      frame: () => { if (++frames !== 3) return; const b = document.getElementById('boot'); if (b && b.classList && !b.classList.contains('gone')) { b.classList.add('gone'); b.hidden = true; } },
+      whenReady: () => Promise.resolve([]), pending: () => [] };
+  })();
+  BOOT.phase('world', 'composing the world');
   // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
   // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
   // fixture from tools/fixtures (a test's door; read synchronously because the world is made
@@ -113,6 +127,7 @@
   // (WebGL2 backend by default) and initialised it before this script ran;
   // otherwise this is the WebGLRenderer it has always been. TSL_ON is what
   // every material module asks to pick its variant (RENDERER-DECISION §4h).
+  BOOT.phase('renderer', 'the renderer');
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
     new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
   const TSL_ON = !!renderer.isWebGPURenderer;
@@ -397,14 +412,23 @@
   // what the sliders made of it; the composition is handed in — the record
   // is passed rather than looked up, G123's own ruling — so the building you
   // taxi past and the room you stand in are the same size by construction.
-  const WF = buildWorldScene(scene, world, renderer, camera,
-    Object.assign({ shell: shedHome().shell },
-      playerShedDims(playerLoad(), 'HOME',
-        (typeof siteOf === 'function') ? siteOf('HOME') : null)));
-  if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
-  // GFX (G286): the saved graphics settings are applied the moment the
-  // world exists - before its first chunk of forest is planted
-  if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+  // ...built as a BOOT STEP (LOADING S1): 3 s warm on the analytic world,
+  // 10 on the island, and nothing the garage shows - so it runs under the
+  // loading screen as its own task, with the phase line on it, and every
+  // reader below guards `WF &&` (S3 moves it under the roll-out screen).
+  let WF = null;
+  function buildWorld() {
+    if (WF) return WF;
+    WF = buildWorldScene(scene, world, renderer, camera,
+      Object.assign({ shell: shedHome().shell },
+        playerShedDims(playerLoad(), 'HOME',
+          (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+    if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
+    // GFX (G286): the saved graphics settings are applied the moment the
+    // world exists - before its first chunk of forest is planted
+    if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+    return WF;
+  }
 
   // ================= THE GARAGE'S OWN SCENE =================
   // The editor and the simulation are two different places, and this is what
@@ -1547,7 +1571,9 @@
     };
     for (const t in texSrcs) {
       entry.pending++;
-      texs[t] = new THREE.TextureLoader().load(texSrcs[t], landed, undefined, landed);
+      BOOT.expect('skin');
+      texs[t] = new THREE.TextureLoader().load(texSrcs[t], () => { BOOT.landed('skin'); landed(); }, undefined,
+                                               () => { BOOT.landed('skin', false, texSrcs[t]); landed(); });
       texs[t].anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 4;
       // The generated paint is authored in sRGB (canvas colours are), so it has
       // to be declared as such or the renderer treats it as linear and encodes
@@ -6018,7 +6044,7 @@
     const c = CONDITIONS[e.target.value] || null;
     world.setWeather(c);
     windBase = c && c.wind ? c.wind.base : null;
-    if (WF.setWindVis) WF.setWindVis(windBase);
+    if (WF && WF.setWindVis) WF.setWindVis(windBase);
   };
   $('bPause').onclick = e => {
     running = !running;
@@ -6093,7 +6119,7 @@
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
   const NOSE_RANGE = 6000;
   function drawMap() {
-    const base = WF.minimap, cv = $('mm');
+    const base = WF && WF.minimap, cv = $('mm');
     if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
     const g = cv.getContext('2d'), W2 = cv.width, mk = W2 / 344;
     const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
@@ -7755,6 +7781,7 @@
 
   // the first aeroplane is the garage build on its defaults; the garage
   // bridge below re-applies the restored WIP over it before the first frame
+  BOOT.phase('aeroplane', 'building your aeroplane');
   setAircraft('gen');
   syncEnvBtn();               // garage-only buttons start hidden
 
@@ -7965,7 +7992,7 @@
     // camera, not the aeroplane - otherwise the inspector flies out to a stand
     // and finds impostors, because the near tier is measured from a CG that is
     // still on the strip.
-    if (!inGarage) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
+    if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
@@ -8022,17 +8049,12 @@
     // to its own target and is untouched by this.
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
-    if (frame === 1) dismissBoot();     // first real frame is on screen
+    BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
   }
-  // Boot splash (body.html #boot): drop it once something is actually drawn.
-  // Guarded so the headless UI-smoke harness, which has no such element, and
-  // a second call from the loop are both no-ops.
-  function dismissBoot() {
-    const b = document.getElementById('boot');
-    if (!b || b.classList.contains('gone')) return;
-    b.classList.add('gone');
-    setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 600);
-  }
+  // The splash used to drop on frame 1 here - the mirror aircraft and the
+  // empty back wall (LOADING S1). boot.js owns the teardown now; this is a
+  // door for anything that still wants the old verb.
+  function dismissBoot() { BOOT.hide(); }
   // ---- THE GAME OPENS ON YOUR OWN AEROPLANE (G67.1) ------------------------
   // It used to open on the PA-18, parked on an apron. That was right while the
   // imported meshes were the only aeroplanes with a skin on them; it stopped
@@ -8060,7 +8082,19 @@
   // no longer exists as far as the game is concerned. It falls back to the
   // GARAGE BUILD standing on the apron instead — the same aeroplane, minus the
   // room and the editor that failed to open.
-  try {
+  // THE BOOT IS A LIST OF STEPS (LOADING S1). Each runs as its own task
+  // under the loading screen - the phase line names it, the bar moves, the
+  // fetches that landed meanwhile resolve between steps (props, the crew's
+  // bytes) - and a step that throws is logged and skipped, never fatal. The
+  // overlay lifts when every step ran AND the required assets are in AND
+  // three frames rendered quietly: the room dressed, the props in, the sky
+  // decoded and the environment baked off it, the skin's sheets on, the crew
+  // seated and textured. In GATE UISMOKE's vm the same list runs
+  // synchronously (its setTimeout fires at once).
+  const bootSteps = [];
+  const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
+  bootStep('worldScene', 'laying out the world', 18, buildWorld);
+  bootStep('aircraft', 'building your aeroplane', 6, () => {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
     // ---- THE AUTOSAVE IS READ BACK (2026-09-03) --------------------------
@@ -8096,31 +8130,32 @@
       } catch (e) { console.error('wip restore:', e); }
     }
     setAircraft('gen');
-    enterGarage();
-    openEditor();
-    // ...AND THE AEROPLANE BEHIND THE CAGE IS THE CAGE. Until now the first
-    // build of a session had no snapshot, so `buildModel('gen')` fell back to
-    // genSkin (G46's declared "absent a snapshot ... the generated skin flies
-    // as before") — invisible in the garage, where the editor's own meshes are
-    // what you look at, and the reason a roll-out was the first moment the two
-    // agreed. Committing at boot is the same step roll-out takes, taken once
-    // more, and it is what lets the old generated skin stop being a thing the
-    // game can fall back into.
-    syncBuild();
-    // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
-    // a dirty storm like any load — and the bench's rule (an empty bench
-    // never nulls the store) is what let the WIP's stored plaque live
-    // through it. Restore comes LAST, same as garage.js loadSpec does it.
+  });
+  bootStep('garage', 'raising the shed', 15, enterGarage);
+  bootStep('editor', 'opening the workshop', 20, openEditor);
+  // ...AND THE AEROPLANE BEHIND THE CAGE IS THE CAGE. Until now the first
+  // build of a session had no snapshot, so `buildModel('gen')` fell back to
+  // genSkin (G46's declared "absent a snapshot ... the generated skin flies
+  // as before") — invisible in the garage, where the editor's own meshes are
+  // what you look at, and the reason a roll-out was the first moment the two
+  // agreed. Committing at boot is the same step roll-out takes, taken once
+  // more, and it is what lets the old generated skin stop being a thing the
+  // game can fall back into.
+  bootStep('sync', 'committing the build', 10, syncBuild);
+  // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
+  // a dirty storm like any load — and the bench's rule (an empty bench
+  // never nulls the store) is what let the WIP's stored plaque live
+  // through it. Restore comes LAST, same as garage.js loadSpec does it.
+  bootStep('restore', 'the certificate', 1, () => {
     if (typeof window.BENCH_RESTORE === 'function' && window.GARAGE_SPEC
         && window.GARAGE_SPEC.plaque)
       window.BENCH_RESTORE(window.GARAGE_SPEC.plaque());
-  } catch (err) {
-    console.error('cage boot:', err);
-    try { const sel = $('selAc'); if (sel) sel.value = 'gen';
-          setAircraft('gen'); } catch (e2) {}
-  }
+  });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed
   // here behind the splash; a reference plane fetches its own on pick.)
-  hud();
-  loop();
+  // the first frame renders UNDER the overlay: this is where the shaders
+  // compile, and the frames after it are where the late landings re-bake
+  bootStep('firstFrame', 'first light', 10, () => { hud(); loop(); });
+  BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
+    require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'] });
 })();

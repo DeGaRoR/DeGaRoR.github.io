@@ -28,30 +28,66 @@
     -webkit-user-select:none; user-select:none; }
   #c:active { cursor:grabbing; }
 
-  /* ---- boot splash ----------------------------------------------------
-     The artifact inlines its 3D payloads, so it is several MB and the browser
-     streams it. This paints from the first few KB (it is the first element in
-     <body>, ahead of the script blocks) and app.js drops it on frame 1.
-     Deliberately font-independent: IBM Plex has not loaded yet either. */
-  #boot { position:fixed; inset:0; z-index:50; display:flex;
-    align-items:center; justify-content:center; background:#cfe0ec;
-    transition:opacity .45s ease; }
+  /* ---- THE LOADING SCREEN (LOADING S1, 2026-09-14) ----------------------
+     First element in <body>, ahead of the script blocks, so it paints from
+     the first few KB. The bone board of the workshop (editor.css --ed-board),
+     the user's own captures full-bleed behind a veil, one phase line, one
+     determinate bar, one ticker of what is landing. The Ken Burns drift is a
+     CSS animation on a will-change layer: the compositor keeps it moving
+     while a build step blocks the main thread, which is the one signal of
+     life a blocked page can give. z 70: above #dfBirth / #gFleet / #ctlPanel
+     (60) - nothing opens over the loading screen. */
+  #boot { position:fixed; inset:0; z-index:70; background:#1a1815; color:#f4efe6;
+    font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    transition:opacity .6s ease; overflow:hidden; }
   #boot.gone { opacity:0; pointer-events:none; }
-  #bootInner { display:flex; flex-direction:column; align-items:center; gap:14px;
-    color:#4b3a2a; font:500 15px/1.4 ui-sans-serif, system-ui, sans-serif;
-    letter-spacing:.06em; }
-  #bootBrand { font-size:19px; font-weight:600; letter-spacing:.14em;
-    text-transform:uppercase; }
-  #bootNote { font-size:12px; letter-spacing:.10em; color:#7d6a56; }
-  #bootBar { width:190px; height:3px; border-radius:2px; overflow:hidden;
-    background:rgba(75,58,42,.16); }
-  #bootBar i { display:block; width:40%; height:100%; border-radius:2px;
-    background:#c07a2c; animation:bootSlide 1.15s ease-in-out infinite; }
+  #boot[hidden] { display:none; }
+  #bootShots { position:absolute; inset:0; }
+  #bootShots .bs { position:absolute; inset:0; margin:0; opacity:0;
+    transition:opacity 1.4s ease; will-change:opacity; }
+  #bootShots .bs.on { opacity:1; }
+  #boot[data-set="garage"] .bs[data-set="rollout"],
+  #boot[data-set="rollout"] .bs[data-set="garage"] { display:none; }
+  #bootShots .bs img { display:block; width:100%; height:100%; object-fit:cover;
+    transform-origin:50% 55%; will-change:transform; }
+  #bootShots .bs.on img { animation:bootKb 26s ease-in-out infinite alternate; }
+  @keyframes bootKb { 0% { transform:scale(1.04) translate(0,0); }
+    100% { transform:scale(1.12) translate(-1.2%, 0.8%); } }
+  #bootShots figcaption { position:absolute; right:28px; bottom:26px;
+    font:400 11.5px/1.3 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing:.08em; text-transform:lowercase; color:#c0b8ac;
+    text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  #bootVeil { position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg, rgba(12,11,10,.10) 0%, rgba(12,11,10,0) 30%,
+      rgba(12,11,10,.55) 72%, rgba(12,11,10,.88) 100%); }
+  #bootPanel { position:absolute; left:32px; bottom:28px; width:min(460px, calc(100% - 64px));
+    display:flex; flex-direction:column; gap:8px;
+    text-shadow:0 1px 2px rgba(0,0,0,.55); }
+  #bootBrand { font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase;
+    color:#97907f; }
+  #bootPhase { font-size:15px; font-weight:500; line-height:1.35; color:#f4efe6;
+    min-height:1.35em; }
+  #bootBar { width:260px; height:3px; border-radius:2px; overflow:hidden;
+    background:rgba(255,248,236,.14); }
+  #bootBar i { display:block; height:100%; width:0; border-radius:2px; background:#e6dbc9;
+    transition:width .35s ease; }
+  /* until boot.js speaks (the first ~100 ms, and a page whose scripts never
+     ran): the old indeterminate slide */
+  #bootBar.idle i { width:40%; animation:bootSlide 1.15s ease-in-out infinite; }
   @keyframes bootSlide {
     0% { transform:translateX(-110%); } 100% { transform:translateX(360%); }
   }
+  #bootTick { font-size:11px; line-height:1.5; letter-spacing:.04em; color:#97907f;
+    min-height:1.5em; max-height:3em; overflow:hidden; }
+  #bootNote { font-size:11.5px; line-height:1.45; color:#d8a07a; }
+  #bootSkip { align-self:flex-start; margin-top:4px; padding:6px 12px; border-radius:6px;
+    font:600 10.5px/1 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing:.12em; text-transform:uppercase; color:#f4efe6; cursor:pointer;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18); }
+  #bootSkip:hover { background:rgba(255,255,255,.12); }
   @media (prefers-reduced-motion:reduce) {
-    #bootBar i { animation:none; width:100%; }
+    #bootShots .bs.on img { animation:none; }
+    #bootBar.idle i { animation:none; width:100%; }
   }
 
   /* ---- THE FLIGHT HUD LEFT THIS FILE (the flight-interface rebaseline).
@@ -3003,17 +3039,275 @@ body.benchBusy #edInfo { opacity:.72; }
 </style>
 </head>
 <body>
-<!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
-     MODELS blocks, so the browser paints it from the first few KB while the
-     rest of the (large — the 3D payloads are inlined) artifact still streams.
-     app.js removes it on the first rendered frame. -->
-<div id="boot">
-  <div id="bootInner">
+<!-- THE LOADING SCREEN (LOADING chantier S1, 2026-09-14). Sits at the very
+     top of <body>, ahead of the vendor/core/MODELS blocks, so the browser
+     paints it from the first few KB while the rest of the artifact streams.
+     The pictures rotate on CSS animations alone (compositor-driven: they keep
+     moving while the main thread is blocked by a build step); the words are
+     written by src/viewer/boot.js (window.BOOT, evaluated right after this
+     markup - the BOOT slot below) and the app reports its phases and the
+     landing of every asset into it. The overlay lifts when the garage is
+     FINISHED - every step run, every required asset landed, three quiet
+     frames rendered underneath - never on frame 1 (that was the mirror
+     aircraft and the empty back wall the user saw). The same element serves
+     the roll-out (data-set="rollout", the world pictures). -->
+<div id="boot" data-set="garage" role="status" aria-live="polite">
+  <div id="bootShots"><figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223450.c6277660.jpg" alt="" decoding="async" fetchpriority="high"><figcaption>the steel shed, afternoon</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_214350.023acbe1.jpg" alt="" decoding="async"><figcaption>cowl off, night</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223748.700b726c.jpg" alt="" decoding="async"><figcaption>the wooden shed, door open</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223607.c03488ba.jpg" alt="" decoding="async"><figcaption>a wing on the bench</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_224119.f0c40363.jpg" alt="" decoding="async"><figcaption>F-PGAR</figcaption></figure>
+<figure class="bs" data-set="garage"><img src="media/tex/shots/shot_2026-09-12_223943.2205afec.jpg" alt="" decoding="async"><figcaption>from the loft</figcaption></figure>
+<figure class="bs" data-set="rollout"><img src="media/tex/shots/shot_2026-09-12_022252.efc84a24.jpg" alt="" decoding="async"><figcaption>over the fields</figcaption></figure>
+<figure class="bs" data-set="rollout"><img src="media/tex/shots/shot_2026-09-09_011423.1425d277.jpg" alt="" decoding="async"><figcaption>the stand</figcaption></figure>
+<figure class="bs" data-set="rollout"><img src="media/tex/shots/shot_2026-09-09_012958.f1a58d6e.jpg" alt="" decoding="async"><figcaption>the alps behind</figcaption></figure></div>
+  <div id="bootVeil"></div>
+  <div id="bootPanel">
     <span id="bootBrand">Garage Flight Sim</span>
+    <div id="bootPhase">opening the shed</div>
     <div id="bootBar"><i></i></div>
-    <span id="bootNote">loading aircraft models…</span>
+    <div id="bootTick"></div>
+    <div id="bootNote" hidden></div>
+    <button id="bootSkip" type="button" hidden>continue anyway</button>
   </div>
 </div>
+<script>
+// boot.js - THE LOADING SCREEN'S BRAIN (LOADING chantier S1, 2026-09-14)
+//
+// Evaluated ~100 ms into the page, right after the #boot markup and BEFORE
+// the vendor / core / editor / viewer blocks (build.js puts it in the BOOT
+// slot of body.html). No THREE, no DOM beyond the #boot* ids. window.BOOT is:
+//
+//   phase(id, label, frac)   the line under the brand + the bar; frac optional
+//   run(steps, opt)          steps [{id, label, w, fn}] run ONE PER TASK: fn()
+//                            in try/catch (a throw is logged into the note and
+//                            the chain goes on - a boot must never be fatal),
+//                            then setTimeout(next, 0). opt {set, require, done,
+//                            idle, hard}. When the last step ran, state is
+//                            'landing' and ready() decides.
+//   expect(key, n)           the aggregator: key expects n more landings
+//   landed(key, ok, what)    one landing (ok=false: listed as failed - a
+//                            failed fetch counts as landed, it will never
+//                            arrive); re-arms the idle watchdog
+//   img(img, key)            expect + landed on the image's load/error, or
+//                            now if it is already complete
+//   frame()                  the loop reports a rendered frame - frames under
+//                            the overlay are where the shaders compile
+//   ready()                  steps done && every REQUIRED key balanced &&
+//                            three quiet frames -> hide()
+//   fail(reason)             the watchdog's path: the note says what never
+//                            landed, then hide()
+//   show(set, opt) / hide()  the overlay for a second use (the roll-out)
+//   whenReady()              a Promise resolved on hide; window.FLYDIY_READY
+//                            is the current set's - the rigs wait on it
+//   log[]                    every event with its ms - tools/boot_perf.js
+//
+// WHY SETTIMEOUT AND NEVER AWAIT / rAF. GATE UISMOKE runs app.js in a vm with
+// a setTimeout that fires IMMEDIATELY and a requestAnimationFrame that only
+// stores its callback: a chain of setTimeout(next, 0) runs to completion
+// synchronously there (the whole boot inside app.js's eval, as before), and
+// one step per task in the browser, where fetch promises resolve between
+// the steps and the overlay repaints. Every timer here (the watchdogs, the
+// picture rotation) checks the elapsed time and does nothing when it fires
+// early, and never re-arms itself - events re-arm - so the immediate stub
+// cannot recurse.
+(function () {
+  'use strict';
+  const T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  const now = () => ((typeof performance !== 'undefined' && performance.now) ? performance.now() : T0);
+  const doc = typeof document !== 'undefined' ? document : null;
+  const $ = id => (doc && doc.getElementById) ? doc.getElementById(id) : null;
+  const HAS_UI = !!($('boot') && $('bootPhase'));
+  const hasTimer = typeof setTimeout === 'function';
+
+  const B = {
+    t0: T0, state: 'loading', set: 'garage', log: [], current: null,
+    steps: [], stepI: 0, weights: 0, doneW: 0, frac: 0,
+    keys: {}, required: [], quiet: 0, lastEvent: T0, opt: {}, failed: [],
+    _readyRes: null, _readyP: null, _shots: null, _shotI: -1, _shotT: 0,
+  };
+  const rec = (k, extra) => { const e = Object.assign({ k, t: Math.round(now() - T0) }, extra || {}); B.log.push(e); return e; };
+
+  // ---- the words --------------------------------------------------------
+  function paint() {
+    if (!HAS_UI) return;
+    const bar = $('bootBar'), fill = bar && bar.firstElementChild;
+    if (bar) bar.classList.remove('idle');
+    let req = 0, got = 0;
+    for (const k of B.required) { const e = B.keys[k]; if (!e) continue; req += e.expected; got += Math.min(e.landed, e.expected); }
+    const stepF = B.weights ? (B.doneW + (B.current ? B.current.w * B.frac : 0)) / B.weights : (B.state === 'loading' ? 0 : 1);
+    const assetF = req ? got / req : (B.state === 'landing' || B.state === 'gone' ? 1 : 0);
+    const f = Math.max(0, Math.min(1, 0.7 * stepF + 0.3 * assetF));
+    if (fill) fill.style.width = (f * 100).toFixed(1) + '%';
+    const tick = $('bootTick');
+    if (tick) {
+      const parts = [];
+      for (const k in B.keys) { const e = B.keys[k]; if (!e.expected) continue;
+        const s = e.label + ' ' + Math.min(e.landed, e.expected) + '/' + e.expected + (e.bytes ? ' · ' + fmtMB(e.bytes) : '');
+        parts.push(e.landed >= e.expected ? s : s + '…'); }
+      tick.textContent = parts.join('   ');
+    }
+  }
+  const fmtMB = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB';
+  function setPhase(label) { const el = $('bootPhase'); if (el) el.textContent = label; }
+  function note(text) { const el = $('bootNote'); if (!el) return; if (text) { el.textContent = text; el.hidden = false; } else el.hidden = true; rec('note', { text }); }
+
+  // ---- the pictures: CSS crossfade + Ken Burns; this only flips `on` -----
+  function shots() {
+    if (B._shots === null) { const host = $('bootShots'); B._shots = host && host.children ? Array.prototype.slice.call(host.children) : []; }
+    return B._shots.filter(f => f.getAttribute && f.getAttribute('data-set') === B.set);
+  }
+  function rotate() {
+    const fs = shots(); if (!fs.length) return;
+    const t = now();
+    if (B._shotI >= 0 && t - B._shotT < 5500) return;      // fired early (the immediate stub): nothing, no re-arm
+    if (B._shotI >= 0 && fs[B._shotI % fs.length]) fs[B._shotI % fs.length].classList.remove('on');
+    B._shotI = B._shotI < 0 ? 0 : B._shotI + 1;
+    const f = fs[B._shotI % fs.length]; if (f && f.classList) f.classList.add('on');
+    B._shotT = t;
+    if (hasTimer && B.state !== 'gone' && fs.length > 1) setTimeout(rotate, 6000);
+  }
+
+  // ---- the watchdogs: check elapsed, never re-arm themselves ------------
+  function watch() {
+    if (B.state === 'gone' || B.state === 'ready') return;
+    const t = now();
+    // fired early (the harness's immediate stub): no verdict and NO re-arm -
+    // an immediate timer that re-armed itself would recurse without end
+    if (t - B._watchArmed < 1900) return;
+    // a 9 s block is a normal step on a slow machine: the button is a safety
+    // valve, not a verdict - it shows at 14 s of silence, the overlay gives up
+    // at 30 s of silence or 2 min in all
+    const idle = B.opt.idle || 30000, hard = B.opt.hard || 120000, skipAt = B.opt.skipAt || 14000;
+    if (t - B.lastEvent >= skipAt || t - B.opt.t0 >= 45000) { const b = $('bootSkip'); if (b) b.hidden = false; }
+    if (t - B.lastEvent >= idle || t - B.opt.t0 >= hard) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
+    B._watchArmed = t; if (hasTimer) setTimeout(watch, 2000);
+  }
+  function armWatch() { B.lastEvent = now(); }
+
+  // ---- the aggregator ---------------------------------------------------
+  const LABELS = { sky: 'sky', env: 'lighting', room: 'the room', props: 'props', propTex: 'prop textures', skin: 'the skin',
+    crew: 'the crew', crewTex: 'crew textures', crewBuild: 'crew fit', treeBin: 'tree models', trees: 'tree textures',
+    atlas: 'tree atlases', fill: 'the forest', worldFrame: 'the world' };
+  function key(k) { return B.keys[k] || (B.keys[k] = { expected: 0, landed: 0, failed: 0, bytes: 0, label: LABELS[k] || k }); }
+  function expect(k, n) { const e = key(k); e.expected += (n === undefined ? 1 : n); B.quiet = 0; armWatch(); paint(); return e; }
+  function landed(k, ok, what, bytes) {
+    const e = key(k); e.landed += 1; if (bytes) e.bytes += bytes;
+    if (ok === false) { e.failed += 1; B.failed.push(k + (what ? ' ' + what : '')); }
+    B.quiet = 0;   // three quiet frames AFTER the last landing
+    armWatch(); rec('landed', { key: k, ok: ok !== false, what: what ? String(what).slice(-48) : undefined });
+    paint();
+  }
+  function img(im, k) {
+    // one Image, one landing: the room and the world's shed share their
+    // textures' Images, and two expects on one load would never balance
+    if (!im || im.__bootSeen !== undefined) return;
+    im.__bootSeen = false;
+    expect(k);
+    const done = ok => { if (im.__bootSeen) return; im.__bootSeen = true; landed(k, ok, im.src); };
+    if (im.complete && im.naturalWidth) done(true);
+    else if (im.complete && im.src) done(false);        // complete but broken: it failed already
+    else if (im.addEventListener) { im.addEventListener('load', () => done(true)); im.addEventListener('error', () => done(false)); }
+    else done(true);
+  }
+  function balanced() {
+    // a required key nobody expected is nothing to wait for (no crew seated,
+    // no props in this room): producers EXPECT before they land the thing
+    // that triggers the next fetch, so the chain never has a gap
+    for (const k of B.required) { const e = B.keys[k]; if (e && e.landed < e.expected) return false; }
+    for (const p of (B.opt.pending || [])) { try { if (p()) return false; } catch (e) {} }
+    return true;
+  }
+  function pending() {
+    const out = [];
+    for (const k of B.required) { const e = B.keys[k]; if (e && e.landed < e.expected) out.push(e.label + ' ' + e.landed + '/' + e.expected); }
+    return out;
+  }
+
+  // ---- the chain --------------------------------------------------------
+  function phase(id, label, frac) {
+    B.current = { id, label, w: B.current && B.current.id === id ? B.current.w : 1 };
+    B.frac = frac || 0; rec('phase', { id }); setPhase(label || id); paint();
+  }
+  function run(steps, opt) {
+    opt = opt || {};
+    B.opt = Object.assign({ t0: now() }, opt);
+    B.set = opt.set || B.set; B.required = opt.require || [];
+    B.steps = steps || []; B.stepI = 0; B.doneW = 0; B.weights = 0; B.quiet = 0; B.state = 'loading';
+    for (const s of B.steps) B.weights += (s.w || 1);
+    rec('run', { set: B.set, steps: B.steps.length });
+    if (!B._readyP) B._readyP = new Promise(r => { B._readyRes = r; });
+    if (typeof window !== 'undefined') window.FLYDIY_READY = B._readyP;
+    armWatch(); B._watchArmed = now(); if (hasTimer) setTimeout(watch, 2000);
+    rotate();
+    next();
+  }
+  function next() {
+    if (B.stepI >= B.steps.length) {
+      B.state = 'landing'; rec('landing'); B.current = null; B.frac = 0;
+      setPhase(B.opt.landingLabel || 'the last pieces');
+      paint(); ready();
+      return;
+    }
+    const s = B.steps[B.stepI++];
+    B.current = { id: s.id, label: s.label, w: s.w || 1 }; B.frac = 0;
+    setPhase(s.label || s.id); paint(); armWatch();
+    const t = now(); const e = rec('step', { id: s.id });
+    try { if (typeof s.fn === 'function') s.fn(); }
+    catch (err) { rec('error', { id: s.id, msg: String(err && err.message || err) }); note('a step failed (' + s.id + '): ' + String(err && err.message || err)); if (typeof console !== 'undefined') console.error('boot step ' + s.id + ':', err); }
+    e.ms = Math.round(now() - t);
+    B.doneW += s.w || 1; armWatch(); paint();
+    if (hasTimer) setTimeout(next, 0); else next();
+  }
+  function frame() {
+    if (B.state === 'gone') return;
+    if (!B._frame1) { B._frame1 = true; rec('frame1'); }
+    if (B.state === 'landing' && balanced()) { B.quiet += 1; ready(); } else B.quiet = 0;
+  }
+  function ready() {
+    if (B.state !== 'landing') return false;
+    if (!balanced()) return false;
+    if (B.quiet < (B.opt.quietFrames === undefined ? 3 : B.opt.quietFrames)) return false;
+    B.state = 'ready'; rec('ready'); hide(); return true;
+  }
+  function fail(reason) {
+    if (B.state === 'gone' || B.state === 'ready') return;
+    const miss = pending();
+    rec('fail', { reason, missing: miss, failed: B.failed.slice() });
+    if (typeof console !== 'undefined') console.warn('boot: ' + reason + (miss.length ? ' - never landed: ' + miss.join(', ') : '') + (B.failed.length ? ' - failed: ' + B.failed.join(', ') : ''));
+    B.state = 'ready'; hide();
+  }
+  function hide() {
+    rec('gone'); const b = $('boot'); B.state = 'gone';
+    if (b && b.classList) { b.classList.add('gone'); if (hasTimer) setTimeout(() => { if (B.state === 'gone' && b.classList.contains('gone')) b.hidden = true; }, 700); }
+    if (B.opt.done) { try { B.opt.done(); } catch (e) { if (typeof console !== 'undefined') console.error('boot done:', e); } }
+    const r = B._readyRes; B._readyRes = null; B._readyP = null; if (r) r(B.log);
+  }
+  function show(set, opt) {
+    const b = $('boot'); if (b) { b.hidden = false; b.classList.remove('gone'); if (b.setAttribute) b.setAttribute('data-set', set || 'garage'); }
+    B.set = set || 'garage'; B.keys = {}; B.failed = []; B.state = 'loading'; B._frame1 = false;
+    for (const f of (B._shots || [])) if (f.classList) f.classList.remove('on');
+    B._shotI = -1; B._shotT = 0;
+    note(''); const sk = $('bootSkip'); if (sk) sk.hidden = true;
+    rec('show', { set: B.set });
+    if (opt && opt.steps) run(opt.steps, opt);
+  }
+  function whenReady() { if (B.state === 'gone') return Promise.resolve(B.log); if (!B._readyP) B._readyP = new Promise(r => { B._readyRes = r; }); return B._readyP; }
+
+  const sk = $('bootSkip'); if (sk && sk.addEventListener) sk.addEventListener('click', () => fail('skipped by the user'));
+  // bytes per landed URL, zero-touch: the ticker's MB come from here
+  try { new PerformanceObserver(l => { for (const en of l.getEntries()) { const u = en.name; const k = /media\/tex\/chars\//.test(u) ? 'crewTex' : /media\/tex\/sky\//.test(u) ? 'sky' : /media\/tex\/trees\//.test(u) ? 'trees' : /media\/geo\/trees\//.test(u) ? 'treeBin' : /media\/geo\/props\//.test(u) ? 'props' : /media\/tex\/props\//.test(u) ? 'propTex' : /media\/geo\/chars\//.test(u) ? 'crew' : null;
+    if (k) key(k).bytes += en.transferSize || en.encodedBodySize || 0; } paint(); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
+
+  B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
+  B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.hasUI = HAS_UI;
+  if (typeof window !== 'undefined') window.BOOT = B;
+  if (typeof module !== 'undefined') module.exports = B;
+  rec('boot.js');
+  phase('scripts', 'reading the scripts');
+  rotate();
+})();
+</script>
 <canvas id="c"></canvas>
 <!-- FLIGHT. Everything on this layer is about WATCHING AN AEROPLANE FLY,
      and none of it exists in the workshop (G86). One switch hides the lot —
@@ -7764,6 +8058,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 
 </script>
 <script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>
+<script>window.BOOT&&BOOT.phase('vendor','reading the renderer')</script>
 <script>
 // ============================================================
 // CUB FLIGHT CORE — M1
@@ -32084,6 +32379,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
+<script>window.BOOT&&BOOT.phase('core','reading the model')</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -48291,6 +48587,7 @@ function texture(c, id, srgb) {
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; if (window.CHAR_TEX_LANDED) window.CHAR_TEX_LANDED(c.key); };
   img.onload = ok;
+  if (window.BOOT) window.BOOT.img(img, 'crewTex');   // the loading screen waits for the maps
   img.src = uri;
   return (TEX[k] = t);
 }
@@ -51626,9 +51923,12 @@ const CHAR_WAIT = {};
 // several characters landing in one breath rebuild ONCE
 let charRebuildT = 0;
 const charRebuild = () => {
-  clearTimeout(charRebuildT);
+  if (charRebuildT) clearTimeout(charRebuildT);
+  else if (window.BOOT) window.BOOT.expect('crewBuild');   // the loading screen waits for the rebuild this arms
   charRebuildT = setTimeout(() => {
-    if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build();
+    charRebuildT = 0;
+    try { if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build(); }
+    finally { if (window.BOOT) window.BOOT.landed('crewBuild'); }
   }, 60);
 };
 if (typeof window !== 'undefined')
@@ -51878,9 +52178,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const ready = !!C.ready(c.key);
     if (!ready && !CHAR_WAIT[c.key]) {
       CHAR_WAIT[c.key] = 1;
+      if (window.BOOT) window.BOOT.expect('crew');   // the loading screen waits for the character
       C.load(c.key).then(d => {
         CHAR_WAIT[c.key] = 0;
-        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();
+        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands
+        if (window.BOOT) window.BOOT.landed('crew', !!d, c.key);
       });
     }
     return { key: c.key, label: c.label, rig, ready };
@@ -87753,7 +88055,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
       return Promise.reject(new Error('trees: no ASSET_FETCH here'));
     WARM = Promise.all(PACK.collections.map(c =>
-      window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); })));
+      (window.BOOT && window.BOOT.expect('treeBin'),
+       window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); if (window.BOOT) window.BOOT.landed('treeBin'); },
+                                      e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; }))));
     return WARM;
   }
 
@@ -92092,6 +92396,7 @@ function propTexture(THREE, id, srgb) {
   t.flipY = false;                            // glTF uv origin is top-left
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   const ok = () => { t.needsUpdate = true; };
+  if (typeof window !== 'undefined' && window.BOOT) window.BOOT.img(img, 'propTex');   // the loading screen waits for it
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });
   img.src = uri;
@@ -92257,15 +92562,19 @@ function propMesh(THREE, key) {
   // emitter books, the env bake) hooks window.PROP_LANDED once. A failed
   // fetch leaves the group empty: the prop is absent, not the room broken.
   g.userData.propPending = true;
+  const B = (typeof window !== 'undefined' && window.BOOT) || null;   // the loading screen waits for the bytes
+  if (B) B.expect('props');
   propWarm(key).then(() => {
-    fillPropMesh(THREE, key, g);
+    fillPropMesh(THREE, key, g);      // expects its textures before the landing below
     g.userData.propPending = false;
     propSetEnv(PROP_ENV);             // late materials wear the current mood
     if (typeof window !== 'undefined' && typeof window.PROP_LANDED === 'function')
       window.PROP_LANDED(key, g);
+    if (B) B.landed('props');
   }).catch(e => {
     if (typeof console !== 'undefined')
       console.warn('prop ' + key + ' failed to load:', e && e.message);
+    if (B) B.landed('props', false, key);
   });
   return g;
 }
@@ -95002,6 +95311,7 @@ function aeroDetailTex(THREE, key) {
       ctx.drawImage(pay.img, 0, 0, S, S);
       t.needsUpdate = true;
     };
+    if (typeof window !== 'undefined' && window.BOOT) window.BOOT.img(pay.img, 'skin');   // the loading screen waits for it
     if (pay.img.complete && pay.img.naturalWidth) draw();
     else {
       ctx.fillStyle = 'rgb(128,128,204)';   // 204 = the 0.80 mean, in bytes
@@ -98971,12 +99281,15 @@ RSEED = 0x5f1d7a3b;
 // a texture cached-complete at script eval cannot touch the binding before
 // its `let` below has run.
 let roomTexTimer = null;
+const BOOT_ = () => (typeof window !== 'undefined' && window.BOOT) || null;
 const roomTexLanded = () => {
   if (roomTexTimer) clearTimeout(roomTexTimer);
+  else if (BOOT_()) BOOT_().expect('env');   // the loading screen waits for the bake this arms
   roomTexTimer = setTimeout(() => {
     roomTexTimer = null;
     skyDirty = true;
-    if (skyOnReady) skyOnReady();
+    try { if (skyOnReady) skyOnReady(); }
+    finally { if (BOOT_()) BOOT_().landed('env'); }
   }, 200);
 };
 
@@ -98992,6 +99305,7 @@ const floorTex = (img, srgb) => {
   // same material off the same Image, and whichever build came second used
   // to unhook the first (see siteGroundTex for the full account)
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
+  if (BOOT_()) BOOT_().img(img, 'room');
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });
   return t;
@@ -99728,6 +100042,7 @@ function gradeTextures() {
     // would apply the transform twice.
     t.colorSpace = THREE.LinearSRGBColorSpace;
     i.onload = () => { t.needsUpdate = true; skyDirty = true; if (skyOnReady) skyOnReady(); };
+    if (BOOT_()) BOOT_().img(i, 'sky');
     i.src = src;
     return t;
   };
@@ -99816,6 +100131,7 @@ function setSky(row) {
   // the data URI decodes asynchronously; whoever baked an environment off
   // the old picture is told when the new one has actually landed
   const ok = () => { st.needsUpdate = true; if (skyOnReady) skyOnReady(); };
+  if (BOOT_()) BOOT_().img(img, 'sky');
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok);
   const was = skyMat.map;
@@ -100791,12 +101107,14 @@ function wipBody(x, z, ry) {
   };
   if (typeof propReady === 'function' && !propReady('airframe_jodel_body')
       && typeof propWarm === 'function') {
+    if (BOOT_()) BOOT_().expect('props');
     Promise.all([propWarm('airframe_jodel_body'),
                  propWarm('work_trestle').catch(() => {})])
       .then(() => { run(); if (typeof window !== 'undefined'
         && typeof window.PROP_LANDED === 'function')
-        window.PROP_LANDED('airframe_jodel_body', null); })
-      .catch(() => {});
+        window.PROP_LANDED('airframe_jodel_body', null);
+        if (BOOT_()) BOOT_().landed('props'); })
+      .catch(() => { if (BOOT_()) BOOT_().landed('props', false, 'airframe_jodel_body'); });
     return;
   }
   run();
@@ -101542,6 +101860,7 @@ const partTex = (img, srgb) => {
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   // roomTexLanded: external media can land after the env bake — see floorTex
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
+  if (BOOT_()) BOOT_().img(img, 'room');
   if (img.complete && img.naturalWidth) ok();
   else img.addEventListener('load', ok, { once: true });   // shared Image — see siteGroundTex
   return t;
@@ -107232,9 +107551,14 @@ function closeBirth() {
 // FIRST LAUNCH with nothing on the stand (no WIP ever written): the flow IS
 // the front door. Deliberately one narrow trigger — any saved session, named
 // or not, boots into its own build exactly as before.
+// ...and AFTER the loading screen has lifted (LOADING S1): the door opens
+// onto a finished shed, never under or over the overlay (window.FLYDIY_READY
+// is the boot's promise; a page without one - a bench - opens as before).
 function maybeAutoOpen() {
   try {
-    if (!window.localStorage.getItem('flydiy.wip')) setTimeout(openBirth, 400);
+    if (window.localStorage.getItem('flydiy.wip')) return;
+    const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
+    ready.then(() => setTimeout(openBirth, 400));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') {
@@ -112918,6 +113242,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/viewer/premises_ui.js?v=05f5efd7"></script>
 <script>
 (() => {
+  // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
+  // the vendor and owns #boot; this script reports its phases and every asset
+  // landing into it, and the overlay lifts when the garage is FINISHED (see
+  // the boot tail). The shim is for a page without it - GATE UISMOKE's vm,
+  // where the chain must still run to its end synchronously.
+  const BOOT = (typeof window !== 'undefined' && window.BOOT) || (() => {
+    const no = () => {};
+    let frames = 0;
+    return { phase: no, expect: no, landed: no, img: no, note: no, fail: no, hide: no, show: no, log: [],
+      run: (steps, opt) => { for (const st of steps) { try { st.fn(); } catch (e) { console.error('boot step ' + st.id + ':', e); } } if (opt && opt.done) opt.done(); },
+      frame: () => { if (++frames !== 3) return; const b = document.getElementById('boot'); if (b && b.classList && !b.classList.contains('gone')) { b.classList.add('gone'); b.hidden = true; } },
+      whenReady: () => Promise.resolve([]), pending: () => [] };
+  })();
+  BOOT.phase('world', 'composing the world');
   // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
   // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
   // fixture from tools/fixtures (a test's door; read synchronously because the world is made
@@ -113032,6 +113370,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // (WebGL2 backend by default) and initialised it before this script ran;
   // otherwise this is the WebGLRenderer it has always been. TSL_ON is what
   // every material module asks to pick its variant (RENDERER-DECISION §4h).
+  BOOT.phase('renderer', 'the renderer');
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
     new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
   const TSL_ON = !!renderer.isWebGPURenderer;
@@ -113316,14 +113655,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // what the sliders made of it; the composition is handed in — the record
   // is passed rather than looked up, G123's own ruling — so the building you
   // taxi past and the room you stand in are the same size by construction.
-  const WF = buildWorldScene(scene, world, renderer, camera,
-    Object.assign({ shell: shedHome().shell },
-      playerShedDims(playerLoad(), 'HOME',
-        (typeof siteOf === 'function') ? siteOf('HOME') : null)));
-  if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
-  // GFX (G286): the saved graphics settings are applied the moment the
-  // world exists - before its first chunk of forest is planted
-  if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+  // ...built as a BOOT STEP (LOADING S1): 3 s warm on the analytic world,
+  // 10 on the island, and nothing the garage shows - so it runs under the
+  // loading screen as its own task, with the phase line on it, and every
+  // reader below guards `WF &&` (S3 moves it under the roll-out screen).
+  let WF = null;
+  function buildWorld() {
+    if (WF) return WF;
+    WF = buildWorldScene(scene, world, renderer, camera,
+      Object.assign({ shell: shedHome().shell },
+        playerShedDims(playerLoad(), 'HOME',
+          (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+    if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
+    // GFX (G286): the saved graphics settings are applied the moment the
+    // world exists - before its first chunk of forest is planted
+    if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+    return WF;
+  }
 
   // ================= THE GARAGE'S OWN SCENE =================
   // The editor and the simulation are two different places, and this is what
@@ -114466,7 +114814,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     };
     for (const t in texSrcs) {
       entry.pending++;
-      texs[t] = new THREE.TextureLoader().load(texSrcs[t], landed, undefined, landed);
+      BOOT.expect('skin');
+      texs[t] = new THREE.TextureLoader().load(texSrcs[t], () => { BOOT.landed('skin'); landed(); }, undefined,
+                                               () => { BOOT.landed('skin', false, texSrcs[t]); landed(); });
       texs[t].anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 4;
       // The generated paint is authored in sRGB (canvas colours are), so it has
       // to be declared as such or the renderer treats it as linear and encodes
@@ -118937,7 +119287,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const c = CONDITIONS[e.target.value] || null;
     world.setWeather(c);
     windBase = c && c.wind ? c.wind.base : null;
-    if (WF.setWindVis) WF.setWindVis(windBase);
+    if (WF && WF.setWindVis) WF.setWindVis(windBase);
   };
   $('bPause').onclick = e => {
     running = !running;
@@ -119012,7 +119362,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
   const NOSE_RANGE = 6000;
   function drawMap() {
-    const base = WF.minimap, cv = $('mm');
+    const base = WF && WF.minimap, cv = $('mm');
     if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
     const g = cv.getContext('2d'), W2 = cv.width, mk = W2 / 344;
     const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
@@ -120674,6 +121024,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 
   // the first aeroplane is the garage build on its defaults; the garage
   // bridge below re-applies the restored WIP over it before the first frame
+  BOOT.phase('aeroplane', 'building your aeroplane');
   setAircraft('gen');
   syncEnvBtn();               // garage-only buttons start hidden
 
@@ -120884,7 +121235,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // camera, not the aeroplane - otherwise the inspector flies out to a stand
     // and finds impostors, because the near tier is measured from a CG that is
     // still on the strip.
-    if (!inGarage) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
+    if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
@@ -120941,17 +121292,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // to its own target and is untouched by this.
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
-    if (frame === 1) dismissBoot();     // first real frame is on screen
+    BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
   }
-  // Boot splash (body.html #boot): drop it once something is actually drawn.
-  // Guarded so the headless UI-smoke harness, which has no such element, and
-  // a second call from the loop are both no-ops.
-  function dismissBoot() {
-    const b = document.getElementById('boot');
-    if (!b || b.classList.contains('gone')) return;
-    b.classList.add('gone');
-    setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 600);
-  }
+  // The splash used to drop on frame 1 here - the mirror aircraft and the
+  // empty back wall (LOADING S1). boot.js owns the teardown now; this is a
+  // door for anything that still wants the old verb.
+  function dismissBoot() { BOOT.hide(); }
   // ---- THE GAME OPENS ON YOUR OWN AEROPLANE (G67.1) ------------------------
   // It used to open on the PA-18, parked on an apron. That was right while the
   // imported meshes were the only aeroplanes with a skin on them; it stopped
@@ -120979,7 +121325,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // no longer exists as far as the game is concerned. It falls back to the
   // GARAGE BUILD standing on the apron instead — the same aeroplane, minus the
   // room and the editor that failed to open.
-  try {
+  // THE BOOT IS A LIST OF STEPS (LOADING S1). Each runs as its own task
+  // under the loading screen - the phase line names it, the bar moves, the
+  // fetches that landed meanwhile resolve between steps (props, the crew's
+  // bytes) - and a step that throws is logged and skipped, never fatal. The
+  // overlay lifts when every step ran AND the required assets are in AND
+  // three frames rendered quietly: the room dressed, the props in, the sky
+  // decoded and the environment baked off it, the skin's sheets on, the crew
+  // seated and textured. In GATE UISMOKE's vm the same list runs
+  // synchronously (its setTimeout fires at once).
+  const bootSteps = [];
+  const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
+  bootStep('worldScene', 'laying out the world', 18, buildWorld);
+  bootStep('aircraft', 'building your aeroplane', 6, () => {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
     // ---- THE AUTOSAVE IS READ BACK (2026-09-03) --------------------------
@@ -121015,33 +121373,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       } catch (e) { console.error('wip restore:', e); }
     }
     setAircraft('gen');
-    enterGarage();
-    openEditor();
-    // ...AND THE AEROPLANE BEHIND THE CAGE IS THE CAGE. Until now the first
-    // build of a session had no snapshot, so `buildModel('gen')` fell back to
-    // genSkin (G46's declared "absent a snapshot ... the generated skin flies
-    // as before") — invisible in the garage, where the editor's own meshes are
-    // what you look at, and the reason a roll-out was the first moment the two
-    // agreed. Committing at boot is the same step roll-out takes, taken once
-    // more, and it is what lets the old generated skin stop being a thing the
-    // game can fall back into.
-    syncBuild();
-    // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
-    // a dirty storm like any load — and the bench's rule (an empty bench
-    // never nulls the store) is what let the WIP's stored plaque live
-    // through it. Restore comes LAST, same as garage.js loadSpec does it.
+  });
+  bootStep('garage', 'raising the shed', 15, enterGarage);
+  bootStep('editor', 'opening the workshop', 20, openEditor);
+  // ...AND THE AEROPLANE BEHIND THE CAGE IS THE CAGE. Until now the first
+  // build of a session had no snapshot, so `buildModel('gen')` fell back to
+  // genSkin (G46's declared "absent a snapshot ... the generated skin flies
+  // as before") — invisible in the garage, where the editor's own meshes are
+  // what you look at, and the reason a roll-out was the first moment the two
+  // agreed. Committing at boot is the same step roll-out takes, taken once
+  // more, and it is what lets the old generated skin stop being a thing the
+  // game can fall back into.
+  bootStep('sync', 'committing the build', 10, syncBuild);
+  // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
+  // a dirty storm like any load — and the bench's rule (an empty bench
+  // never nulls the store) is what let the WIP's stored plaque live
+  // through it. Restore comes LAST, same as garage.js loadSpec does it.
+  bootStep('restore', 'the certificate', 1, () => {
     if (typeof window.BENCH_RESTORE === 'function' && window.GARAGE_SPEC
         && window.GARAGE_SPEC.plaque)
       window.BENCH_RESTORE(window.GARAGE_SPEC.plaque());
-  } catch (err) {
-    console.error('cage boot:', err);
-    try { const sel = $('selAc'); if (sel) sel.value = 'gen';
-          setAircraft('gen'); } catch (e2) {}
-  }
+  });
   // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed
   // here behind the splash; a reference plane fetches its own on pick.)
-  hud();
-  loop();
+  // the first frame renders UNDER the overlay: this is where the shaders
+  // compile, and the frames after it are where the late landings re-bake
+  bootStep('firstFrame', 'first light', 10, () => { hud(); loop(); });
+  BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
+    require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'] });
 })();
 </script>
 <script>
