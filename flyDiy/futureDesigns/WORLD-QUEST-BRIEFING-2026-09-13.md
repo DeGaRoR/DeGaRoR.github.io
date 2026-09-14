@@ -120,3 +120,28 @@ the payload gives a cone world; the full gate battery cannot be finished on a
 box running three of them (GEN alone: 73 min under load — a timeout is not a
 verdict) — prove per commit from a clean worktree, the full battery when the
 machine is quiet.
+
+## 8. ADDENDUM 2026-09-14 — THE FIRST ISLAND IS ANNETTE, AND U1 IS DONE
+
+Read `ISLAND-ANNETTE.md` after this briefing; it supersedes §1's "Admiralty"
+and §2's U1 / W4 / W5 rows:
+
+- **The island is Annette** (358 km², 31 × 39 km domain with sea all round,
+  Tamgas 1 096 m), not a 20 × 20 km slice of Admiralty — a closed coast
+  instead of four cut edges. W5 becomes "add an island" in the same frame.
+- **U1 is done on the bench:** one DTM tile + one WorldCover tile (0.9 GB),
+  `island_prep.py` on rasterio (no GDAL CLI — that is why U1 sat blocked),
+  `terrain_bake.js` → **4.4 MB at ε 2 m for the whole island**, seen in
+  `_terrain.html`. **R2 decided: EPSG:3338 + a fixed local origin.**
+- **The architecture ruling (the user):** easy and self-contained for as long
+  as we can — one asset, no streaming, no live third-party dependency, all
+  data local, size reduced where it doesn't matter. The prepack's tier-2 /
+  CDN is deleted. `island_fetch.js` pins its URLs so even the build side
+  needs no API.
+- **Imagery:** scoped, not dropped — a Landsat macro tint at 30 m, low
+  weight, never sampled as colour; the structure comes from ORI + canopy
+  height + WorldCover (ANNETTE §6).
+- The order is unchanged: W0.5b → W2 (the quadtree in the game, analytic
+  first, then `annette5_e2` as the first real content) → W1 → W3 → W4.
+- New rulings owed: the island's game name; Metlakatla survives?; the derelict
+  WWII field as the opening (ANNETTE §10).

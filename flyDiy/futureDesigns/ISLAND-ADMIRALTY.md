@@ -2,7 +2,12 @@
 ## Source data, the fantasy pass, and the pipeline that turns one into the other
 ### (2026-09-01, from the user's design session)
 
-STATUS: plan, unimplemented. Written to be handed to an implementation session.
+STATUS: plan, unimplemented — **PARTLY SUPERSEDED 2026-09-14 by
+`ISLAND-ANNETTE.md`.** The FIRST island is Annette (358 km², one asset, no
+streaming); Admiralty is what "adding islands" may one day reach. §1 the
+approach, §4 the fantasy pass, §9 the premise and §10 the gates STAND and
+apply to Annette unchanged; §2, §5–§7 (this island, its data, its budgets)
+and §8's "5 m streamed everywhere" are replaced by ANNETTE §2–§5.
 
 WHAT IT RELATES TO:
 - `futureDesigns/WORLD-V2.md` — the three-tier terrain architecture. This plan

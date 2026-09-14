@@ -149,7 +149,8 @@ async function load(prefix) {
   ASSET = h;
   // ground truth, for the error view
   if (!WORLD && typeof makeWorld === 'function') WORLD = makeWorld(0);
-  target.set(0, 0, 0);
+  // centre on the asset: a grid world's bounds need not contain the origin
+  target.set((h.bounds.x0 + h.bounds.x1) / 2, 0, (h.bounds.z0 + h.bounds.z1) / 2);
   dist = h.side * 0.85; place();
   build();
   $('msg').textContent = '';

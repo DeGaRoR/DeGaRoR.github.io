@@ -574,23 +574,30 @@ nothing else.*
 deleted by WORLD-V2 §13 (a real DEM IS the erosion; the quadtree's leaves ARE
 the hero tiles). The stages are §11's.*
 
-0. **THE WORLD-PATH DECISION** — ✔ **TAKEN: Admiralty Island → URSOY**, 5 m
-   IFSAR DTM + ESA WorldCover, per `ISLAND-ADMIRALTY.md` and
-   `ISLAND-PREPACK.md` (resolved 2026-09-01). See the ruling section below.
-1. **U1 — the data** [M]. GDAL installed (it is not, as of 2026-09-13), then
-   `tools/island_fetch.js --list` and `--dtm-only` + WorldCover (~1.6 GB; the
-   DSM and ORI wait until the tree ladder asks), `island_prep.py` → `.f32`.
-   The game-frame projection (R2) is decided here and written down once.
-2. **W4 — the pipeline on one 20 × 20 km slice of Ursoy**, loaded as the 24 km
-   domain [L]. **THE SHIPPED WORLD, for a long time** (WORLD-V2 §11's note):
-   more airfields than the loop has yet earned. First real tuning of ε, the
-   zone budgets and the palette.
+0. **THE WORLD-PATH DECISION** — ✔ **TAKEN: a real island on 5 m IFSAR DTM +
+   ESA WorldCover** (2026-09-01, Admiralty → URSOY); **RE-AIMED 2026-09-14:
+   the FIRST island is ANNETTE** (358 km², a closed coast, one asset), per
+   `ISLAND-ANNETTE.md`; Admiralty is what "add islands" may reach. The
+   fantasy pass, premise and gates of `ISLAND-ADMIRALTY.md` stand.
+1. **U1 — the data** — ✔ **DONE ON THE BENCH 2026-09-14.** `island_fetch.js
+   --island annette --dtm-only` (0.9 GB), `island_prep.py` (rasterio, not
+   GDAL CLI) → 5 m grid, `terrain_bake.js` → **4.4 MB at ε 2 m, 8.4 MB at
+   1 m** for the whole island, looked at in `_terrain.html`. **R2 decided:
+   EPSG:3338 + a fixed local origin.** The DSM and ORI cells are pinned and
+   wait until the tree ladder asks.
+2. **W4 — Annette whole, as the 31 × 39 km domain** [L]. **THE SHIPPED WORLD,
+   for a long time** (WORLD-V2 §11's note): more airfields than the loop has
+   yet earned. First real tuning of ε, the zone budgets and the palette.
+   **The architecture ruling (ANNETTE §5): one asset, no streaming, no live
+   service, all data local** — the 650 MB tier-2 / CDN of the prepack's first
+   draft is deleted.
 3. **W6 — nomination + zones** [L]. The landability pass scores and
    NOMINATES, the author PROMOTES; feeds the baker's zone list.
 4. **W7 — the airfield editor** [L], the §6 modifier layer typed; the two
    hardcoded rectangles in `h0` generalised.
-5. **W5 — the whole island** [L]. 145 km. Invalidates every golden and does
-   nothing else. **DEFERRED** until the loop is proven fun on W4.
+5. **W5 — add an island** [L]. Gravina, Duke, one day Admiralty: a wider
+   domain baked into the same frame and origin. Invalidates every golden and
+   does nothing else. **DEFERRED** until the loop is proven fun on W4.
 5. **Aerial perspective** [M, W-V2 §6.4]. On a 250 km island the horizon at
    3000 m is 195 km. Height-dependent extinction and in-scattering, not fog.
 6. **ONE CLOCK for hangar and world** [M, F4's owed half]. Flying out of a
@@ -725,7 +732,8 @@ completed the flight and had nothing to complain about. The BALANCE ADVISORY
 engineer's handbook, guidance you may ignore) is what fully serves the ruling.
 It was deliberately not smuggled into G150. It is Phase 2/5 work.
 
-## THE WORLD-PATH RULING — **DECIDED: ADMIRALTY ISLAND → URSOY** (2026-09-01;
+## THE WORLD-PATH RULING — **DECIDED: A REAL ISLAND ON 5 m IFSAR** (2026-09-01,
+## Admiralty → URSOY; **re-aimed at ANNETTE 2026-09-14**, `ISLAND-ANNETTE.md`;
 ## this section reconciled 2026-09-13, D0)
 
 **The decision as taken:** a real island's terrain as the tier-1 base — but

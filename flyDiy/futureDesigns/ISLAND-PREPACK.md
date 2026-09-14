@@ -2,9 +2,14 @@
 ## Elevation · terrain type · radar imagery · the fetch manifest
 ### (2026-09-01)
 
-STATUS: **RESOLVED.** Every endpoint below was probed live on 2026-09-01 and
-every open question from the first draft is closed. `tools/island_fetch.js`
-implements this document.
+STATUS: **RESOLVED — and RUN, for a different island, 2026-09-14.** See
+`ISLAND-ANNETTE.md`: the first island is Annette (one DTM tile, one WorldCover
+tile, 0.9 GB for the first look); the API is discovery only, with pins;
+`island_prep.py` is rasterio, not the GDAL command line; the game frame is
+**EPSG:3338 plus a local origin** (§7.1 closed); tier-2 streaming, R2 and the
+CDN are deleted by the user's architecture ruling (ANNETTE §5). §3 the imagery
+argument STANDS and is sharpened there (§6). The Ursoy manifest below remains
+correct for Admiralty.
 
 COMPANION TO: `ISLAND-ADMIRALTY.md` (the island and the fantasy pass),
 `WORLD-V2.md` (the terrain architecture the data feeds).

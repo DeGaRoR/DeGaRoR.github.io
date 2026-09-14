@@ -45464,3 +45464,55 @@ this session's.
 - THE CHANTIER, END TO END: G353 the contract and the design; G356-G380 the
   bench v0-v7 (eight landings); G385-G387 and G390 the port (four). The user opens
   the game, rolls out, and finds WORLD on the flight rail.
+
+## G391 — THE FIRST ISLAND IS ANNETTE, AND IT IS ON THE BENCH: U1 DONE, R2
+## DECIDED, THE ARCHITECTURE RULED (2026-09-14, the user: "let's go, annette in
+## the bench today ... keep the architecture easy and self-contained. No fancy
+## streaming ... all the data manageable locally, no live dependency on third
+## party services")
+
+- THE RULING. Admiralty is huge (145 km); the first island is ANNETTE — 358
+  km2, a closed coast, Tamgas 1 096 m, the same rainforest, a derelict WWII
+  field, one town in one corner — and the world grows later by adding
+  islands to the same frame. It collapses W4 (the 20 x 20 km slice) and W5
+  (the whole island): W4 is Annette whole, W5 is "add an island".
+  `futureDesigns/ISLAND-ANNETTE.md` is canonical; ADMIRALTY and PREPACK
+  carry supersession banners (their fantasy pass, premise, gates and imagery
+  argument stand); ROADMAP Phase 7 and the briefing (section 8) re-aimed.
+- THE DATA, PROBED LIVE. One IFSAR 5 m DTM tile (845 MB, a different project
+  from Admiralty's 39 small tiles) holds the whole island; one WorldCover
+  tile (78 MB). 0.9 GB for the first look, ~3 GB with the DSM/ORI cells,
+  which are pinned and wait for the trees. NAIP absent, as before.
+- THE TOOLCHAIN. `island_prep.py` rewritten on rasterio (its wheel bundles
+  GDAL 3.10: one pip install, no OSGeo4W — the GDAL CLI dependency is why U1
+  sat blocked two weeks); island table, crop + resample, the island mask
+  (scipy label, neighbours drowned: 929 km2 of Gravina/Revillagigedo/Duke
+  out of the box), WorldCover warped nearest onto the same grid (.u8), the
+  DEM's coast overriding its water. `island_fetch.js` per island, the API for
+  discovery only (it timed out x3 and 504'd: split on timeout, footprint
+  filter, PINS, `--no-api`). `island_look.py` new: hillshade over cover,
+  pure numpy + zlib, the picture that decided things. `_terrain.html`
+  centres on the asset's bounds.
+- R2 DECIDED BY THE DATA: the tile is delivered in Alaska Albers, so the game
+  frame is EPSG:3338 - the elevation is never warped - PLUS A FIXED LOCAL
+  ORIGIN (1 408 000 E, 808 000 N) in the island table: a float32 vertex at
+  1.4e6 m has 12 cm of precision and jittered on the bench. UTM 8N was wrong
+  for Annette anyway (zone 9, boundary 20 km west).
+- THE NUMBERS. 5 m native, whole island, one asset: eps 4 m 1.83 MB, 2 m
+  4.44 MB (5 800 leaves, 7.7 s), 1 m 8.39 MB. The prepack's 650 MB of
+  streamed tier-2 on a CDN and Admiralty's 40 MB are deleted by the ruling:
+  ONE asset, static files, nothing live, the raw data a disposable build
+  input reproducible from the pins.
+- IMAGERY, SCOPED: a Landsat macro tint at 30 m, low weight, never sampled
+  as colour; structure from ORI + canopy height + WorldCover (ANNETTE
+  section 6). Not dropped.
+- SEEN: `bench/annette/dem.png`; `_terrain.html?asset=flyDiy/bench/terrain/
+  annette5_e2` on 8430 (serve from Bash: five pane servers belong to peers).
+- TRAPS: `python` on PATH is Inkscape's (no pip) - use `py -3.11`; Avast Web
+  Shield intercepts HTTPS and pip's CA list refuses it (`--trusted-host` this
+  once; truststore is the clean fix); `_terrain.html` wants
+  `flyDiy/bench/...` from the repo root, and its `error` view is analytic
+  only; WorldCover reads the muskeg as grassland (10.7 %).
+- OWED: the island's game name; Metlakatla survives?; the derelict field as
+  the opening; eps + zones by looking at W4; the tide line. Order unchanged:
+  W0.5b -> W2 (annette5_e2 the first real content) -> W1 -> W3 -> W4.
