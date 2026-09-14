@@ -80,7 +80,7 @@ const CHECKS = [
   ['outcome',   r => r.outcome,                       v => v === 'completed' ? true : false,                          v => v],
   ['go-arounds',r => r.goArounds,                     v => v === 0 ? true : v <= 1 ? 'warn' : false,                  v => v],
   ['overshoot', r => r.legs.length ? Math.max(...r.legs.map(l => l.overshoot)) : null, v => v <= 40 ? true : v <= 100 ? 'warn' : false, v => v + ' m'],
-  ['roll cycle',r => r.legs.length ? Math.max(...r.legs.map(l => l.rollLC || 0)) : null, v => v <= 2 ? true : v <= 5 ? 'warn' : false, v => v + ' deg'],
+  ['roll rev', r => r.legs.length ? Math.max(...r.legs.map(l => l.rollRev || 0)) : null, v => v <= 8 ? true : v <= 20 ? 'warn' : false, v => v + '/min'],
   ['slope rms', r => r.final && r.final.aboveRms,     v => v <= 3 ? true : v <= 8 ? 'warn' : false,                   v => v + ' m'],
   ['speed rms', r => r.final && r.final.vRms,         v => v <= 1.5 ? true : v <= 3 ? 'warn' : false,                 v => v + ' m/s'],
   ['sink',      r => r.landing && r.landing.sink,     v => v <= 1.5 ? true : v <= 2.5 ? 'warn' : false,               v => v + ' m/s'],
@@ -216,8 +216,13 @@ if (require.main === module) {
   const loadRes = f => f && fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).results : null;
   const baseline = loadRes(base) || loadRes(rat);
   const extra = argv.includes('--csv') ? ['--csv'] : [];
-  if (argv.includes('--sheet')) extra.push('--sheet');       // the P0.4 ladder flag, matrix-wide
-  console.log('PILOT MATRIX: ' + cells.length + ' cells, ' + jobs + ' at a time (' + set + ')');
+  for (const f of ['--sheet', '--tecs', '--no-sheet', '--no-tecs', '--no-path']) if (argv.includes(f)) extra.push(f);   // the P0.4 / P0.5 / P0.6 flags, matrix-wide
+  // the core under test is SNAPSHOTTED for the whole run (see pilot_trace.js)
+  const runDir = path.join(T, '..', 'pilot_runs'); if (!fs.existsSync(runDir)) fs.mkdirSync(runDir);
+  const coreSnap = path.join(runDir, 'core_' + Date.now() + '.js');
+  fs.copyFileSync(opt('--core', path.join(T, 'flight_core.js')), coreSnap);
+  extra.push('--core', coreSnap);
+  console.log('PILOT MATRIX: ' + cells.length + ' cells, ' + jobs + ' at a time (' + set + ') on ' + path.basename(coreSnap));
   const t0 = Date.now();
   runMatrix(cells, jobs, extra, (i, r) => {
     const j = judge(r);
@@ -228,6 +233,7 @@ if (require.main === module) {
     console.log('\n' + rep.text);
     console.log('wall ' + Math.round((Date.now() - t0) / 1000) + ' s');
     if (out) fs.writeFileSync(out, JSON.stringify({ set, when: new Date().toISOString(), results }, null, 1));
+    try { fs.unlinkSync(coreSnap); } catch (e) {}
     if (rat) {
       const rb = loadRes(rat);
       const worse = rb ? ratchet(results, rb) : ['no baseline at ' + rat];

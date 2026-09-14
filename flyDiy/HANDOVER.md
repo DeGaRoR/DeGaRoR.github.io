@@ -46871,3 +46871,137 @@ markers, dev.html has none until app.js speaks).
   free imagery above 10 m exists here (NAIP absent, Sentinel share-alike,
   commercial non-redistributable) - close range is splatting from these
   maps.
+
+## G399.3 — THE PILOT TRACK, P0.5 + P0.6: TECS AND L1 OVER THE PATH — ONE
+## LAW PER AXIS, THE DEFAULTS FLIPPED ON THE MATRIX'S WORD (2026-09-14)
+
+**TECS** (43_pilot.js `tecs`, vertical + thrust mode `'TECS'`): Lambregts'
+Total Energy Control System, the form ArduPilot/PX4 fly. The throttle
+commands the rate of total specific energy (h' + V V'/g, in m/s of climb):
+a feed-forward from the SHEET (the cruise throttle for level, 1 at
+climbMax, the floor at the idle sink — 44_machine_sheet.js) plus P + I on
+the energy-rate error, the integrator held at the stops. The elevator
+commands the energy BALANCE: the trim attitude at this speed (a 1/V^2 fit
+through the two MEASURED trims, cruise and approach) + the demanded flight
+path angle + P + I on the balance-rate error, flown by the existing pitch
+servo (holdPitch — unchanged, the G201 servo). The speed weight moves to
+the elevator by itself when the throttle saturates or V < 1.1 Vs0. The
+references: a height (5 s time constant), a vertical speed, or the slope
+from the aim — CLIMB is `vs: climbMax`, altMode is `alt`, FINAL is `alt`
+then `gs`; the FLC/ALT switching, the level latch and the G381.1 power
+assist are not needed under it (they stay under `tecs: false`). Gains are
+dimensionless over the sheet (rule 8): kP = half the feed-forward slope, kI
+a quarter of it per second; the pitch P 0.8 and I 0.15 per unit path angle.
+TRAP MET: `engage` MERGES into SEL, so a stale `vs` from CLIMB flew the
+first final at +1.5 m/s to 500 m — every TECS engage names all three
+references (null for the unused).
+
+**L1 OVER THE PATH** (`pathFollow`, lateral mode `'PATH'`, `buildAirPath`):
+Park/Deyst/How's nonlinear guidance (AIAA GNC 2004): a reference point L1
+= 4 V (60 m floor) ahead of the nearest path point, eta from the ground
+track to it, a_lat = 2 V^2 sin(eta)/L1, PLUS the path's own curvature fed
+forward — NOT: on a circle the reference L1 ahead sits at sin(eta) = L1/2R
+and the law returns V^2/R by itself; a first cut added the curvature on top
+and the cub rolled to its limit at every fillet's start, turned inside the
+arc and crossed the leg by 67 m on the far side. One equation for a line
+and an arc. The path IS the
+circuit: the legs' corners become `patternPath`'s nodes (39_ground_path.js,
+the taxi path's own sampler — reused, not copied) with the fillet radius
+the aeroplane turns at that corner's speed (the slower of the two legs) at
+the planned bank (0.35 in a climb), sampled at 5 m; the first fillet is
+the crosswind turn itself; the base-to-final fillet is the path's, LOC
+takes over within 11 deg and 60 m of the runway. The roll servo is
+factored out of airLateral (`rollTo`); the yaw damper is unchanged. The
+G381 arc (`arcInto/arcFly`) and the pursuit stay under `path: false`.
+
+TWO PATH TRAPS MET: (1) `patternPath` halves a fillet's tangent to half
+the shorter leg so neighbouring fillets never overlap — an ENDPOINT has no
+fillet, so the leg to it may carry the whole tangent (39_ground_path.js;
+the air path's first corner, one radius ahead of the aeroplane, was halved
+to 125 m the cub could not fly at 20 deg; GATE TAKEOFF green on the taxi
+paths); (2) the leg's start node is a corner too when it is not the
+previous leg's end (the crosswind leg begins one radius ahead).
+
+**MEASURED.** The quick set on TECS alone against the baseline: no cell
+worse; slope rms 0.5-0.9 m on every landing (was 0.7-4.6), approach speed
+rms 0.04-0.12 (was 0.5-1.13), the stearman's calm rollout swing 7 -> 1;
+the arc overshoots halved on their own (C172 639 -> 249). With the path:
+C172 downwind 639 -> 15 m, base 15; crosswind 81 (the first fillet, in
+the climb). With TECS under it the SHEET's Vref (the P0.4 flag that lost
+four of four) lands six of six at 1.11-1.20 Vs — so all three are the
+DEFAULTS now (`sheet`, `tecs`, `path`; `--no-sheet --no-tecs --no-path`
+keep the old pilot). The core set (47 cells, 42 complete) on the new
+defaults (13 good, 16 warn, 18 bad — was 0 / 18 / 29 on the previous
+mode zoo + arc; every HOME circuit lands, slope rms <= 1.1 m and speed rms
+<= 0.25 m/s on all of them; what stays bad is the crosswind fillet on the
+twins / beaver in wind (the path is planned in still air at the leg's
+airspeed, L1 tracks the GROUND track — a wind term on the planned radius
+is owed), the cross-countries (P1: the obstacle-aware approach), `dn4`
+(P1) and the flat datum's 381 m on the C172's downhill (P0.8)):
+
+```
+cub:HOME:calm            completed ov   15  slope  0.7  spd  0.07  sink  1.21  V/Vs  1.16  aim    -7  swing   0.1
+cub:HOME:x2              completed ov   15  slope  0.7  spd  0.07  sink  1.32  V/Vs  1.15  aim   -19  swing   2.7
+pietenpol:HOME:calm      completed ov   15  slope  0.8  spd  0.09  sink  1.76  V/Vs  1.18  aim   -21  swing   0.2
+pietenpol:HOME:x2        completed ov   18  slope  0.7  spd  0.08  sink  1.99  V/Vs  1.16  aim   -33  swing   2.7
+tigermoth:HOME:calm      completed ov   17  slope  0.7  spd  0.11  sink  1.61  V/Vs  1.18  aim   -15  swing   2.8
+tigermoth:HOME:x2        completed ov   15  slope  0.6  spd  0.11  sink  1.75  V/Vs  1.16  aim   -26  swing   4.6
+stearman:HOME:calm       completed ov   18  slope  0.9  spd  0.11  sink  0.95  V/Vs  1.16  aim     4  swing   5.9
+stearman:HOME:x2         completed ov  132  slope  0.8  spd  0.07  sink  1.34  V/Vs  1.14  aim    -9  swing  10.6
+jodel:HOME:calm          completed ov   22  slope  0.5  spd  0.09  sink  1.29  V/Vs  1.11  aim    15  swing   0.1
+jodel:HOME:x2            completed ov   62  slope  0.4  spd  0.09  sink   1.6  V/Vs  1.07  aim     2  swing     4
+c172:HOME:calm           completed ov   41  slope  0.8  spd  0.12  sink  0.95  V/Vs  1.12  aim    32  swing   1.5
+c172:HOME:x2             completed ov  118  slope  0.8  spd  0.13  sink  1.05  V/Vs  1.11  aim    20  swing   1.6
+rv:HOME:calm             completed ov   34  slope  0.9  spd  0.17  sink  0.67  V/Vs  1.18  aim    46  swing   1.6
+rv:HOME:x2               completed ov  103  slope    1  spd  0.15  sink  0.97  V/Vs  1.16  aim    23  swing   1.7
+savannah:HOME:calm       completed ov   15  slope  0.7  spd  0.11  sink  0.82  V/Vs  1.16  aim    10  swing   0.1
+savannah:HOME:x2         completed ov   32  slope  0.6  spd  0.09  sink  0.92  V/Vs  1.15  aim    -5  swing   6.4
+ul1:HOME:calm            completed ov   16  slope  0.7  spd   0.1  sink  0.96  V/Vs  1.14  aim     3  swing     0
+ul1:HOME:x2              completed ov   34  slope  0.7  spd  0.09  sink  1.05  V/Vs  1.13  aim   -10  swing   4.9
+pusherPod:HOME:calm      completed ov   15  slope  0.7  spd  0.05  sink  1.58  V/Vs  1.07  aim     9  swing   1.4
+pusherPod:HOME:x2        completed ov   15  slope  0.6  spd  0.05  sink  1.77  V/Vs  1.06  aim    -5  swing   1.8
+motorglider:HOME:calm    completed ov   63  slope    1  spd  0.11  sink  0.83  V/Vs   1.1  aim    37  swing   0.1
+motorglider:HOME:x2      completed ov  118  slope  1.1  spd  0.16  sink  0.94  V/Vs  1.09  aim    18  swing   5.7
+etrainer:HOME:calm       completed ov   25  slope  0.5  spd  0.08  sink  1.25  V/Vs  1.09  aim    10  swing   1.7
+etrainer:HOME:x2         completed ov   88  slope  0.5  spd  0.08  sink  1.54  V/Vs  1.07  aim    -2  swing   1.9
+vtail:HOME:calm          completed ov   54  slope  0.7  spd  0.17  sink   0.9  V/Vs  1.14  aim    19  swing   2.9
+vtail:HOME:x2            completed ov  128  slope  0.7  spd  0.18  sink  1.08  V/Vs  1.11  aim     6  swing   2.8
+twinBush:HOME:calm       completed ov  109  slope  0.4  spd  0.04  sink  1.09  V/Vs   1.1  aim     8  swing   0.1
+twinBush:HOME:x2         completed ov  228  slope  0.4  spd  0.04  sink   1.3  V/Vs   1.1  aim    -3  swing   4.9
+beaver:HOME:calm         completed ov   82  slope  0.6  spd  0.08  sink  0.83  V/Vs  1.19  aim     7  swing     0
+beaver:HOME:x2           completed ov  240  slope  0.7  spd  0.07  sink  0.84  V/Vs  1.17  aim    -1  swing   5.1
+cub:HOME-A3:calm         gave-up   ov 24369  slope None  spd  None  sink  None  V/Vs  None  aim  None  swing  None
+cub:HOME-A5:calm         completed ov 1281  slope  2.1  spd  1.22  sink  0.97  V/Vs  1.17  aim   -59  swing   0.1
+c172:HOME-A3:calm        gave-up   ov 27020  slope None  spd  None  sink  None  V/Vs  None  aim  None  swing  None
+c172:HOME-A5:calm        completed ov  742  slope    1  spd  1.51  sink  1.01  V/Vs  1.13  aim    26  swing   1.3
+savannah:HOME-A3:calm    gave-up   ov 24882  slope None  spd  None  sink  None  V/Vs  None  aim  None  swing  None
+savannah:HOME-A5:calm    completed ov  902  slope  3.7  spd  0.78  sink  0.61  V/Vs  1.17  aim   -43  swing   0.1
+cub:HOME:hot             completed ov   74  slope  0.8  spd  0.25  sink  1.16  V/Vs  1.15  aim    21  swing   8.6
+c172:HOME:head6          completed ov  134  slope    1  spd  0.09  sink  0.93  V/Vs  1.17  aim    56  swing   1.8
+cub:HOME:calm:up4        completed ov   15  slope  0.7  spd  0.07  sink  1.16  V/Vs   1.2  aim   -56  swing   0.1
+cub:HOME:calm:dn4        gave-up   ov   21  slope  0.7  spd  0.07  sink  None  V/Vs  None  aim  None  swing  None
+cub:HOME:calm:up2        completed ov   15  slope  0.7  spd  0.07  sink   1.1  V/Vs  1.18  aim   -36  swing   0.1
+c172:HOME:calm:up4       completed ov   42  slope  0.8  spd  0.12  sink  1.17  V/Vs  1.21  aim   -41  swing   1.3
+c172:HOME:calm:dn4       completed ov   40  slope  0.8  spd  0.12  sink  1.32  V/Vs  1.11  aim   381  swing   1.7
+c172:HOME:calm:up2       completed ov   42  slope  0.8  spd  0.12  sink  1.01  V/Vs  1.18  aim   -17  swing   1.4
+savannah:HOME:calm:up4   completed ov   15  slope  0.7  spd  0.11  sink  1.14  V/Vs  1.21  aim   -53  swing   0.1
+savannah:HOME:calm:dn4   gave-up   ov   25  slope  7.5  spd  1.48  sink  None  V/Vs  None  aim  None  swing  None
+savannah:HOME:calm:up2   completed ov   15  slope  0.7  spd  0.11  sink  1.01  V/Vs  1.19  aim   -32  swing     0
+```
+
+**FOUND ON THE WAY.** (1) A peer's UNCOMMITTED hunk in 43_pilot.js (G396.2,
+the water roll's back-stick floor `let deFloor = 0` with `if (deFloor >
+c.de) c.de = deFloor`) froze every nose-down elevator command at zero for
+every aeroplane on land — the Jodel-alike sat at pitch 8-14 deg with fd
+-0.059 and de 0.000 for a minute and gave up. Worked around in the shared
+copy (`-1`), the seaplane session told; NOT committed here (their hunk).
+The old modes never asked for nose-down on the quick set, so the committed
+baseline is honest (re-measured: identical). (2) Every session's build.js
+overwrites the shared `tools/flight_core.js` mid-run — the matrix now
+SNAPSHOTS the core per run (`pilot_runs/core_<stamp>.js`, `pilot_trace
+--core`), after two core runs were tainted by my own rebuilds.
+
+- Gates: PILOT on the new defaults (12 cases) — see the commit; PILOTMATRIX:
+  the baseline moved forward BY HAND to this commit's quick set.
+- NEXT: P0.7 retire the exceptions behind the flags (a later commit, once a
+  full --all run has judged every archetype), P0.8 the ground.

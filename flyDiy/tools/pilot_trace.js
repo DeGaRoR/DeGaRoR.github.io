@@ -15,7 +15,9 @@
 //   node tools/pilot_trace.js caravan --drawn-tail --csv
 //   node tools/pilot_trace.js my_build.json --to A5
 //   node tools/pilot_trace.js cub --slope 0.04     HOME tilted 4 % (the landing runs downhill)
-//   node tools/pilot_trace.js cub --sheet          the pilot flies the machine sheet's ladder (P0.4)
+//   node tools/pilot_trace.js cub --no-sheet       genAP's ladder instead of the machine sheet's (P0.4; the sheet is the default)
+//   node tools/pilot_trace.js cub --no-tecs        the mode zoo instead of the total-energy law (P0.5; TECS is the default)
+//   node tools/pilot_trace.js cub --no-path        the pursuit + arc instead of L1 over the filleted path (P0.6; the path is the default)
 //
 // Options: --from ID --to ID (aerodrome ids, HOME default; --to alone flies a
 // cross-country from HOME) · --wind x,z (m/s, the air's velocity) · --gust g ·
@@ -28,7 +30,7 @@
 // The LAST LINE of stdout is the JSON summary (`pilot_matrix.js` reads it):
 //   { key, from, to, weather, style, tail, outcome, t, phases, goArounds,
 //     verdicts, takeoff: { run, Vlo }, climb: { hTurn, vsMean },
-//     legs: [{ name, overshoot, settleT, rollLC }], final: { aboveRms, vRms,
+//     legs: [{ name, overshoot, settleT, rollRev }], final: { aboveRms, vRms,
 //     vErrMean, thrMin, thrMax, captureT }, flare: { entryAgl, entryVs, dur },
 //     landing: { sink, V, VoverVs, pastAim, off, run, three, drift },
 //     rollout: { maxE, zeroX, maxDr, xtEnd }, wall }
@@ -42,9 +44,15 @@ const path = require('path');
 const fs = require('fs');
 const T = __dirname;
 
+// THE CORE UNDER TEST: `--core <file>` (or PILOT_CORE) loads that flight_core
+// instead of tools/flight_core.js — every session's build.js overwrites the
+// shared one from ITS sources, and a matrix that takes an hour must not read
+// a file that changed under it (pilot_matrix.js snapshots it per run)
+let CORE_PATH = process.env.PILOT_CORE || path.join(T, 'flight_core.js');
+function coreOf() { return require(CORE_PATH); }
 function loadPanel() {
   if (global.__PILOT_TRACE_PANEL) return;
-  const CORE = require(path.join(T, 'flight_core.js'));
+  const CORE = coreOf();
   for (const k of Object.keys(CORE)) global[k] = CORE[k];
   const noop = function () { return this; };
   class Obj { constructor() { this.children = []; this.position = { set: noop }; this.rotation = {}; this.scale = { set: noop, setScalar: noop }; } add() { return this; } remove() {} traverse() {} }
@@ -84,8 +92,9 @@ const rms = a => a.length ? Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.lengt
 const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
 
 function runTrace(o) {
+  if (o.core) CORE_PATH = path.resolve(o.core);
   loadPanel();
-  const C = require(path.join(T, 'flight_core.js'));
+  const C = coreOf();
   const t0 = Date.now();
   const S = specOf(o.key, o.drawnTail);
   const world0 = C.makeWorld();
@@ -130,7 +139,7 @@ function runTrace(o) {
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   // the machine sheet (P0.4): the shakedown handed lazily (2 s, once), the ladder flag on request
   let shk = null;
-  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', sheet: !!o.sheet, shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
+  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', sheet: o.sheet !== false, tecs: o.tecs !== false, path: o.path !== false, shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
   if (from !== to || from.id !== 'HOME') ap.setRoute(from, to);
   const A = def.params.ap, G = def.params.gen;
   // V/Vs is judged against the stall in the LANDING configuration
@@ -195,7 +204,8 @@ function runTrace(o) {
                  (d.th * 57.3).toFixed(1), (d.ph * 57.3).toFixed(1), (d.e * 57.3).toFixed(1), d.z.toFixed(1), d.s.toFixed(0),
                  c.thr.toFixed(2), c.de.toFixed(3), c.dr.toFixed(3), (c.flap || 0).toFixed(2),
                  g('off track') ?? '', g('above slope') ?? '', g('to the turn') ?? g('to the aim') ?? '', onG,
-                 ap._m ? ap._m.x.toFixed(0) : '', ap._m ? ap._m.z.toFixed(0) : ''].join(','));
+                 ap._m ? ap._m.x.toFixed(0) : '', ap._m ? ap._m.z.toFixed(0) : '',
+                 d.tecs ? d.tecs.hdotC.toFixed(2) : '', d.tecs ? d.tecs.Vc.toFixed(1) : '', d.tecs ? d.tecs.wK.toFixed(2) : '', d.tecs ? d.tecs.thC.toFixed(3) : ''].join(','));
     if (sim.stats().bad) { nan = true; tEnd = t; break; }
     if (ph === 'STOPPED' && ap.t > 5) { tEnd = t; break; }
   }
@@ -211,10 +221,16 @@ function runTrace(o) {
     goArounds: ap.gaN || 0,
     verdicts: rep.verdicts.map(x => x.t + 's ' + x.code + ': ' + x.note),
     takeoff: lo, climb: { hTurn, vsMean: climbVs.length ? r2(mean(climbVs)) : null },
-    // rollLC: the roll limit cycle on the leg — the rms of the bank about its 2 s running mean (deg)
-    legs: legs.map(l => { const b = l.bank, w = 120, dev = [];
-      for (let i = w; i < b.length; i++) { let m = 0; for (let k = i - w; k < i; k++) m += b[k]; dev.push(b[i] - m / w); }
-      return { name: l.name, overshoot: Math.round(l.overshoot), settleT: l.settleT, rollLC: dev.length ? r1(rms(dev)) : null }; }),
+    // rollRev: the roll LIMIT CYCLE on the leg as bank-rate REVERSALS per minute
+    // with more than 2 deg of swing between them — a clean fillet (roll in,
+    // hold, roll out) counts 2; the C172's 9-22 deg cycle at 2 s counted 30+
+    legs: legs.map(l => { const b = l.bank; let rev = 0, dir = 0, ext = b[0] || 0;
+      for (let i = 1; i < b.length; i++) { const d = b[i] - ext;
+        if (dir >= 0 && d > 2) { dir = 1; ext = b[i]; } else if (dir <= 0 && d < -2) { dir = -1; ext = b[i]; }
+        else if (dir > 0 && b[i] > ext) ext = b[i]; else if (dir < 0 && b[i] < ext) ext = b[i];
+        else if ((dir > 0 && d < -2) || (dir < 0 && d > 2)) { rev++; dir = -dir; ext = b[i]; } }
+      const mins = Math.max(0.1, b.length / 600);
+      return { name: l.name, overshoot: Math.round(l.overshoot), settleT: l.settleT, rollRev: r1(rev / mins) }; }),
     final: capT == null ? null : { captureT: r1(capT), aboveRms: r1(rms(above)), vRms: r2(rms(vErr)), vErrMean: r2(mean(vErr)),
                                    thrMin: r2(Math.min(...thrs)), thrMax: r2(Math.max(...thrs)) },
     flare: flare,
@@ -223,12 +239,12 @@ function runTrace(o) {
     rollout: roll.e.length ? { maxE: r1(Math.max(...roll.e.map(Math.abs))), zeroX, maxDr: r2(Math.max(...roll.dr.map(Math.abs))),
                                xtEnd: r1(roll.xt[roll.xt.length - 1]) } : null,
     Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VAppr), mass: Math.round(sim.totalM),
-    sheet: o.sheet ? ap.sheet.show() : null,
+    sheet: ap.useSheet ? ap.sheet.show() : null, tecs: ap.useTecs, path: ap.usePath,
     wall: Math.round((Date.now() - t0) / 1000),
   };
   if (o.csv) {
     const f = typeof o.csv === 'string' ? o.csv : (o.key.replace(/\.json$/i, '') + '_' + from.id + (to !== from ? '-' + to.id : '') + (o.wind ? '_w' : '') + '.csv');
-    fs.writeFileSync(f, 't,phase,agl,aglT,V,vs,pitch,bank,e,xt,s,thr,de,dr,flap,offtrack,above,rem,onG,x,z\n' + rows.join('\n'));
+    fs.writeFileSync(f, 't,phase,agl,aglT,V,vs,pitch,bank,e,xt,s,thr,de,dr,flap,offtrack,above,rem,onG,x,z,hdotC,Vc,wK,thC' + String.fromCharCode(10) + rows.join('\n'));
     out.csv = f;
   }
   return out;
@@ -248,6 +264,11 @@ function parseArgs(argv) {
     else if (a === '--max') o.maxS = +nx();
     else if (a === '--slope') o.slope = +nx();
     else if (a === '--sheet') o.sheet = true;
+    else if (a === '--tecs') o.tecs = true;
+    else if (a === '--no-sheet') o.sheet = false;
+    else if (a === '--no-tecs') o.tecs = false;
+    else if (a === '--no-path') o.path = false;
+    else if (a === '--core') o.core = nx();
     else if (a === '--drawn-tail') o.drawnTail = true;
     else if (a === '--csv') o.csv = (argv[i + 1] && !argv[i + 1].startsWith('--')) ? nx() : true;
     else if (a === '--json') o.json = nx();
@@ -268,7 +289,7 @@ if (require.main === module) {
                 (out.weather ? ' ' + JSON.stringify(out.weather) : ' calm') + ' · ' + out.style);
     console.log('  ' + out.phases.join(' '));
     if (out.takeoff) console.log('  take-off: run ' + out.takeoff.run + ' m, lift-off ' + out.takeoff.Vlo + ' m/s · crosswind turn at ' + out.climb.hTurn + ' m');
-    for (const l of out.legs) console.log('  ' + l.name.padEnd(9) + ' overshoot ' + String(l.overshoot).padStart(4) + ' m  settle ' + (l.settleT == null ? '  —' : l.settleT + ' s') + '  roll cycle ' + l.rollLC + ' deg');
+    for (const l of out.legs) console.log('  ' + l.name.padEnd(9) + ' overshoot ' + String(l.overshoot).padStart(4) + ' m  settle ' + (l.settleT == null ? '  —' : l.settleT + ' s') + '  roll reversals ' + l.rollRev + '/min');
     if (out.final) console.log('  final: captured at ' + out.final.captureT + ' s · above-slope rms ' + out.final.aboveRms + ' m · V-VAppr rms ' + out.final.vRms + ' (mean ' + out.final.vErrMean + ') · thr ' + out.final.thrMin + '..' + out.final.thrMax);
     if (out.flare) console.log('  flare: from ' + out.flare.entryAgl + ' m at ' + out.flare.entryVs + ' m/s, ' + out.flare.dur + ' s');
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));

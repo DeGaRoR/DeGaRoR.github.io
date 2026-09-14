@@ -91,7 +91,11 @@ function patternPath(pattern, ids, ds, from) {
     const th = Math.acos(dot);
     const r = B.r != null ? B.r : (pattern.fillet != null ? pattern.fillet : 12);
     let t = r * Math.tan(th / 2);
-    const tMax = 0.5 * Math.min(l1, l2);
+    // neighbouring fillets share a leg, so each may take half of it — but an
+    // ENDPOINT has no fillet of its own, and the leg to it is the corner's
+    // whole (G399.3: the air path's first corner, one radius ahead of the
+    // aeroplane, was halved to a 125 m fillet the cub could not fly)
+    const tMax = Math.min(k === 1 ? l1 : 0.5 * l1, k === cIdx.length - 2 ? l2 : 0.5 * l2);
     if (t > tMax) t = tMax;
     const re = t / Math.max(1e-9, Math.tan(th / 2));
     tan[i] = t; rEff[i] = re;
