@@ -248,6 +248,9 @@ const GATES = [
   // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
   // taken off and landed on the sea, headless (~95 s)
   { id: 'FLOATS', file: '_floats_check.js', tier: 'core' },
+  // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
+  // take-off, an idle taxi on the water rudder — three flights (~8 min)
+  { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full' },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two

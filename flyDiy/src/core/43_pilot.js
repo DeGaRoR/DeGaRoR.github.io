@@ -650,8 +650,18 @@ function makePilot(sim, def, world, opts) {
       holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
     };
     const groundSteer = () => {
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      const drMax = tailUp ? 0.95 : 0.45;
+      // H4 (G393): ON THE WATER the split is displacement / on the step
+      // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
+      // up on the step and the air rudder alone holds the run, and there is
+      // no castor to over-control: the pedals go to the stop either way.
+      // Measured on the ultralight in a 5 m/s crosswind: with the
+      // taildragger's 0.45 clamp it weathervaned 40 deg on the step and left
+      // the lane 186 m off; with this, see the H4 entry.
+      const onWater = !!(sim.hydro);
+      // (GATE TAKEOFF reads this line by regex: the tail-state schedule first)
+      const tailUp = rotateTD && !onWater && onG <= 2 && thRest !== null && (thRest - th) > 0.04
+                  || (onWater && onG <= 2 && V > 6);
+      const drMax = tailUp ? 0.95 : (onWater ? 0.9 : 0.45);
       // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
       // branch below already schedules on (VTailUp/V)^2 once the tail is up;
       // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the

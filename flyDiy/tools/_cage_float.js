@@ -149,8 +149,12 @@ PAGE.post = ctx => {
   for (const sd of [-1, 1]) {                     // -1 starboard (cage -x), +1 port
     const at = [sd * track, keelY, zc];
     const bag = GG.Bag();
-    const vid = F.V.map(v => bag.v(toCage(v, at)));
-    for (const pn of F.panels) bag.tri(vid[pn.v[0]], vid[pn.v[1]], vid[pn.v[2]]);
+    // vertices shared WITHIN a panel kind and split BETWEEN kinds: the shading
+    // runs smooth along the hull and breaks at the chine, the bevel and the
+    // deck edge (one shared vertex set smeared the chine into a round)
+    const vidBy = {};
+    const vid = (kind, i) => { const m = vidBy[kind] || (vidBy[kind] = new Map()); if (!m.has(i)) m.set(i, bag.v(toCage(F.V[i], at))); return m.get(i); };
+    for (const pn of F.panels) bag.tri(vid(pn.kind, pn.v[0]), vid(pn.kind, pn.v[1]), vid(pn.kind, pn.v[2]));
     const ug = new THREE.Group();
     ug.name = 'edFloat' + (sd > 0 ? 'L' : 'R');
     const m = bag.mesh(ug, hullM());

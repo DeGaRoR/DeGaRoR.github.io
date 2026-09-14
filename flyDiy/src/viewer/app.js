@@ -1999,14 +1999,29 @@
           // is the loft the water pushes on, and the physics moves it as a
           // rigid cluster on the step keel, the bow keel and the step's two
           // deck edges. Every vertex takes its BARYCENTRICS in that tetra at
-          // rest (nodeRest, the same projection the legs' rests use) and is
-          // rebuilt from the four nodes' live positions (nodeLocal) each
-          // frame: exact under any rigid motion, and the pose's shear
-          // (G357) cancels because rest and live go through the same map.
+          // rest and is rebuilt from the tetra's live position each frame:
+          // exact under any rigid motion.
+          // THE NODES ARE NAMED, NOT FOUND (G393): the frame's own float
+          // record carries the four ids (`parts.floats[k].tetra`), and the
+          // tetra's rest is the PART'S OWN — the captured geometry sits in
+          // the raw cage-rotated frame while nodeRest sits in the design-
+          // origin frame, 1.5 m apart on the user's ultralight, so a
+          // position match (nearNodeVis) found nothing and the part stood
+          // rigid on the fuselage with the physics hull drawn beside it
+          // (the user: "2 sets of floats"). A node's TRAVEL from its rest
+          // (nodeLocal - nodeRest) is the same in both frames, so the live
+          // tetra is the part's rest tetra plus the four travels — the
+          // anchor rigs' own rule (G267.2), with a rotation.
           grp.add(pg);
-          const idxs = pt.tetra.map(a => nearNodeVis(a));
-          if (idxs.every(i => i != null) && new Set(idxs).size === 4) {
-            const R4 = idxs.map(i => nodeRest(i));
+          const FR = (curDef.parts && curDef.parts.floats) || [];
+          const zSide = pt.tetra[0][2] >= 0 ? 1 : -1;
+          const rec = FR.find(r => r.pos && Math.sign(r.pos[2]) === zSide) || null;
+          const idxs = rec && rec.tetra ? rec.tetra.slice() : [];
+          if (typeof window !== 'undefined') (window.FLYDIY_FLOAT_RIG = window.FLYDIY_FLOAT_RIG || {})[pt.kind] =
+            { tetra: pt.tetra.map(a => a.map(v => +v.toFixed(3))), idxs };
+          if (idxs.length === 4 && new Set(idxs).size === 4) {
+            const R4 = pt.tetra.map(a => a.slice());
+            const rest0 = idxs.map(i => nodeRest(i));
             const bary = (q, o) => {
               const [P0, P1, P2, P3] = R4;
               const ax = P1[0] - P0[0], ay = P1[1] - P0[1], az = P1[2] - P0[2];
@@ -2032,9 +2047,9 @@
                 q[0] = pa.array[i * 3]; q[1] = pa.array[i * 3 + 1]; q[2] = pa.array[i * 3 + 2];
                 bary(q, l); lam[i * 4] = l[0]; lam[i * 4 + 1] = l[1]; lam[i * 4 + 2] = l[2]; lam[i * 4 + 3] = l[3];
               }
-              floatRigs.push({ posAttr: pa, lam, idxs });
+              floatRigs.push({ posAttr: pa, lam, idxs, R4, rest0 });
             });
-          } else console.warn('float part: its tetra found no four distinct nodes', idxs);
+          } else console.warn('float part: no float record with four nodes for', pt.kind);
         }
         else if (pt.anchors && pt.anchors.length && !pt.surf && pt.kind !== 'ctlLink') {
           // G267.2: THE TAIL ASSEMBLY IS RIGID ON ITS ANCHOR (the user: "the
@@ -3086,7 +3101,10 @@
     // H2 (G389): the floats, rebuilt from their four nodes by barycentrics
     if (model.floatRigs) for (const r of model.floatRigs) {
       if (!r.posAttr || !r.posAttr.array) continue;
-      const N4 = r.idxs.map(i => nodeLocal(i)), p2 = r.posAttr.array, lam = r.lam;
+      // the live tetra in the PART's frame: its rest plus each node's travel
+      const N4 = r.idxs.map((i, k) => { const L = nodeLocal(i), R0 = r.rest0[k], T = r.R4[k];
+        return [T[0] + L[0] - R0[0], T[1] + L[1] - R0[1], T[2] + L[2] - R0[2]]; });
+      const p2 = r.posAttr.array, lam = r.lam;
       for (let i = 0, n = p2.length / 3; i < n; i++) {
         const a = lam[i * 4], b = lam[i * 4 + 1], c = lam[i * 4 + 2], d = lam[i * 4 + 3];
         p2[i * 3]     = a * N4[0][0] + b * N4[1][0] + c * N4[2][0] + d * N4[3][0];
@@ -3344,10 +3362,14 @@
     // 15-95 m deep — with its step keels a centimetre above the surface.
     // The route (and the HUD) still read HOME; the pilot does not know it
     // is on water (H4 is the water taxi), so fly it yourself.
+    // H4 (G393): the route is the SEA LANE's — a water aerodrome record the
+    // pilot flies as it flies a meadow (no site, no taxi graph): the take-off
+    // run down the lane, the circuit, the landing back onto it
     if (sim.hydro) {
-      placeAtAerodrome(sim, { hdg: Math.PI / 2, spawn: [0, 1250], elev: 0 });
-      patternVisFor(from, (typeof siteOf === 'function') ? siteOf(from.id) : null);
-      ap.setRoute(from, to);
+      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1250], elev: 0 };
+      placeAtAerodrome(sim, sea);
+      patternVisFor(sea, null);
+      ap.setRoute(sea, destId === 'CIRCUIT' || destId === 'SEA' ? sea : to);
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();

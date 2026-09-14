@@ -80,7 +80,7 @@ const masked = (x, z) => {
   checks['pad flat and dry'] = ok;
   let mok = true;
   for (const a of W.aerodromes) {
-    if (a.kind !== 'meadow' || a.id === 'M2') continue;
+    if (a.kind !== 'meadow' || a.id === 'M2') continue;   // (the SEA lane is water by design, H4)
     // 0.45r = the fully-blended flat landing core; M3's outer rim dips
     // into pre-existing below-sea-level terrain and is honestly wet
     const r = a.r * 0.45;
@@ -91,6 +91,15 @@ const masked = (x, z) => {
     if (W.waterH(a.x, a.z) !== -Infinity) mok = false;
   }
   checks['meadows M1/M3 dry'] = mok;
+  // H4 (G393): THE SEA LANE IS DEEP WATER, end to end and 60 m either side
+  const sea = W.aerodromes.find(a => a.id === 'SEA');
+  let wok = !!sea;
+  if (sea) for (let t = -0.5; t <= 0.5; t += 0.05) for (const dx of [-60, 0, 60]) {
+    const x = sea.x + dx, z = sea.z + t * sea.len;
+    const h = W.waterH(x, z);
+    if (!(h === 0 && W.terrainH(x, z) < -15)) wok = false;
+  }
+  checks['the sea lane is deep water'] = wok;
 }
 
 // determinism: two same-seed worlds agree on the full hydrology

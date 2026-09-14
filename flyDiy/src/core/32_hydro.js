@@ -129,6 +129,7 @@ const DEF = {
   bBow: 0.10,      // half-beam at the bow, m
   bStern: 0.75,    // stern half-beam, as a fraction of B/2
   hSide: 0.24,     // chine to deck, m (at the forebody; the deck is level)
+  bevel: 0.05,     // the deck edge's chamfer, m (G393, the user: "beveled edges"); the chine stays HARD
   nSta: 24,        // stations over the length
   mFloat: 45,      // kg
   cgFloat: [-0.2, 0.15, 0],
@@ -223,7 +224,11 @@ function makeFloat(over = {}) {
   for (const s of sta) {
     s.K = push([s.x, s.yk, 0]);
     s.Cm = push([s.x, s.yc, -s.b]); s.Cp = push([s.x, s.yc, s.b]);
-    s.Dm = push([s.x, s.yd, -s.b]); s.Dp = push([s.x, s.yd, s.b]);
+    // the deck edge is a CHAMFER (bevel): the side rises to E, the deck runs
+    // in from D — a rounded gunwale on a real float, one 45-degree facet here
+    const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.b);
+    s.Em = push([s.x, s.yd - bv, -s.b]); s.Ep = push([s.x, s.yd - bv, s.b]);
+    s.Dm = push([s.x, s.yd, -(s.b - bv)]); s.Dp = push([s.x, s.yd, s.b - bv]);
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
@@ -246,25 +251,30 @@ function makeFloat(over = {}) {
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
       quad('step', s0.K, s1.K, s1.Cm, s0.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       quad('step', s0.K, s1.K, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
-      tri('step', s0.Cm, s1.Cm, s0.Dm, { side: -1, body: 'A', beta: 0, ref: rs });
-      tri('step', s0.Cp, s1.Cp, s0.Dp, { side: 1, body: 'A', beta: 0, ref: rs });
+      tri('step', s0.Cm, s1.Cm, s0.Em, { side: -1, body: 'A', beta: 0, ref: rs });
+      tri('step', s0.Cp, s1.Cp, s0.Ep, { side: 1, body: 'A', beta: 0, ref: rs });
       continue;
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
     quad(bk, s0.K, s1.K, s1.Cm, s0.Cm, Object.assign({ side: -1, beta: 0.5 * (s0.beta + s1.beta) }, m));
     quad(bk, s0.K, s1.K, s1.Cp, s0.Cp, Object.assign({ side: 1, beta: 0.5 * (s0.beta + s1.beta) }, m));
-    quad('side', s0.Cm, s1.Cm, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
-    quad('side', s0.Cp, s1.Cp, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
+    quad('side', s0.Cm, s1.Cm, s1.Em, s0.Em, Object.assign({ side: -1, beta: 0 }, m));
+    quad('side', s0.Cp, s1.Cp, s1.Ep, s0.Ep, Object.assign({ side: 1, beta: 0 }, m));
+    quad('bevel', s0.Em, s1.Em, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
+    quad('bevel', s0.Ep, s1.Ep, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
     quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
   }
   { // bow cap and stern transom
     const s = sta[0];
-    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: [s.x + 0.05, s.ref[1], 0] });
-    quad('bow', s.Cm, s.Cp, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: [s.x + 0.05, s.ref[1], 0] });
-    const e = sta[sta.length - 1];
-    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: [e.x - 0.05, e.ref[1], 0] });
-    quad('stern', e.Cm, e.Cp, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: [e.x - 0.05, e.ref[1], 0] });
+    const rb = [s.x + 0.05, s.ref[1], 0];
+    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
+    quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
+    quad('bow', s.Em, s.Ep, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: rb });
+    const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
+    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
+    quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
+    quad('stern', e.Em, e.Ep, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: re });
   }
   // orient every panel OUTWARD (its normal away from the section's interior
   // point), and record the rest normal, area and centroid in the float frame
@@ -540,7 +550,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
           apply(fv, o.c, T.plan); add(o.Fp, fv, o.Fp);
         }
       } else if (pn.kind !== 'deck' || Vn > 0) {
-        const sym = pn.kind === 'side' || pn.kind === 'bow';
+        const sym = pn.kind === 'side' || pn.kind === 'bevel' || pn.kind === 'bow';
         const pd = 0.5 * rho * P.Cd * (sym ? Vn * Math.abs(Vn) : Math.max(0, Vn) * Vn);
         scl(o.AN, -pd, fv);
         apply(fv, o.c, T.cross); add(o.Fx, fv, o.Fx);
@@ -1030,7 +1040,51 @@ function hydroBuild(def, p, v) {
 // sampled ONCE per float at its step keel (a lake is level; waterH costs
 // 0.7 us and the hull has 130 vertices): the flat-water cut, until (ap)
 // gives the surface a time argument.
-function hydroSolverPass(HY, world, f, simT, dt) {
+// THE WATER RUDDER (H4, G393). A blade under each float's stern keel — a
+// low-aspect fin in the water, `WR_AREA` per float, `WR_DEPTH` deep —
+// steered by the rudder pedals (ctl.dr, nose-left positive: the fin's own
+// convention; the stern goes RIGHT to yaw the nose left) through
+// `WR_TRAVEL`. Side force 1/2 rho V^2 A Cl(alpha) with alpha the blade's
+// angle to the local flow at the stern (its deflection less the stern's
+// own sideslip, so an undeflected blade is a fin: it weathervanes the
+// float INTO the water, which is what stops a seaplane's tail from
+// swinging), Cl 3 per rad, stalled at 0.4 rad; scaled by how much of the
+// blade is under the surface. RETRACTED BY THE PILOT'S RULE: down below
+// WR_UP_V of forward speed with the afterbody wet (taxi, the start of the
+// run), up on the step — a real pilot raises it as the aeroplane comes
+// up, and lowers it after the landing run. Applied at the stern keel
+// through the slab distribution.
+const WR_AREA = 0.06, WR_DEPTH = 0.25, WR_TRAVEL = 35 * Math.PI / 180, WR_UP_V = 12;
+function waterRudder(fx, ctl, water, simT, f) {
+  const F = fx.F, ctx = fx.ctx, out = fx.out;
+  const sK = out.W[F.stern.K];
+  const h = water.h(sK[0], sK[2], simT), dS = h - sK[1];
+  if (!(dS > -WR_DEPTH * 0.2)) { fx.wrDown = 0; return; }
+  const vS = ctx.velAt(sK, v3());
+  const xhat = ctx.xhat, up = [0, 1, 0];
+  const zR = cross(up, xhat); nrm(zR);                          // right = up x aft
+  const Vf = -dot(vS, xhat), vy = dot(vS, zR);
+  const down = Vf < WR_UP_V && out.wetA > 0.05 ? 1 : 0;
+  fx.wrDown = down;
+  if (!down) return;
+  const sub = Math.max(0, Math.min(1, (dS + WR_DEPTH * 0.2) / WR_DEPTH));
+  if (sub <= 0) return;
+  const delta = (ctl ? (ctl.dr || 0) : 0) * WR_TRAVEL;
+  const beta = Math.atan2(vy, Math.max(0.3, Vf));
+  const al = delta - beta;
+  const Cl = Math.max(-1.2, Math.min(1.2, 3.0 * al));
+  const q = 0.5 * F.P.rho * (Vf * Vf + vy * vy);
+  const Fy = q * WR_AREA * sub * Cl;
+  const Fv = [zR[0] * Fy, zR[1] * Fy, zR[2] * Fy];
+  // and its drag, along the flow
+  const Vt = Math.hypot(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
+  const D = q * WR_AREA * sub * Cd;
+  Fv[0] -= vS[0] / Vt * D; Fv[1] -= vS[1] / Vt * D; Fv[2] -= vS[2] / Vt * D;
+  const at = [sK[0], sK[1] - 0.5 * WR_DEPTH * sub, sK[2]];
+  ctx.distribute(at, f, Fv);
+  out.wrForce = Fy; out.wrAlpha = al;
+}
+function hydroSolverPass(HY, world, f, simT, dt, ctl) {
   let wetAny = 0;
   for (const fx of HY.floats) {
     const F = fx.F, ctx = fx.ctx, out = fx.out;
@@ -1038,11 +1092,18 @@ function hydroSolverPass(HY, world, f, simT, dt) {
     const eK = out.W[F.edge.K];
     const h0 = world.waterH ? world.waterH(eK[0], eK[2]) : 0;
     fx.h = h0;
-    if (!(h0 > -1e8) || h0 < eK[1] - 1.0) { fx.wet = 0; zeroTerms(out); continue; }   // dry: a metre clear of the water
-    const water = { h: () => h0, v: () => ZERO3 };
+    if (!(h0 > -1e8) || h0 < eK[1] - 1.5) { fx.wet = 0; zeroTerms(out); continue; }   // dry: well clear of the water
+    // H4 (G393): with a sea state the surface is sampled per vertex, with
+    // the time (ruling ap: the physics reads the same closed form the
+    // renderer draws); a lake, a river, a calm day keep the flat sample
+    const waves = world.sea && world.sea.A > 0 && h0 === 0;
+    const water = waves ? { h: (x, z, t) => world.waterH(x, z, t), v: () => ZERO3 }
+                        : { h: () => h0, v: () => ZERO3 };
+    if (waves) fx.h = world.waterH(eK[0], eK[2], simT);
     hydroPanels(F, ctx, water, simT, out, { mNode: fx.mNode, dt });
     fx.wet = out.wetF + out.wetA + out.wetOther;
     wetAny += fx.wet;
+    waterRudder(fx, ctl, water, simT, f);
     const l = fx.lam;
     for (let k = 0; k < F.panels.length; k++) {
       const o = out.per[k];
@@ -1083,7 +1144,8 @@ function floatParamsFor(grossKg, over) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP };
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP,
+              waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
 })();

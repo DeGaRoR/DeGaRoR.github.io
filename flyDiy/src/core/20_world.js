@@ -114,6 +114,16 @@ function makeWorld(seed, opts) {
       hdg: 0, len: 520, wid: 520, surface: SURFACE.GRASS, elev: 0, tdz: [1800, 1500] },
     { id: 'M3', name: 'Meadow 3', kind: 'meadow', x: -3400, z: 650, r: 240,
       hdg: 0, len: 480, wid: 480, surface: SURFACE.GRASS, elev: 0, tdz: [-3400, 650] },
+    // THE SEA LANE (H4, G393): a water aerodrome south of HOME for the
+    // seaplanes — 1.5 km of open sea 15-95 m deep, along +z from the shore
+    // (measured: every point of the lane 60 m either side is deeper than
+    // 15 m). HOME's own conventions: the spawn identity at the near end
+    // facing down the lane (hdg pi/2 -> nose +z), landed over the far end
+    // with the touchdown target 20 % in. `kind: 'water'` — no site, no taxi
+    // graph; the pilot flies it as it flies a meadow, on the water rudder.
+    { id: 'SEA', name: 'The Sound', kind: 'water', x: 0, z: 2000, hdg: Math.PI / 2,
+      len: 1500, wid: 200, surface: SURFACE.WATER, elev: 0, tdz: [0, 2530],
+      spawn: [0, 1250] },
   ];
   // landing meadows: blend terrain toward the height at each meadow centre.
   // v0 shim member, derived from the registry — same literals, same order,
@@ -347,7 +357,40 @@ function makeWorld(seed, opts) {
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
-  function waterH(x, z) { return waterAt(terrainH(x, z), x, z); }
+  function waterH(x, z, t) {
+    const h = waterAt(terrainH(x, z), x, z);
+    // THE SEA HAS WAVES (H4, G393; ruling ap: ONE surface, physics and
+    // renderer sampling the same closed form). Only with a time argument,
+    // only on the SEA (level 0 — lakes and rivers stay glassy), only when
+    // the day has a sea state: the two-argument call is byte-identical to
+    // what every gate and every bake reads. Gerstner heights (the design's
+    // 3.1: analytic, cheap enough to sample per hull vertex per substep),
+    // two octaves — the wind's own swell and a shorter cross chop.
+    if (t == null || h !== 0 || !SEA.A) return h;
+    let y = 0;
+    for (const w of SEA.W) y += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
+    return y;
+  }
+  // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
+  // more consumer of setWeather's wind, never a second model). Amplitude
+  // 0.04 m per m/s of wind (5 m/s: 0.2 m; 10: 0.4), wavelength 3 + 1.4 W
+  // (5 m/s: 10 m), the swell down-wind, a 40 % chop 35 deg off it at half
+  // the length. Calm air is glassy — no waves — which is the harder
+  // landing (§2.5), for free. `world.sea` reads it; `setSea` overrides it
+  // (the bench, a test) until the next setWind.
+  const SEA = { A: 0, L: 0, dir: 0, W: [] };
+  function seaFrom(A, L, dir) {
+    SEA.A = A; SEA.L = L; SEA.dir = dir; SEA.W.length = 0;
+    if (!(A > 0) || !(L > 0)) return;
+    for (const [a, l, d, ph] of [[A, L, dir, 0], [0.4 * A, 0.5 * L, dir + 35 * Math.PI / 180, 1.7]]) {
+      const k = 2 * Math.PI / l;
+      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph });
+    }
+  }
+  function setSea(spec) {
+    if (!spec) { seaFrom(0, 0, 0); return; }
+    seaFrom(spec.A || 0, spec.L || (3 + 1.4 * 5), spec.dir || 0);
+  }
   // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
   // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
   // still reserved for stage 4)
@@ -457,6 +500,10 @@ function makeWorld(seed, opts) {
     windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
                         refH: spec.refH || 0,
                         alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    // ...and the sea follows the wind (H4, G393)
+    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const Wv = Math.hypot(b[0], b[2]);
+    seaFrom(Wv > 0.5 ? 0.04 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
   // ---- the day: ONE weather state, air and wind together (G72) ------------
@@ -495,6 +542,8 @@ function makeWorld(seed, opts) {
     get atmos() { return atmos; },
     get weather() { return weather; },
     setWeather,
+    // H4 (G393): the sea state (read live) and its override
+    get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live

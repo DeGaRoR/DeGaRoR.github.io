@@ -45605,3 +45605,76 @@ small".
   house sign stood in the village/premises viewers (the bench does), a
   grass texture on the turf (a flat green today), SPORT_GEN loaded by the
   premises bench and the game.
+
+## G393 — THE PILOT ON THE WATER, H4: THE WATER RUDDER, THE SEA LANE, WAVES
+## IN THE CONTRACT, AND ONE FLOAT NOT TWO (2026-09-14, the user: "do H4. For
+## the waves, can we have that before we have a proper water shader?"; live:
+## "There are 2 sets of floats apparently... they should coincide")
+
+- ONE FLOAT (the user's report). The drawn part's rig matched its four
+  nodes BY POSITION (nearNodeVis) and found none: the captured geometry
+  sits in the raw cage-rotated frame while nodeRest/nodeVis sit in the
+  design-origin frame, 1.5 m apart on the ultralight — so the part stood
+  rigid on the fuselage, `floatRigs` was empty, and the G383 physics-hull
+  fallback drew the white float beside it (and the spray, which reads the
+  panels, followed the white one). Now the rig takes the four NODE IDS from
+  the frame's own float record (`parts.floats[k].tetra`, by the side's
+  sign) and the tetra's rest from the PART's own vertices; the live tetra
+  is that rest plus each node's travel from ITS rest (nodeLocal − nodeRest)
+  — the anchor rigs' rule with a rotation, and translation-invariant, so
+  no frame has to agree with another. `FLYDIY_FLOAT_RIG` publishes the fit.
+- THE BEVEL (the user: "beveled edges"): the loft's deck edge is a 5 cm
+  chamfer (`bevel` in DEF; a 'bevel' panel kind, cross-flow like a side);
+  the chine stays hard. The drawn hull shares vertices WITHIN a panel kind
+  and splits them BETWEEN kinds (smooth along, crisp across) — one shared
+  set had smeared the chine into a round. 352 panels, closure 1e-7.
+- THE WATER RUDDER (32_hydro `waterRudder`): a blade under each stern keel
+  (0.06 m2, 0.25 m deep, ±35 deg on the pedals), a low-aspect fin in the
+  water — its angle to the local flow at the stern, so undeflected it
+  weathervanes the float into the water; 1/2 rho V2 A Cl, Cl 3/rad, stalled
+  at 0.4 rad, scaled by its submerged fraction, its drag along the flow;
+  DOWN below 12 m/s with the afterbody wet, UP on the step (the pilot's
+  rule). Drawn on the float (a plate under the stern, in the hull unit).
+- THE SEA LANE ('SEA', 20_world.js): a water aerodrome south of HOME —
+  1.5 km along +z from (0, 1250), 15-95 m deep 60 m either side (GATE
+  HYDRO asserts it) — on HOME's own conventions (spawn at the near end
+  facing down the lane, landed over the far end, tdz 20 % in). No site:
+  the pilot flies it as a meadow. A float build's route is SEA -> SEA
+  (app.js applyRoute); the from/to selectors list it.
+- THE PILOT ON THE WATER: `wheelsOnGround` counts wet floats (two, plus a
+  third while the afterbodies are wet: displacement reads three like a
+  taildragger on its points, the step reads two like tail-up), which is
+  what the ground phases and groundSteer already split on. On water the
+  pedals go to the stop (0.9 tail-down, 0.95 on the step) — no castor to
+  over-control. MEASURED: calm, SEA -> SEA, the ultralight lifts off at
+  15.6 s / 27 m/s, flies the circuit, touches at 25 m/s 135 m down the
+  lane 10 m off the centreline, rolls out to STOPPED at 307 s (the water
+  rudders down below 10 m/s). A 5 m/s crosswind: the run held to 6.6 m
+  and 7 deg (186 m and 51 deg with the taildragger's 0.45 clamp — the
+  weathervane the design predicted); an idle taxi in the same wind holds
+  12 deg and 3 m over 60 s. GATE SEAPLANE (full tier, three flights,
+  ~8 min) holds these.
+- WAVES IN THE CONTRACT (rulings ap, ar, before the shader — ruling at's
+  carve-out): `world.waterH(x, z, t)` grows a time argument — on the SEA
+  (level 0) only, only with a sea state, two Gerstner octaves (the wind's
+  swell and a 40 % chop 35 deg off it at half the length); the
+  two-argument call is byte-identical (every gate and bake). The sea
+  state is THE DAY's: setWind sets A = 0.04 m per m/s (5 m/s: 0.2 m),
+  L = 3 + 1.4 W, down-wind; calm is glassy; `world.sea` reads it,
+  `world.setSea` overrides it (the bench, a test). The hydro pass samples
+  the moving surface per vertex per substep when there is one (waterH
+  costs 0.7 us; 130 vertices x 2 x 80 substeps). The renderer displaces a
+  360 m patch of the sea around the aeroplane by THE SAME FUNCTION every
+  frame (render_world `seaUpdate`, on worldUpdate's CG), shown only with a
+  sea state — the flat far sea stays as it was, 0.4 m UNDER the true
+  level, which the shader arc should take (the floats sit 0.4 m deep in
+  the visual sea on a calm day). Measured: SEAPLANE and FLOATS green with
+  the waves in wind (the crosswind take-off in 0.2 m waves: 8.9 m off,
+  11 deg); at rest in an 8 m/s wind's 0.32 m / 14 m swell the ultralight
+  pitches -8..+19 deg and rolls 9 — a sea a 4 m float should not be on,
+  and the model says so.
+- Gates: SEAPLANE (full) new; FLOATS, HYDRODYN, HYDRO, WORLD, PARTS, JOIN,
+  BUILD, DESIGN, SKINMAT, UISMOKE, TAKEOFF, HONEST on the branch.
+- Owed: the pilot's TAXI phases on water (no site = no taxi graph; the
+  lane has no dock); a seaplane's HOME (it starts on the sea); the far sea
+  at the true level; the water rudder's blade does not turn visually.

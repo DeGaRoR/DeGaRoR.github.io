@@ -924,6 +924,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), waterMat);
     water.rotation.x = -Math.PI / 2; water.position.y = -0.4;
     scene.add(water);
+    // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
+    // carve-out): a 360 m patch of the sea around the aeroplane, its
+    // vertices displaced every frame by the world's OWN waterH(x, z, t) —
+    // the function the floats are pushed by — so the hull sits in the
+    // wave it is drawn in. Shown only with a sea state (the flat far sea
+    // stays as it was, 0.4 m under the true level, on a calm day); the
+    // patch is snapped to its own grid step so it does not swim.
+    const SEAN = 96, SEAW = 360;
+    const seaGeo = new THREE.PlaneGeometry(SEAW, SEAW, SEAN, SEAN);
+    seaGeo.rotateX(-Math.PI / 2);
+    const seaNear = new THREE.Mesh(seaGeo, waterMat);
+    seaNear.frustumCulled = false; seaNear.visible = false;
+    scene.add(seaNear);
+    let seaT = 0;
+    function seaUpdate(cx, cz, dt) {
+      const S = world.sea;
+      if (!S || !(S.A > 0) || world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
+      seaT += dt;
+      const step = SEAW / SEAN;
+      const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
+      seaNear.position.set(ox, 0.0, oz);
+      const pa = seaGeo.attributes.position;
+      for (let i = 0; i < pa.count; i++) pa.setY(i, world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT));
+      pa.needsUpdate = true;
+      seaGeo.computeVertexNormals();
+      seaNear.visible = true;
+    }
 
     { // stage-1 water: river ribbons + per-cell lake quads at their baked
       // surface heights, one merged mesh, same material as the sea.
@@ -3245,6 +3272,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   }
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
     // parallax at the near edge of the band. One frame stale (the viewer places

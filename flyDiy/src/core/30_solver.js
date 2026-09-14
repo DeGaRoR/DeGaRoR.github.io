@@ -1214,7 +1214,7 @@ function makeSim(def, world) {
       }
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
-    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt);
+    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -1331,6 +1331,16 @@ function makeSim(def, world) {
   function impulse(i, ix, iy, iz) { v[i*3]+=ix/m[i]; v[i*3+1]+=iy/m[i]; v[i*3+2]+=iz/m[i]; }
   function wheelsOnGround() {
     let c = 0;
+    // H4 (G393): ON THE WATER the floats are the contacts — each wet float
+    // counts one, and the pair in the displacement regime (the afterbody
+    // wet: not yet on the step) counts a third, so a seaplane at rest reads
+    // three like a taildragger on three points and two once on the step,
+    // which is exactly the tail-down / tail-up split the pilot steers by
+    if (HY) {
+      let wet = 0, aft = 0;
+      for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
+      return wet + (wet === 2 && aft === 2 ? 1 : 0);
+    }
     for (const i of [...def.refs.mains, def.refs.tw]) {
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - r[i] - gh < 0.03) c++;
