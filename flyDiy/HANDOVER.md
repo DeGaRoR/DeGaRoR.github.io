@@ -46448,3 +46448,51 @@ generator? Does the in-game editor inherit automatically ...?"
 - Green: HOUSE, PREMISES, MEDIA; the pack rebuilt in the clean worktree
   (G393.2 had landed sources only - HEAD's build.js named the pilot
   session's `44_machine_sheet.js` before it landed; it is in now).
+
+## G400 — IMPOSTORS TO THE EYE, THE FILL UNGATED, THE FAR TERRAIN FROM THE ASSET,
+## THE GROUND STACK LIVE ON F8, ONE TREE LIGHTNESS, THE ISLAND RIG (2026-09-14,
+## the user testing in game: "you reveal the terrain past a certain distance ...
+## trees MUCH too sparse ... impostors for everything that can be seen by the eye
+## ... the color bake options of the bench in the F8 menu ... a single slider for
+## the lightness of both the impostors and the 3d models ... some trees are not
+## on the ground ... mountains are fully green yet there's no tree on them ...
+## some area around the coast is super blocky light blue ... the shaded part of
+## the mountains is almost pitch black")
+
+- THE SPARSENESS HAD A CAUSE: forestHere gated the fill on a woodland tree
+  within 90 m - the analytic world's rule - and the island's collidable
+  woodland is 52/km2, so the fill was 90 m blobs round single trees. On an
+  island the map is the gate (effClass), the species falls back to the pool
+  when no woodland tree is near. Island defaults NG 160, cover 0.5 -> 6 m.
+- THE RING TO THE EYE: FAR_FILL / FAR_WOOD 9 km on an island (no fog wall to
+  hide behind). Chunks beyond 3.5 km walk HALF the grid (ngFor: a quarter of
+  the points; a chunk crossing the line is evicted and regenerated) - the
+  first cut at full grid was 266 chunks at 25 ms with an 82 ms worst frame.
+  Measured (island rig, NG 160): full 13.1 / off 13.7 ms, 2418 near + 220165
+  impostors, 296 chunks at 3.6 ms, worst frame 22 ms.
+- THE FAR TERRAIN IS THE ASSET: the eps-4 quadtree (jolene5_e4, loaded as
+  `far` by the loader) merged into meshes by quadrant outside the inner
+  ring, dipped 1.5 m under its rim; the four 160 m strips are the analytic
+  world's only. The trees stand on the surface they were placed on.
+- THE GROUND STACK, LIVE: the bench's stack in the ground material
+  (islandGroundHook on both rings: tint > radar overlay > canopy shade >
+  rocky shore > snow, then lightness and saturation; below the waterline the
+  ground is water-coloured whatever the mesh does - the blocky light blue
+  was the seabed above the water plane on polygons straddling the shore).
+  WORLD.ground.get/set/modes; F8 > environment > ground: paint (the bench's
+  layer views: stack, tint, radar, canopy, class, ndvi, coast, height,
+  snow), lightness, saturation, radar overlay, canopy shade, shore band,
+  snowline. The loader fetches tint, ori1, ndvi with the grids.
+- ONE TREE LIGHTNESS (F8 > trees): the leaf master light and the impostors'
+  lit term moved together.
+- THE ISLAND RIG ROW: alps with the hemisphere doubled (0.55) - a clear sky
+  is a fifth of the sun, not a tenth; the shaded slopes were black under a
+  dark Landsat albedo with the overlay and the shade compounding. gfx
+  resolves the island's lighting to 'island'; the row is on F8's select.
+- TRAPS: `const sp` in walk() shadowed the species (TDZ); groundApi declared
+  in the terrain block, read in the return (hoisted); a CSS glyph escape in
+  a template string is an octal escape.
+- OWED: the ring to the horizon needs coarser far CHUNKS (draw calls per
+  chunk), not just a coarser grid; the bump on the game terrain (W1); the
+  bench retires as the F8 rows fill in (the stack's blend modes and the
+  class contour blur are not in the game hook yet).

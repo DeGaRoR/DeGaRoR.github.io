@@ -81,6 +81,12 @@ var ISLAND_GEN = (function () {
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
       albedo: src.grid.albedo || null,
+      tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
+      coverU8: cover, ndvi: src.grid.ndvi || null,
+      // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
+      farHeader: src.far ? src.far.header : null,
+      farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,
+      canopyP90: (g.layers && g.layers.canopy && g.layers.canopy.p90OverTreeCover) || 15,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
     };

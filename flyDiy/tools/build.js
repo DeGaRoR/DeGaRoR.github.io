@@ -524,7 +524,7 @@ function buildViewer(coreBody) {
   // Absent, nothing here runs and the analytic world boots as it always has.
   var name = new URLSearchParams(location.search).get('world');
   if (!name || !/^[a-z0-9_]+$/.test(name)) return;
-  var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem';
+  var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem', F = 'bench/terrain/' + name + '5_e4';   // F: the far terrain's coarser tree
   var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
   var u8 = function (b) { return new Uint8Array(b); };
   var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
@@ -532,8 +532,11 @@ function buildViewer(coreBody) {
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
     return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
                         get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
-                        opt(G + '.coast.u8'), opt(G + '.albedo.rgb')])
-      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7] } }; });
+                        opt(G + '.coast.u8'), opt(G + '.albedo.rgb'), opt(G + '.tint.rgb'), opt(G + '.ori1.u8'), opt(G + '.ndvi.u8'),
+                        get(F + '.json', 'json').then(null, function () { return null; }), opt(F + '.topo'), opt(F + '.bin').then(function (b) { return b ? gz(b.buffer) : null; })])
+      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
+        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10] },
+        far: (r[11] && r[12] && r[13]) ? { header: r[11], topo: r[12], payload: r[13] } : null }; });
   });
 })();
 </script>`;

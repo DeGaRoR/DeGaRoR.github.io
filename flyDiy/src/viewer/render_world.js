@@ -11,6 +11,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
+  let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
@@ -43,7 +44,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // density, because the impostor is one quad and the near tier's
   // fragments are the whole cost. So the near tier ends at 270 m, as the
   // bench had it, and density is a look choice rather than a frame one.
-  const NEAR_R = 270, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
+  // ON AN ISLAND THE RING GOES TO THE EYE (G400, the user: "impostors for
+  // everything that can be seen by the eye ... don't hide terrain geometry in
+  // a flight game"): there is no fog wall to hide behind. 9 km first, measured;
+  // the horizon is the next step once the far chunks are coarser.
+  const NEAR_R = 270, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
@@ -526,7 +531,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const forestHere = (x, z) => {
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
     for (const e of treeEx) if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) return false;
-    if (nearTree(x, z) < 0) return false;
+    // THE WOODLAND GATE IS THE ANALYTIC WORLD'S (G400): on an island the map
+    // says where the forest is, and the sparse collidable woodland (52/km2)
+    // would have left the fill as 90 m blobs round single trees - it did
+    if (!world.island && nearTree(x, z) < 0) return false;
     if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
@@ -735,6 +743,90 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // row 0 of the grid is its north edge (z0): v runs with z, no flip
       islandUV = (x, z) => [(x - G.x0) / (G.w * G.cell), (z - G.z0) / (G.h * G.cell)];
     }
+
+    // ============ THE ISLAND'S GROUND, LIVE (G400, 2026-09-14) ============
+    // The bench's stack IN the ground material, on knobs (F8 > environment >
+    // ground): the Landsat tint, the radar as an overlay, the canopy
+    // normalised as a darkness, the rocky shore off the signed coast, snow
+    // above the line, then a lightness and a saturation - the user's "I need
+    // to move both the terrain and the trees to see what's best". The baked
+    // albedo stays the fallback (and the minimap's). Textures sampled by
+    // world position; the tint is sRGB (decoded on sample under r152+).
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.0, sat: 1.0, snow: 890, shore: 1.0, mode: 0 };
+    // the bench's paint modes, in the game: 0 the stack, then each map alone
+    const GROUND_MODES = ['stack', 'tint', 'radar', 'canopy', 'class', 'ndvi', 'coast', 'height', 'snow'];
+    const gU = {};
+    let islandGroundHook = null;
+    if (ISLA && ISLA.tint && ISLA.ori1) {
+      const G = ISLA.grid, n = G.w * G.h;
+      const mk8 = (d, srgb) => { const t = new THREE.DataTexture(d, G.w, G.h, THREE.RedFormat, THREE.UnsignedByteType);
+        t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; };
+      const rgba = new Uint8Array(n * 4);
+      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
+      const tintTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
+      tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
+      Object.assign(gU, {
+        uGTint: { value: tintTex }, uGOri: { value: mk8(ISLA.ori1) },
+        uGCan: { value: ISLA.canopy ? mk8(ISLA.canopy) : mk8(new Uint8Array(n)) },
+        uGCoast: { value: ISLA.coast ? mk8(ISLA.coast) : mk8(new Uint8Array(n).fill(255)) },
+        uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
+        uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
+        uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
+        uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
+        uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1100) },
+        uGCover: { value: ISLA.cover ? (() => { const t = mk8(ISLA.cover); t.magFilter = t.minFilter = THREE.NearestFilter; return t; })() : mk8(new Uint8Array(n)) },
+        uGNdvi: { value: ISLA.ndvi ? mk8(ISLA.ndvi) : mk8(new Uint8Array(n)) },
+      });
+      GROUND.on = true;
+      islandGroundHook = sh => {
+        Object.assign(sh.uniforms, gU);
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPi = (modelMatrix * vec4(position, 1.0)).xyz;');
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\n' +
+            'uniform sampler2D uGTint, uGOri, uGCan, uGCoast, uGCover, uGNdvi; uniform vec4 uGGrid;\n' +
+            'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
+            'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
+            '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
+            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }')
+          .replace('#include <map_fragment>', '#include <map_fragment>\n' +
+            '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
+            '  vec3 t = texture2D(uGTint, guv).rgb;\n' +
+            '  float r1 = texture2D(uGOri, guv).r;\n' +
+            '  vec3 ov = mix(2.0 * t * r1, 1.0 - 2.0 * (1.0 - t) * (1.0 - r1), step(0.5, t));\n' +
+            '  t = mix(t, ov, uGOverlay);\n' +
+            '  float can = texture2D(uGCan, guv).r * 255.0;\n' +
+            '  t *= mix(1.0, 1.0 - 0.45 * clamp(can / uGP90, 0.0, 1.2), uGShade);\n' +
+            '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
+            '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
+            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
+            // below the waterline the ground IS water-coloured, so a polygon that
+            // straddles the shore never shows a seabed above the water plane
+            '  if (sd < 0.0) t = mix(vec3(0.10, 0.20, 0.22), vec3(0.03, 0.10, 0.16), smoothstep(0.0, 300.0, -sd));\n' +
+            '  t = mix(t, vec3(0.85, 0.88, 0.95), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
+            '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
+            '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
+            '  if (uGMode == 1) t = texture2D(uGTint, guv).rgb;\n' +
+            '  else if (uGMode == 2) t = vec3(r1 * r1);\n' +
+            '  else if (uGMode == 3) t = mix(vec3(0.30,0.26,0.16), vec3(0.01,0.16,0.02), clamp(can / 40.0, 0.0, 1.0));\n' +
+            '  else if (uGMode == 4) t = gClassCol(texture2D(uGCover, guv).r * 255.0);\n' +
+            '  else if (uGMode == 5) { float nd = texture2D(uGNdvi, guv).r * 2.0 - 1.0; t = mix(vec3(0.42,0.35,0.18), vec3(0.01,0.10,0.02), clamp(nd, 0.0, 1.0)); }\n' +
+            '  else if (uGMode == 6) t = sd < 0.0 ? vec3(0.02, 0.05, 0.25) * clamp(-sd / 400.0, 0.1, 1.0) : mix(vec3(0.5, 0.45, 0.3), vec3(0.05, 0.2, 0.05), clamp(sd / 400.0, 0.0, 1.0));\n' +
+            '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
+            '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
+            '  diffuseColor.rgb = t; }');
+      };
+    }
+    groundApi = {
+      on: () => GROUND.on,
+      get: () => Object.assign({}, GROUND),
+      modes: () => GROUND_MODES.slice(),
+      set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
+        const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode' }[k];
+        if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
+    };
     const tex = islandTex || bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
     const outerBake = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
     const outerTex = islandTex || outerBake;
@@ -896,8 +988,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }; };
     const gMat = worldLambert({ map: tex });
     innerPatchShared = { mat: gMat, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
-    // the close grain is the analytic ground's; an island's texture stands alone until W1
-    if (!islandUV) gMat.onBeforeCompile = sh => {
+    // the close grain is the analytic ground's; an island's ground is the live stack
+    if (islandGroundHook) gMat.onBeforeCompile = islandGroundHook;
+    else gMat.onBeforeCompile = sh => {
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -921,9 +1014,48 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     ground.receiveShadow = true;
     scene.add(ground);
 
-    { // outer ring: four coarse strips sharing one full-domain texture
+    if (world.island && world.island.farRoot) {
+      // THE FAR TERRAIN IS THE ASSET (G400, the user: "don't hide terrain
+      // geometry in a flight game ... some trees are not on the ground"): the
+      // four 160 m strips cut every ridge the trees stood on. Every leaf of
+      // the eps-4 quadtree outside the inner ring, merged into meshes by
+      // quadrant (frustum-culled as sixteen), wearing the ground material;
+      // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
-      oMat.onBeforeCompile = canopyHook;   // the far tier lives mostly out here
+      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;
+      const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch;
+      const groups = new Map();
+      const leafIdx = []; for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) { const a = j * N + i; leafIdx.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
+      (function walkQ(n) {
+        if (n.kids) { n.kids.forEach(walkQ); return; }
+        const s = FH.side / (1 << n.d), step = s / Pn;
+        const ox = FH.bounds.x0 + n.ix * s, oz = FH.bounds.z0 + n.iz * s;
+        if (ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250) return;   // fully under the inner ring
+        const qs = FH.side / 4, key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
+        let g = groups.get(key); if (!g) groups.set(key, g = { pos: [], uv: [], idx: [], base: 0 });
+        for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+          const x = ox + i * step, z = oz + j * step; let y = n.h[j * N + i];
+          const din = Math.max(Math.abs(x), Math.abs(z));
+          if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
+          g.pos.push(x, y, z);
+          const t = islandUV ? islandUV(x, z) : [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]; g.uv.push(t[0], t[1]);
+        }
+        for (const k of leafIdx) g.idx.push(g.base + k);
+        g.base += N * N;
+      })(world.island.farRoot);
+      let farTris = 0;
+      for (const g of groups.values()) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(g.pos, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.uv, 2));
+        geo.setIndex(g.idx); geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, oMat); m.receiveShadow = true; scene.add(m);
+        farTris += g.idx.length / 3;
+      }
+      console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
+    } else { // outer ring: four coarse strips sharing one full-domain texture
+      const oMat = worldLambert({ map: outerTex });
+      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;   // the far tier lives mostly out here
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
         g2.rotateX(-Math.PI / 2);
@@ -2313,16 +2445,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // machine can carry is measured, not guessed. The per-chunk cost is per
       // grid POINT, so the streamer's budget below is what hides a bigger NG.
       const CH = 1024, R_ACT = FAR_FILL + 100, R_DROP = FAR_FILL + 800;
+      // THE FAR CHUNKS ARE COARSER (G400): beyond FAR_NEAR_NG a chunk walks
+      // half the grid (a quarter of the points) - an impostor at 8 km reads
+      // the same at 12.8 m spacing as at 6.4, and the walk was the hitch
+      // (266 chunks at 25 ms, worst frame 82 ms with the ring at 9 km).
+      // A chunk that crosses the line is evicted and regenerated at its class.
+      const FAR_NEAR_NG = 3500;
+      const ngFor = (cx, cz, cg) => { const ax = (cx + 0.5) * CH - cg[0], az = (cz + 0.5) * CH - cg[2];
+        return (ax * ax + az * az > FAR_NEAR_NG * FAR_NEAR_NG) ? Math.max(16, NG >> 1) : NG; };
       // 160 (6.4 m, ~21 000/km² before dropout): MEASURED on the RTX 3080 at
       // 1920x1080 in the densest stand, the frame with the specimen L2 in the
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: 100,           // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26)
+      const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
         // the island's knobs (F8 > trees > from the map): coverage ramps from
         // `from` to `full` metres of canopy; a tree is canopy x gain over the
         // model's own height, clamped
-        island: { from: 1.0, full: 12.0, gain: 1.0, min: 0.3, max: 2.2 } };
+        island: { from: 0.5, full: 6.0, gain: 1.0, min: 0.3, max: 2.2 } };
       const ISLC = world.island && world.island.canopyAt ? world.island : null;
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
@@ -2425,12 +2565,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // walk finishes. The rule is unchanged: the same points, the same
       // order, the same draws; only the frame they land in differs.
       const ROWS_PER_FRAME = 24;
-      function walk(cx, cz, recs, g0, g1) {
-        for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < NG; gx++) {
-          const ix = cx * NG + gx, iz = cz * NG + gz;
+      function walk(cx, cz, recs, g0, g1, ng) {
+        ng = ng || NG; const spc = CH / ng;
+        for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
+          const ix = cx * ng + gx, iz = cz * ng + gz;
           if (hsh(ix, iz + 31) < 0.1) continue;
-          const x = cx * CH + (gx + 0.5) * SP2 + (hsh(ix + 7, iz) - 0.5) * SP2 * 1.6;
-          const z = cz * CH + (gz + 0.5) * SP2 + (hsh(ix, iz + 7) - 0.5) * SP2 * 1.6;
+          const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
+          const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
           if (!forestHere(x, z)) continue;  // ONE rule, the bake's too
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
@@ -2443,8 +2584,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           }
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
-          const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
-                                                : (hsh(ix + 9, iz + 1) * 5) | 0;
+          const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
+                                                             : (hsh(ix + 9, iz + 1) * 5) | 0;
           const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
         }
@@ -2589,7 +2730,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
-          set: ng => { FILL.ng = NG = Math.max(16, Math.min(320, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
+          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
       let tick = 0;
       // the streamer's worst FRAME - a slice, or the build's - is the hitch
       // a player would see; STAT.frameMax keeps it
@@ -2599,10 +2740,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // rows; the build lands in the frame the walk finishes
         if (cur) {
           const t = performance.now();
-          const g1 = Math.min(NG, cur.gz + ROWS_PER_FRAME);
-          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1);
+          const cng = cur.c2.ng || NG;
+          const g1 = Math.min(cng, cur.gz + ROWS_PER_FRAME);
+          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cng);
           cur.walkMs += performance.now() - t; cur.gz = g1;
-          if (g1 >= NG) {
+          if (g1 >= cng) {
             const c2 = cur.c2;
             // evicted while it was being walked: nothing to build
             if (chunks.get(c2.cx * 4096 + c2.cz) === c2) c2.meshes = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now());
@@ -2623,7 +2765,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
           const k = cx * 4096 + cz;
-          if (!chunks.has(k)) { chunks.set(k, { cx, cz, meshes: null }); queue.push(k); }
+          if (!chunks.has(k)) { chunks.set(k, { cx, cz, meshes: null, ng: ngFor(cx, cz, cg) }); queue.push(k); }
         }
         if (queue.length) {                // nearest first; the fog hides the rest
           for (let i = queue.length - 1; i >= 0; i--) {
@@ -2643,9 +2785,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             if (c2) cur = { c2, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
           }
         }
-        for (const [k, c2] of chunks) {    // evict far chunks
+        for (const [k, c2] of chunks) {    // evict far chunks, and chunks whose grid class changed
           const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
-          if (ax * ax + az * az < R_DROP * R_DROP) continue;
+          if (ax * ax + az * az < R_DROP * R_DROP && (!c2.meshes || c2.ng === ngFor(c2.cx, c2.cz, cg))) continue;
+          if (cur && cur.c2 === c2) cur = null;
           if (c2.meshes) {
             for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
             for (const r of c2.meshes.reg) {   // or lodUpdate keeps poking dead meshes
@@ -3449,6 +3592,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     hemiGnd: 0x343422, exposure: 0.92, env: 'alps', shadowMin: 540, shadowMap: 2048,
     dome: { top: 0x3f7fbe, mid: 0xa9c8e0, haze: 0xcfd9e3, sunCol: 0xfff1dc },
   });
+  // THE ISLAND'S ROW (G400, the user: "the shaded part of the mountains is
+  // almost pitch black ... whether we have sufficient ambient light"): the
+  // alps afternoon with the hemisphere doubled - a clear sky is a fifth of
+  // the sun, not a tenth - under a Landsat albedo that is dark to begin with
+  rigRows.island = Object.assign({}, rigRows.alps, { hemi: 0.55, hemiSky: 0xcfe0ff, hemiGnd: 0x3a3f30 });
   const rigCur = Object.assign({}, rigRows.sunset);
   let alpsEnv = null, alpsState = null;
   // the alps radiance, once: sRGB base / k * exp2(gain * gmax), the identity
@@ -3533,7 +3681,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;

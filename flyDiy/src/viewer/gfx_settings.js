@@ -154,7 +154,7 @@
     // the preset says (the user, 2026-09-14: "boot that on the alps HDR for now")
     // (the loader's ISLAND_BOOT, not FLIGHT_PROBE: onWorld() runs before the probe exists)
     const onIsland = !!W.ISLAND_BOOT;
-    const lighting = onIsland ? 'alps' : S.lighting;
+    const lighting = onIsland ? 'island' : S.lighting;
     if (rig && applied.lighting !== lighting) {
       rig.row(lighting);
       // the row carries its own shadow / floor numbers: re-assert ours

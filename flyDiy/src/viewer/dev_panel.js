@@ -98,8 +98,12 @@
       Ti.appendChild(slider('size min', 0.1, 1, 0.05, () => W.TREE_FILL.island().min, isl('min')));
       Ti.appendChild(slider('size max', 1, 4, 0.1, () => W.TREE_FILL.island().max, isl('max')));
     }
-    T.appendChild(slider('fill density', 16, 320, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
+    T.appendChild(slider('fill density', 16, 400, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
       v => v + ' (' + (1024 / v).toFixed(1) + ' m)'));
+    // ONE lightness for the trees, both tiers: the leaf master light (the
+    // models) and the impostors' lit term, moved together (the user, G400)
+    T.appendChild(slider('tree lightness', 0.2, 2, 0.02, () => leaf().master().light,
+      v => { leaf().tint({ light: v }); world().treeLod.lit.value = v * 0.9; }));
     const mix = k => v => { W.TREE_MIX[k] = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); };
     T.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, mix('furnished')));
     T.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, mix('spread')));
@@ -136,7 +140,7 @@
     }
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
-    E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)']],
+    E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
     E.appendChild(slider('sun elev', 0, 90, 0.5, () => rig().get().elev, v => rig().set({ elev: v }), v => v.toFixed(1) + '°'));
     E.appendChild(slider('sun azimuth', -180, 180, 1, () => rig().get().azim, v => rig().set({ azim: v }), v => v.toFixed(0) + '°'));
@@ -146,6 +150,19 @@
     E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
     E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
+    if (world() && world().ground && world().ground.on()) {
+      const Eg = fold(E, 'ground (the island\'s stack, live)', true, true);
+      const gs = k => v => world().ground.set({ [k]: v });
+      Eg.appendChild(select('paint', world().ground.modes().map((m, i) => [String(i), m]),
+        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
+      Eg.appendChild(note('the bench\'s layer views: the stack, then each map alone (the bench retires as these fill in)'));
+      Eg.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
+      Eg.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
+      Eg.appendChild(slider('radar overlay', 0, 1, 0.02, () => world().ground.get().overlay, gs('overlay')));
+      Eg.appendChild(slider('canopy shade', 0, 1, 0.02, () => world().ground.get().shade, gs('shade')));
+      Eg.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
+      Eg.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
+    }
     const fog = () => world() && world().scene && world().scene.fog;
     E.appendChild(slider('fog from', 0, 20000, 100, () => fog() ? fog().near : NaN, v => { if (fog()) fog().near = v; }, v => (v / 1000).toFixed(1) + ' km'));
     E.appendChild(slider('fog full by', 500, 90000, 500, () => fog() ? fog().far : NaN, v => { if (fog()) fog().far = v; }, v => (v / 1000).toFixed(1) + ' km'));
