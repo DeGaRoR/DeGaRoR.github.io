@@ -88,6 +88,7 @@ const MANIFEST = {
     // published status). Generated builds fly it; 41_ stays for A/B.
     '43_pilot.js',
     '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
+    '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
     '50_model_codec.js',
     '51_prop_codec.js',
     '52_char_codec.js',

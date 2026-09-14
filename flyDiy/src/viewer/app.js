@@ -3426,7 +3426,11 @@
     if (pilotChoice === 'classic') return makeAutopilot(sim, def, world);
     if (pilotChoice === 'test' && typeof makeTestPilot === 'function') return makeTestPilot(sim, def, world);
     if (typeof makePilot === 'function') {
-      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice });
+      // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
+      // memoised one (shakeOf), handed as a getter — a TDZ before the bench
+      // block runs reads as "no shakedown yet", never as a throw
+      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice,
+                                             shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
       if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
       return p;
     }

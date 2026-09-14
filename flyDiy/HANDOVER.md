@@ -46367,3 +46367,44 @@ nordic cold regions".
   inside a backtick string - the glyphs are literal.
 - ISLAND-ANNETTE section 12.7: the table of what is from the map, bench
   against sim, row by row.
+
+## G399.2 — THE PILOT TRACK, P0.4: THE MACHINE SHEET — ONE MEASURED RECORD
+## THE PILOT READS THE AEROPLANE FROM; THE LADDER FLAG LOSES ON THE MATRIX
+## AND STAYS OFF (2026-09-14)
+
+**`src/core/44_machine_sheet.js` `machineSheet(def, { shakedown })`** —
+PILOT-ROADMAP §6.3 rule 5 ("the machine is a sheet of measured numbers,
+and the sheet is the only source"). One flat SI record from what exists:
+the tunnel's measured block (`params.gen`: Vs measured, VsFlap, the
+attitudes, gammaClimb, W), genAP's ladder as the fallback, and the
+shakedown when the caller has one (the garage's memoised `shakeOf`, handed
+as a getter from `mkPilot` — app.js; the trace tool computes it once, 2 s).
+Fields: Vs, Vs0 (the landing configuration), Vref = 1.30 Vs0, Vrot, Vy, Vx
+= 0.87 Vy (derived), Vbg and LDbest (measured, the shakedown's sweep), Vms
+= 0.76 Vbg, climbMax = gammaClimb x Vy, sinkBg, sinkMin = 0.877 Vbg/LDbest
+(the parabolic-polar identities), TORun, LDGrun (the accelerate-stop's own
+law from 1.15 Vs0), alphaAppr / alphaTD / alphaCruise / aStall, thMax /
+flareThMax / liftoffTh, thrCruise / thrAppr / groundCap, mass, W, wingLoad,
+staticMargin, xwindLimit (null unless given: 70 s to measure), elevIdle
+(null: the elevator's authority at idle is not measured — the C172 /
+Caravan finding), the EFFECTORS (engines, flaps + settings, gear type,
+floats), and `src` naming every field's provenance: measured / derived /
+genAP. `ap.sheet` (lazy) on every pilot; `show()` rounds it for a plaque.
+The cub's: Vs 18.3, Vref 23.8, Vx 22.6, Vy 26, Vbg 24.6, climbMax 2.93,
+sinkMin 2.44, L/D 8.9, TORun 250, LDGrun 173.
+
+**THE LADDER FLAG** (`makePilot(..., { sheet: true })`, `pilot_trace
+--sheet`, `pilot_matrix --sheet`): the pilot flies Vref = 1.30 Vs0 (and
+1.20 Vs0 short-field) instead of genAP's 1.42 Vs. MEASURED on four cells
+against the baseline: the cub GAVE UP (55 m below the slope for the whole
+final at 23 m/s — the speed hold's integrator winds the throttle from
+0.05 to 0.33 over 50 s while the GS loop's +0.5 m/s climb clamp cannot buy
+the height back), the savannah gave up (two go-arounds), the C172 landed
+134 m past the aim (59 before), the stearman 1.03 m/s (0.79). Four of four
+worse. The flag stays OFF: the textbook speed is right and the control
+layer cannot fly it — the third time this week the mode zoo has said "give
+me TECS" (the assist, the arc, now the ladder). P0.5 next.
+
+- Gates: PILOT unchanged (the flag is off; `ap.sheet` is lazy and read by
+  nothing yet). PILOTMATRIX: the baseline holds (no cell touched with the
+  flag off).

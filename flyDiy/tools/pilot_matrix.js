@@ -216,6 +216,7 @@ if (require.main === module) {
   const loadRes = f => f && fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).results : null;
   const baseline = loadRes(base) || loadRes(rat);
   const extra = argv.includes('--csv') ? ['--csv'] : [];
+  if (argv.includes('--sheet')) extra.push('--sheet');       // the P0.4 ladder flag, matrix-wide
   console.log('PILOT MATRIX: ' + cells.length + ' cells, ' + jobs + ' at a time (' + set + ')');
   const t0 = Date.now();
   runMatrix(cells, jobs, extra, (i, r) => {

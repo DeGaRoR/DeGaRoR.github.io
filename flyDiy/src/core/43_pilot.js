@@ -136,6 +136,17 @@ function makePilot(sim, def, world, opts) {
   const A = def.params.ap;
   const ST = PILOT_STYLES[opts.style] || PILOT_STYLES.normal;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  // P0.4 (PILOT-ROADMAP §6.3 rule 5): THE MACHINE SHEET — built lazily (the
+  // shakedown behind it costs ~2 s; the garage memoises one, a gate may pass
+  // one, `opts.shakedown` is a value or a getter). `opts.sheet` (the flag)
+  // makes the pilot fly the sheet's ladder — Vref = 1.30 Vs0 for the
+  // approach, 1.20 Vs0 short-field — instead of genAP's 1.42 Vs; off until
+  // the matrix says it wins (the ramp-flare precedent). Either way the sheet
+  // is published as `ap.sheet` for the panel and the planner to come.
+  let sheetV = null;
+  const sheetOf = () => sheetV || (sheetV = (typeof machineSheet === 'function'
+    ? machineSheet(def, { shakedown: opts.shakedown }) : null));
+  const useSheet = !!opts.sheet;
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
@@ -186,9 +197,13 @@ function makePilot(sim, def, world, opts) {
     return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k, td: [td[0], td[1]] };
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100, x: -520, z: 0 };
+  // the speed ladder: the sheet's when the flag is on and the stall is measured
+  const SH0 = useSheet ? sheetOf() : null;
+  const sheetVAppr = SH0 && SH0.src.Vs0 === 'measured' ? SH0.Vref : null;
+  const VApprShort = sheetVAppr != null ? 1.20 * SH0.Vs0 : A.VApprShort;
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
-    VCruise: A.VCruise, VAppr: A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
+    VCruise: A.VCruise, VAppr: sheetVAppr ?? A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
     route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
@@ -297,6 +312,8 @@ function makePilot(sim, def, world, opts) {
     if (o && typeof o.phase === 'string' && o.phase !== ap.phase) go(o.phase);
   };
   ap.taxiFF = taxiFF;
+  Object.defineProperty(ap, 'sheet', { get: sheetOf, enumerable: false });
+  ap.useSheet = useSheet;
 
   // ---- THE AP BOX (G202.1): the modes as a device -------------------------
   // engage({lat, vert, thr}, sel): a mode per axis (undefined = keep, null =
@@ -412,7 +429,7 @@ function makePilot(sim, def, world, opts) {
     ap.xAim = Math.max(A.xAim, sThr + 40);
     ap.shortFld = to.len < 450;
     if (to.len < 700) ap.xAim = sThr + Math.max(60, 0.12 * to.len);
-    if (ap.shortFld && A.VApprShort) ap.VAppr = A.VApprShort; else ap.VAppr = A.VAppr;
+    if (ap.shortFld && VApprShort) ap.VAppr = VApprShort; else ap.VAppr = sheetVAppr ?? A.VAppr;
     const hC = ap.hCruise;
     const Dfaf = hC / ap.gs;
     const Diaf = Dfaf + Math.max(400, 10 * VTurn);

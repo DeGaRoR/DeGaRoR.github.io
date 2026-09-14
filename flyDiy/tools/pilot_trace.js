@@ -15,6 +15,7 @@
 //   node tools/pilot_trace.js caravan --drawn-tail --csv
 //   node tools/pilot_trace.js my_build.json --to A5
 //   node tools/pilot_trace.js cub --slope 0.04     HOME tilted 4 % (the landing runs downhill)
+//   node tools/pilot_trace.js cub --sheet          the pilot flies the machine sheet's ladder (P0.4)
 //
 // Options: --from ID --to ID (aerodrome ids, HOME default; --to alone flies a
 // cross-country from HOME) · --wind x,z (m/s, the air's velocity) · --gust g ·
@@ -127,12 +128,14 @@ function runTrace(o) {
   sim.reset(0);
   if (from.id !== 'HOME') C.placeAtAerodrome(sim, from);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
-  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal' });
+  // the machine sheet (P0.4): the shakedown handed lazily (2 s, once), the ladder flag on request
+  let shk = null;
+  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', sheet: !!o.sheet, shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
   if (from !== to || from.id !== 'HOME') ap.setRoute(from, to);
   const A = def.params.ap, G = def.params.gen;
   // V/Vs is judged against the stall in the LANDING configuration
   const FS = def.params.flaps, VsL = (FS && (FS.ldg ?? 1) > 0 && G.VsFlap) ? G.VsFlap : G.Vs;
-  const Vs = G.Vs, VAppr = A.VAppr * ({ cautious: 1.06, normal: 1, brisk: 0.97 }[o.style || 'normal'] || 1);
+  const Vs = G.Vs, VAppr = ap.VAppr * ({ cautious: 1.06, normal: 1, brisk: 0.97 }[o.style || 'normal'] || 1);
   const glider = S.role === 'glider';
   const maxS = o.maxS || (glider ? 640 : (from !== to ? 900 : 420));
   const rows = [], phases = [];
@@ -220,6 +223,7 @@ function runTrace(o) {
     rollout: roll.e.length ? { maxE: r1(Math.max(...roll.e.map(Math.abs))), zeroX, maxDr: r2(Math.max(...roll.dr.map(Math.abs))),
                                xtEnd: r1(roll.xt[roll.xt.length - 1]) } : null,
     Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VAppr), mass: Math.round(sim.totalM),
+    sheet: o.sheet ? ap.sheet.show() : null,
     wall: Math.round((Date.now() - t0) / 1000),
   };
   if (o.csv) {
@@ -243,6 +247,7 @@ function parseArgs(argv) {
     else if (a === '--style') o.style = nx();
     else if (a === '--max') o.maxS = +nx();
     else if (a === '--slope') o.slope = +nx();
+    else if (a === '--sheet') o.sheet = true;
     else if (a === '--drawn-tail') o.drawnTail = true;
     else if (a === '--csv') o.csv = (argv[i + 1] && !argv[i + 1].startsWith('--')) ? nx() : true;
     else if (a === '--json') o.json = nx();
