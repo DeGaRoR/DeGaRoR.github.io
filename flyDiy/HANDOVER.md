@@ -42930,7 +42930,7 @@ r186 alike, 12 s after a 25 s boot on a loaded machine: no crew; after a 70 s
 boot: the pilot's skinned body 1.3 x 1.1 x 1.4 m at the seat on both. A
 user waits longer than a script, but the door should refuse or re-bake.
 
-## G353 — THE PREMISES: THE CONTRACT FROZEN, THE WORLD EDITOR DESIGNED, THE
+## G354 — THE PREMISES: THE CONTRACT FROZEN, THE WORLD EDITOR DESIGNED, THE
 ## SESSIONS SPLIT (2026-09-13, the user: "We may want to fork in different
 ## sessions from now on for the buildings editor; one on the cable car, one on
 ## the factory, and one on the integration of the totems and other props […]
@@ -43240,37 +43240,6 @@ the shell and `navigate` on the URL.
   with it (the code survived); re-grep `^## G237.1` before landing.
 - Gates: HINGE, SKINMAT, FIN, PARTS, CLIP, JOIN, FIT, UISMOKE green.
 
-## G357 — A RIGID PART TURNS IN THE TRUE FRAME (2026-09-13, the user: "the
-## wheels wobble, off-centre or squished, and the nose cone too")
-
-- Found by bisecting the pose, not the gear: G337 made the capture exact by
-  mapping every vertex through the pose's own inverse B⁻¹ — and B (the body
-  axis, the up pair, RAW as poseModel takes them) is oblique: 85.6° apart
-  on the user's build, so B⁻¹ is a SHEAR of 7.7 % (poseK measured
-  [1.003, 0, −0.077, 1]), not a rotation. A static vertex comes back exact
-  (B·B⁻¹ = I). A part that TURNS does not: its vertices are stored sheared,
-  the part's own rotation R is applied to them, and the pose maps the
-  result through B — the world sees B·R·B⁻¹, a rotation conjugated by a
-  shear, which draws a circle as an ellipse that swings with the angle.
-  The spinner (always turning) and the wheels (rolling) showed it first;
-  the castor, the stick, the hands, the surfaces and the rods turn by the
-  same law. Measured on the user's tricycle before/after, the tyre's
-  radial spread about its centre at a mid-roll angle: 16 mm → 6 mm (the
-  tread's own sampling), nose wheel 10.6 → 2.9 mm.
-- The join publishes the map (`poseK`, the 2x2 in the model's x-y plane).
-  app.js: `poseRigid(o)` writes a rigid part's matrix by hand as
-  T·K·R·K⁻¹ (matrixAutoUpdate off) after every quaternion write — props,
-  wheels, the castor, the cockpit controls, the gauge hands; `conjRot(ax,
-  ang)` gives K·R·K⁻¹ as a 3x3 for the per-vertex sites — the control
-  surfaces, the rods' tips, the castor's ear. A child of a conjugated part
-  (the nosewheel inside its castor) composes exactly. Positions untouched:
-  they were already through the map. No map (an older payload, no frame)
-  = the plain rotation, as before.
-- Not done: the pose basis itself stays oblique (G145's defBodyProject is
-  the rest builder, GATE SKIN/VIEW measure it); orthonormalising it would
-  be the root fix but touches the rest frame, the tail gauge and the live
-  crew's twin (G246) — a ruling for the frame's owner.
-
 ## G345.1 — THE TURNING PARTS TURN: A BLADE HAS A LEADING EDGE, THE ROTATION IS THE AIRFLOW, THE CONE WEARS ITS DIRT AND ITS SPIRAL IN ITS OWN FRAME (2026-09-14)
 
 The user, on G345: "in a previous version the weathering on the nose cone
@@ -43335,6 +43304,37 @@ blade's pressure face by its pitch, as it should. Gate: the join's walk and
 record, `m.spin` in app.js, `secMat`'s naming, the spiral on both sides,
 the keys in `AERO_DEC_DEF`; the uniform census cap raised to 60 (the thrust
 lines and these sit on G345's 48, against a WebGL2 floor of 224).
+
+## G357 — A RIGID PART TURNS IN THE TRUE FRAME (2026-09-13, the user: "the
+## wheels wobble, off-centre or squished, and the nose cone too")
+
+- Found by bisecting the pose, not the gear: G337 made the capture exact by
+  mapping every vertex through the pose's own inverse B⁻¹ — and B (the body
+  axis, the up pair, RAW as poseModel takes them) is oblique: 85.6° apart
+  on the user's build, so B⁻¹ is a SHEAR of 7.7 % (poseK measured
+  [1.003, 0, −0.077, 1]), not a rotation. A static vertex comes back exact
+  (B·B⁻¹ = I). A part that TURNS does not: its vertices are stored sheared,
+  the part's own rotation R is applied to them, and the pose maps the
+  result through B — the world sees B·R·B⁻¹, a rotation conjugated by a
+  shear, which draws a circle as an ellipse that swings with the angle.
+  The spinner (always turning) and the wheels (rolling) showed it first;
+  the castor, the stick, the hands, the surfaces and the rods turn by the
+  same law. Measured on the user's tricycle before/after, the tyre's
+  radial spread about its centre at a mid-roll angle: 16 mm → 6 mm (the
+  tread's own sampling), nose wheel 10.6 → 2.9 mm.
+- The join publishes the map (`poseK`, the 2x2 in the model's x-y plane).
+  app.js: `poseRigid(o)` writes a rigid part's matrix by hand as
+  T·K·R·K⁻¹ (matrixAutoUpdate off) after every quaternion write — props,
+  wheels, the castor, the cockpit controls, the gauge hands; `conjRot(ax,
+  ang)` gives K·R·K⁻¹ as a 3x3 for the per-vertex sites — the control
+  surfaces, the rods' tips, the castor's ear. A child of a conjugated part
+  (the nosewheel inside its castor) composes exactly. Positions untouched:
+  they were already through the map. No map (an older payload, no frame)
+  = the plain rotation, as before.
+- Not done: the pose basis itself stays oblique (G145's defBodyProject is
+  the rest builder, GATE SKIN/VIEW measure it); orthonormalising it would
+  be the root fix but touches the rest frame, the tail gauge and the live
+  crew's twin (G246) — a ruling for the frame's owner.
 
 ## G358 — EVERY POP-UP STAYS INSIDE THE FRAME (2026-09-13, the user: "the
 ## pop-up menus from the floating option bars do not check for the window
@@ -43447,6 +43447,60 @@ plot's own flatten (`ground.need`) is v3's.
   snapping; the frontage preview; v2 the airfield section on World A; v3
   sites + links from the catalogue.
 
+## G345.2 — ROUGHNESS IS THE WEATHERING'S VOICE: THE CLEAR-COAT CUT THAT r186 SILENCED, SUBSTRATES FROM THE FINISH TABLE WITH THEIR OWN ROUGHNESS, MUSGRAVE ON THE DIRT, RUST WITH NO VARNISH OVER IT, THE CLEAR COAT PEELING (2026-09-14)
+
+The user: "in most of your weathering, I miss roughness influence. The rust
+seems smooth, the paint chips disappear under high reflections, where they
+should outshine. You know the original material, and the paint layer, so
+scratching the paint should really reveal the original material with its
+roughness included ... differential roughness per scratch, paint chip and
+dirt is essential ... apply perlin/musgrave noises on the roughness maps to
+generate dirt variation and clearcoat peeling."
+
+THE FINDING FIRST, because it explains the symptom: W0.5a (1b90136c, r128 →
+r186) renamed `geometryNormal` in this module and re-aimed GATE WEATHER,
+but `AERO_WX_CC_FS` still tested `#ifdef CLEARCOAT` — r186 sets
+`USE_CLEARCOAT` — so since the upgrade NO dirt, chip or rust had taken the
+clear coat off anything. Rust under intact varnish IS a glossy brown stain;
+a chip that keeps the paint's clear lobe IS invisible in a reflection. The
+block tests `USE_CLEARCOAT` now, and the gate holds the define (and holds
+the shader's `AEROWX_NL` slot define against the table's — a 25th layer
+left it at 6 and every program failed to compile, caught in the pane).
+
+THE SUBSTRATE IS A FINISH ROW. Painted alloy (alclad, trim, the panel and
+sill sheets, the foil) chips to the table's own `bareAlu`; castAlu, chrome,
+bronze, copper and the woods chip to themselves — `AERO_WX_SUB_FROM`,
+resolved at material time (`aeroWxSubOf`, when AEROSKIN exists) into the
+row's linear base colour, its metalness and its roughness plus 0.08 (a bare
+surface under paint has never been polished). Hand rows stay for what has
+no row under it (steel → primer, ply → bare wood, the plastics). A chip in
+painted alloy is therefore a METAL at roughness 0.34 with no clear coat:
+it outshines the paint round it, which is why a chipped cowl sparkles.
+
+DIFFERENTIAL ROUGHNESS. Chip to chip the substrate roughness rides the fine
+noise (×0.75..1.25); rust is matte with its own grain (0.85..0.95) and
+strips the varnish (the bleed now raises `aeroWxCov` — it had not, and that
+was the "smooth rust" — and runs in rivulets, `pow(gSd, 1.2)` × 1.3); the
+dirt's roughness floor rides a musgrave field at half a metre (`wxRV`,
+0.80..1.16), so a dusty panel is matte in patches and merely dull between
+— the grammar's own noise, no fetch, in the part's frame.
+
+THE CLEAR COAT PEELS: a 25th layer (`peel`, age 0.80 / flight 0.15 / rain
+0.15), patches of the large blotch and a musgrave at a metre, hard-edged
+(at full strength about a third of the field), no colour of its own: the
+clear lobe goes (`aeroWxPeel`, spent in the clear-coat block), the surface
+goes to roughness 0.62..0.87 and a shade chalky.
+
+The bungee cords: rubber in the gear's own table (`dark` → rubber, no rust,
+no chips); what read as rust on them is mud on black rubber, which is a
+colour and not a mistake — flagged, not changed.
+
+MEASURED on the bench (pin 0 → 1, % pixels): rust 6.8 (was 0 on this
+build's maroon legs), peel 7.0 on the wing top; chips, scratches and pits
+read low on THIS build because its fuselage is fabric, which has no
+substrate to expose — the cowl shows them (screenshots/weather/
+rough_cowl_chips.png, final_rust_legs.png, final_peel_top.png).
+
 ## G360 — THE PREMISES BENCH v2: A STRIP IS A PROFILE — PLACED BY TWO CLICKS ON
 ## THE FLIGHT WORLD, GRADED TO ITS SLOPE, PAINTED BY THE GAME'S OWN RECIPE, ITS
 ## PATTERN DERIVED AND VALIDATED (2026-09-13, the user: "great, keep going")
@@ -43511,60 +43565,6 @@ none within 30 m of the box, none on the apron.
   crossfall; a windsock and the site furniture; the pilot flying the
   authored pattern headless (GATE SITE's shape, on the bench's record);
   v3 the sites + links from the catalogue.
-
-## G345.2 — ROUGHNESS IS THE WEATHERING'S VOICE: THE CLEAR-COAT CUT THAT r186 SILENCED, SUBSTRATES FROM THE FINISH TABLE WITH THEIR OWN ROUGHNESS, MUSGRAVE ON THE DIRT, RUST WITH NO VARNISH OVER IT, THE CLEAR COAT PEELING (2026-09-14)
-
-The user: "in most of your weathering, I miss roughness influence. The rust
-seems smooth, the paint chips disappear under high reflections, where they
-should outshine. You know the original material, and the paint layer, so
-scratching the paint should really reveal the original material with its
-roughness included ... differential roughness per scratch, paint chip and
-dirt is essential ... apply perlin/musgrave noises on the roughness maps to
-generate dirt variation and clearcoat peeling."
-
-THE FINDING FIRST, because it explains the symptom: W0.5a (1b90136c, r128 →
-r186) renamed `geometryNormal` in this module and re-aimed GATE WEATHER,
-but `AERO_WX_CC_FS` still tested `#ifdef CLEARCOAT` — r186 sets
-`USE_CLEARCOAT` — so since the upgrade NO dirt, chip or rust had taken the
-clear coat off anything. Rust under intact varnish IS a glossy brown stain;
-a chip that keeps the paint's clear lobe IS invisible in a reflection. The
-block tests `USE_CLEARCOAT` now, and the gate holds the define (and holds
-the shader's `AEROWX_NL` slot define against the table's — a 25th layer
-left it at 6 and every program failed to compile, caught in the pane).
-
-THE SUBSTRATE IS A FINISH ROW. Painted alloy (alclad, trim, the panel and
-sill sheets, the foil) chips to the table's own `bareAlu`; castAlu, chrome,
-bronze, copper and the woods chip to themselves — `AERO_WX_SUB_FROM`,
-resolved at material time (`aeroWxSubOf`, when AEROSKIN exists) into the
-row's linear base colour, its metalness and its roughness plus 0.08 (a bare
-surface under paint has never been polished). Hand rows stay for what has
-no row under it (steel → primer, ply → bare wood, the plastics). A chip in
-painted alloy is therefore a METAL at roughness 0.34 with no clear coat:
-it outshines the paint round it, which is why a chipped cowl sparkles.
-
-DIFFERENTIAL ROUGHNESS. Chip to chip the substrate roughness rides the fine
-noise (×0.75..1.25); rust is matte with its own grain (0.85..0.95) and
-strips the varnish (the bleed now raises `aeroWxCov` — it had not, and that
-was the "smooth rust" — and runs in rivulets, `pow(gSd, 1.2)` × 1.3); the
-dirt's roughness floor rides a musgrave field at half a metre (`wxRV`,
-0.80..1.16), so a dusty panel is matte in patches and merely dull between
-— the grammar's own noise, no fetch, in the part's frame.
-
-THE CLEAR COAT PEELS: a 25th layer (`peel`, age 0.80 / flight 0.15 / rain
-0.15), patches of the large blotch and a musgrave at a metre, hard-edged
-(at full strength about a third of the field), no colour of its own: the
-clear lobe goes (`aeroWxPeel`, spent in the clear-coat block), the surface
-goes to roughness 0.62..0.87 and a shade chalky.
-
-The bungee cords: rubber in the gear's own table (`dark` → rubber, no rust,
-no chips); what read as rust on them is mud on black rubber, which is a
-colour and not a mistake — flagged, not changed.
-
-MEASURED on the bench (pin 0 → 1, % pixels): rust 6.8 (was 0 on this
-build's maroon legs), peel 7.0 on the wing top; chips, scratches and pits
-read low on THIS build because its fuselage is fabric, which has no
-substrate to expose — the cowl shows them (screenshots/weather/
-rough_cowl_chips.png, final_rust_legs.png, final_peel_top.png).
 
 ## G361 — THE PREMISES BENCH v3: A SITE FROM THE CATALOGUE — THE KENNECOTT THEME
 ## STOOD BY ONE CLICK, ITS ITEMS PLACED BY placeSite'S OWN RULES, THE CONVEYOR
@@ -43693,6 +43693,92 @@ click. The rule did its job on the first commit that broke it.
   the lever's wall x being sampled off the flank) — ten rows, all closed,
   the same slot legs as before.
 
+## G371 — THE FLOAT IN WATER, H0: ONE FLOAT DROPPED ON THE TANK, AND THE FOUR
+## QUESTIONS ANSWERED WITH NUMBERS (2026-09-13, from WATER-2026-09-13.md §5)
+
+The spike the water design asked for before anything is built into the
+solver: `tools/_hydro_gen.js` (the model), `_hydro_check.js` (GATE HYDRODYN,
+core, ~30 s), `_hydro.html` (the bench, launch `flydiy-hydro`, port 8420;
+`window.BENCH` drives it headless; shots in screenshots/hydro/). Nothing in
+src/ touched; no vessel, float or hull in the game yet.
+
+THE MODEL. A closed hull lofted from stations in the model frame (x aft, y
+up, z right; origin at the step's keel): V-bottom of declared deadrise to
+the chine, sides, deck, bow cap, transom, and THE STEP (the afterbody's keel
+`hs` higher, rising aft at `aftAngle`). Every panel is a planar triangle
+CLIPPED against the free surface each substep (Sutherland-Hodgman on the
+signed depth at its corners) — wet area, depth-weighted vector area,
+centroid, all exact for a planar surface, zero when dry: there is no
+boolean anywhere. Four smooth terms: hydrostatic (Gauss on the clipped
+polygons, faded to atmospheric toward a trailing edge only AS FAR AS THAT
+EDGE IS VENTILATED), planing lift (Savitsky's dynamic term as a per-panel
+pressure concentrated at the wet leading edge, his deadrise correction, in
+quadrature with a Newtonian sin^2 for a square-on entry, one-sided), drag
+(ITTC-57 friction along the local flow, cross-flow pressure on sides/bow/
+transom, the pressure terms' own aft components — no separate wave curve),
+and the slam (von Karman / Wagner wedge entry on the keel depth, ON THE
+UNSTEADY ENTRY ONLY: heave, pitch rate and the water's motion; the steady
+forward entry over the inclined bottom IS the planing lift, and counting it
+twice porpoised the tow to 20 deg and out of the water at 17 m/s). Plus a
+linear radiation damping (kRad, INFERRED from the 2D heaving-section curve)
+and the unventilated step's base suction (CpBase, INFERRED). THE STEP WORKS
+BY GEOMETRY: aft of it the surface the afterbody sees is the forebody's
+wake (a streamline off the edge falling under gravity, recovering over
+kWake V^2/g) by as much as the step is ventilated — the flow separating
+(cavity number 2 g d / V^2 under 1) AND air reaching it at the chine line
+(the cavity is hs deep; a ramp dVent over the chine's depth there). At rest
+the afterbody is fully wet; risen, it dries from the step back.
+
+MEASURED (the check prints every number before its verdict):
+- ARCHIMEDES: level float, clipper vs the analytic sections 0.993-0.997 at
+  drafts 0.12-0.30 m; the drop settles at 0.9988 W, draft 0.255 m at the
+  step, 2.7 deg nose-up; Monte-Carlo submerged volume (ray parity, 200k
+  samples, sharing nothing with the clipper) 0.991 W; zeta ~0.04 on the bob.
+  The hull's vector area closes to 1e-7 (the step faces first came out
+  INWARD: a level float felt 71 N fore-aft at rest, closure -2x their area).
+- STABILITY, the go/no-go: on a 3 kg node share, omega*dt 0.010 at 24
+  substeps / 0.006 at 45 (envelope 0.50); the slam's linearised c*dt 0.19
+  at 24 / 0.10 at 45 for a 5 m/s entry (envelope 0.73); nothing diverges
+  capped or uncapped. The design's arithmetic held, and its named risk
+  (term 4) is two to seven times inside the bound. `slamCap` (a panel's
+  impulse bounded by the node's normal momentum, as the solver bounds
+  ground friction) is in place and was never needed.
+- THE HUMP: the seaplane tow (free heave and trim, the wing unloading as
+  V^2 to 20 m/s, a Cub's half-tail holding 6 deg): R/W 0.213 at 9 m/s
+  (Cv 3.4), trim peaking 12.5 deg at 10 m/s just past it, the afterbody
+  going from 1.36 m2 wet to dry, R/W 0.008 at 20 m/s. Trim held at 5 deg
+  (the NACA tank's form): 0.215 at Cv 3.4. The lone float at full load, no
+  tail: 0.305 at Cv 3.8 and over. Tank floats at this loading (C_delta
+  0.8) read ~0.2-0.3 at Cv 2.5-3.5: the right band, from geometry.
+- THE GRADIENT: 16 m/s, sinking 1.32 m/s at the touch, 85 % on the wing,
+  free to decelerate: the drag frame by frame 0 / 0.016 / 0.057 / 0.106 /
+  0.140 W, first peak 0.152 W after 10 frames, largest one-frame rise
+  0.049 W; the sink arrested in 0.20 s, peak 1.45 W vertical (0.87 slam),
+  one skip at +0.55 s, then the run-out to 4.3 m/s at 12 s. KSP's step is
+  not here.
+- Two of the design's findings retracted by measurement: the transom fade
+  cannot be unconditional (the hull sat 0.20 m deep at 10 m/s with a third
+  of its Archimedes and a lone float never got over its hump — a
+  water-filled wake keeps its head; only air behind the edge takes it), and
+  a lone float free to trim above the hump is not a tank convention: with
+  the CP a quarter of the wetted length behind the stagnation line and the
+  CG 0.25 m ahead of the step, the float alone trims to 15 deg; the tail
+  holds a seaplane's attitude on the water, so the tow and the landing
+  carry one (K 1700 N m/rad, C 470 at 16 m/s, scaled by V^2 and V).
+- Named cuts, each in the header: the spray-root wave rise, whisker spray,
+  the added-mass inertia m_a dVn/dt, current, and roll — the tank locks roll
+  and yaw (a single float with an aeroplane on it has GM < 0 and capsizes,
+  which `free` shows honestly). INFERRED constants for H3's calibration
+  against the NACA tank curves: kTr 0.15 (the Savitsky comparison the
+  check prints reads 1.1-1.2 at Cv 3, 0.6 at Cv 5), kWake 0.5, dVent 0.05,
+  CpBase -0.15, kRad 0.02, kBeta at CL0 0.10.
+- Not touched: WATER-2026-09-13.md is a peer's uncommitted file; the H0
+  results are in futureDesigns/WATER-H0-2026-09-13.md for its author to
+  fold in. The float's frame is the solver's, so H1 (panels as strips on
+  float nodes) is a placement; H2 (the drawn float measured by the join)
+  reads the same `makeFloat` parameters.
+- Gates: HYDRODYN green (30 s); nothing else touched.
+
 ## G363 — THE SHOCK STRUT STANDS OFF A ROUND BELLY (2026-09-13; owed after
 ## G362 — the user: the skin is "a pure slave of the existing fuselage
 ## geometry", a fitting does not get to change it)
@@ -43743,6 +43829,31 @@ call with a build callback once the branch lands.
 
 - Gates: PREMISES green; proven from a clean worktree.
 
+## G364 — THE COCKPIT CLICK AUDIT (2026-09-13, WS-3; the user: "the flap
+## button is not clickable from the cockpit, ensure everything is")
+
+- Audited with real pointer events from the default head pose on the
+  user's build (the pads projected to the screen, a pointerdown dispatched
+  at each): the key, the three rockers, the four toggles, the four dimmers,
+  the floor flap lever, the brake, the fuel selector — and the dash flap
+  switch — all answer at their own centre. The miss the user hit is the
+  LOCK: a right-drag that turns the head asks for pointer lock (G264), and
+  once locked the mouse has no place on the screen — the click works what
+  the head looks straight at, and nothing on screen said so.
+- Now: a **reticle** at the screen centre while the pointer is locked in
+  the cockpit (`#flReticle`, flight.css), lit amber when the centre is on
+  something clickable; with the mouse free the **hand cursor** shows over
+  a clickable thing. Both ask the click's own raycast (`CK.pick`) at most
+  every 80 ms from the head-cam frame (`cockpitHover`, app.js).
+- The **throttle** is clickable in every ctlThr mode: the join's
+  `edCtl_throttle` group is a pick (`thr`, its own geometry the pad);
+  a drag up opens it (150 px the travel) through `FLYDIY_INPUT.setAxis`
+  (new, with `axis(id)`): the axis takes the value and the mouse owns it
+  until a device or a key speaks. Proven: manual mode, a drag down took
+  ctl.thr 0.85 → 0.
+- Seen, not mine: a saved 'cockpit' camera mode does not resolve the eye
+  at boot (HEAD_CAM.p stays 0 until the pill is clicked again).
+
 ## G361.3 — THE CABLE LINK'S ADAPTER: tramLine IS THE SOLVER, HANDED THE TWO
 ## STATION RECORDS AND A BUILDER; THE ROPES DRAWN; A CABLE TOOL (2026-09-13,
 ## on the village session's interface report)
@@ -43772,30 +43883,202 @@ checks; selftest.
   to change here but deleting the copied `placeHouse`); `tram_run.js` ticked
   from the page's pump.
 
-## G364 — THE COCKPIT CLICK AUDIT (2026-09-13, WS-3; the user: "the flap
-## button is not clickable from the cockpit, ensure everything is")
+## G381 — THE PILOT IS NOT A BRUTE: ARC TURNS, A LATCHED LEVEL, A HOLD-OFF
+## FLARE, A TAIL THAT STAYS STRAIGHT, THE TOUCHDOWN AT 20 %, AND THE LENS
+## JOINT AS THE WINDOWS' STRIP (2026-09-13)
 
-- Audited with real pointer events from the default head pose on the
-  user's build (the pads projected to the screen, a pointerdown dispatched
-  at each): the key, the three rockers, the four toggles, the four dimmers,
-  the floor flap lever, the brake, the fuel selector — and the dash flap
-  switch — all answer at their own centre. The miss the user hit is the
-  LOCK: a right-drag that turns the head asks for pointer lock (G264), and
-  once locked the mouse has no place on the screen — the click works what
-  the head looks straight at, and nothing on screen said so.
-- Now: a **reticle** at the screen centre while the pointer is locked in
-  the cockpit (`#flReticle`, flight.css), lit amber when the centre is on
-  something clickable; with the mouse free the **hand cursor** shows over
-  a clickable thing. Both ask the click's own raycast (`CK.pick`) at most
-  every 80 ms from the head-cam frame (`cockpitHover`, app.js).
-- The **throttle** is clickable in every ctlThr mode: the join's
-  `edCtl_throttle` group is a pick (`thr`, its own geometry the pad);
-  a drag up opens it (150 px the travel) through `FLYDIY_INPUT.setAxis`
-  (new, with `axis(id)`): the axis takes the value and the mouse owns it
-  until a device or a key speaks. Proven: manual mode, a drag down took
-  ctl.thr 0.85 → 0.
-- Seen, not mine: a saved 'cockpit' camera mode does not resolve the eye
-  at boot (HEAD_CAM.p stays 0 until the pill is clicked again).
+The user: "the new autopilot flying the circuit is a brute. It climbs like
+at max speed, it turns really low and slow, it does not seem to follow the
+glideslope that well, he is bad at anticipating turns according to speed
+and turn radius, and most importantly, he slams planes real hard on the
+ground, and real quick when landing. It's like it does not even flare. On
+the runway, he tends to amplify tail oscillations, sometimes to the point
+of having the plane uncontrollable. Also, the touchdown point are placed
+stupid ... 20% the length ... Here it's like 70%. Just noticing the very
+bad joint treatment on the wing cut lights ... I just wanted a joint on
+the outline of the transparent piece ... in the style of the window
+joints, metallic with rivets."
+
+**THE INSTRUMENT FIRST.** A scratch trace runner (arch_fly's loader, the
+pilot flown to a stop, a CSV at 0.1 s through FINAL/FLARE/ROLLOUT) on the
+cub archetype, calm, BEFORE any change:
+- every leg joined 13 s late from one radius inside (the pursuit tapers
+  the bank as the error shrinks); the base-to-final turn crossed the
+  centreline by 147 m because FINAL capped the bank at 10 deg while the
+  turn was planned at 23, and took 45 s to settle;
+- the level segment before the slope SAGGED 25 m: its ALT target was
+  `min(cg[1], hGS + 10)` re-read every tick, so a sag was never corrected;
+- the flare rotated 2.7 deg in 3 s and touched at 1.37 Vs, 1.1 m/s (the
+  ramp asked 11 deg; the cruise pitch loop moved 1 deg in 3 s at idle);
+- the tail: stearman calm and cub in 2 m/s across swung 72 and 76 deg
+  with the rudder on its stop as the tail came down at 17-19 m/s — the
+  tail-down steer gains (3.2 / 1.2) never eased with speed, the tail-up
+  ones do, and the transition halves the damping at 1.5x the rudder
+  authority they were sized for. A wheel landing hides it on take-off
+  (the tail is up by then).
+- and DECRAB steered the wrong way: `-K x (nose angle from the runway)`
+  against groundSteer's proven `-K x e` (e = the runway's angle from the
+  nose) — opposite signs. A 7 deg crab became a 16 deg swing in the
+  hold-off. GATE PILOT's WIND case blows along the strip, so it never saw it.
+
+**What changed (43_pilot.js, all under the G381 comments):**
+1. THE ARC TURN. A leg change arms `arc` (arcInto): a constant-bank turn
+   (HDG at a 50 deg lead, bank = bankLim, or 0.35 in a climb) until the
+   nose is within 11 deg of the new course, then the pursuit. The fly-by
+   distance uses the GROUND speed at that bank plus half the roll-in
+   (V x bank / bankSlew / 2). The crosswind leg is planned to begin where
+   the arc from the climb-out ends. FINAL flies the arc too, then bankLim
+   (0.30 cap) while off the centreline by more than 60 m, then 0.18.
+   Measured: every join within 4-22 m; base-to-final 8 m.
+2. The crosswind turn at 0.6 of the circuit height (was 0.35 = 45 m on the
+   cub); climbing turns banked at most 0.35; a CRUISE CLIMB (1.1 Vy) above
+   twice the screen height.
+3. FINAL: `finalLevel` latched once on entry, the ALT climb-back allowed
+   1.5 m/s; the base speed kept through the arc, the approach speed once
+   aligned. The slope holds within +/-2 m after capture.
+4. THE FLARE IS A HOLD-OFF (default; `flareMode: 'ramp'` keeps the old
+   law, 'vs' the other). Entry at 1.3 x flareAgl; the sink is flown to
+   -max(0.35, agl/tau) (tau from the entry sink, so it is continuous),
+   easing the floor to 0.7 m/s within 0.1 VRot of 1.15 VRot; a pitch law
+   of its own — P 0.20 + I 0.30 on the sink error from the entry attitude,
+   never below it, capped at the three-point attitude + 2 deg on a
+   taildragger (thRest) and thMax on a tricycle; the inner loop firmer
+   (pitchK 2.0, the rotation's integrator authority at 0.4); the integrator
+   unwinds when the elevator is on its stop. MEASURED, calm circuits:
+   cub 1.1 -> 0.94 m/s at 1.37 -> 1.21 Vs; stearman 1.29 -> 0.93;
+   savannah 1.37 -> 0.96; rv 1.30 -> 1.12; motorglider 0.47; pusher 0.99;
+   tigermoth 1.59; pietenpol 1.54. The C172 archetype is the exception:
+   it runs OUT OF ELEVATOR at idle with full flap (de 0.35 at 21 m/s, the
+   nose drops) and mushes on at 1.9 m/s, 0.99 Vs — an airframe limit
+   (elevator / flap moment), the old ramp did 2.09 at 1.13 Vs. OWED: that
+   archetype's tail volume or a partial-flap landing setting.
+   Tried and rejected on the way: pitchK 3.0 with half the damping (a
+   0.8 s PIO on both the cub and the C172).
+5. AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE, three-point or wheels
+   first alike: the stick comes back the moment the aeroplane is below
+   1.15 VRot (full back stick at 1.35 Vs lifted the cub off for six
+   seconds), the arrival attitude held until then. The ramp flare's
+   wheel-landing hold (tail up on -0.05 until VTailDown) stays under
+   flareMode 'ramp': at the hold-off's 1.05-1.2 Vs it kept the tailwheel
+   off the ground for six seconds in a crosswind, the rudder alone weaving
+   +/-9 deg against the weathercock, and the tail dropped onto a heading
+   8 deg off — an 88 deg ground loop on the stearman in 2 m/s across. The
+   tail-down steer gains ease as (VTailUp/V)^2 on both P and D (floor
+   0.30), the trike's cure applied to the taildragger. `tdInfo.three` says
+   whether the arrival was three-point. Stearman calm 72 -> 4.8 deg,
+   across 88 -> 11.2; cub across 76 -> 10.7 (a skip at the touchdown
+   weathercocks it while the wheels are off).
+6. DECRAB on -K x e. The cub in 2 m/s across arrives with e -0.6 deg
+   (was -16.5).
+7. speedThrottle: -0.25 x accF (the measured acceleration) damps the 40 s
+   speed hunt on the approach (+/-2 -> +/-1.6 m/s).
+8. The attitude filters start FROM the attitude on the first update:
+   ROLL read its rest attitude off the first filtered frame, 0.7 x the
+   truth (attFilt), so a cub carried thRest 6.5 deg instead of 9.2 for the
+   whole flight (the tail-up test and now the flare cap read it).
+
+**THE TOUCHDOWN AT 20 %** (20_world.js HOME tdz [-450,0] -> [-845,0]:
+thr1 at -1065 + 220; 24_world_aero.js 0.25 -> 0.30 len from the centre =
+20 % from the threshold; the three HOMEISH fallbacks). Everything downstream
+derives (siteRunway td0/td1, the paint, the pattern, the frame). The
+pattern's aimAP keeps 40 m inside the threshold (25_airfield.js mk), the
+clamp planArrival already applies — 70 m short of a 20 % target on a 340 m
+strip was 2 m off the bar (GATE SITE said so). GATE PILOT's AGAIN check
+now accepts a straight-on departure: with 600 m ahead the planner rolls
+from a hold without a U-turn, which is the honest answer; the U-turn
+itself is no longer exercised by that case (OWED: a case that stops short).
+
+**THE LENS JOINT** (tools/_cage_gen.js cageJointSweep, _cage_wing.js
+lensStrip, _cage_ui.js CAGE_MAT_OF). The windows' strip sweep (corner
+reconstruction, fillets, the mitred flat section, the rivet domes, the
+orientation) is factored out of cageRims VERBATIM into `cageJointSweep(pts,
+ns, r, o)` — cageRims appends its result with an index base; the cage mesh
+is bit-identical (three-build sha1 fingerprint before and after). The lens
+walks its boundary loop as G316 did, but skips the zero-length self-loop
+the loft leaves at each rib's leading-edge seam (a degenerate triangle):
+G316's walker stepped onto it, met its own vertex and stopped, so the
+"joint" was ONE RIB, a round tube. Now the whole outline — both ribs and
+the aft edges — wears the strip in the fuselage's own `joint` material
+instance (matOf('joint'), exported as CAGE_MAT_OF), rivets at rimRivet x
+FS, and bakes into the flown model's `sjoint` group. Verified by CDP
+screenshots in the garage (the camera driven through a render hook on
+FLYDIY_RENDERER — scratch shot.js).
+
+- Gates: SITE (after the aim clamp), TAKEOFF, HONEST, NAV, SKIN, BUILD,
+  SKINMAT, SURF, LIGHT, DESIGN, VIEW, PILOT, HOTHIGH green on the final
+  build. ARCHETYPES: 18 of 19 circuits complete; the CARAVAN-ALIKE goes
+  around twice for 'terrain under the approach' and lands 3 km short —
+  and it does the SAME with the HEAD pilot on the HEAD world (both swapped
+  in, built, flown through the gate's own loop with the drawn tail: two
+  terrain go-arounds at 214 s and 359 s, pastAim -3187). Not this
+  session's: the drawn-tail Caravan-alike cannot hold its nose up at idle
+  (elevator on its stop at 36 m/s, pitch 1 deg, 3 m/s below a 2.2 deg
+  slope) — something in today's shared tree (the cage/tail layers or the
+  G350/G351 re-baseline, all uncommitted by other sessions) moved it; the
+  G351 battery had it green. The gate also hit the runner's 3600 s cap
+  under two concurrent batteries; re-run alone it reports only that one
+  build (19 flown).
+- OWED: the flapped trikes' elevator at idle + full flap (C172 2.09 -> 1.9
+  m/s at 0.99 Vs; Caravan-alike 2.1 m/s at 1.39 Vs, de on its stop from the
+  first second of the flare — a partial-flap landing setting or a trickle
+  of power, `flareThr`, is the pilot-side door); a skip-proof
+  crosswind touchdown (hold the tail down through the first bounce); the
+  trikes' low-speed nosewheel weave (+/-1.5 deg, 45-57 reversals on the
+  pusher and the rv, pre-existing); the AGAIN case's U-turn coverage.
+
+## G381.1 — POWER WHEN THE ELEVATOR RUNS OUT; A TRICYCLE BRAKES ON THE
+## NOSEWHEEL; DECRAB THROUGH A SKIP; THE TURN-AROUND BACK UNDER TEST
+## (2026-09-14, the owed items of G381, in urgency order)
+
+**THE POWER ASSIST (43_pilot.js `apply`).** The two flapped-trike landings
+G381 left owed were the same defect: an elevator on its nose-up stop at
+idle. The drawn-tail Caravan-alike (GATE ARCHETYPES' build) fell 3 m/s
+below a 2.2 deg slope with de at 0.35 from the first second of FINAL and
+went around twice for the terrain (with the HEAD pilot too); the C172-alike
+mushed on at 0.99 Vs, 1.9 m/s, full flap, de on the stop. What a pilot does
+is ADD POWER: the slipstream gives the tail its authority back and the
+thrust carries the sink. On FINAL and in FLARE, while the elevator is past
+0.30, `pAsst` winds up (0.20/s) and is added to whatever the thrust mode
+set (the speed hold's floor, the flare's idle); it unwinds once the
+elevator is back under 0.22; it never fires when the elevator has room, so
+every approach that flies at idle is unchanged. Caps: 0.40 on final; in
+the flare BY SPEED — 0.30 for a slow arrival (V < 1.35 VRot: the C172 at
+1.13 VRot needs it to finish the hold-off, 1.9 -> 1.02 m/s), a 0.12 trickle
+for a fast one (the Caravan at 1.6 VRot only floats on power: at 0.40 it
+ran 836 m and stopped 8 m from the end; at 0.12 it arrives at 0.59 m/s in
+669 m; at 0.05 it hit at 2.3). The Caravan-alike now COMPLETES its circuit
+(no go-around, pastAim 23) — landing fast, at 1.57 Vs, because that tail
+cannot slow it: still the airframe's, owed to the tail chantier.
+
+**A TRICYCLE BRAKES AS SOON AS THE NOSEWHEEL IS DOWN** (ROLLOUT). VBrakeOn
+(0.75 Vs) is the taildragger's rule — brake hard with the tail up and it
+noses over — and a trike landed fast rolled 836 m waiting for it. With all
+three wheels down and V below VDerotate the ramp starts. RV-alike 410 ->
+342 m, C172 179 -> 141 m.
+
+**DECRAB THROUGH A SKIP** (ROLLOUT): off the wheels in the first six
+seconds the flare's DECRAB flies the lateral, not the ground law.
+Measured on the cub in 2 m/s across: no change (10.7 -> 10.6 deg) — the
+swing is on the WHEELS, not in the air: at the touchdown the mains grip,
+the crosswind yaws the aeroplane 10 deg in a second while the scheduled
+tail-down gain (0.46 at 22 m/s) answers with 0.15-0.35 of rudder, and it
+recovers with no reversal (zero-crossings 0, 0.5 m off centre). Kept
+because it is right; the swing stays on the owed list as a number, not a
+loss of control.
+
+**THE TURN-AROUND BACK UNDER TEST** (test_pilot.js AGAIN). With the target
+at 20 % the stock build stopped with ~600 m ahead and rolled straight on,
+so the case no longer flew the U-turn. The stopped aeroplane is now SLID
+along the strip — a rigid translation of every node on the flat pad — to
+150 m from the end it faces, less than the run it needs, and the departure
+has to turn it around: TAXI (the U-turn at the pose, the backtrack) and
+HOLD are required again.
+
+- Gates: PILOT (with the slide), TAKEOFF, HONEST — see the commit.
+- OWED: the drawn-tail Caravan-alike's approach speed (1.57 Vs at idle
+  with full-up elevator: the tail chantier's); the 10 deg touchdown swing
+  in a crosswind on the cub/stearman; the trikes' low-speed nosewheel
+  weave.
 
 ## G365 — THE DASH PLATE: LABELS, A CURATED FINISH LIST, ROUND CORNERS
 ## (2026-09-13, WS-4; the user: "do both, the labels and the ordering" /
@@ -44179,92 +44462,6 @@ are clear and can be picked up with rigor by other sessions?"
   The user: "I think we can close the session here, leave that to the world
   editor. Commit according to the procedure."
 
-## G370 — THE FLOAT IN WATER, H0: ONE FLOAT DROPPED ON THE TANK, AND THE FOUR
-## QUESTIONS ANSWERED WITH NUMBERS (2026-09-13, from WATER-2026-09-13.md §5)
-
-The spike the water design asked for before anything is built into the
-solver: `tools/_hydro_gen.js` (the model), `_hydro_check.js` (GATE HYDRODYN,
-core, ~30 s), `_hydro.html` (the bench, launch `flydiy-hydro`, port 8420;
-`window.BENCH` drives it headless; shots in screenshots/hydro/). Nothing in
-src/ touched; no vessel, float or hull in the game yet.
-
-THE MODEL. A closed hull lofted from stations in the model frame (x aft, y
-up, z right; origin at the step's keel): V-bottom of declared deadrise to
-the chine, sides, deck, bow cap, transom, and THE STEP (the afterbody's keel
-`hs` higher, rising aft at `aftAngle`). Every panel is a planar triangle
-CLIPPED against the free surface each substep (Sutherland-Hodgman on the
-signed depth at its corners) — wet area, depth-weighted vector area,
-centroid, all exact for a planar surface, zero when dry: there is no
-boolean anywhere. Four smooth terms: hydrostatic (Gauss on the clipped
-polygons, faded to atmospheric toward a trailing edge only AS FAR AS THAT
-EDGE IS VENTILATED), planing lift (Savitsky's dynamic term as a per-panel
-pressure concentrated at the wet leading edge, his deadrise correction, in
-quadrature with a Newtonian sin^2 for a square-on entry, one-sided), drag
-(ITTC-57 friction along the local flow, cross-flow pressure on sides/bow/
-transom, the pressure terms' own aft components — no separate wave curve),
-and the slam (von Karman / Wagner wedge entry on the keel depth, ON THE
-UNSTEADY ENTRY ONLY: heave, pitch rate and the water's motion; the steady
-forward entry over the inclined bottom IS the planing lift, and counting it
-twice porpoised the tow to 20 deg and out of the water at 17 m/s). Plus a
-linear radiation damping (kRad, INFERRED from the 2D heaving-section curve)
-and the unventilated step's base suction (CpBase, INFERRED). THE STEP WORKS
-BY GEOMETRY: aft of it the surface the afterbody sees is the forebody's
-wake (a streamline off the edge falling under gravity, recovering over
-kWake V^2/g) by as much as the step is ventilated — the flow separating
-(cavity number 2 g d / V^2 under 1) AND air reaching it at the chine line
-(the cavity is hs deep; a ramp dVent over the chine's depth there). At rest
-the afterbody is fully wet; risen, it dries from the step back.
-
-MEASURED (the check prints every number before its verdict):
-- ARCHIMEDES: level float, clipper vs the analytic sections 0.993-0.997 at
-  drafts 0.12-0.30 m; the drop settles at 0.9988 W, draft 0.255 m at the
-  step, 2.7 deg nose-up; Monte-Carlo submerged volume (ray parity, 200k
-  samples, sharing nothing with the clipper) 0.991 W; zeta ~0.04 on the bob.
-  The hull's vector area closes to 1e-7 (the step faces first came out
-  INWARD: a level float felt 71 N fore-aft at rest, closure -2x their area).
-- STABILITY, the go/no-go: on a 3 kg node share, omega*dt 0.010 at 24
-  substeps / 0.006 at 45 (envelope 0.50); the slam's linearised c*dt 0.19
-  at 24 / 0.10 at 45 for a 5 m/s entry (envelope 0.73); nothing diverges
-  capped or uncapped. The design's arithmetic held, and its named risk
-  (term 4) is two to seven times inside the bound. `slamCap` (a panel's
-  impulse bounded by the node's normal momentum, as the solver bounds
-  ground friction) is in place and was never needed.
-- THE HUMP: the seaplane tow (free heave and trim, the wing unloading as
-  V^2 to 20 m/s, a Cub's half-tail holding 6 deg): R/W 0.213 at 9 m/s
-  (Cv 3.4), trim peaking 12.5 deg at 10 m/s just past it, the afterbody
-  going from 1.36 m2 wet to dry, R/W 0.008 at 20 m/s. Trim held at 5 deg
-  (the NACA tank's form): 0.215 at Cv 3.4. The lone float at full load, no
-  tail: 0.305 at Cv 3.8 and over. Tank floats at this loading (C_delta
-  0.8) read ~0.2-0.3 at Cv 2.5-3.5: the right band, from geometry.
-- THE GRADIENT: 16 m/s, sinking 1.32 m/s at the touch, 85 % on the wing,
-  free to decelerate: the drag frame by frame 0 / 0.016 / 0.057 / 0.106 /
-  0.140 W, first peak 0.152 W after 10 frames, largest one-frame rise
-  0.049 W; the sink arrested in 0.20 s, peak 1.45 W vertical (0.87 slam),
-  one skip at +0.55 s, then the run-out to 4.3 m/s at 12 s. KSP's step is
-  not here.
-- Two of the design's findings retracted by measurement: the transom fade
-  cannot be unconditional (the hull sat 0.20 m deep at 10 m/s with a third
-  of its Archimedes and a lone float never got over its hump — a
-  water-filled wake keeps its head; only air behind the edge takes it), and
-  a lone float free to trim above the hump is not a tank convention: with
-  the CP a quarter of the wetted length behind the stagnation line and the
-  CG 0.25 m ahead of the step, the float alone trims to 15 deg; the tail
-  holds a seaplane's attitude on the water, so the tow and the landing
-  carry one (K 1700 N m/rad, C 470 at 16 m/s, scaled by V^2 and V).
-- Named cuts, each in the header: the spray-root wave rise, whisker spray,
-  the added-mass inertia m_a dVn/dt, current, and roll — the tank locks roll
-  and yaw (a single float with an aeroplane on it has GM < 0 and capsizes,
-  which `free` shows honestly). INFERRED constants for H3's calibration
-  against the NACA tank curves: kTr 0.15 (the Savitsky comparison the
-  check prints reads 1.1-1.2 at Cv 3, 0.6 at Cv 5), kWake 0.5, dVent 0.05,
-  CpBase -0.15, kRad 0.02, kBeta at CL0 0.10.
-- Not touched: WATER-2026-09-13.md is a peer's uncommitted file; the H0
-  results are in futureDesigns/WATER-H0-2026-09-13.md for its author to
-  fold in. The float's frame is the solver's, so H1 (panels as strips on
-  float nodes) is a placement; H2 (the drawn float measured by the join)
-  reads the same `makeFloat` parameters.
-- Gates: HYDRODYN green (30 s); nothing else touched.
-
 ## G371 — THE PANEL'S LOOKS: OLD PAINTED BEZELS, PUSH-PULL SWITCHES, THE
 ## TAPES, THE ASI NUMERALS (2026-09-13, WS-5 + WS-6)
 
@@ -44354,30 +44551,6 @@ MEASURED (the check prints every number before its verdict):
   placards need tiles on a new label sheet the user renders (labels_prep.py
   SHEETS) — the tile list will be drafted with the builders.
 
-## G375 — THE SHOULDER'S FURNITURE (2026-09-13, WS-7; the user: "a new lever
-## on the shoulder for the canopy/door, each side" / "decor for the shoulder:
-## jacks, intercom, EXPERIMENTAL, warnings")
-
-- Everything sits on the leg's inboard FACE the cage pass measured
-  (`mesh.shoulder.parts[].st[].face`, cage units → `shoulderFaceAt` in
-  metres, the door's chain or the fixed one), between the bends; nothing is
-  cut and the shoulder generator is untouched.
-- A **door lever** on each side that has a shoulder, at its chain's middle
-  (the door's chain when the side has one): a plated boss 28 mm across on
-  the face, a flat handle 100 mm long lying along the leg, pointing forward
-  — a moving group `edCtl_doorL / R` on the face's normal, drive 'door'
-  (nothing drives it yet; the join carries it like any control).
-- On the **pilot's side**, aft of the lever: a **jack plate** (60 × 28 mm,
-  two hex sockets — PHONES / MIC — four screws) 16 cm aft, and an
-  **intercom box** (70 × 40 × 18 mm, a volume knob with its pointer, a slide
-  switch, a grille line) 28 cm aft — each only where the leg's flat is tall
-  enough there (34 / 46 mm).
-- NOT DONE, waits on assets: the placards (EXPERIMENTAL, a generic warning /
-  instruction placard) and the PHONES / MIC tapes are tiles on a label
-  sheet the user renders (labels_prep.py SHEETS, a 'labels3.png'); the
-  builders are ready to take `tapeOn(...)` once the names exist. The extra
-  gauge on the shoulder is not drawn (the leg is 10 cm since G355).
-
 ## G345.3 — SCRATCHES ARE RARE AND SHORT, DIRT KNOWS WHERE THE CREVICES ARE, AND THE GAME'S SOURCES WERE IN THE WRONG FRAME (2026-09-14)
 
 The user, on the game page: "the scratches on the side are too harsh. They
@@ -44429,6 +44602,30 @@ right (`uCraftInv · modelMatrix` cancels the pose).
 Gate: scratches must read `uWxV.zw` and never `gSa`; the cowl's joints must
 write `wxCrev`; census cap 64. In situ: dev.html's FINISH view, the four
 rows under LIVERY, the aeroplane weathered live in the hangar.
+
+## G375 — THE SHOULDER'S FURNITURE (2026-09-13, WS-7; the user: "a new lever
+## on the shoulder for the canopy/door, each side" / "decor for the shoulder:
+## jacks, intercom, EXPERIMENTAL, warnings")
+
+- Everything sits on the leg's inboard FACE the cage pass measured
+  (`mesh.shoulder.parts[].st[].face`, cage units → `shoulderFaceAt` in
+  metres, the door's chain or the fixed one), between the bends; nothing is
+  cut and the shoulder generator is untouched.
+- A **door lever** on each side that has a shoulder, at its chain's middle
+  (the door's chain when the side has one): a plated boss 28 mm across on
+  the face, a flat handle 100 mm long lying along the leg, pointing forward
+  — a moving group `edCtl_doorL / R` on the face's normal, drive 'door'
+  (nothing drives it yet; the join carries it like any control).
+- On the **pilot's side**, aft of the lever: a **jack plate** (60 × 28 mm,
+  two hex sockets — PHONES / MIC — four screws) 16 cm aft, and an
+  **intercom box** (70 × 40 × 18 mm, a volume knob with its pointer, a slide
+  switch, a grille line) 28 cm aft — each only where the leg's flat is tall
+  enough there (34 / 46 mm).
+- NOT DONE, waits on assets: the placards (EXPERIMENTAL, a generic warning /
+  instruction placard) and the PHONES / MIC tapes are tiles on a label
+  sheet the user renders (labels_prep.py SHEETS, a 'labels3.png'); the
+  builders are ready to take `tapeOn(...)` once the names exist. The extra
+  gauge on the shoulder is not drawn (the leg is 10 cm since G355).
 
 ## G372.1 — THE PREMISES BENCH v4.1: THE VILLAGE LANDED - THE REAL CATALOGUE
 ## BUILT, THE REAL CABLE SOLVED, A PARK ON A PLOT (2026-09-13, after the village
@@ -44904,202 +45101,54 @@ read ~15 min. Still too long for a core gate; the next cut is the same
 subset rule on AP GAINS, a decision for whoever next touches the gate.
 The full run stays the delivery verdict.
 
-## G381 — THE PILOT IS NOT A BRUTE: ARC TURNS, A LATCHED LEVEL, A HOLD-OFF
-## FLARE, A TAIL THAT STAYS STRAIGHT, THE TOUCHDOWN AT 20 %, AND THE LENS
-## JOINT AS THE WINDOWS' STRIP (2026-09-13)
+## G388 — THE CUT IS NOT A CHOICE: `cutParts` RETIRED, ALWAYS ON, NO ROW
+## (2026-09-14, the user: "cut parts is an option that should always be on,
+## it is a relic ... ensure it is always on, for all default planes in game,
+## and the option should not be reachable through the UI anymore")
 
-The user: "the new autopilot flying the circuit is a brute. It climbs like
-at max speed, it turns really low and slow, it does not seem to follow the
-glideslope that well, he is bad at anticipating turns according to speed
-and turn radius, and most importantly, he slams planes real hard on the
-ground, and real quick when landing. It's like it does not even flare. On
-the runway, he tends to amplify tail oscillations, sometimes to the point
-of having the plane uncontrollable. Also, the touchdown point are placed
-stupid ... 20% the length ... Here it's like 70%. Just noticing the very
-bad joint treatment on the wing cut lights ... I just wanted a joint on
-the outline of the transparent piece ... in the style of the window
-joints, metallic with rivets."
+The user's NewCub (a descendant of the stock 'piper cub') drew no door at
+all and showed no `door removed` row. Diagnosed headless (dev.html under
+CDP, the build loaded through GARAGE_SPEC.set): the stock cub is
+`_base: 'template'` and the TEMPLATE had `cutParts 0` since G14, so every
+save descended from it was born with the cut off; `door removed` and
+`door recess` were gated on it (page5 `when`), and with the gap not drawn
+nothing marked the door — until G310 hung hinges and a handle on its edge
+polylines, which draw whether the door does or not. A fresh archetype
+birth starts from the page defaults (`cutParts 1`), so a new cub never
+showed it. The peer's full-save (cageToSpec writes every key now) would
+have carried the 0 forward forever.
 
-**THE INSTRUMENT FIRST.** A scratch trace runner (arch_fly's loader, the
-pilot flown to a stop, a CSV at 0.1 s through FINAL/FLARE/ROLLOUT) on the
-cub archetype, calm, BEFORE any change:
-- every leg joined 13 s late from one radius inside (the pursuit tapers
-  the bank as the error shrinks); the base-to-final turn crossed the
-  centreline by 147 m because FINAL capped the bank at 10 deg while the
-  turn was planned at 23, and took 45 s to settle;
-- the level segment before the slope SAGGED 25 m: its ALT target was
-  `min(cg[1], hGS + 10)` re-read every tick, so a sag was never corrected;
-- the flare rotated 2.7 deg in 3 s and touched at 1.37 Vs, 1.1 m/s (the
-  ramp asked 11 deg; the cruise pitch loop moved 1 deg in 3 s at idle);
-- the tail: stearman calm and cub in 2 m/s across swung 72 and 76 deg
-  with the rudder on its stop as the tail came down at 17-19 m/s — the
-  tail-down steer gains (3.2 / 1.2) never eased with speed, the tail-up
-  ones do, and the transition halves the damping at 1.5x the rudder
-  authority they were sized for. A wheel landing hides it on take-off
-  (the tail is up by then).
-- and DECRAB steered the wrong way: `-K x (nose angle from the runway)`
-  against groundSteer's proven `-K x e` (e = the runway's angle from the
-  nose) — opposite signs. A 7 deg crab became a 16 deg swing in the
-  hold-off. GATE PILOT's WIND case blows along the strip, so it never saw it.
+Done: `CAGE_PARAMS.cutParts` is 1; `cageFromSpec` pins `P.cutParts = 1`
+at the one door a saved cage comes through (a file carrying 0 loads cut);
+`cageSpec` writes `S.cut.on = 1` without reading P; the row is gone from
+page5's conception group, from `_cage_ui.js`'s BASE_GROUPS and from the
+parts table's `cutting` group; `doorDepth` and `doorGone` ride on `doorOn`
+alone; page5's defaults and the sailplane preset no longer state it. The
+key itself stays in CAGE_PARAMS so an older file parses.
 
-**What changed (43_pilot.js, all under the G381 comments):**
-1. THE ARC TURN. A leg change arms `arc` (arcInto): a constant-bank turn
-   (HDG at a 50 deg lead, bank = bankLim, or 0.35 in a climb) until the
-   nose is within 11 deg of the new course, then the pursuit. The fly-by
-   distance uses the GROUND speed at that bank plus half the roll-in
-   (V x bank / bankSlew / 2). The crosswind leg is planned to begin where
-   the arc from the climb-out ends. FINAL flies the arc too, then bankLim
-   (0.30 cap) while off the centreline by more than 60 m, then 0.18.
-   Measured: every join within 4-22 m; base-to-final 8 m.
-2. The crosswind turn at 0.6 of the circuit height (was 0.35 = 45 m on the
-   cub); climbing turns banked at most 0.35; a CRUISE CLIMB (1.1 Vy) above
-   twice the screen height.
-3. FINAL: `finalLevel` latched once on entry, the ALT climb-back allowed
-   1.5 m/s; the base speed kept through the arc, the approach speed once
-   aligned. The slope holds within +/-2 m after capture.
-4. THE FLARE IS A HOLD-OFF (default; `flareMode: 'ramp'` keeps the old
-   law, 'vs' the other). Entry at 1.3 x flareAgl; the sink is flown to
-   -max(0.35, agl/tau) (tau from the entry sink, so it is continuous),
-   easing the floor to 0.7 m/s within 0.1 VRot of 1.15 VRot; a pitch law
-   of its own — P 0.20 + I 0.30 on the sink error from the entry attitude,
-   never below it, capped at the three-point attitude + 2 deg on a
-   taildragger (thRest) and thMax on a tricycle; the inner loop firmer
-   (pitchK 2.0, the rotation's integrator authority at 0.4); the integrator
-   unwinds when the elevator is on its stop. MEASURED, calm circuits:
-   cub 1.1 -> 0.94 m/s at 1.37 -> 1.21 Vs; stearman 1.29 -> 0.93;
-   savannah 1.37 -> 0.96; rv 1.30 -> 1.12; motorglider 0.47; pusher 0.99;
-   tigermoth 1.59; pietenpol 1.54. The C172 archetype is the exception:
-   it runs OUT OF ELEVATOR at idle with full flap (de 0.35 at 21 m/s, the
-   nose drops) and mushes on at 1.9 m/s, 0.99 Vs — an airframe limit
-   (elevator / flap moment), the old ramp did 2.09 at 1.13 Vs. OWED: that
-   archetype's tail volume or a partial-flap landing setting.
-   Tried and rejected on the way: pitchK 3.0 with half the damping (a
-   0.8 s PIO on both the cub and the C172).
-5. AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE, three-point or wheels
-   first alike: the stick comes back the moment the aeroplane is below
-   1.15 VRot (full back stick at 1.35 Vs lifted the cub off for six
-   seconds), the arrival attitude held until then. The ramp flare's
-   wheel-landing hold (tail up on -0.05 until VTailDown) stays under
-   flareMode 'ramp': at the hold-off's 1.05-1.2 Vs it kept the tailwheel
-   off the ground for six seconds in a crosswind, the rudder alone weaving
-   +/-9 deg against the weathercock, and the tail dropped onto a heading
-   8 deg off — an 88 deg ground loop on the stearman in 2 m/s across. The
-   tail-down steer gains ease as (VTailUp/V)^2 on both P and D (floor
-   0.30), the trike's cure applied to the taildragger. `tdInfo.three` says
-   whether the arrival was three-point. Stearman calm 72 -> 4.8 deg,
-   across 88 -> 11.2; cub across 76 -> 10.7 (a skip at the touchdown
-   weathercocks it while the wheels are off).
-6. DECRAB on -K x e. The cub in 2 m/s across arrives with e -0.6 deg
-   (was -16.5).
-7. speedThrottle: -0.25 x accF (the measured acceleration) damps the 40 s
-   speed hunt on the approach (+/-2 -> +/-1.6 m/s).
-8. The attitude filters start FROM the attitude on the first update:
-   ROLL read its rest attitude off the first filtered frame, 0.7 x the
-   truth (attFilt), so a cub carried thRest 6.5 deg instead of 9.2 for the
-   whole flight (the tail-up test and now the flare cap read it).
+WHAT THE CUT EXPOSED, and fixed with it: every node gate that builds from
+`cageDefaults()` had been measuring an UNCUT fuselage the game never shows
+(HANDOVER 13399 had already noted GATE SURF passing that way). GATE FIT
+went red the moment the cut was on: a ring station on a door's edge is
+claimed twice — by the door's recessed edge (`body`, 4 mm in) and by the
+jamb beside it (a pillar material) — 10 mm apart, past the exact-position
+dedup, and the venturi was fitted TWICE on the stock build, 11 mm apart
+(the game had been doing this since the page defaults cut the doors).
+`accessSites` (_fit_site.js) now merges hits on one flank within
+`SAME_SITE` (0.03 cage units — the largest door gap + the recess) and
+keeps the one further OUT, the skin proper. FIT: 302 fittings on 6 builds,
+green.
 
-**THE TOUCHDOWN AT 20 %** (20_world.js HOME tdz [-450,0] -> [-845,0]:
-thr1 at -1065 + 220; 24_world_aero.js 0.25 -> 0.30 len from the centre =
-20 % from the threshold; the three HOMEISH fallbacks). Everything downstream
-derives (siteRunway td0/td1, the paint, the pattern, the frame). The
-pattern's aimAP keeps 40 m inside the threshold (25_airfield.js mk), the
-clamp planArrival already applies — 70 m short of a 20 % target on a 340 m
-strip was 2 m off the bar (GATE SITE said so). GATE PILOT's AGAIN check
-now accepts a straight-on departure: with 600 m ahead the planner rolls
-from a hold without a U-turn, which is the honest answer; the U-turn
-itself is no longer exercised by that case (OWED: a case that stops short).
+Owed from the diagnosis, not done (rulings): the door zone INCLUDES the
+window by design (`_cage_gen.js` "THE WHOLE DOOR"), so on a `bubble 0`
+cabin its forward run is the whole A-pillar/windscreen slant and G310's
+hinges climb the screen post (three on the NewCub, the top one at the
+screen's top corner; CLIP reads them 1.6 mm INTO the fuselage, allowance
+1.5). A door hinged along a raked windscreen is not a Cub's; the fix is a
+run clamped to the lower panel or a `bottom` option in `hgDoorEdge`. The
+user has said a review of every slider and option is overdue and is not
+this session's.
 
-**THE LENS JOINT** (tools/_cage_gen.js cageJointSweep, _cage_wing.js
-lensStrip, _cage_ui.js CAGE_MAT_OF). The windows' strip sweep (corner
-reconstruction, fillets, the mitred flat section, the rivet domes, the
-orientation) is factored out of cageRims VERBATIM into `cageJointSweep(pts,
-ns, r, o)` — cageRims appends its result with an index base; the cage mesh
-is bit-identical (three-build sha1 fingerprint before and after). The lens
-walks its boundary loop as G316 did, but skips the zero-length self-loop
-the loft leaves at each rib's leading-edge seam (a degenerate triangle):
-G316's walker stepped onto it, met its own vertex and stopped, so the
-"joint" was ONE RIB, a round tube. Now the whole outline — both ribs and
-the aft edges — wears the strip in the fuselage's own `joint` material
-instance (matOf('joint'), exported as CAGE_MAT_OF), rivets at rimRivet x
-FS, and bakes into the flown model's `sjoint` group. Verified by CDP
-screenshots in the garage (the camera driven through a render hook on
-FLYDIY_RENDERER — scratch shot.js).
-
-- Gates: SITE (after the aim clamp), TAKEOFF, HONEST, NAV, SKIN, BUILD,
-  SKINMAT, SURF, LIGHT, DESIGN, VIEW, PILOT, HOTHIGH green on the final
-  build. ARCHETYPES: 18 of 19 circuits complete; the CARAVAN-ALIKE goes
-  around twice for 'terrain under the approach' and lands 3 km short —
-  and it does the SAME with the HEAD pilot on the HEAD world (both swapped
-  in, built, flown through the gate's own loop with the drawn tail: two
-  terrain go-arounds at 214 s and 359 s, pastAim -3187). Not this
-  session's: the drawn-tail Caravan-alike cannot hold its nose up at idle
-  (elevator on its stop at 36 m/s, pitch 1 deg, 3 m/s below a 2.2 deg
-  slope) — something in today's shared tree (the cage/tail layers or the
-  G350/G351 re-baseline, all uncommitted by other sessions) moved it; the
-  G351 battery had it green. The gate also hit the runner's 3600 s cap
-  under two concurrent batteries; re-run alone it reports only that one
-  build (19 flown).
-- OWED: the flapped trikes' elevator at idle + full flap (C172 2.09 -> 1.9
-  m/s at 0.99 Vs; Caravan-alike 2.1 m/s at 1.39 Vs, de on its stop from the
-  first second of the flare — a partial-flap landing setting or a trickle
-  of power, `flareThr`, is the pilot-side door); a skip-proof
-  crosswind touchdown (hold the tail down through the first bounce); the
-  trikes' low-speed nosewheel weave (+/-1.5 deg, 45-57 reversals on the
-  pusher and the rv, pre-existing); the AGAIN case's U-turn coverage.
-
-## G381.1 — POWER WHEN THE ELEVATOR RUNS OUT; A TRICYCLE BRAKES ON THE
-## NOSEWHEEL; DECRAB THROUGH A SKIP; THE TURN-AROUND BACK UNDER TEST
-## (2026-09-14, the owed items of G381, in urgency order)
-
-**THE POWER ASSIST (43_pilot.js `apply`).** The two flapped-trike landings
-G381 left owed were the same defect: an elevator on its nose-up stop at
-idle. The drawn-tail Caravan-alike (GATE ARCHETYPES' build) fell 3 m/s
-below a 2.2 deg slope with de at 0.35 from the first second of FINAL and
-went around twice for the terrain (with the HEAD pilot too); the C172-alike
-mushed on at 0.99 Vs, 1.9 m/s, full flap, de on the stop. What a pilot does
-is ADD POWER: the slipstream gives the tail its authority back and the
-thrust carries the sink. On FINAL and in FLARE, while the elevator is past
-0.30, `pAsst` winds up (0.20/s) and is added to whatever the thrust mode
-set (the speed hold's floor, the flare's idle); it unwinds once the
-elevator is back under 0.22; it never fires when the elevator has room, so
-every approach that flies at idle is unchanged. Caps: 0.40 on final; in
-the flare BY SPEED — 0.30 for a slow arrival (V < 1.35 VRot: the C172 at
-1.13 VRot needs it to finish the hold-off, 1.9 -> 1.02 m/s), a 0.12 trickle
-for a fast one (the Caravan at 1.6 VRot only floats on power: at 0.40 it
-ran 836 m and stopped 8 m from the end; at 0.12 it arrives at 0.59 m/s in
-669 m; at 0.05 it hit at 2.3). The Caravan-alike now COMPLETES its circuit
-(no go-around, pastAim 23) — landing fast, at 1.57 Vs, because that tail
-cannot slow it: still the airframe's, owed to the tail chantier.
-
-**A TRICYCLE BRAKES AS SOON AS THE NOSEWHEEL IS DOWN** (ROLLOUT). VBrakeOn
-(0.75 Vs) is the taildragger's rule — brake hard with the tail up and it
-noses over — and a trike landed fast rolled 836 m waiting for it. With all
-three wheels down and V below VDerotate the ramp starts. RV-alike 410 ->
-342 m, C172 179 -> 141 m.
-
-**DECRAB THROUGH A SKIP** (ROLLOUT): off the wheels in the first six
-seconds the flare's DECRAB flies the lateral, not the ground law.
-Measured on the cub in 2 m/s across: no change (10.7 -> 10.6 deg) — the
-swing is on the WHEELS, not in the air: at the touchdown the mains grip,
-the crosswind yaws the aeroplane 10 deg in a second while the scheduled
-tail-down gain (0.46 at 22 m/s) answers with 0.15-0.35 of rudder, and it
-recovers with no reversal (zero-crossings 0, 0.5 m off centre). Kept
-because it is right; the swing stays on the owed list as a number, not a
-loss of control.
-
-**THE TURN-AROUND BACK UNDER TEST** (test_pilot.js AGAIN). With the target
-at 20 % the stock build stopped with ~600 m ahead and rolled straight on,
-so the case no longer flew the U-turn. The stopped aeroplane is now SLID
-along the strip — a rigid translation of every node on the flat pad — to
-150 m from the end it faces, less than the run it needs, and the departure
-has to turn it around: TAXI (the U-turn at the pose, the backtrack) and
-HOLD are required again.
-
-- Gates: PILOT (with the slide), TAKEOFF, HONEST — see the commit.
-- OWED: the drawn-tail Caravan-alike's approach speed (1.57 Vs at idle
-  with full-up elevator: the tail chantier's); the 10 deg touchdown swing
-  in a crosswind on the cub/stearman; the trikes' low-speed nosewheel
-  weave.
 
 ## G385 — THE PREMISES PORT, L1: THE COMPOSER IN THE CORE, THE WORLD TAKES A
 ## PREMISES, THE WORLD PACK (2026-09-14, the user: "do the port")
@@ -45264,6 +45313,8 @@ PARTS, MEDIA.
   live edit (placed once, at the make); the F8 rows the design wanted moved
   stay on F8 for now.
 - Gates: PREMISES (235), UISMOKE, BUILD, MEDIA, WORLDRENDER green.
+
+
 
 ## G388 — THE CUT IS NOT A CHOICE: `cutParts` RETIRED, ALWAYS ON, NO ROW
 ## (2026-09-14, the user: "cut parts is an option that should always be on,
