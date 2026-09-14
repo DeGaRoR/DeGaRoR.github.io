@@ -1223,14 +1223,17 @@ function lotGround(vil, plot, house, built, occ) {
   // the paths: the plot's own (road, gate, outbuilding) and the house's (its stair to the water)
   const segs = (plot.path || []).concat(plot.outPath || []).map(sg => [sg[0], sg[1]]);
   for (const sg of built.stats.path || []) segs.push([house.toWorld(sg[0][0], sg[0][1]), house.toWorld(sg[1][0], sg[1][1])]);
+  // THE DRIVE (G401): a wider band of dirt to the pad, the pad itself, and the gravel of a works' yard
+  const drive = (plot.drive && plot.drive.segs) || [];
+  const halfDrive = plot.drive ? plot.drive.width / 2 : 0;
+  const distTo = (sgs, x, z) => { let d = 1e9; for (const sg of sgs) { const dx = sg[1][0] - sg[0][0], dz = sg[1][1] - sg[0][1]; const t = clamp(((x - sg[0][0]) * dx + (z - sg[0][1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1); d = Math.min(d, Math.hypot(x - (sg[0][0] + dx * t), z - (sg[0][1] + dz * t))); } return d; };
+  const padAt = (x, z) => { const pd = plot.drive && plot.drive.pad; if (!pd) return 0; const dx = x - pd.c[0], dz = z - pd.c[1]; const u = Math.abs(dx * pd.tg[0] + dz * pd.tg[1]) - pd.w / 2, v = Math.abs(dx * pd.n[0] + dz * pd.n[1]) - pd.d / 2; return 1 - clamp(Math.hypot(Math.max(0, u), Math.max(0, v)) / 0.5, 0, 1); };
+  const inLot = (x, z) => plot.lot && plot.lot.poly ? (inPoly(plot.lot.poly, x, z) ? 1 : 0) : 0;
   const dirtAt = (x, z) => {
-    let d = 1e9;
-    for (const sg of segs) {
-      const dx = sg[1][0] - sg[0][0], dz = sg[1][1] - sg[0][1];
-      const t = clamp(((x - sg[0][0]) * dx + (z - sg[0][1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
-      d = Math.min(d, Math.hypot(x - (sg[0][0] + dx * t), z - (sg[0][1] + dz * t)));
-    }
-    return 1 - clamp((d - 0.35) / 0.55, 0, 1);
+    const d = distTo(segs, x, z);
+    const path = 1 - clamp((d - 0.35) / 0.55, 0, 1);
+    const dr = drive.length ? 1 - clamp((distTo(drive, x, z) - halfDrive) / 0.6, 0, 1) : 0;
+    return Math.max(path, dr, padAt(x, z));
   };
   // the fences: every edge of the plot that is fenced, its own or the neighbour's
   const fenced = [];
@@ -1284,8 +1287,10 @@ function lotGround(vil, plot, house, built, occ) {
     id[j * (nx + 1) + i] = pos.length / 3;
     pos.push(x, y + 0.02, z);
     uv.push(x, z);
-    const peb = 1 - clamp((y - T.waterY - 0.35) / 0.85, 0, 1);
-    splat.push(fbm(x * 0.09 + 11.3, z * 0.09 + 4.1, vil.V.seed + 21, 3), dryAt(x, z), dirtAt(x, z), peb);
+    let peb = 1 - clamp((y - T.waterY - 0.35) / 0.85, 0, 1);
+    if (plot.lot && plot.lot.kind === 'gravel') peb = Math.max(peb, inLot(x, z) ? 1 : 0);          // the works' yard (G401)
+    const dry = plot.lot && plot.lot.kind === 'concrete' ? Math.max(dryAt(x, z), inLot(x, z)) : dryAt(x, z);   // dead ground under a slab
+    splat.push(fbm(x * 0.09 + 11.3, z * 0.09 + 4.1, vil.V.seed + 21, 3), dry, dirtAt(x, z), peb);
     tone.push(darkAt(x, z), lushAt(x, z));
     alpha.push(inside ? 1 : 1 - d / M);
   }
@@ -1300,11 +1305,168 @@ function lotGround(vil, plot, house, built, occ) {
 // the parts that need a BUILT house (the stair, the stoops): the bench and
 // the gate build each house, then call this to lay the paths, the fences
 // and the car
+// ---------------------------------------------------------------------------
+// THE LOT LAWS (G401, the user: "who is doing ground cover and drawing the
+// lots? ... did we implement the parking garages in front of houses, and the
+// ground textures of all lots?"). ONE dressing per CATEGORY, here, so a
+// zoned plot and a hand-placed site dress the same way:
+//   residential  the fence, the gate, the garden path, the outbuilding, and
+//                now THE FRONT LOT: a driveway from the road to a parking
+//                pad by the house's front corner (or on to the garage's
+//                door), a car on the pad
+//   commercial   no picket fence (rails at the sides), a straight walk, a
+//                CAR PARK slab of weathered concrete in front with its bays
+//                and a car or two in them, bins by the side wall
+//   official     the lawn, a low picket fence with its gate, a paved
+//                forecourt at the door, nothing parked, no junk
+//   industrial   a gravel yard to the road, a rail fence with a wide gate,
+//                nothing else (the big building brings its own props)
+//   sports       the theme's (nothing here)
+// `plot.cat` is read off the house (its preset's category) or the zone.
+const DRIVE_CARS = ['car_kcar', 'car_fiat', 'car_hudson', 'car_multicab'];   // the least wrecked, until the user's cars land
+function lotCat(plot, house) {
+  const P = house.P || {};
+  if (house.cat) return house.cat;
+  if (P.cat) return P.cat;
+  if (house.gen === 'SPORT_GEN' || P.kind !== undefined && P.baseLen !== undefined) return 'sports';
+  // the preset's own word first (HOUSE_GEN.CATS / BIG_GEN.CATS), then what the table implies
+  const name = house.preset || P.preset;
+  const BG = typeof window !== 'undefined' ? window.BIG_GEN : null;
+  const k = name ? ((P.big && BG && BG.catOf ? BG.catOf(name) : null) || (HG.catOf ? HG.catOf(name) : null)) : null;
+  if (k) return k;
+  if (P.role) return 'official';
+  if (P.big) return 'industrial';
+  if (P.civic) return 'official';
+  return plot.cat || 'residential';
+}
+// the front line of the house in the plot's frame: how far from the plot's
+// frontage edge the house's front (deck included) stands, and the house's
+// half-length along the frontage
+function frontOf(plot, house) {
+  const P = house.P, n = plot.n, tg = plot.tg;
+  const f0 = plot.poly[0];
+  const d = (house.x - f0[0]) * n[0] + (house.z - f0[1]) * n[1];        // house centre in from the frontage
+  const porch = P.porch ? P.porchD : 0;
+  const face = d - P.w / 2 - porch;                                       // the front face (or the deck's edge) in from the frontage
+  const along = (house.x - f0[0]) * tg[0] + (house.z - f0[1]) * tg[1];   // along the frontage
+  return { d, face: Math.max(1.5, face), along, halfL: P.L / 2, porch };
+}
+// a rectangle in the plot's frame -> world corners (a, b along tg from u0..u1, in from the frontage v0..v1)
+function plotRect(plot, u0, u1, v0, v1) {
+  const f0 = plot.poly[0], tg = plot.tg, n = plot.n;
+  const at = (u, v) => [f0[0] + tg[0] * u + n[0] * v, f0[1] + tg[1] * u + n[1] * v];
+  return [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
+}
+// THE FRONT LOT (residential): the drive enters beside the gate, runs in
+// along the side of the house and ends on a pad by its front corner - or at
+// the garage's door when the plot has one. A car on the pad.
+function planDrive(vil, plot, house, built, rnd) {
+  if (plot.side !== 'land') return null;
+  const F = frontOf(plot, house);
+  const w = plot.w;
+  if (w < F.halfL * 2 + 7) return null;                                  // no room beside the house
+  // the side with the more room, away from the gate
+  const roomL = F.along - F.halfL, roomR = w - (F.along + F.halfL);
+  const sgn = (house.gateT !== undefined ? (house.gateT < F.along ? 1 : -1) : (roomR > roomL ? 1 : -1));
+  const room = sgn > 0 ? roomR : roomL;
+  if (room < 4.2) return null;
+  // the drive's centre line along the frontage: beside the house, and its ENTRY hugs the gate (one
+  // opening in the front fence serves the walk and the drive - planFences widens the gap to it)
+  const u = F.along + sgn * (F.halfL + Math.min(2.3, (room - 3.2) / 2 + 1.6));
+  const uEntry = house.gateT !== undefined ? house.gateT + sgn * 2.3 : u;
+  const entry = [uEntry, 0.2];
+  let pts = [], pad = null;
+  if (plot.out && plot.out.kind === 'garage') {
+    // to the garage door: along the side of the house, then across to the door
+    const o = plot.out, door = o.toWorld(0, o.P.w / 2 + 1.6);
+    const f0 = plot.poly[0], tg = plot.tg, n = plot.n;
+    const du = (door[0] - f0[0]) * tg[0] + (door[1] - f0[1]) * tg[1], dv = (door[0] - f0[0]) * n[0] + (door[1] - f0[1]) * n[1];
+    pts = [entry, [u, 3.2], [u, Math.max(F.face - 1, Math.min(dv, F.d + house.P.w / 2 + 2))], [du, dv]];
+  } else {
+    const vPad = Math.max(2.5, F.face - 0.6);
+    pts = [entry, [u, 3.2], [u, vPad + 2.6]];
+    pad = { u, v: vPad + 2.6, w: 3.2, d: 5.6 };
+  }
+  const f0 = plot.poly[0], tg = plot.tg, n = plot.n;
+  const W = q => [f0[0] + tg[0] * q[0] + n[0] * q[1], f0[1] + tg[1] * q[0] + n[1] * q[1]];
+  const segs = [];
+  for (let i = 0; i + 1 < pts.length; i++) segs.push([W(pts[i]), W(pts[i + 1])]);
+  let car = null;
+  if (pad && rnd() < 0.7) {
+    const key = vil.spread ? vil.spread.pick(DRIVE_CARS, rnd) : DRIVE_CARS[Math.floor(rnd() * DRIVE_CARS.length)];
+    const c = W([pad.u, pad.v]);
+    car = { key, x: c[0], z: c[1], ry: Math.atan2(n[0], n[1]) + Math.PI + (rnd() - 0.5) * 0.12, y: vil.T.h(c[0], c[1]), pad: true };
+  }
+  const padW = pad ? { c: W([pad.u, pad.v]), tg: [tg[0], tg[1]], n: [n[0], n[1]], w: pad.w, d: pad.d } : null;
+  // the front fence's gap widened over the drive's entry (the gate keeps its leaf)
+  const fr = (plot.fences || []).find(f => f.kind === 'front');
+  if (fr && fr.gap) fr.gap = [Math.min(fr.gap[0], uEntry - 1.6), Math.max(fr.gap[1], uEntry + 1.6)];
+  return { segs, pad: padW, car, width: 2.9 };
+}
+// THE CAR PARK (commercial) / THE FORECOURT (official) / THE YARD
+// (industrial): a rectangle between the house's front and the frontage
+function planLot(vil, plot, house, built, rnd, cat) {
+  const F = frontOf(plot, house);
+  const w = plot.w;
+  if (cat === 'industrial') {
+    const v1 = Math.min(plot.depth - 1, F.d + house.P.w / 2 + 6);
+    return { kind: 'gravel', poly: plotRect(plot, 0.8, w - 0.8, 0.6, v1), bays: [], cars: [] };
+  }
+  if (cat === 'official') {
+    const half = Math.min(w / 2 - 1.5, F.halfL + 1.0);
+    const v0 = 0.6, v1 = Math.max(v0 + 3, F.face - 0.2);
+    return { kind: 'concrete', poly: plotRect(plot, F.along - half, F.along + half, v0, v1), bays: [], cars: [] };
+  }
+  // commercial: the slab from the frontage to the front face, the bays along the frontage side, cars in some
+  const half = Math.min(w / 2 - 1.0, F.halfL + 4.5);
+  const v0 = 0.6, v1 = Math.max(v0 + 5.5, F.face - 0.4);
+  const poly = plotRect(plot, F.along - half, F.along + half, v0, v1);
+  const bays = [], cars = [];
+  const bayW = 2.8, nB = Math.floor((2 * half - 1.0) / bayW);
+  const u0 = F.along - half + (2 * half - nB * bayW) / 2;
+  const f0 = plot.poly[0], tg = plot.tg, n = plot.n;
+  const W = (u, v) => [f0[0] + tg[0] * u + n[0] * v, f0[1] + tg[1] * u + n[1] * v];
+  for (let i = 0; i <= nB; i++) bays.push([W(u0 + i * bayW, v0 + 0.3), W(u0 + i * bayW, v0 + 5.3)]);   // the bay lines, 5 m deep from the road side
+  for (let i = 0; i < nB; i++) if (rnd() < 0.35) {
+    const key = vil.spread ? vil.spread.pick(DRIVE_CARS, rnd) : DRIVE_CARS[Math.floor(rnd() * DRIVE_CARS.length)];
+    const c = W(u0 + (i + 0.5) * bayW, v0 + 2.9);
+    cars.push({ key, x: c[0], z: c[1], ry: Math.atan2(n[0], n[1]) + Math.PI + (rnd() - 0.5) * 0.1, y: vil.T.h(c[0], c[1]) });
+  }
+  return { kind: 'concrete', poly, bays, cars };
+}
+// the fences by category: a picket front with a gate for the houses and
+// the institutions, rails at the sides of a shop (its front open to the
+// car park), rails all round a works with a wide gate, nothing on a field
+function planFencesFor(V, plot, house, rnd, fenced, cat) {
+  if (cat === 'residential') return planFences(V, plot, house, rnd, fenced);
+  if (cat === 'sports') return [];
+  const out = [];
+  const edges = [{ a: plot.poly[1], b: plot.poly[2], kind: 'side' }, { a: plot.poly[3], b: plot.poly[0], kind: 'side' }];
+  if (cat !== 'commercial') edges.push({ a: plot.poly[0], b: plot.poly[1], kind: 'front' });
+  if (plot.side === 'land' && cat !== 'commercial') edges.push({ a: plot.poly[2], b: plot.poly[3], kind: 'back' });
+  for (const e of edges) {
+    const k = edgeKey(e.a, e.b);
+    if (fenced && fenced.has(k)) continue;
+    if (fenced) fenced.add(k);
+    const seg = { a: e.a, b: e.b, kind: e.kind, style: cat === 'official' && e.kind === 'front' ? 'picket' : 'rail', gap: null };
+    if (e.kind === 'front') seg.gap = cat === 'industrial' ? [house.gateT - 3.2, house.gateT + 3.2] : [house.gateT - 0.65, house.gateT + 0.65];
+    out.push(seg);
+  }
+  return out;
+}
 function finishPlot(vil, plot, house, built) {
   const rnd = vil.rnd;
+  const cat = plot.cat = lotCat(plot, house);
   plot.path = planPath(plot, house, built, vil.road);
   vil.fenced = vil.fenced || new Set();
-  plot.fences = planFences(vil.V, plot, house, rnd, vil.fenced);
+  plot.fences = planFencesFor(vil.V, plot, house, rnd, vil.fenced, cat);
+  if (cat !== 'residential') {
+    // THE OTHER CATEGORIES (G401): no outbuilding, no wreck, no boat - the lot slab, its bays and its cars instead
+    plot.out = null; plot.car = null; plot.boat = null; plot.drive = null;
+    plot.lot = cat === 'sports' ? null : planLot(vil, plot, house, built, rnd, cat);
+    if (plot.lot) plot.path = [];                   // the slab or the yard is the way in; no garden path across it
+    return plot;
+  }
   plot.out = planOutbuilding(vil, plot, house, built, rnd);
   // THE PATH TO IT (G290): from the house's back door (or the middle of the
   // wall that faces it) to the outbuilding's door, with a bend
@@ -1320,6 +1482,10 @@ function finishPlot(vil, plot, house, built) {
   plot.car = planCar(vil, plot, house, built, rnd, 'car');
   plot.boat = planCar(vil, plot, house, built, rnd, 'boat');
   if (plot.car && plot.boat && Math.hypot(plot.car.x - plot.boat.x, plot.car.z - plot.boat.z) < 5.5) plot.boat = null;
+  // THE FRONT LOT (G401): the drive and the pad; the pad's car replaces a backyard wreck when there is no garage
+  plot.drive = planDrive(vil, plot, house, built, rnd);
+  if (plot.drive && plot.drive.car && !(plot.car && plot.car.garage)) plot.car = plot.drive.car;
+  plot.lot = null;
   return plot;
 }
 
@@ -1837,6 +2003,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, streetLamp, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
+window.VILLAGE_GEN = { lotCat, planDrive, planLot, planFencesFor, DRIVE_CARS, VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, streetLamp, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

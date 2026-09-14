@@ -453,23 +453,7 @@ function mount(host, ctx) {
         if (!key) { strip.status('no catalogue - no generator loaded'); return; }
         const e = { id: PG.newId(rec, 'sites'), name: key.split('/')[1], at: { x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }, items: [{ id: 'i1', key, x: 0, z: 0, yaw: 0, P: {} }], yard: null };
         run({ layer: 'sites', id: e.id, before: null, after: e, label: 'site ' + e.id + ' (' + key + ')' });
-        // THE BASE (G393.3, the user: "the industrial and commercial also need their bases, mostly
-        // parking lots, preferably old and weathered concrete"): a building's ground is the composer's
-        // by CATEGORY, not the building's - a commercial front gets a cracked-concrete car park (a
-        // material polygon, PAVED), an industrial one a gravel apron round it and out to the road
-        // side, an official one a paved forecourt; the polygon is a feature of its own (move or
-        // delete it like any other)
-        const ent = ctx.catalogue && ctx.catalogue.entries && ctx.catalogue.entries.get(key);
-        const cat = ent && (ent.cat || null);
-        if (ent && ent.foot && (cat === 'commercial' || cat === 'industrial' || cat === 'official')) {
-          const fb = PG.polyBBox(ent.foot(ent.P || {}));
-          const SF = PG.siteFrame(e);
-          const rect = cat === 'industrial' ? [fb.x0 - 4, fb.z0 - 3, fb.x1 + 4, fb.z1 + 16] : [fb.x0 - 2, fb.z1 + 1, fb.x1 + 2, fb.z1 + (cat === 'commercial' ? 14 : 10)];
-          const poly = [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
-          const sid = PG.newId(rec, 'surface');
-          run({ layer: 'surface', id: sid, before: null, after: { id: sid, poly, surface: cat === 'industrial' ? PG.SURFACE.GRAVEL : PG.SURFACE.PAVED, yard: e.id }, label: 'the base of ' + e.id });
-          if (cat !== 'industrial') { const mid = PG.newId(rec, 'material'); run({ layer: 'material', id: mid, before: null, after: { id: mid, poly, set: 'cracked', tile: null, fade: 3, z: 0 }, label: 'the concrete of ' + e.id }); }
-        }
+        // (the base by category is the lot law's now - VILLAGE_GEN.planLot through render_premises' synthetic plot, G401)
         select(e.id); return;
       }
       const THS = window.VILLAGE_GEN && window.VILLAGE_GEN.THEMES;

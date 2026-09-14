@@ -46496,3 +46496,60 @@ generator? Does the in-game editor inherit automatically ...?"
   chunk), not just a coarser grid; the bump on the game terrain (W1); the
   bench retires as the F8 rows fill in (the stack's blend modes and the
   class contour blur are not in the game hook yet).
+
+## G401 — THE LOT LAWS: ONE GROUND PER CATEGORY, THE FRONT LOT, HAND-PLACED SITES DRESSED LIKE PLOTS (2026-09-14)
+
+The user: "who is doing ground cover and drawing the lots? Who is taking
+over the village editor role? ... did we implement the parking garages in
+front of houses, and the ground textures of all lots?" - then "go, take
+screenshots documenting your work".
+
+- THE ANSWERS, as code: the composer sows the plots (makePlots), the village
+  generator's `finishPlot` + `lotGround` dress them, `render_premises`
+  draws them - in the premises bench and the game alike; the village bench
+  is legacy. Until now every plot was dressed as a RESIDENTIAL lot (a
+  cannery with a picket fence and a garden path) and a hand-placed site
+  had no ground at all.
+- THE LOT LAWS (`_village_gen.js`: lotCat / planDrive / planLot /
+  planFencesFor; finishPlot branches on `plot.cat`):
+  residential = fence + gate + path + outbuilding + THE FRONT LOT: a DRIVE
+  entering at the gate (one opening in the front fence serves the walk and
+  the drive), running in beside the house to a PAD by its front corner - or
+  to the garage's door when the plot has one - and a car on the pad
+  (DRIVE_CARS: the least wrecked four, until the user's cars land; the pad's
+  car replaces the backyard wreck);
+  commercial = rails at the sides, the front open, a CAR PARK slab of
+  cracked concrete between the frontage and the front face with its bay
+  lines and a car in some bays; official = picket front with its gate, a
+  paved FORECOURT at the door, nothing parked; industrial = rails all round
+  with a 6 m gate, a GRAVEL yard to the road (pebble splat), the big
+  building's own props; sports = the theme's. No garden path across a slab
+  or a yard. `lotCat` reads the preset's own category (HOUSE_GEN.CATS /
+  BIG_GEN.CATS), then P.role/P.big/P.civic, then the zone.
+- THE GROUND: `lotGround` lays the drive and the pad as a dirt band, the
+  slab's ground dead, the yard's pebbles; `render_premises.slabMesh` lays
+  the concrete (the site set `cracked`, diff+normal+roughness, in 1 m cells
+  on the terrain with a polygon offset) and the bay lines over it.
+- HAND-PLACED SITES DRESS LIKE PLOTS: `buildItem` makes a SYNTHETIC PLOT
+  round the item's foot (frontage on its +z, a virtual road 6 m in front,
+  margins by category, wider for a wing and for a drive) and runs the same
+  `dressPlot` (with a road override) - so a lighthouse, a clinic, a store
+  or a warehouse placed by the building tool gets its fence, its lot and
+  its ground. G393.3's ad-hoc base polygons are gone (the law replaces
+  them). Sports, landmarks, the mill and the stations stand as they are.
+- GATE VILLAGE: the old "a big building has no fence" rule is the category
+  law now (a works fenced with a wide gate over gravel, a shop open over a
+  concrete car park with bays); a lot counts as the way in where the path
+  rule asked for a path.
+- SEEN (screenshots/lots/, from the premises bench on world B's shore
+  flat): 03 the row (warehouse, store, clinic, house, fire hall), 04 the
+  store's car park with bays and two cars, 05 the house's drive to the pad
+  by its corner and the one opening in the picket fence, 06 the warehouse's
+  gravel yard inside its rails, 07 the clinic's forecourt, 08 the sports
+  ground site (a second gravel yard there is a deleted site's - a site's
+  yard does not go with it; owed).
+- OWED: the site's yard/lot features cascading on delete; the drive on a
+  waterfront plot; a carport/garage stood at the FRONT when the drive ends
+  on a pad (today the garage stays at the back corner and the drive goes to
+  it); the user's cars; the base under a site on a slope (the lot is not
+  flattened - the store's stair ran 20 m downhill on the mountain flank).

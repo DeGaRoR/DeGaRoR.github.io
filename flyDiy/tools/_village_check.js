@@ -312,14 +312,20 @@ function battery(name, vil) {
     for (const h of bigs) {
       const p = vil.plots[h.plot];
       check(h.built.stats.tris > 200 && h.built.stats.sign && isFinite(h.built.stats.sign.x), name + ': ' + h.P.preset + ' did not build a sign slot');
-      check(!p.fences.length && !p.out && !p.car && !p.boat, name + ': ' + h.P.preset + ' has a fence, a shed or a car');
+      // THE LOT LAW BY CATEGORY (G401): no shed, no wreck, no boat on a working lot; a works is fenced
+      // in rails with a wide gate at the front, a shop's front is open to its car park (rails at the sides only)
+      check(!p.out && !p.car && !p.boat, name + ': ' + h.P.preset + ' has a shed or a wreck');
+      const front = p.fences.find(f => f.kind === 'front');
+      if (p.cat === 'industrial') check(!!front && front.gap && front.gap[1] - front.gap[0] >= 6 && p.lot && p.lot.kind === 'gravel', name + ': ' + h.P.preset + ' (industrial) wants a rail fence with a wide gate over a gravel yard');
+      else if (p.cat === 'commercial') check(!front && p.lot && p.lot.kind === 'concrete' && p.lot.bays.length >= 2 && p.lot.poly.every(q => VG.inPoly ? true : true), name + ': ' + h.P.preset + ' (commercial) wants an open front over a concrete car park with bays');
       // it faces the road: its +z, in the world, points from the plot's centre toward the road
       const fz = [Math.sin(h.yaw), Math.cos(h.yaw)];
       const c = centreOf(p.poly), fr = p.front;
       const tr = [fr[0] - c[0], fr[1] - c[1]];
       check(fz[0] * tr[0] + fz[1] * tr[1] > 0, name + ': ' + h.P.preset + ' turns its back on the road');
-      const okPath = (p.path || []).length >= 3;
-      check(okPath, name + ': ' + h.P.preset + ' has no path');
+      // a working lot's way in is its slab or its yard (G401): the garden path is only a house's
+      const okPath = (p.path || []).length >= 3 || !!(p.lot && p.lot.poly);
+      check(okPath, name + ': ' + h.P.preset + ' has no path nor a lot');
     }
   }
   // 14 — THE ROADSIDE BILLBOARDS (G313): two or three, on the inland verge,
@@ -706,7 +712,7 @@ function battery(name, vil) {
     // 6 — the path
     if (h) {
       const pth = plot.path || [];
-      check(pth.length >= 2, name + ': plot ' + plot.id + ' has no path');
+      check(pth.length >= 2 || !!(plot.lot && plot.lot.poly), name + ': plot ' + plot.id + ' has no path nor a lot');
       if (pth.length) {
         const a = pth[0][0], b = pth[pth.length - 1][1];
         check(distToRoad(road, a) < road.w / 2 + 0.6, name + ': the path on plot ' + plot.id + ' does not start at the road',

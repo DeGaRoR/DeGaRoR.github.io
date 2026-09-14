@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f0896f2a013c73d1
+// body-sha256: 9c3e5b0e1c4dcd36
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1657,7 +1657,9 @@ function makeWorld(seed, opts) {
     v: 1, seed: SEED,
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt,
-                    WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo } : null,
+                    WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
+                    tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
+                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
@@ -5330,6 +5332,12 @@ var ISLAND_GEN = (function () {
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
       albedo: src.grid.albedo || null,
+      tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
+      coverU8: cover, ndvi: src.grid.ndvi || null,
+      // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
+      farHeader: src.far ? src.far.header : null,
+      farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,
+      canopyP90: (g.layers && g.layers.canopy && g.layers.canopy.p90OverTreeCover) || 15,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
     };

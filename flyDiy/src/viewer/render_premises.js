@@ -640,11 +640,11 @@ function make(THREE, scene, world, rec0, opts) {
     G.lots.add(grp);
     return grp;
   }
-  function dressPlot(plot, house, built, V, Tv) {
+  function dressPlot(plot, house, built, V, Tv, roadOverride) {
     const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     const out = { groups: [], tris: 0, lights: 0 };
     if (!VG || !VG.finishPlot) return out;
-    const rd = O.roads.find(r => r.id === plot.road) || O.roads[0];
+    const rd = roadOverride || O.roads.find(r => r.id === plot.road) || O.roads[0];
     if (!rd) return out;
     const T = { h: Tv.h, size: Tv.size, waterY: Tv.waterY };
     const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: rd.w }, fenced: FENCED, T, spread: SPREAD, plots: O.records.plots, houses: [] };
@@ -666,10 +666,14 @@ function make(THREE, scene, world, rec0, opts) {
     const toW = (hh, o) => { const w = hh.toWorld(o.x, o.z); return Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + hh.yaw }); };
     for (const o of built.stats.groundAO || []) occ.push(toW(house, o));
     if (plot.out && plot.out.built) for (const o of plot.out.built.stats.groundAO || []) occ.push(toW(plot.out, o));
-    for (const c of [plot.car, plot.boat]) if (c && pp && PR && PR.props[c.key]) {
+    // THE LOT SLAB (G401): a commercial car park or an official forecourt in weathered concrete, its
+    // bay lines, and the cars in the bays - the composer's per category (VILLAGE_GEN.planLot)
+    if (plot.lot && plot.lot.kind === 'concrete' && plot.lot.poly) { const sl = slabMesh(plot.lot, T.h); if (sl) grp.add(sl); }
+    const lotCars = plot.lot && plot.lot.cars ? plot.lot.cars : [];
+    for (const c of [plot.car, plot.boat].concat(lotCars)) if (c && pp && PR && PR.props[c.key]) {
       const o = pp(THREE, c.key, c.x, c.z, c.ry, c.y); tiltToGround(o, T.h, c.x, c.z, c.ry); grp.add(o);
-      const K = plot.car === c ? (HG.YARD_KIT || {})[c.key] : (HG.PIER_KIT || {})[c.key];
-      if (K) occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.car === c ? 0.65 : 0.6, soft: plot.car === c ? 1.0 : 0.9 });
+      const K = plot.boat === c ? (HG.PIER_KIT || {})[c.key] : (HG.YARD_KIT || {})[c.key];
+      if (K) occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.boat === c ? 0.6 : 0.65, soft: plot.boat === c ? 0.9 : 1.0 });
     }
     for (const f of posts) if (Math.abs(f[0] - house.x) < 40 && Math.abs(f[1] - house.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.45, soft: 0.35 });
     if (window.LOT_GROUND && VG.lotGround) {
@@ -678,6 +682,48 @@ function make(THREE, scene, world, rec0, opts) {
     }
     G.lots.add(grp); out.groups.push(grp);
     return out;
+  }
+  // THE SLAB (G401): a polygon of weathered concrete laid on the terrain in 1 m cells (the site set
+  // `cracked`, diff + normal + roughness), a hair over the ground with a polygon offset so it wins
+  // the depth fight with the lot patch, and its bay lines as thin white quads over it
+  let SLAB_MAT = null, BAY_MAT = null;
+  function slabMesh(lot, h) {
+    const S = texSets().cracked; if (!S || !S.diff) return null;
+    if (!SLAB_MAT) {
+      const tex = (img, srgb) => { const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; const ok = () => { t.needsUpdate = true; if (o.onBuilt) o.onBuilt(0, 0); }; if (img.complete && img.naturalWidth) t.needsUpdate = true; else img.addEventListener('load', ok); return t; };
+      SLAB_MAT = new THREE.MeshStandardMaterial({ color: 0xb4b0a8, roughness: 0.95, metalness: 0, map: tex(S.diff, true), normalMap: S.nor ? tex(S.nor, false) : null, roughnessMap: S.rough ? tex(S.rough, false) : null,
+                                                  polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+      BAY_MAT = new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+    }
+    const tile = S.tile || 2.8, poly = lot.poly;
+    // the polygon is a rectangle in the plot's frame: a grid along its own two edges
+    const a = poly[0], b = poly[1], d = poly[3];
+    const ex = [b[0] - a[0], b[1] - a[1]], ez = [d[0] - a[0], d[1] - a[1]];
+    const nx = Math.max(1, Math.ceil(Math.hypot(ex[0], ex[1]) / 1.0)), nz = Math.max(1, Math.ceil(Math.hypot(ez[0], ez[1]) / 1.0));
+    const pos = [], uv = [], idx = [];
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+      const u = i / nx, v = j / nz, x = a[0] + ex[0] * u + ez[0] * v, z = a[1] + ex[1] * u + ez[1] * v;
+      pos.push(x, h(x, z) + 0.035, z); uv.push(x / tile, z / tile);
+    }
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const q = j * (nx + 1) + i; idx.push(q, q + nx + 1, q + 1, q + 1, q + nx + 1, q + nx + 2); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const g = new THREE.Group(); g.name = 'slab';
+    const m = new THREE.Mesh(geo, SLAB_MAT); m.receiveShadow = true; m.castShadow = false; m.renderOrder = 2; g.add(m);
+    if (lot.bays && lot.bays.length) {
+      const bp = [], bi = [];
+      for (const [p0, p1] of lot.bays) {
+        const dx = p1[0] - p0[0], dz = p1[1] - p0[1], L = Math.hypot(dx, dz) || 1, nx2 = -dz / L * 0.06, nz2 = dx / L * 0.06;
+        const k = bp.length / 3;
+        for (const [x, z] of [[p0[0] - nx2, p0[1] - nz2], [p1[0] - nx2, p1[1] - nz2], [p1[0] + nx2, p1[1] + nz2], [p0[0] + nx2, p0[1] + nz2]]) bp.push(x, h(x, z) + 0.05, z);
+        bi.push(k, k + 2, k + 1, k, k + 3, k + 2);
+      }
+      const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bp), 3)); bg.setIndex(bi); bg.computeVertexNormals();
+      const bm = new THREE.Mesh(bg, BAY_MAT); bm.renderOrder = 3; bm.castShadow = false; g.add(bm);
+    }
+    return g;
   }
   // a placed prop or billboard (v5): a prop through propPlace on the composed ground, a billboard
   // through BIG_GEN.billboard with its own finish (the board IS the texture); in the world frame
@@ -717,7 +763,32 @@ function make(THREE, scene, world, rec0, opts) {
     built.BAGS = GEN.BAGS;
     const grp = placeBuilt(G.houses, it, built, F, GEN);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
-    return { grp, tris: built.stats.tris, house: it, built, lights: litOf(built) };
+    // A HAND-PLACED SITE ITEM DRESSES LIKE A PLOT (G401, the user: "the ground textures of all lots"): a
+    // synthetic plot round its foot - the frontage on its +z side, the road a line 6 m in front - through
+    // the same dressPlot a zoned plot gets, so the category's law lays its ground (the sports ground
+    // brings its own; the tram, the mill and the parks stand as they are)
+    const extra = [];
+    try {
+      const cat = (it.entry && it.entry.cat) || (window.VILLAGE_GEN && window.VILLAGE_GEN.lotCat ? window.VILLAGE_GEN.lotCat({}, { P: it.P, gen: it.gen, preset: it.P.preset }) : null);
+      if (cat && cat !== 'sports' && cat !== 'landmark' && !it.P.mill && !it.P.station && window.VILLAGE_GEN && window.VILLAGE_GEN.finishPlot) {
+        const P = it.P, L = P.L || 10, w = P.w || 8, porch = P.porch ? (P.porchD || 2.4) : (P.dock ? (P.dockD || 2.4) + 2 : 0);
+        // the lot's margins: room for a drive beside a house, for a wing, for a works' yard
+        const mx = (cat === 'industrial' ? 6 : (cat === 'residential' ? 7 : 5)) + (P.wing ? 7 : 0), front = cat === 'commercial' ? 14 : (cat === 'industrial' ? 16 : 10), back = cat === 'residential' ? 8 : 4;
+        const c = Math.cos(it.yaw), sn = Math.sin(it.yaw);
+        const W2 = (lx, lz) => [lx * c + lz * sn + it.x, -lx * sn + lz * c + it.z];        // the item's frame -> premises (house law)
+        const zF = w / 2 + porch + front, zB = -w / 2 - back;
+        const poly = [W2(-L / 2 - mx, zF), W2(L / 2 + mx, zF), W2(L / 2 + mx, zB), W2(-L / 2 - mx, zB)];   // frontage first, along +x
+        const tg = [c, -sn], n = [-sn, -c];                                                                 // along the frontage; away from the road (-z)
+        const roadPts = [W2(-L / 2 - mx - 30, zF + 6), W2(L / 2 + mx + 30, zF + 6)];
+        const plot = { id: 'site:' + it.id, side: 'land', poly, depth: zF - zB, n, tg, w: L + 2 * mx, front: W2(0, zF), cat, road: null, seed: it.seed | 0, synthetic: true };
+        const house = { x: it.x, z: it.z, yaw: it.yaw, P, gen: it.gen, preset: it.P.preset, cat, toWorld: W2, ground: it.ground, built };
+        const VG = window.VILLAGE_GEN, Vv = Object.assign({}, VG.VDEF, { seed: rec.seed });
+        const Tv = { h: (lx, lz) => O.localH(lx, lz), waterY: world.waterH ? world.waterH(0, 0) : -1e9, size: Math.max(W, H) };
+        const D = dressPlot(plot, house, built, Vv, Tv, { pts: roadPts, w: 6 });
+        for (const g2 of D.groups) extra.push(g2);
+      }
+    } catch (e) { console.warn('premises site lot', it.id, e && e.message); }
+    return { grp, tris: built.stats.tris, house: it, built, lights: litOf(built), extra };
   }
   const itemSeed = it => PG.hash32(it.seed, PG.fnv(JSON.stringify([it.x, it.z, it.yaw, it.key, it.P.tramTo || null, it.P.floorY])));
   // a park on its plot: the totem generator's world-frame build (no ground of its own - the lawn is
