@@ -46048,3 +46048,32 @@ G393 declared, closed, and the new assets stood in the world editor.
   the media/ pack; the terrain colour in the game (W1 from the bench's
   recipe); fill tree size from the canopy; the far mask's texel; the WWII
   field as a sitePattern; species by canopy (W3).
+
+## G396.1 — THE CARD NOSED OVER IN THE GAME AND NOT IN THE GATE: THE STALE
+## CG HANDSHAKE, AND THE THRUST LINE (2026-09-14)
+
+- Flown in the pane the freshly baked card capsized in the first second of
+  full power (pitch -22 at 1 s, over at 2), while GATE ARCHETYPES flew it
+  round a circuit. Two causes, both found by pulling the joined spec out of
+  the page and flying IT headless:
+  1. `FLYDIY_CG_MODEL` was published only at roll-out — a card baked in the
+     garage placed its step off the PREVIOUS aeroplane's CG (0.6 m aft, 30
+     deg instead of 12). `tools/_cage_energy.js`: the balance job that
+     already runs on every commit (the worker, G250) now returns the
+     model-frame CG (`cgMX/cgMY`, byte for byte app.js's) and publishes
+     it; with the floats on and the CG moved > 2 cm the layer is rebuilt
+     once (the step follows the CG, the CG follows the step: closes in one
+     pass). Measured after: step 14.3 deg aft of the CG at rest, pitch +0.8.
+  2. Still over at 1 s with the step right: the join's measured engines sat
+     at the layer's default nacelle — the thrust line 0.72 m OVER the CG
+     (2200 N x 0.72 = 1600 N m nose-down at T/W 0.44, nothing at 4 m/s to
+     answer it). The fixture's twin is 0.51 m aft and 0.09 m down
+     (`engBlockZ/Y`), which is why the fixture flies; the card carries the
+     fixture's block now. Bisected (engines / fuel / wing placement): the
+     engines alone. Off the water in the pane: hump 9 m/s, on the step 13,
+     airborne 29.
+- Gates: DESIGN, STARTER, PARTS, ENERGY, ENERGYBASE, FLOATS, UISMOKE green;
+  ARCHETYPES --only=floatplane green.
+- LESSON: the gate flies the BIRTH spec, the game flies the JOINED one — a
+  card is not proven until the joined spec has flown (`--only=` plus a
+  spec pulled from the page, `GARAGE_SPEC.get()`).
