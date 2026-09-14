@@ -9697,11 +9697,23 @@ function makeWorld(seed, opts) {
   // Domes never touch the real terrain; river water surfaces are
   // dome-corrected back via wsAdjust.
   const DOME = 3;
+  // ...and over the PREMISES' strips (G413): the bake runs before the layer is
+  // composed, so the strips are read off the raw record - a river had crossed
+  // Jolene's 02/20 the moment the blend gave the island rivers
+  const pmStrips = (opts && opts.premises && typeof PREMISES_GEN !== 'undefined')
+    ? (((PREMISES_GEN.unwrap(opts.premises).rec || {}).layers || {}).runways || []).filter(r => r.c && r.len > 0)
+        .map(r => ({ x: r.c[0], z: r.c[1], ca: Math.cos(r.hdg || 0), sa: Math.sin(r.hdg || 0), hl: r.len / 2 + 150, hw: (r.wid || 30) / 2 + 150 }))
+    : [];
   function domes(x, z) {
     let s = DOME * (1 - padRamp(x, z));
     for (const m of meadows) {
       const d = Math.hypot(x - m.x, z - m.z);
       if (d < m.r * 1.6) s += DOME * (1 - sstep(0, m.r * 1.6, d));
+    }
+    for (const r of pmStrips) {
+      const dx = x - r.x, dz = z - r.z, u = dx * r.ca + dz * r.sa, v = -dx * r.sa + dz * r.ca;
+      const d = Math.hypot(Math.max(0, Math.abs(u) - r.hl), Math.max(0, Math.abs(v) - r.hw));
+      if (d < 260) s += DOME * (1 - sstep(0, 260, d));
     }
     return s;
   }
@@ -9712,11 +9724,21 @@ function makeWorld(seed, opts) {
     // bake, so the same physical rivers emerge at any grid resolution)
     // the island: the DEM already holds its river beds (no carve to add) and
     // its lakes are the cover's water class (waterAt), not flooded sinks
-    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
+    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: (ISL && ISL.hydro === 'blend') ? 1024 : 512,
       // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
       // judgment on procedural hydrology - maps first, procedural on top")
       // (G405: ?hydro=proc boots the analytic bake's water on the island, to compare with the map's)
-      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5, A0m2: (ISL && ISL.hydro !== 'proc') ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
+      // THE BLEND (G413, the user: "lakes from the data correspond better to the
+      // terrain, the procedural generation does the rivers - narrow the rivers"):
+      // the map's lakes handed to the bake as its lakes (no flooded sinks of its
+      // own), its rivers from 1.2 km2 of drainage (4x the mainland's threshold:
+      // the real creeks, not every gully), 0.22 kW and 28 m at most (the
+      // mainland's 0.35 / 45), at 1024 cells over the island (its 5 m DEM has
+      // the beds; 76 m cells put a ribbon on the bank)
+      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5,
+      A0m2: !ISL || ISL.hydro === 'proc' ? 274650 : ISL.hydro === 'blend' ? 1.2e6 : 1e12,
+      kW: (ISL && ISL.hydro === 'blend') ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: (ISL && ISL.hydro === 'blend') ? 28 : 45, dLake: 2,
+      lakeOf: (ISL && ISL.hydro === 'blend') ? ISL.lakeAt : null, lakeSurf: !(ISL && ISL.hydro !== 'proc'),
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -10308,6 +10330,11 @@ function bakeHydrology(sample, cfg) {
   const lake = new Uint8Array(M);
   let lakeCells = 0;
   for (let k = 0; k < M; k++) if (!sea[k] && filled[k] - H[k] > cfg.lakeMin) { lake[k] = 1; lakeCells++; }
+  // LAKES HANDED IN (G413, the blend): the map's lakes (a signed field, > 0
+  // inside) are the bake's lakes too - a reach ends where it enters one and
+  // a new reach starts where the water leaves, instead of a ribbon traced
+  // across the surface; the distance-to-water sees them as water.
+  if (cfg.lakeOf) for (let k = 0; k < M; k++) if (!sea[k] && !lake[k] && cfg.lakeOf(px(k % N), pz((k / N) | 0)) > 0) { lake[k] = 1; lakeCells++; }
   // renderer lake surface: the data lakes (depth > lakeMin) PLUS their
   // shallow connected rim (depth > 0.25 at approximately the same level) —
   // in flat terrain the rim is wide and without it the rendered water
@@ -10333,7 +10360,7 @@ function bakeHydrology(sample, cfg) {
   // edgeMask bits: 1 = +x neighbour is wet, 2 = -x, 4 = +z, 8 = -z
   const lakeSurf = [];
   for (let k = 0; k < M; k++) {
-    if (!wet[k]) continue;
+    if (!wet[k] || cfg.lakeSurf === false) continue;     // (the map draws its own lakes)
     const ix = k % N, iz = (k / N) | 0;
     let mask = 0;
     if (ix + 1 < N && wet[k + 1]) mask |= 1;
@@ -13078,7 +13105,7 @@ function runwaySite(r, F) {
   else hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
   return Object.assign({}, r.site || {}, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
 }
-function runwayAerodrome(r, F, elev, flats) {
+function runwayAerodrome(r, F, elev, flats, hAt) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
   const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
@@ -13097,8 +13124,9 @@ function runwayAerodrome(r, F, elev, flats) {
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
   // THE GROUND UNDER THE STAND (v9): a profiled strip's stand is not at the strip's elevation - the placer reads it
-  if (S && S.stand) S.stand.elev = +T1(S.stand.x, S.stand.z).toFixed(2);
-  const spawnElev = +T1(spawnAt[0], spawnAt[1]).toFixed(2);
+  const groundAt = (x, z) => { if (!hAt) return elev; const L = F.toLocal(x, z); return +hAt(L[0], L[1]).toFixed(2); };
+  if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
+  const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
@@ -13316,8 +13344,9 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly)));
+    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
+    if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -13522,7 +13551,7 @@ function compose(rec0, world, opts) {
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
     // composed ground (tilted to it when `on` is 'ground'), a billboard a painted sign's key on its
     // posts at the width given; both in the premises frame, their y the ground plus `dy`
-    // ...and the PARKED AEROPLANES (G409, contract v1.8): kind 'aircraft', its key naming a build
+    // ...and the PARKED AEROPLANES (G411, contract v1.12): kind 'aircraft', its key naming a build
     // ('arch:cub', 'stock:<name>', 'mine:<slot>' - src/viewer/parked.js), stood on its wheels on the
     // composed ground, nose along its yaw. Same record shape as a prop; the renderer tells them apart.
     O.records.objects = [];
@@ -13845,6 +13874,16 @@ var ISLAND_GEN = (function () {
       const a = coast[p], b = coast[p + 1], c = coast[p + W], d = coast[p + W + 1];
       return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
     };
+    // the signed lake field, bilinear, the same way (G413: the bake takes it as its lakes)
+    const lakeAt = (x, z) => {
+      const L = src.grid.lake; if (!L) return -1e9;
+      const u = (x - gx0) / cell - 0.5, v = (z - gz0) / cell - 0.5;
+      const i = Math.max(0, Math.min(W - 2, Math.floor(u))), j = Math.max(0, Math.min(Hn - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j));
+      const p = j * W + i;
+      const a = L[p], b = L[p + 1], c = L[p + W], d = L[p + W + 1];
+      return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
+    };
     // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
     // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
     // sea is a shelf off the coast field: -5 m at the line (the far mesh is
@@ -13875,11 +13914,13 @@ var ISLAND_GEN = (function () {
       // it would light from 19° off at noon. The header may override.
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakes: src.grid.lakes || null,
-      hydro: src.hydro || 'map',     // 'map': the cover's lakes, no bake water; 'proc': the analytic bake's lakes and rivers (G405, to compare)
+      // 'blend' (G413, the default): the map's lakes, the bake's rivers between them, narrowed;
+      // 'map': the map's lakes alone; 'proc': the analytic bake's lakes and rivers (G405, to compare)
+      hydro: src.hydro || 'blend',
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
       farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,
@@ -16897,7 +16938,7 @@ function placeAtAerodrome(sim, a) {
     const x = sim.p[i * 3], z = sim.p[i * 3 + 2];
     sim.p[i * 3] = x * c + z * s + sp[0];
     sim.p[i * 3 + 2] = -x * s + z * c + sp[1];
-    sim.p[i * 3 + 1] += a.elev;
+    sim.p[i * 3 + 1] += (a.spawnElev !== undefined ? a.spawnElev : a.elev);   // G398.3: a premises strip's spawn may sit on its profile, not at the strip's elevation
   }
 }
 
@@ -16916,7 +16957,7 @@ function placeAtAerodrome(sim, a) {
 // just another pose to hand it. One transform, one place, as ever.
 function placeAtStand(sim, a, st) {
   return placeAtAerodrome(sim, st
-    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: a.elev } : a);
+    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: st.elev !== undefined ? st.elev : a.elev } : a);   // G398.3: the stand's own ground when the site names it
 }
 
 function makeAutopilot(sim, def, world) {
@@ -19345,6 +19386,8 @@ function makePilot(sim, def, world, opts) {
     let dx = px, dz = pz;
     const w = windAt(a, 30);
     if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction; in calm air it wins over the preference
+    else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
   };
@@ -21599,6 +21642,319 @@ function treeRungTris(rung) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { decodeTreePart, decodeTreeRung, treeFinest, treeRungTris };
 }
+// ===========================================================================
+// THE DECIMATOR (G411) — quadric-error half-edge collapse on the wedge graph.
+// ===========================================================================
+// MOVED HERE VERBATIM from tools/prop_lod.js (G301/G303), which now calls it,
+// so the one decimator serves the baker (node, the pier packs) AND the game
+// (src/viewer/parked.js cuts a parked aeroplane's far levels at run time, in a
+// Worker built from this function's own source — which is why it is ONE
+// self-contained function: no module constants, no helpers outside it. The
+// three knobs prop_lod.js kept at module scope ride in `opt`, with the same
+// defaults).
+//
+//   meshDecimate(M, bb, target, opt) -> { idx, alive, nt, nBorder, nSeam, refused, refSeam }
+//     M      { nv, nt, pos: Int16Array (quantised over bb), nrm: Int8Array,
+//              idx: Uint32Array } — a wedge mesh: positions weld on the int16
+//              triple, attributes stay per wedge. M.pos is WRITTEN (a wedge
+//              with no twin moves to its target's position): pass a copy if
+//              the input must survive.
+//     bb     [x0, y0, z0, x1, y1, z1] metres, the quantisation box
+//     target the triangle count to stop at
+//     opt    { W_BORDER (10), W_SEAM (1), FLIP_COS (0.2) }
+//
+// WHY HALF-EDGE, WHY THE SEAM RULE: prop_lod.js's header says it (a surviving
+// vertex keeps its position, normal and uv exactly; a seam vertex collapses
+// along its seam or not at all; a wedge with no twin MOVES).
+function meshDecimate(M, bb, target, opt) {
+  const W_BORDER = (opt && opt.W_BORDER != null) ? opt.W_BORDER : 10;
+  const W_SEAM = (opt && opt.W_SEAM != null) ? opt.W_SEAM : 1;
+  const FLIP_COS = (opt && opt.FLIP_COS != null) ? opt.FLIP_COS : 0.2;
+  const W = M.nv, T = M.nt, idx = M.idx;
+  if (T <= target) return { idx: Array.from(idx), alive: null, nt: T };
+  // metres, for the quadrics
+  const [x0, y0, z0, x1, y1, z1] = bb;
+  const sx = (x1 - x0) / 65535, sy = (y1 - y0) / 65535, sz = (z1 - z0) / 65535;
+  const X = new Float64Array(W * 3);
+  for (let i = 0; i < W; i++) {
+    X[i * 3] = x0 + (M.pos[i * 3] + 32768) * sx;
+    X[i * 3 + 1] = y0 + (M.pos[i * 3 + 1] + 32768) * sy;
+    X[i * 3 + 2] = z0 + (M.pos[i * 3 + 2] + 32768) * sz;
+  }
+  // wedges -> positions (welded on the int16 triple)
+  const wPos = new Int32Array(W);
+  const pmap = new Map();
+  let P = 0;
+  for (let i = 0; i < W; i++) {
+    const k = (M.pos[i * 3] + 32768) * 4294967296 + (M.pos[i * 3 + 1] + 32768) * 65536 + (M.pos[i * 3 + 2] + 32768);
+    let p = pmap.get(k);
+    if (p === undefined) { p = P++; pmap.set(k, p); }
+    wPos[i] = p;
+  }
+  const pWedges = new Array(P);
+  const pX = new Float64Array(P * 3);
+  for (let i = 0; i < W; i++) { const p = wPos[i]; pX[p * 3] = X[i * 3]; pX[p * 3 + 1] = X[i * 3 + 1]; pX[p * 3 + 2] = X[i * 3 + 2]; }
+
+  // triangles, and every wedge's triangles
+  const tri = new Int32Array(idx);
+  const tAlive = new Uint8Array(T).fill(1);
+  const wTris = new Array(W);
+  for (let i = 0; i < W; i++) wTris[i] = [];
+  for (let t = 0; t < T; t++) { wTris[tri[t * 3]].push(t); wTris[tri[t * 3 + 1]].push(t); wTris[tri[t * 3 + 2]].push(t); }
+  // a wedge no triangle uses (a level cut from a level leaves them) is not
+  // part of the surface: not alive, not a wedge of its position
+  const wAlive = new Uint8Array(W);
+  for (let i = 0; i < W; i++) if (wTris[i].length) {
+    wAlive[i] = 1;
+    (pWedges[wPos[i]] || (pWedges[wPos[i]] = [])).push(i);
+  }
+
+  // quadrics per position: area-weighted face planes
+  const Q = new Float64Array(P * 10);
+  const addPlane = (p, a, b, c, d, w) => {
+    const o = p * 10;
+    Q[o] += a * a * w; Q[o + 1] += a * b * w; Q[o + 2] += a * c * w; Q[o + 3] += a * d * w;
+    Q[o + 4] += b * b * w; Q[o + 5] += b * c * w; Q[o + 6] += b * d * w;
+    Q[o + 7] += c * c * w; Q[o + 8] += c * d * w; Q[o + 9] += d * d * w;
+  };
+  const tN = new Float64Array(T * 3);      // face normals (unit), kept for the flip test
+  for (let t = 0; t < T; t++) {
+    const a = tri[t * 3] * 3, b = tri[t * 3 + 1] * 3, c = tri[t * 3 + 2] * 3;
+    const ux = X[b] - X[a], uy = X[b + 1] - X[a + 1], uz = X[b + 2] - X[a + 2];
+    const vx = X[c] - X[a], vy = X[c + 1] - X[a + 1], vz = X[c + 2] - X[a + 2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz);
+    if (l < 1e-18) { tAlive[t] = 0; continue; }
+    nx /= l; ny /= l; nz /= l;
+    tN[t * 3] = nx; tN[t * 3 + 1] = ny; tN[t * 3 + 2] = nz;
+    const d = -(nx * X[a] + ny * X[a + 1] + nz * X[a + 2]);
+    const area = l * 0.5;
+    addPlane(wPos[tri[t * 3]], nx, ny, nz, d, area);
+    addPlane(wPos[tri[t * 3 + 1]], nx, ny, nz, d, area);
+    addPlane(wPos[tri[t * 3 + 2]], nx, ny, nz, d, area);
+  }
+  // boundaries and seams: a wedge edge in one triangle only is a border of
+  // the wedge graph; if its positions meet in more triangles it is a seam
+  const wEdge = new Map(), pEdge = new Map();
+  const ek = (a, b) => (a < b ? a * 4294967296 + b : b * 4294967296 + a);
+  for (let t = 0; t < T; t++) {
+    if (!tAlive[t]) continue;
+    for (let e = 0; e < 3; e++) {
+      const a = tri[t * 3 + e], b = tri[t * 3 + (e + 1) % 3];
+      const kw = ek(a, b), kp = ek(wPos[a], wPos[b]);
+      wEdge.set(kw, (wEdge.get(kw) || 0) + 1);
+      pEdge.set(kp, (pEdge.get(kp) || 0) + 1);
+    }
+  }
+  let nBorder = 0, nSeam = 0;
+  for (let t = 0; t < T; t++) {
+    if (!tAlive[t]) continue;
+    for (let e = 0; e < 3; e++) {
+      const a = tri[t * 3 + e], b = tri[t * 3 + (e + 1) % 3];
+      if (wEdge.get(ek(a, b)) !== 1) continue;
+      const seam = pEdge.get(ek(wPos[a], wPos[b])) > 1;
+      if (seam) nSeam++; else nBorder++;
+      // the plane through the edge, normal to the face
+      const ax = X[a * 3], ay = X[a * 3 + 1], az = X[a * 3 + 2];
+      const ex = X[b * 3] - ax, ey = X[b * 3 + 1] - ay, ez = X[b * 3 + 2] - az;
+      const fx = tN[t * 3], fy = tN[t * 3 + 1], fz = tN[t * 3 + 2];
+      let nx = fy * ez - fz * ey, ny = fz * ex - fx * ez, nz = fx * ey - fy * ex;
+      const l = Math.hypot(nx, ny, nz);
+      if (l < 1e-18) continue;
+      nx /= l; ny /= l; nz /= l;
+      const d = -(nx * ax + ny * ay + nz * az);
+      const w = (ex * ex + ey * ey + ez * ez) * (seam ? W_SEAM : W_BORDER);
+      addPlane(wPos[a], nx, ny, nz, d, w);
+      addPlane(wPos[b], nx, ny, nz, d, w);
+    }
+  }
+  wEdge.clear(); pEdge.clear();
+
+  const evalQ = (pa, pb, p) => {
+    const a = pa * 10, b = pb * 10, x = pX[p * 3], y = pX[p * 3 + 1], z = pX[p * 3 + 2];
+    const q = i => Q[a + i] + Q[b + i];
+    return q(0) * x * x + 2 * q(1) * x * y + 2 * q(2) * x * z + 2 * q(3) * x +
+      q(4) * y * y + 2 * q(5) * y * z + 2 * q(6) * y + q(7) * z * z + 2 * q(8) * z + q(9);
+  };
+
+  // THE HEAP: entries (cost, a, b, va, vb) - collapse wedge a onto wedge b,
+  // valid while both keep the versions it was pushed with
+  let cap = T * 6;
+  let eCost = new Float64Array(cap), eA = new Int32Array(cap), eB = new Int32Array(cap),
+    eVa = new Int32Array(cap), eVb = new Int32Array(cap);
+  let nE = 0;
+  let heap = new Int32Array(cap), nH = 0;
+  const wVer = new Int32Array(W);
+  const grow = () => {
+    cap *= 2;
+    const g = (old, C) => { const n = new C(cap); n.set(old); return n; };
+    eCost = g(eCost, Float64Array); eA = g(eA, Int32Array); eB = g(eB, Int32Array);
+    eVa = g(eVa, Int32Array); eVb = g(eVb, Int32Array); heap = g(heap, Int32Array);
+  };
+  const push = (a, b) => {
+    if (nE >= cap) grow();
+    const e = nE++;
+    eCost[e] = evalQ(wPos[a], wPos[b], wPos[b]); eA[e] = a; eB[e] = b; eVa[e] = wVer[a]; eVb[e] = wVer[b];
+    let i = nH++;
+    heap[i] = e;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (eCost[heap[p]] <= eCost[heap[i]]) break;
+      const s = heap[p]; heap[p] = heap[i]; heap[i] = s; i = p;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap[--nH];
+    if (nH > 0) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1, r = l + 1;
+        let m = i;
+        if (l < nH && eCost[heap[l]] < eCost[heap[m]]) m = l;
+        if (r < nH && eCost[heap[r]] < eCost[heap[m]]) m = r;
+        if (m === i) break;
+        const s = heap[m]; heap[m] = heap[i]; heap[i] = s; i = m;
+      }
+    }
+    return top;
+  };
+  const pushAround = w => {
+    const ts = wTris[w];
+    for (let i = 0; i < ts.length; i++) {
+      const t = ts[i];
+      if (!tAlive[t]) continue;
+      for (let e = 0; e < 3; e++) {
+        const o = tri[t * 3 + e];
+        if (o === w) continue;
+        push(o, w); push(w, o);
+      }
+    }
+  };
+  for (let t = 0; t < T; t++) {
+    if (!tAlive[t]) continue;
+    for (let e = 0; e < 3; e++) { const a = tri[t * 3 + e], b = tri[t * 3 + (e + 1) % 3]; push(a, b); push(b, a); }
+  }
+
+  const adjacent = (a, b) => {
+    const ts = wTris[a];
+    for (let i = 0; i < ts.length; i++) {
+      const t = ts[i];
+      if (!tAlive[t]) continue;
+      if (tri[t * 3] === b || tri[t * 3 + 1] === b || tri[t * 3 + 2] === b) return true;
+    }
+    return false;
+  };
+  const compact = w => {
+    const ts = wTris[w], out = [];
+    for (let i = 0; i < ts.length; i++) if (tAlive[ts[i]]) out.push(ts[i]);
+    wTris[w] = out;
+    return out;
+  };
+  let alive = 0;
+  for (let t = 0; t < T; t++) alive += tAlive[t];
+  const pairs = [];
+  let refused = 0, refSeam = 0;
+  while (alive > target && nH > 0) {
+    const e = pop();
+    const a = eA[e], b = eB[e];
+    if (!wAlive[a] || !wAlive[b] || wVer[a] !== eVa[e] || wVer[b] !== eVb[e]) continue;
+    const pa = wPos[a], pb = wPos[b];
+    if (pa === pb) continue;
+    // THE SEAM RULE: every wedge of pa finds at most one wedge of pb across
+    // a shared triangle - into which it merges - or none, in which case it
+    // MOVES to pb with its own normal and uv (a hard-surface mesh has three
+    // wedges at every box corner and none of them a twin of the next
+    // corner's; refusing those left the cinder pallet at 9k of 18k). Two
+    // twins is ambiguous: refused. Either way every wedge of pa ends up at
+    // pb's position, so no crack opens.
+    pairs.length = 0;
+    let ok = true;
+    const A = pWedges[pa], B = pWedges[pb];
+    for (let i = 0; i < A.length && ok; i++) {
+      const ai = A[i];
+      let hit = -1;
+      for (let j = 0; j < B.length; j++) {
+        if (!adjacent(ai, B[j])) continue;
+        if (hit >= 0) { ok = false; break; }
+        hit = B[j];
+      }
+      pairs.push(ai, hit);
+    }
+    if (!ok) { refused++; refSeam++; continue; }
+    // THE FLIP TEST on every triangle that survives the move
+    const bx = pX[pb * 3], by = pX[pb * 3 + 1], bz = pX[pb * 3 + 2];
+    for (let k = 0; k < pairs.length && ok; k += 2) {
+      const ai = pairs[k];
+      const ts = wTris[ai];
+      for (let i = 0; i < ts.length; i++) {
+        const t = ts[i];
+        if (!tAlive[t]) continue;
+        const w0 = tri[t * 3], w1 = tri[t * 3 + 1], w2 = tri[t * 3 + 2];
+        if (wPos[w0] === pb || wPos[w1] === pb || wPos[w2] === pb) continue;   // dies
+        const p0 = w0 * 3, p1 = w1 * 3, p2 = w2 * 3;
+        const x0 = w0 === ai ? bx : X[p0], y0 = w0 === ai ? by : X[p0 + 1], z0 = w0 === ai ? bz : X[p0 + 2];
+        const x1 = w1 === ai ? bx : X[p1], y1 = w1 === ai ? by : X[p1 + 1], z1 = w1 === ai ? bz : X[p1 + 2];
+        const x2 = w2 === ai ? bx : X[p2], y2 = w2 === ai ? by : X[p2 + 1], z2 = w2 === ai ? bz : X[p2 + 2];
+        const ux = x1 - x0, uy = y1 - y0, uz = z1 - z0;
+        const vx = x2 - x0, vy = y2 - y0, vz = z2 - z0;
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const l = Math.hypot(nx, ny, nz);
+        if (l < 1e-16 || (nx * tN[t * 3] + ny * tN[t * 3 + 1] + nz * tN[t * 3 + 2]) / l < FLIP_COS) { ok = false; break; }
+      }
+    }
+    if (!ok) { refused++; continue; }
+    // COLLAPSE
+    const moved = [];
+    for (let k = 0; k < pairs.length; k += 2) {
+      const ai = pairs[k], bj = pairs[k + 1];
+      const ts = wTris[ai];
+      const kept = [];
+      for (let i = 0; i < ts.length; i++) {
+        const t = ts[i];
+        if (!tAlive[t]) continue;
+        const w0 = tri[t * 3], w1 = tri[t * 3 + 1], w2 = tri[t * 3 + 2];
+        if (wPos[w0] === pb || wPos[w1] === pb || wPos[w2] === pb) { tAlive[t] = 0; alive--; continue; }
+        if (bj >= 0) { if (w0 === ai) tri[t * 3] = bj; if (w1 === ai) tri[t * 3 + 1] = bj; if (w2 === ai) tri[t * 3 + 2] = bj; }
+        else kept.push(t);
+        // the face normal moves with the vertex
+        const q0 = tri[t * 3] * 3, q1 = tri[t * 3 + 1] * 3, q2 = tri[t * 3 + 2] * 3;
+        const ux = X[q1] - X[q0], uy = X[q1 + 1] - X[q0 + 1], uz = X[q1 + 2] - X[q0 + 2];
+        const vx = X[q2] - X[q0], vy = X[q2 + 1] - X[q0 + 1], vz = X[q2 + 2] - X[q0 + 2];
+        let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const l = Math.hypot(nx, ny, nz) || 1;
+        tN[t * 3] = nx / l; tN[t * 3 + 1] = ny / l; tN[t * 3 + 2] = nz / l;
+        if (bj >= 0) wTris[bj].push(t);
+      }
+      if (bj >= 0) { wTris[ai] = null; wAlive[ai] = 0; }
+      else {
+        // the wedge moves: pb's position, its own attributes
+        wTris[ai] = kept;
+        wPos[ai] = pb;
+        X[ai * 3] = pX[pb * 3]; X[ai * 3 + 1] = pX[pb * 3 + 1]; X[ai * 3 + 2] = pX[pb * 3 + 2];
+        const bw = B[0];
+        M.pos[ai * 3] = M.pos[bw * 3]; M.pos[ai * 3 + 1] = M.pos[bw * 3 + 1]; M.pos[ai * 3 + 2] = M.pos[bw * 3 + 2];
+        moved.push(ai);
+      }
+    }
+    for (let i = 0; i < 10; i++) Q[pb * 10 + i] += Q[pa * 10 + i];
+    pWedges[pa] = null;
+    for (const ai of moved) B.push(ai);
+    for (let j = 0; j < B.length; j++) {
+      const bj = B[j];
+      wVer[bj]++;
+      compact(bj);
+      pushAround(bj);
+    }
+  }
+  const out = [];
+  for (let t = 0; t < T; t++) if (tAlive[t]) out.push(tri[t * 3], tri[t * 3 + 1], tri[t * 3 + 2]);
+  return { idx: out, alive: wAlive, nt: alive, nBorder, nSeam, refused, refSeam };
+}
+// THE WORKER'S SOURCE: the function above as text, so a page can run it off
+// the main thread (`new Worker(URL.createObjectURL(new Blob([MESH_DECIMATE_SRC + ...])))`).
+const MESH_DECIMATE_SRC = meshDecimate.toString();
 // ============================================================
 // GARAGE 1/5 — the SPEC. Source of truth for a generated airframe.
 //
@@ -33116,10 +33472,10 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='a5e17947abb6'</script>
+<script>window.FLYDIY_CORE_SHA='115427173065'</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -88506,7 +88862,7 @@ var DAY_CLOCK = (function () {
   'use strict';
   const PREF = 'flydiy.day';
   const RATES = [0, 1, 10, 60, 600];
-  const PRESETS = ['dawn', 'morning', 'noon', 'golden', 'sunset', 'dusk', 'night'];
+  const PRESETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
   let world = null, day = null, sinceSave = 0;
   const W = typeof window !== 'undefined' ? window : null;
 
@@ -88534,6 +88890,7 @@ var DAY_CLOCK = (function () {
       case 'noon': return noon;
       case 'night': return noon - 43200 >= 0 ? noon - 43200 : noon + 43200;
       case 'morning': return at(25, true, rise != null ? (rise + noon) / 2 : noon - 10800);
+      case 'afternoon': return at(33.4, false, set != null ? (set + noon) / 2 : noon + 7200);   // the alps row's hour, the anchor the lights were judged in
       case 'golden': return at(8, false, set != null ? (set + noon) / 2 : noon + 10800);
       case 'sunset': return at(-0.833, false, set != null ? set : noon + 21600);
       case 'dawn': return at(-6, true, rise != null ? rise - 1800 : noon - 43200);
@@ -89058,7 +89415,7 @@ var ATMO = (function () {
   const DOME_FRAG = `
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
-    uniform float uR, uScale, uEMoon, uStars;
+    uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
     uniform vec3 uSun, uMoon;
     varying vec3 vD;
     float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
@@ -89074,6 +89431,7 @@ var ATMO = (function () {
     }
     void main() {
       vec3 d = normalize(vD);
+      { float c = cos(uFrame), s = sin(uFrame); d = vec3(d.x * c + d.z * s, d.y, -d.x * s + d.z * c); }   // into the world's frame
       vec4 sky = texture2D(uSky, skyUV2(d));
       vec3 L = sky.rgb;
       float Tview = sky.a;                                   // the path's (green) transmittance, for the discs and stars
@@ -89187,11 +89545,11 @@ var ATMO = (function () {
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
-  function domeMat(extra) {
+  function domeMat(extra, frameYaw) {
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 } },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));
@@ -89199,8 +89557,60 @@ var ATMO = (function () {
     return m;
   }
 
+  // ---- THE PROBE (S5): a PMREM of the sky, re-baked when the sun moves ----
+  // One generator kept alive (its blur shaders compile once); each bake shoots
+  // a throwaway scene of the dome and a ground cap LIT BY THE DAY into a new
+  // target, hands it back, and disposes the previous one after the swap. Both
+  // rooms take one (the shed's in its own frame): the aeroplane's skin, the
+  // glazing, the water and the shed's outdoors read it, and the sunset through
+  // the windows moves with the sun at last.
+  const lum3 = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  function groundIrradiance(day) {              // the ground's irradiance relative to the alps anchor (0..~1.2)
+    const T = [0, 0, 0], E = [0, 0, 0];
+    const Eg = v => { sunTransmittance(0, v[1], T); skyIrradiance(0, v, E); return Math.max(0, v[1]) * lum3(T) + lum3(E); };
+    const ref = Eg([0, Math.sin(33.4 * D2R), Math.cos(33.4 * D2R)]);
+    return Math.min(1.5, Eg(day ? day.sun : [0, 1, 0]) / Math.max(1e-9, ref));
+  }
+  function makeProbe(renderer, o) {
+    o = o || {};
+    if (!G.enabled || !THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const es = new THREE.Scene();
+    const domeG = new THREE.SphereGeometry(20, 32, 20);
+    es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
+    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });
+    const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45).multiplyScalar(o.gb != null ? o.gb : 1);
+    es.add(new THREE.Mesh(new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2), capMat));
+    let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0;
+    const probe = {
+      get texture() { return rt ? rt.texture : null; },
+      get bakes() { return bakes; }, get lastMs() { return lastMs; },
+      bake(day) {
+        capMat.color.copy(cap0).multiplyScalar(groundIrradiance(day));
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        const next = pmrem.fromScene(es, 0.035, 1, 100);
+        lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
+        const old = rt; rt = next; bakes++;
+        if (o.onSwap) o.onSwap(rt.texture);
+        if (old) old.dispose();
+        bakedSun = day ? day.sun.slice() : [0, 1, 0]; bakedVer = day ? day.version : 0;
+        return rt.texture;
+      },
+      // re-bake when the sun moved past the threshold (deg) or the day's dials changed
+      maybe(day, thresholdDeg) {
+        if (!rt) return probe.bake(day);
+        const s = day.sun, b = bakedSun;
+        const cosA = Math.max(-1, Math.min(1, s[0] * b[0] + s[1] * b[1] + s[2] * b[2]));
+        const moved = Math.acos(cosA) * 180 / Math.PI > (thresholdDeg || 1.5);
+        if (moved || day.version !== bakedVer) return probe.bake(day);
+        return null;
+      },
+    };
+    return probe;
+  }
+
   return {
-    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance,
+    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
@@ -89302,11 +89712,18 @@ var SKY_LIGHT = (function () {
     // the dome's scale: the same K, the same unit
     if (ATMO.U && ATMO.U.scale) ATMO.U.scale.value = K_SUN * unit * gain;
     // the exposure: the schedule, as a base
-    const ex = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.exposureFor(el, o.exposureK) : 0.92);
-    if (o.renderer && Math.abs(ex - lastEx) > lastEx * 0.01) {
-      lastEx = ex;
-      if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(o.renderer, ex);
-      else o.renderer.toneMappingExposure = ex;
+    // the schedule adapts the eye to the SKY; a room with lamps adapts to its lamps once the sky
+    // is darker than they are - o.exposureCap is the exposure those lamps were judged at
+    let ex = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.exposureFor(el, o.exposureK) : 0.92);
+    if (o.exposureCap != null) ex = Math.min(ex, o.exposureCap);
+    if (o.renderer) {
+      // against the LIVE base (two rooms share one renderer and each writes on entry), never a memory of our own
+      const G = (typeof window !== 'undefined') ? window.GFX : null;
+      const cur = (G && G.exposureBase && G.exposureBase() != null) ? G.exposureBase() : lastEx;
+      if (Math.abs(ex - cur) > Math.max(1e-6, cur * 0.01)) {
+        lastEx = ex;
+        if (G && G.setExposure) G.setExposure(o.renderer, ex); else o.renderer.toneMappingExposure = ex;
+      }
     }
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }
@@ -90051,6 +90468,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
+  let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
@@ -90255,7 +90673,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // light below need it, and they must never disagree
   const gb = (typeof window !== 'undefined' && window.LIGHT_RIG)
     ? window.LIGHT_RIG.groundBounce() : 1;
-  let envMap = null;
+  let envMap = null, probe = null;
+  if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
+    // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
+    // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
+    // pi) BEFORE the first cube is shot; then dayApply re-bakes it whenever
+    // the sun has moved 1.5 deg (six minutes at 1x, six seconds at 60x) or
+    // the day's dials changed - the window fix, and the water's and the
+    // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
+    ATMO.update(renderer, world.day, 0);
+    if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
+    probe = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x6d7a45, gb, onSwap: t => { envMap = t; scene.environment = t; } });
+    if (probe) probe.bake(world.day);
+  } else {
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
@@ -90298,6 +90728,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     scene.environment = envMap;
     pmrem.dispose();
     domeG.dispose(); grndG.dispose();
+  }
   }
 
   // THE WORLD'S RIG, DECLARED ONCE. It is read here and again by the tree
@@ -90958,7 +91389,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
             '  }\n' +
             '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
-            '  if (uGWaterMap > 0.5 && lsd > -4.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-4.0, 3.0, lsd));\n' +
+            // (G413: the paint is the BED under the surface, inside the line only - a deep rim
+            // outside the surface's edge was the "deep blue vs pale blue battle")
+            '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
@@ -91199,6 +91632,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;
+      outerMatShared = oMat;
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch;
       const groups = new Map();
       const leafIdx = []; for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) { const a = j * N + i; leafIdx.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
@@ -91237,6 +91671,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;   // the far tier lives mostly out here
+      outerMatShared = oMat;
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
         g2.rotateX(-Math.PI / 2);
@@ -91383,7 +91818,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // box at its level, in the sea's own material, discarding every
         // fragment the lake field puts outside the water - a smooth edge, a
         // real reflection, no per-cell geometry at all.
-        const lakeMat = waterMat.clone();
+        // THE EDGE IS THE FIELD'S FADE (G413): the surface's alpha rises over 4 m of
+        // the signed distance (-3 m on the bank to +1 m in), not a hard discard at
+        // the line - one tone, one outline, the bank showing through the shallows
+        const lakeMat = waterMat.clone(); lakeMat.transparent = true; lakeMat.depthWrite = true;
         lakeMat.onBeforeCompile = sh => {
           if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
           sh.uniforms.uGLake = gU.uGLake; sh.uniforms.uGGrid = gU.uGGrid;
@@ -91393,7 +91831,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           sh.fragmentShader = sh.fragmentShader
             .replace('#include <common>', '#include <common>\nvarying vec3 vWL; uniform sampler2D uGLake; uniform vec4 uGGrid;')
             .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' +
-              'if ((texture2D(uGLake, (vWL.xz - uGGrid.xy) / uGGrid.zw).r * 255.0 - 128.0) * 4.0 <= 0.0) discard;');
+              'float lakeA = smoothstep(-3.0, 1.0, (texture2D(uGLake, (vWL.xz - uGGrid.xy) / uGGrid.zw).r * 255.0 - 128.0) * 4.0); if (lakeA <= 0.0) discard;')
+            .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= lakeA;');
         };
         let n = 0;
         for (const L of world.island.lakes) {
@@ -93510,7 +93949,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const inner = innerPatchShared && corners.every(q => Math.abs(q[0]) < innerPatchShared.half - 60 && Math.abs(q[1]) < innerPatchShared.half - 60);
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
         game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
-        patchMat: inner ? innerPatchShared.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null),
+        // beyond the inner ring the patch wears the outer ring's MATERIAL (its canopy tint; G398.3 - a bare Lambert on the bake read as sand under the woods)
+        patchMat: inner ? innerPatchShared.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)),
         patchUV: inner ? innerPatchShared.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
       });
@@ -93762,8 +94202,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
   }
+  let premTramLast = 0;
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
+    if (premisesR && premisesR.tick && premisesR.stats.trams) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
@@ -93823,6 +94266,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const day = world.day;
     if (!day || rigCur.manual) return;
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
+    if (probe && !rigCur.manual) probe.maybe(day, 1.5);                                   // S5: the reflection probe follows the sun (1.5 deg) and the day's dials
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -93962,7 +94406,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       u.uHaze.value.setHex(R.dome.haze); u.uSunCol.value.setHex(R.dome.sunCol);
       if (scene.fog) scene.fog.color.setHex(R.dome.haze);
     }
-    if (R.env === 'alps') {
+    if (probe) scene.environment = envMap;          // S5: the physical probe is the environment, whatever the row's `env` says
+    else if (R.env === 'alps') {
       if (alpsState === 'ready') scene.environment = alpsEnv;
       else if (alpsState === null) buildAlpsEnv(() => { if (rigCur.env === 'alps' && alpsEnv) scene.environment = alpsEnv; });
     } else scene.environment = envMap;
@@ -93979,12 +94424,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
-        patchMat: inner ? inner.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
+        patchMat: inner ? inner.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath } });
       return premisesR; },
            setShedDims: d => setShedDims(d),
@@ -101854,6 +102299,11 @@ function gradeUniforms(mat, uu) {
 function gradeTextures() {
   if (gradeReady) return true;
   if (!SKY_GRADE || typeof Image === 'undefined' || !THREE.ShaderMaterial) return false;
+  // ONE SKY (SKY S5, 2026-09-14): under the physical atmosphere the shed sees
+  // the world's sky through its openings (applyDay below), so the graded
+  // panorama and its 6.3 MB of media stay on the shelf. The rows (lamps,
+  // panel, card, shaft) are still the moods'.
+  if (typeof ATMO !== 'undefined' && ATMO.installed) return false;
   // W0.5b: the grade is a raw ShaderMaterial; under the node renderer the room
   // keeps its baked sky picture until the grade is ported (§4h)
   if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) return false;
@@ -103550,6 +104000,49 @@ function setLights(pick) {
 // WITHOUT THE PAYLOAD there is still a room: the headless gate and any
 // core-only build get the alps row's numbers with no picture to hang behind
 // them, which is exactly what this shed was before G41.
+// ---- ONE SKY (SKY S5): the shed sees the world's physical sky ------------
+// The backdrop sphere takes the atmosphere's dome, drawn in the SHED'S FRAME
+// (25_airfield siteToWorld: world = (-lz, ly, lx) - a quarter turn about y),
+// the key is the day's sun or moon through sky_light (unit 1: the shed's rows
+// were raw candela), aimed from the shed frame with the shadow frustum's
+// floor kept, the exposure the same schedule as the world's. The room's own
+// probe (app.js bakeHangarEnv, a cube of the room) photographs the sky
+// through the door and the windows, so the day reaches the walls; applyDay
+// says when the sun has moved enough (1.5 deg) for it to be shot again.
+const SHED_FRAME_YAW = -Math.PI / 2;
+const LAMP_EX_CAP = 1.4;
+let skyPhys = false, skyBakedSun = null;
+function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
+function applyDay(day, renderer) {
+  if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
+  if (!skyPhys && skyMesh) {
+    const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);
+    if (m) { skyMesh.material = m; skyMesh.scale.x = 1; skyMesh.rotation.y = 0; skyPhys = true; }
+  }
+  if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
+  // THE LAMPS SET THE NIGHT'S EXPOSURE: the schedule opens 15 stops for a starlit sky, but a shed
+  // with 70 cd lamps is lit by its lamps, which were judged at the rows' exposure (~1.0); the cap
+  // is that, half a stop over, so a golden hour still opens and the dusk and night hold the lamps' level
+  const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, altM: 0, exposureCap: LAMP_EX_CAP });
+  // aim the key from the shed's frame, the frustum floor kept (see aimKey)
+  const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
+  const R = 2 * HD + 22;
+  key.target.position.set(0, 0.6, 0);
+  key.position.set(s[0] * R, Math.max(EAVE * 0.8, s[1] * R), s[2] * R);
+  key.target.updateMatrixWorld();
+  // has the sun moved enough since the room's probe was shot?
+  let rebake = false;
+  if (!skyBakedSun) rebake = true;
+  else { const c = Math.max(-1, Math.min(1, g[0] * skyBakedSun[0] + g[1] * skyBakedSun[1] + g[2] * skyBakedSun[2])); rebake = Math.acos(c) * 180 / Math.PI > 1.5; }
+  return { rebake, isMoon: SKY_LIGHT.isMoon, el: day.sunEl, exposure: r ? r.exposure : null, markBaked: () => { skyBakedSun = g.slice(); } };
+}
+// which of the moods' LAMP rows fits the hour: the lamps come on with the dusk
+function moodFor(day) {
+  if (!day) return 0;
+  if (day.cloudCover > 0.8 && MOODS.length > 5) return 5;
+  const el = day.sunEl;
+  return el > 25 ? 0 : el > 8 ? 1 : el > 0 ? 2 : el > -6 ? 3 : 4;
+}
 const MOODS = SKY_ROWS || [
   { key: 'alps', name: 'AFTERNOON', keyI: 2.8, kc: 0xffdca8, hemi: 0.274,
     hemiSky: 0xc5d9ff, hemiGnd: 0x343422, top: 0.567, env: 0.55, lamp: 70,
@@ -103562,8 +104055,9 @@ const setMood = i => {
   // THE SKY AND THE SUN MOVE ONLY WHEN THE ROW DOES: a re-apply of the same
   // mood (applyEnv runs on every editor slider drag) must not re-decode a 4k
   // equirect or re-aim a light that is already aimed.
-  if (j !== moodI) { moodI = j; setSky(m); aimKey(m.sunUV, m.yaw); }
-  key.intensity = m.keyI; key.color.setHex(m.kc);
+  const phys = typeof ATMO !== 'undefined' && ATMO.installed;   // ONE SKY (S5): the day owns the sky, the key and the exposure
+  if (j !== moodI) { moodI = j; if (!phys) { setSky(m); aimKey(m.sunUV, m.yaw); } }
+  if (!phys) { key.intensity = m.keyI; key.color.setHex(m.kc); }
   // the mood sets the candela; the rig's three knobs ride on top of it
   for (const L of lamps) {
     L.intensity = m.lamp * LAMP.gain;
@@ -104026,6 +104520,8 @@ return {
                                 // check the shader against the offline grade
 
   onSkyReady: fn => { skyOnReady = fn; },
+  applyDay, moodFor, SHED_FRAME_YAW,             // ONE SKY (S5)
+  get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   mood: () => moodI,
   // THE LIGHT SWITCHES: one per source, so a test can ask which one is doing
@@ -105338,6 +105834,17 @@ function garageInit(api) {
                     return envelope(slotName || 'build', spec, plaque, log); },
       list: slotNames,
       stock: () => STOCK.map(s => s.name),
+      // G411: A BUILD AS A SPEC, WITHOUT OPENING IT. The parked aeroplanes
+      // (src/viewer/parked.js) stand a stock design or one of your own beside
+      // the taxiway; they need the whole spec the load door would produce and
+      // nothing else the door does — no rebuild, no editor seed, no ribbon.
+      // Both come back normalised the way `loadSpec` normalises (a stock
+      // design is a cage and nothing else; `whole` fills the rest), as a copy.
+      stockSpec: n => { const st = stockByName(n);
+                        return st ? JSON.parse(JSON.stringify(whole(st.spec))) : null; },
+      slotSpec: n => { const t = lsGet(SLOT + n); if (!t) return null;
+                       try { return JSON.parse(JSON.stringify(whole(unwrap(t).spec))); }
+                       catch (e) { return null; } },
       name: () => slotName,
       log: () => log,
       // the plaque and the logbook are WRITTEN here and read by the bench
@@ -115046,14 +115553,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/pier/pier_people.js?v=1c02dfbe"></script>
 <script src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
 <script src="src/pier/pier_car.js?v=6beac5ec"></script>
+<script src="src/pier/pier_vehicle.js?v=3c03d1e2"></script>
 <script src="src/pier/pier_lods.js?v=2b2f0c92"></script>
 <script src="src/totems/totems_poles.js?v=3aa55574"></script>
 <script src="tools/_house_kit.js?v=64fd4ef1"></script>
-<script src="tools/_house_gen.js?v=7c16c562"></script>
-<script src="tools/_big_gen.js?v=1f634bf9"></script>
+<script src="tools/_house_gen.js?v=9e938e1a"></script>
+<script src="tools/_big_gen.js?v=7e830853"></script>
 <script src="tools/_sport_gen.js?v=d1ddac33"></script>
 <script src="tools/_shed_gen.js?v=54236357"></script>
 <script src="tools/_hangar_gen.js?v=02a59b26"></script>
+<script src="tools/_tower_gen.js?v=718fa1fc"></script>
 <script src="tools/_tram_gen.js?v=b91a8a59"></script>
 <script src="tools/_totem_gen.js?v=725d9e05"></script>
 <script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
@@ -115061,9 +115570,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/viewer/cabin.js?v=e6c4b01d"></script>
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
 <script src="tools/_village_gen.js?v=172a0d65"></script>
-<script src="src/viewer/render_premises.js?v=e1a5648b"></script>
+<script src="src/viewer/parked.js?v=00f22b4d"></script>
+<script src="src/viewer/render_premises.js?v=740f2751"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=05f5efd7"></script>
+<script src="src/viewer/premises_ui.js?v=bbaf2dee"></script>
 <script>
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -115096,6 +115606,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       // (G404: a stale first version had shadowed the field)
       let fixture = null;
       if (window.ISLAND_BOOT) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
+      // THE OFFICIAL PREMISES OF THE ANALYTIC WORLD (G398.3, the user: "a new airport somewhere, with
+      // scenery ... that should impact the real game, and become a new official airport"): Skarvik,
+      // authored in the editor, shipped as a fixture and composed at every boot; its strip is an
+      // aerodrome of the world, so it is a destination like any other
+      else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_official.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
       if (saved && fixture) {
         try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
           if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem('flydiy.premises.game'); return fixture; } } catch (e) {}
@@ -115209,6 +115724,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   const setExp = v => (typeof GFX !== 'undefined' && GFX && GFX.setExposure)
     ? GFX.setExposure(renderer, v) : (renderer.toneMappingExposure = v);
   setExp(1.12);
+  // THE ATMOSPHERE (SKY S3/S5): the two day-only tables bake here (~300 ms, once), so the shed's
+  // backdrop can take the dome before the world is built; render_world's own init call is a no-op after this
+  if (typeof ATMO !== 'undefined') ATMO.init(renderer);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
@@ -115633,7 +116151,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // the sky's own PMREM, kept beside envPM and disposed on the same discipline:
   // PMREMGenerator.dispose() frees its ping-pong target, never the one it hands
   // back, and a mood change re-bakes.
-  let skyPM = null;
+  let skyPM = null, shedSkyProbe = null;
   // THE BAKE WAITS FOR THE COMPILE (LOADING S2, G407). The cube probe is the
   // first draw of every hangar material, and on a cold shader cache that
   // first draw is the whole compile of the bake's program set, synchronous,
@@ -115768,6 +116286,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // same target is reused rather than baked twice.
     if (hangar.outdoorMats && hangar.outdoorMats.length) {
       let srt = skyReady ? rt : null;
+      // ONE SKY (S5): the outdoors reflect the physical sky, in the shed's frame, re-baked with the room
+      if (!srt && typeof ATMO !== 'undefined' && ATMO.enabled && hangar.SHED_FRAME_YAW !== undefined) {
+        if (!shedSkyProbe) shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: hangar.SHED_FRAME_YAW, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) });
+        if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
+      }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
         const pm2 = new THREE.PMREMGenerator(renderer);
         pm2.compileEquirectangularShader();
@@ -115988,12 +116511,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     setExp(inRoom ? hangar.setMood(hangarMood).ex : WORLD_EXPOSURE);
     syncEnvBtn();
   }
+  // ONE SKY (S5): the garage's `time of day` select is the CLOCK's hand now - a mood
+  // names an hour (the alps afternoon 33 deg, golden 8, sunset, dusk, night; OVERCAST is
+  // the afternoon under nine tenths of cloud), the day drives the sky, and the row's
+  // lamps/panel/card follow through moodFor
+  const MOOD_PRESET = { AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night', OVERCAST: 'afternoon' };
   function setMood(i) {
     // the room owns the list — it is a sky per row now (G62), and a build that
     // ships four of them and one that ships five must both clamp correctly
     const n = (hangar && hangar.moods) ? hangar.moods.length : MOOD_MAX;
     hangarMood = Math.max(0, Math.min(n - 1, i | 0));
     prefSet('flydiy.garageMood', hangarMood);
+    if (typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
+      const name = hangar.moods[hangarMood], p = MOOD_PRESET[name];
+      if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set({ cloudCover: name === 'OVERCAST' ? 0.9 : 0.2 }); }
+    }
     if (inGarage) applyEnv();
     if (hangar && hangar.renderSky) hangar.renderSky(renderer);
     // A MOOD IS A NEW SKY, so the reflections belong to a different time of
@@ -123056,6 +123588,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     }
     if (inGarage) {
       if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
+      // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
+      if (hangar && hangar.applyDay && world.day) {
+        const r = hangar.applyDay(world.day, renderer);
+        if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
+        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) { hangarMood = mi; hangar.setMood(mi); } }
+      }
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would
@@ -123258,6 +123796,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // more, and it is what lets the old generated skin stop being a thing the
   // game can fall back into.
   bootStep('sync', 'committing the build', 10, syncBuild);
+  // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
+  // empty holders at the world step (the editor did not exist yet); each is
+  // captured now through the editor - a round trip, the user's build put back
+  // - under the loading screen, where the seconds belong. PARKED.ready after
+  // this: a build the world editor parks later captures on the spot.
+  bootStep('parked', 'parking the other aeroplanes', 8, () => {
+    if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
+  });
   // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
   // a dirty storm like any load — and the bench's rule (an empty bench
   // never nulls the store) is what let the WIP's stored plaque live
@@ -123417,7 +123963,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       M.appendChild(slider('class blur', 0, 200, 5, () => world().ground.get().classBlur, gs('classBlur'), v => v + ' m'));
       M.appendChild(slider('class wobble', 0, 60, 2, () => world().ground.get().edgeWobble, gs('edgeWobble'), v => v + ' m'));
       M.appendChild(select('water', [['1', 'the map (class 80 lakes)'], ['0', 'off']], () => String(world().ground.get().waterMap), v => world().ground.set({ waterMap: +v })));
-      M.appendChild(note('water from the map: the cover\u2019s class 80 UNIONED with the imagery\u2019s NDWI (green vs NIR - water absorbs NIR), as a signed field (a smooth edge) and one flat surface per lake at the 85th percentile of the DEM under it. The procedural bake instead: boot with ?hydro=proc and compare.'));
+      M.appendChild(note('water from the map: the cover\u2019s class 80 UNIONED with the imagery\u2019s NDWI (green vs NIR - water absorbs NIR), as a signed field (a smooth edge) and one flat surface per lake at the 85th percentile of the DEM under it. The bake\u2019s rivers run between them (the BLEND, the default: ?hydro=blend); ?hydro=map for the lakes alone, ?hydro=proc for the bake\u2019s own lakes and rivers.'));
       M.appendChild(note('TERRAIN TYPE legend (recomputed, not recoloured): dark blue sea \u00b7 blue lake \u00b7 yellow-green heath (grass/moss) \u00b7 olive muskeg (grass, flat, wet, low) \u00b7 pale sand (shore, low NDVI) \u00b7 grey-brown scree (bare) \u00b7 dark grey rock (slope > 38\u00b0, or bare > 28\u00b0) \u00b7 mustard scrub (tree cover under 2.5 m canopy, shrub) \u00b7 dark green forest (tree cover, canopy 2.5 m+) \u00b7 white snow (900 m+, slope under 35°) \u00b7 red built'));
       M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
       // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
@@ -123487,7 +124033,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // ---- THE CLOCK (SKY S1/S2): the day the world is on, and its sun --------------
     const ck = () => W.DAY_CLOCK, dy = () => (W.DAY_CLOCK ? W.DAY_CLOCK.day() : null);
     const K = fold(root, 'clock', true);
-    K.appendChild(select('preset', ['dawn', 'morning', 'noon', 'golden', 'sunset', 'dusk', 'night'].map(p => [p, p]),
+    K.appendChild(select('preset', ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'].map(p => [p, p]),
       () => (ck() ? ck().nearestPreset() : 'noon'), v => { if (ck()) ck().preset(v); }));
     K.appendChild(slider('local hour', 0, 24, 1 / 12, () => (ck() ? ck().localHours() : NaN), v => { if (ck()) ck().set({ localHours: v }); },
       v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0')));

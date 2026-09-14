@@ -47807,3 +47807,98 @@ worktree: the same three) - another session's landing, not this chantier's.
   floating ribbon) — the ribbon's y from the DEM's own thalweg is the next
   step; the rivers' carve is off on the island by design (the DEM has the
   beds).
+
+## G414 — THE CONTROL TOWERS, AND THE FIRE TRUCKS (2026-09-15, the user: "now
+## let's have a little fun and do some control towers. The first one will be a
+## derelict WWII tower, metal truss, open cabin, old, rusty and broken. The second
+## one will be a tiny cute one, like the ones is small airfields ... do a few
+## variations of the small cute ones, 5 of them ... a regional airport one. Get
+## the firetruck in some of the control tower, and you can also add it to the
+## firestation. There's a big and a small one")
+
+A fourth building generator, `tools/_tower_gen.js` (TOWER_GEN, the shared
+API: DEF/ROWS/PRESETS/BAGS/MAT/build/applyFinish/makeFinish/catOf/
+CATALOGUE; the house's finish, dressing, occlusion bake and ground skirt;
+headless for the gate), and the user's two trucks as props.
+
+- A TOWER IS THREE PARTS, each a dial. THE BASE: a battered steel LATTICE
+  (four legs on concrete footings, girts and X-bracing panel by panel), four
+  TIMBER POSTS (girts, knee braces under the top, X on the sides), a MASONRY
+  SHAFT in the house's concrete (a door at the foot on the +x side - the
+  switchback runs up the front - and a slit window), or a HUT (a one-room
+  building in the cab's cladding, a door and windows, whose flat roof is the
+  walkway). THE CAB: a sill wall in the house's cladding with the sill board
+  on it, the GLAZING LEANING OUT (`tilt`, 0-20 deg: a tower's glass leans so
+  the sky does not reflect in it), mullions at the corners and up the faces,
+  head and sill rails, and a roof: flat with a fascia band, a pyramid, or a
+  low hip. THE TOP: the mast with its stays, a beacon (a glass drum, glowing
+  on the switch, published as a `beacon` light), whip antennae, a windsock on
+  the gallery's corner (the orange is a flat material), a flag pole. THE WAY
+  UP: a ladder (leaning from outside the base's widest point to the deck's
+  edge, a handhold over it), a STRAIGHT flight to the gallery (two flights
+  with a landing past 5.2 m), or a SWITCHBACK up the front face - flights
+  along x alternating, each on the batter's line outside the legs at its own
+  height, landings at the turns on their own posts, the last flight arriving
+  on the gallery. The gallery is the deck out past the walls (or the hut's
+  roof) with its rail, and the rail's gap is where the stair's top actually
+  lands (projected on the deck's edge polyline, not assumed at the front's
+  middle - an octagon's front face is 1.5 m and the switchback lands 1.3 m
+  off centre).
+- DERELICT is a dial (0-1): no glass, mullions gone by lot, the rail missing
+  in stretches with leaning posts, 28 % of the bracing gone and one member
+  in two left HANGING from its top end, the roof half gone (the back half
+  stays, sagging toward the front edge) and a loose sheet leaning on the
+  sill wall from the deck, ladder rungs missing, the door ajar, the rust
+  sets on the steel and the rails, the clouds and the dirt up.
+- THE PANES ARE OPAQUE (the house's pane bag, the hangars' rule) and lit on
+  the switch, which also stands the beacon, the door lamp on a hut or a
+  shaft, and a flood under the deck's front edge down to the apron.
+- SEVEN PRESETS: `WWII tower` (landmark: lattice 9 m, square cab, ladder,
+  derelict 1), `field cab` (airport xs: posts 4.2 m, square, low hip, a
+  straight stair, windsock), `club tower` (airport s: lattice 6.5 m, octagon,
+  pyramid, switchback, beacon, the crash tender), `hut tower` (airport s: the
+  hut, sunflower boards, boxprof roof, windsock, the tender), `block tower`
+  (airport s: concrete shaft 7 m, flat roof, nordic-blue fascia, the tender),
+  `lookout cab` (airport xs: bark posts 6.8 m, hexagon under shingles, flag),
+  `regional tower` (airport m: shaft 12 m, octagon 5.4 m, flat roof, four
+  whips, both trucks). The house's `control tower` preset (a house with the
+  tower primitive, G405) stays beside them.
+- THE FIRE TRUCKS: `assets/vehicles/` (the two Sketchfab exports the user
+  delivered), a new group `vehicle` in tools/pier_table.py baked to
+  `src/pier/pier_vehicle.js` with their levels: `truck_fire` (a pumper with
+  its roof ladder, 1.9k triangles, spec-gloss, delivered nose to -z and
+  turned round; 9.6 x 3.1 x 3.4 m) and `truck_fire_small` (a crash tender
+  with a roof monitor, 2.5k, delivered at a hundredth with a shadow plane
+  under it, which `mats` leaves out; 6.1 x 2.5 x 2.7 m). YARD_KIT carries
+  them as `truck`, never `car` - the backyard planner deals out cars, not
+  these. TRAP: a `slots` metal fix on the pumper stopped its spec-gloss
+  conversion (the fix writes into an empty pbr block, the converter runs
+  only when that block is empty) and the engine came out white; no slots
+  row for a spec-gloss export whose metal is 0 already. Provenance (page,
+  author, licence) is the user's to complete in CREDITS.md before a public
+  build.
+- THE FIRE HALL parks them (BIG_GEN `trucks`, on for the preset): the
+  engine in front of the first bay, the tender in front of the second, both
+  nosed to the road on the forecourt the lot law pours, placed before the
+  yard props so nothing is dealt onto them; `stats.trucks`.
+- THE BENCHES: the house bench's category list carries `tower:` presets
+  (GENS.tower, generic checks, `randomTower`); the premises editor lists
+  `tower/<preset>` in the palette (GENERATORS + GEN_NS 'tower'), the world
+  pack carries `_tower_gen.js` and `pier_vehicle.js`.
+- GATE HOUSE rule 44: every preset in both LODs, finite, the far mesh a
+  fraction and one silhouette; the cab at H with its rail; the way up reaches
+  the deck; a glazed cab's panes opaque and glowing only on the switch, the
+  derelict with none and something broken; the beacon a light only on the
+  switch; every parked truck a YARD_KIT `truck` outside the base; the
+  catalogue under the categories (one landmark, five small, one regional);
+  the fire hall's two trucks in front of its bays.
+- SEEN (screenshots/lots/, the house bench with the sun turned to the front
+  - the bench's default sun is BEHIND a building seen from +z, and a tower's
+  posts under their own deck read black from the shadow side; forty minutes
+  went to proving the wood was not broken): w0_wwii, w1_club, w2_field,
+  w3_hut, w4_block, w5_lookout, w6_regional, v7_firehall_front; the premises
+  bench builds them by the palette (x1_towers_row, x2_club_close).
+- OWED: the towers in the airport themes (VILLAGE_GEN.THEMES airport xs/s/m
+  place none yet); a person in the cab; the derelict's weeds; a rotating
+  beacon (the light is steady); the concrete shaft reads dark under the
+  house's dirt shader.

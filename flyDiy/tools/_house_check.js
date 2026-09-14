@@ -86,7 +86,7 @@ let VMCTX = null;          // kept: the PBR check has to inject a stub library
   ctx.globalThis = ctx;
   VMCTX = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js', '_hangar_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js', '_hangar_gen.js', '_tower_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }
@@ -1862,6 +1862,72 @@ for (const name of Object.keys(HG.PRESETS)) {
   }
   if (HN) check(Array.isArray(HN.CATALOGUE) && HN.CATALOGUE.length === Object.keys(HN.PRESETS).length && HN.CATALOGUE.every(e => e.key.startsWith('hangar/') && /^airport (xs|s|m)$/.test(e.cat) && e.hooks({}).length === 1),
                 'hangar: the catalogue does not carry every preset under an airport category with its door hook');
+}
+
+// 44 — THE CONTROL TOWERS (G414, the user: "a derelict WWII tower, metal
+//   truss, open cabin, old, rusty and broken ... a few variations of the
+//   small cute ones, 5 of them ... a regional airport one. Get the firetruck
+//   in some of the control tower"): every TOWER_GEN preset builds in both
+//   LODs, finite, the far mesh a fraction and the same silhouette; the cab
+//   floor stands at H with a rail round the gallery; the way up reaches the
+//   deck (a ladder's handhold over it, a stair's top on it); a glazed cab has
+//   its panes (opaque, in the pane bag, glowing only with the switch) and
+//   the derelict has NONE, with bracing gone and its roof half; the beacon is
+//   a light only with the switch; every truck a preset parks is a YARD_KIT
+//   `truck`; the catalogue carries every preset under its category. Seven
+//   presets: one landmark, five small, one regional.
+{
+  const TW = win.TOWER_GEN;
+  check(!!TW && Object.keys(TW.PRESETS).length === 7, 'tower: the generator is not loaded with its seven');
+  if (TW) {
+    const cats = Object.keys(TW.PRESETS).map(n => TW.catOf(n));
+    check(cats.filter(c => c === 'landmark').length === 1 && cats.filter(c => c === 'airport xs' || c === 'airport s').length === 5 && cats.filter(c => c === 'airport m').length === 1,
+          'tower: not one derelict landmark, five small and one regional', cats.join(','));
+  }
+  if (TW) for (const name of Object.keys(TW.PRESETS)) {
+    const P = Object.assign({}, TW.DEF, TW.PRESETS[name]);
+    let hi = null, lo = null, threw = null;
+    try { hi = TW.build(P, 0); lo = TW.build(P, 1); } catch (e) { threw = e; }
+    if (!check(!threw, 'tower ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
+    let nan = 0;
+    for (const k of TW.BAGS) { const d = hi.bags[k].data(); for (let i = 0; i < d.pos.length; i++) if (!isFinite(d.pos[i])) nan++; }
+    check(nan === 0, 'tower ' + name + ': NaN in the mesh', String(nan));
+    check(lo.stats.tris < hi.stats.tris * 0.9 && lo.stats.tris > 100, 'tower ' + name + ': the far mesh is not a fraction', lo.stats.tris + ' vs ' + hi.stats.tris);
+    const S = hi.stats;
+    check(Math.abs(S.cab.floorY - P.H) < 1e-6 && S.deck.railPosts >= 8, 'tower ' + name + ': the cab does not stand at H with its rail', S.cab.floorY + ' / ' + S.deck.railPosts);
+    if (P.stairs > 0) check(!!S.stair && S.stair.top >= P.H - 1e-6, 'tower ' + name + ': the way up does not reach the deck', JSON.stringify(S.stair));
+    const der = P.derelict > 0.05;
+    if (der) {
+      check(S.cab.panes === 0 && hi.bags.pane.tris === 0, 'tower ' + name + ': a derelict with glass', String(S.cab.panes));
+      check(S.gone > 0 && S.roof.kind === 'half', 'tower ' + name + ': a derelict with nothing broken', S.gone + ' gone, roof ' + S.roof.kind);
+    } else {
+      check(S.cab.panes >= 6 && hi.bags.pane.tris >= 12, 'tower ' + name + ': the cab has no panes', String(S.cab.panes));
+      check(S.gone === 0 && S.roof.kind !== 'half', 'tower ' + name + ': broken with the derelict dial off');
+    }
+    check(hi.bags.glass.tris === 0 || (P.mast && P.beacon && !der), 'tower ' + name + ': see-through glass without a beacon', String(hi.bags.glass.tris));
+    check(S.lit.lights.length === 0 && S.lit.windows === 0, 'tower ' + name + ': lit with the switch off');
+    const on = TW.build(Object.assign({}, P, { lights: 1 }), 0);
+    if (!der) {
+      check(on.stats.lit.windows === S.cab.panes, 'tower ' + name + ': the switch does not light the cab', String(on.stats.lit.windows));
+      if (P.mast && P.beacon) check(on.stats.lit.lights.some(l => l.kind === 'beacon'), 'tower ' + name + ': the beacon is not a light');
+      const d = on.bags.pane.data(); let lit = 0; for (let i = 0; i < d.lit.length; i++) if (d.lit[i] > 0) lit++;
+      check(lit >= 4, 'tower ' + name + ': the panes do not glow', String(lit));
+    }
+    for (const k of S.trucks) check(!!HG.YARD_KIT[k] && !!HG.YARD_KIT[k].truck, 'tower ' + name + ': parks ' + k + ', not a YARD_KIT truck');
+    check((P.truck > 0) === (S.trucks.length > 0), 'tower ' + name + ': the truck dial and the yard disagree');
+    for (const q of S.yard) check(Math.hypot(q.x, q.z) > P.baseW / 2 + q.r * 0.5, 'tower ' + name + ': ' + q.key + ' parked in the base');
+    const dB = ['x0', 'y0', 'z0', 'x1', 'y1', 'z1'].map(k => Math.abs(hi.stats.bbox[k] - lo.stats.bbox[k]));
+    check(Math.max(dB[0], dB[2], dB[3], dB[5]) < 0.35, 'tower ' + name + ': the two meshes are not one silhouette', dB.map(v => v.toFixed(2)).join(' '));
+    const again = TW.build(P, 0);
+    check(again.stats.tris === hi.stats.tris, 'tower ' + name + ': not deterministic');
+  }
+  if (TW) check(Array.isArray(TW.CATALOGUE) && TW.CATALOGUE.length === Object.keys(TW.PRESETS).length && TW.CATALOGUE.every(e => e.key.startsWith('tower/') && e.cat === TW.catOf(e.preset) && e.hooks({}).length === 1),
+                'tower: the catalogue does not carry every preset under its category with its way in');
+  // the fire hall parks the user's two trucks on its apron (G414)
+  const BGp = Object.assign({}, BG.DEF, BG.PRESETS['fire hall']);
+  const fh = BG.build(BGp, 0);
+  check(JSON.stringify(fh.stats.trucks) === JSON.stringify(['truck_fire', 'truck_fire_small']), 'fire hall: the trucks are not on the apron', JSON.stringify(fh.stats.trucks));
+  for (const q of fh.stats.yard.filter(q => HG.YARD_KIT[q.key] && HG.YARD_KIT[q.key].truck)) check(q.z > BGp.w / 2 + 2, 'fire hall: ' + q.key + ' is not in front of the bays', q.z.toFixed(1));
 }
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use

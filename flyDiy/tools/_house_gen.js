@@ -346,6 +346,11 @@ const YARD_KIT = {
   car_crashed:    { L: 4.582, W: 3.086, H: 1.754, car: true },
   car_buick:      { L: 5.458, W: 2.654, H: 1.729, car: true },
   car_kcar:       { L: 4.533, W: 1.74, H: 1.291, car: true },
+  // THE WORKING VEHICLES (G414): the user's fire trucks - `truck`, never
+  // dealt out by the backyard planner (CAR_KEYS reads `car`); the towers and
+  // the fire hall stand them where they work
+  truck_fire:       { L: 9.577, W: 3.094, H: 3.442, truck: true },
+  truck_fire_small: { L: 6.116, W: 2.512, H: 2.694, truck: true },
 };
 const CAR_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].car);
 const POLE_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].pole);

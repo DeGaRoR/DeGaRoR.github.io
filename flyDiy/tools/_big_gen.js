@@ -217,7 +217,7 @@ const DEF = {
   // corner boards, the frieze under the eave, the canopy's posts, the yard
   // of props and the two people, the lights
   trimCol: 6, trimW: 0.07, doorLight: 0, corners: 1, frieze: 1, pillars: 1,
-  yard: 1, yardK: 0.6, yardSeed: 7, people: 1, lights: 0,
+  yard: 1, yardK: 0.6, yardSeed: 7, people: 1, lights: 0, trucks: 0,
   wallSet: SET_IDX('wall', 'rustysheet'), plinthSet: SET_IDX('plinth', 'concrete008'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   wallTint: 0xffffff,
@@ -280,6 +280,7 @@ const ROWS = [
   ['the yard', [
     ['yard', 'props round it', 0, 1, 1], ['yardK', 'how many', 0, 1, 0.05, null, P => !!P.yard],
     ['yardSeed', 'seed', 1, 40, 1, null, P => !!P.yard], ['people', 'people', 0, 1, 1],
+    ['trucks', 'the fire trucks on the apron', 0, 1, 1, null, P => P.rollers > 0],
     ['lights', 'lights', 0, 1, 1],
   ]],
   ['sign', [
@@ -346,7 +347,7 @@ const PRESETS = {
     rollers: 2, rollerW: 3.8, rollerH: 4.0, rollerOpen: 0, door: 1, doorPos: 0.9, doorW: 1.0, doorH: 2.15,
     winStrip: 1, winH: 0.8, winDrop: 0.7, winSpc: 1.2, winFront: 0,
     dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.06, vents: 1, pipes: 0,
-    sign: 1, signW: 4.2, signText: 'FIRE BRIGADE', signKey: 'fire_brigade', role: 'fire hall',
+    sign: 1, signW: 4.2, signText: 'FIRE BRIGADE', signKey: 'fire_brigade', role: 'fire hall', trucks: 1,
     wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xb0302a, plinthSet: SET_IDX('plinth', 'concrete004'),
     roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
     dirt: 0.35, dirtH: 0.8,
@@ -955,6 +956,19 @@ function build(P0, lod, F) {
   const zWall = w / 2 + hw;
   for (const o of front) keep.push({ x: (o.s0 + o.s1) / 2 - L / 2, z: zWall + 0.6, r: (o.s1 - o.s0) / 2 + 0.9 });
   if (canopy) for (const pp of canopy.posts || []) keep.push({ x: pp[0], z: pp[1], r: 0.4 });
+  // THE FIRE TRUCKS ON THE APRON (G414, the user: "you can also add it to the firestation. There's a
+  // big and a small one"): the engine out in front of the first bay, the crash tender in front of
+  // the second, both nosed to the road, on the forecourt the lot law pours (official: concrete)
+  const trucks = [];
+  if (P.trucks && rollers.length) {
+    const keys = ['truck_fire', 'truck_fire_small'];
+    rollers.slice(0, 2).forEach((r, i) => {
+      const key = keys[i], KK = HG.YARD_KIT[key]; if (!KK) return;
+      const x = (r.s0 + r.s1) / 2 - L / 2, z = (dock ? dock.z1 : zWall) + KK.L / 2 + 2.2;
+      const q = { key, x, z, y: g(x, z), ry: (i ? -1 : 1) * 0.05, on: 'ground', r: Math.hypot(KK.L, KK.W) / 2 };
+      yard.push(q); trucks.push(key); keep.push({ x, z, r: q.r });
+    });
+  }
   if (P.yard) {
     let ys = ((Math.round(P.yardSeed) || 7) * 2654435761 + 99) >>> 0;
     const yr = () => (ys = (ys * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -1026,7 +1040,7 @@ function build(P0, lod, F) {
     shop, dock, sign, stacks, strips: strips.reduce((n, s) => n + (s ? s.length : 0), 0), doors: pdoors.length,
     bands: strips, canopy, canopyY, wallTops: walls.map(Wl => [Wl.topAt(0), Wl.topAt(Wl.len / 2), Wl.topAt(Wl.len)]),   // for GATE HOUSE rule 42 (G393.2)
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [],
-    people, yard, pier: null, lit: LIT,
+    people, yard, trucks, pier: null, lit: LIT,
   };
   return { bags, stats, P, V: { L, w, wallT: t, floorY: fy, eaveH: P.eaveH }, R: null, MAT: F ? F.MAT : MAT };
 }

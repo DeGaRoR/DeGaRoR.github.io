@@ -190,7 +190,7 @@ const MANIFEST = {
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
-    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_sport_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
+    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_sport_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
     ['tools', '_village_gen.js'],

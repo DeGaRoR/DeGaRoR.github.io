@@ -589,6 +589,17 @@ wherever they are shown. Imported as-is with a rigid scale or a quarter turn:
 `cars.glb` in the same folder ("Cars" by local.yany, CC-BY-4.0, eight cars
 in one 577k-triangle file) is not baked.
 
+**The fire trucks** (`assets/vehicles/`, G414; baked into
+`src/pier/pier_vehicle.js`) — two Sketchfab exports delivered by the user,
+both uploads of game assets whose page, author and licence the pipeline
+could not read. **Provenance to be completed by the user before any public
+build**:
+
+- `truck_fire` — **"Fire Truck (Burnout Legends)"**, author and licence to be
+  confirmed (`fire_truck_burnout_legends.glb`)
+- `truck_fire_small` — **"Firetruck (On The Run)"**, author and licence to be
+  confirmed (`on_the_run_-_firetruck.glb`)
+
 **The clutter** (`assets/propsHouse/`, G293) — **Sketchfab, CC-BY-4.0**,
 attribution required:
 

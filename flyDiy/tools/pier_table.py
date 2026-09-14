@@ -71,6 +71,12 @@ GROUPS = [
     # needs it, so each lies along z with its nose to +z and its wheels on
     # y = 0. `cars.glb` (eight cars, 577k triangles in one file) is left out.
     ('car', 'abandoned cars'),
+    # THE WORKING VEHICLES (G414, the user: "Get the firetruck in some of the
+    # control tower, and you can also add it to the firestation. There's a big
+    # and a small one"): the two fire trucks the user delivered, a pumper with
+    # its ladder and a small airfield crash tender. Their own group so the
+    # yard planners never deal them out as wrecks (YARD_KIT `truck`, not `car`).
+    ('vehicle', 'working vehicles'),
 ]
 
 # `lic` drives what CREDITS.md must carry. Every boat is CC-BY-4.0 and needs
@@ -139,6 +145,11 @@ SOURCES = {
                  'https://sketchfab.com/3d-models/free-abandoned-1950s-american-car-buick'),
     'kcar':     ('Reliant K Car', 'Renafox', 'CC-BY-4.0',
                  'https://sketchfab.com/3d-models/reliant-k-car'),
+    # the fire trucks (G414): Sketchfab exports the user delivered under
+    # assets/vehicles/ - both are game-asset uploads whose page, author and
+    # licence the table cannot read; provenance to be completed by the user
+    'firebig':   ('Fire Truck (Burnout Legends)', 'delivered by the user', 'see CREDITS.md', ''),
+    'firesmall': ('Firetruck (On The Run)', 'delivered by the user', 'see CREDITS.md', ''),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -175,6 +186,8 @@ FILES = {
     'crashed':  'crashed_abandoned_car_-_game_ready.glb',
     'buick':    'free_abandoned_1950s_american_car_buick.glb',
     'kcar':     'reliant_k_car.glb',
+    'firebig':  'fire_truck_burnout_legends.glb',
+    'firesmall': 'on_the_run_-_firetruck.glb',
 }
 # where each source's file lives, relative to assets/woodenPierBoats/
 DIRS = {
@@ -192,6 +205,7 @@ DIRS = {
     'junkcar': '../abandonedCars', 'fiat': '../abandonedCars', 'hudson': '../abandonedCars',
     'multicab': '../abandonedCars', 'crashed': '../abandonedCars', 'buick': '../abandonedCars',
     'kcar': '../abandonedCars',
+    'firebig': '../vehicles', 'firesmall': '../vehicles',
 }
 
 
@@ -426,4 +440,15 @@ PROPS = [
     P('car_kcar', 'car', 'Reliant K', 'kcar',
       note='an 80s K-car, 2k triangles; 5.3 m as delivered, 0.86 for the 4.5 m it was',
       scale=0.86, tex=512, slots={'Material_24': {'metal': 0.1}}),
+
+    # ---- the working vehicles (G414) --------------------------------------
+    P('truck_fire', 'vehicle', 'fire engine', 'firebig',
+      note='a pumper with its roof ladder, 1.9k triangles, three materials (spec-gloss, '
+           'the windows alpha-blended); delivered nose to -z, turned round; 9.6 m long',
+      rot=(0, 180, 0), tex=512),   # no slots row: a fix on an empty pbr block would stop the spec-gloss conversion (metal is 0 there already)
+    P('truck_fire_small', 'vehicle', 'crash tender', 'firesmall',
+      note='a small airfield fire tender with a roof monitor, 2.5k triangles, one '
+           'material; delivered at a hundredth (6 cm long) with a shadow plane under '
+           'it, which mats leaves out; nose to +z as delivered',
+      scale=100.0, mats=['mor_firetruck_mat'], tex=512, slots={'mor_firetruck_mat': {'metal': 0.1}}),
 ]

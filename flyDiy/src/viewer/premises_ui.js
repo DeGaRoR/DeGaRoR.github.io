@@ -510,7 +510,7 @@ function mount(host, ctx) {
       const TH = THS && (THS[SITE_THEME] || THS.kennecott);
       if (!TH) { strip.status('the village generator is not loaded'); return; }
       const sid = PG.newId(rec, 'sites');
-      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: ({ big: 'big/', shed: 'shed/', sport: 'sport/', totem: 'totem/', hangar: 'hangar/' }[it.gen] || 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
+      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: ({ big: 'big/', shed: 'shed/', sport: 'sport/', totem: 'totem/', hangar: 'hangar/', tower: 'tower/' }[it.gen] || 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
       // the receiving shed the mill's conveyor runs to: the theme on master has none (its mill's own bottom house
       // straddles the road); the branch's has the tram shed astride the road - stand one when the theme lacks it
       // (the key is FOUND in the live catalogue, never written here - rule 13: the editor names no asset)

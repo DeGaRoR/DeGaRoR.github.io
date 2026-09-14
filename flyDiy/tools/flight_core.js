@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a5e17947abb67efd
+// body-sha256: 115427173065ac29
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1618,11 +1618,23 @@ function makeWorld(seed, opts) {
   // Domes never touch the real terrain; river water surfaces are
   // dome-corrected back via wsAdjust.
   const DOME = 3;
+  // ...and over the PREMISES' strips (G413): the bake runs before the layer is
+  // composed, so the strips are read off the raw record - a river had crossed
+  // Jolene's 02/20 the moment the blend gave the island rivers
+  const pmStrips = (opts && opts.premises && typeof PREMISES_GEN !== 'undefined')
+    ? (((PREMISES_GEN.unwrap(opts.premises).rec || {}).layers || {}).runways || []).filter(r => r.c && r.len > 0)
+        .map(r => ({ x: r.c[0], z: r.c[1], ca: Math.cos(r.hdg || 0), sa: Math.sin(r.hdg || 0), hl: r.len / 2 + 150, hw: (r.wid || 30) / 2 + 150 }))
+    : [];
   function domes(x, z) {
     let s = DOME * (1 - padRamp(x, z));
     for (const m of meadows) {
       const d = Math.hypot(x - m.x, z - m.z);
       if (d < m.r * 1.6) s += DOME * (1 - sstep(0, m.r * 1.6, d));
+    }
+    for (const r of pmStrips) {
+      const dx = x - r.x, dz = z - r.z, u = dx * r.ca + dz * r.sa, v = -dx * r.sa + dz * r.ca;
+      const d = Math.hypot(Math.max(0, Math.abs(u) - r.hl), Math.max(0, Math.abs(v) - r.hw));
+      if (d < 260) s += DOME * (1 - sstep(0, 260, d));
     }
     return s;
   }
@@ -1633,11 +1645,21 @@ function makeWorld(seed, opts) {
     // bake, so the same physical rivers emerge at any grid resolution)
     // the island: the DEM already holds its river beds (no carve to add) and
     // its lakes are the cover's water class (waterAt), not flooded sinks
-    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
+    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: (ISL && ISL.hydro === 'blend') ? 1024 : 512,
       // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
       // judgment on procedural hydrology - maps first, procedural on top")
       // (G405: ?hydro=proc boots the analytic bake's water on the island, to compare with the map's)
-      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5, A0m2: (ISL && ISL.hydro !== 'proc') ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
+      // THE BLEND (G413, the user: "lakes from the data correspond better to the
+      // terrain, the procedural generation does the rivers - narrow the rivers"):
+      // the map's lakes handed to the bake as its lakes (no flooded sinks of its
+      // own), its rivers from 1.2 km2 of drainage (4x the mainland's threshold:
+      // the real creeks, not every gully), 0.22 kW and 28 m at most (the
+      // mainland's 0.35 / 45), at 1024 cells over the island (its 5 m DEM has
+      // the beds; 76 m cells put a ribbon on the bank)
+      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5,
+      A0m2: !ISL || ISL.hydro === 'proc' ? 274650 : ISL.hydro === 'blend' ? 1.2e6 : 1e12,
+      kW: (ISL && ISL.hydro === 'blend') ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: (ISL && ISL.hydro === 'blend') ? 28 : 45, dLake: 2,
+      lakeOf: (ISL && ISL.hydro === 'blend') ? ISL.lakeAt : null, lakeSurf: !(ISL && ISL.hydro !== 'proc'),
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -2229,6 +2251,11 @@ function bakeHydrology(sample, cfg) {
   const lake = new Uint8Array(M);
   let lakeCells = 0;
   for (let k = 0; k < M; k++) if (!sea[k] && filled[k] - H[k] > cfg.lakeMin) { lake[k] = 1; lakeCells++; }
+  // LAKES HANDED IN (G413, the blend): the map's lakes (a signed field, > 0
+  // inside) are the bake's lakes too - a reach ends where it enters one and
+  // a new reach starts where the water leaves, instead of a ribbon traced
+  // across the surface; the distance-to-water sees them as water.
+  if (cfg.lakeOf) for (let k = 0; k < M; k++) if (!sea[k] && !lake[k] && cfg.lakeOf(px(k % N), pz((k / N) | 0)) > 0) { lake[k] = 1; lakeCells++; }
   // renderer lake surface: the data lakes (depth > lakeMin) PLUS their
   // shallow connected rim (depth > 0.25 at approximately the same level) —
   // in flat terrain the rim is wide and without it the rendered water
@@ -2254,7 +2281,7 @@ function bakeHydrology(sample, cfg) {
   // edgeMask bits: 1 = +x neighbour is wet, 2 = -x, 4 = +z, 8 = -z
   const lakeSurf = [];
   for (let k = 0; k < M; k++) {
-    if (!wet[k]) continue;
+    if (!wet[k] || cfg.lakeSurf === false) continue;     // (the map draws its own lakes)
     const ix = k % N, iz = (k / N) | 0;
     let mask = 0;
     if (ix + 1 < N && wet[k + 1]) mask |= 1;
@@ -4999,7 +5026,7 @@ function runwaySite(r, F) {
   else hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
   return Object.assign({}, r.site || {}, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
 }
-function runwayAerodrome(r, F, elev, flats) {
+function runwayAerodrome(r, F, elev, flats, hAt) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
   const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
@@ -5018,8 +5045,9 @@ function runwayAerodrome(r, F, elev, flats) {
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
   // THE GROUND UNDER THE STAND (v9): a profiled strip's stand is not at the strip's elevation - the placer reads it
-  if (S && S.stand) S.stand.elev = +T1(S.stand.x, S.stand.z).toFixed(2);
-  const spawnElev = +T1(spawnAt[0], spawnAt[1]).toFixed(2);
+  const groundAt = (x, z) => { if (!hAt) return elev; const L = F.toLocal(x, z); return +hAt(L[0], L[1]).toFixed(2); };
+  if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
+  const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
@@ -5237,8 +5265,9 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly)));
+    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
+    if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -5443,7 +5472,7 @@ function compose(rec0, world, opts) {
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
     // composed ground (tilted to it when `on` is 'ground'), a billboard a painted sign's key on its
     // posts at the width given; both in the premises frame, their y the ground plus `dy`
-    // ...and the PARKED AEROPLANES (G409, contract v1.8): kind 'aircraft', its key naming a build
+    // ...and the PARKED AEROPLANES (G411, contract v1.12): kind 'aircraft', its key naming a build
     // ('arch:cub', 'stock:<name>', 'mine:<slot>' - src/viewer/parked.js), stood on its wheels on the
     // composed ground, nose along its yaw. Same record shape as a prop; the renderer tells them apart.
     O.records.objects = [];
@@ -5766,6 +5795,16 @@ var ISLAND_GEN = (function () {
       const a = coast[p], b = coast[p + 1], c = coast[p + W], d = coast[p + W + 1];
       return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
     };
+    // the signed lake field, bilinear, the same way (G413: the bake takes it as its lakes)
+    const lakeAt = (x, z) => {
+      const L = src.grid.lake; if (!L) return -1e9;
+      const u = (x - gx0) / cell - 0.5, v = (z - gz0) / cell - 0.5;
+      const i = Math.max(0, Math.min(W - 2, Math.floor(u))), j = Math.max(0, Math.min(Hn - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j));
+      const p = j * W + i;
+      const a = L[p], b = L[p + 1], c = L[p + W], d = L[p + W + 1];
+      return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
+    };
     // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
     // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
     // sea is a shelf off the coast field: -5 m at the line (the far mesh is
@@ -5796,11 +5835,13 @@ var ISLAND_GEN = (function () {
       // it would light from 19° off at noon. The header may override.
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakes: src.grid.lakes || null,
-      hydro: src.hydro || 'map',     // 'map': the cover's lakes, no bake water; 'proc': the analytic bake's lakes and rivers (G405, to compare)
+      // 'blend' (G413, the default): the map's lakes, the bake's rivers between them, narrowed;
+      // 'map': the map's lakes alone; 'proc': the analytic bake's lakes and rivers (G405, to compare)
+      hydro: src.hydro || 'blend',
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
       farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,
@@ -8818,7 +8859,7 @@ function placeAtAerodrome(sim, a) {
     const x = sim.p[i * 3], z = sim.p[i * 3 + 2];
     sim.p[i * 3] = x * c + z * s + sp[0];
     sim.p[i * 3 + 2] = -x * s + z * c + sp[1];
-    sim.p[i * 3 + 1] += a.elev;
+    sim.p[i * 3 + 1] += (a.spawnElev !== undefined ? a.spawnElev : a.elev);   // G398.3: a premises strip's spawn may sit on its profile, not at the strip's elevation
   }
 }
 
@@ -8837,7 +8878,7 @@ function placeAtAerodrome(sim, a) {
 // just another pose to hand it. One transform, one place, as ever.
 function placeAtStand(sim, a, st) {
   return placeAtAerodrome(sim, st
-    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: a.elev } : a);
+    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: st.elev !== undefined ? st.elev : a.elev } : a);   // G398.3: the stand's own ground when the site names it
 }
 
 function makeAutopilot(sim, def, world) {
@@ -11266,6 +11307,8 @@ function makePilot(sim, def, world, opts) {
     let dx = px, dz = pz;
     const w = windAt(a, 30);
     if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
+    // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction; in calm air it wins over the preference
+    else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
   };
@@ -13520,6 +13563,319 @@ function treeRungTris(rung) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { decodeTreePart, decodeTreeRung, treeFinest, treeRungTris };
 }
+// ===========================================================================
+// THE DECIMATOR (G411) — quadric-error half-edge collapse on the wedge graph.
+// ===========================================================================
+// MOVED HERE VERBATIM from tools/prop_lod.js (G301/G303), which now calls it,
+// so the one decimator serves the baker (node, the pier packs) AND the game
+// (src/viewer/parked.js cuts a parked aeroplane's far levels at run time, in a
+// Worker built from this function's own source — which is why it is ONE
+// self-contained function: no module constants, no helpers outside it. The
+// three knobs prop_lod.js kept at module scope ride in `opt`, with the same
+// defaults).
+//
+//   meshDecimate(M, bb, target, opt) -> { idx, alive, nt, nBorder, nSeam, refused, refSeam }
+//     M      { nv, nt, pos: Int16Array (quantised over bb), nrm: Int8Array,
+//              idx: Uint32Array } — a wedge mesh: positions weld on the int16
+//              triple, attributes stay per wedge. M.pos is WRITTEN (a wedge
+//              with no twin moves to its target's position): pass a copy if
+//              the input must survive.
+//     bb     [x0, y0, z0, x1, y1, z1] metres, the quantisation box
+//     target the triangle count to stop at
+//     opt    { W_BORDER (10), W_SEAM (1), FLIP_COS (0.2) }
+//
+// WHY HALF-EDGE, WHY THE SEAM RULE: prop_lod.js's header says it (a surviving
+// vertex keeps its position, normal and uv exactly; a seam vertex collapses
+// along its seam or not at all; a wedge with no twin MOVES).
+function meshDecimate(M, bb, target, opt) {
+  const W_BORDER = (opt && opt.W_BORDER != null) ? opt.W_BORDER : 10;
+  const W_SEAM = (opt && opt.W_SEAM != null) ? opt.W_SEAM : 1;
+  const FLIP_COS = (opt && opt.FLIP_COS != null) ? opt.FLIP_COS : 0.2;
+  const W = M.nv, T = M.nt, idx = M.idx;
+  if (T <= target) return { idx: Array.from(idx), alive: null, nt: T };
+  // metres, for the quadrics
+  const [x0, y0, z0, x1, y1, z1] = bb;
+  const sx = (x1 - x0) / 65535, sy = (y1 - y0) / 65535, sz = (z1 - z0) / 65535;
+  const X = new Float64Array(W * 3);
+  for (let i = 0; i < W; i++) {
+    X[i * 3] = x0 + (M.pos[i * 3] + 32768) * sx;
+    X[i * 3 + 1] = y0 + (M.pos[i * 3 + 1] + 32768) * sy;
+    X[i * 3 + 2] = z0 + (M.pos[i * 3 + 2] + 32768) * sz;
+  }
+  // wedges -> positions (welded on the int16 triple)
+  const wPos = new Int32Array(W);
+  const pmap = new Map();
+  let P = 0;
+  for (let i = 0; i < W; i++) {
+    const k = (M.pos[i * 3] + 32768) * 4294967296 + (M.pos[i * 3 + 1] + 32768) * 65536 + (M.pos[i * 3 + 2] + 32768);
+    let p = pmap.get(k);
+    if (p === undefined) { p = P++; pmap.set(k, p); }
+    wPos[i] = p;
+  }
+  const pWedges = new Array(P);
+  const pX = new Float64Array(P * 3);
+  for (let i = 0; i < W; i++) { const p = wPos[i]; pX[p * 3] = X[i * 3]; pX[p * 3 + 1] = X[i * 3 + 1]; pX[p * 3 + 2] = X[i * 3 + 2]; }
+
+  // triangles, and every wedge's triangles
+  const tri = new Int32Array(idx);
+  const tAlive = new Uint8Array(T).fill(1);
+  const wTris = new Array(W);
+  for (let i = 0; i < W; i++) wTris[i] = [];
+  for (let t = 0; t < T; t++) { wTris[tri[t * 3]].push(t); wTris[tri[t * 3 + 1]].push(t); wTris[tri[t * 3 + 2]].push(t); }
+  // a wedge no triangle uses (a level cut from a level leaves them) is not
+  // part of the surface: not alive, not a wedge of its position
+  const wAlive = new Uint8Array(W);
+  for (let i = 0; i < W; i++) if (wTris[i].length) {
+    wAlive[i] = 1;
+    (pWedges[wPos[i]] || (pWedges[wPos[i]] = [])).push(i);
+  }
+
+  // quadrics per position: area-weighted face planes
+  const Q = new Float64Array(P * 10);
+  const addPlane = (p, a, b, c, d, w) => {
+    const o = p * 10;
+    Q[o] += a * a * w; Q[o + 1] += a * b * w; Q[o + 2] += a * c * w; Q[o + 3] += a * d * w;
+    Q[o + 4] += b * b * w; Q[o + 5] += b * c * w; Q[o + 6] += b * d * w;
+    Q[o + 7] += c * c * w; Q[o + 8] += c * d * w; Q[o + 9] += d * d * w;
+  };
+  const tN = new Float64Array(T * 3);      // face normals (unit), kept for the flip test
+  for (let t = 0; t < T; t++) {
+    const a = tri[t * 3] * 3, b = tri[t * 3 + 1] * 3, c = tri[t * 3 + 2] * 3;
+    const ux = X[b] - X[a], uy = X[b + 1] - X[a + 1], uz = X[b + 2] - X[a + 2];
+    const vx = X[c] - X[a], vy = X[c + 1] - X[a + 1], vz = X[c + 2] - X[a + 2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz);
+    if (l < 1e-18) { tAlive[t] = 0; continue; }
+    nx /= l; ny /= l; nz /= l;
+    tN[t * 3] = nx; tN[t * 3 + 1] = ny; tN[t * 3 + 2] = nz;
+    const d = -(nx * X[a] + ny * X[a + 1] + nz * X[a + 2]);
+    const area = l * 0.5;
+    addPlane(wPos[tri[t * 3]], nx, ny, nz, d, area);
+    addPlane(wPos[tri[t * 3 + 1]], nx, ny, nz, d, area);
+    addPlane(wPos[tri[t * 3 + 2]], nx, ny, nz, d, area);
+  }
+  // boundaries and seams: a wedge edge in one triangle only is a border of
+  // the wedge graph; if its positions meet in more triangles it is a seam
+  const wEdge = new Map(), pEdge = new Map();
+  const ek = (a, b) => (a < b ? a * 4294967296 + b : b * 4294967296 + a);
+  for (let t = 0; t < T; t++) {
+    if (!tAlive[t]) continue;
+    for (let e = 0; e < 3; e++) {
+      const a = tri[t * 3 + e], b = tri[t * 3 + (e + 1) % 3];
+      const kw = ek(a, b), kp = ek(wPos[a], wPos[b]);
+      wEdge.set(kw, (wEdge.get(kw) || 0) + 1);
+      pEdge.set(kp, (pEdge.get(kp) || 0) + 1);
+    }
+  }
+  let nBorder = 0, nSeam = 0;
+  for (let t = 0; t < T; t++) {
+    if (!tAlive[t]) continue;
+    for (let e = 0; e < 3; e++) {
+      const a = tri[t * 3 + e], b = tri[t * 3 + (e + 1) % 3];
+      if (wEdge.get(ek(a, b)) !== 1) continue;
+      const seam = pEdge.get(ek(wPos[a], wPos[b])) > 1;
+      if (seam) nSeam++; else nBorder++;
+      // the plane through the edge, normal to the face
+      const ax = X[a * 3], ay = X[a * 3 + 1], az = X[a * 3 + 2];
+      const ex = X[b * 3] - ax, ey = X[b * 3 + 1] - ay, ez = X[b * 3 + 2] - az;
+      const fx = tN[t * 3], fy = tN[t * 3 + 1], fz = tN[t * 3 + 2];
+      let nx = fy * ez - fz * ey, ny = fz * ex - fx * ez, nz = fx * ey - fy * ex;
+      const l = Math.hypot(nx, ny, nz);
+      if (l < 1e-18) continue;
+      nx /= l; ny /= l; nz /= l;
+      const d = -(nx * ax + ny * ay + nz * az);
+      const w = (ex * ex + ey * ey + ez * ez) * (seam ? W_SEAM : W_BORDER);
+      addPlane(wPos[a], nx, ny, nz, d, w);
+      addPlane(wPos[b], nx, ny, nz, d, w);
+    }
+  }
+  wEdge.clear(); pEdge.clear();
+
+  const evalQ = (pa, pb, p) => {
+    const a = pa * 10, b = pb * 10, x = pX[p * 3], y = pX[p * 3 + 1], z = pX[p * 3 + 2];
+    const q = i => Q[a + i] + Q[b + i];
+    return q(0) * x * x + 2 * q(1) * x * y + 2 * q(2) * x * z + 2 * q(3) * x +
+      q(4) * y * y + 2 * q(5) * y * z + 2 * q(6) * y + q(7) * z * z + 2 * q(8) * z + q(9);
+  };
+
+  // THE HEAP: entries (cost, a, b, va, vb) - collapse wedge a onto wedge b,
+  // valid while both keep the versions it was pushed with
+  let cap = T * 6;
+  let eCost = new Float64Array(cap), eA = new Int32Array(cap), eB = new Int32Array(cap),
+    eVa = new Int32Array(cap), eVb = new Int32Array(cap);
+  let nE = 0;
+  let heap = new Int32Array(cap), nH = 0;
+  const wVer = new Int32Array(W);
+  const grow = () => {
+    cap *= 2;
+    const g = (old, C) => { const n = new C(cap); n.set(old); return n; };
+    eCost = g(eCost, Float64Array); eA = g(eA, Int32Array); eB = g(eB, Int32Array);
+    eVa = g(eVa, Int32Array); eVb = g(eVb, Int32Array); heap = g(heap, Int32Array);
+  };
+  const push = (a, b) => {
+    if (nE >= cap) grow();
+    const e = nE++;
+    eCost[e] = evalQ(wPos[a], wPos[b], wPos[b]); eA[e] = a; eB[e] = b; eVa[e] = wVer[a]; eVb[e] = wVer[b];
+    let i = nH++;
+    heap[i] = e;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (eCost[heap[p]] <= eCost[heap[i]]) break;
+      const s = heap[p]; heap[p] = heap[i]; heap[i] = s; i = p;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap[--nH];
+    if (nH > 0) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1, r = l + 1;
+        let m = i;
+        if (l < nH && eCost[heap[l]] < eCost[heap[m]]) m = l;
+        if (r < nH && eCost[heap[r]] < eCost[heap[m]]) m = r;
+        if (m === i) break;
+        const s = heap[m]; heap[m] = heap[i]; heap[i] = s; i = m;
+      }
+    }
+    return top;
+  };
+  const pushAround = w => {
+    const ts = wTris[w];
+    for (let i = 0; i < ts.length; i++) {
+      const t = ts[i];
+      if (!tAlive[t]) continue;
+      for (let e = 0; e < 3; e++) {
+        const o = tri[t * 3 + e];
+        if (o === w) continue;
+        push(o, w); push(w, o);
+      }
+    }
+  };
+  for (let t = 0; t < T; t++) {
+    if (!tAlive[t]) continue;
+    for (let e = 0; e < 3; e++) { const a = tri[t * 3 + e], b = tri[t * 3 + (e + 1) % 3]; push(a, b); push(b, a); }
+  }
+
+  const adjacent = (a, b) => {
+    const ts = wTris[a];
+    for (let i = 0; i < ts.length; i++) {
+      const t = ts[i];
+      if (!tAlive[t]) continue;
+      if (tri[t * 3] === b || tri[t * 3 + 1] === b || tri[t * 3 + 2] === b) return true;
+    }
+    return false;
+  };
+  const compact = w => {
+    const ts = wTris[w], out = [];
+    for (let i = 0; i < ts.length; i++) if (tAlive[ts[i]]) out.push(ts[i]);
+    wTris[w] = out;
+    return out;
+  };
+  let alive = 0;
+  for (let t = 0; t < T; t++) alive += tAlive[t];
+  const pairs = [];
+  let refused = 0, refSeam = 0;
+  while (alive > target && nH > 0) {
+    const e = pop();
+    const a = eA[e], b = eB[e];
+    if (!wAlive[a] || !wAlive[b] || wVer[a] !== eVa[e] || wVer[b] !== eVb[e]) continue;
+    const pa = wPos[a], pb = wPos[b];
+    if (pa === pb) continue;
+    // THE SEAM RULE: every wedge of pa finds at most one wedge of pb across
+    // a shared triangle - into which it merges - or none, in which case it
+    // MOVES to pb with its own normal and uv (a hard-surface mesh has three
+    // wedges at every box corner and none of them a twin of the next
+    // corner's; refusing those left the cinder pallet at 9k of 18k). Two
+    // twins is ambiguous: refused. Either way every wedge of pa ends up at
+    // pb's position, so no crack opens.
+    pairs.length = 0;
+    let ok = true;
+    const A = pWedges[pa], B = pWedges[pb];
+    for (let i = 0; i < A.length && ok; i++) {
+      const ai = A[i];
+      let hit = -1;
+      for (let j = 0; j < B.length; j++) {
+        if (!adjacent(ai, B[j])) continue;
+        if (hit >= 0) { ok = false; break; }
+        hit = B[j];
+      }
+      pairs.push(ai, hit);
+    }
+    if (!ok) { refused++; refSeam++; continue; }
+    // THE FLIP TEST on every triangle that survives the move
+    const bx = pX[pb * 3], by = pX[pb * 3 + 1], bz = pX[pb * 3 + 2];
+    for (let k = 0; k < pairs.length && ok; k += 2) {
+      const ai = pairs[k];
+      const ts = wTris[ai];
+      for (let i = 0; i < ts.length; i++) {
+        const t = ts[i];
+        if (!tAlive[t]) continue;
+        const w0 = tri[t * 3], w1 = tri[t * 3 + 1], w2 = tri[t * 3 + 2];
+        if (wPos[w0] === pb || wPos[w1] === pb || wPos[w2] === pb) continue;   // dies
+        const p0 = w0 * 3, p1 = w1 * 3, p2 = w2 * 3;
+        const x0 = w0 === ai ? bx : X[p0], y0 = w0 === ai ? by : X[p0 + 1], z0 = w0 === ai ? bz : X[p0 + 2];
+        const x1 = w1 === ai ? bx : X[p1], y1 = w1 === ai ? by : X[p1 + 1], z1 = w1 === ai ? bz : X[p1 + 2];
+        const x2 = w2 === ai ? bx : X[p2], y2 = w2 === ai ? by : X[p2 + 1], z2 = w2 === ai ? bz : X[p2 + 2];
+        const ux = x1 - x0, uy = y1 - y0, uz = z1 - z0;
+        const vx = x2 - x0, vy = y2 - y0, vz = z2 - z0;
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const l = Math.hypot(nx, ny, nz);
+        if (l < 1e-16 || (nx * tN[t * 3] + ny * tN[t * 3 + 1] + nz * tN[t * 3 + 2]) / l < FLIP_COS) { ok = false; break; }
+      }
+    }
+    if (!ok) { refused++; continue; }
+    // COLLAPSE
+    const moved = [];
+    for (let k = 0; k < pairs.length; k += 2) {
+      const ai = pairs[k], bj = pairs[k + 1];
+      const ts = wTris[ai];
+      const kept = [];
+      for (let i = 0; i < ts.length; i++) {
+        const t = ts[i];
+        if (!tAlive[t]) continue;
+        const w0 = tri[t * 3], w1 = tri[t * 3 + 1], w2 = tri[t * 3 + 2];
+        if (wPos[w0] === pb || wPos[w1] === pb || wPos[w2] === pb) { tAlive[t] = 0; alive--; continue; }
+        if (bj >= 0) { if (w0 === ai) tri[t * 3] = bj; if (w1 === ai) tri[t * 3 + 1] = bj; if (w2 === ai) tri[t * 3 + 2] = bj; }
+        else kept.push(t);
+        // the face normal moves with the vertex
+        const q0 = tri[t * 3] * 3, q1 = tri[t * 3 + 1] * 3, q2 = tri[t * 3 + 2] * 3;
+        const ux = X[q1] - X[q0], uy = X[q1 + 1] - X[q0 + 1], uz = X[q1 + 2] - X[q0 + 2];
+        const vx = X[q2] - X[q0], vy = X[q2 + 1] - X[q0 + 1], vz = X[q2 + 2] - X[q0 + 2];
+        let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const l = Math.hypot(nx, ny, nz) || 1;
+        tN[t * 3] = nx / l; tN[t * 3 + 1] = ny / l; tN[t * 3 + 2] = nz / l;
+        if (bj >= 0) wTris[bj].push(t);
+      }
+      if (bj >= 0) { wTris[ai] = null; wAlive[ai] = 0; }
+      else {
+        // the wedge moves: pb's position, its own attributes
+        wTris[ai] = kept;
+        wPos[ai] = pb;
+        X[ai * 3] = pX[pb * 3]; X[ai * 3 + 1] = pX[pb * 3 + 1]; X[ai * 3 + 2] = pX[pb * 3 + 2];
+        const bw = B[0];
+        M.pos[ai * 3] = M.pos[bw * 3]; M.pos[ai * 3 + 1] = M.pos[bw * 3 + 1]; M.pos[ai * 3 + 2] = M.pos[bw * 3 + 2];
+        moved.push(ai);
+      }
+    }
+    for (let i = 0; i < 10; i++) Q[pb * 10 + i] += Q[pa * 10 + i];
+    pWedges[pa] = null;
+    for (const ai of moved) B.push(ai);
+    for (let j = 0; j < B.length; j++) {
+      const bj = B[j];
+      wVer[bj]++;
+      compact(bj);
+      pushAround(bj);
+    }
+  }
+  const out = [];
+  for (let t = 0; t < T; t++) if (tAlive[t]) out.push(tri[t * 3], tri[t * 3 + 1], tri[t * 3 + 2]);
+  return { idx: out, alive: wAlive, nt: alive, nBorder, nSeam, refused, refSeam };
+}
+// THE WORKER'S SOURCE: the function above as text, so a page can run it off
+// the main thread (`new Worker(URL.createObjectURL(new Blob([MESH_DECIMATE_SRC + ...])))`).
+const MESH_DECIMATE_SRC = meshDecimate.toString();
 // ============================================================
 // GARAGE 1/5 — the SPEC. Source of truth for a generated airframe.
 //
@@ -25037,4 +25393,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
