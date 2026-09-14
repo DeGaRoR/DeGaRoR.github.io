@@ -1868,12 +1868,21 @@ function genLattice(S, gearX, track, kScale, gross) {
       const all = [...K, ...DL, ...DR];
       const mEach = FP.mFloat / all.length;
       for (const i of all) pt(i, mEach);
+      // THE FLOAT'S OWN TRUSS WEIGHS NOTHING (G396; the user: "the base plane
+      // does not even reach 30 km/h"). The 35 members that hold a float's 12
+      // nodes rigid are the SHELL's stiffness, not tube: the shell's mass is
+      // `mFloat`, billed above as points. Billed as gear tube they were 73 m
+      // of steel at 1.05 kg/m — 77 kg of nothing on a 375 kg ultralight, on
+      // top of the 73 kg pair, and the single 582 sat at the hump at 6.7 m/s
+      // (T/W 0.216). The struts, spreaders and wires below are real and stay
+      // billed.
+      const NM = { noMass: true };
       for (let i = 0; i + 1 < 4; i++) {
-        B(K[i], K[i + 1], 'gear', false, 'inner'); B(DL[i], DL[i + 1], 'gear', false, 'inner'); B(DR[i], DR[i + 1], 'gear', false, 'inner');
-        B(K[i], DL[i + 1], 'gear', false, 'inner'); B(K[i], DR[i + 1], 'gear', false, 'inner');
-        B(DL[i], DR[i + 1], 'gear', false, 'inner'); B(DR[i], DL[i + 1], 'gear', false, 'inner');
+        B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NM); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
+        B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
+        B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NM);
       }
-      for (let i = 0; i < 4; i++) { B(K[i], DL[i], 'gear', false, 'inner'); B(K[i], DR[i], 'gear', false, 'inner'); B(DL[i], DR[i], 'gear', false, 'inner'); }
+      for (let i = 0; i < 4; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;

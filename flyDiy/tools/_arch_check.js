@@ -153,8 +153,14 @@ function fly(spec, maxS) {
   const def = buildGen(spec);
   const sim = makeSim(def, world);
   sim.reset(0);
+  // A FLOAT CARD DEPARTS FROM THE WATER (G396): the SEA lane, the world's
+  // water aerodrome, as the game routes it (app.js applyRoute) and as GATE
+  // SEAPLANE flies it — HOME's grass would ground the floats
+  const sea = sim.hydro && world.aerodromes.find(a => a.id === 'SEA');
+  if (sea) placeAtAerodrome(sim, sea);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   const ap = makePilot(sim, def, world);
+  if (sea) ap.setRoute(sea, sea);
   let tEnd = maxS, nan = false;
   for (let s = 0; s < maxS * 60; s++) {
     ap.update(1 / 60); sim.step(1 / 60);
@@ -169,7 +175,11 @@ function fly(spec, maxS) {
 // ---------------------------------------------------------------------------
 if (!process.argv.includes('--selftest')) {
   let flown = 0, skipped = 0;
+  // ONE CARD (G396): `--only=<key>` flies a single archetype, for a card's
+  // own author — the whole table is the gate's verdict, this is its bench
+  const only = (process.argv.find(x => x.startsWith('--only=')) || '').slice(7);
   for (const a of D.ARCHETYPES) {
+    if (only && a.key !== only) continue;
     const reason = D.archInactive(a);
     if (reason) {
       skipped++;
@@ -212,9 +222,10 @@ if (!process.argv.includes('--selftest')) {
     const maxS = role && role.value === 'glider' ? 900 : 700;
     const r = fly(spec, maxS);
     checkFlight(a.name, r, maxS);
+    if (only) for (const v of r.report.verdicts) console.log('           ' + v.t + ' s  ' + v.code + '  ' + v.note);
     flown++;
   }
-  check(flown >= 5, 'at least five archetypes flew', String(flown));
+  if (!only) check(flown >= 5, 'at least five archetypes flew', String(flown));
   console.log('  ' + flown + ' archetypes flown, ' + skipped +
               ' skipped with reasons (the backlog above)');
 }

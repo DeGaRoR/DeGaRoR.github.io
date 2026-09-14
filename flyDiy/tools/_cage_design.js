@@ -302,7 +302,7 @@ function archIcon(a) {
              : s.engCount === 2 ? 'twin' : 'nose';
   return iconSide({
     canopy: s.canopy || 'screen',
-    gear: s.gearLayout === 'trike' ? 'trike' : 'tail',
+    gear: s.gearLayout === 'trike' ? 'trike' : s.gearLayout === 'floats' ? 'floats' : 'tail',
     tail: s.empennage || 'conv',
     pod: s.boomStyle === 1, prop,
     radial: s.engFamily === 'radial', open: s.covering === 'open',
@@ -1687,6 +1687,24 @@ const ARCHETYPES = [
            gearLayout: 'tail', suspension: 'spring', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'bare' },
     over: { cage: PLAN_RECT } },
+  // THE FLOATPLANE (WATER H1-H4, G396; the user: "register that plane as a
+  // default game plane, along the cub and the jodel"). The single-seat
+  // ultralight on TWO 582s at the front spar and a pair of floats — the
+  // build GATE FLOATS and GATE SEAPLANE fly (tools/fixtures/build_v7_
+  // ultralight_2026-09-05.json with gear.type 'floats'), as a card: the
+  // fixture's own wing (11.8 x 1.5, its pod-and-rod, its twin) so the card
+  // bakes the aeroplane that is proven over the hump (0.41 W of thrust; the
+  // single 582 at 0.23 W never gets on the step). Lives on the SEA lane:
+  // GATE ARCHETYPES departs a float card from the water.
+  { key: 'floatplane', kind: 'fiction', name: 'Twin-582 floatplane', note: 'the single-seat ' +
+      'ultralight on floats, a 582 a side, pod and rod',
+    sel: { class: 'ul1', role: 'trainer', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 1, section: 0,
+           wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 1,
+           engFamily: 'inline', engModel: 'rotax 582', engMount: 'nose',
+           engCount: 2, gearLayout: 'floats', suspension: 'spring', s1Fair: 0,
+           finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xc7c9cc, trim: 0x1b3a5c },
+    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 11.8, wgChord: 1.5 }) } },
   // 2026-09-04: LIVE. The pod ends at the aft bulkhead (no mirror — a
   // mirrored pod has no bulkhead face, its aft half is a second nose), the
   // rod runs from there and the engine sits on the bulkhead's back.
