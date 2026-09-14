@@ -86,6 +86,7 @@ $('grid').value = P.get('grid') || 'flyDiy/bench/jolene/dem';
 
 // ---- the knobs (one table, the aside is generated from it) -----------------
 const K = {
+  reclass:    { label: 'tree->heath below canopy (m)', min: 0, max: 5, step: 0.5, v: 1 },
   classBlur:  { label: 'class contour blur (m)',   min: 0, max: 200, step: 5, v: 40 },
   edgeNoise:  { label: 'class edge wobble (m)',    min: 0, max: 60, step: 2, v: 15 },
   radarLevel: { label: 'radar colour level (0=raw)', min: 0, max: 4, step: 1, v: 1 },
@@ -96,10 +97,10 @@ const K = {
   snow:       { label: 'snowline (m)',             min: 300, max: 1200, step: 10, v: 900 },
   sunAz:      { label: 'sun azimuth (deg)',        min: 0, max: 360, step: 5, v: 300 },
   sunEl:      { label: 'sun elevation (deg)',      min: 5, max: 80, step: 1, v: 40 },
-  treeR:      { label: 'tree radius (km)',         min: 0.5, max: 6, step: 0.25, v: 2.5 },
-  treeD:      { label: 'tree density',             min: 0.05, max: 1, step: 0.05, v: 0.5 },
+  treeR:      { label: 'tree radius (km)',         min: 0.5, max: 6, step: 0.25, v: 2 },
+  treeD:      { label: 'stems per 100 m2 (tree cover)', min: 0.2, max: 8, step: 0.2, v: 3 },
   treeS:      { label: 'tree height x',            min: 0.5, max: 2, step: 0.05, v: 1.0 },
-  treeMin:    { label: 'min canopy (m)',           min: 0, max: 10, step: 0.5, v: 2 },
+  treeMin:    { label: 'min canopy (m)',           min: 0, max: 10, step: 0.5, v: 1 },
 };
 // the eight class GROUPS the smooth weight fields carry, and which palette
 // row colours each (40 cropland shares 50's colour; 70 snow is the snow layer)
@@ -341,6 +342,29 @@ async function gunzip(buf) {
 }
 let ASSET = null, root = null, H = null, group = null, GRID = null, L = {};
 
+// THE EFFECTIVE CLASS. WorldCover says "tree cover" on 20 % of cells where the
+// canopy map says under 1 m - subalpine heath on the ridges, bog on the flats.
+// Two layers disagreeing is information: tree cover without a canopy is
+// reclassed to shrubland (heath), for the colour AND the planting. On a knob.
+function effClass(k) {
+  const c = L.cover[k];
+  if (c === 10 && L.canopy && K.reclass.v > 0 && L.canopy[k] < K.reclass.v) return 20;
+  return c;
+}
+function buildWeights() {
+  const { w, h: gh } = GRID;
+  const w1 = new Uint8Array(w * gh * 4), w2 = new Uint8Array(w * gh * 4);
+  const slot = new Int8Array(256).fill(-1);
+  GROUPS.forEach((g, i) => slot[g] = i); slot[40] = 3; slot[70] = -1;
+  for (let k = 0; k < L.cover.length; k++) {
+    const i = slot[effClass(k)]; if (i < 0) continue;
+    if (i < 4) w1[k * 4 + i] = 255; else w2[k * 4 + i - 4] = 255;
+  }
+  const mk = d => { const t = new THREE.DataTexture(d, w, gh, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; };
+  if (U.uW1.value !== blank) { U.uW1.value.dispose(); U.uW2.value.dispose(); }
+  U.uW1.value = mk(w1); U.uW2.value = mk(w2);
+}
 function tex8(data, w, h, nearest) {
   const t = new THREE.DataTexture(data, w, h, THREE.RedFormat, THREE.UnsignedByteType);
   t.magFilter = t.minFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
@@ -373,23 +397,14 @@ async function load(asset, grid) {
     fetchU8('../../' + grid + '.ori3.u8'), fetchU8('../../' + grid + '.ori4.u8')]);
   L = { cover, canopy, ori, ndvi, tint };
   let has = 0;
+  if (canopy) { U.uCanopy.value = tex8(canopy, w, gh, false); has |= 1; }
   if (cover) {
     U.uCover.value = tex8(cover, w, gh, true);
-    // the eight weight fields: one-hot per group, LINEAR-filtered - the smooth
-    // class field the contour blur samples. Built here, not in prep: it is
-    // the class map's derivative, not a source.
-    const w1 = new Uint8Array(w * gh * 4), w2 = new Uint8Array(w * gh * 4);
-    const slot = new Int8Array(256).fill(-1);
-    GROUPS.forEach((g, i) => slot[g] = i); slot[40] = 3; slot[70] = -1;
-    for (let k = 0; k < cover.length; k++) {
-      const i = slot[cover[k]]; if (i < 0) continue;
-      if (i < 4) w1[k * 4 + i] = 255; else w2[k * 4 + i - 4] = 255;
-    }
-    const mk = d => { const t = new THREE.DataTexture(d, w, gh, THREE.RGBAFormat, THREE.UnsignedByteType);
-      t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; };
-    U.uW1.value = mk(w1); U.uW2.value = mk(w2);
+    // the eight weight fields: one-hot per EFFECTIVE class, LINEAR-filtered -
+    // the smooth class field the contour blur samples. Built here, not in
+    // prep: it is the class map's derivative (and the canopy's), not a source.
+    buildWeights();
   }
-  if (canopy) { U.uCanopy.value = tex8(canopy, w, gh, false); has |= 1; }
   if (ori) { U.uOri.value = tex8(ori, w, gh, false); has |= 2; }
   [o1, o2, o3, o4].forEach((d, i) => { if (d) U['uOri' + (i + 1)].value = tex8(d, w, gh, false); else U['uOri' + (i + 1)].value = U.uOri.value; });
   if (ndvi) { U.uNdvi.value = tex8(ndvi, w, gh, false); has |= 8; }
@@ -456,7 +471,9 @@ function rebuildIfLod() {
 // PLACEMENT and the SIZE the layers give, not the tree — the species and the
 // models come from the tree ladder (TREE-IMPORT.md) once the sizing is trusted.
 let TREES = null, plantedAt = new THREE.Vector3(1e9, 0, 1e9);
-const DENSITY = { 10: 1.0, 20: 0.35, 30: 0.15, 90: 0.12, 100: 0.05 };   // per class, of treeD
+// per class, as a fraction of treeD (stems per 10 m cell in tree cover). Old
+// growth here runs 300-1000 stems/ha = 3-10 per cell; the muskeg scrub far less.
+const DENSITY = { 10: 1.0, 20: 0.4, 30: 0.2, 90: 0.15, 100: 0.06 };
 const coneGeo = new THREE.ConeGeometry(1, 1, 6, 1); coneGeo.translate(0, 0.5, 0);
 const stemGeo = new THREE.CylinderGeometry(0.06, 0.09, 1, 5); stemGeo.translate(0, 0.5, 0);
 const treeMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: false });
@@ -470,26 +487,30 @@ function plant() {
   const ci0 = Math.max(0, Math.floor((target.x - R - x0) / cell)), ci1 = Math.min(w - 1, Math.ceil((target.x + R - x0) / cell));
   const cj0 = Math.max(0, Math.floor((target.z - R - z0) / cell)), cj1 = Math.min(h - 1, Math.ceil((target.z + R - z0) / cell));
   // one candidate per cell at full density; a cell is 10 m, a spruce crown ~5 m
-  const MAX = 400000, out = [];
+  const MAX = 900000, out = [];
   let s = 1234567;
   const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
   outer:
   for (let j = cj0; j <= cj1; j++) for (let i = ci0; i <= ci1; i++) {
     if (out.length / 6 >= MAX) break outer;
-    const k = j * w + i, cls = L.cover[k];
+    const k = j * w + i, cls = effClass(k);
     const d = (DENSITY[cls] || 0) * dens;
     if (d <= 0) continue;
-    const can = L.canopy ? L.canopy[k] : 12;
-    if (can < minC) continue;
-    const x = x0 + (i + rnd()) * cell, z = z0 + (j + rnd()) * cell;
+    let can = L.canopy ? L.canopy[k] : 12;
+    // heath: scattered krummholz, 1.5 m, at a third of the shrub density
+    if (cls === 20 && can < minC) { if (rnd() > 0.35) continue; can = 1.5; }
+    else if (can < minC) continue;
+    const x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell;
     if ((x - target.x) ** 2 + (z - target.z) ** 2 > R * R) continue;
-    // two trees per 10 m cell at full density where the canopy is tall
-    const n = d * (can > 15 ? 2 : 1);
-    for (let q = 0; q < n; q++) if (rnd() < n - q) {
-      const y = H(x + (q ? rnd() * cell : 0), z + (q ? rnd() * cell : 0));
+    // stems per cell: the class's share of treeD, thinned where the canopy
+    // is short (scrub carries fewer, smaller stems - never none above minC)
+    const n = d * Math.min(1, 0.35 + can / 12);
+    for (let q = 0; q < n; q++) if (q < n - 1 || rnd() < n - q) {
+      const px = x0 + (i + rnd()) * cell, pz = z0 + (j + rnd()) * cell;
+      const y = H(px, pz);
       if (y <= 0.1) continue;
-      const th = Math.max(1.5, can * (0.75 + 0.5 * rnd())) * hx;
-      out.push(x, y, z, th, cls, L.ndvi ? L.ndvi[k] : 200);
+      const th = Math.max(1.2, can * (0.7 + 0.6 * rnd())) * hx;
+      out.push(px, y, pz, th, cls, L.ndvi ? L.ndvi[k] : 200);
       if (out.length / 6 >= MAX) break;
     }
   }
@@ -552,7 +573,7 @@ function ui() {
     `<h2>THE STACK (top is drawn last)</h2><div id="stack"></div>` +
     `<div class="row"><button id="addL">+ layer</button><button id="resetL">default</button><button id="exportL">export</button></div>` +
     `<textarea id="recipe" rows="3" style="width:100%;display:none;background:#1a1f27;color:var(--fg);border:1px solid var(--grid);font:inherit;font-size:10px"></textarea>` +
-    `<h2>CLASS MAP</h2>` + ['classBlur', 'edgeNoise'].map(id => knob(id, K[id])).join('') +
+    `<h2>CLASS MAP</h2>` + ['reclass', 'classBlur', 'edgeNoise'].map(id => knob(id, K[id])).join('') +
     `<h2>RADAR</h2>` + ['radarLevel', 'bumpFine', 'bumpCoarse', 'bump', 'bumpScale'].map(id => knob(id, K[id])).join('') +
     `<h2>LIGHT</h2>` + ['sunAz', 'sunEl', 'snow'].map(id => knob(id, K[id])).join('') +
     `<h2>TREES</h2>` + ['treeR', 'treeD', 'treeS', 'treeMin'].map(id => knob(id, K[id])).join('') +
@@ -568,7 +589,8 @@ function ui() {
      ring (blur) and wobbled by a smooth noise (edge wobble) - a smooth field, no texels. Radar: the
      colour layer reads a pyramid level (0 = raw speckle, 1..4 = 10/25/60/140 m); the bump keeps the band
      between the fine and coarse levels. Trees: one per 10 m cell at full density in tree cover, fewer in
-     shrub / muskeg, none below the min canopy; height = canopy layer &times; jitter.</p>`;
+     shrub / muskeg, thinned where the canopy is short, none below the min canopy; height = canopy
+     layer &times; jitter. Old growth is 3-10 stems per 100 m2.</p>`;
   renderStack();
   $('addL').onclick = () => { if (STACK.length < MAXL) { STACK.push({ src: 'radar', mode: 'overlay', op: 0.5, on: true }); renderStack(); } };
   $('resetL').onclick = () => { localStorage.removeItem('flydiy.island.stack'); location.reload(); };
@@ -584,7 +606,7 @@ function ui() {
       if (id === 'radarLevel') U.uRadarLevel.value = K[id].v | 0;
       if (id === 'bumpFine') { U.uBumpFine.value = K[id].v | 0; if (K.bumpCoarse.v <= K[id].v) { K.bumpCoarse.v = K[id].v + 1; U.uBumpCoarse.value = K.bumpCoarse.v; $('k_bumpCoarse').value = K.bumpCoarse.v; $('o_bumpCoarse').textContent = K.bumpCoarse.v; } }
       if (id === 'bumpCoarse') { U.uBumpCoarse.value = K[id].v | 0; if (K.bumpFine.v >= K[id].v) { K.bumpFine.v = K[id].v - 1; U.uBumpFine.value = K.bumpFine.v; $('k_bumpFine').value = K.bumpFine.v; $('o_bumpFine').textContent = K.bumpFine.v; } } };
-    el.onchange = () => { if (id.startsWith('tree')) plant(); };
+    el.onchange = () => { if (id.startsWith('tree')) plant(); if (id === 'reclass' && GRID) { buildWeights(); plant(); } };
   }
   CLASSES.forEach((c, i) => { $('c_' + i).oninput = e => U.uCol.value[i].set(e.target.value); });
   $('replant').onclick = plant;

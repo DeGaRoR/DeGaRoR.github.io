@@ -45896,3 +45896,17 @@ the categorization in the asset editor".
   convolution); the bump height is fine level - coarse level, both knobs;
   the radar colour layer reads a level (0 = raw); `paint = bump band`.
 - Seen at 600 m over the airfield: no weave, no texels.
+
+## G392.3 — STEMS PER 100 m2, AND TREE COVER WITHOUT A CANOPY IS HEATH
+## (2026-09-14, the user: "you're too conservative on the tree coverage, I can
+## still see dark green patches with no trees")
+
+- The density knob was one stem per 10 m cell at full - a plantation. It is
+  now stems per 100 m2 in tree cover (default 3; old growth is 3-10), the
+  class shares of it, thinned where the canopy is short, never cut above
+  the min canopy (now 1 m). 214k stems in 2 km at 15 ms on the pane.
+- THE DISAGREEMENT: 20 % of WorldCover's tree-cover cells have Meta canopy
+  under 1 m (the ridges at 350-500 m, NDVI 0.6-0.7: subalpine heath). Tree
+  cover without a canopy is reclassed to shrubland - heath colour, scattered
+  1.5 m krummholz - for the weight fields AND the planting, on a knob
+  (`tree->heath below canopy`, 0 = off). effClass() is the one keeper.
