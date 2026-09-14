@@ -61,6 +61,7 @@
     <option value="house">house</option>
     <option value="shed">shed (plank by plank)</option>
     <option value="big">big building (industrial, commercial)</option>
+    <option value="sport">sports ground (fields, courts)</option>
   </select></label>
   <label>preset <select id="presetSel"></select></label>
   <label>show <select id="lodSel">
@@ -128,14 +129,17 @@
 <!-- the aerodrome's ground sets: the bench stands the house in real grass so
      there is something for the sky to bounce off and the shadows to land on -->
 <script src="../src/viewer/site_tex.js"></script>
+<!-- the billboards BEFORE the generator: its sign row lists them at load (G392) -->
+<script src="../src/viewer/sign_tex.js"></script>
 <script src="_house_kit.js"></script>
 <script src="_house_gen.js"></script>
 <script src="_shed_gen.js"></script>
 <!-- THE BIG BUILDINGS (G312): the warehouse, the cannery, the workshop, the
      store - dressed with the hangar's wall sets -->
 <script src="../src/viewer/hangar_walls.js"></script>
-<script src="../src/viewer/sign_tex.js"></script>
 <script src="_big_gen.js"></script>
+<!-- THE SPORTS GROUNDS (G392): fields, the diamond, the track, the court -->
+<script src="_sport_gen.js"></script>
 <script src="_tram_gen.js"></script>
 <!-- THE TRAM CABIN (G343): the baked prop, its liveries, and the dresser -->
 <script src="../src/cabin/cabin_cabin.js"></script>
@@ -147,6 +151,7 @@
 const G = window.HOUSE_GEN;
 const SH = window.SHED_GEN;
 const BG = window.BIG_GEN;
+const SP = window.SPORT_GEN;
 const $ = id => document.getElementById(id);
 const D2R = Math.PI / 180;
 // TWO GENERATORS, ONE BENCH. The shed is a different MODEL of a building — a
@@ -599,6 +604,8 @@ function build() {
       if (PROP_REG.props[q.key]) root.add(propPlace(THREE, q.key, q.x, q.z, q.ry, q.y));
   // THE SIGN over the base station's office (G349)
   if (hi.stats.station && hi.stats.station.sign && window.CABIN && mode !== 1) root.add(CABIN.signMesh(THREE, hi.stats.station.sign));
+  // THE INSTITUTION'S SIGN (G392): the generator drew the backing and published the slot; the face is this plane
+  if (hi.stats.sign && mode !== 1) { const sm = G.signMesh(THREE, hi.stats.sign); if (sm) root.add(sm); }
   // THE CABINS AT THE DOCK (G343): the station's dock hook, the cabin's floor
   // level with the docking gallery's, one in front of the tip or two side by
   // side, each in its own livery
@@ -1093,15 +1100,15 @@ function applyPreset(n) {
   buildPanel(); syncVis(); build();
 }
 $('modelSel').onchange = e => {
-  GEN = e.target.value === 'shed' ? SH : (e.target.value === 'big' ? BG : G);
+  GEN = e.target.value === 'shed' ? SH : (e.target.value === 'big' ? BG : (e.target.value === 'sport' ? SP : G));
   fillPresets();
   applyPreset(psel.value);
 };
 psel.onchange = e => applyPreset(e.target.value);
 const rollOne = sd => {
-  P = GEN === SH ? SH.randomShed(sd) : (GEN === BG ? BG.randomBig(sd) : G.randomHouse(sd));
+  P = GEN === SH ? SH.randomShed(sd) : (GEN === BG ? BG.randomBig(sd) : (GEN === SP ? SP.randomSport(sd) : G.randomHouse(sd)));
   buildPanel(); syncVis(); build();
-  $('stat').textContent = 'random ' + (GEN === SH ? 'shed' : (GEN === BG ? 'big building' : 'house')) +
+  $('stat').textContent = 'random ' + (GEN === SH ? 'shed' : (GEN === BG ? 'big building' : (GEN === SP ? 'sports ground' : 'house'))) +
     ', seed ' + sd;
 };
 $('rndBtn').onclick = () => {

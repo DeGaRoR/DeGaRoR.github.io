@@ -292,6 +292,45 @@ const PRESETS = {
     roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'rustymetal'),
     dirt: 0.55, dirtH: 0.9,
   },
+  // THE FIRE HALL (G392, an institution): a red metal building, two bay
+  // doors shut, the personnel door beside them, a strip of windows, the
+  // siren mast on the roof (a stack), the FIRE BRIGADE board over the bays.
+  'fire hall': {
+    L: 15, w: 12, eaveH: 5.0, floorY: 0.3, roofKind: 0, pitch: 14, eaveOver: 0.4,
+    rollers: 2, rollerW: 3.8, rollerH: 4.0, rollerOpen: 0, door: 1, doorPos: 0.9, doorW: 1.0, doorH: 2.15,
+    winStrip: 1, winH: 0.8, winDrop: 0.7, winSpc: 1.2, winFront: 0,
+    dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.06, vents: 1, pipes: 0,
+    sign: 1, signW: 4.2, signText: 'FIRE BRIGADE', signKey: 'fire_brigade', role: 'fire hall',
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xb0302a, plinthSet: SET_IDX('plinth', 'concrete004'),
+    roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
+    dirt: 0.35, dirtH: 0.8,
+  },
+  // THE SWIMMING POOL (G392): a long low hall in brick under a shallow
+  // gable, a strip of windows high on both flanks, the entrance door and
+  // the board over it, no bays, no dock, no stack - a village pool.
+  'swimming pool': {
+    L: 30, w: 16, eaveH: 5.5, floorY: 0.3, roofKind: 0, pitch: 12, eaveOver: 0.5, rakeOver: 0.4,
+    rollers: 0, door: 1, doors: 2, doorPos: 0.5, doorW: 1.2, doorH: 2.2,
+    winStrip: 1, winH: 1.4, winDrop: 0.6, winSpc: 1.5, winFront: 1,
+    dock: 0, canopy: 1, canopyOut: 0.4, gantry: 0, stack: 0, vents: 3, pipes: 0,
+    sign: 1, signW: 4.0, signH: 0.9, signText: 'SWIMMING POOL', role: 'pool',
+    wallSet: SET_IDX('wall', 'sandstone'), plinthSet: SET_IDX('plinth', 'concrete004'),
+    roofSet: SET_IDX('roof', 'boxprof'), doorSet: SET_IDX('door', 'factory'), metalSet: SET_IDX('metal', 'galv'),
+    dirt: 0.3, dirtH: 0.7, clouds: 0.3,
+  },
+  // THE ATHLETIC CENTRE (G392): the bigger hall - a gym's height, brick
+  // below and sheet above is one set here (the factory wall), a monopitch
+  // roof, the double doors under a canopy, the strip windows up high.
+  'athletic centre': {
+    L: 36, w: 24, eaveH: 8.0, floorY: 0.3, roofKind: 1, pitch: 6, eaveOver: 0.5, rakeOver: 0.4,
+    rollers: 1, rollerW: 3.0, rollerH: 3.0, rollerOpen: 0, door: 1, doors: 3, doorPos: 0.5, doorW: 1.2, doorH: 2.2,
+    winStrip: 1, winH: 1.2, winDrop: 1.0, winSpc: 1.5, winFront: 1,
+    dock: 0, canopy: 1, canopyOut: 0.6, gantry: 0, stack: 0, vents: 4, pipes: 0,
+    sign: 1, signW: 5.0, signH: 1.0, signText: 'ATHLETIC CENTER', role: 'athletic centre',
+    wallSet: SET_IDX('wall', 'factory'), plinthSet: SET_IDX('plinth', 'concrete008'),
+    roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'), metalSet: SET_IDX('metal', 'galv'),
+    dirt: 0.3, dirtH: 0.9, clouds: 0.3,
+  },
   // THE STORE: the commercial one - a false front over a flat roof, the
   // sign on the parapet, a shop window under its awning, the door beside
   // it, painted boards
@@ -782,6 +821,7 @@ function build(P0, lod, F) {
   let tris = 0, verts = 0; const per = {};
   for (const k of BAGS) { per[k] = bags[k].tris; tris += bags[k].tris; verts += bags[k].verts; }
   const stats = {
+    role: P.role || null,                       // an institution's role (G392): the fire hall
     tris, verts, per, footprint: L * w, eave, ridge: ridgeY, kind: ROOFS[kind],
     rollers: rollers.map(r => ({ x: (r.s0 + r.s1) / 2 - L / 2, w: r.s1 - r.s0, h: r.y1 - r.y0, open: r.open })),
     door: pdoor ? { x: (pdoor.s0 + pdoor.s1) / 2 - L / 2, w: P.doorW, h: P.doorH } : null,

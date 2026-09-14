@@ -45516,3 +45516,92 @@ this session's.
 - OWED: the island's game name; Metlakatla survives?; the derelict field as
   the opening; eps + zones by looking at W4; the tide line. Order unchanged:
   W0.5b -> W2 (annette5_e2 the first real content) -> W1 -> W3 -> W4.
+
+## G392 — THE INSTITUTIONS, THE SIGNS, THE TOWER, THE WING, THE SPORTS GROUNDS (2026-09-14)
+
+The user's ask, opening the asset chantier: sort the pack into THEMES and
+CATEGORIES (residential / commercial / industrial / landmarks / institutions
+/ people & animals / airport / static vehicles / poles & fences - the
+assessment is `futureDesigns/THEME-ALASKA-RURAL-2026-09-14.md`, with the
+car polycount answered first: 5-12k tris, ONE material, the decimator
+does the rest), then "go modeling the missing institutions" with six
+photographs of Alaskan lighthouses ("white, mostly square, with little
+buildings attached, red metal elements and roof, octagonal light
+enclosure"), a sheet of eight painted signs, and "a few soccer/baseball
+fields/indoor swimming pools ... very visible from the sky ... Everything
+small".
+
+- THE TOWER (`buildTower`, _house_gen): a square or octagonal shaft
+  standing THROUGH the roof from the floor, in the wall's own set, the
+  gallery deck (trim) with its rail (metal), and the LANTERN: pedestal,
+  glazed drum with mullions, pyramid cap, vent and ball. Slit windows up the
+  front face from the roof up (`towerWin`). The glass glows on the lights
+  switch and publishes a `beacon` light (rule 29). Rows under "the tower".
+  The same primitive is the aerodrome's tower cab and a hose tower.
+- THE WING (`wingPlan`/`buildWinged`): ANY preset with `wing: 1` becomes a
+  composite of its MAIN and a second volume against one of the four walls
+  (`wingSide`), ridge in line or across (`wingTurn`), lapping a hand (0.30)
+  into the main, its own plan/storeys/pitch/hip/door/windows, `wingSlot 2`
+  dressing it from wallSet2/roofSet2. No window into the joint (each part's
+  winKeep against the other's volume under its roof). The flag is the
+  composite's (`stats.flagpole`); the tower and the sign are lifted from the
+  parts. The battery runs a winged preset's main as a plain house (wing off).
+- PAINTED RENDER: a new wall set `render` (Poly Haven beige_wall_002, a
+  1024x256 strip the importer STACKS to a square - `SQUARE`; its normal an
+  EXR the importer converts through Blender - the `phb` shape; `--only`
+  merges _sizes.json). Kind `render`, offered to the wall role only.
+- THE PRESETS: `lighthouse` (square tower through a low hipped red-roofed
+  keeper's block in white render, the fog-signal shed in line), `lighthouse
+  octagon` (Eldred Rock: two storeys, eight-sided tower), `school` (a long
+  classroom block, the gym an L in box-profile from the second set, flag),
+  `clinic` (white render, blue roof, canopy, the ambulance bay in line with
+  a 3.4 m door), `police` (blue, canopy, the garage bay), `post office`
+  (small, gabled, the board standing on its porch roof); `church` and `town
+  hall` got their roles and signs; BIG_GEN got `fire hall` (red, two bays,
+  FIRE BRIGADE), `swimming pool` (brick, long, low) and `athletic centre`
+  (factory wall, monopitch, tall). Every institution carries `role`
+  (stats.role; the catalogue tags it `institution` + role).
+- THE SIGN SLOT on a house: `signKey`/`signW`/`signAt` - the generator
+  draws the BACKING and publishes `stats.sign` {key,x,y,z,w,h,nx,nz,at};
+  the face is the viewer's plane (`HOUSE_GEN.signMesh`, alpha-cut). Over
+  the door on the wall; under a porch roof's edge; STANDING on the edge
+  when a deep porch roof leaves no headroom; on two posts by the path. The
+  width fits first, the height follows the sign's aspect (SIGN_TEX_META,
+  headless too). The eight signs: `signs_sheet_2.png` through
+  sign_import.py (per-sheet `OPTS` alpha/gap - the boards nearly touch),
+  kind `civic`, each with its role. The bench loads sign_tex.js BEFORE the
+  generator (the row lists the keys at load).
+- THE SPORTS GROUNDS: `tools/_sport_gen.js` (SPORT_GEN, fourth model on the
+  house bench): soccer field, baseball diamond (fan outfield, warning track,
+  infield skin, mound, plate, backstop, outfield fence), running track (an
+  oval of lanes round the pitch), hard court (hoops); a stand on the road
+  side, floodlight masts (published lights), chain-link, three surfaces.
+  Lines are GEOMETRY a centimetre over the surface and survive into the far
+  mesh - they are the aerial read. Catalogue `sport/<preset>`, kind park,
+  ground FLATTEN; `SPORT_GEN` added to 27_premises' collect list (the
+  premises pages do not load it yet - owed).
+- GATE HOUSE rules 40 (institutions: role, sign slot shape and place, tower
+  over the ridge and the building's top, beacon only with the switch and
+  glowing glass, the wing's lap and no window into the joint, the flag) and
+  41 (sports: surface on the ground, lines a centimetre over and kept in
+  the far mesh, foot holds the ground, goals/backstop/hoops where they
+  belong, stand on the road side, floodlights per mast, deterministic, the
+  catalogue). Green: HOUSE, VILLAGE, PREMISES, MEDIA, TOTEM.
+- SEEN on the bench (8431 from Bash - the pane's five servers belong to
+  peers): lighthouse from the air = photo 1; the octagon = Eldred Rock;
+  the school's L with the blue gym and the KOOTZ LANDING SCHOOL board by
+  the flag; the clinic, the police post, the post office's standing sign;
+  the fire hall; the soccer field, the diamond and the track from the air.
+- TRAPS: `sed -i` on a CRLF working copy flips the whole file to LF (HEAD is
+  LF, so it cured what a peer's Python write had done); a canopy's junction
+  leaves no board's worth under the eave (hence the fascia/standing
+  boards); a wing with a bay door wants an APRON, not the stoop the door
+  law gives it (owed); the Bash tool truncates long commands - patch files.
+- OWED (the order in THEME-ALASKA-RURAL section 10): the vehicles (the
+  user is fetching), the PLANT tool for poles and fences, the hangar
+  catalogue entry x3 shells, terminal/FBO/tower/fuel farm, water tower,
+  radio mast, cemetery, the animals, the commercial zone; on this entry: a
+  proper bay-door leaf (an overhead door, not a house leaf), the apron, the
+  house sign stood in the village/premises viewers (the bench does), a
+  grass texture on the turf (a flat green today), SPORT_GEN loaded by the
+  premises bench and the game.

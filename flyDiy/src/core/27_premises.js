@@ -1171,8 +1171,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN'];
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {

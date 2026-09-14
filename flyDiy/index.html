@@ -12338,8 +12338,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN'];
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -111406,9 +111406,9 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script src="src/viewer/house_tex.js?v=4f8ae350"></script>
+<script src="src/viewer/house_tex.js?v=aeb2b099"></script>
 <script src="src/viewer/lot_tex.js?v=acb9d389"></script>
-<script src="src/viewer/sign_tex.js?v=a43f1cf3"></script>
+<script src="src/viewer/sign_tex.js?v=b7822241"></script>
 <script src="src/pier/pier_pier.js?v=ba429deb"></script>
 <script src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
 <script src="src/pier/pier_people.js?v=1c02dfbe"></script>
@@ -111417,8 +111417,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/pier/pier_lods.js?v=d8209e07"></script>
 <script src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script src="tools/_house_kit.js?v=d635a246"></script>
-<script src="tools/_house_gen.js?v=1918afaf"></script>
-<script src="tools/_big_gen.js?v=1700457f"></script>
+<script src="tools/_house_gen.js?v=b58804e8"></script>
+<script src="tools/_big_gen.js?v=6b6c0344"></script>
 <script src="tools/_tram_gen.js?v=b91a8a59"></script>
 <script src="tools/_totem_gen.js?v=1d5256d5"></script>
 <script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>

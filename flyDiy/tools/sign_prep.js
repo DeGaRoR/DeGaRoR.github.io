@@ -27,6 +27,15 @@ const SIGNS = {
   sitka_lumber:   { name: 'Sitka Spruce Lumber', kind: 'industrial' },
   north_motel:    { name: 'North Channel Motel', kind: 'roadside' },
   tongass_marine: { name: 'Tongass Marine Supply', kind: 'harbour' },
+  // G392, the institutions: kind `civic` - the house presets' sign slot
+  admiralty_police: { name: 'Admiralty Police', kind: 'civic', role: 'police' },
+  island_clinic:    { name: 'Island Clinic', kind: 'civic', role: 'clinic' },
+  town_hall:        { name: 'Town Hall', kind: 'civic', role: 'town hall' },
+  fire_brigade:     { name: 'Fire Brigade', kind: 'civic', role: 'fire hall' },
+  kootz_school:     { name: 'Kootz Landing School', kind: 'civic', role: 'school' },
+  postal_service:   { name: 'Postal Service', kind: 'civic', role: 'post office' },
+  community_church: { name: 'Community Church', kind: 'civic', role: 'church' },
+  veterinary_care:  { name: 'Veterinary Care', kind: 'civic', role: 'vet' },
 };
 
 function pngSize(buf) {
@@ -57,7 +66,7 @@ for (const key in SIGNS) {
   const rel = writeMedia(SUB, key + '_1k', 'png', buf);
   emitted.push(rel);
   const S = SIGNS[key];
-  body += `    ${key}: { name: '${S.name}', kind: '${S.kind}', aspect: ${(w / h).toFixed(3)}, px: [${w}, ${h}], img: mk('${rel}') },\n`;
+  body += `    ${key}: { name: '${S.name}', kind: '${S.kind}',${S.role ? ` role: '${S.role}',` : ''} aspect: ${(w / h).toFixed(3)}, px: [${w}, ${h}], img: mk('${rel}') },\n`;
   report.push(`${key} ${w}x${h} ${(buf.length / 1024).toFixed(0)} KB`);
 }
 body += `  };
@@ -65,7 +74,7 @@ body += `  };
 // the same table headless, for the gates: keys, names, kinds, aspects
 const SIGN_TEX_META = ${JSON.stringify(Object.fromEntries(Object.keys(SIGNS).map(k => {
   const { w, h } = pngSize(fs.readFileSync(path.join(SRC, k + '_1k.png')));
-  return [k, { name: SIGNS[k].name, kind: SIGNS[k].kind, aspect: +(w / h).toFixed(3) }];
+  return [k, { name: SIGNS[k].name, kind: SIGNS[k].kind, role: SIGNS[k].role || null, aspect: +(w / h).toFixed(3) }];
 })))};
 if (typeof module !== 'undefined' && module.exports) module.exports = { SIGN_TEX_META };
 `;

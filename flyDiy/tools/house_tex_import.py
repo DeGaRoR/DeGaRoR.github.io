@@ -47,7 +47,7 @@ sphere; the library wants maps, not a ball.
 Usage:  python tools/house_tex_import.py [--src DIR]     (default ~/Downloads)
 Then:   node tools/house_tex_prep.js
 """
-import argparse, io, math, os, zipfile
+import argparse, io, json, math, os, subprocess, tempfile, zipfile
 from PIL import Image, ImageFile, ImageStat
 
 ImageFile.MAXBLOCK = 1 << 24    # site_tex_import.py's own encoder-buffer fix
@@ -100,6 +100,11 @@ SETS = [
     # channel. A footing and a stem wall are not poured the same day and never
     # match; one concrete for every house was the tell.
     ('concretec', 'cracked_concrete_02_1k.gltf.zip',      'ph',    'Poly Haven', 'CC0', 'cracked_concrete_02',      2.8, False),
+    # G392: PAINTED RENDER, for the institutions - a lighthouse is stucco over
+    # concrete, not clapboard (the user's photographs: Five Finger, Point
+    # Retreat, Sentinel Island). A 1024 x 256 strip (SQUARE stacks it), the
+    # normal delivered as EXR (the phb shape). Paintable: it is a paint.
+    ('render',    'beige_wall_002_1k.blend.zip',          'phb',   'Poly Haven', 'CC0', 'beige_wall_002',           2.0, True),
     # G232: the dark end of the wood, and a shake siding
     ('darkwood',  'Planks025A_1K-JPG.zip',                'acg',   'ambientCG',  'CC0', 'Planks025A',               1.9, True),
     # NOT paintable, and not tintable either (the user: "don't recolor dark
@@ -148,6 +153,7 @@ FROM_WOOD = [
 # importer died on grey_roof_01. `ph` means "Poly Haven, either packing".
 PICK = {
     'ph':  {'diff': '_diff_1k.jpg', 'nor': '_nor_gl_1k.jpg'},
+    'phb': {'diff': '_diff_1k.jpg', 'nor': '_nor_gl_1k.exr'},   # the .blend zip: EXR normal (G392)
     'acg': {'diff': '_Color.jpg', 'rough': '_Roughness.jpg', 'nor': '_NormalGL.jpg'},
 }
 
@@ -185,6 +191,59 @@ def rough_of(zf, shape):
 # the scans, all four run their grain down the image's v, and all four are worn
 # by things whose length runs along u.
 ROT90 = {'rough', 'mossy', 'bark', 'feverbark'}
+
+# A STRIP IS STACKED TO A SQUARE (G392). Poly Haven's `beige_wall_002` is a
+# 1024 x 256 scan of a painted render — tileable both ways — and the contract
+# is a square tile: four copies up make the square, and the tile's metres are
+# the strip's WIDTH. Anything else in the set (the 4:1 aspect on a wall, a
+# resize to px x px) would stretch the relief.
+SQUARE = {'render'}
+
+def squared(img):
+    w, h = img.size
+    if w == h: return img
+    if w < h: raise SystemExit('  a tall strip is not handled (%dx%d)' % (w, h))
+    n = w // h
+    out = Image.new(img.mode, (w, h * n))
+    for i in range(n): out.paste(img, (0, i * h))
+    return out
+
+# THE EXR NORMAL (G392): a Poly Haven .blend zip carries its normal map as
+# OpenEXR, which PIL cannot read. Blender can, and it is installed for the
+# characters (tools/fbx_to_glb.py): the raw float pixels come out through a
+# numpy dump, no view transform (Non-Color), rows put back top-down. The
+# gate on the converted map is the same check_maps as every other set.
+BLENDER = [os.path.join(os.environ.get('ProgramFiles', r'C:\Program Files'),
+                        'Blender Foundation', 'Blender 4.0', 'blender.exe'),
+           'blender']
+EXR2NPY = '''
+import bpy, sys, numpy as np
+argv = sys.argv[sys.argv.index('--') + 1:]
+img = bpy.data.images.load(argv[0])
+img.colorspace_settings.name = 'Non-Color'
+w, h = img.size
+a = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, img.channels)
+np.save(argv[1], a[::-1])
+'''
+
+def exr_image(data):
+    import numpy as np
+    d = tempfile.mkdtemp(prefix='exr_')
+    src = os.path.join(d, 'in.exr'); dst = os.path.join(d, 'out.npy'); py = os.path.join(d, 'x.py')
+    with open(src, 'wb') as f: f.write(data)
+    with open(py, 'w') as f: f.write(EXR2NPY)
+    last = None
+    for exe in BLENDER:
+        try:
+            subprocess.run([exe, '-b', '--python', py, '--', src, dst], check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            break
+        except Exception as e:
+            last = e
+    if not os.path.exists(dst):
+        raise SystemExit('  EXR normal: Blender conversion failed (%s)' % last)
+    a = np.load(dst)[:, :, :3]
+    return Image.fromarray(np.clip(a * 255 + 0.5, 0, 255).astype(np.uint8))
 
 
 def turn(img, is_normal):
@@ -294,13 +353,21 @@ def main():
     sizes = {}
     ap = argparse.ArgumentParser()
     ap.add_argument('--src', default=os.path.join(os.path.expanduser('~'), 'Downloads'))
+    # --only: one set (or a few) re-imported; _sizes.json is MERGED, not
+    # rewritten, so the sets whose zips have left ~/Downloads keep their size
+    ap.add_argument('--only', default='')
     a = ap.parse_args()
+    only = set(k for k in a.only.split(',') if k)
+    sizes_path = os.path.join(OUT, '_sizes.json')
+    if only and os.path.exists(sizes_path):
+        with io.open(sizes_path, encoding='utf-8') as f: sizes.update(json.load(f))
     os.makedirs(OUT, exist_ok=True)
     total = 0
     problems = []
     print('%-10s %-26s %5s %5s %6s  %-16s %s'
           % ('key', 'source', 'tile', 'px', 'px/m', 'base colour', 'notes'))
     for key, zname, shape, author, lic, slug, tile, paint in SETS:
+        if only and key not in only: continue
         zpath = os.path.join(a.src, zname)
         if not os.path.exists(zpath):
             # the walnut zip arrived as "... (1).zip"; try the browser's suffix
@@ -315,8 +382,11 @@ def main():
         pick = PICK[shape]
         with zipfile.ZipFile(zpath) as zf:
             diff = Image.open(io.BytesIO(member(zf, pick['diff']))).convert('RGB')
-            nor = Image.open(io.BytesIO(member(zf, pick['nor']))).convert('RGB')
+            nor = (exr_image(member(zf, pick['nor'])) if pick['nor'].endswith('.exr')
+                   else Image.open(io.BytesIO(member(zf, pick['nor'])))).convert('RGB')
             rough = rough_of(zf, shape)
+        if key in SQUARE:
+            diff, nor, rough = squared(diff), squared(nor), squared(rough)
         if key in ROT90:
             diff = turn(diff, False)
             nor = turn(nor, True)
@@ -343,6 +413,7 @@ def main():
     # the veneers, lifted out of the aeroplane's wood library
     wood_dir = os.path.join(ROOT, 'assets', 'wood')
     for key, src, author, lic, slug, tile, paint in FROM_WOOD:
+        if only and key not in only: continue
         sd = os.path.join(wood_dir, src)
         if not os.path.isdir(sd):
             print('MISSING  %-10s %s (run tools/wood_tex_import.py)' % (key, sd))
@@ -367,7 +438,7 @@ def main():
         print('%-10s %-26s %5.2f %5d %6.0f  0x%02x%02x%02x %-8s %s'
               % (key, slug + ' (veneer)', tile, px, px / tile,
                  round(mc[0]), round(mc[1]), round(mc[2]), '', note))
-    import json
+    # (json imported at the top)
     with io.open(os.path.join(OUT, '_sizes.json'), 'w',
                  encoding='utf-8') as f:
         f.write(json.dumps(sizes, indent=1, sort_keys=True))

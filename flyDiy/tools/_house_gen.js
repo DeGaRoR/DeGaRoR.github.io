@@ -228,6 +228,7 @@ const SET_KIND = {
   boxprof: 'roof', corrworn: 'roof', corrrust: 'roof', shingle: 'roof',
   galv: 'roof', rust: 'roof',
   steelgrey: 'steel', steelrust: 'steel',   // structural plate (G342): the tram's steel, no house role offers it
+  render: 'render',                          // painted stucco (G392): the institutions' walls
   shakes: 'plank', paintwood: 'plank', greenwood: 'plank', board: 'plank',
   roughwood: 'plank', brownwood: 'plank', greywood: 'plank',
   wornwood: 'plank', deckwood: 'plank', darkwood: 'plank',
@@ -452,7 +453,9 @@ const ROLE_KIND = {
   // knew. The rule the user gave was "walls and floors take planks", and it
   // stands for a HOUSE; a working building on a dock is the exception that the
   // library already had the material for.
-  wall: ['plank', 'roof'], floor: ['plank'], roof: ['roof'], trim: ['veneer'],
+  // A RENDERED WALL (G392): the lighthouse and the clinic are stucco over
+  // concrete; the wall is the only role that takes it
+  wall: ['plank', 'roof', 'render'], floor: ['plank'], roof: ['roof'], trim: ['veneer'],
   // A DECK BOARD IS NOT FURNITURE (the user: "what you call deck board + ...
   // should be constrained to using the different concrete, or very rough
   // planks, but no veneer. The only one currently available that fit is dark
@@ -472,7 +475,7 @@ const ROLE_KIND = {
 const ORDER = {
   wall: ['paintwood', 'greenwood', 'board', 'brownwood', 'roughwood',
          'greywood', 'wornwood', 'shakes', 'darkwood', 'deckwood', 'stain',
-         'corrworn', 'corrrust', 'boxprof', 'galv'],
+         'corrworn', 'corrrust', 'boxprof', 'galv', 'render'],
   floor: ['deckwood', 'brownwood', 'greywood', 'wornwood', 'roughwood',
           'darkwood', 'board'],
   roof: ['boxprof', 'corrworn', 'corrrust', 'shingle', 'galv', 'rust'],
@@ -1516,6 +1519,15 @@ const DEF = {
   // the cupola
   cupola: 0, cupSides: 8, cupR: 0.72, cupH: 1.10, cupSpire: 1.05, cupXF: 0,
   cupCross: 0,
+  // THE TOWER (G392): the shaft through the roof, its gallery, the lantern
+  tower: 0, towerSides: 4, towerW: 3.2, towerH: 11, towerXF: -0.5, towerZF: 0, towerWin: 1,
+  galOut: 0.45, lantern: 1, lantSides: 8, lantR: 1.05, lantH: 1.9,
+  // THE WING (G392): a second volume against one of the four walls
+  wing: 0, wingSide: 0, wingTurn: 1, wingOff: 0, wingL: 8, wingW: 6, wingStoreys: 1, wingFloorH: 0,
+  wingPitch: 0, wingHip: 0, wingDoor: 1, wingDoorW: 0, wingDoorH: 0, wingWin: 2, wingChim: 0, wingSlot: 1,
+  role: '',
+  // THE SIGN SLOT (G392): a baked billboard's key, the board's width, on the wall or on posts
+  signKey: '', signW: 2.6, signAt: 0,
   // drainage
   gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045, barrel: 1, barrelKind: 0,
   // HOW BIG THE CHAMFER ON AN ARRIS IS. Six millimetres: enough for a facet
@@ -1740,6 +1752,43 @@ const ROWS = [
     ['cupXF', 'along the ridge', -1, 1, 0.01, null, P => !!P.cupola],
     ['cupCross', 'cross', 0, 1, 1, null, P => !!P.cupola],
   ]],
+  ['the tower', [
+    ['tower', 'tower through the roof', 0, 1, 1],
+    ['towerSides', 'sides', 4, 8, 4, null, P => !!P.tower],
+    ['towerW', 'across the flats', 1.6, 6, 0.1, null, P => !!P.tower],
+    ['towerH', 'gallery above the floor', 4, 30, 0.25, null, P => !!P.tower],
+    ['towerXF', 'along the ridge', -1, 1, 0.01, null, P => !!P.tower],
+    ['towerZF', 'across', -1, 1, 0.01, null, P => !!P.tower],
+    ['towerWin', 'windows', 0, 2, 1, ['none', 'front', 'all round'], P => !!P.tower],
+    ['galOut', 'gallery past the shaft', 0, 1.2, 0.05, null, P => !!P.tower],
+    ['lantern', 'lantern', 0, 1, 1, null, P => !!P.tower],
+    ['lantSides', 'lantern sides', 6, 12, 1, null, P => !!P.tower && !!P.lantern],
+    ['lantR', 'lantern radius', 0.5, 2.5, 0.05, null, P => !!P.tower && !!P.lantern],
+    ['lantH', 'glass height', 0.8, 3.5, 0.05, null, P => !!P.tower && !!P.lantern],
+  ]],
+  ['the wing', [
+    ['wing', 'a wing', 0, 1, 1],
+    ['wingSide', 'against', 0, 3, 1, ['left end', 'right end', 'back', 'front'], P => !!P.wing],
+    ['wingTurn', 'ridge', 0, 1, 1, ['in line', 'across'], P => !!P.wing],
+    ['wingOff', 'along the wall', -1, 1, 0.01, null, P => !!P.wing],
+    ['wingL', 'length', 3, 40, 0.5, null, P => !!P.wing],
+    ['wingW', 'width', 3, 24, 0.5, null, P => !!P.wing],
+    ['wingStoreys', 'storeys', 1, 3, 1, null, P => !!P.wing],
+    ['wingFloorH', 'storey height (0 = the main\'s)', 0, 8, 0.1, null, P => !!P.wing],
+    ['wingPitch', 'pitch (0 = the main\'s)', 0, 55, 0.5, null, P => !!P.wing],
+    ['wingHip', 'hipped', 0, 1, 1, null, P => !!P.wing && !(P.wingSide >= 2 && !P.wingTurn)],
+    ['wingDoor', 'its own door', 0, 1, 1, null, P => !!P.wing],
+    ['wingDoorW', "door width (0 = the main's)", 0, 4.5, 0.05, null, P => !!P.wing && !!P.wingDoor],
+    ['wingDoorH', "door height (0 = the main's)", 0, 4.5, 0.05, null, P => !!P.wing && !!P.wingDoor],
+    ['wingWin', 'windows per long wall', 0, 12, 1, null, P => !!P.wing],
+    ['wingChim', 'chimney', 0, 1, 1, null, P => !!P.wing],
+    ['wingSlot', 'finish', 1, 2, 1, ['the main\'s', 'the second set'], P => !!P.wing],
+  ]],
+  ['the sign', [
+    ['signKey', 'billboard', 0, 0, 1, [''].concat(Object.keys((typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || {}))],
+    ['signW', 'width', 0.8, 6, 0.1, null, P => !!P.signKey],
+    ['signAt', 'where', 0, 1, 1, ['over the door', 'on posts by the path'], P => !!P.signKey],
+  ]],
   ['the tram station', [
     ['station', 'the tram station: 1 the top, 2 the base', 0, 2, 1],
     ['mastH', 'the deck height', 10, 40, 0.5, null, P => !!P.station], ['panel', 'lattice panel', 1.5, 4, 0.1, null, P => !!P.station],
@@ -1924,7 +1973,7 @@ const PRESETS = {
     gutter: 0, downpipe: 0, skirt: 0, ribs: 0, backDoor: 1, backPorch: 1,
     cupola: 1, cupSides: 8, cupR: 0.85, cupH: 1.35, cupSpire: 2.6,
     cupXF: 0.72, cupCross: 1, yard: 0, woodpile: 0, boat: 0,
-    weather: 0.25, paintPunch: 0.85, civic: 1,
+    weather: 0.25, paintPunch: 0.85, civic: 1, role: 'church', signKey: 'community_church', signW: 2.6, signAt: 1,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6,
     trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
@@ -1944,11 +1993,151 @@ const PRESETS = {
     gutter: 2, downpipe: 1, barrel: 0, skirt: 2, ribs: 0, backDoor: 1, backPorch: 1,
     cupola: 1, cupSides: 8, cupR: 1.00, cupH: 1.50, cupSpire: 1.10, cupXF: 0, cupCross: 0,
     flagpole: 1, flagXF: 0.66, yard: 0, woodpile: 0, boat: 0,
-    weather: 0.2, paintPunch: 0.9, civic: 1,
+    weather: 0.2, paintPunch: 0.9, civic: 1, role: 'town hall', signKey: 'town_hall', signW: 3.0, signAt: 0,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 7,
     trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 9,
     roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8,
     deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'veneer'),
+  },
+  // THE LIGHTHOUSE (G392, the user's six photographs: Five Finger, Point
+  // Retreat, Sentinel Island, Eldred Rock, Cape Hinchinbrook - "white, mostly
+  // square, with little buildings attached, red metal elements and roof,
+  // octagonal light enclosure"). A low white keeper's block, hipped under a
+  // red sheet roof, and the square tower standing through it at one end with
+  // the black eight-sided lantern on its red gallery. Institution: the game
+  // asks for it by `role`; the beacon is its published light.
+  'lighthouse': {
+    L: 12.0, w: 8.0, storeys: 1, floorH: 3.0, pitch: 9, roofFam: 0, hip: 1, corner: 2,
+    stance: 0, floorY: 0.45, slopeZ: 2, eaveOver: 0.40, rakeOver: 0.40,
+    nFront: 3, nBack: 3, nLeft: 1, nRight: 1, winW: 1.0, winH: 1.35, winSill: 0.95, muntin: 1,
+    doorPos: 0.62, doorW: 1.10, doorH: 2.15, doorLight: 1,
+    porch: 0, stairs: 1, chim: 1, chimXF: 0.55, chimZF: -0.35, chimR: 0.11,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    tower: 1, towerSides: 4, towerW: 3.4, towerH: 12.5, towerXF: -0.72, towerZF: 0, towerWin: 1,
+    galOut: 0.5, lantern: 1, lantSides: 8, lantR: 1.05, lantH: 1.9,
+    // the little building attached: the fog-signal house, lower, in line at the far end
+    wing: 1, wingSide: 1, wingTurn: 0, wingOff: -0.3, wingL: 5.5, wingW: 5.5, wingStoreys: 1, wingFloorH: 2.7,
+    wingPitch: 9, wingHip: 1, wingDoor: 1, wingDoorW: 1.4, wingDoorH: 2.2, wingWin: 1, wingChim: 0, wingSlot: 1,
+    flagpole: 1, flagXF: 0.75, yard: 0, woodpile: 0, boat: 0, people: 1,
+    weather: 0.3, paintPunch: 0.9, civic: 1, role: 'lighthouse',
+    wallSet: SET_IDX('wall', 'render'), wallCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 1,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 1,
+    metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  // THE SAME LIGHT ON A TWO-STOREY OCTAGON (Eldred Rock): the keeper lives
+  // under the light, the tower is short and eight-sided, the roof is the
+  // house's own.
+  'lighthouse octagon': {
+    L: 10.0, w: 10.0, storeys: 2, floorH: 2.9, pitch: 30, roofFam: 0, hip: 1, corner: 2,
+    stance: 0, floorY: 0.5, slopeZ: 2, eaveOver: 0.45, rakeOver: 0.45,
+    nFront: 3, nBack: 3, nLeft: 2, nRight: 2, winW: 0.95, winH: 1.40, winSill: 0.90,
+    doorPos: 0.5, doorW: 1.10, doorH: 2.15, doorLight: 1,
+    porch: 0, stairs: 1, chim: 1, chimXF: -0.55, chimZF: 0.30, chimR: 0.11,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 3, ribs: 1, backDoor: 0,
+    tower: 1, towerSides: 8, towerW: 3.0, towerH: 10.5, towerXF: 0, towerZF: 0, towerWin: 1,
+    galOut: 0.45, lantern: 1, lantSides: 8, lantR: 0.95, lantH: 1.7,
+    flagpole: 0, yard: 0, woodpile: 0, boat: 0, people: 1,
+    weather: 0.35, paintPunch: 0.9, civic: 1, role: 'lighthouse',
+    wallSet: SET_IDX('wall', 'render'), wallCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 1,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 1,
+    metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  // THE INSTITUTIONS (G392, the user: "the game will know the building
+  // corresponding to townhouse, police, fire brigade, schools, small
+  // hospitals, churches and lighthouses"). Each publishes its `role`; the
+  // catalogue tags it `institution` + the role so the editor's picker and
+  // the game's "where is the clinic" read one word. Small, as the user asked
+  // - a village's, not a town's.
+  //
+  // THE SCHOOL: a long low classroom block, windows all along, hipped under a
+  // green sheet roof, the GYM an L at its end - taller, metal-clad from the
+  // second set, one high window - the flag on the lawn.
+  'school': {
+    L: 26.0, w: 10.0, storeys: 1, floorH: 3.3, pitch: 18, roofFam: 0, hip: 1, corner: 2,
+    stance: 0, floorY: 0.5, slopeZ: 1, eaveOver: 0.6, rakeOver: 0.5,
+    nFront: 8, nBack: 8, nLeft: 0, nRight: 2, winW: 1.5, winH: 1.5, winSill: 0.9, muntin: 0,
+    doorPos: 0.5, doorW: 1.6, doorH: 2.3, doorLight: 1,
+    porch: 1, porchD: 2.6, porchLenF: 0.28, porchOff: 0, porchRoof: 2, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.7, chimZF: -0.3, chimR: 0.12, chimUp: 1.4,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    wing: 1, wingSide: 0, wingTurn: 1, wingOff: -0.05, wingL: 18, wingW: 14, wingStoreys: 1, wingFloorH: 6.5,
+    wingPitch: 12, wingHip: 0, wingDoor: 1, wingDoorW: 1.6, wingDoorH: 2.3, wingWin: 1, wingChim: 0, wingSlot: 2,
+    flagpole: 1, flagXF: 0.55, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0,
+    weather: 0.25, paintPunch: 0.9, civic: 1, role: 'school',
+    signKey: 'kootz_school', signW: 3.2, signAt: 1,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 7,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 9,
+    wallSet2: SET_IDX('wall', 'boxprof'), wallCol2: 4, trimSet2: SET_IDX('trim', 'veneerpale'), trimCol2: 6,
+    roofSet2: SET_IDX('roof', 'boxprof'), roofCol2: 9,
+    metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  // THE CLINIC: a hipped one-storey block in white render under a blue sheet
+  // roof, the entry under a canopy with a ramp's rail, and a lower wing in
+  // line at its end for the ambulance bay (a wide door).
+  'clinic': {
+    L: 16.0, w: 10.0, storeys: 1, floorH: 3.1, pitch: 16, roofFam: 0, hip: 1, corner: 2,
+    stance: 0, floorY: 0.4, slopeZ: 1, eaveOver: 0.6, rakeOver: 0.5,
+    nFront: 4, nBack: 5, nLeft: 1, nRight: 0, winW: 1.3, winH: 1.3, winSill: 0.95, muntin: 0,
+    doorPos: 0.5, doorW: 1.6, doorH: 2.2, doorLight: 1,
+    porch: 1, porchD: 3.0, porchLenF: 0.34, porchOff: 0, porchRoof: 1, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.11, chimUp: 1.0,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    wing: 1, wingSide: 1, wingTurn: 0, wingOff: 0, wingL: 7, wingW: 7.5, wingStoreys: 1, wingFloorH: 3.6,
+    wingPitch: 16, wingHip: 1, wingDoor: 1, wingDoorW: 3.4, wingDoorH: 3.0, wingWin: 0, wingChim: 0, wingSlot: 1,
+    flagpole: 0, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0.3,
+    weather: 0.2, paintPunch: 0.9, civic: 1, role: 'clinic',
+    signKey: 'island_clinic', signW: 2.8, signAt: 0,
+    wallSet: SET_IDX('wall', 'render'), wallCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 4,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 4,
+    metalSet: SET_IDX('metal', 'galv'), metalCol: 4,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  // THE PUBLIC SAFETY POST (police): a small hipped office with the flag,
+  // and its garage bay in line - one wide door for the truck.
+  'police': {
+    L: 10.0, w: 8.0, storeys: 1, floorH: 3.0, pitch: 22, roofFam: 0, hip: 1, corner: 2,
+    stance: 0, floorY: 0.4, slopeZ: 1, eaveOver: 0.5, rakeOver: 0.45,
+    nFront: 2, nBack: 3, nLeft: 1, nRight: 0, winW: 1.2, winH: 1.3, winSill: 0.95, muntin: 0,
+    doorPos: 0.72, doorW: 1.1, doorH: 2.15, doorLight: 1,
+    porch: 1, porchD: 2.0, porchLenF: 0.4, porchOff: 0.25, porchRoof: 1, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.10,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    wing: 1, wingSide: 1, wingTurn: 0, wingOff: 0, wingL: 6.5, wingW: 7, wingStoreys: 1, wingFloorH: 3.6,
+    wingPitch: 22, wingHip: 1, wingDoor: 1, wingDoorW: 3.2, wingDoorH: 3.0, wingWin: 0, wingChim: 0, wingSlot: 1,
+    flagpole: 1, flagXF: -0.7, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0.3,
+    weather: 0.25, paintPunch: 0.9, civic: 1, role: 'police',
+    signKey: 'admiralty_police', signW: 2.4, signAt: 0,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8,
+    metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  // THE POST OFFICE: the smallest of them - a gabled box with a canopy over
+  // its door, the flag, and its sign slot.
+  'post office': {
+    L: 9.0, w: 7.0, storeys: 1, floorH: 2.9, pitch: 24, roofFam: 0, hip: 0, corner: 0,
+    stance: 1, floorY: 0.7, slopeZ: 1, eaveOver: 0.45, rakeOver: 0.4,
+    nFront: 2, nBack: 2, nLeft: 1, nRight: 1, winW: 1.2, winH: 1.3, winSill: 0.95, muntin: 1,
+    doorPos: 0.5, doorW: 1.2, doorH: 2.15, doorLight: 1,
+    porch: 1, porchD: 2.2, porchLenF: 0.5, porchOff: 0, porchRoof: 2, railStyle: 1, stairs: 1,
+    chim: 1, chimXF: -0.55, chimZF: -0.3, chimR: 0.10,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    flagpole: 1, flagXF: -0.7, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0.2,
+    weather: 0.3, paintPunch: 0.9, civic: 1, role: 'post office',
+    signKey: 'postal_service', signW: 2.6, signAt: 0,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
+    metalSet: SET_IDX('metal', 'galv'), metalCol: 0,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
   },
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
@@ -3636,6 +3825,221 @@ function buildCupola(bags, P, Q, V, R) {
     top = cy + 0.55;
   }
   return { x: cx, r: r, top: top, spire: apex[1], sides: n };
+}
+
+// ---------------------------------------------------------------------------
+// THE TOWER (G392, the user: "Lighthouses in Alaska seem quite small and
+// consistent in styling. They're white, mostly square, with little buildings
+// attached, red metal elements and roof, octagonal light enclosure"). A shaft
+// standing THROUGH the roof from the floor — square or octagonal, wearing the
+// house's own wall set — a gallery deck with its rail at the top, and on the
+// deck the LANTERN: a glazed drum on a low pedestal, mullions between the
+// panes, a pyramid cap and the ball finial. The same shaft with no lantern is
+// a fire hall's hose tower; with a bigger, taller drum it is an aerodrome's
+// tower cab. The shaft's windows stop below the roof (inside the house they
+// would open onto the attic); the lantern glass glows on the lights switch and
+// publishes itself as a `beacon` light (rule 29: the glass is the emitting
+// geometry). Like the cupola, the finial and the rail survive into lod 1: they
+// are the top of the silhouette.
+function buildTower(bags, P, Q, V, R) {
+  if (!P.tower) return null;
+  const n = Math.max(4, Math.round(P.towerSides));
+  const rot = n === 4 ? Math.PI / 4 : Math.PI / n;          // a flat facing front
+  const rFlat = P.towerW / 2;                                 // across flats
+  const r = rFlat / Math.cos(Math.PI / n);                    // to a corner
+  const cx = clamp(P.towerXF * (V.L / 2 - rFlat), -V.L / 2 + rFlat + 0.05, V.L / 2 - rFlat - 0.05);
+  const cz = clamp(P.towerZF * (V.w / 2 - rFlat), -V.w / 2 + rFlat + 0.05, V.w / 2 - rFlat - 0.05);
+  const y0 = V.floorY - 0.05;
+  const yTop = V.floorY + P.towerH;                           // the gallery deck
+  const t = Math.max(0.12, V.wallT);
+  const roofTop = R.ridgeY + 0.35;
+  // ---- the shaft: n walls, the outside on +N, cut for the slit windows ----
+  const ring = K.ringN(cx, cz, r, n, rot, y0);
+  const winW = Math.min(0.62, rFlat * 0.7), winH = 0.95;
+  let nWin = 0;
+  const sideLen = 2 * r * Math.sin(Math.PI / n);
+  for (let i = 0; i < n; i++) {
+    let A = ring[i], B = ring[(i + 1) % n];
+    // outside on the +N side of A -> B (N = [-dz, 0, dx])
+    const mid = [(A[0] + B[0]) / 2, (A[2] + B[2]) / 2];
+    if ((-(B[2] - A[2])) * (mid[0] - cx) + (B[0] - A[0]) * (mid[1] - cz) < 0) { const T = A; A = B; B = T; }
+    const holes = [];
+    // windows up the front face and every other face on an octagon, one per
+    // 3 m from the roof up, none inside the house
+    const faceOut = nrm([mid[0] - cx, 0, mid[1] - cz]);
+    const front = Math.abs(faceOut[2] - 1) < 0.2;
+    const windowed = P.towerWin > 0 && (front || (P.towerWin > 1 && (i % 2) === 0));
+    if (windowed && Q.lod === 0) {
+      for (let y = roofTop + 1.0; y + winH < yTop - 0.6; y += 3.0) {
+        holes.push({ s0: sideLen / 2 - winW / 2, s1: sideLen / 2 + winW / 2, y0: y, y1: y + winH, kind: 'window' });
+        nWin++;
+      }
+    }
+    const W = wall(bags.siding, {
+      A: [A[0], A[2]], B: [B[0], B[2]], y0, t, topAt: () => yTop, holes,
+      ext: [t / 2 * Math.tan(Math.PI / n), t / 2 * Math.tan(Math.PI / n)],
+      inner: false, capTop: false, capBot: false, endCap: [false, false],
+      sub: Q.lod === 0 ? (P.aoRange || 0.55) * 0.85 : 0,
+    });
+    if (W && Q.lod === 0) for (const h of holes) dressOpening(bags, P, Q, W, h, h.y1);
+  }
+  // ---- the gallery: a deck plate over the shaft, out past it, and its rail ----
+  const gOut = P.galOut;
+  const deckR = r + gOut / Math.cos(Math.PI / n);
+  const deck = K.ringN(cx, cz, deckR, n, rot, yTop + 0.12);
+  plate(bags.trim, deck, 0.12, [0, -1, 0], p => [p[0], p[2]]);
+  // a band under the deck's edge, the cornice
+  K.prismRings(bags.trim, K.ringN(cx, cz, deckR, n, rot, yTop - 0.10), K.ringN(cx, cz, deckR, n, rot, yTop), false, false);
+  const railH = 1.0, railR = deckR - 0.06;
+  const rp = K.ringN(cx, cz, railR, n, rot, yTop + 0.12);
+  for (let i = 0; i < n; i++) {
+    const a = rp[i], b = rp[(i + 1) % n];
+    const L = len(sub(b, a));
+    const nP = Q.lod === 0 ? Math.max(1, Math.round(L / 0.9)) : 1;
+    for (let k = 0; k < nP; k++) {
+      const p = K.lerp3(a, b, k / nP);
+      beam(bags.metal, p, [p[0], p[1] + railH, p[2]], 0.02, 0.02, [1, 0, 0]);
+    }
+    beam(bags.metal, [a[0], a[1] + railH, a[2]], [b[0], b[1] + railH, b[2]], 0.02, 0.018, [0, 1, 0]);
+    if (Q.lod === 0) beam(bags.metal, [a[0], a[1] + railH * 0.5, a[2]], [b[0], b[1] + railH * 0.5, b[2]], 0.012, 0.012, [0, 1, 0]);
+  }
+  // ---- the lantern ----
+  let lantern = null, light = null;
+  if (P.lantern) {
+    const m = Math.max(6, Math.round(P.lantSides));
+    const lr = Math.min(P.lantR, rFlat * 0.95);
+    const yPed = yTop + 0.12, pedH = 0.55;
+    const lrot = Math.PI / m;
+    // the pedestal: the drum's foot, a little wider
+    K.prismRings(bags.metal, K.ringN(cx, cz, lr * 1.08, m, lrot, yPed), K.ringN(cx, cz, lr * 1.08, m, lrot, yPed + pedH), false, true);
+    const yG0 = yPed + pedH, yG1 = yG0 + P.lantH;
+    // the glass, every face, glowing when the light is on
+    const g0 = K.ringN(cx, cz, lr, m, lrot, yG0), g1 = K.ringN(cx, cz, lr, m, lrot, yG1);
+    bags.glass.setGlow(P.lights ? 1 : 0);
+    K.prismRings(bags.glass, g0, g1, false, false);
+    bags.glass.setGlow(0);
+    // the mullions and the two rings that hold the panes
+    const seg = Q.lod === 0 ? m : Math.min(m, 8);
+    if (Q.lod === 0) for (let i = 0; i < m; i++)
+      beam(bags.metal, g0[i], g1[i], 0.03, 0.03, [1, 0, 0]);
+    K.prismRings(bags.metal, K.ringN(cx, cz, lr * 1.03, m, lrot, yG0 - 0.05), K.ringN(cx, cz, lr * 1.03, m, lrot, yG0 + 0.05), false, false);
+    K.prismRings(bags.metal, K.ringN(cx, cz, lr * 1.03, m, lrot, yG1 - 0.05), K.ringN(cx, cz, lr * 1.03, m, lrot, yG1 + 0.06), false, false);
+    // the cap: a shallow pyramid past the glass, the vent and the ball
+    const eave = K.ringN(cx, cz, lr * 1.22, m, lrot, yG1 + 0.06);
+    const capTop = yG1 + 0.06 + Math.max(0.35, lr * 0.55);
+    K.apexTo(bags.metal, eave, [cx, capTop, cz]);
+    cyl(bags.metal, [cx, capTop - 0.05, cz], [0, 1, 0], 0.09, 0.30, seg, true);
+    const bl = capTop + 0.25;
+    K.prismRings(bags.metal, K.ringN(cx, cz, 0.13, seg, 0, bl), K.ringN(cx, cz, 0.13, seg, 0, bl + 0.16), false, false);
+    K.apexTo(bags.metal, K.ringN(cx, cz, 0.13, seg, 0, bl + 0.16), [cx, bl + 0.30, cz]);
+    // the lamp inside: a stub on the floor of the drum (lod 0), and the light
+    if (Q.lod === 0) cyl(bags.metal, [cx, yG0, cz], [0, 1, 0], 0.16, P.lantH * 0.45, 8, true);
+    lantern = { y0: yG0, y1: yG1, r: lr, sides: m, top: bl + 0.30 };
+    if (P.lights) {
+      light = { kind: 'beacon', x: cx, y: (yG0 + yG1) / 2, z: cz, nx: 0, nz: 0,
+                col: [1.0, 0.95, 0.80], k: 3.0, range: 60.0, beacon: 1 };
+      LIT_LOG.lights.push(light);
+    }
+  }
+  return { x: cx, z: cz, r: rFlat, sides: n, top: lantern ? lantern.top : yTop + 0.12 + railH,
+           deckY: yTop + 0.12, windows: nWin, lantern, light };
+}
+
+// ---------------------------------------------------------------------------
+// THE SIGN SLOT (G392, the user: "signs for the institutions" - a second
+// sheet of painted boards through tools/sign_import.py, kind `civic`, each
+// carrying the role it names). A house publishes `stats.sign` the way the
+// big buildings do ({ key, x, y, z, w, h, nx, nz }, the board's centre and
+// its facing) and DRAWS ONLY THE BACKING - the board's face is the viewer's
+// (`HOUSE_GEN.signMesh`, a plane wearing the baked billboard), the same
+// arrangement as the tram station's livery sign. The width is the dial, the
+// height follows the sign's own aspect (SIGN_TEX_META, headless too - GATE
+// HOUSE loads the manifest beside the generator). Two places: on the front
+// wall over the door (above the canopy when there is one, under the eave
+// always), or on two posts on the lawn beside the path.
+function signMetaOf(key) {
+  const M = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || null;
+  return (M && key && M[key]) || null;
+}
+function buildSign(bags, P, Q, V, R, pr, g) {
+  const meta = signMetaOf(P.signKey);
+  if (!meta || !(P.signW > 0.3)) return null;
+  const sw = P.signW;
+  let sh = sw / Math.max(0.5, meta.aspect);
+  const doorX = (doorPosOf(P, V) - 0.5) * V.L;
+  const eave = R.eaveY - 0.12;
+  if (Math.round(P.signAt) === 1) {
+    // ON POSTS on the lawn, to the right of the path, facing the road
+    const x = clamp(doorX + sw / 2 + 1.4, -V.L / 2 + sw / 2, V.L / 2 + 3);
+    const z = V.w / 2 + (P.porch ? P.porchD : 0) + 2.6;
+    const gy = Math.max(g(x - sw / 2, z), g(x + sw / 2, z));
+    const y0 = gy + 1.35, y = y0 + sh / 2;
+    for (const px of [x - sw / 2 + 0.18, x + sw / 2 - 0.18])
+      beam(bags.post, [px, g(px, z) - 0.3, z - 0.05], [px, y0 + sh + 0.12, z - 0.05], 0.06, 0.06, [0, 0, 1], 0, timberUV(px, z, 31));
+    boxAB(bags.trim, [x - sw / 2, y0, z - 0.03], [x + sw / 2, y0 + sh, z - 0.005]);
+    return { key: P.signKey, x, y, z, w: sw, h: sh, nx: 0, nz: 1, at: 'posts' };
+  }
+  // UNDER THE PORCH ROOF'S EDGE when there is one (a canopy's junction sits
+  // in the eave's shade with no board's worth under it - the same answer the
+  // big buildings give: a fascia sign, hung off the front edge with headroom
+  // over the deck); ON THE WALL over the door otherwise, never through the eave
+  if (pr) {
+    const yEdge = pr.yWall - Math.tan(14 * D2R) * (pr.depth + 0.1);
+    const swFit = Math.min(sw, pr.cW - 0.2);
+    sh = swFit / Math.max(0.5, meta.aspect);              // the width fitted first, the height follows the sign
+    const x = clamp(doorX, pr.cX - pr.cW / 2 + swFit / 2, pr.cX + pr.cW / 2 - swFit / 2);
+    const yTop = yEdge - 0.05, yMin = V.floorY + 2.05;
+    if (yTop - yMin >= 0.35) {
+      if (sh > yTop - yMin) sh = yTop - yMin;
+      const z = pr.zIn + pr.depth - 0.06, y = yTop - sh / 2;
+      boxAB(bags.trim, [x - swFit / 2, yTop - sh, z - 0.03], [x + swFit / 2, yTop, z - 0.005]);
+      if (Q.lod === 0) for (const bx of [x - swFit / 2 + 0.12, x + swFit / 2 - 0.12])   // the two straps it hangs by
+        beam(bags.metal, [bx, yTop, z - 0.02], [bx, yEdge + 0.12, z - 0.02], 0.012, 0.012, [0, 0, 1]);
+      return { key: P.signKey, x, y, z, w: swFit, h: sh, nx: 0, nz: 1, at: 'fascia' };
+    }
+    // a deep porch roof comes down too low to hang under: the board STANDS
+    // on its edge instead, the store's way, braced back to the roof
+    const yBot = yEdge + 0.10, z = pr.zIn + pr.depth - 0.18, y = yBot + sh / 2;
+    boxAB(bags.trim, [x - swFit / 2, yBot, z - 0.03], [x + swFit / 2, yBot + sh, z - 0.005]);
+    if (Q.lod === 0) for (const bx of [x - swFit / 2 + 0.12, x + swFit / 2 - 0.12]) {
+      beam(bags.metal, [bx, yEdge, z - 0.02], [bx, yBot + sh, z - 0.02], 0.014, 0.014, [0, 0, 1]);
+      beam(bags.metal, [bx, yBot + sh - 0.05, z - 0.04], [bx, yEdge + Math.tan(14 * D2R) * 0.6 + 0.02, z - 0.6], 0.010, 0.010, [0, 1, 0]);
+    }
+    return { key: P.signKey, x, y, z, w: swFit, h: sh, nx: 0, nz: 1, at: 'porch roof' };
+  }
+  const yBot = V.floorY + P.doorH + 0.32;
+  const room = eave - yBot;
+  if (room < 0.35) return null;
+  if (sh > room) sh = room;
+  const swFit = Math.min(sw, V.L - 0.6);
+  sh = Math.min(sh, swFit / Math.max(0.5, meta.aspect));
+  const x = clamp(doorX, -V.L / 2 + swFit / 2 + 0.2, V.L / 2 - swFit / 2 - 0.2);
+  const z = V.w / 2 + V.wallT / 2 + 0.045, y = yBot + sh / 2;
+  boxAB(bags.trim, [x - swFit / 2, yBot, z - 0.035], [x + swFit / 2, yBot + sh, z - 0.005]);
+  return { key: P.signKey, x, y, z, w: swFit, h: sh, nx: 0, nz: 1, at: 'wall' };
+}
+// the face, for a viewer: a plane wearing the baked sign, alpha-cut so a
+// shaped board shows its backing round the corners
+const SIGN_TEXTURES = new Map();
+function signMesh(THREE, sign) {
+  const S = (typeof SIGN_TEX_SETS !== 'undefined' && SIGN_TEX_SETS) || null;
+  const set = S && sign && S[sign.key];
+  if (!set) return null;
+  let t = SIGN_TEXTURES.get(sign.key);
+  if (!t) {
+    t = new THREE.Texture(set.img);
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    const ok = () => { t.needsUpdate = true; };
+    if (set.img.complete && set.img.naturalWidth) ok(); else if (set.img.addEventListener) set.img.addEventListener('load', ok);
+    SIGN_TEXTURES.set(sign.key, t);
+  }
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.75, metalness: 0.0, transparent: true, alphaTest: 0.5, color: 0xffffff });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(sign.w, sign.h), m);
+  mesh.position.set(sign.x, sign.y, sign.z);
+  mesh.lookAt(sign.x + sign.nx, sign.y, sign.z + sign.nz);
+  mesh.castShadow = false;
+  return mesh;
 }
 
 // ---------------------------------------------------------------------------
@@ -5741,6 +6145,7 @@ function pathPlan(P, V, dk, stoop, front, pier, g) {
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   if (P.mill) return buildMill(P, lod, F);          // a composite of houses (G329)
+  if (P.wing && !P.wingPart) return buildWinged(P, lod, F);   // the main and its wing (G392)
   if (P.station && window.TRAM_GEN) return window.TRAM_GEN.buildStation(P, lod, F);   // the tram's top station (G342)
   const SU = F ? F.SHADE_U : SHADE_U;             // the finish the sag goes to
   const Q = { lod: lod | 0 };
@@ -5808,11 +6213,13 @@ function build(P0, lod, F) {
   buildRoof(bags, P, Q, V, R, dorms);
   for (const d of dorms) buildDormer(bags, P, Q, V, R, d);
   const cup = buildCupola(bags, P, Q, V, R);
+  const twr = buildTower(bags, P, Q, V, R);
   const wood = buildContents(bags, P, Q, V, R);
   const stoop = buildStoop(bags, P, Q, V, g, -1);
   const st = buildStance(bags, P, Q, V, plan, g);
   const dk = buildDeck(bags, P, Q, V, R, g);
   const front = buildStoop(bags, P, Q, V, g, 1);
+  const sign = buildSign(bags, P, Q, V, R, pr, g);
   if (P.lean) buildLean(bags, P, Q, V, R, g);
   const ch = buildChimney(bags, P, Q, V, R);
   // THE SAG FIELD (G273): the uniforms the shaders bow the roof by, from
@@ -5970,7 +6377,7 @@ function build(P0, lod, F) {
     // half a metre OUTSIDE the leaf, at the threshold's own height, and it is
     // published rather than assumed so GATE HOUSE can hold it.
     doors: doorReport(P, V, dk, stoop, front, g, vol.openings),
-    dormers: dorms.length, cupola: cup, wallVerts: wallVerts, ao: aoInfo,
+    dormers: dorms.length, cupola: cup, tower: twr, role: P.role || null, sign, wallVerts: wallVerts, ao: aoInfo,
     // WHAT THE GROUND IS SHADED AGAINST: the walls and the deck, as one
     // rectangle. Not the model's bounding box — that includes the stair, and
     // a flight of steps does not put a shadow the size of itself on the grass.
@@ -6077,12 +6484,144 @@ function buildComposite(parts, opts, lod, F) {
   const stats = Object.assign({
     lod: Q.lod, tris, verts, per, bbox: bb, nan: 0, degen: 0, dropped, composite: true,
     footprint, area: footprint, ridgeY: bb.y1, eaveY: built[0] ? built[0].b.stats.eaveY : 0, floorY: opts.P.floorY,
-    parts: built.map(x => ({ preset: x.part.tag, x: x.part.x, z: x.part.z, yaw: x.part.yaw || 0, L: x.P.L, w: x.P.w, floorY: x.P.floorY, eaveY: x.b.stats.eaveY, ridgeY: x.b.stats.ridgeY })),
+    parts: built.map(x => ({ preset: x.part.tag, x: x.part.x, z: x.part.z, yaw: x.part.yaw || 0, L: x.P.L, w: x.P.w, floorY: x.P.floorY, eaveY: x.b.stats.eaveY, ridgeY: x.b.stats.ridgeY, tower: x.b.stats.tower || null, sign: x.b.stats.sign || null, openings: x.b.stats.openings || [] })),
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null,
     lit: { windows: 0, panes: 0, bulbs: 0, lights: LIT_KEEP.concat(LIT_LOG.lights) },   // the parts' own lights, and the lanterns the extras hung (G348/G349)
     stair: null, front: opts.front || null, stoop: null, deckArea: 0, chimney: null, posts: 0,
   }, opts.stats || {});
   return { bags, stats, V: { L: opts.P.L || 1, w: opts.P.w || 1, wallT: opts.P.wallT, floorY: opts.P.floorY }, R: null, MAT: F ? F.MAT : MAT, P: opts.P };
+}
+
+// ---------------------------------------------------------------------------
+// THE WING (G392): ANY house with a second, attached volume - the school's
+// gym, the clinic's entry block, the police post's garage bay, the lighthouse
+// keeper's fog-signal shed. One dial set on the preset, one composite of two
+// houses: the MAIN (the preset itself, `wing` off) and the WING, cut from the
+// main's own finish with its own plan, storeys and roof, butted against one
+// of the main's four walls a hand INSIDE it (no gap to caulk). Where it
+// stands and which way its ridge runs:
+//
+//   wingSide  0 left end (-x) | 1 right end (+x) | 2 back (-z) | 3 front (+z)
+//   wingTurn  0 the ridge in LINE with the main's (an extension)
+//             1 the ridge ACROSS (an L at an end, a T at the back)
+//   wingOff   where along the shared wall, -1..1 of the main's half length
+//
+// The joint face is always a GABLE END (the wing's roof runs up to the main
+// wall) - except a back/front wing in line, which wants its high edge at the
+// main: that one is the shed family turned so its front (+z, the high side)
+// faces the main, and its door goes on its back. No window opens into the
+// joint (rule 37): each part's windows are read back in the composite frame,
+// pushed a hand out of their wall, and dropped where that is inside the other
+// volume under its roof. The flagpole is the composite's, on the main's lawn
+// (buildComposite turns every part's own off). `wingSlot` 2 dresses the wing
+// from wallSet2 / roofSet2 (G349's slots) - a metal gym on a boarded school.
+function wingPlan(P) {
+  const side = Math.round(P.wingSide) | 0, turn = !!Math.round(P.wingTurn);
+  const lap = 0.30;                                     // how far the wing runs into the main
+  const end = side <= 1, sx = side === 1 ? 1 : -1, sz = side === 3 ? 1 : -1;
+  let yaw, x, z, L = P.wingL, w = P.wingW, fam = 0, door = 'front';
+  if (end) {
+    if (turn) {                                         // an L: the wing's x runs along world z, its +z (door) outward
+      yaw = sx > 0 ? Math.PI / 2 : -Math.PI / 2;
+      x = sx * (P.L / 2 + w / 2 - lap);
+      z = P.wingOff * P.w / 2;
+    } else {                                            // in line: the wing's x along the main's
+      yaw = 0;
+      x = sx * (P.L / 2 + L / 2 - lap);
+      z = P.wingOff * (P.w - w) / 2;
+    }
+  } else {
+    if (turn) {                                         // a T: the wing's x runs along world z, its far end the gable
+      yaw = sz > 0 ? -Math.PI / 2 : Math.PI / 2;        // ridge along z: wing x -> world -/+ z
+      z = sz * (P.w / 2 + L / 2 - lap);
+      x = P.wingOff * P.L / 2;
+      // its door on its own front (+z), which faces sideways here: a side
+      // door on the T's stem
+      door = 'front';
+    } else {                                            // in line at the back/front: a shed roof high against the main
+      yaw = sz > 0 ? Math.PI : 0;                       // the wing's +z (the high edge) toward the main
+      fam = 1;
+      z = sz * (P.w / 2 + w / 2 - lap);
+      x = P.wingOff * (P.L - L) / 2;
+      door = 'back';
+    }
+  }
+  return { side, turn, yaw, x, z, L, w, fam, door, lap };
+}
+function buildWinged(P, lod, F) {
+  const W = wingPlan(P);
+  const g = groundFn(P);
+  const storeys = Math.max(1, Math.round(P.wingStoreys));
+  const fh = P.wingFloorH > 0 ? P.wingFloorH : P.floorH;
+  // ---- the volumes, for the joints: a point is covered by a part when it is
+  // inside its plan and under its roof (a gable/hip along the part's x, or
+  // the shed family high at +z), in that part's own frame
+  const volOf = (Pp, x, z, yaw) => {
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    const plate = Pp.floorY + Pp.storeys * Pp.floorH;
+    const tp = Math.tan(Pp.pitch * D2R);
+    const top = (lx, lz) => (Math.round(Pp.roofFam) === 1
+      ? plate + tp * (lz + Pp.w / 2)                                 // shed: high at +z
+      : plate + tp * Math.max(0, Pp.w / 2 - Math.abs(lz)));          // gable / hip: the ridge along x
+    return (X, Y, Z) => {
+      // the composite point into the part's frame (the inverse of toW)
+      const dx = X - x, dz = Z - z;
+      const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      return lx > -Pp.L / 2 + 0.02 && lx < Pp.L / 2 - 0.02 && lz > -Pp.w / 2 + 0.02 && lz < Pp.w / 2 - 0.02 &&
+             Y > Pp.floorY - 0.1 && Y < top(lx, lz) + 0.05;
+    };
+  };
+  const keepAgainst = (covered, x, z, yaw, L, w) => (lx, lz, y0, y1) => {
+    let nx = 0, nz = 0;
+    if (Math.abs(lz - w / 2) < 0.02) nz = 1; else if (Math.abs(lz + w / 2) < 0.02) nz = -1;
+    else if (Math.abs(lx - L / 2) < 0.02) nx = 1; else nx = -1;
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    const X = lx * c + lz * sn + x, Z = -lx * sn + lz * c + z;
+    const NX = nx * c + nz * sn, NZ = -nx * sn + nz * c;
+    const px = X + NX * 0.5, pz = Z + NZ * 0.5;
+    for (const y of [y0 + 0.05, (y0 + y1) / 2, y1 - 0.05]) if (covered(px, y, pz)) return false;
+    return true;
+  };
+  // ---- the main: the preset itself, wing off, marked as a part
+  const Pm = Object.assign({}, P, { wing: 0, wingPart: 1 });
+  // ---- the wing: the main's finish and stance, its own plan and roof
+  const Pw = Object.assign({}, P, {
+    wing: 0, wingPart: 2, L: W.L, w: W.w, storeys, floorH: fh,
+    roofFam: W.fam, pitch: P.wingPitch > 0 ? P.wingPitch : P.pitch, hip: W.fam === 1 ? 0 : Math.round(P.wingHip),
+    tower: 0, cupola: 0, dormers: 0, bay: 0, lean: 0, porch: 0, stairs: 1, backPorch: 1,
+    flagpole: 0, openFront: 0, openFront2: 0, gableWin: 0,
+    door: W.door === 'front' && P.wingDoor ? 1 : 0, backDoor: W.door === 'back' && P.wingDoor ? 1 : 0,
+    doorPos: 0.5, backDoorPos: 0.5,
+    nFront: Math.round(P.wingWin), nBack: Math.round(P.wingWin), nLeft: Math.max(0, Math.round(P.wingWin / 2)), nRight: Math.max(0, Math.round(P.wingWin / 2)),
+    chim: P.wingChim ? 1 : 0, chimXF: 0.6, chimZF: 0.3,
+  });
+  if (P.wingDoorW > 0) { Pw.doorW = P.wingDoorW; if (P.wingDoorW > 2) Pw.doorLight = 0; }   // a bay door has no light
+  if (P.wingDoorH > 0) Pw.doorH = P.wingDoorH;
+  const covMain = volOf(Pm, 0, 0, 0), covWing = volOf(Pw, W.x, W.z, W.yaw);
+  Pm.winKeep = keepAgainst(covWing, 0, 0, 0, Pm.L, Pm.w);
+  Pw.winKeep = keepAgainst(covMain, W.x, W.z, W.yaw, Pw.L, Pw.w);
+  // slot 2: the wing's siding, trim and roof go to the second bags, dressed
+  // from wallSet2 / trimSet2 / roofSet2 by applyFinish (G349)
+  const parts = [{ tag: 'main', x: 0, z: 0, yaw: 0, P: Pm }, { tag: 'wing', x: W.x, z: W.z, yaw: W.yaw, P: Pw, slot: Math.round(P.wingSlot) === 2 ? 2 : 1 }];
+  let flag = null;
+  const out = buildComposite(parts, {
+    P, ground: g,
+    extra: (bags, built, Q) => {
+      if (P.flagpole) {
+        const V = { L: P.L, w: P.w, wallT: P.wallT, floorY: P.floorY };
+        flag = buildFlagpole(bags, P, Q, V, g);
+      }
+    },
+    stats: { wing: W, role: P.role || null },
+  }, lod, F);
+  // the main's own numbers are the building's (the wing is an annex)
+  const main = out.stats.parts && out.stats.parts[0];
+  if (main) { out.stats.ridgeY = main.ridgeY; out.stats.eaveY = main.eaveY; }
+  out.stats.tower = (out.stats.parts || []).map(q => q.tower).find(t => t) || null;
+  out.stats.flagpole = flag;
+  // the main's sign, carried into the composite frame (the main stands at the origin, unturned)
+  out.stats.sign = (out.stats.parts && out.stats.parts[0] && out.stats.parts[0].sign) || null;
+  return out;
 }
 
 // A WALL LANTERN (G348, the user: "add a few exterior and interior lights
@@ -7008,7 +7547,7 @@ window.HOUSE_GEN = {
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
-  makeFinish, shadeGround, buildGroundAO, shadeSkirt,
+  makeFinish, shadeGround, buildGroundAO, shadeSkirt, signMesh, signMetaOf, wingPlan,
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
   steelMix,   // the tram's steel (G342)
   buildComposite, buildMill, millPlan, lampAt, floodAt, pendantAt,   // composites of houses: the mill (G329; G350 its plan, for the village to cut the shoulder); the wall lantern (G348), the flood and the pendant (G370)
@@ -7030,7 +7569,8 @@ window.HOUSE_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
     size: P => ({ L: (P && P.L) || Pd.L, w: (P && P.w) || Pd.w }),
     hooks: () => [], hooksOf: () => [], lod: { dist: [0, 150, 500, 1500] },
     slots: { lights: 'stats.lit.lights', smoke: 'stats.smoke', people: 'stats.people', ao: 'stats.groundAO' },
-    tags: ['house'], headless: true, gate: 'HOUSE' };
+    // an institution is tagged by its role (G392): the editor's picker and the game's "where is the clinic" read one word
+    tags: Pd.role ? ['institution', Pd.role] : ['house'], role: Pd.role || null, headless: true, gate: 'HOUSE' };
   if (Pd.mill) return Object.assign(base, { kind: 'complex', tags: ['industrial', 'mine'],
     // THE MILL'S GROUND: the top house's pad is a SHELF the world cuts and
     // fills from the same plan (millPlan; VILLAGE_GEN.withShelf is the cut),

@@ -86,7 +86,7 @@ let VMCTX = null;          // kept: the PBR check has to inject a stub library
   ctx.globalThis = ctx;
   VMCTX = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }
@@ -1232,7 +1232,9 @@ function battery(name, P) {
            posts: hi.stats.posts, sil: worst };
 }
 for (const name of Object.keys(HG.PRESETS))
-  if (!HG.PRESETS[name].mill && !HG.PRESETS[name].station) rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
+  if (!HG.PRESETS[name].mill && !HG.PRESETS[name].station)
+    // a winged preset's MAIN runs the battery as a plain house; rule 40 holds the composite (G392)
+    rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name], HG.PRESETS[name].wing ? { wing: 0 } : {})));
 
 // 37 — THE MILL, A COMPOSITE OF HOUSES (G329; G350 to the reference): it
 //   builds in both LODs, finite, the low mesh lower; THE TOP HOUSE stands on
@@ -1607,6 +1609,173 @@ for (const name of Object.keys(HG.PRESETS)) {
   }
   const again = HG.build(P, 0);
   check(again.stats.tris === hi.stats.tris, 'base ' + name + ': the build is not deterministic');
+}
+
+// 40 — THE INSTITUTIONS (G392, the user: "the game will know the building
+//   corresponding to townhouse, police, fire brigade, schools, small
+//   hospitals, churches and lighthouses"). A preset with `role` publishes it
+//   (stats.role) and, when it names a billboard, its sign slot (a civic sign,
+//   the board sized by the sign's own aspect, its centre proud of the front
+//   wall or on posts on the lawn in front). A TOWER stands through the roof:
+//   the lantern's top is the building's top, over the ridge; the beacon is a
+//   published light only with the switch on (rule 29's law), and the lantern
+//   glass is its emitting geometry. A WING is one building with its main:
+//   both LODs build finite, the low mesh lower, two parts, the wing's box
+//   overlapping the main's by the lap (a hand, never more than the wall), no
+//   window of either part opening into the other's volume (rule 37's law),
+//   the flag on the lawn when asked. The battery ran the MAIN of each winged
+//   preset as a plain house (wing off), so every house rule holds it too.
+for (const name of Object.keys(HG.PRESETS)) {
+  const pre = HG.PRESETS[name];
+  if (!pre.role && !pre.wing && !pre.tower) continue;
+  if (pre.mill || pre.station) continue;
+  const P = Object.assign({}, HG.DEF, pre);
+  let hi = null, lo = null, threw = null;
+  try { hi = HG.build(P, 0); lo = HG.build(P, 1); } catch (e) { threw = e; }
+  if (!check(!threw, name + ': build threw', threw && (threw.stack || threw.message))) continue;
+  let nan = 0;
+  for (const k of HG.BAGS) { const d = hi.bags[k].data(); for (let i = 0; i < d.pos.length; i++) if (!isFinite(d.pos[i])) nan++; }
+  check(nan === 0, name + ': NaN in the mesh', String(nan));
+  check(lo.stats.tris < hi.stats.tris * 0.35, name + ': the low mesh is not low', lo.stats.tris + ' vs ' + hi.stats.tris);
+  // the role and the sign
+  if (pre.role) check(hi.stats.role === pre.role, name + ': the role is not published', String(hi.stats.role));
+  if (pre.signKey) {
+    const S = hi.stats.sign, meta = HG.signMetaOf(pre.signKey);
+    if (check(!!S && !!meta, name + ': the sign slot is empty', pre.signKey)) {
+      check(Math.abs(S.w / S.h - meta.aspect) < 0.02 || S.h < S.w / meta.aspect - 1e-6,
+            name + ': the board is not the sign\'s shape', (S.w / S.h).toFixed(2) + ' vs ' + meta.aspect);
+      check(S.nz === 1 && S.nx === 0, name + ': the sign does not face the road');
+      const wall = P.w / 2;
+      if (S.at === 'wall') check(S.z > wall && S.z < wall + 0.2 && S.y - S.h / 2 > P.floorY + 1.9, name + ': the wall sign is not on the front wall over the door', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
+      else if (S.at === 'porch roof') check(S.z > wall + 0.5 && S.z < wall + P.porchD + 0.3 && S.y - S.h / 2 > P.floorY + 2.0, name + ': the porch-roof sign does not stand on the roof edge', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
+      else if (S.at === 'fascia') check(S.z > wall + 0.5 && S.z < wall + P.porchD + 0.3 && S.y - S.h / 2 > P.floorY + 2.0, name + ': the fascia sign is not hung off the porch roof with headroom', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
+      else check(S.z > wall + 1.5 && S.y - S.h / 2 > 1.0, name + ': the post sign is not on the lawn in front', S.z.toFixed(2));
+      check(S.key === pre.signKey, name + ': the sign carries another key');
+    }
+  }
+  // the tower
+  if (pre.tower) {
+    const T = hi.stats.tower;
+    if (check(!!T, name + ': the tower is not published')) {
+      const mainRidge = hi.stats.parts ? hi.stats.parts[0].ridgeY : hi.stats.ridgeY;
+      check(T.top > mainRidge + 2, name + ': the tower does not stand over the roof', T.top.toFixed(2) + ' vs ridge ' + mainRidge.toFixed(2));
+      check(Math.abs(hi.stats.bbox.y1 - T.top) < 0.05, name + ': the lantern is not the building\'s top', hi.stats.bbox.y1.toFixed(2) + ' vs ' + T.top.toFixed(2));
+      const lo2 = lo.stats.tower;
+      check(!!lo2 && Math.abs(lo2.top - T.top) < 0.05, name + ': the far mesh has another tower top');
+      if (pre.lantern) {
+        check(!!T.lantern && T.lantern.y1 > T.lantern.y0 + 0.5, name + ': no lantern');
+        const beacons = (hi.stats.lit.lights || []).filter(l => l.kind === 'beacon');
+        check(beacons.length === 0, name + ': a beacon with the lights off');
+        const on = HG.build(Object.assign({}, P, { lights: 1 }), 0);
+        const b2 = (on.stats.lit.lights || []).filter(l => l.kind === 'beacon');
+        check(b2.length === 1, name + ': one beacon with the lights on', String(b2.length));
+        if (b2.length) {
+          const gd = on.bags.glass.data();
+          let lit = 0;
+          for (let i = 0; i < gd.lit.length; i++) if (gd.lit[i] > 0 && Math.abs(gd.pos[3 * i + 1] - b2[0].y) < T.lantern.y1 - T.lantern.y0) lit++;
+          check(lit >= 8, name + ': the lantern glass does not glow', String(lit));
+        }
+      }
+    }
+  }
+  // the wing
+  if (pre.wing) {
+    const W = hi.stats.wing, parts = hi.stats.parts;
+    if (check(!!W && parts && parts.length === 2, name + ': not a main and its wing')) {
+      const box = q => {
+        const c = Math.cos(q.yaw), sn = Math.sin(q.yaw);
+        const hx = Math.abs(c) * q.L / 2 + Math.abs(sn) * q.w / 2, hz = Math.abs(sn) * q.L / 2 + Math.abs(c) * q.w / 2;
+        return { x0: q.x - hx, x1: q.x + hx, z0: q.z - hz, z1: q.z + hz };
+      };
+      const A = box(parts[0]), B = box(parts[1]);
+      const ox = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0), oz = Math.min(A.z1, B.z1) - Math.max(A.z0, B.z0);
+      const lap = W.side <= 1 ? ox : oz, across = W.side <= 1 ? oz : ox;
+      check(Math.abs(lap - W.lap) < 0.02, name + ': the wing does not lap the main by a hand', lap.toFixed(3) + ' vs ' + W.lap);
+      check(across > 2.5, name + ': the wing barely touches the main', across.toFixed(2));
+      // no window into the joint: an opening pushed a hand out of its wall is
+      // not inside the other part's box under its eave
+      for (const [me, other] of [[0, 1], [1, 0]]) {
+        const q = parts[me], ob = box(parts[other]), oe = parts[other].eaveY;
+        const c = Math.cos(q.yaw), sn = Math.sin(q.yaw);
+        let bad = 0;
+        for (const o of q.openings || []) {
+          // the opening's centre and its wall's outward normal, from its side
+          // and its place along the wall (the plan walks front, right, back, left)
+          const sm = (o.s0 + o.s1) / 2, L = q.L, w = q.w;
+          const wallN = [{ x: -L / 2 + sm, z: w / 2, nx: 0, nz: 1 }, { x: L / 2, z: w / 2 - sm, nx: 1, nz: 0 },
+                         { x: L / 2 - sm, z: -w / 2, nx: 0, nz: -1 }, { x: -L / 2, z: -w / 2 + sm, nx: -1, nz: 0 }][o.side];
+          const px = wallN.x + wallN.nx * 0.5, pz = wallN.z + wallN.nz * 0.5;
+          const X = px * c + pz * sn + q.x, Z = -px * sn + pz * c + q.z;
+          const ymid = (o.y0 + o.y1) / 2;
+          if (X > ob.x0 + 0.02 && X < ob.x1 - 0.02 && Z > ob.z0 + 0.02 && Z < ob.z1 - 0.02 && ymid < oe) bad++;
+        }
+        check(bad === 0, name + ': ' + q.preset + ' opens a window into the joint', String(bad));
+      }
+      if (pre.flagpole) check(!!hi.stats.flagpole, name + ': no flag on the lawn');
+    }
+  }
+}
+
+// 41 — THE SPORTS GROUNDS (G392, the user: "soccer/baseball fields ... very
+//   visible from the sky ... Everything small"): every SPORT_GEN preset
+//   builds in both LODs, finite, the low mesh lower; the SURFACE lies on the
+//   ground (every turf/dirt/court/track vertex within 3 cm of floorY) and the
+//   LINES ride a centimetre over it and survive into the far mesh (they are
+//   the aerial read); the foot published for the catalogue holds the whole
+//   ground; a pitch's goals stand at both ends, the diamond's backstop
+//   behind the plate on the road side, the court's hoops at both ends; the
+//   stand is on the road side off the surface; floodlights are published
+//   only with the switch on and each has a mast under it; deterministic.
+{
+  const SP = win.SPORT_GEN;
+  check(!!SP && Object.keys(SP.PRESETS).length >= 5, 'sport: the generator is not loaded');
+  if (SP) for (const name of Object.keys(SP.PRESETS)) {
+    const P = Object.assign({}, SP.DEF, SP.PRESETS[name]);
+    let hi = null, lo = null, threw = null;
+    try { hi = SP.build(P, 0); lo = SP.build(P, 1); } catch (e) { threw = e; }
+    if (!check(!threw, 'sport ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
+    check(hi.stats.nan === 0, 'sport ' + name + ': NaN in the mesh', String(hi.stats.nan));
+    check(hi.stats.tris > 200, 'sport ' + name + ': too few triangles', String(hi.stats.tris));
+    // a ground's far mesh keeps its surface and its lines (the aerial read); only what stands on it thins
+    check(lo.stats.tris <= hi.stats.tris && (lo.stats.tris < hi.stats.tris || !(P.stand || P.fence || P.goals || P.lights)), 'sport ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
+    const y = P.floorY;
+    let off = 0, lineOff = 0, lineTris = 0;
+    for (const k of ['turf', 'dirt', 'court', 'track']) { const d = hi.bags[k].data(); for (let i = 1; i < d.pos.length; i += 3) if (Math.abs(d.pos[i] - y) > 0.03) off++; }
+    check(off === 0, 'sport ' + name + ': the surface is not on the ground', String(off));
+    { const d = hi.bags.line.data(); for (let i = 1; i < d.pos.length; i += 3) if (d.pos[i] < y + 0.005 || d.pos[i] > y + 0.03) lineOff++; lineTris = hi.bags.line.tris; }
+    if (P.lines) {
+      check(lineTris > 8, 'sport ' + name + ': no lines', String(lineTris));
+      check(lineOff === 0, 'sport ' + name + ': a line is not a centimetre over the surface', String(lineOff));
+      check(lo.bags.line.tris === lineTris, 'sport ' + name + ': the far mesh lost its lines', lo.bags.line.tris + ' vs ' + lineTris);
+    }
+    // the foot holds the ground
+    const F = hi.stats.foot, g = hi.stats.ground;
+    const fx0 = Math.min(...F.map(p => p[0])), fx1 = Math.max(...F.map(p => p[0])), fz0 = Math.min(...F.map(p => p[1])), fz1 = Math.max(...F.map(p => p[1]));
+    check(fx0 <= g.x0 + 1e-6 && fx1 >= g.x1 - 1e-6 && fz0 <= g.z0 + 1e-6 && fz1 >= g.z1 - 1e-6, 'sport ' + name + ': the foot does not hold the ground', JSON.stringify([fx0, fx1, fz0, fz1, g]));
+    const kind = Math.round(P.kind);
+    if ((kind === 0 || kind === 2) && P.goals) {
+      const gs = hi.stats.goals;
+      check(gs.length === 2 && Math.sign(gs[0].x) !== Math.sign(gs[1].x) && Math.abs(Math.abs(gs[0].x) - P.L / 2) < 0.2, 'sport ' + name + ': the goals are not at both ends', JSON.stringify(gs.map(q => q.x)));
+    }
+    if (kind === 1 && P.backstop) {
+      const B = hi.stats.backstop, H = hi.stats.plate;
+      check(!!B && B.z > H.z + 3 && B.h > 3, 'sport ' + name + ': the backstop is not behind the plate on the road side');
+      check(H.z > 0, 'sport ' + name + ': the plate is not on the road side', String(H.z));
+    }
+    if (kind === 3 && P.hoops) check(hi.stats.goals.length === 2 && hi.stats.goals[0].dir * hi.stats.goals[1].dir < 0, 'sport ' + name + ': the hoops are not at both ends');
+    if (P.stand) { const st = hi.stats.stand; check(!!st && st.z0 >= g.z1 + 0.5, 'sport ' + name + ': the stand is not on the road side off the surface', st && st.z0.toFixed(2) + ' vs ' + g.z1.toFixed(2)); }
+    const lights = hi.stats.lit.lights;
+    if (P.lights) {
+      check(lights.length === Math.round(P.masts) * 4, 'sport ' + name + ': the floodlights are not four per mast', String(lights.length));
+      const masts = hi.stats.masts || [];
+      for (const l of lights) check(masts.some(m => Math.hypot(m[0] - l.x, m[1] - l.z) < 1.6) && Math.abs(l.y - (y + P.mastH)) < 0.01, 'sport ' + name + ': a floodlight has no mast under it');
+    } else check(lights.length === 0, 'sport ' + name + ': lights with the switch off', String(lights.length));
+    const again = SP.build(P, 0);
+    check(again.stats.tris === hi.stats.tris && again.stats.verts === hi.stats.verts, 'sport ' + name + ': not deterministic');
+  }
+  // the catalogue: one entry per preset, a convex CCW foot from P alone
+  if (SP) check(Array.isArray(SP.CATALOGUE) && SP.CATALOGUE.length === Object.keys(SP.PRESETS).length && SP.CATALOGUE.every(e => e.key.startsWith('sport/') && e.foot().length === 4 && e.role === 'sports'),
+                'sport: the catalogue does not carry every preset');
 }
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use

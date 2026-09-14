@@ -29,6 +29,20 @@ SHEETS = {
         ['air_taxi', 'harbor_fuel', 'general_store', 'tidal_cup'],
         ['bear_tours', 'sitka_lumber', 'north_motel', 'tongass_marine'],
     ],
+    # G392, the institutions (the user: "signs for the institutions")
+    'signs_sheet_2.png': [
+        ['admiralty_police', 'island_clinic', 'town_hall', 'fire_brigade'],
+        ['kootz_school', 'postal_service', 'community_church', 'veterinary_care'],
+    ],
+}
+
+# A SHEET WHOSE SIGNS NEARLY TOUCH (G392): the institutions came four to a
+# column with four-pixel gutters and a soft halo round every board, which the
+# default cut (alpha over 40, gutters joined under 12 px) read as one sign per
+# column. Per sheet: the alpha a pixel must beat to count, and the widest
+# gutter that is still a gap inside one sign.
+OPTS = {
+    'signs_sheet_2.png': {'alpha': 160, 'gap': 2},
 }
 
 
@@ -52,14 +66,16 @@ def main():
     n = 0
     for sheet, cols in SHEETS.items():
         im = Image.open(os.path.join(SRC, sheet)).convert('RGBA')
-        a = im.split()[3].point(lambda v: 255 if v > 40 else 0)
+        o = OPTS.get(sheet, {})
+        th, gap = o.get('alpha', 40), o.get('gap', 12)
+        a = im.split()[3].point(lambda v: 255 if v > th else 0)
         W, H = im.size
-        col_runs = runs([a.crop((x, 0, x + 1, H)).getbbox() is not None for x in range(W)], 12)
+        col_runs = runs([a.crop((x, 0, x + 1, H)).getbbox() is not None for x in range(W)], gap)
         if len(col_runs) != len(cols):
             raise SystemExit('%s: found %d columns, the table names %d' % (sheet, len(col_runs), len(cols)))
         for (x0, x1), names in zip(col_runs, cols):
             col = a.crop((x0, 0, x1, H))
-            row_runs = runs([col.crop((0, y, x1 - x0, y + 1)).getbbox() is not None for y in range(H)], 12)
+            row_runs = runs([col.crop((0, y, x1 - x0, y + 1)).getbbox() is not None for y in range(H)], gap)
             if len(row_runs) != len(names):
                 raise SystemExit('%s: column at %d has %d signs, the table names %d' % (sheet, x0, len(row_runs), len(names)))
             for (y0, y1), key in zip(row_runs, names):
