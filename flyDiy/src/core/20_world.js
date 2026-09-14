@@ -192,7 +192,9 @@ function makeWorld(seed, opts) {
     // the island: the DEM already holds its river beds (no carve to add) and
     // its lakes are the cover's water class (waterAt), not flooded sinks
     { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
-      lakeMin: ISL ? 1e9 : 1.5, A0m2: 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
+      // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
+      // judgment on procedural hydrology - maps first, procedural on top")
+      lakeMin: ISL ? 1e9 : 1.5, A0m2: ISL ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)

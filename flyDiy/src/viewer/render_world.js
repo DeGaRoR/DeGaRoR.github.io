@@ -2318,7 +2318,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: 100 };         // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26)
+      const FILL = { ng: 100,           // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26)
+        // the island's knobs (F8 > trees > from the map): coverage ramps from
+        // `from` to `full` metres of canopy; a tree is canopy x gain over the
+        // model's own height, clamped
+        island: { from: 1.0, full: 12.0, gain: 1.0, min: 0.3, max: 2.2 } };
+      const ISLC = world.island && world.island.canopyAt ? world.island : null;
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
       // shared with the terrain's colour bake and the far canopy mask
@@ -2371,9 +2376,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // distance. Three bands, the generated rungs, one rule.
             const forKey = key => {
               const col = treeList().find(e => e.key === key).col;
+              const sub = treeList().find(e => e.key === key).sub;
               return { dead: (col.place && col.place.dead) || 0, white: true,
                        sink: (col.place && col.place.sink) || 0,
                        size: (col.place && col.place.size) || 1,
+                       h: (sub && sub.h) || 15,                    // the model's height, metres (W2: the canopy sizes it)
                        series: SERIES.map(ser => Object.assign(ladderFor(key, ser), { imp: null })) };
             };
             const pool = treePool();
@@ -2425,12 +2432,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const x = cx * CH + (gx + 0.5) * SP2 + (hsh(ix + 7, iz) - 0.5) * SP2 * 1.6;
           const z = cz * CH + (gz + 0.5) * SP2 + (hsh(ix, iz + 7) - 0.5) * SP2 * 1.6;
           if (!forestHere(x, z)) continue;  // ONE rule, the bake's too
+          // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
+          // says how much of the grid stands - nothing below `from`, everything
+          // above `full`, a ramp between - and rides with the record to size it.
+          let can = 0;
+          if (ISLC) {
+            can = ISLC.canopyAt(x, z);
+            const p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
+            if (p < 1 && hsh(ix + 13, iz + 29) > p) continue;
+          }
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
           const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
           const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
-          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8));
+          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -2444,14 +2460,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, gi) => {
-          const n = r.length / 5;
+          const n = r.length / 6;
           if (!n) return;
           const SH = SHAPE.list[gi];
           // deal every instance its series first, so each series' meshes are
           // sized to what they will hold and nothing empty is submitted
           const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
           for (let i = 0; i < n; i++) {
-            ser[i] = SH.series.length > 1 ? seriesOf(r[i * 5 + 4], SH.dead) : 0;
+            ser[i] = SH.series.length > 1 ? seriesOf(r[i * 6 + 4], SH.dead) : 0;
             cnt[ser[i]]++;
           }
           // one InstancedMesh per PART per series: a real tree is a bark part
@@ -2489,11 +2505,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
             mm.position.set(ox, 0, oz); mm.userData.ser = si; mm.userData.fill = true; } });
           for (let i = 0; i < n; i++) {
-            const o = i * 5, sp = r[o + 3], w = r[o + 4];
+            const o = i * 6, sp = r[o + 3], w = r[o + 4], can = r[o + 5];
             const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
-            const s = SH.white ? sizeOf(SH.size, w)
-                               : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
+            // THE MAP'S SIZE: on an island a tree is as tall as the canopy
+            // map says (x gain), over the model's own height, with the mix's
+            // spread as jitter; elsewhere the collection's size
+            const s = (ISLC && can > 0 && SH.h)
+              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9))
+              : SH.white ? sizeOf(SH.size, w)
+                         : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             // the stand series is drawn stretched - the dial, not the bake
             sv.set(s, s * (SH.white ? 1 : 0.9 + w * 0.25) * S.scaleY, s);
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
@@ -2564,6 +2585,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
+          island: () => Object.assign({}, FILL.island),
+          setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
+          onIsland: () => !!ISLC,
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(320, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
       let tick = 0;

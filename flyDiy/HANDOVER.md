@@ -46342,3 +46342,28 @@ nordic cold regions".
   mint, coral (COLS 12-16) - the sampler draws from the whole list; the
   general store, cafe, air taxi, fuel and bait, post office take them.
 - Green: HOUSE (rule 42 new), MEDIA.
+
+## G399 — THE FILL FROM THE MAP, RIVERS OFF, F8 REGROUPED (2026-09-14, the
+## user: "do we also have real tree canopy based on our map data? ... I'd really
+## want accurate tree coverage and size, and maybe the sliders ... unify the
+## world sliders with the F8 menu ... surface the environment controls")
+
+- THE ANSWER WAS "PARTLY": where trees stand came from the map (effClass ->
+  FOREST_FLOOR), how many was the uniform NG dial, how tall the species
+  factor; only the sparse woodland read the canopy. Now the fill does: the
+  walk keeps a grid point with p = (canopy - from) / (full - from) and the
+  record carries the canopy (stride 6); the build sizes each tree to canopy
+  x gain over the model's own height (`h` from the pack's subject, clamped
+  min..max, the mix's spread as jitter). TREE_FILL.island()/setIsland()
+  (evicts and regenerates). Measured: 78 793 trees streamed against
+  129 041 uniform, full 15.0 / off 9.6 ms - the frame is the same.
+- RIVERS OFF on the island (A0m2 1e12): "maps first, procedural on top".
+  The lakes are the map's; the DEM's beds stay.
+- F8: a `fold` helper (state in localStorage); trees (from the map, density,
+  mix; ladder / leaf / species folded, each species its own fold),
+  environment (rig, sun, hemisphere, exposure, environment, FOG near/far;
+  shadows and floor folded; the sea: swell / wavelength through setSea),
+  frame, camera. The template-string trap: a CSS `\25BE` is an octal escape
+  inside a backtick string - the glyphs are literal.
+- ISLAND-ANNETTE section 12.7: the table of what is from the map, bench
+  against sim, row by row.

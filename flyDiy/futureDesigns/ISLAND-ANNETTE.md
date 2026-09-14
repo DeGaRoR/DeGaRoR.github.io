@@ -522,3 +522,40 @@ the tint (fill from the QA mask by neighbours, or a second date); the 20 m
 overlay pack for the shipped asset (the bench reads the 10 m grids, ~85 MB
 over localhost — the game asset is the quadtree + overlays at 20 m, ~10 MB);
 a credit line check on the Meta/WRI licence text before anything ships.
+
+### 12.7 WHAT IS FROM THE MAP — the bench against the sim (G399, 2026-09-14)
+
+"Maps first, procedural on top" (the user). Every row says where each thing
+comes from in `tools/_island.html` (the bench) and in `dev.html?world=jolene`
+(the sim), so the gap is visible instead of felt.
+
+| thing | source | the bench | the sim |
+|---|---|---|---|
+| ground relief | IFSAR 5 m DTM → quadtree asset (ε 2 m) | ✔ the asset | ✔ the same asset (`makeWorld({ island })`); HOME's strip CUT into it at 33.8 m |
+| the sea's edge | the signed coast field off the DEM at 0 | ✔ smooth SDF line, shelf, rocky band, wet line | ✔ the sea FLOOR is a shelf off the same field (−1.5 → −12 m); the water plane covers it; the rocky band is in the albedo |
+| ground colour | Landsat tint × radar overlay × canopy shade × shore × snow | ✔ live, every layer a slider (the stack) | ✔ the same stack BAKED unlit by `island_prep` (`.albedo.rgb`), mapped over both rings; not live |
+| ground normal detail | radar band-pass bump | ✔ live, fading with camera distance | ✗ not yet (the game's terrain normal is the mesh's; W1) |
+| land classes | WorldCover 10 m + the heath reclass (tree cover under 2.5 m canopy → shrub) | ✔ eight smooth weight fields, the contour blur | ✔ `effClass` → the classifier: tree → FOREST_FLOOR, built → PAVED, bare → ROCK/SCREE by slope, the rest GRASS, water → WATER |
+| lakes | WorldCover class 80 | ✔ drawn as water class | ✔ `waterAt` answers the class (t + 0.3); the hydrology bake floods NO sinks on an island |
+| rivers | — (no map source; WorldCover holds only the wide ones as water) | ✗ | ✗ OFF on the island for now (A0m2 1e12; the DEM's beds stay). Procedural later, on top |
+| where trees stand | effective class = tree cover | ✔ | ✔ `forestHere` reads the classifier |
+| how MANY trees | the canopy height as a coverage ramp | ✔ stems per 100 m², thinned by canopy | ✔ (G399) the fill keeps a grid point with p = (canopy − `cover from`) / (`full cover` − `cover from`); F8 › trees › from the map |
+| how TALL trees | the canopy height layer (Meta/WRI 1 m → 10 m) | ✔ height = canopy × jitter | ✔ (G399) the fill scales each tree to canopy × `size gain` / the model's own height (clamped `size min`..`max`), the mix's spread as jitter; the woodland too (canopy / 16) |
+| which SPECIES | — | ✗ (cones) | procedural: the ladder's pool weighted by altitude / patches / wet-or-steep (W0c.29). By canopy: owed (W3) |
+| the trees themselves | the ladder's five collections, three rungs, impostors | ✗ (cones for placement only) | ✔ the real ladder, measured |
+| snow | the DEM above the snowline | ✔ live, north faces first | ✔ baked into the albedo at 830–950 m; not live |
+| the light | — | the bench's sun knobs | the rig rows (`alps` at boot on an island), F8 › environment |
+| fog | — | none | none on an island (20–90 km); F8 › environment › fog |
+
+Measured with the map's coverage (`tree_perf`, alps, NG 100): full **15.0 ms** /
+off **9.6 ms**, 1 855 near + 89 266 impostors, **78 793 trees** streamed in 68
+chunks (against 129 041 uniform) — the frame is the same, the forest is the
+island's.
+
+**F8 regrouped (G399):** `trees` (from the map · density · mix; `ladder`,
+`leaf`, `species` folded, each species its own fold) · `environment` (rig
+row, sun, hemisphere, exposure, environment, **fog**; `shadows and floor`,
+`the sea` folded) · `frame` · `camera`. Folds remember themselves. The
+bench's world knobs that are NOT live in the sim (the stack's weights, the
+snowline, the shore, the bump) are baked by `island_prep`; making them live
+is W1's material, not a panel row.
