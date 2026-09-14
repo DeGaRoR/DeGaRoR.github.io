@@ -529,6 +529,12 @@ const COLS = [
   ['buttercup', 0xd8ab3e], ['sky blue', 0x5f8fae], ['ochre', 0xb87333],
   ['white', 0xe8e6df], ['cream', 0xdfd2ab], ['charcoal', 0x2f3438],
   ['forest', 0x24382c], ['barn red', 0x7d2f26], ['seafoam', 0x7fa89a],
+  // THE NORDIC ROW (G393.2, the user: "brighter colors typical from the
+  // nordic cold regions", without doing something ugly): the falu red of a
+  // Swedish barn, a Norwegian harbour blue, a Danish sunflower, a mint and a
+  // coral off a Greenland row of houses - the sampler draws from the whole
+  // list, so the villages take them up on their own
+  ['falu red', 0xb8432f], ['nordic blue', 0x3f70b0], ['sunflower', 0xeac53d], ['mint', 0x9ccbb5], ['coral', 0xd9785e],
 ];
 const COL_NAMES = COLS.map(c => c[0]);
 
@@ -2172,7 +2178,7 @@ const PRESETS = {
     flagpole: 1, flagXF: -0.7, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0.2,
     weather: 0.3, paintPunch: 0.9, civic: 1, role: 'post office',
     signKey: 'postal_service', signW: 2.6, signAt: 0,
-    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 13,
     trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
     metalSet: SET_IDX('metal', 'galv'), metalCol: 0,
@@ -2194,7 +2200,7 @@ const PRESETS = {
     gutter: 0, downpipe: 0, barrel: 0, skirt: 0, ribs: 0, backDoor: 1, backPorch: 1,
     signKey: 'general_store', signW: 5.0, signAt: 0, yard: 1, yardK: 0.5, woodpile: 0, boat: 0, people: 1, curtains: 0.2,
     weather: 0.3, paintPunch: 0.9, civic: 0, cat: 'commercial',
-    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 9,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 14, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0, deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
   },
   'cafe': {
@@ -2208,7 +2214,7 @@ const PRESETS = {
     gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
     signKey: 'tidal_cup', signW: 3.4, signAt: 0, yard: 1, yardK: 0.4, woodpile: 0, boat: 0, people: 1, curtains: 0.5,
     weather: 0.3, paintPunch: 0.9, civic: 0, cat: 'commercial',
-    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 11, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 13, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8, deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
   },
   // the motel: a row of doors down a long porch, a window between each pair
@@ -2237,7 +2243,7 @@ const PRESETS = {
     gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 0,
     signKey: 'air_taxi', signW: 2.6, signAt: 1, yard: 1, yardK: 0.3, woodpile: 0, boat: 0, people: 1, curtains: 0.3,
     weather: 0.25, paintPunch: 0.9, civic: 0, cat: 'commercial',
-    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 15, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8, deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
   },
   'marine supply': {
@@ -2265,7 +2271,7 @@ const PRESETS = {
     gutter: 0, downpipe: 0, barrel: 1, skirt: 0, ribs: 1, backDoor: 0,
     signKey: 'harbor_fuel', signW: 2.6, signAt: 0, yard: 1, yardK: 0.6, woodpile: 0, boat: 1, people: 1, curtains: 0,
     weather: 0.5, paintPunch: 0.8, civic: 0, cat: 'commercial',
-    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 1, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 12, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0, deckSet: SET_IDX('deck', 'wornwood'), postSet: SET_IDX('post', 'mossy'),
   },
   'bear tours': {

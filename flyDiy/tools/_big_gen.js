@@ -39,10 +39,12 @@ const D2R = Math.PI / 180;
 // keys it may wear and from which library.
 const HANGAR_TILE = () => (typeof HANGAR_WALL_TILE_M !== 'undefined' ? HANGAR_WALL_TILE_M : 2);
 const ROLE_SETS = {
+  // planks09 (the ply-panel scan) is OFF the walls (G393.2, the user: "avoid the
+  // plank09 finish for any walls ... kept for skirts maybe, like raw panels")
   wall:   [['hangar', 'rustysheet'], ['hangar', 'rustymetal'], ['hangar', 'factory'],
-           ['hangar', 'planks09'], ['hangar', 'rawplank'], ['hangar', 'sandstone'],
+           ['hangar', 'rawplank'], ['hangar', 'sandstone'],
            ['hangar', 'slabwall'], ['house', 'corrworn'], ['house', 'paintwood']],
-  plinth: [['hangar', 'concrete008'], ['hangar', 'concrete004'], ['hangar', 'slabwall']],
+  plinth: [['hangar', 'concrete008'], ['hangar', 'concrete004'], ['hangar', 'slabwall'], ['hangar', 'planks09']],
   roof:   [['house', 'corrworn'], ['house', 'galv'], ['house', 'corrrust'], ['house', 'boxprof'],
            ['hangar', 'rustysheet'], ['house', 'shingle'], ['house', 'greywood'], ['house', 'wornwood']],
   door:   [['hangar', 'rustymetal'], ['hangar', 'rustysheet'], ['hangar', 'factory'], ['house', 'galv']],
@@ -384,7 +386,7 @@ const PRESETS = {
     winStrip: 1, winH: 0.7, winDrop: 0.7, winSpc: 1.0, winFront: 0,
     dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.12, vents: 1, pipes: 0,
     sign: 1, signW: 6.5, signH: 1.0, signText: 'GENERAL STORE', signKey: 'general_store',
-    wallSet: SET_IDX('wall', 'planks09'), plinthSet: SET_IDX('plinth', 'slabwall'),
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xeac53d, trimCol: 6, plinthSet: SET_IDX('plinth', 'slabwall'),
     roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
     dirt: 0.4, dirtH: 0.7,
   },
@@ -396,7 +398,7 @@ const PRESETS = {
     winStrip: 1, winH: 0.8, winDrop: 0.8, winSpc: 1.0, winFront: 0,
     dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.12, vents: 1, pipes: 0,
     sign: 1, signW: 5.5, signText: 'CAFE', signKey: 'tidal_cup',
-    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xd9d2c0, plinthSet: SET_IDX('plinth', 'concrete004'),
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0x3f70b0, trimCol: 6, plinthSet: SET_IDX('plinth', 'concrete004'),
     roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
     dirt: 0.35, dirtH: 0.7,
   },
@@ -409,7 +411,7 @@ const PRESETS = {
     winStrip: 1, winH: 1.0, winDrop: 1.15, winSpc: 1.3, winFront: 1,
     dock: 0, canopy: 1, canopyOut: 0.2, gantry: 0, stack: 1, stackR: 0.1, vents: 0, pipes: 1,
     sign: 1, signW: 5.0, signText: 'MOTEL', signKey: 'north_motel',
-    wallSet: SET_IDX('wall', 'planks09'), plinthSet: SET_IDX('plinth', 'slabwall'),
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xb8432f, trimCol: 6, plinthSet: SET_IDX('plinth', 'slabwall'),
     roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'factory'),
     dirt: 0.4, dirtH: 0.8,
   },
@@ -582,6 +584,11 @@ function build(P0, lod, F) {
     shop = { s0: s, s1: s + sw, y0: fy + 0.55, y1: fy + 0.55 + sh };
     front.push(Object.assign({ kind: 'shop' }, shop));
   }
+  // THE CANOPY'S JUNCTION, decided before the strips are laid (G393.2, the
+  // user: "the porch roof of the motel intersects the windows"): the front
+  // band keeps 15 cm over it, or gives way
+  const canopyY = P.canopy && (rollers.length || pdoors.length || P.dock)
+    ? Math.min(eave - 0.25, (rollers.length ? rollers[0].y1 : (pdoors.length ? pdoors[0].y1 : fy + 2.6)) + (rollers.length ? 0.9 : 0.45)) : null;
   // the strip windows: a band `winDrop` under the eave, split every winSpc
   const strips = [];         // per wall index: [{ s0, s1, y0, y1 }] - the band in segments
   const stripFor = (i, len, top) => {
@@ -590,7 +597,9 @@ function build(P0, lod, F) {
     // `top` is this wall's lowest top; on a gable END the rake comes down
     // to it at the corners, so the band keeps half a metre under it (G393)
     const drop = kind === 0 && (i === 1 || i === 3) ? Math.max(P.winDrop, 0.5) : P.winDrop;
-    const y1 = Math.min(top - 0.25, top - drop), y0 = y1 - P.winH;
+    const y1 = Math.min(top - 0.25, top - drop);
+    let y0 = y1 - P.winH;
+    if (i === 0 && canopyY !== null) { y0 = Math.max(y0, canopyY + 0.15); if (y1 - y0 < 0.4) return []; }
     if (y0 < fy + 0.9) return [];
     // the band, cut by every opening on the front that reaches it (a door
     // per room on a motel leaves a window between every pair)
@@ -628,7 +637,10 @@ function build(P0, lod, F) {
     const lowTop = kind === 2 ? eave : Math.min(topAt(0), topAt(len_));
     strips[i] = stripFor(i, len_, lowTop);
     for (const strip of strips[i]) holes.push({ s0: strip.s0, s1: strip.s1, y0: strip.y0, y1: strip.y1, kind: 'strip' });
-    const W = wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0 });
+    // A GABLE END NEEDS ITS SPLIT AT THE RIDGE (G393.2, the user: "incomplete walls under gable roofs"): the panel
+    // reads its top at each column's ends, so an unsplit end wall topped out at the eave and the gable was open
+    const W = wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0,
+                                splits: kind === 0 && (i === 1 || i === 3) ? [len_ / 2] : [] });
     walls.push({ W, A, B, len: len_, at, topAt, N: W.N, X: W.X });
   }
 
@@ -807,6 +819,7 @@ function build(P0, lod, F) {
     if (Q.lod === 0) {
       cyl(bags.metal, [x, top - 0.02, z], [0, 1, 0], P.stackR * 1.5, 0.06, 12, true);
       cyl(bags.metal, [x, top + 0.18, z], [0, 1, 0], P.stackR * 1.9, 0.05, 12, true);   // the rain cap
+      for (let k = 0; k < 3; k++) { const a = k * 2.094; beam(bags.metal, [x + Math.cos(a) * P.stackR * 0.85, top, z + Math.sin(a) * P.stackR * 0.85], [x + Math.cos(a) * P.stackR * 0.85, top + 0.19, z + Math.sin(a) * P.stackR * 0.85], 0.012, 0.012, [1, 0, 0], 0); }   // its legs (G393.2)
       cyl(bags.metal, [x, yRoof(x, z) + rT, z], [0, 1, 0], P.stackR * 1.35, 0.35, 12, true); // the flashing
     }
     stacks.push({ x, z, top, r: P.stackR });
@@ -852,7 +865,7 @@ function build(P0, lod, F) {
     }
     if (!at && kind === 2) place(eave + 0.15, eave + P.parapetH - 0.66, L - 1.0, 'parapet');
     if (!at && kind !== 2) {
-      const under = Math.max(rollers.length ? Math.max(...rollers.map(r => r.y1)) : 0, shop ? shop.y1 : 0, pdoor ? pdoor.y1 : 0, fy + 2.2) + 0.25;
+      const under = Math.max(rollers.length ? Math.max(...rollers.map(r => r.y1)) : 0, shop ? shop.y1 : 0, pdoor ? pdoor.y1 : 0, fy + 2.2, canopyY !== null ? canopyY : 0) + 0.25;   // and over the canopy's junction (G393.2)
       const top = (strips[0] && strips[0].length ? strips[0][0].y0 - 0.15 : (P.frieze ? eave - 0.3 : eave - 0.12));
       place(under, top, L - 1.0, 'wall');
     }
@@ -865,7 +878,8 @@ function build(P0, lod, F) {
       x = clamp(x, -L / 2 + sw / 2 + 0.3, L / 2 - sw / 2 - 0.3);
       for (const bx of [x - sw / 2 + 0.25, x + sw / 2 - 0.25]) {
         beam(bags.metal, [bx, yBase - 0.05, z - 0.06], [bx, y + sh / 2 + 0.06, z - 0.06], 0.035, 0.035, [0, 0, 1], 0);
-        if (Q.lod === 0) beam(bags.metal, [bx, y + sh / 2, z - 0.06], [bx, yBase + (kind === 2 ? 0 : 0.3 * tp), z - 1.1], 0.02, 0.02, [0, 1, 0], 0);   // the brace back
+        // the brace back, its foot ON the roof behind (the roof rises behind a gable's eave; a flat roof's deck lies under the cap)
+        if (Q.lod === 0) beam(bags.metal, [bx, y + sh / 2, z - 0.06], [bx, kind === 2 ? eave + 0.12 + rT + 0.02 : yRoof(bx, z - 1.1) + rT + 0.03, z - 1.1], 0.02, 0.02, [0, 1, 0], 0);
       }
     }
     if (sh >= 0.3) {
@@ -921,7 +935,11 @@ function build(P0, lod, F) {
     const nWall = Math.round(P.yardK * L / 2.2), nYard = Math.round(P.yardK * L / 3.5);
     for (let i = 0; i < nWall; i++) {
       const key = WALL_MENU[Math.floor(yr() * WALL_MENU.length)], KK = HG.YARD_KIT[key];
-      put(key, -L / 2 + 0.8 + yr() * (L - 1.6), zWall + (KK ? KK.W / 2 : 0.3) + 0.08, (yr() - 0.5) * 0.4, 'ground');
+      const x = -L / 2 + 0.8 + yr() * (L - 1.6), z = zWall + (KK ? KK.W / 2 : 0.3) + 0.08;
+      // ON THE DOCK where the dock is (G393.2, the user: "clipping of people"): the platform's top, not the ground under it
+      const onDock = dock && x > dock.x0 && x < dock.x1 && z < dock.z1;
+      const q = put(key, x, z, (yr() - 0.5) * 0.4, onDock ? 'dock' : 'ground');
+      if (q && onDock) q.y = dock.top;
     }
     for (let i = 0; i < nYard; i++) {
       const key = YARD_MENU[Math.floor(yr() * YARD_MENU.length)];
@@ -932,7 +950,11 @@ function build(P0, lod, F) {
     if (rollers.length) { const rx = rollers[0].s1 - L / 2 + 0.9; for (let k = 0; k < 3; k++) { const q = put('tyre', rx, zWall + 0.6, k * 0.7, 'ground'); if (q) { q.y += k * 0.165; keep.pop(); } } }
   }
   if (P.people) {
-    if (pdoor) people.push({ key: 'person_john', x: (pdoor.s0 + pdoor.s1) / 2 - L / 2 + 0.9, z: zWall + 0.9, y: g((pdoor.s0 + pdoor.s1) / 2 - L / 2 + 0.9, zWall + 0.9), ry: Math.PI * 0.9 });
+    if (pdoor) {
+      const px = (pdoor.s0 + pdoor.s1) / 2 - L / 2 + 0.9, pz = zWall + 0.9;
+      const onDock = dock && px > dock.x0 && px < dock.x1 && pz < dock.z1;
+      people.push({ key: 'person_john', x: px, z: pz, y: onDock ? dock.top : g(px, pz), ry: Math.PI * 0.9, on: onDock ? 'dock' : 'ground' });
+    }
     if (rollers.length) { const r = rollers[rollers.length - 1]; const px = (r.s0 + r.s1) / 2 - L / 2 - 1.2, pz = (dock ? dock.z1 : zWall) + 2.2; people.push({ key: 'person_luke', x: px, z: pz, y: g(px, pz), ry: -0.4 }); }
   }
   // THE LIGHTS OVER THE BAYS (the door's own lamp came with its dressing):
@@ -966,6 +988,7 @@ function build(P0, lod, F) {
     front: { x: pdoor ? (pdoor.s0 + pdoor.s1) / 2 - L / 2 : (rollers.length ? (rollers[0].s0 + rollers[0].s1) / 2 - L / 2 : 0),
              z: w / 2 + (dock ? P.dockD : 0) + 1.0, side: 1, depth: 0 },
     shop, dock, sign, stacks, strips: strips.reduce((n, s) => n + (s ? s.length : 0), 0), doors: pdoors.length,
+    bands: strips, canopy, canopyY, wallTops: walls.map(Wl => [Wl.topAt(0), Wl.topAt(Wl.len / 2), Wl.topAt(Wl.len)]),   // for GATE HOUSE rule 42 (G393.2)
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [],
     people, yard, pier: null, lit: LIT,
   };

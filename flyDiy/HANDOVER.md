@@ -46313,3 +46313,32 @@ V/Vs 1.37.
   and the GRAPHICS presets carry 'sunset' - a row set in render_world was
   overridden by them).
 - The loader fetches .coast.u8 and .albedo.rgb with the grids.
+
+## G393.2 — THE CANNERY STANDS WHOLE, THE NORDIC PAINTS, PLANKS09 OFF THE WALLS (2026-09-14)
+
+The user's cannery screenshot: "incomplete walls under gable roofs, clipping
+of people, floating parts, poking through the billboards"; the motel: "the
+porch roof intersects the windows"; the store: "avoid the plank09 finish for
+any walls ... kept for skirts maybe ... brighter colors typical from the
+nordic cold regions".
+
+- THE GABLE END WALL REACHES THE RIDGE: the kit's `wall()` reads its top at
+  each column's ENDS, so an unsplit end wall topped out at the eave and the
+  whole gable triangle was open (you saw the far strip's mullions through
+  it). BIG_GEN passes `splits: [len/2]` on a gable's end walls, as the house
+  always did (wallSplits). Rule 42 measures the wall bag's top at x = +-L/2
+  against the ridge.
+- THE CANOPY'S JUNCTION IS DECIDED FIRST (`canopyY`): the front window band
+  keeps 15 cm over it or gives way; the wall sign's band starts over it
+  (the cannery's became a roof sign). Rule 42 holds both.
+- ON THE DOCK: a person or a prop over the dock stands on its top, not on
+  the ground inside the concrete (`on: 'dock'`). Rule 42.
+- THE ROOF SIGN'S BRACE foots on the roof surface behind it (it ran into the
+  slope); the stacks' rain caps stand on three legs.
+- PLANKS09 (the ply-panel scan) is off the wall role and on the plinth role;
+  BIG_GEN's store/motel/cafe wear painted boards tinted sunflower / falu
+  red / nordic blue, white casings.
+- THE NORDIC ROW in the house palette: falu red, nordic blue, sunflower,
+  mint, coral (COLS 12-16) - the sampler draws from the whole list; the
+  general store, cafe, air taxi, fuel and bait, post office take them.
+- Green: HOUSE (rule 42 new), MEDIA.

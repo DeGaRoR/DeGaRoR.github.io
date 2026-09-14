@@ -1779,6 +1779,41 @@ for (const name of Object.keys(HG.PRESETS)) {
                 'sport: the catalogue does not carry every preset');
 }
 
+// 42 — THE BIG BUILDINGS STAND WHOLE (G393.2, the user's cannery: "incomplete
+//   walls under gable roofs, clipping of people, floating parts, poking
+//   through the billboards"): under a gable every END WALL reaches the ridge
+//   (the wall bag's top at x = +-L/2 within 5 cm of the ridge); a front
+//   window band and a wall sign clear the canopy's junction by 15 cm; every
+//   person and prop standing over the dock stands ON it (y = its top); a
+//   roof sign's board bottom is over the roof surface under it.
+{
+  for (const name of Object.keys(BG.PRESETS)) {
+    const P = Object.assign({}, BG.DEF, BG.PRESETS[name]);
+    let hi = null; try { hi = BG.build(P, 0); } catch (e) { check(false, 'big ' + name + ': build threw', e.message); continue; }
+    const st = hi.stats, kind = Math.round(P.roofKind);
+    if (kind === 0) {
+      const d = hi.bags.wall.data();
+      for (const sx of [-1, 1]) {
+        let top = -1e9;
+        for (let i = 0; i < d.pos.length; i += 3) if (Math.abs(d.pos[i] - sx * P.L / 2) < 0.3) top = Math.max(top, d.pos[i + 1]);
+        check(Math.abs(top - st.ridge) < 0.05, 'big ' + name + ': the gable end wall does not reach the ridge', top.toFixed(2) + ' vs ' + st.ridge.toFixed(2));
+      }
+    }
+    if (st.canopyY !== null && st.canopyY !== undefined) {
+      for (const b of st.bands[0] || []) check(b.y0 >= st.canopyY + 0.15 - 1e-6, 'big ' + name + ': the front band runs into the canopy', b.y0.toFixed(2) + ' vs ' + st.canopyY.toFixed(2));
+      if (st.sign && st.sign.at === 'wall') check(st.sign.y - st.sign.h / 2 >= st.canopyY + 0.2 - 1e-6, 'big ' + name + ': the wall sign runs into the canopy');
+    }
+    if (st.dock) for (const q of (st.yard || []).concat(st.people || [])) {
+      const over = q.x > st.dock.x0 && q.x < st.dock.x1 && q.z > st.dock.z0 && q.z < st.dock.z1;
+      if (over) check(Math.abs(q.y - st.dock.top) < 0.01, 'big ' + name + ': ' + q.key + ' stands inside the dock', q.y.toFixed(2) + ' vs ' + st.dock.top.toFixed(2));
+    }
+    if (st.sign && st.sign.at === 'roof') {
+      const yR = kind === 2 ? st.eave + P.parapetH : (kind === 0 ? st.eave + (P.w / 2 - Math.abs(st.sign.z)) * Math.tan(P.pitch * Math.PI / 180) : st.eave + (st.sign.z + P.w / 2) * Math.tan(P.pitch * Math.PI / 180));
+      check(st.sign.y - st.sign.h / 2 > yR + 0.2, 'big ' + name + ': the roof sign sits in the roof', (st.sign.y - st.sign.h / 2).toFixed(2) + ' vs ' + yR.toFixed(2));
+    }
+  }
+}
+
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use
 //   saltbox much. Ensure you have a wide variety, covering most of our
 //   options"). A generator whose shipped examples exercise a third of its own
