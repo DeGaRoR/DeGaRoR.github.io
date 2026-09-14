@@ -47005,3 +47005,37 @@ SNAPSHOTS the core per run (`pilot_runs/core_<stamp>.js`, `pilot_trace
   the baseline moved forward BY HAND to this commit's quick set.
 - NEXT: P0.7 retire the exceptions behind the flags (a later commit, once a
   full --all run has judged every archetype), P0.8 the ground.
+
+## G405.1 — THE SHELL IS hangar.js's OWN (2026-09-14)
+
+The user: "did you actually get the dimension, models and textures of the
+actual hangar presets in the editor for generating these? They feel generic
+to me. You should really take everything you can from the existing hangar
+generator, especially geometry, dimensions and textures, then modify for
+outside assets". The honest answer: G405 had the DIMENSIONS (hangar.js's
+numbers restated) and NOT the models or the textures (the scan wardrobe,
+approximated leaves).
+
+- Now HANGAR_GEN.build calls `genHangarBuild(THREE, dims, { exterior: true,
+  shell })` - the very exterior render_world stands by the strip, with
+  hangar.js's own baked sheets, brick stem, door skins in their green
+  channel frames, steel and timber - and BAKES the group into bags, one per
+  hangar material (`h_wall`, `h_wallOut`, `h_stem`, `h_door`, `h_doorTrim`,
+  `h_steelDark`, `h_roofOut`, ...; the geometry read through each mesh's
+  world matrix, turned from the hangar's frame into the house's - X = z,
+  Z = -x, the door to +z - the author's normals and uvs kept, the material
+  OBJECTS the hangar's, shared by every shell on the page). 278 meshes become
+  a dozen draw calls and ride the item pipeline. The glass meshes bake into
+  `h_pane`, OPAQUE, emissive on the switch. The polish over it is this
+  file's: the casings round the band, the windows and the doors, the
+  gutters and downpipes, the flue and its smoke, the bulkheads, the sign.
+- Headless (the gate, node) there is no canvas to bake sheets on: the build
+  falls back to the RESTATED shell of G405 (`stats.source` says which),
+  which rule 43 measures - the same footprint and openings.
+- The benches load hangar_floor.js, hangar_sky.js and hangar.js; a build may
+  carry its own bag list and materials (`built.BAGS`, `built.MAT`) - the
+  house bench and render_premises draw them (buildItem no longer overwrites
+  built.BAGS with the generator's).
+- SEEN: the club hangar on the house bench and by the flying club's apron in
+  the premises = the garage's shell (14_club_hangar_close.png); the field
+  shed = the timber shell with its board leaf (front view).

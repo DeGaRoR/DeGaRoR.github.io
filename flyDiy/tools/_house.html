@@ -134,6 +134,10 @@
 <!-- THE BIG BUILDINGS (G312): the warehouse, the cannery, the workshop, the
      store - dressed with the hangar's wall sets -->
 <script src="../src/viewer/hangar_walls.js"></script>
+<!-- THE HANGAR ITSELF (G405.1): hangar.js exterior build for the shells - floor and sky sets before it -->
+<script src="../src/viewer/hangar_floor.js"></script>
+<script src="../src/viewer/hangar_sky.js"></script>
+<script src="../src/viewer/hangar.js"></script>
 <script src="_big_gen.js"></script>
 <!-- THE SPORTS GROUNDS (G392): fields, the diamond, the track, the court -->
 <script src="_sport_gen.js"></script>
@@ -502,7 +506,8 @@ function addBuild(parent, built, dx) {
   // THE FIELD'S GRASS IS THE LOT PATCH (G393): drawn from stats.turf with the
   // village's five-set material, over (instead of) the flat turf bag
   const turfDrawn = !!(built.stats.turf && window.LOT_GROUND && LOT_GROUND.mesh(THREE, grp, built.stats.turf, draw));
-  for (const k of GEN.BAGS) if (!(turfDrawn && k === 'turf')) built.bags[k].mesh(grp, (GEN.MAT || G.MAT)[k]);
+  // a build may carry bags of its own beyond the generator's list, with their materials (the hangar shells, G405.1)
+  for (const k of (built.BAGS || GEN.BAGS)) if (!(turfDrawn && k === 'turf') && built.bags[k]) built.bags[k].mesh(grp, (built.MAT && built.MAT[k]) || (GEN.MAT || G.MAT)[k]);
   // the ground shadow skirt (G281): polygons on the ground, drawn after the
   // opaque site, never into depth
   if (built.bags.aoskirt) {

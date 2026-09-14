@@ -26,11 +26,25 @@
 // (the road side), x across the width, z along the depth; the ridge runs
 // along z. `P.ground(lx, lz)` when the world hands one in.
 //
-// NON-TRANSPARENT: every pane is the house's `pane` bag (opaque, carrying
-// the lit channel) - there is nothing inside to look at. The casings, the
-// door leaf and the lamp are the house's (dressOpening / buildDoor /
-// lampAt); the smoke is the house's (buildSmoke) off a flue on the back
-// slope; the gutters and downpipes are the house's trough section.
+// THE SHELL IS hangar.js's OWN (G405.1, the user: "did you actually get the
+// dimension, models and textures of the actual hangar presets ... You
+// should really take everything you can from the existing hangar generator,
+// especially geometry, dimensions and textures, then modify for outside
+// assets"): in the browser the build calls `genHangarBuild(THREE, dims,
+// { exterior: true, shell })` - the very exterior render_world stands by the
+// strip, with hangar.js's baked sheets (its corrugation, its brick stem, its
+// door skins, its steel and timber) - and BAKES that group into bags, one
+// per hangar material (`h_wall`, `h_stem`, `h_door`, ...), so the shell is
+// a dozen draw calls instead of 278 meshes and rides the item pipeline like
+// any generator's build. The glass meshes bake into `h_pane`, OPAQUE (there
+// is nothing inside) and lit on the switch. What this file adds is the
+// OUTSIDE polish hangar.js never needed: the casings round the band, the
+// windows and the doors (the house's dressOpening), the gutters and
+// downpipes (the house's trough), the flue with its smoke (the house's
+// buildSmoke), the bulkheads over the door, the sign. Headless (the gate,
+// node) there is no canvas to bake sheets on, so the shell falls back to
+// THE RESTATED ONE below (hangar.js's numbers drawn with the kit) - the
+// same footprint, the same openings, the scan wardrobe for its faces.
 'use strict';
 (() => {
 const K = window.HOUSE_KIT;
@@ -111,7 +125,7 @@ const SHELLS = ['field', 'club', 'works'];
 const DEF = {
   seed: 3, shell: 1, HW: 15, HD: 12.5, EAVE: 7.0, floorY: 0.25, wallT: 0.12,
   slopeZ: 0, slopeX: 0,
-  rakeOver: 0.5, eaveOver: 0.35, roofT: 0.06,
+  rakeOver: 0.3, eaveOver: 0.5, roofT: 0.06,   // hangar.js's deck: x +-(HD + 0.3), z +-(HW + 0.5)
   glazing: 1, roofLights: 1, backDoor: 1, personDoor: 1,
   gutter: 1, flue: 1, smoke: 1, smokeK: 0.55, smokeLean: 0.35, lights: 0,
   sign: 0, signKey: '', signW: 4.0,
@@ -160,7 +174,7 @@ const catOf = name => CATS[name] || null;
 // ---- the numbers hangar.js derives (restated once, here)
 function shellOf(P) {
   const timber = Math.round(P.shell) === 0;
-  const HW = P.HW, HD = P.HD, EAVE = P.EAVE, RIDGE = EAVE + (timber ? Math.max(1.4, HW * 0.36) : 2.6);
+  const HW = P.HW, HD = P.HD, EAVE = P.EAVE, RIDGE = EAVE + 2.6;   // hangar.js: RIDGE = EAVE + 2.6, every shell
   const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
   const BD_W = Math.min(11.0, 2 * HW - 8), BD_H = Math.min(4.4, EAVE - 2.2);
   const SILL = Math.min(3.2, EAVE - 2.4), HEAD = Math.min(5.2, EAVE - 1.0);
@@ -188,6 +202,8 @@ function build(P0, lod, F) {
   const rT = P.roofT;
   const rnd = rng(P.seed);
   const litOn = P.lights ? 1 : 0;
+  // THE SHELL FROM hangar.js, baked into bags (browser, near mesh only); null headless
+  const ext = (Q.lod === 0 && !P.restated && typeof document !== 'undefined' && typeof genHangarBuild === 'function') ? bakeShell(P, S, fy, bags, litOn, F) : null;
 
   // ---- THE SLAB AND THE STEM: concrete from below the lowest corner to the floor, the brick course over it
   let gLo = 1e9;
@@ -398,20 +414,26 @@ function build(P0, lod, F) {
     }
   }
 
+  if (ext) {
+    // hangar.js's shell stands in its own bags: the restated walls, stem, roof, doors and panes give way to it
+    for (const k of ['wall', 'stem', 'roof', 'door', 'pane']) bags[k] = Bag(k);
+    LIT.panes = ext.panes; LIT.windows = litOn ? ext.panes : 0;
+  }
   // ---- THE GROUND SKIRT AND THE BAKE
   const occ = [{ x: 0, z: 0, hx: HW + pt, hz: HD + pt, k: 0.75, soft: 2.2 }];
   for (const o of occ) o.dry = true;
   if (P.aoGround) HG.buildGroundAO(bags.aoskirt, occ, g);
-  const aoInfo = K.bakeAO(BAGS.map(k => bags[k]), { strength: P.ao === undefined ? 0.85 : P.ao, range: P.aoRange || 0.7, ground: g });
+  const OUT = BAGS.concat(ext ? ext.keys : []);
+  const aoInfo = K.bakeAO(OUT.map(k => bags[k]), { strength: P.ao === undefined ? 0.85 : P.ao, range: P.aoRange || 0.7, ground: g });
   let tris = 0, verts = 0; const per = {};
   const bb = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
-  for (const k of BAGS) {
+  for (const k of OUT) {
     const d = bags[k].data(); per[k] = bags[k].tris; tris += bags[k].tris; verts += bags[k].verts;
     for (let i = 0; i < d.pos.length; i += 3) { const x = d.pos[i], y = d.pos[i + 1], z = d.pos[i + 2]; if (x < bb.x0) bb.x0 = x; if (x > bb.x1) bb.x1 = x; if (y < bb.y0) bb.y0 = y; if (y > bb.y1) bb.y1 = y; if (z < bb.z0) bb.z0 = z; if (z > bb.z1) bb.z1 = z; }
   }
   const stats = {
     tris, verts, per, bbox: bb, footprint: 4 * HW * HD, eave, ridge, ridgeY: ridge, eaveY: eave, floorY: fy,
-    shell: SHELLS[Math.round(P.shell)], dims: { HW, HD, EAVE }, role: 'hangar',
+    shell: SHELLS[Math.round(P.shell)], dims: { HW, HD, EAVE }, role: 'hangar', source: ext ? 'hangar.js' : 'restated',
     door: { x: 0, z: HD, w: S.DOOR_W, h: S.DOOR_H, leaves: timber ? 1 : 6, shut: true },
     backDoor: backDoor ? { w: S.BD_W, h: S.BD_H } : null, personDoor: !!pdoor,
     bands: bands.length, roofLights: roofLights.length, gutterLen, downpipes, flue, smoke, sign,
@@ -419,7 +441,55 @@ function build(P0, lod, F) {
     front: { x: 0, z: HD + 1.5, side: 1, depth: 0 },
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null, lit: LIT,
   };
-  return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: F ? F.MAT : MAT };
+  // the bags this build carries (the shell's own beside the polish) and the materials for them
+  const MATX = Object.assign({}, F ? F.MAT : MAT, ext ? ext.mats : {});
+  if (F && ext) Object.assign(F.MAT, ext.mats);
+  return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT };
+}
+// THE BAKE (G405.1): hangar.js's exterior group, every mesh's geometry read
+// through its world matrix, turned from the hangar's frame (the long axis x,
+// the door at -x) into the house's (the door at +z: X = z, Z = -x), lifted
+// to the slab, and pushed into a bag per material with the author's normals
+// and uvs kept - the material object itself is the hangar's, so the baked
+// sheets read exactly as they do by the strip. Glass bakes opaque.
+let PANE_MAT = null;
+function bakeShell(P, S, fy, bags, litOn, F) {
+  let ext = null;
+  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
+  catch (e) { if (typeof console !== 'undefined') console.warn('hangar shell:', e && e.message); return null; }
+  if (!ext || !ext.group) return null;
+  ext.group.updateMatrixWorld(true);
+  const M = ext.mats || {};
+  const nameOf = new Map(); for (const k in M) nameOf.set(M[k], k);
+  if (!PANE_MAT) PANE_MAT = new THREE.MeshStandardMaterial({ color: 0x2c3a42, roughness: 0.28, metalness: 0.10 });
+  const paneMat = litOn ? new THREE.MeshStandardMaterial({ color: 0x3a2e1c, roughness: 0.4, emissive: 0xffc68a, emissiveIntensity: 0.9 }) : PANE_MAT;
+  const mats = {}, keys = [];
+  let panes = 0;
+  const v3 = new THREE.Vector3(), n3 = new THREE.Vector3(), nm = new THREE.Matrix3();
+  ext.group.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+    const isGlass = o.material === M.glass;
+    const key = 'h_' + (isGlass ? 'pane' : (nameOf.get(o.material) || 'misc'));
+    if (!bags[key]) { bags[key] = Bag(key); keys.push(key); mats[key] = isGlass ? paneMat : o.material; }
+    const bag = bags[key];
+    const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv;
+    nm.getNormalMatrix(o.matrixWorld);
+    const base = [];
+    if (isGlass) { bag.setGlow(litOn); panes++; }
+    for (let i = 0; i < pa.count; i++) {
+      v3.fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld);
+      const X = v3.z, Y = v3.y + fy, Z = -v3.x;                    // the hangar's frame into the house's
+      let n = null;
+      if (na) { n3.fromBufferAttribute(na, i).applyMatrix3(nm).normalize(); n = [n3.z, n3.y, -n3.x]; }
+      base.push(bag.v([X, Y, Z], ua ? [ua.getX(i), ua.getY(i)] : [0, 0], n));
+    }
+    if (isGlass) bag.setGlow(0);
+    if (g.index) { const ix = g.index; for (let i = 0; i + 2 < ix.count; i += 3) bag.tri(base[ix.getX(i)], base[ix.getX(i + 1)], base[ix.getX(i + 2)]); }
+    else for (let i = 0; i + 2 < pa.count; i += 3) bag.tri(base[i], base[i + 1], base[i + 2]);
+  });
+  // the copied geometries are ours now; the materials stay the hangar's (shared by every shell on the page)
+  ext.group.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+  return { keys, mats, panes };
 }
 function applyFinish(P, F) {
   const M = F ? F.MAT : MAT;

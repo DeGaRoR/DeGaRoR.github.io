@@ -760,7 +760,7 @@ function make(THREE, scene, world, rec0, opts) {
     const F = GEN.makeFinish();
     GEN.applyFinish(it.P, F);
     const built = GEN.build(it.P, 0, F);
-    built.BAGS = GEN.BAGS;
+    built.BAGS = built.BAGS || GEN.BAGS;          // a build may carry bags of its own (the hangar shell's, G405.1)
     const grp = placeBuilt(G.houses, it, built, F, GEN);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
     // A HAND-PLACED SITE ITEM DRESSES LIKE A PLOT (G401, the user: "the ground textures of all lots"): a

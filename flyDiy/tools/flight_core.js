@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5fb32f61e32f8612
+// body-sha256: baaa5c4167abdf4a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1263,7 +1263,8 @@ function makeWorld(seed, opts) {
     { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
       // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
       // judgment on procedural hydrology - maps first, procedural on top")
-      lakeMin: ISL ? 1e9 : 1.5, A0m2: ISL ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
+      // (G405: ?hydro=proc boots the analytic bake's water on the island, to compare with the map's)
+      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5, A0m2: (ISL && ISL.hydro !== 'proc') ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -1669,7 +1670,8 @@ function makeWorld(seed, opts) {
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
-                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
+                    cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, hydro: ISL.hydro,
+                    farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
@@ -5344,7 +5346,8 @@ var ISLAND_GEN = (function () {
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
-      coverU8: cover, ndvi: src.grid.ndvi || null,
+      coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null,
+      hydro: src.hydro || 'map',     // 'map': the cover's lakes, no bake water; 'proc': the analytic bake's lakes and rivers (G405, to compare)
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
       farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,
@@ -8209,7 +8212,11 @@ function patternPath(pattern, ids, ds, from) {
     const th = Math.acos(dot);
     const r = B.r != null ? B.r : (pattern.fillet != null ? pattern.fillet : 12);
     let t = r * Math.tan(th / 2);
-    const tMax = 0.5 * Math.min(l1, l2);
+    // neighbouring fillets share a leg, so each may take half of it — but an
+    // ENDPOINT has no fillet of its own, and the leg to it is the corner's
+    // whole (G399.3: the air path's first corner, one radius ahead of the
+    // aeroplane, was halved to a 125 m fillet the cub could not fly)
+    const tMax = Math.min(k === 1 ? l1 : 0.5 * l1, k === cIdx.length - 2 ? l2 : 0.5 * l2);
     if (t > tMax) t = tMax;
     const re = t / Math.max(1e-9, Math.tan(th / 2));
     tan[i] = t; rEff[i] = re;
@@ -10535,7 +10542,8 @@ function makePilot(sim, def, world, opts) {
   let sheetV = null;
   const sheetOf = () => sheetV || (sheetV = (typeof machineSheet === 'function'
     ? machineSheet(def, { shakedown: opts.shakedown }) : null));
-  const useSheet = !!opts.sheet;
+  // ON by default since the matrix said so (G399.3): `sheet: false` / `tecs: false` keep the old ladder / modes
+  const useSheet = opts.sheet !== false;
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
@@ -10695,6 +10703,15 @@ function makePilot(sim, def, world, opts) {
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
+  // P0.5 (PILOT-ROADMAP §6.3 rule 1): TECS's own state — the throttle and the
+  // balance integrators, the filtered rates, the speed weight
+  const useTecs = opts.tecs !== false;
+  // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
+  // filleted geometry planned once, followed by one lateral law (L1) with
+  // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
+  let usePath = opts.path !== false;
+  let airPath = null, airPathI = 0, pathDbg = null;
+  let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -10702,7 +10719,7 @@ function makePilot(sim, def, world, opts) {
   };
   ap.taxiFF = taxiFF;
   Object.defineProperty(ap, 'sheet', { get: sheetOf, enumerable: false });
-  ap.useSheet = useSheet;
+  ap.useSheet = useSheet; ap.useTecs = useTecs; ap.usePath = usePath;
 
   // ---- THE AP BOX (G202.1): the modes as a device -------------------------
   // engage({lat, vert, thr}, sel): a mode per axis (undefined = keep, null =
@@ -10835,7 +10852,36 @@ function makePilot(sim, def, world, opts) {
       { name: 'FINAL', A: wp(F, P.sIaf, 0), B: wp(F, P.sAim, 0) },
     ];
   };
-  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; };
+  const startLegs = (legs) => { ap.legs = legs; ap.legI = 0; ap.trackHold = false; airPath = null; };
+  // P0.6: THE CIRCUIT AS ONE PATH. The legs' corners become patternPath's
+  // nodes with the fillet radius the aeroplane turns at each corner's speed
+  // (the leg's own: cruise / turn / the approach speed on the last corner)
+  // at the planned bank; the path is sampled at 5 m and followed by L1. The
+  // first node is the aeroplane's own position when the first leg starts
+  // there (the crosswind leg begins one radius ahead; the path's first
+  // corner IS that turn). `airPathLegOf[k]` = the leg each corner ends.
+  const buildAirPath = (legs, from) => {
+    if (!legs || !legs.length || typeof patternPath !== 'function') return null;
+    const bC = Math.min(bankLim, A.bankClimb ?? 0.35);
+    const nodes = [], ids = [];
+    const add = (x, z, r) => { const id = 'p' + nodes.length; nodes.push({ id, x, z, kind: 'air', r }); ids.push(id); };
+    const speedOf = L => L.V === 'turn' ? VTurn : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
+    const rOf = (Vl, climbing) => Vl * Vl / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
+    if (from) add(from[0], from[1], 0);
+    for (let k = 0; k < legs.length; k++) {
+      const L = legs[k], N = legs[k + 1];
+      if (!L.A || !L.B) continue;
+      // a leg's start that is not the previous leg's end is a corner too (the
+      // crosswind leg's start, one radius ahead of the aeroplane): it fillets
+      if (!nodes.length || Math.hypot(nodes[nodes.length - 1].x - L.A[0], nodes[nodes.length - 1].z - L.A[1]) > 1) add(L.A[0], L.A[1], nodes.length ? rOf(speedOf(L), k === 0 && climbMode) : 0);
+      // the corner at B turns into N at the speed the SLOWER of the two legs asks
+      const Vc = N ? Math.min(speedOf(L), speedOf(N)) : speedOf(L);
+      add(L.B[0], L.B[1], N ? rOf(Vc, k === 0 && climbMode) : 0);
+    }
+    if (nodes.length < 2) return null;
+    let len = 0; for (let k = 1; k < nodes.length; k++) len += Math.hypot(nodes[k].x - nodes[k - 1].x, nodes[k].z - nodes[k - 1].z);
+    return patternPath({ nodes, fillet: 0 }, ids, Math.max(5.0, len / 3500), null);   // GP_MAXPTS is 4000
+  };
 
   // ---- the ground planner ---------------------------------------------------------
   // From the pose it is given: the take-off direction, then the route. Every
@@ -11027,6 +11073,50 @@ function makePilot(sim, def, world, opts) {
       Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
       c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, 0.35);
     };
+    // the roll servo alone: a bank command in, the aileron and the yaw damper out
+    const rollTo = (phC) => {
+      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
+      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
+      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
+                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
+    };
+    // ---- L1 OVER THE PATH (P0.6, PILOT-ROADMAP §6.1) --------------------------
+    // Park, Deyst and How's nonlinear guidance (AIAA GNC 2004), the law
+    // ArduPilot flies: a reference point on the path L1 ahead of the nearest
+    // point, eta the angle from the ground-track vector to it, the lateral
+    // acceleration 2 V^2 sin(eta) / L1 — one equation for a line and an arc
+    // (on an arc it returns V^2 / R exactly), so the fly-by is a property of
+    // the PATH (the fillet patternPath drew at the planned radius), not a
+    // runtime heuristic. L1 = 4 V
+    // (ArduPilot's period 17 s, damping 0.75: L1 = zeta T V / pi), floored
+    // at 60 m. The bank goes to the roll servo; the yaw damper is unchanged.
+    // Measured by the matrix (G399.3): the G381 arc, open-loop at a fixed
+    // bank, crossed the downwind by 639 m on the C172 (its roll loop
+    // limit-cycling 9-22 deg around 23) and 378-502 m on the stearman.
+    const pathFollow = (bl) => {
+      if (!airPath || !airPath.pts.length) return false;
+      const L = pathLocate(airPath, airPathI, cg[0], cg[2]);
+      airPathI = L.i;
+      const P = airPath.pts;
+      const Vg2 = Math.max(o_.Vg ?? Vg, 8);
+      const L1 = Math.max(60, 4.0 * Vg2);
+      let j = L.i;
+      const s0 = P[L.i].s;
+      while (j < P.length - 1 && P[j].s - s0 < L1) j++;
+      const rx = P[j].x - cg[0], rz = P[j].z - cg[2], rl = Math.hypot(rx, rz) || 1e-9;
+      const tx = vcg[0] / Math.max(tl2, 1e-6), tz = vcg[2] / Math.max(tl2, 1e-6);
+      const eta = tl2 > 3 ? Math.atan2(rz * tx - rx * tz, rx * tx + rz * tz) : 0;
+      // on a circle of radius R the reference L1 ahead sits at sin(eta) =
+      // L1 / 2R, so the law returns V^2 / R by itself: the arc's centripetal
+      // acceleration is NOT added again (a first cut did, and the cub rolled
+      // to its limit at the start of every fillet, turned inside the arc and
+      // crossed the leg by 67 m on the far side)
+      const aL1 = 2 * Vg2 * Vg2 * Math.sin(eta) / Math.max(rl, 20);
+      const phC = clamp(Math.atan(aL1 / 9.81), -bl, bl);
+      rollTo(phC);
+      pathDbg = { i: L.i, ey: L.ey, sRem: L.sRem, eta, kap: P[L.i].kap, phC };
+      return true;
+    };
     const airLateral = (bl = bankLim) => {
       // THE COURSE TRIM IS NOT ABOUT THE WIND (2026-09-08). It was gated on
       // there BEING a wind, so in calm air a steady course error could not
@@ -11044,10 +11134,7 @@ function makePilot(sim, def, world, opts) {
       if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
       else eTrim -= 0.8 * eTrim * dt;
       const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bl, bl);
-      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
-      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
-                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
+      rollTo(phC);
     };
     const speedThrottle = (Vtgt) => {
       It = clamp(It + 0.010 * (Vtgt - V) * dt, -0.30, 0.30);
@@ -11065,6 +11152,86 @@ function makePilot(sim, def, world, opts) {
       const fl = A.vsFloor ?? -0.08;
       thcI = clamp(thcI + (A.vsI ?? 0.015) * (VSc - vsF) * dt, fl, thMax);
       holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
+    };
+    // ---- TECS (P0.5, PILOT-ROADMAP §6.1) — ONE LONGITUDINAL LAW ------------
+    // Lambregts' Total Energy Control System (AIAA 1983), the form ArduPilot
+    // and PX4 fly: the THROTTLE commands the rate of the aeroplane's total
+    // specific energy (height + V^2/2g, in metres of climb per second), the
+    // ELEVATOR commands how that energy is DISTRIBUTED between height and
+    // speed. Climb, level, descent, the slope, the approach: one law, two
+    // references (a height or a vertical speed, and an airspeed); when the
+    // throttle saturates the speed weight moves to the elevator by itself,
+    // which is what the FLC/ALT switching, the level latch and the power
+    // assist were each doing by hand.
+    //   STE' = h' + V V'/g            (measured; V' the 2 s acceleration filter)
+    //   demand: h'c from the height error (a 5 s time constant) or given;
+    //           V'c from the speed error (a 3 s time constant), both bounded
+    //           by the SHEET's limits — climbMax at full throttle, the sink
+    //           at idle from the glide (44_machine_sheet.js)
+    //   throttle = feed-forward (the sheet: cruise throttle for level, 1 at
+    //           climbMax, the floor at the idle sink) + P + I on the STE'
+    //           error, the integrator held at the stops (G352's rule)
+    //   pitch   = the trim attitude at this speed (a 1/V^2 fit through the
+    //           two MEASURED trims, cruise and approach) + the demanded flight
+    //           path angle from the energy BALANCE rate + P + I on its error;
+    //           the existing pitch servo (holdPitch) flies it — the servo the
+    //           G201 pass proved on 25 archetypes, unchanged
+    //   speed weight wK: 1 balanced; toward 2 (speed on the elevator) as the
+    //           throttle saturates or the speed falls under 1.1 Vs0; 0 would
+    //           be height only (unused)
+    // Gains are DIMENSIONLESS over the sheet (rule 8): the throttle P is half
+    // the feed-forward slope, its I a quarter of that per second; the pitch P
+    // and I are angles per unit flight-path error. Nothing per aeroplane.
+    const SH = sheetOf();
+    const tClimbMax = Math.max(0.5, SH && SH.climbMax != null ? SH.climbMax : (A.VClimb || 20) * 0.08);
+    const tSinkIdle = Math.max(0.8, SH && SH.sinkBg != null ? SH.sinkBg : (A.VAppr || 20) * 0.09);
+    const tThrCruise = A.thrCruise ?? 0.6, tThrFloor = A.thrFloor ?? 0.12;
+    const tVs0 = SH && SH.Vs0 != null ? SH.Vs0 : (A.VRot || 18) / 0.99;
+    // the trim attitude at speed V: alpha = a0 + k / V^2 through (Vcruise, alphaCruise) and (VAppr, alphaAppr)
+    const tAlphaAt = (() => {
+      const g = def.params.gen || {};
+      const V1 = A.VCruise || 30, V2 = A.VAppr || 22, a1 = g.alphaCruise ?? 0.05, a2 = g.alphaAppr ?? 0.12;
+      const k = (a2 - a1) / (1 / (V2 * V2) - 1 / (V1 * V1) || 1e-9), a0 = a1 - k / (V1 * V1);
+      return Vv => clamp(a0 + k / Math.max(Vv * Vv, 25), -0.05, (A.thMax ?? 0.2) + 0.05);
+    })();
+    const tecs = (o) => {
+      // o: { ias, alt | vs | gs (the slope from the aim), thMax, vsUp, vsDn }
+      const g9 = 9.81;
+      if (!tOn) { tOn = true; tIthr = clamp(c.thr - tThrCruise, -0.3, 0.3); tIpit = 0; tHdot = vcg[1]; tWk = 1; }
+      tHdot += 0.5 * (vcg[1] - tHdot);
+      const Vc = Math.max(o.ias || A.VAppr, 1.05 * tVs0);
+      // the demands
+      const vsUp = o.vsUp ?? tClimbMax, vsDn = o.vsDn ?? -Math.max(3.0, 1.5 * tSinkIdle);
+      let hdotC;
+      if (o.vs != null) hdotC = o.vs;
+      else if (o.gs != null) {
+        const d = ap.xAim - sAl, hGS = ap.refAlt + Math.max(0, d) * o.gs;
+        hdotC = -(o_.Vg ?? V) * o.gs + 0.2 * (hGS - cg[1]);
+      } else hdotC = 0.2 * ((o.alt ?? cg[1]) - cg[1]);
+      hdotC = clamp(hdotC, vsDn, vsUp);
+      const VdotC = clamp(0.33 * (Vc - V), -1.5, 1.5);
+      const STEr = tHdot + V * accF / g9, STErC = hdotC + V * VdotC / g9;
+      // the throttle: feed-forward from the sheet, P + I on the energy-rate error
+      const ff = STErC >= 0 ? tThrCruise + STErC / tClimbMax * (1 - tThrCruise)
+                            : tThrCruise + STErC / tSinkIdle * (tThrCruise - tThrFloor);
+      const kP = 0.5 * (1 - tThrCruise) / tClimbMax, kI = 0.25 * kP;
+      const eT = STErC - STEr;
+      const raw = ff + kP * eT + tIthr;
+      if ((raw > 1 && eT > 0) || (raw < tThrFloor && eT < 0)) { /* held at the stop */ }
+      else tIthr = clamp(tIthr + kI * eT * dt, -0.4, 0.4);
+      c.thr = clamp(ff + kP * eT + tIthr, tThrFloor, 1);
+      // the speed weight: toward the elevator as the throttle saturates or the speed is low
+      const sat = c.thr >= 0.99 || c.thr <= tThrFloor + 0.005;
+      const wKt = (sat && Math.abs(Vc - V) > 1) || V < 1.1 * tVs0 ? 2 : 1;
+      tWk += clamp(wKt - tWk, -0.5 * dt, 0.5 * dt);
+      // the balance: pitch = trim(V) + gamma demanded + P + I on the balance-rate error
+      const SEBr = (2 - tWk) * tHdot - tWk * V * accF / g9, SEBrC = (2 - tWk) * hdotC - tWk * V * VdotC / g9;
+      const eB = (SEBrC - SEBr) / Math.max(V, 8);
+      tIpit = clamp(tIpit + 0.15 * eB * dt, -0.10, 0.10);
+      const gammaC = (tWk < 1.99 ? hdotC / Math.max(V, 8) : 0);
+      const thC = clamp(tAlphaAt(V) + gammaC + 0.8 * eB + tIpit, A.vsFloor ?? -0.08, o.thMax ?? A.thMax);
+      holdPitch(thC);
+      tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB };
     };
     const groundSteer = () => {
       // H4 (G393): ON THE WATER the split is displacement / on the step
@@ -11234,8 +11401,10 @@ function makePilot(sim, def, world, opts) {
         }
         case 'PITCH': holdPitch(SEL.pitch); break;
         case 'DE': c.de = SEL.de; break;
+        case 'TECS': tecs(SEL); break;                 // P0.5: the throttle is this law's too
         default: break;
       }
+      if (AF.vert !== 'TECS') tOn = false;
       // lateral
       switch (AF.lat) {
         case 'HDG': ap.targetDir = [Math.cos(SEL.hdg), 0, Math.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
@@ -11244,6 +11413,7 @@ function makePilot(sim, def, world, opts) {
           ap.targetDir = [ddx / dl, 0, ddz / dl]; airLateral(SEL.bank ?? bankLim); break;
         }
         case 'NAV': ap.targetDir = SEL.navDir || ap.targetDir; airLateral(SEL.bank ?? bankLim); break;
+        case 'PATH': if (!pathFollow(SEL.bank ?? bankLim)) { ap.targetDir = SEL.navDir || ap.targetDir; airLateral(SEL.bank ?? bankLim); } break;   // P0.6
         case 'LOC': airLateral(SEL.bank ?? bankLim); break;
         case 'DECRAB': {
           airLateral(0.12);
@@ -11276,7 +11446,7 @@ function makePilot(sim, def, world, opts) {
       // the speed hold's floor, the flare's idle. It never fires when the
       // elevator has room, so every aeroplane that flies its approach at
       // idle is unchanged.
-      if ((ap.phase === 'FINAL' || ap.phase === 'FLARE') && (AF.thr === 'SPD' || AF.thr === 'IDLE')) {
+      if ((ap.phase === 'FINAL' || ap.phase === 'FLARE') && (AF.thr === 'SPD' || AF.thr === 'IDLE')) {   // (TECS carries its own saturation)
         const sat = aDe > 0.30, free = aDe < 0.22;
         // in the flare the assist depends on the SPEED: a slow arrival (the
         // C172-alike at 1.13 VRot, full flap) needs the power to finish its
@@ -11297,6 +11467,26 @@ function makePilot(sim, def, world, opts) {
     // a ceiling that will not come is ACCEPTED, said once
     const altMode = (hTgtAbs, Vlevel, bl, nav) => {
       const dh = hTgtAbs - cg[1];
+      if (useTecs) {
+        // P0.5: ONE LAW — the height demand saturates at the sheet's climbMax
+        // (full throttle) and the speed weight moves to the elevator by
+        // itself; climbMode is kept as a REPORT (the ceiling check, the card)
+        if (climbMode && dh < 8) climbMode = false; else if (!climbMode && dh > 40) climbMode = true;
+        engage(nav, 'TECS', 'TECS', { alt: hTgtAbs, vs: null, gs: null, vsUp: null, vsDn: null, ias: climbMode ? ap.VClimb : Vlevel, bank: climbMode ? Math.min(bl, A.bankClimb ?? 0.35) : bl });
+        if (climbMode) {
+          ceilT += dt;
+          const stalled = ceilT > 60 && vsSlow < 0.15, marginal = ceilT > 75 && vsSlow < 0.4;
+          if ((stalled || marginal) && !ceilingSaid) {
+            ceilingSaid = true;
+            say(stalled ? 'wont-climb' : 'ceiling-accepted', (stalled ? 'no climb left (' : 'still climbing ') + vsSlow.toFixed(2) +
+                (stalled ? ' m/s) — accepting ' : ' m/s — flying the circuit at ') + Math.round(cg[1] - ap.altRef) + ' m');
+            ap.hCruise = Math.max(A.hSafe + 10, cg[1] - ap.altRef);
+            if (ap.plan) ap.plan.hC = ap.hCruise;
+            climbMode = false;
+          }
+        } else ceilT = 0;
+        return;
+      }
       if (climbMode && dh < 8) { climbMode = false; thrC = A.thrCruise; thcI = 0.04; }
       else if (!climbMode && dh > 40) climbMode = true;
       if (climbMode) {
@@ -11704,7 +11894,8 @@ function makePilot(sim, def, world, opts) {
         // held all the way to the circuit (the user: "it climbs like at max
         // speed"); the flaps come up at the same height
         const iasC = agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
-        engage('LOC', 'FLC', 'FULL', { ias: iasC, bank: bankLim });
+        if (useTecs) engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
+        else engage('LOC', 'FLC', 'FULL', { ias: iasC, bank: bankLim });
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
@@ -11757,9 +11948,12 @@ function makePilot(sim, def, world, opts) {
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
         const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;
-        // G381: the arc turn first (it sets SEL.hdg and SEL.bank), then the pursuit
-        const inArc = !holdOut && arcFly();
-        altMode(hTgt, legSpeed(L), inArc ? arcBank() : bankLim, (holdOut || inArc) ? 'HDG' : 'NAV');
+        // P0.6: the path is built once per leg list and followed by L1; the
+        // G381 arc + pursuit stay behind `path: false`
+        if (usePath && !airPath) { airPath = buildAirPath(ap.legs, ap.legs[0] && ap.legs[0].name === 'CROSSWIND' ? [cg[0], cg[2]] : null); airPathI = 0; }
+        const onPath = usePath && !!airPath && !holdOut;
+        const inArc = !holdOut && !onPath && arcFly();
+        altMode(hTgt, legSpeed(L), inArc ? arcBank() : bankLim, holdOut ? 'HDG' : onPath ? 'PATH' : inArc ? 'HDG' : 'NAV');
         if (holdOut) SEL.hdg = Math.atan2(ap.holdDir[2], ap.holdDir[0]);
         else if (inArc) { const h = Math.atan2(nose[1], nose[0]); SEL.hdg = h + arc.sign * 0.9; }
         flapTgt = 0;
@@ -11813,22 +12007,32 @@ function makePilot(sim, def, world, opts) {
         // then the tracking bank of 0.18 — the 10 deg cap alone could not
         // finish a turn planned at 23 and crossed the centreline by 147 m.
         if (finalLevel == null) finalLevel = Math.min(cg[1], hGS + 10);
-        const inArc = arcFly();
-        const bF = inArc ? arcBank() : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
-        const latF = inArc ? 'HDG' : 'LOC';
+        // P0.6: the last fillet (base -> final) is the path's; LOC takes over
+        // once the nose is within 11 deg of the runway and 60 m of the line
+        const nS = nose[0] * F.ux + nose[1] * F.uz;
+        const onPathF = usePath && !!airPath && !(nS > Math.cos(0.19) && Math.abs(sCr) < 60);
+        if (onPathF) arc = null;
+        const inArc = !onPathF && arcFly();
+        const bF = (inArc || onPathF) ? bankLim : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
+        const latF = onPathF ? 'PATH' : inArc ? 'HDG' : 'LOC';
         // the approach speed is asked from the leg change, through the turn
         // (keeping the base speed through the arc arrived on the slope 6 m/s
         // fast on the Caravan-alike, whose drawn tail cannot hold the nose
         // up at idle — the elevator on its stop, 3 m/s below a 2.2 deg
         // slope, two terrain go-arounds; GATE ARCHETYPES)
         const iasF = ap.VAppr * ST.VapprK;
-        if (slopeCaptured || above < 0)
+        if (useTecs) {
+          // P0.5: the slope and the level before it are two references of the one law
+          if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
+          else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
+        } else if (slopeCaptured || above < 0)
           engage(latF, 'GS', 'SPD', { gs: ap.gs, ias: iasF, bank: bF });
         else
           engage(latF, 'ALT', 'SPD', { alt: finalLevel, ias: iasF, bank: bF,
                                        vsDn: Math.min(-3.0, -1.6 * V * ap.gs), vsUp: 1.5 });
         if (inArc) { const h = Math.atan2(nose[1], nose[0]); SEL.hdg = h + arc.sign * 0.9; }
-        ap.trackHold = !inArc;
+        ap.trackHold = !inArc && !onPathF;
+        if (!onPathF) airPath = null;
         flapTgt = fLDG;
         const canGA = (ap.gaN || 0) < 2 && !committed;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
@@ -11869,7 +12073,8 @@ function makePilot(sim, def, world, opts) {
         // full power, flaps to the take-off setting, straight ahead on the
         // runway heading to the crosswind height, then the circuit again
         ap.dirX = 1;
-        engage('LOC', 'FLC', 'FULL', { ias: ap.VClimb, bank: 0.20 });
+        if (useTecs) engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: 0.20 });
+        else engage('LOC', 'FLC', 'FULL', { ias: ap.VClimb, bank: 0.20 });
         flapTgt = fTO;
         const hTurn = Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         setStatus('going around: climbing on the runway heading', [
@@ -12008,7 +12213,7 @@ function makePilot(sim, def, world, opts) {
       aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
     } else { aDa = c.da; aDr = c.dr; }
     holdWas = holdActive; holdActive = false;
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, thRest, flCap,
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };
     // the measurements a panel reads (ap.instruments), SI
     ap._m = { ias: V, tas: Vt, gs: Vg, alt: cg[1], agl, aglT, vs: vcg[1], pitch: th, bank: ph,
