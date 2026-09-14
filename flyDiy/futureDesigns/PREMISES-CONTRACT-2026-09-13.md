@@ -554,3 +554,15 @@ after the freeze, against this document.
   `slope` (a fraction) and `hdg` (degrees, 0 = +z, 90 = +x: the direction of the rise); the old `plane`
   [a, b, c] form still reads. GATE PREMISES rules 10c and 7b. In the game the premises' strips are painted
   again after a live edit (their decal, sock and far patch stood again from the registry as it is).
+- **v1.9 (2026-09-14, the user: "these polygons should allow for a PBR texture to be projected on the
+  ground, their contour should fade over a parameter in metres into the underlying layers, and have a
+  form of z-index").** `layers.material` is live: `{ poly, set, tile|null, fade, z }` - `set` is a key of
+  the page's PBR texture sets (the lot's and the site's, read at call time: the editor names none), `tile`
+  the projection's period in world metres (null = the set's own), `fade` the width in metres of the band
+  across the contour (half inside, half outside) over which the set fades into what lies under it, `z` the
+  priority: polygons composite in z order (ties by the record's order), the higher painting over the
+  lower. The composer publishes `materials` in that order and `materialAt(x, z)`; the renderer composites
+  them into a MATERIAL MAP over the extent (a data texture, four slots in its four bytes - a premises
+  wears up to four sets) that the ground shader mixes in after the base map, on the bench's ground and on
+  the game's patch alike. `surface` polygons take the same `z` for the physics class where two overlap.
+  A material without a set is an issue. GATE PREMISES rule 15.

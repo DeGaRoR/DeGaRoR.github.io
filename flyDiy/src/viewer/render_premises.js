@@ -60,16 +60,80 @@ function make(THREE, scene, world, rec0, opts) {
   // the bench's bounds are the world's window; the game's are the premises' extent in the world (+ a margin)
   const extentWorld = () => { const F = O.frame, e = O.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; return { x0: Math.min(...c.map(q => q[0])) - 40, z0: Math.min(...c.map(q => q[1])) - 40, x1: Math.max(...c.map(q => q[0])) + 40, z1: Math.max(...c.map(q => q[1])) + 40 }; };
   const bounds = o.game ? extentWorld() : (world.bounds || { x0: -160, z0: -160, x1: 160, z1: 160 });
-  const W = bounds.x1 - bounds.x0, H = bounds.z1 - bounds.z0;
+  let W = bounds.x1 - bounds.x0, H = bounds.z1 - bounds.z0;
 
   // ---- the ground, with the overlay and the wear -----------------------------
   const groundMat = new THREE.MeshStandardMaterial({ color: o.grass ? 0xffffff : 0x87906f, roughness: 0.97, metalness: 0 });
   if (o.grass) { groundMat.map = o.grass.map || null; groundMat.normalMap = o.grass.normalMap || null; }
+  // THE MATERIAL MAP (v8): the material polygons composited in priority order into four SLOTS (the
+  // map's four channels, one PBR set each - a premises wears up to four sets); the ground shader
+  // mixes the sets in by the slot weights, tiled in world metres
+  // a DATA texture, not a canvas: a 2D canvas premultiplies its colour by its alpha on store, and a slot in the
+  // alpha channel at 0 wiped the other three - four honest bytes per pixel
+  const MMN = 512, MMD = new Uint8Array(MMN * MMN * 4);
+  const matTex = new THREE.DataTexture(MMD, MMN, MMN, THREE.RGBAFormat); matTex.flipY = false; matTex.wrapS = matTex.wrapT = THREE.ClampToEdgeWrapping; matTex.minFilter = THREE.LinearFilter; matTex.magFilter = THREE.LinearFilter; matTex.needsUpdate = true;
+  const SLOTS = [null, null, null, null];   // set keys by slot
+  const uMat = { value: matTex }, uMatOn = { value: 0 }, uTile = { value: new THREE.Vector4(2.4, 2.4, 2.4, 2.4) };
+  const uSet = [0, 1, 2, 3].map(() => ({ value: null }));
+  const SET_TEX = {};
+  const texSets = () => Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
+  function setTex(key) {
+    if (SET_TEX[key]) return SET_TEX[key];
+    const S = texSets()[key]; if (!S || !S.diff) return null;
+    const t = new THREE.Texture(S.diff); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+    if (S.diff.complete && S.diff.naturalWidth) t.needsUpdate = true; else S.diff.addEventListener('load', () => { t.needsUpdate = true; if (o.onBuilt) o.onBuilt(0, 0); });
+    SET_TEX[key] = t; return t;
+  }
+  // the injection: after the map, the slots' sets mixed in by their weights (both the bench ground and the game patch)
+  function injectMaterials(sh) {
+    sh.uniforms.uMat = uMat; sh.uniforms.uMatOn = uMatOn; sh.uniforms.uTile = uTile; sh.uniforms.uMB = uB;
+    for (let i = 0; i < 4; i++) sh.uniforms['uSet' + i] = uSet[i];
+    if (sh.vertexShader.indexOf('varying vec3 vPW;') < 0) sh.vertexShader = 'varying vec3 vPW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPW = transformed;');
+    sh.fragmentShader = (sh.fragmentShader.indexOf('varying vec3 vPW;') < 0 ? 'varying vec3 vPW;\n' : '') + 'uniform sampler2D uMat, uSet0, uSet1, uSet2, uSet3;\nuniform vec4 uMB, uTile;\nuniform float uMatOn;\n' +
+      sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' +
+        '  if (uMatOn > 0.5) { vec4 mw = texture2D(uMat, (vPW.xz - uMB.xy) / uMB.zw);\n' +
+        '    if (mw.r > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet0, vPW.xz / uTile.x).rgb, mw.r);\n' +
+        '    if (mw.g > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet1, vPW.xz / uTile.y).rgb, mw.g);\n' +
+        '    if (mw.b > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet2, vPW.xz / uTile.z).rgb, mw.b);\n' +
+        '    if (mw.a > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet3, vPW.xz / uTile.w).rgb, mw.a); }');
+  }
+  // the map painted: every material polygon in priority order, "over" per pixel with its fade weight
+  function paintMaterials() {
+    const mats = O.materials || [], F = O.frame, N = 512;
+    const D = MMD; D.fill(0);
+    for (let i = 0; i < 4; i++) SLOTS[i] = null;
+    const slotOf = key => { let k = SLOTS.indexOf(key); if (k < 0) { k = SLOTS.indexOf(null); if (k < 0) return -1; SLOTS[k] = key; } return k; };
+    let any = false;
+    for (const m of mats) {
+      const k = slotOf(m.set); if (k < 0) { console.warn('premises: a fifth material set (' + m.set + ') has no slot'); continue; }
+      const tile = m.tile || (texSets()[m.set] || {}).tile || 2.4;
+      uTile.value.setComponent(k, tile);
+      // the pixels the polygon and its fade band cover, in the bounds' raster
+      const bb = m.bbox, f = m.fade;
+      const px0 = Math.max(0, Math.floor((F.toWorld(bb.x0, bb.z0)[0] - bounds.x0) / W * N) - 2), px1 = Math.min(N - 1, Math.ceil((F.toWorld(bb.x1, bb.z1)[0] - bounds.x0) / W * N) + 2);
+      const pz0 = Math.max(0, Math.floor((F.toWorld(bb.x0, bb.z0)[1] - bounds.z0) / H * N) - 2), pz1 = Math.min(N - 1, Math.ceil((F.toWorld(bb.x1, bb.z1)[1] - bounds.z0) / H * N) + 2);
+      const lo = Math.min(px0, px1) - Math.ceil(f / W * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / W * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / H * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / H * N) + 1;
+      for (let j = Math.max(0, lz); j <= Math.min(N - 1, hz); j++) for (let i = Math.max(0, lo); i <= Math.min(N - 1, hi); i++) {
+        const wx = bounds.x0 + (i + 0.5) / N * W, wz = bounds.z0 + (j + 0.5) / N * H, L = F.toLocal(wx, wz);
+        const w = O.materialWeight(m, L[0], L[1]); if (w <= 0) continue;
+        const at = (j * N + i) * 4;
+        for (let c = 0; c < 4; c++) D[at + c] = Math.round(D[at + c] * (1 - w));
+        D[at + k] = Math.min(255, D[at + k] + Math.round(255 * w));
+        any = true;
+      }
+    }
+    for (let i = 0; i < 4; i++) uSet[i].value = SLOTS[i] ? setTex(SLOTS[i]) : null;
+    uMatOn.value = any ? 1 : 0;
+    matTex.needsUpdate = true;
+    stats.materials = mats.length;
+  }
   const OV = document.createElement('canvas'); OV.width = OV.height = 1024;
   const ovTex = new THREE.CanvasTexture(OV); ovTex.flipY = false; ovTex.wrapS = ovTex.wrapT = THREE.ClampToEdgeWrapping;
   const WR = document.createElement('canvas'); WR.width = WR.height = 1024;
   const wearTex = new THREE.CanvasTexture(WR); wearTex.flipY = false; wearTex.wrapS = wearTex.wrapT = THREE.ClampToEdgeWrapping;
   const uOv = { value: ovTex }, uWear = { value: wearTex }, uB = { value: new THREE.Vector4(bounds.x0, bounds.z0, W, H) }, uOvOn = { value: 1 }, uWaterY = { value: world.waterH ? world.waterH(0, 0) : -1e9 };
+  // the game's bounds follow the extent (the material map is painted over them): refreshed on a rebuild
+  const refreshBounds = () => { if (!o.game) return; const b = extentWorld(); bounds.x0 = b.x0; bounds.z0 = b.z0; bounds.x1 = b.x1; bounds.z1 = b.z1; W = bounds.x1 - bounds.x0; H = bounds.z1 - bounds.z0; uB.value.set(bounds.x0, bounds.z0, W, H); };
   groundMat.onBeforeCompile = sh => {
     sh.uniforms.uOv = uOv; sh.uniforms.uWear = uWear; sh.uniforms.uB = uB; sh.uniforms.uOvOn = uOvOn; sh.uniforms.uWaterY = uWaterY;
     sh.vertexShader = 'varying vec3 vPW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPW = transformed;');
@@ -92,6 +156,7 @@ function make(THREE, scene, world, rec0, opts) {
         // the editor's overlay: surface classes, no-tree polygons
         '    vec4 ov = texture2D(uOv, uvw);\n' +
         '    diffuseColor.rgb = mix(diffuseColor.rgb, ov.rgb, ov.a * uOvOn); }');
+    injectMaterials(sh);
   };
   const chunks = new Map();
   const ci0 = Math.floor(bounds.x0 / CHUNK), ci1 = Math.ceil(bounds.x1 / CHUNK) - 1, cj0 = Math.floor(bounds.z0 / CHUNK), cj1 = Math.ceil(bounds.z1 / CHUNK) - 1;
@@ -131,7 +196,7 @@ function make(THREE, scene, world, rec0, opts) {
   let water = null;
   // THE PATCH (game): one fine mesh over the extent, 2 m polys, its border tucked 2.2 m under the ring
   // (the strips' own W13.2 law), the world's outer texture on it; re-sampled in place on a rebuild
-  let patch = null, patchKey = '';
+  let patch = null, patchKey = '', patchMatOwn = null;
   function buildPatch() {
     const b = extentWorld(), key = [b.x0, b.z0, b.x1, b.z1].join(',');
     const RES = 2, LX = b.x1 - b.x0, LZ = b.z1 - b.z0;
@@ -139,7 +204,15 @@ function make(THREE, scene, world, rec0, opts) {
       if (patch) { G.ground.remove(patch); patch.geometry.dispose(); }
       const g = new THREE.PlaneGeometry(LX, LZ, Math.ceil(LX / RES), Math.ceil(LZ / RES));
       g.rotateX(-Math.PI / 2); g.translate((b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2);
-      patch = new THREE.Mesh(g, o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c }));
+      // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
+      // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
+      if (!patchMatOwn) {
+        const base = o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
+        patchMatOwn = base.clone(); const inner = base.onBeforeCompile;
+        patchMatOwn.onBeforeCompile = sh => { if (inner) inner(sh); injectMaterials(sh); };
+        patchMatOwn.customProgramCacheKey = () => 'premises-patch-materials';
+      }
+      patch = new THREE.Mesh(g, patchMatOwn);
       patch.receiveShadow = true; patch.name = 'premises:patch';
       G.ground.add(patch); patchKey = key;
     }
@@ -718,10 +791,12 @@ function make(THREE, scene, world, rec0, opts) {
   function rebuild(dirty) {
     const t0 = performance.now();
     O = composeNow();
+    refreshBounds();
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     if (o.game) {
       if (groundDirty) { buildPatch(); n = 1; }
+      paintMaterials();
       placeLots();
       buildRoads();
       buildRunways();
@@ -743,6 +818,7 @@ function make(THREE, scene, world, rec0, opts) {
     placeLots();
     paintOverlay();
     paintWear();
+    paintMaterials();
     buildOutlines();
     buildRunways();
     buildHandles();
@@ -799,6 +875,9 @@ function make(THREE, scene, world, rec0, opts) {
     root, groups: G, stats,
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt,
     setRecord: r => { rec = PG.normalise(r); },
+    // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
+    // arrived, and the map's weights at a world point
+    materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, bounds), slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - bounds.x0) / W * MMN), j = Math.floor((z - bounds.z0) / H * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },

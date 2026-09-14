@@ -45836,3 +45836,28 @@ the categorization in the asset editor".
 - OWED: the palette by eye (the composite runs dark); the muskeg's own class;
   the 3.3 % cloud cells; the 20 m overlay pack for the shipped asset (~10
   MB); a licence-text check on Meta/WRI before shipping.
+
+## G395 — MATERIAL POLYGONS: A PBR SET ON THE GROUND, A FADE IN METRES, A
+## PRIORITY (2026-09-14, the user's ask on the polygons)
+
+- **THE MATERIAL LAYER** is live (contract v1.9): a polygon with a PBR set of
+  the page's (the lot's five, the site's nine - read at call time, the
+  editor names none), a tile in world metres, a fade in metres across the
+  contour (half in, half out) into what lies under it, and a priority: the
+  polygons composite in z order, the higher over the lower. Surface
+  polygons take the same priority for the physics class.
+- **THE MATERIAL MAP**: the renderer composites the polygons into a data
+  texture over the extent - four slots in its four bytes, a premises wears
+  up to four sets - and the ground shader mixes each set in after the base
+  map, tiled in world metres: on the bench's ground and on the game's patch
+  alike (the ring's own material cloned with the mix on top, its own program
+  key). A 2D canvas could not hold the map: it premultiplies its colour by
+  its alpha on store, and a slot at alpha 0 wiped the other three.
+- **THE TOOL**: MATERIAL in the TERRAIN section, corner by corner; the
+  inspector picks the set, the tile, the fade and the priority.
+- Pictures: `v8_materials.png` - a pebble apron fading 6 m into the grass,
+  a cracked-concrete pad of priority 2 painted over it with a 1.5 m edge, on
+  the bench; the same two on the game's patch in dev.html.
+- Gates: PREMISES green (251 checks).
+- OWED: the flight screen's own top bar shows through the editor's sheet;
+  hide it while the editor is open.

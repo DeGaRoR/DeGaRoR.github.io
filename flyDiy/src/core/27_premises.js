@@ -860,7 +860,13 @@ function compose(rec0, world, opts) {
   for (const st of rec.layers.sites) for (const sh of siteShelves(st, catS, T1s)) { const M = makeModifier(sh, F.y0); if (M) { mods.push(M); shelves.push(sh); } }
   const index = SpatialIndex(256);
   for (const M of mods) index.add(M.bbox, M);
-  const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface }));
+  // the surface polygons in PRIORITY order (z, then the record's order): the last wins at a point
+  const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map((s, i) => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface, z: +s.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
+  // THE MATERIALS (v8, contract v1.9): a PBR set projected on the ground inside a polygon, its contour
+  // fading over `fade` metres (half in, half out) into what lies under it, composited in priority order
+  const mats = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.set).map((m, i) => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), set: String(m.set), tile: m.tile > 0 ? +m.tile : null, fade: Math.max(0, +m.fade || 0), z: +m.z || 0, i })).sort((a, b) => (a.z - b.z) || (a.i - b.i));
+  // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
+  const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
   for (const r of runways) { const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id }); }
   // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
@@ -895,6 +901,15 @@ function compose(rec0, world, opts) {
     terrainAt: (x, z) => O.terrainH(x, z, world.terrainH(x, z)),
     // the composed ground in the PREMISES frame
     localH: (lx, lz) => { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]); },
+    materials: mats,
+    // the material seen at a world point after the composite: { set, w } of the top one, or null
+    materialAt(x, z) {
+      const L = F.toLocal(x, z);
+      let top = null;
+      for (const m of mats) { if (!inBB({ x0: m.bbox.x0 - m.fade, z0: m.bbox.z0 - m.fade, x1: m.bbox.x1 + m.fade, z1: m.bbox.z1 + m.fade }, L[0], L[1])) continue; const w = matWeight(m, L[0], L[1]); if (w <= 0) continue; top = { set: m.set, w: top ? w + top.w * (1 - w) * (top.set === m.set ? 1 : 0) : w, id: m.id }; if (w >= 1) top.w = 1; }
+      return top;
+    },
+    materialWeight: (m, lx, lz) => matWeight(m, lx, lz),
     surfaceAt(x, z) {
       const L = F.toLocal(x, z);
       for (let i = surf.length - 1; i >= 0; i--) { const s = surf[i]; if (inBB(s.bbox, L[0], L[1]) && inPoly(s.poly, L[0], L[1])) return s.surface; }
@@ -1045,6 +1060,7 @@ function issues(rec0) {
     if (!polySimple(e.poly)) out.push(k + ' ' + e.id + ': the polygon crosses itself');
     if (k === 'terrain' && !(+e.falloff > 0)) out.push('terrain ' + e.id + ': falloff must be positive');
     if (k === 'zones' && ZONE_KINDS.indexOf(e.kind) < 0) out.push('zone ' + e.id + ': unknown kind ' + e.kind);
+    if (k === 'material' && !e.set) out.push('material ' + e.id + ': no set');
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {

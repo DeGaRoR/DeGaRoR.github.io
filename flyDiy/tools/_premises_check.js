@@ -61,6 +61,8 @@
 //      flat to 1 cm, the entry's fill standing in its slot as an item.
 //  9c  THE REAL CABLE: the catalogue's two stations (by tag) and the
 //      village's tramLine solve six ropes in the band, lineDeg on both.
+//  15  THE MATERIALS (v8): a PBR set inside a polygon, the fade across its
+//      contour, the priority between overlaps (surface polygons too).
 //  10c THE PROFILE (v8): control points, a monotone spline, the pilot's
 //      limits (5 % anywhere, 2.5 % in the touchdown zone, 1.5 % / 30 m at a crest).
 //  7b  THE SLOPE POLYGON (v8): level at the middle, a constant slope to a heading.
@@ -540,6 +542,23 @@ for (const fx of fixtures) {
     check(W.surface(cw[0], cw[1]) === (rec.layers.runways[0].surface === undefined ? PG.SURFACE.GRASS : rec.layers.runways[0].surface), '5b the strip\'s surface answers through the world', String(W.surface(cw[0], cw[1])));
     const bare = fc.makeWorld(0);
     check(bare.premises && bare.premises.overlay === null && bare.terrainH(cw[0], cw[1]) === FLIGHT.terrainH(cw[0], cw[1]), '5b a world with no premises is the bare world');
+  }
+  // 15 THE MATERIALS (v8): a set is 1 well inside its polygon, 0.5 on the contour, 0 past the fade; a
+  // higher priority paints over a lower where they overlap, whatever the record's order; a surface
+  // polygon's priority decides the physics class where two overlap
+  {
+    const rec = PG.normalise({ seed: 1, layers: {
+      material: [{ id: 'm1', poly: [[-40, -40], [40, -40], [40, 40], [-40, 40]], set: 'x', fade: 8, z: 2 }, { id: 'm2', poly: [[0, -60], [80, -60], [80, 60], [0, 60]], set: 'y', fade: 0, z: 0 }],
+      surface: [{ id: 'y1', poly: [[-50, -50], [50, -50], [50, 50], [-50, 50]], surface: 5, z: 1 }, { id: 'y2', poly: [[0, -50], [90, -50], [90, 50], [0, 50]], surface: 6, z: 0 }] } });
+    const O = PG.compose(rec, synth, { noPlace: true });
+    const at = (x, z) => O.materialAt(...O.frame.toWorld(x, z));
+    check(at(-20, 0) && at(-20, 0).set === 'x' && at(-20, 0).w === 1, '15 a set is whole well inside its polygon');
+    check(at(-40, 0) && Math.abs(at(-40, 0).w - 0.5) < 0.05, '15 half on the contour', at(-40, 0) && at(-40, 0).w.toFixed(2));
+    check(at(-46, 0) === null || at(-46, 0).w < 0.02, '15 nothing past the fade');
+    check(at(20, 0) && at(20, 0).set === 'x', '15 the higher priority paints over the lower where they overlap');
+    check(at(60, 0) && at(60, 0).set === 'y', '15 the lower shows where the higher is not');
+    check(O.surfaceAt(...O.frame.toWorld(20, 0)) === 5 && O.surfaceAt(...O.frame.toWorld(70, 0)) === 6, '15 the surface priority decides the class where two overlap');
+    check(PG.issues(PG.normalise({ seed: 1, layers: { material: [{ id: 'm', poly: [[0, 0], [10, 0], [10, 10], [0, 10]], set: '' }] } })).some(i => /no set/.test(i)), '15 a material without a set is an issue');
   }
   // 10c THE PROFILE (v8): a strip with a hump composes on its monotone spline (the centreline at the
   // profile to 5 cm, no overshoot past a control point), the pilot's limits answer - a 4 % hump in the
