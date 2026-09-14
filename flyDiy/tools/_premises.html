@@ -69,7 +69,7 @@
 <script src="../vendor/three.min.js"></script>
 <script>window.FLYDIY_ASSET_BASE = '../';</script>
 <!-- the generated core first: makeWorld and the prop / tree codecs live in it (a second codec tag would redeclare PROP_REG) -->
-<script src="flight_core.js"></script>
+<script src="flight_core.js"></script>   <!-- the core carries the composer (src/core/27_premises.js) since the port: PREMISES_GEN is its global -->
 <script src="../src/viewer/house_tex.js"></script>
 <script src="../src/viewer/assets.js"></script>
 <script src="../src/viewer/props.js"></script>
@@ -99,10 +99,10 @@
 <script src="../src/totems/totems_poles.js"></script>
 <script src="_totem_gen.js"></script>
 <script src="_village_gen.js"></script>
-<script src="../src/core/27_premises.js"></script>
 <script src="../src/viewer/pattern_vis.js"></script>
 <script src="../src/viewer/render_premises.js"></script>
-<script src="_premises_ui.js"></script>
+<script src="../src/viewer/premises_host.js"></script>
+<script src="../src/viewer/premises_ui.js"></script>
 <script>
 (() => {
 'use strict';
@@ -146,8 +146,13 @@ sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.
 scene.add(sun, sun.target);
 const hemi = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.6 * LU);
 scene.add(hemi);
-const centre = new THREE.Vector3((WORLD.bounds.x0 + WORLD.bounds.x1) / 2, 0, (WORLD.bounds.z0 + WORLD.bounds.z1) / 2);
-centre.y = WORLD.terrainH(centre.x, centre.z);
+// ---- the cameras, the ground pick and the mouse: the HOST module (src/viewer/premises_host.js), the
+// same the game's WORLD rail stands the editor on; R is handed in by a getter since it is made below
+const viewEl = $('view');   // held before the mount: the module clears its host and the view goes back in between the rail and the inspector
+let R = null;
+const HOST = PREMISES_HOST.make({ THREE, world: WORLD, size, view: viewEl, canvas: cv, R: () => R, map: 'ortho', onDraw: () => draw(),
+  onMode: m => { $('camlbl').textContent = m === 'map' ? 'MAP · north up · wheel zooms · middle-drag pans · Tab = orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab = map'; } });
+const { cameras, camera, ray, ground, centre } = HOST;
 // the rig, in WORLD_RIG's shape ({ get, set }) so the editor's VIEW rows read the same way in the game
 const RIG = { elev: 42, azim: 35, exposure: 1.0 };
 const rig = { get: () => Object.assign({}, RIG), set: o => { Object.assign(RIG, o); aimSun(); draw(); } };
@@ -179,78 +184,9 @@ function grassMaps() {
   return { map: mk(GS.diff, true), normalMap: mk(GS.nor, false) };
 }
 
-// ---- the cameras: orbit (right-drag) and map (top-down) -------------------------------------
-const persp = new THREE.PerspectiveCamera(40, 1, 0.5, size * 6);
-const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, size * 6);
-ortho.up.set(0, 0, -1);
-let camMode = 'orbit';
-let yaw = -0.6, pitch = 0.62, ZOOM = 0.8, mapHalf = size * 0.55;
-let drag = null, panD = null;
-try { const v = JSON.parse(localStorage.getItem('flydiy.prem.view') || 'null'); if (v && v.world === WORLD.id) { yaw = v.yaw; pitch = v.pitch; ZOOM = v.zoom; camMode = v.mode || 'orbit'; mapHalf = v.mapHalf || mapHalf; if (v.c) centre.set(v.c[0], v.c[1], v.c[2]); } } catch (e) {}
-const saveView = () => { try { localStorage.setItem('flydiy.prem.view', JSON.stringify({ world: WORLD.id, yaw, pitch, zoom: ZOOM, mode: camMode, mapHalf, c: [centre.x, centre.y, centre.z] })); } catch (e) {} };
-const camera = () => (camMode === 'map' ? ortho : persp);
-const cameras = {
-  mode: () => camMode,
-  set: m => { camMode = m === 'map' ? 'map' : 'orbit'; $('camlbl').textContent = camMode === 'map' ? 'MAP · north up · wheel zooms · middle-drag pans · Tab = orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab = map'; saveView(); draw(); },
-  toggle: () => cameras.set(camMode === 'map' ? 'orbit' : 'map'),
-  // a scripted aim: the orbit's yaw and pitch (radians), for the captures a script takes
-  look: (y, p) => { if (isFinite(y)) yaw = y; if (isFinite(p)) pitch = p; saveView(); draw(); },
-  view: () => ({ yaw, pitch, zoom: ZOOM, mode: camMode, centre: [centre.x, centre.y, centre.z] }),
-  frame: bb => { if (!bb) return; const F = R.overlay.frame; const a = F.toWorld((bb.x0 + bb.x1) / 2, (bb.z0 + bb.z1) / 2); centre.set(a[0], WORLD.terrainH(a[0], a[1]), a[1]); const span = Math.max(bb.x1 - bb.x0, bb.z1 - bb.z0, 20); ZOOM = size * 0.55 / (span * 1.3); mapHalf = span * 0.8; saveView(); draw(); },
-};
-function placeCamera() {
-  const r = cv.parentElement.getBoundingClientRect();
-  const cam = camera();
-  cam.userData.viewH = r.height;
-  if (camMode === 'map') {
-    const asp = r.width / Math.max(1, r.height);
-    ortho.left = -mapHalf * asp; ortho.right = mapHalf * asp; ortho.top = mapHalf; ortho.bottom = -mapHalf;
-    ortho.position.set(centre.x, centre.y + size * 2, centre.z);
-    ortho.lookAt(centre.x, centre.y, centre.z);
-    ortho.updateProjectionMatrix();
-  } else {
-    const R0 = size * 0.55 / ZOOM;
-    persp.aspect = r.width / Math.max(1, r.height);
-    persp.position.set(centre.x + R0 * Math.sin(yaw) * Math.cos(pitch), centre.y + R0 * Math.sin(pitch), centre.z + R0 * Math.cos(yaw) * Math.cos(pitch));
-    persp.lookAt(centre);
-    persp.updateProjectionMatrix();
-  }
-}
-// the ray from a client point, and the analytic march against the composed ground
-const ndc = new THREE.Vector2(), rc = new THREE.Raycaster();
-function ray(cx, cy) {
-  const r = cv.getBoundingClientRect();
-  ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
-  rc.setFromCamera(ndc, camera());
-  return rc.ray;
-}
-function ground(cx, cy) {
-  const ry = ray(cx, cy);
-  const o = ry.origin, d = ry.direction;
-  if (!R) return null;
-  let t = 0, last = null;
-  const maxT = size * 6, step = 2;
-  let px = o.x, py = o.y, pz = o.z, pAbove = py - R.heightAt(px, pz);
-  if (pAbove < 0) return null;
-  for (t = step; t < maxT; t += step) {
-    const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
-    if (x < WORLD.bounds.x0 - 50 || x > WORLD.bounds.x1 + 50 || z < WORLD.bounds.z0 - 50 || z > WORLD.bounds.z1 + 50) { if (last) break; }
-    const above = y - R.heightAt(x, z);
-    if (above < 0) {
-      // bisect between the last point above and this one below
-      let a = t - step, b = t;
-      for (let i = 0; i < 12; i++) { const m = (a + b) / 2; const my = o.y + d.y * m; if (my - R.heightAt(o.x + d.x * m, o.z + d.z * m) < 0) b = m; else a = m; }
-      const m = (a + b) / 2;
-      return [o.x + d.x * m, o.y + d.y * m, o.z + d.z * m];
-    }
-    last = [x, y, z];
-  }
-  return null;
-}
 
 // ---- the renderer and the editor -------------------------------------------------------------
 const RP = window.RENDER_PREMISES, PU = window.PREMISES_UI;
-const viewEl = $('view');   // held before the mount: the module clears its host and the view goes back in between the rail and the inspector
 // the species pool as the tree payload offers it (the village bench's treePool)
 function treePool() {
   if (typeof treeList !== 'function' || typeof treeReady !== 'function' || !treeReady()) return [];
@@ -258,44 +194,13 @@ function treePool() {
     sink: (e.col.place && e.col.place.sink) || 0, proportion: (e.col.place && e.col.place.proportion) || 1, h: e.sub.h }));
 }
 // the core's own airfield functions (flight_core.js): the strip's paint, the derived runway, the pattern and its validator
-const SITE = { siteRunway: typeof siteRunway === 'function' ? siteRunway : null, sitePaintStrip: typeof sitePaintStrip === 'function' ? sitePaintStrip : null,
-               sitePattern: typeof sitePattern === 'function' ? sitePattern : null, sitePatternIssues: typeof sitePatternIssues === 'function' ? sitePatternIssues : null,
-               patternPath: typeof patternPath === 'function' ? patternPath : null };
-let R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps(), pool: treePool, onBuilt: () => draw(), site: SITE });
+const SITE = HOST.site;
+R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps(), pool: treePool, onBuilt: () => draw(), site: SITE });
 if (typeof treeWarm === 'function') treeWarm().then(() => (typeof treeMapsReady === 'function' ? treeMapsReady() : null)).then(() => { if (window.PREMISES_PAGE) { PREMISES_PAGE.ed.dirty(); } }).catch(e => console.warn('trees:', e && e.message));
 if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
 let dirtyDraw = true;
 const draw = () => { dirtyDraw = true; };
-const rows = {
-  section: (p, t) => { const d = document.createElement('div'); d.className = 'hd'; d.textContent = t; p.appendChild(d); return d; },
-  note: (p, t) => { const d = document.createElement('div'); d.className = 'note'; d.textContent = t; p.appendChild(d); return d; },
-  button: (p, t, on) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = t; b.onclick = on; p.appendChild(b); return b; },
-  slider: (p, label, lo, hi, st, get, set, fmt) => {
-    const d = document.createElement('div'); d.className = 'r';
-    d.innerHTML = '<span class="k" title="' + label + '">' + label + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '"><span class="v"></span>';
-    const inp = d.querySelector('input'), val = d.querySelector('.v');
-    const show = v => { val.textContent = fmt ? fmt(v) : (+v).toFixed(2); };
-    let v0 = +get(); if (!isFinite(v0)) v0 = lo;
-    inp.value = v0; show(v0);
-    inp.oninput = () => { set(+inp.value); show(+inp.value); };
-    p.appendChild(d); return d;
-  },
-  select: (p, label, opts, get, set) => {
-    const d = document.createElement('div'); d.className = 'r';
-    const sel = document.createElement('select');
-    if (get() === '') sel.appendChild(new Option('…', ''));
-    for (const o of opts) sel.appendChild(new Option(o[1], o[0]));
-    sel.value = String(get());
-    sel.onchange = () => set(sel.value);
-    d.innerHTML = '<span class="k">' + label + '</span>'; d.appendChild(sel); p.appendChild(d); return d;
-  },
-  check: (p, label, get, set) => {
-    const d = document.createElement('div'); d.className = 'r';
-    const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!get();
-    c.onchange = () => set(c.checked);
-    d.innerHTML = '<span class="k">' + label + '</span>'; d.appendChild(c); p.appendChild(d); return d;
-  },
-};
+const rows = HOST.rows;
 const frames = []; let lastT = 0;
 let lastInfo = { calls: 0, triangles: 0 };
 const frameText = () => { const gl = 'drawn: ' + lastInfo.calls + ' calls · ' + (lastInfo.triangles / 1e6).toFixed(2) + ' M tris'; if (frames.length < 10) return gl + ' · measuring the frame…'; const f = frames.slice().sort((a, b) => a - b); return gl + ' · frame ' + f[f.length >> 1].toFixed(0) + ' ms median · ' + f[Math.floor(f.length * 0.9)].toFixed(0) + ' ms p90'; };
@@ -308,38 +213,10 @@ const ED = PU.mount($('host'), {
 });
 // the view sits between the rail and the inspector the module built
 $('host').insertBefore(viewEl, $('host').querySelector('.pr-insp'));
-cameras.set(camMode);
+HOST.attach();
+cameras.set(cameras.mode());
 aimSun();
 
-// ---- the camera's mouse: right-drag orbits, middle-drag pans, wheel zooms ----------------------
-viewEl.addEventListener('mousedown', e => {
-  if (e.button === 2) { drag = [e.clientX, e.clientY, yaw, pitch]; e.preventDefault(); }
-  else if (e.button === 1) { panD = [e.clientX, e.clientY, centre.clone()]; e.preventDefault(); }
-});
-viewEl.addEventListener('contextmenu', e => e.preventDefault());
-addEventListener('mouseup', () => { if (drag || panD) saveView(); drag = null; panD = null; });
-addEventListener('mousemove', e => {
-  if (panD) {
-    const r = cv.getBoundingClientRect();
-    const cam = camera();
-    const wpp = camMode === 'map' ? (2 * mapHalf) / Math.max(1, r.height) : 2 * (size * 0.55 / ZOOM) * Math.tan(persp.fov * Math.PI / 360) / Math.max(1, r.height);
-    const e0 = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 0);
-    const e1 = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 1);
-    const c = panD[2].clone().addScaledVector(e0, -(e.clientX - panD[0]) * wpp).addScaledVector(e1, (e.clientY - panD[1]) * wpp);
-    centre.set(c.x, camMode === 'map' ? centre.y : c.y, c.z);
-    draw(); return;
-  }
-  if (!drag || camMode === 'map') return;
-  yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
-  pitch = Math.max(0.05, Math.min(1.5, drag[3] + (e.clientY - drag[1]) * 0.006));
-  draw();
-});
-viewEl.addEventListener('wheel', e => {
-  e.preventDefault();
-  if (camMode === 'map') mapHalf = Math.max(10, Math.min(size * 1.5, mapHalf * (e.deltaY < 0 ? 1 / 1.12 : 1.12)));
-  else ZOOM = Math.max(0.2, Math.min(80, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
-  saveView(); draw();
-}, { passive: false });
 addEventListener('resize', draw);
 
 // ---- the pump: rAF with a watchdog (the Browser pane's rAF is dead) ---------------------------
@@ -356,7 +233,7 @@ function render(t) {
   const dp = devicePixelRatio || 1;
   renderer.setSize(r.width * dp, r.height * dp, false);
   cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
-  placeCamera();
+  HOST.place(r);
   R.scaleHandles(camera(), 6);
   const t0 = performance.now();
   renderer.render(scene, camera());
@@ -375,7 +252,7 @@ async function shot(name, w, h, port) {
   const rt = new THREE.WebGLRenderTarget(w, h, { samples: 4 });
   const cam = camera().clone();
   if (cam.isPerspectiveCamera) { cam.aspect = w / h; cam.updateProjectionMatrix(); }
-  else { const asp = w / h; cam.left = -mapHalf * asp; cam.right = mapHalf * asp; cam.updateProjectionMatrix(); }
+  else { const asp = w / h, mh = cameras.view().mapHalf; cam.left = -mh * asp; cam.right = mh * asp; cam.updateProjectionMatrix(); }
   renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null);
   const px = new Uint8Array(w * h * 4);
   renderer.readRenderTargetPixels(rt, 0, 0, w, h, px);
@@ -392,7 +269,7 @@ async function shot(name, w, h, port) {
 $('reload').onclick = () => { const u = new URL(location.href); u.searchParams.set('world', $('worldSel').value); u.searchParams.set('size', $('sizeIn').value); u.searchParams.set('seed', $('seedIn').value); location.href = u.toString(); };
 
 window.PREMISES_PAGE = { ed: ED, get R() { return R; }, world: WORLD, scene, renderer, camera, cameras, draw: () => { draw(); render(performance.now()); }, shot, ground, rig,
-  setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z; if (c) centre.set(c[0], c[1], c[2]); draw(); } };
+  setView: (y, p, z, c) => { cameras.look(y, p); if (c) cameras.centreOn(c[0], c[2]); draw(); }, host: HOST };
 draw();
 })();
 </script>

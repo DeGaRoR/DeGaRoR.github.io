@@ -1,4 +1,4 @@
-// _premises_ui.js — THE PREMISES EDITOR, THE MODULE (G353 / GPREM; the design:
+// premises_ui.js — THE PREMISES EDITOR, THE MODULE (G353 / GPREM; the bench's tools/_premises_ui.js, ported whole at G387; the design:
 // futureDesigns/PREMISES-EDITOR-2026-09-13.md). One editor, two hosts: the
 // bench page today (tools/_premises.html), the game's WORLD rail entry at the
 // port (src/viewer/premises_ui.js). It writes RECORDS ONLY — every visual is
@@ -67,7 +67,7 @@ const LINE_TOOLS = { road: 'roads' };
 const POINT_TOOLS = { tree: 'objects', building: 'sites', theme: 'sites', prop: 'objects', billboard: 'objects' };
 const OBJ_PICK = { prop: null, billboard: null };   // what the prop and billboard tools stand
 let PALETTE_KEY = null;   // the building the 'building' tool stands
-const LS_WIP = 'flydiy.premises.wip';
+const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
 // the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
 // the sign painter's roadside keys - read at call time, so a pack loaded later is offered
@@ -90,6 +90,12 @@ function mount(host, ctx) {
   let rec = PG.normalise(PG.DEF());
   let recName = null;
   const storage = ctx.storage || null;
+  // where the record autosaves: the bench's wip slot, or the key the host names (the game's is the
+  // one its boot composes, flydiy.premises.game - so a save IS the world at the next boot)
+  const LS_WIP = ctx.wipKey || LS_WIP_DEFAULT;
+  // the module's window listeners answer only while this mount is ACTIVE (the game closes and
+  // reopens the editor; a closed one must not eat the flight's keys)
+  let active = true;
   const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
   let saveT = 0;
   const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} }, 1000); };
@@ -152,6 +158,7 @@ function mount(host, ctx) {
     else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
     inspector.refresh();
     autosave();
+    ctx.onRebuilt && ctx.onRebuilt();   // the game re-samples its ground rings
     ctx.redraw && ctx.redraw();
     clearTimeout(chkT); chkT = setTimeout(checks, 500);
     plaque();
@@ -693,13 +700,15 @@ function mount(host, ctx) {
   // ---- wire up ---------------------------------------------------------------------
   const view = ctx.viewEl;
   let downAt = null;
-  view.addEventListener('mousedown', ev => { if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
-  addEventListener('mousemove', ev => { onMove(ev); });
-  addEventListener('mouseup', ev => { if (onUp()) return; if (ev.button === 0 && downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) < 4 && ev.target === view.querySelector('canvas')) onClick(ev); downAt = null; });
-  view.addEventListener('dblclick', ev => { if (ev.button === 0) onDblClick(ev); });
-  addEventListener('keydown', onKey);
+  view.addEventListener('mousedown', ev => { if (!active) return; if (ev.button === 0) { downAt = [ev.clientX, ev.clientY]; if (onDown(ev)) ev.stopPropagation(); } });
+  addEventListener('mousemove', ev => { if (active) onMove(ev); });
+  addEventListener('mouseup', ev => { if (!active) return; if (onUp()) return; if (ev.button === 0 && downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) < 4 && ev.target === view.querySelector('canvas')) onClick(ev); downAt = null; });
+  view.addEventListener('dblclick', ev => { if (active && ev.button === 0) onDblClick(ev); });
+  addEventListener('keydown', ev => { if (active) onKey(ev); });
 
-  if (!ctx.fresh) loadWip();
+  // the record the host hands in (the game's: the one its world composed at the boot) comes first; else the wip slot
+  if (ctx.record) { try { const U = PG.unwrap(ctx.record); rec = U.rec; recName = U.name; } catch (e) { console.warn('premises record:', e.message); } }
+  else if (!ctx.fresh) loadWip();
   buildRail(); buildStrip();
   R.setRecord(rec); R.rebuild(null); inspector.refresh(); checks(); plaque();
 
@@ -732,7 +741,8 @@ function mount(host, ctx) {
       throw new Error('premises: unknown cmd ' + name);
     },
     dirty: () => dirty(null),
-    close() { R.dispose(); host.innerHTML = ''; },
+    close() { active = false; host.innerHTML = ''; },   // the renderer is the host's to keep or dispose
+    get active() { return active; },
   };
   return handle;
 }

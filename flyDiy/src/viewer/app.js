@@ -28,6 +28,57 @@
   // runs long before the load-test block further down is reached.
   let groundY = 0, rigLift = 0;
   let DEVCAM_ACTIVE = false;              // DEVCAM: the free camera has the eye this frame
+  // THE WORLD EDITOR (G387): open = the host places the camera and the sim is held; PREM.host is
+  // premises_host.js's, PREM.ed the mounted premises_ui.js; the panel is a right-hand column over
+  // the flight screen and the view a transparent sheet over the canvas that takes the mouse
+  const PREM = { open: false, host: null, ed: null, panel: null, view: null, R: null,
+    openEditor() {
+      if (PREM.open) return;
+      const WF0 = window.WORLD; if (!WF0 || !WF0.premisesStart) return;
+      PREM.R = WF0.premisesStart(); if (!PREM.R) return;
+      window.PREMISES_HOST_OPEN = true;
+      running = false;
+      if (!PREM.panel) {
+        const v = document.createElement('div'); v.id = 'premView'; v.style.cssText = 'position:fixed;left:0;top:0;right:392px;bottom:0;z-index:40;cursor:crosshair;';
+        const strip = document.createElement('div'); strip.id = 'premStrip'; strip.style.cssText = 'position:absolute;left:10px;top:10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:70%;';
+        const plaque = document.createElement('div'); plaque.id = 'premPlaque'; plaque.style.cssText = 'position:absolute;right:10px;top:10px;font:11px/1.4 system-ui;color:#dfe6ee;background:rgba(12,15,20,.7);padding:6px 8px;border-radius:6px;pointer-events:none;';
+        const chk = document.createElement('div'); chk.id = 'premChk'; chk.style.cssText = 'position:absolute;left:10px;bottom:10px;font:11px/1.5 system-ui;color:#dfe6ee;background:rgba(12,15,20,.7);padding:6px 8px;border-radius:6px;pointer-events:none;max-width:46%;';
+        const lbl = document.createElement('div'); lbl.id = 'premCam'; lbl.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:10px;font:11px system-ui;color:#9fb0c0;pointer-events:none;';
+        v.appendChild(strip); v.appendChild(plaque); v.appendChild(chk); v.appendChild(lbl);
+        const panel = document.createElement('div'); panel.id = 'premPanel'; panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:392px;z-index:41;display:flex;background:#12161c;color:#dfe6ee;font:12px system-ui;border-left:1px solid #242a33;';
+        document.body.appendChild(v); document.body.appendChild(panel);
+        PREM.panel = panel; PREM.view = v;
+      }
+      PREM.panel.style.display = 'flex'; PREM.view.style.display = '';
+      const dirtyDraw = () => {};
+      PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
+        onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms'; } });
+      PREM.host.attach();
+      // the camera starts over the premises (its extent), or over the aeroplane
+      const ov = world.premises.overlay;
+      if (ov && ov.n) PREM.host.cameras.frame(ov.extent); else { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
+      PREM.host.cameras.set(PREM.host.cameras.mode());
+      const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip') };
+      const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
+      PREM.ed = window.PREMISES_UI.mount(PREM.panel, {
+        THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
+        viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
+        rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
+        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); } },
+      });
+      PREM.open = true;
+      $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
+    },
+    close() {
+      if (!PREM.open) return;
+      PREM.open = false; window.PREMISES_HOST_OPEN = false;
+      if (PREM.ed) { PREM.ed.close(); PREM.ed = null; }
+      if (PREM.host) { PREM.host.detach(); }
+      PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
+      camera.up.set(0, 1, 0);
+      if (PREM.R) PREM.R.rebuild(null);   // the outlines and handles go (editing() is false now)
+    } };
+  if (typeof window !== 'undefined') window.PREMISES_EDITOR = PREM;
   const SHOT = { on: false };             // G255: screenshot mode (see shotSet)
   const $ = id => document.getElementById(id);
 
@@ -238,6 +289,7 @@
     return [target.x + dx * t0, target.y + dy * t0, target.z + dz * t0];
   }
   function placeCamera() {
+    if (PREM.open && PREM.host) { const r = renderer.domElement.getBoundingClientRect(); PREM.host.place({ width: r.width || innerWidth, height: r.height || innerHeight }); if (PREM.R) PREM.R.scaleHandles(camera, 6); return; }   // G387: the world editor's camera
     if (DEVCAM_ACTIVE) return;                          // DEVCAM placed it already
     if (HEADCAM_ACTIVE) return;                         // HEADCAM: the cockpit is a head, not an orbit
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
@@ -6061,6 +6113,11 @@
     // The panel is gfx_settings.js's; both rails host it. A sliders glyph. (GFX)
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
+    // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
+    // over the flight scene: the sim paused, the host's camera, every edit recomposed live. A
+    // developer's tool designed to become the player's (ISLAND-ADMIRALTY §9). A map pin glyph.
+    { k: 'world', label: 'world', title: 'The premises of the world: roads, zones, strips, sites',
+      icon: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z' },
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -6400,6 +6457,17 @@
                    'keyboard: arrows fly it, PageUp/PageDown the throttle, F/G ' +
                    'the flaps, B the brakes, numpad 1/7 the trim, A hands it ' +
                    'over either way, C walks the views.');
+    },
+    // G387: WORLD - the premises editor over the flight scene
+    world(body) {
+      if (!window.PREMISES_UI || !window.PREMISES_HOST || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
+      const rec = world.premises.rec;
+      flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
+      flNote(body, 'The editor opens over the flight scene with the sim paused: the map and orbit cameras of the bench, the same sections and tools. Every edit recomposes the world live; the record autosaves and is the world at the next boot.');
+      const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the editor' : 'open the world editor';
+      b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
+      body.appendChild(b);
+      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (bare world at the next boot)'; c.onclick = () => { try { localStorage.removeItem('flydiy.premises.game'); } catch (e) {} flNote(body, 'cleared - reload for a bare world'); }; body.appendChild(c); }
     },
     // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
     graphics(body) {
@@ -7656,7 +7724,7 @@
     // camera, not the aeroplane - otherwise the inspector flies out to a stand
     // and finds impostors, because the near tier is measured from a CG that is
     // still on the strip.
-    if (!inGarage) WF.worldUpdate(DEVCAM_ACTIVE
+    if (!inGarage) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     // the orbit centre: the EDITOR'S build when it is open (G39 — the

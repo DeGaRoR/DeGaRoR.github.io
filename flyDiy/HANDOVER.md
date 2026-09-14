@@ -45169,3 +45169,44 @@ PARTS, MEDIA.
   WORLDRENDER, UISMOKE, BUILD, MEDIA, WORLD green.
 - NEXT: L3 the editor host (the WORLD rail entry, the live recompose), L4
   the gates and the proof.
+
+## G387 — THE PREMISES PORT, L3: THE EDITOR IN THE GAME - THE WORLD RAIL ENTRY,
+## ONE HOST FOR THE BENCH AND THE GAME (2026-09-14)
+
+- **premises_host.js** (`src/viewer/`): what a page gives the editor module
+  besides a renderer - the cameras (orbit and map over the premises), the
+  ground pick (the analytic march against the composed ground), the mouse
+  on the view (right-drag turns, middle-drag pans, wheel zooms), the row
+  builders, the site functions the core publishes. ONE keeper: the bench
+  page lost its 120 lines of the same and stands on it; so does the game.
+  The march now starts outside the bounds (a low orbit click past the
+  bench's window answered nothing since v1 - the page's own march broke on
+  its second step out).
+- **premises_ui.js** (`src/viewer/`, the module moved whole): an `active`
+  flag (a closed editor's window listeners must not eat the flight's keys),
+  a `wipKey` the host names (the game's is `flydiy.premises.game`, the key
+  its boot composes - so a save IS the world at the next boot), a `record`
+  the host hands in before the first rebuild (the mount's first rebuild
+  recomposes the world with what the editor holds - an empty one emptied
+  the world), an `onRebuilt` hook.
+- **THE WORLD RAIL ENTRY** (app.js, beside GRAPHICS, a map pin): opens the
+  editor over the flight scene - the sim held, a right-hand panel for the
+  rail and the inspector, a transparent sheet over the canvas for the mouse,
+  the tool strip / plaque / checks where the bench has them, the host
+  placing the game's own camera (DEVCAM's precedent in placeCamera and the
+  world update's eye). Every edit recomposes the world live through
+  `world.premises.set`; the world renderer re-samples its 17.6 m ring over
+  the extent (`refreshGround`) and the premises' own patch re-samples
+  itself; the houses build one a frame in worldUpdate. Close puts the
+  outlines and handles away and hands the camera back; reopen finds the
+  record the world holds. A world made without a premises stands the
+  renderer on demand (`premisesStart`).
+- Tried in dev.html with `?premises=game`: rolled out, opened from the rail
+  - the checks green, a flatten raised the game's ground 3 m and undo put it
+  back, a shore cabin stood by the building tool and built in the frame,
+  the record autosaved, close and reopen sound.
+- OWED: a strip edited in the game keeps its boot-time decal until a reload
+  (the world paints strips at the make); the world's trees do not follow a
+  live edit (placed once, at the make); the F8 rows the design wanted moved
+  stay on F8 for now.
+- Gates: PREMISES (235), UISMOKE, BUILD, MEDIA, WORLDRENDER green.

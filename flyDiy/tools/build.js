@@ -177,7 +177,7 @@ const MANIFEST = {
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
     ['tools', '_village_gen.js'],
-    ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_ui.js'],
+    ['src/viewer', 'render_premises.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   viewer: {
     shell: 'shell.html',

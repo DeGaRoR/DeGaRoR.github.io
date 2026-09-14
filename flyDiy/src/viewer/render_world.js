@@ -11,6 +11,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
+  const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
@@ -721,6 +722,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     for (let i = 0; i < posA.count; i++)
       posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
     geo.computeVertexNormals();
+    groundGeos.push(geo);
     // close-range detail: fine tiling grain multiplied in, faded out with distance
     const dn = document.createElement('canvas'); dn.width = dn.height = 256;
     { const dg = dn.getContext('2d');
@@ -3046,7 +3048,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const corners = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)];
       const inner = innerPatchShared && corners.every(q => Math.abs(q[0]) < innerPatchShared.half - 60 && Math.abs(q[1]) < innerPatchShared.half - 60);
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
-        game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST && window.PREMISES_HOST.open),
+        game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
         patchMat: inner ? innerPatchShared.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null),
         patchUV: inner ? innerPatchShared.uv : (x, z) => [(x + 12000) / 24000, 1 - (z + 12000) / 24000],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
@@ -3231,6 +3233,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // per-frame: keep the aircraft AND the spot its shadow falls on inside the
   // sun frustum (grown with hysteresis so the map isn't re-projected every frame)
   let shadowHalf = 0;
+  // THE GROUND FOLLOWS A LIVE EDIT (G387): every ring vertex inside the box re-sampled from terrainH
+  // (which reads the premises layer at call time), the normals redone - the premises' own patch
+  // re-samples itself; this is the 17.6 m ring under and around it
+  function refreshGround(bb) {
+    for (const g of groundGeos) {
+      const pa = g.attributes.position; let n = 0;
+      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z)); n++; }
+      if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
+    }
+  }
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
@@ -3382,7 +3394,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround,
+    // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
+    premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
+      const inner = innerPatchShared;
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
+        patchMat: inner ? inner.mat : (outerTexShared ? worldLambert({ map: outerTexShared }) : null), patchUV: inner ? inner.uv : (x, z) => [(x + 12000) / 24000, 1 - (z + 12000) / 24000],
+        site: { siteRunway, sitePattern, sitePatternIssues, patternPath } });
+      return premisesR; },
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            // the world's own light panel — the same shape the shed exposes, so
