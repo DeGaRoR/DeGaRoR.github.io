@@ -3042,8 +3042,8 @@ function cageCut(m, S) {
   // waist runs, frames) is built exactly as if the door were hung; the
   // panel itself is simply not there. Deleting the separated part here
   // means the interior/rim passes never see it: no door liner, no door
-  // rim, a clean empty bay. Needs cutParts on (the door must separate
-  // before it can be removed).
+  // rim, a clean empty bay. (The cut is always on since 2026-09-14 —
+  // `cutParts` was a relic switch; see CAGE_PARAMS.)
   if (C.doorGone) {
     const keep = [];
     for (const f of F) if (!(f.cutPart && f.doorKey)) keep.push(f);
@@ -6772,7 +6772,7 @@ const CAGE_PARAMS = {
   doorDepth: 0.004, doorRim: 0.020, bulkZ: 0,
   // DOOR REMOVED (G26.4): the door is DEFINED (jambs, sills, broken
   // longeron runs — all built) but the panel itself is deleted after
-  // the cut, leaving the open doorway. Needs cutParts on.
+  // the cut, leaving the open doorway.
   doorGone: 0,
   // ZERO SKIN (G26.4): display-level — the viewer omits the fuselage
   // family (skin, pillars, taper, panels, doors) outright, beyond the
@@ -6826,8 +6826,15 @@ const CAGE_PARAMS = {
   // the user's "always optional". Cage units; the rows show ≈ metres.
   doorPanelOn: 0, doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
   doorPanelPocket: 1,
-  // G14: post-subsurf cutting of doors/windows into separate parts
-  cutParts: 0, explodeD: 0,
+  // G14: post-subsurf cutting of doors/windows into separate parts.
+  // ALWAYS ON (2026-09-14, the user: "cut parts is an option that should
+  // always be on, it is a relic"). The key stays so a file that carries it
+  // still parses, but no row reaches it, cageFromSpec pins it at 1 whatever
+  // the file says, and cageSpec no longer reads it — the doors and windows
+  // are cut on every build, stock or saved. The stock 'piper cub' and every
+  // save descended from it had it OFF through the template, which hid
+  // `door removed` / `door recess` and left the door undrawn.
+  cutParts: 1, explodeD: 0,
 };
 
 // aft-param table: [aftKey, frontKey, sentinel-threshold] — used by
@@ -6945,6 +6952,10 @@ function cageFromSpec(spec) {
   // nobody but the pilot. A file with no `dum2On` was at the default, which
   // the section rows' own defaults reproduce. The old key does not survive.
   if (Math.round(P.seatLayout) === 2) P.seatLayout = 0;
+  // (3) THE CUT IS NOT A CHOICE (2026-09-14): a file that carries
+  // `cutParts 0` — the stock cub and its descendants, through the old
+  // template — loads with the cut on, like every other build.
+  P.cutParts = 1;
   if (c && typeof c === 'object' && 'dum2On' in c &&
       c.cabOcc == null && c.paxOcc1 == null && c.paxOcc2 == null &&
       c.paxOcc3 == null && c.paxOcc4 == null) {
@@ -7300,7 +7311,7 @@ function cageSpec(P) {
               (P.doorSillPax != null ? P.doorSillPax : P.doorSill) || 0) };
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
-  S.cut = { on: P.cutParts ? 1 : 0, doors: 1, wins: 1,
+  S.cut = { on: 1, doors: 1, wins: 1,
             doorGone: P.doorGone ? 1 : 0,
             explode: Math.max(0, P.explodeD || 0) };
   if (P.leanPaxDeg || P.leanCabDeg)

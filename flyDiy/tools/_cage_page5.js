@@ -49,7 +49,7 @@ window.CAGE_PAGE = {
     // turned it on because the door was invisible without it; the door has a
     // real recess and a seal now, and a painted-on gap line on every build
     // read as a decal. The row is still there, under Cabin fit > doors.
-    rimDoor: 0, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
+    rimDoor: 0, intOn: 1, intCons: 2, dashCrease: 3,
     // ---- TAIL — stabilizer & elevator (_cage_stab.js) ----
     // stY is measured FROM THE BOOM/ROD UNDERSIDE (G26.5) — 0.408 here
     // reproduces the old absolute 0.33 over the jodel's -0.078 keel
@@ -241,10 +241,8 @@ window.CAGE_PAGE = {
         // 0 where it has always sat, +1 the aft face.
         ['bulkZ',     'bulkhead station', -1, 1, 0.05,
          { when: P => +P.intOn && +P.intBulk }],
-        // was invisible on this curated tree — but the piper preset sets
-        // it 0, and doors/explode silently do nothing without it (the
-        // intOn trap of 2026-08-19, same shape)
-        ['cutParts',  'cut parts',       0, 1, 1],
+        // (`cutParts` had a row here — retired 2026-09-14: the cut is
+        // always on, and the stock cub had been born with it off)
       ]],
     ], 'open'],
     ['2 · engine', [
@@ -383,14 +381,12 @@ window.CAGE_PAGE = {
         // G207: the recess is the cut door's step back now (and still the
         // reveal's depth when that pass is on)
         ['doorDepth', 'door recess',    0, 0.06, 0.001,
-         { when: P => +P.doorOn && (+P.cutParts || +P.winFrameW > 0),
-           dim: 'len' }],
+         { when: P => +P.doorOn, dim: 'len' }],
         ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
-        // jambs and structure built as if it were hung (needs cut
-        // parts on)
+        // jambs and structure built as if it were hung
         ['doorGone',  'door removed',   0, 1, 1,
-         { when: P => +P.doorOn && +P.cutParts }],
+         { when: P => +P.doorOn }],
       ]],
       ['cockpit', [
         ['dashBack',  'dash setback',   0.01, 0.30, 0.005,
@@ -899,7 +895,7 @@ window.CAGE_PAGE = {
       bubH2: 0.56, bubH3: 0.5, cabPillarW: 0.085, canLoops: 3, canopy: 3,
       ceilInset: 0.2, consoleOn: 1, cowlBulge: 0.975, cowlEase: 0.53,
       cowlLoops: 2, crBand: 3, crCap: 3, crNoseCap: 3, crSill: 0,
-      crewOn: 1, ctlPed: 1, ctlStick: 0, ctlThr: 2, cutParts: 1,
+      crewOn: 1, ctlPed: 1, ctlStick: 0, ctlThr: 2,
       dashBack: 0.1, dashCrease: 3, dashDepth: 0.13, doorSill: 0.094,
       cabOcc: 0, dumElbows: 0, dumKnees: 0, dumMarkers: 1, dumOn: 1,
       dumRecline: 0, dumSize: 1, explodeD: 0, halfW: 0.525, intCons: 0,

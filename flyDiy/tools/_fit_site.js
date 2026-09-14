@@ -71,6 +71,9 @@ const AX_RAIL = [0, 3];
 // and frames are inside the body and a fitting bolted to one would be
 // invisible. Named rather than derived because "which surfaces are outside" is
 // a fact about the aeroplane, not about the mesh.
+// two hits closer than this (cage units) on one flank are one site — the
+// largest door gap (0.06) + the recess (0.004), with room
+const SAME_SITE = 0.03;
 const NOT_SKIN = new Set([
   'windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows',   // glazing
   'joint',                                                       // rim beads
@@ -685,6 +688,26 @@ function accessSites(mesh, rule) {
     // own geometry, below.
     if (!onWing) h.n = faceOut(h.n, h.p, sectionCY(mesh, h.p[2]));
     h.side = h.p[0] > 1e-4 ? 'star' : (h.p[0] < -1e-4 ? 'port' : 'centre');
+    // A DOOR'S EDGE AND ITS JAMB ARE ONE SITE (2026-09-14). The doors are
+    // cut on every build now (`cutParts` retired), and a ring station on a
+    // door's edge is claimed twice: by the door's recessed edge (`body`,
+    // 4 mm in) and by the jamb beside it (a pillar material) — 10 mm apart,
+    // so the exact-position dedup above lets both through and the venturi
+    // was fitted twice on the stock build, 11 mm apart. Two hits on one
+    // side within a door gap + recess of each other are the same place;
+    // the one further OUT is the skin proper, and keeps.
+    if (!onWing) {
+      let merged = false;
+      for (let i = 0; i < out.length; i++) {
+        const q = out[i];
+        if (q.side !== h.side) continue;
+        if (Math.abs(q.p[0] - h.p[0]) > SAME_SITE || Math.abs(q.p[1] - h.p[1]) > SAME_SITE ||
+            Math.abs(q.p[2] - h.p[2]) > SAME_SITE) continue;
+        if (Math.abs(h.p[0]) > Math.abs(q.p[0])) out[i] = h;
+        merged = true; break;
+      }
+      if (merged) continue;
+    }
     out.push(h);
   }
 

@@ -472,7 +472,7 @@ const CAGE_PARTS = [
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
-      ['cutting', ['cutParts']],
+      // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 
   // =========================================================================

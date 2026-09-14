@@ -138,9 +138,6 @@ const BASE_GROUPS = [
     ['winSillPilot', 'pilot win sill', 0, 0.9, 0.01],
     ['winSillPax',   'pax win sill',   0, 0.9, 0.01],
   ]],
-  ['cutting', [
-    ['cutParts',  'cut parts',     0, 1, 1],
-  ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
     ['intCons',   'construction',  0, 3, 1, ['composite', 'steel tube',

@@ -45264,3 +45264,53 @@ PARTS, MEDIA.
   live edit (placed once, at the make); the F8 rows the design wanted moved
   stay on F8 for now.
 - Gates: PREMISES (235), UISMOKE, BUILD, MEDIA, WORLDRENDER green.
+
+## G388 — THE CUT IS NOT A CHOICE: `cutParts` RETIRED, ALWAYS ON, NO ROW
+## (2026-09-14, the user: "cut parts is an option that should always be on,
+## it is a relic ... ensure it is always on, for all default planes in game,
+## and the option should not be reachable through the UI anymore")
+
+The user's NewCub (a descendant of the stock 'piper cub') drew no door at
+all and showed no `door removed` row. Diagnosed headless (dev.html under
+CDP, the build loaded through GARAGE_SPEC.set): the stock cub is
+`_base: 'template'` and the TEMPLATE had `cutParts 0` since G14, so every
+save descended from it was born with the cut off; `door removed` and
+`door recess` were gated on it (page5 `when`), and with the gap not drawn
+nothing marked the door — until G310 hung hinges and a handle on its edge
+polylines, which draw whether the door does or not. A fresh archetype
+birth starts from the page defaults (`cutParts 1`), so a new cub never
+showed it. The peer's full-save (cageToSpec writes every key now) would
+have carried the 0 forward forever.
+
+Done: `CAGE_PARAMS.cutParts` is 1; `cageFromSpec` pins `P.cutParts = 1`
+at the one door a saved cage comes through (a file carrying 0 loads cut);
+`cageSpec` writes `S.cut.on = 1` without reading P; the row is gone from
+page5's conception group, from `_cage_ui.js`'s BASE_GROUPS and from the
+parts table's `cutting` group; `doorDepth` and `doorGone` ride on `doorOn`
+alone; page5's defaults and the sailplane preset no longer state it. The
+key itself stays in CAGE_PARAMS so an older file parses.
+
+WHAT THE CUT EXPOSED, and fixed with it: every node gate that builds from
+`cageDefaults()` had been measuring an UNCUT fuselage the game never shows
+(HANDOVER 13399 had already noted GATE SURF passing that way). GATE FIT
+went red the moment the cut was on: a ring station on a door's edge is
+claimed twice — by the door's recessed edge (`body`, 4 mm in) and by the
+jamb beside it (a pillar material) — 10 mm apart, past the exact-position
+dedup, and the venturi was fitted TWICE on the stock build, 11 mm apart
+(the game had been doing this since the page defaults cut the doors).
+`accessSites` (_fit_site.js) now merges hits on one flank within
+`SAME_SITE` (0.03 cage units — the largest door gap + the recess) and
+keeps the one further OUT, the skin proper. FIT: 302 fittings on 6 builds,
+green.
+
+Owed from the diagnosis, not done (rulings): the door zone INCLUDES the
+window by design (`_cage_gen.js` "THE WHOLE DOOR"), so on a `bubble 0`
+cabin its forward run is the whole A-pillar/windscreen slant and G310's
+hinges climb the screen post (three on the NewCub, the top one at the
+screen's top corner; CLIP reads them 1.6 mm INTO the fuselage, allowance
+1.5). A door hinged along a raked windscreen is not a Cub's; the fix is a
+run clamped to the lower panel or a `bottom` option in `hgDoorEdge`. The
+user has said a review of every slider and option is overdue and is not
+this session's.
+
+
