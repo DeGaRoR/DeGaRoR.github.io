@@ -38,16 +38,23 @@ const BAGS = ['turf', 'dirt', 'court', 'track', 'line', 'metal', 'post', 'net', 
 const EXTRA = ['aoskirt'];
 const T = (typeof THREE !== 'undefined') ? THREE : null;
 const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ color: col, roughness: 0.95, metalness: 0.0 }, o || {})) : { color: col };
-const MAT = {
-  turf: std(0x4f7a34), dirt: std(0x9a7a55, { roughness: 1.0 }), court: std(0x5c6a63, { roughness: 0.85 }),
-  track: std(0x9a3f33, { roughness: 0.9 }),
-  // the lines win the depth fight with the lot patch (which pulls itself toward the camera by 3 units)
-  line: std(0xf2f2ee, { roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }),
-  metal: std(0xd9dcdf, { roughness: 0.45, metalness: 0.6 }), post: std(0x6b5a45, { roughness: 0.9 }),
-  net: std(0xcfd3d6, { roughness: 0.9, transparent: true, opacity: 0.35, side: T ? T.DoubleSide : 2, depthWrite: false }),
-  seat: std(0x8a8f96, { roughness: 0.7, metalness: 0.3 }),
-  aoskirt: HG.MAT.aoskirt,
-};
+// A FINISH OF ITS OWN (G393): the premises builds an item with the generator's
+// makeFinish / applyFinish(P, F) / build(P, lod, F), one finish per item
+function makeMats() {
+  return {
+    turf: std(0x4f7a34), dirt: std(0x9a7a55, { roughness: 1.0 }), court: std(0x5c6a63, { roughness: 0.85 }),
+    track: std(0x9a3f33, { roughness: 0.9 }),
+    // the lines win the depth fight with the lot patch (which pulls itself toward the camera by 3 units)
+    line: std(0xf2f2ee, { roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }),
+    metal: std(0xd9dcdf, { roughness: 0.45, metalness: 0.6 }), post: std(0x6b5a45, { roughness: 0.9 }),
+    net: std(0xcfd3d6, { roughness: 0.9, transparent: true, opacity: 0.35, side: T ? T.DoubleSide : 2, depthWrite: false }),
+    seat: std(0x8a8f96, { roughness: 0.7, metalness: 0.3 }),
+    aoskirt: HG.MAT.aoskirt,
+  };
+}
+const makeFinish = () => ({ MAT: makeMats(), SHADE_U: T ? HG.makeShadeU() : null });
+const DEFAULT_FINISH = makeFinish();
+const MAT = DEFAULT_FINISH.MAT;
 // the surface colours are the dials' (grass / artificial turf / gravel)
 const SURFACES = ['grass', 'artificial turf', 'gravel'];
 const SURF_COL = [0x4f7a34, 0x2f8a3c, 0x8d8a80];
@@ -308,7 +315,7 @@ function turfPlan(P, kind, ground, extra) {
 }
 
 // ---- the build ---------------------------------------------------------------
-function build(P0, lod) {
+function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   const Q = { lod: lod | 0 };
   const bags = {};
@@ -483,11 +490,11 @@ function build(P0, lod) {
     ground, stand: st, turf, lit: { windows: 0, panes: 0, bulbs: 0, lights }, groundAO: occ, floorY: y,
     ridgeY: bb.y1, eaveY: 0, footprint: (ground.x1 - ground.x0) * (ground.z1 - ground.z0), area: 0, surface: SURFACES[Math.round(P.surface)],
   }, out);
-  return { bags, stats, P, MAT };
+  return { bags, stats, P, MAT: F ? F.MAT : MAT };
 }
-const SHADE_U = T ? HG.makeShadeU() : null;
-function applyFinish(P) {
+function applyFinish(P, F) {
   if (!T) return;
+  const MAT = F ? F.MAT : DEFAULT_FINISH.MAT, SHADE_U = F ? F.SHADE_U : DEFAULT_FINISH.SHADE_U;
   MAT.turf.color.setHex(Math.round(P.surface) === 1 ? SURF_COL[1] : SURF_COL[0]);   // gravel is the dirt bag's colour
   // THE WEATHERING (G393, the user: "some overall weathering of the
   // materials"): the house's dirt ramp and repetition breaker on every
@@ -517,13 +524,15 @@ function randomSport(seed) {
 }
 
 const catOf = () => 'sports';
-window.SPORT_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, KINDS, SURFACES, build, plan, applyFinish, randomSport, catOf };
+window.SPORT_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, KINDS, SURFACES, build, plan, applyFinish, makeFinish, randomSport, catOf };
 // THE CATALOGUE (PREMISES-CONTRACT section 2): a ground the world flattens
 window.SPORT_GEN.CATALOGUE_V = 1;
 window.SPORT_GEN.CATALOGUE_ALIASES = {};
 window.SPORT_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
   const Pd = Object.assign({}, DEF, PRESETS[name]);
-  return { key: 'sport/' + name, kind: 'park', gen: 'SPORT_GEN', preset: name, P: Object.assign({}, Pd), frame: 'house',
+  // kind BUILDING, not park: a site item the composer flattens at its foot's median and the renderer
+  // builds like any generator's (a park is a plot-stood thing with a `stand`, the totems' way)
+  return { key: 'sport/' + name, kind: 'building', gen: 'SPORT_GEN', preset: name, P: Object.assign({}, Pd), frame: 'house',
     foot: P => plan(Object.assign({}, Pd, P || {})).foot, keepOut: 2,
     ground: { need: 'flatten', level: 'median', falloff: 8, standing: 'slab' },
     size: P => { const pl = plan(Object.assign({}, Pd, P || {})); return { L: pl.L + 2 * pl.m, w: pl.w + 2 * pl.m }; },

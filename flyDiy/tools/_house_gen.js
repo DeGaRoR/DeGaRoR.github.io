@@ -2990,6 +2990,15 @@ function dressOpening(bags, P, Q, W, h, y1) {
   bags.glass.setGlow(0);
   LIT_LOG.panes++;
   if (lit) LIT_LOG.windows++;
+  // WHAT IS BEHIND A SHOP WINDOW (G393.1, the user: "transparent, unlit
+  // windows"): a dark warm panel a hand behind the glass in the pane bag,
+  // carrying the pane's glow so the shop lights up with its windows
+  if (h.kind === 'shop' || h.kind === 'strip') {
+    bags.pane.setGlow(lit);
+    const bk = (s2, y2) => add(W.P(s2, y2, -1), mul(N, -0.35));      // 35 cm behind the inner face
+    face(bags.pane, [bk(h.s0 + 0.02, h.y0 + 0.02), bk(h.s1 - 0.02, h.y0 + 0.02), bk(h.s1 - 0.02, y1 - 0.02), bk(h.s0 + 0.02, y1 - 0.02)], N, uvFrame(bk(h.s0, h.y0), X, [0, 1, 0]));
+    bags.pane.setGlow(0);
+  }
   if (Q.lod === 0 && P.muntin && h.kind === 'window') {
     const cS = (h.s0 + h.s1) / 2, cY = (h.y0 + y1) / 2;
     // the sash bars: the vertical one is the piece of finish a face gets
@@ -3593,6 +3602,26 @@ function buildDoor(bags, P, Q, W, h, y1) {
   const wLeaf = (h.s1 - h.s0) - 2 * gap;
   const hLeaf = (y1 - h.y0) - gap;
   if (wLeaf < 0.25 || hLeaf < 0.6) return;
+  // AN OVERHEAD DOOR (G393.1, the user: a bay door is not a house leaf): an
+  // opening over two metres wide gets a SECTIONAL leaf set just inside the
+  // wall - four panels stacked with their joints, the raised field on each,
+  // the two tracks up the jambs - no hinge, no light
+  if (wLeaf > 2.0) {
+    const zi = 0.30;                       // the leaf's plane, inside the outer face
+    const nP = 4, ph = hLeaf / nP;
+    const a0 = W.P(h.s0 + gap, h.y0 + gap, zi), a1 = W.P(h.s1 - gap, h.y0 + gap, zi);
+    for (let i = 0; i < nP; i++) {
+      const yb = h.y0 + gap + i * ph + 0.006, yt = h.y0 + gap + (i + 1) * ph - 0.006;
+      beam(bags.trim, [a0[0], (yb + yt) / 2, a0[2]], [a1[0], (yb + yt) / 2, a1[2]], 0.02, (yt - yb) / 2, up);
+      if (Q.lod === 0) {                   // the raised field, a hand in from the edges
+        const f0 = off(W.P(h.s0 + gap + 0.12, (yb + yt) / 2, zi), N, 0.028), f1 = off(W.P(h.s1 - gap - 0.12, (yb + yt) / 2, zi), N, 0.028);
+        beam(bags.trim, f0, f1, 0.008, (yt - yb) / 2 - 0.05, up);
+      }
+    }
+    if (Q.lod === 0) for (const sj of [h.s0 + 0.03, h.s1 - 0.03])
+      beam(bags.metal, W.P(sj, h.y0, 0.1), W.P(sj, y1 + 0.25, 0.1), 0.02, 0.03, N);
+    return;
+  }
   const ang = clamp(P.doorAjar, 0, 85) * D2R;
   const Xd = nrm([X[0] * Math.cos(ang) + N[0] * Math.sin(ang), 0,
                   X[2] * Math.cos(ang) + N[2] * Math.sin(ang)]);
@@ -5014,6 +5043,16 @@ function buildStoop(bags, P, Q, V, g, side) {
   const half = V.wallT / 2;
   const zIn = (back ? -1 : 1) * (V.w / 2 - half);
   const cx = back ? backDoorX(P, V) : (doorPosOf(P, V) - 0.5) * V.L;
+  // THE APRON (G393.1): a bay door over two metres wide opens onto a concrete
+  // slab falling from the threshold to the ground, not a stoop with steps
+  if (!back && P.doorW > 2.0) {
+    const wid = P.doorW + 1.2, dep = Math.max(2.0, (V.floorY - g(cx, zIn + 2.5)) * 6);
+    const s = back ? -1 : 1;
+    const q = [[cx - wid / 2, V.floorY - 0.02, zIn], [cx + wid / 2, V.floorY - 0.02, zIn],
+               [cx + wid / 2, g(cx + wid / 2, zIn + s * dep) + 0.02, zIn + s * dep], [cx - wid / 2, g(cx - wid / 2, zIn + s * dep) + 0.02, zIn + s * dep]];
+    plate(bags.stone, q, 0.12, [0, -1, 0], uvFrame(q[0], [1, 0, 0], [0, 0, 1]));
+    return { x: cx, z: zIn + s * dep, y: V.floorY, w: wid, depth: dep, side: s, steps: 0, foot: zIn + s * dep, turns: 0, plan: null, apron: true };
+  }
   const wid = Math.max(1.0, P.doorW + 0.7), depth = 1.05;
   const zOut = zIn + (back ? -depth : depth);
   const yTop = V.floorY - 0.02;

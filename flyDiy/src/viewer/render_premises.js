@@ -530,6 +530,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const k of (built.BAGS || HG.BAGS)) if (built.bags[k] && F.MAT[k]) built.bags[k].mesh(grp, F.MAT[k]);
     if (built.bags.smoke && F.MAT.smoke) { const sm = built.bags.smoke.mesh(grp, F.MAT.smoke); if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; } }
     const st = built.stats, g = st.ground;
+    // a sports ground's grass (G393): the lot patch's record in the item's frame, over its flat turf
+    if (st.turf && typeof LOT_GROUND !== 'undefined' && LOT_GROUND) LOT_GROUND.mesh(THREE, grp, st.turf, null);
     const PR = propReg(), pp = (typeof propPlace === 'function') ? propPlace : null;
     if (PR && pp) {
       if (st.pier) for (const m of st.pier.modules.concat(st.pier.boats)) if (PR.props[m.key]) grp.add(pp(THREE, m.key, m.x, m.z, m.ry, m.y));
