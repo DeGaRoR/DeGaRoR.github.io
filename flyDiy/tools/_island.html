@@ -43,6 +43,7 @@
   .row{display:flex;align-items:center;gap:6px;margin:3px 0}
   .row label{flex:1} .row input[type=range]{flex:2} .row output{width:44px;text-align:right;color:var(--acc)}
   .row input[type=color]{width:26px;height:18px;border:0;padding:0;background:none}
+  .lay select{padding:1px 2px;font-size:10px;max-width:74px} .lay button{padding:0 4px;font-size:9px} .lay output{width:30px}
   .hint{color:var(--dim);font-size:10px;margin-top:8px;line-height:1.5}
 </style>
 
@@ -52,13 +53,15 @@
   <label>grid <input type="text" id="grid" size="22"></label>
   <button id="load">load</button>
   <label>paint <select id="paint">
-    <option value="composite">composite</option>
-    <option value="cover">cover class</option>
-    <option value="canopy">canopy height</option>
-    <option value="ori">radar (ORI)</option>
+    <option value="stack">the stack</option>
+    <option value="class">class (smoothed)</option>
     <option value="tint">Landsat tint</option>
+    <option value="radar">radar (ORI)</option>
+    <option value="canopy">canopy height</option>
     <option value="ndvi">NDVI</option>
     <option value="height">height</option>
+    <option value="snow">snow mask</option>
+    <option value="normal">normal (radar bump)</option>
   </select></label>
   <button id="trees" class="on">trees</button>
   <button id="wire">wireframe</button>
@@ -82,15 +85,33 @@ $('grid').value = P.get('grid') || 'flyDiy/bench/jolene/dem';
 
 // ---- the knobs (one table, the aside is generated from it) -----------------
 const K = {
-  tintW:   { label: 'tint weight',      min: 0, max: 1, step: 0.01, v: 0.45 },
-  oriW:    { label: 'radar variation',  min: 0, max: 1, step: 0.01, v: 0.5 },
-  canopyW: { label: 'canopy shading',   min: 0, max: 1, step: 0.01, v: 0.5 },
-  snow:    { label: 'snowline (m)',     min: 300, max: 1200, step: 10, v: 900 },
-  treeR:   { label: 'tree radius (km)', min: 0.5, max: 6, step: 0.25, v: 2.5 },
-  treeD:   { label: 'tree density',     min: 0.05, max: 1, step: 0.05, v: 0.5 },
-  treeS:   { label: 'tree height x',    min: 0.5, max: 2, step: 0.05, v: 1.0 },
-  treeMin: { label: 'min canopy (m)',   min: 0, max: 10, step: 0.5, v: 2 },
+  classBlur: { label: 'class contour blur (m)', min: 0, max: 120, step: 5, v: 40 },
+  edgeNoise: { label: 'class edge noise (m)',   min: 0, max: 60, step: 2, v: 20 },
+  bump:      { label: 'radar bump strength',    min: 0, max: 3, step: 0.05, v: 1.0 },
+  bumpScale: { label: 'radar bump scale (m)',   min: 10, max: 80, step: 5, v: 20 },
+  snow:      { label: 'snowline (m)',           min: 300, max: 1200, step: 10, v: 900 },
+  sunAz:     { label: 'sun azimuth (deg)',      min: 0, max: 360, step: 5, v: 300 },
+  sunEl:     { label: 'sun elevation (deg)',    min: 5, max: 80, step: 1, v: 40 },
+  treeR:     { label: 'tree radius (km)',       min: 0.5, max: 6, step: 0.25, v: 2.5 },
+  treeD:     { label: 'tree density',           min: 0.05, max: 1, step: 0.05, v: 0.5 },
+  treeS:     { label: 'tree height x',          min: 0.5, max: 2, step: 0.05, v: 1.0 },
+  treeMin:   { label: 'min canopy (m)',         min: 0, max: 10, step: 0.5, v: 2 },
 };
+// THE STACK — Photoshop's model: layers bottom to top, each a SOURCE drawn
+// with a BLEND MODE at an OPACITY. The default stack is yesterday's composite.
+// The recipe is what W1 will be handed; `export` prints it.
+const SOURCES = ['class', 'tint', 'radar', 'canopy', 'ndvi', 'height', 'snow', 'normal'];
+const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'soft light', 'hard light',
+                'darken', 'lighten', 'add', 'colour', 'luminosity', 'hue'];
+let STACK = [
+  { src: 'class',  mode: 'normal',     op: 1.0,  on: true },
+  { src: 'tint',   mode: 'colour',     op: 0.6,  on: true },
+  { src: 'radar',  mode: 'overlay',    op: 0.5,  on: true },
+  { src: 'canopy', mode: 'multiply',   op: 0.35, on: true },
+  { src: 'snow',   mode: 'normal',     op: 1.0,  on: true },
+];
+try { const saved = JSON.parse(localStorage.getItem('flydiy.island.stack') || 'null'); if (saved && saved.length) STACK = saved; } catch (e) {}
+const MAXL = 8;
 // WorldCover class colours — the bench's palette, tuned by eye here first
 const CLASSES = [
   [10, 'tree cover',   '#2f5a2c'], [20, 'shrubland',   '#7e8a44'],
@@ -112,7 +133,6 @@ const LU = Math.PI;
 scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.3 * LU));
 const sun = new THREE.DirectionalLight(0xffffff, 0.75 * LU);
 sun.position.set(-0.5, 0.8, 0.3); scene.add(sun);
-const SUN = sun.position.clone().normalize();
 
 let yaw = -0.7, pitch = 0.55, dist = 20000, drag = null;
 const target = new THREE.Vector3(0, 0, 0);
@@ -158,53 +178,103 @@ const FS = `
   precision highp float;
   uniform sampler2D uCover, uCanopy, uOri, uNdvi, uTint;
   uniform vec4 uBounds;            // x0, z0, w, h of the grid, world metres
+  uniform float uCell;             // grid cell, metres
   uniform float uHas;              // bit 1 canopy, 2 ori, 4 tint, 8 ndvi
-  uniform int uMode;               // 0 composite 1 cover 2 canopy 3 ori 4 tint 5 ndvi 6 height
-  uniform float uTintW, uOriW, uCanopyW, uSnow, uHMax;
+  uniform int uMode;               // 0 stack, else a solo source (1 + index into SOURCES)
+  uniform float uSnow, uHMax, uBlur, uEdge, uBump, uBumpScale;
   uniform vec3 uSun;
   uniform vec3 uCol[10]; uniform float uCls[10];
+  uniform int uLN; uniform int uLSrc[8]; uniform int uLMode[8]; uniform float uLOp[8];
   varying vec3 vW; varying vec3 vN;
+
   vec3 classColour(float c){
     vec3 col = vec3(0.5);
     for (int i = 0; i < 10; i++) if (abs(c - uCls[i]) < 0.5) col = uCol[i];
     return col;
   }
+  float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  // CONTOUR SMOOTHING: the class map is 10 m nearest-neighbour, so its edges
+  // are staircases. Two things soften them: the palette colour is averaged
+  // over a ring of taps (blur, metres), and the sample point itself is
+  // pushed by a per-cell noise (edge noise, metres) so no edge stays a
+  // straight cell boundary. Neither invents a class; both move the LINE.
+  vec3 classSmooth(vec2 xz){
+    vec2 cellId = floor(xz / uCell);
+    vec2 j = (vec2(hash(cellId), hash(cellId + 17.0)) - 0.5) * 2.0 * uEdge;
+    vec2 p = xz + j;
+    vec3 acc = classColour(texture2D(uCover, (p - uBounds.xy) / uBounds.zw).r * 255.0) * 2.0;
+    float wsum = 2.0;
+    if (uBlur > 0.5) {
+      for (int k = 0; k < 8; k++) {
+        float a = float(k) * 0.7854;
+        vec2 d = vec2(cos(a), sin(a));
+        for (int r = 1; r <= 2; r++) {
+          vec2 q = p + d * uBlur * float(r) * 0.5;
+          float w = r == 1 ? 1.0 : 0.5;
+          acc += classColour(texture2D(uCover, (q - uBounds.xy) / uBounds.zw).r * 255.0) * w;
+          wsum += w;
+        }
+      }
+    }
+    return acc / wsum;
+  }
+  float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+  vec3 blend(vec3 b, vec3 s, int mode){
+    if (mode == 1) return b * s;
+    if (mode == 2) return 1.0 - (1.0 - b) * (1.0 - s);
+    if (mode == 3) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, b));
+    if (mode == 4) return mix(b - (1.0 - 2.0 * s) * b * (1.0 - b), b + (2.0 * s - 1.0) * (sqrt(b) - b), step(0.5, s));
+    if (mode == 5) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, s));
+    if (mode == 6) return min(b, s);
+    if (mode == 7) return max(b, s);
+    if (mode == 8) return b + s;
+    if (mode == 9) { float lb = luma(b), ls = max(luma(s), 1e-3); return s * (lb / ls); }        // colour: s's chroma, b's luma
+    if (mode == 10) { float lb = max(luma(b), 1e-3), ls = luma(s); return b * (ls / lb); }       // luminosity: b's chroma, s's luma
+    if (mode == 11) { float lb = luma(b), ls = max(luma(s), 1e-3); vec3 c = s * (lb / ls); return mix(vec3(lb), c, 0.7); } // hue: gentler colour
+    return s;
+  }
+  // the radar as a height field: its gradient bends the normal. Not a
+  // measurement of relief — a micro-variation that answers the sun.
+  vec3 bumpNormal(vec3 n, vec2 uv){
+    vec2 e = vec2(uBumpScale / uBounds.z, uBumpScale / uBounds.w);
+    float l = texture2D(uOri, uv - vec2(e.x, 0.0)).r, r = texture2D(uOri, uv + vec2(e.x, 0.0)).r;
+    float d = texture2D(uOri, uv - vec2(0.0, e.y)).r, u = texture2D(uOri, uv + vec2(0.0, e.y)).r;
+    return normalize(n + vec3(-(r - l) * uBump * 8.0, 0.0, -(u - d) * uBump * 8.0));
+  }
+  vec3 source(int id, vec2 uv, vec3 n, float canopy, float ori, float ndvi, vec3 tint, out float alpha){
+    alpha = 1.0;
+    if (id == 0) return classSmooth(vW.xz);
+    if (id == 1) return tint;
+    if (id == 2) return vec3(ori);
+    if (id == 3) return mix(vec3(0.60,0.55,0.43), vec3(0.08,0.43,0.12), clamp(canopy / 40.0, 0.0, 1.0));
+    if (id == 4) return mix(vec3(0.7,0.63,0.47), vec3(0.04,0.35,0.08), clamp(ndvi, 0.0, 1.0));
+    if (id == 5) { float t = clamp(vW.y / uHMax, 0.0, 1.0);
+      return mix(mix(vec3(0.16,0.42,0.18), vec3(0.72,0.66,0.45), min(1.0, t*1.6)), vec3(0.95), max(0.0, t-0.6)*2.5); }
+    if (id == 6) { float north = 0.5 - 0.5 * n.z; float snowH = uSnow - 250.0 * north;
+      alpha = smoothstep(snowH - 60.0, snowH + 60.0, vW.y); return vec3(0.93, 0.95, 1.0); }
+    if (id == 7) return n * 0.5 + 0.5;
+    return vec3(1.0, 0.0, 1.0);
+  }
   void main(){
     vec2 uv = (vW.xz - uBounds.xy) / uBounds.zw;
-    float cls = texture2D(uCover, uv).r * 255.0;
-    float canopy = texture2D(uCanopy, uv).r * 255.0;         // metres
-    float ori = texture2D(uOri, uv).r;                        // 0..1
+    float canopy = texture2D(uCanopy, uv).r * 255.0;
+    float ori = texture2D(uOri, uv).r;
     float ndvi = texture2D(uNdvi, uv).r * 2.0 - 1.0;
     vec3 tint = texture2D(uTint, uv).rgb;
     bool sea = vW.y < 0.05;
     vec3 n = normalize(vN);
+    if (uBump > 0.0 && mod(uHas / 2.0, 2.0) >= 1.0 && !sea) n = bumpNormal(n, uv);
     float lambert = max(0.0, dot(n, uSun));
     float light = 0.45 + 0.7 * lambert;
-    vec3 col;
-    if (uMode == 1) col = classColour(cls);
-    else if (uMode == 2) col = mix(vec3(0.60,0.55,0.43), vec3(0.08,0.43,0.12), clamp(canopy / 40.0, 0.0, 1.0));
-    else if (uMode == 3) col = vec3(ori);
-    else if (uMode == 4) col = tint;
-    else if (uMode == 5) col = mix(vec3(0.7,0.63,0.47), vec3(0.04,0.35,0.08), clamp(ndvi, 0.0, 1.0));
-    else if (uMode == 6) { float t = clamp(vW.y / uHMax, 0.0, 1.0);
-      col = mix(mix(vec3(0.16,0.42,0.18), vec3(0.72,0.66,0.45), min(1.0, t*1.6)), vec3(0.95), max(0.0, t-0.6)*2.5); }
+    vec3 col; float alpha;
+    if (uMode > 0) { col = source(uMode - 1, uv, n, canopy, ori, ndvi, tint, alpha); if (uMode - 1 == 7) light = 1.0; }
     else {
-      // THE COMPOSITE. Class colour is the base. The tint pulls it toward the
-      // scene's real macro colour (blurred by the 30 m source itself). Radar
-      // multiplies as variation around 1. Canopy darkens the closed stands.
-      // Above the snowline, north faces first.
-      col = classColour(cls);
-      if (mod(uHas / 4.0, 2.0) >= 1.0) {
-        // match the tint's luminance to the palette's so weight only moves hue
-        float lt = dot(tint, vec3(0.3,0.59,0.11)) + 1e-3, lc = dot(col, vec3(0.3,0.59,0.11));
-        col = mix(col, tint * (lc / lt), uTintW);
+      col = vec3(0.5);
+      for (int i = 0; i < 8; i++) {
+        if (i >= uLN) break;
+        vec3 s = source(uLSrc[i], uv, n, canopy, ori, ndvi, tint, alpha);
+        col = mix(col, blend(col, s, uLMode[i]), uLOp[i] * alpha);
       }
-      if (mod(uHas / 2.0, 2.0) >= 1.0) col *= mix(1.0, 0.55 + 0.9 * ori, uOriW);
-      if (mod(uHas, 2.0) >= 1.0 && cls < 15.0) col *= mix(1.0, 1.05 - 0.35 * clamp(canopy / 30.0, 0.0, 1.0), uCanopyW);
-      float north = 0.5 - 0.5 * n.z;   // +z is north; a north face has n.z < 0
-      float snowH = uSnow - 250.0 * north;
-      float snow = smoothstep(snowH - 60.0, snowH + 60.0, vW.y) * step(0.5, 1.0 - float(cls > 75.0 && cls < 85.0));
-      col = mix(col, vec3(0.93, 0.95, 1.0), snow);
     }
     if (sea) { col = vec3(0.12, 0.23, 0.38); light = 0.9; }
     gl_FragColor = vec4(col * light, 1.0);
@@ -212,11 +282,25 @@ const FS = `
 
 const U = {
   uCover: { value: null }, uCanopy: { value: null }, uOri: { value: null }, uNdvi: { value: null }, uTint: { value: null },
-  uBounds: { value: new THREE.Vector4() }, uHas: { value: 0 }, uMode: { value: 0 },
-  uTintW: { value: K.tintW.v }, uOriW: { value: K.oriW.v }, uCanopyW: { value: K.canopyW.v },
-  uSnow: { value: K.snow.v }, uHMax: { value: 1100 }, uSun: { value: SUN },
+  uBounds: { value: new THREE.Vector4() }, uCell: { value: 10 }, uHas: { value: 0 }, uMode: { value: 0 },
+  uSnow: { value: K.snow.v }, uHMax: { value: 1100 }, uBlur: { value: K.classBlur.v }, uEdge: { value: K.edgeNoise.v },
+  uBump: { value: K.bump.v }, uBumpScale: { value: K.bumpScale.v }, uSun: { value: new THREE.Vector3() },
   uCol: { value: CLASSES.map(c => new THREE.Color(c[2])) }, uCls: { value: CLASSES.map(c => c[0]) },
+  uLN: { value: 0 }, uLSrc: { value: new Array(MAXL).fill(0) }, uLMode: { value: new Array(MAXL).fill(0) }, uLOp: { value: new Float32Array(MAXL) },
 };
+function pushStack() {
+  const live = STACK.filter(l => l.on).slice(0, MAXL);
+  U.uLN.value = live.length;
+  live.forEach((l, i) => { U.uLSrc.value[i] = SOURCES.indexOf(l.src); U.uLMode.value[i] = BLENDS.indexOf(l.mode); U.uLOp.value[i] = l.op; });
+  try { localStorage.setItem('flydiy.island.stack', JSON.stringify(STACK)); } catch (e) {}
+}
+function setSun() {
+  const az = K.sunAz.v * Math.PI / 180, el = K.sunEl.v * Math.PI / 180;
+  // azimuth from north (+z) clockwise; +x is east on the Albers grid
+  U.uSun.value.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+  sun.position.copy(U.uSun.value);
+}
+pushStack(); setSun();
 const blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat); blank.needsUpdate = true;
 for (const k of ['uCover', 'uCanopy', 'uOri', 'uNdvi', 'uTint']) U[k].value = blank;
 const MAT = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: THREE.DoubleSide });
@@ -252,7 +336,7 @@ async function load(asset, grid) {
 
   GRID = await fetch('../../' + grid + '.json').then(r => r.json());
   const { w, h: gh } = GRID;
-  U.uBounds.value.set(GRID.x0, GRID.z0, w * GRID.cell, gh * GRID.cell);
+  U.uBounds.value.set(GRID.x0, GRID.z0, w * GRID.cell, gh * GRID.cell); U.uCell.value = GRID.cell;
   const [cover, canopy, ori, ndvi, tint] = await Promise.all([
     fetchU8('../../' + grid + '.u8'), fetchU8('../../' + grid + '.canopy.u8'),
     fetchU8('../../' + grid + '.ori.u8'), fetchU8('../../' + grid + '.ndvi.u8'),
@@ -340,10 +424,12 @@ function plant() {
   const ci0 = Math.max(0, Math.floor((target.x - R - x0) / cell)), ci1 = Math.min(w - 1, Math.ceil((target.x + R - x0) / cell));
   const cj0 = Math.max(0, Math.floor((target.z - R - z0) / cell)), cj1 = Math.min(h - 1, Math.ceil((target.z + R - z0) / cell));
   // one candidate per cell at full density; a cell is 10 m, a spruce crown ~5 m
-  const MAX = 250000, out = [];
+  const MAX = 400000, out = [];
   let s = 1234567;
   const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  outer:
   for (let j = cj0; j <= cj1; j++) for (let i = ci0; i <= ci1; i++) {
+    if (out.length / 6 >= MAX) break outer;
     const k = j * w + i, cls = L.cover[k];
     const d = (DENSITY[cls] || 0) * dens;
     if (d <= 0) continue;
@@ -391,28 +477,61 @@ const STAT = { patches: 0, tris: 0, trees: 0 };
 function stat() {
   $('stat').textContent = `${STAT.patches} patches  ${(STAT.tris/1000).toFixed(0)}k tris  ${STAT.trees} trees`;
 }
+function stackHtml() {
+  const opt = (list, v) => list.map(x => `<option${x === v ? ' selected' : ''}>${x}</option>`).join('');
+  return STACK.map((l, i) => `<div class="row lay" data-i="${i}">` +
+    `<input type="checkbox" class="l_on"${l.on ? ' checked' : ''}>` +
+    `<select class="l_src">${opt(SOURCES, l.src)}</select><select class="l_mode">${opt(BLENDS, l.mode)}</select>` +
+    `<input type="range" class="l_op" min="0" max="1" step="0.01" value="${l.op}" style="flex:1.2"><output>${l.op}</output>` +
+    `<button class="l_up" title="up">&#9650;</button><button class="l_dn" title="down">&#9660;</button><button class="l_x" title="remove">&times;</button></div>`).reverse().join('');
+}
+function bindStack() {
+  for (const row of document.querySelectorAll('.lay')) {
+    const i = +row.dataset.i, l = STACK[i];
+    row.querySelector('.l_on').onchange = e => { l.on = e.target.checked; pushStack(); };
+    row.querySelector('.l_src').onchange = e => { l.src = e.target.value; pushStack(); };
+    row.querySelector('.l_mode').onchange = e => { l.mode = e.target.value; pushStack(); };
+    row.querySelector('.l_op').oninput = e => { l.op = +e.target.value; row.querySelector('output').textContent = l.op; pushStack(); };
+    row.querySelector('.l_up').onclick = () => { if (i < STACK.length - 1) { [STACK[i], STACK[i+1]] = [STACK[i+1], STACK[i]]; renderStack(); } };
+    row.querySelector('.l_dn').onclick = () => { if (i > 0) { [STACK[i], STACK[i-1]] = [STACK[i-1], STACK[i]]; renderStack(); } };
+    row.querySelector('.l_x').onclick = () => { STACK.splice(i, 1); renderStack(); };
+  }
+}
+function renderStack() { $('stack').innerHTML = stackHtml(); bindStack(); pushStack(); }
 function ui() {
   const knob = (id, k) => `<div class="row"><label>${k.label}</label>` +
     `<input type="range" id="k_${id}" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.v}">` +
     `<output id="o_${id}">${k.v}</output></div>`;
   $('ui').innerHTML =
-    `<h2>COMPOSITE</h2>` + ['tintW', 'oriW', 'canopyW', 'snow'].map(id => knob(id, K[id])).join('') +
+    `<h2>THE STACK (top is drawn last)</h2><div id="stack"></div>` +
+    `<div class="row"><button id="addL">+ layer</button><button id="resetL">default</button><button id="exportL">export</button></div>` +
+    `<textarea id="recipe" rows="3" style="width:100%;display:none;background:#1a1f27;color:var(--fg);border:1px solid var(--grid);font:inherit;font-size:10px"></textarea>` +
+    `<h2>CLASS MAP</h2>` + ['classBlur', 'edgeNoise'].map(id => knob(id, K[id])).join('') +
+    `<h2>LIGHT</h2>` + ['bump', 'bumpScale', 'sunAz', 'sunEl', 'snow'].map(id => knob(id, K[id])).join('') +
     `<h2>TREES</h2>` + ['treeR', 'treeD', 'treeS', 'treeMin'].map(id => knob(id, K[id])).join('') +
     `<div class="row"><button id="replant">replant here</button></div>` +
     `<h2>CLASSES</h2>` + CLASSES.map((c, i) =>
       `<div class="row"><input type="color" id="c_${i}" value="${c[2]}"><label>${c[0]} ${c[1]}</label>` +
       `<output id="p_${i}"></output></div>`).join('') +
     `<h2>LAYERS</h2><table id="layers"></table>` +
-    `<p class="hint">drag: orbit · right-drag: pan (trees replant when you have moved) · wheel: zoom.
-     Composite = class colour → tint (hue only, luminance kept) × radar × canopy shade, snow above the line
-     on north faces first. Trees: one per 10 m cell at full density in tree cover, fewer in shrub /
-     muskeg, none below the min canopy; height = canopy layer × jitter.</p>`;
+    `<p class="hint">drag: orbit &middot; right-drag: pan (trees replant when you have moved) &middot; wheel: zoom.
+     The stack is Photoshop's model: bottom layer first, each source blended over the result at its
+     opacity; "snow" carries its own mask, "normal" shows the radar-bumped normal. Lighting is applied
+     after the stack. Class contours: the palette is averaged over a ring (blur) and the sample point
+     pushed per cell (edge noise). Trees: one per 10 m cell at full density in tree cover, fewer in
+     shrub / muskeg, none below the min canopy; height = canopy layer &times; jitter.</p>`;
+  renderStack();
+  $('addL').onclick = () => { if (STACK.length < MAXL) { STACK.push({ src: 'radar', mode: 'overlay', op: 0.5, on: true }); renderStack(); } };
+  $('resetL').onclick = () => { localStorage.removeItem('flydiy.island.stack'); location.reload(); };
+  $('exportL').onclick = () => { const t = $('recipe'); t.style.display = 'block';
+    t.value = JSON.stringify({ stack: STACK, knobs: Object.fromEntries(Object.entries(K).map(([k, v]) => [k, v.v])),
+      classes: Object.fromEntries(CLASSES.map((c, i) => [c[0], '#' + U.uCol.value[i].getHexString()])) }); t.select(); };
   for (const id in K) {
     const el = $('k_' + id);
     el.oninput = () => { K[id].v = +el.value; $('o_' + id).textContent = el.value;
-      if (id in U) U[id].value = K[id].v;
-      if (id === 'tintW') U.uTintW.value = K[id].v; if (id === 'oriW') U.uOriW.value = K[id].v;
-      if (id === 'canopyW') U.uCanopyW.value = K[id].v; if (id === 'snow') U.uSnow.value = K[id].v; };
+      if (id === 'snow') U.uSnow.value = K[id].v; if (id === 'classBlur') U.uBlur.value = K[id].v;
+      if (id === 'edgeNoise') U.uEdge.value = K[id].v; if (id === 'bump') U.uBump.value = K[id].v;
+      if (id === 'bumpScale') U.uBumpScale.value = K[id].v; if (id === 'sunAz' || id === 'sunEl') setSun(); };
     el.onchange = () => { if (id.startsWith('tree')) plant(); };
   }
   CLASSES.forEach((c, i) => { $('c_' + i).oninput = e => U.uCol.value[i].set(e.target.value); });
@@ -427,8 +546,7 @@ function layerTable() {
   $('layers').innerHTML = `<tr><td>grid</td><td class="n">${GRID.w}×${GRID.h} @ ${GRID.cell} m</td></tr>` +
     `<tr><td>cover</td><td class="n">${GRID.cover ? 'WorldCover 10 m' : '—'}</td></tr>` + rows;
 }
-const MODES = { composite: 0, cover: 1, canopy: 2, ori: 3, tint: 4, ndvi: 5, height: 6 };
-$('paint').onchange = () => { U.uMode.value = MODES[$('paint').value]; };
+$('paint').onchange = () => { const v = $('paint').value; U.uMode.value = v === 'stack' ? 0 : 1 + SOURCES.indexOf(v); };
 $('load').onclick = () => load($('asset').value, $('grid').value).then(layerTable).catch(e => {
   $('msg').textContent = 'failed: ' + e.message; console.error(e); });
 for (const id of ['wire', 'lod']) $(id).onclick = () => { $(id).classList.toggle('on'); ASSET && build(); };

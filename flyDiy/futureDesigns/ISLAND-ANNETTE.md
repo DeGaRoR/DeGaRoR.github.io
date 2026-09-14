@@ -411,6 +411,37 @@ and the tint, and the bench already shows that the tint alone carries the
 macro pattern; the canopy layer separates the tall stands from the scrub
 convincingly enough to size trees; the runway cross reads from 3 km.
 
+### 12.4b The stack, the contours, the radar bump (same day, G392.1)
+
+The composite sliders became **a layer stack in Photoshop's model**: layers
+bottom to top, each a SOURCE (class · tint · radar · canopy · NDVI · height ·
+snow · normal) with a BLEND MODE (normal, multiply, screen, overlay, soft
+light, hard light, darken, lighten, add, colour, luminosity, hue) at an
+OPACITY; add / remove / reorder / solo; the stack persists in localStorage
+and **`export`** prints the recipe (stack + knobs + class colours) — that
+JSON is what W1 will be handed. Default stack = class → tint (colour 0.6) →
+radar (overlay 0.5) → canopy (multiply 0.35) → snow. Lighting is applied
+after the stack, with the sun on two knobs.
+
+**Contour smoothing** for the class map, two knobs, neither inventing a
+class: the palette colour is averaged over a ring of 16 taps (blur, metres,
+default 40) and the sample point is pushed by a per-cell hash (edge noise,
+metres, default 20) so no boundary stays a 10 m staircase.
+
+**The radar as a normal map**: the ORI's gradient bends the vertex normal
+(strength, scale in metres) — the runway edges, the lake rims and the canopy
+texture become micro-relief that answers the sun. Not a measurement of
+height; a variation mask used as bump, live in the shader from the same
+texture, so it costs no extra file. `paint = normal` shows it.
+
+**Frame times** (the pane's canvas, 2334 × 1233, the bench's unoptimised
+per-patch terrain at 2.5 M tris, RTX 3080): terrain alone with the 8-layer
+stack and the bump **4.9 ms**; + 68 k instanced cones (2.5 km radius,
+density 0.5) **6.4 ms**; + 685 k cones (every cell in 6 km) **17.8 ms** —
+about 2 µs per instanced tree. The stack and the bump cost nothing
+measurable. The real trees' cost is the ladder's (W0c: 0.6 ms for the
+streamed forest); the bench cones are for placement and size only.
+
 ### 12.5 The game — how the world will be chosen (answering "what boots first")
 
 Not done today, by the user's own priority. The plan, so it is written:

@@ -45861,3 +45861,24 @@ the categorization in the asset editor".
 - Gates: PREMISES green (251 checks).
 - OWED: the flight screen's own top bar shows through the editor's sheet;
   hide it while the editor is open.
+
+## G392.1 — THE STACK: BLEND MODES AND OPACITY LIKE PHOTOSHOP, CLASS CONTOURS
+## SMOOTHED, THE RADAR AS A NORMAL MAP (2026-09-14, the user: "a layer view
+## like photoshop, with blend operations between the maps and opacity ...
+## contour smoothing for the cover class ... a normal map from the ORI")
+
+- `tools/_island.html`: the composite sliders replaced by a LAYER STACK -
+  sources class/tint/radar/canopy/ndvi/height/snow/normal, twelve blend
+  modes, opacity, on/off, reorder, add/remove, solo paint; persisted in
+  localStorage; `export` prints the recipe JSON (the thing W1 is handed).
+  Lighting after the stack; sun azimuth/elevation knobs.
+- Class contours: 16-tap ring blur of the palette (metres) + per-cell hash
+  push of the sample point (metres). The 10 m staircases are gone.
+- Radar bump: the ORI's gradient bends the normal in the shader (strength,
+  scale); `paint = normal` shows it. No extra file.
+- Measured on the pane: terrain + stack + bump 4.9 ms; +68k cones 6.4;
+  +685k cones 17.8 (2 us per instanced tree). The tree cap now holds
+  (labelled break; 400k).
+- NDVI explained in the doc; the layer census: everything usable at 55 N is
+  in; owed derivations: slope/aspect/curvature guides, a winter Landsat for
+  the real snowline, a second date for the 3 % cloud.
