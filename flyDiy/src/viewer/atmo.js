@@ -478,7 +478,7 @@ var ATMO = (function () {
   const DOME_FRAG = `
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
-    uniform float uR, uScale, uEMoon, uStars;
+    uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
     uniform vec3 uSun, uMoon;
     varying vec3 vD;
     float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
@@ -494,6 +494,7 @@ var ATMO = (function () {
     }
     void main() {
       vec3 d = normalize(vD);
+      { float c = cos(uFrame), s = sin(uFrame); d = vec3(d.x * c + d.z * s, d.y, -d.x * s + d.z * c); }   // into the world's frame
       vec4 sky = texture2D(uSky, skyUV2(d));
       vec3 L = sky.rgb;
       float Tview = sky.a;                                   // the path's (green) transmittance, for the discs and stars
@@ -607,11 +608,11 @@ var ATMO = (function () {
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
-  function domeMat(extra) {
+  function domeMat(extra, frameYaw) {
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 } },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));
@@ -619,8 +620,60 @@ var ATMO = (function () {
     return m;
   }
 
+  // ---- THE PROBE (S5): a PMREM of the sky, re-baked when the sun moves ----
+  // One generator kept alive (its blur shaders compile once); each bake shoots
+  // a throwaway scene of the dome and a ground cap LIT BY THE DAY into a new
+  // target, hands it back, and disposes the previous one after the swap. Both
+  // rooms take one (the shed's in its own frame): the aeroplane's skin, the
+  // glazing, the water and the shed's outdoors read it, and the sunset through
+  // the windows moves with the sun at last.
+  const lum3 = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  function groundIrradiance(day) {              // the ground's irradiance relative to the alps anchor (0..~1.2)
+    const T = [0, 0, 0], E = [0, 0, 0];
+    const Eg = v => { sunTransmittance(0, v[1], T); skyIrradiance(0, v, E); return Math.max(0, v[1]) * lum3(T) + lum3(E); };
+    const ref = Eg([0, Math.sin(33.4 * D2R), Math.cos(33.4 * D2R)]);
+    return Math.min(1.5, Eg(day ? day.sun : [0, 1, 0]) / Math.max(1e-9, ref));
+  }
+  function makeProbe(renderer, o) {
+    o = o || {};
+    if (!G.enabled || !THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const es = new THREE.Scene();
+    const domeG = new THREE.SphereGeometry(20, 32, 20);
+    es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
+    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });
+    const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45).multiplyScalar(o.gb != null ? o.gb : 1);
+    es.add(new THREE.Mesh(new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2), capMat));
+    let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0;
+    const probe = {
+      get texture() { return rt ? rt.texture : null; },
+      get bakes() { return bakes; }, get lastMs() { return lastMs; },
+      bake(day) {
+        capMat.color.copy(cap0).multiplyScalar(groundIrradiance(day));
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        const next = pmrem.fromScene(es, 0.035, 1, 100);
+        lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
+        const old = rt; rt = next; bakes++;
+        if (o.onSwap) o.onSwap(rt.texture);
+        if (old) old.dispose();
+        bakedSun = day ? day.sun.slice() : [0, 1, 0]; bakedVer = day ? day.version : 0;
+        return rt.texture;
+      },
+      // re-bake when the sun moved past the threshold (deg) or the day's dials changed
+      maybe(day, thresholdDeg) {
+        if (!rt) return probe.bake(day);
+        const s = day.sun, b = bakedSun;
+        const cosA = Math.max(-1, Math.min(1, s[0] * b[0] + s[1] * b[1] + s[2] * b[2]));
+        const moved = Math.acos(cosA) * 180 / Math.PI > (thresholdDeg || 1.5);
+        if (moved || day.version !== bakedVer) return probe.bake(day);
+        return null;
+      },
+    };
+    return probe;
+  }
+
   return {
-    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance,
+    P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },

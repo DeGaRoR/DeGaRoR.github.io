@@ -170,7 +170,7 @@
     // ---- THE CLOCK (SKY S1/S2): the day the world is on, and its sun --------------
     const ck = () => W.DAY_CLOCK, dy = () => (W.DAY_CLOCK ? W.DAY_CLOCK.day() : null);
     const K = fold(root, 'clock', true);
-    K.appendChild(select('preset', ['dawn', 'morning', 'noon', 'golden', 'sunset', 'dusk', 'night'].map(p => [p, p]),
+    K.appendChild(select('preset', ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'].map(p => [p, p]),
       () => (ck() ? ck().nearestPreset() : 'noon'), v => { if (ck()) ck().preset(v); }));
     K.appendChild(slider('local hour', 0, 24, 1 / 12, () => (ck() ? ck().localHours() : NaN), v => { if (ck()) ck().set({ localHours: v }); },
       v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0')));

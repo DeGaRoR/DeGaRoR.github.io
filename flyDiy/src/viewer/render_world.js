@@ -222,7 +222,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // light below need it, and they must never disagree
   const gb = (typeof window !== 'undefined' && window.LIGHT_RIG)
     ? window.LIGHT_RIG.groundBounce() : 1;
-  let envMap = null;
+  let envMap = null, probe = null;
+  if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
+    // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
+    // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
+    // pi) BEFORE the first cube is shot; then dayApply re-bakes it whenever
+    // the sun has moved 1.5 deg (six minutes at 1x, six seconds at 60x) or
+    // the day's dials changed - the window fix, and the water's and the
+    // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
+    ATMO.update(renderer, world.day, 0);
+    if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
+    probe = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x6d7a45, gb, onSwap: t => { envMap = t; scene.environment = t; } });
+    if (probe) probe.bake(world.day);
+  } else {
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
@@ -265,6 +277,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     scene.environment = envMap;
     pmrem.dispose();
     domeG.dispose(); grndG.dispose();
+  }
   }
 
   // THE WORLD'S RIG, DECLARED ONCE. It is read here and again by the tree
@@ -3796,6 +3809,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const day = world.day;
     if (!day || rigCur.manual) return;
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
+    if (probe && !rigCur.manual) probe.maybe(day, 1.5);                                   // S5: the reflection probe follows the sun (1.5 deg) and the day's dials
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -3935,7 +3949,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       u.uHaze.value.setHex(R.dome.haze); u.uSunCol.value.setHex(R.dome.sunCol);
       if (scene.fog) scene.fog.color.setHex(R.dome.haze);
     }
-    if (R.env === 'alps') {
+    if (probe) scene.environment = envMap;          // S5: the physical probe is the environment, whatever the row's `env` says
+    else if (R.env === 'alps') {
       if (alpsState === 'ready') scene.environment = alpsEnv;
       else if (alpsState === null) buildAlpsEnv(() => { if (rigCur.env === 'alps' && alpsEnv) scene.environment = alpsEnv; });
     } else scene.environment = envMap;
@@ -3952,7 +3967,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;

@@ -19,7 +19,7 @@ var DAY_CLOCK = (function () {
   'use strict';
   const PREF = 'flydiy.day';
   const RATES = [0, 1, 10, 60, 600];
-  const PRESETS = ['dawn', 'morning', 'noon', 'golden', 'sunset', 'dusk', 'night'];
+  const PRESETS = ['dawn', 'morning', 'noon', 'afternoon', 'golden', 'sunset', 'dusk', 'night'];
   let world = null, day = null, sinceSave = 0;
   const W = typeof window !== 'undefined' ? window : null;
 
@@ -47,6 +47,7 @@ var DAY_CLOCK = (function () {
       case 'noon': return noon;
       case 'night': return noon - 43200 >= 0 ? noon - 43200 : noon + 43200;
       case 'morning': return at(25, true, rise != null ? (rise + noon) / 2 : noon - 10800);
+      case 'afternoon': return at(33.4, false, set != null ? (set + noon) / 2 : noon + 7200);   // the alps row's hour, the anchor the lights were judged in
       case 'golden': return at(8, false, set != null ? (set + noon) / 2 : noon + 10800);
       case 'sunset': return at(-0.833, false, set != null ? set : noon + 21600);
       case 'dawn': return at(-6, true, rise != null ? rise - 1800 : noon - 43200);

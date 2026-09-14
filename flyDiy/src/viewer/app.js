@@ -147,6 +147,9 @@
   const setExp = v => (typeof GFX !== 'undefined' && GFX && GFX.setExposure)
     ? GFX.setExposure(renderer, v) : (renderer.toneMappingExposure = v);
   setExp(1.12);
+  // THE ATMOSPHERE (SKY S3/S5): the two day-only tables bake here (~300 ms, once), so the shed's
+  // backdrop can take the dome before the world is built; render_world's own init call is a no-op after this
+  if (typeof ATMO !== 'undefined') ATMO.init(renderer);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;   // PCFSoft is gone in r186 (W0.5a): PCF, the fallback it names
   // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
@@ -571,7 +574,7 @@
   // the sky's own PMREM, kept beside envPM and disposed on the same discipline:
   // PMREMGenerator.dispose() frees its ping-pong target, never the one it hands
   // back, and a mood change re-bakes.
-  let skyPM = null;
+  let skyPM = null, shedSkyProbe = null;
   // THE BAKE WAITS FOR THE COMPILE (LOADING S2, G407). The cube probe is the
   // first draw of every hangar material, and on a cold shader cache that
   // first draw is the whole compile of the bake's program set, synchronous,
@@ -706,6 +709,11 @@
     // same target is reused rather than baked twice.
     if (hangar.outdoorMats && hangar.outdoorMats.length) {
       let srt = skyReady ? rt : null;
+      // ONE SKY (S5): the outdoors reflect the physical sky, in the shed's frame, re-baked with the room
+      if (!srt && typeof ATMO !== 'undefined' && ATMO.enabled && hangar.SHED_FRAME_YAW !== undefined) {
+        if (!shedSkyProbe) shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: hangar.SHED_FRAME_YAW, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) });
+        if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
+      }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
         const pm2 = new THREE.PMREMGenerator(renderer);
         pm2.compileEquirectangularShader();
@@ -926,12 +934,21 @@
     setExp(inRoom ? hangar.setMood(hangarMood).ex : WORLD_EXPOSURE);
     syncEnvBtn();
   }
+  // ONE SKY (S5): the garage's `time of day` select is the CLOCK's hand now - a mood
+  // names an hour (the alps afternoon 33 deg, golden 8, sunset, dusk, night; OVERCAST is
+  // the afternoon under nine tenths of cloud), the day drives the sky, and the row's
+  // lamps/panel/card follow through moodFor
+  const MOOD_PRESET = { AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night', OVERCAST: 'afternoon' };
   function setMood(i) {
     // the room owns the list — it is a sky per row now (G62), and a build that
     // ships four of them and one that ships five must both clamp correctly
     const n = (hangar && hangar.moods) ? hangar.moods.length : MOOD_MAX;
     hangarMood = Math.max(0, Math.min(n - 1, i | 0));
     prefSet('flydiy.garageMood', hangarMood);
+    if (typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
+      const name = hangar.moods[hangarMood], p = MOOD_PRESET[name];
+      if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set({ cloudCover: name === 'OVERCAST' ? 0.9 : 0.2 }); }
+    }
     if (inGarage) applyEnv();
     if (hangar && hangar.renderSky) hangar.renderSky(renderer);
     // A MOOD IS A NEW SKY, so the reflections belong to a different time of
@@ -7994,6 +8011,12 @@
     }
     if (inGarage) {
       if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
+      // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
+      if (hangar && hangar.applyDay && world.day) {
+        const r = hangar.applyDay(world.day, renderer);
+        if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
+        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) { hangarMood = mi; hangar.setMood(mi); } }
+      }
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would

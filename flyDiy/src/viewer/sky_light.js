@@ -90,11 +90,18 @@ var SKY_LIGHT = (function () {
     // the dome's scale: the same K, the same unit
     if (ATMO.U && ATMO.U.scale) ATMO.U.scale.value = K_SUN * unit * gain;
     // the exposure: the schedule, as a base
-    const ex = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.exposureFor(el, o.exposureK) : 0.92);
-    if (o.renderer && Math.abs(ex - lastEx) > lastEx * 0.01) {
-      lastEx = ex;
-      if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(o.renderer, ex);
-      else o.renderer.toneMappingExposure = ex;
+    // the schedule adapts the eye to the SKY; a room with lamps adapts to its lamps once the sky
+    // is darker than they are - o.exposureCap is the exposure those lamps were judged at
+    let ex = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.exposureFor(el, o.exposureK) : 0.92);
+    if (o.exposureCap != null) ex = Math.min(ex, o.exposureCap);
+    if (o.renderer) {
+      // against the LIVE base (two rooms share one renderer and each writes on entry), never a memory of our own
+      const G = (typeof window !== 'undefined') ? window.GFX : null;
+      const cur = (G && G.exposureBase && G.exposureBase() != null) ? G.exposureBase() : lastEx;
+      if (Math.abs(ex - cur) > Math.max(1e-6, cur * 0.01)) {
+        lastEx = ex;
+        if (G && G.setExposure) G.setExposure(o.renderer, ex); else o.renderer.toneMappingExposure = ex;
+      }
     }
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }

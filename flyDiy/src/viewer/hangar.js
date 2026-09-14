@@ -1451,6 +1451,11 @@ function gradeUniforms(mat, uu) {
 function gradeTextures() {
   if (gradeReady) return true;
   if (!SKY_GRADE || typeof Image === 'undefined' || !THREE.ShaderMaterial) return false;
+  // ONE SKY (SKY S5, 2026-09-14): under the physical atmosphere the shed sees
+  // the world's sky through its openings (applyDay below), so the graded
+  // panorama and its 6.3 MB of media stay on the shelf. The rows (lamps,
+  // panel, card, shaft) are still the moods'.
+  if (typeof ATMO !== 'undefined' && ATMO.installed) return false;
   // W0.5b: the grade is a raw ShaderMaterial; under the node renderer the room
   // keeps its baked sky picture until the grade is ported (§4h)
   if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) return false;
@@ -3147,6 +3152,49 @@ function setLights(pick) {
 // WITHOUT THE PAYLOAD there is still a room: the headless gate and any
 // core-only build get the alps row's numbers with no picture to hang behind
 // them, which is exactly what this shed was before G41.
+// ---- ONE SKY (SKY S5): the shed sees the world's physical sky ------------
+// The backdrop sphere takes the atmosphere's dome, drawn in the SHED'S FRAME
+// (25_airfield siteToWorld: world = (-lz, ly, lx) - a quarter turn about y),
+// the key is the day's sun or moon through sky_light (unit 1: the shed's rows
+// were raw candela), aimed from the shed frame with the shadow frustum's
+// floor kept, the exposure the same schedule as the world's. The room's own
+// probe (app.js bakeHangarEnv, a cube of the room) photographs the sky
+// through the door and the windows, so the day reaches the walls; applyDay
+// says when the sun has moved enough (1.5 deg) for it to be shot again.
+const SHED_FRAME_YAW = -Math.PI / 2;
+const LAMP_EX_CAP = 1.4;
+let skyPhys = false, skyBakedSun = null;
+function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
+function applyDay(day, renderer) {
+  if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
+  if (!skyPhys && skyMesh) {
+    const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);
+    if (m) { skyMesh.material = m; skyMesh.scale.x = 1; skyMesh.rotation.y = 0; skyPhys = true; }
+  }
+  if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
+  // THE LAMPS SET THE NIGHT'S EXPOSURE: the schedule opens 15 stops for a starlit sky, but a shed
+  // with 70 cd lamps is lit by its lamps, which were judged at the rows' exposure (~1.0); the cap
+  // is that, half a stop over, so a golden hour still opens and the dusk and night hold the lamps' level
+  const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, altM: 0, exposureCap: LAMP_EX_CAP });
+  // aim the key from the shed's frame, the frustum floor kept (see aimKey)
+  const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
+  const R = 2 * HD + 22;
+  key.target.position.set(0, 0.6, 0);
+  key.position.set(s[0] * R, Math.max(EAVE * 0.8, s[1] * R), s[2] * R);
+  key.target.updateMatrixWorld();
+  // has the sun moved enough since the room's probe was shot?
+  let rebake = false;
+  if (!skyBakedSun) rebake = true;
+  else { const c = Math.max(-1, Math.min(1, g[0] * skyBakedSun[0] + g[1] * skyBakedSun[1] + g[2] * skyBakedSun[2])); rebake = Math.acos(c) * 180 / Math.PI > 1.5; }
+  return { rebake, isMoon: SKY_LIGHT.isMoon, el: day.sunEl, exposure: r ? r.exposure : null, markBaked: () => { skyBakedSun = g.slice(); } };
+}
+// which of the moods' LAMP rows fits the hour: the lamps come on with the dusk
+function moodFor(day) {
+  if (!day) return 0;
+  if (day.cloudCover > 0.8 && MOODS.length > 5) return 5;
+  const el = day.sunEl;
+  return el > 25 ? 0 : el > 8 ? 1 : el > 0 ? 2 : el > -6 ? 3 : 4;
+}
 const MOODS = SKY_ROWS || [
   { key: 'alps', name: 'AFTERNOON', keyI: 2.8, kc: 0xffdca8, hemi: 0.274,
     hemiSky: 0xc5d9ff, hemiGnd: 0x343422, top: 0.567, env: 0.55, lamp: 70,
@@ -3159,8 +3207,9 @@ const setMood = i => {
   // THE SKY AND THE SUN MOVE ONLY WHEN THE ROW DOES: a re-apply of the same
   // mood (applyEnv runs on every editor slider drag) must not re-decode a 4k
   // equirect or re-aim a light that is already aimed.
-  if (j !== moodI) { moodI = j; setSky(m); aimKey(m.sunUV, m.yaw); }
-  key.intensity = m.keyI; key.color.setHex(m.kc);
+  const phys = typeof ATMO !== 'undefined' && ATMO.installed;   // ONE SKY (S5): the day owns the sky, the key and the exposure
+  if (j !== moodI) { moodI = j; if (!phys) { setSky(m); aimKey(m.sunUV, m.yaw); } }
+  if (!phys) { key.intensity = m.keyI; key.color.setHex(m.kc); }
   // the mood sets the candela; the rig's three knobs ride on top of it
   for (const L of lamps) {
     L.intensity = m.lamp * LAMP.gain;
@@ -3623,6 +3672,8 @@ return {
                                 // check the shader against the offline grade
 
   onSkyReady: fn => { skyOnReady = fn; },
+  applyDay, moodFor, SHED_FRAME_YAW,             // ONE SKY (S5)
+  get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   mood: () => moodI,
   // THE LIGHT SWITCHES: one per source, so a test can ask which one is doing

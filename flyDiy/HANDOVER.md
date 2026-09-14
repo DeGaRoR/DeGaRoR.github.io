@@ -47701,3 +47701,59 @@ worktree: the same three) - another session's landing, not this chantier's.
   fixtures), UISMOKE, BUILD, MEDIA, WORLD, WORLDRENDER, SITE.
 - OWED: the world's trees do not follow a live edit (a corridor cleared in the editor shows
   at the next boot); the premises' own trees are not planted in the game; a name board.
+=======
+## G412 — THE SKY CHANTIER, SESSION D: THE PROBE FOLLOWS THE SUN, ONE SKY IN
+## THE SHED (2026-09-15, the user: "the sunset through the windows really
+## doesn't look that good" - the window fix)
+
+- THE PROBE (S5): atmo.js makeProbe(renderer, {frameYaw, capHex, gb,
+  onSwap}) - one PMREMGenerator kept alive, a throwaway scene of the dome
+  and a ground cap LIT BY THE DAY (groundIrradiance: sun x T x cos + sky,
+  relative to the alps anchor), each bake into a NEW target, the swap, the
+  old disposed; maybe(day, 1.5 deg) re-bakes when the sun has moved or the
+  day's dials changed. render_world.js takes it (dayApply calls maybe every
+  frame; the once-at-boot bake stays as the fallback when the atmosphere is
+  off), rigApply's env is the probe's whatever the row's `env` says
+  (buildAlpsEnv retires under the atmosphere), the world exports `envMap`
+  as a getter and `probe`. Measured (CDP, 600x): 10 re-bakes over 80 game
+  minutes, 0.6-0.8 ms each - the window, the skin and the water follow the
+  sun for free.
+- ONE SKY IN THE SHED: hangar.js applyDay(day, renderer) hangs the
+  atmosphere's dome on the backdrop sphere (scale.x back to 1, rotation 0 -
+  the dome is direction-based), drawn in the SHED'S FRAME: 25_airfield
+  siteToWorld is world = (-lz, ly, lx), a quarter turn about y, so the dome
+  takes a `uFrame` yaw (SHED_FRAME_YAW = -pi/2) and the key is aimed from
+  toShed(day.sun) with the shadow frustum's floor kept; the key's colour and
+  level and the exposure come through SKY_LIGHT (unit 1: the shed's rows
+  were raw candela; the alps hour reproduces keyI 2.8), and the room's own
+  probe (app.js bakeHangarEnv, a cube of the room) is shot again when the
+  sun has moved 1.5 deg - that is how the day reaches the walls. The
+  outdoors (apron, strip, field) take a sky probe in the shed's frame.
+  gradeTextures() stays on the shelf under the atmosphere (the 6.3 MB of
+  graded panorama is not loaded; hangar_sky.js's ROWS still carry the
+  lamps / panel / card / shaft), setMood keeps those rows and leaves the
+  key, the sky and the exposure to the day; moodFor(day) picks the row by
+  the sun's elevation (the lamps come on with the dusk) and the garage's
+  `time of day` select is the CLOCK'S hand (app.js MOOD_PRESET: AFTERNOON
+  = the alps hour 33 deg falling - a new clock preset - GOLDEN, SUNSET,
+  DUSK, NIGHT, OVERCAST = the afternoon under nine tenths of cloud).
+  ATMO.init(renderer) moves to app.js right after the renderer (the shed
+  builds before the world). sky_light compares the exposure against the
+  LIVE base (two rooms, one renderer).
+- THE LAMPS SET THE NIGHT'S EXPOSURE: the schedule opens 15 stops for a
+  starlit sky and the first night in the shed was a white-out - 70 cd lamps
+  x 32 000. The eye adapts to the brightest source: hangar.applyDay caps the
+  exposure at LAMP_EX_CAP 1.4 (the rows' ~1.0, half a stop over, so a golden
+  hour still opens); at night the shed is lamp-lit with dark windows, as it
+  should be.
+- SEEN: the shed at golden hour with the low sun striping the back wall
+  through the windows; a December night lamp-lit, the windows black; the
+  world's golden frame unchanged; Jolene's noon.
+- GATES: DAY / ATMO / WORLDRENDER / LIGHT / GFX / UISMOKE / VIEW / BOOT /
+  MEDIA / BUILD / HANGAR / PROPS green.
+- OWED: the rail's mood LABEL does not follow moodFor yet (E: the garage
+  select as a clock control with the hour row; syncNightLabel); the 6.3 MB
+  media deletion + GATE MEDIA (a separate commit, reversible); the
+  `flydiy.hangarEnvSrc = 'sky'` option still names the old equirect path
+  (it falls to the room cube; E retires the pref); the moon's disc shows in
+  the shed's windows only through the probe (fine).
