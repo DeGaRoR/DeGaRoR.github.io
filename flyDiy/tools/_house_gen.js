@@ -1584,7 +1584,7 @@ const DEF = {
 // asset editor"). One word per preset, the same seven words in every
 // generator; the bench lists by category, the catalogue tags by it, and
 // GATE HOUSE refuses a preset without one.
-const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official', 'landmark', 'sports'];
+const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official', 'landmark', 'sports', 'airport xs', 'airport s', 'airport m'];   // the three airport series (G405)
 const CATS = {
   'shore cabin': 'residential', 'village house': 'residential', 'modern dark': 'residential', 'over the water': 'residential',
   'saltbox farmhouse': 'residential', 'saltbox cottage': 'residential', 'hip cottage': 'residential', 'bunkhouse': 'residential',
@@ -2520,6 +2520,67 @@ const PRESETS = {
   },
   // A BUNKHOUSE: long, low, corrugated, on piles, with a solid rail and a
   // back door onto the boardwalk.
+  // THE AIRPORT'S HOUSES (G405): the field's pilot hut, the club's clubhouse,
+  // the regional airport's control tower (the tower primitive with a wide
+  // glazed cab) and its flight service building
+  'pilot hut': {
+    L: 6.0, w: 4.5, storeys: 1, floorH: 2.6, roofFam: 0, pitch: 28, eaveOver: 0.45, rakeOver: 0.35, corner: 1,
+    stance: 2, floorY: 0.6, slopeZ: 1,
+    nFront: 1, nBack: 1, nLeft: 1, nRight: 0, winW: 0.9, winH: 1.0, winSill: 1.0, muntin: 1,
+    doorPos: 0.7, doorW: 0.95, doorH: 2.05, doorLight: 0,
+    porch: 1, porchD: 1.8, porchLenF: 0.9, porchOff: 0, porchRoof: 1, railStyle: 1, stairs: 1,
+    chim: 1, chimXF: -0.5, chimZF: -0.3, chimR: 0.10,
+    gutter: 0, downpipe: 0, barrel: 1, skirt: 0, ribs: 0, backDoor: 0,
+    yard: 1, yardK: 0.4, woodpile: 1, boat: 0, people: 1, curtains: 0.5,
+    weather: 0.45, paintPunch: 0.5, civic: 0, cat: 'airport xs', role: 'pilot hut',
+    wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0, trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
+    roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0, deckSet: SET_IDX('deck', 'wornwood'), postSet: SET_IDX('post', 'bark'),
+  },
+  'flying club': {
+    L: 14.0, w: 8.5, storeys: 1, floorH: 3.0, roofFam: 0, pitch: 24, eaveOver: 0.6, rakeOver: 0.5, corner: 0,
+    stance: 1, floorY: 0.7, slopeZ: 1,
+    nFront: 4, nBack: 3, nLeft: 1, nRight: 1, winW: 1.3, winH: 1.35, winSill: 0.9, muntin: 0,
+    doorPos: 0.5, doorW: 1.3, doorH: 2.2, doorLight: 1,
+    shopWin: 0, awning: 0, falseFront: 0,
+    porch: 1, porchD: 2.8, porchLenF: 1.0, porchOff: 0, porchRoof: 2, railStyle: 1, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.12, chimUp: 1.2,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    flagpole: 1, flagXF: 0.7, signKey: 'air_taxi', signW: 3.2, signAt: 1,
+    yard: 1, yardK: 0.4, woodpile: 0, boat: 0, people: 1, curtains: 0.4,
+    weather: 0.3, paintPunch: 0.9, civic: 1, cat: 'airport s', role: 'clubhouse',
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 13, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0, deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  'control tower': {
+    L: 9.0, w: 7.0, storeys: 2, floorH: 3.0, roofFam: 0, pitch: 8, hip: 1, corner: 2,
+    stance: 0, floorY: 0.4, slopeZ: 0, eaveOver: 0.35, rakeOver: 0.35,
+    nFront: 2, nBack: 2, nLeft: 1, nRight: 1, winW: 1.2, winH: 1.3, winSill: 0.95, muntin: 0,
+    doorPos: 0.72, doorW: 1.1, doorH: 2.15, doorLight: 1,
+    porch: 1, porchD: 2.0, porchLenF: 0.4, porchOff: 0.3, porchRoof: 1, railStyle: 2, stairs: 1,
+    chim: 0, gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    tower: 1, towerSides: 4, towerW: 4.6, towerH: 16.0, towerXF: -0.4, towerZF: 0, towerWin: 2,
+    galOut: 0.6, lantern: 1, lantSides: 8, lantR: 2.2, lantH: 2.4,
+    flagpole: 1, flagXF: 0.75, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0,
+    weather: 0.2, paintPunch: 0.9, civic: 1, cat: 'airport m', role: 'tower', outbuilding: 1,
+    wallSet: SET_IDX('wall', 'render'), wallCol: 6, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 8,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0, metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  'flight service': {
+    L: 12.0, w: 8.0, storeys: 1, floorH: 3.2, roofFam: 0, pitch: 12, hip: 1, corner: 2,
+    stance: 0, floorY: 0.35, slopeZ: 0, eaveOver: 0.6, rakeOver: 0.5,
+    nFront: 3, nBack: 3, nLeft: 1, nRight: 1, winW: 1.5, winH: 1.5, winSill: 0.9, muntin: 0,
+    doorPos: 0.5, doorW: 1.6, doorH: 2.3, doorLight: 1,
+    porch: 1, porchD: 2.6, porchLenF: 0.45, porchOff: 0, porchRoof: 1, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.11,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    signKey: 'air_taxi', signW: 3.0, signAt: 0,
+    yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0.2,
+    weather: 0.25, paintPunch: 0.9, civic: 1, cat: 'airport m', role: 'fbo',
+    wallSet: SET_IDX('wall', 'render'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 8,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8, metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
   'bunkhouse': {
     L: 16.0, w: 5.4, storeys: 1, floorH: 2.45, roofFam: 1, pitch: 12,
     stance: 3, floorY: 1.35, slopeZ: 9, water: 0, pileBent: 1, postSpc: 2.2,
@@ -7874,7 +7935,7 @@ window.HOUSE_GEN = {
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   makeFinish, shadeGround, buildGroundAO, shadeSkirt, signMesh, signMetaOf, wingPlan,
-  litBegin, dressOpening, buildDoor, buildLamp, dressFor, litFor, CATEGORIES, CATS, catOf, PEOPLE_KIT: typeof PEOPLE_KIT !== 'undefined' ? PEOPLE_KIT : null,
+  litBegin, dressOpening, buildDoor, buildLamp, dressFor, litFor, buildSmoke, CATEGORIES, CATS, catOf, PEOPLE_KIT: typeof PEOPLE_KIT !== 'undefined' ? PEOPLE_KIT : null,
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
   steelMix,   // the tram's steel (G342)
   buildComposite, buildMill, millPlan, lampAt, floodAt, pendantAt,   // composites of houses: the mill (G329; G350 its plan, for the village to cut the shoulder); the wall lantern (G348), the flood and the pendant (G370)

@@ -230,7 +230,8 @@ const ROOFS = ['gable', 'monopitch', 'flat + parapet'];
 // institutions official; the store, the cafe and the motel moved to the
 // house generator's storefront row (their presets here stay as the
 // industrial-built variants) - see HOUSE_GEN.CATEGORIES
-const CATS = { 'warehouse': 'industrial', 'cannery': 'industrial', 'workshop': 'industrial', 'fire hall': 'official',
+const CATS = { 'terminal': 'airport m', 'technical services': 'airport m', 'fuel shed': 'airport s',
+  'warehouse': 'industrial', 'cannery': 'industrial', 'workshop': 'industrial', 'fire hall': 'official',
   'swimming pool': 'official', 'athletic centre': 'official', 'store': 'commercial', 'cafe': 'commercial', 'motel': 'commercial',
   'tram shed': 'landmark', 'mine shop': 'landmark', 'boat shed': 'industrial' };
 const catOf = name => CATS[name] || null;
@@ -366,6 +367,41 @@ const PRESETS = {
   // THE ATHLETIC CENTRE (G392): the bigger hall - a gym's height, brick
   // below and sheet above is one set here (the factory wall), a monopitch
   // roof, the double doors under a canopy, the strip windows up high.
+  // THE AIRPORT'S BIG BUILDINGS (G405): the regional terminal (a parapet
+  // hall, a strip of shop windows, the canopy on posts, the board), the
+  // technical services (a workshop with a bay), the fuel shed (the pump
+  // house of the fuel farm - the tanks are the theme's props)
+  'terminal': {
+    L: 28, w: 14, eaveH: 5.2, floorY: 0.3, roofKind: 2, parapetH: 1.3, eaveOver: 0.2, rakeOver: 0.2,
+    rollers: 0, door: 1, doors: 3, doorPos: 0.5, doorW: 1.4, doorH: 2.3,
+    shopWin: 1, shopW: 6.0, shopH: 2.4, awning: 0,
+    winStrip: 1, winH: 1.6, winDrop: 0.7, winSpc: 1.6, winFront: 1,
+    dock: 0, canopy: 1, canopyOut: 1.2, gantry: 0, stack: 0, vents: 3, pipes: 0,
+    sign: 1, signW: 6.0, signH: 1.1, signText: 'TERMINAL', role: 'terminal',
+    wallSet: SET_IDX('wall', 'sandstone'), plinthSet: SET_IDX('plinth', 'concrete008'),
+    roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'), metalSet: SET_IDX('metal', 'galv'),
+    trimCol: 6, dirt: 0.3, dirtH: 0.8, clouds: 0.3, lights: 0,
+  },
+  'technical services': {
+    L: 16, w: 10, eaveH: 4.5, floorY: 0.35, roofKind: 1, pitch: 8,
+    rollers: 2, rollerW: 3.6, rollerH: 3.4, rollerOpen: 0.2, door: 1, doorPos: 0.9,
+    winStrip: 1, winH: 0.9, winDrop: 0.6, winSpc: 1.2, winFront: 1,
+    dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.12, vents: 2, pipes: 1,
+    sign: 1, signW: 4.0, signH: 0.9, signText: 'TECHNICAL SERVICES', role: 'technical services',
+    wallSet: SET_IDX('wall', 'factory'), plinthSet: SET_IDX('plinth', 'concrete004'),
+    roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'rustymetal'),
+    dirt: 0.45, dirtH: 0.9,
+  },
+  'fuel shed': {
+    L: 6, w: 4.5, eaveH: 3.0, floorY: 0.3, roofKind: 1, pitch: 8,
+    rollers: 0, door: 1, doorPos: 0.5, doorW: 1.0, doorH: 2.1,
+    winStrip: 1, winH: 0.6, winDrop: 0.5, winSpc: 1.0, winFront: 0,
+    dock: 0, canopy: 1, canopyOut: 1.8, gantry: 0, stack: 0, vents: 1, pipes: 1,
+    sign: 1, signW: 3.0, signText: 'FUEL', signKey: 'harbor_fuel', role: 'fuel',
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xeac53d, trimCol: 6, plinthSet: SET_IDX('plinth', 'concrete004'),
+    roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
+    dirt: 0.45, dirtH: 0.7, yard: 1, yardK: 0.5,
+  },
   'athletic centre': {
     L: 36, w: 24, eaveH: 8.0, floorY: 0.3, roofKind: 1, pitch: 6, eaveOver: 0.5, rakeOver: 0.4,
     rollers: 1, rollerW: 3.0, rollerH: 3.0, rollerOpen: 0, door: 1, doors: 3, doorPos: 0.5, doorW: 1.2, doorH: 2.2,

@@ -811,6 +811,64 @@ const THEMES = {
   // with its gap at the car park's entrance. `fences` are segments in the
   // site's frame ({ a, b, gap: [u0, u1] along the segment }), drawn by the
   // premises through the same buildFence the lots use.
+  // THE THREE AIRPORTS (G405, the user: "a series 'field' - a couple of small
+  // hangars; a series club, with larger hangar, but still an unpaved club
+  // feeling, with a club house, larger hangars, fuel facilities and fenced
+  // area; then a paved airport, still very regional, but with an actual
+  // terminal and technical services and hangars"). Each is a SITE in the
+  // frame of its apron: +z the strip side (the hangar doors face it), the
+  // buildings in a row behind their apron, the yard the apron itself
+  // (gravel for the field and the club, paved for the regional), the
+  // village's fence round the club and the airport with the gate at the
+  // road. The strip is the editor's own (a runway feature); the site stands
+  // beside it.
+  'airport xs': {
+    name: 'the field strip',
+    items: [
+      { gen: 'hangar', preset: 'field shed', x: -12, z: 0, yaw: Math.PI },
+      { gen: 'hangar', preset: 'field shed, small', x: 10, z: 2, yaw: Math.PI + 0.06 },
+      { gen: 'house', preset: 'pilot hut', x: 26, z: -4, yaw: Math.PI + 0.2 },
+      { gen: 'shed', preset: 'tool shed', x: -28, z: -6, yaw: -0.3 },
+    ],
+    yard: { x0: -26, x1: 24, z0: 10, z1: 34 },
+    yardKind: 'gravel',
+  },
+  'airport s': {
+    name: 'the flying club',
+    items: [
+      { gen: 'hangar', preset: 'club hangar', x: -22, z: 0, yaw: Math.PI },
+      { gen: 'hangar', preset: 'club hangar, long', x: 18, z: -3, yaw: Math.PI },
+      { gen: 'house', preset: 'flying club', x: 48, z: 6, yaw: Math.PI },
+      { gen: 'big', preset: 'fuel shed', x: -52, z: 8, yaw: Math.PI },
+      { gen: 'shed', preset: 'tool shed', x: 40, z: -14, yaw: 0.4 },
+    ],
+    yard: { x0: -60, x1: 40, z0: 14, z1: 54 },
+    yardKind: 'gravel',
+    fences: [
+      { a: [-72, -32], b: [72, -32], gap: [60, 84] }, { a: [72, -32], b: [72, 62] },
+      { a: [72, 62], b: [-72, 62] },
+      { a: [-72, 62], b: [-72, -32] },
+    ],
+  },
+  'airport m': {
+    name: 'the regional airport',
+    items: [
+      { gen: 'hangar', preset: 'works hangar', x: -50, z: 0, yaw: Math.PI },
+      { gen: 'hangar', preset: 'club hangar', x: -6, z: 4, yaw: Math.PI },
+      { gen: 'big', preset: 'terminal', x: 40, z: 10, yaw: Math.PI },
+      { gen: 'house', preset: 'control tower', x: 66, z: -2, yaw: Math.PI },
+      { gen: 'house', preset: 'flight service', x: 22, z: -10, yaw: 0 },
+      { gen: 'big', preset: 'technical services', x: 72, z: -26, yaw: Math.PI * 0.5 },
+      { gen: 'big', preset: 'fuel shed', x: -84, z: 10, yaw: Math.PI },
+    ],
+    yard: { x0: -92, x1: 92, z0: 22, z1: 70 },
+    yardKind: 'paved',
+    fences: [
+      { a: [-104, -44], b: [104, -44], gap: [90, 118] }, { a: [104, -44], b: [104, 78] },
+      { a: [104, 78], b: [-104, 78] },
+      { a: [-104, 78], b: [-104, -44] },
+    ],
+  },
   'sports ground': {
     name: 'the sports ground',
     items: [
@@ -1460,10 +1518,16 @@ function finishPlot(vil, plot, house, built) {
   plot.path = planPath(plot, house, built, vil.road);
   vil.fenced = vil.fenced || new Set();
   plot.fences = planFencesFor(vil.V, plot, house, rnd, vil.fenced, cat);
+  // A BARE CATEGORY (G405): a shed, a landmark, a field or an airport's building stands on the ground as it is -
+  // the airport's apron, the sports ground's lawn and the site's fence are the THEME's, not the lot's
+  if (cat === 'shed' || cat === 'sports' || cat === 'landmark' || /^airport/.test(cat)) {
+    plot.fences = []; plot.path = []; plot.out = null; plot.car = null; plot.boat = null; plot.drive = null; plot.lot = null;
+    return plot;
+  }
   if (cat !== 'residential') {
     // THE OTHER CATEGORIES (G401): no outbuilding, no wreck, no boat - the lot slab, its bays and its cars instead
     plot.out = null; plot.car = null; plot.boat = null; plot.drive = null;
-    plot.lot = cat === 'sports' ? null : planLot(vil, plot, house, built, rnd, cat);
+    plot.lot = planLot(vil, plot, house, built, rnd, cat);
     if (plot.lot) plot.path = [];                   // the slab or the yard is the way in; no garden path across it
     return plot;
   }

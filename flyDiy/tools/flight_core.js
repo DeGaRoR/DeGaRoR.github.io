@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d6da08e30fec3341
+// body-sha256: 5fb32f61e32f8612
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1112,10 +1112,14 @@ function makeWorld(seed, opts) {
   // height (the premise: carve, never reproduce) through the same pad ramp
   // the analytic flatten uses; the approach-corridor damping does not apply
   // (the field sits on a flat lobe, and the DEM is the truth).
+  // ...unless the island brings its own premises: then its field IS the
+  // premises' (G404: Jolene's 13/31 is HOME), no analytic cut at the origin
+  const ISL_CUT = ISL && !(opts && opts.premises);
   const PADH = ISL ? ISL.terrainH(-520, 0) : 0;
   function h0(x, z) {
     if (!ISL) return h0a(x, z);
     const h = ISL.terrainH(x, z);
+    if (!ISL_CUT) return h;
     const r = padRamp(x, z);
     return r >= 1 ? h : PADH + (h - PADH) * r;
   }
@@ -1211,6 +1215,8 @@ function makeWorld(seed, opts) {
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)
   if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
+  // an island with premises: the analytic HOME record goes the moment the
+  // premises declare one (setPremises below); the shim record stays until then
   // landing meadows: blend terrain toward the height at each meadow centre.
   // v0 shim member, derived from the registry — same literals, same order,
   // same {x,z,r,h} shape as the pre-contract array.
@@ -1315,13 +1321,15 @@ function makeWorld(seed, opts) {
   const AERO = bakeAerodromes({
     terrain: tV2, water: HYD.water, settlements: SET.settlements,
     meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
-  for (const st of AERO.strips) aerodromes.push(st);
+  // the island takes no generated strips (maps first: its field is a premises record)
+  if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
   function baseH(x, z) {
     // strip grading must never fill a carved river bed (same rule as
     // roads) — fade it out by carve depth, sampled in the tV2 call
     const h = tV2(x, z);
+    if (ISL) return h;                     // no generated strip grades an island
     const g = AERO.grade(x, z, h) - h;
     return g !== 0 ? h + g * (1 - Math.min(1, _cd / 1.5)) : h;
   }
@@ -1346,6 +1354,8 @@ function makeWorld(seed, opts) {
     PMrec = rec;
     // the strips join the registry as the generator's do; a strip's site (its stand, its way out,
     // an authored pattern) is what siteOf answers the pilot with
+    // a premises runway named HOME REPLACES the world's own (an island's field is its premises')
+    if (ISL && PM.aerodromes.some(a => a.id === 'HOME')) { const i = aerodromes.findIndex(a => a.id === 'HOME' && !a.premises); if (i >= 0) aerodromes.splice(i, 1); }
     PM.aerodromes.forEach((a, i) => { aerodromes.push(a); if (typeof AIRFIELD_SITES !== 'undefined') { const st = PM.runways[i] && PM.runways[i].site; if (st) AIRFIELD_SITES[a.id] = st; else delete AIRFIELD_SITES[a.id]; } });
     return PM;
   }
@@ -5203,8 +5213,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {

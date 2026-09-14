@@ -507,7 +507,7 @@ function mount(host, ctx) {
       const TH = THS && (THS[SITE_THEME] || THS.kennecott);
       if (!TH) { strip.status('the village generator is not loaded'); return; }
       const sid = PG.newId(rec, 'sites');
-      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: ({ big: 'big/', shed: 'shed/', sport: 'sport/', totem: 'totem/' }[it.gen] || 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
+      const items = TH.items.map((it, k) => ({ id: it.preset.replace(/[^a-z0-9]+/gi, '_') + (it.onRoad ? '_rcv' : '') + '_' + k, key: ({ big: 'big/', shed: 'shed/', sport: 'sport/', totem: 'totem/', hangar: 'hangar/' }[it.gen] || 'house/') + it.preset, x: it.x, z: it.z, yaw: +(it.yaw || 0).toFixed(3), P: it.P || {}, onRoad: !!it.onRoad, bottomOnRoad: !!it.bottomOnRoad }));
       // the receiving shed the mill's conveyor runs to: the theme on master has none (its mill's own bottom house
       // straddles the road); the branch's has the tram shed astride the road - stand one when the theme lacks it
       // (the key is FOUND in the live catalogue, never written here - rule 13: the editor names no asset)
@@ -522,7 +522,9 @@ function mount(host, ctx) {
         // a theme without a mountain works: the yard is its gravel, no cut (G393.3)
         const SF = PG.siteFrame(e), Y = TH.yard;
         const poly = [[Y.x0, Y.z0], [Y.x1, Y.z0], [Y.x1, Y.z1], [Y.x0, Y.z1]].map(q => SF.toLocal(q[0], q[1]).map(v => +v.toFixed(2)));
-        run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
+        run({ layer: 'surface', id: PG.newId(rec, 'surface'), before: null, after: { id: PG.newId(rec, 'surface'), poly, surface: TH.yardKind === 'paved' ? PG.SURFACE.PAVED : PG.SURFACE.GRAVEL, yard: sid }, label: 'the yard' });
+        // a paved apron wears the cracked concrete (G405)
+        if (TH.yardKind === 'paved') { const mid = PG.newId(rec, 'material'); run({ layer: 'material', id: mid, before: null, after: { id: mid, poly, set: 'cracked', tile: null, fade: 4, z: 0 }, label: 'the apron' }); }
       }
       if (TH.yard && TH.tram) {
         const SF = PG.siteFrame(e), Y = TH.yard;

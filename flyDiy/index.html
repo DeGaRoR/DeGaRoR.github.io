@@ -8877,10 +8877,14 @@ function makeWorld(seed, opts) {
   // height (the premise: carve, never reproduce) through the same pad ramp
   // the analytic flatten uses; the approach-corridor damping does not apply
   // (the field sits on a flat lobe, and the DEM is the truth).
+  // ...unless the island brings its own premises: then its field IS the
+  // premises' (G404: Jolene's 13/31 is HOME), no analytic cut at the origin
+  const ISL_CUT = ISL && !(opts && opts.premises);
   const PADH = ISL ? ISL.terrainH(-520, 0) : 0;
   function h0(x, z) {
     if (!ISL) return h0a(x, z);
     const h = ISL.terrainH(x, z);
+    if (!ISL_CUT) return h;
     const r = padRamp(x, z);
     return r >= 1 ? h : PADH + (h - PADH) * r;
   }
@@ -8976,6 +8980,8 @@ function makeWorld(seed, opts) {
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)
   if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
+  // an island with premises: the analytic HOME record goes the moment the
+  // premises declare one (setPremises below); the shim record stays until then
   // landing meadows: blend terrain toward the height at each meadow centre.
   // v0 shim member, derived from the registry — same literals, same order,
   // same {x,z,r,h} shape as the pre-contract array.
@@ -9080,13 +9086,15 @@ function makeWorld(seed, opts) {
   const AERO = bakeAerodromes({
     terrain: tV2, water: HYD.water, settlements: SET.settlements,
     meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
-  for (const st of AERO.strips) aerodromes.push(st);
+  // the island takes no generated strips (maps first: its field is a premises record)
+  if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
   function baseH(x, z) {
     // strip grading must never fill a carved river bed (same rule as
     // roads) — fade it out by carve depth, sampled in the tV2 call
     const h = tV2(x, z);
+    if (ISL) return h;                     // no generated strip grades an island
     const g = AERO.grade(x, z, h) - h;
     return g !== 0 ? h + g * (1 - Math.min(1, _cd / 1.5)) : h;
   }
@@ -9111,6 +9119,8 @@ function makeWorld(seed, opts) {
     PMrec = rec;
     // the strips join the registry as the generator's do; a strip's site (its stand, its way out,
     // an authored pattern) is what siteOf answers the pilot with
+    // a premises runway named HOME REPLACES the world's own (an island's field is its premises')
+    if (ISL && PM.aerodromes.some(a => a.id === 'HOME')) { const i = aerodromes.findIndex(a => a.id === 'HOME' && !a.premises); if (i >= 0) aerodromes.splice(i, 1); }
     PM.aerodromes.forEach((a, i) => { aerodromes.push(a); if (typeof AIRFIELD_SITES !== 'undefined') { const st = PM.runways[i] && PM.runways[i].site; if (st) AIRFIELD_SITES[a.id] = st; else delete AIRFIELD_SITES[a.id]; } });
     return PM;
   }
@@ -12968,8 +12978,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN'];   // SPORT_GEN: the sports grounds (G392), when the page loads tools/_sport_gen.js
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar' };
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -88863,6 +88873,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
     const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.0, sat: 1.0, snow: 890, shore: 1.0, mode: 0 };
+    // THE STACK (G404, the user: "a way to edit the stack, like I did in the
+    // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
+    // a fixed order, each with the bench's twelve blend modes and an opacity.
+    // The defaults are the bench's (the user's, 2026-09-14): class normal 1 >
+    // tint normal 1 > radar overlay 0.75 > canopy shade multiply 0.7 > snow.
+    const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'soft light', 'hard light', 'darken', 'lighten', 'add', 'colour', 'luminosity', 'hue'];
+    const STACK = [
+      { src: 'class', on: 1, mode: 0, op: 1.0 },
+      { src: 'tint',  on: 1, mode: 0, op: 1.0 },
+      { src: 'radar', on: 1, mode: 3, op: 0.75 },
+      { src: 'shade', on: 1, mode: 1, op: 0.7 },
+      { src: 'snow',  on: 1, mode: 0, op: 1.0 },
+    ];
+    try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.stack') || 'null'); if (sv && sv.length === 5) sv.forEach((l, i) => Object.assign(STACK[i], { on: l.on, mode: l.mode, op: l.op })); } catch (e) {}
     // the bench's paint modes, in the game: 0 the stack, then each map alone
     const GROUND_MODES = ['stack', 'tint', 'radar', 'canopy', 'class', 'ndvi', 'coast', 'height', 'snow'];
     const gU = {};
@@ -88885,6 +88909,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
         uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1100) },
+        uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
         uGCover: { value: ISLA.cover ? (() => { const t = mk8(ISLA.cover); t.magFilter = t.minFilter = THREE.NearestFilter; return t; })() : mk8(new Uint8Array(n)) },
         uGNdvi: { value: ISLA.ndvi ? mk8(ISLA.ndvi) : mk8(new Uint8Array(n)) },
       });
@@ -88898,24 +88923,44 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\n' +
             'uniform sampler2D uGTint, uGOri, uGCan, uGCoast, uGCover, uGNdvi; uniform vec4 uGGrid;\n' +
             'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
+            'uniform int uLOn[5]; uniform int uLMode[5]; uniform float uLOp[5];\n' +
+            'float gLuma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }\n' +
+            'vec3 gBlend(vec3 b, vec3 s, int m){\n' +
+            '  if (m == 1) return b * s; if (m == 2) return 1.0 - (1.0 - b) * (1.0 - s);\n' +
+            '  if (m == 3) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, b));\n' +
+            '  if (m == 4) return mix(b - (1.0 - 2.0 * s) * b * (1.0 - b), b + (2.0 * s - 1.0) * (sqrt(b) - b), step(0.5, s));\n' +
+            '  if (m == 5) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, s));\n' +
+            '  if (m == 6) return min(b, s); if (m == 7) return max(b, s); if (m == 8) return b + s;\n' +
+            '  if (m == 9) { float lb = gLuma(b), ls = max(gLuma(s), 1e-3); return s * (lb / ls); }\n' +
+            '  if (m == 10) { float lb = max(gLuma(b), 1e-3), ls = gLuma(s); return b * (ls / lb); }\n' +
+            '  if (m == 11) { float lb = gLuma(b), ls = max(gLuma(s), 1e-3); return mix(vec3(lb), s * (lb / ls), 0.7); }\n' +
+            '  return s; }\n' +
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
             '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }')
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
-            '  vec3 t = texture2D(uGTint, guv).rgb;\n' +
+            '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
             '  float r1 = texture2D(uGOri, guv).r;\n' +
-            '  vec3 ov = mix(2.0 * t * r1, 1.0 - 2.0 * (1.0 - t) * (1.0 - r1), step(0.5, t));\n' +
-            '  t = mix(t, ov, uGOverlay);\n' +
             '  float can = texture2D(uGCan, guv).r * 255.0;\n' +
-            '  t *= mix(1.0, 1.0 - 0.45 * clamp(can / uGP90, 0.0, 1.2), uGShade);\n' +
+            '  float snowA = smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y);\n' +
+            '  vec3 t = vec3(0.5);\n' +
+            '  for (int i = 0; i < 5; i++) {\n' +
+            '    if (uLOn[i] == 0) continue;\n' +
+            '    vec3 s; float a = 1.0;\n' +
+            '    if (i == 0) s = gClassCol(texture2D(uGCover, guv).r * 255.0);\n' +
+            '    else if (i == 1) s = tint;\n' +
+            '    else if (i == 2) s = vec3(r1);\n' +
+            '    else if (i == 3) s = vec3(1.0 - 0.45 * clamp(can / uGP90, 0.0, 1.2));\n' +
+            '    else { s = vec3(0.85, 0.88, 0.95); a = snowA; }\n' +
+            '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
+            '  }\n' +
             '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane
             '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
-            '  t = mix(t, vec3(0.85, 0.88, 0.95), smoothstep(uGSnow - 60.0, uGSnow + 60.0, vWPi.y));\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
             '  if (uGMode == 1) t = texture2D(uGTint, guv).rgb;\n' +
@@ -88933,6 +88978,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),
+      blends: () => BLENDS.slice(),
+      stack: () => STACK.map(l => Object.assign({}, l)),
+      setLayer: (i, o) => { const l = STACK[i]; if (!l) return null; Object.assign(l, o);
+        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; }
+        try { localStorage.setItem('flydiy.ground.stack', JSON.stringify(STACK)); } catch (e) {}
+        return Object.assign({}, l); },
       set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
         const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode' }[k];
         if (u && gU[u]) gU[u].value = GROUND[k]; } return groundApi.get(); },
@@ -90925,7 +90976,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
   }
 
-  { // THE BASE AERODROME, from the ONE declaration (G123)
+  // ...unless HOME is a premises runway with no declared site furniture (an
+  // island's field, G404): the premises renderer draws its strip, apron and
+  // buildings, and there is no analytic shed, fence or windsock to stand
+  if (!(world.island && !(siteOf('HOME') && siteOf('HOME').hangar))) { // THE BASE AERODROME, from the ONE declaration (G123)
     // Every number in this block used to be a literal: a 1100 x 30 strip at
     // (-520, 0) restated by hand beside the 'HOME' record that already said
     // so, three coloured boxes for buildings, and decals for an apron that ran
@@ -112847,20 +112901,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/pier/pier_lods.js?v=2b2f0c92"></script>
 <script src="src/totems/totems_poles.js?v=3aa55574"></script>
 <script src="tools/_house_kit.js?v=64fd4ef1"></script>
-<script src="tools/_house_gen.js?v=5bf5c32a"></script>
-<script src="tools/_big_gen.js?v=b40e76b1"></script>
+<script src="tools/_house_gen.js?v=7c16c562"></script>
+<script src="tools/_big_gen.js?v=1f634bf9"></script>
 <script src="tools/_sport_gen.js?v=d1ddac33"></script>
 <script src="tools/_shed_gen.js?v=54236357"></script>
+<script src="tools/_hangar_gen.js?v=ee4b7007"></script>
 <script src="tools/_tram_gen.js?v=b91a8a59"></script>
 <script src="tools/_totem_gen.js?v=725d9e05"></script>
 <script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
 <script src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
 <script src="src/viewer/cabin.js?v=27e21ad5"></script>
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script src="tools/_village_gen.js?v=9c49aa6e"></script>
+<script src="tools/_village_gen.js?v=172a0d65"></script>
 <script src="src/viewer/render_premises.js?v=f3bd9d67"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=90dcb0ed"></script>
+<script src="src/viewer/premises_ui.js?v=05f5efd7"></script>
 <script>
 (() => {
   // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
@@ -112872,7 +112927,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       const q = new URLSearchParams(location.search).get('premises');
       if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
       if (q === 'none') return null;
-      return localStorage.getItem('flydiy.premises.game');
+      const saved = localStorage.getItem('flydiy.premises.game');
+      // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE
+      // PREMISES composes every premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field.
+      // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
+      // (G404: a stale first version had shadowed the field)
+      let fixture = null;
+      if (window.ISLAND_BOOT) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/island_' + window.ISLAND_BOOT.id + '.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
+      if (saved && fixture) {
+        try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
+          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem('flydiy.premises.game'); return fixture; } } catch (e) {}
+      }
+      return saved || fixture;
     } catch (e) { return null; }
   })();
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
@@ -113015,7 +113081,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   window.FLYDIY_COCKPIT_I = CK;
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
+  // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
+  // completely in the background"): 7 km was the analytic world's, behind its
+  // fog wall; an island shows its whole geometry - the far mesh is the asset at
+  // eps 4 - and the logarithmic depth buffer makes 100 km free
+  const camera = new THREE.PerspectiveCamera(46, 1, 0.5, (typeof window !== 'undefined' && window.ISLAND_BOOT) ? 100000 : 7000);
   const target = new THREE.Vector3(2.2, 1, 0);
   // THE ORBIT IS SMOOTHED (G39, user: "very shaky ... slightly jumps
   // when moving", and the old garage always had it). Input writes the
@@ -121063,6 +121133,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     root.appendChild($('div', { class: 'hd' }, [$('b', { text: 'DEVELOPER' }), fpsEl,
       (() => { const b = $('button', { text: 'close (F8)' }); b.onclick = toggle; return b; })()]));
 
+    // ---- MAP LAYERS: the bench's layer views and the stack's knobs, top-level (G403) ----
+    if (world() && world().ground && world().ground.on()) {
+      const M = fold(root, 'map layers (the island)', true);
+      const gs = k => v => world().ground.set({ [k]: v });
+      M.appendChild(select('view', world().ground.modes().map((m, i) => [String(i), m]),
+        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
+      M.appendChild(note('the bench’s layer views: the stack, then each map alone - tint (Landsat), radar (IFSAR), canopy (Meta/WRI), class (WorldCover), NDVI, coast (the signed field), height, snow'));
+      M.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
+      M.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
+      M.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
+      M.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
+      // THE STACK (G404): each albedo layer - on, blend mode, alpha - in the bench's order
+      const Ms = fold(M, 'the stack (bottom first)', true, true);
+      const G = world().ground, BL = G.blends().map((b, i) => [String(i), b]);
+      G.stack().forEach((l, i) => {
+        Ms.appendChild(note(l.src));
+        Ms.appendChild(select('  on', [['1', 'on'], ['0', 'off']], () => String(G.stack()[i].on ? 1 : 0), v => G.setLayer(i, { on: +v })));
+        Ms.appendChild(select('  blend', BL, () => String(G.stack()[i].mode), v => G.setLayer(i, { mode: +v })));
+        Ms.appendChild(slider('  alpha', 0, 1, 0.01, () => G.stack()[i].op, v => G.setLayer(i, { op: v })));
+      });
+      Ms.appendChild(note('class (WorldCover palette) > tint (Landsat) > radar (IFSAR, level 1) > shade (canopy, normalised) > snow (its own mask). Remembered in this browser.'));
+      M.appendChild(note('after the stack: the rocky shore off the coast field, then lightness and saturation; lit by the sun after'));
+    }
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
     if (W.TREE_FILL && W.TREE_FILL.onIsland && W.TREE_FILL.onIsland()) {
@@ -121127,19 +121220,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
     E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
-    if (world() && world().ground && world().ground.on()) {
-      const Eg = fold(E, 'ground (the island\'s stack, live)', true, true);
-      const gs = k => v => world().ground.set({ [k]: v });
-      Eg.appendChild(select('paint', world().ground.modes().map((m, i) => [String(i), m]),
-        () => String(world().ground.get().mode), v => world().ground.set({ mode: +v })));
-      Eg.appendChild(note('the bench\'s layer views: the stack, then each map alone (the bench retires as these fill in)'));
-      Eg.appendChild(slider('lightness', 0.2, 2.5, 0.02, () => world().ground.get().light, gs('light')));
-      Eg.appendChild(slider('saturation', 0, 2, 0.02, () => world().ground.get().sat, gs('sat')));
-      Eg.appendChild(slider('radar overlay', 0, 1, 0.02, () => world().ground.get().overlay, gs('overlay')));
-      Eg.appendChild(slider('canopy shade', 0, 1, 0.02, () => world().ground.get().shade, gs('shade')));
-      Eg.appendChild(slider('shore band', 0, 1, 0.05, () => world().ground.get().shore, gs('shore')));
-      Eg.appendChild(slider('snowline', 300, 1200, 10, () => world().ground.get().snow, gs('snow'), v => v + ' m'));
-    }
     const fog = () => world() && world().scene && world().scene.fog;
     E.appendChild(slider('fog from', 0, 20000, 100, () => fog() ? fog().near : NaN, v => { if (fog()) fog().near = v; }, v => (v / 1000).toFixed(1) + ' km'));
     E.appendChild(slider('fog full by', 500, 90000, 500, () => fog() ? fog().far : NaN, v => { if (fog()) fog().far = v; }, v => (v / 1000).toFixed(1) + ' km'));

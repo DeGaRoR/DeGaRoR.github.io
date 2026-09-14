@@ -86,7 +86,7 @@ let VMCTX = null;          // kept: the PBR check has to inject a stub library
   ctx.globalThis = ctx;
   VMCTX = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_sport_gen.js', '_hangar_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }
@@ -1812,6 +1812,53 @@ for (const name of Object.keys(HG.PRESETS)) {
       check(st.sign.y - st.sign.h / 2 > yR + 0.2, 'big ' + name + ': the roof sign sits in the roof', (st.sign.y - st.sign.h / 2).toFixed(2) + ' vs ' + yR.toFixed(2));
     }
   }
+}
+
+// 43 — THE HANGAR SHELLS (G405, the user: "generate the 3 hangars of the
+//   presets, with accurate geometry, but shut the door, have no interior
+//   assets, and give them all the necessary external polish; non-transparent,
+//   lightable windows, framing around windows and opening, water management,
+//   a chimney and some smoke"): every HANGAR_GEN preset builds in both LODs,
+//   finite, the far mesh a fraction; the door opening is hangar.js's
+//   (max(6, 2HW - 5) wide) and SHUT (the door bag spans it); every pane is
+//   OPAQUE (nothing in the glass bag but a sign) and glows only with the
+//   switch, which also stands the lamps; a gutter runs both eaves with a
+//   downpipe at each corner; the flue smokes when asked; the two meshes are
+//   one silhouette; the catalogue carries every preset under an airport
+//   category.
+{
+  const HN = win.HANGAR_GEN;
+  check(!!HN && Object.keys(HN.PRESETS).length >= 3, 'hangar: the generator is not loaded');
+  if (HN) for (const name of Object.keys(HN.PRESETS)) {
+    const P = Object.assign({}, HN.DEF, HN.PRESETS[name]);
+    let hi = null, lo = null, threw = null;
+    try { hi = HN.build(P, 0); lo = HN.build(P, 1); } catch (e) { threw = e; }
+    if (!check(!threw, 'hangar ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
+    let nan = 0;
+    for (const k of HN.BAGS) { const d = hi.bags[k].data(); for (let i = 0; i < d.pos.length; i++) if (!isFinite(d.pos[i])) nan++; }
+    check(nan === 0, 'hangar ' + name + ': NaN in the mesh', String(nan));
+    check(lo.stats.tris < hi.stats.tris * 0.4 && lo.stats.tris > 100, 'hangar ' + name + ': the far mesh is not a fraction', lo.stats.tris + ' vs ' + hi.stats.tris);
+    const S = hi.stats, sh = HN.shellOf(P);
+    check(Math.abs(S.door.w - Math.max(6, 2 * P.HW - 5)) < 1e-6 && S.door.shut, 'hangar ' + name + ': the door is not hangar.js\'s, shut', JSON.stringify(S.door));
+    // the door bag spans the opening at the front
+    { const d = hi.bags.door.data(); let x0 = 1e9, x1 = -1e9, n = 0; for (let i = 0; i < d.pos.length; i += 3) if (d.pos[i + 2] > P.HD - 1.5) { x0 = Math.min(x0, d.pos[i]); x1 = Math.max(x1, d.pos[i]); n++; }
+      check(n > 0 && x1 - x0 > S.door.w - 0.2, 'hangar ' + name + ': the leaves do not span the opening', (x1 - x0).toFixed(2) + ' vs ' + S.door.w.toFixed(2)); }
+    check(hi.bags.glass.tris === (P.sign ? 2 : 0), 'hangar ' + name + ': a see-through pane (the shell has no inside)', String(hi.bags.glass.tris));
+    check(S.lit.panes >= 2, 'hangar ' + name + ': no panes', String(S.lit.panes));
+    check(S.lit.lights.length === 0 && S.lit.windows === 0, 'hangar ' + name + ': lit with the switch off');
+    const on = HN.build(Object.assign({}, P, { lights: 1 }), 0);
+    check(on.stats.lit.lights.length >= 2 && on.stats.lit.windows >= 1, 'hangar ' + name + ': the switch lights nothing', on.stats.lit.lights.length + ' lights, ' + on.stats.lit.windows + ' lit');
+    { const d = on.bags.pane.data(); let lit = 0; for (let i = 0; i < d.lit.length; i++) if (d.lit[i] > 0) lit++; check(lit >= 4, 'hangar ' + name + ': the panes do not glow', String(lit)); }
+    if (P.gutter) check(Math.abs(S.gutterLen - 2 * (2 * P.HD + 2 * P.rakeOver - 0.1)) < 0.05 && S.downpipes === 4, 'hangar ' + name + ': the water is not managed on both eaves', S.gutterLen.toFixed(1) + ' m, ' + S.downpipes + ' pipes');
+    if (P.flue) { check(!!S.flue && S.flue.top > S.ridge + 0.5, 'hangar ' + name + ': the flue does not clear the ridge'); if (P.smoke) check(!!S.smoke && S.smoke.puffs > 0, 'hangar ' + name + ': no smoke'); }
+    const dB = ['x0', 'y0', 'z0', 'x1', 'y1', 'z1'].map(k => Math.abs(hi.stats.bbox[k] - lo.stats.bbox[k]));
+    // the smoke rides in the near build only (an EXTRA bag, never in the ledger); the shells' own silhouettes must agree
+    check(Math.max(dB[0], dB[2], dB[3], dB[5]) < 0.35, 'hangar ' + name + ': the two meshes are not one silhouette', dB.map(v => v.toFixed(2)).join(' '));
+    const again = HN.build(P, 0);
+    check(again.stats.tris === hi.stats.tris, 'hangar ' + name + ': not deterministic');
+  }
+  if (HN) check(Array.isArray(HN.CATALOGUE) && HN.CATALOGUE.length === Object.keys(HN.PRESETS).length && HN.CATALOGUE.every(e => e.key.startsWith('hangar/') && /^airport (xs|s|m)$/.test(e.cat) && e.hooks({}).length === 1),
+                'hangar: the catalogue does not carry every preset under an airport category with its door hook');
 }
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use

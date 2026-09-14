@@ -46670,3 +46670,68 @@ to the stack. Seen: screenshots/lots/09_diamond_centre.png.
 - THE LESSON, again: `git update-ref refs/heads/master NEW OLD` - never
   without OLD; and a replay script's failure must stop the commit (the
   chain now checks the replay's exit code before anything is hashed).
+
+## G405 — THE HANGAR SHELLS AS ASSETS, THE THREE AIRPORT SERIES (2026-09-14)
+
+The user: "generate buildings for airports ... 3 categories ... a series
+'field' - a couple of small hangars; a series club, with larger hangar, but
+still an unpaved club feeling, with a club house, larger hangars, fuel
+facilities and fenced area; then a paved airport, still very regional, but
+with an actual terminal and technical services and hangars. ... the actual
+hangars of the builds ... with accurate geometry, but shut the door, have
+no interior assets, and give them all the necessary external polish;
+non-transparent, lightable windows, framing around windows and opening,
+water management, a chimney and some smoke, the works ... under the 3
+categories airport XS, S and M".
+
+- `tools/_hangar_gen.js` (HANGAR_GEN): the garage's three families as
+  EXTERIOR assets on the house/big pattern (the kit's bags, a finish of its
+  own with the house's trim/pane/glass/smoke, dressOpening for the casings,
+  buildDoor+lamp for the personnel door, lampAt for the bulkheads, buildSmoke
+  for the flue, the house's trough gutter). THE GEOMETRY IS hangar.js's,
+  restated in `shellOf`: HW/HD half extents, RIDGE = EAVE + 2.6, DOOR_W =
+  max(6, 2HW - 5) x DOOR_H = min(6.4, EAVE - 1.4) (timber: EAVE - 0.5), SIX
+  leaves SHUT across it (three tracks), the bi-parting back pair, the 1.1 m
+  brick stem, the glazing band 3.2-5.2 with its mullions, the personnel door
+  at MDZ with its high window, the roof lights at 30-62 % of the slope, the
+  timber shed's one leaf on its track and one window per flank. NON-
+  TRANSPARENT: every pane is the `pane` bag (opaque, the lit channel) - the
+  shell has no inside; a sign (the works) is the only glass. Gutters both
+  eaves + four downpipes with shoes; the flue on the back slope smokes.
+  Presets: field shed, field shed small (airport xs), club hangar, club
+  hangar long (airport s), works hangar (airport m). Catalogue `hangar/*`
+  with a `door` hook toward the road side.
+- THE CATEGORIES: `airport xs`, `airport s`, `airport m` join
+  HOUSE_GEN.CATEGORIES; the house bench lists them; HANGAR_GEN is the fifth
+  generator on the bench (`genericChecks` plaque; the site sized by the
+  build's extent when P has no L), in the premises bench, in build.js's
+  world pack and in 27_premises' GENERATORS (ns `hangar`).
+- THE AIRPORT'S OTHER BUILDINGS: HOUSE_GEN `pilot hut` (xs), `flying club`
+  (s), `control tower` (m: the tower primitive with a 4.4 m wide, 2.4 m
+  glazed cab on a two-storey base), `flight service` (m); BIG_GEN
+  `terminal` (brick parapet hall, shop windows, canopy on posts), `technical
+  services`, `fuel shed` (s; the pump house - tanks owed).
+- THE THREE SITE THEMES (`VILLAGE_GEN.THEMES` airport xs / s / m): the
+  buildings in a row facing the apron (+z of the site = the strip side; an
+  item's yaw pi looks that way), the apron the yard (gravel for the field
+  and the club, PAVED + cracked concrete for the regional), the village's
+  rail fence round the club and the airport with the gate at the road side.
+  An airport's buildings are a BARE lot category (no lot dressing - the
+  apron and the fence are the theme's), as sheds and landmarks are.
+- Rule 43 (GATE HOUSE): every HANGAR_GEN preset builds both LODs finite,
+  the door hangar.js's width and SHUT (the door bag spans it), no glass but
+  a sign, panes glow only with the switch (which also stands the lamps),
+  gutters both eaves + four pipes, the flue over the ridge and smoking, one
+  silhouette, deterministic, the catalogue under an airport category with
+  the door hook. Green: HOUSE, VILLAGE, PREMISES.
+- SEEN (screenshots/lots/): 11 the field strip, 12 the flying club (two
+  hangars on the gravel apron, the clubhouse, the fuel shed, the fence), 13
+  the regional airport (works + club hangars, terminal, tower, flight
+  service, technical services on the paved apron), 14 the club hangar close
+  (six leaves shut, stem, band, roof lights, flue smoke).
+- OWED: the fuel farm's tanks (cylinders on saddles in a bund - a HANGAR_GEN
+  or BIG_GEN preset), a T-hangar row, the windsock/beacon as theme props,
+  the apron joined to the editor's strip (a taxiway hook), the hangar's door
+  linked to the garage's (the user: "at some point, we'll link them").
+- Numbers: G402 went to the island's sea while this was in flight; the
+  code says G405.
