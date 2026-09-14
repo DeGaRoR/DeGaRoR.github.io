@@ -47182,3 +47182,59 @@ approximated leaves).
   every rail + persistence + the pilot's night, F the night's consumers
   (mist + glare if the budget allows). The peer's SKY-ATMOSPHERE §4b
   amendment and RENDERER-DECISION §4k are read and taken.
+
+## G399.4 — THE PILOT TRACK, P0.8: THE GROUND — THE HEIGHT ABOVE THE GROUND
+## UNDER THE WHEELS, THE SLOPE ON THE AIM'S OWN GROUND, THE SURFACE AND THE
+## GRADIENT IN THE STOP, A BUMP THAT IS NOT A TOUCHDOWN, FILLETS IN THE
+## WIND (2026-09-14)
+
+The two assumptions PILOT-ROADMAP §0 named first, measured on G399.1's
+sloped fixture, closed (43_pilot.js, all under "P0.8"):
+- **`aglG`** — the CG's height above the TERRAIN under it less its rest
+  height (gearH, measured once at rest) — is what the flare (entry and the
+  hold-off's own reference), the screen height, the balk guard, the
+  put-down and vsAgl read; `agl` (above the flat datum) stays for the
+  circuit heights. Without a world it IS agl. The slope ENDS ON THE AIM
+  POINT'S GROUND (`aimAlt`: terrain at the aim + gearH) in the old GS law
+  and TECS's `gs` reference alike, so a graded strip's profile is read
+  straight off the terrain — the premises' `profile` grades it, the pilot
+  never sees the record. Uphill 4 %: the cub touches 1 m from the aim at
+  1.04 m/s (it touched 800 m short on the flat datum); the C172 11 m,
+  0.92 m/s; the savannah 1 m. Downhill 4 %: the C172's touchdown 381 -> 161
+  m past the aim (the flat datum's float); the taildraggers still go
+  around for the hill on the approach — the correct refusal, P1's
+  direction choice owed.
+- **The stop and the taxi read the GROUND** — `aStopOf`: the solver's own
+  GROUND_SURF row under the wheels (rolling + braking per class: paved,
+  gravel, sand, scree...) and the gradient along the nose (`gGrade`, +/-40 m
+  about the CG; uphill adds g sin to a stop, and the taxi feed-forward
+  carries the slope's pull); the accelerate-stop and the AGAIN planner use
+  `stopDist` unchanged in form.
+- **A bump is not a touchdown** — the balk detector wants the wheels down
+  for 0.3 s (`onGT`); a rough strip's flickering contact no longer puts a
+  climbing aeroplane back on the ground.
+- **The fillet in the wind** — the path is followed over the GROUND, so its
+  fillets are planned at the airspeed PLUS the wind (a wider fillet is
+  always flyable), and the PATTERN WIDTH is sized for TWO of them at the
+  cruise speed plus the wind (2.2 R), where VTurn alone put the beaver's
+  two 365 m fillets on a 565 m leg and patternPath halved them (240 m over
+  the downwind at the bank limit). Beaver and twin in 2 m/s across: every
+  leg within 15 m, the beaver 1 m from the aim at 0.84 m/s.
+
+**MEASURED, the core set (47 cells): 24 good, 14 warn, 9 bad** — from
+13 / 16 / 18 at G399.3 and 0 / 18 / 29 before the track. Every HOME
+circuit lands with every leg joined within 15-32 m, slope rms <= 1.0 m,
+speed rms <= 0.14 m/s. The nine bad: the three A3 cross-countries
+(gave-up: the 318 m hill at the IAF and the pattern side — P1), the three
+A5 cross-countries (they LAND, 340 m gravel, aim -55..26 — the "overshoot"
+on their enroute leg is the hold-out climb before the path is joined, a
+metric to revisit), `dn4` x2 (P1), the C172 in a 6 m/s headwind (a 134 m
+fillet overshoot). The ratchet against the committed baseline: nothing
+worse; against G399.3's run one cell moved from good to warn (the
+stearman's calm rollout swing 5.9 -> 6.5 deg, the threshold at 6).
+
+- Gates: PILOT on G399.3's worktree green (12 cases); G399.4's own proof
+  and the baseline moved forward: the next entry.
+- OWED (P0.7): retiring the old modes and their exceptions once a full
+  `--all` run has judged every archetype under the defaults; the A5
+  overshoot metric; the hold on a slope (the hold's brake holds it today).

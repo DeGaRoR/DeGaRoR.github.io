@@ -169,13 +169,23 @@ function makePilot(sim, def, world, opts) {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
-    return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+    // the surface's rolling resistance and the slope's pull, both live (P0.8)
+    return () => Math.min(0.5, (((gSurf && gSurf[0]) ?? CRR) + Math.max(0, -gGrade)) * sim.totalM * 9.81 / T0);
   })();
   // the stopping deceleration the accelerate-stop call plans with: the grass
   // datum's rolling + braking coefficients at the pilot's own brake limit,
   // taken at 80 % (a wet-side margin; the measured stop goes on the report)
-  const aStop = A.aStop || 9.81 * (CRR + (A.brakeMax || 0.3) * MU_BRAKE) * 0.8;
-  const stopDist = v => v * v / (2 * aStop) + v * 1.0;
+  // P0.8 (PILOT-ROADMAP §0.2): THE GROUND IS NOT LEVEL GRASS. The stop
+  // decelerates on the SURFACE under the wheels (GROUND_SURF's rolling and
+  // braking coefficients per class — the solver's own table) and on the
+  // GRADIENT along the run (g sin: uphill helps a stop, hurts a take-off);
+  // both read live (`groundHere`), the grass datum as the fallback.
+  let gSurf = null, gGrade = 0;                  // the surface row and the gradient under the aeroplane, per update
+  const aStopOf = () => {
+    const row = gSurf || (typeof GROUND_SURF === 'object' && GROUND_SURF[0]) || [CRR, MU_BRAKE, 0.8];
+    return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
+  };
+  const stopDist = v => v * v / (2 * Math.max(0.5, aStopOf())) + v * 1.0;
   // the run a take-off needs from a standstill: most of the sheet's roll
   // (Vr is reached before the sheet's lift-off point), the stop from Vr, the
   // reserve — the SAME arithmetic the roll rejects with, so the planner and
@@ -307,6 +317,7 @@ function makePilot(sim, def, world, opts) {
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
+  let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
   // P0.5 (PILOT-ROADMAP §6.3 rule 1): TECS's own state — the throttle and the
   // balance integrators, the filtered rates, the speed weight
   const useTecs = opts.tecs !== false;
@@ -411,6 +422,14 @@ function makePilot(sim, def, world, opts) {
   };
   // a point in a landing frame: s along u, c to the LEFT of u
   const wp = (F, s, c) => [F.ox + s * F.ux + c * F.uz, F.oz + s * F.uz - c * F.ux];
+  // P0.8: the slope ends on the AIM POINT'S GROUND — the CG's rest altitude
+  // there (terrain + gearH), not the flat datum; the runway's profile is
+  // read straight off the terrain (the premises' `profile` grades it)
+  const aimAlt = () => {
+    if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
+    const P0 = wp(ap.frame, ap.xAim, 0);
+    return world.terrainH(P0[0], P0[1]) + (gearH || 0);
+  };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
   const legGeom = (L) => {
@@ -443,7 +462,13 @@ function makePilot(sim, def, world, opts) {
     const hC = ap.hCruise;
     const Dfaf = hC / ap.gs;
     const Diaf = Dfaf + Math.max(400, 10 * VTurn);
-    const W = clamp(ST.patW * Rturn, 300, 1800);
+    // P0.8: the crosswind leg carries TWO fillets, each of the radius the
+    // aeroplane turns at the speed it flies there (the cruise speed plus the
+    // wind, at the planned bank) — a width planned on VTurn alone put the
+    // beaver's two 365 m fillets on a 565 m leg, patternPath halved them,
+    // and the aeroplane crossed the downwind by 240 m at its bank limit
+    const wv0 = windAt(to, 30), RcW = (ap.VCruise + Math.hypot(wv0[0], wv0[1])) ** 2 / (9.81 * Math.tan(bankLim)) * 1.05;
+    const W = clamp(Math.max(ST.patW * Rturn, 2.2 * RcW), 300, 1800);
     ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side: 1 };
     return ap.plan;
   };
@@ -470,7 +495,13 @@ function makePilot(sim, def, world, opts) {
     const nodes = [], ids = [];
     const add = (x, z, r) => { const id = 'p' + nodes.length; nodes.push({ id, x, z, kind: 'air', r }); ids.push(id); };
     const speedOf = L => L.V === 'turn' ? VTurn : L.V === 'climb' ? ap.VClimb : L.V === 'cruise' ? ap.VCruise : ap.VAppr;
-    const rOf = (Vl, climbing) => Vl * Vl / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
+    // P0.8: the fillet is followed over the GROUND (L1 on the ground track),
+    // so it is planned at the ground speed a turn can reach — the airspeed
+    // plus the wind (the beaver / twin in 2 m/s across crossed the crosswind
+    // leg by 190-240 m on a fillet planned in still air); a wider fillet is
+    // always flyable, the aeroplane banks a little less
+    const wv = windAt(ap.route.to || ap.route.from, 30), wMag = Math.hypot(wv[0], wv[1]);
+    const rOf = (Vl, climbing) => (Vl + wMag) * (Vl + wMag) / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
     if (from) add(from[0], from[1], 0);
     for (let k = 0; k < legs.length; k++) {
       const L = legs[k], N = legs[k + 1];
@@ -604,6 +635,22 @@ function makePilot(sim, def, world, opts) {
     nose[0] /= nL; nose[1] /= nL;
     const terrainNow = (world && typeof world.terrainH === 'function') ? world.terrainH(cg[0], cg[2]) : ap.refAlt;
     const aglT = cg[1] - terrainNow;
+    // P0.8: THE HEIGHT ABOVE THE GROUND UNDER THE WHEELS — `agl` is the height
+    // above one flat datum (the rest height at the spawn), and on a sloped
+    // strip that datum meets the ground 770 m before the aim or 34 m above it
+    // (G399.1's fixture). aglG subtracts the CG's rest height above the
+    // terrain (gearH, measured once at rest) from aglT; without a world it
+    // is agl. The flare, the screen height, the balk and the hold-off read it.
+    if (gearH == null && world && typeof world.terrainH === 'function') gearH = cg[1] - terrainNow;
+    const aglG = (world && typeof world.terrainH === 'function') ? aglT - (gearH || 0) : agl;
+    // the surface class and the gradient along the nose, read on the ground
+    if (world && typeof world.surface === 'function' && typeof GROUND_SURF === 'object') {
+      const sc = world.surface(cg[0], cg[2]); gSurf = GROUND_SURF[sc] || null;
+    }
+    if (world && typeof world.terrainH === 'function') {
+      const nx0 = -xA[0], nz0 = -xA[2], nl0 = Math.hypot(nx0, nz0) || 1;
+      gGrade = (world.terrainH(cg[0] + nx0 / nl0 * 40, cg[2] + nz0 / nl0 * 40) - world.terrainH(cg[0] - nx0 / nl0 * 40, cg[2] - nz0 / nl0 * 40)) / 80;
+    }
 
     let tx = ap.targetDir[0], tz = ap.targetDir[2];
     if (ap.trackHold) {
@@ -650,7 +697,10 @@ function makePilot(sim, def, world, opts) {
     vPrev = V;
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
-    if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
+    // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
+    // on the ground for 0.3 s (a rough strip's contact flickers)
+    onGT = onG > 0 ? onGT + dt : 0;
+    if (onGT > 0.3 && aglG < A.aglGuard && V < A.VRot * 0.9
         && ['LIFTOFF', 'CLIMB'].includes(ap.phase)) {
       rollN++;
       if (rollN >= 3) {
@@ -809,7 +859,7 @@ function makePilot(sim, def, world, opts) {
       let hdotC;
       if (o.vs != null) hdotC = o.vs;
       else if (o.gs != null) {
-        const d = ap.xAim - sAl, hGS = ap.refAlt + Math.max(0, d) * o.gs;
+        const d = ap.xAim - sAl, hGS = aimAlt() + Math.max(0, d) * o.gs;
         hdotC = -(o_.Vg ?? V) * o.gs + 0.2 * (hGS - cg[1]);
       } else hdotC = 0.2 * ((o.alt ?? cg[1]) - cg[1]);
       hdotC = clamp(hdotC, vsDn, vsUp);
@@ -919,7 +969,7 @@ function makePilot(sim, def, world, opts) {
       c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
-    const vsAgl = v => agl < A.hSafe ? Math.max(v, 1.0) : v;
+    const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
 
     // ---- THE AFCS: modes and selected targets --------------------------------------
@@ -999,7 +1049,7 @@ function makePilot(sim, def, world, opts) {
         case 'FLC': holdPitch(clamp(A.climbThBase + A.climbThGain * (V - SEL.ias), 0.02, A.thMax)); break;
         case 'GS': {
           const d = ap.xAim - sAl;
-          const hGS = ap.refAlt + Math.max(0, d) * SEL.gs;
+          const hGS = aimAlt() + Math.max(0, d) * SEL.gs;
           holdVS(clamp(-(o_.Vg ?? V) * SEL.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * SEL.gs), 0.5));
           break;
         }
@@ -1446,13 +1496,13 @@ function makePilot(sim, def, world, opts) {
         // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
         // default garage build did exactly that; see 41_test_pilot.js)
         let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
-        if (agl > A.hSafe)
+        if (aglG > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
-          cond('height', agl, A.hSafe, agl > A.hSafe, 'm'),
+          cond('height', aglG, A.hSafe, aglG > A.hSafe, 'm'),
           cond('airspeed', V, A.VClimbMin, V > A.VClimbMin, 'm/s')]);
         // THE PUT-DOWN, and V1. A hover in ground effect goes back on the
         // wheels after 25 s (the HOVER fixture) — or at once, while a stop on
@@ -1462,7 +1512,7 @@ function makePilot(sim, def, world, opts) {
         // the game on a marginal build (a 53 s roll to Vr, airborne with
         // 150 m left), the old rule dropped it three seconds after lift-off
         // into the last of the grass, which is the worse of the two ends.
-        const lowStuck = agl < A.hSafe * 0.6;
+        const lowStuck = aglG < A.hSafe * 0.6;
         const canStop = left > stopDist(V) + 40;
         if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
           say('wont-climb', 'airborne ' + Math.round(phaseT) + ' s and still at ' + agl.toFixed(1) +
@@ -1476,7 +1526,7 @@ function makePilot(sim, def, world, opts) {
         }
         // ...and clearly away (twice the screen height) goes to CLIMB whatever
         // its speed — CLIMB's law finishes the acceleration (G208.3)
-        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
         break;
       }
 
@@ -1600,7 +1650,7 @@ function makePilot(sim, def, world, opts) {
         // throttle at the approach speed
         ap.dirX = 1;
         const d = ap.xAim - sAl;
-        const hGS = ap.refAlt + Math.max(0, d) * ap.gs;
+        const hGS = aimAlt() + Math.max(0, d) * ap.gs;
         const above = cg[1] - hGS;
         if (!slopeCaptured && above < 4) slopeCaptured = true;
         // G381: THE LEVEL SEGMENT IS LATCHED — its target was min(cg[1],
@@ -1643,7 +1693,7 @@ function makePilot(sim, def, world, opts) {
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
           cond('above slope', Math.round(above), ST.gaHigh, above < ST.gaHigh, 'm'),
           cond('off centre', Math.round(Math.abs(sCr)), ST.gaXT, Math.abs(sCr) < ST.gaXT, 'm'),
-          cond('flare at', agl.toFixed(1), A.flareAgl, agl < A.flareAgl, 'm')]);
+          cond('flare at', aglG.toFixed(1), A.flareAgl, aglG < A.flareAgl, 'm')]);
         gaT = above > ST.gaHigh && d < 600 ? gaT + dt : 0;
         if (gaT > 3) { if (canGA) { goAround('high on the slope ' + Math.round(d) + ' m out'); break; }
                        else if (!committed) { committed = true; say('committed-landing', 'high but committed'); } }
@@ -1659,7 +1709,7 @@ function makePilot(sim, def, world, opts) {
         if (ap.t - finalT0 > 240 && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
-        if (agl < (A.flareK ?? 1.3) * A.flareAgl) {
+        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
           go('FLARE'); thFlare0 = th; arc = null;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
@@ -1721,7 +1771,7 @@ function makePilot(sim, def, world, opts) {
           // beats a stall from a metre
           const vr = A.VRot || 18;
           const sinkF = (A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1);
-          const vsC = -Math.max(sinkF, Math.max(0, agl) / flTau);
+          const vsC = -Math.max(sinkF, Math.max(0, aglG) / flTau);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
           const deSat = aDe > 0.30;
@@ -1817,7 +1867,7 @@ function makePilot(sim, def, world, opts) {
       aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
     } else { aDa = c.da; aDr = c.dr; }
     holdWas = holdActive; holdActive = false;
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, aglG, grade: gGrade, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };
     // the measurements a panel reads (ap.instruments), SI
     ap._m = { ias: V, tas: Vt, gs: Vg, alt: cg[1], agl, aglT, vs: vcg[1], pitch: th, bank: ph,
