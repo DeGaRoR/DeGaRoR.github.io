@@ -91,11 +91,32 @@ function makeMats() {
     beam:   std(0x8a7358),                                                       // raw timber: the frames, the floors
   };
 }
-const BAGS = ['wall', 'plinth', 'roof', 'door', 'metal', 'glass', 'sign', 'awning', 'trim', 'beam'];
+const BAGS = ['wall', 'plinth', 'roof', 'door', 'metal', 'glass', 'sign', 'awning', 'trim', 'beam', 'pane'];
 const EXTRA = ['aoskirt'];
-const makeFinish = () => ({ MAT: makeMats(), SHADE_U: HG.makeShadeU() });
+// THE HOUSE'S FINISH RIDES ALONG (G393, the user: "very little facade detail
+// ... no habillage of the doors, windows ... why we can't just reuse the
+// mechanics"): every door, window strip, shop window and roller opening is
+// dressed by the house's own functions (casings that lap the cut, the sill,
+// the pane with its lit and curtain channels, the door leaf, the lamp), so
+// the glass, the trim and the leaf wear the house's materials and shaders -
+// a house finish of this generator's own, dressed by HG.applyFinish from a
+// house-shaped parameter table (`houseP`).
+const makeFinish = () => { const HF = HG.makeFinish(); const M = makeMats(); M.glass = HF.MAT.glass; M.trim = HF.MAT.trim; M.pane = HF.MAT.pane; return { MAT: M, SHADE_U: HG.makeShadeU(), HF }; };
 const DEFAULT_FINISH = makeFinish();
 const MAT = DEFAULT_FINISH.MAT;
+// the house-shaped table the dressing reads: its trim set and paint, the
+// dirt, the lights, no curtains (an industrial window has none), no sash
+// bars (the strips carry their own mullions), a small casing
+function houseP(P) {
+  return Object.assign({}, HG.DEF, {
+    trimSet: HG.SET_IDX('trim', 'veneerpale'), trimCol: P.trimCol === undefined ? 6 : P.trimCol, trimW: P.trimW || 0.07,
+    dirt: P.dirt, dirtH: P.dirtH, noise: P.noise, clouds: P.clouds, weather: 0.4, paintPunch: 0.9,
+    curtains: 0, muntin: 0, doorLight: P.doorLight ? 1 : 0, doorAjar: 0, hand: 0, bevel: 0.006,
+    lights: P.lights ? 1 : 0, winLit: 0.55, winLink: 0, porchLamp: 1, lampKind: 1, lightSeed: P.seed || 1,
+    floorY: P.floorY, slopeX: P.slopeX, slopeZ: P.slopeZ, ground: P.ground,
+    glassWave: 0.2, glassRough: 0.4, glassFres: 2.6, ao: P.ao, aoRange: P.aoRange, aoDirect: P.aoDirect,
+  });
+}
 
 function dress(m, role, idx, o) {
   const list = ROLE_SETS[role];
@@ -190,6 +211,11 @@ const DEF = {
   dock: 1, dockD: 2.4, dockLenF: 0.55, canopy: 1, canopyOut: 0.6, gantry: 1,
   stack: 1, stackR: 0.18, vents: 2, pipes: 1,
   sign: 1, signW: 5.0, signH: 1.1, signText: 'WAREHOUSE', signTex: null, signKey: '',
+  // G393: the dressing - the casing's paint and width, the door's light,
+  // corner boards, the frieze under the eave, the canopy's posts, the yard
+  // of props and the two people, the lights
+  trimCol: 6, trimW: 0.07, doorLight: 0, corners: 1, frieze: 1, pillars: 1,
+  yard: 1, yardK: 0.6, yardSeed: 7, people: 1, lights: 0,
   wallSet: SET_IDX('wall', 'rustysheet'), plinthSet: SET_IDX('plinth', 'concrete008'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   wallTint: 0xffffff,
@@ -198,6 +224,14 @@ const DEF = {
   beamSet: SET_IDX('beam', 'rough'),
 };
 const ROOFS = ['gable', 'monopitch', 'flat + parapet'];
+// the categories (G393): the working sheds are industrial, the hall-sized
+// institutions official; the store, the cafe and the motel moved to the
+// house generator's storefront row (their presets here stay as the
+// industrial-built variants) - see HOUSE_GEN.CATEGORIES
+const CATS = { 'warehouse': 'industrial', 'cannery': 'industrial', 'workshop': 'industrial', 'fire hall': 'official',
+  'swimming pool': 'official', 'athletic centre': 'official', 'store': 'commercial', 'cafe': 'commercial', 'motel': 'commercial',
+  'tram shed': 'landmark', 'mine shop': 'landmark', 'boat shed': 'industrial' };
+const catOf = name => CATS[name] || null;
 const ROWS = [
   ['plan', [
     ['L', 'length', 6, 40, 0.5], ['w', 'width', 4, 20, 0.5],
@@ -236,6 +270,14 @@ const ROWS = [
   ['details', [
     ['stack', 'stack', 0, 2, 1], ['stackR', 'stack radius', 0.08, 0.4, 0.01, null, P => P.stack > 0],
     ['vents', 'roof vents', 0, 4, 1], ['pipes', 'conduit', 0, 1, 1],
+    ['corners', 'corner boards', 0, 1, 1], ['frieze', 'frieze under the eave', 0, 1, 1],
+    ['pillars', 'posts under the canopy', 0, 1, 1, null, P => !!P.canopy],
+    ['doorLight', 'a light in the door', 0, 1, 1, null, P => !!P.door],
+  ]],
+  ['the yard', [
+    ['yard', 'props round it', 0, 1, 1], ['yardK', 'how many', 0, 1, 0.05, null, P => !!P.yard],
+    ['yardSeed', 'seed', 1, 40, 1, null, P => !!P.yard], ['people', 'people', 0, 1, 1],
+    ['lights', 'lights', 0, 1, 1],
   ]],
   ['sign', [
     ['sign', 'sign', 0, 1, 1], ['signW', 'width', 1, 12, 0.1, null, P => !!P.sign],
@@ -251,6 +293,7 @@ const ROWS = [
     ['doorSet', 'doors', 0, ROLE_SETS.door.length - 1, 1, setNames('door')],
     ['metalSet', 'steel', 0, ROLE_SETS.metal.length - 1, 1, setNames('metal')],
     ['beamSet', 'timber', 0, ROLE_SETS.beam.length - 1, 1, setNames('beam')],
+    ['trimCol', 'casing paint', 0, HG.COLS.length - 1, 1, HG.COL_NAMES], ['trimW', 'casing width', 0.04, 0.14, 0.01],
     ['dirt', 'dirt', 0, 1, 0.05], ['dirtH', 'dirt height', 0.3, 2.5, 0.05], ['noise', 'repetition breaker', 0, 0.5, 0.01],
     ['clouds', 'weather clouds', 0, 1, 0.05],
     ['ao', 'baked occlusion', 0, 1, 0.05], ['aoRange', 'occlusion reach', 0.2, 1.5, 0.05],
@@ -287,7 +330,7 @@ const PRESETS = {
     rollers: 1, rollerW: 3.4, rollerH: 3.2, rollerOpen: 0.85, door: 1, doorPos: 0.85,
     winStrip: 1, winH: 0.8, winDrop: 0.6, winSpc: 1.2, winFront: 1,
     dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.14, vents: 1, pipes: 1,
-    sign: 1, signW: 3.6, signH: 0.9, signText: 'AUTO REPAIR',
+    sign: 1, signW: 3.6, signH: 0.9, signText: 'AUTO REPAIR', signKey: 'sitka_lumber',
     wallSet: SET_IDX('wall', 'rustymetal'), plinthSet: SET_IDX('plinth', 'slabwall'),
     roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'rustymetal'),
     dirt: 0.55, dirtH: 0.9,
@@ -410,7 +453,10 @@ const PRESETS = {
 function applyFinish(P, F) {
   const M = F ? F.MAT : MAT;
   const SU = F ? F.SHADE_U : DEFAULT_FINISH.SHADE_U;
-  for (const k of BAGS) if (!(M[k].userData && M[k].userData.flat)) HG.shadeHouse(M[k], SU);
+  const HF = F ? F.HF : DEFAULT_FINISH.HF;
+  if (HF) HG.applyFinish(houseP(P), HF);          // the glass, the trim, the leaf: the house's own dressing (G393)
+  const HOUSE_OWNED = { glass: 1, trim: 1, pane: 1 };
+  for (const k of BAGS) if (!HOUSE_OWNED[k] && !(M[k].userData && M[k].userData.flat)) HG.shadeHouse(M[k], SU);
   // THE WEATHER IN CLOUDS lives with the house now (G329): the same three
   // fields on the big buildings' walls, doors, roofs and beams
   for (const k of ['wall', 'door', 'roof', 'beam']) HG.cloudWeather(M[k], P.clouds === undefined ? 0.5 : P.clouds, k === 'roof' ? 1 : 0);
@@ -429,6 +475,7 @@ function applyFinish(P, F) {
   SU.uAOd.value = P.aoDirect === undefined ? 0.35 : P.aoDirect;
   SU.uSag.value = 0;
   for (const k of BAGS) {
+    if (HOUSE_OWNED[k]) continue;
     const ud = M[k].userData && M[k].userData.dirt;
     if (!ud) continue;
     ud.uDirtGain.value = k === 'plinth' ? 1.6 : (k === 'door' ? 1.2 : (k === 'beam' ? 1.3 : 1.0));
@@ -445,9 +492,11 @@ function applyFinish(P, F) {
 function finishReport() {
   return BAGS.map(k => {
     const m = MAT[k], flat = !!(m.userData && m.userData.flat);
+    // the glass and the door leaf are the house's, glass and paint by design (no maps: the house's own PBR rule 14 holds them)
+    const glassy = flat || k === 'glass' || k === 'pane';
     return { slot: k, map: !!m.map, nor: !!m.normalMap, rough: !!m.roughnessMap, metal: m.metalness,
              roughness: m.roughness, nrmScale: m.normalScale ? m.normalScale.x : 1,
-             full: flat || (!!m.map && !!m.normalMap && !!m.roughnessMap), glassy: flat };
+             full: glassy || (!!m.map && !!m.normalMap && !!m.roughnessMap), glassy };
   });
 }
 
@@ -466,6 +515,8 @@ function build(P0, lod, F) {
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
   const g = HG.groundFn(P);
+  const Ph = houseP(P);                 // what the house's dressing reads
+  const LIT = HG.litBegin();            // and where it writes its lights
   const L = P.L, w = P.w, t = P.wallT, hw = t / 2;
   const fy = P.floorY, eave = fy + P.eaveH;
   const kind = Math.round(P.roofKind);
@@ -536,7 +587,10 @@ function build(P0, lod, F) {
   const stripFor = (i, len, top) => {
     if (!P.winStrip) return [];
     if (i === 0 && !P.winFront) return [];
-    const y1 = Math.min(top - 0.25, top - P.winDrop), y0 = y1 - P.winH;   // `top` is this wall's lowest top
+    // `top` is this wall's lowest top; on a gable END the rake comes down
+    // to it at the corners, so the band keeps half a metre under it (G393)
+    const drop = kind === 0 && (i === 1 || i === 3) ? Math.max(P.winDrop, 0.5) : P.winDrop;
+    const y1 = Math.min(top - 0.25, top - drop), y0 = y1 - P.winH;
     if (y0 < fy + 0.9) return [];
     // the band, cut by every opening on the front that reaches it (a door
     // per room on a motel leaves a window between every pair)
@@ -568,7 +622,10 @@ function build(P0, lod, F) {
     // mirrored (the back wall runs +x -> -x), no leaf - a truck drives in
     // one end and out the other
     if (i === 2 && P.rollersBack) for (const r of rollers) holes.push({ s0: L - r.s1, s1: L - r.s0, y0: r.y0, y1: r.y1, kind: 'roller' });
-    const lowTop = Math.min(topAt(0), topAt(len_));
+    // A WINDOW OPENS UNDER THE ROOF, NOT INTO THE PARAPET (G393, the user's
+    // "roof in the middle of windows": the flat roof's band sat `winDrop`
+    // under the parapet's top, above the deck, and you saw it from the roof)
+    const lowTop = kind === 2 ? eave : Math.min(topAt(0), topAt(len_));
     strips[i] = stripFor(i, len_, lowTop);
     for (const strip of strips[i]) holes.push({ s0: strip.s0, s1: strip.s1, y0: strip.y0, y1: strip.y1, kind: 'strip' });
     const W = wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0 });
@@ -631,35 +688,42 @@ function build(P0, lod, F) {
     if (Q.lod === 0) for (const s of [r.s0, r.s1])
       beam(bags.metal, [s - L / 2 + (s === r.s0 ? -0.04 : 0.04), r.y0, zIn - 0.02], [s - L / 2 + (s === r.s0 ? -0.04 : 0.04), r.y1 + 0.05, zIn - 0.02], 0.04, 0.05, [0, 0, 1], 0);
   }
+  // THE PERSONNEL DOORS ARE THE HOUSE'S (G393): the leaf with its light and
+  // handle, the casing that laps the cut, the lamp beside it - dressOpening
+  // on this wall's own panel, in the house's frame of the opening
   for (const pd of pdoors) {
-    const q = [[pd.s0 - L / 2, pd.y0, zIn], [pd.s1 - L / 2, pd.y0, zIn], [pd.s1 - L / 2, pd.y1, zIn], [pd.s0 - L / 2, pd.y1, zIn]];
-    face(bags.door, q, [0, 0, 1], uvFrame(q[0], [1, 0, 0], [0, 1, 0]));
-    face(bags.door, q.slice().reverse(), [0, 0, -1], uvFrame(q[0], [1, 0, 0], [0, 1, 0]));
-    if (Q.lod === 0) {
-      for (const s of [pd.s0, pd.s1]) beam(bags.metal, [s - L / 2, pd.y0, w / 2 + hw + 0.01], [s - L / 2, pd.y1 + 0.05, w / 2 + hw + 0.01], 0.05, 0.03, [0, 0, 1], 0.05);
-      beam(bags.metal, [pd.s0 - L / 2 - 0.05, pd.y1 + 0.05, w / 2 + hw + 0.01], [pd.s1 - L / 2 + 0.05, pd.y1 + 0.05, w / 2 + hw + 0.01], 0.05, 0.03, [0, 0, 1], 0);
-      // the step
-      boxAB(bags.plinth, [pd.s0 - L / 2 - 0.2, g(pd.s0 - L / 2, w / 2 + 0.5), w / 2 + hw], [pd.s1 - L / 2 + 0.2, fy, w / 2 + hw + 0.55]);
-    }
+    HG.dressOpening(bags, Ph, Q, walls[0].W, { s0: pd.s0, s1: pd.s1, y0: pd.y0, y1: pd.y1, kind: 'door' }, pd.y1);
+    if (Q.lod === 0) boxAB(bags.plinth, [pd.s0 - L / 2 - 0.2, g(pd.s0 - L / 2, w / 2 + 0.5), w / 2 + hw], [pd.s1 - L / 2 + 0.2, fy, w / 2 + hw + 0.55]);   // the step
   }
+  // and every roller opening gets the casing too (the leaf is drawn above)
+  for (const r of rollers) HG.dressOpening(bags, Ph, Q, walls[0].W, { s0: r.s0, s1: r.s1, y0: r.y0, y1: r.y1, kind: 'roller' }, r.y1);
 
   // ---- THE GLASS: the strips and the shop window
-  const glaze = (i, o, sub) => {
+  // THE GLASS IS THE HOUSE'S PANE (G393): set near the outer face in its
+  // casing with a sill, lit on the switch; the band's mullions stand over it
+  const glaze = (i, o, sub, kind2) => {
     const Wl = walls[i];
-    const P3 = (s, y) => { const p = Wl.at(s); return [p[0], y, p[1]]; };
-    const q = [P3(o.s0, o.y0), P3(o.s1, o.y0), P3(o.s1, o.y1), P3(o.s0, o.y1)];
-    face(bags.glass, q, Wl.N, uvFrame(q[0], Wl.X, [0, 1, 0]));
+    HG.dressOpening(bags, Ph, Q, Wl.W, { s0: o.s0, s1: o.s1, y0: o.y0, y1: o.y1, kind: kind2 }, o.y1);
     if (Q.lod !== 0) return;
-    // the frame and the mullions
-    const out = mul(Wl.N, hw + 0.01);
-    const fr = (a, b) => beam(bags.metal, add(a, out), add(b, out), 0.035, 0.03, Wl.N, 0.035);
-    fr(P3(o.s0, o.y0), P3(o.s1, o.y0)); fr(P3(o.s0, o.y1), P3(o.s1, o.y1));
     const n = Math.max(1, Math.round((o.s1 - o.s0) / sub));
-    for (let k = 0; k <= n; k++) { const s = o.s0 + (o.s1 - o.s0) * k / n; fr(P3(s, o.y0), P3(s, o.y1)); }
-    if (o.y1 - o.y0 > 1.4) fr(P3(o.s0, (o.y0 + o.y1) / 2), P3(o.s1, (o.y0 + o.y1) / 2));
+    for (let k = 1; k < n; k++) { const s2 = o.s0 + (o.s1 - o.s0) * k / n; beam(bags.metal, Wl.W.P(s2, o.y0 + 0.02, 0.86), Wl.W.P(s2, o.y1 - 0.02, 0.86), 0.022, 0.018, Wl.N, 0); }
+    if (o.y1 - o.y0 > 1.4) beam(bags.metal, Wl.W.P(o.s0 + 0.02, (o.y0 + o.y1) / 2, 0.86), Wl.W.P(o.s1 - 0.02, (o.y0 + o.y1) / 2, 0.86), 0.022, 0.018, Wl.N, 0);
   };
-  for (let i = 0; i < 4; i++) for (const st of strips[i] || []) glaze(i, st, P.winSpc);
-  if (shop) glaze(0, shop, Math.max(0.9, (shop.s1 - shop.s0) / 3));
+  for (let i = 0; i < 4; i++) for (const st of strips[i] || []) glaze(i, st, P.winSpc, 'strip');
+  if (shop) glaze(0, shop, Math.max(0.9, (shop.s1 - shop.s0) / 3), 'shop');
+  // THE CORNER BOARDS AND THE FRIEZE (G393): a board proud of each corner
+  // the full height of the wall, and a board under the front eave (or the
+  // cornice) - the finish that says the wall was built, not extruded
+  if (P.corners) for (let i = 0; i < 4; i++) {
+    const c = plan[i], top = Math.min(walls[i].topAt(0), walls[(i + 3) % 4].topAt(walls[(i + 3) % 4].len));
+    const sx = Math.sign(c[0]), sz = Math.sign(c[1]);
+    boxAB(bags.trim, [c[0] - hw - (sx > 0 ? 0 : 0.03) - 0.09 * (sx > 0 ? 0 : 1), fy - 0.02, c[1] - hw - (sz > 0 ? 0 : 0.03) - 0.09 * (sz > 0 ? 0 : 1)],
+          [c[0] + hw + (sx > 0 ? 0.03 : 0) + 0.09 * (sx > 0 ? 1 : 0), top - 0.02, c[1] + hw + (sz > 0 ? 0.03 : 0) + 0.09 * (sz > 0 ? 1 : 0)]);
+  }
+  if (P.frieze && Q.lod === 0) {
+    const yF = kind === 2 ? eave + P.parapetH - 0.62 : eave - 0.26;
+    boxAB(bags.trim, [-L / 2 - hw - 0.02, yF, w / 2 + hw], [L / 2 + hw + 0.02, yF + 0.22, w / 2 + hw + 0.03]);
+  }
 
   // ---- THE DOCK: a concrete platform along the front at floor level
   let dock = null;
@@ -689,16 +753,28 @@ function build(P0, lod, F) {
 
   // ---- THE CANOPY over the dock (or over the doors), on steel brackets
   let canopy = null;
-  if (P.canopy && (dock || rollers.length)) {
-    const x0 = dock ? dock.x0 - 0.3 : rollers[0].s0 - L / 2 - 0.6, x1 = dock ? dock.x1 + 0.3 : rollers[rollers.length - 1].s1 - L / 2 + 0.6;
+  if (P.canopy && (dock || rollers.length || pdoors.length)) {
+    // over the dock, else over the bays, else over the doors (G393)
+    const x0 = dock ? dock.x0 - 0.3 : (rollers.length ? rollers[0].s0 - L / 2 - 0.6 : Math.min(...pdoors.map(d => d.s0)) - L / 2 - 1.2);
+    const x1 = dock ? dock.x1 + 0.3 : (rollers.length ? rollers[rollers.length - 1].s1 - L / 2 + 0.6 : Math.max(...pdoors.map(d => d.s1)) - L / 2 + 1.2);
     const zOut = (dock ? dock.z1 : w / 2 + 1.6) + P.canopyOut;
-    const yWall = Math.min(eave - 0.25, (rollers.length ? rollers[0].y1 : fy + 2.6) + 0.9);
+    const yWall = Math.min(eave - 0.25, (rollers.length ? rollers[0].y1 : (pdoors.length ? pdoors[0].y1 : fy + 2.6)) + (rollers.length ? 0.9 : 0.45));
     const drop = (zOut - (w / 2 + hw)) * Math.tan(10 * D2R);
     const ring = [[x0, yWall, w / 2 + hw], [x1, yWall, w / 2 + hw], [x1, yWall - drop, zOut], [x0, yWall - drop, zOut]];
     plate(bags.roof, ring, rT, [0, -1, 0], uvFrame(ring[0], [1, 0, 0], nrm([0, -drop, zOut - w / 2])));
     beam(bags.metal, [x0, yWall - drop - 0.08, zOut], [x1, yWall - drop - 0.08, zOut], 0.02, 0.08, [0, 1, 0], 0);
-    canopy = { x0, x1, zOut, yEdge: yWall - drop };
-    if (Q.lod === 0) {
+    canopy = { x0, x1, zOut, yEdge: yWall - drop, posts: [] };
+    if (P.pillars && !dock) {
+      // ON POSTS (G393, the user: "no support pillars"): a timber post under
+      // the canopy's front edge every 3.5 m, from the ground to the beam
+      const n = Math.max(1, Math.round((x1 - x0) / 3.5));
+      for (let k = 0; k <= n; k++) {
+        const x = x0 + 0.25 + (x1 - x0 - 0.5) * k / n, z = zOut - 0.22;
+        beam(bags.beam, [x, g(x, z) - 0.3, z], [x, yWall - drop - 0.08, z], 0.07, 0.07, [0, 0, 1], 0);
+        canopy.posts.push([x, z]);
+      }
+      beam(bags.beam, [x0 + 0.25, yWall - drop - 0.14, zOut - 0.22], [x1 - 0.25, yWall - drop - 0.14, zOut - 0.22], 0.06, 0.06, [0, 1, 0], 0);   // the beam they carry
+    } else if (Q.lod === 0) {
       const n = Math.max(2, Math.round((x1 - x0) / 3));
       for (let k = 0; k <= n; k++) {
         const x = x0 + (x1 - x0) * k / n;
@@ -749,50 +825,59 @@ function build(P0, lod, F) {
     boxAB(bags.door, [x - 0.02, fy + 1.2, -w / 2 + 0.7], [x + 0.14, fy + 1.7, -w / 2 + 1.3]);   // the box
   }
 
-  // ---- THE SIGN: on the parapet, else on the wall above the doors
+  // ---- THE SIGN (G393, the user: "lots of intersections in the billboards
+  // ... squeezed billboards ... ill-placed"): THE ASPECT IS THE SIGN'S. A
+  // board that will not fit a place at the asked width is NARROWED to fit
+  // its height there, never squeezed; and a place is a band nothing else
+  // occupies: under the cornice on a parapet (the cornice, the cap and the
+  // frieze stay clear), the wall band between the openings and the eave (or
+  // the strip), the fascia off a canopy's edge; when none of those gives
+  // three quarters of the asked width, a ROOF SIGN stands on two posts over
+  // the front eave (or the parapet cap), the store's own way.
   let sign = null;
   if (P.sign) {
     const meta = signMeta(P.signKey);
-    let sw = Math.min(P.signW, L * 0.8), sh = meta ? sw / meta.aspect : P.signH;
-    let x = shop ? (shop.s0 + shop.s1) / 2 - L / 2 : 0, y, z = w / 2 + hw + 0.05;
-    let nx = 0, nz = 1;               // which way the board faces
-    if (canopy) {
-      // under a canopy the wall is in its shade: a fascia sign off the
-      // canopy's edge instead
-      y = canopy.yEdge - 0.14 - sh / 2; z = canopy.zOut + 0.02; x = clamp(x, canopy.x0 + sw / 2, canopy.x1 - sw / 2);
-    } else if (kind === 2) y = eave + P.parapetH / 2 + 0.05;
-    else {
-      // on the wall, above whatever opens under it and under the eave (or
-      // the strip); if that leaves no board's worth, on the gable end
-      const under = Math.max(rollers.length ? Math.max(...rollers.map(r => r.y1)) : 0, shop ? shop.y1 : 0, pdoor ? pdoor.y1 : 0, fy + 2.2);
-      const top = (strips[0] && strips[0].length ? strips[0][0].y0 - 0.12 : yRoof(0, w / 2) - 0.2);
-      const room = top - (under + 0.2);
-      if (room >= 0.4) { sh = Math.min(sh, room); y = under + 0.2 + sh / 2; }
-      else {
-        // the +x end: in the gable's triangle, or high on a monopitch's tall
-        // half, above the end wall's strip if it has one
-        nx = 1; nz = 0; x = L / 2 + hw + 0.05; z = kind === 1 ? w / 4 : 0;
-        const lo = Math.max(strips[1] && strips[1].length ? strips[1][0].y1 + 0.2 : 0, kind === 0 ? eave + 0.2 : fy + 2.4);
-        const hi2 = yRoof(L / 2, z) - 0.25;
-        sw = Math.min(sw, (kind === 0 ? w * 0.7 : w * 0.45));
-        sh = Math.min(sh, hi2 - lo);
-        y = lo + sh / 2;
+    const aspect = meta ? meta.aspect : (P.signW || 5) / (P.signH || 1);
+    const want = Math.min(P.signW, L * 0.8);
+    const fit = (band, wMax) => {           // the widest board of this aspect in a band `band` tall, at most wMax wide
+      const wByH = band * aspect;
+      return Math.max(0, Math.min(want, wMax, wByH));
+    };
+    let x = shop ? (shop.s0 + shop.s1) / 2 - L / 2 : 0, y = 0, z = w / 2 + hw + 0.05, sw = 0, sh = 0, at = '';
+    let nx = 0, nz = 1;
+    const place = (y0, y1, wMax, tag, zz) => { const sw2 = fit(y1 - y0, wMax); if (sw2 < want * 0.75) return false; sw = sw2; sh = sw / aspect; y = (y0 + y1) / 2; at = tag; if (zz !== undefined) z = zz; return true; };
+    if (canopy && !dock) {
+      // the fascia: hung off the canopy's front edge with headroom over the walk
+      place(fy + 2.15, canopy.yEdge - 0.08, canopy.x1 - canopy.x0 - 0.5, 'fascia', canopy.zOut + 0.02) && (x = clamp(x, canopy.x0 + sw / 2, canopy.x1 - sw / 2));
+    }
+    if (!at && kind === 2) place(eave + 0.15, eave + P.parapetH - 0.66, L - 1.0, 'parapet');
+    if (!at && kind !== 2) {
+      const under = Math.max(rollers.length ? Math.max(...rollers.map(r => r.y1)) : 0, shop ? shop.y1 : 0, pdoor ? pdoor.y1 : 0, fy + 2.2) + 0.25;
+      const top = (strips[0] && strips[0].length ? strips[0][0].y0 - 0.15 : (P.frieze ? eave - 0.3 : eave - 0.12));
+      place(under, top, L - 1.0, 'wall');
+    }
+    if (!at) {
+      // THE ROOF SIGN: on the front slope's eave (or the parapet cap), its
+      // posts on the roof, the board's bottom half a metre up
+      sw = want; sh = sw / aspect; at = 'roof';
+      const yBase = kind === 2 ? eave + P.parapetH + 0.03 : yRoof(0, w / 2 - 0.45) + rT;
+      z = kind === 2 ? w / 2 - 0.12 : w / 2 - 0.45; y = yBase + 0.45 + sh / 2;
+      x = clamp(x, -L / 2 + sw / 2 + 0.3, L / 2 - sw / 2 - 0.3);
+      for (const bx of [x - sw / 2 + 0.25, x + sw / 2 - 0.25]) {
+        beam(bags.metal, [bx, yBase - 0.05, z - 0.06], [bx, y + sh / 2 + 0.06, z - 0.06], 0.035, 0.035, [0, 0, 1], 0);
+        if (Q.lod === 0) beam(bags.metal, [bx, y + sh / 2, z - 0.06], [bx, yBase + (kind === 2 ? 0 : 0.3 * tp), z - 1.1], 0.02, 0.02, [0, 1, 0], 0);   // the brace back
       }
     }
     if (sh >= 0.3) {
-      const U = nz ? [1, 0, 0] : [0, 0, -1];          // along the board
-      const c0 = [x - U[0] * sw / 2, y - sh / 2, z - U[2] * sw / 2];
+      const U = [1, 0, 0];
+      const c0 = [x - sw / 2, y - sh / 2, z];
       const q = [c0, add(c0, mul(U, sw)), add(add(c0, mul(U, sw)), [0, sh, 0]), add(c0, [0, sh, 0])];
-      // the face carries 0..1 uv so a billboard fills it whole
-      face(bags.sign, q, [nx, 0, nz], p => [dot(sub(p, c0), U) / sw, (p[1] - c0[1]) / sh]);
-      // the board's backing, in the door's metal, a little behind the face
-      const back = [nx, 0, nz];
-      const mn = [Math.min(q[0][0], q[1][0]) - back[0] * 0.06, y - sh / 2, Math.min(q[0][2], q[1][2]) - back[2] * 0.06];
-      const mx = [Math.max(q[0][0], q[1][0]) - back[0] * 0.005, y + sh / 2, Math.max(q[0][2], q[1][2]) - back[2] * 0.005];
-      boxAB(bags.door, mn, mx, nz ? { pz: true } : { px: true });
-      if (Q.lod === 0 && nz && !canopy) for (const bx of [x - sw / 2 + 0.3, x + sw / 2 - 0.3])
-        beam(bags.metal, [bx, y - sh / 2 - 0.05, w / 2 + hw], [bx, y + sh / 2 + 0.05, w / 2 + hw], 0.03, 0.06, [0, 0, 1], 0.05);
-      sign = { x, y, z, w: sw, h: sh, nx, nz };
+      face(bags.sign, q, [nx, 0, nz], p => [dot(sub(p, c0), U) / sw, (p[1] - c0[1]) / sh]);   // 0..1 uv: the billboard fills it whole
+      // the backing, a little behind the face - trim (a painted board), not the door's metal
+      boxAB(bags.trim, [x - sw / 2, y - sh / 2, z - 0.05], [x + sw / 2, y + sh / 2, z - 0.005], { pz: true });
+      if (Q.lod === 0 && at === 'wall') for (const bx of [x - sw / 2 + 0.3, x + sw / 2 - 0.3])
+        beam(bags.metal, [bx, y - sh / 2 - 0.05, w / 2 + hw], [bx, y + sh / 2 + 0.05, w / 2 + hw], 0.03, 0.05, [0, 0, 1], 0.05);
+      sign = { x, y, z, w: sw, h: sh, nx, nz, at, key: P.signKey || '' };
     }
   }
 
@@ -809,9 +894,60 @@ function build(P0, lod, F) {
       beam(bags.metal, [x, yA - drop - 0.02, z0 + out - 0.05], [x, yA - 0.9, z0], 0.02, 0.02, [0, 1, 0], 0);
   }
 
-  // ---- THE GROUND SKIRT: the footprint, the dock, the steps
+  // ---- THE YARD AND THE PEOPLE (G393, the user: "No props"): the house's
+  // prop kit round a working building - drums, pallets, crates and bins
+  // against the front wall in the gaps between its openings, pallets and a
+  // cinder pallet out in the yard, a stack of tyres by the bay; two people,
+  // one at the door and one by the bay. Published as the house publishes
+  // them (`stats.yard`, `stats.people`); the viewer stands the props.
+  const yard = [], people = [], keep = [];
+  const blocked = (x, z, r) => keep.some(b => Math.hypot(b.x - x, b.z - z) < b.r + r);
+  const zWall = w / 2 + hw;
+  for (const o of front) keep.push({ x: (o.s0 + o.s1) / 2 - L / 2, z: zWall + 0.6, r: (o.s1 - o.s0) / 2 + 0.9 });
+  if (canopy) for (const pp of canopy.posts || []) keep.push({ x: pp[0], z: pp[1], r: 0.4 });
+  if (P.yard) {
+    let ys = ((Math.round(P.yardSeed) || 7) * 2654435761 + 99) >>> 0;
+    const yr = () => (ys = (ys * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const WALL_MENU = ['drum_steel', 'barrel_plastic', 'crate_wood_b', 'crate_wood_a', 'bin_metal', 'bottle_propane', 'jerrycan', 'box_cardboard', 'handtruck', 'bags_stack'];
+    const YARD_MENU = ['pallets_stack', 'pallet_one', 'pallets_three', 'cinder_pallet', 'cement_bags', 'tyre', 'drum_steel', 'crate_wood_c'];
+    const put = (key, x, z, ry, on) => {
+      const KK = HG.YARD_KIT[key]; if (!KK) return null;
+      const r = Math.hypot(KK.L, KK.W) / 2;
+      if (blocked(x, z, r) || x < -L / 2 - 4 || x > L / 2 + 4) return null;
+      keep.push({ x, z, r: r + 0.15 });
+      const q = { key, x, z, y: g(x, z), ry, on: on || 'ground', r };
+      yard.push(q); return q;
+    };
+    const nWall = Math.round(P.yardK * L / 2.2), nYard = Math.round(P.yardK * L / 3.5);
+    for (let i = 0; i < nWall; i++) {
+      const key = WALL_MENU[Math.floor(yr() * WALL_MENU.length)], KK = HG.YARD_KIT[key];
+      put(key, -L / 2 + 0.8 + yr() * (L - 1.6), zWall + (KK ? KK.W / 2 : 0.3) + 0.08, (yr() - 0.5) * 0.4, 'ground');
+    }
+    for (let i = 0; i < nYard; i++) {
+      const key = YARD_MENU[Math.floor(yr() * YARD_MENU.length)];
+      const x = -L / 2 - 2 + yr() * (L + 4), z = (dock ? dock.z1 : zWall) + 2.5 + yr() * 3.5;
+      put(key, x, z, yr() * Math.PI * 2, 'ground');
+    }
+    // a stack of tyres by the first bay
+    if (rollers.length) { const rx = rollers[0].s1 - L / 2 + 0.9; for (let k = 0; k < 3; k++) { const q = put('tyre', rx, zWall + 0.6, k * 0.7, 'ground'); if (q) { q.y += k * 0.165; keep.pop(); } } }
+  }
+  if (P.people) {
+    if (pdoor) people.push({ key: 'person_john', x: (pdoor.s0 + pdoor.s1) / 2 - L / 2 + 0.9, z: zWall + 0.9, y: g((pdoor.s0 + pdoor.s1) / 2 - L / 2 + 0.9, zWall + 0.9), ry: Math.PI * 0.9 });
+    if (rollers.length) { const r = rollers[rollers.length - 1]; const px = (r.s0 + r.s1) / 2 - L / 2 - 1.2, pz = (dock ? dock.z1 : zWall) + 2.2; people.push({ key: 'person_luke', x: px, z: pz, y: g(px, pz), ry: -0.4 }); }
+  }
+  // THE LIGHTS OVER THE BAYS (the door's own lamp came with its dressing):
+  // a bulkhead lantern over each roller, published by the house's lampAt
+  if (P.lights && Q.lod === 0) for (const r of rollers) {
+    const lx = (r.s0 + r.s1) / 2 - L / 2, ly = Math.min(r.y1 + 0.75, eave - 0.35);
+    HG.lampAt(bags, Q, [lx, ly, zWall], [0, 0, 1], { k: 1.2, range: 12 });
+  }
+
+  // ---- THE GROUND SKIRT: the footprint, the dock, the steps, the props, the people
   const occ = [{ x: 0, z: 0, hx: L / 2 + pt, hz: w / 2 + pt, k: 0.75, soft: 2.2 }];
   if (dock) occ.push({ x: (dock.x0 + dock.x1) / 2, z: (dock.z0 + dock.z1) / 2, hx: (dock.x1 - dock.x0) / 2 + 0.6, hz: (dock.z1 - dock.z0) / 2, k: 0.6, soft: 1.2 });
+  for (const q of yard) occ.push({ x: q.x, z: q.z, r: q.r, k: 0.5, soft: 0.5 });
+  for (const q of people) occ.push({ x: q.x, z: q.z, r: 0.35, k: 0.45, soft: 0.4 });
+  if (canopy) for (const pp of canopy.posts || []) occ.push({ x: pp[0], z: pp[1], r: 0.12, k: 0.5, soft: 0.35 });
   for (const o of occ) o.dry = true;
   if (P.aoGround) HG.buildGroundAO(bags.aoskirt, occ, g);
 
@@ -831,7 +967,7 @@ function build(P0, lod, F) {
              z: w / 2 + (dock ? P.dockD : 0) + 1.0, side: 1, depth: 0 },
     shop, dock, sign, stacks, strips: strips.reduce((n, s) => n + (s ? s.length : 0), 0), doors: pdoors.length,
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [],
-    people: null, yard: null, pier: null, lit: null,
+    people, yard, pier: null, lit: LIT,
   };
   return { bags, stats, P, V: { L, w, wallT: t, floorY: fy, eaveH: P.eaveH }, R: null, MAT: F ? F.MAT : MAT };
 }
@@ -895,7 +1031,7 @@ function randomBig(seed) {
 
 window.BIG_GEN = {
   DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, ROLE_SETS, SET_IDX, setNames,
-  build, randomBig, applyFinish, makeFinish, finishReport, signTexture,
+  build, randomBig, applyFinish, makeFinish, finishReport, signTexture, CATS, catOf,
   billboard, billboardFinish, signMeta, signKeys, billboardTexture,
   libSets: HG.libSets, isBig: true,
 };

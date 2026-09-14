@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: bdb299326e0857ce
+// body-sha256: 3eb4ad41bd6ce427
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -923,6 +923,16 @@ function makeWorld(seed, opts) {
       hdg: 0, len: 520, wid: 520, surface: SURFACE.GRASS, elev: 0, tdz: [1800, 1500] },
     { id: 'M3', name: 'Meadow 3', kind: 'meadow', x: -3400, z: 650, r: 240,
       hdg: 0, len: 480, wid: 480, surface: SURFACE.GRASS, elev: 0, tdz: [-3400, 650] },
+    // THE SEA LANE (H4, G393): a water aerodrome south of HOME for the
+    // seaplanes — 1.5 km of open sea 15-95 m deep, along +z from the shore
+    // (measured: every point of the lane 60 m either side is deeper than
+    // 15 m). HOME's own conventions: the spawn identity at the near end
+    // facing down the lane (hdg pi/2 -> nose +z), landed over the far end
+    // with the touchdown target 20 % in. `kind: 'water'` — no site, no taxi
+    // graph; the pilot flies it as it flies a meadow, on the water rudder.
+    { id: 'SEA', name: 'The Sound', kind: 'water', x: 0, z: 2000, hdg: Math.PI / 2,
+      len: 1500, wid: 200, surface: SURFACE.WATER, elev: 0, tdz: [0, 2530],
+      spawn: [0, 1250] },
   ];
   // landing meadows: blend terrain toward the height at each meadow centre.
   // v0 shim member, derived from the registry — same literals, same order,
@@ -1156,7 +1166,40 @@ function makeWorld(seed, opts) {
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
-  function waterH(x, z) { return waterAt(terrainH(x, z), x, z); }
+  function waterH(x, z, t) {
+    const h = waterAt(terrainH(x, z), x, z);
+    // THE SEA HAS WAVES (H4, G393; ruling ap: ONE surface, physics and
+    // renderer sampling the same closed form). Only with a time argument,
+    // only on the SEA (level 0 — lakes and rivers stay glassy), only when
+    // the day has a sea state: the two-argument call is byte-identical to
+    // what every gate and every bake reads. Gerstner heights (the design's
+    // 3.1: analytic, cheap enough to sample per hull vertex per substep),
+    // two octaves — the wind's own swell and a shorter cross chop.
+    if (t == null || h !== 0 || !SEA.A) return h;
+    let y = 0;
+    for (const w of SEA.W) y += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
+    return y;
+  }
+  // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
+  // more consumer of setWeather's wind, never a second model). Amplitude
+  // 0.04 m per m/s of wind (5 m/s: 0.2 m; 10: 0.4), wavelength 3 + 1.4 W
+  // (5 m/s: 10 m), the swell down-wind, a 40 % chop 35 deg off it at half
+  // the length. Calm air is glassy — no waves — which is the harder
+  // landing (§2.5), for free. `world.sea` reads it; `setSea` overrides it
+  // (the bench, a test) until the next setWind.
+  const SEA = { A: 0, L: 0, dir: 0, W: [] };
+  function seaFrom(A, L, dir) {
+    SEA.A = A; SEA.L = L; SEA.dir = dir; SEA.W.length = 0;
+    if (!(A > 0) || !(L > 0)) return;
+    for (const [a, l, d, ph] of [[A, L, dir, 0], [0.4 * A, 0.5 * L, dir + 35 * Math.PI / 180, 1.7]]) {
+      const k = 2 * Math.PI / l;
+      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph });
+    }
+  }
+  function setSea(spec) {
+    if (!spec) { seaFrom(0, 0, 0); return; }
+    seaFrom(spec.A || 0, spec.L || (3 + 1.4 * 5), spec.dir || 0);
+  }
   // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
   // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
   // still reserved for stage 4)
@@ -1266,6 +1309,10 @@ function makeWorld(seed, opts) {
     windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
                         refH: spec.refH || 0,
                         alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    // ...and the sea follows the wind (H4, G393)
+    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const Wv = Math.hypot(b[0], b[2]);
+    seaFrom(Wv > 0.5 ? 0.04 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
   // ---- the day: ONE weather state, air and wind together (G72) ------------
@@ -1304,6 +1351,8 @@ function makeWorld(seed, opts) {
     get atmos() { return atmos; },
     get weather() { return weather; },
     setWeather,
+    // H4 (G393): the sea state (read live) and its override
+    get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
@@ -3643,6 +3692,7 @@ function fbm(x, y, s, oct) {
 // ---------------------------------------------------------------------------
 // the polygons — poly = [[x, z], ...], any winding, concave allowed
 // ---------------------------------------------------------------------------
+function polyCentroid(poly) { let x = 0, z = 0; for (const q of poly) { x += q[0]; z += q[1]; } return [x / Math.max(1, poly.length), z / Math.max(1, poly.length)]; }
 function polyBBox(poly) {
   let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
   for (const p of poly) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < z0) z0 = p[1]; if (p[1] > z1) z1 = p[1]; }
@@ -3783,7 +3833,16 @@ function makeModifier(m, y0) {
     let target;
     if (m.kind === 'flatten') { const lv = (m.abs ? 0 : y0) + (+m.level || 0); target = () => lv; }
     else if (m.kind === 'raise') { const dh = +m.dh || 0; target = (x, z, h) => h + dh; }
-    else { const pl = m.plane || [0, 0, 0]; target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0); }
+    else {
+      // a SLOPE polygon (v8): `level` at the polygon's centroid, `slope` (a fraction) rising toward `hdg`
+      // (degrees, 0 = +z, 90 = +x); the old `plane` [a, b, c] form still reads
+      let pl;
+      if (m.slope !== undefined && m.slope !== null && m.level !== undefined) {
+        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * Math.sin(hd), b = (+m.slope || 0) * Math.cos(hd);
+        pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
+      } else pl = m.plane || [0, 0, 0];
+      target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
+    }
     return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const w = weight(sdPoly(poly, x, z));
@@ -4046,7 +4105,54 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+
+// THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
+// [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
+// before it is graded) - with a MONOTONE cubic between them (Fritsch-Carlson: the ground never
+// overshoots a point, a hump is a hump and a dip a dip). No profile = the old linear slope. The ends
+// are always control points (the thresholds); the editor keeps them.
+function runwayProfile(r) {
+  let P = Array.isArray(r.profile) && r.profile.length >= 2 ? r.profile.map(q => [+q[0], +q[1]]).filter(q => isFinite(q[0]) && isFinite(q[1])) : null;
+  if (!P || P.length < 2) { const rise = (+r.slope || 0) * r.len / 2; P = [[0, -rise], [1, rise]]; }
+  P.sort((a, b) => a[0] - b[0]);
+  if (P[0][0] > 0) P.unshift([0, P[0][1]]); if (P[P.length - 1][0] < 1) P.push([1, P[P.length - 1][1]]);
+  P[0][0] = 0; P[P.length - 1][0] = 1;
+  const n = P.length, x = P.map(q => q[0] * r.len), y = P.map(q => q[1]);
+  const h = [], d = [];
+  for (let i = 0; i + 1 < n; i++) { h.push(Math.max(1e-6, x[i + 1] - x[i])); d.push((y[i + 1] - y[i]) / h[i]); }
+  const m = new Array(n).fill(0);
+  if (n === 2) { m[0] = m[1] = d[0]; }
+  else {
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (let i = 1; i + 1 < n; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i + 1 < n; i++) { if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; } const a = m[i] / d[i], b = m[i + 1] / d[i], q = a * a + b * b; if (q > 9) { const tau = 3 / Math.sqrt(q); m[i] = tau * a * d[i]; m[i + 1] = tau * b * d[i]; } }
+  }
+  const at = sAlong => {
+    const sx = Math.max(0, Math.min(r.len, sAlong));
+    let i = 0; while (i + 2 < n && sx > x[i + 1]) i++;
+    const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
+  };
+  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  return { points: P, at, slopeAt, n };
+}
+// THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
+// touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
+// change of slope over 30 m - a flare must not meet a hump it cannot see over
+function profileIssues(r) {
+  const out = [], pr = runwayProfile(r), L = r.len;
+  let worst = 0, tdz = 0, crest = 0;
+  for (let a = 0; a <= L; a += 3) {
+    const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
+    if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
+    if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
+  if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
+  if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
+  return out;
+}
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -4297,9 +4403,12 @@ function compose(rec0, world, opts) {
   for (const r of runways) {
     const E = runwayEnds(r);
     const elev = T1(r.c[0], r.c[1]);
-    const rise = (+r.slope || 0) * r.len / 2;
     const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: [[E.end0[0], E.end0[1], elev - rise], [E.end1[0], E.end1[1], elev + rise]], width: r.wid, falloff: fall, abs: true }, F.y0);
+    // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
+    const pr = runwayProfile(r), gpts = [];
+    const nS = Math.max(1, Math.ceil(r.len / 6));
+    for (let k = 0; k <= nS; k++) { const a = r.len * k / nS; gpts.push([E.end0[0] + E.d[0] * a, E.end0[1] + E.d[1] * a, elev + pr.at(a)]); }
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
     aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly)));
@@ -4520,7 +4629,7 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else if (Math.abs(+r.slope || 0) > 0.05) out.push('runway ' + r.id + ': a slope over 5 % is not a strip');
+    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -4681,9 +4790,10 @@ function checks(rec0, world, opts) {
   for (let i = 0; i < O.runways.length; i++) {
     const r = O.runways[i], A = O.aerodromes[i], E = runwayEnds(r);
     let worst = 0;
+    const prof = runwayProfile(r);
     for (let t = 0; t <= r.len; t += Math.max(2, r.len / 60)) {
       const lx = E.end0[0] + E.d[0] * t, lz = E.end0[1] + E.d[1] * t;
-      const want = A.elev + (+r.slope || 0) * (t - r.len / 2);
+      const want = A.elev + prof.at(t);
       worst = Math.max(worst, Math.abs(O.localH(lx, lz) - want));
     }
     put(worst < 0.05, 'runway ' + r.id + ' on its profile (' + (worst * 100).toFixed(1) + ' cm)');
@@ -4734,8 +4844,8 @@ function collect(globals) {
 
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
-  polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
@@ -5960,7 +6070,7 @@ function makeSim(def, world) {
       }
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
-    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt);
+    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -6077,6 +6187,16 @@ function makeSim(def, world) {
   function impulse(i, ix, iy, iz) { v[i*3]+=ix/m[i]; v[i*3+1]+=iy/m[i]; v[i*3+2]+=iz/m[i]; }
   function wheelsOnGround() {
     let c = 0;
+    // H4 (G393): ON THE WATER the floats are the contacts — each wet float
+    // counts one, and the pair in the displacement regime (the afterbody
+    // wet: not yet on the step) counts a third, so a seaplane at rest reads
+    // three like a taildragger on three points and two once on the step,
+    // which is exactly the tail-down / tail-up split the pilot steers by
+    if (HY) {
+      let wet = 0, aft = 0;
+      for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
+      return wet + (wet === 2 && aft === 2 ? 1 : 0);
+    }
     for (const i of [...def.refs.mains, def.refs.tw]) {
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - r[i] - gh < 0.03) c++;
@@ -6343,6 +6463,7 @@ const DEF = {
   bBow: 0.10,      // half-beam at the bow, m
   bStern: 0.75,    // stern half-beam, as a fraction of B/2
   hSide: 0.24,     // chine to deck, m (at the forebody; the deck is level)
+  bevel: 0.05,     // the deck edge's chamfer, m (G393, the user: "beveled edges"); the chine stays HARD
   nSta: 24,        // stations over the length
   mFloat: 45,      // kg
   cgFloat: [-0.2, 0.15, 0],
@@ -6437,7 +6558,11 @@ function makeFloat(over = {}) {
   for (const s of sta) {
     s.K = push([s.x, s.yk, 0]);
     s.Cm = push([s.x, s.yc, -s.b]); s.Cp = push([s.x, s.yc, s.b]);
-    s.Dm = push([s.x, s.yd, -s.b]); s.Dp = push([s.x, s.yd, s.b]);
+    // the deck edge is a CHAMFER (bevel): the side rises to E, the deck runs
+    // in from D — a rounded gunwale on a real float, one 45-degree facet here
+    const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.b);
+    s.Em = push([s.x, s.yd - bv, -s.b]); s.Ep = push([s.x, s.yd - bv, s.b]);
+    s.Dm = push([s.x, s.yd, -(s.b - bv)]); s.Dp = push([s.x, s.yd, s.b - bv]);
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
@@ -6460,25 +6585,30 @@ function makeFloat(over = {}) {
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
       quad('step', s0.K, s1.K, s1.Cm, s0.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       quad('step', s0.K, s1.K, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
-      tri('step', s0.Cm, s1.Cm, s0.Dm, { side: -1, body: 'A', beta: 0, ref: rs });
-      tri('step', s0.Cp, s1.Cp, s0.Dp, { side: 1, body: 'A', beta: 0, ref: rs });
+      tri('step', s0.Cm, s1.Cm, s0.Em, { side: -1, body: 'A', beta: 0, ref: rs });
+      tri('step', s0.Cp, s1.Cp, s0.Ep, { side: 1, body: 'A', beta: 0, ref: rs });
       continue;
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
     quad(bk, s0.K, s1.K, s1.Cm, s0.Cm, Object.assign({ side: -1, beta: 0.5 * (s0.beta + s1.beta) }, m));
     quad(bk, s0.K, s1.K, s1.Cp, s0.Cp, Object.assign({ side: 1, beta: 0.5 * (s0.beta + s1.beta) }, m));
-    quad('side', s0.Cm, s1.Cm, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
-    quad('side', s0.Cp, s1.Cp, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
+    quad('side', s0.Cm, s1.Cm, s1.Em, s0.Em, Object.assign({ side: -1, beta: 0 }, m));
+    quad('side', s0.Cp, s1.Cp, s1.Ep, s0.Ep, Object.assign({ side: 1, beta: 0 }, m));
+    quad('bevel', s0.Em, s1.Em, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
+    quad('bevel', s0.Ep, s1.Ep, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
     quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
   }
   { // bow cap and stern transom
     const s = sta[0];
-    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: [s.x + 0.05, s.ref[1], 0] });
-    quad('bow', s.Cm, s.Cp, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: [s.x + 0.05, s.ref[1], 0] });
-    const e = sta[sta.length - 1];
-    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: [e.x - 0.05, e.ref[1], 0] });
-    quad('stern', e.Cm, e.Cp, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: [e.x - 0.05, e.ref[1], 0] });
+    const rb = [s.x + 0.05, s.ref[1], 0];
+    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
+    quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
+    quad('bow', s.Em, s.Ep, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: rb });
+    const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
+    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
+    quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
+    quad('stern', e.Em, e.Ep, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: re });
   }
   // orient every panel OUTWARD (its normal away from the section's interior
   // point), and record the rest normal, area and centroid in the float frame
@@ -6754,7 +6884,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
           apply(fv, o.c, T.plan); add(o.Fp, fv, o.Fp);
         }
       } else if (pn.kind !== 'deck' || Vn > 0) {
-        const sym = pn.kind === 'side' || pn.kind === 'bow';
+        const sym = pn.kind === 'side' || pn.kind === 'bevel' || pn.kind === 'bow';
         const pd = 0.5 * rho * P.Cd * (sym ? Vn * Math.abs(Vn) : Math.max(0, Vn) * Vn);
         scl(o.AN, -pd, fv);
         apply(fv, o.c, T.cross); add(o.Fx, fv, o.Fx);
@@ -7244,7 +7374,51 @@ function hydroBuild(def, p, v) {
 // sampled ONCE per float at its step keel (a lake is level; waterH costs
 // 0.7 us and the hull has 130 vertices): the flat-water cut, until (ap)
 // gives the surface a time argument.
-function hydroSolverPass(HY, world, f, simT, dt) {
+// THE WATER RUDDER (H4, G393). A blade under each float's stern keel — a
+// low-aspect fin in the water, `WR_AREA` per float, `WR_DEPTH` deep —
+// steered by the rudder pedals (ctl.dr, nose-left positive: the fin's own
+// convention; the stern goes RIGHT to yaw the nose left) through
+// `WR_TRAVEL`. Side force 1/2 rho V^2 A Cl(alpha) with alpha the blade's
+// angle to the local flow at the stern (its deflection less the stern's
+// own sideslip, so an undeflected blade is a fin: it weathervanes the
+// float INTO the water, which is what stops a seaplane's tail from
+// swinging), Cl 3 per rad, stalled at 0.4 rad; scaled by how much of the
+// blade is under the surface. RETRACTED BY THE PILOT'S RULE: down below
+// WR_UP_V of forward speed with the afterbody wet (taxi, the start of the
+// run), up on the step — a real pilot raises it as the aeroplane comes
+// up, and lowers it after the landing run. Applied at the stern keel
+// through the slab distribution.
+const WR_AREA = 0.06, WR_DEPTH = 0.25, WR_TRAVEL = 35 * Math.PI / 180, WR_UP_V = 12;
+function waterRudder(fx, ctl, water, simT, f) {
+  const F = fx.F, ctx = fx.ctx, out = fx.out;
+  const sK = out.W[F.stern.K];
+  const h = water.h(sK[0], sK[2], simT), dS = h - sK[1];
+  if (!(dS > -WR_DEPTH * 0.2)) { fx.wrDown = 0; return; }
+  const vS = ctx.velAt(sK, v3());
+  const xhat = ctx.xhat, up = [0, 1, 0];
+  const zR = cross(up, xhat); nrm(zR);                          // right = up x aft
+  const Vf = -dot(vS, xhat), vy = dot(vS, zR);
+  const down = Vf < WR_UP_V && out.wetA > 0.05 ? 1 : 0;
+  fx.wrDown = down;
+  if (!down) return;
+  const sub = Math.max(0, Math.min(1, (dS + WR_DEPTH * 0.2) / WR_DEPTH));
+  if (sub <= 0) return;
+  const delta = (ctl ? (ctl.dr || 0) : 0) * WR_TRAVEL;
+  const beta = Math.atan2(vy, Math.max(0.3, Vf));
+  const al = delta - beta;
+  const Cl = Math.max(-1.2, Math.min(1.2, 3.0 * al));
+  const q = 0.5 * F.P.rho * (Vf * Vf + vy * vy);
+  const Fy = q * WR_AREA * sub * Cl;
+  const Fv = [zR[0] * Fy, zR[1] * Fy, zR[2] * Fy];
+  // and its drag, along the flow
+  const Vt = Math.hypot(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
+  const D = q * WR_AREA * sub * Cd;
+  Fv[0] -= vS[0] / Vt * D; Fv[1] -= vS[1] / Vt * D; Fv[2] -= vS[2] / Vt * D;
+  const at = [sK[0], sK[1] - 0.5 * WR_DEPTH * sub, sK[2]];
+  ctx.distribute(at, f, Fv);
+  out.wrForce = Fy; out.wrAlpha = al;
+}
+function hydroSolverPass(HY, world, f, simT, dt, ctl) {
   let wetAny = 0;
   for (const fx of HY.floats) {
     const F = fx.F, ctx = fx.ctx, out = fx.out;
@@ -7252,11 +7426,18 @@ function hydroSolverPass(HY, world, f, simT, dt) {
     const eK = out.W[F.edge.K];
     const h0 = world.waterH ? world.waterH(eK[0], eK[2]) : 0;
     fx.h = h0;
-    if (!(h0 > -1e8) || h0 < eK[1] - 1.0) { fx.wet = 0; zeroTerms(out); continue; }   // dry: a metre clear of the water
-    const water = { h: () => h0, v: () => ZERO3 };
+    if (!(h0 > -1e8) || h0 < eK[1] - 1.5) { fx.wet = 0; zeroTerms(out); continue; }   // dry: well clear of the water
+    // H4 (G393): with a sea state the surface is sampled per vertex, with
+    // the time (ruling ap: the physics reads the same closed form the
+    // renderer draws); a lake, a river, a calm day keep the flat sample
+    const waves = world.sea && world.sea.A > 0 && h0 === 0;
+    const water = waves ? { h: (x, z, t) => world.waterH(x, z, t), v: () => ZERO3 }
+                        : { h: () => h0, v: () => ZERO3 };
+    if (waves) fx.h = world.waterH(eK[0], eK[2], simT);
     hydroPanels(F, ctx, water, simT, out, { mNode: fx.mNode, dt });
     fx.wet = out.wetF + out.wetA + out.wetOther;
     wetAny += fx.wet;
+    waterRudder(fx, ctl, water, simT, f);
     const l = fx.lam;
     for (let k = 0; k < F.panels.length; k++) {
       const o = out.per[k];
@@ -7297,7 +7478,8 @@ function floatParamsFor(grossKg, over) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP };
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP,
+              waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
 })();
@@ -10354,8 +10536,18 @@ function makePilot(sim, def, world, opts) {
       holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
     };
     const groundSteer = () => {
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      const drMax = tailUp ? 0.95 : 0.45;
+      // H4 (G393): ON THE WATER the split is displacement / on the step
+      // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
+      // up on the step and the air rudder alone holds the run, and there is
+      // no castor to over-control: the pedals go to the stop either way.
+      // Measured on the ultralight in a 5 m/s crosswind: with the
+      // taildragger's 0.45 clamp it weathervaned 40 deg on the step and left
+      // the lane 186 m off; with this, see the H4 entry.
+      const onWater = !!(sim.hydro);
+      // (GATE TAKEOFF reads this line by regex: the tail-state schedule first)
+      const tailUp = rotateTD && !onWater && onG <= 2 && thRest !== null && (thRest - th) > 0.04
+                  || (onWater && onG <= 2 && V > 6);
+      const drMax = tailUp ? 0.95 : (onWater ? 0.9 : 0.45);
       // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
       // branch below already schedules on (VTailUp/V)^2 once the tail is up;
       // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the

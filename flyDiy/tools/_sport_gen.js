@@ -40,7 +40,9 @@ const T = (typeof THREE !== 'undefined') ? THREE : null;
 const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ color: col, roughness: 0.95, metalness: 0.0 }, o || {})) : { color: col };
 const MAT = {
   turf: std(0x4f7a34), dirt: std(0x9a7a55, { roughness: 1.0 }), court: std(0x5c6a63, { roughness: 0.85 }),
-  track: std(0x9a3f33, { roughness: 0.9 }), line: std(0xf2f2ee, { roughness: 0.8 }),
+  track: std(0x9a3f33, { roughness: 0.9 }),
+  // the lines win the depth fight with the lot patch (which pulls itself toward the camera by 3 units)
+  line: std(0xf2f2ee, { roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }),
   metal: std(0xd9dcdf, { roughness: 0.45, metalness: 0.6 }), post: std(0x6b5a45, { roughness: 0.9 }),
   net: std(0xcfd3d6, { roughness: 0.9, transparent: true, opacity: 0.35, side: T ? T.DoubleSide : 2, depthWrite: false }),
   seat: std(0x8a8f96, { roughness: 0.7, metalness: 0.3 }),
@@ -63,7 +65,7 @@ const DEF = {
   lanes: 6, laneW: 1.1,
   // the court
   hoops: 1,
-  aoGround: 1, seed: 1,
+  aoGround: 1, seed: 1, weather: 0.6,
 };
 const ROWS = [
   ['the ground', [
@@ -87,7 +89,7 @@ const ROWS = [
     ['stand', 'a stand', 0, 1, 1], ['standRows', 'rows', 2, 8, 1, null, P => !!P.stand], ['standLenF', 'its length', 0.2, 1, 0.05, null, P => !!P.stand],
     ['lights', 'floodlights', 0, 1, 1], ['masts', 'masts', 2, 6, 2, null, P => !!P.lights], ['mastH', 'mast height', 8, 22, 0.5, null, P => !!P.lights],
     ['fence', 'chain-link round it', 0, 1, 1], ['fenceH', 'fence height', 1.2, 4, 0.1, null, P => !!P.fence],
-    ['aoGround', 'ground skirt', 0, 1, 1],
+    ['aoGround', 'ground skirt', 0, 1, 1], ['weather', 'weathering', 0, 1, 0.05],
   ]],
 ];
 
@@ -244,6 +246,67 @@ function fenceRun(bags, Q, a, b, y, h, step) {
   face(bags.net, [[a[0], y, a[1]], [b[0], y, b[1]], [b[0], y + h, b[1]], [a[0], y + h, a[1]]], nrm2, uvFrame([a[0], y, a[1]], [d[0] / l, 0, d[1] / l], [0, 1, 0]));
 }
 
+// ---- THE TURF (G393, the user: "the grass really lacks macro variation and
+// detailed textures. They're much, much too clean. Can you generate patches
+// of lusher/deader grass?"): the field's grass is the LOT GROUND PATCH the
+// village lays under a house (src/viewer/lot_tex.js, five scanned sets
+// blended per vertex) - the generator publishes `stats.turf` in that
+// contract: a grid over the ground with per-vertex SPLAT weights (x the
+// lush/yellow drift on a slow noise, y the DEAD ground - the goalmouths, the
+// centre circle, the touchline where the players run, the base paths - z the
+// bare dirt, w pebbles) and TONE (x darkness, y lushness). The flat turf bag
+// stays for the headless gate and any viewer without the material.
+function vHash(x, z, k) { const h = Math.sin(x * 12.9898 + z * 78.233 + (k || 0) * 37.71) * 43758.5453; return h - Math.floor(h); }
+function vNoise(x, z, k) {
+  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+  const a = vHash(ix, iz, k), b = vHash(ix + 1, iz, k), c = vHash(ix, iz + 1, k), d = vHash(ix + 1, iz + 1, k);
+  return (a + (b - a) * sx) + ((c + (d - c) * sx) - (a + (b - a) * sx)) * sz;
+}
+function fbm(x, z, k, n) { let v = 0, a = 0.5, f = 1, t = 0; for (let i = 0; i < (n || 3); i++) { v += a * vNoise(x * f + i * 7.3, z * f + i * 3.1, k + i); t += a; a *= 0.5; f *= 2.1; } return v / t; }
+function turfPlan(P, kind, ground, extra) {
+  const y = P.floorY + 0.006, cell = 1.5, seed = (P.seed | 0) * 13;
+  const x0 = ground.x0 - 1.0, x1 = ground.x1 + 1.0, z0 = ground.z0 - 1.0, z1 = ground.z1 + 1.0;
+  const nx = Math.max(2, Math.ceil((x1 - x0) / cell)), nz = Math.max(2, Math.ceil((z1 - z0) / cell));
+  const pos = [], uv = [], splat = [], tone = [], alpha = [], idx = [];
+  const gauss = (dx, dz, r) => Math.exp(-(dx * dx + dz * dz) / (r * r));
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    const x = x0 + (x1 - x0) * i / nx, z = z0 + (z1 - z0) * j / nz;
+    pos.push(x, y, z); uv.push(x / 2.0, z / 2.0);
+    // the slow drift and the patches: lusher here, deader there
+    const lush = fbm(x * 0.05 + 3, z * 0.05 + 7, seed + 1, 3), dead = fbm(x * 0.13 + 1, z * 0.13 + 9, seed + 5, 3);
+    let dry = Math.max(0, dead - 0.55) * 2.2, dirt = 0, peb = 0, inside = 1;
+    if (kind === 0 || kind === 2) {
+      // the wear: the two goalmouths, the centre circle, the touchlines
+      for (const gx of [-P.L / 2, P.L / 2]) dry = Math.max(dry, 0.9 * gauss(x - gx, z, 5.5) * (Math.abs(x) < P.L / 2 + 0.5 ? 1 : 0));
+      dry = Math.max(dry, 0.5 * gauss(x, z, 4.0));
+      const tl = Math.abs(Math.abs(z) - P.w / 2);
+      if (tl < 1.2 && Math.abs(x) < P.L / 2) dry = Math.max(dry, 0.45 * (1 - tl / 1.2) * (0.6 + 0.4 * dead));
+      if (kind === 2 && extra && extra.r0) { const d = Math.hypot(Math.max(0, Math.abs(x) - extra.Ls / 2), z); if (d > extra.r0 - 0.5) inside = 0; }
+    } else if (kind === 1 && extra) {
+      // the diamond: nothing inside the skin (dirt is drawn), the outfield
+      // worn along the base paths' ends, dead beyond the fence
+      const dx = x - extra.plate[0], dz = z - extra.plate[1], d = Math.hypot(dx, dz);
+      const ang = Math.atan2(dz, dx);
+      if (d > extra.R - 0.3 || ang > -Math.PI / 4 + 0.02 || ang < -Math.PI * 3 / 4 - 0.02) inside = 0;
+      if (d < extra.skinR + 0.3) inside = 0;
+      dirt = Math.max(0, 1 - Math.abs(d - extra.skinR) / 1.2) * 0.6;
+      dry = Math.max(dry, 0.5 * gauss(d - extra.R + 3, 0, 2.5));
+    } else if (kind === 3) inside = 0;
+    // the edge: the patch fades out over its last cell round the ground
+    const ex = Math.min(x - x0, x1 - x) / 1.6, ez = Math.min(z - z0, z1 - z) / 1.6;
+    const a = inside * Math.max(0, Math.min(1, ex, ez));
+    splat.push(lush, Math.min(1, dry), Math.min(1, dirt), peb);
+    tone.push(0, lush > 0.62 ? (lush - 0.62) * 2.5 : 0);
+    alpha.push(a);
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  return { pos, uv, splat, tone, alpha, idx, cell, n: [nx + 1, nz + 1] };
+}
+
 // ---- the build ---------------------------------------------------------------
 function build(P0, lod) {
   const P = Object.assign({}, DEF, P0 || {});
@@ -281,6 +344,7 @@ function build(P0, lod) {
       }
       if (P.lines) line(bags.line, [Ls / 2 - 6, -r0], [Ls / 2 - 6, -r1], y + 0.018, 0.10);
       xIn = -Ls / 2 - r1 - 0.5; xOut = Ls / 2 + r1 + 0.5; zIn = -r1 - 0.5; zOut = r1 + 0.5;
+      out.oval = { Ls, r0, r1 };
       // the infield turf fills the inner oval
       const Ni = 64;
       for (let i = 0; i < Ni; i++) {
@@ -357,7 +421,7 @@ function build(P0, lod) {
       let prev = null; const Nf = 30;
       for (let i = 0; i <= Nf; i++) { const a = a0 + (a1 - a0) * i / Nf; const q = [Math.cos(a) * R, hz + Math.sin(a) * R]; if (prev) fenceRun(bags, Q, prev, q, y, P.fenceH, 3.0); prev = q; }
     }
-    out.plate = { x: 0, z: hz }; out.bases = [first, second, third];
+    out.plate = { x: 0, z: hz }; out.bases = [first, second, third]; out.diamond = { plate: [0, hz], R, skinR };
     ground = { x0: -R * Math.SQRT1_2 - 1, x1: R * Math.SQRT1_2 + 1, z0: hz - R - 1, z1: hz + 8 };
   } else {
     // THE HARD COURT: the slab, a basketball court's lines, the hoops
@@ -401,6 +465,8 @@ function build(P0, lod) {
     out.fence = { x0, x1, z0, z1, gate: [-2, 2] };
   }
   if (P.aoGround && occ.length) HG.buildGroundAO(bags.aoskirt, occ, () => y - 0.005);
+  // the grass as the lot ground patch's record (the viewer draws it over the flat turf)
+  const turf = Math.round(P.surface) === 2 ? null : turfPlan(P, kind, ground, kind === 2 ? out.oval : (kind === 1 ? out.diamond : null));
   // ---- the numbers
   let tris = 0, verts = 0, nan = 0; const per = {};
   const bb = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
@@ -414,14 +480,30 @@ function build(P0, lod) {
   }
   const stats = Object.assign({
     lod: Q.lod, tris, verts, per, bbox: bb, nan, degen: 0, kind: KINDS[kind], role: 'sports', foot: PL.foot,
-    ground, stand: st, lit: { windows: 0, panes: 0, bulbs: 0, lights }, groundAO: occ, floorY: y,
+    ground, stand: st, turf, lit: { windows: 0, panes: 0, bulbs: 0, lights }, groundAO: occ, floorY: y,
     ridgeY: bb.y1, eaveY: 0, footprint: (ground.x1 - ground.x0) * (ground.z1 - ground.z0), area: 0, surface: SURFACES[Math.round(P.surface)],
   }, out);
   return { bags, stats, P, MAT };
 }
+const SHADE_U = T ? HG.makeShadeU() : null;
 function applyFinish(P) {
   if (!T) return;
   MAT.turf.color.setHex(Math.round(P.surface) === 1 ? SURF_COL[1] : SURF_COL[0]);   // gravel is the dirt bag's colour
+  // THE WEATHERING (G393, the user: "some overall weathering of the
+  // materials"): the house's dirt ramp and repetition breaker on every
+  // surface, the weather clouds (bleach / brown / blacken) on the track,
+  // the court, the dirt, the lines and the stand - a painted line that has
+  // seen a season is not pure white
+  for (const k of ['dirt', 'court', 'track', 'line', 'metal', 'post', 'seat']) HG.shadeHouse(MAT[k], SHADE_U);
+  for (const k of ['court', 'track', 'line', 'dirt', 'seat']) HG.cloudWeather(MAT[k], P.weather === undefined ? 0.6 : P.weather, 0);
+  HG.shadeSkirt(MAT.aoskirt);
+  SHADE_U.uDirtTop.value = P.floorY + 0.6; SHADE_U.uDirtH.value = 0.6;
+  SHADE_U.uDirtK.value = 0.35; SHADE_U.uNoiseK.value = 0.35; SHADE_U.uAOd.value = 0.3; SHADE_U.uSag.value = 0;
+  for (const k of ['dirt', 'court', 'track', 'line', 'metal', 'post', 'seat']) {
+    const ud = MAT[k].userData && MAT[k].userData.dirt; if (!ud) continue;
+    ud.uDirtGain.value = k === 'line' ? 1.4 : (k === 'post' ? 1.3 : 0.9); ud.uAgeDesat.value = k === 'post' ? 0.5 : 0; ud.uAgeDark.value = k === 'post' ? 0.3 : 0;
+    ud.uDirtOwn.value.setHex(k === 'track' ? 0x5a3a30 : 0x6d6353); ud.uWander.value = 0;
+  }
 }
 function randomSport(seed) {
   let st = ((seed | 0) * 2654435761 + 7) >>> 0;
@@ -434,7 +516,8 @@ function randomSport(seed) {
   return P;
 }
 
-window.SPORT_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, KINDS, SURFACES, build, plan, applyFinish, randomSport };
+const catOf = () => 'sports';
+window.SPORT_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, KINDS, SURFACES, build, plan, applyFinish, randomSport, catOf };
 // THE CATALOGUE (PREMISES-CONTRACT section 2): a ground the world flattens
 window.SPORT_GEN.CATALOGUE_V = 1;
 window.SPORT_GEN.CATALOGUE_ALIASES = {};
@@ -446,6 +529,6 @@ window.SPORT_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
     size: P => { const pl = plan(Object.assign({}, Pd, P || {})); return { L: pl.L + 2 * pl.m, w: pl.w + 2 * pl.m }; },
     hooks: () => [], hooksOf: () => [], lod: { dist: [0, 200, 600, 1500] },
     slots: { lights: 'stats.lit.lights', ao: 'stats.groundAO' },
-    tags: ['institution', 'sports', KINDS[Math.round(Pd.kind)]], role: 'sports', headless: true, gate: 'HOUSE' };
+    tags: ['institution', 'sports', KINDS[Math.round(Pd.kind)]], role: 'sports', cat: 'sports', headless: true, gate: 'HOUSE' };
 });
 })();

@@ -45712,6 +45712,83 @@ small".
   out of sight, as it should.
 - Gates: PREMISES green (244 checks over 5 fixtures).
 
+## G393 — THE REVIEW ANSWERED: CATEGORIES AS DATA, THE BIG BUILDINGS DRESSED BY THE HOUSE, THE STOREFRONT ROW, THE FIELDS' GRASS (2026-09-14)
+
+The user, on G392's big buildings: "really not detailed enough. Lots of
+intersections in the billboards, very little facade detail, squeezed
+billboards. No habillage of the doors, windows, no support pillars.
+Ill-placed billboards, and you did not use all of them. Plus I want
+separated industrial, official and commercial. The commercial buildings
+should be a lot more appealing. Roof in the middle of windows. Transparent,
+unlit windows. No props. ... why we can't just reuse the mechanics, vary
+the props? We also have to isolate the landmarks from the normal houses.
+And the sheds from the houses." And on the sports grounds: "the grass
+really lacks macro variation and detailed textures ... patches of
+lusher/deader grass ... overall weathering ... this will be the base for
+the categorization in the asset editor".
+
+- THE CATEGORIES ARE DATA: `HOUSE_GEN.CATEGORIES` = residential / shed /
+  commercial / industrial / official / landmark / sports; every generator
+  exports `catOf(name)` (HOUSE_GEN's `CATS` table + a preset's own `cat`,
+  SHED_GEN all shed, BIG_GEN's table, SPORT_GEN sports) and every catalogue
+  entry carries `cat`. The house bench's model select is now a CATEGORY
+  select listing every preset of the four generators under its word (an
+  option carries its generator; `[big]`/`[shed]`/`[sport]` after the name).
+  The mill, the tram stations and the mine's halls are landmarks; the
+  outbuildings and the barn are sheds; the cannery row is industrial.
+- THE BIG BUILDINGS REUSE THE HOUSE'S MECHANICS: `_big_gen.js` carries a
+  house finish (`makeFinish` -> HF; glass/trim/pane are the house's
+  materials, dressed by `HG.applyFinish(houseP(P), HF)`), opens the house's
+  lit log (`HG.litBegin`) and dresses every opening with `HG.dressOpening`:
+  personnel doors get the house's leaf, casing and lamp; strips and shop
+  windows the casing, the sill, the pane with its lit channel (the band's
+  own mullions over it); roller openings a casing round the slats. Added:
+  corner boards, a frieze under the eave/cornice, posts under a canopy
+  (`pillars`; the canopy also over the doors of the pool and the athletic
+  centre), a yard of the house's props along the front and out in the yard
+  (`yard`/`yardK`/`yardSeed`, `stats.yard` in the house's shape), two people
+  (`stats.people`), bulkhead lanterns over the bays (`lights`). THE STRIPS
+  open UNDER THE ROOF DECK on a flat roof (they sat in the parapet - the
+  "roof in the middle of windows") and keep half a metre under a gable end's
+  eave. THE SIGN keeps its aspect: a board is NARROWED to the band it gets,
+  never squeezed; the bands are the parapet under the cornice, the wall
+  between the openings and the strip/eave, the fascia off a canopy; when
+  none gives three quarters of the asked width, a ROOF SIGN stands on two
+  posts over the eave or the parapet cap (the store's way); backing in trim.
+  The workshop wears the SITKA SPRUCE LUMBER board.
+- THE STOREFRONT ROW in HOUSE_GEN (the commercial buildings ARE houses):
+  `shopWin` (a wide low-silled window beside the door, the house's casing
+  and pane, no sash bars), `awning` over it (its own flat bag, `awningCol`),
+  `falseFront`/`frontH` (the boarded parapet over the eave with returns,
+  cornice and cap; the sign goes on it, `at: 'front'`), `doorN` (a row of
+  doors along the front - the motel). Presets, one per billboard: general
+  store, cafe, motel, air taxi office, marine supply, fuel and bait, bear
+  tours (commercial), vet clinic (official, the eighth civic sign). BIG_GEN's
+  store/cafe/motel stay as the industrial-built variants.
+- THE FIELDS' GRASS IS THE LOT PATCH: SPORT_GEN publishes `stats.turf` in
+  LOT_GROUND's contract (pos/uv/splat/tone/alpha/idx over the ground on a
+  1.5 m grid): splat.x the lush/yellow drift, .y the DEAD ground (the
+  goalmouths, the centre circle, the touchlines, the diamond's paths, dead
+  patches on a finer noise), .z dirt round the infield skin; alpha fades at
+  the edge and is 0 where dirt/track/court is drawn. The bench draws it with
+  `LOT_GROUND.mesh` over the flat turf bag (which stays for the gate and any
+  viewer without the material); the lines take a polygon offset to win the
+  depth fight. Every other material takes the house's dirt ramp, repetition
+  breaker and weather clouds (`weather` dial) - worn paint, dirty track.
+- Rules: 40 covers every preset with a sign (the false-front place, the
+  post sign measured from the ground); the sign falls back to posts when the
+  wall under the eave has no board's worth. Green: HOUSE, VILLAGE, PREMISES,
+  MEDIA.
+- SEEN: cafe (BIG): roof sign whole, casings, pane, awning, props, John;
+  workshop: SITKA SPRUCE LUMBER, strip in its casing, tyres and pallets;
+  general store: false front with the board, boardwalk, awning; motel: six
+  doors down the walkway; soccer field and ball park with worn goalmouths,
+  dead patches, the infield skin.
+- OWED: the interior behind a shop window (a black hole by day - a dark
+  warm backing panel); a real overhead-door leaf and an apron for the wing
+  bays; the premises bench/game loading _sport_gen.js + lot_tex for the
+  turf; the vehicles, the PLANT tool, the hangar x3, landmarks, animals.
+
 ## G392 — JOLENE ISLAND: THE RULINGS, EVERY LAYER ON THE BENCH, TREES SIZED BY
 ## THE CANOPY (2026-09-14, the user: "Call it Jolene Island. Metlakatla
 ## survives. The WWII is the opening airfield ... I'd rather manage all the

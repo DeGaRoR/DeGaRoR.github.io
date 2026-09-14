@@ -57,12 +57,9 @@
 
 <header>
   <h1>house bench</h1>
-  <label>model <select id="modelSel">
-    <option value="house">house</option>
-    <option value="shed">shed (plank by plank)</option>
-    <option value="big">big building (industrial, commercial)</option>
-    <option value="sport">sports ground (fields, courts)</option>
-  </select></label>
+  <!-- THE CATEGORIES (G393): one list across the four generators, by the word
+       each preset declares (HOUSE_GEN.CATEGORIES) - the asset editor's own order -->
+  <label>category <select id="modelSel"></select></label>
   <label>preset <select id="presetSel"></select></label>
   <label>show <select id="lodSel">
     <option value="0">high poly</option>
@@ -140,6 +137,8 @@
 <script src="_big_gen.js"></script>
 <!-- THE SPORTS GROUNDS (G392): fields, the diamond, the track, the court -->
 <script src="_sport_gen.js"></script>
+<!-- the lot ground patch's material (G378): the fields' grass rides on it -->
+<script src="../src/viewer/lot_tex.js"></script>
 <script src="_tram_gen.js"></script>
 <!-- THE TRAM CABIN (G343): the baked prop, its liveries, and the dresser -->
 <script src="../src/cabin/cabin_cabin.js"></script>
@@ -497,7 +496,10 @@ function siteMesh(g, R, foot) {
 function addBuild(parent, built, dx) {
   const grp = new THREE.Group();
   grp.position.x = dx || 0;
-  for (const k of GEN.BAGS) built.bags[k].mesh(grp, (GEN.MAT || G.MAT)[k]);
+  // THE FIELD'S GRASS IS THE LOT PATCH (G393): drawn from stats.turf with the
+  // village's five-set material, over (instead of) the flat turf bag
+  const turfDrawn = !!(built.stats.turf && window.LOT_GROUND && LOT_GROUND.mesh(THREE, grp, built.stats.turf, draw));
+  for (const k of GEN.BAGS) if (!(turfDrawn && k === 'turf')) built.bags[k].mesh(grp, (GEN.MAT || G.MAT)[k]);
   // the ground shadow skirt (G281): polygons on the ground, drawn after the
   // opaque site, never into depth
   if (built.bags.aoskirt) {
@@ -1088,22 +1090,33 @@ function buildPanel() {
 
 // ---- presets and export ---------------------------------------------------
 const psel = $('presetSel');
+// THE CATEGORY LIST (G393): every preset of every generator under the word it
+// declares; a preset's option carries its generator, so the category select
+// replaces the model select and the generator follows the preset
+const GENS = { house: G, shed: SH, big: BG, sport: SP };
+const CATALOG = [];
+for (const [gk, GG] of Object.entries(GENS)) for (const n of Object.keys(GG.PRESETS)) CATALOG.push({ gen: gk, name: n, cat: GG.catOf(n) || 'uncategorised' });
+{
+  const msel = $('modelSel');
+  for (const c of G.CATEGORIES.concat(CATALOG.some(e => e.cat === 'uncategorised') ? ['uncategorised'] : [])) {
+    const o = document.createElement('option'); o.value = c; o.textContent = c + ' (' + CATALOG.filter(e => e.cat === c).length + ')';
+    msel.appendChild(o);
+  }
+}
 function fillPresets() {
   psel.innerHTML = '';
-  for (const n of Object.keys(GEN.PRESETS)) {
-    const o = document.createElement('option'); o.value = n; o.textContent = n;
+  for (const e of CATALOG.filter(e => e.cat === $('modelSel').value)) {
+    const o = document.createElement('option'); o.value = e.gen + ':' + e.name; o.textContent = e.name + (e.gen === 'house' ? '' : '  [' + e.gen + ']');
     psel.appendChild(o);
   }
 }
-function applyPreset(n) {
+function applyPreset(v) {
+  const [gk, n] = v.indexOf(':') >= 0 ? [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)] : ['house', v];
+  GEN = GENS[gk] || G;
   P = Object.assign({}, GEN.DEF, GEN.PRESETS[n] || {});
   buildPanel(); syncVis(); build();
 }
-$('modelSel').onchange = e => {
-  GEN = e.target.value === 'shed' ? SH : (e.target.value === 'big' ? BG : (e.target.value === 'sport' ? SP : G));
-  fillPresets();
-  applyPreset(psel.value);
-};
+$('modelSel').onchange = () => { fillPresets(); applyPreset(psel.value); };
 psel.onchange = e => applyPreset(e.target.value);
 const rollOne = sd => {
   P = GEN === SH ? SH.randomShed(sd) : (GEN === BG ? BG.randomBig(sd) : (GEN === SP ? SP.randomSport(sd) : G.randomHouse(sd)));
@@ -1255,6 +1268,6 @@ window.HOUSE_UI = {
 fillPresets();
 buildPanel();
 buildSky();
-applyPreset(Object.keys(G.PRESETS)[0]);
+applyPreset(psel.value);
 })();
 </script>

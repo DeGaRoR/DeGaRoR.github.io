@@ -635,7 +635,10 @@ function applyFinish(P) {
   HG.dressSlot('siding', 'deck', P.wallSet, P.wallCol, 0x9c8a6f);
 }
 
+// every plank-by-plank shed is a SHED (G393's categories: HOUSE_GEN.CATEGORIES)
+const catOf = () => 'shed';
 window.SHED_GEN = {
+  catOf,
   DEF: DEF, ROWS: ROWS, PRESETS: PRESETS, BAGS: BAGS, MAT: HG.MAT,
   build: build, randomShed: randomShed, applyFinish: applyFinish,
   libSets: HG.libSets, isShed: true,

@@ -1627,7 +1627,7 @@ for (const name of Object.keys(HG.PRESETS)) {
 //   preset as a plain house (wing off), so every house rule holds it too.
 for (const name of Object.keys(HG.PRESETS)) {
   const pre = HG.PRESETS[name];
-  if (!pre.role && !pre.wing && !pre.tower) continue;
+  if (!pre.role && !pre.wing && !pre.tower && !pre.signKey) continue;
   if (pre.mill || pre.station) continue;
   const P = Object.assign({}, HG.DEF, pre);
   let hi = null, lo = null, threw = null;
@@ -1647,9 +1647,10 @@ for (const name of Object.keys(HG.PRESETS)) {
       check(S.nz === 1 && S.nx === 0, name + ': the sign does not face the road');
       const wall = P.w / 2;
       if (S.at === 'wall') check(S.z > wall && S.z < wall + 0.2 && S.y - S.h / 2 > P.floorY + 1.9, name + ': the wall sign is not on the front wall over the door', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
+      else if (S.at === 'front') check(S.z > wall && S.z < wall + 0.2 && S.y - S.h / 2 > P.floorY + P.storeys * P.floorH, name + ': the false-front sign is not on the false front', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
       else if (S.at === 'porch roof') check(S.z > wall + 0.5 && S.z < wall + P.porchD + 0.3 && S.y - S.h / 2 > P.floorY + 2.0, name + ': the porch-roof sign does not stand on the roof edge', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
       else if (S.at === 'fascia') check(S.z > wall + 0.5 && S.z < wall + P.porchD + 0.3 && S.y - S.h / 2 > P.floorY + 2.0, name + ': the fascia sign is not hung off the porch roof with headroom', S.z.toFixed(2) + ' ' + S.y.toFixed(2));
-      else check(S.z > wall + 1.5 && S.y - S.h / 2 > 1.0, name + ': the post sign is not on the lawn in front', S.z.toFixed(2));
+      else check(S.z > wall + 1.5 && S.y - S.h / 2 > hi.stats.ground(S.x, S.z) + 1.0, name + ': the post sign is not on the lawn in front', S.z.toFixed(2));
       check(S.key === pre.signKey, name + ': the sign carries another key');
     }
   }

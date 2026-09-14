@@ -121,11 +121,12 @@ function makeMats() {
   // town hall's pole; cloth, so both sides
   flag:   std(0x1b3f92, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),
   star:   std(0xf0c44a, { roughness: 0.8, side: THREE.DoubleSide, userData: { flat: true } }),
+  awning: std(0x7a2a24, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),   // the storefront's canvas (G393)
 };
 }
 const MAT = makeMats();
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
-              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend', 'flag', 'star',
+              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend', 'flag', 'star', 'awning',
               'steel', 'girder',   // the tram's structure (G341)
               // A SECOND AND A THIRD CLADDING (G349, the user: "vary the color and
               // materials of the walls for the 3 components"): a composite's
@@ -1385,6 +1386,7 @@ function applyFinish(P, F) {
   MAT.pile.color.multiplyScalar(0.78);
   dressMat(MAT.stone, setFor(P, 'stone'), 0,
           { flat: 0x8e8b85, nrm: NRM.stone });
+  if (MAT.awning) MAT.awning.color.setHex(COLS[clamp(Math.round(P.awningCol === undefined ? 1 : P.awningCol), 0, COLS.length - 1)][1]);
   dressMat(MAT.metal, setFor(P, 'metal'), P.metalCol,
           { flat: 0xb4bcc2, nrm: NRM.metal, rough: 0.85 });
   // THE TRAM'S STEEL (G342): the grey set on, the rust set mixed in by
@@ -1528,6 +1530,12 @@ const DEF = {
   role: '',
   // THE SIGN SLOT (G392): a baked billboard's key, the board's width, on the wall or on posts
   signKey: '', signW: 2.6, signAt: 0,
+  // THE STOREFRONT (G393, the user: "the commercial buildings should be a lot
+  // more appealing ... reuse the mechanics"): a shop window beside the door
+  // under its awning, a false front over the eave with its cornice (the
+  // sign goes on it), and a row of doors along the front for a motel
+  shopWin: 0, shopW: 3.2, shopH: 2.0, shopSill: 0.55, awning: 0, awningCol: 1,
+  falseFront: 0, frontH: 1.2, doorN: 1,
   // drainage
   gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045, barrel: 1, barrelKind: 0,
   // HOW BIG THE CHAMFER ON AN ARRIS IS. Six millimetres: enough for a facet
@@ -1563,6 +1571,29 @@ const DEF = {
   // it is allowed on direct light
   ao: 0.85, aoRange: 0.55, aoDirect: 0.35,
 };
+
+// THE CATEGORIES (G393, the user: "I want separated industrial, official and
+// commercial ... isolate the landmarks from the normal houses. And the sheds
+// from the houses ... this will be the base for the categorization in the
+// asset editor"). One word per preset, the same seven words in every
+// generator; the bench lists by category, the catalogue tags by it, and
+// GATE HOUSE refuses a preset without one.
+const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official', 'landmark', 'sports'];
+const CATS = {
+  'shore cabin': 'residential', 'village house': 'residential', 'modern dark': 'residential', 'over the water': 'residential',
+  'saltbox farmhouse': 'residential', 'saltbox cottage': 'residential', 'hip cottage': 'residential', 'bunkhouse': 'residential',
+  'log cabin': 'residential', 'mine cottage': 'residential', 'mine bunkhouse': 'residential',
+  'outhouse': 'shed', 'garage': 'shed', 'storage shed': 'shed', 'woodshed': 'shed', 'gambrel barn': 'shed',
+  'cannery shed': 'industrial', 'fish shack': 'industrial', 'net loft': 'industrial',
+  'village church': 'official', 'church': 'official', 'chapel': 'official', 'town hall': 'official',
+  'lighthouse': 'official', 'lighthouse octagon': 'official', 'school': 'official', 'clinic': 'official',
+  'police': 'official', 'post office': 'official', 'vet clinic': 'official',
+  'general store': 'commercial', 'cafe': 'commercial', 'motel': 'commercial', 'air taxi office': 'commercial',
+  'marine supply': 'commercial', 'fuel and bait': 'commercial', 'bear tours': 'commercial',
+  'tram top station': 'landmark', 'tram base station': 'landmark', 'kennecott mill': 'landmark',
+  'mine dormer hall': 'landmark', 'mine mess hall': 'landmark', 'mine office': 'landmark',
+};
+const catOf = name => CATS[name] || (PRESETS[name] && PRESETS[name].cat) || null;
 
 const FAMS = ['gable', 'shed', 'saltbox', 'gambrel'];
 const STANCES = ['slab', 'cripple wall', 'posts', 'piles', 'skids'];
@@ -1788,6 +1819,14 @@ const ROWS = [
     ['signKey', 'billboard', 0, 0, 1, [''].concat(Object.keys((typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || {}))],
     ['signW', 'width', 0.8, 6, 0.1, null, P => !!P.signKey],
     ['signAt', 'where', 0, 1, 1, ['over the door', 'on posts by the path'], P => !!P.signKey],
+  ]],
+  ['the storefront', [
+    ['shopWin', 'shop window', 0, 1, 1],
+    ['shopW', 'its width', 1.5, 6, 0.1, null, P => !!P.shopWin], ['shopH', 'its height', 1.2, 3, 0.05, null, P => !!P.shopWin],
+    ['shopSill', 'its sill', 0.2, 1.2, 0.05, null, P => !!P.shopWin],
+    ['awning', 'awning over it', 0, 1, 1, null, P => !!P.shopWin], ['awningCol', 'canvas', 0, COLS.length - 1, 1, COL_NAMES, P => !!P.shopWin && !!P.awning],
+    ['falseFront', 'false front', 0, 1, 1], ['frontH', 'over the eave', 0.4, 3, 0.05, null, P => !!P.falseFront],
+    ['doorN', 'doors along the front', 1, 8, 1, null, P => !!P.door],
   ]],
   ['the tram station', [
     ['station', 'the tram station: 1 the top, 2 the base', 0, 2, 1],
@@ -2138,6 +2177,125 @@ const PRESETS = {
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
     metalSet: SET_IDX('metal', 'galv'), metalCol: 0,
     deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  // THE COMMERCIAL ROW (G393, the user: "the commercial buildings should be a
+  // lot more appealing ... reuse the mechanics"): houses with a storefront -
+  // the shop window under its awning, the false front with the sign on it,
+  // a boardwalk deck, the house's own dressing, yard and people. One per
+  // billboard the user painted.
+  'general store': {
+    L: 12.0, w: 9.0, storeys: 1, floorH: 3.3, roofFam: 1, pitch: 10, eaveOver: 0.06, rakeOver: 0.35, corner: 0,
+    stance: 1, floorY: 0.7, slopeZ: 1,
+    nFront: 1, nBack: 2, nLeft: 1, nRight: 1, winW: 1.2, winH: 1.4, winSill: 0.9, muntin: 1,
+    doorPos: 0.28, doorW: 1.15, doorH: 2.2, doorLight: 1,
+    shopWin: 1, shopW: 3.6, shopH: 2.1, shopSill: 0.6, awning: 1, awningCol: 9, falseFront: 1, frontH: 1.5,
+    porch: 1, porchD: 2.6, porchLenF: 1.0, porchOff: 0, porchRoof: 0, railStyle: 0, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.11,
+    gutter: 0, downpipe: 0, barrel: 0, skirt: 0, ribs: 0, backDoor: 1, backPorch: 1,
+    signKey: 'general_store', signW: 5.0, signAt: 0, yard: 1, yardK: 0.5, woodpile: 0, boat: 0, people: 1, curtains: 0.2,
+    weather: 0.3, paintPunch: 0.9, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 9,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0, deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  'cafe': {
+    L: 9.0, w: 7.5, storeys: 1, floorH: 3.0, roofFam: 0, pitch: 24, eaveOver: 0.5, rakeOver: 0.4, corner: 0,
+    stance: 1, floorY: 0.7, slopeZ: 1,
+    nFront: 1, nBack: 2, nLeft: 1, nRight: 1, winW: 1.1, winH: 1.3, winSill: 0.9, muntin: 1,
+    doorPos: 0.72, doorW: 1.05, doorH: 2.15, doorLight: 1,
+    shopWin: 1, shopW: 2.8, shopH: 1.8, shopSill: 0.7, awning: 1, awningCol: 1, falseFront: 0,
+    porch: 1, porchD: 2.4, porchLenF: 0.9, porchOff: 0, porchRoof: 0, railStyle: 1, stairs: 1,
+    chim: 1, chimXF: -0.55, chimZF: -0.3, chimR: 0.11,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    signKey: 'tidal_cup', signW: 3.4, signAt: 0, yard: 1, yardK: 0.4, woodpile: 0, boat: 0, people: 1, curtains: 0.5,
+    weather: 0.3, paintPunch: 0.9, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 11, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8, deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
+  },
+  // the motel: a row of doors down a long porch, a window between each pair
+  'motel': {
+    L: 24.0, w: 8.0, storeys: 1, floorH: 2.8, roofFam: 0, pitch: 20, eaveOver: 0.5, rakeOver: 0.4, corner: 0,
+    stance: 1, floorY: 0.6, slopeZ: 1,
+    nFront: 12, nBack: 6, nLeft: 1, nRight: 1, winW: 1.1, winH: 1.2, winSill: 0.95, muntin: 0,
+    door: 1, doorN: 6, doorPos: 0.08, doorW: 0.95, doorH: 2.1, doorLight: 0,
+    shopWin: 0, awning: 0, falseFront: 0,
+    porch: 1, porchD: 2.2, porchLenF: 1.0, porchOff: 0, porchRoof: 2, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.8, chimZF: -0.3, chimR: 0.10,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 0,
+    signKey: 'north_motel', signW: 3.2, signAt: 1, yard: 1, yardK: 0.3, woodpile: 0, boat: 0, people: 1, curtains: 0.8,
+    weather: 0.35, paintPunch: 0.9, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 3, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'galv'), roofCol: 0, deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  'air taxi office': {
+    L: 8.0, w: 6.5, storeys: 1, floorH: 2.9, roofFam: 0, pitch: 22, hip: 1, eaveOver: 0.5, rakeOver: 0.4, corner: 0,
+    stance: 0, floorY: 0.4, slopeZ: 1,
+    nFront: 1, nBack: 2, nLeft: 1, nRight: 1, winW: 1.2, winH: 1.3, winSill: 0.9, muntin: 0,
+    doorPos: 0.62, doorW: 1.05, doorH: 2.15, doorLight: 1,
+    shopWin: 1, shopW: 2.4, shopH: 1.6, shopSill: 0.8, awning: 0, falseFront: 0,
+    porch: 1, porchD: 2.0, porchLenF: 0.5, porchOff: 0.2, porchRoof: 1, railStyle: 0, stairs: 1,
+    chim: 1, chimXF: -0.55, chimZF: -0.3, chimR: 0.10,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 0,
+    signKey: 'air_taxi', signW: 2.6, signAt: 1, yard: 1, yardK: 0.3, woodpile: 0, boat: 0, people: 1, curtains: 0.3,
+    weather: 0.25, paintPunch: 0.9, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8, deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
+  },
+  'marine supply': {
+    L: 11.0, w: 8.5, storeys: 1, floorH: 3.4, roofFam: 0, pitch: 18, eaveOver: 0.4, rakeOver: 0.35, corner: 2,
+    stance: 2, floorY: 1.0, slopeZ: 3,
+    nFront: 1, nBack: 2, nLeft: 1, nRight: 1, winW: 1.1, winH: 1.2, winSill: 1.0, muntin: 0,
+    doorPos: 0.3, doorW: 1.2, doorH: 2.2, doorLight: 0,
+    shopWin: 1, shopW: 3.0, shopH: 1.8, shopSill: 0.8, awning: 0, falseFront: 1, frontH: 1.1,
+    porch: 1, porchD: 2.4, porchLenF: 1.0, porchOff: 0, porchRoof: 0, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.10,
+    gutter: 0, downpipe: 0, barrel: 0, skirt: 0, ribs: 0, backDoor: 1, backPorch: 1,
+    signKey: 'tongass_marine', signW: 4.2, signAt: 0, yard: 1, yardK: 0.6, woodpile: 0, boat: 1, people: 1, curtains: 0,
+    weather: 0.45, paintPunch: 0.7, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'corrworn'), wallCol: 0, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0, deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  'fuel and bait': {
+    L: 6.5, w: 5.0, storeys: 1, floorH: 2.7, roofFam: 0, pitch: 26, eaveOver: 0.45, rakeOver: 0.35, corner: 0,
+    stance: 2, floorY: 1.1, slopeZ: 4,
+    nFront: 1, nBack: 1, nLeft: 1, nRight: 0, winW: 1.0, winH: 1.1, winSill: 0.95, muntin: 1,
+    doorPos: 0.3, doorW: 1.0, doorH: 2.1, doorLight: 0,
+    shopWin: 1, shopW: 2.0, shopH: 1.3, shopSill: 0.95, awning: 1, awningCol: 4, falseFront: 0,
+    porch: 1, porchD: 2.0, porchLenF: 1.0, porchOff: 0, porchRoof: 0, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.5, chimZF: -0.3, chimR: 0.09,
+    gutter: 0, downpipe: 0, barrel: 1, skirt: 0, ribs: 1, backDoor: 0,
+    signKey: 'harbor_fuel', signW: 2.6, signAt: 0, yard: 1, yardK: 0.6, woodpile: 0, boat: 1, people: 1, curtains: 0,
+    weather: 0.5, paintPunch: 0.8, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 1, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0, deckSet: SET_IDX('deck', 'wornwood'), postSet: SET_IDX('post', 'mossy'),
+  },
+  'bear tours': {
+    L: 7.5, w: 6.0, storeys: 1, floorH: 2.8, roofFam: 0, pitch: 30, eaveOver: 0.5, rakeOver: 0.4, corner: 1,
+    stance: 2, floorY: 0.8, slopeZ: 2,
+    nFront: 1, nBack: 1, nLeft: 1, nRight: 1, winW: 1.0, winH: 1.15, winSill: 0.95, muntin: 1,
+    doorPos: 0.5, doorW: 1.0, doorH: 2.1, doorLight: 1,
+    shopWin: 0, awning: 0, falseFront: 0,
+    porch: 1, porchD: 2.2, porchLenF: 0.9, porchOff: 0, porchRoof: 1, railStyle: 1, stairs: 1,
+    chim: 1, chimXF: -0.55, chimZF: -0.3, chimR: 0.10,
+    gutter: 0, downpipe: 0, barrel: 1, skirt: 0, ribs: 0, backDoor: 0,
+    signKey: 'bear_tours', signW: 2.4, signAt: 1, yard: 1, yardK: 0.4, woodpile: 1, boat: 0, people: 1, curtains: 0.4,
+    weather: 0.35, paintPunch: 0.5, civic: 0, cat: 'commercial',
+    wallSet: SET_IDX('wall', 'brownwood'), wallCol: 0, trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
+    roofSet: SET_IDX('roof', 'shingle'), roofCol: 0, deckSet: SET_IDX('deck', 'stain'), postSet: SET_IDX('post', 'bark'),
+  },
+  // the vet: an institution (the user's eighth sign)
+  'vet clinic': {
+    L: 11.0, w: 8.0, storeys: 1, floorH: 3.0, pitch: 20, roofFam: 0, hip: 1, corner: 2,
+    stance: 0, floorY: 0.4, slopeZ: 1, eaveOver: 0.55, rakeOver: 0.45,
+    nFront: 3, nBack: 3, nLeft: 1, nRight: 1, winW: 1.2, winH: 1.3, winSill: 0.95, muntin: 0,
+    doorPos: 0.5, doorW: 1.3, doorH: 2.15, doorLight: 1,
+    porch: 1, porchD: 2.2, porchLenF: 0.4, porchOff: 0, porchRoof: 1, railStyle: 2, stairs: 1,
+    chim: 1, chimXF: -0.6, chimZF: -0.3, chimR: 0.10,
+    gutter: 1, downpipe: 1, barrel: 0, skirt: 0, ribs: 1, backDoor: 1, backPorch: 1,
+    flagpole: 0, yard: 0, woodpile: 0, boat: 0, people: 1, curtains: 0.3,
+    weather: 0.25, paintPunch: 0.9, civic: 1, role: 'vet', signKey: 'veterinary_care', signW: 2.8, signAt: 0,
+    wallSet: SET_IDX('wall', 'render'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 9,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 9, metalSet: SET_IDX('metal', 'galv'), metalCol: 9,
+    deckSet: SET_IDX('deck', 'concrete'), postSet: SET_IDX('post', 'veneer'),
   },
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
@@ -2630,13 +2788,34 @@ function openingsFor(P, V, R, side, A, B, opts) {
   };
   // the door first: it owns its slot and a window may not stand in it
   let door = null;
+  const doors = [];
   if (o.door) {
     const c = (o.doorPos === undefined ? clamp(P.doorPos, 0.05, 0.95)
                                        : o.doorPos) * L;
     const s0 = clamp(c - P.doorW / 2, 0.08, L - P.doorW - 0.08);
     const h = { s0: s0, s1: s0 + P.doorW, y0: V.floorY - 0.005,
                 y1: V.floorY + P.doorH, kind: 'door' };
-    if (fits(h.s0, h.s1, h.y1)) { holes.push(h); door = h; } else dropped++;
+    if (fits(h.s0, h.s1, h.y1)) { holes.push(h); door = h; doors.push(h); } else dropped++;
+    // A ROW OF DOORS along the front (G393, the motel): the others evenly
+    // along the wall, each its own leaf and casing; the stoop and the stair
+    // belong to the first, a long porch serves the row
+    const nD = side === 0 ? Math.round(P.doorN || 1) : 1;
+    for (let k = 0; k < nD && nD > 1; k++) {
+      const ck = (k + 0.5) / nD * L, sk = clamp(ck - P.doorW / 2, 0.08, L - P.doorW - 0.08);
+      const hk = { s0: sk, s1: sk + P.doorW, y0: V.floorY - 0.005, y1: V.floorY + P.doorH, kind: 'door' };
+      if (doors.some(d => hk.s1 > d.s0 - 0.5 && hk.s0 < d.s1 + 0.5)) continue;
+      if (fits(hk.s0, hk.s1, hk.y1)) { holes.push(hk); doors.push(hk); } else dropped++;
+    }
+  }
+  // THE SHOP WINDOW (G393): beside the door on its wider side, low-silled,
+  // wide; a window may not stand in it
+  let shop = null;
+  if (side === 0 && P.shopWin) {
+    const sw = Math.min(P.shopW, L - 1.2), y0 = V.floorY + P.shopSill;
+    let s0 = door ? (door.s0 > L / 2 ? door.s0 - 0.35 - sw : door.s1 + 0.35) : L / 2 - sw / 2;
+    s0 = clamp(s0, 0.3, L - sw - 0.3);
+    const h = { s0, s1: s0 + sw, y0, y1: y0 + P.shopH, kind: 'shop' };
+    if (!doors.some(d => h.s1 > d.s0 - 0.2 && h.s0 < d.s1 + 0.2) && fits(h.s0, h.s1, h.y1)) { holes.push(h); shop = h; } else dropped++;
   }
   // THE BAY'S OWN HOLE. It is not a window — nothing is glazed here and no
   // casing goes round it; the bay's three walls stand in the gap and close it.
@@ -2655,9 +2834,10 @@ function openingsFor(P, V, R, side, A, B, opts) {
       const h = { s0: c - P.winW / 2, s1: c + P.winW / 2,
                   y0: y0, y1: y0 + P.winH, kind: 'window' };
       if (h.s0 < 0.15 || h.s1 > L - 0.15) { dropped++; continue; }
-      if (door && st === 0 && h.s1 > door.s0 - 0.22 && h.s0 < door.s1 + 0.22) {
+      if (st === 0 && doors.some(d => h.s1 > d.s0 - 0.22 && h.s0 < d.s1 + 0.22)) {
         dropped++; continue;
       }
+      if (shop && st === 0 && h.s1 > shop.s0 - 0.22 && h.s0 < shop.s1 + 0.22) { dropped++; continue; }
       if (bayH2 && h.s1 > bayH2.s0 - 0.22 && h.s0 < bayH2.s1 + 0.22 &&
           h.y0 < bayH2.y1 && h.y1 > bayH2.y0) { dropped++; continue; }
       if (!fits(h.s0, h.s1, h.y1)) { dropped++; continue; }
@@ -2769,7 +2949,7 @@ function dressOpening(bags, P, Q, W, h, y1) {
          t / 2, th, N, 0, bev);
     beam(bags.trim, p(h.s0 - headOut, headY), p(h.s1 + headOut, headY),
          th, t / 2, [0, 1, 0], 0, bev);
-    if (h.kind === 'window') {
+    if (h.kind === 'window' || h.kind === 'strip' || h.kind === 'shop') {
       // the sill: proud of the casing, and high enough to cap the reveal
       const sy = h.y0 + 0.030;
       beam(bags.trim, add(p(h.s0 - t * 1.3, sy), mul(N, 0.016)),
@@ -2783,6 +2963,9 @@ function dressOpening(bags, P, Q, W, h, y1) {
     buildLamp(bags, P, Q, W, h, h.s0 > W.L - h.s1 ? -1 : 1);
     return;
   }
+  // A ROLLER DOOR (G393, the big buildings dressed by the house): the casing
+  // hides its cut like any other; the leaf is the caller's
+  if (h.kind === 'roller') return;
   // the glass: one pane in the reveal, plus sash bars
   // A SASH IS SET NEAR THE FACE OF THE WALL, not halfway through it: the
   // reveal is on the INSIDE of the glass, which is what gives a window its
@@ -2807,7 +2990,7 @@ function dressOpening(bags, P, Q, W, h, y1) {
   bags.glass.setGlow(0);
   LIT_LOG.panes++;
   if (lit) LIT_LOG.windows++;
-  if (Q.lod === 0 && P.muntin) {
+  if (Q.lod === 0 && P.muntin && h.kind === 'window') {
     const cS = (h.s0 + h.s1) / 2, cY = (h.y0 + y1) / 2;
     // the sash bars: the vertical one is the piece of finish a face gets
     // closest to, and it was the one with no arris on it at all
@@ -3961,14 +4144,14 @@ function signMetaOf(key) {
   const M = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || null;
   return (M && key && M[key]) || null;
 }
-function buildSign(bags, P, Q, V, R, pr, g) {
+function buildSign(bags, P, Q, V, R, pr, g, forceAt) {
   const meta = signMetaOf(P.signKey);
   if (!meta || !(P.signW > 0.3)) return null;
   const sw = P.signW;
   let sh = sw / Math.max(0.5, meta.aspect);
   const doorX = (doorPosOf(P, V) - 0.5) * V.L;
   const eave = R.eaveY - 0.12;
-  if (Math.round(P.signAt) === 1) {
+  if (Math.round(forceAt === undefined ? P.signAt : forceAt) === 1) {
     // ON POSTS on the lawn, to the right of the path, facing the road
     const x = clamp(doorX + sw / 2 + 1.4, -V.L / 2 + sw / 2, V.L / 2 + 3);
     const z = V.w / 2 + (P.porch ? P.porchD : 0) + 2.6;
@@ -3978,6 +4161,16 @@ function buildSign(bags, P, Q, V, R, pr, g) {
       beam(bags.post, [px, g(px, z) - 0.3, z - 0.05], [px, y0 + sh + 0.12, z - 0.05], 0.06, 0.06, [0, 0, 1], 0, timberUV(px, z, 31));
     boxAB(bags.trim, [x - sw / 2, y0, z - 0.03], [x + sw / 2, y0 + sh, z - 0.005]);
     return { key: P.signKey, x, y, z, w: sw, h: sh, nx: 0, nz: 1, at: 'posts' };
+  }
+  // ON THE FALSE FRONT when there is one (G393): the band under its cornice
+  if (P.falseFront) {
+    const y0 = V.plateY + 0.14, y1 = V.plateY + P.frontH - 0.22;
+    const swFit = Math.min(sw, V.L - 0.8, (y1 - y0) * Math.max(0.5, meta.aspect));
+    sh = swFit / Math.max(0.5, meta.aspect);
+    const x = clamp(doorX, -V.L / 2 + swFit / 2 + 0.3, V.L / 2 - swFit / 2 - 0.3);
+    const z = V.w / 2 + V.wallT / 2 + 0.045, y = (y0 + y1) / 2;
+    boxAB(bags.trim, [x - swFit / 2, y - sh / 2, z - 0.035], [x + swFit / 2, y + sh / 2, z - 0.005]);
+    return { key: P.signKey, x, y, z, w: swFit, h: sh, nx: 0, nz: 1, at: 'front' };
   }
   // UNDER THE PORCH ROOF'S EDGE when there is one (a canopy's junction sits
   // in the eave's shade with no board's worth under it - the same answer the
@@ -4009,7 +4202,7 @@ function buildSign(bags, P, Q, V, R, pr, g) {
   }
   const yBot = V.floorY + P.doorH + 0.32;
   const room = eave - yBot;
-  if (room < 0.35) return null;
+  if (room < 0.35) return buildSign(bags, P, Q, V, R, pr, g, 1);   // no board's worth under the eave: on posts by the path
   if (sh > room) sh = room;
   const swFit = Math.min(sw, V.L - 0.6);
   sh = Math.min(sh, swFit / Math.max(0.5, meta.aspect));
@@ -4040,6 +4233,52 @@ function signMesh(THREE, sign) {
   mesh.lookAt(sign.x + sign.nx, sign.y, sign.z + sign.nz);
   mesh.castShadow = false;
   return mesh;
+}
+
+// ---------------------------------------------------------------------------
+// THE FALSE FRONT (G393): the boarded parapet a frontier store puts over its
+// eave so the street sees a bigger building than the roof makes - a panel
+// on the front wall's own line from under the eave to `frontH` over the
+// plate, a short return on each end wall, a cornice board and a cap along
+// the top. The sign goes on it (buildSign). It stands after the roof, so
+// the through-the-roof rule (which reads only the walls before wallVerts)
+// leaves it be; the front eave should be nearly nothing on such a house or
+// the roof's edge comes through the boards.
+function buildFalseFront(bags, P, Q, V, R) {
+  if (!P.falseFront) return null;
+  const t = V.wallT, yTop = V.plateY + P.frontH, y0 = R.eaveY - 0.30;
+  const sub = Q.lod === 0 ? (P.aoRange || 0.55) * 0.85 : 0;
+  wall(bags.siding, { A: [-V.L / 2, V.w / 2], B: [V.L / 2, V.w / 2], y0, t, topAt: () => yTop, ext: [t / 2, t / 2],
+                      inner: true, capTop: true, capBot: false, endCap: [false, false], sub });
+  const ret = 0.9;
+  wall(bags.siding, { A: [V.L / 2, V.w / 2], B: [V.L / 2, V.w / 2 - ret], y0, t, topAt: () => yTop, ext: [t / 2, 0],
+                      inner: true, capTop: true, capBot: false, endCap: [false, true], sub });
+  wall(bags.siding, { A: [-V.L / 2, V.w / 2 - ret], B: [-V.L / 2, V.w / 2], y0, t, topAt: () => yTop, ext: [0, t / 2],
+                      inner: true, capTop: true, capBot: false, endCap: [true, false], sub });
+  // the cornice, proud of the face, and the cap over everything
+  beam(bags.trim, [-V.L / 2 - t, yTop - 0.16, V.w / 2 + t / 2 + 0.05], [V.L / 2 + t, yTop - 0.16, V.w / 2 + t / 2 + 0.05], 0.05, 0.10, [0, 1, 0], 0, BEV(P, Q));
+  boxAB(bags.trim, [-V.L / 2 - t - 0.04, yTop, V.w / 2 - ret - 0.02], [V.L / 2 + t + 0.04, yTop + 0.05, V.w / 2 + t / 2 + 0.06]);
+  if (P.corner === 0 && Q.lod === 0) for (const sx of [-1, 1])   // the corner boards carry on up
+    boxAB(bags.trim, [sx * V.L / 2 + (sx > 0 ? t / 2 : -t / 2 - 0.11), y0, V.w / 2 + t / 2], [sx * V.L / 2 + (sx > 0 ? t / 2 + 0.11 : -t / 2), yTop - 0.16, V.w / 2 + t / 2 + 0.028]);
+  return { yTop, y0: V.plateY, ret };
+}
+// THE AWNING over the shop window (G393): a canvas slope off the wall on
+// two rods, its valance hanging, in its own flat bag coloured by the dial
+function buildAwning(bags, P, Q, V, openings) {
+  if (!P.awning) return null;
+  const sh = (openings || []).find(o => o.side === 0 && o.kind === 'shop');
+  if (!sh) return null;
+  const x0 = -V.L / 2 + sh.s0 - 0.22, x1 = -V.L / 2 + sh.s1 + 0.22;
+  const z0 = V.w / 2 + V.wallT / 2 + 0.01, out = Math.min(1.3, (x1 - x0) * 0.45), drop = out * Math.tan(24 * D2R);
+  const yA = sh.y1 + 0.18;
+  const ring = [[x0, yA, z0], [x1, yA, z0], [x1, yA - drop, z0 + out], [x0, yA - drop, z0 + out]];
+  face(bags.awning, ring, nrm([0, out, drop]), uvFrame(ring[0], [1, 0, 0], [0, 0, 1]));
+  face(bags.awning, [[x0, yA - drop, z0 + out], [x1, yA - drop, z0 + out], [x1, yA - drop - 0.2, z0 + out], [x0, yA - drop - 0.2, z0 + out]], [0, 0, 1], uvFrame(ring[3], [1, 0, 0], [0, 1, 0]));
+  if (Q.lod === 0) for (const x of [x0 + 0.08, x1 - 0.08]) {
+    beam(bags.metal, [x, yA - drop - 0.02, z0 + out - 0.04], [x, yA - 0.85, z0], 0.014, 0.014, [0, 1, 0], 0);   // the stay
+    beam(bags.metal, [x, yA, z0], [x, yA - drop, z0 + out], 0.014, 0.014, [0, 1, 0], 0);                          // the arm
+  }
+  return { x0, x1, y: yA, out, drop };
 }
 
 // ---------------------------------------------------------------------------
@@ -6142,6 +6381,16 @@ function pathPlan(P, V, dk, stoop, front, pier, g) {
   return out;
 }
 
+// THE LIT LOG FOR ANOTHER GENERATOR (G393): the big buildings dress their
+// doors and windows with dressOpening/buildDoor/buildLamp above, which write
+// the lights and the pane counts here; the caller opens a fresh log before
+// its build and keeps the reference
+function litBegin() {
+  LIT_LOG = { windows: 0, panes: 0, bulbs: 0, lights: [] };
+  HAND_LOG = { members: 0, lean: 0, twist: 0 };
+  RIM_LOG = [];
+  return LIT_LOG;
+}
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   if (P.mill) return buildMill(P, lod, F);          // a composite of houses (G329)
@@ -6214,6 +6463,8 @@ function build(P0, lod, F) {
   for (const d of dorms) buildDormer(bags, P, Q, V, R, d);
   const cup = buildCupola(bags, P, Q, V, R);
   const twr = buildTower(bags, P, Q, V, R);
+  const ff = buildFalseFront(bags, P, Q, V, R);
+  const awn = buildAwning(bags, P, Q, V, vol.openings);
   const wood = buildContents(bags, P, Q, V, R);
   const stoop = buildStoop(bags, P, Q, V, g, -1);
   const st = buildStance(bags, P, Q, V, plan, g);
@@ -6377,7 +6628,7 @@ function build(P0, lod, F) {
     // half a metre OUTSIDE the leaf, at the threshold's own height, and it is
     // published rather than assumed so GATE HOUSE can hold it.
     doors: doorReport(P, V, dk, stoop, front, g, vol.openings),
-    dormers: dorms.length, cupola: cup, tower: twr, role: P.role || null, sign, wallVerts: wallVerts, ao: aoInfo,
+    dormers: dorms.length, cupola: cup, tower: twr, falseFront: ff, awning: awn, role: P.role || null, sign, wallVerts: wallVerts, ao: aoInfo,
     // WHAT THE GROUND IS SHADED AGAINST: the walls and the deck, as one
     // rectangle. Not the model's bounding box — that includes the stair, and
     // a flight of steps does not put a shadow the size of itself on the grass.
@@ -7548,6 +7799,7 @@ window.HOUSE_GEN = {
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   makeFinish, shadeGround, buildGroundAO, shadeSkirt, signMesh, signMetaOf, wingPlan,
+  litBegin, dressOpening, buildDoor, buildLamp, dressFor, litFor, CATEGORIES, CATS, catOf, PEOPLE_KIT: typeof PEOPLE_KIT !== 'undefined' ? PEOPLE_KIT : null,
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
   steelMix,   // the tram's steel (G342)
   buildComposite, buildMill, millPlan, lampAt, floodAt, pendantAt,   // composites of houses: the mill (G329; G350 its plan, for the village to cut the shoulder); the wall lantern (G348), the flood and the pendant (G370)
@@ -7570,7 +7822,7 @@ window.HOUSE_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
     hooks: () => [], hooksOf: () => [], lod: { dist: [0, 150, 500, 1500] },
     slots: { lights: 'stats.lit.lights', smoke: 'stats.smoke', people: 'stats.people', ao: 'stats.groundAO' },
     // an institution is tagged by its role (G392): the editor's picker and the game's "where is the clinic" read one word
-    tags: Pd.role ? ['institution', Pd.role] : ['house'], role: Pd.role || null, headless: true, gate: 'HOUSE' };
+    tags: Pd.role ? ['institution', Pd.role] : ['house'], role: Pd.role || null, cat: catOf(name), headless: true, gate: 'HOUSE' };
   if (Pd.mill) return Object.assign(base, { kind: 'complex', tags: ['industrial', 'mine'],
     // THE MILL'S GROUND: the top house's pad is a SHELF the world cuts and
     // fills from the same plan (millPlan; VILLAGE_GEN.withShelf is the cut),

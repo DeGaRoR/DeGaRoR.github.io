@@ -8560,6 +8560,16 @@ function makeWorld(seed, opts) {
       hdg: 0, len: 520, wid: 520, surface: SURFACE.GRASS, elev: 0, tdz: [1800, 1500] },
     { id: 'M3', name: 'Meadow 3', kind: 'meadow', x: -3400, z: 650, r: 240,
       hdg: 0, len: 480, wid: 480, surface: SURFACE.GRASS, elev: 0, tdz: [-3400, 650] },
+    // THE SEA LANE (H4, G393): a water aerodrome south of HOME for the
+    // seaplanes — 1.5 km of open sea 15-95 m deep, along +z from the shore
+    // (measured: every point of the lane 60 m either side is deeper than
+    // 15 m). HOME's own conventions: the spawn identity at the near end
+    // facing down the lane (hdg pi/2 -> nose +z), landed over the far end
+    // with the touchdown target 20 % in. `kind: 'water'` — no site, no taxi
+    // graph; the pilot flies it as it flies a meadow, on the water rudder.
+    { id: 'SEA', name: 'The Sound', kind: 'water', x: 0, z: 2000, hdg: Math.PI / 2,
+      len: 1500, wid: 200, surface: SURFACE.WATER, elev: 0, tdz: [0, 2530],
+      spawn: [0, 1250] },
   ];
   // landing meadows: blend terrain toward the height at each meadow centre.
   // v0 shim member, derived from the registry — same literals, same order,
@@ -8793,7 +8803,40 @@ function makeWorld(seed, opts) {
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
-  function waterH(x, z) { return waterAt(terrainH(x, z), x, z); }
+  function waterH(x, z, t) {
+    const h = waterAt(terrainH(x, z), x, z);
+    // THE SEA HAS WAVES (H4, G393; ruling ap: ONE surface, physics and
+    // renderer sampling the same closed form). Only with a time argument,
+    // only on the SEA (level 0 — lakes and rivers stay glassy), only when
+    // the day has a sea state: the two-argument call is byte-identical to
+    // what every gate and every bake reads. Gerstner heights (the design's
+    // 3.1: analytic, cheap enough to sample per hull vertex per substep),
+    // two octaves — the wind's own swell and a shorter cross chop.
+    if (t == null || h !== 0 || !SEA.A) return h;
+    let y = 0;
+    for (const w of SEA.W) y += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
+    return y;
+  }
+  // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
+  // more consumer of setWeather's wind, never a second model). Amplitude
+  // 0.04 m per m/s of wind (5 m/s: 0.2 m; 10: 0.4), wavelength 3 + 1.4 W
+  // (5 m/s: 10 m), the swell down-wind, a 40 % chop 35 deg off it at half
+  // the length. Calm air is glassy — no waves — which is the harder
+  // landing (§2.5), for free. `world.sea` reads it; `setSea` overrides it
+  // (the bench, a test) until the next setWind.
+  const SEA = { A: 0, L: 0, dir: 0, W: [] };
+  function seaFrom(A, L, dir) {
+    SEA.A = A; SEA.L = L; SEA.dir = dir; SEA.W.length = 0;
+    if (!(A > 0) || !(L > 0)) return;
+    for (const [a, l, d, ph] of [[A, L, dir, 0], [0.4 * A, 0.5 * L, dir + 35 * Math.PI / 180, 1.7]]) {
+      const k = 2 * Math.PI / l;
+      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph });
+    }
+  }
+  function setSea(spec) {
+    if (!spec) { seaFrom(0, 0, 0); return; }
+    seaFrom(spec.A || 0, spec.L || (3 + 1.4 * 5), spec.dir || 0);
+  }
   // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
   // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
   // still reserved for stage 4)
@@ -8903,6 +8946,10 @@ function makeWorld(seed, opts) {
     windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
                         refH: spec.refH || 0,
                         alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    // ...and the sea follows the wind (H4, G393)
+    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const Wv = Math.hypot(b[0], b[2]);
+    seaFrom(Wv > 0.5 ? 0.04 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
   // ---- the day: ONE weather state, air and wind together (G72) ------------
@@ -8941,6 +8988,8 @@ function makeWorld(seed, opts) {
     get atmos() { return atmos; },
     get weather() { return weather; },
     setWeather,
+    // H4 (G393): the sea state (read live) and its override
+    get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
@@ -11280,6 +11329,7 @@ function fbm(x, y, s, oct) {
 // ---------------------------------------------------------------------------
 // the polygons — poly = [[x, z], ...], any winding, concave allowed
 // ---------------------------------------------------------------------------
+function polyCentroid(poly) { let x = 0, z = 0; for (const q of poly) { x += q[0]; z += q[1]; } return [x / Math.max(1, poly.length), z / Math.max(1, poly.length)]; }
 function polyBBox(poly) {
   let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
   for (const p of poly) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < z0) z0 = p[1]; if (p[1] > z1) z1 = p[1]; }
@@ -11420,7 +11470,16 @@ function makeModifier(m, y0) {
     let target;
     if (m.kind === 'flatten') { const lv = (m.abs ? 0 : y0) + (+m.level || 0); target = () => lv; }
     else if (m.kind === 'raise') { const dh = +m.dh || 0; target = (x, z, h) => h + dh; }
-    else { const pl = m.plane || [0, 0, 0]; target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0); }
+    else {
+      // a SLOPE polygon (v8): `level` at the polygon's centroid, `slope` (a fraction) rising toward `hdg`
+      // (degrees, 0 = +z, 90 = +x); the old `plane` [a, b, c] form still reads
+      let pl;
+      if (m.slope !== undefined && m.slope !== null && m.level !== undefined) {
+        const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * Math.sin(hd), b = (+m.slope || 0) * Math.cos(hd);
+        pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
+      } else pl = m.plane || [0, 0, 0];
+      target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
+    }
     return { id: m.id, kind: m.kind, bbox, apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const w = weight(sdPoly(poly, x, z));
@@ -11683,7 +11742,54 @@ function planForest(zone, ctx) {
 // ---------------------------------------------------------------------------
 // THE RUNWAYS — a strip's geometry from its record, in the premises frame
 // ---------------------------------------------------------------------------
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null };
+
+// THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
+// [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
+// before it is graded) - with a MONOTONE cubic between them (Fritsch-Carlson: the ground never
+// overshoots a point, a hump is a hump and a dip a dip). No profile = the old linear slope. The ends
+// are always control points (the thresholds); the editor keeps them.
+function runwayProfile(r) {
+  let P = Array.isArray(r.profile) && r.profile.length >= 2 ? r.profile.map(q => [+q[0], +q[1]]).filter(q => isFinite(q[0]) && isFinite(q[1])) : null;
+  if (!P || P.length < 2) { const rise = (+r.slope || 0) * r.len / 2; P = [[0, -rise], [1, rise]]; }
+  P.sort((a, b) => a[0] - b[0]);
+  if (P[0][0] > 0) P.unshift([0, P[0][1]]); if (P[P.length - 1][0] < 1) P.push([1, P[P.length - 1][1]]);
+  P[0][0] = 0; P[P.length - 1][0] = 1;
+  const n = P.length, x = P.map(q => q[0] * r.len), y = P.map(q => q[1]);
+  const h = [], d = [];
+  for (let i = 0; i + 1 < n; i++) { h.push(Math.max(1e-6, x[i + 1] - x[i])); d.push((y[i + 1] - y[i]) / h[i]); }
+  const m = new Array(n).fill(0);
+  if (n === 2) { m[0] = m[1] = d[0]; }
+  else {
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (let i = 1; i + 1 < n; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i + 1 < n; i++) { if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; } const a = m[i] / d[i], b = m[i + 1] / d[i], q = a * a + b * b; if (q > 9) { const tau = 3 / Math.sqrt(q); m[i] = tau * a * d[i]; m[i + 1] = tau * b * d[i]; } }
+  }
+  const at = sAlong => {
+    const sx = Math.max(0, Math.min(r.len, sAlong));
+    let i = 0; while (i + 2 < n && sx > x[i + 1]) i++;
+    const t = (sx - x[i]) / h[i], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * y[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * y[i + 1] + (t3 - t2) * h[i] * m[i + 1];
+  };
+  const slopeAt = sAlong => (at(Math.min(r.len, sAlong + 0.5)) - at(Math.max(0, sAlong - 0.5))) / Math.min(1, r.len);
+  return { points: P, at, slopeAt, n };
+}
+// THE PILOT'S LIMITS on a profile (what the MSFS editor never asks): the slope anywhere under 5 %, the
+// touchdown zone (a fifth of the run from each threshold) under 2.5 %, and no crest sharper than a 1.5 %
+// change of slope over 30 m - a flare must not meet a hump it cannot see over
+function profileIssues(r) {
+  const out = [], pr = runwayProfile(r), L = r.len;
+  let worst = 0, tdz = 0, crest = 0;
+  for (let a = 0; a <= L; a += 3) {
+    const sl = Math.abs(pr.slopeAt(a)); worst = Math.max(worst, sl);
+    if (a < L / 5 || a > L - L / 5) tdz = Math.max(tdz, sl);
+    if (a + 30 <= L) crest = Math.max(crest, Math.abs(pr.slopeAt(a + 30) - pr.slopeAt(a)));
+  }
+  if (worst > 0.05) out.push('runway ' + r.id + ': the profile is ' + (worst * 100).toFixed(1) + ' % somewhere, over 5 %');
+  if (tdz > 0.025) out.push('runway ' + r.id + ': the touchdown zone slopes ' + (tdz * 100).toFixed(1) + ' %, over 2.5');
+  if (crest > 0.015) out.push('runway ' + r.id + ': a crest changes the slope ' + (crest * 100).toFixed(1) + ' % over 30 m, over 1.5');
+  return out;
+}
 function runwayEnds(r) {
   const d = [Math.cos(r.hdg), Math.sin(r.hdg)], hl = r.len / 2;
   return { d, n: [-d[1], d[0]], end0: [r.c[0] - d[0] * hl, r.c[1] - d[1] * hl], end1: [r.c[0] + d[0] * hl, r.c[1] + d[1] * hl] };
@@ -11934,9 +12040,12 @@ function compose(rec0, world, opts) {
   for (const r of runways) {
     const E = runwayEnds(r);
     const elev = T1(r.c[0], r.c[1]);
-    const rise = (+r.slope || 0) * r.len / 2;
     const fall = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: [[E.end0[0], E.end0[1], elev - rise], [E.end1[0], E.end1[1], elev + rise]], width: r.wid, falloff: fall, abs: true }, F.y0);
+    // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
+    const pr = runwayProfile(r), gpts = [];
+    const nS = Math.max(1, Math.ceil(r.len / 6));
+    for (let k = 0; k <= nS; k++) { const a = r.len * k / nS; gpts.push([E.end0[0] + E.d[0] * a, E.end0[1] + E.d[1] * a, elev + pr.at(a)]); }
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
     aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly)));
@@ -12157,7 +12266,7 @@ function issues(rec0) {
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
     else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
-    else if (Math.abs(+r.slope || 0) > 0.05) out.push('runway ' + r.id + ': a slope over 5 % is not a strip');
+    else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -12318,9 +12427,10 @@ function checks(rec0, world, opts) {
   for (let i = 0; i < O.runways.length; i++) {
     const r = O.runways[i], A = O.aerodromes[i], E = runwayEnds(r);
     let worst = 0;
+    const prof = runwayProfile(r);
     for (let t = 0; t <= r.len; t += Math.max(2, r.len / 60)) {
       const lx = E.end0[0] + E.d[0] * t, lz = E.end0[1] + E.d[1] * t;
-      const want = A.elev + (+r.slope || 0) * (t - r.len / 2);
+      const want = A.elev + prof.at(t);
       worst = Math.max(worst, Math.abs(O.localH(lx, lz) - want));
     }
     put(worst < 0.05, 'runway ' + r.id + ' on its profile (' + (worst * 100).toFixed(1) + ' cm)');
@@ -12371,8 +12481,8 @@ function collect(globals) {
 
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, runwaySite, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
-  polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
+  polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
@@ -13597,7 +13707,7 @@ function makeSim(def, world) {
       }
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
-    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt);
+    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -13714,6 +13824,16 @@ function makeSim(def, world) {
   function impulse(i, ix, iy, iz) { v[i*3]+=ix/m[i]; v[i*3+1]+=iy/m[i]; v[i*3+2]+=iz/m[i]; }
   function wheelsOnGround() {
     let c = 0;
+    // H4 (G393): ON THE WATER the floats are the contacts — each wet float
+    // counts one, and the pair in the displacement regime (the afterbody
+    // wet: not yet on the step) counts a third, so a seaplane at rest reads
+    // three like a taildragger on three points and two once on the step,
+    // which is exactly the tail-down / tail-up split the pilot steers by
+    if (HY) {
+      let wet = 0, aft = 0;
+      for (const fx of HY.floats) { if (fx.wet > 0.05) wet++; if (fx.out.wetA > 0.2) aft++; }
+      return wet + (wet === 2 && aft === 2 ? 1 : 0);
+    }
     for (const i of [...def.refs.mains, def.refs.tw]) {
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - r[i] - gh < 0.03) c++;
@@ -13980,6 +14100,7 @@ const DEF = {
   bBow: 0.10,      // half-beam at the bow, m
   bStern: 0.75,    // stern half-beam, as a fraction of B/2
   hSide: 0.24,     // chine to deck, m (at the forebody; the deck is level)
+  bevel: 0.05,     // the deck edge's chamfer, m (G393, the user: "beveled edges"); the chine stays HARD
   nSta: 24,        // stations over the length
   mFloat: 45,      // kg
   cgFloat: [-0.2, 0.15, 0],
@@ -14074,7 +14195,11 @@ function makeFloat(over = {}) {
   for (const s of sta) {
     s.K = push([s.x, s.yk, 0]);
     s.Cm = push([s.x, s.yc, -s.b]); s.Cp = push([s.x, s.yc, s.b]);
-    s.Dm = push([s.x, s.yd, -s.b]); s.Dp = push([s.x, s.yd, s.b]);
+    // the deck edge is a CHAMFER (bevel): the side rises to E, the deck runs
+    // in from D — a rounded gunwale on a real float, one 45-degree facet here
+    const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.b);
+    s.Em = push([s.x, s.yd - bv, -s.b]); s.Ep = push([s.x, s.yd - bv, s.b]);
+    s.Dm = push([s.x, s.yd, -(s.b - bv)]); s.Dp = push([s.x, s.yd, s.b - bv]);
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
@@ -14097,25 +14222,30 @@ function makeFloat(over = {}) {
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
       quad('step', s0.K, s1.K, s1.Cm, s0.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
       quad('step', s0.K, s1.K, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
-      tri('step', s0.Cm, s1.Cm, s0.Dm, { side: -1, body: 'A', beta: 0, ref: rs });
-      tri('step', s0.Cp, s1.Cp, s0.Dp, { side: 1, body: 'A', beta: 0, ref: rs });
+      tri('step', s0.Cm, s1.Cm, s0.Em, { side: -1, body: 'A', beta: 0, ref: rs });
+      tri('step', s0.Cp, s1.Cp, s0.Ep, { side: 1, body: 'A', beta: 0, ref: rs });
       continue;
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
     quad(bk, s0.K, s1.K, s1.Cm, s0.Cm, Object.assign({ side: -1, beta: 0.5 * (s0.beta + s1.beta) }, m));
     quad(bk, s0.K, s1.K, s1.Cp, s0.Cp, Object.assign({ side: 1, beta: 0.5 * (s0.beta + s1.beta) }, m));
-    quad('side', s0.Cm, s1.Cm, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
-    quad('side', s0.Cp, s1.Cp, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
+    quad('side', s0.Cm, s1.Cm, s1.Em, s0.Em, Object.assign({ side: -1, beta: 0 }, m));
+    quad('side', s0.Cp, s1.Cp, s1.Ep, s0.Ep, Object.assign({ side: 1, beta: 0 }, m));
+    quad('bevel', s0.Em, s1.Em, s1.Dm, s0.Dm, Object.assign({ side: -1, beta: 0 }, m));
+    quad('bevel', s0.Ep, s1.Ep, s1.Dp, s0.Dp, Object.assign({ side: 1, beta: 0 }, m));
     quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, Object.assign({ side: 0, beta: 0 }, m));
   }
   { // bow cap and stern transom
     const s = sta[0];
-    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: [s.x + 0.05, s.ref[1], 0] });
-    quad('bow', s.Cm, s.Cp, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: [s.x + 0.05, s.ref[1], 0] });
-    const e = sta[sta.length - 1];
-    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: [e.x - 0.05, e.ref[1], 0] });
-    quad('stern', e.Cm, e.Cp, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: [e.x - 0.05, e.ref[1], 0] });
+    const rb = [s.x + 0.05, s.ref[1], 0];
+    tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
+    quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
+    quad('bow', s.Em, s.Ep, s.Dp, s.Dm, { side: 0, body: 'F', beta: 0, ref: rb });
+    const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
+    tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
+    quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
+    quad('stern', e.Em, e.Ep, e.Dp, e.Dm, { side: 0, body: 'A', beta: 0, ref: re });
   }
   // orient every panel OUTWARD (its normal away from the section's interior
   // point), and record the rest normal, area and centroid in the float frame
@@ -14391,7 +14521,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
           apply(fv, o.c, T.plan); add(o.Fp, fv, o.Fp);
         }
       } else if (pn.kind !== 'deck' || Vn > 0) {
-        const sym = pn.kind === 'side' || pn.kind === 'bow';
+        const sym = pn.kind === 'side' || pn.kind === 'bevel' || pn.kind === 'bow';
         const pd = 0.5 * rho * P.Cd * (sym ? Vn * Math.abs(Vn) : Math.max(0, Vn) * Vn);
         scl(o.AN, -pd, fv);
         apply(fv, o.c, T.cross); add(o.Fx, fv, o.Fx);
@@ -14881,7 +15011,51 @@ function hydroBuild(def, p, v) {
 // sampled ONCE per float at its step keel (a lake is level; waterH costs
 // 0.7 us and the hull has 130 vertices): the flat-water cut, until (ap)
 // gives the surface a time argument.
-function hydroSolverPass(HY, world, f, simT, dt) {
+// THE WATER RUDDER (H4, G393). A blade under each float's stern keel — a
+// low-aspect fin in the water, `WR_AREA` per float, `WR_DEPTH` deep —
+// steered by the rudder pedals (ctl.dr, nose-left positive: the fin's own
+// convention; the stern goes RIGHT to yaw the nose left) through
+// `WR_TRAVEL`. Side force 1/2 rho V^2 A Cl(alpha) with alpha the blade's
+// angle to the local flow at the stern (its deflection less the stern's
+// own sideslip, so an undeflected blade is a fin: it weathervanes the
+// float INTO the water, which is what stops a seaplane's tail from
+// swinging), Cl 3 per rad, stalled at 0.4 rad; scaled by how much of the
+// blade is under the surface. RETRACTED BY THE PILOT'S RULE: down below
+// WR_UP_V of forward speed with the afterbody wet (taxi, the start of the
+// run), up on the step — a real pilot raises it as the aeroplane comes
+// up, and lowers it after the landing run. Applied at the stern keel
+// through the slab distribution.
+const WR_AREA = 0.06, WR_DEPTH = 0.25, WR_TRAVEL = 35 * Math.PI / 180, WR_UP_V = 12;
+function waterRudder(fx, ctl, water, simT, f) {
+  const F = fx.F, ctx = fx.ctx, out = fx.out;
+  const sK = out.W[F.stern.K];
+  const h = water.h(sK[0], sK[2], simT), dS = h - sK[1];
+  if (!(dS > -WR_DEPTH * 0.2)) { fx.wrDown = 0; return; }
+  const vS = ctx.velAt(sK, v3());
+  const xhat = ctx.xhat, up = [0, 1, 0];
+  const zR = cross(up, xhat); nrm(zR);                          // right = up x aft
+  const Vf = -dot(vS, xhat), vy = dot(vS, zR);
+  const down = Vf < WR_UP_V && out.wetA > 0.05 ? 1 : 0;
+  fx.wrDown = down;
+  if (!down) return;
+  const sub = Math.max(0, Math.min(1, (dS + WR_DEPTH * 0.2) / WR_DEPTH));
+  if (sub <= 0) return;
+  const delta = (ctl ? (ctl.dr || 0) : 0) * WR_TRAVEL;
+  const beta = Math.atan2(vy, Math.max(0.3, Vf));
+  const al = delta - beta;
+  const Cl = Math.max(-1.2, Math.min(1.2, 3.0 * al));
+  const q = 0.5 * F.P.rho * (Vf * Vf + vy * vy);
+  const Fy = q * WR_AREA * sub * Cl;
+  const Fv = [zR[0] * Fy, zR[1] * Fy, zR[2] * Fy];
+  // and its drag, along the flow
+  const Vt = Math.hypot(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
+  const D = q * WR_AREA * sub * Cd;
+  Fv[0] -= vS[0] / Vt * D; Fv[1] -= vS[1] / Vt * D; Fv[2] -= vS[2] / Vt * D;
+  const at = [sK[0], sK[1] - 0.5 * WR_DEPTH * sub, sK[2]];
+  ctx.distribute(at, f, Fv);
+  out.wrForce = Fy; out.wrAlpha = al;
+}
+function hydroSolverPass(HY, world, f, simT, dt, ctl) {
   let wetAny = 0;
   for (const fx of HY.floats) {
     const F = fx.F, ctx = fx.ctx, out = fx.out;
@@ -14889,11 +15063,18 @@ function hydroSolverPass(HY, world, f, simT, dt) {
     const eK = out.W[F.edge.K];
     const h0 = world.waterH ? world.waterH(eK[0], eK[2]) : 0;
     fx.h = h0;
-    if (!(h0 > -1e8) || h0 < eK[1] - 1.0) { fx.wet = 0; zeroTerms(out); continue; }   // dry: a metre clear of the water
-    const water = { h: () => h0, v: () => ZERO3 };
+    if (!(h0 > -1e8) || h0 < eK[1] - 1.5) { fx.wet = 0; zeroTerms(out); continue; }   // dry: well clear of the water
+    // H4 (G393): with a sea state the surface is sampled per vertex, with
+    // the time (ruling ap: the physics reads the same closed form the
+    // renderer draws); a lake, a river, a calm day keep the flat sample
+    const waves = world.sea && world.sea.A > 0 && h0 === 0;
+    const water = waves ? { h: (x, z, t) => world.waterH(x, z, t), v: () => ZERO3 }
+                        : { h: () => h0, v: () => ZERO3 };
+    if (waves) fx.h = world.waterH(eK[0], eK[2], simT);
     hydroPanels(F, ctx, water, simT, out, { mNode: fx.mNode, dt });
     fx.wet = out.wetF + out.wetA + out.wetOther;
     wetAny += fx.wet;
+    waterRudder(fx, ctl, water, simT, f);
     const l = fx.lam;
     for (let k = 0; k < F.panels.length; k++) {
       const o = out.per[k];
@@ -14934,7 +15115,8 @@ function floatParamsFor(grossKg, over) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP };
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP,
+              waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
 })();
@@ -17991,8 +18173,18 @@ function makePilot(sim, def, world, opts) {
       holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
     };
     const groundSteer = () => {
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      const drMax = tailUp ? 0.95 : 0.45;
+      // H4 (G393): ON THE WATER the split is displacement / on the step
+      // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
+      // up on the step and the air rudder alone holds the run, and there is
+      // no castor to over-control: the pedals go to the stop either way.
+      // Measured on the ultralight in a 5 m/s crosswind: with the
+      // taildragger's 0.45 clamp it weathervaned 40 deg on the step and left
+      // the lane 186 m off; with this, see the H4 entry.
+      const onWater = !!(sim.hydro);
+      // (GATE TAKEOFF reads this line by regex: the tail-state schedule first)
+      const tailUp = rotateTD && !onWater && onG <= 2 && thRest !== null && (thRest - th) > 0.04
+                  || (onWater && onG <= 2 && V > 6);
+      const drMax = tailUp ? 0.95 : (onWater ? 0.9 : 0.45);
       // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
       // branch below already schedules on (VTailUp/V)^2 once the tail is up;
       // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the
@@ -30999,18 +31191,18 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
-<script src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script src="src/models/c172_model.js?v=267306e7"></script>
-<script src="src/models/d112_model.js?v=3be353d3"></script>
-<script src="src/models/pio200_model.js?v=981cd31e"></script>
-<script src="src/models/c195_model.js?v=8974dedd"></script>
-<script src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script src="src/models/guepard_model.js?v=bf419178"></script>
-<script src="src/models/da40_model.js?v=82bf8782"></script>
-<script src="src/models/g115_model.js?v=87b45f7c"></script>
-<script src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script src="src/models/pa28_model.js?v=a6c43592"></script>
+<script src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script src="src/models/d112_model.js?v=1c93058a"></script>
+<script src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script src="src/models/c195_model.js?v=c7959754"></script>
+<script src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script src="src/models/da40_model.js?v=594e79b5"></script>
+<script src="src/models/g115_model.js?v=03a7e598"></script>
+<script src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script src="src/models/eiii_model.js?v=8e83410f"></script>
+<script src="src/models/pa28_model.js?v=86470bea"></script>
 <script src="src/props/props_bench.js?v=7c6e64b4"></script>
 <script src="src/props/props_storage.js?v=e051184c"></script>
 <script src="src/props/props_machine.js?v=14f1da60"></script>
@@ -31020,19 +31212,19 @@ if (typeof module !== 'undefined')
 <script src="src/props/props_curio.js?v=8ca61851"></script>
 <script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
 <script src="src/props/props_fixture.js?v=93362da1"></script>
-<script src="src/props/props_airframe.js?v=88d864cd"></script>
+<script src="src/props/props_airframe.js?v=f8726344"></script>
 <script src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
 <script src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
 <script src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
 <script src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script src="src/chars/ch42_char.js?v=c440fbad"></script>
-<script src="src/chars/ch02_char.js?v=cf30202a"></script>
-<script src="src/chars/remy_char.js?v=01a16f6e"></script>
-<script src="src/chars/ch22_char.js?v=f61be819"></script>
-<script src="src/chars/ch01_char.js?v=854f26f4"></script>
-<script src="src/chars/ch20_char.js?v=97fe3427"></script>
-<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script src="src/chars/ch42_char.js?v=eefcfa0f"></script>
+<script src="src/chars/ch02_char.js?v=d3241b54"></script>
+<script src="src/chars/remy_char.js?v=71ee3d75"></script>
+<script src="src/chars/ch22_char.js?v=84232ae5"></script>
+<script src="src/chars/ch01_char.js?v=0ed66519"></script>
+<script src="src/chars/ch20_char.js?v=17c02a9a"></script>
+<script src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script>
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -69854,8 +70046,12 @@ PAGE.post = ctx => {
   for (const sd of [-1, 1]) {                     // -1 starboard (cage -x), +1 port
     const at = [sd * track, keelY, zc];
     const bag = GG.Bag();
-    const vid = F.V.map(v => bag.v(toCage(v, at)));
-    for (const pn of F.panels) bag.tri(vid[pn.v[0]], vid[pn.v[1]], vid[pn.v[2]]);
+    // vertices shared WITHIN a panel kind and split BETWEEN kinds: the shading
+    // runs smooth along the hull and breaks at the chine, the bevel and the
+    // deck edge (one shared vertex set smeared the chine into a round)
+    const vidBy = {};
+    const vid = (kind, i) => { const m = vidBy[kind] || (vidBy[kind] = new Map()); if (!m.has(i)) m.set(i, bag.v(toCage(F.V[i], at))); return m.get(i); };
+    for (const pn of F.panels) bag.tri(vid(pn.kind, pn.v[0]), vid(pn.kind, pn.v[1]), vid(pn.kind, pn.v[2]));
     const ug = new THREE.Group();
     ug.name = 'edFloat' + (sd > 0 ? 'L' : 'R');
     const m = bag.mesh(ug, hullM());
@@ -86994,6 +87190,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
+  let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
@@ -87906,6 +88103,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), waterMat);
     water.rotation.x = -Math.PI / 2; water.position.y = -0.4;
     scene.add(water);
+    // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
+    // carve-out): a 360 m patch of the sea around the aeroplane, its
+    // vertices displaced every frame by the world's OWN waterH(x, z, t) —
+    // the function the floats are pushed by — so the hull sits in the
+    // wave it is drawn in. Shown only with a sea state (the flat far sea
+    // stays as it was, 0.4 m under the true level, on a calm day); the
+    // patch is snapped to its own grid step so it does not swim.
+    const SEAN = 96, SEAW = 360;
+    const seaGeo = new THREE.PlaneGeometry(SEAW, SEAW, SEAN, SEAN);
+    seaGeo.rotateX(-Math.PI / 2);
+    const seaNear = new THREE.Mesh(seaGeo, waterMat);
+    seaNear.frustumCulled = false; seaNear.visible = false;
+    scene.add(seaNear);
+    let seaT = 0;
+    function seaUpdate(cx, cz, dt) {
+      const S = world.sea;
+      if (!S || !(S.A > 0) || world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
+      seaT += dt;
+      const step = SEAW / SEAN;
+      const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
+      seaNear.position.set(ox, 0.0, oz);
+      const pa = seaGeo.attributes.position;
+      for (let i = 0; i < pa.count; i++) pa.setY(i, world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT));
+      pa.needsUpdate = true;
+      seaGeo.computeVertexNormals();
+      seaNear.visible = true;
+    }
 
     { // stage-1 water: river ribbons + per-cell lake quads at their baked
       // surface heights, one merged mesh, same material as the sea.
@@ -90076,11 +90300,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // patch uvs span the full 24 km domain: 613 tiles ~= the inner ring's
     // on-ground grain density (230 tiles over 9 km)
     if (detailApply) detailApply(patchMat, 613);
-    for (const a of world.aerodromes) {
-      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+    // ONE STRIP'S FURNITURE, re-runnable (v8): the premises' strips are painted again after a live edit
+    // (repaintStrips below); everything a strip stands is kept under its id so it can be taken away
+    const stripStood = new Map();
+    const standStrip = a => {
       const kind = a.surface === world.SURFACE.PAVED ? 'paved'
         : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
       if (!texes[kind]) texes[kind] = mkTex(kind);
+      const stood = []; stripStood.set(a.id, stood);
+      const keep = o => { stood.push(o); return o; };
       // W13.2 ground patch: every strip outside the inner ring sits on the
       // coarse outer mesh (~100 m polys, tucked 2 m LOW) — the graded
       // bench and its banks exist in terrainH but were unrenderable, so
@@ -90108,12 +90336,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         g2.computeVertexNormals();
         const pm = new THREE.Mesh(g2, patchMat);
         pm.receiveShadow = true;
-        scene.add(pm);
+        scene.add(keep(pm));
       }
       // the strip decal is DRAPED (per-vertex terrainH), not a flat plane
-      // at a.elev — wheels roll on terrainH, and the two now agree
+      // at a.elev — wheels roll on terrainH, and the two now agree; 6 m
+      // along since a profile (v8) can hump within twelve
       const geo = new THREE.PlaneGeometry(a.len, a.wid,
-        Math.ceil(a.len / 12), Math.max(2, Math.ceil(a.wid / 8)));
+        Math.ceil(a.len / 6), Math.max(2, Math.ceil(a.wid / 8)));
       geo.rotateX(-Math.PI / 2);
       geo.rotateY(-a.hdg);
       geo.translate(a.x, 0, a.z);
@@ -90125,16 +90354,31 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         worldLambert({ map: texes[kind], depthWrite: false }));
       m.renderOrder = 2;
       m.receiveShadow = true;
-      scene.add(m);
+      scene.add(keep(m));
       // windsock off the strip edge
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6), poleMat);
-      pole.position.set(px2, a.elev + 3, pz2); pole.castShadow = true; scene.add(pole);
+      pole.position.set(px2, a.elev + 3, pz2); pole.castShadow = true; scene.add(keep(pole));
       const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true), sockMat);
-      sock.castShadow = true; scene.add(sock);
-      socks.push({ pole: [px2, a.elev + 5.5, pz2], mesh: sock });   // W13 wind-driven
+      sock.castShadow = true; scene.add(keep(sock));
+      const sk = { pole: [px2, a.elev + 5.5, pz2], mesh: sock }; socks.push(sk); stood.push(sk);   // W13 wind-driven
+    };
+    for (const a of world.aerodromes) {
+      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      standStrip(a);
     }
+    // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
+    // every premises strip are taken away and stood again from the registry as it is now
+    repaintStrips = () => {
+      for (const [id, stood] of stripStood) {
+        const a0 = world.aerodromes.find(q => q.id === id);
+        if (a0 && !a0.premises) continue;
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); }
+        stripStood.delete(id);
+      }
+      for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow') standStrip(a);
+    };
   }
 
   { // landing meadows: marker ring + beacon
@@ -90227,6 +90471,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   }
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
     // parallax at the near edge of the band. One frame stale (the viewer places
@@ -90376,7 +90621,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
@@ -111406,29 +111651,29 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script src="src/viewer/house_tex.js?v=aeb2b099"></script>
-<script src="src/viewer/lot_tex.js?v=acb9d389"></script>
-<script src="src/viewer/sign_tex.js?v=b7822241"></script>
+<script src="src/viewer/house_tex.js?v=3d332680"></script>
+<script src="src/viewer/lot_tex.js?v=a3532127"></script>
+<script src="src/viewer/sign_tex.js?v=e3e0b1ad"></script>
 <script src="src/pier/pier_pier.js?v=ba429deb"></script>
 <script src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
 <script src="src/pier/pier_people.js?v=1c02dfbe"></script>
 <script src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
 <script src="src/pier/pier_car.js?v=6beac5ec"></script>
-<script src="src/pier/pier_lods.js?v=d8209e07"></script>
-<script src="src/totems/totems_poles.js?v=63ad4d9f"></script>
-<script src="tools/_house_kit.js?v=d635a246"></script>
-<script src="tools/_house_gen.js?v=b58804e8"></script>
-<script src="tools/_big_gen.js?v=6b6c0344"></script>
+<script src="src/pier/pier_lods.js?v=2b2f0c92"></script>
+<script src="src/totems/totems_poles.js?v=3aa55574"></script>
+<script src="tools/_house_kit.js?v=64fd4ef1"></script>
+<script src="tools/_house_gen.js?v=2bef57bc"></script>
+<script src="tools/_big_gen.js?v=1c85844d"></script>
 <script src="tools/_tram_gen.js?v=b91a8a59"></script>
-<script src="tools/_totem_gen.js?v=1d5256d5"></script>
+<script src="tools/_totem_gen.js?v=725d9e05"></script>
 <script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
-<script src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
+<script src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
 <script src="src/viewer/cabin.js?v=27e21ad5"></script>
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
 <script src="tools/_village_gen.js?v=e6742f63"></script>
-<script src="src/viewer/render_premises.js?v=01a5e77b"></script>
-<script src="src/viewer/premises_host.js?v=8c2437c8"></script>
-<script src="src/viewer/premises_ui.js?v=26f49c58"></script>
+<script src="src/viewer/render_premises.js?v=c7768dd6"></script>
+<script src="src/viewer/premises_host.js?v=e3984a20"></script>
+<script src="src/viewer/premises_ui.js?v=08094354"></script>
 <script>
 (() => {
   // THE PREMISES (G386): the world editor's saved record composes into the world at boot -
@@ -111496,7 +111741,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
         rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
-        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); } },
+        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
@@ -113431,14 +113676,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           // is the loft the water pushes on, and the physics moves it as a
           // rigid cluster on the step keel, the bow keel and the step's two
           // deck edges. Every vertex takes its BARYCENTRICS in that tetra at
-          // rest (nodeRest, the same projection the legs' rests use) and is
-          // rebuilt from the four nodes' live positions (nodeLocal) each
-          // frame: exact under any rigid motion, and the pose's shear
-          // (G357) cancels because rest and live go through the same map.
+          // rest and is rebuilt from the tetra's live position each frame:
+          // exact under any rigid motion.
+          // THE NODES ARE NAMED, NOT FOUND (G393): the frame's own float
+          // record carries the four ids (`parts.floats[k].tetra`), and the
+          // tetra's rest is the PART'S OWN — the captured geometry sits in
+          // the raw cage-rotated frame while nodeRest sits in the design-
+          // origin frame, 1.5 m apart on the user's ultralight, so a
+          // position match (nearNodeVis) found nothing and the part stood
+          // rigid on the fuselage with the physics hull drawn beside it
+          // (the user: "2 sets of floats"). A node's TRAVEL from its rest
+          // (nodeLocal - nodeRest) is the same in both frames, so the live
+          // tetra is the part's rest tetra plus the four travels — the
+          // anchor rigs' own rule (G267.2), with a rotation.
           grp.add(pg);
-          const idxs = pt.tetra.map(a => nearNodeVis(a));
-          if (idxs.every(i => i != null) && new Set(idxs).size === 4) {
-            const R4 = idxs.map(i => nodeRest(i));
+          const FR = (curDef.parts && curDef.parts.floats) || [];
+          const zSide = pt.tetra[0][2] >= 0 ? 1 : -1;
+          const rec = FR.find(r => r.pos && Math.sign(r.pos[2]) === zSide) || null;
+          const idxs = rec && rec.tetra ? rec.tetra.slice() : [];
+          if (typeof window !== 'undefined') (window.FLYDIY_FLOAT_RIG = window.FLYDIY_FLOAT_RIG || {})[pt.kind] =
+            { tetra: pt.tetra.map(a => a.map(v => +v.toFixed(3))), idxs };
+          if (idxs.length === 4 && new Set(idxs).size === 4) {
+            const R4 = pt.tetra.map(a => a.slice());
+            const rest0 = idxs.map(i => nodeRest(i));
             const bary = (q, o) => {
               const [P0, P1, P2, P3] = R4;
               const ax = P1[0] - P0[0], ay = P1[1] - P0[1], az = P1[2] - P0[2];
@@ -113464,9 +113724,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                 q[0] = pa.array[i * 3]; q[1] = pa.array[i * 3 + 1]; q[2] = pa.array[i * 3 + 2];
                 bary(q, l); lam[i * 4] = l[0]; lam[i * 4 + 1] = l[1]; lam[i * 4 + 2] = l[2]; lam[i * 4 + 3] = l[3];
               }
-              floatRigs.push({ posAttr: pa, lam, idxs });
+              floatRigs.push({ posAttr: pa, lam, idxs, R4, rest0 });
             });
-          } else console.warn('float part: its tetra found no four distinct nodes', idxs);
+          } else console.warn('float part: no float record with four nodes for', pt.kind);
         }
         else if (pt.anchors && pt.anchors.length && !pt.surf && pt.kind !== 'ctlLink') {
           // G267.2: THE TAIL ASSEMBLY IS RIGID ON ITS ANCHOR (the user: "the
@@ -114518,7 +114778,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // H2 (G389): the floats, rebuilt from their four nodes by barycentrics
     if (model.floatRigs) for (const r of model.floatRigs) {
       if (!r.posAttr || !r.posAttr.array) continue;
-      const N4 = r.idxs.map(i => nodeLocal(i)), p2 = r.posAttr.array, lam = r.lam;
+      // the live tetra in the PART's frame: its rest plus each node's travel
+      const N4 = r.idxs.map((i, k) => { const L = nodeLocal(i), R0 = r.rest0[k], T = r.R4[k];
+        return [T[0] + L[0] - R0[0], T[1] + L[1] - R0[1], T[2] + L[2] - R0[2]]; });
+      const p2 = r.posAttr.array, lam = r.lam;
       for (let i = 0, n = p2.length / 3; i < n; i++) {
         const a = lam[i * 4], b = lam[i * 4 + 1], c = lam[i * 4 + 2], d = lam[i * 4 + 3];
         p2[i * 3]     = a * N4[0][0] + b * N4[1][0] + c * N4[2][0] + d * N4[3][0];
@@ -114776,10 +115039,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // 15-95 m deep — with its step keels a centimetre above the surface.
     // The route (and the HUD) still read HOME; the pilot does not know it
     // is on water (H4 is the water taxi), so fly it yourself.
+    // H4 (G393): the route is the SEA LANE's — a water aerodrome record the
+    // pilot flies as it flies a meadow (no site, no taxi graph): the take-off
+    // run down the lane, the circuit, the landing back onto it
     if (sim.hydro) {
-      placeAtAerodrome(sim, { hdg: Math.PI / 2, spawn: [0, 1250], elev: 0 });
-      patternVisFor(from, (typeof siteOf === 'function') ? siteOf(from.id) : null);
-      ap.setRoute(from, to);
+      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1250], elev: 0 };
+      placeAtAerodrome(sim, sea);
+      patternVisFor(sea, null);
+      ap.setRoute(sea, destId === 'CIRCUIT' || destId === 'SEA' ? sea : to);
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();
