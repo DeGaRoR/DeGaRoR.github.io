@@ -1,5 +1,5 @@
 {
- "date": "2026-09-14T11:33:25.748Z",
+ "date": "2026-09-14T15:57:25.235Z",
  "url": "http://localhost:8430/flyDiy/dev.html?world=jolene",
  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
  "rig": "alps",
@@ -12,33 +12,33 @@
  "rows": [
   {
    "tier": "full",
-   "median": 15.3,
-   "p90": 17.5,
-   "world": 0.9,
-   "render": 14.2,
+   "median": 15.6,
+   "p90": 17.6,
+   "world": 0.8,
+   "render": 14.5,
    "calls": 1,
    "tris": 2,
-   "near": 2778,
-   "impostors": 128846
+   "near": 2791,
+   "impostors": 131147
   },
   {
    "tier": "off",
-   "median": 9.5,
-   "p90": 13.1,
-   "world": 0.9,
-   "render": 8.8,
-   "calls": 1746,
-   "tris": 19559874,
-   "near": 2778,
-   "impostors": 128846
+   "median": 8.7,
+   "p90": 11.5,
+   "world": 0.8,
+   "render": 7.8,
+   "calls": 1739,
+   "tris": 19607720,
+   "near": 2791,
+   "impostors": 131147
   }
  ],
  "gen": {
   "chunks": 68,
   "walkMs": 5.3,
-  "buildMs": 1.7,
-  "worstMs": 20.6,
-  "frameMaxMs": 5.4,
-  "trees": 126793
+  "buildMs": 1.8,
+  "worstMs": 19.7,
+  "frameMaxMs": 6.4,
+  "trees": 129041
  }
 }

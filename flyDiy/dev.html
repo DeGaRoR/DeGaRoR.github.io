@@ -583,8 +583,9 @@
   var opt = function (u) { return get(u).then(u8, function () { return null; }); };
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
     return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
-                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8')])
-      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5] } }; });
+                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
+                        opt(G + '.coast.u8'), opt(G + '.albedo.rgb')])
+      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7] } }; });
   });
 })();
 </script>

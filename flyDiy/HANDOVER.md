@@ -46279,3 +46279,37 @@ V/Vs 1.37.
   into a tidal flat within 25 m; the seabed under the shallows is sand and
   rock, not the extended forest. The game's own sea (the plane at -0.4,
   the analytic palette) is W1's.
+
+## G398 — THE ISLAND'S OWN GROUND: THE ALBEDO, THE SEA FLOOR, THE LAKES, NO FOG,
+## THE ALPS RIG (2026-09-14, the user testing in game: "boot that on the alps HDR
+## for now, and remove the fog ... we still have the procedural close texture,
+## I want it gone ... let's have as texture what we had in the bench ... lines in
+## the ocean ... where the water patches are coming from ... generate our own
+## water, including lakes")
+
+- WHAT THE PICTURE WAS: the yellow dashes over the sea were the analytic
+  ground pattern showing THROUGH - Jolene's sea floor was exactly 0 and the
+  water plane sits at -0.4; the checkerboard was the analytic palette's
+  fields on flat ground; the water patches were bakeHydrology flooding
+  every sink of the real DEM at 76 m cells.
+- THE ALBEDO: island_prep bakes the bench's stack (tint > radar overlay 0.75
+  > canopy shade x0.7 > the rocky shore off the signed coast > snow) to
+  `.albedo.rgb`, UNLIT - the sun lights it in the game. render_world maps
+  ONE DataTexture over the grid by world position on both rings (the inner
+  ring's uv rewritten, the outer strips' too, innerPatchShared.uv follows);
+  the analytic bake still runs for the forest mask and the minimap; the
+  close-grain hooks are not applied on an island (W1 owns the close range).
+- THE SEA FLOOR: 28_island's terrainH is a shelf off the coast field where
+  the field says sea: -1.5 m at the line, -12 m by 500 m out (smoothstep).
+  The water plane covers it; the floats' hydro has a depth; the ocean's
+  lines are gone with the ground that drew them. coastAt() is bilinear.
+- THE LAKES: the island's hydrology bake takes lakeMin 1e9 (no flooded
+  sinks; the lakes are the cover's water class through waterAt, exact at
+  10 m) and kD 0.12 (the DEM already holds its beds - no double carve);
+  rivers stay: 324 reaches on the real drainage.
+- NO FOG on an island (near 20 km, far 90 km - the edge is the sea); the
+  alps rig at boot: gfx_settings resolves `lighting` to 'alps' when the
+  loader's ISLAND_BOOT is set (onWorld() runs before FLIGHT_PROBE exists,
+  and the GRAPHICS presets carry 'sunset' - a row set in render_world was
+  overridden by them).
+- The loader fetches .coast.u8 and .albedo.rgb with the grids.

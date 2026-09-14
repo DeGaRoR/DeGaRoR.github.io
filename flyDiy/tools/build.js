@@ -87,6 +87,7 @@ const MANIFEST = {
     // accelerate-stop reject, trike rotation, taxi-back with a U-turn, a
     // published status). Generated builds fly it; 41_ stays for A/B.
     '43_pilot.js',
+    '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
     '50_model_codec.js',
     '51_prop_codec.js',
     '52_char_codec.js',
@@ -529,8 +530,9 @@ function buildViewer(coreBody) {
   var opt = function (u) { return get(u).then(u8, function () { return null; }); };
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
     return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
-                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8')])
-      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5] } }; });
+                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
+                        opt(G + '.coast.u8'), opt(G + '.albedo.rgb')])
+      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2], grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7] } }; });
   });
 })();
 </script>`;

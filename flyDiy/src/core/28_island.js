@@ -34,8 +34,9 @@ var ISLAND_GEN = (function () {
     if (typeof TERRAIN_CODEC === 'undefined') throw new Error('island: no TERRAIN_CODEC');
     const H = src.header;
     const root = TERRAIN_CODEC.decodeRaw(H, src.topo, src.payload);
-    const terrainH = TERRAIN_CODEC.sampler(root, H);
+    const terrainQ = TERRAIN_CODEC.sampler(root, H);
     const g = src.grid.meta, cover = src.grid.cover, canopy = src.grid.canopy || null;
+    const coast = src.grid.coast || null;      // signed distance to the waterline, 128 = 0, 4 m a unit, + inland
     const W = g.w, Hn = g.h, cell = g.cell, gx0 = g.x0, gz0 = g.z0;
     const reclass = src.reclass != null ? src.reclass : 2.5;
 
@@ -45,6 +46,25 @@ var ISLAND_GEN = (function () {
       return j * W + i;
     };
     const classAt = (x, z) => { const k = cellAt(x, z); return k < 0 ? WC.WATER : cover[k]; };
+    // the signed coast, bilinear (the field's whole point: a smooth line through the cells)
+    const coastAt = (x, z) => {
+      if (!coast) return 1e9;
+      const u = (x - gx0) / cell - 0.5, v = (z - gz0) / cell - 0.5;
+      const i = Math.max(0, Math.min(W - 2, Math.floor(u))), j = Math.max(0, Math.min(Hn - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j));
+      const p = j * W + i;
+      const a = coast[p], b = coast[p + 1], c = coast[p + W], d = coast[p + W + 1];
+      return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
+    };
+    // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
+    // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
+    // sea is a shelf off the coast field: -1.5 m at the line, -12 m by 500 m
+    // out, the DEM's own value wherever the field says land.
+    const terrainH = coast
+      ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
+                    if (sd >= 0) return h;
+                    const t = Math.min(1, -sd / 500); return Math.min(h, -1.5 - 10.5 * t * t * (3 - 2 * t)); }
+      : terrainQ;
     const canopyAt = (x, z) => { if (!canopy) return 0; const k = cellAt(x, z); return k < 0 ? 0 : canopy[k]; };
     const effClass = (x, z) => {
       const k = cellAt(x, z);
@@ -59,7 +79,8 @@ var ISLAND_GEN = (function () {
       id: src.id || 'island', v: 1,
       bounds: { x0: b.x0, z0: b.z0, x1: b.x1, z1: b.z1 },
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, WC,
+      albedo: src.grid.albedo || null,
       grid: { w: W, h: Hn, cell, x0: gx0, z0: gz0 },
       header: H, root,
     };

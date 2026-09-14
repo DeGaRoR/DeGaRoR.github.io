@@ -400,6 +400,39 @@ def main():
         print(f"  tint: {len(lsat)} scene(s); cloud/shadow over land {100*cloud.sum()/max(landmask.sum(),1):.2f} %; "
               f"NDVI over land mean {ndvi[landmask].mean():.2f}")
 
+    # ---- THE ALBEDO: the bench's stack, baked (2026-09-14 evening) ----------
+    # The game's ground colour for the island - the user's recipe from the
+    # bench (tint x radar overlay x canopy shade, snow on top, the rocky shore
+    # off the signed coast) with NO lighting in it: the sun lights it in the
+    # game. Written at the grid's own cell; the renderer maps it over the
+    # rings by world position. The analytic palette, its fields and its
+    # close grain are bypassed on an island.
+    if "tint" in layers:
+        rgb = np.fromfile(out + ".tint.rgb", dtype="uint8").reshape(H, W, 3).astype("float32") / 255.0
+        if "ori1" in layers:
+            r1 = np.fromfile(out + ".ori1.u8", dtype="uint8").reshape(H, W).astype("float32") / 255.0
+            r1 = r1[..., None]
+            ov = np.where(rgb < 0.5, 2.0 * rgb * r1, 1.0 - 2.0 * (1.0 - rgb) * (1.0 - r1))   # overlay
+            rgb = rgb + (ov - rgb) * 0.75
+        if "canopy" in layers:
+            c = np.fromfile(out + ".canopy.u8", dtype="uint8").reshape(H, W).astype("float32")
+            p90 = max(4.0, layers["canopy"].get("p90OverTreeCover", 15.0))
+            shade = 1.0 - 0.45 * np.clip(c / p90, 0, 1.2)
+            rgb = rgb * (1.0 + (shade[..., None] - 1.0) * 0.7)                                # multiply at 0.7
+        if "coast" in layers:
+            sdf = np.fromfile(out + ".coast.u8", dtype="uint8").reshape(H, W).astype("float32")
+            sd = (sdf - 128.0) * 4.0
+            shore = np.clip((16.0 - sd) / 16.0, 0, 1) ** 2 * (sd >= 0)
+            rock = np.array([0.56, 0.54, 0.48], dtype="float32")
+            rgb = rgb + (rock[None, None, :] - rgb) * (shore * 0.8)[..., None]
+            seabed = np.array([0.30, 0.42, 0.44], dtype="float32")
+            rgb = np.where((sd < 0)[..., None], seabed[None, None, :], rgb)
+        snow = np.clip((dem - 830.0) / 120.0, 0, 1)
+        rgb = rgb + (np.array([0.93, 0.95, 1.0], dtype="float32")[None, None, :] - rgb) * snow[..., None]
+        np.clip(rgb * 255.0, 0, 255).astype("uint8").tofile(out + ".albedo.rgb")
+        layers["albedo"] = {"file": ".albedo.rgb", "recipe": "tint > radar(ori1) overlay 0.75 > canopy shade x0.7 > shore > snow; unlit"}
+        print("  albedo: the bench's stack baked, unlit")
+
     oE, oN = isl["origin"]
     meta = {"island": args.island, "w": W, "h": H,
             "x0": float(x0 - oE), "z0": float(oN - z1),        # game frame: row 0 is the north edge

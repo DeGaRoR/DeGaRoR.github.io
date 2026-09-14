@@ -150,11 +150,16 @@
       if (expBase == null) expBase = R.toneMappingExposure;
       R.toneMappingExposure = expBase * S.exposure; applied.exposure = S.exposure;
     }
-    if (rig && applied.lighting !== S.lighting) {
-      rig.row(S.lighting);
+    // an island boots in the alps rig - the one the trees were judged in - whatever
+    // the preset says (the user, 2026-09-14: "boot that on the alps HDR for now")
+    // (the loader's ISLAND_BOOT, not FLIGHT_PROBE: onWorld() runs before the probe exists)
+    const onIsland = !!W.ISLAND_BOOT;
+    const lighting = onIsland ? 'alps' : S.lighting;
+    if (rig && applied.lighting !== lighting) {
+      rig.row(lighting);
       // the row carries its own shadow / floor numbers: re-assert ours
       applied.shadows = null; applied.canopy = null;
-      applied.lighting = S.lighting;
+      applied.lighting = lighting;
       apply();
     }
   };

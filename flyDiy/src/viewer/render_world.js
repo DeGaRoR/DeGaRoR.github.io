@@ -103,7 +103,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // renderer answers on itself, after init)
   const MAX_ANISO = (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) ? renderer.capabilities.getMaxAnisotropy()
                   : (renderer && renderer.getMaxAnisotropy) ? renderer.getMaxAnisotropy() : 8;
-  scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
+  // the fog wall hid the analytic ring's edge at 5.2 km; an island's edge is the sea (the user: "remove the fog")
+  scene.fog = world.island ? new THREE.Fog(C(HAZE), 20000, 90000) : new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
   // Sky shader, factored out because the W18 environment bake below renders the
@@ -719,8 +720,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       t.anisotropy = MAX_ANISO;
       return t;
     }
-    const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
-    const outerTex = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
+    // THE ISLAND'S OWN GROUND COLOUR (W2, 2026-09-14 evening): the bench's stack
+    // baked by island_prep (unlit), one texture over the whole grid, mapped by
+    // world position on both rings. The analytic bake still runs for the
+    // forest mask and the minimap; its colours are not drawn on an island.
+    const ISLA = world.island && world.island.albedo && world.island.grid ? world.island : null;
+    let islandTex = null, islandUV = null;
+    if (ISLA) {
+      const G = ISLA.grid, n = G.w * G.h, rgba = new Uint8Array(n * 4), src = ISLA.albedo;
+      for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
+      islandTex = new THREE.DataTexture(rgba, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
+      islandTex.colorSpace = THREE.SRGBColorSpace; islandTex.magFilter = islandTex.minFilter = THREE.LinearFilter;
+      islandTex.generateMipmaps = false; islandTex.anisotropy = MAX_ANISO; islandTex.flipY = false; islandTex.needsUpdate = true;
+      // row 0 of the grid is its north edge (z0): v runs with z, no flip
+      islandUV = (x, z) => [(x - G.x0) / (G.w * G.cell), (z - G.z0) / (G.h * G.cell)];
+    }
+    const tex = islandTex || bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
+    const outerBake = bakeGround(BX0, BZ0, BX1, BZ1, 512, { mini: true, mask: true });
+    const outerTex = islandTex || outerBake;
     outerTexShared = outerTex;
 
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
@@ -728,6 +745,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const posA = geo.attributes.position;
     for (let i = 0; i < posA.count; i++)
       posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
+    if (islandUV) { const uvA = geo.attributes.uv;
+      for (let i = 0; i < posA.count; i++) { const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
     geo.computeVertexNormals();
     groundGeos.push(geo);
     // close-range detail: fine tiling grain multiplied in, faded out with distance
@@ -876,8 +895,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     }; };
     const gMat = worldLambert({ map: tex });
-    innerPatchShared = { mat: gMat, half: INNER, uv: (x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)] };
-    gMat.onBeforeCompile = sh => {
+    innerPatchShared = { mat: gMat, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
+    // the close grain is the analytic ground's; an island's texture stands alone until W1
+    if (!islandUV) gMat.onBeforeCompile = sh => {
       sh.uniforms.uDetail = { value: dtex };
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
@@ -912,7 +932,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (let i = 0; i < p.count; i++) {
           const x = p.getX(i), z = p.getZ(i);
           p.setY(i, world.terrainH(x, z) - 2);
-          uv.setXY(i, (x - BX0) / SIZE, 1 - (z - BZ0) / SIZE);
+          if (islandUV) { const t = islandUV(x, z); uv.setXY(i, t[0], t[1]); }
+          else uv.setXY(i, (x - BX0) / SIZE, 1 - (z - BZ0) / SIZE);
         }
         g2.computeVertexNormals();
         const m = new THREE.Mesh(g2, oMat);
