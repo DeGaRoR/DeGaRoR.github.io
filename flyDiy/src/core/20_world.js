@@ -186,11 +186,23 @@ function makeWorld(seed, opts) {
   // Domes never touch the real terrain; river water surfaces are
   // dome-corrected back via wsAdjust.
   const DOME = 3;
+  // ...and over the PREMISES' strips (G413): the bake runs before the layer is
+  // composed, so the strips are read off the raw record - a river had crossed
+  // Jolene's 02/20 the moment the blend gave the island rivers
+  const pmStrips = (opts && opts.premises && typeof PREMISES_GEN !== 'undefined')
+    ? (((PREMISES_GEN.unwrap(opts.premises).rec || {}).layers || {}).runways || []).filter(r => r.c && r.len > 0)
+        .map(r => ({ x: r.c[0], z: r.c[1], ca: Math.cos(r.hdg || 0), sa: Math.sin(r.hdg || 0), hl: r.len / 2 + 150, hw: (r.wid || 30) / 2 + 150 }))
+    : [];
   function domes(x, z) {
     let s = DOME * (1 - padRamp(x, z));
     for (const m of meadows) {
       const d = Math.hypot(x - m.x, z - m.z);
       if (d < m.r * 1.6) s += DOME * (1 - sstep(0, m.r * 1.6, d));
+    }
+    for (const r of pmStrips) {
+      const dx = x - r.x, dz = z - r.z, u = dx * r.ca + dz * r.sa, v = -dx * r.sa + dz * r.ca;
+      const d = Math.hypot(Math.max(0, Math.abs(u) - r.hl), Math.max(0, Math.abs(v) - r.hw));
+      if (d < 260) s += DOME * (1 - sstep(0, 260, d));
     }
     return s;
   }
@@ -201,11 +213,21 @@ function makeWorld(seed, opts) {
     // bake, so the same physical rivers emerge at any grid resolution)
     // the island: the DEM already holds its river beds (no carve to add) and
     // its lakes are the cover's water class (waterAt), not flooded sinks
-    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: 512,
+    { x0: BOUNDS.x0, z0: BOUNDS.z0, x1: BOUNDS.x1, z1: BOUNDS.z1, N: (ISL && ISL.hydro === 'blend') ? 1024 : 512,
       // ...and no rivers either, for now (the user, 2026-09-14: "I hold my
       // judgment on procedural hydrology - maps first, procedural on top")
       // (G405: ?hydro=proc boots the analytic bake's water on the island, to compare with the map's)
-      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5, A0m2: (ISL && ISL.hydro !== 'proc') ? 1e12 : 274650, kW: 0.35, kD: ISL ? 0.12 : 0.4, maxW: 45, dLake: 2,
+      // THE BLEND (G413, the user: "lakes from the data correspond better to the
+      // terrain, the procedural generation does the rivers - narrow the rivers"):
+      // the map's lakes handed to the bake as its lakes (no flooded sinks of its
+      // own), its rivers from 1.2 km2 of drainage (4x the mainland's threshold:
+      // the real creeks, not every gully), 0.22 kW and 28 m at most (the
+      // mainland's 0.35 / 45), at 1024 cells over the island (its 5 m DEM has
+      // the beds; 76 m cells put a ribbon on the bank)
+      lakeMin: (ISL && ISL.hydro !== 'proc') ? 1e9 : 1.5,
+      A0m2: !ISL || ISL.hydro === 'proc' ? 274650 : ISL.hydro === 'blend' ? 1.2e6 : 1e12,
+      kW: (ISL && ISL.hydro === 'blend') ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: (ISL && ISL.hydro === 'blend') ? 28 : 45, dLake: 2,
+      lakeOf: (ISL && ISL.hydro === 'blend') ? ISL.lakeAt : null, lakeSurf: !(ISL && ISL.hydro !== 'proc'),
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)

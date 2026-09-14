@@ -938,7 +938,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
             '  }\n' +
             '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
-            '  if (uGWaterMap > 0.5 && lsd > -4.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-4.0, 3.0, lsd));\n' +
+            // (G413: the paint is the BED under the surface, inside the line only - a deep rim
+            // outside the surface's edge was the "deep blue vs pale blue battle")
+            '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
@@ -1365,7 +1367,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // box at its level, in the sea's own material, discarding every
         // fragment the lake field puts outside the water - a smooth edge, a
         // real reflection, no per-cell geometry at all.
-        const lakeMat = waterMat.clone();
+        // THE EDGE IS THE FIELD'S FADE (G413): the surface's alpha rises over 4 m of
+        // the signed distance (-3 m on the bank to +1 m in), not a hard discard at
+        // the line - one tone, one outline, the bank showing through the shallows
+        const lakeMat = waterMat.clone(); lakeMat.transparent = true; lakeMat.depthWrite = true;
         lakeMat.onBeforeCompile = sh => {
           if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
           sh.uniforms.uGLake = gU.uGLake; sh.uniforms.uGGrid = gU.uGGrid;
@@ -1375,7 +1380,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           sh.fragmentShader = sh.fragmentShader
             .replace('#include <common>', '#include <common>\nvarying vec3 vWL; uniform sampler2D uGLake; uniform vec4 uGGrid;')
             .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' +
-              'if ((texture2D(uGLake, (vWL.xz - uGGrid.xy) / uGGrid.zw).r * 255.0 - 128.0) * 4.0 <= 0.0) discard;');
+              'float lakeA = smoothstep(-3.0, 1.0, (texture2D(uGLake, (vWL.xz - uGGrid.xy) / uGGrid.zw).r * 255.0 - 128.0) * 4.0); if (lakeA <= 0.0) discard;')
+            .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= lakeA;');
         };
         let n = 0;
         for (const L of world.island.lakes) {

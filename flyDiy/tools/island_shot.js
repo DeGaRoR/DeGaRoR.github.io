@@ -35,7 +35,11 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (!tgt) throw new Error('no page');
   const ws = new WebSocket(tgt.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
   let id = 0; const waits = new Map();
-  ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); } };
+  const LOG = argv.includes('--log');
+  ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    // the page's own words: every exception, and (--log) every console line
+    if (m.method === 'Runtime.exceptionThrown') console.error('page exception: ' + (m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text).split(String.fromCharCode(10)).slice(0, 3).join(' | '));
+    if (LOG && m.method === 'Runtime.consoleAPICalled') console.log('page ' + m.params.type + ': ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ').slice(0, 1200)); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
@@ -56,11 +60,14 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const dx=${AT[0]}-cg[0],dy=(gy+${AT[1]})-cg[1],dz=${AT[2]}-cg[2];
     for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}
     const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);
+  // --cam az,el,dist: the orbit camera set where a picture wants it (G413: the whole island from above)
+  const CAM = opt('cam', null);
+  if (CAM) { const c = CAM.split(',').map(Number); await ev(`FLIGHT_PROBE.camSet(${c[0]}, ${c[1]}, ${c[2]}), 1`); }
   await sleep(WAIT);
   const shot = await cmd('Page.captureScreenshot', { format: 'png' });
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, Buffer.from(shot.result.data, 'base64'));
-  const info = await ev("JSON.stringify({aero: FLIGHT_PROBE.world().aerodromes.map(a=>a.id), lakes: FLIGHT_PROBE.world().hydro.lakeCount, rivers: FLIGHT_PROBE.world().hydro.rivers.length, hydro: FLIGHT_PROBE.world().island && FLIGHT_PROBE.world().island.hydro})");
+  const info = await ev("JSON.stringify({aero: FLIGHT_PROBE.world().aerodromes.map(a=>a.id), lakes: FLIGHT_PROBE.world().hydro.lakeCount, rivers: FLIGHT_PROBE.world().hydro.rivers.length, bakeMs: FLIGHT_PROBE.world().hydro.bakeMs, hydro: FLIGHT_PROBE.world().island && FLIGHT_PROBE.world().island.hydro})");
   console.log('island_shot: wrote ' + OUT + '  ' + info);
   ws.close(); ch.kill();
   try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}

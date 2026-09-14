@@ -124,6 +124,11 @@ function bakeHydrology(sample, cfg) {
   const lake = new Uint8Array(M);
   let lakeCells = 0;
   for (let k = 0; k < M; k++) if (!sea[k] && filled[k] - H[k] > cfg.lakeMin) { lake[k] = 1; lakeCells++; }
+  // LAKES HANDED IN (G413, the blend): the map's lakes (a signed field, > 0
+  // inside) are the bake's lakes too - a reach ends where it enters one and
+  // a new reach starts where the water leaves, instead of a ribbon traced
+  // across the surface; the distance-to-water sees them as water.
+  if (cfg.lakeOf) for (let k = 0; k < M; k++) if (!sea[k] && !lake[k] && cfg.lakeOf(px(k % N), pz((k / N) | 0)) > 0) { lake[k] = 1; lakeCells++; }
   // renderer lake surface: the data lakes (depth > lakeMin) PLUS their
   // shallow connected rim (depth > 0.25 at approximately the same level) —
   // in flat terrain the rim is wide and without it the rendered water
@@ -149,7 +154,7 @@ function bakeHydrology(sample, cfg) {
   // edgeMask bits: 1 = +x neighbour is wet, 2 = -x, 4 = +z, 8 = -z
   const lakeSurf = [];
   for (let k = 0; k < M; k++) {
-    if (!wet[k]) continue;
+    if (!wet[k] || cfg.lakeSurf === false) continue;     // (the map draws its own lakes)
     const ix = k % N, iz = (k / N) | 0;
     let mask = 0;
     if (ix + 1 < N && wet[k + 1]) mask |= 1;

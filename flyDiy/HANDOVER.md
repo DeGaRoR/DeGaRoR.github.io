@@ -47757,3 +47757,53 @@ worktree: the same three) - another session's landing, not this chantier's.
   `flydiy.hangarEnvSrc = 'sky'` option still names the old equirect path
   (it falls to the room cube; E retires the pref); the moon's disc shows in
   the shed's windows only through the probe (fine).
+
+## G413 — THE BLEND: THE MAP'S LAKES, THE BAKE'S RIVERS, ONE OUTLINE (2026-09-15,
+## the user: "could we try a blend of both flooding models? Lakes from the data
+## correspond better to the terrain, the procedural generation does the rivers.
+## Maybe narrow the rivers ... the procedural flooding produces clean outlines,
+## while your screenshot still has this deep blue VS pale blue battle")
+
+- THE BATTLE, diagnosed from the A/B (G407's water_ab.png): both paths draw
+  in the SAME waterMat. The procedural side's quads sit at ws − 0.15, UNDER
+  the flattened terrain — what one sees there is the ground shader's own
+  water paint (matte, deep, texel-smooth). The map side's quad is above the
+  ground, mirroring the sky (pale), with the deep ground paint spilling 4 m
+  past the quad's hard `discard` at the line: two tones, two outlines.
+- THE EDGE IS THE FIELD'S FADE: the lake quad's material is transparent, its
+  alpha `smoothstep(-3, 1, lsd)` over the signed lake field (declared at
+  clipping_planes_fragment, applied after alphamap_fragment), depthWrite
+  on; the ground paint now starts INSIDE the line (lsd > −1, feather to +3)
+  as the bed under the surface. One tone, one outline, the bank showing
+  through the shallows.
+- THE BLEND (`?hydro=blend`, the island's default; `map` and `proc` stay for
+  the A/B):
+  - 28_island.js `lakeAt` — the signed lake field bilinear (coastAt's twin);
+    `hydro` defaults to 'blend'; dev.html and tools/build.js likewise.
+  - 21_world_hydro.js `cfg.lakeOf(x, z)` — cells it says are water become
+    the bake's `lake` cells (after its own fill test), so a reach ends where
+    it enters one ('lake') and a new reach starts below; `cfg.lakeSurf ===
+    false` emits no per-cell lake surface (the map draws its own).
+  - 20_world.js: N 1024 over the island (0.63 s measured, 689 map lakes
+    handed in, 173 reaches), A0m2 1.2 km² (4× the mainland's — the real
+    creeks, not every gully), kW 0.22 / maxW 28 (0.35 / 45 mainland):
+    narrowed, as asked. lakeMin stays 1e9 (no flooded sinks of its own).
+  - THE STRIPS GET DOMES: the bake runs before the premises layer is
+    composed, so the strips are read off the raw record (PREMISES_GEN.unwrap
+    → layers.runways) and each gets the pad's 3 m drainage dome over its box
+    + 150 m along, + 150 m across, ramp 260 m — the first bake ran a river
+    straight across Jolene's 02/20; with a 60 m margin it hugged the edge.
+- tools/island_shot.js: `--log` (every console line, and every page
+  exception always), `bakeMs` in the info line, `--cam az,el,dist` through
+  FLIGHT_PROBE.camSet for a picture straight down (the whole island from
+  34 km: bench/jolene/shot_blend_all.png). shot_blend_low.png is the low
+  A/B eye with the blend.
+- Seen and not mine: a MeshLambertMaterial "VALIDATE_STATUS false" in the
+  boot log (render_premises' uncommitted work), and the server on 8430 must
+  be restarted per session (`node flyDiy/tools/_serve.js 8430` from the repo
+  root).
+- Owed: the reach below a lake starts at the lake's edge with the bake's
+  filled height, which can sit above the 5 m DEM's bed in a gorge (a
+  floating ribbon) — the ribbon's y from the DEM's own thalweg is the next
+  step; the rivers' carve is off on the island by design (the DEM has the
+  beds).

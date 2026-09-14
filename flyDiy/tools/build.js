@@ -567,7 +567,7 @@ function buildViewer(coreBody) {
       .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
         grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakes: r[13] },
         far: (r[14] && r[15] && r[16]) ? { header: r[14], topo: r[15], payload: r[16] } : null,
-        hydro: new URLSearchParams(location.search).get('hydro') || 'map' }; });
+        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; });
   });
 })();
 </script>`;

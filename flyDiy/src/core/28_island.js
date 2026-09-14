@@ -60,6 +60,16 @@ var ISLAND_GEN = (function () {
       const a = coast[p], b = coast[p + 1], c = coast[p + W], d = coast[p + W + 1];
       return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
     };
+    // the signed lake field, bilinear, the same way (G413: the bake takes it as its lakes)
+    const lakeAt = (x, z) => {
+      const L = src.grid.lake; if (!L) return -1e9;
+      const u = (x - gx0) / cell - 0.5, v = (z - gz0) / cell - 0.5;
+      const i = Math.max(0, Math.min(W - 2, Math.floor(u))), j = Math.max(0, Math.min(Hn - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j));
+      const p = j * W + i;
+      const a = L[p], b = L[p + 1], c = L[p + W], d = L[p + W + 1];
+      return (((a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv) - 128) * 4;
+    };
     // THE SEA FLOOR. The DEM is 0 over the sea; the game's water plane sits at
     // -0.4 and the floats' hydro wants a depth. There is no bathymetry, so the
     // sea is a shelf off the coast field: -5 m at the line (the far mesh is
@@ -90,11 +100,13 @@ var ISLAND_GEN = (function () {
       // it would light from 19° off at noon. The header may override.
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
-      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, seaFloor: coast ? seaFloor : null, WC,
+      terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
       albedo: src.grid.albedo || null,
       tint: src.grid.tint || null, ori1: src.grid.ori1 || null, coastU8: coast, canopyU8: canopy,
       coverU8: cover, ndvi: src.grid.ndvi || null, lake: src.grid.lake || null, ttype: src.grid.ttype || null, lakes: src.grid.lakes || null,
-      hydro: src.hydro || 'map',     // 'map': the cover's lakes, no bake water; 'proc': the analytic bake's lakes and rivers (G405, to compare)
+      // 'blend' (G413, the default): the map's lakes, the bake's rivers between them, narrowed;
+      // 'map': the map's lakes alone; 'proc': the analytic bake's lakes and rivers (G405, to compare)
+      hydro: src.hydro || 'blend',
       // the far terrain's own tree (eps 4): the leaves the renderer merges into the far mesh
       farHeader: src.far ? src.far.header : null,
       farRoot: src.far ? TERRAIN_CODEC.decodeRaw(src.far.header, src.far.topo, src.far.payload) : null,
