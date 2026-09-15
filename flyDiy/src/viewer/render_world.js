@@ -24,6 +24,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
+  let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
+  let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
   let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
@@ -57,6 +59,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the horizon is the next step once the far chunks are coarser.
   const NEAR_R = 270, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
+  // THE RING THINS WITH DISTANCE, IT DOES NOT POP (LOADING S3, G420). The
+  // fill's far chunks used to be a different, quarter-density set and a
+  // chunk crossing 3.5 km was evicted and regenerated at full density - a
+  // 4x pop walking ahead of the aeroplane. Now every chunk's BASE is the
+  // even sub-lattice of ONE grid (a quarter of the points, the same points
+  // at every distance) and the COMPLEMENT (the other three quarters) is
+  // added inside FILL_R; the complement's impostors carry uThin: an instance
+  // whose own hash exceeds keep(d) collapses, keep going 1 -> 0 over
+  // [uThin.x, uThin.y], each tree shrinking in over 5 % of the ramp. The
+  // base wears U_NOTHIN (keep = 1 everywhere); one GLSL text, one program.
+  // (a plain {x, y} where the headless stub has no Vector2 - GATE WORLDRENDER;
+  // three uploads a vec2 uniform off .x/.y either way)
+  const v2 = (x, y) => THREE.Vector2 ? new THREE.Vector2(x, y) : { x, y, set(a, b) { this.x = a; this.y = b; return this; } };
+  const uThin = { value: v2(world.island ? 3000 : 2500, world.island ? 4200 : 3400) };
+  const U_NOTHIN = { value: v2(1e9, 1e9 + 1) };
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
   // L2 IS NOT DRAWN BY DEFAULT (W0c.32, the user: "the trunk shows a lot
@@ -388,6 +405,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     FAR.proxies.set(mi, p);
     COVER.dirty = true;
   };
+  // a registered mesh's chunk centre against a pass's reach (the sun's slant
+  // adds a margin: a low sun throws a crown's shadow a few hundred metres)
+  const proxyNear = (mi, eye, half) => { const r = half + 724 + 600, dx = mi.position.x - eye.x, dz = mi.position.z - eye.z; return dx * dx + dz * dz < r * r; };
   const coverRender = eye => {
     if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
     const moved = !COVER.at || Math.hypot(eye.x - COVER.at[0], eye.z - COVER.at[1]) > 20;
@@ -417,7 +437,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     for (const [mi, p] of FAR.proxies) {
       if (!mi.parent) { (dead = dead || []).push(mi); continue; }
       p.position.copy(mi.position);
-      p.count = mi.count; p.visible = mi.visible && mi.count > 0;
+      // a chunk whose centre is beyond the map's half-extent plus a chunk's
+      // half-diagonal cannot mark it: not submitted (S3 - the passes used to
+      // run every resident chunk of the 9 km ring through their vertex shader)
+      p.count = mi.count; p.visible = mi.visible && mi.count > 0 && proxyNear(mi, eye, COVER.half);
       p.userData.farMat = p.material;
       p.material = (p.material.userData && p.material.userData.cover) || p.material;
     }
@@ -450,7 +473,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // trees at the ORIGIN - a phantom forest over the airfield, its trees
       // at the heights of their real, hilly chunks, casting from 160 m up.
       p.position.copy(mi.position);
-      p.count = mi.count; p.visible = mi.visible && mi.count > 0;
+      p.count = mi.count; p.visible = mi.visible && mi.count > 0 && proxyNear(mi, eye, FAR.half);
     }
     const gy = world.terrainH(eye.x, eye.z);
     snapToTexels(_sT.set(eye.x, gy, eye.z), FAR.half, FAR.size);
@@ -1869,7 +1892,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = src && src.userData;
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
     };
-    function impostorMat(atlas, far, si, tintU, gain) {
+    function impostorMat(atlas, far, si, tintU, gain, thinU) {
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -1892,6 +1915,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uFadeB = { value: FAR_FADE };
         sh.uniforms.uFadeW = uFadeW;
+        sh.uniforms.uThin = thinU || U_NOTHIN;
         sh.uniforms.uCy = { value: atlas.cy };
         sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G };
@@ -1909,7 +1933,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\n' +
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\nuniform vec2 uThin;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;')
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
@@ -1932,6 +1956,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // hard: at the far edge a tree is about two pixels tall, so
             // shrinking it away is indistinguishable from dissolving it
             'float fade = 1.0 - clamp((dCam - (uFarB - uFadeB)) / uFadeB, 0.0, 1.0);',
+            // the thinning (S3): keep falls 1 -> 0 across [uThin.x, uThin.y]; an
+            // instance's own hash (its world position, stable per tree) decides
+            // whether it is one of the kept, and it shrinks in over 5 % of the ramp
+            'float keep = 1.0 - clamp((dCam - uThin.x) / max(1.0, uThin.y - uThin.x), 0.0, 1.0);',
+            'float hT = fract(sin(dot(floor((iPos.xz + modelMatrix[3].xz) * 4.0), vec2(12.9898, 78.233))) * 43758.5453);',
+            'fade *= clamp((keep * 1.05 - hT) * 20.0, 0.0, 1.0);',
             'vec3 off = (rgt * position.x + upv * position.y) * (uDiam * fade);',
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
@@ -2385,6 +2415,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // So: warm, BUILD the subjects (which is what requests the maps), wait for
     // the maps, and only then plant. Both layers go through this one promise.
     let treeSettled = null;
+    treeSettleOf = () => treeSettle();
     const treeSettle = () => {
       if (treeSettled) return treeSettled;
       if (typeof treeWarm !== 'function' || typeof treeMapsReady !== 'function')
@@ -2690,14 +2721,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // machine can carry is measured, not guessed. The per-chunk cost is per
       // grid POINT, so the streamer's budget below is what hides a bigger NG.
       const CH = 1024, R_ACT = FAR_FILL + 100, R_DROP = FAR_FILL + 800;
-      // THE FAR CHUNKS ARE COARSER (G400): beyond FAR_NEAR_NG a chunk walks
-      // half the grid (a quarter of the points) - an impostor at 8 km reads
-      // the same at 12.8 m spacing as at 6.4, and the walk was the hitch
-      // (266 chunks at 25 ms, worst frame 82 ms with the ring at 9 km).
-      // A chunk that crosses the line is evicted and regenerated at its class.
-      const FAR_NEAR_NG = 3500;
-      const ngFor = (cx, cz, cg) => { const ax = (cx + 0.5) * CH - cg[0], az = (cz + 0.5) * CH - cg[2];
-        return (ax * ax + az * az > FAR_NEAR_NG * FAR_NEAR_NG) ? Math.max(16, NG >> 1) : NG; };
+      // ONE GRID, TWO PARTS (LOADING S3; G400's coarser far chunks, re-cut).
+      // Every chunk walks the SAME NG grid: the BASE part is the even
+      // sub-lattice (gx, gz both even - a quarter of the points, G400's far
+      // density, everywhere out to R_ACT), the FILL part is the other three
+      // quarters, added inside FILL_ACT and dropped past FILL_DROP. Nothing is
+      // regenerated when a chunk comes near: its base stays, its complement
+      // is added beside it, and the shader thins the complement with distance
+      // (uThin) so the density never steps. The hash is keyed on the full
+      // grid's index for both parts: the same point is the same tree.
+      const FILL_ACT = uThin.value.y + CH * Math.SQRT1_2 + 100, FILL_DROP = FILL_ACT + 800;
+      const BASE = 0, FILLP = 1;
       // 160 (6.4 m, ~21 000/km² before dropout): MEASURED on the RTX 3080 at
       // 1920x1080 in the densest stand, the frame with the specimen L2 in the
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
@@ -2785,7 +2819,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               S.imp.userData.farDepth = impostorDepth(at, si, true, gain);
               if (S.imp.userData.farDepth)   // null under the W0.5b flag
                 (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
-              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's (dispose tolerates null)
+              // the complement's impostor: the same programs, the thinning ramp for
+              // its uniform; it casts with the base's depth materials (the shadow
+              // passes only see 1.4 km, where keep is 1)
+              S.impFill = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts), gain, uThin);
+              S.impFill.userData.depth = S.imp.userData.depth; S.impFill.userData.farDepth = S.imp.userData.farDepth;
+              SHAPE.kit.push(S.imp, S.impFill, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's (dispose tolerates null)
             });
             SHAPE.list.push(H);
           }
@@ -2809,10 +2848,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and the build (the matrices, the meshes) follows in the frame the
       // walk finishes. The rule is unchanged: the same points, the same
       // order, the same draws; only the frame they land in differs.
-      const ROWS_PER_FRAME = 24;
-      function walk(cx, cz, recs, g0, g1, ng) {
-        ng = ng || NG; const spc = CH / ng;
+      // ...AND BUDGETED (S3): the walk takes rows until FILL.budgetMs of the
+      // frame is spent, and the build lands in the frame the walk finishes;
+      // prewarm() runs the same step with a big budget under the roll-out
+      // screen. At 60 m/s the ring needs ~8 ms of work a second; 4 ms a
+      // frame is thirty times that.
+      function walk(cx, cz, recs, g0, g1, part) {
+        const ng = NG, spc = CH / ng;
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
+          // the base part is the even sub-lattice; the fill part the rest
+          if (part === BASE ? ((gx | gz) & 1) : !((gx | gz) & 1)) continue;
           const ix = cx * ng + gx, iz = cz * ng + gz;
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
@@ -2851,13 +2896,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
-      function gen(cx, cz) {
+      function gen(cx, cz, part) {
         const recs = SHAPE.list.map(() => []);
         const t0 = performance.now();
-        walk(cx, cz, recs, 0, NG);
-        return build(cx, cz, recs, t0, performance.now());
+        walk(cx, cz, recs, 0, NG, part);
+        return build(cx, cz, recs, t0, performance.now(), part);
       }
-      function build(cx, cz, recs, t0, t1) {
+      function build(cx, cz, recs, t0, t1, part) {
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, gi) => {
@@ -2894,7 +2939,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               // colour buffer at capacity BEFORE parking - see the woodland
               m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
               m.count = 0; m.visible = false; return m; })),
-            mi: (() => { const mi = new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]);
+            mi: (() => { const IM = (part === FILLP && S.impFill) ? S.impFill : S.imp;   // the complement thins with distance
+                         const mi = new THREE.InstancedMesh(impQuadF, IM, cnt[si]);
                          if (S.imp.userData.depth) { mi.castShadow = true; mi.customDepthMaterial = S.imp.userData.depth; }
                          if (S.imp.userData.farDepth) farRegister(mi, S.imp.userData.farDepth);
                          return mi; })(), at: 0 } : null);
@@ -2961,107 +3007,158 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // through the streamer's own eviction path rather than a second one
       // the chunk under generation: its records, the next row, its clock
       let cur = null;
+      // one built part of a chunk goes: its meshes off the scene, its
+      // registrations out of the passes and the partition
+      const dropPart = built => {
+        if (!built) return;
+        for (const m of built.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
+        for (const r2 of built.reg) {
+          let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
+          i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
+        }
+        for (const rec of (built.recs || [])) {
+          const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
+        }
+      };
       // the mix dials (furnished, spread) are dealt at plant time: applying
       // them is a replant of both layers (W0c.31 - "furnished does not seem
       // to work": the dial moved a number nothing re-read)
       TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
-        for (const [k, c2] of chunks) {
-          if (c2.meshes) {
-            for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
-            for (const r2 of c2.meshes.reg) {
-              let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
-              i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
-            }
-            for (const rec of (c2.meshes.recs || [])) {
-              const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
-            }
-          }
-          chunks.delete(k);
-        }
+        for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
         queue.length = 0;
       };
       if (typeof treeReady === 'function' && !treeReady())
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
+      FILL.budgetMs = 4;
+      // THE TREE STATE (S3): the roll-out screen asks whether the payload is in
+      // before it grows the ring, or it would grow cones and evict them
+      const TREE_STATE = { v: (typeof treeReady === 'function' && treeReady()) ? 'ready' : 'pending' };
+      treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
           setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
-          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
+          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
+          // the thinning ramp (metres): full density to d0, the base's quarter from d1
+          thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
+          budget: ms => { if (ms !== undefined) FILL.budgetMs = Math.max(0.5, +ms); return FILL.budgetMs; },
+          prewarm: (cg, o) => prewarm(cg, o), ringReady: cg => ringReady(cg), ringStat: () => ringStat(),
+          treeState: () => TREE_STATE.v };
       let tick = 0;
       // the streamer's worst FRAME - a slice, or the build's - is the hitch
       // a player would see; STAT.frameMax keeps it
-      fillUpdate = cg => { const t = performance.now(); fillStep(cg); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
-      const fillStep = cg => {
-        // every frame: advance the chunk under generation by one slice of
-        // rows; the build lands in the frame the walk finishes
-        if (cur) {
-          const t = performance.now();
-          const cng = cur.c2.ng || NG;
-          const g1 = Math.min(cng, cur.gz + ROWS_PER_FRAME);
-          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cng);
-          cur.walkMs += performance.now() - t; cur.gz = g1;
-          if (g1 >= cng) {
-            const c2 = cur.c2;
-            // evicted while it was being walked: nothing to build
-            if (chunks.get(c2.cx * 4096 + c2.cz) === c2) c2.meshes = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now());
-            cur = null;
-          }
-        }
-        // ~0.2 s cadence for the queue itself: what is missing, what is
-        // next, what is too far. The burst of three chunks in one frame
-        // (W0c.30) is gone with the sliced walk: one chunk at a time, the
-        // next picked up the frame this one is built
-        if (tick++ % 12 && !(queue.length && !cur)) return;
+      fillUpdate = cg => { const t = performance.now(); fillStep(cg, FILL.budgetMs); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
+      const keyOf = (cx, cz) => cx * 4096 + cz;
+      const d2Of = (c2, cg) => { const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2]; return ax * ax + az * az; };
+      // what the ring should hold around cg: every chunk inside R_ACT wants
+      // its base, every chunk inside FILL_ACT wants its complement too
+      const refreshQueue = cg => {
         const R = Math.ceil(R_ACT / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
           const cx = ccx + dx, cz = ccz + dz;
           const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
-          if (mx2 * mx2 + mz2 * mz2 > R_ACT * R_ACT) continue;
+          const dd = mx2 * mx2 + mz2 * mz2;
+          if (dd > R_ACT * R_ACT) continue;
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
-          const k = cx * 4096 + cz;
-          if (!chunks.has(k)) { chunks.set(k, { cx, cz, meshes: null, ng: ngFor(cx, cz, cg) }); queue.push(k); }
+          const k = keyOf(cx, cz);
+          let c2 = chunks.get(k);
+          if (!c2) { c2 = { cx, cz, base: null, fill: null, qb: false, qf: false }; chunks.set(k, c2); }
+          if (!c2.base && !c2.qb) { c2.qb = true; queue.push({ k, part: BASE }); }
+          if (!c2.fill && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; queue.push({ k, part: FILLP }); }
         }
-        if (queue.length) {                // nearest first; the fog hides the rest
-          for (let i = queue.length - 1; i >= 0; i--) {
-            const c2 = chunks.get(queue[i]);
-            if (!c2 || c2.meshes) queue.splice(i, 1);   // evicted or already built
-          }
-          const d2 = k => { const c2 = chunks.get(k);
-            const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
-            return ax * ax + az * az; };
-          queue.sort((a, b) => d2(a) - d2(b));
-          // close chunks (fresh spawn / teleport) get a burst; cruise trickles.
-          // Halved with the density bump: a chunk is ~6 ms of terrainH/surface
-          // now, and six of those in one frame is a visible hitch. The cadence
-          // doubled to compensate, so a fresh spawn still fills in ~2 s.
-          if (!cur) {
-            const c2 = chunks.get(queue.shift());
-            if (c2) cur = { c2, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
-          }
+        // nearest first, the base of a chunk before its complement
+        for (let i = queue.length - 1; i >= 0; i--) {
+          const c2 = chunks.get(queue[i].k);
+          if (!c2 || (queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
         }
-        for (const [k, c2] of chunks) {    // evict far chunks, and chunks whose grid class changed
-          const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
-          if (ax * ax + az * az < R_DROP * R_DROP && (!c2.meshes || c2.ng === ngFor(c2.cx, c2.cz, cg))) continue;
-          if (cur && cur.c2 === c2) cur = null;
-          if (c2.meshes) {
-            for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
-            for (const r of c2.meshes.reg) {   // or lodUpdate keeps poking dead meshes
-              let i = nearChunks.indexOf(r); if (i >= 0) nearChunks.splice(i, 1);
-              i = impChunks.indexOf(r); if (i >= 0) impChunks.splice(i, 1);
-            }
-            for (const rec of (c2.meshes.recs || [])) {
-              const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
-            }
+        queue.sort((a, b) => (d2Of(chunks.get(a.k), cg) + a.part * 1e5) - (d2Of(chunks.get(b.k), cg) + b.part * 1e5));
+      };
+      // what the ring no longer holds: past R_DROP the chunk goes whole, past
+      // FILL_DROP its complement goes and its base stays - never a regeneration
+      const evictPass = cg => {
+        for (const [k, c2] of chunks) {
+          const dd = d2Of(c2, cg);
+          if (dd >= R_DROP * R_DROP) {
+            if (cur && cur.c2 === c2) cur = null;
+            dropPart(c2.base); dropPart(c2.fill); chunks.delete(k);
+          } else if (c2.fill && dd >= FILL_DROP * FILL_DROP) {
+            if (cur && cur.c2 === c2 && cur.part === FILLP) cur = null;
+            dropPart(c2.fill); c2.fill = null; c2.qf = false;
           }
-          chunks.delete(k);
         }
       };
+      // one frame's (or one prewarm tick's) worth of streaming: walk rows of
+      // the part under generation until the budget is spent; a finished walk
+      // builds at once and, budget permitting, the next queued part starts
+      const fillStep = (cg, budgetMs) => {
+        const t0 = performance.now();
+        const maint = !(tick++ % 12) || (!cur && queue.length);
+        if (maint) refreshQueue(cg);
+        let built = 0;
+        for (;;) {
+          if (!cur) {
+            if (!queue.length) break;
+            const q = queue.shift(), c2 = chunks.get(q.k);
+            if (!c2 || (q.part === BASE ? c2.base : c2.fill)) continue;
+            cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
+          }
+          const t = performance.now();
+          const g1 = Math.min(NG, cur.gz + 8);
+          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cur.part);
+          cur.walkMs += performance.now() - t; cur.gz = g1;
+          if (g1 >= NG) {
+            const c2 = cur.c2, part = cur.part;
+            // evicted while it was being walked: nothing to build
+            if (chunks.get(keyOf(c2.cx, c2.cz)) === c2) {
+              const b = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now(), part);
+              if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; }
+              built++;
+            }
+            cur = null;
+            if (built >= 2) break;         // two builds a step at most: a build is the hitch
+          }
+          if (performance.now() - t0 >= budgetMs) break;
+        }
+        if (maint) evictPass(cg);
+      };
+      // THE ROLL-OUT SCREEN'S STEP (S3): a big budget, nobody watching. Returns
+      // where the ring stands; done when every chunk inside R_ACT has its base
+      // and every chunk inside FILL_ACT its complement. While the payload is
+      // still pending it does no walking (the cones would be evicted when the
+      // trees land); a failed payload is 'fallback' and the cones are the ring.
+      const ringReady = cg => {
+        const R = Math.ceil(R_ACT / CH);
+        const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
+        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
+          const cx = ccx + dx, cz = ccz + dz;
+          const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
+          const dd = mx2 * mx2 + mz2 * mz2;
+          if (dd > R_ACT * R_ACT) continue;
+          { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
+            if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
+          const c2 = chunks.get(keyOf(cx, cz));
+          if (!c2 || !c2.base) return false;
+          if (dd < FILL_ACT * FILL_ACT && !c2.fill) return false;
+        }
+        return !cur;
+      };
+      const ringStat = () => { let base = 0, fill = 0; for (const [, c2] of chunks) { if (c2.base) base++; if (c2.fill) fill++; }
+        return { live: chunks.size, base, fill, queued: queue.length, busy: !!cur || queue.length > 0, budgetMs: FILL.budgetMs, trees: STAT.trees, gens: STAT.gens }; };
+      const prewarm = (cg, o) => {
+        const budget = (o && o.budgetMs) || 60;
+        if (TREE_STATE.v === 'pending') return Object.assign({ phase: 'trees', done: false, trees: 'pending' }, ringStat());
+        tick = 0;                          // a maintenance pass every tick under the screen
+        fillStep(cg, budget);
+        const done = ringReady(cg);
+        return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
+      };
+      fillApi = { prewarm, ringReady, ringStat, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
     }
   }
 
@@ -4014,6 +4111,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
   return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+    // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
+    // overlay, and the payload's settle to wait on (a rejected settle = cones)
+    prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
+    ringReady: cg => fillApi ? fillApi.ringReady(cg) : true,
+    ringStat: () => fillApi ? fillApi.ringStat() : null,
+    treeState: () => fillApi ? fillApi.treeState() : 'fallback',
+    treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;

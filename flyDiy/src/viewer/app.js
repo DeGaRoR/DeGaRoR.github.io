@@ -5553,7 +5553,7 @@
     // previous build's (shakeOf caches per def, so this is one settle).
     drawPlaque();
   }
-  function rollOut() {
+  function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     rig = null;
@@ -5582,7 +5582,84 @@
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
-    flRevealStart();                   // the aeroplane is on the stand now
+    // THE ROLL-OUT SCREEN (LOADING S3). The first roll-out builds the world
+    // scene (3-5 s), grows the tree ring around the stand (it used to fill
+    // in front of you for 16 s), settles the atlases and compiles the
+    // world's programs (100-150 of them, the freeze at the first frame) -
+    // all under the overlay with the world pictures. A second roll-out at
+    // the same stand finds everything resident and reveals at once; a spawn
+    // elsewhere grows its ring again.
+    if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
+    else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
+  }
+  let frameWait = null, worldCompiled = false, holdRender = false;
+  const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
+    : new Promise(res => { frameWait = { n, res }; });
+  function needsRollOutScreen() {
+    if (typeof BOOT.show !== 'function' || !BOOT.log) return false;   // the shim: build inline
+    if (!WF) return true;
+    let cg = null; try { cg = sim.cgPos(); } catch (e) { return false; }
+    return !worldCompiled || !(WF.ringReady && WF.ringReady(cg));
+  }
+  function rollOutScreen(done) {
+    const steps = [];
+    holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
+    if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => { buildWorld(); } });
+    // the payload: wait for it (15 s at most - a failed fetch leaves cones)
+    steps.push({ id: 'trees', label: 'the tree models', w: 4, fn: () => {
+      if (!WF || !WF.treeSettled || typeof renderer.compileAsync !== 'function') return;
+      return Promise.race([WF.treeSettled(), new Promise(res => setTimeout(res, 15000))]);
+    } });
+    // the ring: prewarm ticks of 40 ms until every chunk in reach stands
+    steps.push({ id: 'ring', label: 'growing the forest', w: 30, fn: () => {
+      if (!WF || !WF.prewarm || typeof renderer.compileAsync !== 'function') return;
+      const cg = sim.cgPos();
+      let total = 0;
+      return new Promise(res => {
+        let ticks = 0;
+        const tick = () => {
+          let r; try { r = WF.prewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          total = Math.max(total, r.live || 0);
+          const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
+          BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
+          if (r.done || ++ticks > 900) res(); else setTimeout(tick, 0);
+        };
+        tick();
+      });
+    } });
+    // the textures go to the GPU here, in slices, with a count - not in the
+    // first frame (measured: 5.6 s of the first world frame was the upload)
+    steps.push({ id: 'upload', label: 'uploading the textures', w: 12, fn: () => {
+      if (typeof renderer.initTexture !== 'function' || typeof renderer.compileAsync !== 'function' || !WF) return;
+      const texs = new Set();
+      const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
+        if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) texs.add(v); } };
+      scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
+      if (scene.environment) texs.add(scene.environment);
+      if (scene.background && scene.background.isTexture) texs.add(scene.background);
+      const list = [...texs].filter(t => t.image || t.isDataTexture || t.isCanvasTexture);
+      let i = 0;
+      return new Promise(res => {
+        const tick = () => {
+          const t0 = performance.now();
+          while (i < list.length && performance.now() - t0 < 30) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
+          BOOT.phase('upload', 'uploading the textures ' + i + ' / ' + list.length, list.length ? i / list.length : 1);
+          if (i >= list.length) res(); else setTimeout(tick, 0);
+        };
+        tick();
+      });
+    } });
+    if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
+      worldCompiled = true;
+      if (typeof renderer.compileAsync !== 'function' || !WF) return;
+      return compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
+        .then(() => compileDepthVariants());
+    } });
+    // two frames of the world rendered under the overlay: the passes, the
+    // residue of programs the compile does not reach (the shadow variants)
+    steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => { holdRender = false; return framesRendered(2); } });
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
+      probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
 
   $('bGo').onclick = () => {
@@ -5603,7 +5680,8 @@
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
       if (window.CAGE_UI) syncBuild();
-      rollOut();
+      rollOut(() => { started = true; });   // the sim starts when the screen has lifted, not under it
+      return;
     }
     started = true;
   };
@@ -7900,7 +7978,7 @@
     shake: () => shakeOf(),
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
-    rollOut: () => { rollOut(); started = true; },
+    rollOut: () => { rollOut(() => { started = true; }); },
     // BUILD -> LOAD TEST -> FLY. The panel drives the rig and polls it; the
     // rig is the same object GATE LOAD ticks, so the two cannot disagree.
     loadTest: () => startLoadTest(),
@@ -8160,6 +8238,11 @@
     // what makes G144's pass a single substitution rather than a campaign:
     // every other renderer.render() in hangar.js and render_world.js is bound
     // to its own target and is untouched by this.
+    // THE WORLD IS NOT DRAWN UNDER THE ROLL-OUT SCREEN until its programs are
+    // linked (S3): a frame between the world step and the compile step drew
+    // the fresh scene and compiled everything synchronously - 12 s in one
+    // task. The `frames` step lifts the hold and waits for two real frames.
+    if (holdRender) { BOOT.frame(); return; }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
@@ -8177,6 +8260,7 @@
       }
     }
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
+    if (frameWait && --frameWait.n <= 0) { const r = frameWait.res; frameWait = null; r(); }
   }
   // The splash used to drop on frame 1 here - the mirror aircraft and the
   // empty back wall (LOADING S1). boot.js owns the teardown now; this is a
@@ -8220,7 +8304,12 @@
   // synchronously (its setTimeout fires at once).
   const bootSteps = [];
   const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
-  bootStep('worldScene', 'laying out the world', 18, buildWorld);
+  // THE WORLD SCENE IS NOT BUILT HERE ANY MORE (LOADING S3, the user's ruling):
+  // the garage does not show it, so it is built under the ROLL-OUT screen the
+  // first time you roll out (rollOutScreen below), with the tree ring, the
+  // atlases and the world's shaders. Only the tree bins are asked for now,
+  // so they are in by the time the ring is grown.
+  bootStep('treeBins', 'the tree models', 1, () => { if (typeof treeWarm === 'function') treeWarm().catch(() => {}); });
   bootStep('aircraft', 'building your aeroplane', 6, () => {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
@@ -8296,6 +8385,43 @@
   // pass's target (the canvas's look) for the frame. The bake itself, held
   // back while this was pending, runs between the two. A page without
   // compileAsync (the harness) takes the old road: bake now, compile on draw.
+  // THE DEPTH VARIANTS (S3): three's compile() never runs the shadow pass, so
+  // every caster's depth program - the impostors' custom depth, the far
+  // cascade's and the canopy cover's, the plain MeshDepthMaterial per side
+  // and per mesh kind - linked synchronously on the first world frame:
+  // measured 5.7 s of it, warm. A helper scene of clones wearing exactly
+  // those materials goes through compileAsync with a plain target bound
+  // (a shadow map is one: linear, no tone map). What it misses still
+  // compiles on the frame; what it catches links on the driver's threads.
+  function compileDepthVariants() {
+    if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
+    const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
+    const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
+    const add = (o, mat) => {
+      if (!mat) return;
+      const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : '');
+      if (seen.has(key)) return; seen.add(key);
+      const c = o.clone(false); c.material = mat; c.visible = true; if (o.isInstancedMesh) c.count = Math.max(1, o.count); helper.add(c);   // shallow: a child's real material is not a depth variant
+    };
+    scene.traverse(o => {
+      if (!o.isMesh || !o.castShadow) return;
+      if (o.customDepthMaterial) { add(o, o.customDepthMaterial); return; }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m) return;
+      const s = SIDE(m); let d = defDepth.get(s);
+      if (!d) { d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: s }); defDepth.set(s, d); }
+      add(o, d);
+    });
+    // the far cascade's proxies (their far depth) and the canopy cover's swap
+    if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
+    const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
+    return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
+  }
+  // one compile pass: every material of `sc`, keyed for `target` (null = the canvas)
+  function compilePass(sc, target) {
+    const prev = renderer.getRenderTarget();
+    try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(sc, camera); }
+    finally { renderer.setRenderTarget(prev); }
+  }
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
@@ -8308,11 +8434,7 @@
       try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
             hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
     }
-    const pass = target => {
-      const prev = renderer.getRenderTarget();
-      try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(hangarScene, camera); }
-      finally { renderer.setRenderTarget(prev); }
-    };
+    const pass = target => compilePass(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
     // Wait (8 s at most) for the bytes that add materials to the scene.

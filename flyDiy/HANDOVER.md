@@ -48556,3 +48556,90 @@ function now (the flat field at its floor), the rectangle is `groundRect`
   restart contract); GATE ATMO's splice rules unchanged (five chunks, the
   head of tonemapping_fragment, one flag). The battery is owed on this tip
   the moment the box is free.
+
+## G420 — THE ROLL-OUT SCREEN, AND A RING THAT THINS INSTEAD OF POPPING (2026-09-15, LOADING S3)
+
+Session 3 of `futureDesigns/LOADING-2026-09-14.md`; the user's rulings: the
+world scene is built under the roll-out screen, "the world might compromise
+a tad", and the density that "increases as you go" must stop within the ring.
+
+WHAT LANDED:
+- THE WORLD SCENE LEAVES THE BOOT (app.js). `buildWorld()` runs under the
+  ROLL-OUT SCREEN the first time you roll out; the boot only asks for the
+  tree bins (`treeWarm`) so they are in by then. Boot warm: 18 -> 11.8 s.
+  `rollOut(after)`: `after` (the sim's `started = true`) runs when the
+  aeroplane is on screen, not under the overlay - the taxi used to begin
+  under it. `needsRollOutScreen()`: no world yet, or the world not compiled,
+  or the ring not resident at this CG (`WF.ringReady`) - a second roll-out
+  at the same stand reveals at once, a spawn elsewhere grows its ring again.
+- THE ROLL-OUT SCREEN'S STEPS (the same BOOT, set 'rollout', the world
+  pictures): world (buildWorldScene, 9-13 s today - the peers' parked
+  aeroplanes capture, the maps, the premises drain all live in it),
+  trees (WF.treeSettled, 15 s at most, a failed payload = cones), ring
+  (`WF.prewarm(cg, { budgetMs: 40 })` ticks until `ringReady`, the phase
+  line counts the chunks: "growing the forest 34 / 104"), upload (every
+  texture of the scene through `renderer.initTexture` in 30 ms slices,
+  counted), compile (`compileAsync(scene)` with the AA target bound, then
+  `compileDepthVariants()`: a helper scene of SHALLOW clones wearing every
+  caster's depth material, the far cascade's and the cover's, with a plain
+  target bound - three's compile() never runs the shadow pass), frames (two
+  real frames). THE WORLD IS NOT DRAWN UNDER THE OVERLAY UNTIL COMPILED
+  (`holdRender`): the frame between the world step and the compile step
+  used to draw the fresh scene and compile everything synchronously - 12 s
+  in one task. Measured warm: world 10.4 s, trees 0.2, ring 2.4, upload
+  1.1, compile 0.5 (80 programs), frames 5.6 s. THE FRAMES STEP IS THE
+  DRIVER'S: 30 programs the compile cannot reach (three's own depth
+  variants) plus ANGLE's draw-time D3D shader variants; nothing in JS
+  pre-triggers those, so they happen under the overlay, not in front of you.
+  Ring at the lift: 52 base + 52 fill, queued 0, and the same eight seconds
+  later - nothing streams in after the reveal.
+- ONE GRID, TWO PARTS (render_world.js, the fill streamer). G400's coarser
+  far chunks were a DIFFERENT quarter-density point set (the hash was keyed
+  on the coarse grid's index) and a chunk crossing 3.5 km was evicted and
+  regenerated at full density: the 4x pop walking ahead of the aeroplane.
+  Now every chunk walks the same NG grid; the BASE part is the even
+  sub-lattice (a quarter of the points, the same points at every distance,
+  out to R_ACT), the FILL part the other three quarters, added inside
+  FILL_ACT (uThin.y + a chunk's half-diagonal + 100 m) and dropped past
+  FILL_DROP; the hash is keyed on the full grid for both, so a point is the
+  same tree whichever part drew it. Nothing regenerates on approach.
+- THE THINNING (impostorMat, `uThin`): the complement's impostors wear a
+  second material (`S.impFill`, the same GLSL text -> the same program) whose
+  keep(d) falls 1 -> 0 across [uThin.x, uThin.y] (island 3000-4200 m,
+  analytic 2500-3400); an instance whose own hash (its world position)
+  exceeds keep collapses, shrinking in over 5 % of the ramp; the base wears
+  U_NOTHIN. The density seen: full to 3 km, a continuous thinning to the
+  base's quarter by 4.2 km, the quarter to the ring's edge, the existing
+  500 m shrink at the edge. `TREE_FILL.thin(d0, d1)` is the dial.
+- THE BUDGET (`FILL.budgetMs = 4`, `TREE_FILL.budget`): the walk takes rows
+  until the budget is spent, builds at once, and takes the next queued part
+  if budget remains (two builds a step at most); `refreshQueue` sorts
+  nearest first with a chunk's base ahead of its complement; `evictPass`
+  drops the complement alone past FILL_DROP. `prewarm` is the same step
+  with a big budget; `ringReady`, `ringStat`, `treeState` on TREE_FILL and
+  on WF.
+- THE FAR PASSES ARE GATED (`proxyNear`): the far cascade and the canopy
+  cover ran every resident chunk of the 9 km ring through their vertex
+  shader every fourth frame; a proxy whose chunk centre is beyond the map's
+  half-extent + a chunk's half-diagonal + 600 m (a low sun's reach) is not
+  submitted.
+- tools/boot_perf.js `--rollout`: presses the button, times the second set,
+  reads the ring at the lift and eight seconds later, `--window a,b` for a
+  windowed CPU breakdown, the last programs made with their cache keys (the
+  instrument that found the recursive clone and the draw-time residue).
+- tree_perf on the new ring (analytic, densest stand): full 24.6 ms median,
+  off 15.5, world update 1 ms, 110 899 impostors (+10 %: the analytic ring is
+  full density everywhere inside 4.1 km now, thinned by the shader), 4290
+  near - no regression; worst chunk 112 ms is a FILL part built whole under
+  the teleport's burst (a build is the hitch; splitting the fill build by
+  series is owed).
+
+OWED: the fly-through probe (tree_perf --fly: visible impostors vs distance,
+the POP index) - the pop is gone by construction, not yet by a number; the
+atlas coverage-preserving mips; the lazy near-ladder allocation (memory: the
+complement adds ~28 % resident instances); the F8 row for uThin; the fill
+build split by series; the world step itself (10-13 s: the parked
+aeroplanes' capture, the premises drain and the colour bake are the
+candidates - a Worker for the bake is the next cut). S4 (bytes: texture prep
+in the bakers, the media manifest + prefetch, the media-only service worker
+with version numbers and a refresh button) is the last session.

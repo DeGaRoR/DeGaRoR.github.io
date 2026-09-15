@@ -89459,6 +89459,33 @@ var ATMO = (function () {
     varying vec3 vAtmoV;
     uniform sampler2D uApAtlas;
     uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+
+    // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
+    // below its top yTop, decaying over H above it - integrated in closed form along the ray
+    // (piecewise at the top plane), lit by the day (uMist[1].rgb: sun x T + sky at the mist, on
+    // the dome's scale) with a forward peak toward the sun. uMist[0] = (rho0, yTop, H, on),
+    // uMist[1] = (colour rgb, forward strength), uMist[2] = (sun dir xyz, 0). World metres.
+    uniform vec4 uMist[3];
+    float mistAbove(float ya, float dy, float ta, float tb, float H) {   // optical depth over [ta, tb] above the top, density exp(-(y - yTop)/H)
+      if (abs(dy) < 1e-4) return (tb - ta) * exp(-ya / H);
+      return (H / dy) * (exp(-(ya + dy * ta) / H) - exp(-(ya + dy * tb) / H));
+    }
+    float mistOD(float y0, float dy, float D) {
+      float rho0 = uMist[0].x, yTop = uMist[0].y, H = max(1.0, uMist[0].z);
+      float ya = y0 - yTop, y1 = ya + dy * D;
+      if (ya <= 0.0 && y1 <= 0.0) return rho0 * D;
+      if (ya > 0.0 && y1 > 0.0) return rho0 * mistAbove(ya, dy, 0.0, D, H);
+      float ts = -ya / dy;                                    // the crossing of the top plane
+      if (ya <= 0.0) return rho0 * (ts + mistAbove(ya, dy, ts, D, H));
+      return rho0 * (mistAbove(ya, dy, 0.0, ts, H) + (D - ts));
+    }
+    // col -> col through the mist along world dir d for D metres from the eye at y0
+    vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
+      if (uMist[0].w < 0.5 || uMist[0].x <= 0.0) return col;
+      float T = exp(-mistOD(y0, d.y, D));
+      float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+      return col * T + uMist[1].rgb * fwd * (1.0 - T);
+    }
     vec4 atmoAP() {
       float dist = length(vAtmoV) * 0.001;
       vec3 d = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz);
@@ -89475,7 +89502,10 @@ var ATMO = (function () {
     }`;
   const AP_APPLY = `
     #ifdef USE_FOG
-    if (uAtmoAP.z > 0.5) { vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a; }
+    if (uAtmoAP.z > 0.5) {
+      vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
+      gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
+    }
     #endif
   `;
   // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
@@ -89492,7 +89522,12 @@ var ATMO = (function () {
     #endif
   `;
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
-  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars } };
+  const mistScalars = new Float32Array(12);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0]
+  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
+  // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
+  // (humidity: rho0 = 0.0025/m x ((rh - 0.7) / 0.3)^2 - saturated air sees 1.2 km), its top (m ASL)
+  // and thickness (m), the forward peak. F8's atmosphere fold writes these.
+  const MIST = { on: true, k: 1, top: 60, H: 18, fwd: 0.8, rhoDay: 0, get rho0() { return this.rhoDay * this.k; } };
   let installed = false;
   function install() {
     if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk || !THREE.ShaderLib) return false;
@@ -89504,7 +89539,7 @@ var ATMO = (function () {
     SC.fog_fragment = AP_FOG_FRAG;
     SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
     for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
-      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) lib.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
     }
     // every default material takes the sampler through the prototype; a hook of its own calls inject itself
     const proto = THREE.Material.prototype;
@@ -89518,6 +89553,7 @@ var ATMO = (function () {
     if (!/fog_pars_fragment|USE_FOG/.test(sh.fragmentShader || '')) return;
     sh.uniforms.uApAtlas = apUniforms.uApAtlas;
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+    if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
 
@@ -89529,6 +89565,34 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
+    uniform float uGlare, uEyeY;                          // the corona's strength (S7); the eye's height for the mist
+
+    // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
+    // below its top yTop, decaying over H above it - integrated in closed form along the ray
+    // (piecewise at the top plane), lit by the day (uMist[1].rgb: sun x T + sky at the mist, on
+    // the dome's scale) with a forward peak toward the sun. uMist[0] = (rho0, yTop, H, on),
+    // uMist[1] = (colour rgb, forward strength), uMist[2] = (sun dir xyz, 0). World metres.
+    uniform vec4 uMist[3];
+    float mistAbove(float ya, float dy, float ta, float tb, float H) {   // optical depth over [ta, tb] above the top, density exp(-(y - yTop)/H)
+      if (abs(dy) < 1e-4) return (tb - ta) * exp(-ya / H);
+      return (H / dy) * (exp(-(ya + dy * ta) / H) - exp(-(ya + dy * tb) / H));
+    }
+    float mistOD(float y0, float dy, float D) {
+      float rho0 = uMist[0].x, yTop = uMist[0].y, H = max(1.0, uMist[0].z);
+      float ya = y0 - yTop, y1 = ya + dy * D;
+      if (ya <= 0.0 && y1 <= 0.0) return rho0 * D;
+      if (ya > 0.0 && y1 > 0.0) return rho0 * mistAbove(ya, dy, 0.0, D, H);
+      float ts = -ya / dy;                                    // the crossing of the top plane
+      if (ya <= 0.0) return rho0 * (ts + mistAbove(ya, dy, ts, D, H));
+      return rho0 * (mistAbove(ya, dy, 0.0, ts, H) + (D - ts));
+    }
+    // col -> col through the mist along world dir d for D metres from the eye at y0
+    vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
+      if (uMist[0].w < 0.5 || uMist[0].x <= 0.0) return col;
+      float T = exp(-mistOD(y0, d.y, D));
+      float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+      return col * T + uMist[1].rgb * fwd * (1.0 - T);
+    }
     uniform vec3 uSun, uMoon;
     varying vec3 vD;
     float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
@@ -89584,6 +89648,18 @@ var ATMO = (function () {
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
         L += tint * star * uStars * 1.5e-5 * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
       }
+      // THE CORONA (S7): the eye's own scatter around a disc ten thousand times the sky - a 1/theta^2
+      // lobe (Spencer et al. 1995) through the sun's transmittance, a degree wide, on the disc's own
+      // colour; the moon gets a faint one
+      if (uGlare > 0.0) {
+        vec3 Tsun = texture2D(uT2, tUV2(uR, uSun.y)).rgb;
+        float above = raySphere2(uR, d.y, uAtm2.x) < 0.0 ? 1.0 : 0.0;
+        float a = max(ang, sr);
+        L += Tsun * uGlare * above * 0.02 / (1.0 + pow(a / 0.02, 2.0)) * smoothstep(-0.05, 0.02, uSun.y);
+        if (uEMoon > 0.0) L += texture2D(uT2, tUV2(uR, uMoon.y)).rgb * uEMoon * uGlare * above * 0.4 / (1.0 + pow(max(angm, mr) / 0.02, 2.0)) * smoothstep(-0.05, 0.02, uMoon.y);
+      }
+      // the mist over the sky itself: a ray above the horizon leaves the layer (the integral converges)
+      L = mistApply(L * uScale, d, 60000.0, uEyeY) / max(1e-9, uScale);
       gl_FragColor = vec4(L * uScale, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -89594,6 +89670,7 @@ var ATMO = (function () {
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
+    glare: { value: 1 }, eyeY: { value: 0 },
   };
   function uploadTex(tex, lut, W, Hh) {
     const half = new Uint16Array(W * Hh * 4);
@@ -89655,6 +89732,20 @@ var ATMO = (function () {
     if (installed && G.rtAP) { G.quad.material = G.apMat; renderer.setRenderTarget(G.rtAP); renderer.render(G.scene, G.cam); G.quad.material = G.skyMat; }
     renderer.setRenderTarget(prev); renderer.autoClear = ac;
     apScalars[0] = U.scale.value;
+    U.eyeY.value = camAltM || 0;
+    // the mist's day: its density from the humidity, its colour from the sun and the sky at its top
+    if (day) {
+      const rh = day.rh != null ? day.rh : 0.5;
+      MIST.rhoDay = 0.0025 * Math.pow(Math.max(0, Math.min(1, (rh - 0.7) / 0.3)), 2);
+      const km = MIST.top / 1000, T = [0, 0, 0], E = [0, 0, 0], Em = [0, 0, 0];
+      sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E);
+      const sy = Math.max(0, day.sun[1]);
+      if (U.eMoon.value > 0 && day.moon[1] > 0) { skyIrradiance(km, day.moon, Em); const mE = U.eMoon.value; E[0] += Em[0] * mE; E[1] += Em[1] * mE; E[2] += Em[2] * mE; }
+      const S = U.scale.value * 0.9 / Math.PI;
+      mistScalars[0] = MIST.rho0; mistScalars[1] = MIST.top; mistScalars[2] = MIST.H; mistScalars[3] = MIST.on ? 1 : 0;
+      mistScalars[4] = S * (0.5 * T[0] * sy + E[0]); mistScalars[5] = S * (0.5 * T[1] * sy + E[1]); mistScalars[6] = S * (0.5 * T[2] * sy + E[2]); mistScalars[7] = MIST.fwd;
+      mistScalars[8] = day.sun[0]; mistScalars[9] = day.sun[1]; mistScalars[10] = day.sun[2]; mistScalars[11] = 0;
+    }
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
@@ -89662,7 +89753,8 @@ var ATMO = (function () {
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 } },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
+                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));
@@ -89727,6 +89819,7 @@ var ATMO = (function () {
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
+    MIST,
   };
 })();
 if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks
@@ -89838,13 +89931,131 @@ var SKY_LIGHT = (function () {
         if (G && G.setExposure) G.setExposure(o.renderer, ex); else o.renderer.toneMappingExposure = ex;
       }
     }
+    API.last = { isMoon, el, T: [_T[0], _T[1], _T[2]], phase: day.moonPhase };   // the flare reads the light's transmitted colour
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }
-  const API = { applyDay, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; } };
+  const API = { applyDay, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null };
   if (typeof window !== 'undefined') window.SKY_LIGHT = API;
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SKY_LIGHT;
+</script>
+<script>
+// ============================================================
+// THE SUN'S GLARE — the flare over the frame (SKY S7, 2026-09-15).
+//
+// Not a bloom pass: the resolve pass owns no colour (GATE AA), and a
+// frame-wide blur on a 1.25x target buys one thing this does directly.
+// What reads as the sun's glare is the SUN: (1) the corona in the dome
+// shader (atmo.js, the eye's own 1/theta^2 scatter round a disc ten
+// thousand times the sky) and (2) THIS - a soft glow that bleeds over the
+// wing's edge, a few ghosts down the line to the frame's centre and a thin
+// streak, drawn as additive quads on the canvas after the resolve, in
+// display space, and GATED ON OCCLUSION: five rays from the eye toward the
+// sun (the centre and four at a third of a degree) against the aeroplane's
+// skin, the shed when in it, and the terrain's profile along the sun's
+// azimuth - the fraction that gets through is the flare's strength, eased
+// so a strut crossing the disc does not blink it. The moon gets a faint one.
+//
+// Dials: GRAPHICS `sun glare` (off / on, user-facing), F8 atmosphere fold
+// `glare` (the corona) / `flare` (the glow) / `ghosts`.
+// ============================================================
+var SKY_GLARE = (function () {
+  'use strict';
+  const S = { on: true, glow: 1, ghosts: 1, streak: 1 };
+  let scene = null, cam = null, ready = false, occluders = () => [], terrainH = null;
+  let vis = 0, frame = 0, ndc = { x: 0, y: 0, ok: false };
+  const quads = [];
+  const VERT = `varying vec2 vQ; uniform vec2 uPos, uSize; void main(){ vQ = position.xy; gl_Position = vec4(uPos + position.xy * uSize, 0.0, 1.0); }`;
+  const FRAG = `varying vec2 vQ; uniform vec3 uCol; uniform float uI, uKind;
+    void main(){
+      float r = length(vQ);
+      float a;
+      if (uKind < 0.5) a = pow(max(0.0, 1.0 - r), 2.5) + 0.35 * pow(max(0.0, 1.0 - r * 0.6), 6.0);        // the glow: a soft core with a wide skirt
+      else if (uKind < 1.5) a = smoothstep(1.0, 0.7, r) * (0.55 + 0.45 * smoothstep(0.55, 0.85, r));         // a ghost: a soft disc with a brighter rim
+      else a = max(0.0, 1.0 - abs(vQ.y) * 9.0) * pow(max(0.0, 1.0 - abs(vQ.x)), 1.6);                       // the streak
+      gl_FragColor = vec4(uCol * uI * a, 1.0);
+    }`;
+  const _ray = { o: null };
+  function init() {
+    if (ready || typeof THREE === 'undefined') return ready;
+    scene = new THREE.Scene(); cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const geo = new THREE.PlaneGeometry(2, 2);
+    const mk = (kind, col, size, t, gain) => {
+      const m = new THREE.ShaderMaterial({ uniforms: { uPos: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2(size, size) }, uCol: { value: new THREE.Color(col) }, uI: { value: 0 }, uKind: { value: kind } },
+        vertexShader: VERT, fragmentShader: FRAG, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+      const q = new THREE.Mesh(geo, m); q.frustumCulled = false; scene.add(q);
+      quads.push({ q, m, kind, size, t, gain });
+    };
+    // the glow at the sun, the ghosts along the line to the centre (t = 0 the sun, 1 the centre), the streak
+    mk(0, 0xffe9c8, 0.42, 0, 1.0);
+    mk(2, 0xffe2c0, 0.75, 0, 0.35);
+    mk(1, 0xffc07a, 0.05, 0.35, 0.10); mk(1, 0x9ad0ff, 0.09, 0.55, 0.07); mk(1, 0xffe08a, 0.03, 0.72, 0.12);
+    mk(1, 0x8fffc8, 0.14, 1.15, 0.05); mk(1, 0xff9c9c, 0.06, 1.45, 0.08);
+    _ray.o = new THREE.Raycaster(); _ray.o.far = 8000;
+    ready = true;
+    return true;
+  }
+  const V3 = () => ((typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null);
+  const _v = V3(), _d = V3();
+  // one ray: the aeroplane / the shed by raycast, the terrain by its profile along the ray
+  function rayClear(origin, dir) {
+    const occ = occluders() || [];
+    if (occ.length && _ray.o) {
+      _ray.o.set(origin, dir);
+      const hits = _ray.o.intersectObjects(occ, true);
+      for (const h of hits) if (h.object.visible && h.distance > 0.3) return false;
+    }
+    if (terrainH && dir.y < 0.35) {
+      let t = 40;
+      for (let i = 0; i < 14; i++) { const x = origin.x + dir.x * t, y = origin.y + dir.y * t, z = origin.z + dir.z * t; if (terrainH(x, z) > y) return false; t *= 1.7; }
+    }
+    return true;
+  }
+  // update(camera, dir (THREE.Vector3 world unit vector), o: { lum (the light's transmittance, 0..1), isMoon, phase, aspect })
+  function update(camera, dir, o) {
+    if (!init() || !camera) return;
+    frame++;
+    const lum = o.lum != null ? o.lum : 1;
+    // the light's place on screen
+    _v.copy(dir).multiplyScalar(5000).add(camera.position).project(camera);
+    const behind = _v.z > 1 || dir.dot(camera.getWorldDirection(_d)) < 0;
+    ndc.x = _v.x; ndc.y = _v.y; ndc.ok = !behind && Math.abs(_v.x) < 1.6 && Math.abs(_v.y) < 1.6;
+    // the occlusion fraction every third frame, eased
+    if (ndc.ok && (frame % 3) === 0) {
+      let clear = 0;
+      const e = 0.006;   // a third of a degree
+      const ups = [[0, 0], [e, 0], [-e, 0], [0, e], [0, -e]];
+      for (const [ax, ay] of ups) {
+        _d.copy(dir); _d.x += ax; _d.y += ay; _d.normalize();
+        if (rayClear(camera.position, _d)) clear++;
+      }
+      const target = clear / ups.length;
+      vis += (target - vis) * 0.35;
+    } else if (!ndc.ok) vis *= 0.8;
+    const aspect = o.aspect || 1;
+    const I = (S.on ? 1 : 0) * vis * (o.isMoon ? 0.18 * (o.phase || 0) : 1) * Math.pow(Math.max(0.03, Math.min(1, lum)), 0.6);
+    // the tint: the light's transmitted colour
+    for (const g of quads) {
+      const gain = g.kind === 1 ? S.ghosts : g.kind === 2 ? S.streak : S.glow;
+      g.m.uniforms.uI.value = I * g.gain * gain * (g.kind === 2 && aspect < 1 ? 0.6 : 1);
+      const px = ndc.x * (1 - g.t), py = ndc.y * (1 - g.t);
+      g.m.uniforms.uPos.value.set(px, py);
+      g.m.uniforms.uSize.value.set(g.size / aspect * (g.kind === 2 ? 2.2 * aspect : 1), g.size);
+      if (o.tint && g.kind !== 1) g.m.uniforms.uCol.value.setRGB(0.6 + 0.4 * o.tint[0], 0.6 + 0.4 * o.tint[1], 0.6 + 0.4 * o.tint[2]);
+    }
+  }
+  function render(renderer) {
+    if (!ready || !S.on || vis < 0.01 || !ndc.ok) return;
+    const ac = renderer.autoClear, rt = renderer.getRenderTarget();
+    renderer.autoClear = false; renderer.setRenderTarget(null);
+    renderer.render(scene, cam);
+    renderer.setRenderTarget(rt); renderer.autoClear = ac;
+  }
+  const API = { S, init, update, render, setOccluders: f => { occluders = f; }, setTerrain: f => { terrainH = f; }, get visible() { return vis; }, get ndc() { return ndc; } };
+  if (typeof window !== 'undefined') window.SKY_GLARE = API;
+  return API;
+})();
 </script>
 <script>
 // GENERATED FILE - DO NOT EDIT. Built by tools/site_tex_prep.js from
@@ -90588,6 +90799,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
+  let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
+  let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
   let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
@@ -90621,6 +90834,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the horizon is the next step once the far chunks are coarser.
   const NEAR_R = 270, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
+  // THE RING THINS WITH DISTANCE, IT DOES NOT POP (LOADING S3, G420). The
+  // fill's far chunks used to be a different, quarter-density set and a
+  // chunk crossing 3.5 km was evicted and regenerated at full density - a
+  // 4x pop walking ahead of the aeroplane. Now every chunk's BASE is the
+  // even sub-lattice of ONE grid (a quarter of the points, the same points
+  // at every distance) and the COMPLEMENT (the other three quarters) is
+  // added inside FILL_R; the complement's impostors carry uThin: an instance
+  // whose own hash exceeds keep(d) collapses, keep going 1 -> 0 over
+  // [uThin.x, uThin.y], each tree shrinking in over 5 % of the ramp. The
+  // base wears U_NOTHIN (keep = 1 everywhere); one GLSL text, one program.
+  // (a plain {x, y} where the headless stub has no Vector2 - GATE WORLDRENDER;
+  // three uploads a vec2 uniform off .x/.y either way)
+  const v2 = (x, y) => THREE.Vector2 ? new THREE.Vector2(x, y) : { x, y, set(a, b) { this.x = a; this.y = b; return this; } };
+  const uThin = { value: v2(world.island ? 3000 : 2500, world.island ? 4200 : 3400) };
+  const U_NOTHIN = { value: v2(1e9, 1e9 + 1) };
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
   // L2 IS NOT DRAWN BY DEFAULT (W0c.32, the user: "the trunk shows a lot
@@ -90952,6 +91180,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     FAR.proxies.set(mi, p);
     COVER.dirty = true;
   };
+  // a registered mesh's chunk centre against a pass's reach (the sun's slant
+  // adds a margin: a low sun throws a crown's shadow a few hundred metres)
+  const proxyNear = (mi, eye, half) => { const r = half + 724 + 600, dx = mi.position.x - eye.x, dz = mi.position.z - eye.z; return dx * dx + dz * dz < r * r; };
   const coverRender = eye => {
     if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
     const moved = !COVER.at || Math.hypot(eye.x - COVER.at[0], eye.z - COVER.at[1]) > 20;
@@ -90981,7 +91212,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     for (const [mi, p] of FAR.proxies) {
       if (!mi.parent) { (dead = dead || []).push(mi); continue; }
       p.position.copy(mi.position);
-      p.count = mi.count; p.visible = mi.visible && mi.count > 0;
+      // a chunk whose centre is beyond the map's half-extent plus a chunk's
+      // half-diagonal cannot mark it: not submitted (S3 - the passes used to
+      // run every resident chunk of the 9 km ring through their vertex shader)
+      p.count = mi.count; p.visible = mi.visible && mi.count > 0 && proxyNear(mi, eye, COVER.half);
       p.userData.farMat = p.material;
       p.material = (p.material.userData && p.material.userData.cover) || p.material;
     }
@@ -91014,7 +91248,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // trees at the ORIGIN - a phantom forest over the airfield, its trees
       // at the heights of their real, hilly chunks, casting from 160 m up.
       p.position.copy(mi.position);
-      p.count = mi.count; p.visible = mi.visible && mi.count > 0;
+      p.count = mi.count; p.visible = mi.visible && mi.count > 0 && proxyNear(mi, eye, FAR.half);
     }
     const gy = world.terrainH(eye.x, eye.z);
     snapToTexels(_sT.set(eye.x, gy, eye.z), FAR.half, FAR.size);
@@ -92433,7 +92667,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = src && src.userData;
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
     };
-    function impostorMat(atlas, far, si, tintU, gain) {
+    function impostorMat(atlas, far, si, tintU, gain, thinU) {
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -92456,6 +92690,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uFadeB = { value: FAR_FADE };
         sh.uniforms.uFadeW = uFadeW;
+        sh.uniforms.uThin = thinU || U_NOTHIN;
         sh.uniforms.uCy = { value: atlas.cy };
         sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G };
@@ -92473,7 +92708,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\n' +
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\nuniform vec2 uThin;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;')
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
@@ -92496,6 +92731,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // hard: at the far edge a tree is about two pixels tall, so
             // shrinking it away is indistinguishable from dissolving it
             'float fade = 1.0 - clamp((dCam - (uFarB - uFadeB)) / uFadeB, 0.0, 1.0);',
+            // the thinning (S3): keep falls 1 -> 0 across [uThin.x, uThin.y]; an
+            // instance's own hash (its world position, stable per tree) decides
+            // whether it is one of the kept, and it shrinks in over 5 % of the ramp
+            'float keep = 1.0 - clamp((dCam - uThin.x) / max(1.0, uThin.y - uThin.x), 0.0, 1.0);',
+            'float hT = fract(sin(dot(floor((iPos.xz + modelMatrix[3].xz) * 4.0), vec2(12.9898, 78.233))) * 43758.5453);',
+            'fade *= clamp((keep * 1.05 - hT) * 20.0, 0.0, 1.0);',
             'vec3 off = (rgt * position.x + upv * position.y) * (uDiam * fade);',
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
@@ -92949,6 +93190,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // So: warm, BUILD the subjects (which is what requests the maps), wait for
     // the maps, and only then plant. Both layers go through this one promise.
     let treeSettled = null;
+    treeSettleOf = () => treeSettle();
     const treeSettle = () => {
       if (treeSettled) return treeSettled;
       if (typeof treeWarm !== 'function' || typeof treeMapsReady !== 'function')
@@ -93254,14 +93496,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // machine can carry is measured, not guessed. The per-chunk cost is per
       // grid POINT, so the streamer's budget below is what hides a bigger NG.
       const CH = 1024, R_ACT = FAR_FILL + 100, R_DROP = FAR_FILL + 800;
-      // THE FAR CHUNKS ARE COARSER (G400): beyond FAR_NEAR_NG a chunk walks
-      // half the grid (a quarter of the points) - an impostor at 8 km reads
-      // the same at 12.8 m spacing as at 6.4, and the walk was the hitch
-      // (266 chunks at 25 ms, worst frame 82 ms with the ring at 9 km).
-      // A chunk that crosses the line is evicted and regenerated at its class.
-      const FAR_NEAR_NG = 3500;
-      const ngFor = (cx, cz, cg) => { const ax = (cx + 0.5) * CH - cg[0], az = (cz + 0.5) * CH - cg[2];
-        return (ax * ax + az * az > FAR_NEAR_NG * FAR_NEAR_NG) ? Math.max(16, NG >> 1) : NG; };
+      // ONE GRID, TWO PARTS (LOADING S3; G400's coarser far chunks, re-cut).
+      // Every chunk walks the SAME NG grid: the BASE part is the even
+      // sub-lattice (gx, gz both even - a quarter of the points, G400's far
+      // density, everywhere out to R_ACT), the FILL part is the other three
+      // quarters, added inside FILL_ACT and dropped past FILL_DROP. Nothing is
+      // regenerated when a chunk comes near: its base stays, its complement
+      // is added beside it, and the shader thins the complement with distance
+      // (uThin) so the density never steps. The hash is keyed on the full
+      // grid's index for both parts: the same point is the same tree.
+      const FILL_ACT = uThin.value.y + CH * Math.SQRT1_2 + 100, FILL_DROP = FILL_ACT + 800;
+      const BASE = 0, FILLP = 1;
       // 160 (6.4 m, ~21 000/km² before dropout): MEASURED on the RTX 3080 at
       // 1920x1080 in the densest stand, the frame with the specimen L2 in the
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
@@ -93349,7 +93594,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               S.imp.userData.farDepth = impostorDepth(at, si, true, gain);
               if (S.imp.userData.farDepth)   // null under the W0.5b flag
                 (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
-              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's (dispose tolerates null)
+              // the complement's impostor: the same programs, the thinning ramp for
+              // its uniform; it casts with the base's depth materials (the shadow
+              // passes only see 1.4 km, where keep is 1)
+              S.impFill = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts), gain, uThin);
+              S.impFill.userData.depth = S.imp.userData.depth; S.impFill.userData.farDepth = S.imp.userData.farDepth;
+              SHAPE.kit.push(S.imp, S.impFill, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's (dispose tolerates null)
             });
             SHAPE.list.push(H);
           }
@@ -93373,10 +93623,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and the build (the matrices, the meshes) follows in the frame the
       // walk finishes. The rule is unchanged: the same points, the same
       // order, the same draws; only the frame they land in differs.
-      const ROWS_PER_FRAME = 24;
-      function walk(cx, cz, recs, g0, g1, ng) {
-        ng = ng || NG; const spc = CH / ng;
+      // ...AND BUDGETED (S3): the walk takes rows until FILL.budgetMs of the
+      // frame is spent, and the build lands in the frame the walk finishes;
+      // prewarm() runs the same step with a big budget under the roll-out
+      // screen. At 60 m/s the ring needs ~8 ms of work a second; 4 ms a
+      // frame is thirty times that.
+      function walk(cx, cz, recs, g0, g1, part) {
+        const ng = NG, spc = CH / ng;
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
+          // the base part is the even sub-lattice; the fill part the rest
+          if (part === BASE ? ((gx | gz) & 1) : !((gx | gz) & 1)) continue;
           const ix = cx * ng + gx, iz = cz * ng + gz;
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
@@ -93415,13 +93671,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
-      function gen(cx, cz) {
+      function gen(cx, cz, part) {
         const recs = SHAPE.list.map(() => []);
         const t0 = performance.now();
-        walk(cx, cz, recs, 0, NG);
-        return build(cx, cz, recs, t0, performance.now());
+        walk(cx, cz, recs, 0, NG, part);
+        return build(cx, cz, recs, t0, performance.now(), part);
       }
-      function build(cx, cz, recs, t0, t1) {
+      function build(cx, cz, recs, t0, t1, part) {
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, gi) => {
@@ -93458,7 +93714,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               // colour buffer at capacity BEFORE parking - see the woodland
               m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
               m.count = 0; m.visible = false; return m; })),
-            mi: (() => { const mi = new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]);
+            mi: (() => { const IM = (part === FILLP && S.impFill) ? S.impFill : S.imp;   // the complement thins with distance
+                         const mi = new THREE.InstancedMesh(impQuadF, IM, cnt[si]);
                          if (S.imp.userData.depth) { mi.castShadow = true; mi.customDepthMaterial = S.imp.userData.depth; }
                          if (S.imp.userData.farDepth) farRegister(mi, S.imp.userData.farDepth);
                          return mi; })(), at: 0 } : null);
@@ -93525,107 +93782,158 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // through the streamer's own eviction path rather than a second one
       // the chunk under generation: its records, the next row, its clock
       let cur = null;
+      // one built part of a chunk goes: its meshes off the scene, its
+      // registrations out of the passes and the partition
+      const dropPart = built => {
+        if (!built) return;
+        for (const m of built.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
+        for (const r2 of built.reg) {
+          let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
+          i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
+        }
+        for (const rec of (built.recs || [])) {
+          const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
+        }
+      };
       // the mix dials (furnished, spread) are dealt at plant time: applying
       // them is a replant of both layers (W0c.31 - "furnished does not seem
       // to work": the dial moved a number nothing re-read)
       TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
-        for (const [k, c2] of chunks) {
-          if (c2.meshes) {
-            for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
-            for (const r2 of c2.meshes.reg) {
-              let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
-              i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
-            }
-            for (const rec of (c2.meshes.recs || [])) {
-              const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
-            }
-          }
-          chunks.delete(k);
-        }
+        for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
         queue.length = 0;
       };
       if (typeof treeReady === 'function' && !treeReady())
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
+      FILL.budgetMs = 4;
+      // THE TREE STATE (S3): the roll-out screen asks whether the payload is in
+      // before it grows the ring, or it would grow cones and evict them
+      const TREE_STATE = { v: (typeof treeReady === 'function' && treeReady()) ? 'ready' : 'pending' };
+      treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
           setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
-          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
+          set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
+          // the thinning ramp (metres): full density to d0, the base's quarter from d1
+          thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
+          budget: ms => { if (ms !== undefined) FILL.budgetMs = Math.max(0.5, +ms); return FILL.budgetMs; },
+          prewarm: (cg, o) => prewarm(cg, o), ringReady: cg => ringReady(cg), ringStat: () => ringStat(),
+          treeState: () => TREE_STATE.v };
       let tick = 0;
       // the streamer's worst FRAME - a slice, or the build's - is the hitch
       // a player would see; STAT.frameMax keeps it
-      fillUpdate = cg => { const t = performance.now(); fillStep(cg); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
-      const fillStep = cg => {
-        // every frame: advance the chunk under generation by one slice of
-        // rows; the build lands in the frame the walk finishes
-        if (cur) {
-          const t = performance.now();
-          const cng = cur.c2.ng || NG;
-          const g1 = Math.min(cng, cur.gz + ROWS_PER_FRAME);
-          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cng);
-          cur.walkMs += performance.now() - t; cur.gz = g1;
-          if (g1 >= cng) {
-            const c2 = cur.c2;
-            // evicted while it was being walked: nothing to build
-            if (chunks.get(c2.cx * 4096 + c2.cz) === c2) c2.meshes = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now());
-            cur = null;
-          }
-        }
-        // ~0.2 s cadence for the queue itself: what is missing, what is
-        // next, what is too far. The burst of three chunks in one frame
-        // (W0c.30) is gone with the sliced walk: one chunk at a time, the
-        // next picked up the frame this one is built
-        if (tick++ % 12 && !(queue.length && !cur)) return;
+      fillUpdate = cg => { const t = performance.now(); fillStep(cg, FILL.budgetMs); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
+      const keyOf = (cx, cz) => cx * 4096 + cz;
+      const d2Of = (c2, cg) => { const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2]; return ax * ax + az * az; };
+      // what the ring should hold around cg: every chunk inside R_ACT wants
+      // its base, every chunk inside FILL_ACT wants its complement too
+      const refreshQueue = cg => {
         const R = Math.ceil(R_ACT / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
           const cx = ccx + dx, cz = ccz + dz;
           const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
-          if (mx2 * mx2 + mz2 * mz2 > R_ACT * R_ACT) continue;
+          const dd = mx2 * mx2 + mz2 * mz2;
+          if (dd > R_ACT * R_ACT) continue;
           { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
             if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
-          const k = cx * 4096 + cz;
-          if (!chunks.has(k)) { chunks.set(k, { cx, cz, meshes: null, ng: ngFor(cx, cz, cg) }); queue.push(k); }
+          const k = keyOf(cx, cz);
+          let c2 = chunks.get(k);
+          if (!c2) { c2 = { cx, cz, base: null, fill: null, qb: false, qf: false }; chunks.set(k, c2); }
+          if (!c2.base && !c2.qb) { c2.qb = true; queue.push({ k, part: BASE }); }
+          if (!c2.fill && !c2.qf && dd < FILL_ACT * FILL_ACT) { c2.qf = true; queue.push({ k, part: FILLP }); }
         }
-        if (queue.length) {                // nearest first; the fog hides the rest
-          for (let i = queue.length - 1; i >= 0; i--) {
-            const c2 = chunks.get(queue[i]);
-            if (!c2 || c2.meshes) queue.splice(i, 1);   // evicted or already built
-          }
-          const d2 = k => { const c2 = chunks.get(k);
-            const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
-            return ax * ax + az * az; };
-          queue.sort((a, b) => d2(a) - d2(b));
-          // close chunks (fresh spawn / teleport) get a burst; cruise trickles.
-          // Halved with the density bump: a chunk is ~6 ms of terrainH/surface
-          // now, and six of those in one frame is a visible hitch. The cadence
-          // doubled to compensate, so a fresh spawn still fills in ~2 s.
-          if (!cur) {
-            const c2 = chunks.get(queue.shift());
-            if (c2) cur = { c2, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
-          }
+        // nearest first, the base of a chunk before its complement
+        for (let i = queue.length - 1; i >= 0; i--) {
+          const c2 = chunks.get(queue[i].k);
+          if (!c2 || (queue[i].part === BASE ? c2.base : c2.fill)) queue.splice(i, 1);
         }
-        for (const [k, c2] of chunks) {    // evict far chunks, and chunks whose grid class changed
-          const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
-          if (ax * ax + az * az < R_DROP * R_DROP && (!c2.meshes || c2.ng === ngFor(c2.cx, c2.cz, cg))) continue;
-          if (cur && cur.c2 === c2) cur = null;
-          if (c2.meshes) {
-            for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
-            for (const r of c2.meshes.reg) {   // or lodUpdate keeps poking dead meshes
-              let i = nearChunks.indexOf(r); if (i >= 0) nearChunks.splice(i, 1);
-              i = impChunks.indexOf(r); if (i >= 0) impChunks.splice(i, 1);
-            }
-            for (const rec of (c2.meshes.recs || [])) {
-              const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
-            }
+        queue.sort((a, b) => (d2Of(chunks.get(a.k), cg) + a.part * 1e5) - (d2Of(chunks.get(b.k), cg) + b.part * 1e5));
+      };
+      // what the ring no longer holds: past R_DROP the chunk goes whole, past
+      // FILL_DROP its complement goes and its base stays - never a regeneration
+      const evictPass = cg => {
+        for (const [k, c2] of chunks) {
+          const dd = d2Of(c2, cg);
+          if (dd >= R_DROP * R_DROP) {
+            if (cur && cur.c2 === c2) cur = null;
+            dropPart(c2.base); dropPart(c2.fill); chunks.delete(k);
+          } else if (c2.fill && dd >= FILL_DROP * FILL_DROP) {
+            if (cur && cur.c2 === c2 && cur.part === FILLP) cur = null;
+            dropPart(c2.fill); c2.fill = null; c2.qf = false;
           }
-          chunks.delete(k);
         }
       };
+      // one frame's (or one prewarm tick's) worth of streaming: walk rows of
+      // the part under generation until the budget is spent; a finished walk
+      // builds at once and, budget permitting, the next queued part starts
+      const fillStep = (cg, budgetMs) => {
+        const t0 = performance.now();
+        const maint = !(tick++ % 12) || (!cur && queue.length);
+        if (maint) refreshQueue(cg);
+        let built = 0;
+        for (;;) {
+          if (!cur) {
+            if (!queue.length) break;
+            const q = queue.shift(), c2 = chunks.get(q.k);
+            if (!c2 || (q.part === BASE ? c2.base : c2.fill)) continue;
+            cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
+          }
+          const t = performance.now();
+          const g1 = Math.min(NG, cur.gz + 8);
+          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cur.part);
+          cur.walkMs += performance.now() - t; cur.gz = g1;
+          if (g1 >= NG) {
+            const c2 = cur.c2, part = cur.part;
+            // evicted while it was being walked: nothing to build
+            if (chunks.get(keyOf(c2.cx, c2.cz)) === c2) {
+              const b = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now(), part);
+              if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; }
+              built++;
+            }
+            cur = null;
+            if (built >= 2) break;         // two builds a step at most: a build is the hitch
+          }
+          if (performance.now() - t0 >= budgetMs) break;
+        }
+        if (maint) evictPass(cg);
+      };
+      // THE ROLL-OUT SCREEN'S STEP (S3): a big budget, nobody watching. Returns
+      // where the ring stands; done when every chunk inside R_ACT has its base
+      // and every chunk inside FILL_ACT its complement. While the payload is
+      // still pending it does no walking (the cones would be evicted when the
+      // trees land); a failed payload is 'fallback' and the cones are the ring.
+      const ringReady = cg => {
+        const R = Math.ceil(R_ACT / CH);
+        const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
+        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
+          const cx = ccx + dx, cz = ccz + dz;
+          const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
+          const dd = mx2 * mx2 + mz2 * mz2;
+          if (dd > R_ACT * R_ACT) continue;
+          { const wx = (cx + 0.5) * CH, wz = (cz + 0.5) * CH;
+            if (wx < world.bounds.x0 || wx > world.bounds.x1 || wz < world.bounds.z0 || wz > world.bounds.z1) continue; }
+          const c2 = chunks.get(keyOf(cx, cz));
+          if (!c2 || !c2.base) return false;
+          if (dd < FILL_ACT * FILL_ACT && !c2.fill) return false;
+        }
+        return !cur;
+      };
+      const ringStat = () => { let base = 0, fill = 0; for (const [, c2] of chunks) { if (c2.base) base++; if (c2.fill) fill++; }
+        return { live: chunks.size, base, fill, queued: queue.length, busy: !!cur || queue.length > 0, budgetMs: FILL.budgetMs, trees: STAT.trees, gens: STAT.gens }; };
+      const prewarm = (cg, o) => {
+        const budget = (o && o.budgetMs) || 60;
+        if (TREE_STATE.v === 'pending') return Object.assign({ phase: 'trees', done: false, trees: 'pending' }, ringStat());
+        tick = 0;                          // a maintenance pass every tick under the screen
+        fillStep(cg, budget);
+        const done = ringReady(cg);
+        return Object.assign({ phase: done ? 'done' : 'ring', done, trees: TREE_STATE.v }, ringStat());
+      };
+      fillApi = { prewarm, ringReady, ringStat, treeState: () => TREE_STATE.v };   // after the consts: no dead zone
     }
   }
 
@@ -94578,6 +94886,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
   return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+    // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
+    // overlay, and the payload's settle to wait on (a rejected settle = cones)
+    prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
+    ringReady: cg => fillApi ? fillApi.ringReady(cg) : true,
+    ringStat: () => fillApi ? fillApi.ringStat() : null,
+    treeState: () => fillApi ? fillApi.treeState() : 'fallback',
+    treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
@@ -104177,6 +104492,7 @@ function setLights(pick) {
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
 let skyPhys = false, skyBakedSun = null;
+const dayDirShed = [0, 1, 0];                       // the key's direction in the shed's frame (the flare reads it)
 function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
 function applyDay(day, renderer) {
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
@@ -104191,6 +104507,7 @@ function applyDay(day, renderer) {
   const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, altM: 0, exposureCap: LAMP_EX_CAP });
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
+  dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
   const R = 2 * HD + 22;
   key.target.position.set(0, 0.6, 0);
   key.position.set(s[0] * R, Math.max(EAVE * 0.8, s[1] * R), s[2] * R);
@@ -104686,6 +105003,7 @@ return {
 
   onSkyReady: fn => { skyOnReady = fn; },
   applyDay, moodFor, SHED_FRAME_YAW,             // ONE SKY (S5)
+  dayDir: () => dayDirShed,
   get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   mood: () => moodI,
@@ -111601,6 +111919,14 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     { k: 'canopy', label: 'forest floor', steps: [
         { v: 'off', label: 'off', why: 'the ground under a stand is lit like a field' },
         { v: 'on',  label: 'on', why: 'the ground under the crowns is in their shade' } ] },
+    // THE SKY'S OWN (S7): the sun's glare (the corona in the sky and the flare over the frame) and
+    // the mist (the day's humidity as a ground layer) - each off or on; the dials are F8's
+    { k: 'glare', label: 'sun glare', steps: [
+        { v: 'off', label: 'off', why: 'no corona, no flare' },
+        { v: 'on',  label: 'on', why: 'the corona round the sun and a flare over the frame, hidden behind the wing and the hills' } ] },
+    { k: 'mist', label: 'mist', steps: [
+        { v: 'off', label: 'off', why: 'no ground mist whatever the day' },
+        { v: 'on',  label: 'on', why: 'the day’s humidity as a layer over the low ground and the water' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -111633,10 +111959,10 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -111686,6 +112012,9 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
+    // the sky's own switches (S7): the glare's two halves and the mist
+    if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
+    if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) { W.ATMO.MIST.on = S.mist !== 'off'; applied.mist = S.mist; }
     // the tone curve, live: r186 re-keys the program on renderer.toneMapping
     const R = W.FLYDIY_RENDERER, T = W.THREE;
     if (R && T && applied.tone !== S.tone && T[TONE[S.tone]] !== undefined) { R.toneMapping = T[TONE[S.tone]]; applied.tone = S.tone; }
@@ -111784,7 +112113,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
-                      anything: 'no restart' }),
+                      glare: 'live', mist: 'live', anything: 'no restart' }),
   };
 })();
 </script>
@@ -115928,6 +116257,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     : null;
   if (typeof window !== 'undefined') window.FLYDIY_INPUT = INP;
   let manual = false, inpEv = null;
+  const glareDir = new THREE.Vector3(0, 1, 0);      // SKY S7: the light's direction handed to the flare
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
   // null under the smoke gate, which never runs the RENDER block
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
@@ -121299,7 +121629,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // previous build's (shakeOf caches per def, so this is one settle).
     drawPlaque();
   }
-  function rollOut() {
+  function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     rig = null;
@@ -121328,7 +121658,84 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
-    flRevealStart();                   // the aeroplane is on the stand now
+    // THE ROLL-OUT SCREEN (LOADING S3). The first roll-out builds the world
+    // scene (3-5 s), grows the tree ring around the stand (it used to fill
+    // in front of you for 16 s), settles the atlases and compiles the
+    // world's programs (100-150 of them, the freeze at the first frame) -
+    // all under the overlay with the world pictures. A second roll-out at
+    // the same stand finds everything resident and reveals at once; a spawn
+    // elsewhere grows its ring again.
+    if (needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); if (after) after(); });
+    else { if (!WF) buildWorld(); flRevealStart(); if (after) after(); }   // the aeroplane is on the stand now
+  }
+  let frameWait = null, worldCompiled = false, holdRender = false;
+  const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
+    : new Promise(res => { frameWait = { n, res }; });
+  function needsRollOutScreen() {
+    if (typeof BOOT.show !== 'function' || !BOOT.log) return false;   // the shim: build inline
+    if (!WF) return true;
+    let cg = null; try { cg = sim.cgPos(); } catch (e) { return false; }
+    return !worldCompiled || !(WF.ringReady && WF.ringReady(cg));
+  }
+  function rollOutScreen(done) {
+    const steps = [];
+    holdRender = typeof renderer.compileAsync === 'function';   // the harness renders nothing anyway
+    if (!WF) steps.push({ id: 'world', label: 'laying out the world', w: 20, fn: () => { buildWorld(); } });
+    // the payload: wait for it (15 s at most - a failed fetch leaves cones)
+    steps.push({ id: 'trees', label: 'the tree models', w: 4, fn: () => {
+      if (!WF || !WF.treeSettled || typeof renderer.compileAsync !== 'function') return;
+      return Promise.race([WF.treeSettled(), new Promise(res => setTimeout(res, 15000))]);
+    } });
+    // the ring: prewarm ticks of 40 ms until every chunk in reach stands
+    steps.push({ id: 'ring', label: 'growing the forest', w: 30, fn: () => {
+      if (!WF || !WF.prewarm || typeof renderer.compileAsync !== 'function') return;
+      const cg = sim.cgPos();
+      let total = 0;
+      return new Promise(res => {
+        let ticks = 0;
+        const tick = () => {
+          let r; try { r = WF.prewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          total = Math.max(total, r.live || 0);
+          const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
+          BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
+          if (r.done || ++ticks > 900) res(); else setTimeout(tick, 0);
+        };
+        tick();
+      });
+    } });
+    // the textures go to the GPU here, in slices, with a count - not in the
+    // first frame (measured: 5.6 s of the first world frame was the upload)
+    steps.push({ id: 'upload', label: 'uploading the textures', w: 12, fn: () => {
+      if (typeof renderer.initTexture !== 'function' || typeof renderer.compileAsync !== 'function' || !WF) return;
+      const texs = new Set();
+      const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
+        if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture) texs.add(v); } };
+      scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
+      if (scene.environment) texs.add(scene.environment);
+      if (scene.background && scene.background.isTexture) texs.add(scene.background);
+      const list = [...texs].filter(t => t.image || t.isDataTexture || t.isCanvasTexture);
+      let i = 0;
+      return new Promise(res => {
+        const tick = () => {
+          const t0 = performance.now();
+          while (i < list.length && performance.now() - t0 < 30) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
+          BOOT.phase('upload', 'uploading the textures ' + i + ' / ' + list.length, list.length ? i / list.length : 1);
+          if (i >= list.length) res(); else setTimeout(tick, 0);
+        };
+        tick();
+      });
+    } });
+    if (!worldCompiled) steps.push({ id: 'compile', label: 'compiling the world', w: 20, fn: () => {
+      worldCompiled = true;
+      if (typeof renderer.compileAsync !== 'function' || !WF) return;
+      return compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
+        .then(() => compileDepthVariants());
+    } });
+    // two frames of the world rendered under the overlay: the passes, the
+    // residue of programs the compile does not reach (the shadow variants)
+    steps.push({ id: 'frames', label: 'first light', w: 4, fn: () => { holdRender = false; return framesRendered(2); } });
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', done: () => { holdRender = false; done(); }, idle: 20000, hard: 90000, quietFrames: 1,
+      probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
 
   $('bGo').onclick = () => {
@@ -121349,7 +121756,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       // rolling out, and it runs whether or not the panel happens to be open,
       // because the panel is a view and the design is not.
       if (window.CAGE_UI) syncBuild();
-      rollOut();
+      rollOut(() => { started = true; });   // the sim starts when the screen has lifted, not under it
+      return;
     }
     started = true;
   };
@@ -123646,7 +124054,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     shake: () => shakeOf(),
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
-    rollOut: () => { rollOut(); started = true; },
+    rollOut: () => { rollOut(() => { started = true; }); },
     // BUILD -> LOAD TEST -> FLY. The panel drives the rig and polls it; the
     // rig is the same object GATE LOAD ticks, so the two cannot disagree.
     loadTest: () => startLoadTest(),
@@ -123906,9 +124314,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // what makes G144's pass a single substitution rather than a campaign:
     // every other renderer.render() in hangar.js and render_world.js is bound
     // to its own target and is untouched by this.
+    // THE WORLD IS NOT DRAWN UNDER THE ROLL-OUT SCREEN until its programs are
+    // linked (S3): a frame between the world step and the compile step drew
+    // the fresh scene and compiled everything synchronously - 12 s in one
+    // task. The `frames` step lifts the hold and waits for two real frames.
+    if (holdRender) { BOOT.frame(); return; }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
+    if (typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {
+      const L = SKY_LIGHT.last;
+      const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      if (d) {
+        glareDir.set(d[0], d[1], d[2]);
+        SKY_GLARE.setOccluders(() => inGarage ? [garageScene()] : [craft]);
+        SKY_GLARE.setTerrain(inGarage ? null : (x, z) => world.terrainH(x, z));
+        const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
+        SKY_GLARE.update(camera, glareDir, { lum: 0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2], isMoon: L.isMoon, phase: L.phase,
+                                             aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
+        SKY_GLARE.render(renderer);
+      }
+    }
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
+    if (frameWait && --frameWait.n <= 0) { const r = frameWait.res; frameWait = null; r(); }
   }
   // The splash used to drop on frame 1 here - the mirror aircraft and the
   // empty back wall (LOADING S1). boot.js owns the teardown now; this is a
@@ -123952,7 +124380,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // synchronously (its setTimeout fires at once).
   const bootSteps = [];
   const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
-  bootStep('worldScene', 'laying out the world', 18, buildWorld);
+  // THE WORLD SCENE IS NOT BUILT HERE ANY MORE (LOADING S3, the user's ruling):
+  // the garage does not show it, so it is built under the ROLL-OUT screen the
+  // first time you roll out (rollOutScreen below), with the tree ring, the
+  // atlases and the world's shaders. Only the tree bins are asked for now,
+  // so they are in by the time the ring is grown.
+  bootStep('treeBins', 'the tree models', 1, () => { if (typeof treeWarm === 'function') treeWarm().catch(() => {}); });
   bootStep('aircraft', 'building your aeroplane', 6, () => {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
@@ -124028,6 +124461,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // pass's target (the canvas's look) for the frame. The bake itself, held
   // back while this was pending, runs between the two. A page without
   // compileAsync (the harness) takes the old road: bake now, compile on draw.
+  // THE DEPTH VARIANTS (S3): three's compile() never runs the shadow pass, so
+  // every caster's depth program - the impostors' custom depth, the far
+  // cascade's and the canopy cover's, the plain MeshDepthMaterial per side
+  // and per mesh kind - linked synchronously on the first world frame:
+  // measured 5.7 s of it, warm. A helper scene of clones wearing exactly
+  // those materials goes through compileAsync with a plain target bound
+  // (a shadow map is one: linear, no tone map). What it misses still
+  // compiles on the frame; what it catches links on the driver's threads.
+  function compileDepthVariants() {
+    if (typeof renderer.compileAsync !== 'function' || !WF) return Promise.resolve();
+    const helper = new THREE.Scene(), seen = new Set(), defDepth = new Map();
+    const SIDE = m => m.side === THREE.DoubleSide ? THREE.DoubleSide : m.side === THREE.BackSide ? THREE.FrontSide : THREE.BackSide;
+    const add = (o, mat) => {
+      if (!mat) return;
+      const key = mat.uuid + (o.isInstancedMesh ? ':i' : ':m') + (o.isSkinnedMesh ? ':s' : '');
+      if (seen.has(key)) return; seen.add(key);
+      const c = o.clone(false); c.material = mat; c.visible = true; if (o.isInstancedMesh) c.count = Math.max(1, o.count); helper.add(c);   // shallow: a child's real material is not a depth variant
+    };
+    scene.traverse(o => {
+      if (!o.isMesh || !o.castShadow) return;
+      if (o.customDepthMaterial) { add(o, o.customDepthMaterial); return; }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m) return;
+      const s = SIDE(m); let d = defDepth.get(s);
+      if (!d) { d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: s }); defDepth.set(s, d); }
+      add(o, d);
+    });
+    // the far cascade's proxies (their far depth) and the canopy cover's swap
+    if (WF.far && WF.far.scene) WF.far.scene.traverse(o => { if (!o.isMesh || !o.material) return; add(o, o.material); if (o.material.userData && o.material.userData.cover) add(o, o.material.userData.cover); });
+    const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
+    return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
+  }
+  // one compile pass: every material of `sc`, keyed for `target` (null = the canvas)
+  function compilePass(sc, target) {
+    const prev = renderer.getRenderTarget();
+    try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(sc, camera); }
+    finally { renderer.setRenderTarget(prev); }
+  }
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
@@ -124040,11 +124510,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       try { const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromCubemap(envRT.texture); pm.dispose();
             hangarScene.environment = rt.texture; if (envPM && envPM !== rt) envPM.dispose(); envPM = rt; } catch (e) {}
     }
-    const pass = target => {
-      const prev = renderer.getRenderTarget();
-      try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(hangarScene, camera); }
-      finally { renderer.setRenderTarget(prev); }
-    };
+    const pass = target => compilePass(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
     // Wait (8 s at most) for the bytes that add materials to the scene.
@@ -124267,6 +124733,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     A.appendChild(slider('humidity', 0.05, 1, 0.01, () => (dy() ? dy().rh : NaN), v => { if (ck()) ck().set({ rh: v }); }, v => (v * 100).toFixed(0) + ' %'));
     A.appendChild(slider('cloud cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }));
     A.appendChild(slider('stars', 0, 3, 0.1, () => (W.ATMO && W.ATMO.U.stars ? W.ATMO.U.stars.value : NaN), v => { if (W.ATMO && W.ATMO.U.stars) W.ATMO.U.stars.value = v; }));
+    // S7: the glare's dials (the corona in the sky, the flare's glow / ghosts / streak) and the mist's
+    A.appendChild(slider('corona', 0, 3, 0.05, () => (W.ATMO && W.ATMO.U.glare ? W.ATMO.U.glare.value : NaN), v => { if (W.ATMO && W.ATMO.U.glare) { W.ATMO.U.glare.value = v; W.ATMO.glareDial = v; } }));
+    A.appendChild(slider('flare glow', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.glow : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.glow = v; }));
+    A.appendChild(slider('flare ghosts', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.ghosts : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.ghosts = v; }));
+    A.appendChild(slider('flare streak', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.streak : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.streak = v; }));
+    const mist = () => (W.ATMO ? W.ATMO.MIST : null);
+    A.appendChild(slider('mist density', 0, 6, 0.1, () => (mist() ? mist().k : NaN), v => { if (mist()) mist().k = v; }, v => v.toFixed(1) + 'x' + (mist() && mist().rho0 > 0 ? ' · vis ' + (3 / mist().rho0 / 1000).toFixed(1) + ' km' : ' · none (dry air)')));
+    A.appendChild(slider('mist top', -20, 600, 5, () => (mist() ? mist().top : NaN), v => { if (mist()) mist().top = v; }, v => v + ' m ASL'));
+    A.appendChild(slider('mist thickness', 5, 300, 5, () => (mist() ? mist().H : NaN), v => { if (mist()) mist().H = v; }, v => v + ' m'));
+    A.appendChild(slider('mist forward', 0, 3, 0.1, () => (mist() ? mist().fwd : NaN), v => { if (mist()) mist().fwd = v; }));
+    A.appendChild(note('the mist’s density is the day’s humidity (dry below 70 %); the GRAPHICS menu switches glare and mist off'));
     const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
     A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));
     { const n = note(''); const R = { el: n, refresh: () => { const S = W.SKY_LIGHT, K = S && S.K(); n.textContent = K && K.K_SUN ? `K_sun ${K.K_SUN.toFixed(2)} K_hemi ${K.K_HEMI.toFixed(2)} · ${S.isMoon ? 'the moon is the key' : 'the sun is the key'} · exposure base ${(W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : 0).toFixed(3)}` : 'atmosphere off (painted dome)'; } }; rows.push(R); live.push(R); A.appendChild(n); }

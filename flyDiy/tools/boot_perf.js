@@ -165,10 +165,48 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     if (flag('shots') && !s.bootGone && s.boot && s.boot.phase && !taken.has('ph:' + s.boot.phase)) { taken.set('ph:' + s.boot.phase, 1); await snap('loading_' + s.boot.phase); }
   }
   const still = { drop_vs_2s: stillness(taken.get(0.2), taken.get(2)), drop_vs_5s: stillness(taken.get(0.2), taken.get(5)), s2_vs_5s: stillness(taken.get(2), taken.get(5)) };
+  // THE ROLL-OUT (--rollout, LOADING S3): press the button, watch the second
+  // set of the overlay (its steps, its ms), the ring's state when it lifts,
+  // and the stillness of the world in the seconds after - the trees must not
+  // keep arriving in front of you
+  let rollout = null;
+  if (flag('rollout') && bootGoneWall) {
+    const t0r = Date.now();
+    await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
+    let goneWall = null; const rt = new Map();
+    while (Date.now() - t0r < 90000 && !(goneWall && Date.now() - goneWall > 8500)) {
+      await sleep(250);
+      let s = null; try { s = JSON.parse(await ev(`(() => { const B = window.BOOT; const st = (window.TREE_FILL && TREE_FILL.ringStat) ? TREE_FILL.ringStat() : null;
+        return JSON.stringify({ state: B.state, set: B.set, phase: B.current && B.current.id, ring: st, flying: /TAXI|DOWNWIND|FINAL|STOPPED/.test(document.body.innerText) }); })()`)); } catch (e) { continue; }
+      if (s.set === 'rollout' && s.state === 'gone' && !goneWall) { goneWall = Date.now(); rollout = { screenMs: goneWall - t0r, ring: s.ring }; }
+      if (goneWall) for (const k of [0.3, 3, 8]) if (!rt.has(k) && Date.now() - goneWall >= k * 1000) rt.set(k, await snap('rollout_plus' + k + 's'));
+      if (flag('shots') && !goneWall && s.phase && !rt.has('ph:' + s.phase)) { rt.set('ph:' + s.phase, 1); await snap('rollout_' + s.phase); }
+    }
+    if (!rollout) rollout = { screenMs: null, note: 'the roll-out screen never lifted in 90 s' };
+    rollout.still = { lift_vs_3s: stillness(rt.get(0.3), rt.get(3)), s3_vs_8s: stillness(rt.get(3), rt.get(8)) };
+    try { rollout.log = JSON.parse(await ev("JSON.stringify(BOOT.log.filter(e => e.k === 'step' || e.k === 'show' || e.k === 'ready' || e.k === 'fail').slice(-12))")); } catch (e) {}
+    try { rollout.ringAfter = JSON.parse(await ev("JSON.stringify(TREE_FILL.ringStat ? TREE_FILL.ringStat() : null)")); } catch (e) {}
+    try { rollout.programs = await ev("WORLD.renderer.info.programs.length"); } catch (e) {}
+    try { rollout.keys1 = JSON.parse(await ev("JSON.stringify(window.__PROGS1 || [])")); rollout.keys2 = JSON.parse(await ev("JSON.stringify(WORLD.renderer.info.programs.map(p => p.cacheKey))")); } catch (e) {}
+    // the last programs made, in order: what the first frame compiled after the compile pass
+    try { rollout.lastPrograms = JSON.parse(await ev("JSON.stringify(WORLD.renderer.info.programs.slice(-40).map(p => p.name + ' used' + p.usedTimes + ' ' + (p.cacheKey || '').replace(/[^A-Za-z0-9_,:|.-]/g, '').slice(0, 260)))")); } catch (e) {}
+  }
   let gpu = null; try { gpu = JSON.parse(await ev(`(() => { const r = WORLD.renderer, g = r.getContext(), i = r.info; const d = g.getExtension('WEBGL_debug_renderer_info');
     return JSON.stringify({ programs: i.programs.length, geometries: i.memory.geometries, textures: i.memory.textures,
       parallel: !!g.getExtension('KHR_parallel_shader_compile'), gl: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER) }); })()`)); } catch (e) { gpu = String(e); }
   const prof = (await cmd('Profiler.stop')).result.profile;
+  // --window a,b (ms of the page's clock, roughly): the self time by function inside it
+  const WIN = opt('window', null);
+  if (WIN) {
+    const [wa, wb] = WIN.split(',').map(Number); const nodes2 = new Map(prof.nodes.map(n => [n.id, n]));
+    let t = 0; const acc = new Map();
+    // the profile's clock starts ~at the navigation; the page's at its first script - within ~0.3 s
+    for (let i = 0; i < prof.samples.length; i++) { t += (prof.timeDeltas[i] || 0) / 1000;
+      if (t < wa || t > wb) continue; const cf = nodes2.get(prof.samples[i]).callFrame;
+      const k = (cf.url ? cf.url.replace(/\?.*$/, '').replace(/^.*\//, '') : '(native)') + ' ' + (cf.functionName || '(anon)') + ':' + (cf.lineNumber + 1);
+      acc.set(k, (acc.get(k) || 0) + (prof.timeDeltas[i] || 0)); }
+    console.log('  WINDOW ' + wa + '-' + wb + ' ms: ' + [...acc].sort((a, b) => b[1] - a[1]).slice(0, 16).map(([k, v]) => k + ' ' + (v / 1000 | 0)).join('  |  '));
+  }
   const M = JSON.parse(await ev('JSON.stringify(window.__M)'));
   let bootLog = null; try { bootLog = JSON.parse(await ev('JSON.stringify(window.BOOT ? BOOT.log : null)')); } catch (e) {}
   // self time by file and function; inclusive time for the boot's named steps
@@ -194,7 +232,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const byType = {}; for (const r of netRows) byType[r.type] = (byType[r.type] || 0) + r.kb;
   const longSum = M.longTasks.reduce((a, e) => a + e.d, 0);
   const longTop = M.longTasks.slice().sort((a, b) => b.d - a.d).slice(0, 8);
-  const out = { url: URL, tag: TAG, cold: flag('cold'), secs: SECS, date: new Date().toISOString().slice(0, 10), gpu,
+  const out = { url: URL, tag: TAG, cold: flag('cold'), secs: SECS, date: new Date().toISOString().slice(0, 10), gpu, rollout,
     milestones: M.ev, bootGone: M.bootGone || null, bootLog, paints: M.paints, propsLanded: M.props.length, charsLanded: M.chars.length,
     fetches: M.fetches.length, longTaskTotalMs: longSum, longTasks: longTop, profileTotalMs: +(total / 1000).toFixed(0), stillness: still,
     byFile: top(byFile, 25), byFn: top(byFn, 40), inclusive: [...incl].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / 1000).toFixed(0)]),
@@ -215,6 +253,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   console.log(`  overlay gone ${M.bootGone} ms   long tasks ${longSum} ms in ${M.longTasks.length}: ` + longTop.map(t => t.d + '@' + t.t).join(' '));
   console.log(`  stillness (mean |dpx|, 0 = nothing changed after the drop): drop->2s ${still.drop_vs_2s}  drop->5s ${still.drop_vs_5s}  2s->5s ${still.s2_vs_5s}`);
   console.log(`  network ${(out.netTotalKB / 1024).toFixed(1)} MB / ${out.netRequests} req (failed ${out.netFailed})  ` + Object.entries(byType).map(([k, v]) => k + ' ' + (v / 1024).toFixed(1) + ' MB').join(', '));
+  if (rollout) console.log('  ROLL-OUT: screen ' + rollout.screenMs + ' ms  steps ' + ((rollout.log || []).filter(e => e.k === 'step').map(e => e.id + ':' + e.ms).join(' ')) + '  ring at lift ' + JSON.stringify(rollout.ring) + '  after ' + JSON.stringify(rollout.ringAfter) + '  programs ' + rollout.programs + '  stillness lift->3s ' + rollout.still.lift_vs_3s + '  3s->8s ' + rollout.still.s3_vs_8s + (rollout.note ? '  ' + rollout.note : ''));
   console.log('  props landed ' + M.props.length + '  chars ' + M.chars.length + '  ASSET_FETCH ' + M.fetches.length);
   console.log('  inclusive ms: ' + out.inclusive.slice(0, 16).map(([k, v]) => pad(k.split(' @')[0], 18) + v).join('\n                '));
   console.log('  self by file ms: ' + out.byFile.slice(0, 10).map(([k, v]) => k + ' ' + v).join(', '));
