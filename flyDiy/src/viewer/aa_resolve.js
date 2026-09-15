@@ -258,7 +258,7 @@
       // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
       // march composites there, reading the scene's depth) - it asks for the target even at tier
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
-      overlay: null, needRT: false,
+      overlay: null, post: null, needRT: false,
     };
 
     try {
@@ -359,9 +359,14 @@
       const prevTarget = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
       renderer.setRenderTarget(S.rt);
       renderer.render(scene, camera);
-      if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds, over the scene, before the resolve
+      if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
       renderer.setRenderTarget(prevTarget);
       renderer.render(S.fsScene, S.fsCam);
+      // THE POST HOOK (CLOUDS C2): the clouds composite onto the RESOLVED frame, not into the
+      // multisampled target - three resolves the whole 8x target at the end of every render()
+      // into it, and one more fullscreen draw there cost a second resolve (7 ms on a 3080 under
+      // ANGLE, measured with the GPU timer; the march itself is 0.3 ms)
+      if (S.post) S.post(renderer, camera, S.rt);
       return true;
     }
     // needRT(on): a pass wants the target and its depth even at tier `off`
@@ -393,7 +398,7 @@
 
     return {
       render, setSize, setTier, dispose, setDither,
-      needRT, setOverlay: f => { S.overlay = f || null; },
+      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target

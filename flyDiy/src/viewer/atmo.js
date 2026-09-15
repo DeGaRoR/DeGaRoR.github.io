@@ -359,6 +359,11 @@ var ATMO = (function () {
   // material samples it by its own view vector and distance (the splice below),
   // so the far ridge fades into the sky it stands under and the fog wall goes.
   const AP_N = 32, AP_W = 64, AP_H = 32, AP_DMAX = 120.0;   // km
+  // THE ATLAS CARRIES THE CLOUDS' SHADOW TILE TOO (CLOUDS C2): the island's ground program already
+  // stands at the sampler limit (16), so the clouds' transmittance tile lives in the rows above the
+  // aerial-perspective slices of this ONE texture every fogged material already binds - a 512^2
+  // tile at row AP_TILE_Y, two rows of gap; apSample() reads the bottom AP_H rows only
+  const AP_TILE = 512, AP_TILE_Y = AP_H + 2, AP_ATLAS_H = AP_TILE_Y + AP_TILE;
   const AP_FRAG = GLSL_LIB + `
     uniform float uR, uEMoon, uDmax;
     uniform vec3 uSun, uMoon;
@@ -446,6 +451,7 @@ var ATMO = (function () {
       float k0 = floor(s), f = s - k0;
       float k1 = min(k0 + 1.0, ${AP_N}.0 - 1.0);
       float uu = clamp(u, 0.5 / ${AP_W}.0, 1.0 - 0.5 / ${AP_W}.0);
+      v = clamp(v * ${AP_H}.0, 0.5, ${AP_H}.0 - 0.5) / ${AP_ATLAS_H}.0;   // the AP rows of the shared atlas
       vec4 a = k0 < 0.0 ? vec4(0.0, 0.0, 0.0, 1.0) : texture2D(uApAtlas, vec2((k0 + uu) / ${AP_N}.0, v));
       vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
       return mix(a, b, f);
@@ -508,6 +514,7 @@ var ATMO = (function () {
     sh.uniforms.uApAtlas = apUniforms.uApAtlas;
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
     if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
+    if (typeof CLOUDS !== 'undefined' && CLOUDS.inject) CLOUDS.inject(sh);   // the clouds' shadow sampler rides the same two paths (C2)
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
 
@@ -663,7 +670,7 @@ var ATMO = (function () {
     G.scene = new THREE.Scene(); G.scene.add(G.quad);
     G.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     // the aerial-perspective atlas and its pass
-    G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_ATLAS_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtAP.texture.wrapS = THREE.ClampToEdgeWrapping; G.rtAP.texture.wrapT = THREE.ClampToEdgeWrapping;
     G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uDmax: { value: AP_DMAX } }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: AP_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
@@ -673,6 +680,7 @@ var ATMO = (function () {
   }
   // update(renderer, day, camAltM): the day-only tables on a change, the sky-view every call
   let lastVer = -1;
+  const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
   function update(renderer, day, camAltM) {
     if (!G.enabled) return false;
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
@@ -683,7 +691,14 @@ var ATMO = (function () {
     const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
     renderer.autoClear = true;
     renderer.setRenderTarget(G.rtSky); renderer.render(G.scene, G.cam);
-    if (installed && G.rtAP) { G.quad.material = G.apMat; renderer.setRenderTarget(G.rtAP); renderer.render(G.scene, G.cam); G.quad.material = G.skyMat; }
+    if (installed && G.rtAP) {   // the AP pass writes its own rows of the shared atlas (the clouds' tile keeps the rest)
+      G.quad.material = G.apMat; renderer.setRenderTarget(G.rtAP);
+      renderer.getViewport(_vp); renderer.getScissor(_sc); const st = renderer.getScissorTest();
+      renderer.setViewport(0, 0, AP_N * AP_W, AP_H); renderer.setScissor(0, 0, AP_N * AP_W, AP_H); renderer.setScissorTest(true);
+      renderer.render(G.scene, G.cam);
+      renderer.setScissorTest(st); renderer.setViewport(_vp); renderer.setScissor(_sc);
+      G.quad.material = G.skyMat;
+    }
     renderer.setRenderTarget(prev); renderer.autoClear = ac;
     apScalars[0] = U.scale.value;
     U.eyeY.value = camAltM || 0;
@@ -772,7 +787,7 @@ var ATMO = (function () {
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
+    install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();

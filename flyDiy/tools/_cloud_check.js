@@ -15,11 +15,13 @@
 //   4. THE COLUMN: monotone in coverage, zero where clear, tiling over the span.
 //   5. DETERMINISM: the same (seed, cover, type) is the same map to the bit; a different
 //      seed is a different map.
-//   6. THE SPLICE RULES (static): clouds.js is a standalone program (no onBeforeCompile,
-//      no chunk writes), GLSL3 for the sampler3D, tone-mapped by three's chunks in the
-//      composite, takes ATMO's GLSL for the aerial perspective and the mist, never reads
-//      Date; render_world no longer draws the billboard puffs; the GRAPHICS menu has the
-//      `clouds` row in every preset; the resolve pass carries a depth texture and an overlay.
+//   6. THE SPLICE RULES (static): clouds.js has no hook of its own and exactly two chunk
+//      writes (C2: the shadow in the two lights chunks), GLSL3 for the sampler3D, tone-mapped
+//      by three's chunks in the composite (over the resolved frame, premultiplied), takes
+//      ATMO's GLSL for the aerial perspective and the mist, reads the shadow tile from the AP
+//      atlas (no new sampler), never reads Date; render_world no longer draws the billboard
+//      puffs; the GRAPHICS menu has the `clouds` row in every preset; the resolve pass carries
+//      a depth texture, an overlay and a post hook; the trees take the shadow.
 // Run: node tools/_cloud_check.js   (contract: one final `GATE CLOUD: ...`)
 // ============================================================
 const fs = require('fs'), path = require('path');
@@ -109,7 +111,23 @@ console.log('5. determinism');
 console.log('6. the splice rules');
 {
   const cj = src('viewer/clouds.js'), rw = src('viewer/render_world.js'), gfx = src('viewer/gfx_settings.js'), aa = src('viewer/aa_resolve.js'), core = src('core/08_cloud_field.js');
-  yes(!/onBeforeCompile/.test(cj) && !/ShaderChunk\.\w+\s*=/.test(cj), 'clouds.js is a standalone program: no hook, no chunk write');
+  yes(!/onBeforeCompile/.test(cj), 'clouds.js has no hook of its own (the shadow rides ATMO.inject)');
+  // C2: THE SHADOW SPLICE - exactly two chunk writes, both in install(): the declaration in lights_pars_begin,
+  // the multiply in lights_fragment_begin; the tile is read from the aerial-perspective atlas (no new sampler:
+  // the island's ground program stands at the 16-unit limit) through the scalars every fogged program carries
+  const ccode = cj.replace(/\/\/[^\n]*/g, '');
+  const cw = (ccode.match(/SC\.\w+\s*=/g) || []).map(x => x.replace(/\s*=.*/, ''));
+  yes(cw.length === 2 && cw.includes('SC.lights_pars_begin') && cw.includes('SC.lights_fragment_begin'), 'the shadow is spliced into exactly the two lights chunks, in install(): ' + cw.join(' '));
+  yes(/directLight\.color \*= cloudShadow\(\);/.test(cj) && /#ifdef CLOUD_SHADOW/.test(cj), 'the sun\'s colour is multiplied by the cloud transmittance under the CLOUD_SHADOW define');
+  yes(/texture2D\(uApAtlas, \$\{TILE_UV\(\)\}\)/.test(cj) && !/uniform sampler2D uCloudT/.test(cj), 'the shadow tile is read from the aerial-perspective atlas - no sampler added to the world\'s programs');
+  const at = src('viewer/atmo.js');
+  yes(/AP_TILE = 512, AP_TILE_Y = AP_H \+ 2, AP_ATLAS_H = AP_TILE_Y \+ AP_TILE/.test(at) && /TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H/.test(at), 'the atlas carries the tile above the AP rows and publishes its geometry');
+  yes(/CLOUDS\.inject\(sh\)/.test(at) && /renderer\.setScissor\(0, 0, AP_N \* AP_W, AP_H\)/.test(at), 'ATMO.inject hands the shadow its scalars; the AP pass writes only its own rows');
+  yes(/_C \*= cloudShadow\(\);/.test(src('viewer/trees.js')), 'the trees\' own leaf terms take the cloud shadow');
+  yes(/setPost: f => \{ S\.post = f \|\| null; \}/.test(aa) && /if \(S\.post\) S\.post\(renderer, camera, S\.rt\);/.test(aa), 'the resolve pass has the post hook: the composite draws over the RESOLVED frame (a draw into the 8x target is a second resolve)');
+  yes(/aa\.setPost\(r => \{ if \(!inGarage\) CLOUDS\.composite\(r\); \}\)/.test(src('viewer/app.js')) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js composites after the resolve and dims the flare by the column');
+  yes(/s\.rgb \*= s\.a;/.test(cj) && /c\.rgb \/= max\(c\.a, 1e-4\);/.test(cj), 'the composite filters premultiplied (an empty texel must not darken its neighbour)');
+  yes(/EXT_disjoint_timer_query_webgl2/.test(cj), 'the pass carries its own GPU timer');
   yes(/glslVersion: THREE\.GLSL3/.test(cj) && /sampler3D/.test(cj), 'the march is GLSL3 (a sampler3D needs it)');
   yes(/#include <tonemapping_fragment>/.test(cj) && /#include <colorspace_fragment>/.test(cj), 'the composite is tone-mapped and encoded by three\'s own chunks (the target is display-space)');
   yes(/ATMO\.GLSL\.AP/.test(cj) && /ATMO\.GLSL\.MIST/.test(cj) && /ATMO\.apUniforms/.test(cj), 'the march takes the aerial perspective and the mist from ATMO (one splice, shared)');

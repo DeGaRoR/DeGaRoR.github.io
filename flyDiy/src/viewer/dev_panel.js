@@ -243,11 +243,15 @@
       Cf.appendChild(slider('steps', 8, 96, 4, () => (cs() ? cs().steps : NaN), v => { if (cs()) cs().steps = v; }));
       Cf.appendChild(slider('light steps', 1, 8, 1, () => (cs() ? cs().lightSteps : NaN), v => { if (cs()) cs().lightSteps = v; }));
       Cf.appendChild(slider('drift', 0, 4, 0.1, () => (cs() ? cs().driftK : NaN), v => { if (cs()) cs().driftK = v; }, v => v.toFixed(1) + 'x the wind'));
+      Cf.appendChild(slider('shadow', 0, 1, 0.05, () => (cs() ? cs().shadow : NaN), v => { if (cs()) cs().shadow = v; }, v => v > 0 ? (v * 100).toFixed(0) + ' % of the layer’s' : 'off'));
+      Cf.appendChild(slider('shadow softness', 0.1, 1, 0.05, () => (cs() ? cs().shadowSoft : NaN), v => { if (cs()) cs().shadowSoft = v; }, v => v.toFixed(2) + ' x sigma (the light round the cloud)'));
+      Cf.appendChild(select('upsample', [['1', 'depth-aware 3x3 (the ridge keeps its edge)'], ['0', 'nearest']], () => (cs() ? String(cs().upsample) : '1'), v => { if (cs()) cs().upsample = +v; }));
+      Cf.appendChild(slider('jitter', 0, 1, 0.05, () => (cs() ? cs().jitter : NaN), v => { if (cs()) cs().jitter = v; }, v => v.toFixed(2) + ' of a step (grain against banding, near only)'));
       Cf.appendChild(select('resolution', [['off', 'off'], ['half', 'half'], ['full', 'full']], () => (cs() ? cs().mode : 'off'),
         v => { if (cs()) { cs().mode = v; if (W.FLYDIY_AA && W.FLYDIY_AA.needRT) W.FLYDIY_AA.needRT(v !== 'off'); } }));
       { // the layer, read out
         const n = note('');
-        const R = { el: n, refresh: () => { const c = cl(), L = c && c.layer; n.textContent = !c ? 'no clouds module' : !c.ready ? 'clouds: no 3D targets' : (L ? `layer ${L.base.toFixed(0)}-${L.top.toFixed(0)} m (${L.type}) · map cover ${(c.stats.cover * 100).toFixed(0)} % · ` : '') + (c.baked ? `pass ${c.stats.ms.toFixed(2)} ms` : `baking ${c.stats.slicesBaked}/129`) + (c.active ? '' : ' · idle'); } };
+        const R = { el: n, refresh: () => { const c = cl(), L = c && c.layer; n.textContent = !c ? 'no clouds module' : !c.ready ? 'clouds: no 3D targets' : (L ? `layer ${L.base.toFixed(0)}-${L.top.toFixed(0)} m (${L.type}) · map cover ${(c.stats.cover * 100).toFixed(0)} % · ` : '') + (c.baked ? `GPU ${c.stats.gpuMs.toFixed(2)} ms + shadow ${c.stats.shadowMs.toFixed(2)} ms (CPU ${c.stats.ms.toFixed(2)})` : `baking ${c.stats.slicesBaked}/129`) + (c.active ? '' : ' · idle'); } };
         rows.push(R); live.push(R);
         Cf.appendChild(n);
       }

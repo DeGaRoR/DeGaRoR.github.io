@@ -206,6 +206,10 @@
     // times PI, render_world LIGHT_UNIT); the wrap and SSS terms were tuned
     // against the legacy one, so they take it back out
     '  vec3 _C = directionalLights[0].color * RECIPROCAL_PI;',
+    // CLOUDS C2: the sun through the cloud layer (clouds.js's splice declares cloudShadow() for every fogged program)
+    '#ifdef CLOUD_SHADOW',
+    '  _C *= cloudShadow();',
+    '#endif',
     '  float _ndl = dot(geometryNormal, _L);',
     '  float _w = max(0.0, (_ndl + uWrap) / (1.0 + uWrap)) - max(0.0, _ndl);',
     '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _w;',

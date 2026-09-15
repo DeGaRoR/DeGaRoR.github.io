@@ -29,10 +29,12 @@ var CLOUD_FIELD = (function () {
   const N_DEFAULT = 256;
   // the types: thickness (m), the profile's bottom / top fractions, the map's base frequency (cells per tile)
   const TYPES = Object.freeze({
-    st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.35, freq: 2, width: 0.45, hsMin: 0.7 }),
-    sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.45, freq: 4, width: 0.35, hsMin: 0.6 }),
-    cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.55, freq: 6, width: 0.30, hsMin: 0.5 }),
-    cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.70, freq: 3, width: 0.30, hsMin: 0.6 }),
+    // top: where the column's fill starts to fall toward its own top (hs) - a cumulus keeps its density
+    // to near the top (a domed, sharp cap, C2's eye); a stratus fades over half its depth
+    st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.50, freq: 2, width: 0.45, hsMin: 0.7 }),
+    sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.70, freq: 4, width: 0.35, hsMin: 0.6 }),
+    cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.82, freq: 6, width: 0.30, hsMin: 0.5 }),
+    cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.88, freq: 3, width: 0.30, hsMin: 0.6 }),
   });
   const TYPE_ORDER = ['st', 'sc', 'cu', 'cb'];
   const typeOf = t => TYPES[t] ? t : 'cu';

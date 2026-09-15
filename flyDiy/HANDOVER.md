@@ -49152,3 +49152,80 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   taxi to the scored end); TECS cuts the throttle to 0.4 when asked to
   slow 3 m/s while 170 m below its height (the speed term outweighs the
   climb demand — bound it to half climbMax, measured on the matrix).
+=======
+## G425 — THE CLOUD CHANTIER, C2: THE LOOK, THE COST, AND THE SHADOW ON THE GROUND (2026-09-15,
+## the user: "go C2. Do the clouds cast shadows on the terrain?")
+- THE ANSWER WAS NO (C3's item); pulled forward, it is YES: the terrain, the water, the
+  houses, the trees and the aeroplane stand in the clouds' shadows, the shadows move with
+  the drift, the flare dims behind a cloud. C2's own list (the look, the upsample, the
+  cost) landed with it.
+- THE COST, MEASURED AT LAST: a GPU timer (EXT_disjoint_timer_query_webgl2, the box's
+  RTX 3080 under ANGLE/D3D11) round each pass, read back when it lands, on the F8 readout.
+  The march is 0.3-0.5 ms at half resolution, 0.8-1.3 ms at full; the shadow bake
+  0.02-0.6 ms (every other frame as the drift moves); the composite 0.03 ms. The first
+  number was 6.8 ms and did not move with the step count - split, it was the COMPOSITE:
+  three resolves the whole 8x multisampled target at the end of EVERY render() into it,
+  so one fullscreen draw there cost a second resolve (7 ms). aa_resolve.js gained
+  `setPost(fn)`: the clouds composite over the RESOLVED frame (the canvas), like the glare
+  does, after the resolve pass. The temporal 2x2 reprojection the plan carried is not
+  needed at this cost; not built.
+- THE SHADOW: a top-down bake of the layer's transmittance over the weather tile (512^2,
+  twelve heights, the same density GLSL the march uses - one text, DENSITY_GLSL) INTO THE
+  AERIAL-PERSPECTIVE ATLAS. The first draft bound it as a new sampler and the island's
+  terrain VANISHED: its ground program (nine island layers + the cascade + map + the
+  atlas) already stands at the 16-unit limit, and the added `uCloudT` pushed it over -
+  the same overflow that broke the premises patch (G423's finding). So atmo.js's atlas
+  grew from 2048x32 to 2048x546: the AP pass writes its own 32 rows under a scissor,
+  `apSample` reads them scaled, and the tile lives above a two-row gap (ATMO.AP.TILE /
+  TILE_Y / ATLAS_H published); the shadow reads `uApAtlas`, a sampler every fogged
+  program already binds - no unit added anywhere. ONE splice, two chunk writes in
+  clouds.js's install(): `lights_pars_begin` declares cloudShadow() under USE_FOG (the
+  world point from atmo.js's vAtmoV, projected along the sun to the layer's middle, the
+  tile read with a half-texel inset so the 40 km seam never bleeds), `lights_fragment_
+  begin` multiplies `directLight.color` by it after getDirectionalLightInfo; the trees'
+  own leaf terms (trees.js LEAF_TERMS) take `_C *= cloudShadow()` under the define so
+  the impostors and the near trees agree. The scalars (drift, span, on, the sun, the
+  layer's middle, the strength x a sun-elevation fade) ride a Float32Array through
+  ShaderLib and ATMO.inject (which now calls CLOUDS.inject). Softness: the bake's sigma
+  x 0.6 and a 0.8 strength (the light that scatters through and round a cloud - a
+  cumulus shadow is not black; at full strength and sigma the stand went to 10 % of the
+  lit level, physically consistent with a 9 % column, and read as night) - both F8 dials.
+  The flare: CLOUDS.sunT (the CPU column, 08_cloud_field columnOD) - the column without
+  its noise overstates the depth ~7x, so once per map the tile's mean transmittance is
+  read back and `columnK` fitted (0.06-0.15) until the CPU's mean equals the GPU's.
+- THE UPSAMPLE: the march writes two targets (the radiance + alpha, and the distance
+  each texel saw - a HALF FLOAT holds a distance to 0.1 %, a log depth only to 2 %,
+  which put blotches in the weights); the composite takes the 3x3 half texels round
+  the pixel, each weighted by a tent x the nearness of its distance to the pixel's own
+  (the resolved depth), so the ridge keeps its edge. THE BLOCKS: the far cloud band's
+  edges came out as hard 4-pixel steps at half resolution and clean at full - not the
+  weights, not the jitter: the filter averaged UNPREMULTIPLIED colour, so an empty
+  texel (black) darkened its neighbour's edge. Premultiplied, it is clean. The jitter
+  (interleaved gradient, per pixel, 0.6 of a step) now fades out past 1.5-8 km: far,
+  the steps are fine (0.4 % of the distance, up to 4N of them, the horizon reached)
+  and grain there read as blocks; a per-frame phase is off by default (no history
+  averages it - `shimmer`).
+- THE LOOK (a first pass; the user's eye is owed): the detail noise 64^3 at a 700 m
+  period (11 m texels), erosion 0.6; the profiles' tops sharpened (cu keeps its density
+  to 0.82 of the column - a domed cap, not a fade); the underside's ambient half the
+  sky's + the ground's light (the mauve gone); the step floor/ceiling 24-60 m near, the
+  distance rule far. The tops still read softer than a cumulus - the cauliflower is the
+  detail's contrast and a higher-frequency erosion; dials in F8 (detail, curl, scale,
+  phase, powder, multi-scatter, ambient, sun, jitter, shadow, softness, upsample).
+- GATE CLOUD: section 6 grew (the two lights chunks in install(), the multiply under
+  CLOUD_SHADOW, the tile read from the atlas with NO sampler added, the atlas geometry
+  published and the AP scissor, ATMO.inject chaining, the trees' term, the post hook,
+  the premultiplied filter, the GPU timer) - 22 static rules grepped against the sources
+  (all hold); the numeric sections NOT run (the user's order stands). GATE ATMO's own
+  rules (five chunks, one flag, the prototype hook) unchanged by construction.
+- PROOF (headless CDP, screenshots/clouds-2026-09-15/): c2_above_shadow.png - the eye
+  above a lowered layer, the island's land DARK under each cloud and lit between, the
+  cloud tops shaded; c2_stand_noon.png - the stand under 40 % cumulus, the far band at
+  the horizon clean; c2_golden.png - golden hour from the stand.
+- TRAPS: the Bash tool's heredocs strip backslashes (a JS regex `[^\n]` and a `\'`
+  arrived broken twice) - write files carrying escapes with the Write/Edit tools; the
+  proof worktree needs its built outputs and sw.js/version.json reset before a detach.
+- OWED (C3/C4): the light AT the craft (the hemisphere under overcast, the sun diffuse),
+  the probe with the layer (the water reflects the clouds), the shed's backdrop; the
+  cirrus veil, the types' table, in-cloud through the mist, the editor/CONDITIONS lines,
+  `&cloud=`; the eye pass on the tops; god-rays off the same tile.

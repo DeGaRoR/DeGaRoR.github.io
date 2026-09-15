@@ -175,6 +175,7 @@
   if (typeof CLOUDS !== 'undefined' && aa && aa.setOverlay) {
     CLOUDS.init(renderer);
     aa.setOverlay((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
+    aa.setPost(r => { if (!inGarage) CLOUDS.composite(r); });   // C2: over the resolved frame (a draw into the 8x target = a second resolve)
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
@@ -8286,7 +8287,9 @@
         SKY_GLARE.setOccluders(() => inGarage ? [garageScene()] : [craft]);
         SKY_GLARE.setTerrain(inGarage ? null : (x, z) => world.terrainH(x, z));
         const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
-        SKY_GLARE.update(camera, glareDir, { lum: 0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2], isMoon: L.isMoon, phase: L.phase,
+        // the clouds between the eye and the sun dim the flare (C2: the CPU column, the same field the shadow bakes)
+        const cT = (!inGarage && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
+        SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
       }
