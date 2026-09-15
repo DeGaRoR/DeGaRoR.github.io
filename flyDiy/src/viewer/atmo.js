@@ -512,9 +512,30 @@ var ATMO = (function () {
     for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
       const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
     }
-    // every default material takes the sampler through the prototype; a hook of its own calls inject itself
+    // EVERY MATERIAL TAKES THE SAMPLER, a hook of its own or not (G432.2, the user: "check why the
+    // houses don't render"): the prototype's onBeforeCompile is an ACCESSOR - a material's own hook is
+    // kept aside and served back wrapped in inject(); three reads the property at compile time and for
+    // the program cache key (customProgramCacheKey = onBeforeCompile.toString()), so the wrapper's
+    // toString carries the hook's own text. Before this the world pack's generators (the houses, the
+    // big buildings, the towers, the mill) hooked their materials without inject and DREW NOTHING in
+    // the game: a sampler never given a unit shares unit 0 with the map, and a draw whose samplers
+    // disagree on a unit is refused whole by GL - no error on the console, no shader diagnostic, the
+    // yards around them fine. A hook that still calls inject itself is harmless (inject is idempotent).
     const proto = THREE.Material.prototype;
-    proto.onBeforeCompile = function (sh) { inject(sh); };
+    const WRAP = new WeakMap();
+    const injectOnly = function (sh) { inject(sh); };
+    injectOnly.toString = () => 'atmo.inject';
+    Object.defineProperty(proto, 'onBeforeCompile', {
+      configurable: true,
+      get() {
+        const f = this._atmoHook;
+        if (!f) return injectOnly;
+        let w = WRAP.get(f);
+        if (!w) { w = function (sh, r) { inject(sh); return f.call(this, sh, r); }; w.toString = () => 'atmo.inject+' + f.toString(); WRAP.set(f, w); }
+        return w;
+      },
+      set(f) { this._atmoHook = f || null; },
+    });
     installed = true;
     return true;
   }

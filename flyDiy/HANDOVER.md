@@ -49827,3 +49827,42 @@ rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
 - OWED (P1): the 4 m/s gusting crosswind ground roll; the protocol record
   + circuit joins; a `soft` / `short` matrix fixture; the Savannah and the
   cub 2-3.5 m above their raised A5 slope with the throttle on its floor.
+
+## G432.2 — THE HOUSES BACK: EVERY MATERIAL TAKES THE AERIAL-PERSPECTIVE SAMPLER, HOOK OF ITS OWN OR NOT (2026-09-15, the user: "check why the houses don't render too please")
+
+- THE FINDING. In the game (not the benches) every house, big building,
+  tower, tram station, fence rail and mill of a premises drew NOTHING since
+  the SKY chantier's S4 (G410, the aerial-perspective splice): geometry
+  present, materials visible, maps loaded, no shader diagnostic, no console
+  error; the same meshes drew red under an override material; the premises
+  bench (no atmosphere) drew them fine. Bisected in a worktree: already so at
+  G420 and G424.
+- THE CAUSE. `ATMO.install` splices `uniform sampler2D uApAtlas` into every
+  fogged material's chunks and hands the sampler its texture through
+  `THREE.Material.prototype.onBeforeCompile = inject`. A material that sets a
+  hook OF ITS OWN loses the prototype's, and the world pack's generators
+  (`tools/_house_gen.js`, `_big_gen.js`, `_tower_gen.js`, `_hangar_gen.js`,
+  `_village_gen.js`' fences, the mill) all do — they were written before S4 and
+  never called `ATMO.inject` (the viewer's own hooks do; GATE ATMO counted
+  those and no other). A sampler never given a unit sits on unit 0 beside the
+  map; two samplers on one unit with mismatched targets/parameters make GL
+  refuse the whole draw call, silently. Proved in the pane: wrapping the 839
+  house materials' hooks with `ATMO.inject` at runtime and rendering again —
+  every house there.
+- THE FIX, GENERAL (`src/viewer/atmo.js` install): the prototype's
+  `onBeforeCompile` is an ACCESSOR. Setting a hook stores it aside
+  (`_atmoHook`); reading gives it back wrapped in `inject()` (memoised per hook
+  in a WeakMap, so `customProgramCacheKey = onBeforeCompile.toString()` is
+  stable and still tells hooks apart: the wrapper's toString is
+  `'atmo.inject+' + hook`). A material with no hook reads `injectOnly`. A hook
+  that chains the previous one (`const prev = m.onBeforeCompile; ... prev(sh)`)
+  gets the wrapper and injects twice — idempotent. A hook copied from another
+  material stays one hook. No generator changes; every future hook is covered.
+- GATE ATMO §5: the accessor's shape, and a functional check on a stand-in
+  THREE (a material with its own hook runs it after inject and carries the
+  sampler; one without still takes it; the cache keys differ; a copied hook
+  runs once). Headless Chrome shot of Skarvik after the fix:
+  screenshots/cars/skarvik_houses_back.png — houses, rails, the tram station.
+- OWED to the sky/cloud sessions: the same class of miss could hide in any
+  material that sets `defines` or `customProgramCacheKey` by hand; the
+  accessor covers the hook path only.

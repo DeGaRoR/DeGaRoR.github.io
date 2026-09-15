@@ -128,7 +128,28 @@ console.log('5. the sources');
       'the atmosphere overrides exactly the five fog/tonemapping chunks, in install(): ' + chunkWrites.join(' '));
   yes(/SC\.tonemapping_fragment = AP_APPLY \+/.test(code), 'the aerial perspective is spliced at the HEAD of tonemapping_fragment (before the tone map, in linear radiance)');
   yes(/if \(uAtmoAP\.z > 0\.5\)/.test(src) && /if \(uAtmoAP\.z < 0\.5\)/.test(src), 'the splice and the legacy fog are gated on the one shared flag');
-  yes(/proto\.onBeforeCompile = function \(sh\) \{ inject\(sh\); \}/.test(src), 'the prototype hook injects the sampler for every default material');
+  yes(/Object\.defineProperty\(proto, 'onBeforeCompile'/.test(src) && /inject\(sh\); return f\.call\(this, sh, r\);/.test(src), 'the prototype hook is an accessor: every material\'s own hook comes back wrapped in inject (G432.2)');
+  // ...and it WORKS, on a stand-in THREE: a material with a hook of its own gets the atlas sampler and a
+  // cache key that still tells its hooks apart; a hook copied from one material to another stays one hook
+  { const T = { ShaderChunk: {}, ShaderLib: { standard: { uniforms: {} } }, Material: class { customProgramCacheKey() { return this.onBeforeCompile.toString(); } } };
+    const g = typeof globalThis !== 'undefined' ? globalThis : global; const had = 'THREE' in g; const old = g.THREE; g.THREE = T;
+    let okI = false;
+    try {
+      okI = ATMO.install();
+      const m = new T.Material(), m2 = new T.Material();
+      let ran = 0; m.onBeforeCompile = sh => { ran++; sh.fragmentShader += 'X'; };
+      const sh = { uniforms: {}, fragmentShader: '#include <fog_pars_fragment>', vertexShader: '' };
+      m.onBeforeCompile(sh, null);
+      yes(ran === 1 && sh.uniforms.uApAtlas && sh.fragmentShader.endsWith('X'), 'a material\'s own hook runs after inject and the shader carries the atlas sampler');
+      const sh2 = { uniforms: {}, fragmentShader: '#include <fog_pars_fragment>', vertexShader: '' };
+      m2.onBeforeCompile(sh2, null);
+      yes(!!sh2.uniforms.uApAtlas, 'a material with no hook of its own still takes the sampler');
+      yes(m.customProgramCacheKey() !== m2.customProgramCacheKey() && /ran\+\+/.test(m.customProgramCacheKey()), 'the program cache key still tells one hook from another');
+      const m3 = new T.Material(); m3.onBeforeCompile = m.onBeforeCompile; const sh3 = { uniforms: {}, fragmentShader: '#include <fog_pars_fragment>', vertexShader: '' }; m3.onBeforeCompile(sh3, null);
+      yes(ran === 2 && !!sh3.uniforms.uApAtlas, 'a hook copied from another material runs once and injects once');
+    } catch (e) { fail('the accessor on a stand-in THREE threw: ' + e.message); }
+    if (had) g.THREE = old; else delete g.THREE;
+    yes(okI, 'install() took the stand-in THREE'); }
   yes(!/\.onBeforeCompile\s*=\s*sh\s*=>/.test(src), 'the atmosphere\'s own programs are standalone (no hook of their own)');
   const hooked = { 'render_world.js': 8, 'render_premises.js': 2, 'props.js': 1, 'lot_tex.js': 1, 'site_ground.js': 1, 'trees.js': 1, 'cabin.js': 1, 'aeroskin.js': 2 };
   for (const f in hooked) {
