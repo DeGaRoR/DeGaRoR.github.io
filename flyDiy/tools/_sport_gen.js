@@ -490,7 +490,10 @@ function build(P0, lod, F) {
   }
   const stats = Object.assign({
     lod: Q.lod, tris, verts, per, bbox: bb, nan, degen: 0, kind: KINDS[kind], role: 'sports', foot: PL.foot,
-    ground, stand: st, turf, lit: { windows: 0, panes: 0, bulbs: 0, lights }, groundAO: occ, floorY: y,
+    // `ground` is the HEIGHT FUNCTION every generator publishes (the bench's site plane, the viewer's
+    // prop tilt read it - a rectangle there threw, and the bench only redrew on the next mouse move,
+    // G414.4); the surface's own rectangle is `groundRect`
+    ground: () => y - 0.005, groundRect: ground, stand: st, turf, lit: { windows: 0, panes: 0, bulbs: 0, lights }, groundAO: occ, floorY: y,
     ridgeY: bb.y1, eaveY: 0, footprint: (ground.x1 - ground.x0) * (ground.z1 - ground.z0), area: 0, surface: SURFACES[Math.round(P.surface)],
   }, out);
   return { bags, stats, P, MAT: F ? F.MAT : MAT };

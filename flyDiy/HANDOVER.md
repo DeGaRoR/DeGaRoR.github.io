@@ -48490,3 +48490,14 @@ roll loop was never touched: not a gain, not a limit, not a schedule.
   points (`roofAt`: the slab's plane on the derelict, the roof's top
   elsewhere), the whips likewise - on the bare head rail where the roof is
   gone. SEEN: z0c_wwii_roof_above, z0d_wwii_roof_below. Gates not run.
+
+## G414.4 — THE SPORTS BENCH DRAWS ON SELECTION (2026-09-15, the user: "the sports
+## series requires for me to click/move the canvas for my selection to appear and
+## the display to update, annoying")
+
+SPORT_GEN published `stats.ground` as the surface's RECTANGLE where every
+other generator publishes the height FUNCTION; the bench's site plane
+called it and threw after the mesh was in the scene and before `draw()`,
+so the picture stood until the next mouse move redrew it. `ground` is the
+function now (the flat field at its floor), the rectangle is `groundRect`
+(rule 41 reads it). GATE HOUSE run for this one.

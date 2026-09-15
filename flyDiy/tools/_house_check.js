@@ -1753,7 +1753,7 @@ for (const name of Object.keys(HG.PRESETS)) {
       check(lo.bags.line.tris === lineTris, 'sport ' + name + ': the far mesh lost its lines', lo.bags.line.tris + ' vs ' + lineTris);
     }
     // the foot holds the ground
-    const F = hi.stats.foot, g = hi.stats.ground;
+    const F = hi.stats.foot, g = hi.stats.groundRect;   // the rectangle (G414.4: `ground` is the height function, as everywhere)
     const fx0 = Math.min(...F.map(p => p[0])), fx1 = Math.max(...F.map(p => p[0])), fz0 = Math.min(...F.map(p => p[1])), fz1 = Math.max(...F.map(p => p[1]));
     check(fx0 <= g.x0 + 1e-6 && fx1 >= g.x1 - 1e-6 && fz0 <= g.z0 + 1e-6 && fz1 >= g.z1 - 1e-6, 'sport ' + name + ': the foot does not hold the ground', JSON.stringify([fx0, fx1, fz0, fz1, g]));
     const kind = Math.round(P.kind);
