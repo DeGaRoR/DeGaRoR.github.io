@@ -492,7 +492,7 @@ function build(P0, lod, F) {
   const eaveR = rTop + P.roofOver / Math.cos(Math.PI / n);
   const yE = yHead + 0.06;
   let roofTop = yE, roofRing = K.ringN(0, 0, eaveR, n, rot, yE);
-  let roofHalf = false;
+  let roofHalf = false, roofHalfY = null;
   if (broken && rnd() < 0.85) {
     // THE ROOF HALF GONE: the half that stays is the back one, sagging toward the front edge
     roofHalf = true;
@@ -504,7 +504,12 @@ function build(P0, lod, F) {
       if (a[2] <= 0) half.push(a);
       if ((a[2] <= 0) !== (b[2] <= 0)) { const t = a[2] / (a[2] - b[2]); half.push(K.lerp3(a, b, t)); }
     }
-    const sag = half.map(p => [p[0], p[1] - (Math.abs(p[2]) < 0.05 ? 0.55 : 0.0), p[2]]);   // the torn edge hangs
+    // the slab hangs as ONE PLANE - hinged on its back edge, its torn edge 55 cm down - so the plate's
+    // top and bottom are planar polygons (a non-planar ring fans into twisted, half-culled triangles:
+    // the "uncovered part" the user saw from below) and the mast can stand on it
+    let zBack = 0; for (const p of half) zBack = Math.min(zBack, p[2]);
+    roofHalfY = z => yE - 0.55 * (z - zBack) / (0 - zBack);
+    const sag = half.map(p => [p[0], roofHalfY(p[2]), p[2]]);
     // EVERY PART KEEPS ITS THICKNESS (G414.2, the user: "you need to keep thickness for all parts, in
     // particular the collapsed roof"): the half that stays is a 10 cm plate, and the sheet that came
     // down is a plate too, dropped along its own normal - never a bare quad
@@ -529,10 +534,13 @@ function build(P0, lod, F) {
   // ==== THE TOP ====
   let beaconLight = null, mastTop = roofTop;
   if (P.mast) {
-    const mh = P.mastH, mx = roofHalf ? -eaveR * 0.35 : 0, mz = roofHalf ? -eaveR * 0.35 : 0;
-    cyl(bags.steel, [mx, roofTop - 0.05, mz], [0, 1, 0], 0.05, mh, Q.lod === 0 ? 8 : 5, true);
-    mastTop = roofTop + mh;
-    if (Q.lod === 0) for (const s of [[0.3, 0], [-0.3, 0], [0, 0.3], [0, -0.3]]) beam(bags.steel, [mx + s[0] * 1.5, roofTop, mz + s[1] * 1.5], [mx, roofTop + mh * 0.35, mz], 0.012, 0.012, [0, 1, 0], 0);   // the stays
+    const mh = P.mastH, mx = roofHalf ? -eaveR * 0.35 : 0, mz = roofHalf ? -eaveR * 0.45 : 0;
+    // the foot ON the roof (the derelict's slab is a plane: its height at the foot), the stays footed on it too
+    const roofAt = (x, z) => (roofHalf ? roofHalfY(z) : roofTop);
+    const yM = roofAt(mx, mz);
+    cyl(bags.steel, [mx, yM - 0.06, mz], [0, 1, 0], 0.05, mh + 0.06, Q.lod === 0 ? 8 : 5, true);
+    mastTop = yM + mh;
+    if (Q.lod === 0) for (const s of [[0.3, 0], [-0.3, 0], [0, 0.3], [0, -0.3]]) { const fx = mx + s[0] * 1.5, fz = mz + s[1] * 1.5; beam(bags.steel, [fx, roofAt(fx, fz) - 0.02, fz], [mx, yM + mh * 0.35, mz], 0.012, 0.012, [0, 1, 0], 0); }   // the stays
     if (P.beacon && !broken) {
       const yb = mastTop - 0.55, rb = 0.16;
       K.prismRings(bags.steel, K.ringN(mx, mz, rb * 1.1, 8, 0, yb - 0.08), K.ringN(mx, mz, rb * 1.1, 8, 0, yb), false, true);
@@ -546,7 +554,7 @@ function build(P0, lod, F) {
   if (Q.lod === 0) for (let k = 0; k < Math.round(P.whips); k++) {
     const a = rot + 2 * Math.PI * (k + 0.5) / Math.max(1, Math.round(P.whips)) + 0.4;
     const px = Math.cos(a) * eaveR * 0.55, pz = Math.sin(a) * eaveR * 0.55;
-    const yb = roofHalf && pz > 0 ? yHead : roofTop;
+    const yb = roofHalf ? (pz > 0 ? yHead : roofHalfY(pz)) : roofTop;   // footed on what is there: the slab, or the bare head rail
     beam(bags.steel, [px, yb - 0.1, pz], [px, yb + 1.6 + k * 0.5, pz], 0.012, 0.012, [1, 0, 0], 0);
   }
   let sock = null;

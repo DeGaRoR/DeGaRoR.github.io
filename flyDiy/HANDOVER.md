@@ -48476,3 +48476,17 @@ roll loop was never touched: not a gain, not a limit, not a schedule.
   dropped along its own normal, 6 cm - no bare quad anywhere on the tower.
 - SEEN: z0b_wwii_roof, z7_firehall_tone. Gates not run (the user's word
   stands from G414.1).
+
+## G414.3 — THE SLAB IS ONE PLANE, THE MAST STANDS ON IT (2026-09-15, the user:
+## "there is still an uncovered part, and because this is not double sided, it still
+## doesn't feel like it is solid. Also, your antenna floats there")
+
+- The uncovered part was a NON-PLANAR ring: the roof half's torn edge was
+  dropped and its back corners not, so `plate` fanned a twisted top and
+  bottom whose triangles faced both ways - half of them culled from below.
+  The slab hangs as ONE PLANE now, hinged on its back edge, its torn edge
+  55 cm down (`roofHalfY(z)`), and reads solid from every side.
+- The mast's foot and its four stays are footed ON the roof at their own
+  points (`roofAt`: the slab's plane on the derelict, the roof's top
+  elsewhere), the whips likewise - on the bare head rail where the roof is
+  gone. SEEN: z0c_wwii_roof_above, z0d_wwii_roof_below. Gates not run.
