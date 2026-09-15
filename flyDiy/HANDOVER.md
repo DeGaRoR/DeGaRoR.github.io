@@ -49697,6 +49697,11 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   fences, people, cars, trees all fine; the same in the pane with the app's
   renderer and headless). The material's hooks are the house's own (sag,
   dirt, clouds) plus the ATMO/AP/cloud-shadow splices; not touched here.
+  Bisected in the worktree: invisible at G420 (8cfab167) and G424 already;
+  the PREMISES BENCH (tools/_premises.html, the showcase fixture) draws the
+  same houses fine — so the game-only material splices (render_world's
+  ATMO / aerial perspective / mist / cloud shadow on every material) are
+  where to look, not the house generator.
   (2) GATE PREMISES 5b ("outside the extent every height is the bare
   world's") is red with HEAD's 27_premises.js as much as with this one.
   Both to be read at HEAD in the worktree proof and handed to their owners.
