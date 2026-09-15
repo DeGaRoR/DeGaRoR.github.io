@@ -3378,9 +3378,18 @@ body.benchBusy #edInfo { opacity:.72; }
       <option value="hot">Hot afternoon &middot; 35&deg;C, 1008</option>
       <option value="cold">Winter morning &middot; 0&deg;C, 1030</option>
     </select>
-    <select id="selTime" aria-label="Time of day" disabled
-            title="the world flies one fixed midday sun until the day cycle lands">
-      <option>Midday &middot; fixed sun</option>
+    <!-- THE TIME OF DAY (SKY chantier, 2026-09-15): the clock's presets, solved on the
+         day's own almanac (dawn is the sun at -6 deg rising, golden 8 deg falling, night
+         the solar midnight); the hour and the rate ride beside it in the brief's `day` slot -->
+    <select id="selTime" aria-label="Time of day" title="the hour, on the day's own almanac">
+      <option value="dawn">Dawn &middot; civil twilight</option>
+      <option value="morning">Morning &middot; sun 25&deg;</option>
+      <option value="noon">Noon</option>
+      <option value="afternoon" selected>Afternoon &middot; sun 33&deg;</option>
+      <option value="golden">Golden hour &middot; sun 8&deg;</option>
+      <option value="sunset">Sunset</option>
+      <option value="dusk">Dusk &middot; civil twilight</option>
+      <option value="night">Night &middot; solar midnight</option>
     </select>
     <!-- THE COVERING. Off the HUD and into the `camera` flyout as a row of
          pills, because what the aeroplane is DRAWN AS is a looking question
@@ -9568,6 +9577,14 @@ function makeWorld(seed, opts) {
   // premises' (G404: Jolene's 13/31 is HOME), no analytic cut at the origin
   const ISL_CUT = ISL && !(opts && opts.premises);
   const PADH = ISL ? ISL.terrainH(-520, 0) : 0;
+  const EXACT_GROUND = !!(opts && opts.exactGround);
+  // THE SLOPE BOUND the solver's clearance cone stands on (30_solver.js): a
+  // Lipschitz constant on terrainH, metres of rise per metre. Measured on the
+  // analytic world: 4.46 at the steepest 0.25 m probe of the whole domain,
+  // 0.33 in the home corridor; 12 is the bound, and GATE GE re-measures and
+  // pins measured <= bound/2. The island's raster and a premises layer
+  // declare none yet, so a sim over them samples the ground the old way.
+  const SLOPE_MAX = ISL ? undefined : 12;
   function h0(x, z) {
     if (!ISL) return h0a(x, z);
     const h = ISL.terrainH(x, z);
@@ -9576,6 +9593,14 @@ function makeWorld(seed, opts) {
     return r >= 1 ? h : PADH + (h - PADH) * r;
   }
   function h0a(x, z) {
+    // THE PAD IS ZERO (2026-09-14, the gate rationalization): every term below
+    // is multiplied by sstep(0, 260, distance-to-the-pad-box) at the end, which
+    // is exactly 0 inside x in [-1180, 130], |z| <= 90 — so the whole noise
+    // stack was computed for a runway that reads 0. Measured +0 at every
+    // point of a 1 m grid over the box; GATE GE pins the identity. The island
+    // never reaches here (h0 routes it to its raster) and the premises layer
+    // composes on top. opts.exactGround keeps the long path for the proof.
+    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -10167,7 +10192,7 @@ function makeWorld(seed, opts) {
   function setWeather(spec) {
     weather = spec || null;
     const p = { wind: spec ? (spec.wind || null) : null };
-    for (const k of ['oatC', 'dISA', 'qnhPa']) p[k] = spec && spec[k] != null ? spec[k] : null;
+    for (const k of ['oatC', 'dISA', 'qnhPa', 'dewC', 'rh']) p[k] = spec && spec[k] != null ? spec[k] : null;   // the AIR, and the WATER when a preset names it
     setDay(p);
   }
 
@@ -10181,6 +10206,7 @@ function makeWorld(seed, opts) {
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
+    get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
     // informative stage-3 block (not contract surface): road/building
@@ -14169,32 +14195,65 @@ function makeSim(def, world) {
     }
     C.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   }
-  // the rotation of a linear map A (row-major 3x3), warm-started from R:
-  // Müller, Bender, Chentanez, Macklin 2016, "A robust method to extract
-  // the rotational part of deformations"
+  // the rotation of a linear map A (row-major 3x3), warm-started from R.
+  // G396.3 (found by the strut task session, unlanded at the crash): A
+  // NEWTON STEP, NOT MÜLLER'S GRADIENT STEP. Müller, Bender,
+  // Chentanez, Macklin 2016 ("A robust method to extract the rotational
+  // part of deformations") turns R toward A by omega = sum(r_c x a_c) /
+  // |sum(r_c . a_c)| — the exact correction for a round body, but that
+  // scalar is the whole trace of A, and on a LONG THIN cluster (a float: a
+  // hull 100:1 in its second moments, a boom tube likewise) a rotation
+  // about the long axis is under-relaxed by the ratio of the short moments
+  // to the trace: four iterations recovered a tenth of one substep's roll
+  // (measured, scratch: 2.7e-4 of 3e-4 rad left). The projection then
+  // pulled the float back toward a STALE roll every substep — an angular
+  // damper that lived in the solver, not in the aeroplane: on the fixture's
+  // floats the aileron doublet rolled 3 deg/s where the plant says 27, with
+  // the angular momentum bleeding 75 % in 0.3 s and the pilot's approach in
+  // a limit cycle on the stops; with the float struts soft the floats hung
+  // loose and hid it (20 deg/s, decaying), stiff, they carried it into the
+  // airframe. G350's own words on the boom — its hold on torsion "an order
+  // below its hold on bending" — were this same lag about the tube's axis.
+  // The Newton step: B = R^T A, S = sym(B), k = axial(skew(B)), the
+  // linearised optimality (R^T A symmetric) reads (tr S . I - S) d = 2 k,
+  // R <- R exp([d]x). Per axis the right divisor is the OTHER two moments,
+  // which is why it converges in one step for a small rotation and in
+  // three for half a radian, on any aspect ratio (scratch rot_test.js:
+  // 2e-8 rad on the 100:1 body against Müller's 2.7e-4 at four
+  // iterations, 7e-8 at four hundred). Degenerate S (a line of nodes) has
+  // no rotation about the line to find; the ridge on the diagonal keeps
+  // the solve finite there and returns the warm start about that axis.
   function extractRotation(A, R, iters) {
     for (let it = 0; it < iters; it++) {
-      let ox = 0, oy = 0, oz = 0, den = 0;
-      for (let c = 0; c < 3; c++) {
-        // column c of R and of A
-        const rx = R[c], ry = R[3 + c], rz = R[6 + c];
-        const ax = A[c], ay = A[3 + c], az = A[6 + c];
-        ox += ry * az - rz * ay; oy += rz * ax - rx * az; oz += rx * ay - ry * ax;
-        den += rx * ax + ry * ay + rz * az;
+      // B = R^T A  (row j of B = column j of R dotted with the columns of A)
+      const B = new Array(9);
+      for (let j = 0; j < 3; j++) {
+        const rx = R[j], ry = R[3 + j], rz = R[6 + j];
+        for (let c = 0; c < 3; c++) B[j*3 + c] = rx * A[c] + ry * A[3 + c] + rz * A[6 + c];
       }
-      den = Math.abs(den) + 1e-9;
-      ox /= den; oy /= den; oz /= den;
-      const w = Math.hypot(ox, oy, oz);
+      const s01 = 0.5 * (B[1] + B[3]), s02 = 0.5 * (B[2] + B[6]), s12 = 0.5 * (B[5] + B[7]);
+      const kx = 0.5 * (B[7] - B[5]), ky = 0.5 * (B[2] - B[6]), kz = 0.5 * (B[3] - B[1]);
+      const t = B[0] + B[4] + B[8], eps = 1e-9 * (Math.abs(t) + 1e-12);
+      // M = tr(S) I - S, ridged
+      const M0 = t - B[0] + eps, M4 = t - B[4] + eps, M8 = t - B[8] + eps;
+      const M1 = -s01, M2 = -s02, M5 = -s12;
+      const det = M0 * (M4 * M8 - M5 * M5) - M1 * (M1 * M8 - M5 * M2) + M2 * (M1 * M5 - M4 * M2);
+      if (!(Math.abs(det) > 1e-300)) break;
+      const bx = 2 * kx, by = 2 * ky, bz = 2 * kz;
+      const dx = (bx * (M4 * M8 - M5 * M5) - M1 * (by * M8 - M5 * bz) + M2 * (by * M5 - M4 * bz)) / det;
+      const dy = (M0 * (by * M8 - M5 * bz) - bx * (M1 * M8 - M5 * M2) + M2 * (M1 * bz - by * M2)) / det;
+      const dz = (M0 * (M4 * bz - by * M5) - M1 * (M1 * bz - by * M2) + bx * (M1 * M5 - M4 * M2)) / det;
+      const w = Math.hypot(dx, dy, dz);
       if (w < 1e-9) break;
-      // R <- Rot(axis, w) * R  (Rodrigues)
-      const kx = ox / w, ky = oy / w, kz = oz / w;
-      const cw = Math.cos(w), sw = Math.sin(w), t = 1 - cw;
-      const Q = [cw + kx*kx*t,    kx*ky*t - kz*sw, kx*kz*t + ky*sw,
-                 ky*kx*t + kz*sw, cw + ky*ky*t,    ky*kz*t - kx*sw,
-                 kz*kx*t - ky*sw, kz*ky*t + kx*sw, cw + kz*kz*t];
+      // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
+      const ax = dx / w, ay = dy / w, az = dz / w;
+      const cw = Math.cos(w), sw = Math.sin(w), tt = 1 - cw;
+      const Q = [cw + ax*ax*tt,    ax*ay*tt - az*sw, ax*az*tt + ay*sw,
+                 ay*ax*tt + az*sw, cw + ay*ay*tt,    ay*az*tt - ax*sw,
+                 az*ax*tt - ay*sw, az*ay*tt + ax*sw, cw + az*az*tt];
       const N2 = new Array(9);
       for (let r2 = 0; r2 < 3; r2++) for (let c = 0; c < 3; c++)
-        N2[r2*3 + c] = Q[r2*3] * R[c] + Q[r2*3 + 1] * R[3 + c] + Q[r2*3 + 2] * R[6 + c];
+        N2[r2*3 + c] = R[r2*3] * Q[c] + R[r2*3 + 1] * Q[3 + c] + R[r2*3 + 2] * Q[6 + c];
       R = N2;
     }
     return R;
@@ -14239,6 +14298,26 @@ function makeSim(def, world) {
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
+  // THE CLEARANCE CONE (2026-09-14, the gate rationalization). The ground pass
+  // below asked the world for the terrain under EVERY node EVERY substep —
+  // 73 to 156 times a frame, at 300 m as on the runway — and the noise stack
+  // behind terrainH was a third of a flown circuit's CPU. So the ground is
+  // sampled once per node per FRAME (gc*: where it was sampled and what it
+  // read), and inside the frame a node skips the sample while it is provably
+  // clear: the world publishes a slope bound S (world.slopeMax, a Lipschitz
+  // constant on terrainH), and a node c metres above its cached sample that
+  // has moved d metres sideways since cannot have met the ground while
+  // c > S·d. The skipped branch is EXACTLY the `pen <= 0 -> continue` the
+  // full sample would have taken (terrainH is pure and nothing else reads
+  // gy), so the trajectory is bit-identical — GATE GE flies it both ways and
+  // compares every p and v. A world without a bound (the island's raster, a
+  // premises layer) gets the old path; so does FLYDIY_EXACT_GROUND=1.
+  const GROUND_CONE_EPS = 0.01;
+  let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
+  let coneLive = false, coneS2 = 0;
+  const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
+  out.gndSampled = 0; out.gndSkipped = 0;
+  function setGroundCone(on) { coneOn = !!on; }
   // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
   // rigid node bodies — and the hydro law (32_hydro.js) runs on the hull
   // each float declares, its forces landing on the float's four frame
@@ -15089,7 +15168,13 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      const gy = gH ? gH(p[i3], p[i3+2]) : 0;
+      let gy;
+      if (coneLive) {
+        const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
+        const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
+        if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
+        gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
+      } else gy = gH ? gH(p[i3], p[i3+2]) : 0;
       const pen = gy + r[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -15196,6 +15281,15 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    // the cone's frame-start samples (a bound the world declares, else off)
+    const S = coneOn && world ? world.slopeMax : undefined;
+    coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
+    out.gndSampled = 0; out.gndSkipped = 0;
+    if (coneLive) {
+      coneS2 = S * S;
+      const gH = world.terrainH;
+      for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
+    }
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }
@@ -15318,7 +15412,7 @@ function makeSim(def, world) {
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
-           setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
+           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir };
   return sim;
 }
 
@@ -18839,11 +18933,17 @@ function makeTestPilot(sim, def, world) {
 //
 // `makeCrosswindProbe(def, opts)` is the steppable form the page polls;
 // `genCrosswindLimit(def, opts)` runs it to the end for the gates. Both are
-// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS }.
+// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS,
+// memo }. `memo` (a Map) remembers each rung's flight by wind speed: a rung
+// is a function of the wind alone — the band, the step and the cap only
+// JUDGE it — so a second ladder over the same aeroplane (GATE TAKEOFF asks
+// three, with three bands) re-reads the rungs it already flew
+// (2026-09-14, the gate rationalization).
 // ============================================================
 function makeCrosswindProbe(def, opts) {
   opts = opts || {};
   const world = opts.world || makeWorld();
+  const memo = opts.memo instanceof Map ? opts.memo : null;
   const a = world.aerodromes[0];
   const site = (typeof siteOf === 'function') ? siteOf(a.id || 'HOME') : null;
   const R = siteRunway(a);
@@ -18857,6 +18957,13 @@ function makeCrosswindProbe(def, opts) {
   let cur = null, lo = 0, hi = null, calmTried = false, result = null;
 
   function start(w) {
+    if (memo && memo.has(w)) {                                // a rung already flown: re-judge it by THIS band
+      const m = memo.get(w);
+      const fin = m.why ? { ok: false, why: m.why }
+                        : { ok: m.roll <= band, why: m.roll <= band ? null : 'off the edge line' };
+      cur = { w, roll: m.roll, e: m.e, t: m.t, fin };
+      return;
+    }
     if (world.setWind) world.setWind({ base: [0, 0, w], gust: 0 });
     const sim = makeSim(def, world);
     sim.reset(0);
@@ -18870,6 +18977,7 @@ function makeCrosswindProbe(def, opts) {
   // one 1/60 s step of the departure in flight; true when it is decided
   function stepOne() {
     const c = cur;
+    if (c.fin) return true;                                   // remembered
     c.ap.update(1 / 60); c.sim.step(1 / 60); c.t += 1 / 60;
     const d = c.ap.dbg || {};
     if (c.ap.phase === 'ROLL') c.roll = Math.max(c.roll, Math.abs(d.z || 0));
@@ -18923,6 +19031,8 @@ function makeCrosswindProbe(def, opts) {
   }
   function record() {
     const c = cur, f = c.fin;
+    // the flight, not the verdict: the band judged `off the edge line`, every other why is the flight's own
+    if (memo && !memo.has(c.w)) memo.set(c.w, { roll: c.roll, e: c.e, t: c.t, why: f.why === 'off the edge line' ? null : f.why });
     runs.push({ w: c.w, ok: f.ok, roll: Math.round(c.roll * 100) / 100,
                 e: Math.round(c.e * 1000) / 1000, why: f.why });
     if (f.ok) lo = Math.max(lo, c.w);
@@ -19576,11 +19686,23 @@ function makePilot(sim, def, world, opts) {
   const setStatus = (goal, conds) => {
     const L = PILOT_PHASES[ap.phase] || [ap.phase, ap.phase];
     ap.status = { phase: ap.phase, label: L[0], goal, conds: conds || [], since: phaseT,
-                  gaN: ap.gaN, style: ST.name, afcs: ap.afcs };
+                  gaN: ap.gaN, style: ST.name, afcs: ap.afcs,
+                  // SKY chantier: the day's night (civil twilight ended); absent without a day
+                  night: !!(world && world.day && world.day.isNight) };
+  };
+  // THE LIGHTS A PILOT FLIES WITH (SKY chantier): navigation lights and the beacon from
+  // sunset to sunrise - the rule, read off the day's sun; the cockpit applies them while
+  // no hand is on the panel. Absent (null) without a day, so a headless fixture is unchanged.
+  ap.lights = null;
+  const lightsRule = () => {
+    if (!world || !world.day) { ap.lights = null; return; }
+    const up = world.day.sunUp;
+    if (!ap.lights || ap.lights.nav !== (up ? 0 : 1)) ap.lights = { nav: up ? 0 : 1, beacon: up ? 0 : 1 };
   };
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
+    lightsRule();
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) {
@@ -19668,6 +19790,7 @@ function makePilot(sim, def, world, opts) {
     vPrev = V;
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
+    let deFloor = 0;                          // G396.2: the water roll's back-stick floor, read by the servo
     // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
     // on the ground for 0.3 s (a rough strip's contact flickers)
     onGT = onG > 0 ? onGT + dt : 0;
@@ -19696,7 +19819,15 @@ function makePilot(sim, def, world, opts) {
       thCA += clamp(thC - thCA, -sl, sl);
       IthMax += clamp(IthMaxT - IthMax, -0.10 * dt, 0.10 * dt);
       Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
-      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, 0.35);
+      // G396.2: ON THE STEP THE STICK COMES ALL THE WAY BACK. The 0.35 stop
+      // is a wheel's rotation (the ground never pins the tail); a planing
+      // float rides nose-low against the thrust line and the servo sat on
+      // its stop from 20 m/s to a 145 km/h lift-off (Vs 66) — a seaplane
+      // pilot holds full back stick until the hull lets go, then eases.
+      // Measured on the card: 0.7 lifts at 102 km/h, the fixture at 86.
+      const deTop = (sim.hydro && onG > 0) ? (A.deWater ?? 0.70) : 0.35;
+      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, deTop);
+      if (deFloor > 0 && deFloor > c.de) c.de = deFloor;   // (a zero floor is no floor: it clamped every nose-down command on every aeroplane for one build)
     };
     // the roll servo alone: a bank command in, the aileron and the yaw damper out
     const rollTo = (phC) => {
@@ -20449,6 +20580,13 @@ function makePilot(sim, def, world, opts) {
         IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
         IthGain = rotating ? (A.rotateI ?? 0.8) : null;
         engage('RWY', vert, 'SET', { pitch, de: A.rollDe, thr: ap.t > 0.5 ? thrRoll : 0 });
+        // G396.2: ON THE WATER, FULL BACK STICK THROUGH THE HUMP AND OFF THE
+        // STEP. The attitude servo asks for the lift-off pitch and its gains
+        // (an air loop) reach 0.38 of stick, which a planing float ignores:
+        // the card rode the step nose-low to a 145 km/h lift-off (Vs 66).
+        // A seaplane pilot holds the stick back from the hump until the hull
+        // lets go; the servo eases it from there. Measured: 102 km/h.
+        if (sim.hydro && onG > 0 && V > 0.45 * vr) deFloor = A.deWater ?? 0.70;
         c.brake = 0;
         if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
         break;
@@ -20479,7 +20617,19 @@ function makePilot(sim, def, world, opts) {
         // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
         // default garage build did exactly that; see 41_test_pilot.js)
         let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
-        if (aglG > A.hSafe)
+        // G396.2: a seaplane's lift-off is TRIMMED, not held — the thrust line
+        // over the CG asks ~0.5 of stick to hold the attitude at 27 m/s, the
+        // integrator's 0.15 could not, the nose fell, the floats touched
+        // again and it skimmed the step to 145 km/h. The water's own
+        // integrator ceiling and gain, until CLIMB.
+        // G396.3: ON THE WATER THE HEIGHT IS OVER THE WATER. P0.8's aglG
+        // reads the terrain under the CG and the SEA lane's floor runs 15 to
+        // 95 m deep along it: a seaplane on the step read 10 m "up" and this
+        // phase handed over to CLIMB with the floats wet (the card skimmed to
+        // 135 km/h). The sea is the flat datum `agl` was built on.
+        const aglL = sim.hydro ? agl : aglG;
+        if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        if (aglL > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
@@ -20495,7 +20645,7 @@ function makePilot(sim, def, world, opts) {
         // the game on a marginal build (a 53 s roll to Vr, airborne with
         // 150 m left), the old rule dropped it three seconds after lift-off
         // into the last of the grass, which is the worse of the two ends.
-        const lowStuck = aglG < A.hSafe * 0.6;
+        const lowStuck = aglL < A.hSafe * 0.6;
         const canStop = left > stopDist(V) + 40;
         if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
           say('wont-climb', 'airborne ' + Math.round(phaseT) + ' s and still at ' + agl.toFixed(1) +
@@ -20509,7 +20659,15 @@ function makePilot(sim, def, world, opts) {
         }
         // ...and clearly away (twice the screen height) goes to CLIMB whatever
         // its speed — CLIMB's law finishes the acceleration (G208.3)
-        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        if (aglL > A.hSafe && (V > A.VClimbMin || aglL > 2 * A.hSafe)) {
+          go('CLIMB'); climbMode = true; ceilT = 0;
+          // G396.2: the water's integrator stays on the water (left in, it
+          // hunted the whole circuit: 240 s on final, never down). WATER
+          // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
+          // and its approach is tuned with it — reset there, the trike went
+          // around "high on the slope" and never landed (GATE PILOT).
+          if (sim.hydro) { IthMaxT = 0.15; IthGain = null; }
+        }
         break;
       }
 
@@ -20859,116 +21017,6 @@ function makePilot(sim, def, world, opts) {
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
   };
   return ap;
-}
-// ============================================================
-// THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
-// the pilot reads the aeroplane from.
-//
-// PILOT-ROADMAP §6.3 rule 5: "the machine is a sheet of measured numbers,
-// and the sheet is the only source." Before this the pilot knew the
-// aeroplane through genAP's constants (ratios of the analytic stall) and
-// genTuneAP's fits; the bench measured the same aeroplane — the stall in
-// both configurations, the climb gradient, the glide ratio and its speed,
-// the take-off run, the ground power cap — and the pilot never read it.
-//
-// WHAT IT IS. One flat record, SI, built from what exists: `def.params.gen`
-// (the tunnel's measured block), `def.params.ap` (the speed ladder genAP
-// derived, kept as the fallback), and `genShakedown`'s output when the
-// caller has one (the garage memoises it; a gate passes it; the pilot asks
-// for it lazily and does without — the fields that need it read null).
-// Every field says where it came from (`src`): 'measured' (the tunnel or
-// the shakedown), 'derived' (a textbook ratio over a measured number, named
-// in the comment), 'genAP' (the old constant, until a measurement replaces
-// it). Nothing here is tuned; a number the bench cannot measure yet is null
-// and the consumer falls back, never a guess dressed as a fact.
-//
-// THE V-SPEEDS AND THE RATIOS (light-aeroplane practice, the same for a Cub
-// and a flying boat):
-//   Vs      clean stall (VsMeas when the tunnel measured it, else analytic)
-//   Vs0     stall in the landing configuration (VsFlap; = Vs when flapless)
-//   Vref    1.30 Vs0 — the approach reference speed
-//   Vrot    genAP's VRot (0.99 Vs, G159: the derived rotation)
-//   Vy      genAP's VClimb (1.38 Vs), where gammaClimb was measured
-//   Vx      0.87 Vy — derived; the best-angle speed is not measured yet
-//   Vbg     the best-glide speed, measured (the shakedown's L/D sweep)
-//   Vms     0.76 Vbg — the minimum-sink speed (3^-1/4, a parabolic polar)
-//   Vcruise genAP's VCruise (1.71 Vs)
-//   Vne     null — not measured; a consumer that needs a ceiling uses 1.5 Vcruise and says so
-// THE ENERGY LIMITS (what TECS reads, P0.5):
-//   climbMax  gammaClimb x Vy (m/s) — measured at full thrust
-//   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
-//             from the measured glide (3^(3/4)/2 on a parabolic polar)
-//   sinkBg    Vbg / LDbest — the sink at best glide
-//   gammaClimb, LDbest — measured
-// THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
-// 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
-// THE ATTITUDES (rad, measured): alphaAppr, alphaTD (1.10 Vs0), alphaCruise,
-// aStall, thMax / flareThMax / liftoffTh (genTuneAP's, from the measured
-// attitudes). THE THROTTLE: thrCruise (measured), thrAppr (genAP), groundCap
-// (measured: the power nose-over cap). THE EFFECTORS: what this machine
-// has — engines, flaps (and their landing setting), the gear type, floats.
-// ============================================================
-function machineSheet(def, opts) {
-  opts = opts || {};
-  const A = def.params.ap || {}, G = def.params.gen || {}, P = def.params;
-  const sh = typeof opts.shakedown === 'function' ? opts.shakedown() : (opts.shakedown || null);
-  const src = {};
-  const put = (k, v, s) => { src[k] = v == null ? null : s; return v == null ? null : v; };
-  const r2 = v => v == null ? null : Math.round(v * 100) / 100;
-  const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
-  const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
-  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
-  const Vy = put('Vy', A.VClimb ?? null, 'genAP');
-  const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
-  const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');
-  const gammaClimb = put('gammaClimb', G.gammaClimb ?? null, 'measured');
-  const trike = P.ap && P.ap.rolloutMode === 'trike' || (P.twSteer || 0.5) < 0;
-  // the stop from 1.15 Vs0: the pilot's accelerate-stop law (43_pilot.js aStop)
-  const aStop = A.aStop || 9.81 * ((typeof CRR === 'number' ? CRR : 0.05) + (A.brakeMax || 0.3) * (typeof MU_BRAKE === 'number' ? MU_BRAKE : 0.5)) * 0.8;
-  const Vtd = Vs0 != null ? 1.15 * Vs0 : null;
-  const S = {
-    Vs, Vs0, Vref: put('Vref', Vs0 != null ? 1.30 * Vs0 : null, 'derived'),
-    Vrot: put('Vrot', A.VRot ?? null, 'genAP'), Vy, Vx: put('Vx', Vy != null ? 0.87 * Vy : null, 'derived'),
-    Vbg, Vms: put('Vms', Vbg != null ? 0.76 * Vbg : null, 'derived'),
-    Vcruise: put('Vcruise', A.VCruise ?? null, 'genAP'), Vne: put('Vne', null, 'derived'),
-    climbMax: put('climbMax', gammaClimb != null && Vy != null ? gammaClimb * Vy : null, 'measured'),
-    sinkBg: put('sinkBg', Vbg != null && LDbest ? Vbg / LDbest : null, 'measured'),
-    sinkMin: put('sinkMin', Vbg != null && LDbest ? 0.877 * Vbg / LDbest : null, 'derived'),
-    gammaClimb, LDbest,
-    TORun: put('TORun', A.TORun ?? (sh && sh.TORun) ?? null, 'measured'),
-    LDGrun: put('LDGrun', Vtd != null ? Vtd * Vtd / (2 * aStop) + Vtd * 1.0 : null, 'derived'),
-    alphaAppr: put('alphaAppr', G.alphaAppr ?? null, 'measured'),
-    alphaTD: put('alphaTD', G.alphaTD ?? null, 'measured'),
-    alphaCruise: put('alphaCruise', G.alphaCruise ?? null, 'measured'),
-    aStall: put('aStall', G.aStall ?? null, 'measured'),
-    thMax: put('thMax', A.thMax ?? null, 'genAP'), flareThMax: put('flareThMax', A.flareThMax ?? null, 'genAP'),
-    liftoffTh: put('liftoffTh', A.liftoffTh ?? null, 'genAP'),
-    thrCruise: put('thrCruise', A.thrCruise ?? null, 'measured'), thrAppr: put('thrAppr', A.thrAppr ?? null, 'genAP'),
-    groundCap: put('groundCap', sh && sh.groundThrCap != null ? sh.groundThrCap : null, 'measured'),
-    mass: put('mass', G.W != null ? G.W / 9.81 : (sh && sh.mass) || null, 'measured'),
-    W: put('W', G.W ?? (sh && sh.W) ?? null, 'measured'),
-    wingLoad: put('wingLoad', sh && sh.wingLoad != null ? sh.wingLoad : null, 'measured'),
-    staticMargin: put('staticMargin', sh && sh.staticMargin != null ? sh.staticMargin : null, 'measured'),
-    xwindLimit: put('xwindLimit', opts.xwind != null ? opts.xwind : null, 'measured'),
-    elevIdle: put('elevIdle', null, 'measured'),            // elevator authority at idle: not measured yet (the C172 / Caravan finding)
-    effectors: {
-      engines: P.nEngines || 1,
-      flaps: !!P.flaps, flapLdg: P.flaps ? (P.flaps.ldg ?? 1) : 0, flapTO: P.flaps ? (P.flaps.to ?? 0) : 0,
-      gear: trike ? 'trike' : 'taildragger',
-      floats: !!(def.hydro || (def.parts && def.parts.floats)),
-      spoilers: false,
-    },
-    src,
-    shakedown: !!sh,
-  };
-  // the same numbers, rounded, for a plaque or a status line
-  S.show = () => {
-    const o = {};
-    for (const k of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vx', 'Vy', 'Vbg', 'Vms', 'Vcruise', 'climbMax', 'sinkMin', 'LDbest', 'TORun', 'LDGrun', 'mass'])
-      o[k] = r2(S[k]);
-    return o;
-  };
-  return S;
 }
 // ============================================================
 // THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
@@ -25741,6 +25789,7 @@ function clampSpec(spec) {
     f.bStern = genClamp(f.bStern == null ? 0.75 : f.bStern, 0.3, 1.0);
     f.hSide = genClamp(f.hSide == null ? 0.22 : f.hSide, 0.08, 0.6);
     f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
     f.x = f.x == null ? null : genClamp(f.x, -3, 6);
     f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
   } else S.gear.floats = null;
@@ -27510,8 +27559,11 @@ function genLattice(S, gearX, track, kScale, gross) {
     const bK = ((S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
                  P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
       ? rodK() : 1) * ((opt && opt.kx > 0) ? opt.kx : 1);
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK,
-                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
+    // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
+    // float truss: gear-class tube that is NOT a spring), c by its root
+    const kMul = (opt && opt.kMul) || 1;
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
+                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -29120,6 +29172,12 @@ function genLattice(S, gearX, track, kScale, gross) {
                   : HYDRO.floatParamsFor(gross || 400);
     const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
     const stas = [-FP.xs, -FP.xFlat, 0, FP.L - FP.xs];
+    // THE RIGGING (G396.3): the keel incidence, bow down positive, about the
+    // step keel — the layer draws the hull through the same rotation. The
+    // tetra and the slab stay float-local (the pose is read off the nodes).
+    const incR = ((FM && FM.inc != null) ? FM.inc : 0) * Math.PI / 180;
+    const cI = Math.cos(incR), sI = Math.sin(incR);
+    const rig = (x, y) => [x * cI - y * sI, x * sI + y * cI];
     FLOATS = [];
     const trF = FM && FM.track != null ? 2 * FM.track : tr;
     for (const sd of [-1, 1]) {
@@ -29127,9 +29185,10 @@ function genLattice(S, gearX, track, kScale, gross) {
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
-        K.push(N(gx + xs, yK + sc.yk, zc, 'FLK'));
-        DL.push(N(gx + xs, yK + sc.yd, zc - sc.b, 'FLD'));
-        DR.push(N(gx + xs, yK + sc.yd, zc + sc.b, 'FLD'));
+        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, sc.yd);
+        K.push(N(gx + kx, yK + ky, zc, 'FLK'));
+        DL.push(N(gx + dx, yK + dy, zc - sc.b, 'FLD'));
+        DR.push(N(gx + dx, yK + dy, zc + sc.b, 'FLD'));
         Q.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
       }
       const all = [...K, ...DL, ...DR];
@@ -29143,7 +29202,15 @@ function genLattice(S, gearX, track, kScale, gross) {
       // top of the 73 kg pair, and the single 582 sat at the hump at 6.7 m/s
       // (T/W 0.216). The struts, spreaders and wires below are real and stay
       // billed.
-      const NM = { noMass: true };
+      // ...and STIFF: the gear class is the suspension's (30x softer than a
+      // fuselage tube); the hull is a rigid body and its struts are tubes,
+      // x8 (still under the engine bearer's omega, so no substep is paid).
+      // G396.2 measured the pilot's approach limit-cycling with stiff
+      // struts and left them soft; G396.3 found the cause in the SOLVER
+      // (extractRotation never converged about a long thin cluster's axis:
+      // an angular damper the soft struts had been hiding) and with the
+      // Newton step the struts go rigid, as a real installation is.
+      const NM = { noMass: true, kMul: 8 }, KM = { kMul: 8 };
       for (let i = 0; i + 1 < 4; i++) {
         B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NM); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
         B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
@@ -29153,9 +29220,14 @@ function genLattice(S, gearX, track, kScale, gross) {
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
-      B(Din[1], fB, 'gear', true, 'leg'); B(Din[2], aB, 'gear', true);
-      B(Dout[2], fT, 'gear', false, 'inner'); B(Dout[1], fB, 'gear', true, 'wire');
-      B(Din[2], fB, 'gear', true, 'wire'); B(Din[1], aB, 'gear', true, 'wire');
+      // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
+      // flexible, almost springy"). The forward strut was the gear's `leg`
+      // member — the suspension spring, KS x SUS — so the whole float pair
+      // rode on two bungees; every member here is BRACING (KS x ARCH.k),
+      // a streamlined steel tube like the rest of the truss.
+      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[2], aB, 'gear', true, undefined, undefined, KM);
+      B(Dout[2], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
+      B(Din[2], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
       // belly nodes the four points of the side truss are nearly collinear
       // and its pitch stiffness goes as the square of nothing — measured, a
@@ -29164,7 +29236,7 @@ function genLattice(S, gearX, track, kScale, gross) {
       // at 1 deg. The loads go up to the top longerons as well: two
       // diagonals to the frames' top corners, inside the covering
       const aT = sd < 0 ? AA.TL : AA.TR;
-      B(Din[1], aT, 'gear', false, 'inner'); B(Din[2], fT, 'gear', false, 'inner');
+      B(Din[1], aT, 'gear', false, 'inner', undefined, KM); B(Din[2], fT, 'gear', false, 'inner', undefined, KM);
       // the slab table for 32_hydro's force distribution: every station's
       // keel and deck edges, float-frame rest coordinates (x aft of the step)
       const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
@@ -29173,7 +29245,7 @@ function genLattice(S, gearX, track, kScale, gross) {
                     tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: FP, pos: [gx, yK, zc] });
     }
     const [FL, FR] = FLOATS;
-    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire'); }
+    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
   }
 
@@ -33475,7 +33547,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='115427173065'</script>
+<script>window.FLYDIY_CORE_SHA='ab84b6577519'</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -34417,7 +34489,7 @@ const CAGE_PARTS = [
     groups: [
       ['hull', ['gearFloats', 'fltL', 'fltStep', 'fltB', 'fltBeta', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltFlat', 'fltBow', 'fltBowB', 'fltStern', 'fltSide']],
-      ['placement', ['fltZ', 'fltDrop', 'fltTrack']],
+      ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
       ['struts', ['fltStrutR', 'fltStrutAng', 'fltSpread', 'fltWires']],
     ] },
 
@@ -72264,7 +72336,7 @@ Object.assign(PAGE.defaults = PAGE.defaults || {}, {
   fltL: 4.30, fltStep: 0.54, fltB: 0.67, fltBeta: 20, fltBetaA: 20,
   fltHs: 0.045, fltAft: 6.5, fltFlat: 0.30, fltBow: 0.36, fltBowB: 0.15,
   fltStern: 0.75, fltSide: 0.22,
-  fltZ: 0, fltDrop: 0.55, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
+  fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.80, fltStrutR: 0.018, fltWires: 1,
   fltStrutAng: 55, fltSpread: 1,
 });
 
@@ -72290,6 +72362,7 @@ const GROUP = ['9b · floats', [
   ['placement', [
     ['fltZ',     'step fore / aft (from the rule)', -1.5, 1.5, 0.01, onM],
     ['fltDrop',  'keel below the belly',  0.20, 1.50, 0.01, onM],
+    ['fltInc',   'keel incidence °',     -5, 10, 0.5, onM],
     ['fltTrack', 'half track',            0.40, 1.60, 0.01, onM],
   ], on],
   ['struts', [
@@ -72306,7 +72379,8 @@ function hullParams(P) {
   const L = +P.fltL, xs = +P.fltStep * L;
   return { L, xs, B: +P.fltB, beta: +P.fltBeta, betaA: +P.fltBetaA, hs: +P.fltHs,
            aftAngle: +P.fltAft, xFlat: +P.fltFlat * xs, yBow: +P.fltBow,
-           bBow: +P.fltBowB * +P.fltB, bStern: +P.fltStern, hSide: +P.fltSide, nSta: 24 };
+           bBow: +P.fltBowB * +P.fltB, bStern: +P.fltStern, hSide: +P.fltSide, nSta: 24,
+           inc: +P.fltInc };
 }
 
 // ---- the build ------------------------------------------------------------
@@ -72317,7 +72391,15 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 // model (x aft, y up, z right) -> cage (+x port, +y up, +z forward)
-const toCage = (m, at) => [-m[2] + at[0], m[1] + at[1], -m[0] + at[2]];
+// THE RIGGING (G396.3): the hull is rotated about its step keel by the
+// keel incidence — positive is bow DOWN relative to the datum, the way a
+// real float is rigged (2-5 deg keel to the wing chord), so that on the
+// step, keel level with the water, the wing flies at a useful angle. The
+// frame rotates its twelve nodes by the same angle about the same point
+// (61_gen_frame.js), so the drawn hull and the flown one agree.
+let INC = 0;
+const rotInc = m => { const c = Math.cos(INC), s = Math.sin(INC); return [m[0] * c - m[1] * s, m[0] * s + m[1] * c, m[2]]; };
+const toCage = (m, at) => { const r = rotInc(m); return [-r[2] + at[0], r[1] + at[1], -r[0] + at[2]]; };
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
@@ -72333,6 +72415,7 @@ PAGE.post = ctx => {
   if (!AF) { if (stat) stat.textContent += '  ·  floats: no skin to hang on'; return; }
 
   const HP = hullParams(P);
+  INC = (+P.fltInc || 0) * D2R;
   const F = HY.makeFloat(Object.assign({}, HP, { mFloat: 40, mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }));
   // THE STEP STATION: 12 deg aft of the CG at the keel's depth below it,
   // plus the builder's offset. THE CG IS THE FLOWN AEROPLANE'S (app.js
@@ -72399,6 +72482,14 @@ PAGE.post = ctx => {
     const rF = root(d.fwdIn[2], sd), rA = root(d.aftIn[2], sd);
     member(rF, d.fwdIn, sg, r); member(rF, d.fwdOut, sg, r);
     member(rA, d.aftIn, sg, r); member(rA, d.aftOut, sg, r);
+    // G396.3: THE SIDE TRUSS IS DRAWN AS IT IS FLOWN — the frame's two
+    // fore-aft diagonal wires a side (aft deck edge to the forward root,
+    // forward deck edge to the aft root), which is what keeps a float pair
+    // from racking fore and aft under the water's drag
+    if (+P.fltWires) {
+      GK.tube(wg, d.aftIn, rF, 0.003, 6); GK.tube(wg, d.fwdIn, rA, 0.003, 6);
+      rec.members.push({ pin: rF, tip: d.aftIn }, { pin: rA, tip: d.fwdIn });
+    }
   }
   if (+P.fltSpread) {
     const L = rec.deck.L, R = rec.deck.R;
@@ -81071,7 +81162,7 @@ function cageJoinSpec(P, M, T) {
     // them in place of its own sizing rule
     if (M.floats) {
       spec.gear.floats = {};
-      for (const k of ['L', 'xs', 'B', 'beta', 'betaA', 'hs', 'aftAngle', 'xFlat', 'yBow', 'bBow', 'bStern', 'hSide', 'y', 'track', 'volDeck'])
+      for (const k of ['L', 'xs', 'B', 'beta', 'betaA', 'hs', 'aftAngle', 'xFlat', 'yBow', 'bBow', 'bStern', 'hSide', 'y', 'track', 'volDeck', 'inc'])
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
     }
@@ -82311,8 +82402,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             mfy = (mains[0][1] + mains[1][1]) / 2;
       const G2 = window.CAGE_GEAR;
       const cm = G2.contacts.filter(c => c.st && !isSingle(c));
-      const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
-            cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
+      // G396.2: ON FLOATS THE STEP KEEL IS THE MAINS. The frame's refs.mains
+      // are the two step keels and the float layer publishes the drawn
+      // step keel (CAGE_FLOAT.zStep / keelY, the cage frame the wheel
+      // contacts are in); with no wheel contact this mean was 0/0 = NaN,
+      // `off` came out NaN, app.js read it as [0, 0] and the whole drawn
+      // aeroplane stood metres from its lattice (the user: "big offset
+      // between physical and 3d model", the tail nowhere near the frame's).
+      const FLT = window.CAGE_FLOAT;
+      const onFloats = !cm.length && FLT && FLT.zStep != null && FLT.keelY != null;
+      const cz = onFloats ? FLT.zStep : cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
+            cy = onFloats ? FLT.keelY : cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has
       // rotated... would you get confused with the plane's resting
       // position?" — yes, for three rounds). poseModel maps the visual's
@@ -85673,6 +85773,7 @@ fillPresetSel();
       // the HDRI standing outside the door, and the light rig measured off it.
       const mr = row(hd, `<span class="k">time of day</span><select></select>`);
       const msel = mr.querySelector('select');
+      msel.dataset.mood = '1';                 // SKY chantier: app.js re-selects it when the clock moves the mood
       (GE.moods() || []).forEach((n, i) => {
         const o = document.createElement('option');
         o.value = i; o.textContent = String(n).toLowerCase();
@@ -90982,7 +91083,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the dome is a MeshBasicMaterial parented to the CAMERA: unlit, always
       // full brightness, and the last thing left on screen when everything
       // else is off
-      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; });
+      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; })
+      // S6: the village lamps - a constant pool of eight point lights, assigned to the nearest fixtures at dusk
+      .declare('lamps', 'village lamps', 'light', () => { if (premisesR && premisesR.lamps) premisesR.lamps.mute(); });
   }
   function applyWorldLights() {
     if (!worldSwitch) return;
@@ -91718,18 +91821,53 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const seaNear = new THREE.Mesh(seaGeo, waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
     scene.add(seaNear);
+    // THE SEA LANE IS MARKED (G396.2; the user: "we need to visualize the
+    // limits and the touchdown points"). Buoys on the water: orange every
+    // 100 m down both edges of every water aerodrome, a white pair across
+    // the lane at each end, a green pair at the touchdown target. They
+    // ride the waves (their y is the same waterH the floats read), so
+    // they are also the calm day's water line — the one thing on a flat
+    // sea that says where the surface is.
+    const buoys = [];
+    {
+      const geoB = new THREE.SphereGeometry(0.9, 12, 8);
+      const matOf = {};
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));
+      const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, mat(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
+      for (const a of (world.aerodromes || [])) {
+        if (a.kind !== 'water') continue;
+        const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);        // along the lane: (ca, sa) in x,z
+        const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];
+        const half = a.len / 2, hw = a.wid / 2;
+        for (let s = -half; s <= half + 1e-6; s += 100) for (const w of [-hw, hw]) { const [x, z] = along(s, w); put(x, z, 0xff6a00); }
+        for (const s of [-half, half]) for (const w of [-hw * 0.5, 0, hw * 0.5]) { const [x, z] = along(s, w); put(x, z, 0xf4f2ea, 1.6); }
+        if (a.tdz) for (const w of [-hw, -hw * 0.5, hw * 0.5, hw]) { const dx = a.tdz[0] - a.x, dz = a.tdz[1] - a.z; const st = dx * ca + dz * sa; const [tx, tz] = along(st, w); put(tx, tz, 0x35c46a, 1.6); }
+      }
+    }
     let seaT = 0;
     function seaUpdate(cx, cz, dt) {
       const S = world.sea;
-      if (!S || !(S.A > 0) || world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
       seaT += dt;
+      // the buoys ride the wave (and mark the level on a calm day)
+      for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, seaT) : 0) + 0.15; }
+      // THE NEAR SEA IS AT THE TRUE LEVEL, WAVES OR NOT (G396.2; the user:
+      // "it's important that we get the water line right"): the far flat
+      // sea sits 0.4 m under it (the shore seam), so on a calm day the
+      // floats read 0.4 m too high against the water they were drawn on.
+      // The patch stays around the aeroplane, flat at 0 in calm, displaced
+      // by the wave otherwise.
+      if (world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
       const step = SEAW / SEAN;
       const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
       seaNear.position.set(ox, 0.0, oz);
       const pa = seaGeo.attributes.position;
-      for (let i = 0; i < pa.count; i++) pa.setY(i, world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT));
-      pa.needsUpdate = true;
-      seaGeo.computeVertexNormals();
+      const waves = !!(S && S.A > 0);
+      if (waves || seaNear.userData.wavy !== false) {
+        for (let i = 0; i < pa.count; i++) pa.setY(i, waves ? world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT) : 0);
+        pa.needsUpdate = true;
+        seaGeo.computeVertexNormals();
+        seaNear.userData.wavy = waves;
+      }
       seaNear.visible = true;
     }
 
@@ -94205,6 +94343,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let premTramLast = 0;
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
+    // THE LAMPS COME ON WITH THE DUSK (S6): the pool follows the eye; on from +2 deg to -2 deg of sun
+    if (premisesR && premisesR.lamps && world.day) premisesR.lamps.update(camera.position, (2 - world.day.sunEl) / 4,
+      (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null) ? window.GFX.exposureBase() : 1);
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && premisesR.stats.trams) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
@@ -94445,7 +94586,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
              applyWorldLights();
              return worldSwitch.list().filter(l => worldSwitch.on(l.key)).map(l => l.key); },
            claimed: () => new Set([sun, hemi,
-             worldSky && worldSky.material].filter(Boolean)) };
+             worldSky && worldSky.material].concat(premisesR && premisesR.lamps ? premisesR.lamps.pool : []).filter(Boolean)) };
 }
 </script>
 <script>
@@ -94703,7 +94844,19 @@ function propMaterial(THREE, rec) {
   if (rec.blend) { o.transparent = true; o.opacity = rec.opacity; }
   const m = new THREE.MeshStandardMaterial(o);
   m.userData.env0 = m.envMapIntensity;
+  m.userData.emis0 = m.emissiveIntensity;     // the author's level: propSetGlowOf scales from it
   return m;
+}
+// THE LAMPS COME ON WITH THE DUSK (SKY chantier, S6): the fixtures a scene placed (the village's
+// wall lamps, pendants, floods) glow by their prop KEY - a factor over the author's emissive -
+// so a placed lamp is dark at noon and lit at night, and the shed's own registry (hangar.js EMIT)
+// keeps its lamps to itself: this touches only the keys a caller names.
+function propSetGlowOf(keys, f) {
+  for (const key of keys) {
+    const b = PROP_BUILT.get(key);
+    if (!b) continue;
+    for (const m of b.mats) if (m.emissive && m.userData.emis0 != null) m.emissiveIntensity = m.userData.emis0 * f;
+  }
 }
 
 // ---- the geometry bytes (2026-09-01, external media) ----------------------
@@ -94917,7 +95070,7 @@ function propDispose(key) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
-                     propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
+                     propSetEnv, propSetGlowOf, propEnv, propDispose, propWarm, propReady, propDust,
                      propLevels };
 </script>
 <script>
@@ -113210,6 +113363,7 @@ function editorInit(api) {
   // (addEventListener — its onchange belongs to _cage_ui), and every
   // fillRoots, because a mood can arrive without that event firing (a hangar
   // swap, a payload's own default).
+  if (typeof window !== 'undefined') window.EDITOR_SYNC_NIGHT = () => syncNightLabel();   // SKY chantier: the clock moves the mood
   function syncNightLabel() {
     const rail = $('edRail');
     if (!rail) return;
@@ -115208,6 +115362,9 @@ function make(THREE) {
     const o = sim.out || {}, F = sim.fuel || {}, E = (sim.eng && sim.eng[0]) || { running: true, key: 'both', crank: 0 };
     const cg = sim.cgPos();
     const bus = CK.bus;
+    // THE PILOT'S LIGHTS (SKY chantier): nav and beacon from sunset to sunrise, the rule a pilot
+    // flies by (43_pilot.js ap.lights); applied only while no hand is on the panel
+    if (ap && ap.lights && !ctx.byHand) { for (const k in ap.lights) if (('sw_' + k) in CK.sw) CK.sw['sw_' + k] = ap.lights[k]; }
     // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
@@ -115264,8 +115421,9 @@ function make(THREE) {
     raw.volts = bus ? bus.V : 0;
     // the electric readings die with the bus
     if (!busOk) { raw.fuelFrac = 0; }
-    // the clock: 12:00 plus the flight's own clock (no day cycle yet)
-    const tClock = 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
+    // THE CLOCK IS THE DAY'S (SKY chantier): the world's local time when a day is on the
+    // context, else 12:00 plus the flight's own clock as it always was
+    const tClock = (ctx.day && ctx.day.localSeconds != null) ? ctx.day.localSeconds : 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
     CK.readings.clockH = (tClock / 3600) % 12;
     CK.readings.clockM = (tClock / 60) % 60;
     CK.readings.clockS = tClock % 60;
@@ -115554,7 +115712,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
 <script src="src/pier/pier_car.js?v=6beac5ec"></script>
 <script src="src/pier/pier_vehicle.js?v=3c03d1e2"></script>
-<script src="src/pier/pier_lods.js?v=2b2f0c92"></script>
+<script src="src/pier/pier_lods.js?v=5f3327eb"></script>
 <script src="src/totems/totems_poles.js?v=3aa55574"></script>
 <script src="tools/_house_kit.js?v=64fd4ef1"></script>
 <script src="tools/_house_gen.js?v=9e938e1a"></script>
@@ -115571,9 +115729,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
 <script src="tools/_village_gen.js?v=172a0d65"></script>
 <script src="src/viewer/parked.js?v=00f22b4d"></script>
-<script src="src/viewer/render_premises.js?v=740f2751"></script>
+<script src="src/viewer/render_premises.js?v=8d9fb209"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=bbaf2dee"></script>
+<script src="src/viewer/premises_ui.js?v=4f839825"></script>
 <script>
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -115686,7 +115844,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
         viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
-        rig: null, redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
+        rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
+        redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
       });
       PREM.open = true;
@@ -116516,13 +116675,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // the afternoon under nine tenths of cloud), the day drives the sky, and the row's
   // lamps/panel/card follow through moodFor
   const MOOD_PRESET = { AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night', OVERCAST: 'afternoon' };
-  function setMood(i) {
+  function setMood(i, opt) {
     // the room owns the list — it is a sky per row now (G62), and a build that
     // ships four of them and one that ships five must both clamp correctly
     const n = (hangar && hangar.moods) ? hangar.moods.length : MOOD_MAX;
     hangarMood = Math.max(0, Math.min(n - 1, i | 0));
     prefSet('flydiy.garageMood', hangarMood);
-    if (typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
+    // the select and the rail's label follow (the clock moved the mood, or the hand did)
+    if (typeof document !== 'undefined') { document.querySelectorAll('select[data-mood]').forEach(s => { s.selectedIndex = hangarMood; }); if (window.EDITOR_SYNC_NIGHT) window.EDITOR_SYNC_NIGHT(); }
+    if (!(opt && opt.fromClock) && typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
       const name = hangar.moods[hangarMood], p = MOOD_PRESET[name];
       if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set({ cloudCover: name === 'OVERCAST' ? 0.9 : 0.2 }); }
     }
@@ -117487,8 +117648,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       const m0 = curDef.refs.mains && curDef.refs.mains[0],
             m1 = curDef.refs.mains && curDef.refs.mains[1];
       const zPos = m0 != null && curDef.nodes[m0].p[2] > 0;
-      const nodeOf = { mainsL: zPos ? m0 : m1, mainsR: zPos ? m1 : m0,
-                       tw: twi };
+      // G396.2: ON FLOATS THERE ARE NO WHEEL NODES. refs.mains are the step
+      // keels and refs.tw is -1 — a stale wheel part (the previous
+      // aeroplane's, on the first bake of a float card from a wheeled one)
+      // read nodeRest(-1) and threw out of buildModel, which left the
+      // birth half-done on a fresh profile. Every wheel node is null here,
+      // so every wheel part below is skipped.
+      const onFloats = !!(curDef.parts && curDef.parts.floats && curDef.parts.floats.length);
+      const nodeOf = onFloats ? { mainsL: null, mainsR: null, tw: null }
+                   : { mainsL: zPos ? m0 : m1, mainsR: zPos ? m1 : m0,
+                       tw: (twi != null && twi >= 0) ? twi : null };
       let twWheel = null;
       const legNode = { legL: nodeOf.mainsL, legR: nodeOf.mainsR,
                         legT: nodeOf.tw };
@@ -118008,7 +118177,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                             tip: M0.tip });
           });
         }
-        else if (pt.kind === 'castorT') {
+        else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
@@ -120262,6 +120431,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       const stamp = r => {
         r.t = Math.max(0, Math.round(ap.t));
         r.on = new Date().toISOString().slice(0, 10);
+        // SKY chantier: the WORLD'S date-time at touchdown too (`on` is when you flew, `day` is when the aeroplane did)
+        if (world.day) r.day = world.day.local;
         return r;
       };
       if (t) {
@@ -121678,8 +121849,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     light: { wind: W10([-1.7, 0, 1.9], 0) },
     mod:   { wind: W10([-2.6, 0, 3.0], 0.5) },
     fresh: { wind: W10([-3.9, 0, 4.6], 0.9) },
-    hot:   { oatC: 35, qnhPa: 100800, wind: W10([-2.2, 0, 2.6], 0.7) },
-    cold:  { oatC: 0,  qnhPa: 103000, wind: null },
+    // SKY chantier: a day has WATER too - the dewpoint sets the cloud base (125 m a degree of spread) and the haze
+    hot:   { oatC: 35, qnhPa: 100800, dewC: 12, wind: W10([-2.2, 0, 2.6], 0.7) },
+    cold:  { oatC: 0,  qnhPa: 103000, dewC: -3, wind: null },
   };
   let windBase = null;
   $('selCond').onchange = e => {
@@ -122266,6 +122438,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     },
     slot_day(body) {
       flBorrow(flS('Cond'), flRow(body, 'standard day'));
+      // THE CLOCK (SKY chantier): the preset select IS the state (it lives in #flStore and is
+      // borrowed here), the hour scrubs the day's own local clock, the rate is how fast it runs
+      const CK = (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null;
+      if (CK && CK.day()) {
+        const sel = flS('Time');
+        sel.value = CK.nearestPreset();
+        sel.onchange = () => { CK.preset(sel.value); flRefreshDay(); };
+        flBorrow(sel, flRow(body, 'time of day'));
+        flRange(body, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => { CK.set({ localHours: v }); sel.value = CK.nearestPreset(); flRefreshDay(); },
+                v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
+        { const r = flRow(body, 'date'); const i = document.createElement('input'); i.type = 'date'; i.className = 'fsel'; i.value = CK.day().date;
+          i.onchange = () => { if (i.value) { CK.set({ date: i.value }); flRefreshDay(); } }; r.appendChild(i); }
+        flPills(body, CK.RATES.map(r => ({ label: r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x', value: r })),
+                o => o.value === CK.day().rate, o => CK.rate(o.value));
+        flNote(body, 'One clock for the shed and the world. It runs with play; ' +
+                     'the sun, the sky and the lights follow it.');
+      }
       flNote(body, 'A day is air AND wind. The weather changes live — the ' +
                    'pilot flies EAS and takes it mid-flight.');
     },
@@ -122458,10 +122647,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       flLive(body, 'density altitude', 'flAirDalt');
       flLive(body, 'wind', 'flAirWind');
       flLive(body, 'gusts', 'flAirGust');
-      // TIME OF DAY IS GREYED HERE and absent from the main screen: the world
-      // still flies one fixed midday sun (render_world.js SUN), the day cycle
-      // owns it, and when it lands this row is already its home.
-      flBorrow(flS('Time'), flRow(body, 'time of day', 'off'));
+      // THE TIME OF DAY is a live readout here (the control is the brief's `day` slot):
+      // which day it is, is the brief's; this is what it does to the aeroplane
+      flLive(body, 'time of day', 'flAirTime');
       flAirLive(sim.out);
       flNote(body, 'Which day it is, is the brief’s. This is what that ' +
                    'day is doing to the aeroplane right now.');
@@ -122782,7 +122970,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       ? Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s at 10 m'
       : 'calm';
     $('flAirGust').textContent = g ? '±' + (g * 100).toFixed(0) + ' %' : 'none';
+    const t = $('flAirTime');
+    if (t && typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day()) t.textContent = DAY_CLOCK.label();
   }
+  // the plate and the rail's day line follow the clock (called on a preset / hour / date change)
+  function flRefreshDay() { const a = $('flDayV'), b = $('flLineDay'); if (a) a.textContent = flDay(); if (b) b.textContent = flDay(); }
 
   // ---- THE CAMERA (new: the flight had no camera UI at all) ---------------
   // Five framings, and each one writes the SAME azT/elT/distT the mouse
@@ -123303,7 +123495,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // has to say what it is among five others ("Standard day · calm"); the slot
   // already carries the word `day` as its own label, and the ⟳ belongs to the
   // menu row that has to be told apart from a list of aerodromes.
-  const flDay = () => flSel(flS('Cond')).replace(/^Standard day(?= )/, 'Standard');
+  const flDay = () => flSel(flS('Cond')).replace(/^Standard day(?= )/, 'Standard')
+    + ((typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day()) ? ' · ' + DAY_CLOCK.label().split(' · ')[0] : '');
   let flFolded = false, flFoldedByPlayer = false;
   function flFoldSet(on) {
     flFolded = !!on; flFoldedByPlayer = true;
@@ -123592,7 +123785,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (hangar && hangar.applyDay && world.day) {
         const r = hangar.applyDay(world.day, renderer);
         if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
-        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) { hangarMood = mi; hangar.setMood(mi); } }
+        if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
       }
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
@@ -123628,7 +123821,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     else if (running && !inGarage) {
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property
-      if (CK) CK.frame(1 / 60, sim, ap);   // the panel arc: the readings, the bus, the lamps
+      if (CK) CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
         // with the door home on it, and the logbook gets its broke-up row
@@ -124062,6 +124255,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     A.appendChild(slider('humidity', 0.05, 1, 0.01, () => (dy() ? dy().rh : NaN), v => { if (ck()) ck().set({ rh: v }); }, v => (v * 100).toFixed(0) + ' %'));
     A.appendChild(slider('cloud cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }));
     A.appendChild(slider('stars', 0, 3, 0.1, () => (W.ATMO && W.ATMO.U.stars ? W.ATMO.U.stars.value : NaN), v => { if (W.ATMO && W.ATMO.U.stars) W.ATMO.U.stars.value = v; }));
+    const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
+    A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));
     { const n = note(''); const R = { el: n, refresh: () => { const S = W.SKY_LIGHT, K = S && S.K(); n.textContent = K && K.K_SUN ? `K_sun ${K.K_SUN.toFixed(2)} K_hemi ${K.K_HEMI.toFixed(2)} · ${S.isMoon ? 'the moon is the key' : 'the sun is the key'} · exposure base ${(W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : 0).toFixed(3)}` : 'atmosphere off (painted dome)'; } }; rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the rig row’s sun / hemisphere / exposure below are GAINS on the alps anchors (2.8 / 0.274 / 0.92) under the physical sky'));
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------

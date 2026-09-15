@@ -48188,3 +48188,167 @@ Files: `tools/run_gates.js`, `tools/_shard.js` (new), `tools/build.js`,
   row (now the rows' gains) to retire or rename; the frame cost of the
   passes on the real GPU (tree_perf under the atmosphere); interior
   lighting at night (INTERIOR-LIGHTING-2026-09-12.md).
+
+## G396.2 — THE DRAWN AEROPLANE STOOD 1.7 m FROM ITS LATTICE; THE LANE IS
+## MARKED; THE WATER LINE; FULL BACK STICK; THE FLOAT TRUSS IS A TRUSS
+## (2026-09-14, the user's screenshots: "Big offset between physical and 3d
+## model", "the tail is not at all positioned appropriately", "we need to
+## visualize the limits and the touchdown points", "almost springy")
+
+- THE OFFSET (`tools/_cage_join.js` snapshotAt): the visual's calibration
+  `off = B⁻¹(mf − og) − Bᵀ(cg0 − og) − rm` takes the CAGE MAINS from the
+  gear layer's wheel contacts. On floats there are none: the mean was
+  0/0 = NaN, `off` came out [NaN, NaN], app.js read `data.off[0] || 0` and
+  posed the mesh with NO calibration — every drawn part (fuselage, tail,
+  the rigged floats and their struts) 1.64 m along and 3 cm up from the
+  nodes it was flown by. The physics was right; the picture was 1.7 m off.
+  Now: with no wheel contact the STEP KEEL is the mains — the float
+  layer's CAGE_FLOAT.zStep/keelY against the frame's refs.mains (the two
+  step keels, K[2]). Overlay ×1 in the pane: lattice on the model.
+- `src/viewer/app.js` buildModel: on floats every wheel node is null
+  (refs.tw was −1 and nodeRest(−1) threw out of the FIRST bake of a float
+  card on a fresh profile, leaving the birth half-done; castorT guarded).
+- `src/viewer/render_world.js`: THE SEA LANE IS MARKED — buoys on every
+  water aerodrome: orange every 100 m down both edges, white across each
+  end, green across the touchdown target; they ride the wave (their y is
+  the floats' own waterH) and on a calm day they are the water line. THE
+  NEAR SEA IS AT THE TRUE LEVEL, waves or not: the far flat sea sits 0.4 m
+  under it (the shore seam) and on a calm day the floats read 0.4 m high
+  against the water they were drawn on — the patch now stays around the
+  aeroplane, flat at 0 in calm (the user: "the plane and the floats tend
+  not to sink back... get the water line right"). Measured after a landing:
+  cgY 0.87 vs 0.85 before the take-off, wet 2.9 vs 2.9 — the physics sat
+  where it sat; the picture was the far sea.
+- `src/core/43_pilot.js`: ON THE WATER, FULL BACK STICK from the hump until
+  the hull lets go (deFloor 0.70 through the servo; the attitude servo's
+  air gains reached 0.38 and the card rode the step nose-low to 145 km/h,
+  Vs 66), then a TRIMMED lift-off (the water's own integrator ceiling
+  0.35, gain 0.8 until 2 hSafe: the thrust line over the CG wants ~0.5 of
+  stick at 27 m/s and 0.15 of integrator could not, the nose fell, the
+  floats touched and it skimmed). Measured: LIFTOFF called at 25.8 m/s
+  (93 km/h), clear of the water at ~30 (108), the pilot's own detection
+  at 126; was 145. By hand with full back stick: 102 km/h. WHAT IS LEFT
+  IS THE AEROPLANE'S: on the step the wing rides at 1.5 deg (alpha 0 +
+  incidence) and every degree of rotation is bought against the thrust
+  line; lowering the engines 0.18 m (the fixture's height) changed nothing
+  measurable, and a 3 deg keel-down float rigging (nodes rotated about the
+  step, a bench hack) changed nothing either — both measured, both
+  negative. The next honest lever is the ROLL trim: what holds the
+  attitude on the step is the elevator against the thrust moment, so the
+  lift-off speed scales with the elevator's authority per unit stick,
+  which the drawn tail sets. Owed: a proper float-incidence row and a
+  measurement of Sh/de per card.
+- `src/core/61_gen_frame.js`: THE HULL IS RIGID. The gear class is the
+  suspension's (k 2.8e4, 30x softer than a fuselage tube) and the float's
+  own 35-member truss was of it: the drawn hull flexed against its nodes.
+  `opt.kMul` on B(); the hull truss and the spreaders at x8 (6.7e5, under
+  the engine bearer's omega — 76 substeps before and after). No `leg`
+  member on a float (the forward strut was the suspension spring). THE
+  STRUTS STAY AT THE GEAR CLASS, measured: with the float-to-airframe
+  struts at x8 or x3 the pilot's approach goes into a lateral limit cycle
+  (ailerons on the stops, circling at 25 m/s, 190-300 m off on short
+  final, go-around, three builds of the fixture's circuit); the hull and
+  spreaders at x8 with the struts as they were flies the circuit as
+  before (touch 234 s, stopped 280). The struts' compliance is damping
+  the pilot's roll loop at approach speed — the pilot's matter
+  (PILOT-ROADMAP), noted for that session; the "springy" the user saw is
+  the hull's, which is gone.
+- NOTED, NOT MINE: the twin's engine bearer pair (ENGL–MNTL, a 1.4 kg
+  node at k 2.7e6) sets the substep count at 76 — 10 s of this card cost
+  5.1 s of node; the single-engine cards are far cheaper. The engine
+  session's.
+- AT REST it does not dive: 120 s at idle, no brake, pitch 1.8 deg, y 0.88,
+  never moved (the joined spec, headless). If it dives in the game on
+  HOLD, it is with the throttle: at full power from rest the nose goes to
+  −10 deg in the first second and recovers (the thrust line); by hand at
+  idle it sits. To be re-checked on this build by the user.
+- TWO THINGS GATE PILOT CAUGHT ON THE WAY (the tricycle's circuit, base
+  core vs branch core, the trike case alone in 5 min): the first cut of the
+  back-stick floor was `if (deFloor > c.de) c.de = deFloor` with deFloor 0
+  off the water — a zero floor clamped every nose-down command on every
+  aeroplane, the trike went around "high on the slope" and never landed;
+  and the water's integrator reset on leaving LIFTOFF must be water-only,
+  because a tricycle's rotation integrator (G250) rides into CLIMB and its
+  approach is tuned with it. Both hydro-gated now; the trike lands as on
+  the base (sink 0.89, run 206).
+- ENERGY is red on master before this branch: `require('zlib')` in the
+  core bundle (19_terrain_codec.js, the island's W2) trips the worker
+  import check. The island session's.
+- Gates on the branch: FLOATS, HYDRODYN, GEAR green; SEAPLANE, ARCHETYPES
+  --only=floatplane, DESIGN, STARTER, PARTS, JOIN, TAKEOFF, PILOT, WORLD,
+  WORLDRENDER, HYDRO, MASS, HONEST — see the landing line.
+
+## G396.3 — THE SOLVER WAS EATING THE ROLL (the strut task session's find,
+## carried here), THE STRUTS GO RIGID, THE KEEL INCIDENCE ROW, THE SIDE TRUSS
+## DRAWN, THE PILOT'S GROUND IS THE WATER; THE TAKE-OFF SPEED AGAINST REAL
+## VALUES (2026-09-15, the user: "check against real values if our take off
+## speed is correct ... model the truss in 3d too")
+
+- `src/core/30_solver.js` extractRotation: a NEWTON STEP in place of
+  Müller's gradient step (B = Rᵀ A, S = sym B, k = axial skew B,
+  (tr S·I − S) d = 2k, R ← R exp [d]×). Müller's scalar divisor is the whole
+  trace of A, so on a long thin cluster (a float hull, 100:1) a rotation
+  about the long axis was under-relaxed ~1 % per iteration: the shape-match
+  projection pulled the hull toward a STALE roll 1440 times a second — an
+  angular damper in the integrator. That was G396.2's "the struts' compliance
+  damps the pilot's roll loop": soft struts hid it, stiff struts carried it
+  into the airframe (3 deg/s at full aileron where the plant says 27, 75 % of
+  the angular momentum gone in 0.3 s). Found and written by the task session
+  spawned for the pilot (its worktree D:/Dev/wt-g408, unlanded at the
+  crash); carried here verbatim with its comment. 2e-8 rad in one step on
+  the 100:1 body against 2.7e-4 at four Müller iterations.
+- `src/core/61_gen_frame.js`: with that, THE FLOAT STRUTS ARE RIGID (kMul 8
+  like the hull and the spreaders) and the pilot flies the fixture's water
+  circuit unchanged (LIFTOFF 8.5 s, touch 232 s, STOPPED 286 s); the trike
+  lands as on the base (sink 0.77, run 190). No pilot gain touched.
+- THE KEEL INCIDENCE (`gear.floats.inc`, the layer's `fltInc`, the frame
+  rotates its twelve nodes about the step keel, the layer draws the hull
+  through the same rotation, the join carries it): a real float is rigged
+  2-5 deg bow-down to the datum. MEASURED on the card, full back stick by
+  hand: rest pitch 2.7 / 6.3 / 8.8 deg at 0 / 3 / 5, first-dry at 96 / 95 /
+  96 km/h — NO GAIN, because the pitch on the step is elevator-limited
+  (7.6 deg with the stick on the stop at 20 m/s against the thrust line),
+  not hull-limited; and at 3 the fixture's approach went around. Default 0;
+  the row is there for the builder.
+- `tools/_cage_float.js`: THE SIDE TRUSS IS DRAWN AS IT IS FLOWN — the two
+  fore-aft diagonal wires a side the frame has always flown (aft deck edge
+  to the forward root, forward deck edge to the aft root) are now drawn and
+  published as members (16 a pair, was 12); with the calibration of G396.2
+  the drawn struts stand on the nodes the physics pulls (overlay ×1: the
+  lattice on the model, measured −2.03..4.21 m physics against −2.03..4.24
+  drawn along the aft axis).
+- `src/core/43_pilot.js`: ON THE WATER THE LIFT-OFF HEIGHT IS OVER THE
+  WATER. P0.8's aglG reads the terrain under the CG, and the SEA lane's
+  floor runs 15 to 95 m deep along the lane: a seaplane on the step read
+  10 m "above the ground", LIFTOFF handed over to CLIMB with the floats wet
+  and the card skimmed to 135 km/h. LIFTOFF reads `agl` (the flat datum,
+  which the sea is) on the water; nothing else moved. A first cut made the
+  whole pilot's ground max(terrain, water) — and the approach then flew
+  its true (low) profile over the shore and went around on the terrain
+  rule 800 m out at 15 m; the seaplane's approach geometry is owed (it
+  touches 190 m short of the lane's 20 % target), that is a pilot item.
+- THE TAKE-OFF SPEED, AGAINST REAL VALUES. Real floatplanes unstick at
+  1.1-1.3 Vs. The USER'S ultralight (the fixture, Vs 61 km/h): the pilot
+  unsticks it at 77 km/h = 1.26 Vs (71 with the keel at 3 deg) — real. The
+  CARD (Vs 66): 96 by hand at 9 deg, 115 with the pilot (first dry),
+  1.45-1.75 Vs — 25-45 % fast, and the
+  reason is the CARD's aeroplane, not the water: its plain flaps (the
+  fixture flies Fowlers, fTO on the roll), its thrust line 0.55 m over the
+  CG, its tail; on the step the wing sits at 5.7 deg alpha with the stick
+  on the stop and carries 0.85 W at 24.5 m/s, and the hull lets go the
+  moment the wing carries the rest (hydro L/W 0.23 → 0 between 24.5 and
+  26.7 m/s: nothing in the water holds it). The G396.2 numbers (145/126)
+  were the pilot's stick and the terrain datum, both gone.
+- Measured but NOT changed: a 3 deg keel-down rigging (above); the pilot's
+  LIFTOFF on the card still eases to 0.22 of stick and skims 2 s before
+  CLIMB (113 vs 96 by hand) — the water-only integrator (0.35) is what it
+  is; owed: a LIFTOFF hold-off on the water like the flare's.
+- Gates on the branch (2026-09-15, after the crash, the short set the user
+  asked for): the trike case (sink 0.77, run 190), the fixture's water
+  circuit (LIFTOFF 8.5 s, STOPPED 281 s), the card's (LIFTOFF 11.6 s,
+  STOPPED 322 s), FLOATS, HYDRODYN, DESIGN, STARTER, PARTS, JOIN, GEAR,
+  HYDRO, WORLD, MASS, HONEST green; TAKEOFF red once on its WALL-CLOCK
+  check under four parallel runs (66 s for 60) and re-run alone — see the
+  landing line. PILOT (30 min) and the full ARCHETYPES not re-run after the
+  crash. Screenshots: flyDiy/screenshots/hydro/fp_overlay_rest.jpg (the
+  lattice on the model, the floats' truss on their nodes).

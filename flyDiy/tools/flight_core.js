@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 115427173065ac29
+// body-sha256: ab84b65775191cd0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1489,6 +1489,14 @@ function makeWorld(seed, opts) {
   // premises' (G404: Jolene's 13/31 is HOME), no analytic cut at the origin
   const ISL_CUT = ISL && !(opts && opts.premises);
   const PADH = ISL ? ISL.terrainH(-520, 0) : 0;
+  const EXACT_GROUND = !!(opts && opts.exactGround);
+  // THE SLOPE BOUND the solver's clearance cone stands on (30_solver.js): a
+  // Lipschitz constant on terrainH, metres of rise per metre. Measured on the
+  // analytic world: 4.46 at the steepest 0.25 m probe of the whole domain,
+  // 0.33 in the home corridor; 12 is the bound, and GATE GE re-measures and
+  // pins measured <= bound/2. The island's raster and a premises layer
+  // declare none yet, so a sim over them samples the ground the old way.
+  const SLOPE_MAX = ISL ? undefined : 12;
   function h0(x, z) {
     if (!ISL) return h0a(x, z);
     const h = ISL.terrainH(x, z);
@@ -1497,6 +1505,14 @@ function makeWorld(seed, opts) {
     return r >= 1 ? h : PADH + (h - PADH) * r;
   }
   function h0a(x, z) {
+    // THE PAD IS ZERO (2026-09-14, the gate rationalization): every term below
+    // is multiplied by sstep(0, 260, distance-to-the-pad-box) at the end, which
+    // is exactly 0 inside x in [-1180, 130], |z| <= 90 — so the whole noise
+    // stack was computed for a runway that reads 0. Measured +0 at every
+    // point of a 1 m grid over the box; GATE GE pins the identity. The island
+    // never reaches here (h0 routes it to its raster) and the premises layer
+    // composes on top. opts.exactGround keeps the long path for the proof.
+    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -2088,7 +2104,7 @@ function makeWorld(seed, opts) {
   function setWeather(spec) {
     weather = spec || null;
     const p = { wind: spec ? (spec.wind || null) : null };
-    for (const k of ['oatC', 'dISA', 'qnhPa']) p[k] = spec && spec[k] != null ? spec[k] : null;
+    for (const k of ['oatC', 'dISA', 'qnhPa', 'dewC', 'rh']) p[k] = spec && spec[k] != null ? spec[k] : null;   // the AIR, and the WATER when a preset names it
     setDay(p);
   }
 
@@ -2102,6 +2118,7 @@ function makeWorld(seed, opts) {
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
+    get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
     // informative stage-3 block (not contract surface): road/building
@@ -6090,32 +6107,65 @@ function makeSim(def, world) {
     }
     C.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   }
-  // the rotation of a linear map A (row-major 3x3), warm-started from R:
-  // Müller, Bender, Chentanez, Macklin 2016, "A robust method to extract
-  // the rotational part of deformations"
+  // the rotation of a linear map A (row-major 3x3), warm-started from R.
+  // G396.3 (found by the strut task session, unlanded at the crash): A
+  // NEWTON STEP, NOT MÜLLER'S GRADIENT STEP. Müller, Bender,
+  // Chentanez, Macklin 2016 ("A robust method to extract the rotational
+  // part of deformations") turns R toward A by omega = sum(r_c x a_c) /
+  // |sum(r_c . a_c)| — the exact correction for a round body, but that
+  // scalar is the whole trace of A, and on a LONG THIN cluster (a float: a
+  // hull 100:1 in its second moments, a boom tube likewise) a rotation
+  // about the long axis is under-relaxed by the ratio of the short moments
+  // to the trace: four iterations recovered a tenth of one substep's roll
+  // (measured, scratch: 2.7e-4 of 3e-4 rad left). The projection then
+  // pulled the float back toward a STALE roll every substep — an angular
+  // damper that lived in the solver, not in the aeroplane: on the fixture's
+  // floats the aileron doublet rolled 3 deg/s where the plant says 27, with
+  // the angular momentum bleeding 75 % in 0.3 s and the pilot's approach in
+  // a limit cycle on the stops; with the float struts soft the floats hung
+  // loose and hid it (20 deg/s, decaying), stiff, they carried it into the
+  // airframe. G350's own words on the boom — its hold on torsion "an order
+  // below its hold on bending" — were this same lag about the tube's axis.
+  // The Newton step: B = R^T A, S = sym(B), k = axial(skew(B)), the
+  // linearised optimality (R^T A symmetric) reads (tr S . I - S) d = 2 k,
+  // R <- R exp([d]x). Per axis the right divisor is the OTHER two moments,
+  // which is why it converges in one step for a small rotation and in
+  // three for half a radian, on any aspect ratio (scratch rot_test.js:
+  // 2e-8 rad on the 100:1 body against Müller's 2.7e-4 at four
+  // iterations, 7e-8 at four hundred). Degenerate S (a line of nodes) has
+  // no rotation about the line to find; the ridge on the diagonal keeps
+  // the solve finite there and returns the warm start about that axis.
   function extractRotation(A, R, iters) {
     for (let it = 0; it < iters; it++) {
-      let ox = 0, oy = 0, oz = 0, den = 0;
-      for (let c = 0; c < 3; c++) {
-        // column c of R and of A
-        const rx = R[c], ry = R[3 + c], rz = R[6 + c];
-        const ax = A[c], ay = A[3 + c], az = A[6 + c];
-        ox += ry * az - rz * ay; oy += rz * ax - rx * az; oz += rx * ay - ry * ax;
-        den += rx * ax + ry * ay + rz * az;
+      // B = R^T A  (row j of B = column j of R dotted with the columns of A)
+      const B = new Array(9);
+      for (let j = 0; j < 3; j++) {
+        const rx = R[j], ry = R[3 + j], rz = R[6 + j];
+        for (let c = 0; c < 3; c++) B[j*3 + c] = rx * A[c] + ry * A[3 + c] + rz * A[6 + c];
       }
-      den = Math.abs(den) + 1e-9;
-      ox /= den; oy /= den; oz /= den;
-      const w = Math.hypot(ox, oy, oz);
+      const s01 = 0.5 * (B[1] + B[3]), s02 = 0.5 * (B[2] + B[6]), s12 = 0.5 * (B[5] + B[7]);
+      const kx = 0.5 * (B[7] - B[5]), ky = 0.5 * (B[2] - B[6]), kz = 0.5 * (B[3] - B[1]);
+      const t = B[0] + B[4] + B[8], eps = 1e-9 * (Math.abs(t) + 1e-12);
+      // M = tr(S) I - S, ridged
+      const M0 = t - B[0] + eps, M4 = t - B[4] + eps, M8 = t - B[8] + eps;
+      const M1 = -s01, M2 = -s02, M5 = -s12;
+      const det = M0 * (M4 * M8 - M5 * M5) - M1 * (M1 * M8 - M5 * M2) + M2 * (M1 * M5 - M4 * M2);
+      if (!(Math.abs(det) > 1e-300)) break;
+      const bx = 2 * kx, by = 2 * ky, bz = 2 * kz;
+      const dx = (bx * (M4 * M8 - M5 * M5) - M1 * (by * M8 - M5 * bz) + M2 * (by * M5 - M4 * bz)) / det;
+      const dy = (M0 * (by * M8 - M5 * bz) - bx * (M1 * M8 - M5 * M2) + M2 * (M1 * bz - by * M2)) / det;
+      const dz = (M0 * (M4 * bz - by * M5) - M1 * (M1 * bz - by * M2) + bx * (M1 * M5 - M4 * M2)) / det;
+      const w = Math.hypot(dx, dy, dz);
       if (w < 1e-9) break;
-      // R <- Rot(axis, w) * R  (Rodrigues)
-      const kx = ox / w, ky = oy / w, kz = oz / w;
-      const cw = Math.cos(w), sw = Math.sin(w), t = 1 - cw;
-      const Q = [cw + kx*kx*t,    kx*ky*t - kz*sw, kx*kz*t + ky*sw,
-                 ky*kx*t + kz*sw, cw + ky*ky*t,    ky*kz*t - kx*sw,
-                 kz*kx*t - ky*sw, kz*ky*t + kx*sw, cw + kz*kz*t];
+      // R <- R * Rot(axis, w)  (Rodrigues, the axis in the cluster's rest frame)
+      const ax = dx / w, ay = dy / w, az = dz / w;
+      const cw = Math.cos(w), sw = Math.sin(w), tt = 1 - cw;
+      const Q = [cw + ax*ax*tt,    ax*ay*tt - az*sw, ax*az*tt + ay*sw,
+                 ay*ax*tt + az*sw, cw + ay*ay*tt,    ay*az*tt - ax*sw,
+                 az*ax*tt - ay*sw, az*ay*tt + ax*sw, cw + az*az*tt];
       const N2 = new Array(9);
       for (let r2 = 0; r2 < 3; r2++) for (let c = 0; c < 3; c++)
-        N2[r2*3 + c] = Q[r2*3] * R[c] + Q[r2*3 + 1] * R[3 + c] + Q[r2*3 + 2] * R[6 + c];
+        N2[r2*3 + c] = R[r2*3] * Q[c] + R[r2*3 + 1] * Q[3 + c] + R[r2*3 + 2] * Q[6 + c];
       R = N2;
     }
     return R;
@@ -6160,6 +6210,26 @@ function makeSim(def, world) {
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
+  // THE CLEARANCE CONE (2026-09-14, the gate rationalization). The ground pass
+  // below asked the world for the terrain under EVERY node EVERY substep —
+  // 73 to 156 times a frame, at 300 m as on the runway — and the noise stack
+  // behind terrainH was a third of a flown circuit's CPU. So the ground is
+  // sampled once per node per FRAME (gc*: where it was sampled and what it
+  // read), and inside the frame a node skips the sample while it is provably
+  // clear: the world publishes a slope bound S (world.slopeMax, a Lipschitz
+  // constant on terrainH), and a node c metres above its cached sample that
+  // has moved d metres sideways since cannot have met the ground while
+  // c > S·d. The skipped branch is EXACTLY the `pen <= 0 -> continue` the
+  // full sample would have taken (terrainH is pure and nothing else reads
+  // gy), so the trajectory is bit-identical — GATE GE flies it both ways and
+  // compares every p and v. A world without a bound (the island's raster, a
+  // premises layer) gets the old path; so does FLYDIY_EXACT_GROUND=1.
+  const GROUND_CONE_EPS = 0.01;
+  let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
+  let coneLive = false, coneS2 = 0;
+  const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
+  out.gndSampled = 0; out.gndSkipped = 0;
+  function setGroundCone(on) { coneOn = !!on; }
   // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
   // rigid node bodies — and the hydro law (32_hydro.js) runs on the hull
   // each float declares, its forces landing on the float's four frame
@@ -7010,7 +7080,13 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      const gy = gH ? gH(p[i3], p[i3+2]) : 0;
+      let gy;
+      if (coneLive) {
+        const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
+        const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
+        if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
+        gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
+      } else gy = gH ? gH(p[i3], p[i3+2]) : 0;
       const pen = gy + r[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -7117,6 +7193,15 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    // the cone's frame-start samples (a bound the world declares, else off)
+    const S = coneOn && world ? world.slopeMax : undefined;
+    coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
+    out.gndSampled = 0; out.gndSkipped = 0;
+    if (coneLive) {
+      coneS2 = S * S;
+      const gH = world.terrainH;
+      for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
+    }
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }
@@ -7239,7 +7324,7 @@ function makeSim(def, world) {
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
-           setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
+           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir };
   return sim;
 }
 
@@ -10760,11 +10845,17 @@ function makeTestPilot(sim, def, world) {
 //
 // `makeCrosswindProbe(def, opts)` is the steppable form the page polls;
 // `genCrosswindLimit(def, opts)` runs it to the end for the gates. Both are
-// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS }.
+// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS,
+// memo }. `memo` (a Map) remembers each rung's flight by wind speed: a rung
+// is a function of the wind alone — the band, the step and the cap only
+// JUDGE it — so a second ladder over the same aeroplane (GATE TAKEOFF asks
+// three, with three bands) re-reads the rungs it already flew
+// (2026-09-14, the gate rationalization).
 // ============================================================
 function makeCrosswindProbe(def, opts) {
   opts = opts || {};
   const world = opts.world || makeWorld();
+  const memo = opts.memo instanceof Map ? opts.memo : null;
   const a = world.aerodromes[0];
   const site = (typeof siteOf === 'function') ? siteOf(a.id || 'HOME') : null;
   const R = siteRunway(a);
@@ -10778,6 +10869,13 @@ function makeCrosswindProbe(def, opts) {
   let cur = null, lo = 0, hi = null, calmTried = false, result = null;
 
   function start(w) {
+    if (memo && memo.has(w)) {                                // a rung already flown: re-judge it by THIS band
+      const m = memo.get(w);
+      const fin = m.why ? { ok: false, why: m.why }
+                        : { ok: m.roll <= band, why: m.roll <= band ? null : 'off the edge line' };
+      cur = { w, roll: m.roll, e: m.e, t: m.t, fin };
+      return;
+    }
     if (world.setWind) world.setWind({ base: [0, 0, w], gust: 0 });
     const sim = makeSim(def, world);
     sim.reset(0);
@@ -10791,6 +10889,7 @@ function makeCrosswindProbe(def, opts) {
   // one 1/60 s step of the departure in flight; true when it is decided
   function stepOne() {
     const c = cur;
+    if (c.fin) return true;                                   // remembered
     c.ap.update(1 / 60); c.sim.step(1 / 60); c.t += 1 / 60;
     const d = c.ap.dbg || {};
     if (c.ap.phase === 'ROLL') c.roll = Math.max(c.roll, Math.abs(d.z || 0));
@@ -10844,6 +10943,8 @@ function makeCrosswindProbe(def, opts) {
   }
   function record() {
     const c = cur, f = c.fin;
+    // the flight, not the verdict: the band judged `off the edge line`, every other why is the flight's own
+    if (memo && !memo.has(c.w)) memo.set(c.w, { roll: c.roll, e: c.e, t: c.t, why: f.why === 'off the edge line' ? null : f.why });
     runs.push({ w: c.w, ok: f.ok, roll: Math.round(c.roll * 100) / 100,
                 e: Math.round(c.e * 1000) / 1000, why: f.why });
     if (f.ok) lo = Math.max(lo, c.w);
@@ -11497,11 +11598,23 @@ function makePilot(sim, def, world, opts) {
   const setStatus = (goal, conds) => {
     const L = PILOT_PHASES[ap.phase] || [ap.phase, ap.phase];
     ap.status = { phase: ap.phase, label: L[0], goal, conds: conds || [], since: phaseT,
-                  gaN: ap.gaN, style: ST.name, afcs: ap.afcs };
+                  gaN: ap.gaN, style: ST.name, afcs: ap.afcs,
+                  // SKY chantier: the day's night (civil twilight ended); absent without a day
+                  night: !!(world && world.day && world.day.isNight) };
+  };
+  // THE LIGHTS A PILOT FLIES WITH (SKY chantier): navigation lights and the beacon from
+  // sunset to sunrise - the rule, read off the day's sun; the cockpit applies them while
+  // no hand is on the panel. Absent (null) without a day, so a headless fixture is unchanged.
+  ap.lights = null;
+  const lightsRule = () => {
+    if (!world || !world.day) { ap.lights = null; return; }
+    const up = world.day.sunUp;
+    if (!ap.lights || ap.lights.nav !== (up ? 0 : 1)) ap.lights = { nav: up ? 0 : 1, beacon: up ? 0 : 1 };
   };
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
+    lightsRule();
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) {
@@ -11589,6 +11702,7 @@ function makePilot(sim, def, world, opts) {
     vPrev = V;
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
+    let deFloor = 0;                          // G396.2: the water roll's back-stick floor, read by the servo
     // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
     // on the ground for 0.3 s (a rough strip's contact flickers)
     onGT = onG > 0 ? onGT + dt : 0;
@@ -11617,7 +11731,15 @@ function makePilot(sim, def, world, opts) {
       thCA += clamp(thC - thCA, -sl, sl);
       IthMax += clamp(IthMaxT - IthMax, -0.10 * dt, 0.10 * dt);
       Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
-      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, 0.35);
+      // G396.2: ON THE STEP THE STICK COMES ALL THE WAY BACK. The 0.35 stop
+      // is a wheel's rotation (the ground never pins the tail); a planing
+      // float rides nose-low against the thrust line and the servo sat on
+      // its stop from 20 m/s to a 145 km/h lift-off (Vs 66) — a seaplane
+      // pilot holds full back stick until the hull lets go, then eases.
+      // Measured on the card: 0.7 lifts at 102 km/h, the fixture at 86.
+      const deTop = (sim.hydro && onG > 0) ? (A.deWater ?? 0.70) : 0.35;
+      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, deTop);
+      if (deFloor > 0 && deFloor > c.de) c.de = deFloor;   // (a zero floor is no floor: it clamped every nose-down command on every aeroplane for one build)
     };
     // the roll servo alone: a bank command in, the aileron and the yaw damper out
     const rollTo = (phC) => {
@@ -12370,6 +12492,13 @@ function makePilot(sim, def, world, opts) {
         IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
         IthGain = rotating ? (A.rotateI ?? 0.8) : null;
         engage('RWY', vert, 'SET', { pitch, de: A.rollDe, thr: ap.t > 0.5 ? thrRoll : 0 });
+        // G396.2: ON THE WATER, FULL BACK STICK THROUGH THE HUMP AND OFF THE
+        // STEP. The attitude servo asks for the lift-off pitch and its gains
+        // (an air loop) reach 0.38 of stick, which a planing float ignores:
+        // the card rode the step nose-low to a 145 km/h lift-off (Vs 66).
+        // A seaplane pilot holds the stick back from the hump until the hull
+        // lets go; the servo eases it from there. Measured: 102 km/h.
+        if (sim.hydro && onG > 0 && V > 0.45 * vr) deFloor = A.deWater ?? 0.70;
         c.brake = 0;
         if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
         break;
@@ -12400,7 +12529,19 @@ function makePilot(sim, def, world, opts) {
         // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
         // default garage build did exactly that; see 41_test_pilot.js)
         let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
-        if (aglG > A.hSafe)
+        // G396.2: a seaplane's lift-off is TRIMMED, not held — the thrust line
+        // over the CG asks ~0.5 of stick to hold the attitude at 27 m/s, the
+        // integrator's 0.15 could not, the nose fell, the floats touched
+        // again and it skimmed the step to 145 km/h. The water's own
+        // integrator ceiling and gain, until CLIMB.
+        // G396.3: ON THE WATER THE HEIGHT IS OVER THE WATER. P0.8's aglG
+        // reads the terrain under the CG and the SEA lane's floor runs 15 to
+        // 95 m deep along it: a seaplane on the step read 10 m "up" and this
+        // phase handed over to CLIMB with the floats wet (the card skimmed to
+        // 135 km/h). The sea is the flat datum `agl` was built on.
+        const aglL = sim.hydro ? agl : aglG;
+        if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        if (aglL > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
@@ -12416,7 +12557,7 @@ function makePilot(sim, def, world, opts) {
         // the game on a marginal build (a 53 s roll to Vr, airborne with
         // 150 m left), the old rule dropped it three seconds after lift-off
         // into the last of the grass, which is the worse of the two ends.
-        const lowStuck = aglG < A.hSafe * 0.6;
+        const lowStuck = aglL < A.hSafe * 0.6;
         const canStop = left > stopDist(V) + 40;
         if ((phaseT > 25 && lowStuck) || (lowStuck && vsSlow < 0.3 && canStop && left - stopDist(V) < 160 && phaseT > 3)) {
           say('wont-climb', 'airborne ' + Math.round(phaseT) + ' s and still at ' + agl.toFixed(1) +
@@ -12430,7 +12571,15 @@ function makePilot(sim, def, world, opts) {
         }
         // ...and clearly away (twice the screen height) goes to CLIMB whatever
         // its speed — CLIMB's law finishes the acceleration (G208.3)
-        if (aglG > A.hSafe && (V > A.VClimbMin || aglG > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        if (aglL > A.hSafe && (V > A.VClimbMin || aglL > 2 * A.hSafe)) {
+          go('CLIMB'); climbMode = true; ceilT = 0;
+          // G396.2: the water's integrator stays on the water (left in, it
+          // hunted the whole circuit: 240 s on final, never down). WATER
+          // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
+          // and its approach is tuned with it — reset there, the trike went
+          // around "high on the slope" and never landed (GATE PILOT).
+          if (sim.hydro) { IthMaxT = 0.15; IthGain = null; }
+        }
         break;
       }
 
@@ -12780,116 +12929,6 @@ function makePilot(sim, def, world, opts) {
               beta, x: cg[0], z: cg[2], onGround: onG, t: ap.t };
   };
   return ap;
-}
-// ============================================================
-// THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
-// the pilot reads the aeroplane from.
-//
-// PILOT-ROADMAP §6.3 rule 5: "the machine is a sheet of measured numbers,
-// and the sheet is the only source." Before this the pilot knew the
-// aeroplane through genAP's constants (ratios of the analytic stall) and
-// genTuneAP's fits; the bench measured the same aeroplane — the stall in
-// both configurations, the climb gradient, the glide ratio and its speed,
-// the take-off run, the ground power cap — and the pilot never read it.
-//
-// WHAT IT IS. One flat record, SI, built from what exists: `def.params.gen`
-// (the tunnel's measured block), `def.params.ap` (the speed ladder genAP
-// derived, kept as the fallback), and `genShakedown`'s output when the
-// caller has one (the garage memoises it; a gate passes it; the pilot asks
-// for it lazily and does without — the fields that need it read null).
-// Every field says where it came from (`src`): 'measured' (the tunnel or
-// the shakedown), 'derived' (a textbook ratio over a measured number, named
-// in the comment), 'genAP' (the old constant, until a measurement replaces
-// it). Nothing here is tuned; a number the bench cannot measure yet is null
-// and the consumer falls back, never a guess dressed as a fact.
-//
-// THE V-SPEEDS AND THE RATIOS (light-aeroplane practice, the same for a Cub
-// and a flying boat):
-//   Vs      clean stall (VsMeas when the tunnel measured it, else analytic)
-//   Vs0     stall in the landing configuration (VsFlap; = Vs when flapless)
-//   Vref    1.30 Vs0 — the approach reference speed
-//   Vrot    genAP's VRot (0.99 Vs, G159: the derived rotation)
-//   Vy      genAP's VClimb (1.38 Vs), where gammaClimb was measured
-//   Vx      0.87 Vy — derived; the best-angle speed is not measured yet
-//   Vbg     the best-glide speed, measured (the shakedown's L/D sweep)
-//   Vms     0.76 Vbg — the minimum-sink speed (3^-1/4, a parabolic polar)
-//   Vcruise genAP's VCruise (1.71 Vs)
-//   Vne     null — not measured; a consumer that needs a ceiling uses 1.5 Vcruise and says so
-// THE ENERGY LIMITS (what TECS reads, P0.5):
-//   climbMax  gammaClimb x Vy (m/s) — measured at full thrust
-//   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
-//             from the measured glide (3^(3/4)/2 on a parabolic polar)
-//   sinkBg    Vbg / LDbest — the sink at best glide
-//   gammaClimb, LDbest — measured
-// THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
-// 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
-// THE ATTITUDES (rad, measured): alphaAppr, alphaTD (1.10 Vs0), alphaCruise,
-// aStall, thMax / flareThMax / liftoffTh (genTuneAP's, from the measured
-// attitudes). THE THROTTLE: thrCruise (measured), thrAppr (genAP), groundCap
-// (measured: the power nose-over cap). THE EFFECTORS: what this machine
-// has — engines, flaps (and their landing setting), the gear type, floats.
-// ============================================================
-function machineSheet(def, opts) {
-  opts = opts || {};
-  const A = def.params.ap || {}, G = def.params.gen || {}, P = def.params;
-  const sh = typeof opts.shakedown === 'function' ? opts.shakedown() : (opts.shakedown || null);
-  const src = {};
-  const put = (k, v, s) => { src[k] = v == null ? null : s; return v == null ? null : v; };
-  const r2 = v => v == null ? null : Math.round(v * 100) / 100;
-  const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
-  const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
-  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
-  const Vy = put('Vy', A.VClimb ?? null, 'genAP');
-  const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
-  const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');
-  const gammaClimb = put('gammaClimb', G.gammaClimb ?? null, 'measured');
-  const trike = P.ap && P.ap.rolloutMode === 'trike' || (P.twSteer || 0.5) < 0;
-  // the stop from 1.15 Vs0: the pilot's accelerate-stop law (43_pilot.js aStop)
-  const aStop = A.aStop || 9.81 * ((typeof CRR === 'number' ? CRR : 0.05) + (A.brakeMax || 0.3) * (typeof MU_BRAKE === 'number' ? MU_BRAKE : 0.5)) * 0.8;
-  const Vtd = Vs0 != null ? 1.15 * Vs0 : null;
-  const S = {
-    Vs, Vs0, Vref: put('Vref', Vs0 != null ? 1.30 * Vs0 : null, 'derived'),
-    Vrot: put('Vrot', A.VRot ?? null, 'genAP'), Vy, Vx: put('Vx', Vy != null ? 0.87 * Vy : null, 'derived'),
-    Vbg, Vms: put('Vms', Vbg != null ? 0.76 * Vbg : null, 'derived'),
-    Vcruise: put('Vcruise', A.VCruise ?? null, 'genAP'), Vne: put('Vne', null, 'derived'),
-    climbMax: put('climbMax', gammaClimb != null && Vy != null ? gammaClimb * Vy : null, 'measured'),
-    sinkBg: put('sinkBg', Vbg != null && LDbest ? Vbg / LDbest : null, 'measured'),
-    sinkMin: put('sinkMin', Vbg != null && LDbest ? 0.877 * Vbg / LDbest : null, 'derived'),
-    gammaClimb, LDbest,
-    TORun: put('TORun', A.TORun ?? (sh && sh.TORun) ?? null, 'measured'),
-    LDGrun: put('LDGrun', Vtd != null ? Vtd * Vtd / (2 * aStop) + Vtd * 1.0 : null, 'derived'),
-    alphaAppr: put('alphaAppr', G.alphaAppr ?? null, 'measured'),
-    alphaTD: put('alphaTD', G.alphaTD ?? null, 'measured'),
-    alphaCruise: put('alphaCruise', G.alphaCruise ?? null, 'measured'),
-    aStall: put('aStall', G.aStall ?? null, 'measured'),
-    thMax: put('thMax', A.thMax ?? null, 'genAP'), flareThMax: put('flareThMax', A.flareThMax ?? null, 'genAP'),
-    liftoffTh: put('liftoffTh', A.liftoffTh ?? null, 'genAP'),
-    thrCruise: put('thrCruise', A.thrCruise ?? null, 'measured'), thrAppr: put('thrAppr', A.thrAppr ?? null, 'genAP'),
-    groundCap: put('groundCap', sh && sh.groundThrCap != null ? sh.groundThrCap : null, 'measured'),
-    mass: put('mass', G.W != null ? G.W / 9.81 : (sh && sh.mass) || null, 'measured'),
-    W: put('W', G.W ?? (sh && sh.W) ?? null, 'measured'),
-    wingLoad: put('wingLoad', sh && sh.wingLoad != null ? sh.wingLoad : null, 'measured'),
-    staticMargin: put('staticMargin', sh && sh.staticMargin != null ? sh.staticMargin : null, 'measured'),
-    xwindLimit: put('xwindLimit', opts.xwind != null ? opts.xwind : null, 'measured'),
-    elevIdle: put('elevIdle', null, 'measured'),            // elevator authority at idle: not measured yet (the C172 / Caravan finding)
-    effectors: {
-      engines: P.nEngines || 1,
-      flaps: !!P.flaps, flapLdg: P.flaps ? (P.flaps.ldg ?? 1) : 0, flapTO: P.flaps ? (P.flaps.to ?? 0) : 0,
-      gear: trike ? 'trike' : 'taildragger',
-      floats: !!(def.hydro || (def.parts && def.parts.floats)),
-      spoilers: false,
-    },
-    src,
-    shakedown: !!sh,
-  };
-  // the same numbers, rounded, for a plaque or a status line
-  S.show = () => {
-    const o = {};
-    for (const k of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vx', 'Vy', 'Vbg', 'Vms', 'Vcruise', 'climbMax', 'sinkMin', 'LDbest', 'TORun', 'LDGrun', 'mass'])
-      o[k] = r2(S[k]);
-    return o;
-  };
-  return S;
 }
 // ============================================================
 // THE MACHINE SHEET (P0.4 of PILOT-ROADMAP-2026-09-14.md) — the one place
@@ -17662,6 +17701,7 @@ function clampSpec(spec) {
     f.bStern = genClamp(f.bStern == null ? 0.75 : f.bStern, 0.3, 1.0);
     f.hSide = genClamp(f.hSide == null ? 0.22 : f.hSide, 0.08, 0.6);
     f.track = genClamp(f.track == null ? 0.8 : f.track, 0.3, 2.0);
+    f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
     f.x = f.x == null ? null : genClamp(f.x, -3, 6);
     f.y = f.y == null ? null : genClamp(f.y, -2.5, 0.5);
   } else S.gear.floats = null;
@@ -19431,8 +19471,11 @@ function genLattice(S, gearX, track, kScale, gross) {
     const bK = ((S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
                  P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
       ? rodK() : 1) * ((opt && opt.kx > 0) ? opt.kx : 1);
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK,
-                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
+    // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
+    // float truss: gear-class tube that is NOT a spring), c by its root
+    const kMul = (opt && opt.kMul) || 1;
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
+                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -21041,6 +21084,12 @@ function genLattice(S, gearX, track, kScale, gross) {
                   : HYDRO.floatParamsFor(gross || 400);
     const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
     const stas = [-FP.xs, -FP.xFlat, 0, FP.L - FP.xs];
+    // THE RIGGING (G396.3): the keel incidence, bow down positive, about the
+    // step keel — the layer draws the hull through the same rotation. The
+    // tetra and the slab stay float-local (the pose is read off the nodes).
+    const incR = ((FM && FM.inc != null) ? FM.inc : 0) * Math.PI / 180;
+    const cI = Math.cos(incR), sI = Math.sin(incR);
+    const rig = (x, y) => [x * cI - y * sI, x * sI + y * cI];
     FLOATS = [];
     const trF = FM && FM.track != null ? 2 * FM.track : tr;
     for (const sd of [-1, 1]) {
@@ -21048,9 +21097,10 @@ function genLattice(S, gearX, track, kScale, gross) {
       const K = [], DL = [], DR = [], Q = [];
       for (const xs of stas) {
         const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
-        K.push(N(gx + xs, yK + sc.yk, zc, 'FLK'));
-        DL.push(N(gx + xs, yK + sc.yd, zc - sc.b, 'FLD'));
-        DR.push(N(gx + xs, yK + sc.yd, zc + sc.b, 'FLD'));
+        const [kx, ky] = rig(xs, sc.yk), [dx, dy] = rig(xs, sc.yd);
+        K.push(N(gx + kx, yK + ky, zc, 'FLK'));
+        DL.push(N(gx + dx, yK + dy, zc - sc.b, 'FLD'));
+        DR.push(N(gx + dx, yK + dy, zc + sc.b, 'FLD'));
         Q.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
       }
       const all = [...K, ...DL, ...DR];
@@ -21064,7 +21114,15 @@ function genLattice(S, gearX, track, kScale, gross) {
       // top of the 73 kg pair, and the single 582 sat at the hump at 6.7 m/s
       // (T/W 0.216). The struts, spreaders and wires below are real and stay
       // billed.
-      const NM = { noMass: true };
+      // ...and STIFF: the gear class is the suspension's (30x softer than a
+      // fuselage tube); the hull is a rigid body and its struts are tubes,
+      // x8 (still under the engine bearer's omega, so no substep is paid).
+      // G396.2 measured the pilot's approach limit-cycling with stiff
+      // struts and left them soft; G396.3 found the cause in the SOLVER
+      // (extractRotation never converged about a long thin cluster's axis:
+      // an angular damper the soft struts had been hiding) and with the
+      // Newton step the struts go rigid, as a real installation is.
+      const NM = { noMass: true, kMul: 8 }, KM = { kMul: 8 };
       for (let i = 0; i + 1 < 4; i++) {
         B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NM); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
         B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
@@ -21074,9 +21132,14 @@ function genLattice(S, gearX, track, kScale, gross) {
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
-      B(Din[1], fB, 'gear', true, 'leg'); B(Din[2], aB, 'gear', true);
-      B(Dout[2], fT, 'gear', false, 'inner'); B(Dout[1], fB, 'gear', true, 'wire');
-      B(Din[2], fB, 'gear', true, 'wire'); B(Din[1], aB, 'gear', true, 'wire');
+      // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
+      // flexible, almost springy"). The forward strut was the gear's `leg`
+      // member — the suspension spring, KS x SUS — so the whole float pair
+      // rode on two bungees; every member here is BRACING (KS x ARCH.k),
+      // a streamlined steel tube like the rest of the truss.
+      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[2], aB, 'gear', true, undefined, undefined, KM);
+      B(Dout[2], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
+      B(Din[2], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
       // belly nodes the four points of the side truss are nearly collinear
       // and its pitch stiffness goes as the square of nothing — measured, a
@@ -21085,7 +21148,7 @@ function genLattice(S, gearX, track, kScale, gross) {
       // at 1 deg. The loads go up to the top longerons as well: two
       // diagonals to the frames' top corners, inside the covering
       const aT = sd < 0 ? AA.TL : AA.TR;
-      B(Din[1], aT, 'gear', false, 'inner'); B(Din[2], fT, 'gear', false, 'inner');
+      B(Din[1], aT, 'gear', false, 'inner', undefined, KM); B(Din[2], fT, 'gear', false, 'inner', undefined, KM);
       // the slab table for 32_hydro's force distribution: every station's
       // keel and deck edges, float-frame rest coordinates (x aft of the step)
       const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
@@ -21094,7 +21157,7 @@ function genLattice(S, gearX, track, kScale, gross) {
                     tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: FP, pos: [gx, yK, zc] });
     }
     const [FL, FR] = FLOATS;
-    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire'); }
+    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
   }
 
