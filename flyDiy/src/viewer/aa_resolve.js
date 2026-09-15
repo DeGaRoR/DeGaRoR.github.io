@@ -255,6 +255,10 @@
     const S = {
       tier: 'off', w: 1, h: 1, rt: null, mat: null, dither: 1,
       fsScene: null, fsCam: null, ss: 1, samples: 0, able: false, maxSamples: 0,
+      // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
+      // march composites there, reading the scene's depth) - it asks for the target even at tier
+      // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
+      overlay: null, needRT: false,
     };
 
     try {
@@ -275,7 +279,7 @@
 
     function buildRT() {
       disposeRT();
-      if (!S.able || S.tier === 'off') return;
+      if (!S.able || (S.tier === 'off' && !S.needRT)) return;
       const SW = Math.max(1, Math.round(S.w * S.ss));
       const SH = Math.max(1, Math.round(S.h * S.ss));
       S.rt = new THREE.WebGLRenderTarget(SW, SH, {
@@ -290,7 +294,11 @@
         // what the user saw in the first build. With it, r128 allocates a
         // multisampled DEPTH24_STENCIL8 renderbuffer, same as the canvas has.
         stencilBuffer: true,
+        // THE SCENE'S DEPTH, READABLE (CLOUDS C1): r186 resolves the multisampled depth into this
+        // texture when the target is left (resolveDepthBuffer), 24-bit depth + the 8-bit stencil
+        depthTexture: S.needRT && THREE.DepthTexture ? new THREE.DepthTexture(SW, SH, THREE.UnsignedInt248Type) : null,   // null, not undefined: r186's setter reads it
       });
+      if (S.rt.depthTexture) { S.rt.depthTexture.format = THREE.DepthStencilFormat; S.rt.depthTexture.minFilter = S.rt.depthTexture.magFilter = THREE.NearestFilter; }
       S.rt.samples = Math.min(S.samples, S.maxSamples);
       // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
       // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat
@@ -344,17 +352,20 @@
     // and when the tier is `off` it IS `renderer.render` — so the old path is
     // never emulated, only stepped around.
     function render(scene, camera) {
-      if (!S.rt || S.tier === 'off') { renderer.render(scene, camera); return false; }
+      if (!S.rt) { renderer.render(scene, camera); return false; }
       // TONE MAPPING AND EXPOSURE ARE NOT TOUCHED. The materials do both, into
       // an encoded target, exactly as they do onto the canvas — so the hangar's
       // moods reach the frame without this pass knowing they exist.
       const prevTarget = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
       renderer.setRenderTarget(S.rt);
       renderer.render(scene, camera);
+      if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds, over the scene, before the resolve
       renderer.setRenderTarget(prevTarget);
       renderer.render(S.fsScene, S.fsCam);
       return true;
     }
+    // needRT(on): a pass wants the target and its depth even at tier `off`
+    function needRT(on) { on = !!on; if (on === S.needRT) return; S.needRT = on; buildRT(); }
 
     function dispose() {
       disposeRT();
@@ -382,6 +393,7 @@
 
     return {
       render, setSize, setTier, dispose, setDither,
+      needRT, setOverlay: f => { S.overlay = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target

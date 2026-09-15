@@ -222,6 +222,37 @@
     A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));
     { const n = note(''); const R = { el: n, refresh: () => { const S = W.SKY_LIGHT, K = S && S.K(); n.textContent = K && K.K_SUN ? `K_sun ${K.K_SUN.toFixed(2)} K_hemi ${K.K_HEMI.toFixed(2)} · ${S.isMoon ? 'the moon is the key' : 'the sun is the key'} · exposure base ${(W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : 0).toFixed(3)}` : 'atmosphere off (painted dome)'; } }; rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the rig row’s sun / hemisphere / exposure below are GAINS on the alps anchors (2.8 / 0.274 / 0.92) under the physical sky'));
+    // ---- THE CLOUDS (C1): the day's cover and type drive the field; the rest are the march's dials ----
+    {
+      const Cf = fold(root, 'clouds', true), cl = () => W.CLOUDS || null, cs = () => (W.CLOUDS ? W.CLOUDS.S : null);
+      const types = (typeof CLOUD_FIELD !== 'undefined') ? CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label + ' (' + CLOUD_FIELD.TYPES[t].thick + ' m)']) : [['cu', 'cumulus']];
+      Cf.appendChild(select('type', types, () => (dy() ? dy().cloudType : 'cu'), v => { if (ck()) ck().set({ cloudType: v }); }));
+      Cf.appendChild(slider('cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }, v => (v * 100).toFixed(0) + ' %'));
+      Cf.appendChild(slider('seed', 1, 99, 1, () => (cs() ? cs().seed : NaN), v => { if (cs()) cs().seed = v; }));
+      Cf.appendChild(slider('base override', 0, 4000, 50, () => (cs() ? cs().base : NaN), v => { if (cs()) cs().base = v; }, v => v > 0 ? v + ' m' : 'the day’s (dewpoint)'));
+      Cf.appendChild(slider('thickness override', 0, 5000, 100, () => (cs() ? cs().thick : NaN), v => { if (cs()) cs().thick = v; }, v => v > 0 ? v + ' m' : 'the type’s'));
+      Cf.appendChild(slider('density', 0.005, 0.15, 0.005, () => (cs() ? cs().sigma : NaN), v => { if (cs()) cs().sigma = v; }, v => v.toFixed(3) + ' /m'));
+      Cf.appendChild(slider('detail', 0, 0.8, 0.02, () => (cs() ? cs().detail : NaN), v => { if (cs()) cs().detail = v; }));
+      Cf.appendChild(slider('curl', 0, 1, 0.05, () => (cs() ? cs().curl : NaN), v => { if (cs()) cs().curl = v; }));
+      Cf.appendChild(slider('scale', 2000, 30000, 500, () => (cs() ? cs().period : NaN), v => { if (cs()) cs().period = v; }, v => v + ' m'));
+      Cf.appendChild(slider('phase g', 0, 0.95, 0.01, () => (cs() ? cs().g : NaN), v => { if (cs()) cs().g = v; }));
+      Cf.appendChild(slider('powder', 0, 1, 0.05, () => (cs() ? cs().powder : NaN), v => { if (cs()) cs().powder = v; }));
+      Cf.appendChild(slider('multi-scatter', 0, 0.9, 0.05, () => (cs() ? cs().ms : NaN), v => { if (cs()) cs().ms = v; }));
+      Cf.appendChild(slider('ambient', 0, 3, 0.05, () => (cs() ? cs().ambK : NaN), v => { if (cs()) cs().ambK = v; }));
+      Cf.appendChild(slider('sun', 0, 3, 0.05, () => (cs() ? cs().sunK : NaN), v => { if (cs()) cs().sunK = v; }));
+      Cf.appendChild(slider('steps', 8, 96, 4, () => (cs() ? cs().steps : NaN), v => { if (cs()) cs().steps = v; }));
+      Cf.appendChild(slider('light steps', 1, 8, 1, () => (cs() ? cs().lightSteps : NaN), v => { if (cs()) cs().lightSteps = v; }));
+      Cf.appendChild(slider('drift', 0, 4, 0.1, () => (cs() ? cs().driftK : NaN), v => { if (cs()) cs().driftK = v; }, v => v.toFixed(1) + 'x the wind'));
+      Cf.appendChild(select('resolution', [['off', 'off'], ['half', 'half'], ['full', 'full']], () => (cs() ? cs().mode : 'off'),
+        v => { if (cs()) { cs().mode = v; if (W.FLYDIY_AA && W.FLYDIY_AA.needRT) W.FLYDIY_AA.needRT(v !== 'off'); } }));
+      { // the layer, read out
+        const n = note('');
+        const R = { el: n, refresh: () => { const c = cl(), L = c && c.layer; n.textContent = !c ? 'no clouds module' : !c.ready ? 'clouds: no 3D targets' : (L ? `layer ${L.base.toFixed(0)}-${L.top.toFixed(0)} m (${L.type}) · map cover ${(c.stats.cover * 100).toFixed(0)} % · ` : '') + (c.baked ? `pass ${c.stats.ms.toFixed(2)} ms` : `baking ${c.stats.slicesBaked}/129`) + (c.active ? '' : ' · idle'); } };
+        rows.push(R); live.push(R);
+        Cf.appendChild(n);
+      }
+      Cf.appendChild(note('the GRAPHICS menu switches the clouds off / half / full; cover and type are the day’s (the WORLD editor and CONDITIONS carry them)'));
+    }
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
     E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],

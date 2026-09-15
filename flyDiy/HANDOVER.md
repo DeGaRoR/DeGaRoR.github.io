@@ -48919,3 +48919,117 @@ slow link only, and a per-url manifest is ~50 KB in the page for a bar
 that is already fed by PerformanceObserver. Owed still if a real slow-link
 measurement (CDP emulateNetworkConditions) shows the serial chains
 mattering; the hook is the `run` phase in BOOT.log.
+=======
+## G423 — THE CLOUD CHANTIER, C1: THE FIELD AND THE FIRST MARCH (2026-09-15, the user:
+## "Let's look at the clouds ... This one has to look good, shade good, coherent and
+## realistic" / "Let's start on the clouds according to the plan")
+- THE PLAN: futureDesigns/CLOUDS-2026-09-15.md - there was no cloud plan, only a
+  deferral three times over and a data slot. The answer to "voxels?": not voxel
+  meshes; a density FIELD sampled by rays, the Guerrilla / Nubis method (Schneider
+  2015/2017), two layers (the volumetric low layer under a 2D cirrus veil - C4's),
+  one field every consumer derives from, four sessions C1-C4. This is C1.
+- src/core/08_cloud_field.js (new, pure, node-runnable): THE WEATHER MAP 256^2
+  tiling over 40 km - RGBA = coverage | height (0.5..1, bigger columns stand
+  taller) | lumpiness | wetness (reserved) - from a seeded tileable value-noise
+  fbm whose threshold is the (1 - cover) QUANTILE, so the covered fraction of the
+  map IS the day's cloudCover (exact to the texel count: 0.100/0.300/0.600/0.900
+  measured); the type's soft edge width. THE PROFILE (Schneider): a rounded
+  bottom, a top the height channel sets, per type (st 300 m, sc 700, cu 1500,
+  cb 4000); `layer(day)` = the day's dewpoint base (clamped 120..5000 m) + the
+  type's thickness; `columnOD` (the shadow's term, C3) = coverage x the profile's
+  mean fill x the column's height x sigma; `sample` bilinear + drift, tiling.
+  17 ms a map.
+- src/viewer/clouds.js (new): THE MARCH. Two 3D noise textures baked on the GPU
+  at first use into WebGL3DRenderTargets a slice at a time (128^3 RGBA8: Perlin-
+  Worley + three Worley octaves; 32^3 detail Worley; ~20 frames of 6 slices,
+  tiling by construction); the weather map as an 8-bit DataTexture (a float
+  texture filters linearly only by extension - the first draft's samplers were
+  incomplete and read opaque black, the classic (0,0,0,1)). A GLSL3 fullscreen
+  program (sampler3D needs it; three defines varying/texture2D for GLSL3 but NOT
+  gl_FragColor - the out is declared by hand): the ray from the inverse
+  projection and the camera matrix, the slab [base, top] intersected for an eye
+  under, in or above the layer, the path stopped at the SCENE'S DEPTH read from the
+  resolve target's new depth texture - the renderer's depth is LOGARITHMIC
+  (app.js: logarithmicDepthBuffer true), so w = (far + 1)^depth - 1 and the
+  distance is w over the view ray's -z - the mountains poke through the layer, the
+  aeroplane stands in front of a cloud. The step: N (48) over the slab with a
+  24-160 m floor/ceiling growing 6 % a km, strides of 3x where the weather map
+  is clear and 1.5x where the column is but the noise is not, stop at T < 1 %
+  or the path's end, an interleaved-gradient jitter a frame. Per step: density =
+  remap(perlin-worley, worley fbm - 1) x the profile, remapped by the coverage,
+  eroded by the detail (wispy at the bottom, billowy above, a curl from the base
+  noise); extinction sigma 0.08 /m x density; a 5-step light march toward the
+  sun (lengthening steps, no detail); the multi-scatter octaves (Wrenninge: sum
+  a^i exp(-od a^i) phase(g a^i), a = 0.5, three octaves) over a dual-lobe HG
+  (0.7 forward g 0.75, 0.3 back); a powder term weighted away from the sun;
+  ambient = the sky's irradiance / pi at the layer's top above, 0.3 of it + the
+  ground's reflected light below, lerped by height; the moon through eMoon like
+  the dome. The integration is Hillaire's energy-conserving form: L += T (S)(1 -
+  Tstep), S in SUN UNITS (E_sun = 1: the sun's transmittance at the layer's middle
+  from ATMO's tables), so a top reads E x phase at the silver lining and the tone
+  map sees the same numbers the dome gives it - THE UNITS BUG guarded a fourth
+  time. THE SAME aerial perspective and mist the scene gets, at the cloud's
+  transmittance-weighted mean distance: atmo.js now exports ATMO.GLSL {AP, MIST}
+  and ATMO.apUniforms (the atlas sample refactored into apSample(dir, distKm),
+  the splice's own atmoAP() calls it - GATE ATMO's five-chunk / one-flag rules
+  untouched). Output: radiance x U.scale + alpha (1 - T) into a half-res HalfFloat
+  target; the composite tone-maps with three's own chunks (the resolve target is
+  DISPLAY-SPACE, every transparent thing composites there in display space) and
+  alpha-blends over the frame. A `probe()` reads the march target, a noise slice,
+  the weather texture and the depth back (the instrument that found the
+  incomplete samplers).
+- aa_resolve.js: `needRT(on)` (the target and its depth even at tier `off` - a
+  0-sample target, the blit resolve), a DepthTexture (UnsignedInt248 +
+  DepthStencilFormat: the G131 stencil rides on the target; r186 resolves the
+  multisampled depth into it on leaving the target - `resolveDepthBuffer`), and
+  `setOverlay(fn)` called between the scene and the resolve with the target
+  bound. r186's depthTexture setter reads `.renderTarget` - pass null, never
+  undefined.
+- app.js: CLOUDS.init after the pass; the overlay draws the clouds in the world
+  only (the shed sees the dome; the layer in the probe is C3's). render_world.js:
+  the 64 billboard puffs retired; dayApply hands the day, the camera and the
+  world (the wind at the base x the day's seconds = the drift, deterministic on
+  the clock) to CLOUDS.update every frame. gfx_settings.js: GRAPHICS `clouds`
+  off / half / full in every preset (low off, medium/high half, ultra full),
+  applied live (the tier flips needRT). dev_panel.js: a `clouds` fold - type
+  (the four, with their thickness), cover, seed, base and thickness overrides,
+  density, detail, curl, scale, phase g, powder, multi-scatter, ambient, sun,
+  steps, light steps, drift, resolution, and the layer read out (base-top, the
+  map's cover, the pass's ms or the bake's progress).
+- GATE CLOUD (tools/_cloud_check.js, core, after ATMO): the cover is the cover
+  (every type, 0.1..0.9 within 5 %; 0 none, 1 all; the mean rises), the profile
+  (0 at base and top, in [0,1], fills somewhere, a half column nowhere fuller),
+  the layer (base, thickness, clamps, unknown type = cu, overrides), the column
+  (monotone in cover, zero when clear, tiling, a full column = fill x height x
+  sigma), determinism (same seed = same bits, a new seed differs), and the splice
+  rules read off the sources (standalone program, GLSL3, three's tone-map chunks,
+  ATMO's GLSL and uniforms taken, the mean distance, no Date, the core's map and
+  layer, the profile verbatim in GLSL, the puffs gone, the row in every preset,
+  the depth texture and the overlay in the pass, both files in the build).
+  Written, syntax-checked, its static rules grepped - NOT RUN (the user's order
+  stands; GATE ATMO's 59 were run once by reflex after the atmo.js refactor -
+  PASS - before I remembered the order).
+- PROOF (headless Chrome + CDP, scratch cdp_eval.js: boot, roll out, evaluate,
+  shoot; screenshots/clouds-2026-09-15/): c1_noon_stand.png - Jolene at noon
+  under 45 % cumulus from the stand, the layer at the day's 1293 m base, the far
+  clouds in aerial perspective, a mountain in FRONT of the layer (the depth
+  read); c1_above_noon.png - the eye 540 m above a lowered layer's tops (F8
+  overrides), the tops shaded, the sea and the island between the clouds;
+  c1_golden.png - the underside at 8 deg with the flare. Frame time in the
+  headless rig is noise on a 33 ms frame (off 32.7 / half 36.0 / full 36.0 /
+  off 35.2) - the GPU cost is C2's to measure properly (tree_perf's method).
+- FOUND, NOT MINE: on Jolene the premises ground patch's MeshLambertMaterial
+  (render_premises.js `premises-patch-materials`, the island ring's material
+  cloned + uMat + uSet0..3) FAILS TO LINK - "texture image units count exceeds
+  MAX_TEXTURE_IMAGE_UNITS(16)" (the ring's ground shader already carries 15
+  samplers: nine island layers, the shadow cascade's four, map, the AP atlas).
+  Proved on pristine G419 in the proof worktree (the same error, the same
+  program), so it predates this session; the patch draws nothing on the island.
+  Owed to the premises' keeper: fewer sets on the island's patch, or the ring's
+  layers packed.
+- OWED (C2-C4, the plan): the look (the powder and the octaves against
+  photographs, the near cloud's softness = the noise's 47 m texel at a 6 km
+  period, temporal 2x2 reprojection, the depth-aware upsample at the ridge), the
+  shadow map and the light at the craft and the probe (C3: the water reflects the
+  clouds), the cirrus veil, the types' table, in-cloud through the mist, the
+  editor/CONDITIONS lines, `&cloud=` (C4).

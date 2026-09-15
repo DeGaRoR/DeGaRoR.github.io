@@ -32,6 +32,7 @@ const MANIFEST = {
     // day object the world carries; before the world, which makes the day.
     '06_solar.js',
     '07_day.js',
+    '08_cloud_field.js',
     // THE TERRAIN CODEC (W2, 2026-09-14): the quadtree asset's reader, one
     // global; before the world because an island world is built on it.
     '19_terrain_codec.js',
@@ -287,7 +288,7 @@ const MANIFEST = {
     // storage.js first (LOADING S4): the media cache's worker registers at load and
     // the version line reads FLYDIY_BUILD; nothing else depends on it
     scripts: ['storage.js', 'assets.js', 'aa_resolve.js',
-              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'site_tex.js', 'site_ground.js',
+              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'site_tex.js', 'site_ground.js',
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',

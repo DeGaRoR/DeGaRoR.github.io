@@ -405,11 +405,9 @@ var ATMO = (function () {
   // through viewMatrix (rigid: the transpose is the inverse rotation).
   const AP_PARS_VERT = `varying vec3 vAtmoV;`;
   const AP_VERT = `vFogDepth = - mvPosition.z; vAtmoV = mvPosition.xyz;`;
-  const AP_PARS_FRAG = `
-    varying vec3 vAtmoV;
-    uniform sampler2D uApAtlas;
-    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
-
+  // THE MIST's GLSL and the atlas sample stand alone (CLOUDS C1: the cloud march applies the same
+  // aerial perspective and the same mist to a cloud at its own distance - ATMO.GLSL hands them over)
+  const MIST_GLSL = `
     // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
     // below its top yTop, decaying over H above it - integrated in closed form along the ray
     // (piecewise at the top plane), lit by the day (uMist[1].rgb: sun x T + sky at the mist, on
@@ -435,10 +433,12 @@ var ATMO = (function () {
       float T = exp(-mistOD(y0, d.y, D));
       float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
-    }
-    vec4 atmoAP() {
-      float dist = length(vAtmoV) * 0.001;
-      vec3 d = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz);
+    }`;
+  // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
+  const AP_SAMPLE_GLSL = `
+    uniform sampler2D uApAtlas;
+    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+    vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
       float v = 0.5 + 0.5 * sign(el) * sqrt(abs(el) / 1.57079632679);
       float u = az / 6.28318530718 + 0.5;
@@ -450,6 +450,10 @@ var ATMO = (function () {
       vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
       return mix(a, b, f);
     }`;
+  const AP_PARS_FRAG = `
+    varying vec3 vAtmoV;
+    ` + AP_SAMPLE_GLSL + MIST_GLSL + `
+    vec4 atmoAP() { return apSample(normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV) * 0.001); }`;
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
@@ -769,7 +773,7 @@ var ATMO = (function () {
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
-    MIST,
+    MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();
 if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks

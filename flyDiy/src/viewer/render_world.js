@@ -3816,41 +3816,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
   }
 
-  let clouds;
-  { // cumulus: soft billboard puffs, warm tops, shaded undersides
-    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
-    const g2 = cv.getContext('2d');
-    for (const [cx, cy, r, a] of [[64,64,60,1],[44,70,34,0.8],[86,72,30,0.8]]) {
-      const gr = g2.createRadialGradient(cx, cy, 0, cx, cy, r);
-      gr.addColorStop(0, 'rgba(255,255,255,' + a + ')');
-      gr.addColorStop(0.45, 'rgba(255,255,255,' + a * 0.55 + ')');
-      gr.addColorStop(1, 'rgba(255,255,255,0)');
-      g2.fillStyle = gr; g2.beginPath(); g2.arc(cx, cy, r, 0, 6.283); g2.fill();
-    }
-    const tex = new THREE.CanvasTexture(cv);
-    const pos = [], col = [], c = new THREE.Color();
-    const TOP = C(0xfff1dd), BOT = C(0xa8a2b4);
-    let seed = 91;
-    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-    for (let k = 0; k < 64; k++) {
-      const cx = (rnd() - 0.5) * 22000, cz = (rnd() - 0.5) * 22000;
-      const cy = 480 + rnd() * 420, n = 7 + (rnd() * 7 | 0), sp = 90 + rnd() * 150;
-      for (let i = 0; i < n; i++) {
-        const dy = (rnd() - 0.45) * 70;
-        pos.push(cx + (rnd() - 0.5) * sp * 2, cy + dy, cz + (rnd() - 0.5) * sp * 2);
-        c.copy(BOT).lerp(TOP, Math.min(1, Math.max(0, dy / 45 + 0.55)));
-        col.push(c.r, c.g, c.b);
-      }
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    clouds = new THREE.Points(geo, new THREE.PointsMaterial({ map: tex, size: 340,
-      sizeAttenuation: true, transparent: true, opacity: 0.92, depthWrite: false,
-      vertexColors: true, fog: false }));
-    clouds.frustumCulled = false;
-    scene.add(clouds);
-  }
+  // THE CLOUDS (CLOUDS C1): the billboard puffs that stood here are retired - clouds.js marches a
+  // volumetric layer over the resolved frame (aa.setOverlay); this file hands it the day every frame
 
   // W13: aim every windsock down the wind vector (mouth upwind), sagging
   // as the wind drops; calm socks hang. Called by the viewer on wind change.
@@ -3918,7 +3885,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       c.left = -half; c.right = half; c.top = half; c.bottom = -half;
       c.updateProjectionMatrix();
     }
-    clouds.position.x += 0.05;
   }
 
   // ================= THE RIG AS DATA (W0c.11) ==============================
@@ -3973,21 +3939,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
-    if (clouds && clouds.material) {
-      clouds.position.y = Math.max(-600, day.cloudBase - 690);              // the puffs were drawn 480-900 m up
-      const cover = Math.min(1, Math.max(0, day.cloudCover / 0.6));
-      clouds.material.opacity = 0.92 * cover; clouds.visible = cover > 0.02;
-      if (ATMO_ON && clouds.material.color && clouds.material.color.setRGB) {
-        // lit like a white surface at the cloud base: the sun's transmittance there x cos + the sky
-        // (+ the moon), 0.9/pi albedo, on the dome's scale; the vertex colours keep the shading
-        const km = day.cloudBase / 1000, Tc = [0, 0, 0], Ec = [0, 0, 0], Em = [0, 0, 0];
-        ATMO.sunTransmittance(km, day.sun[1], Tc); ATMO.skyIrradiance(km, day.sun, Ec);
-        const sy = day.sun[1] > 0 ? Math.max(0.35, day.sun[1]) : 0, S = ATMO.U.scale.value * 0.9 / Math.PI;   // a puff's lit side faces the sun, not the zenith
-        const mE = ATMO.U.eMoon.value, my = Math.max(0, day.moon[1]);
-        if (mE > 0 && my > 0) { ATMO.sunTransmittance(km, day.moon[1], Em); }
-        clouds.material.color.setRGB(S * (Tc[0] * sy + Ec[0] + Em[0] * my * mE), S * (Tc[1] * sy + Ec[1] + Em[1] * my * mE), S * (Tc[2] * sy + Ec[2] + Em[2] * my * mE));
-      } else if (clouds.material.color && clouds.material.color.setScalar) clouds.material.color.setScalar(dim);   // as dark as the dome they hang in
-    }
+    if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) CLOUDS.update(day, camera, world);   // the layer, the map, the light, the drift (C1)
   }
   const rigRows = {};
   const hexOf = (c, d) => (c && c.getHex) ? c.getHex() : d;   // the gate's stub has no Color

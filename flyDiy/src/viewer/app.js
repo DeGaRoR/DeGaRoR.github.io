@@ -170,6 +170,13 @@
     : (typeof window !== 'undefined' && window.AA_RESOLVE)
       ? window.AA_RESOLVE.make(THREE, renderer) : null;
   if (typeof window !== 'undefined') window.FLYDIY_AA = aa;
+  // THE CLOUDS (CLOUDS C1): the volumetric layer draws over the scene inside the resolve pass, before
+  // the resolve, reading its depth; the world only (the shed sees the dome; the layer in it is C3's)
+  if (typeof CLOUDS !== 'undefined' && aa && aa.setOverlay) {
+    CLOUDS.init(renderer);
+    aa.setOverlay((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
+    aa.needRT(CLOUDS.S.mode !== 'off');
+  }
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
   // above. src/viewer/input.js publishes only its API at eval; this is the
   // one instance, and the two rails and input_panel.js read it through
