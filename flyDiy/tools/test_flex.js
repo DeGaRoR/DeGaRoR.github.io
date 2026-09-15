@@ -406,8 +406,15 @@ const runs = [];
 // The hand-written fiches measured here too until the fleet retired
 // (2026-09-05); their rows live on in HANDOVER's STRUCTURAL REALISM tables as
 // the reality column's own history. Every airframe below is generated.
+// SHARDED (2026-09-14, the gate rationalization): run_gates spawns this file
+// three times with --shard=i/3; the material flights, the matrix rows, the
+// negative controls and the tail-arm block are dealt round-robin
+// (tools/_shard.js) and a shard's summary counts its own rows. Unsharded,
+// everything runs here as before.
+const SH = require('./_shard.js');
+const MY_MATS = SH.shardOf(Object.keys(GEN_MATERIALS));
 say('GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):');
-for (const m of Object.keys(GEN_MATERIALS)) {
+for (const m of MY_MATS) {
   const spec = JSON.parse(JSON.stringify(GEN_DEFAULT));
   spec.fuselage.material = m;
   const o = flex(`GEN ${GEN_MATERIALS[m].name}`, buildGen(spec), m);
@@ -477,11 +484,15 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
       { crankAt: 0.42, crankChord: 1.60, taper: 0.72, tipX: 0.30,
         dihedralOut: 3 })],
   ]) CFG.push([l, f]);
-  // the risk surface: span and station density, against both bracings
+  // the risk surface: span and station density, against both bracings.
+  // TWO POINTS PER AXIS (2026-09-14, the gate rationalization): span 7 and
+  // 14, panels 2 and 5 — the ends of each range; 11 and 4 sat between two
+  // green rows and 3 is the stock row, and the mechanism this sweep was
+  // written for (the strut at four and five panels) reads at 5
   for (const br of ['strut', 'cantilever']) {
-    for (const sp of [7, 11, 14])
+    for (const sp of [7, 14])
       CFG.push([`${br} span ${sp}`, wing(s => { s.bracing.type = br; s.wings[0].span = sp; })]);
-    for (const p of [2, 3, 4, 5])
+    for (const p of [2, 5])
       CFG.push([`${br} panels ${p}`, wing(s => { s.bracing.type = br; s.wings[0].span = 13;
                                                  s.wings[0].panels = p; })]);
   }
@@ -513,7 +524,8 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
   say('  torsion deg @200 / @400 N.m antisymmetric tip couple; doubling < ' +
       LIN_MIN.toFixed(2) + 'x = near a mechanism.');
   say('  bend = tip rise, % of semispan, under 2 kN DISTRIBUTED over the stations.');
-  for (const [lbl, fn] of CFG) {
+  const MY_CFG = SH.shardOf(CFG);
+  for (const [lbl, fn] of MY_CFG) {
     let d;
     try {
       const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
@@ -549,7 +561,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
   }
   const rated = rows.filter(r => r.tested).length;
   say(`  ${rated} of ${rows.length} configurations were stiff enough to need rating` +
-      ` (the rest twist under ${TORS_FLOOR} deg at 200 N.m).`);
+      ` (the rest twist under ${TORS_FLOOR} deg at 200 N.m)${SH.tag}.`);
   results['no garage configuration is near a mechanism'] = soft.length === 0;
   results['every garage configuration built and measured'] = rows.every(r => !r.err && Number.isFinite(r.lin));
   if (soft.length) say(`  soft corners: ${soft.map(r => r.lbl).join(', ')}`);
@@ -569,7 +581,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
   // discipline): rebuild the hybrid, strip the two strut->lower-cap chords
   // that close the outer box's bending path, and the fold must come back
   // past the bound. If it does not, the check above is inert.
-  {
+  if (SH.take()) {
     const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
     Object.assign(sp.wings[0], { crankAt: 0.42, dihedralOut: 5 });
     const d = buildGen(sp);
@@ -596,7 +608,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
   // otherwise the wire members are decoration. It does not fold: the
   // braced spar keeps its box (61_gen_frame's note), so the test is the
   // SHARE the wires take, not a collapse.
-  {
+  if (SH.take()) {
     const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
     Object.assign(sp.wings[0], { position: 'parasol', cabaneH: 0.50, chord: 1.4, span: 9 });
     sp.wings[1] = Object.assign(JSON.parse(JSON.stringify(sp.wings[0])),
@@ -679,7 +691,7 @@ function statTail(def) {
   return { sagMm: 1000 * sag, pct, roll, arm, F, sub: SUB, ok: fin };
 }
 
-{
+if (SH.take()) {
   say('');
   say('TAIL ARM — the stab tips under the stab\'s 1 g share, the rest of the aeroplane on trestles');
   const fmt = (n, r) => `  ${n.padEnd(34)} sag ${r.sagMm.toFixed(0).padStart(5)} mm   rise ${r.pct.toFixed(2).padStart(6)} % of ${r.arm.toFixed(2)} m   roll ${r.roll.toFixed(2).padStart(5)} deg   ${r.sub} substeps`;
@@ -739,19 +751,22 @@ for (const o of runs) {
   for (const c of Object.keys(o.peak)) nums.push(o.peak[c].F, o.peak[c].strain);
 }
 results['every airframe reached cruise and was measured'] =
-  runs.length === Object.keys(GEN_MATERIALS).length;
+  runs.length === MY_MATS.length;
 results['every measurement is finite'] = nums.every(Number.isFinite);
 results['no airframe diverged during the sweep'] = runs.every(o => !o.bad);
 
 // determinism: the whole instrument re-run on one airframe must land on the
 // same numbers. Double-generate is GATE GEN's pattern; this is its analogue.
+// (2026-09-14: run A IS the tubeFabric row above — the same spec, the same
+// instrument; the four compared fields do not read the material key — so
+// only B is flown, in the shard that flew tubeFabric)
 {
+  const a = runs.find(o => o.matKey === 'tubeFabric') || null;
   const spec = JSON.parse(JSON.stringify(GEN_DEFAULT));
-  const a = flex('determinism A', buildGen(spec));
-  const b = flex('determinism B', buildGen(spec));
-  const same = a && b &&
+  const b = a ? flex('determinism B', buildGen(spec)) : null;
+  const same = !a || (b &&
     a.defl1g === b.defl1g && a.slope === b.slope &&
-    a.twistAil === b.twistAil && a.deflHold === b.deflHold;
+    a.twistAil === b.twistAil && a.deflHold === b.deflHold);
   results['instrument is deterministic'] = !!same;
   if (!same && a && b)
     say(`  determinism drift: defl1g ${a.defl1g} vs ${b.defl1g}, slope ${a.slope} vs ${b.slope}`);

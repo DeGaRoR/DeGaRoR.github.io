@@ -736,8 +736,10 @@ for (const seed of SEEDS) {
   // of bunkhouses stands across from it - so a site seed keeps fewer plots)
   check(vil.plots.length >= (vil.site ? 3 : 6), 'seed ' + seed + ': only ' + vil.plots.length + ' plots');
   check(vil.houses.length === vil.plots.length, 'seed ' + seed + ': a plot has no house');
-  // 1 — determinism
-  const again = buildVillage(V);
+  // 1 — determinism: the PLAN is what is compared (plots, house poses), so
+  // the plan is what is rebuilt — not every house on it again (2026-09-14,
+  // the gate rationalization: this was half the gate's wall)
+  const again = VG.makeVillage(V);
   check(JSON.stringify(vil.plots.map(p => p.poly)) === JSON.stringify(again.plots.map(p => p.poly)) &&
         JSON.stringify(vil.houses.map(h => [h.x, h.z, h.yaw, h.P.L, h.P.w])) ===
         JSON.stringify(again.houses.map(h => [h.x, h.z, h.yaw, h.P.L, h.P.w])),

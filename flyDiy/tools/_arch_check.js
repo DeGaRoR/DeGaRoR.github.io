@@ -174,18 +174,25 @@ function fly(spec, maxS) {
 // the run
 // ---------------------------------------------------------------------------
 if (!process.argv.includes('--selftest')) {
-  let flown = 0, skipped = 0;
+  let flown = 0, skipped = 0, eligible = 0;
   // ONE CARD (G396): `--only=<key>` flies a single archetype, for a card's
   // own author — the whole table is the gate's verdict, this is its bench
   const only = (process.argv.find(x => x.startsWith('--only=')) || '').slice(7);
+  // SHARDED (2026-09-14): run_gates spawns this file four times with
+  // --shard=i/4 and each process flies every fourth live card (round-robin,
+  // so the five-minute biplanes spread); the build/clamp/shakedown of a card
+  // ride with its flight. Unsharded, every card flies here as before.
+  const SH = require('./_shard.js');
   for (const a of D.ARCHETYPES) {
     if (only && a.key !== only) continue;
     const reason = D.archInactive(a);
     if (reason) {
       skipped++;
-      console.log('  SKIP   ' + a.name + ' — ' + reason);
+      if (SH.first) console.log('  SKIP   ' + a.name + ' — ' + reason);
       continue;
     }
+    eligible++;
+    if (!SH.take()) continue;
     let spec;
     try { spec = D.designBake(a.sel, a.over); }
     catch (e) { check(false, a.name + ': designBake', e.message); continue; }
@@ -225,8 +232,8 @@ if (!process.argv.includes('--selftest')) {
     if (only) for (const v of r.report.verdicts) console.log('           ' + v.t + ' s  ' + v.code + '  ' + v.note);
     flown++;
   }
-  if (!only) check(flown >= 5, 'at least five archetypes flew', String(flown));
-  console.log('  ' + flown + ' archetypes flown, ' + skipped +
+  if (!only) check(eligible >= 5, 'at least five archetypes are live', String(eligible));
+  console.log('  ' + flown + ' archetypes flown' + SH.tag + ', ' + skipped +
               ' skipped with reasons (the backlog above)');
 }
 

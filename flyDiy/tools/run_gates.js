@@ -4,10 +4,28 @@
 // Verdict contract: every gate prints exactly one final line
 //   GATE <ID>: PASS   or   GATE <ID>: FAIL[ (reason)]
 // and sets a non-zero exit code on failure. The runner requires BOTH signals.
-// Flags: --only=ID[,ID]   run a subset (e.g. --only=M3,TREE)
+// Flags: --only=ID[,ID]   run a subset (e.g. --only=GEN,TREE)
 //        --verbose        full output for passing gates too
 //        --no-build       skip the rebuild (escape hatch)
-const { spawnSync } = require('child_process');
+//        --all            the full tier too (the delivery verdict)
+//        --jobs=N         gates in parallel (default 4, env GATES_JOBS; 1 = the
+//                         old sequential run, byte for byte)
+//
+// THE POOL (2026-09-14, the gate rationalization). The battery ran one gate
+// at a time on a 24-thread machine and the core tier measured 2 h 15 min under
+// peers' load; the work is the same, the waiting was not. With --jobs=N the
+// runner keeps N gates running, longest first (from the wall each gate took
+// last time, tools/perf/gate_wall.json, gitignored; a row's `wall:` hint seeds
+// a fresh clone), buffers every gate's output and prints it IN TABLE ORDER so
+// the log diffs against an old one. A row declared `shards: N` is spawned as
+// N processes of its file with --shard=i/N (tools/_shard.js partitions the
+// heavy loop round-robin); the gate passes only when every shard passed and
+// the shards' partition lines agree. A row's `weight` is the slots it takes
+// (PILOTMATRIX runs its own 4-job pool). --jobs=1 sorts nothing and shards
+// nothing: the sequential battery, in this order, as before.
+const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 // TIERS (2026-08-11; the fleet retired 2026-09-05). The project is a GARAGE:
 // the generated aeroplane is the product, and every gate below flies or
@@ -15,8 +33,8 @@ const { spawnSync } = require('child_process');
 // generator change against, so gates carry a tier:
 //   core  — the generator, the structural instruments, the editor's gates
 //           and everything cheap (world, skin, codec).
-//   full  — the slow sweeps on top: ARCHETYPES (fourteen builds flown) and
-//           HOTHIGH (the hot-day circuit).
+//   full  — the slow sweeps on top: ARCHETYPES (every live card flown),
+//           PILOTMATRIX (the ratchet), SEAPLANE and HOTHIGH.
 // `node tools/run_gates.js` runs CORE. `--all` runs everything, and the summary
 // says loudly which it did: a core pass is NOT a delivery verdict, and the
 // session ritual's "never deliver on a non-zero exit" now reads "never deliver
@@ -36,7 +54,7 @@ const GATES = [
   // keyboard shaping, the gamepad mapping and listen inference, the profile
   // round trip — and the one thing that flew wrong in W14's notes, the
   // re-engage after hand flying, flown headless on both pilots.
-  { id: 'INPUT', file: 'test_input.js', tier: 'core' },
+  { id: 'INPUT', file: 'test_input.js', tier: 'core', wall: 160 },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
@@ -47,16 +65,16 @@ const GATES = [
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
-  { id: 'GEN', file: 'test_gen.js', tier: 'core' },
+  { id: 'GEN', file: 'test_gen.js', tier: 'core', shards: 4, wall: 1500 },
   // THE TEST PILOT (G107): the second autopilot's own battery, negative-first —
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
   // --selftest (doctored reports; every check proven able to go red).
-  { id: 'PILOT', file: 'test_pilot.js', tier: 'core' },
+  { id: 'PILOT', file: 'test_pilot.js', tier: 'core', shards: 3, wall: 1200 },
   // THE NAV (G202.1): the navigator and the units, pure and fast
   { id: 'NAV', file: 'test_nav.js', tier: 'core' },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
-  { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core' },
+  { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
   // THE SIM DOES NOT LIE (G115): gear/strut drag as a delta from the
   // calibration's reference gear, the ground's surface table, the fin's own
   // polar + the measured weathervane, and the plaque agreeing with itself.
@@ -66,7 +84,7 @@ const GATES = [
   // the parasol's cabane, the tension-only wire, and — from G185.5 — the
   // vortex kernel against Prandtl's sigma, Munk's stagger theorem and the
   // tail-downwash window. Carries --selftest.
-  { id: 'BIPLANE', file: 'test_biplane.js', tier: 'core' },
+  { id: 'BIPLANE', file: 'test_biplane.js', tier: 'core', wall: 160 },
   // MASS CAN CHANGE NOW (G121): the P-4 solver proofing, landed before the
   // energy arc's burn — the setNodeMass door, live totalM, dry-mass substeps,
   // the fuel record, the live taxi feedforward, the sheet at reserves, and
@@ -75,7 +93,7 @@ const GATES = [
   { id: 'TREE', file: 'test_tree.js', tier: 'core' },
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'SKIN', file: 'test_skin.js', tier: 'core' },
-  { id: 'UISMOKE', file: 'test_ui_smoke.js', tier: 'core' },
+  { id: 'UISMOKE', file: 'test_ui_smoke.js', tier: 'core', wall: 220 },
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },
@@ -128,7 +146,7 @@ const GATES = [
   // station by station, which is the clearance at every deflection because a
   // rotation does not change a radius — plus the declared travel, the
   // Fowler's own translation, the hinge table's bounds and that every shape
-  // in _hinge_gen draws. Sub-second. Negative-verified (--selftest).
+  // in _hinge_gen draws. ~7 s (five headless scenes). Negative-verified (--selftest).
   { id: 'HINGE', file: '_hinge_check.js', tier: 'core' },
   // NO CLIPPING (the fitment study, P0, 2026-09-12): every drawing layer run
   // headless over four builds, every fitting vertex measured SIGNED against
@@ -177,7 +195,7 @@ const GATES = [
   // explanation, the band bar stays on the bar), keeps its word (the
   // fingerprint ignores paint/finish/meta and nothing else) and wears its
   // stickers (one roundel per test, page 6, the seventh decal slot).
-  { id: 'BENCH', file: '_bench_check.js', tier: 'core' },
+  { id: 'BENCH', file: '_bench_check.js', tier: 'core', wall: 90 },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,
@@ -201,7 +219,7 @@ const GATES = [
   // fences on the plot lines and the paths to the road - eight seeds, every
   // plot checked for overlap and frontage, every house for standing on its
   // plot and on the ground, every fence for the line and the water.
-  { id: 'VILLAGE', file: '_village_check.js', tier: 'core' },
+  { id: 'VILLAGE', file: '_village_check.js', tier: 'core', wall: 70 },
   { id: 'BAY', file: '_bay_check.js', tier: 'core' },
   { id: 'BEACON', file: '_beacon_check.js', tier: 'core' },
   // THE PART TABLE (G76): the declared assembly against the editor's own row
@@ -211,21 +229,22 @@ const GATES = [
   { id: 'SHOULDER', file: '_shoulder_check.js', tier: 'core' },
   // THE MACRO ROWS (NEW-AIRCRAFT): the birth flow's declaration — every
   // option writes something or carries a reason, every written key real,
-  // live classes inside the wing clamps, archetypes resolvable. Sub-second.
+  // live classes inside the wing clamps, archetypes resolvable. ~8 s (every
+  // card's tail is drawn headless).
   { id: 'DESIGN', file: '_design_check.js', tier: 'core' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp
   // must not bite a declared value -> shakedown clears the circuit -> the
   // test pilot flies it to a full stop. Inactive archetypes are SKIPPED
   // WITH THEIR REASON PRINTED, so the gate log is also the backlog. Full
-  // tier: it flies every active archetype's circuit (~13 min).
+  // tier: it flies every active archetype's circuit, sharded four ways.
   // G185: 25 cards flown (five of them biplanes at 98 substeps and 536
   // beams, ~5 min of wall each) measured 1939 s uncapped, PASS, under five
   // peer sessions' load — the 1800 s cap below bit twice with no failed check
   // to point at, the exact false red its own paragraph describes. Doubled.
-  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'full', timeout: 3600_000 },
+  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'full', timeout: 3600_000, shards: 4, wall: 1900 },
   // THE PILOT MATRIX as a ratchet (G399 / PILOT-ROADMAP P0.3): the quick set
   // against tools/pilot_baseline.json — no cell may get worse
-  { id: 'PILOTMATRIX', file: '_pilotmatrix_check.js', tier: 'full', timeout: 3600_000 },
+  { id: 'PILOTMATRIX', file: '_pilotmatrix_check.js', tier: 'full', timeout: 3600_000, weight: 4, wall: 800 },
   { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared
@@ -262,10 +281,10 @@ const GATES = [
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
   // taken off and landed on the sea, headless (~95 s)
-  { id: 'FLOATS', file: '_floats_check.js', tier: 'core' },
+  { id: 'FLOATS', file: '_floats_check.js', tier: 'core', wall: 140 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
-  { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full' },
+  { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two
@@ -316,17 +335,17 @@ const GATES = [
   // flown take-offs off a 113 m strip on two different days, the electric-
   // vs-piston split the `aspiration` field buys, and a full circuit in that
   // air. Full tier: it flies (the garage build, since the fleet retired).
-  { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'full' },
+  { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'full', wall: 300 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
-  { id: 'FLEX', file: 'test_flex.js', tier: 'core' },
+  { id: 'FLEX', file: 'test_flex.js', tier: 'core', shards: 3, wall: 900 },
   // the sandbag test: FAR 23 normal category limit + ultimate, on the rig.
-  { id: 'LOAD', file: 'test_load.js', tier: 'core' },
+  { id: 'LOAD', file: 'test_load.js', tier: 'core', wall: 190 },
   // THE ENGINE BEARER (G179): every mount kind parked and settled — the
   // engine stays on its bearer, the bearer stops ringing, the wing root
   // stays put against the firewall. Negative control on the twin fixture.
-  { id: 'MOUNT', file: '_mount_check.js', tier: 'core' },
+  { id: 'MOUNT', file: '_mount_check.js', tier: 'core', wall: 130 },
 ];
 
 const args = process.argv.slice(2);
@@ -334,62 +353,173 @@ const onlyArg = args.find(a => a.startsWith('--only='));
 const only = onlyArg ? onlyArg.slice(7).toUpperCase().split(',').filter(Boolean) : null;
 const verbose = args.includes('--verbose');
 const all = args.includes('--all');
+const jobsArg = args.find(a => a.startsWith('--jobs='));
+const jobs = Math.max(1, jobsArg ? +jobsArg.slice(7) : (+process.env.GATES_JOBS || 4));
 // GATES_CORE is read by the gates themselves, not just the runner (a gate may
 // scope a sweep by it). --only=... is an explicit request for those gates, so
 // it implies full.
 const coreOnly = !all && !only;
 if (coreOnly) process.env.GATES_CORE = '1';
+const mode = coreOnly ? 'core' : 'all';
 
 if (!args.includes('--no-build')) require('./build.js').build();
 
-let anyFail = false;
-const rows = [];
-let skipped = 0;
-for (const g of GATES) {
-  if (only && !only.includes(g.id)) continue;
-  if (coreOnly && g.tier !== 'core') { skipped++; continue; }
-  const t0 = Date.now();
-  // 1800 s, not 900 and certainly not 300: a timeout is not a verdict, and a
-  // false red is worse than a slow one. The old fleet's WIND gate was the
-  // original reason (~226 s quiet, ~297 s busy) and a 300 s cap turned an
-  // ordinary slow machine into a red battery with no failed check to point at.
-  //
-  // RAISED 900 -> 1800 (2026-08-29). GEN had crept to 872/883/882 s over three
-  // runs in one afternoon and then took 901 — and was killed one second short
-  // of its own verdict. Run uncapped it is GATE GEN: PASS, 74/74 checks, in
-  // 901 s. That is a false red of the exact kind the paragraph above is about,
-  // and it will recur every time the generator gains a case, so the headroom
-  // is doubled rather than shaved. If a gate ever genuinely hangs, this still
-  // catches it.
-  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: g.timeout || 1800_000 });
-  const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  const stdout = r.stdout || '';
-  const pass = r.status === 0 && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);
-  console.log(`=== ${g.id} ===`);
-  if (pass && !verbose) {
-    console.log(stdout.trim().split('\n').slice(-3).join('\n'));
-  } else {
-    // failing gates get their FULL output — nothing swallowed
-    console.log(stdout.trim());
-    if (r.stderr && r.stderr.trim()) console.log('[stderr]\n' + r.stderr.trim());
-    if (r.error) console.log('[spawn error] ' + r.error.message);
-    if (!pass) console.log(`(exit code ${r.status})`);
+// the wall each job took last time, for the longest-first order
+const WALL_FILE = path.join(__dirname, 'perf', 'gate_wall.json');
+let wallTab = {};
+try { wallTab = JSON.parse(fs.readFileSync(WALL_FILE, 'utf8')); } catch (e) {}
+
+const selected = GATES.filter(g => !(only && !only.includes(g.id)) && !(coreOnly && g.tier !== 'core'));
+const skipped = GATES.filter(g => !(only && !only.includes(g.id)) && coreOnly && g.tier !== 'core').length;
+
+// one job per gate, or per shard when the pool can use them
+const jobList = [];
+for (const g of selected) {
+  const n = jobs > 1 && g.shards > 1 ? g.shards : 1;
+  for (let i = 0; i < n; i++) {
+    const key = n > 1 ? `${g.id}/${i}` : g.id;
+    const rec = wallTab[key] && wallTab[key][mode];
+    jobList.push({ gate: g, key, shard: n > 1 ? { i, n } : null,
+                   argv: n > 1 ? [`--shard=${i}/${n}`] : [],
+                   weight: Math.min(jobs, g.weight || 1),
+                   expect: rec != null ? rec : (g.wall || 5) / n });
   }
-  rows.push([g.id, pass, secs]);
-  if (!pass) anyFail = true;
+}
+// 1800 s, not 900 and certainly not 300: a timeout is not a verdict, and a
+// false red is worse than a slow one. The old fleet's WIND gate was the
+// original reason (~226 s quiet, ~297 s busy) and a 300 s cap turned an
+// ordinary slow machine into a red battery with no failed check to point at.
+//
+// RAISED 900 -> 1800 (2026-08-29). GEN had crept to 872/883/882 s over three
+// runs in one afternoon and then took 901 — and was killed one second short
+// of its own verdict. Run uncapped it is GATE GEN: PASS, 74/74 checks, in
+// 901 s. That is a false red of the exact kind the paragraph above is about,
+// and it will recur every time the generator gains a case, so the headroom
+// is doubled rather than shaved. If a gate ever genuinely hangs, this still
+// catches it.
+function runJob(job) {
+  return new Promise(resolve => {
+    const t0 = Date.now();
+    const timeoutMs = job.gate.timeout || 1800_000;
+    const child = spawn(process.execPath, [job.gate.file, ...job.argv],
+                        { cwd: __dirname, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
+    const out = [], err = [];
+    child.stdout.on('data', d => out.push(d));
+    child.stderr.on('data', d => err.push(d));
+    let error = null;
+    const timer = setTimeout(() => { error = { message: `ETIMEDOUT after ${timeoutMs} ms` }; child.kill(); }, timeoutMs);
+    child.on('error', e => { error = e; });
+    child.on('close', status => {
+      clearTimeout(timer);
+      resolve({ job, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'),
+                status, error, secs: ((Date.now() - t0) / 1000).toFixed(1) });
+    });
+  });
 }
 
-console.log('\n──────── summary ────────');
-for (const [id, pass, secs] of rows)
-  console.log(`${id.padEnd(9)} ${pass ? 'PASS' : 'FAIL'}  ${secs.padStart(6)} s`);
-const total = rows.reduce((s, r) => s + Number(r[2]), 0).toFixed(1);
-console.log(`${'total'.padEnd(9)}       ${total.padStart(6)} s`);
-// The verdict NAMES the tier. A core pass proves the garage; it says nothing
-// about the slow full-tier sweeps, and calling both "BATTERY: PASS" is exactly
-// how a green run stops meaning anything.
-if (anyFail) console.log(`\n${coreOnly ? 'CORE ' : ''}BATTERY: FAIL — never deliver red.`);
-else if (coreOnly)
-  console.log(`\nCORE BATTERY: PASS — ${skipped} full-tier gates SKIPPED.` +
-              '\nNOT a delivery verdict: run `node tools/run_gates.js --all` before delivering.');
-else console.log('\nBATTERY: PASS');
-process.exitCode = anyFail ? 1 : 0;
+// the pool: start a job when its weight fits (or when nothing runs), longest first
+async function runPool(list, slots, onStart, onDone) {
+  const queue = slots > 1 ? list.slice().sort((a, b) => b.expect - a.expect) : list.slice();
+  const running = new Set();
+  let free = slots;
+  await new Promise(resolve => {
+    const pump = () => {
+      while (queue.length) {
+        const idx = queue.findIndex(j => j.weight <= free || running.size === 0);
+        if (idx < 0) break;
+        const job = queue.splice(idx, 1)[0];
+        free -= job.weight; running.add(job); onStart(job);
+        runJob(job).then(r => { free += job.weight; running.delete(job); onDone(r); pump(); });
+      }
+      if (!queue.length && !running.size) resolve();
+    };
+    pump();
+  });
+}
+
+// a shard's partition line: SHARD i/N: k of K heavy jobs
+const partOf = r => { const m = /^SHARD (\d+)\/(\d+): (\d+) of (\d+) heavy jobs$/m.exec(r.stderr || ''); return m ? { k: +m[3], K: +m[4] } : null; };
+
+function printGate(g, results) {
+  let pass = true;
+  console.log(`=== ${g.id} ===`);
+  const parts = results.map(partOf);
+  const partitionOk = results.length === 1 ||
+    (parts.every(Boolean) && parts.every(p => p.K === parts[0].K) && parts.reduce((s, p) => s + p.k, 0) === parts[0].K);
+  for (const r of results) {
+    const stdout = r.stdout || '';
+    const ok = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);
+    if (!ok) pass = false;
+    if (r.job.shard) console.log(`--- shard ${r.job.shard.i}/${r.job.shard.n} (${r.secs} s) ---`);
+    if (ok && !verbose && partitionOk) {
+      console.log(stdout.trim().split('\n').slice(-3).join('\n'));
+    } else {
+      // failing gates get their FULL output — nothing swallowed
+      console.log(stdout.trim());
+      if (r.stderr && r.stderr.trim()) console.log('[stderr]\n' + r.stderr.trim());
+      if (r.error) console.log('[spawn error] ' + r.error.message);
+      if (!ok) console.log(`(exit code ${r.status})`);
+    }
+  }
+  if (!partitionOk) {
+    pass = false;
+    console.log(`(shard partition disagrees: ${parts.map(p => p ? `${p.k}/${p.K}` : 'none').join(' ')} — a heavy job was dropped or flown twice)`);
+  }
+  const secs = results.reduce((m, r) => Math.max(m, +r.secs), 0).toFixed(1);
+  return { pass, secs, shards: results.length };
+}
+
+(async () => {
+  const t0 = Date.now();
+  const byGate = new Map(selected.map(g => [g.id, []]));
+  const done = new Map();
+  let cursor = 0, nDone = 0;
+  const flush = () => {   // print in GATES order, a gate as soon as it and every earlier one is done
+    while (cursor < selected.length) {
+      const g = selected[cursor];
+      const rs = byGate.get(g.id);
+      const need = jobList.filter(j => j.gate === g).length;
+      if (rs.length < need) break;
+      rs.sort((a, b) => (a.job.shard ? a.job.shard.i : 0) - (b.job.shard ? b.job.shard.i : 0));
+      done.set(g.id, printGate(g, rs));
+      cursor++;
+    }
+  };
+  const running = new Map();
+  const ticker = jobs > 1 ? setInterval(() => {
+    const now = Date.now();
+    const live = [...running.entries()].map(([k, t]) => `${k} ${((now - t) / 1000).toFixed(0)} s`).join(', ');
+    process.stderr.write(`[run_gates] ${nDone}/${jobList.length} jobs done · running ${live}\n`);
+  }, 30_000) : null;
+  await runPool(jobList, jobs, j => running.set(j.key, Date.now()), r => {
+    nDone++;
+    running.delete(r.job.key);
+    byGate.get(r.job.gate.id).push(r);
+    if (!wallTab[r.job.key]) wallTab[r.job.key] = {};
+    wallTab[r.job.key][mode] = +r.secs;
+    flush();
+  });
+  if (ticker) clearInterval(ticker);
+  flush();
+  try { fs.mkdirSync(path.dirname(WALL_FILE), { recursive: true }); fs.writeFileSync(WALL_FILE, JSON.stringify(wallTab, null, 1) + '\n'); } catch (e) {}
+
+  let anyFail = false;
+  console.log('\n──────── summary ────────');
+  for (const g of selected) {
+    const d = done.get(g.id);
+    console.log(`${g.id.padEnd(9)} ${d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
+    if (!d.pass) anyFail = true;
+  }
+  const total = selected.reduce((s, g) => s + Number(done.get(g.id).secs), 0).toFixed(1);
+  console.log(`${'total'.padEnd(9)}       ${total.padStart(6)} s`);
+  if (jobs > 1) console.log(`${'wall'.padEnd(9)}       ${((Date.now() - t0) / 1000).toFixed(1).padStart(6)} s  (jobs ${jobs})`);
+  // The verdict NAMES the tier. A core pass proves the garage; it says nothing
+  // about the slow full-tier sweeps, and calling both "BATTERY: PASS" is exactly
+  // how a green run stops meaning anything.
+  if (anyFail) console.log(`\n${coreOnly ? 'CORE ' : ''}BATTERY: FAIL — never deliver red.`);
+  else if (coreOnly)
+    console.log(`\nCORE BATTERY: PASS — ${skipped} full-tier gates SKIPPED.` +
+                '\nNOT a delivery verdict: run `node tools/run_gates.js --all` before delivering.');
+  else console.log('\nBATTERY: PASS');
+  process.exitCode = anyFail ? 1 : 0;
+})();

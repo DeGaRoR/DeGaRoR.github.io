@@ -16,7 +16,10 @@ const { CAGE_DEFAULT, CAGE_PARAMS, buildCage2, cageSpec } =
 
 const argv = process.argv.slice(2);
 const di = argv.indexOf('--dir');
-const DIR = di >= 0 ? argv[di + 1] : 'C:/Users/denis/Downloads';
+// the three reference OBJs live in the repo as tools/_cage_ref_{0,1,2}.obj
+// (byte-identical to the Downloads originals this read until 2026-09-14);
+// --dir <folder> still points it at a fresh export named the old way
+const DIR = di >= 0 ? argv[di + 1] : null;
 const VERBOSE = argv.includes('--verbose');
 const TOL = 2e-4;          // vertex match tolerance (file has 6 decimals)
 
@@ -52,7 +55,8 @@ const cycKey = ids => {
 let anyFail = false;
 
 for (let step = 0; step < 3; step++) {
-  const ref = parseObj(path.join(DIR, `templatePlaneProcedural_${step}_nocc.obj`));
+  const ref = parseObj(DIR ? path.join(DIR, `templatePlaneProcedural_${step}_nocc.obj`)
+                           : path.join(__dirname, `_cage_ref_${step}.obj`));
   const gen = buildCage2(CAGE_DEFAULT, step);
 
   // ---- vertex matching ----------------------------------------------------

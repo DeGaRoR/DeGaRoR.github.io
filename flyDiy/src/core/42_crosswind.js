@@ -36,11 +36,17 @@
 //
 // `makeCrosswindProbe(def, opts)` is the steppable form the page polls;
 // `genCrosswindLimit(def, opts)` runs it to the end for the gates. Both are
-// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS }.
+// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS,
+// memo }. `memo` (a Map) remembers each rung's flight by wind speed: a rung
+// is a function of the wind alone — the band, the step and the cap only
+// JUDGE it — so a second ladder over the same aeroplane (GATE TAKEOFF asks
+// three, with three bands) re-reads the rungs it already flew
+// (2026-09-14, the gate rationalization).
 // ============================================================
 function makeCrosswindProbe(def, opts) {
   opts = opts || {};
   const world = opts.world || makeWorld();
+  const memo = opts.memo instanceof Map ? opts.memo : null;
   const a = world.aerodromes[0];
   const site = (typeof siteOf === 'function') ? siteOf(a.id || 'HOME') : null;
   const R = siteRunway(a);
@@ -54,6 +60,13 @@ function makeCrosswindProbe(def, opts) {
   let cur = null, lo = 0, hi = null, calmTried = false, result = null;
 
   function start(w) {
+    if (memo && memo.has(w)) {                                // a rung already flown: re-judge it by THIS band
+      const m = memo.get(w);
+      const fin = m.why ? { ok: false, why: m.why }
+                        : { ok: m.roll <= band, why: m.roll <= band ? null : 'off the edge line' };
+      cur = { w, roll: m.roll, e: m.e, t: m.t, fin };
+      return;
+    }
     if (world.setWind) world.setWind({ base: [0, 0, w], gust: 0 });
     const sim = makeSim(def, world);
     sim.reset(0);
@@ -67,6 +80,7 @@ function makeCrosswindProbe(def, opts) {
   // one 1/60 s step of the departure in flight; true when it is decided
   function stepOne() {
     const c = cur;
+    if (c.fin) return true;                                   // remembered
     c.ap.update(1 / 60); c.sim.step(1 / 60); c.t += 1 / 60;
     const d = c.ap.dbg || {};
     if (c.ap.phase === 'ROLL') c.roll = Math.max(c.roll, Math.abs(d.z || 0));
@@ -120,6 +134,8 @@ function makeCrosswindProbe(def, opts) {
   }
   function record() {
     const c = cur, f = c.fin;
+    // the flight, not the verdict: the band judged `off the edge line`, every other why is the flight's own
+    if (memo && !memo.has(c.w)) memo.set(c.w, { roll: c.roll, e: c.e, t: c.t, why: f.why === 'off the edge line' ? null : f.why });
     runs.push({ w: c.w, ok: f.ok, roll: Math.round(c.roll * 100) / 100,
                 e: Math.round(c.e * 1000) / 1000, why: f.why });
     if (f.ok) lo = Math.max(lo, c.w);

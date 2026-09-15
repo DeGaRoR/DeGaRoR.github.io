@@ -213,9 +213,10 @@ if (!SELF) {
   }
   // ---- THE CROSSWIND LIMIT on the plaque (G193.2) -----------------------------
   {
-    const R = C.siteRunway(C.makeWorld().aerodromes[0]);
+    const xwWorld = C.makeWorld(), memo = new Map();   // one world, and the rungs shared by the three ladders
+    const R = C.siteRunway(xwWorld.aerodromes[0]);
     const t0 = Date.now();
-    const xw = C.genCrosswindLimit(def);
+    const xw = C.genCrosswindLimit(def, { world: xwWorld, memo });
     const wall = (Date.now() - t0) / 1000;
     const tag = 'crosswind limit: ';
     check(xw && typeof xw.limit === 'number' && xw.limit >= 1 && xw.limit <= 10,
@@ -243,11 +244,11 @@ if (!SELF) {
     // now holdable at 1 m/s — the aeroplane got better and the row was
     // reading the old pilot. What it means to test is that the declared
     // band moves the answer, and it still does.
-    const tight = C.genCrosswindLimit(def, { band: 1 });
+    const tight = C.genCrosswindLimit(def, { band: 1, world: xwWorld, memo });
     check(tight.limit != null && tight.limit < xw.limit,
           tag + 'a 1 m band reads a lower limit than the strip\'s own',
           tight.limit + ' < ' + xw.limit);
-    const loose = C.genCrosswindLimit(def, { band: 100, cap: 4 });
+    const loose = C.genCrosswindLimit(def, { band: 100, cap: 4, world: xwWorld, memo });
     check(loose.limit == null && loose.cap === 4, tag + 'a 100 m band with a 4 m/s cap reads "> 4"', String(loose.limit));
     console.log('  crosswind limit ' + xw.limit + ' m/s (band ' + xw.band + ' m, roll ' + xw.roll +
                 ' m at the limit; first failure ' + xw.failW + ' m/s, ' + xw.failRoll + ' m) in ' + wall.toFixed(1) + ' s');

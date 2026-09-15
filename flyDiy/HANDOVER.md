@@ -12,16 +12,28 @@ validation anchors, and the roadmap.
 2. One chantier per session. Trace-first debugging: measure before hypothesizing —
    this beat guessing in every single forensic episode of this project.
 3. `node tools/run_gates.js` — rebuilds every generated file, syntax-checks every
-   script blob, runs the **CORE** battery (~10 min), exits non-zero on any FAIL.
-   **`node tools/run_gates.js --all` (~19 min) is the DELIVERY verdict** — core
-   skips the reference fiches and says so in its summary. Never deliver on a
-   non-zero exit, and never deliver on a core-only pass.
+   script blob, runs the **CORE** battery, exits non-zero on any FAIL.
+   **`node tools/run_gates.js --all` is the DELIVERY verdict** — core skips the
+   full-tier sweeps and says so in its summary. Never deliver on a non-zero
+   exit, and never deliver on a core-only pass.
    (`node tools/build.js` for a standalone build; `--only=ID[,ID]`, `--verbose`,
-   `--no-build` on the runner; `--only=` implies full, it is an explicit ask.)
+   `--no-build`, `--jobs=N` on the runner; `--only=` implies full, it is an
+   explicit ask.)
+   THE POOL (G416, 2026-09-14): the runner keeps `--jobs` gates running at
+   once (default 4, env `GATES_JOBS`; `--jobs=1` is the old sequential run,
+   byte for byte), longest first from `tools/perf/gate_wall.json` (the wall
+   each gate took last time, gitignored), and prints every gate's block in
+   table order so the log still diffs. GEN, PILOT, FLEX and ARCHETYPES are
+   SHARDED (`shards: N` on the row → N processes with `--shard=i/N`;
+   `tools/_shard.js` deals the heavy loop round-robin and every shard's
+   `SHARD i/N: k of K` line must agree — nothing dropped, nothing flown
+   twice). Measured G416 under peers' load: core 2 h 15 min sequential →
+   see the G416 entry for the after.
    TIERS (2026-08-11, user call; re-cut G184): core = GEN + PILOT + FLEX +
    STRESS + LOAD + UISMOKE + the editor's gates + the cheap world/skin/codec
-   gates; full = ARCHETYPES + HOTHIGH (the slow sweeps). The runner exports
-   `GATES_CORE=1` so a gate can scope a sweep by it. (The fleet tier — WIND,
+   gates; full = ARCHETYPES + PILOTMATRIX + SEAPLANE + HOTHIGH (the slow
+   sweeps). The runner exports `GATES_CORE=1` so a gate can scope a sweep by
+   it. (The fleet tier — WIND,
    M3, DRONE, DC3, JODEL, CHINOOK, XCTY/2/3/5 — retired with the fiches.)
 4. There is no "new aircraft checklist" any more (G184): an aeroplane is a
    spec, and a new KIND of aeroplane is an archetype in `_cage_design.js`
@@ -47959,3 +47971,173 @@ across). GATE PILOTMATRIX ratchets against this file from here.
   equirect path); F (the night's consumers: the village lamps, the moon
   and stars against them, the screenshot sheet); the 6.3 MB media
   deletion; the exposure schedule's eye pass.
+
+## G416 — THE GATE BATTERY RATIONALIZED: A POOL, SHARDS, AN EXACT GROUND, THE WASTE OUT (2026-09-14)
+
+The user: "lots of gates are really really long to run and hard on CPU ...
+too conservative, not optimized, and featuring too many test cases. Some of
+these are obsolete too". Measured first, as the ritual says: on this machine
+under three peers' sessions the CORE tier alone took **2 h 15 min** — GEN
+killed at a 3600 s cap still inside AP GAINS, PILOT 2047 s, FLEX 900 s,
+TAKEOFF 336, UISMOKE 226, LOAD 194, BIPLANE 157, INPUT 156, FLOATS 140,
+BENCH 87, VILLAGE 68. A CPU profile of a flown circuit read a third of its
+time in TERRAIN NOISE (every node asked `world.terrainH` every substep, at
+300 m as on the runway, and `h0a` computed the whole stack inside the pad box
+only to multiply it by 0), a third in the aero pass, a fifth in the beams.
+And GEN spent ~13 min on nothing: the COWL block ran `genShakedown` 240
+times (6 seatings x 40 engines) to read a spec field, ENGINES ran 40 full
+shakedowns for fields the slim variant carries, and every sim AND every
+autopilot got its own `makeWorld()` (~1 s). The user's rulings: `--jobs`
+default 4; the trims mine to decide; EXACT changes only (no physics moves,
+no re-baseline); the dead fleet-era files deleted.
+
+**The runner (`tools/run_gates.js`, `tools/_shard.js` new).** `--jobs=N`
+(default 4, env `GATES_JOBS`) keeps N gates running, longest first from
+`tools/perf/gate_wall.json` (the wall each job took last time, gitignored;
+a row's `wall:` hint seeds a fresh clone), buffers every gate's output and
+prints it IN TABLE ORDER so a log diffs against an old one; a 30 s ticker
+goes to stderr; the summary gains a `wall` line. `--jobs=1` sorts nothing and
+shards nothing — the sequential battery, byte for byte (verified on
+`--only=AA,ATMOS,GE`). A row may declare `shards: N`: the runner spawns N
+processes of the file with `--shard=i/N`; `_shard.js` deals the heavy loop
+round-robin (`take()` — call it OUTSIDE any branch only some shards take, or
+the counter desynchronises), every shard prints its own verdict and a
+`SHARD i/N: k of K heavy jobs` line on stderr, and the gate passes only when
+every shard passed AND the K's agree with the k's summing to K — nothing
+dropped, nothing flown twice; the cheap QC prefix of a file runs in every
+shard and a block whose flights landed elsewhere records its check vacuously
+green. Sharded: GEN 4 (20 heavy jobs under core, ~27 under --all), PILOT 3
+(11 flights — GOOD is AGAIN's first leg now, the same stock circuit to the
+same stop, checked on that record instead of flown twice), FLEX 3 (the
+material flights, the matrix rows, the two negative controls, the tail-arm
+block; determinism B is compared to the tubeFabric row — the four compared
+fields never read the material key), ARCHETYPES 4 (the card loop;
+`flown >= 5` became `eligible >= 5`). PILOTMATRIX carries `weight: 4` (its
+own pool). `spawn` replaced `spawnSync` — the 1 MiB `maxBuffer` was a latent
+false red for a chatty gate.
+
+**The build (`tools/build.js`).** `syntaxCheck` wrote every part to a temp
+file and spawned `node --check` on it: 151 spawns x ~350 ms = 52 s of every
+battery before the first gate. It is `new vm.Script(code, { filename })`
+now — the same V8 parse, stricter in the way a `<script>` body needs
+(a top-level `import`/`export`/`await`/`return` is a syntax error here) —
+0.3 s, the error still named by file:line. `MANIFEST.core` listed
+`44_machine_sheet.js` twice (G399.2); the bundle carried it twice; deduped
+(flight_core.js −7 KB).
+
+**The ground, EXACT (`src/core/30_solver.js`, `20_world.js`).** Two
+shortcuts, both bit-identical by construction: (1) THE CLEARANCE CONE — the
+ground is sampled once per node per FRAME (`gcx/gcz/gcy`) and inside the
+frame a node skips the per-substep sample while `c > S·d`, `c` its clearance
+over the cached sample less 1 cm, `d` its lateral move since, `S` a slope
+bound the world publishes (`world.slopeMax`: 12 on the analytic world,
+measured 4.44 at the steepest 0.25 m probe of the whole domain; `undefined`
+on the island's raster and under a premises layer, where the old path
+runs); the skipped branch is exactly the `pen <= 0 -> continue` the full
+sample would have taken (terrainH is pure, nothing else reads gy), so p and
+v are the same bits. `sim.setGroundCone(on)`, counters `out.gndSampled /
+gndSkipped`, `FLYDIY_EXACT_GROUND=1` forces the old path. (2) THE PAD IS
+ZERO — `h0a` returns 0 inside x ∈ [−1180, 130], |z| ≤ 90 before the noise
+stack (every term was multiplied by `sstep(0, 260, 0) = 0` at the end;
+measured +0 on a 1 m grid over the box, no −0); `makeWorld(seed,
+{ exactGround: true })` keeps the long path for the proof. GATE GE holds
+both: the pad on a 2 m grid + edges with `Object.is`, the slope bound
+re-measured and pinned at ≤ S/2, the default build flown 40 s through
+take-off cone on and off with every p and v compared every frame (identical;
+99.2 % of airborne samples skipped), and a NEGATIVE CONTROL — a washboard of
+3 cm bumps every 40 cm declared flat diverges at frame 135, so the
+comparator can see. Measured on 40 s of flight: 17.3 s → 10.8 s of wall.
+
+**The waste (exact at printed precision — GEN's QC prefix diffed line for
+line against the baseline log).** test_gen: every `genShakedown` is
+`{ slim: true }` (no block reads `.reserve`/`.envelope`; 3.1 s → 0.33 s
+each, ~347 calls), the COWL block reads `buildGen(s2).spec` and shakes the
+base case once, one calm `W0` serves every calm sim and autopilot (17
+`makeWorld()` → 3), one `flyLeg()` helper replaces eight copies of the
+same loop. test_load's picture reads case 0's three rig runs back.
+_hinge_check builds the stock headless scene once (TWSTEER's serves
+FAIRLEAD). _village_check's determinism rebuilds the PLAN (`makeVillage`)
+it compares, not every house on it — half the gate. _house_check's
+`battery()` makes ONE rebuild serve the ao-determinism and the
+tris-determinism checks. _strut_check memoises `brute()` per seed (the
+coarse-scan probe re-asked all 24). _fit_check loads `60_gen_spec.js` into
+one vm context, not two. _premises_check's terrainH budget is 200k calls at
+the same 2.5 µs-a-call rate instead of a million per fixture x five.
+42_crosswind's `makeCrosswindProbe` takes `opts.memo` (a Map by wind speed:
+a rung's FLIGHT — roll, heading, the flight's own why — is a function of
+the wind alone, the band re-judges it on replay), so GATE TAKEOFF's three
+ladders share rungs and one world (proven: the tight ladder's `runs` are
+identical with and without the memo).
+
+**The trims (coverage judged, each with the cheaper check that stays).**
+GEN: V-TAIL flies 45° only (33° keeps its authority/cross-talk/margin row);
+FLAPS flies the fowler only (the one with its own translation — GATE HINGE
+draws it; plain and slotted keep their tunnel rows); the winglet is a
+span-efficiency number on the stock frame — shakedown, not a circuit (the
+crank and the drone still fly). Under `--all` the CONFIGURATIONS block flies
+ELEVEN of sixteen: the five that change a suspension law, a mass or a
+covering on the stock frame ('spring steel', 'oleo', 'tricycle + oleo',
+'cargo bay + 60 kg', 'open frame') keep build + rigidity rank + stance under
+both tiers. FLEX's risk surface is two points per axis — spans 7/14, panels
+2/5 (3 is the stock row; the strut-at-many-panels mechanism reads at 5):
+14 rows → 8. FIT's index proof samples a 20x10 grid and every 20th vertex
+(12k reference walks, not 72k; 21 s → 6 s).
+
+**Obsolete.** No gate loads a retired fiche — `cub/jodel/c172/stearman` are
+archetype card keys, `drone` a live seating, `M3` a meadow, `fiche` in
+_fin_check the fin grammar. The dead things were `tools/_base_app.js`,
+`_base_render_world.js`, `_probe_base.html` (make_probe.js `--base` outputs
+that still required the deleted fiche builders — deleted, gitignored; the
+`--base` mechanism itself regenerates from HEAD and stays) and CAGEFIT
+reading its reference OBJs from `C:/Users/denis/Downloads` — it reads
+`tools/_cage_ref_{0,1,2}.obj` now (byte-identical copies). Stale runner
+comments fixed (the `--only=M3` example, "fourteen builds", HINGE and
+DESIGN "sub-second").
+
+**Measured after (the same loaded machine).** The delivery run — `node tools/run_gates.js --all --jobs=4` from a clean
+worktree of this commit, three peers' sessions on the box throughout —
+**wall 4 261 s (71 min) for 7 313 s of gate CPU**, 90 jobs; the same run on
+the previous evening's base 4 003 s / 6 473 s; the core tier on the shared
+working copy that evening, under a heavier load (a second battery of mine
+beside it): **wall 1 815 s (30 min) for 4 092 s of CPU**, against **> 8 100 s
+sequential** for the same tier that afternoon (GEN cut off at 3 600 s). Per
+gate, the same loaded machine, before → after: GEN > 3 600 → 762 (the longest
+of four shards: 634 / 586 / 762 / 635 s, under --all), PILOT 2 047 → 400
+(three shards 400 / 385 / 391), FLEX 900 → 379 (376 / 333 / 379),
+ARCHETYPES ≈ 1 939 → 1 629 (four shards 1 441 / 1 629 / 1 010 / 1 197 — the
+two biplane-heavy shards; the CPU is the cards' own), TAKEOFF 336 → 223,
+UISMOKE 226 → 131, BIPLANE 157 → 169 (noise), BENCH 87 → 93 (noise),
+VILLAGE 68 → 76 (noise, half the builds), FIT 21 → 9, STRUT 5.4 → 3.6, GE
+1.4 → 60 (it carries the A/B proof now). The build: 52 s → 0.3 s. Nothing
+in this session ran on a quiet machine; every wall above is pessimistic and
+the CPU column is the honest one. Reds on the delivery run, every one red
+at HEAD WITHOUT this commit (each measured in a worktree of HEAD alone):
+ARCHETYPES (the Beaver-alike and the Twin bush hauler `gave-up` after two
+terrain go-arounds — the same two verdicts flown at HEAD with `--only`),
+SEAPLANE (the circuit touches 273 m off the lane's centreline — the pilot's
+own, since G399.5), PREMISES (`ReferenceError: T1 is not defined`,
+27_premises.js:699, G398.3), and SITE, ENERGY, AERO (the same 1 / 1 / 5
+failed checks at HEAD). PILOTMATRIX read red under the runner because
+pilot_matrix.js printed its note ON the verdict line (`GATE PILOTMATRIX:
+PASS (no cell worse ...)`) against the `^GATE <ID>: PASS$` contract — fixed
+here, the note on its own line; green on the delivery run (895 s). A timing
+threshold inside a gate is contention-sensitive under the pool and peers:
+GATE BIOME's `surface perf<5us` read 6.4 µs once on the loaded working
+copy (2.4 µs quiet, checksum identical) — a false red of the timeout
+class, left as is and named here.
+
+**Not done, written up as rulings owed.** `aicSig` sums raw node positions
+so `buildAIC` is rebuilt EVERY substep in flight against its own comment
+(~7 % of flight CPU; quantizing moves numbers → a physics ruling and a
+re-baseline). `sim.snapshot()/restore()` to fly-to-cruise once and fork the
+probes (INPUT x4, STRESS, FLEX materials). A `--selftest` battery flag (37
+gates carry negative proofs the runner never runs). ARCHETYPES ∩ PILOTMATRIX
+(cub/c172/stearman HOME calm flown by both). The reds at HEAD are named above.
+
+Files: `tools/run_gates.js`, `tools/_shard.js` (new), `tools/build.js`,
+`src/core/30_solver.js`, `src/core/20_world.js`, `src/core/42_crosswind.js`,
+`tools/test_ground_effect.js`, `tools/test_gen.js`, `tools/test_pilot.js`,
+`tools/test_flex.js`, `tools/test_load.js`, `tools/_arch_check.js`,
+`tools/_hinge_check.js`, `tools/_village_check.js`, `tools/_house_check.js`,
+`tools/_strut_check.js`, `tools/_fit_check.js`, `tools/_premises_check.js`,
+`tools/_takeoff_check.js`, `tools/_cage_fit.js`, `.gitignore`, this file.

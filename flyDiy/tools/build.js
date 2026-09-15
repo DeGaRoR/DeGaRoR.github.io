@@ -9,10 +9,9 @@
 //                          serve it with tools/_serve.js, not file://)
 // Ordering authority for core concatenation is MANIFEST.core below.
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { spawnSync } = require('child_process');
+const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 const CORE_DIR = path.join(ROOT, 'src', 'core');
@@ -91,7 +90,6 @@ const MANIFEST = {
     // accelerate-stop reject, trike rotation, taxi-back with a U-turn, a
     // published status). Generated builds fly it; 41_ stays for A/B.
     '43_pilot.js',
-    '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
     '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
     '50_model_codec.js',
     '51_prop_codec.js',
@@ -418,13 +416,16 @@ const MANIFEST = {
 const read = f => fs.readFileSync(f, 'utf8');
 const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
 
+// IN-PROCESS (2026-09-14, the gate rationalization): this used to write each
+// part to a temp file and spawn `node --check` on it - 151 spawns at ~350 ms
+// each, 45-50 s of every battery before the first gate ran. vm.Script runs the
+// same V8 parse without executing anything; it is stricter in exactly the way
+// a <script> body needs (a top-level `import`/`export`/`await`/`return` is a
+// syntax error here where --check may re-read the file as CommonJS or ESM).
 function syntaxCheck(label, code) {
-  const tmp = path.join(os.tmpdir(), `flydiy_check_${process.pid}_${label.replace(/[^\w.-]/g, '_')}.js`);
-  fs.writeFileSync(tmp, code);
-  const r = spawnSync(process.execPath, ['--check', tmp], { encoding: 'utf8' });
-  fs.unlinkSync(tmp);
-  if (r.status !== 0) {
-    console.error(`SYNTAX FAIL in ${label}:\n${r.stderr}`);
+  try { new vm.Script(code, { filename: label }); }
+  catch (e) {
+    console.error(`SYNTAX FAIL in ${label}:\n${(e.stack || String(e)).split('\n').slice(0, 5).join('\n')}`);
     process.exit(1);
   }
 }

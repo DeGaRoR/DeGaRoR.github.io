@@ -214,10 +214,13 @@ for (const [lbl, build, mat] of CASES) {
 // --- the picture: the stock build, at all three loads, drawn to one scale
 say('');
 {
-  const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
-  const r1 = loadTest(buildGen(sp), 1.0, 'tubeFabric');
-  const rl = loadTest(buildGen(sp), LIMIT, 'tubeFabric');
-  const ru = loadTest(buildGen(sp), ULT, 'tubeFabric');
+  // the stock build IS the table's first row (GEN tubeFabric strut = the
+  // default spec, the same three rig runs): read them back, do not re-run
+  // (2026-09-14, the gate rationalization)
+  const r0 = rows.find(r => r.lbl === 'GEN tubeFabric strut');
+  const r1 = r0 ? r0.r1 : loadTest(buildGen(JSON.parse(JSON.stringify(GEN_DEFAULT))), 1.0, 'tubeFabric');
+  const rl = r0 ? r0.rl : loadTest(buildGen(JSON.parse(JSON.stringify(GEN_DEFAULT))), LIMIT, 'tubeFabric');
+  const ru = r0 ? r0.ru : loadTest(buildGen(JSON.parse(JSON.stringify(GEN_DEFAULT))), ULT, 'tubeFabric');
   const scale = Math.max(0.01, ru.tip);
   say(`STOCK BUILD, right wing seen from the front, root -> tip.`);
   say(`Full height = ${scale.toFixed(2)} % of semispan (${(scale/100*ru.semi*100).toFixed(1)} cm at the tip).`);

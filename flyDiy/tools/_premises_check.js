@@ -221,9 +221,12 @@ for (const fx of fixtures) {
     const OW = PG.compose(rec, W);
     const t0 = Date.now();
     let acc = 0;
-    for (let k = 0; k < 1000000; k++) { const x = (k % 1000) * 0.5 - 250, z = ((k / 1000) | 0) * 0.5 - 250; acc += OW.terrainH(x, z, W.terrainH(x, z)); }
+    // 200k calls at the same rate as the million this asked for (2.5 us a
+    // call): the budget is per call, and five fixtures x a million was 6 s
+    // of the gate (2026-09-14, the gate rationalization)
+    for (let k = 0; k < 200000; k++) { const x = (k % 1000) * 0.5 - 250, z = ((k / 1000) | 0) * 0.5 - 250; acc += OW.terrainH(x, z, W.terrainH(x, z)); }
     const ms = Date.now() - t0;
-    check(ms < 2500 && isFinite(acc), '6 a million terrainH calls under 2500 ms', ms + ' ms on ' + W.id);
+    check(ms < 500 && isFinite(acc), '6 two hundred thousand terrainH calls under 500 ms (2.5 us a call)', ms + ' ms on ' + W.id);
   }
 
   // 7 the modifiers do what they say

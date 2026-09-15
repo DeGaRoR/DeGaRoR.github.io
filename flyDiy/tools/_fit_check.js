@@ -657,15 +657,7 @@ function runSaved(mode) {
 // than the cage cases: the cases vary the SHAPE, and most of GEN_ACCESS keys
 // on the SYSTEMS and the fuel, which no amount of shape-changing reaches.
 function runReach(mode) {
-  const fs2 = require('fs'), vm = require('vm');
-  const src = fs2.readFileSync(
-    path.join(__dirname, '..', 'src', 'core', '60_gen_spec.js'), 'utf8');
-  const ctx = { console, Math, JSON, Object, Array, Number, String, Boolean,
-                isFinite, isNaN, parseFloat, parseInt, Error, RHO: 1.225 };
-  vm.createContext(ctx);
-  vm.runInContext(src + String.fromCharCode(10) +
-    ';__O={genAccessNeedsCage,genAccessList,GEN_ACCESS};', ctx);
-  const AC = ctx.__O;
+  const AC = ACC();   // the one 60_gen_spec context (it was loaded twice, 2026-09-14)
   const base = AC.genAccessNeedsCage({}, {});
   const SPREAD = [
     {}, { tank: 'wing' }, { tank: 'panel' }, { tank: null, fuelL: 0 },
@@ -931,7 +923,11 @@ runSaved(null);
         const x = q[ax[0]], y = q[ax[1]];
         if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
       }
-      const NX = 60, NY = 30;
+      // 20 x 10, not 60 x 30, and every 20th vertex, not every 7th
+      // (2026-09-14, the gate rationalization): the reference walk is a
+      // whole-mesh scan per sample and was 18 of this gate's 21 s; the
+      // identity of the two walks is as sharp on 12k samples as on 72k
+      const NX = 20, NY = 10;
       const at = (tx, ty, where) => {
         const full = FS_.fieldScan(m, ax, tx, ty, null), fast = FS_.fieldHits(m, ax, tx, ty);
         samples++; hits += full.length;
@@ -944,7 +940,7 @@ runSaved(null);
       for (let i = 0; i <= NX; i++)
         for (let j = 0; j <= NY; j++)
           at(x0 - 0.05 + (x1 - x0 + 0.1) * i / NX, y0 - 0.05 + (y1 - y0 + 0.1) * j / NY, 'grid ' + i + ',' + j);
-      for (let i = 0; i < m.V.length; i += 7) { const q = m.A[i]; if (q) at(q[ax[0]], q[ax[1]], 'vertex ' + i); }
+      for (let i = 0; i < m.V.length; i += 20) { const q = m.A[i]; if (q) at(q[ax[0]], q[ax[1]], 'vertex ' + i); }
     }
   }
   check(bad === 0, 'index: the binned field walk equals the full walk on every sample (' +

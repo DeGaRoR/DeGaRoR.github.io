@@ -304,6 +304,26 @@ function makeSim(def, world) {
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
+  // THE CLEARANCE CONE (2026-09-14, the gate rationalization). The ground pass
+  // below asked the world for the terrain under EVERY node EVERY substep —
+  // 73 to 156 times a frame, at 300 m as on the runway — and the noise stack
+  // behind terrainH was a third of a flown circuit's CPU. So the ground is
+  // sampled once per node per FRAME (gc*: where it was sampled and what it
+  // read), and inside the frame a node skips the sample while it is provably
+  // clear: the world publishes a slope bound S (world.slopeMax, a Lipschitz
+  // constant on terrainH), and a node c metres above its cached sample that
+  // has moved d metres sideways since cannot have met the ground while
+  // c > S·d. The skipped branch is EXACTLY the `pen <= 0 -> continue` the
+  // full sample would have taken (terrainH is pure and nothing else reads
+  // gy), so the trajectory is bit-identical — GATE GE flies it both ways and
+  // compares every p and v. A world without a bound (the island's raster, a
+  // premises layer) gets the old path; so does FLYDIY_EXACT_GROUND=1.
+  const GROUND_CONE_EPS = 0.01;
+  let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
+  let coneLive = false, coneS2 = 0;
+  const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
+  out.gndSampled = 0; out.gndSkipped = 0;
+  function setGroundCone(on) { coneOn = !!on; }
   // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
   // rigid node bodies — and the hydro law (32_hydro.js) runs on the hull
   // each float declares, its forces landing on the float's four frame
@@ -1154,7 +1174,13 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      const gy = gH ? gH(p[i3], p[i3+2]) : 0;
+      let gy;
+      if (coneLive) {
+        const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
+        const c = p[i3+1] - r[i] - gcy[i] - GROUND_CONE_EPS;
+        if (c > 0 && c * c > coneS2 * (dx * dx + dz * dz)) { out.gndSkipped++; continue; }
+        gy = gH(p[i3], p[i3+2]); gcx[i] = p[i3]; gcz[i] = p[i3+2]; gcy[i] = gy; out.gndSampled++;
+      } else gy = gH ? gH(p[i3], p[i3+2]) : 0;
       const pen = gy + r[i] - p[i3+1];
       if (pen <= 0) continue;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
@@ -1261,6 +1287,15 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
+    // the cone's frame-start samples (a bound the world declares, else off)
+    const S = coneOn && world ? world.slopeMax : undefined;
+    coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
+    out.gndSampled = 0; out.gndSkipped = 0;
+    if (coneLive) {
+      coneS2 = S * S;
+      const gH = world.terrainH;
+      for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
+    }
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }
@@ -1383,7 +1418,7 @@ function makeSim(def, world) {
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
-           setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
+           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir };
   return sim;
 }
 

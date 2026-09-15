@@ -364,12 +364,14 @@ for (const c of CASES) {
 // -twSteer*dr about its swivel — the two ends move the same way and the run
 // stays within a centimetre of its rest length, and no chain enters the tail
 // cone. A build with no tailwheel (the twin-boom trike) draws none.
+let STOCK_SCENE = null;   // the stock headless scene, built once for TWSTEER and FAIRLEAD (2026-09-14)
 {
   let SH = null, PH = null, MQ = null;
   try { SH = require(path.join(T, '_scene_headless.js')); PH = require(path.join(T, '_pose_headless.js')); MQ = require(path.join(T, '_mesh_query.js')); }
   catch (e) { console.log('  (harness) ' + e.message); }
   if (SH && PH && MQ) {
     const S = SH.sceneBuild(null, { over: {} });
+    STOCK_SCENE = S;
     const W = S.W, THREE = SH.context().THREE;
     const links = ((W.CAGE_HINGE && W.CAGE_HINGE.links) || []).filter(L => L.kind === 'twSteer');
     check(links.length === 2 && links.some(L => L.key === 'twP') && links.some(L => L.key === 'twS'),
@@ -482,7 +484,7 @@ for (const c of CASES) {
   try { SH = require(path.join(T, '_scene_headless.js')); MQ = require(path.join(T, '_mesh_query.js')); }
   catch (e) { console.log('  (harness) ' + e.message); }
   if (SH && MQ) {
-    const S = SH.sceneBuild(null, { over: {} });
+    const S = STOCK_SCENE || SH.sceneBuild(null, { over: {} });   // the stock scene TWSTEER built (2026-09-14)
     const W = S.W;
     const cables = ((W.CAGE_HINGE && W.CAGE_HINGE.links) || []).filter(L => L.kind === 'cable');
     check(cables.length === 4, 'FAIRLEAD: the stock tail has not two rudder and two elevator cables', cables.map(L => L.key).join(','));

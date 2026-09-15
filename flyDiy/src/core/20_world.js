@@ -57,6 +57,14 @@ function makeWorld(seed, opts) {
   // premises' (G404: Jolene's 13/31 is HOME), no analytic cut at the origin
   const ISL_CUT = ISL && !(opts && opts.premises);
   const PADH = ISL ? ISL.terrainH(-520, 0) : 0;
+  const EXACT_GROUND = !!(opts && opts.exactGround);
+  // THE SLOPE BOUND the solver's clearance cone stands on (30_solver.js): a
+  // Lipschitz constant on terrainH, metres of rise per metre. Measured on the
+  // analytic world: 4.46 at the steepest 0.25 m probe of the whole domain,
+  // 0.33 in the home corridor; 12 is the bound, and GATE GE re-measures and
+  // pins measured <= bound/2. The island's raster and a premises layer
+  // declare none yet, so a sim over them samples the ground the old way.
+  const SLOPE_MAX = ISL ? undefined : 12;
   function h0(x, z) {
     if (!ISL) return h0a(x, z);
     const h = ISL.terrainH(x, z);
@@ -65,6 +73,14 @@ function makeWorld(seed, opts) {
     return r >= 1 ? h : PADH + (h - PADH) * r;
   }
   function h0a(x, z) {
+    // THE PAD IS ZERO (2026-09-14, the gate rationalization): every term below
+    // is multiplied by sstep(0, 260, distance-to-the-pad-box) at the end, which
+    // is exactly 0 inside x in [-1180, 130], |z| <= 90 — so the whole noise
+    // stack was computed for a runway that reads 0. Measured +0 at every
+    // point of a 1 m grid over the box; GATE GE pins the identity. The island
+    // never reaches here (h0 routes it to its raster) and the premises layer
+    // composes on top. opts.exactGround keeps the long path for the proof.
+    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -670,6 +686,7 @@ function makeWorld(seed, opts) {
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot } : null,
     terrainH, waterH, surface, SURFACE,
+    get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
     // informative stage-3 block (not contract surface): road/building

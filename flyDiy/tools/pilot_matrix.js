@@ -238,7 +238,11 @@ if (require.main === module) {
       const rb = loadRes(rat);
       const worse = rb ? ratchet(results, rb) : ['no baseline at ' + rat];
       for (const w of worse) console.log('  REGRESSED ' + w);
-      console.log('GATE PILOTMATRIX: ' + (worse.length ? 'FAIL (' + worse.length + ' regressed against ' + path.basename(rat) + ')' : 'PASS (no cell worse than ' + path.basename(rat) + '; ' + rep.nBad + ' known bad, ' + rep.nWarn + ' warn)'));
+      // the runner's contract is the bare `GATE PILOTMATRIX: PASS` at the end of
+      // its line (run_gates.js matches ^GATE <ID>: PASS$) - the note on the line
+      // before it read as a red battery (G416)
+      console.log('  ratchet: ' + (worse.length ? worse.length + ' regressed against ' : 'no cell worse than ') + path.basename(rat) + '; ' + rep.nBad + ' known bad, ' + rep.nWarn + ' warn');
+      console.log('GATE PILOTMATRIX: ' + (worse.length ? 'FAIL (' + worse.length + ' regressed)' : 'PASS'));
       process.exit(worse.length ? 1 : 0);
     }
     console.log('PILOT MATRIX: ' + (rep.nBad ? 'FAIL (' + rep.nBad + ' bad)' : rep.nWarn ? 'PASS with ' + rep.nWarn + ' warnings' : 'PASS'));

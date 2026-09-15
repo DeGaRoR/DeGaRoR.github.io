@@ -67,8 +67,16 @@ function stubAF() {
 const AF = stubAF();
 const PAD = 0.05;
 
-// brute force: the true nearest surface point, on a fine grid
+// brute force: the true nearest surface point, on a fine grid (memoised per
+// seed: section 1 and the coarse-scan probe ask for the same 24 answers,
+// 2026-09-14)
+const BRUTE = new Map();
 function brute(p) {
+  const key = p.join(',');
+  if (BRUTE.has(key)) return BRUTE.get(key);
+  const r = brute0(p); BRUTE.set(key, r); return r;
+}
+function brute0(p) {
   let bd = Infinity, bz = 0, ba = 0;
   for (let i = 0; i <= 540; i++) {
     const z = AF.z0 + PAD + (AF.z1 - AF.z0 - 2 * PAD) * i / 540;

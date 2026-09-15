@@ -418,17 +418,22 @@ if (process.argv.includes('--selftest')) {
 // ---------------------------------------------------------------------------
 // the battery
 // ---------------------------------------------------------------------------
-console.log('-- GOOD: the stock garage build --');
-const good = fly(null, 340);
-for (const v of good.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
-checkGood(good);
+// SHARDED (2026-09-14, the gate rationalization): run_gates spawns this file
+// three times with --shard=i/3 and each flight below goes to one shard
+// (tools/_shard.js `take`, round-robin); unsharded, every flight runs here
+// as before. GOOD is AGAIN's first leg — the same stock build, the same
+// pilot, the same circuit to the same stop — so it is checked on that
+// record instead of flown twice.
+const SH = require('./_shard.js');
+const part = (title, fn) => { console.log(title); if (SH.take()) fn(); else console.log('   (flown in another shard)'); };
 
-console.log('-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --');
+part('-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --', () => {
 const heavy = fly({ engines: [{ type: 'eppg_direct_130' }],
                     cabin: { baggage: 60 },
                     cargo: { len: 1.2, kg: 400 } }, 90);
 for (const v of heavy.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkHeavy(heavy);
+});
 
 // STANCE (G170, the user: "quite a few of my builds break their tailwheel
 // simply on spawning, it just flips"). The game spawns through sim.stance()
@@ -479,13 +484,14 @@ console.log('-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns -
         b.strain.toFixed(3) + ' vs ' + a.strain.toFixed(3));
 }
 
-console.log('-- HOVER: rotax582 + 360 kg cargo --');
+part('-- HOVER: rotax582 + 360 kg cargo --', () => {
 const hover = fly({ engines: [{ type: 'rotax582_ivo' }],
                     cargo: { len: 1.2, kg: 360 } }, 150);
 for (const v of hover.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkHover(hover);
+});
 
-console.log('-- CARD: the stock build, asked for 70 m and 25 m/s --');
+part('-- CARD: the stock build, asked for 70 m and 25 m/s --', () => {
 // 70 m, not 60 (G158). This is the one place the recalibration changed what
 // the aeroplane can be ASKED for rather than what it does. The stock build's
 // circuit geometry is derived from its own VCruise and climb gradient, and an
@@ -499,35 +505,41 @@ console.log('-- CARD: the stock build, asked for 70 m and 25 m/s --');
 const card = fly(null, 340, { alt: 70, V: 25 });
 for (const v of card.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardHeld(card);
+});
 
-console.log('-- FAST: the stock build, asked for 45 m/s it does not have --');
+part('-- FAST: the stock build, asked for 45 m/s it does not have --', () => {
 const fast = fly(null, 340, { V: 45 });
 for (const v of fast.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardFast(fast);
+});
 
 // ---- G202: THE PILOT's own cases ------------------------------------------
-console.log('-- AGAIN: the stock build lands, turns around on the strip, takes off again --');
+part('-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --', () => {
 const again = fly(null, 450, null, { again: true });
+for (const v of again.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+checkGood(again);                                   // the first leg IS the good flight
 if (again.again) {
   for (const v of again.again.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
   console.log('   second leg: ' + again.again.phases.join(' ') + ' | ' + again.again.report.outcome + ' at ' + again.again.t.toFixed(0) + ' s');
 }
 checkAgain(again);
+});
 
-console.log('-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --');
+part('-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --', () => {
 const windy = fly(null, 560, null, { wind: [-3, 0], depart: true });
 for (const v of windy.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 console.log('   landed along ' + JSON.stringify(windy.landDir) + ' in ' + windy.t.toFixed(0) + ' s');
 checkWind(windy, [-3, 0]);
+});
 
-console.log('-- TRIKE: the stock build on a nosewheel --');
+part('-- TRIKE: the stock build on a nosewheel --', () => {
 const trike = fly({ gear: { type: 'tricycle' } }, 340);
 for (const v of trike.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 console.log('   lift-off run ' + (trike.liftRun == null ? '—' : trike.liftRun.toFixed(0)) + ' m of a ' + trike.def.params.ap.TORun + ' m sheet');
 checkTrike(trike);
+});
 
-console.log("-- TRIKE-XWIND: the user's pusher across 2 m/s --");
-{
+part("-- TRIKE-XWIND: the user's pusher across 2 m/s --", () => {
   const FIX = path.join(__dirname, 'fixtures', 'build_v8_pusher_2026-09-11.json');
   const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
   const def = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec))));
@@ -537,10 +549,9 @@ console.log("-- TRIKE-XWIND: the user's pusher across 2 m/s --");
               ' deg on the ground, lift-off ' + (px.liftXT == null ? '—' : px.liftXT.toFixed(1)) + ' m off the centreline after ' +
               (px.liftRun == null ? '—' : px.liftRun.toFixed(0)) + ' m of a ' + def.params.ap.TORun + ' m sheet');
   checkTrikeXwind(px);
-}
+});
 
-console.log('-- FLAPS + STATUS: the ultralight fixture from the stand --');
-{
+part('-- FLAPS + STATUS: the ultralight fixture from the stand --', () => {
   const FIX = path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json');
   const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
   const def = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec))));
@@ -549,15 +560,14 @@ console.log('-- FLAPS + STATUS: the ultralight fixture from the stand --');
   console.log('   flap at the flare ' + (ul.flapAtFlare == null ? '—' : ul.flapAtFlare.toFixed(2)) + ' | roll status: ' +
               (ul.statusRoll ? ul.statusRoll.goal + ' [' + ul.statusRoll.afcs.lat + ' ' + ul.statusRoll.afcs.vert + ' ' + ul.statusRoll.afcs.thr + ']' : 'none'));
   checkFlapsStatus(ul, def.params.flaps.ldg);
-}
+});
 
-console.log('-- BOX: the modes as a device, over the pilot and over a hand --');
-{
+part('-- BOX: the modes as a device, over the pilot and over a hand --', () => {
   const bx = flyBox();
   for (const v of bx.verdicts || []) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
   console.log('   alt ' + bx.altErr.toFixed(1) + ' m, hdg ' + bx.hdgErr.toFixed(1) + ' deg, ias ' + bx.iasErr.toFixed(1) + ' m/s, vs ' + bx.vsErr.toFixed(2) + ' m/s | hand da ' + bx.handDa + ', alt ' + bx.altHold2.toFixed(1) + ' m | nav xtk ' + bx.xtk.toFixed(0) + ' m, ' + bx.disDrop.toFixed(0) + ' m nearer | ' + bx.outcome + ' at ' + bx.t.toFixed(0) + ' s');
   checkBox(bx);
-}
+});
 
 if (fails.length) console.log('FAILED CHECKS: ' + fails.join(', '));
 console.log('GATE PILOT: ' + (fails.length ? 'FAIL' : 'PASS'));
