@@ -427,10 +427,22 @@ function makePilot(sim, def, world, opts) {
   // P0.8: the slope ends on the AIM POINT'S GROUND — the CG's rest altitude
   // there (terrain + gearH), not the flat datum; the runway's profile is
   // read straight off the terrain (the premises' `profile` grades it)
+  // G418: THE GROUND IS THE SURFACE THE AEROPLANE RIDES ON — the terrain
+  // or the water over it, whichever is higher. P0.8 read the TERRAIN, and
+  // under the SEA lane the terrain is the sea floor: the slope ended 18 m
+  // under the water at the aim, the floatplane met the surface 226 m short
+  // of it (touch at 6 m of water where the gate wants the lane's 10+),
+  // gearH was measured 16 m too tall at the spawn and aglG read negative on
+  // the surface. One helper, every read the pilot makes of the ground.
+  const groundH = (x, z) => {
+    const t = world.terrainH(x, z);
+    const w = (typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
+    return w > t ? w : t;
+  };
   const aimAlt = () => {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
     const P0 = wp(ap.frame, ap.xAim, 0);
-    return world.terrainH(P0[0], P0[1]) + (gearH || 0);
+    return groundH(P0[0], P0[1]) + (gearH || 0);
   };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
@@ -443,7 +455,7 @@ function makePilot(sim, def, world, opts) {
     let h = -1e9;
     for (let k = 0; k <= 6; k++) {
       const d = dist * k / 6;
-      h = Math.max(h, world.terrainH(x + dx * d, z + dz * d));
+      h = Math.max(h, groundH(x + dx * d, z + dz * d));   // G418: the surface, water included
     }
     return h;
   };
@@ -647,7 +659,7 @@ function makePilot(sim, def, world, opts) {
     const nose = [-xA[0], -xA[2]];
     const nL = Math.hypot(nose[0], nose[1]) || 1e-9;
     nose[0] /= nL; nose[1] /= nL;
-    const terrainNow = (world && typeof world.terrainH === 'function') ? world.terrainH(cg[0], cg[2]) : ap.refAlt;
+    const terrainNow = (world && typeof world.terrainH === 'function') ? groundH(cg[0], cg[2]) : ap.refAlt;   // G418: the surface under the aeroplane, water included
     const aglT = cg[1] - terrainNow;
     // P0.8: THE HEIGHT ABOVE THE GROUND UNDER THE WHEELS — `agl` is the height
     // above one flat datum (the rest height at the spawn), and on a sloped
@@ -663,7 +675,7 @@ function makePilot(sim, def, world, opts) {
     }
     if (world && typeof world.terrainH === 'function') {
       const nx0 = -xA[0], nz0 = -xA[2], nl0 = Math.hypot(nx0, nz0) || 1;
-      gGrade = (world.terrainH(cg[0] + nx0 / nl0 * 40, cg[2] + nz0 / nl0 * 40) - world.terrainH(cg[0] - nx0 / nl0 * 40, cg[2] - nz0 / nl0 * 40)) / 80;
+      gGrade = (groundH(cg[0] + nx0 / nl0 * 40, cg[2] + nz0 / nl0 * 40) - groundH(cg[0] - nx0 / nl0 * 40, cg[2] - nz0 / nl0 * 40)) / 80;   // G418: the surface's grade (level on water)
     }
 
     let tx = ap.targetDir[0], tz = ap.targetDir[2];

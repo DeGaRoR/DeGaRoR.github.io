@@ -19506,10 +19506,22 @@ function makePilot(sim, def, world, opts) {
   // P0.8: the slope ends on the AIM POINT'S GROUND — the CG's rest altitude
   // there (terrain + gearH), not the flat datum; the runway's profile is
   // read straight off the terrain (the premises' `profile` grades it)
+  // G418: THE GROUND IS THE SURFACE THE AEROPLANE RIDES ON — the terrain
+  // or the water over it, whichever is higher. P0.8 read the TERRAIN, and
+  // under the SEA lane the terrain is the sea floor: the slope ended 18 m
+  // under the water at the aim, the floatplane met the surface 226 m short
+  // of it (touch at 6 m of water where the gate wants the lane's 10+),
+  // gearH was measured 16 m too tall at the spawn and aglG read negative on
+  // the surface. One helper, every read the pilot makes of the ground.
+  const groundH = (x, z) => {
+    const t = world.terrainH(x, z);
+    const w = (typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
+    return w > t ? w : t;
+  };
   const aimAlt = () => {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
     const P0 = wp(ap.frame, ap.xAim, 0);
-    return world.terrainH(P0[0], P0[1]) + (gearH || 0);
+    return groundH(P0[0], P0[1]) + (gearH || 0);
   };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
@@ -19522,7 +19534,7 @@ function makePilot(sim, def, world, opts) {
     let h = -1e9;
     for (let k = 0; k <= 6; k++) {
       const d = dist * k / 6;
-      h = Math.max(h, world.terrainH(x + dx * d, z + dz * d));
+      h = Math.max(h, groundH(x + dx * d, z + dz * d));   // G418: the surface, water included
     }
     return h;
   };
@@ -19726,7 +19738,7 @@ function makePilot(sim, def, world, opts) {
     const nose = [-xA[0], -xA[2]];
     const nL = Math.hypot(nose[0], nose[1]) || 1e-9;
     nose[0] /= nL; nose[1] /= nL;
-    const terrainNow = (world && typeof world.terrainH === 'function') ? world.terrainH(cg[0], cg[2]) : ap.refAlt;
+    const terrainNow = (world && typeof world.terrainH === 'function') ? groundH(cg[0], cg[2]) : ap.refAlt;   // G418: the surface under the aeroplane, water included
     const aglT = cg[1] - terrainNow;
     // P0.8: THE HEIGHT ABOVE THE GROUND UNDER THE WHEELS — `agl` is the height
     // above one flat datum (the rest height at the spawn), and on a sloped
@@ -19742,7 +19754,7 @@ function makePilot(sim, def, world, opts) {
     }
     if (world && typeof world.terrainH === 'function') {
       const nx0 = -xA[0], nz0 = -xA[2], nl0 = Math.hypot(nx0, nz0) || 1;
-      gGrade = (world.terrainH(cg[0] + nx0 / nl0 * 40, cg[2] + nz0 / nl0 * 40) - world.terrainH(cg[0] - nx0 / nl0 * 40, cg[2] - nz0 / nl0 * 40)) / 80;
+      gGrade = (groundH(cg[0] + nx0 / nl0 * 40, cg[2] + nz0 / nl0 * 40) - groundH(cg[0] - nx0 / nl0 * 40, cg[2] - nz0 / nl0 * 40)) / 80;   // G418: the surface's grade (level on water)
     }
 
     let tx = ap.targetDir[0], tz = ap.targetDir[2];
@@ -33547,41 +33559,41 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='ab84b6577519'</script>
-<script src="src/models/pa18_model.js?v=e58f49e1"></script>
-<script src="src/models/c172_model.js?v=c04a2c0b"></script>
-<script src="src/models/d112_model.js?v=1c93058a"></script>
-<script src="src/models/pio200_model.js?v=4cb51bac"></script>
-<script src="src/models/c195_model.js?v=c7959754"></script>
-<script src="src/models/stemme_model.js?v=c679a0e0"></script>
-<script src="src/models/guepard_model.js?v=ffd5e4f5"></script>
-<script src="src/models/da40_model.js?v=594e79b5"></script>
-<script src="src/models/g115_model.js?v=03a7e598"></script>
-<script src="src/models/yak18t_model.js?v=c29889d4"></script>
-<script src="src/models/eiii_model.js?v=8e83410f"></script>
-<script src="src/models/pa28_model.js?v=86470bea"></script>
-<script src="src/props/props_bench.js?v=7c6e64b4"></script>
-<script src="src/props/props_storage.js?v=e051184c"></script>
-<script src="src/props/props_machine.js?v=14f1da60"></script>
-<script src="src/props/props_handling.js?v=a92f7dd8"></script>
-<script src="src/props/props_vessel.js?v=96edf5b9"></script>
-<script src="src/props/props_tools.js?v=d179d596"></script>
-<script src="src/props/props_curio.js?v=8ca61851"></script>
-<script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
-<script src="src/props/props_fixture.js?v=93362da1"></script>
-<script src="src/props/props_airframe.js?v=f8726344"></script>
-<script src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
-<script src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
-<script src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
-<script src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script src="src/chars/ch42_char.js?v=eefcfa0f"></script>
-<script src="src/chars/ch02_char.js?v=d3241b54"></script>
-<script src="src/chars/remy_char.js?v=71ee3d75"></script>
-<script src="src/chars/ch22_char.js?v=84232ae5"></script>
-<script src="src/chars/ch01_char.js?v=0ed66519"></script>
-<script src="src/chars/ch20_char.js?v=17c02a9a"></script>
-<script src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
-<script src="src/chars/piloting_anim.js?v=b0e439a1"></script>
+<script>window.FLYDIY_CORE_SHA='54b4c243e139'</script>
+<script src="src/models/pa18_model.js?v=1ab5ecde"></script>
+<script src="src/models/c172_model.js?v=267306e7"></script>
+<script src="src/models/d112_model.js?v=3be353d3"></script>
+<script src="src/models/pio200_model.js?v=981cd31e"></script>
+<script src="src/models/c195_model.js?v=8974dedd"></script>
+<script src="src/models/stemme_model.js?v=04fd92f7"></script>
+<script src="src/models/guepard_model.js?v=bf419178"></script>
+<script src="src/models/da40_model.js?v=82bf8782"></script>
+<script src="src/models/g115_model.js?v=87b45f7c"></script>
+<script src="src/models/yak18t_model.js?v=25ff8781"></script>
+<script src="src/models/eiii_model.js?v=623d6f2c"></script>
+<script src="src/models/pa28_model.js?v=a6c43592"></script>
+<script src="src/props/props_bench.js?v=69711d9a"></script>
+<script src="src/props/props_storage.js?v=02f1c776"></script>
+<script src="src/props/props_machine.js?v=2733b959"></script>
+<script src="src/props/props_handling.js?v=a568a7bc"></script>
+<script src="src/props/props_vessel.js?v=4e732810"></script>
+<script src="src/props/props_tools.js?v=037dbb79"></script>
+<script src="src/props/props_curio.js?v=f3aaba4a"></script>
+<script src="src/props/props_vehicle.js?v=58405541"></script>
+<script src="src/props/props_fixture.js?v=d5aa9ff4"></script>
+<script src="src/props/props_airframe.js?v=88d864cd"></script>
+<script src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
+<script src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
+<script src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
+<script src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
+<script src="src/chars/ch42_char.js?v=c440fbad"></script>
+<script src="src/chars/ch02_char.js?v=cf30202a"></script>
+<script src="src/chars/remy_char.js?v=01a16f6e"></script>
+<script src="src/chars/ch22_char.js?v=f61be819"></script>
+<script src="src/chars/ch01_char.js?v=854f26f4"></script>
+<script src="src/chars/ch20_char.js?v=97fe3427"></script>
+<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script>
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -115703,35 +115715,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script src="src/viewer/house_tex.js?v=3d332680"></script>
-<script src="src/viewer/lot_tex.js?v=7028621f"></script>
-<script src="src/viewer/sign_tex.js?v=e3e0b1ad"></script>
-<script src="src/pier/pier_pier.js?v=ba429deb"></script>
-<script src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
-<script src="src/pier/pier_people.js?v=1c02dfbe"></script>
-<script src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
-<script src="src/pier/pier_car.js?v=6beac5ec"></script>
-<script src="src/pier/pier_vehicle.js?v=3c03d1e2"></script>
-<script src="src/pier/pier_lods.js?v=5f3327eb"></script>
-<script src="src/totems/totems_poles.js?v=3aa55574"></script>
-<script src="tools/_house_kit.js?v=64fd4ef1"></script>
-<script src="tools/_house_gen.js?v=9e938e1a"></script>
-<script src="tools/_big_gen.js?v=7e830853"></script>
-<script src="tools/_sport_gen.js?v=d1ddac33"></script>
-<script src="tools/_shed_gen.js?v=54236357"></script>
-<script src="tools/_hangar_gen.js?v=02a59b26"></script>
-<script src="tools/_tower_gen.js?v=718fa1fc"></script>
-<script src="tools/_tram_gen.js?v=b91a8a59"></script>
-<script src="tools/_totem_gen.js?v=725d9e05"></script>
-<script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
-<script src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
-<script src="src/viewer/cabin.js?v=e6c4b01d"></script>
-<script src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script src="tools/_village_gen.js?v=172a0d65"></script>
-<script src="src/viewer/parked.js?v=00f22b4d"></script>
-<script src="src/viewer/render_premises.js?v=8d9fb209"></script>
-<script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=4f839825"></script>
+<script src="src/viewer/house_tex.js?v=aeb2b099"></script>
+<script src="src/viewer/lot_tex.js?v=23cd0b2e"></script>
+<script src="src/viewer/sign_tex.js?v=b7822241"></script>
+<script src="src/pier/pier_pier.js?v=1e541c7b"></script>
+<script src="src/pier/pier_boat.js?v=39aa1bee"></script>
+<script src="src/pier/pier_people.js?v=610a9a6a"></script>
+<script src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
+<script src="src/pier/pier_car.js?v=6e1c08b7"></script>
+<script src="src/pier/pier_vehicle.js?v=b457f393"></script>
+<script src="src/pier/pier_lods.js?v=8c16fea7"></script>
+<script src="src/totems/totems_poles.js?v=63ad4d9f"></script>
+<script src="tools/_house_kit.js?v=d635a246"></script>
+<script src="tools/_house_gen.js?v=87423c42"></script>
+<script src="tools/_big_gen.js?v=aa1ee37b"></script>
+<script src="tools/_sport_gen.js?v=ee917677"></script>
+<script src="tools/_shed_gen.js?v=4b29f5fe"></script>
+<script src="tools/_hangar_gen.js?v=a711b43f"></script>
+<script src="tools/_tower_gen.js?v=98e439c1"></script>
+<script src="tools/_tram_gen.js?v=1773c14a"></script>
+<script src="tools/_totem_gen.js?v=24fd567c"></script>
+<script src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
+<script src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
+<script src="src/viewer/cabin.js?v=f0aac315"></script>
+<script src="src/viewer/tram_run.js?v=90fde1c2"></script>
+<script src="tools/_village_gen.js?v=be76d9b6"></script>
+<script src="src/viewer/parked.js?v=2c7dc7ba"></script>
+<script src="src/viewer/render_premises.js?v=43812d4d"></script>
+<script src="src/viewer/premises_host.js?v=a05bd741"></script>
+<script src="src/viewer/premises_ui.js?v=5892e0ef"></script>
 <script>
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before

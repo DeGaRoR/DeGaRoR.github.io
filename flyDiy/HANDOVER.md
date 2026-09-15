@@ -48352,3 +48352,82 @@ Files: `tools/run_gates.js`, `tools/_shard.js` (new), `tools/build.js`,
   landing line. PILOT (30 min) and the full ARCHETYPES not re-run after the
   crash. Screenshots: flyDiy/screenshots/hydro/fp_overlay_rest.jpg (the
   lattice on the model, the floats' truss on their nodes).
+
+## G418 — THE PILOT'S GROUND IS THE SURFACE; AND THE RECORD OF THE STRUT FINDING
+## (2026-09-14/15, the brief: "the pilot flying the SEA circuit with the struts at
+## kMul 8 ... the pilot's lateral loop must be made robust to it")
+
+The brief (G396.2): the fixture on floats flies the SEA circuit with the
+float-to-airframe struts at the gear class and limit-cycles laterally at x3
+or x8 — ailerons on the +/-0.30 stops, roll +/-20 deg, circling on final,
+190-300 m off, never down; hypothesis handed over: the soft struts let the
+80 kg float pair damp the pilot's roll loop as a pendulum — schedule the
+gains, limit the authority. **Measured first** (scratch `rollstep.js`: the
+fixture on floats in the air at 25 m/s, pitch held, an aileron doublet
++0.30/-0.30 of 1.5 s; the whole-body angular momentum H about the roll axis
+and the float cluster's own rate read off the nodes):
+
+| struts | p at +0.30 da, steady | H 0.3 s after the step | the float's own p |
+|---|---|---|---|
+| x1 (gear class) | 20 deg/s, DECAYING to 9 while held | -750 -> -310 | 9-14 (lagging) |
+| x8 | **3 deg/s** | -530 -> **-120** | 3 |
+| x8, the two `float` clusters deleted from def.clusters | 27 deg/s | -960, held | — |
+| x8, extractRotation at 400 iterations | 27 deg/s | -965, held | 27 (rolls with it) |
+
+The plant says 27 deg/s. The aeroplane could not ROLL, and three quarters of
+its angular momentum vanished in 0.3 s with the aileron on the stop: the
+hull clusters' shape-match projection was taking it out every substep.
+Müller 2016's rotation step divides by the whole trace of A, and about a
+100:1 cluster's long axis four warm-started iterations recover a tenth of
+one substep's roll (scratch `rot_test.js`: 2.7e-4 of 3e-4 rad left after 4,
+7e-8 after 400); the projection then pulls the hull back toward a STALE
+roll 1440 times a second — an angular damper in the integrator. Soft
+struts hid it (the floats hung loose), stiff ones carried it into the
+airframe. The Newton step ((tr S . I - S) d = 2 axial(skew R^T A), R <- R
+exp([d]x): one step to 2e-8 rad on any aspect ratio) and the struts at x8
+were CARRIED INTO G396.3 by the water session from this session's message,
+with the measurement above; this entry is the record of it. The pilot's
+roll loop was never touched: not a gain, not a limit, not a schedule.
+
+- THE WHEELED FLEET was untouched to the measurement: the fixture on
+  wheels (a rod boom = a `rod` cluster) rolls 24.5 deg/s before and 24.8
+  after — the rod's nodes sit on its own axis; a float's deck nodes sit
+  0.2 m off with mass. The `fin` and `boom` clusters lose the same artefact
+  damping (FLEX, LOAD, MOUNT, BIPLANE green on master bef50764 + the step,
+  clean worktree, 2026-09-15).
+- `src/core/43_pilot.js` (this landing): **the ground is the surface the
+  aeroplane rides on.** P0.8 (G399.4) reads the terrain for the aim's
+  altitude, the height under the wheels (`gearH`, `aglG`), the obstacle
+  floor and the gradient; under the SEA lane the terrain is the SEA FLOOR.
+  The slope ended 18 m under the water at the aim, the floatplane met the
+  surface 226 m short (touch at z 1064 in 6.1 m of water, the lane's
+  threshold at 1250, the gate's bound 10 m), gearH was measured 17 m tall
+  at the water spawn (the floor is 16 m down there) and aglG read negative
+  on the surface, so the flare never fired — the floats stopped the
+  descent. One helper, `groundH(x, z) = max(terrainH, waterH)`, on the
+  four reads (aimAlt, terrainNow, terrainAhead, gGrade). With it (struts
+  x8, the Newton step) the circuit flares at 6.9 m and touches at z ~1330
+  on the lane in 19 m of water: FLARE 246 s, ROLLOUT 250, STOPPED 291.5 s,
+  0.0 m off the centreline, the ailerons on a stop 0.3 s of the flight. A
+  landplane is untouched wherever there is no water (waterH is -Infinity
+  there); over a lake the floor it must not sink through is now the lake.
+  The pilot-track session (G399.4's author) read the hunk and agreed: gearH
+  is measured ONCE at the first update, so a floatplane spawned on water
+  must see the surface at that moment, which this gives it; the fillet and
+  pattern sizing are untouched.
+- GATE SEAPLANE was red at pristine master 9d0e5d81 (measured: touch 273 m
+  off the centreline in 4.2 m of water — the lateral part the cluster
+  artefact, the short part the sea-floor aim); green on the snapshot tree
+  with both fixes (and the pool run of 2026-09-14: SEAPLANE, TAKEOFF,
+  PILOTMATRIX green by their own lines, ARCHETYPES `--only=floatplane`
+  green). Reds met and re-measured red on pristine master: AERO, ENERGY,
+  SITE (the peers' known three); PILOT's red was the old runner's 1800 s
+  timeout under three batteries (34 checks ok, none failed, cut off at the
+  ninth case). NOT re-flown after this landing — the user's word: the box
+  is too busy, one big run later.
+- RULE: before touching a pilot gain for a "structure damps the loop"
+  story, fly an open-loop doublet in the air and read the whole-body
+  angular momentum off the nodes with the control held; if it bleeds,
+  something in the solver is eating it. And every cluster's rotation
+  extraction must converge about EVERY axis before its projection is
+  applied — a projection onto a stale rotation is a damper.
