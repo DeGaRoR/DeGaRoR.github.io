@@ -66,7 +66,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              worktree's CRLF margin measured the artifact at 7.01 MiB the
 //              day the sun first moved. Nothing heavy; the 6.3 MB of graded
 //              hangar sky LEAVES the media store when the shed takes this sky (S5).
-const BUDGET_MIB = 7.25;
+//   7.25 -> 7.4 (G432, 2026-09-15): the everyday vehicles - 42 props' TABLES
+//              (pier_auto.js 40 KB: parts, materials, boxes; the bins and maps
+//              are in media/), their 70 levels of detail in pier_lods.js
+//              (+50 KB of the same), the YARD_KIT mirror and the traffic
+//              runner (~20 KB) - measured 7.17 -> 7.29 MiB in the worktree.
+//              Nothing heavy: the geometry and the textures are refs.
+const BUDGET_MIB = 7.4;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

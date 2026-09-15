@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4165b5be9c16136c
+// body-sha256: a39c2062ce3a9d03
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5576,7 +5576,8 @@ function compose(rec0, world, opts) {
   // T1, 3-tap smoothed along the profile (WORLD-GEN-PROC stage 3's roadbed
   // rule: flat across, the profile smoothed along); a surface strip of its class
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
-  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL) }));
+  // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
+  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0) }));
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,

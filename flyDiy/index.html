@@ -13664,7 +13664,8 @@ function compose(rec0, world, opts) {
   // T1, 3-tap smoothed along the profile (WORLD-GEN-PROC stage 3's roadbed
   // rule: flat across, the profile smoothed along); a surface strip of its class
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
-  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL) }));
+  // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
+  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0) }));
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
@@ -34493,7 +34494,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='4165b5be9c16';window.FLYDIY_BUILD='dc264d291e03'</script>
+<script>window.FLYDIY_CORE_SHA='a39c2062ce3a';window.FLYDIY_BUILD='2ce25066ce1f'</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -96527,7 +96528,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && premisesR.stats.trams) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
@@ -117899,10 +117900,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
 <script src="src/pier/pier_car.js?v=6beac5ec"></script>
 <script src="src/pier/pier_vehicle.js?v=565c7b29"></script>
-<script src="src/pier/pier_lods.js?v=abaaa1c8"></script>
+<script src="src/pier/pier_auto.js?v=cc5e850a"></script>
+<script src="src/pier/pier_lods.js?v=f1734a22"></script>
 <script src="src/totems/totems_poles.js?v=3aa55574"></script>
 <script src="tools/_house_kit.js?v=64fd4ef1"></script>
-<script src="tools/_house_gen.js?v=9e938e1a"></script>
+<script src="tools/_house_gen.js?v=705b955e"></script>
 <script src="tools/_big_gen.js?v=7e830853"></script>
 <script src="tools/_sport_gen.js?v=ca9bdc5f"></script>
 <script src="tools/_shed_gen.js?v=54236357"></script>
@@ -117914,11 +117916,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
 <script src="src/viewer/cabin.js?v=e6c4b01d"></script>
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script src="tools/_village_gen.js?v=172a0d65"></script>
+<script src="tools/_village_gen.js?v=31861016"></script>
 <script src="src/viewer/parked.js?v=00f22b4d"></script>
-<script src="src/viewer/render_premises.js?v=740f2751"></script>
+<script src="src/viewer/render_premises.js?v=7a8ea2da"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=af311c83"></script>
+<script src="src/viewer/premises_ui.js?v=b8ce37dc"></script>
 <script>
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
