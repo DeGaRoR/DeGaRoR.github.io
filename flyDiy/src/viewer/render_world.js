@@ -854,7 +854,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     let islandGroundHook = null;
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
-      const mk8 = (d, srgb) => { const t = new THREE.DataTexture(d, G.w, G.h, THREE.RedFormat, THREE.UnsignedByteType);
+      // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
+      // coast, lake), B = (ndvi, terrain type, -, -) - so the ground program spends 5 texture units on the
+      // island (tint, A, B, W1, W2), not 9. The premises' patch clones this material and adds its own five
+      // (the material map + four sets): with nine it FAILED TO LINK on Jolene (17 > MAX_TEXTURE_IMAGE_UNITS
+      // 16) and drew nothing; the outer ring's program (the canopy hook's four on top) stood at 16 exactly.
+      // The type field was NearestFilter: it is read at the texel centre now (gTT), the same texel exactly.
+      const pk4 = (r, g, b, a) => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; }
+        const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; };
       const rgba = new Uint8Array(n * 4);
       for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
@@ -862,25 +869,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
       Object.assign(gU, {
-        uGTint: { value: tintTex }, uGOri: { value: mk8(ISLA.ori1) },
-        uGCan: { value: ISLA.canopy ? mk8(ISLA.canopy) : mk8(new Uint8Array(n)) },
-        uGCoast: { value: ISLA.coast ? mk8(ISLA.coast) : mk8(new Uint8Array(n).fill(255)) },
+        uGTint: { value: tintTex },
+        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, ISLA.lake) },   // a missing coast is 255 (all land), the rest 0
+        uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, new Uint8Array(n), null) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
         uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1100) },
         uGBlur: { value: GROUND.classBlur }, uGWobble: { value: GROUND.edgeWobble }, uGWaterMap: { value: GROUND.waterMap }, uGCell: { value: G.cell },
-        uGLake: { value: ISLA.lake ? mk8(ISLA.lake) : mk8(new Uint8Array(n)) },
-        uGTT: { value: ISLA.ttype ? (() => { const t = mk8(ISLA.ttype); t.magFilter = t.minFilter = THREE.NearestFilter; return t; })() : mk8(new Uint8Array(n)) },
         // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
         uGW1: { value: (() => { const w1 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w1[k * 4 + i] = 255; } }
           const t = new THREE.DataTexture(w1, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
         uGW2: { value: (() => { const w2 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 60: 0, 80: 1, 90: 2, 100: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w2[k * 4 + i] = 255; } }
           const t = new THREE.DataTexture(w2, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
-        uGCover: { value: ISLA.cover ? (() => { const t = mk8(ISLA.cover); t.magFilter = t.minFilter = THREE.NearestFilter; return t; })() : mk8(new Uint8Array(n)) },
-        uGNdvi: { value: ISLA.ndvi ? mk8(ISLA.ndvi) : mk8(new Uint8Array(n)) },
       });
       GROUND.on = true;
       islandGroundHook = sh => {
@@ -891,8 +894,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPi = (modelMatrix * vec4(position, 1.0)).xyz;');
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\n' +
-            'uniform sampler2D uGTint, uGOri, uGCan, uGCoast, uGCover, uGNdvi, uGLake, uGTT, uGW1, uGW2; uniform vec4 uGGrid;\n' +
+            'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
+            // the packed fields: A = (ori, canopy, coast, lake), B = (ndvi, terrain type); the type at its texel's CENTRE (a nearest read off a linear texture)
+            'float gLake(vec2 uv){ return texture2D(uGPackA, uv).a; }\n' +
+            'float gTT(vec2 uv){ vec2 gn = uGGrid.zw / uGCell; return texture2D(uGPackB, (floor(uv * gn) + 0.5) / gn).g; }\n' +
             // the class colours, DISTINCT (G405): tree, shrub, grass, crop, built, bare, snow, water, wetland, moss
             'vec3 gClassRow(int i){ if (i == 0) return vec3(0.02,0.45,0.05); if (i == 1) return vec3(0.75,0.55,0.05); if (i == 2) return vec3(0.65,0.95,0.20);\n' +
             '  if (i == 3) return vec3(0.95,0.30,0.75); if (i == 4) return vec3(0.35,0.35,0.35); if (i == 5) return vec3(0.02,0.10,0.95);\n' +
@@ -934,16 +940,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
-            '  float lsd = (texture2D(uGLake, guv).r * 255.0 - 128.0) * 4.0;\n' +
+            '  float lsd = (gLake(guv) * 255.0 - 128.0) * 4.0;\n' +
             // THE SHORE IS A MIXED PIXEL (G406): a 30 m Landsat texel over a 20 m pond is half
             // water, dark; within 45 m of a lake edge the tint is taken from 45 m further out
             // (the field's own gradient says which way out is)
             '  if (lsd > -45.0 && lsd <= 0.0) { vec2 e = vec2(10.0 / uGGrid.z, 10.0 / uGGrid.w);\n' +
-            '    vec2 gr = vec2(texture2D(uGLake, guv + vec2(e.x, 0.0)).r - texture2D(uGLake, guv - vec2(e.x, 0.0)).r, texture2D(uGLake, guv + vec2(0.0, e.y)).r - texture2D(uGLake, guv - vec2(0.0, e.y)).r);\n' +
+            '    vec2 gr = vec2(gLake(guv + vec2(e.x, 0.0)) - gLake(guv - vec2(e.x, 0.0)), gLake(guv + vec2(0.0, e.y)) - gLake(guv - vec2(0.0, e.y)));\n' +
             '    if (dot(gr, gr) > 1e-10) { vec2 outw = -normalize(gr) * vec2(45.0 / uGGrid.z, 45.0 / uGGrid.w);\n' +
             '      tint = mix(tint, texture2D(uGTint, guv + outw).rgb, smoothstep(-45.0, 0.0, lsd)); } }\n' +
-            '  float r1 = texture2D(uGOri, guv).r;\n' +
-            '  float can = texture2D(uGCan, guv).r * 255.0;\n' +
+            '  vec4 gA = texture2D(uGPackA, guv);\n' +
+            '  float r1 = gA.r;\n' +
+            '  float can = gA.g * 255.0;\n' +
             // SNOW SHEDS OFF STEEP GROUND (G409, the user): full below 25 deg, none by 40
             // (`normal` is not yet defined at map_fragment: the slope comes from the world position's screen derivatives)
             '  vec3 gN = normalize(cross(dFdx(vWPi), dFdy(vWPi))); gN *= sign(gN.y);\n' +
@@ -960,7 +967,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    else { s = vec3(0.85, 0.88, 0.95); a = snowA; }\n' +
             '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
             '  }\n' +
-            '  float sd = (texture2D(uGCoast, guv).r * 255.0 - 128.0) * 4.0;\n' +
+            '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")
             '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-1.0, 3.0, lsd));\n' +
@@ -980,9 +987,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    t = can < 0.5 ? vec3(0.12) : sc; }\n' +
             '  else if (uGMode == 4) t = gClassSmooth(vWPi.xz, gClassRow(0), gClassRow(1), gClassRow(2), gClassRow(3), gClassRow(4), gClassRow(5), gClassRow(6), gClassRow(7));\n' +
             // NDVI: water/rock blue-grey below 0.2, brown 0.2-0.4, yellow-green 0.4-0.6, deep green above
-            '  else if (uGMode == 5) { float nd = texture2D(uGNdvi, guv).r * 2.0 - 1.0;\n' +
+            '  else if (uGMode == 5) { float nd = texture2D(uGPackB, guv).r * 2.0 - 1.0;\n' +
             '    t = nd < 0.2 ? vec3(0.35,0.40,0.55) : nd < 0.4 ? mix(vec3(0.55,0.35,0.15), vec3(0.85,0.75,0.25), (nd - 0.2) * 5.0) : nd < 0.6 ? mix(vec3(0.85,0.75,0.25), vec3(0.35,0.75,0.10), (nd - 0.4) * 5.0) : mix(vec3(0.35,0.75,0.10), vec3(0.02,0.35,0.02), clamp((nd - 0.6) * 3.0, 0.0, 1.0)); }\n' +
-            '  else if (uGMode == 9) t = gTTCol(texture2D(uGTT, guv).r * 255.0);\n' +
+            '  else if (uGMode == 9) t = gTTCol(gTT(guv) * 255.0);\n' +
             '  else if (uGMode == 10) t = lsd > 0.0 ? mix(vec3(0.3,0.6,1.0), vec3(0.02,0.1,0.6), clamp(lsd / 200.0, 0.0, 1.0)) : vec3(0.85);\n' +
             '  else if (uGMode == 6) t = sd < 0.0 ? vec3(0.02, 0.05, 0.25) * clamp(-sd / 400.0, 0.1, 1.0) : mix(vec3(0.5, 0.45, 0.3), vec3(0.05, 0.2, 0.05), clamp(sd / 400.0, 0.0, 1.0));\n' +
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
@@ -1418,7 +1425,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // THE MAP'S LAKES (G405): a flat quad per class-80 cell of the cover, at the
       // DEM's own level (the lake is flat in the DEM), 0.15 m under it like the
       // bake's; the ground shader paints the water's smooth edge underneath
-      if (world.island && world.island.lakes && world.island.hydro !== 'proc' && gU.uGLake) {
+      if (world.island && world.island.lakes && world.island.hydro !== 'proc' && gU.uGPackA) {
         // ONE QUAD PER LAKE (G407, the user: "why even bother with polygons? you
         // have a good outline, just give it a material"): the DEM is flat under
         // each lake now (island_prep), so a single rectangle over its bounding
@@ -1431,14 +1438,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const lakeMat = waterMat.clone(); lakeMat.transparent = true; lakeMat.depthWrite = true;
         lakeMat.onBeforeCompile = sh => {
           if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-          sh.uniforms.uGLake = gU.uGLake; sh.uniforms.uGGrid = gU.uGGrid;
+          sh.uniforms.uGPackA = gU.uGPackA; sh.uniforms.uGGrid = gU.uGGrid;
           sh.vertexShader = sh.vertexShader
             .replace('#include <common>', '#include <common>\nvarying vec3 vWL;')
             .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWL = (modelMatrix * vec4(position, 1.0)).xyz;');
           sh.fragmentShader = sh.fragmentShader
-            .replace('#include <common>', '#include <common>\nvarying vec3 vWL; uniform sampler2D uGLake; uniform vec4 uGGrid;')
+            .replace('#include <common>', '#include <common>\nvarying vec3 vWL; uniform sampler2D uGPackA; uniform vec4 uGGrid;')
             .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' +
-              'float lakeA = smoothstep(-3.0, 1.0, (texture2D(uGLake, (vWL.xz - uGGrid.xy) / uGGrid.zw).r * 255.0 - 128.0) * 4.0); if (lakeA <= 0.0) discard;')
+              'float lakeA = smoothstep(-3.0, 1.0, (texture2D(uGPackA, (vWL.xz - uGGrid.xy) / uGGrid.zw).a * 255.0 - 128.0) * 4.0); if (lakeA <= 0.0) discard;')   // G424: the lake field is the packed A's alpha
             .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= lakeA;');
         };
         let n = 0;

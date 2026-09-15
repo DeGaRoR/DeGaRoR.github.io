@@ -49153,6 +49153,46 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   slow 3 m/s while 170 m below its height (the speed term outweighs the
   climb demand — bound it to half climbMax, measured on the matrix).
 =======
+## G424 — THE ISLAND'S LAYERS PACKED: THE PREMISES PATCH LINKS ON JOLENE (2026-09-15, a finding handed over from the cloud chantier, G423)
+
+- THE FINDING: on Jolene the premises ground patch's MeshLambertMaterial
+  (render_premises.js `premises-patch-materials`: the inner ring's material
+  cloned, plus uMat + uSet0..3) FAILED TO LINK - "texture image units count
+  exceeds MAX_TEXTURE_IMAGE_UNITS(16)", VALIDATE_STATUS false - and the patch
+  drew nothing on the island. Predates G423 (proved on pristine G419).
+- MEASURED, not counted (a CDP rig: boot `dev.html?world=jolene`, roll out, walk
+  the scene, `gl.getActiveUniform` per program, sum the sampler types): the
+  inner ring's program had 12 units (nine island fields uGTint/uGOri/uGCan/
+  uGCoast/uGNdvi/uGLake/uGTT/uGW1/uGW2 + map + uApAtlas + directionalShadowMap[0]
+  - ONE shadow, not a cascade of four as the finding had it); the outer ring's
+  16 exactly (the canopy hook's uFMask/uCanopy/uFarMap/uCovMap on top); the
+  patch = inner + 5 = 17. uGCover was declared and never sampled (inactive, no
+  unit) - a dead upload.
+- THE FIX (render_world.js, the island block): the six single-channel R8
+  fields ride two RGBA DataTextures - uGPackA = (ori, canopy, coast, lake),
+  uGPackB = (ndvi, terrain type, 0, 0) - via `pk4`; gLake()/gTT() read them,
+  the coast and the noise off one fetch (gA). The terrain type was a
+  NearestFilter texture: it is read at the texel CENTRE now (floor(uv*n)+0.5)/n
+  off the linear one - the same texel, exactly (the type mode's crisp cells
+  hold). uGCover dropped. The lake quads (G407) read uGPackA.a. After: inner
+  ring 8, outer 12, the patch 13 (linked true, 1.95 M verts drawn); three
+  units of headroom under 16 (G425 had to bake the cloud shadow INTO the AP
+  atlas for want of one - the next ground sampler has room now).
+- PROVED: before/after on the same tree (a scratch worktree at HEAD with the
+  ignored assets junctioned in, vs the working copy), five views x ground
+  modes 0/5/6/9/10, mean |d| 0.09-0.29 (tree impostor noise; <0.2 % of pixels
+  over 8) - the packing changes nothing the eye sees. Gates: ATMO, UISMOKE,
+  WORLDRENDER PASS; BUILD's four reds and PREMISES's 5b are red on the working
+  copy's peers' edits / at HEAD too (checked in the clean worktree), not this.
+- TRAPS: the finding's sampler count was a reading of the source; the GL
+  program's active-uniform table is the instrument (a declared-unused sampler
+  costs nothing, a `map` overwritten by the hook still costs one). The rail's
+  camera flyout drives the free camera from a script (`#flRail
+  button[data-f="camera"]`, then the `free` pill) where synthetic KeyC events
+  did not. run_gates.js REBUILDS the generated files before any subset - on the
+  shared tree that re-emits flight_core.js/index.html/dev.html from every
+  peer's uncommitted src.
+
 ## G425 — THE CLOUD CHANTIER, C2: THE LOOK, THE COST, AND THE SHADOW ON THE GROUND (2026-09-15,
 ## the user: "go C2. Do the clouds cast shadows on the terrain?")
 - THE ANSWER WAS NO (C3's item); pulled forward, it is YES: the terrain, the water, the
