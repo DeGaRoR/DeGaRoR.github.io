@@ -285,7 +285,7 @@ const MANIFEST = {
     // treeWarm/treeBuild, and the world asks whether the payload is ready
     // before it decides between a real tree and the cone it drew for a year.
     scripts: ['assets.js', 'aa_resolve.js',
-              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'site_tex.js', 'site_ground.js',
+              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'site_tex.js', 'site_ground.js',
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',

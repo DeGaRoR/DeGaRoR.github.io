@@ -52,6 +52,14 @@
     { k: 'canopy', label: 'forest floor', steps: [
         { v: 'off', label: 'off', why: 'the ground under a stand is lit like a field' },
         { v: 'on',  label: 'on', why: 'the ground under the crowns is in their shade' } ] },
+    // THE SKY'S OWN (S7): the sun's glare (the corona in the sky and the flare over the frame) and
+    // the mist (the day's humidity as a ground layer) - each off or on; the dials are F8's
+    { k: 'glare', label: 'sun glare', steps: [
+        { v: 'off', label: 'off', why: 'no corona, no flare' },
+        { v: 'on',  label: 'on', why: 'the corona round the sun and a flare over the frame, hidden behind the wing and the hills' } ] },
+    { k: 'mist', label: 'mist', steps: [
+        { v: 'off', label: 'off', why: 'no ground mist whatever the day' },
+        { v: 'on',  label: 'on', why: 'the day’s humidity as a layer over the low ground and the water' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -84,10 +92,10 @@
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -137,6 +145,9 @@
       applied.shadows = S.shadows;
     }
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
+    // the sky's own switches (S7): the glare's two halves and the mist
+    if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
+    if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) { W.ATMO.MIST.on = S.mist !== 'off'; applied.mist = S.mist; }
     // the tone curve, live: r186 re-keys the program on renderer.toneMapping
     const R = W.FLYDIY_RENDERER, T = W.THREE;
     if (R && T && applied.tone !== S.tone && T[TONE[S.tone]] !== undefined) { R.toneMapping = T[TONE[S.tone]]; applied.tone = S.tone; }
@@ -235,6 +246,6 @@
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
-                      anything: 'no restart' }),
+                      glare: 'live', mist: 'live', anything: 'no restart' }),
   };
 })();

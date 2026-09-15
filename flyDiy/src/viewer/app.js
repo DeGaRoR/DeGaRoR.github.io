@@ -181,6 +181,7 @@
     : null;
   if (typeof window !== 'undefined') window.FLYDIY_INPUT = INP;
   let manual = false, inpEv = null;
+  const glareDir = new THREE.Vector3(0, 1, 0);      // SKY S7: the light's direction handed to the flare
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
   // null under the smoke gate, which never runs the RENDER block
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
@@ -8161,6 +8162,20 @@
     // to its own target and is untouched by this.
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
+    if (typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {
+      const L = SKY_LIGHT.last;
+      const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      if (d) {
+        glareDir.set(d[0], d[1], d[2]);
+        SKY_GLARE.setOccluders(() => inGarage ? [garageScene()] : [craft]);
+        SKY_GLARE.setTerrain(inGarage ? null : (x, z) => world.terrainH(x, z));
+        const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
+        SKY_GLARE.update(camera, glareDir, { lum: 0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2], isMoon: L.isMoon, phase: L.phase,
+                                             aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
+        SKY_GLARE.render(renderer);
+      }
+    }
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
   }
   // The splash used to drop on frame 1 here - the mirror aircraft and the

@@ -409,6 +409,33 @@ var ATMO = (function () {
     varying vec3 vAtmoV;
     uniform sampler2D uApAtlas;
     uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+
+    // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
+    // below its top yTop, decaying over H above it - integrated in closed form along the ray
+    // (piecewise at the top plane), lit by the day (uMist[1].rgb: sun x T + sky at the mist, on
+    // the dome's scale) with a forward peak toward the sun. uMist[0] = (rho0, yTop, H, on),
+    // uMist[1] = (colour rgb, forward strength), uMist[2] = (sun dir xyz, 0). World metres.
+    uniform vec4 uMist[3];
+    float mistAbove(float ya, float dy, float ta, float tb, float H) {   // optical depth over [ta, tb] above the top, density exp(-(y - yTop)/H)
+      if (abs(dy) < 1e-4) return (tb - ta) * exp(-ya / H);
+      return (H / dy) * (exp(-(ya + dy * ta) / H) - exp(-(ya + dy * tb) / H));
+    }
+    float mistOD(float y0, float dy, float D) {
+      float rho0 = uMist[0].x, yTop = uMist[0].y, H = max(1.0, uMist[0].z);
+      float ya = y0 - yTop, y1 = ya + dy * D;
+      if (ya <= 0.0 && y1 <= 0.0) return rho0 * D;
+      if (ya > 0.0 && y1 > 0.0) return rho0 * mistAbove(ya, dy, 0.0, D, H);
+      float ts = -ya / dy;                                    // the crossing of the top plane
+      if (ya <= 0.0) return rho0 * (ts + mistAbove(ya, dy, ts, D, H));
+      return rho0 * (mistAbove(ya, dy, 0.0, ts, H) + (D - ts));
+    }
+    // col -> col through the mist along world dir d for D metres from the eye at y0
+    vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
+      if (uMist[0].w < 0.5 || uMist[0].x <= 0.0) return col;
+      float T = exp(-mistOD(y0, d.y, D));
+      float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+      return col * T + uMist[1].rgb * fwd * (1.0 - T);
+    }
     vec4 atmoAP() {
       float dist = length(vAtmoV) * 0.001;
       vec3 d = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz);
@@ -425,7 +452,10 @@ var ATMO = (function () {
     }`;
   const AP_APPLY = `
     #ifdef USE_FOG
-    if (uAtmoAP.z > 0.5) { vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a; }
+    if (uAtmoAP.z > 0.5) {
+      vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
+      gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
+    }
     #endif
   `;
   // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
@@ -442,7 +472,12 @@ var ATMO = (function () {
     #endif
   `;
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
-  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars } };
+  const mistScalars = new Float32Array(12);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0]
+  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
+  // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
+  // (humidity: rho0 = 0.0025/m x ((rh - 0.7) / 0.3)^2 - saturated air sees 1.2 km), its top (m ASL)
+  // and thickness (m), the forward peak. F8's atmosphere fold writes these.
+  const MIST = { on: true, k: 1, top: 60, H: 18, fwd: 0.8, rhoDay: 0, get rho0() { return this.rhoDay * this.k; } };
   let installed = false;
   function install() {
     if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk || !THREE.ShaderLib) return false;
@@ -454,7 +489,7 @@ var ATMO = (function () {
     SC.fog_fragment = AP_FOG_FRAG;
     SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
     for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {
-      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) lib.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
     }
     // every default material takes the sampler through the prototype; a hook of its own calls inject itself
     const proto = THREE.Material.prototype;
@@ -468,6 +503,7 @@ var ATMO = (function () {
     if (!/fog_pars_fragment|USE_FOG/.test(sh.fragmentShader || '')) return;
     sh.uniforms.uApAtlas = apUniforms.uApAtlas;
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
+    if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
 
@@ -479,6 +515,34 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
+    uniform float uGlare, uEyeY;                          // the corona's strength (S7); the eye's height for the mist
+
+    // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
+    // below its top yTop, decaying over H above it - integrated in closed form along the ray
+    // (piecewise at the top plane), lit by the day (uMist[1].rgb: sun x T + sky at the mist, on
+    // the dome's scale) with a forward peak toward the sun. uMist[0] = (rho0, yTop, H, on),
+    // uMist[1] = (colour rgb, forward strength), uMist[2] = (sun dir xyz, 0). World metres.
+    uniform vec4 uMist[3];
+    float mistAbove(float ya, float dy, float ta, float tb, float H) {   // optical depth over [ta, tb] above the top, density exp(-(y - yTop)/H)
+      if (abs(dy) < 1e-4) return (tb - ta) * exp(-ya / H);
+      return (H / dy) * (exp(-(ya + dy * ta) / H) - exp(-(ya + dy * tb) / H));
+    }
+    float mistOD(float y0, float dy, float D) {
+      float rho0 = uMist[0].x, yTop = uMist[0].y, H = max(1.0, uMist[0].z);
+      float ya = y0 - yTop, y1 = ya + dy * D;
+      if (ya <= 0.0 && y1 <= 0.0) return rho0 * D;
+      if (ya > 0.0 && y1 > 0.0) return rho0 * mistAbove(ya, dy, 0.0, D, H);
+      float ts = -ya / dy;                                    // the crossing of the top plane
+      if (ya <= 0.0) return rho0 * (ts + mistAbove(ya, dy, ts, D, H));
+      return rho0 * (mistAbove(ya, dy, 0.0, ts, H) + (D - ts));
+    }
+    // col -> col through the mist along world dir d for D metres from the eye at y0
+    vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
+      if (uMist[0].w < 0.5 || uMist[0].x <= 0.0) return col;
+      float T = exp(-mistOD(y0, d.y, D));
+      float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+      return col * T + uMist[1].rgb * fwd * (1.0 - T);
+    }
     uniform vec3 uSun, uMoon;
     varying vec3 vD;
     float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
@@ -534,6 +598,18 @@ var ATMO = (function () {
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
         L += tint * star * uStars * 1.5e-5 * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
       }
+      // THE CORONA (S7): the eye's own scatter around a disc ten thousand times the sky - a 1/theta^2
+      // lobe (Spencer et al. 1995) through the sun's transmittance, a degree wide, on the disc's own
+      // colour; the moon gets a faint one
+      if (uGlare > 0.0) {
+        vec3 Tsun = texture2D(uT2, tUV2(uR, uSun.y)).rgb;
+        float above = raySphere2(uR, d.y, uAtm2.x) < 0.0 ? 1.0 : 0.0;
+        float a = max(ang, sr);
+        L += Tsun * uGlare * above * 0.02 / (1.0 + pow(a / 0.02, 2.0)) * smoothstep(-0.05, 0.02, uSun.y);
+        if (uEMoon > 0.0) L += texture2D(uT2, tUV2(uR, uMoon.y)).rgb * uEMoon * uGlare * above * 0.4 / (1.0 + pow(max(angm, mr) / 0.02, 2.0)) * smoothstep(-0.05, 0.02, uMoon.y);
+      }
+      // the mist over the sky itself: a ray above the horizon leaves the layer (the integral converges)
+      L = mistApply(L * uScale, d, 60000.0, uEyeY) / max(1e-9, uScale);
       gl_FragColor = vec4(L * uScale, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -544,6 +620,7 @@ var ATMO = (function () {
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
+    glare: { value: 1 }, eyeY: { value: 0 },
   };
   function uploadTex(tex, lut, W, Hh) {
     const half = new Uint16Array(W * Hh * 4);
@@ -605,6 +682,20 @@ var ATMO = (function () {
     if (installed && G.rtAP) { G.quad.material = G.apMat; renderer.setRenderTarget(G.rtAP); renderer.render(G.scene, G.cam); G.quad.material = G.skyMat; }
     renderer.setRenderTarget(prev); renderer.autoClear = ac;
     apScalars[0] = U.scale.value;
+    U.eyeY.value = camAltM || 0;
+    // the mist's day: its density from the humidity, its colour from the sun and the sky at its top
+    if (day) {
+      const rh = day.rh != null ? day.rh : 0.5;
+      MIST.rhoDay = 0.0025 * Math.pow(Math.max(0, Math.min(1, (rh - 0.7) / 0.3)), 2);
+      const km = MIST.top / 1000, T = [0, 0, 0], E = [0, 0, 0], Em = [0, 0, 0];
+      sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E);
+      const sy = Math.max(0, day.sun[1]);
+      if (U.eMoon.value > 0 && day.moon[1] > 0) { skyIrradiance(km, day.moon, Em); const mE = U.eMoon.value; E[0] += Em[0] * mE; E[1] += Em[1] * mE; E[2] += Em[2] * mE; }
+      const S = U.scale.value * 0.9 / Math.PI;
+      mistScalars[0] = MIST.rho0; mistScalars[1] = MIST.top; mistScalars[2] = MIST.H; mistScalars[3] = MIST.on ? 1 : 0;
+      mistScalars[4] = S * (0.5 * T[0] * sy + E[0]); mistScalars[5] = S * (0.5 * T[1] * sy + E[1]); mistScalars[6] = S * (0.5 * T[2] * sy + E[2]); mistScalars[7] = MIST.fwd;
+      mistScalars[8] = day.sun[0]; mistScalars[9] = day.sun[1]; mistScalars[10] = day.sun[2]; mistScalars[11] = 0;
+    }
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
@@ -612,7 +703,8 @@ var ATMO = (function () {
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 } },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
+                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));
@@ -677,6 +769,7 @@ var ATMO = (function () {
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     install, inject, setAP, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX },
+    MIST,
   };
 })();
 if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks

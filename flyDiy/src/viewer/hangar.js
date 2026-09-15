@@ -3164,6 +3164,7 @@ function setLights(pick) {
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
 let skyPhys = false, skyBakedSun = null;
+const dayDirShed = [0, 1, 0];                       // the key's direction in the shed's frame (the flare reads it)
 function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
 function applyDay(day, renderer) {
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
@@ -3178,6 +3179,7 @@ function applyDay(day, renderer) {
   const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, altM: 0, exposureCap: LAMP_EX_CAP });
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
+  dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
   const R = 2 * HD + 22;
   key.target.position.set(0, 0.6, 0);
   key.position.set(s[0] * R, Math.max(EAVE * 0.8, s[1] * R), s[2] * R);
@@ -3673,6 +3675,7 @@ return {
 
   onSkyReady: fn => { skyOnReady = fn; },
   applyDay, moodFor, SHED_FRAME_YAW,             // ONE SKY (S5)
+  dayDir: () => dayDirShed,
   get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   mood: () => moodI,

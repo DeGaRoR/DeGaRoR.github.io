@@ -103,9 +103,10 @@ var SKY_LIGHT = (function () {
         if (G && G.setExposure) G.setExposure(o.renderer, ex); else o.renderer.toneMappingExposure = ex;
       }
     }
+    API.last = { isMoon, el, T: [_T[0], _T[1], _T[2]], phase: day.moonPhase };   // the flare reads the light's transmitted colour
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }
-  const API = { applyDay, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; } };
+  const API = { applyDay, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null };
   if (typeof window !== 'undefined') window.SKY_LIGHT = API;
   return API;
 })();

@@ -14,7 +14,7 @@ cuts the work into sessions. Each session lands with its gate under its own
 
 ---
 
-**CLOSED 2026-09-15**: A G408, B G409, C G410, D G412, E G415, F (see HANDOVER). What stays owed is listed in F’s entry.
+**CLOSED 2026-09-15**: A G408, B G409, C G410, D G412, E G415, F (see HANDOVER). What stays owed is listed in F’s entry. **S7 (glare + mist) landed 2026-09-15 on the user’s ask (see HANDOVER, S7): no bloom pass — the corona in the dome and an occlusion-gated flare; the mist as a height layer in the one splice, driven by the day’s humidity. Owed: clouds, the mist’s terrain term, the eye pass, the media deletion.**
 
 ---
 

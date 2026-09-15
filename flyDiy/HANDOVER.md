@@ -48501,3 +48501,58 @@ called it and threw after the mesh was in the scene and before `draw()`,
 so the picture stood until the next mouse move redrew it. `ground` is the
 function now (the flat field at its floor), the rectangle is `groundRect`
 (rule 41 reads it). GATE HOUSE run for this one.
+=======
+## G419 — THE SKY CHANTIER, S7: THE SUN'S GLARE AND THE MIST (2026-09-15, the user:
+## "I would love the bloom and flare, and mist ... decide for that one")
+
+- THE DECISION: no full-screen HDR bloom pass. It would re-architect the
+  resolve (a linear HDR target, a blur pyramid, the tone map moved into the
+  pass - the "resolve owns no colour" rule, GATE AA, exists so the pass
+  stays a pure resolve) and cost a frame-wide blur on a 1.25x target. What
+  reads as the sun's glare is the SUN: (1) THE CORONA in the dome shader
+  (atmo.js `uGlare`): the eye's own 1/theta^2 scatter (Spencer et al.
+  1995) round a disc ten thousand times the sky, a degree wide, through
+  the sun's transmittance on the disc's own colour, a faint one for the
+  moon; (2) THE FLARE (src/viewer/sky_glare.js): a soft glow that bleeds
+  over the wing's edge, five ghosts down the line to the frame's centre, a
+  thin streak - seven additive ShaderMaterial quads drawn on the canvas
+  AFTER the resolve (display space, toneMapped false, no depth), tinted by
+  the light's transmitted colour, and GATED ON OCCLUSION: five CPU rays
+  every third frame from the eye toward the light (the centre and four at
+  a third of a degree) against the aeroplane's skin (`craft`) in flight or
+  the whole garage scene in the shed, plus the terrain's profile along the
+  ray (14 samples to 20 km when the sun is under 20 deg); the fraction that
+  gets through is the flare's strength, eased at 0.35 a step so a strut
+  crossing the disc does not blink it. The moon flares at 0.18 x phase.
+  app.js hands it the light (WF.SUN_SKY in flight; the shed's own frame
+  through hangar.dayDir() in the garage) and SKY_LIGHT.last's transmittance.
+- THE MIST: an exponential height layer inside the one aerial-perspective
+  splice (atmo.js: `uMist[3]` on ShaderLib beside uAtmoAP, `mistOD` the
+  closed-form optical depth of a density rho0 below a top yTop decaying
+  over H above it - piecewise at the top plane, the shallow-ray limit
+  handled - `mistApply` the compose `col x T + L_mist x fwd x (1 - T)`), on
+  the dome too (a ray above the horizon leaves the layer; D = 60 km). Its
+  density is THE DAY'S: rho0 = 0.0025/m x ((rh - 0.7) / 0.3)^2 (dry air
+  under 70 %, saturated air sees 1.2 km) x the F8 multiplier; its top and
+  thickness are world metres (defaults 60 m ASL, 18 m: the hills stand out
+  of a valley floor of it); its colour the sun's transmittance at its top
+  x cos + the sky (and the moon) on the dome's scale, with a forward peak
+  toward the sun. Owed: the terrain term (mist in the valleys and over the
+  water by the hydrology's own map rather than one world altitude).
+- THE SWITCHES: GRAPHICS `sun glare` and `mist` (off / on, user-facing,
+  every preset on; both live, in the restart contract); F8 atmosphere
+  fold: corona, flare glow / ghosts / streak, mist density (with the
+  visibility it means), mist top, thickness, forward.
+- SEEN: the analytic world at 05:40 with the sun 10 deg up at the frame's
+  corner - the glow over the sky, the ghosts stepping down over the hills,
+  the corona in the dome; Jolene at 07:30 under 98 % humidity - a valley
+  morning, the trees soft in it, the ridges rising out, the near field
+  clear. A typo (uAtmo2 for uAtm2) blacked the whole sky for one build -
+  the pane's shader log names the line; build.js's blob check cannot.
+- GATES: NOT RUN - the user's order (the box was crashing under six
+  sessions' batteries): "no gate running until I say so". Syntax-checked
+  by vm.Script and the build's blob check; GATE GFX's preset/step and
+  restart rules were read and met (glare/mist in every preset, in the
+  restart contract); GATE ATMO's splice rules unchanged (five chunks, the
+  head of tonemapping_fragment, one flag). The battery is owed on this tip
+  the moment the box is free.

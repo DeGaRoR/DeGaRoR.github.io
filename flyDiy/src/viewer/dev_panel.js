@@ -199,6 +199,17 @@
     A.appendChild(slider('humidity', 0.05, 1, 0.01, () => (dy() ? dy().rh : NaN), v => { if (ck()) ck().set({ rh: v }); }, v => (v * 100).toFixed(0) + ' %'));
     A.appendChild(slider('cloud cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }));
     A.appendChild(slider('stars', 0, 3, 0.1, () => (W.ATMO && W.ATMO.U.stars ? W.ATMO.U.stars.value : NaN), v => { if (W.ATMO && W.ATMO.U.stars) W.ATMO.U.stars.value = v; }));
+    // S7: the glare's dials (the corona in the sky, the flare's glow / ghosts / streak) and the mist's
+    A.appendChild(slider('corona', 0, 3, 0.05, () => (W.ATMO && W.ATMO.U.glare ? W.ATMO.U.glare.value : NaN), v => { if (W.ATMO && W.ATMO.U.glare) { W.ATMO.U.glare.value = v; W.ATMO.glareDial = v; } }));
+    A.appendChild(slider('flare glow', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.glow : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.glow = v; }));
+    A.appendChild(slider('flare ghosts', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.ghosts : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.ghosts = v; }));
+    A.appendChild(slider('flare streak', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.streak : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.streak = v; }));
+    const mist = () => (W.ATMO ? W.ATMO.MIST : null);
+    A.appendChild(slider('mist density', 0, 6, 0.1, () => (mist() ? mist().k : NaN), v => { if (mist()) mist().k = v; }, v => v.toFixed(1) + 'x' + (mist() && mist().rho0 > 0 ? ' · vis ' + (3 / mist().rho0 / 1000).toFixed(1) + ' km' : ' · none (dry air)')));
+    A.appendChild(slider('mist top', -20, 600, 5, () => (mist() ? mist().top : NaN), v => { if (mist()) mist().top = v; }, v => v + ' m ASL'));
+    A.appendChild(slider('mist thickness', 5, 300, 5, () => (mist() ? mist().H : NaN), v => { if (mist()) mist().H = v; }, v => v + ' m'));
+    A.appendChild(slider('mist forward', 0, 3, 0.1, () => (mist() ? mist().fwd : NaN), v => { if (mist()) mist().fwd = v; }));
+    A.appendChild(note('the mist’s density is the day’s humidity (dry below 70 %); the GRAPHICS menu switches glare and mist off'));
     const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
     A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));
     { const n = note(''); const R = { el: n, refresh: () => { const S = W.SKY_LIGHT, K = S && S.K(); n.textContent = K && K.K_SUN ? `K_sun ${K.K_SUN.toFixed(2)} K_hemi ${K.K_HEMI.toFixed(2)} · ${S.isMoon ? 'the moon is the key' : 'the sun is the key'} · exposure base ${(W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : 0).toFixed(3)}` : 'atmosphere off (painted dome)'; } }; rows.push(R); live.push(R); A.appendChild(n); }
