@@ -428,7 +428,7 @@ function makePilot(sim, def, world, opts) {
   // it begins at Vref, flaps down)
   const gsMax = SH0 && SH0.LDbest ? clamp(1.4 / SH0.LDbest, 0.07, 0.16) : 0.105;
   const gammaGA = SH0 && SH0.gammaClimb ? 0.8 * SH0.gammaClimb : 0.08;
-  const dirLim = (mode) => ({ gs: A.gs, gsMax, gammaClimb: gammaGA, mode });
+  const dirLim = (mode) => ({ gs: A.gs, gsMax, gammaClimb: gammaGA, mode, LDGrun: SH0 && SH0.LDGrun ? SH0.LDGrun : null, TORun: SH0 && SH0.TORun ? SH0.TORun : null });
   // the take-off / landing direction at an aerodrome: the runway model's two
   // directions SCORED (25_airfield.js siteScoreDirections: the wind, the
   // slope, the approach the obstacles allow, the climb-out) with the
@@ -453,6 +453,20 @@ function makePilot(sim, def, world, opts) {
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
+  };
+  // P1.B: THE GUST, READ OFF THE DAY — the wind at the aerodrome sampled
+  // over the next 30 s (the field is deterministic in t): the spread of
+  // its speed. Half of it goes on Vref (the POH's rule); nothing asks the
+  // world what it was set to
+  const gustAt = (a) => {
+    if (!world || !world.wind) return 0;
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k <= 60; k++) {
+      const wv = world.wind(a.x, (a.elev || 0) + 30, a.z, ap.t + k * 0.5);
+      const sp = Math.hypot(wv[0], wv[2]);
+      lo = Math.min(lo, sp); hi = Math.max(hi, sp);
+    }
+    return Math.max(0, hi - lo);
   };
   // a point in a landing frame: s along u, c to the LEFT of u
   const wp = (F, s, c) => [F.ox + s * F.ux + c * F.uz, F.oz + s * F.uz - c * F.ux];
@@ -514,10 +528,40 @@ function makePilot(sim, def, world, opts) {
     ap.refAlt = (ap.restAlt == null ? 0 : ap.restAlt) + (to.elev - (from ? from.elev : to.elev));
     const sCen = alongOf(F, [to.x, 0, to.z]);
     const sThr = sCen - to.len / 2;
-    ap.xAim = Math.max(A.xAim, sThr + 40);
-    ap.shortFld = to.len < 450;
-    if (to.len < 700) ap.xAim = sThr + Math.max(60, 0.12 * to.len);
-    if (ap.shortFld && VApprShort) ap.VAppr = VApprShort; else ap.VAppr = sheetVAppr ?? A.VAppr;
+    // P1.B: THE APPROACH PLAN (PILOT-ROADMAP B.2-B.6) — what the runway, the
+    // machine and the day ask, in one record the phases read:
+    //   technique  'short' when the strip is under 450 m or under 1.6 x the
+    //              sheet's landing run: Vref 1.2 Vs0, the aim 30 m past the
+    //              threshold (8 % of the strip on a longer one), the brakes
+    //              from the moment every wheel is down;
+    //              'soft' when the surface rolls hard (a GROUND_SURF rolling
+    //              resistance of 0.10: duff, sand, scree): no brakes until
+    //              the aeroplane is walking, the nose held off;
+    //              'normal' otherwise — 1.3 Vs0 on the 20 % mark (a strip
+    //              under 700 m: 12 % in, 60 m at least)
+    //   Vref       the technique's speed + half the gust (gustAt)
+    //   aim        s along the frame; flap the build's landing setting
+    // The record is on the report (`appr`) so the matrix can read what was
+    // flown. The slope is the runway model's (below).
+    {
+      const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[to.surface]) || null;
+      const soft = !!row && row[0] >= 0.10;
+      const runNeed = SH0 && SH0.LDGrun ? SH0.LDGrun : null;
+      const short = to.len < 450 || (runNeed != null && to.len < 1.6 * runNeed);
+      const gust = gustAt(to);
+      const technique = short ? 'short' : soft ? 'soft' : 'normal';
+      const Vbase = short && VApprShort ? VApprShort : (sheetVAppr ?? A.VAppr);
+      const aim = short ? sThr + Math.max(30, 0.08 * to.len)
+                : to.len < 700 ? sThr + Math.max(60, 0.12 * to.len)
+                : Math.max(A.xAim, sThr + 40);
+      const FS0 = def.params.flaps;
+      ap.appr = { technique, Vref: Math.round((Vbase + 0.5 * gust) * 10) / 10, Vbase: Math.round(Vbase * 10) / 10, gust: Math.round(gust * 10) / 10,
+                  aimIn: Math.round(aim - sThr), flap: FS0 ? (FS0.ldg ?? 1) : 0, len: to.len, surface: to.surface,
+                  runNeed: runNeed != null ? Math.round(runNeed) : null };
+      ap.report.appr = ap.appr;
+      ap.xAim = aim; ap.shortFld = short; ap.VAppr = Vbase + 0.5 * gust;
+      if (runNeed != null && to.len < 1.15 * runNeed && !ap.stripShortSaid) { ap.stripShortSaid = true; say('strip-short', to.len + ' m of strip for a ' + Math.round(runNeed) + ' m landing run — landing short-field, no margin'); }
+    }
     let hC = ap.hCruise;
     // P1.A: THE SLOPE THE OBSTACLES ASK. The runway model's record for this
     // direction: the approach is flown at the archetype's own slope, or the
@@ -1019,7 +1063,18 @@ function makePilot(sim, def, world, opts) {
       } else hdotC = 0.2 * ((o.alt ?? cg[1]) - cg[1]);
       hdotC = clamp(hdotC, vsDn, vsUp);
       const VdotC = clamp(0.33 * (Vc - V), -1.5, 1.5);
-      const STEr = tHdot + V * accF / g9, STErC = hdotC + V * VdotC / g9;
+      // P1.B: THE SPEED TERM CANNOT CANCEL A SATURATED HEIGHT DEMAND. Asked
+      // to slow 3 m/s while 170 m below its height (the CLIMB's Vy+ into
+      // the route's Vy) the speed term (-3.2 m/s of energy rate) outweighed
+      // the full-climb demand (+2.93) and the throttle sat at 0.4 with the
+      // hill rising under the aeroplane (A3's departure). With the height
+      // demand on its stop the speed term may take at most half of it: the
+      // throttle stays near the stop and the excess speed is traded for
+      // height by the elevator (the balance loop asks exactly that)
+      let sKdot = V * VdotC / g9;
+      if (hdotC >= 0.95 * vsUp) sKdot = Math.max(sKdot, -0.5 * hdotC);
+      else if (hdotC <= 0.95 * vsDn) sKdot = Math.min(sKdot, -0.5 * hdotC);
+      const STEr = tHdot + V * accF / g9, STErC = hdotC + sKdot;
       // the throttle: feed-forward from the sheet, P + I on the energy-rate error
       const ff = STErC >= 0 ? tThrCruise + STErC / tClimbMax * (1 - tThrCruise)
                             : tThrCruise + STErC / tSinkIdle * (tThrCruise - tThrFloor);
@@ -2022,8 +2077,10 @@ function makePilot(sim, def, world, opts) {
 
       case 'ROLLOUT': {
         if (trike) {
-          if (V > (A.VDerotate ?? 20)) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
-          else engage('RWY', 'DE', 'SET', { de: 0.15, thr: 0 });
+          // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
+          const soft = ap.appr && ap.appr.technique === 'soft';
+          if (V > (soft ? 0.7 * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
+          else engage('RWY', 'DE', 'SET', { de: soft ? 0.35 : 0.15, thr: 0 });
         } else if (A.flareMode !== 'ramp' && A.flareMode !== 'vs') {
           // G381: AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE. The stick
           // comes back the moment the wing cannot fly it again (1.15 VRot;
@@ -2045,7 +2102,14 @@ function makePilot(sim, def, world, opts) {
         // and it noses over — and a trike landed fast (the drawn-tail
         // Caravan-alike at 1.6 Vs) rolled 836 m waiting for it, stopping 8 m
         // from the end of an 1100 m strip.
-        if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
+        // P1.B: the technique — short: the brakes from the moment every
+        // wheel is down, the ramp twice as quick; soft: none until the
+        // aeroplane is walking (0.5 Vs), the nose held off by the elevator
+        // laws above (full up on a taildragger; a trike derotates late)
+        const tq = ap.appr ? ap.appr.technique : 'normal';
+        if (tq === 'soft') { if (Vg < 0.5 * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99)) brakeRamp = Math.min(brakeRamp + 0.5 * A.brakeRampRate * dt, 0.5 * A.brakeMax); }
+        else if (tq === 'short') { if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + 2 * A.brakeRampRate * dt, A.brakeMax); }
+        else if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
           brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
         // G381.1: THROUGH A SKIP THE PILOT KEEPS FLYING IT. A bounce in a
         // crosswind put the wheels back in the air for a second, the ground

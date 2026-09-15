@@ -49712,3 +49712,62 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   drive over it); a bus route, a stop; headlights at night (the pack has no
   lamp geometry — G96's rule); the parked aeroplanes' hitbox has no car
   equivalent (a taxiing aeroplane drives through a parked car).
+
+## G422.1 — THE PILOT TRACK, P1.B: THE APPROACH PLAN — SHORT, SOFT, THE GUST
+## ON VREF, THE STRIP AGAINST THE RUN; TECS'S SPEED TERM BOUNDED (2026-09-15)
+
+**THE APPROACH PLAN** (43_pilot.js planArrival, PILOT-ROADMAP B.2-B.6): one
+record, `ap.appr` (on the report as `appr`), that the phases read instead
+of the constants they held:
+- `technique` — 'short' when the strip is under 450 m or under 1.6 x the
+  sheet's landing run (LDGrun): Vref 1.2 Vs0, the aim 30 m past the
+  threshold (8 % of a longer strip), the brakes from the moment every
+  wheel is down at twice the ramp; 'soft' when the surface's rolling
+  resistance is 0.10 or more (GROUND_SURF: forest floor, sand, scree): no
+  brakes until the aeroplane walks (0.5 Vs, then half), the nose held off
+  (a trike derotates at 0.7 Vs to full up; a taildragger's stick is full
+  back already); 'normal' otherwise — 1.3 Vs0 on the 20 % mark, 12 % in
+  (60 m at least) under 700 m, as before.
+- `Vref` — the technique's speed + HALF THE GUST: `gustAt` samples the
+  world's wind at the aerodrome over the next 30 s (the field is
+  deterministic in t) and takes the spread of its speed; nothing asks the
+  world what it was set to (the pilot reads the day).
+- `strip-short` said once when the strip is under 1.15 x the landing run;
+  the score (25_airfield.js siteScoreDirections, `lim.LDGrun / TORun`)
+  refuses a DOWNHILL landing on a strip under 1.5 x the run (B.6) and
+  names a strip shorter than the run or the take-off in its `why`.
+Measured: the cub at A5 (340 m gravel) lands short-field — Vref 21.9, the
+aim 30 m in, 164-190 m of roll (266 before); in a 2 m/s wind gusting 2
+(3.2 m/s of spread) Vref 23.5, sink 1.18 at 1.18 Vs, 1 m past the aim, the
+throttle working 0.05-0.48; on SAND (`pilot_trace --surface 7`, the new
+fixture flag) the cub rolls 219 m without a brake (237 on grass with), the
+C172 158 m nose-high. The trace prints the plan (`approach:` line) and
+judges the speed against the PLAN's Vref (it read ap.VAppr at the stand,
+so a short-field or gusty approach read as a speed error).
+
+**TECS** (`tecs`, P1.B): the speed term cannot cancel a saturated height
+demand — asked to slow 3 m/s while 170 m below its height (the CLIMB's
+Vy+ into the route's Vy) it outweighed the full-climb demand and the
+throttle sat at 0.4 with a hill rising under the aeroplane (A3's
+departure, before G422's terrain-turn); with the height demand on its
+stop the speed term may take at most half of it, the excess speed goes to
+height on the elevator. Quick set unchanged to the second (the cub's HOME
+circuit 335.2 s against 336).
+
+MEASURED (a clean worktree at G424, the core set): 47 cells, 29 good / 17 warn / 1 bad — from 23-24 / 14-15 / 9 at P0.7 (G399.7). Every A3, A5 and dn4 cell lands; the one bad is the C172's 158 m fillet in the 6 m/s headwind (`head6`, P0-era). The warns: the taildraggers' 1.6-2.0 m/s sinks and 6-7 deg swings in 2 m/s across (P0-era), the motorglider's 51-75 m fillet overshoot, the Savannah 3.5 m above its raised 4.1 deg slope at A5 with the throttle on its floor (the cub too, below the threshold).
+
+- Gates: PILOT (58/58 from a clean worktree at this commit). PILOTMATRIX
+  RED at this commit — the SAME seven cells G431 (the run attitude, landed
+  meanwhile) reported against pilot_baseline.json: the C172's touchdown
+  sink 0.95 -> 2.0 / 2.16 m/s, the cub's 9.6 deg roll-out swing in 2 m/s
+  across, cub up4 — the airframes moved under the pilot (the cub now
+  unsticks at 21.5 m/s, lands at 19.5); this entry's own measurements were
+  taken on a clean worktree at G424, before them. The RULING G431 owes
+  (re-bless the table, or the flare and the roll-out steer first) stands;
+  the baseline is not moved here.
+- OWED (P1): the take-off techniques (C.4: soft / short as ROLL
+  sub-modes); a `soft` fixture in the matrix; the cub at A5 flies 0.6 m/s
+  fast and 2 m above its 4.1 deg slope with the throttle on its floor
+  (the idle sink is short of the slope at 1.2 Vs0 — a slip, or the
+  planner's slope capped by the idle glide); the protocol record; the
+  4 m/s gusting crosswind ground roll.

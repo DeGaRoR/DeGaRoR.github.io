@@ -334,8 +334,8 @@ function siteRunwayModel(aero, world, opts) {
   return { R, hAt, grade, dir, ground, floor };
 }
 // THE DIRECTION, SCORED. One number per direction over the model, a wind
-// and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, mode 'land' or
-// 'takeoff'): the headwind component earns (3 per m/s; a tailwind past
+// and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, LDGrun, TORun,
+// mode 'land' or 'takeoff'): the headwind component earns (3 per m/s; a tailwind past
 // 2.5 m/s costs 30 per m/s beyond), a downhill landing
 // or an uphill take-off costs (60 per unit grade — 1 m/s of wind per 5 %),
 // an approach steeper than the aeroplane's own slope costs the FRACTION of
@@ -358,6 +358,10 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
       if (hw < -2.5) { sc -= 30 * (-2.5 - hw); why.push('tailwind'); }
     }
     if (land && D.grade < 0) { sc -= 60 * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
+    // B.6: never downhill into a strip under 1.5 x the landing run; the strip itself shorter than the run is said either way
+    if (land && lim.LDGrun && D.grade < -0.005 && model.R.len < 1.5 * lim.LDGrun) { sc -= 1000; why.push('downhill on a short strip'); }
+    if (land && lim.LDGrun && model.R.len < 1.15 * lim.LDGrun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.LDGrun) + ' m run');
+    if (!land && lim.TORun && model.R.len < 1.15 * lim.TORun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.TORun) + ' m take-off');
     if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
     if (land && D.reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
     else if (land && D.reqGs > gsNom) { sc -= 100 * (D.reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }

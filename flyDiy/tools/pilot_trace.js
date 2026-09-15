@@ -132,6 +132,7 @@ function runTrace(o) {
   const to = o.to ? world.aerodromes.find(a => a.id === o.to) : from;
   if (!from) throw new Error('unknown aerodrome ' + o.from);
   if (!to) throw new Error('unknown aerodrome ' + o.to);
+  if (o.surface != null) to.surface = o.surface;         // P1.B: the fixture's surface
   const def = C.buildGen(S.spec);
   const sim = C.makeSim(def, world);
   sim.reset(0);
@@ -144,7 +145,9 @@ function runTrace(o) {
   const A = def.params.ap, G = def.params.gen;
   // V/Vs is judged against the stall in the LANDING configuration
   const FS = def.params.flaps, VsL = (FS && (FS.ldg ?? 1) > 0 && G.VsFlap) ? G.VsFlap : G.Vs;
-  const Vs = G.Vs, VAppr = ap.VAppr * ({ cautious: 1.06, normal: 1, brisk: 0.97 }[o.style || 'normal'] || 1);
+  // P1.B: the approach speed is the PLAN's (the technique, the gust) — read live, not at the stand
+  const styleK = ({ cautious: 1.06, normal: 1, brisk: 0.97 }[o.style || 'normal'] || 1);
+  const Vs = G.Vs, VApprOf = () => ap.VAppr * styleK;
   const glider = S.role === 'glider';
   const maxS = o.maxS || (glider ? 640 : (from !== to ? 900 : 420));
   const rows = [], phases = [];
@@ -201,7 +204,7 @@ function runTrace(o) {
     if (ph === 'FINAL') {
       const ab = g('above slope');
       if (capT == null && ab != null && Math.abs(ab) < 4 && (t - (phases[phases.length - 1].t)) > 5) capT = t;
-      if (capT != null) { if (ab != null) above.push(ab); vErr.push(d.V - VAppr); thrs.push(c.thr); }
+      if (capT != null) { if (ab != null) above.push(ab); vErr.push(d.V - VApprOf()); thrs.push(c.thr); }
     }
     if (ph === 'ROLLOUT') { roll.e.push(d.e * 57.3); roll.dr.push(c.dr); roll.xt.push(d.z); }
     if (o.csv && s % 6 === 0)
@@ -219,7 +222,7 @@ function runTrace(o) {
   let zeroX = 0;
   for (let i = 1; i < roll.e.length; i++) if (roll.e[i - 1] * roll.e[i] < 0 && Math.abs(roll.e[i]) > 0.5) zeroX++;
   const out = {
-    key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail, slope: o.slope || 0,
+    key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail, slope: o.slope || 0, surface: o.surface ?? null,
     weather: Object.keys(weather).length ? weather : null,
     day: world0.day ? world0.day.local : null,                       // SKY chantier: the world's date-time the fixture flew in
     outcome: nan ? 'broke-up' : (rep.outcome || 'gave-up'), phase: ap.phase, t: r1(tEnd),
@@ -244,7 +247,7 @@ function runTrace(o) {
                    three: !!L.three, drift: TD ? r2(TD.drift) : null } : null,
     rollout: roll.e.length ? { maxE: r1(Math.max(...roll.e.map(Math.abs))), zeroX, maxDr: r2(Math.max(...roll.dr.map(Math.abs))),
                                xtEnd: r1(roll.xt[roll.xt.length - 1]) } : null,
-    Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VAppr), mass: Math.round(sim.totalM),
+    Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VApprOf()), appr: ap.report.appr || null, mass: Math.round(sim.totalM),
     sheet: ap.useSheet ? ap.sheet.show() : null, tecs: ap.useTecs, path: ap.usePath,
     wall: Math.round((Date.now() - t0) / 1000),
   };
@@ -269,6 +272,7 @@ function parseArgs(argv) {
     else if (a === '--style') o.style = nx();
     else if (a === '--max') o.maxS = +nx();
     else if (a === '--slope') o.slope = +nx();
+    else if (a === '--surface') o.surface = +nx();   // P1.B: the destination's surface class overridden (7 = sand, 3 = forest floor: the soft-field technique)
     else if (a === '--date') o.date = nx();
     else if (a === '--utc') o.utc = nx();
     else if (a === '--core') o.core = nx();
@@ -283,7 +287,7 @@ function parseArgs(argv) {
 
 if (require.main === module) {
   const o = parseArgs(process.argv.slice(2));
-  if (!o.key) { console.log('usage: node tools/pilot_trace.js <archetype|spec.json> [--from ID] [--to ID] [--wind x,z] [--gust g] [--oat C] [--qnh Pa] [--style s] [--drawn-tail] [--max S] [--csv [file]] [--json file] [--quiet]'); process.exit(1); }
+  if (!o.key) { console.log('usage: node tools/pilot_trace.js <archetype|spec.json> [--from ID] [--to ID] [--wind x,z] [--gust g] [--oat C] [--qnh Pa] [--style s] [--drawn-tail] [--slope g] [--surface N] [--max S] [--csv [file]] [--json file] [--quiet]'); process.exit(1); }
   let out;
   try { out = runTrace(o); }
   catch (e) { console.log(JSON.stringify({ key: o.key, error: e.message })); process.exit(1); }
@@ -295,6 +299,7 @@ if (require.main === module) {
     for (const l of out.legs) console.log('  ' + l.name.padEnd(9) + ' overshoot ' + String(l.overshoot).padStart(4) + ' m  settle ' + (l.settleT == null ? '  —' : l.settleT + ' s') + '  roll reversals ' + l.rollRev + '/min');
     if (out.final) console.log('  final: captured at ' + out.final.captureT + ' s · above-slope rms ' + out.final.aboveRms + ' m · V-VAppr rms ' + out.final.vRms + ' (mean ' + out.final.vErrMean + ') · thr ' + out.final.thrMin + '..' + out.final.thrMax);
     if (out.flare) console.log('  flare: from ' + out.flare.entryAgl + ' m at ' + out.flare.entryVs + ' m/s, ' + out.flare.dur + ' s');
+    if (out.appr) console.log('  approach: ' + out.appr.technique + ' · Vref ' + out.appr.Vref + ' m/s' + (out.appr.gust ? ' (+' + (out.appr.gust / 2).toFixed(1) + ' for a ' + out.appr.gust + ' m/s gust)' : '') + ' · aim ' + out.appr.aimIn + ' m in · flap ' + out.appr.flap + (out.appr.runNeed ? ' · run needed ' + out.appr.runNeed + ' m of ' + out.appr.len : ''));
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));
     if (out.rollout) console.log('  rollout: max heading ' + out.rollout.maxE + ' deg, ' + out.rollout.zeroX + ' reversals, rudder ' + out.rollout.maxDr + ' · ' + out.rollout.xtEnd + ' m off at the stop');
     for (const v of out.verdicts) console.log('  ! ' + v);
