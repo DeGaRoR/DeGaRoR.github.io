@@ -131,7 +131,13 @@ const DEF = {
   hSide: 0.24,     // chine to deck, m (at the forebody; the deck is level)
   bevel: 0.05,     // the deck edge's chamfer, m (G393, the user: "beveled edges"); the chine stays HARD
   nSta: 24,        // stations over the length
-  mFloat: 45,      // kg
+  // G396.4: 27 kg, from 45. A composite float for a 500 kg aeroplane is
+  // 22-27 kg (Aerocet 1100: 22 kg each, for 500 kg; Full Lotus 1450: 27 kg,
+  // for 650; Clamar 1400: 27 kg) — 45 was an EDO 1400 aluminium float's
+  // weight (70 kg each) halved by feel, and on the single-582 ultralight
+  // the pair came to 19 % of the gross (real: 9-11 %). The frame scales it
+  // by (L/4.6)^2: 4.15 m -> 22 kg each, the Aerocet's number.
+  mFloat: 27,      // kg, the shell (composite; see above)
   cgFloat: [-0.2, 0.15, 0],
   mLoad: 255,      // the aeroplane's half, kg
   cgLoad: [-0.26, 1.15, 0],   // the step 12 deg aft of the CG (the seaplane rule: 10-15)
@@ -1064,7 +1070,12 @@ function waterRudder(fx, ctl, water, simT, f) {
   const xhat = ctx.xhat, up = [0, 1, 0];
   const zR = cross(up, xhat); nrm(zR);                          // right = up x aft
   const Vf = -dot(vS, xhat), vy = dot(vS, zR);
-  const down = Vf < WR_UP_V && out.wetA > 0.05 ? 1 : 0;
+  // G396.4: WATER RUDDERS UP FOR TAKE-OFF. A seaplane pilot raises them
+  // before opening the throttle (the checklist item) — down, the pair cost
+  // 0.02 W of drag at the hump (q A Cd at 8 m/s), a fifth of the single
+  // 582's margin over it. Up above take-off power; down again at idle.
+  const takeoffPower = ctl && ctl.thr > 0.6;
+  const down = Vf < WR_UP_V && out.wetA > 0.05 && !takeoffPower ? 1 : 0;
   fx.wrDown = down;
   if (!down) return;
   const sub = Math.max(0, Math.min(1, (dS + WR_DEPTH * 0.2) / WR_DEPTH));
