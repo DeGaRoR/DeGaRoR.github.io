@@ -5627,6 +5627,31 @@
         tick();
       });
     } });
+    // THE WORLD'S PICTURES (LOADING S4.1): the house, sign, site and lot sets
+    // load when the world first READS them - here, under this screen - so
+    // wait for every Image a material of the scene holds before the upload
+    // below (an image that lands after the reveal is a pop: a bare wall for a
+    // second, then the planks). Bounded: a picture that never lands is a
+    // flat material, not a stuck screen.
+    steps.push({ id: 'images', label: "the world's pictures", w: 8, fn: () => {
+      if (!WF || typeof renderer.compileAsync !== 'function') return;
+      const imgs = new Set();
+      const isImg = v => v && v.isTexture && v.image && typeof v.image.complete === 'boolean' && !v.image.complete;
+      const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (isImg(v)) imgs.add(v.image); }
+        if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (isImg(v)) imgs.add(v.image); } };
+      scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
+      const list = [...imgs];
+      if (!list.length) return;
+      return new Promise(res => {
+        const t0 = performance.now();
+        const tick = () => {
+          const n = list.filter(i => i.complete).length;
+          BOOT.phase('images', "the world's pictures " + n + ' / ' + list.length, n / list.length);
+          if (n >= list.length || performance.now() - t0 > 20000) res(); else setTimeout(tick, 100);
+        };
+        tick();
+      });
+    } });
     // the textures go to the GPU here, in slices, with a count - not in the
     // first frame (measured: 5.6 s of the first world frame was the upload)
     steps.push({ id: 'upload', label: 'uploading the textures', w: 12, fn: () => {

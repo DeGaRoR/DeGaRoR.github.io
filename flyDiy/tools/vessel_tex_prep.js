@@ -72,7 +72,10 @@ let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/vessel_tex_prep.js f
 // before an image lands simply repaints when it does.
 const VESSEL_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // A SET LOADS WHEN IT IS READ (LOADING S4.1): the maps are getters, the
+  // Image made on first access (one per url); nothing here fetches at script eval
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
 `;
 const report = [];
@@ -88,7 +91,7 @@ for (const [k, px, tile, norScl, label] of SETS) {
   }
   body += `    ${k}: { px: ${px}, tile: ${tile}, norScl: ${norScl}, ao: 0,\n` +
           `      label: ${JSON.stringify(label)},\n` +
-          `      diff: mk('${maps.diff}'), arm: mk('${maps.arm}'), nor: mk('${maps.nor}') },\n`;
+          `      get diff() { return mk('${maps.diff}'); }, get arm() { return mk('${maps.arm}'); }, get nor() { return mk('${maps.nor}'); } },\n`;
   report.push(`${k} ${sfx(px)} ${(bytes / 1024).toFixed(0)} KB`);
 }
 body += `  };

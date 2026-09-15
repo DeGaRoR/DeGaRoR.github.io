@@ -129,6 +129,14 @@
     }
     T.appendChild(slider('fill density', 16, 400, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
       v => v + ' (' + (1024 / v).toFixed(1) + ' m)'));
+    // THE THINNING (G420, the row owed there): the complement's impostors keep
+    // every tree to `thin from`, a quarter (the base's share) by `thin to`
+    if (W.TREE_FILL.thin) {
+      const th = () => W.TREE_FILL.thin();
+      T.appendChild(slider('thin from', 500, 8000, 100, () => th()[0], v => W.TREE_FILL.thin(v, th()[1]), v => v + ' m'));
+      T.appendChild(slider('thin to', 1000, 9000, 100, () => th()[1], v => W.TREE_FILL.thin(th()[0], v), v => v + ' m'));
+      T.appendChild(note('one grid in two parts: the base (every 2nd point each way) stands to the ring\u2019s edge, the complement inside the fill reach thins in the shader between these two distances - no chunk is regenerated on approach'));
+    }
     // ONE lightness for the trees, both tiers: the leaf master light (the
     // models) and the impostors' lit term, moved together (the user, G400)
     T.appendChild(slider('tree lightness', 0.2, 2, 0.02, () => leaf().master().light,

@@ -61,15 +61,18 @@ const bake = (k, stem, tex) => {
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/site_tex_prep.js from
 // assets/airfield/ (CC0: Poly Haven + ambientCG; see CREDITS.md). The files
-// live under media/tex/site/ (hash-in-filename); loading starts at script
-// eval, ahead of the first garage entry building the room or the world scene
-// placing the shed — and every consumer waits on img.complete/onload.
+// live under media/tex/site/ (hash-in-filename); a map's Image is made when
+// a consumer first reads it (a getter) — and every consumer waits on
+// img.complete/onload.
 //
 // Ground materials for the aerodrome's surfaces — apron, taxiway, strip and
 // field. They join the same LIB the walls use, so any part can wear any set.
 const SITE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // A SET LOADS WHEN IT IS READ (LOADING S4.1): the maps are getters, the
+  // Image made on first access (one per url); nothing here fetches at script eval
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
 `;
 const report = [];
@@ -79,8 +82,8 @@ for (const [k, name, tile, tex] of SETS) {
   const d = bake(k, 'diff', tex), n = bake(k, 'nor_gl', tex), r = bake(k, 'rough', tex);
   emitted.push(d, n, r);
   body += `    ${k}: { name: '${name}', tile: ${tile}, px: ${tex},\n` +
-    `      diff: mk('${d}'),\n      nor: mk('${n}'),\n` +
-    `      rough: mk('${r}') },\n`;
+    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n` +
+    `      get rough() { return mk('${r}'); } },\n`;
   report.push(`${k} ${sfx(tex)} ${((sz(d) + sz(n) + sz(r)) / 1048576).toFixed(2)} MB`);
 }
 body += `  };

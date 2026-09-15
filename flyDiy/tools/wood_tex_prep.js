@@ -57,7 +57,10 @@ let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/wood_tex_prep.js fro
 // neutral fill stands in for a frame.
 const WOOD_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // A SET LOADS WHEN IT IS READ (LOADING S4.1): the maps are getters, the
+  // Image made on first access (one per url); nothing here fetches at script eval
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
 `;
 const report = [];
@@ -65,7 +68,7 @@ const emitted = [];
 for (const [k, tex] of SETS) {
   const rel = bake(k, tex);
   emitted.push(rel);
-  body += `    ${k}: { px: ${tex}, img: mk('${rel}') },\n`;
+  body += `    ${k}: { px: ${tex}, get img() { return mk('${rel}'); } },\n`;
   report.push(`${k} ${sfx(tex)} ${(fs.statSync(path.join(ROOT, rel)).size / 1024).toFixed(0)} KB`);
 }
 body += `  };

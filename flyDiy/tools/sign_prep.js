@@ -51,7 +51,10 @@ let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/sign_prep.js from
 // sign slot sizes its board by width and takes the height from here.
 const SIGN_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // A SET LOADS WHEN IT IS READ (LOADING S4.1): the maps are getters, the
+  // Image made on first access (one per url); nothing here fetches at script eval
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
 `;
 const emitted = [], report = [];
@@ -66,7 +69,7 @@ for (const key in SIGNS) {
   const rel = writeMedia(SUB, key + '_1k', 'png', buf);
   emitted.push(rel);
   const S = SIGNS[key];
-  body += `    ${key}: { name: '${S.name}', kind: '${S.kind}',${S.role ? ` role: '${S.role}',` : ''} aspect: ${(w / h).toFixed(3)}, px: [${w}, ${h}], img: mk('${rel}') },\n`;
+  body += `    ${key}: { name: '${S.name}', kind: '${S.kind}',${S.role ? ` role: '${S.role}',` : ''} aspect: ${(w / h).toFixed(3)}, px: [${w}, ${h}], get img() { return mk('${rel}'); } },\n`;
   report.push(`${key} ${w}x${h} ${(buf.length / 1024).toFixed(0)} KB`);
 }
 body += `  };

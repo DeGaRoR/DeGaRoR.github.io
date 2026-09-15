@@ -235,7 +235,7 @@ for (const k of Object.keys(skies).sort()) {
     `sun: ${v3(s.sun)}, sunCol: ${v3(s.sunCol)}, direct: ${s.direct}, ` +
     `ev: ${s.ev},\n` +
     `      hor: ${v3(s.hor)}, gnd: ${v3(s.gnd)}, zen: ${v3(s.zen)},\n` +
-    `      env: mk('${env}'), bg: mk('${bg}') },\n`;
+    `      get env() { return mk('${env}'); }, get bg() { return mk('${bg}'); } },\n`;
   report.push(`sky:${k} ${s.w}x${s.h} direct=${s.direct} ev=${s.ev}`);
 }
 fs.appendFileSync(OUT, `
@@ -248,7 +248,9 @@ fs.appendFileSync(OUT, `
 // and every colour is the measured mean of that part of the sphere.
 const HOUSE_SKIES = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // the benches' skies: read by the benches alone, made on first access (S4.1)
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
 ${skyBody}  };
 })() : null;

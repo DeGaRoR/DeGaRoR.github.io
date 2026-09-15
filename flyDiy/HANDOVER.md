@@ -48859,3 +48859,63 @@ GATE PILOT green (12 cases).
 - P0 IS CLOSED. NEXT: P1 (PILOT-ROADMAP §4) — the runway model with
   obstacles, the approach plan and its techniques, the direction choice
   (A3, dn4), and the crosswind ground roll the full run just measured.
+
+## G421.1 — THE EAGER TABLES CLOSE, AND THE ROLL-OUT WAITS FOR THE WORLD'S PICTURES (2026-09-15, LOADING S4.1)
+
+The first of G421's owed items. `node tools/boot_perf.js --cold` now prints
+`media by table` (media/<kind>/<table> MB and requests, `bytesBySub` in the
+json), which is what made the list short: of the 64 MB the garage boot
+fetched, signs 5.3 MB / 16, site 3.2 / 30, lot 2.3 / 15 and the benches'
+skies 1.6 / 4 were WORLD (or bench) content read at script eval.
+
+WHAT LANDED:
+- site_tex.js, lot_tex.js, sign_tex.js, skin_tex.js, wood_tex.js,
+  vessel_tex.js and HOUSE_SKIES are emitted with GETTERS (`get diff() {
+  return mk('...'); }`, one Image per url, made on first read) by their
+  bakers - the same shape G421 gave the walls and houses; the media names
+  did not move (the bakers re-ran, byte-identical). Consumers that copy the
+  tables (`Object.assign({}, LOT_TEX_SETS, SITE_TEX_SETS)`, `LIB[k] =
+  SITE_TEX_SETS[k]`) copy the SET objects by reference, so the getters
+  travel with them.
+- THE ROLL-OUT WAITS FOR THE PICTURES (app.js rollOutScreen, step `images`
+  between `ring` and `upload`): every HTMLImageElement a material of the
+  scene holds and has not `complete`d, counted on the phase line, bounded at
+  20 s. Without it the sets the world now reads under the screen would land
+  AFTER the reveal (a bare wall for a second, then the planks); with it the
+  upload step sees landed images. Measured 18 ms - the pictures land during
+  the 7.6 s world step - so the step is insurance for a slow link.
+
+- THE TRAP THE RE-BAKE FOUND: lot_tex.js is a GENERATED file with a
+  HAND-WRITTEN TAIL - G378 put LOT_GROUND (the drawn patch) under the table
+  and G410 hooked ATMO.inject into it; running lot_tex_prep.js wiped both
+  (GATE ATMO caught it: "lot_tex.js injects ... 0 of 1"). The baker now
+  keeps everything from the first rule line after the table as it finds it,
+  and the file's header says so. The other six tables carry no tail (checked
+  by diff).
+- THE F8 ROWS G420 OWED: `thin from` / `thin to` under trees (TREE_FILL.thin,
+  metres), with the one-grid-two-parts note; verified live in the pane.
+
+MEASURED (cold, the analytic world): boot bytes 64.0 -> 54.3 MB (images
+31.9 -> 22.2), 578 -> 524 requests; overlay gone 13.6 s; stillness 0.
+Roll-out screen 22.9 s, unchanged.
+
+WHAT THE 54 MB IS NOW, and what it would take: the SHED'S PROPS - 43 bins
+15.7 MB (thicknesser 2.3, bandsaw 2.2, jointer 1.9, panelsaw 1.5, cart 1.4,
+compressor 1.2 - the Sketchfab machines as imported) + 215 JPEGs 11.8 MB;
+the codec is already int16/uint16 (gzip gains 10 %), the textures are
+already JPEG; the lever is an ASSET-PREP pass on the shed's machines (a
+decimated bake under bench/, as the totems had - the user's as-is rule
+allows a prepared asset, not a live cut) and a prop atlas for the 215
+requests. The tree bins 4.3 MB stay in the boot by design (S1: tracked,
+not required, fetched in parallel for the roll-out's prewarm). Under the
+ROLL-OUT the next target is the PIER kit: 25.1 MB / 33 bins + 9.4 MB / 126
+textures + 4.1 MB of LODs at the first roll-out - the harbour's boats and
+people as imported.
+
+NOT DONE: the media manifest + t=0 prefetch. Judged: the garage-critical
+set is decided at runtime (the room's props, the wall set, the mood), the
+prefetch would win the ~2.5 s between page load and the first fetch on a
+slow link only, and a per-url manifest is ~50 KB in the page for a bar
+that is already fed by PerformanceObserver. Owed still if a real slow-link
+measurement (CDP emulateNetworkConditions) shows the serial chains
+mattering; the hook is the `run` phase in BOOT.log.

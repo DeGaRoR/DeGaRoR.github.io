@@ -7,11 +7,14 @@
 // neutral fill stands in for a frame.
 const WOOD_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
   const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // A SET LOADS WHEN IT IS READ (LOADING S4.1): the maps are getters, the
+  // Image made on first access (one per url); nothing here fetches at script eval
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
-    maple: { px: 512, img: mk('media/tex/wood/maple_aero_512.2a5e4c9d.jpg') },
-    walnut: { px: 512, img: mk('media/tex/wood/walnut_aero_512.a5fd8aa3.jpg') },
-    walnutfig: { px: 512, img: mk('media/tex/wood/walnutfig_aero_512.d4d39710.jpg') },
-    laminate: { px: 512, img: mk('media/tex/wood/laminate_aero_512.88ac0df3.jpg') },
+    maple: { px: 512, get img() { return mk('media/tex/wood/maple_aero_512.2a5e4c9d.jpg'); } },
+    walnut: { px: 512, get img() { return mk('media/tex/wood/walnut_aero_512.a5fd8aa3.jpg'); } },
+    walnutfig: { px: 512, get img() { return mk('media/tex/wood/walnutfig_aero_512.d4d39710.jpg'); } },
+    laminate: { px: 512, get img() { return mk('media/tex/wood/laminate_aero_512.88ac0df3.jpg'); } },
   };
 })() : null;

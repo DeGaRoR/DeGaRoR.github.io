@@ -229,6 +229,8 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const t0n = Math.min(...reqs.map(r => r.t0));
   const netRows = reqs.map(r => ({ url: r.url.replace(ORIGIN + '/flyDiy/', ''), t0: +((r.t0 - t0n) * 1000).toFixed(0), t1: +((r.t1 - t0n) * 1000).toFixed(0), kb: +((r.bytes || 0) / 1024).toFixed(0), type: r.type, failed: r.failed }));
   const bytesByDir = new Map(); for (const r of netRows) { const d = r.url.replace(/\?.*$/, '').split('/').slice(0, 2).join('/'); bytesByDir.set(d, (bytesByDir.get(d) || 0) + r.kb); }
+  // ...and one level deeper under media/ (media/tex/signs, media/geo/props): which TABLE the bytes belong to
+  const bytesBySub = new Map(); for (const r of netRows) { const p = r.url.replace(/\?.*$/, '').split('/'); if (p[0] !== 'media') continue; const d = p.slice(0, 3).join('/'); const v = bytesBySub.get(d) || [0, 0]; v[0] += r.kb; v[1]++; bytesBySub.set(d, v); }
   const byType = {}; for (const r of netRows) byType[r.type] = (byType[r.type] || 0) + r.kb;
   const longSum = M.longTasks.reduce((a, e) => a + e.d, 0);
   const longTop = M.longTasks.slice().sort((a, b) => b.d - a.d).slice(0, 8);
@@ -238,6 +240,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     byFile: top(byFile, 25), byFn: top(byFn, 40), inclusive: [...incl].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / 1000).toFixed(0)]),
     netTotalKB: netRows.reduce((a, r) => a + r.kb, 0), netRequests: netRows.length, netFailed: netRows.filter(r => r.failed).length,
     netByType: byType, bytesByDir: [...bytesByDir].sort((a, b) => b[1] - a[1]).slice(0, 12),
+    bytesBySub: [...bytesBySub].sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => [k, v[0], v[1]]),
     bigFiles: netRows.filter(r => r.kb >= 300).sort((a, b) => b.kb - a.kb).slice(0, 40).map(r => [r.url.replace(/\?.*$/, ''), r.kb, r.t1]), samples };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
@@ -254,6 +257,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   console.log(`  overlay gone ${M.bootGone} ms   long tasks ${longSum} ms in ${M.longTasks.length}: ` + longTop.map(t => t.d + '@' + t.t).join(' '));
   console.log(`  stillness (mean |dpx|, 0 = nothing changed after the drop): drop->2s ${still.drop_vs_2s}  drop->5s ${still.drop_vs_5s}  2s->5s ${still.s2_vs_5s}`);
   console.log(`  network ${(out.netTotalKB / 1024).toFixed(1)} MB / ${out.netRequests} req (failed ${out.netFailed})  ` + Object.entries(byType).map(([k, v]) => k + ' ' + (v / 1024).toFixed(1) + ' MB').join(', '));
+  console.log('  media by table: ' + out.bytesBySub.slice(0, 14).map(([k, kb, n]) => k.replace(/^media\//, '') + ' ' + (kb / 1024).toFixed(1) + ' MB/' + n).join(', '));
   if (rollout) console.log('  ROLL-OUT: screen ' + rollout.screenMs + ' ms  steps ' + ((rollout.log || []).filter(e => e.k === 'step').map(e => e.id + ':' + e.ms).join(' ')) + '  ring at lift ' + JSON.stringify(rollout.ring) + '  after ' + JSON.stringify(rollout.ringAfter) + '  programs ' + rollout.programs + '  stillness lift->3s ' + rollout.still.lift_vs_3s + '  3s->8s ' + rollout.still.s3_vs_8s + (rollout.note ? '  ' + rollout.note : ''));
   console.log('  props landed ' + M.props.length + '  chars ' + M.chars.length + '  ASSET_FETCH ' + M.fetches.length);
   console.log('  inclusive ms: ' + out.inclusive.slice(0, 16).map(([k, v]) => pad(k.split(' @')[0], 18) + v).join('\n                '));
