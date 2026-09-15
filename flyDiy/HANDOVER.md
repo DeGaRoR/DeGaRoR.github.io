@@ -48643,3 +48643,44 @@ aeroplanes' capture, the premises drain and the colour bake are the
 candidates - a Worker for the bake is the next cut). S4 (bytes: texture prep
 in the bakers, the media manifest + prefetch, the media-only service worker
 with version numbers and a refresh button) is the last session.
+
+## G396.4 — THE BASE PLANE FLIES OFF THE WATER: COMPOSITE FLOATS, RUDDERS UP
+## FOR TAKE-OFF, THE PILOT'S STICK ON THE WATER IN THREE PARTS, THE HUMP IS
+## NOT A FAILED RUN (2026-09-15, no long gates — the box near its limit)
+
+- `src/core/32_hydro.js` DEF.mFloat 45 -> 27 kg. A composite float for a
+  500 kg aeroplane weighs 22-27 kg (Aerocet 1100 22 kg each for 500 kg gross;
+  Full Lotus 1450 27 kg for 650; Clamar 1400 27 kg); 45 was an EDO 1400
+  aluminium float halved by feel, and on the single-582 ultralight the pair
+  came to 19 % of the gross (real 9-11 %). The frame's (L/4.6)^2 scaling
+  gives 22 kg each at 4.15 m — the Aerocet's number. Single-582 ul1 on
+  floats: 443 -> 415 kg, T/W 0.255 -> 0.272.
+- `src/core/32_hydro.js` waterRudder: RUDDERS UP AT TAKE-OFF POWER (ctl.thr
+  > 0.6), the checklist item — down, the pair cost 0.02 W at the hump (q A
+  Cd at 8 m/s), a fifth of the single 582's margin over it. Measured: with
+  them up the base plane passes the hump (9.1 -> 10.9 -> 15.3 m/s, on the
+  step at 25 s) where with them down it sat at 8.3 m/s for ever.
+- `src/core/43_pilot.js` ROLL on the water, THE STICK IN THREE PARTS: neutral
+  (a 0.02 floor, never forward) through the hump and onto the step — the
+  taildragger's tail-up law pushed 0.15-0.21 of forward stick, the hull
+  planed nose-low at 14 m/s and porpoised to 33 deg (a float's lower trim
+  limit is real), and back stick at the hump buried the sterns and sank it
+  back into it; from Vr the stick comes all the way back to unstick (0.8 Vr
+  ballooned the single 582 to 31 deg at 14 m/s, below its Vs, and it fell
+  back). LIFTOFF: the hold-off — the stick stays back while a float is
+  still wet (the card skimmed 2 s to 115 km/h; 99 now).
+- THE HUMP IS NOT A FAILED RUN: the accelerate-stop planner's "will not
+  reach Vr" and "not accelerating" rules wait while the afterbody is wet
+  (the displacement regime reads 0.1 m/s^2 for twenty seconds and then
+  planes); on the step they judge as before. The single 582 was condemned
+  at 13 s with 1414 m of lane left.
+- MEASURED, the pilot from the SEA lane, first dry: the single-582 base card
+  (ul1 on the Floats tile, Vs 69 km/h) LIFTOFF at 36 s, 66 km/h, CLIMB at
+  49 s — it never left the hump before; the user's fixture 69 km/h = 1.15
+  Vs (real: 1.1-1.3); the twin card 99 km/h = 1.52 Vs (its tail, flaps and
+  thrust line). Wheeled aeroplanes untouched: every rule here is behind
+  `sim.hydro`.
+- Gates: none of the long ones (the box at 50 % with peers' runs; the user's
+  ruling). Flown: the fixture's and the card's water circuits, the trike
+  case — see the landing line. FLOATS/SEAPLANE/PILOT owed when the box is
+  free.

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 71becd0f1c6632e6
+// body-sha256: d0bc9d49ac0cc533
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7550,7 +7550,13 @@ const DEF = {
   hSide: 0.24,     // chine to deck, m (at the forebody; the deck is level)
   bevel: 0.05,     // the deck edge's chamfer, m (G393, the user: "beveled edges"); the chine stays HARD
   nSta: 24,        // stations over the length
-  mFloat: 45,      // kg
+  // G396.4: 27 kg, from 45. A composite float for a 500 kg aeroplane is
+  // 22-27 kg (Aerocet 1100: 22 kg each, for 500 kg; Full Lotus 1450: 27 kg,
+  // for 650; Clamar 1400: 27 kg) — 45 was an EDO 1400 aluminium float's
+  // weight (70 kg each) halved by feel, and on the single-582 ultralight
+  // the pair came to 19 % of the gross (real: 9-11 %). The frame scales it
+  // by (L/4.6)^2: 4.15 m -> 22 kg each, the Aerocet's number.
+  mFloat: 27,      // kg, the shell (composite; see above)
   cgFloat: [-0.2, 0.15, 0],
   mLoad: 255,      // the aeroplane's half, kg
   cgLoad: [-0.26, 1.15, 0],   // the step 12 deg aft of the CG (the seaplane rule: 10-15)
@@ -8483,7 +8489,12 @@ function waterRudder(fx, ctl, water, simT, f) {
   const xhat = ctx.xhat, up = [0, 1, 0];
   const zR = cross(up, xhat); nrm(zR);                          // right = up x aft
   const Vf = -dot(vS, xhat), vy = dot(vS, zR);
-  const down = Vf < WR_UP_V && out.wetA > 0.05 ? 1 : 0;
+  // G396.4: WATER RUDDERS UP FOR TAKE-OFF. A seaplane pilot raises them
+  // before opening the throttle (the checklist item) — down, the pair cost
+  // 0.02 W of drag at the hump (q A Cd at 8 m/s), a fifth of the single
+  // 582's margin over it. Up above take-off power; down again at idle.
+  const takeoffPower = ctl && ctl.thr > 0.6;
+  const down = Vf < WR_UP_V && out.wetA > 0.05 && !takeoffPower ? 1 : 0;
   fx.wrDown = down;
   if (!down) return;
   const sub = Math.max(0, Math.min(1, (dS + WR_DEPTH * 0.2) / WR_DEPTH));
@@ -12447,12 +12458,18 @@ function makePilot(sim, def, world, opts) {
         // in it, said as such.
         let reject = null;
         const canStopHere = left - sd >= ST.reserve;
+        // G396.4: THE HUMP IS NOT A FAILED RUN. A seaplane at the hump reads
+        // 0.1 m/s^2 for twenty seconds and then planes (the single 582:
+        // 8.5 m/s from t 10 to 22, on the step at 24, unstuck at 35); the
+        // accelerate-stop planner condemned it at 13 s. In the displacement
+        // regime (the afterbody wet) the planner waits; on the step it judges.
+        const atHump = !!(sim.hydro && sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.2));
         if (canStopHere) {
           // the prediction waits for the 2 s acceleration filter to settle
           // (three time constants after the throttle opens): at 3 s a slow
           // build read a third of its true acceleration and was condemned —
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
-          if (V < vr && phaseT > 7 && accF > 0.02) {
+          if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
             const dVr = (vr * vr - V * V) / (2 * accF);
             if (dVr > left - stopDist(vr) - ST.reserve)
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
@@ -12470,7 +12487,7 @@ function makePilot(sim, def, world, opts) {
             reject = Math.round(runUsed) + ' m used (' + Math.round(ST.rejectFrac * 100) +
                      ' % of the run) still on the wheels at V=' + V.toFixed(1) + (V >= vr ? ' past Vr=' + vr.toFixed(1) : ' of Vr=' + vr.toFixed(1)) +
                      ' (the sheet says ' + Math.round(A.TORun ?? 0) + ' m) — dropping it';
-          if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr)
+          if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr && !atHump)
             reject = 'not accelerating (' + accF.toFixed(2) + ' m/s^2 at V=' + V.toFixed(1) + ') — thrust is going nowhere';
         } else if (V < vr) {
           reject = 'out of runway: ' + Math.round(left) + ' m left, ' + Math.round(sd) +
@@ -12510,7 +12527,14 @@ function makePilot(sim, def, world, opts) {
         // the card rode the step nose-low to a 145 km/h lift-off (Vs 66).
         // A seaplane pilot holds the stick back from the hump until the hull
         // lets go; the servo eases it from there. Measured: 102 km/h.
-        if (sim.hydro && onG > 0 && V > 0.45 * vr) deFloor = A.deWater ?? 0.70;
+        // G396.4: THE STICK ON THE WATER, in three parts. Through the hump and
+        // onto the step the elevator is NEUTRAL — never forward: the
+        // taildragger's tail-up law pushed 0.15-0.21 of forward stick on the
+        // single 582, the hull planed nose-low at 14 m/s and porpoised to
+        // 33 deg (a real float's lower trim limit); and never back either,
+        // which buried the sterns and sank it back into the hump. From ON
+        // THE STEP, at Vr (0.8 Vr ballooned the single 582 to 31 deg at 14 m/s and it fell back), the stick comes all the way back to unstick.
+        if (sim.hydro && onG > 0) deFloor = V > (A.vWaterStick ?? 1.0) * vr ? (A.deWater ?? 0.70) : 0.02;
         c.brake = 0;
         if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
         break;
@@ -12553,6 +12577,12 @@ function makePilot(sim, def, world, opts) {
         // 135 km/h). The sea is the flat datum `agl` was built on.
         const aglL = sim.hydro ? agl : aglG;
         if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        // G396.4: THE HOLD-OFF ON THE WATER. LIFTOFF eased the stick to the
+        // servo's 0.22 the moment the hull let go, the floats touched again
+        // and the card skimmed the step 2 s to 115 km/h where full stick
+        // unsticks it at 96: the stick stays back while a float is still
+        // wet, and the servo takes over once the aeroplane is clear.
+        if (sim.hydro && onG > 0) deFloor = A.deWater ?? 0.70;
         if (aglL > A.hSafe)
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
