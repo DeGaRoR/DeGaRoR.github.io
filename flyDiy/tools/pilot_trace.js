@@ -15,9 +15,6 @@
 //   node tools/pilot_trace.js caravan --drawn-tail --csv
 //   node tools/pilot_trace.js my_build.json --to A5
 //   node tools/pilot_trace.js cub --slope 0.04     HOME tilted 4 % (the landing runs downhill)
-//   node tools/pilot_trace.js cub --no-sheet       genAP's ladder instead of the machine sheet's (P0.4; the sheet is the default)
-//   node tools/pilot_trace.js cub --no-tecs        the mode zoo instead of the total-energy law (P0.5; TECS is the default)
-//   node tools/pilot_trace.js cub --no-path        the pursuit + arc instead of L1 over the filleted path (P0.6; the path is the default)
 //
 // Options: --from ID --to ID (aerodrome ids, HOME default; --to alone flies a
 // cross-country from HOME) · --wind x,z (m/s, the air's velocity) · --gust g ·
@@ -142,7 +139,7 @@ function runTrace(o) {
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   // the machine sheet (P0.4): the shakedown handed lazily (2 s, once), the ladder flag on request
   let shk = null;
-  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', sheet: o.sheet !== false, tecs: o.tecs !== false, path: o.path !== false, shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
+  const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
   if (from !== to || from.id !== 'HOME') ap.setRoute(from, to);
   const A = def.params.ap, G = def.params.gen;
   // V/Vs is judged against the stall in the LANDING configuration
@@ -267,13 +264,8 @@ function parseArgs(argv) {
     else if (a === '--style') o.style = nx();
     else if (a === '--max') o.maxS = +nx();
     else if (a === '--slope') o.slope = +nx();
-    else if (a === '--sheet') o.sheet = true;
-    else if (a === '--tecs') o.tecs = true;
     else if (a === '--date') o.date = nx();
     else if (a === '--utc') o.utc = nx();
-    else if (a === '--no-sheet') o.sheet = false;
-    else if (a === '--no-tecs') o.tecs = false;
-    else if (a === '--no-path') o.path = false;
     else if (a === '--core') o.core = nx();
     else if (a === '--drawn-tail') o.drawnTail = true;
     else if (a === '--csv') o.csv = (argv[i + 1] && !argv[i + 1].startsWith('--')) ? nx() : true;

@@ -48800,3 +48800,62 @@ a slow link and the SW's prune; the remaining eager tables (above); the
 prop textures (13 MB, hangar and world props alike, all at boot - a lazy
 propTexture is the same getter idea); the sky base (5.5 MB JPEG at 4k -
 a 2k would do at the door); trees' leaf PNGs stay PNG (the coverage mips).
+
+## G399.7 — THE PILOT TRACK, P0.7: THE FULL RUN JUDGED EVERY ARCHETYPE; A
+## SPEED THE ELEVATOR CANNOT HOLD IS RAISED, NOT CHASED; THE OLD MODES AND
+## THEIR EXCEPTIONS RETIRED (2026-09-15)
+
+**THE FULL RUN** (`pilot_matrix --set all`, 176 cells on a clean worktree
+build of HEAD af0b6608, 2 h 45 min): 61 good, 56 warn, 59 bad. Every one
+of the 25 archetypes completes its HOME circuit in calm air and in 2 m/s
+across, and lands within 1.03-1.27 Vs, except the Caravan-alike (below).
+The bad, by class:
+- THE CARAVAN-ALIKE gave up on every HOME cell (calm too): its elevator
+  runs out of nose-up authority at idle (de 0.30-0.35 with the speed
+  stuck at 31.8 against the sheet's 29.2 Vref), and in TECS a PERMANENT
+  speed error poisons the energy demand — the throttle sat at its floor
+  35 m below the slope, asking to slow down more than to climb, and the
+  aeroplane went around for terrain every time. G381.1's power assist had
+  masked exactly this. FIXED (43_pilot.js `tecs`): while the elevator
+  sits on its stop nose-up with the speed above the reference, the
+  reference is RAISED (0.5 m/s per second, at most a quarter of Vref) and
+  said once on the record (`vref-raised`) — the approach the machine can
+  fly; the planner will read it off the sheet (elevIdle) when the bench
+  measures it. The Caravan-alike: slope rms 0.3 m, 0.42 m/s at 1.44 Vs,
+  94 m past the aim, 556 m of run. (The matrix's "speed rms" reads the
+  raise as an error — it names the airframes that cannot fly Vref.)
+- 4 m/s across with gusts (`x4`) and the hot gusty day (`hot`): rollout
+  swings of 17-55 deg on the taildraggers (beaver 55, stearman 36-41,
+  motorglider 21-27, tigermoth 18-22, sesqui 17-18) and 100-200 m fillet
+  overshoots in the gusts. OWED: the crosswind ground roll in a real
+  wind — the tail-down steer schedule, the aileron-into-wind bias and the
+  rudder's authority were sized on 2 m/s (G381); a 4 m/s gusting cross
+  is beyond them. P1.
+- The DRAWN-TAIL builds: twinBush / beaver / caravan gave up, the
+  motorglider's roll reversed 54 times a minute (a limit cycle on its
+  drawn tail's lateral loop), the tigermoth arrived at 2.24 m/s. The tail
+  chantier's builds, measured — theirs.
+- The cross-countries (A3: the hill at the initial fix, P1; A5: they land,
+  the overshoot metric misreads the hold-out climb), `dn4` (P1), the C172
+  in a 6 m/s headwind (a 132 m fillet).
+
+**THE RETIREMENT (P0.7).** With that judgement, the flags that kept the
+old pilot selectable (`sheet` / `tecs` / `path`, G399.2-G399.5) are gone
+and with them the pilot's own exceptions: the G381 arc turn (arcInto /
+arcFly / arcBank), altMode's FLC-then-ALT switch and its `thrC` juggling,
+FINAL's GS / ALT branches and the level latch's old law, CLIMB's and
+GOAROUND's FLC, the G381.1 power assist on FINAL (the flare keeps its
+trickle: the hold-off is not TECS yet). 98 lines out, 50 in. The AFCS
+modes themselves (ALT / VS / FLC / GS / SPD) STAY — the AP box (G202.1)
+hands them to the player. `pilot_trace` / `pilot_matrix` lose the
+`--no-*` flags. MEASURED, the core set on the retired build against the
+G399.4 run: 23 good / 15 warn / 9 bad, the same nine (P1's), one cell
+moved good -> warn at a threshold edge (the motorglider in 2 m/s across);
+the cub and the C172 fly bit-for-bit what they flew before the cut.
+GATE PILOT green (12 cases).
+
+- Gates: PILOT; PILOTMATRIX against the G399.6 baseline (the quick set
+  is a subset of the core above: no cell worse).
+- P0 IS CLOSED. NEXT: P1 (PILOT-ROADMAP §4) — the runway model with
+  obstacles, the approach plan and its techniques, the direction choice
+  (A3, dn4), and the crosswind ground roll the full run just measured.

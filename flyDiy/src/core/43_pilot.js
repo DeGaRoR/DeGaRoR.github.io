@@ -146,8 +146,9 @@ function makePilot(sim, def, world, opts) {
   let sheetV = null;
   const sheetOf = () => sheetV || (sheetV = (typeof machineSheet === 'function'
     ? machineSheet(def, { shakedown: opts.shakedown }) : null));
-  // ON by default since the matrix said so (G399.3): `sheet: false` / `tecs: false` keep the old ladder / modes
-  const useSheet = opts.sheet !== false;
+  // G399.7 (P0.7): the sheet's ladder, TECS and the path ARE the pilot — the
+  // flags that kept the old modes selectable (G399.2-G399.5) are retired,
+  // the full matrix having judged every archetype under them
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
@@ -209,7 +210,7 @@ function makePilot(sim, def, world, opts) {
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100, x: -520, z: 0 };
   // the speed ladder: the sheet's when the flag is on and the stall is measured
-  const SH0 = useSheet ? sheetOf() : null;
+  const SH0 = sheetOf();
   const sheetVAppr = SH0 && SH0.src.Vs0 === 'measured' ? SH0.Vref : null;
   const VApprShort = sheetVAppr != null ? 1.20 * SH0.Vs0 : A.VApprShort;
   const ap = {
@@ -313,20 +314,20 @@ function makePilot(sim, def, world, opts) {
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
-  let arc = null, finalLevel = null;
+  let finalLevel = null;
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false;
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0;
   let gearH = null, onGT = 0;             // P0.8: the CG's rest height above the terrain; the contact's duration
   // P0.5 (PILOT-ROADMAP §6.3 rule 1): TECS's own state — the throttle and the
   // balance integrators, the filtered rates, the speed weight
-  const useTecs = opts.tecs !== false;
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
-  let usePath = opts.path !== false;
   let airPath = null, airPathI = 0, pathDbg = null;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
+  // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
+  let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -334,7 +335,7 @@ function makePilot(sim, def, world, opts) {
   };
   ap.taxiFF = taxiFF;
   Object.defineProperty(ap, 'sheet', { get: sheetOf, enumerable: false });
-  ap.useSheet = useSheet; ap.useTecs = useTecs; ap.usePath = usePath;
+  ap.useSheet = ap.useTecs = ap.usePath = true;   // G399.7: no longer optional; kept for the trace tool's summary
 
   // ---- THE AP BOX (G202.1): the modes as a device -------------------------
   // engage({lat, vert, thr}, sel): a mode per axis (undefined = keep, null =
@@ -888,7 +889,23 @@ function makePilot(sim, def, world, opts) {
       const g9 = 9.81;
       if (!tOn) { tOn = true; tIthr = clamp(c.thr - tThrCruise, -0.3, 0.3); tIpit = 0; tHdot = vcg[1]; tWk = 1; }
       tHdot += 0.5 * (vcg[1] - tHdot);
-      const Vc = Math.max(o.ias || A.VAppr, 1.05 * tVs0);
+      // G399.7: A SPEED THE ELEVATOR CANNOT HOLD IS RAISED, NOT CHASED. The
+      // sheet's Vref (1.30 Vs0) is the textbook speed; an aeroplane whose
+      // elevator runs out of nose-up authority at idle (the Caravan-alike:
+      // de 0.30-0.35, V stuck at 31.8 against a 29.2 reference) carries a
+      // permanent speed error, and in TECS a permanent speed error poisons
+      // the ENERGY demand — the throttle sat at its floor 35 m below the
+      // slope, asking to slow down more than to climb, and the aeroplane
+      // went around for terrain every time. While the elevator sits on its
+      // stop nose-up with the speed above the reference, the reference is
+      // raised (0.5 m/s per second, at most a quarter of Vref) — the
+      // approach the MACHINE can fly, said once on the record. The planner
+      // will read this off the sheet (elevIdle) when the bench measures it.
+      const eSat = aDe > 0.30 && V > (o.ias || A.VAppr) + 0.5;
+      tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
+      if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
+      if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
+      const Vc = Math.max((o.ias || A.VAppr) + tVAdapt, 1.05 * tVs0);
       // the demands
       const vsUp = o.vsUp ?? tClimbMax, vsDn = o.vsDn ?? -Math.max(3.0, 1.5 * tSinkIdle);
       let hdotC;
@@ -1029,33 +1046,6 @@ function makePilot(sim, def, world, opts) {
       if (sel) Object.assign(SEL, sel);
       ap.trackHold = (lat === 'LOC' || lat === 'RWY' || lat === 'DECRAB');
     };
-    // G381: THE ARC TURN. arcBank is the bank a leg change is flown at (a
-    // climbing turn is gentler); arcInto arms a constant-bank turn from leg
-    // L into leg N when the course changes by more than 20 deg; arcFly flies
-    // it — HDG at a lead of 50 deg in the turn's direction keeps the
-    // lateral loop on its bank limit — and returns false once the nose is
-    // within 11 deg of the new course (or after 30 s), when the pursuit
-    // takes over. Before this every turn was the pursuit's, whose bank
-    // tapers with the error: the leg was joined 13 s late from R inside, or
-    // crossed by 80-150 m when the leg was short.
-    const arcBank = () => climbMode ? Math.min(bankLim, A.bankClimb ?? 0.35) : bankLim;
-    const arcInto = (L, N) => {
-      arc = null;
-      if (!L || !N || !L.A || !N.A || !N.B) return;
-      const g1 = legGeom(L), g2 = legGeom(N);
-      const cr = g1.ux * g2.uz - g1.uz * g2.ux;
-      const dot = clamp(g1.ux * g2.ux + g1.uz * g2.uz, -1, 1);
-      if (Math.acos(dot) < 0.35) return;
-      arc = { sign: cr >= 0 ? 1 : -1, ux: g2.ux, uz: g2.uz, t0: ap.t };
-    };
-    const arcFly = () => {
-      if (!arc) return false;
-      const eC = Math.atan2(arc.uz * nose[0] - arc.ux * nose[1], arc.ux * nose[0] + arc.uz * nose[1]);
-      if (arc.sign * eC < 0.19 || ap.t - arc.t0 > 30) { arc = null; return false; }
-      const h = Math.atan2(nose[1], nose[0]);
-      SEL.hdg = h + arc.sign * 0.9; SEL.bank = arcBank();
-      return true;
-    };
     // NAV: pursuit along a leg with a lookahead; done at the turn-anticipation
     // distance before the corner into the next leg (R tan(dTheta/2))
     const navLeg = (L, look, nextL) => {
@@ -1073,7 +1063,7 @@ function makePilot(sim, def, world, opts) {
         // G381: the fly-by distance from the GROUND speed at the bank the
         // arc will fly, plus half the roll-in (the bank reaches its limit
         // bankLim/bankSlew seconds after the switch)
-        const bA = arcBank();
+        const bA = climbMode ? Math.min(bankLim, A.bankClimb ?? 0.35) : bankLim;
         const Rg = Math.max(Vg, 8) ** 2 / (9.81 * Math.tan(bA));
         ant = Rg * Math.tan(Math.min(Math.acos(dot), 2.6) / 2) + 0.5 * Vg * bA / (A.bankSlew ?? 0.18);
       }
@@ -1147,7 +1137,7 @@ function makePilot(sim, def, world, opts) {
       // the speed hold's floor, the flare's idle. It never fires when the
       // elevator has room, so every aeroplane that flies its approach at
       // idle is unchanged.
-      if ((ap.phase === 'FINAL' || ap.phase === 'FLARE') && (AF.thr === 'SPD' || AF.thr === 'IDLE')) {   // (TECS carries its own saturation)
+      if (ap.phase === 'FLARE' && AF.thr === 'IDLE') {   // G399.7: FINAL's half retired — TECS carries its own saturation (the raised Vref)
         const sat = aDe > 0.30, free = aDe < 0.22;
         // in the flare the assist depends on the SPEED: a slow arrival (the
         // C172-alike at 1.13 VRot, full flap) needs the power to finish its
@@ -1168,46 +1158,23 @@ function makePilot(sim, def, world, opts) {
     // a ceiling that will not come is ACCEPTED, said once
     const altMode = (hTgtAbs, Vlevel, bl, nav) => {
       const dh = hTgtAbs - cg[1];
-      if (useTecs) {
-        // P0.5: ONE LAW — the height demand saturates at the sheet's climbMax
-        // (full throttle) and the speed weight moves to the elevator by
-        // itself; climbMode is kept as a REPORT (the ceiling check, the card)
-        if (climbMode && dh < 8) climbMode = false; else if (!climbMode && dh > 40) climbMode = true;
-        engage(nav, 'TECS', 'TECS', { alt: hTgtAbs, vs: null, gs: null, vsUp: null, vsDn: null, ias: climbMode ? ap.VClimb : Vlevel, bank: climbMode ? Math.min(bl, A.bankClimb ?? 0.35) : bl });
-        if (climbMode) {
-          ceilT += dt;
-          const stalled = ceilT > 60 && vsSlow < 0.15, marginal = ceilT > 75 && vsSlow < 0.4;
-          if ((stalled || marginal) && !ceilingSaid) {
-            ceilingSaid = true;
-            say(stalled ? 'wont-climb' : 'ceiling-accepted', (stalled ? 'no climb left (' : 'still climbing ') + vsSlow.toFixed(2) +
-                (stalled ? ' m/s) — accepting ' : ' m/s — flying the circuit at ') + Math.round(cg[1] - ap.altRef) + ' m');
-            ap.hCruise = Math.max(A.hSafe + 10, cg[1] - ap.altRef);
-            if (ap.plan) ap.plan.hC = ap.hCruise;
-            climbMode = false;
-          }
-        } else ceilT = 0;
-        return;
-      }
-      if (climbMode && dh < 8) { climbMode = false; thrC = A.thrCruise; thcI = 0.04; }
-      else if (!climbMode && dh > 40) climbMode = true;
+      // P0.5: ONE LAW — the height demand saturates at the sheet's climbMax
+      // (full throttle) and the speed weight moves to the elevator by
+      // itself; climbMode is kept as a REPORT (the ceiling check, the card)
+      if (climbMode && dh < 8) climbMode = false; else if (!climbMode && dh > 40) climbMode = true;
+      engage(nav, 'TECS', 'TECS', { alt: hTgtAbs, vs: null, gs: null, vsUp: null, vsDn: null, ias: climbMode ? ap.VClimb : Vlevel, bank: climbMode ? Math.min(bl, A.bankClimb ?? 0.35) : bl });
       if (climbMode) {
-        engage(nav, 'FLC', 'FULL', { ias: ap.VClimb, bank: Math.min(bl, A.bankClimb ?? 0.35) });   // G381: a climbing turn is gentler
         ceilT += dt;
         const stalled = ceilT > 60 && vsSlow < 0.15, marginal = ceilT > 75 && vsSlow < 0.4;
         if ((stalled || marginal) && !ceilingSaid) {
           ceilingSaid = true;
-          say(stalled ? 'wont-climb' : 'ceiling-accepted',
-              (stalled ? 'no climb left (' : 'still climbing ') + vsSlow.toFixed(2) +
-              (stalled ? ' m/s) — accepting ' : ' m/s — flying the circuit at ') +
-              Math.round(cg[1] - ap.altRef) + ' m');
+          say(stalled ? 'wont-climb' : 'ceiling-accepted', (stalled ? 'no climb left (' : 'still climbing ') + vsSlow.toFixed(2) +
+              (stalled ? ' m/s) — accepting ' : ' m/s — flying the circuit at ') + Math.round(cg[1] - ap.altRef) + ' m');
           ap.hCruise = Math.max(A.hSafe + 10, cg[1] - ap.altRef);
           if (ap.plan) ap.plan.hC = ap.hCruise;
-          climbMode = false; thrC = A.thrCruise; thcI = 0.04;
+          climbMode = false;
         }
-      } else {
-        ceilT = 0;
-        engage(nav, 'ALT', 'SPD', { alt: hTgtAbs, ias: Vlevel, bank: bl, vsDn: -3.0, vsUp: 2.2 });
-      }
+      } else ceilT = 0;
     };
     const legAlt = (L) => {
       const g = legGeom(L);
@@ -1219,7 +1186,7 @@ function makePilot(sim, def, world, opts) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; arc = null; finalLevel = null;
+      go('GOAROUND'); gaT = 0; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
       thrC = A.thrCruise; thLift0 = th;
     };
     // the arrival at the destination, planned from where the aeroplane is now
@@ -1242,7 +1209,6 @@ function makePilot(sim, def, world, opts) {
         const sA = sNow + Rc;
         startLegs([{ name: 'CROSSWIND', A: wp(FL, sA, 0), B: wp(FL, sA, P.W), h: P.hC, V: 'cruise' }]
           .concat(patternLegs(P, sA, 1)));
-        arcInto({ A: [cg[0], cg[2]], B: [cg[0] + climbDir[0] * 100, cg[2] + climbDir[2] * 100] }, ap.legs[0]);
         return 'CROSSWIND';
       }
       const toIaf = wp(FL, P.sIaf, 0);
@@ -1641,8 +1607,7 @@ function makePilot(sim, def, world, opts) {
         // held all the way to the circuit (the user: "it climbs like at max
         // speed"); the flaps come up at the same height
         const iasC = agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
-        if (useTecs) engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
-        else engage('LOC', 'FLC', 'FULL', { ias: iasC, bank: bankLim });
+        engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
@@ -1697,12 +1662,10 @@ function makePilot(sim, def, world, opts) {
         const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;
         // P0.6: the path is built once per leg list and followed by L1; the
         // G381 arc + pursuit stay behind `path: false`
-        if (usePath && !airPath) { airPath = buildAirPath(ap.legs, ap.legs[0] && ap.legs[0].name === 'CROSSWIND' ? [cg[0], cg[2]] : null); airPathI = 0; }
-        const onPath = usePath && !!airPath && !holdOut;
-        const inArc = !holdOut && !onPath && arcFly();
-        altMode(hTgt, legSpeed(L), inArc ? arcBank() : bankLim, holdOut ? 'HDG' : onPath ? 'PATH' : inArc ? 'HDG' : 'NAV');
+        if (!airPath) { airPath = buildAirPath(ap.legs, ap.legs[0] && ap.legs[0].name === 'CROSSWIND' ? [cg[0], cg[2]] : null); airPathI = 0; }
+        const onPath = !!airPath && !holdOut;
+        altMode(hTgt, legSpeed(L), bankLim, holdOut ? 'HDG' : onPath ? 'PATH' : 'NAV');
         if (holdOut) SEL.hdg = Math.atan2(ap.holdDir[2], ap.holdDir[0]);
-        else if (inArc) { const h = Math.atan2(nose[1], nose[0]); SEL.hdg = h + arc.sign * 0.9; }
         flapTgt = 0;
         // the card is judged on the settled downwind (41_test_pilot.js)
         if (cardAcc && ap.phase === 'DOWNWIND' && !climbMode && phaseT > 8) {
@@ -1726,7 +1689,6 @@ function makePilot(sim, def, world, opts) {
           if (!r.done) say('leg-timeout', L.name + ' took ' + Math.round(phaseT) + ' s — moving to ' + (next ? next.name : 'FINAL'));
           ap.legI++;
           const N = ap.legs[ap.legI];
-          arcInto(L, N);                          // G381
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
             slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr;
@@ -1757,28 +1719,19 @@ function makePilot(sim, def, world, opts) {
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
-        const onPathF = usePath && !!airPath && !(nS > Math.cos(0.19) && Math.abs(sCr) < 60);
-        if (onPathF) arc = null;
-        const inArc = !onPathF && arcFly();
-        const bF = (inArc || onPathF) ? bankLim : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
-        const latF = onPathF ? 'PATH' : inArc ? 'HDG' : 'LOC';
+        const onPathF = !!airPath && !(nS > Math.cos(0.19) && Math.abs(sCr) < 60);
+        const bF = onPathF ? bankLim : Math.abs(sCr) > 60 ? Math.min(bankLim, 0.30) : 0.18;
+        const latF = onPathF ? 'PATH' : 'LOC';
         // the approach speed is asked from the leg change, through the turn
         // (keeping the base speed through the arc arrived on the slope 6 m/s
         // fast on the Caravan-alike, whose drawn tail cannot hold the nose
         // up at idle — the elevator on its stop, 3 m/s below a 2.2 deg
         // slope, two terrain go-arounds; GATE ARCHETYPES)
         const iasF = ap.VAppr * ST.VapprK;
-        if (useTecs) {
-          // P0.5: the slope and the level before it are two references of the one law
-          if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
-          else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
-        } else if (slopeCaptured || above < 0)
-          engage(latF, 'GS', 'SPD', { gs: ap.gs, ias: iasF, bank: bF });
-        else
-          engage(latF, 'ALT', 'SPD', { alt: finalLevel, ias: iasF, bank: bF,
-                                       vsDn: Math.min(-3.0, -1.6 * V * ap.gs), vsUp: 1.5 });
-        if (inArc) { const h = Math.atan2(nose[1], nose[0]); SEL.hdg = h + arc.sign * 0.9; }
-        ap.trackHold = !inArc && !onPathF;
+        // P0.5: the slope and the level before it are two references of the one law
+        if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
+        else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
+        ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
         flapTgt = fLDG;
         const canGA = (ap.gaN || 0) < 2 && !committed;
@@ -1803,7 +1756,7 @@ function makePilot(sim, def, world, opts) {
         // G381: the hold-off begins 1.3x higher than the ramp did — it has a
         // sink to arrest AND a speed to bleed, and the pull takes a second to bite
         if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
-          go('FLARE'); thFlare0 = th; arc = null;
+          go('FLARE'); thFlare0 = th;
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
           // taildragger, thMax on a tricycle), its integrator and filter
@@ -1820,8 +1773,7 @@ function makePilot(sim, def, world, opts) {
         // full power, flaps to the take-off setting, straight ahead on the
         // runway heading to the crosswind height, then the circuit again
         ap.dirX = 1;
-        if (useTecs) engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: 0.20 });
-        else engage('LOC', 'FLC', 'FULL', { ias: ap.VClimb, bank: 0.20 });
+        engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: ap.VClimb, bank: 0.20 });
         flapTgt = fTO;
         const hTurn = Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         setStatus('going around: climbing on the runway heading', [

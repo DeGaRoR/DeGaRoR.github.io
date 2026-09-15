@@ -216,7 +216,6 @@ if (require.main === module) {
   const loadRes = f => f && fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).results : null;
   const baseline = loadRes(base) || loadRes(rat);
   const extra = argv.includes('--csv') ? ['--csv'] : [];
-  for (const f of ['--sheet', '--tecs', '--no-sheet', '--no-tecs', '--no-path']) if (argv.includes(f)) extra.push(f);   // the P0.4 / P0.5 / P0.6 flags, matrix-wide
   // the core under test is SNAPSHOTTED for the whole run (see pilot_trace.js)
   const runDir = path.join(T, '..', 'pilot_runs'); if (!fs.existsSync(runDir)) fs.mkdirSync(runDir);
   const coreSnap = path.join(runDir, 'core_' + Date.now() + '.js');
