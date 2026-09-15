@@ -351,8 +351,58 @@ const YARD_KIT = {
   // the fire hall stand them where they work
   truck_fire:       { L: 9.577, W: 3.094, H: 3.442, truck: true },
   truck_fire_small: { L: 6.116, W: 2.512, H: 2.694, truck: true },
+  // THE EVERYDAY VEHICLES (G432, the user: "real everyday cars to be
+  // integrated in the garages, the front yards, and possibly generate some
+  // proto traffic"): the traffic pack, L along z, nose to +z, wheels on
+  // y = 0. `auto` is the KIND the planners pick by - car / pickup / suv /
+  // van / truck / bus / police / old - never `car`, so the wreck planner
+  // leaves them alone; AUTO_KEYS(kinds) is the menu
+  auto_semi_tarp:        { L: 9.807, W: 2.338, H: 2.802, auto: 'truck' },
+  auto_semi_box:         { L: 10.46, W: 2.361, H: 2.837, auto: 'truck' },
+  auto_truck_canvas:     { L: 6.387, W: 2.662, H: 2.79, auto: 'truck' },
+  auto_boxtruck_white:   { L: 5.914, W: 2.318, H: 2.9, auto: 'truck' },
+  auto_boxtruck_stripe:  { L: 5.492, W: 2.152, H: 2.314, auto: 'truck' },
+  auto_boxtruck_reefer:  { L: 4.5, W: 2.183, H: 2.532, auto: 'truck' },
+  auto_flatbed_cabover:  { L: 4.715, W: 1.961, H: 1.905, auto: 'truck' },
+  auto_flatbed_unimog:   { L: 5.303, W: 2.521, H: 2.615, auto: 'truck' },
+  auto_flatbed_gazelle:  { L: 5.934, W: 2.334, H: 2.475, auto: 'truck' },
+  auto_bus_city:         { L: 14.362, W: 3.953, H: 3.736, auto: 'bus' },
+  auto_minibus_yellow:   { L: 6.057, W: 2.371, H: 2.595, auto: 'van' },
+  auto_van_sprinter:     { L: 5.419, W: 2.169, H: 2.411, auto: 'van' },
+  auto_van_econoline:    { L: 4.83, W: 2.132, H: 1.806, auto: 'van' },
+  auto_van_connect:      { L: 4.019, W: 1.858, H: 1.764, auto: 'van' },
+  auto_pickup_bronze:    { L: 4.604, W: 1.949, H: 1.615, auto: 'pickup' },
+  auto_pickup_white:     { L: 5.134, W: 2.129, H: 1.645, auto: 'pickup' },
+  auto_pickup_red:       { L: 5.078, W: 1.99, H: 1.613, auto: 'pickup' },
+  auto_suv_black_box:    { L: 4.676, W: 2.334, H: 2.094, auto: 'suv' },
+  auto_suv_black_long:   { L: 5.04, W: 2.109, H: 1.778, auto: 'suv' },
+  auto_suv_blue:         { L: 3.948, W: 1.867, H: 1.487, auto: 'suv' },
+  auto_suv_green_niva:   { L: 3.722, W: 1.748, H: 1.758, auto: 'suv' },
+  auto_police_4x4:       { L: 3.844, W: 1.963, H: 2.075, auto: 'police' },
+  auto_sedan_navy:       { L: 5.188, W: 2.12, H: 1.675, auto: 'car' },
+  auto_sedan_red:        { L: 4.035, W: 1.732, H: 1.302, auto: 'car' },
+  auto_sedan_white:      { L: 4.182, W: 1.789, H: 1.433, auto: 'car' },
+  auto_sedan_silver:     { L: 4.234, W: 1.87, H: 1.435, auto: 'car' },
+  auto_sedan_orange:     { L: 4.104, W: 1.78, H: 1.497, auto: 'car' },
+  auto_sedan_rusty:      { L: 4.706, W: 2.006, H: 1.488, auto: 'old' },
+  auto_estate_maroon:    { L: 4.144, W: 1.656, H: 1.534, auto: 'car' },
+  auto_estate_white:     { L: 4.091, W: 1.768, H: 1.333, auto: 'car' },
+  auto_coupe_red:        { L: 4.601, W: 1.964, H: 1.581, auto: 'car' },
+  auto_coupe_white:      { L: 4.061, W: 1.766, H: 1.202, auto: 'car' },
+  auto_rally_pink:       { L: 4.664, W: 1.85, H: 1.538, auto: 'car' },
+  auto_hatch_lime:       { L: 4.203, W: 2.207, H: 2.057, auto: 'car' },
+  auto_hatch_green:      { L: 4.026, W: 1.867, H: 1.594, auto: 'car' },
+  auto_hatch_silver:     { L: 4.195, W: 1.852, H: 1.426, auto: 'car' },
+  auto_hatch_red_small:  { L: 3.565, W: 1.746, H: 1.277, auto: 'car' },
+  auto_hatch_red:        { L: 3.911, W: 1.671, H: 1.273, auto: 'car' },
+  auto_hatch_blue:       { L: 3.687, W: 1.659, H: 1.295, auto: 'car' },
+  auto_hatch_green_pale: { L: 3.409, W: 1.604, H: 1.301, auto: 'car' },
+  auto_hatch_silver_kia: { L: 3.78, W: 1.777, H: 1.294, auto: 'car' },
+  auto_micro_white:      { L: 3.861, W: 1.849, H: 1.738, auto: 'car' },
 };
 const CAR_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].car);
+// the everyday vehicles by kind (G432): AUTO_KEYS() every one, AUTO_KEYS(['car', 'suv']) a menu
+const AUTO_KEYS = kinds => Object.keys(YARD_KIT).filter(k => YARD_KIT[k].auto && (!kinds || kinds.includes(YARD_KIT[k].auto)));
 const POLE_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].pole);
 // THE SPREAD (G285): a tally of how often each prop key has been used, and
 // a pick that takes the least-used key of a menu (ties broken by the
@@ -7935,7 +7985,7 @@ function dressSlot(matKey, role, idx, col, flat, F) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, POLE_KEYS, SMALL_BOATS, makeSpread,
+  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, AUTO_KEYS, POLE_KEYS, SMALL_BOATS, makeSpread,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,

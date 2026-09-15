@@ -600,6 +600,18 @@ build**:
 - `truck_fire_small` — **"Firetruck (On The Run)"**, author and licence to be
   confirmed (`on_the_run_-_firetruck.glb`)
 
+**The everyday vehicles** (`assets/vehicles/orchids_simulator_traffic_car_pack.glb`,
+G432, the `auto` group of the pier table, baked into `src/pier/pier_auto.js`) —
+**"Orchids Simulator Traffic Car Pack"** by Oren garage
+(https://sketchfab.com/3d-models/orchids-simulator-traffic-car-pack-2fc5970d5ba2415fa98ec98b8801e794),
+**Sketchfab, CC-BY-4.0** (the provenance is written in the file's own
+`asset.extras`); attribution is a condition of the licence and must stay
+visible wherever they are shown. One file of 43 traffic-sim vehicles, of
+which 42 are baked as props (`auto_*`: saloons, hatchbacks, coupes, estates,
+pickups, SUVs, vans, a minibus, box trucks, flatbeds, two semis, a city bus,
+a police 4x4, a rusty saloon); the second, eight-material copy of the police
+4x4 is left out. Imported as-is, selected by node, no scale and no turn.
+
 **The clutter** (`assets/propsHouse/`, G293) — **Sketchfab, CC-BY-4.0**,
 attribution required:
 

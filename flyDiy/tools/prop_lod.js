@@ -60,6 +60,7 @@ const LEVELS = {
   boat:   [[0.25, 3000, 15], [0.06, 800, 45], [0.015, 250, 120]],
   car:    [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],
   vehicle: [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],   // the fire trucks (G410): 2k-triangle game assets, cut like the cars
+  auto:   [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],   // the everyday vehicles (G432): 0.4-9k-triangle game assets, cut like the cars - the 2k bodies get a 700 and a 200, the semis a 2.5k first
   pier:   [[0.3, 2000, 20], [0.08, 600, 60]],
   yard:   [[0.25, 1200, 20], [0.06, 400, 60]],
 };

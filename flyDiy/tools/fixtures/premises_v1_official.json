@@ -171,7 +171,8 @@
       ]
      ],
      "w": 4,
-     "cls": "gravel",
+     "traffic": 6,
+    "cls": "gravel",
      "graded": true,
      "name": "the shore road"
     }
@@ -526,7 +527,7 @@
    "smoke": 6,
    "people": 40
   },
-  "rev": 3
+  "rev": 4
  },
  "plaque": null,
  "log": {

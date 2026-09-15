@@ -77,6 +77,21 @@ GROUPS = [
     # its ladder and a small airfield crash tender. Their own group so the
     # yard planners never deal them out as wrecks (YARD_KIT `truck`, not `car`).
     ('vehicle', 'working vehicles'),
+    # THE EVERYDAY VEHICLES (G432, the user: "we had abandoned cars in the
+    # backyard, now we have real everyday cars to be integrated in the
+    # garages, the front yards, and possibly generate some proto traffic"):
+    # one Sketchfab pack of 43 traffic-sim vehicles in ONE file - saloons,
+    # hatchbacks, pickups, SUVs, vans, box trucks, two semis, a bus, a police
+    # 4x4 - every one a game asset already (0.4-8.9k triangles, one 1k atlas
+    # + the pack's shared wheel atlas, no interior). The file names nothing:
+    # its nodes are Object_N, so each vehicle is SELECTED BY NODE LIST, the
+    # lists read off the file by clustering the meshes' world boxes (a mirror
+    # 4 cm off its van joins the van). Every one lies along z, nose to +z,
+    # wheels on the ground, at true size - no scale, no turn. Their own group
+    # so the wreck planner (CAR_KEYS reads `car`) never deals one out as a
+    # wreck; YARD_KIT's `auto` word (car/pickup/suv/van/truck/bus/police/old)
+    # is what the drive, garage, car park and traffic planners pick by.
+    ('auto', 'everyday vehicles'),
 ]
 
 # `lic` drives what CREDITS.md must carry. Every boat is CC-BY-4.0 and needs
@@ -150,6 +165,10 @@ SOURCES = {
     # licence the table cannot read; provenance to be completed by the user
     'firebig':   ('Fire Truck (Burnout Legends)', 'delivered by the user', 'see CREDITS.md', ''),
     'firesmall': ('Firetruck (On The Run)', 'delivered by the user', 'see CREDITS.md', ''),
+    # the everyday vehicles (G432): one pack, the provenance read out of the
+    # file's own asset.extras
+    'orchids':   ('Orchids Simulator Traffic Car Pack', 'Oren garage', 'CC-BY-4.0',
+                  'https://sketchfab.com/3d-models/orchids-simulator-traffic-car-pack-2fc5970d5ba2415fa98ec98b8801e794'),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -188,6 +207,7 @@ FILES = {
     'kcar':     'reliant_k_car.glb',
     'firebig':  'fire_truck_burnout_legends.glb',
     'firesmall': 'on_the_run_-_firetruck.glb',
+    'orchids':  'orchids_simulator_traffic_car_pack.glb',
 }
 # where each source's file lives, relative to assets/woodenPierBoats/
 DIRS = {
@@ -205,18 +225,19 @@ DIRS = {
     'junkcar': '../abandonedCars', 'fiat': '../abandonedCars', 'hudson': '../abandonedCars',
     'multicab': '../abandonedCars', 'crashed': '../abandonedCars', 'buick': '../abandonedCars',
     'kcar': '../abandonedCars',
-    'firebig': '../vehicles', 'firesmall': '../vehicles',
+    'firebig': '../vehicles', 'firesmall': '../vehicles', 'orchids': '../vehicles',
 }
 
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
-      pilesCut=1.9, slots=None, opaque=False, metalCap=None, tone=None):
+      pilesCut=1.9, slots=None, opaque=False, metalCap=None, tone=None, roughMin=None):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir=DIRS.get(src, ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
-                pilesCut=pilesCut, slots=slots, opaque=opaque, metalCap=metalCap, tone=tone)
+                pilesCut=pilesCut, slots=slots, opaque=opaque, metalCap=metalCap, tone=tone,
+                roughMin=roughMin)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -231,6 +252,8 @@ POLES = 'modular_wooden_pier_poles'
 # over (`pilesCut` is the height below which a pole vertex is a pile and not a
 # bearer - lower for the stair, whose deck is lower)
 PIER = dict(src='pier', deck=PLANKS, tex=1024, place='level', piles=POLES)
+# the everyday vehicles' one row shape (G432): see the group's rows
+AUTO = dict(tex=512, metalCap=0.2, roughMin=0.4)
 
 PROPS = [
     # ---- the pier, module by module ------------------------------------------
@@ -452,4 +475,140 @@ PROPS = [
            'material; delivered at a hundredth (6 cm long) with a shadow plane under '
            'it, which mats leaves out; nose to +z as delivered',
       scale=100.0, mats=['mor_firetruck_mat'], tex=512, slots={'mor_firetruck_mat': {'metal': 0.1}}, tone={'sat': 0.78, 'bright': 1.04}),
+
+    # ---- the everyday vehicles (G432) ---------------------------------------
+    # ONE ROW SHAPE FOR THE WHOLE PACK: the wheels of half the fleet are one
+    # shared 1k atlas the export leaves at glTF's default metalness 1 (a
+    # tyre as brushed steel), the paint of the other half carries a
+    # roughness map that is 0 over the body (a mirror under the sky probe);
+    # `metalCap` holds every material of the fleet to a dielectric with a
+    # little chrome left in it, `roughMin` floors the paint at a clearcoat's
+    # roughness. Bodies at 512 like every other row here: the source atlases
+    # are 1k and the quality comes back by raising `tex`.
+    P('auto_semi_tarp', 'auto', 'semi, tarp trailer', 'orchids',
+      note='a blue tractor unit with a curtain-sided trailer, 8.9k triangles, 9.8 m; the pack\'s heaviest',
+      nodes=['Object_596', 'Object_635', 'Object_628', 'Object_621', 'Object_614', 'Object_610', 'Object_603', 'Object_633'], **AUTO),   # kind: truck
+    P('auto_semi_box', 'auto', 'semi, box trailer', 'orchids',
+      note='a red tractor unit with a box trailer, 5.5k triangles, 10.5 m',
+      nodes=['Object_419', 'Object_677', 'Object_672', 'Object_670', 'Object_668', 'Object_666', 'Object_675'], **AUTO),   # kind: truck
+    P('auto_truck_canvas', 'auto', 'canvas-back lorry', 'orchids',
+      note='a 6x6 lorry under a canvas tilt, 2.6k triangles, 6.4 m',
+      nodes=['Object_135', 'Object_278', 'Object_280', 'Object_274', 'Object_272', 'Object_276', 'Object_282'], **AUTO),   # kind: truck
+    P('auto_boxtruck_white', 'auto', 'box truck, white', 'orchids',
+      note='a 7.5 t cab-over with a plain box body, 2.1k triangles, 5.9 m',
+      nodes=['Object_566', 'Object_564', 'Object_592', 'Object_576', 'Object_580', 'Object_582', 'Object_578', 'Object_590', 'Object_568'], **AUTO),   # kind: truck
+    P('auto_boxtruck_stripe', 'auto', 'box truck, striped', 'orchids',
+      note='a cab-over with a box body in a red-and-blue stripe, 0.8k triangles, 5.5 m',
+      nodes=['Object_686', 'Object_680', 'Object_697', 'Object_702', 'Object_682', 'Object_699', 'Object_704', 'Object_684', 'Object_694', 'Object_692', 'Object_688', 'Object_690'], **AUTO),   # kind: truck
+    P('auto_boxtruck_reefer', 'auto', 'box truck, reefer', 'orchids',
+      note='a small cab-over with a refrigerated body, 2.1k triangles, 4.5 m',
+      nodes=['Object_438', 'Object_457', 'Object_476', 'Object_453', 'Object_455', 'Object_474', 'Object_459'], **AUTO),   # kind: truck
+    P('auto_flatbed_cabover', 'auto', 'flatbed, cab-over', 'orchids',
+      note='a small cab-over with a dropside bed, 2.0k triangles, 4.7 m',
+      nodes=['Object_535', 'Object_549', 'Object_559', 'Object_545', 'Object_543', 'Object_557', 'Object_547'], **AUTO),   # kind: truck
+    P('auto_flatbed_unimog', 'auto', 'flatbed, all-terrain', 'orchids',
+      note='a Unimog-type dropside on big tyres, 2.0k triangles, 5.3 m',
+      nodes=['Object_511', 'Object_521', 'Object_531', 'Object_519', 'Object_529'], **AUTO),   # kind: truck
+    P('auto_flatbed_gazelle', 'auto', 'flatbed, light', 'orchids',
+      note='a light dropside lorry, 0.6k triangles, 5.9 m',
+      nodes=['Object_188', 'Object_212', 'Object_210', 'Object_191', 'Object_200', 'Object_195', 'Object_204', 'Object_197', 'Object_206', 'Object_193', 'Object_202', 'Object_208', 'Object_214'], **AUTO),   # kind: truck
+    P('auto_bus_city', 'auto', 'city bus', 'orchids',
+      note='a green-and-white city bus, 0.6k triangles, 14.4 m',
+      nodes=['Object_52', 'Object_74', 'Object_76', 'Object_64', 'Object_55', 'Object_66', 'Object_57', 'Object_70', 'Object_61', 'Object_59', 'Object_68', 'Object_72', 'Object_78'], **AUTO),   # kind: bus
+    P('auto_minibus_yellow', 'auto', 'minibus, yellow', 'orchids',
+      note='a yellow route minibus, 0.4k triangles, 6.1 m',
+      nodes=['Object_294', 'Object_302', 'Object_298', 'Object_296', 'Object_300'], **AUTO),   # kind: van
+    P('auto_van_sprinter', 'auto', 'van, crew', 'orchids',
+      note='a white high-roof van with side windows, 1.5k triangles, 5.4 m',
+      nodes=['Object_487', 'Object_495', 'Object_505', 'Object_507', 'Object_497'], **AUTO),   # kind: van
+    P('auto_van_econoline', 'auto', 'van, panel', 'orchids',
+      note='a white full-size panel van, 1.8k triangles, 4.8 m',
+      nodes=['Object_509', 'Object_514', 'Object_524', 'Object_516', 'Object_526'], **AUTO),   # kind: van
+    P('auto_van_connect', 'auto', 'van, small', 'orchids',
+      note='a red small van, 1.7k triangles, 4.0 m',
+      nodes=['Object_594', 'Object_599', 'Object_606', 'Object_601', 'Object_608'], **AUTO),   # kind: van
+    P('auto_pickup_bronze', 'auto', 'pickup, bronze', 'orchids',
+      note='a bronze double-cab pickup, 2.7k triangles, 4.6 m',
+      nodes=['Object_706', 'Object_711', 'Object_716', 'Object_709', 'Object_714'], **AUTO),   # kind: pickup
+    P('auto_pickup_white', 'auto', 'pickup, white', 'orchids',
+      note='a white full-size double-cab pickup, 1.8k triangles, 5.1 m',
+      nodes=['Object_561', 'Object_573', 'Object_587', 'Object_571', 'Object_585'], **AUTO),   # kind: pickup
+    P('auto_pickup_red', 'auto', 'pickup, red', 'orchids',
+      note='a red full-size double-cab pickup, 2.2k triangles, 5.1 m',
+      nodes=['Object_478', 'Object_415', 'Object_434', 'Object_417', 'Object_436'], **AUTO),   # kind: pickup
+    P('auto_suv_black_box', 'auto', 'SUV, black boxy', 'orchids',
+      note='a black boxy off-roader, 0.7k triangles, 4.7 m',
+      nodes=['Object_12', 'Object_32', 'Object_21', 'Object_30', 'Object_19'], **AUTO),   # kind: suv
+    P('auto_suv_black_long', 'auto', 'SUV, black long', 'orchids',
+      note='a black full-size SUV, 2.2k triangles, 5.0 m',
+      nodes=['Object_533', 'Object_538', 'Object_552', 'Object_540', 'Object_554'], **AUTO),   # kind: suv
+    P('auto_suv_blue', 'auto', 'SUV, blue', 'orchids',
+      note='a blue compact SUV, 2.1k triangles, 4.0 m',
+      nodes=['Object_612', 'Object_619', 'Object_626', 'Object_617', 'Object_624'], **AUTO),   # kind: suv
+    P('auto_suv_green_niva', 'auto', 'SUV, small green', 'orchids',
+      note='a small green 4x4, 0.6k triangles, 3.7 m',
+      nodes=['Object_314', 'Object_320', 'Object_318', 'Object_112', 'Object_101', 'Object_116', 'Object_105', 'Object_118', 'Object_107', 'Object_114', 'Object_103', 'Object_322', 'Object_316'], **AUTO),   # kind: suv
+    P('auto_police_4x4', 'auto', 'police 4x4', 'orchids',
+      note='a blue-and-white police 4x4 with its light bar, 0.6k triangles, 3.8 m; the pack ships a second, 4.6k-triangle copy in eight materials - left out, one is enough',
+      nodes=['Object_382', 'Object_384', 'Object_386', 'Object_374', 'Object_365', 'Object_376', 'Object_367', 'Object_380', 'Object_371', 'Object_378', 'Object_369', 'Object_390', 'Object_388'], **AUTO),   # kind: police
+    P('auto_sedan_navy', 'auto', 'saloon, navy', 'orchids',
+      note='a dark blue executive saloon, 2.3k triangles, 5.2 m',
+      nodes=['Object_344', 'Object_352', 'Object_348', 'Object_350', 'Object_346'], **AUTO),   # kind: car
+    P('auto_sedan_red', 'auto', 'saloon, red', 'orchids',
+      note='a red compact saloon, 2.4k triangles, 4.0 m',
+      nodes=['Object_485', 'Object_490', 'Object_500', 'Object_492', 'Object_502'], **AUTO),   # kind: car
+    P('auto_sedan_white', 'auto', 'saloon, white', 'orchids',
+      note='a white small saloon, 0.6k triangles, 4.2 m',
+      nodes=['Object_304', 'Object_310', 'Object_308', 'Object_171', 'Object_180', 'Object_175', 'Object_184', 'Object_177', 'Object_186', 'Object_173', 'Object_182', 'Object_312', 'Object_306'], **AUTO),   # kind: car
+    P('auto_sedan_silver', 'auto', 'saloon, silver', 'orchids',
+      note='a silver small saloon, 0.5k triangles, 4.2 m',
+      nodes=['Object_288', 'Object_284', 'Object_292', 'Object_127', 'Object_138', 'Object_131', 'Object_142', 'Object_133', 'Object_144', 'Object_129', 'Object_140', 'Object_286', 'Object_290'], **AUTO),   # kind: car
+    P('auto_sedan_orange', 'auto', 'saloon, orange classic', 'orchids',
+      note='an orange 70s saloon, 0.7k triangles, 4.1 m',
+      nodes=['Object_226', 'Object_252', 'Object_246', 'Object_238', 'Object_229', 'Object_242', 'Object_233', 'Object_244', 'Object_235', 'Object_231', 'Object_240', 'Object_250', 'Object_248'], **AUTO),   # kind: car
+    P('auto_sedan_rusty', 'auto', 'saloon, rusty', 'orchids',
+      note='a rusted-through 60s saloon, whole on its wheels, 1.1k triangles, 4.7 m: the one for a backyard, not a drive',
+      nodes=['Object_392', 'Object_400', 'Object_396', 'Object_398', 'Object_394'], **AUTO),   # kind: old
+    P('auto_estate_maroon', 'auto', 'estate, maroon classic', 'orchids',
+      note='a maroon 80s estate, 0.5k triangles, 4.1 m',
+      nodes=['Object_80', 'Object_122', 'Object_120', 'Object_83', 'Object_92', 'Object_87', 'Object_96', 'Object_89', 'Object_98', 'Object_85', 'Object_94', 'Object_124', 'Object_109'], **AUTO),   # kind: car
+    P('auto_estate_white', 'auto', 'estate, white', 'orchids',
+      note='a white estate, 2.0k triangles, 4.1 m',
+      nodes=['Object_642', 'Object_650', 'Object_657', 'Object_652', 'Object_659'], **AUTO),   # kind: car
+    P('auto_coupe_red', 'auto', 'coupe, red', 'orchids',
+      note='a red sports coupe, 0.5k triangles, 4.6 m',
+      nodes=['Object_40', 'Object_25', 'Object_36', 'Object_16', 'Object_10'], **AUTO),   # kind: car
+    P('auto_coupe_white', 'auto', 'coupe, white', 'orchids',
+      note='a white sports coupe, 1.8k triangles, 4.1 m',
+      nodes=['Object_426', 'Object_441', 'Object_462', 'Object_443', 'Object_464'], **AUTO),   # kind: car
+    P('auto_rally_pink', 'auto', 'rally saloon', 'orchids',
+      note='a pink rally saloon with its wing, 0.5k triangles, 4.7 m',
+      nodes=['Object_6', 'Object_46', 'Object_50', 'Object_48', 'Object_44'], **AUTO),   # kind: car
+    P('auto_hatch_lime', 'auto', 'hatchback, lime', 'orchids',
+      note='a lime-green small MPV, 2.1k triangles, 4.2 m',
+      nodes=['Object_324', 'Object_332', 'Object_328', 'Object_330', 'Object_326'], **AUTO),   # kind: car
+    P('auto_hatch_green', 'auto', 'hatchback, green', 'orchids',
+      note='a green small hatchback, 0.5k triangles, 4.0 m',
+      nodes=['Object_354', 'Object_358', 'Object_360', 'Object_153', 'Object_162', 'Object_157', 'Object_166', 'Object_159', 'Object_168', 'Object_155', 'Object_164', 'Object_356', 'Object_362'], **AUTO),   # kind: car
+    P('auto_hatch_silver', 'auto', 'hatchback, silver', 'orchids',
+      note='a silver small hatchback, 0.5k triangles, 4.2 m',
+      nodes=['Object_334', 'Object_340', 'Object_338', 'Object_255', 'Object_264', 'Object_259', 'Object_268', 'Object_261', 'Object_270', 'Object_257', 'Object_266', 'Object_342', 'Object_336'], **AUTO),   # kind: car
+    P('auto_hatch_red_small', 'auto', 'hatchback, red small', 'orchids',
+      note='a red supermini, 2.1k triangles, 3.6 m',
+      nodes=['Object_450', 'Object_469', 'Object_408', 'Object_471', 'Object_410'], **AUTO),   # kind: car
+    P('auto_hatch_red', 'auto', 'hatchback, red', 'orchids',
+      note='a red compact hatchback, 1.8k triangles, 3.9 m',
+      nodes=['Object_466', 'Object_405', 'Object_483', 'Object_403', 'Object_481'], **AUTO),   # kind: car
+    P('auto_hatch_blue', 'auto', 'hatchback, blue', 'orchids',
+      note='a light blue compact hatchback, 2.0k triangles, 3.7 m',
+      nodes=['Object_630', 'Object_640', 'Object_647', 'Object_638', 'Object_645'], **AUTO),   # kind: car
+    P('auto_hatch_green_pale', 'auto', 'hatchback, pale green', 'orchids',
+      note='a pale green supermini, 1.8k triangles, 3.4 m',
+      nodes=['Object_412', 'Object_429', 'Object_446', 'Object_431', 'Object_448'], **AUTO),   # kind: car
+    P('auto_hatch_silver_kia', 'auto', 'hatchback, silver compact', 'orchids',
+      note='a silver compact hatchback, 2.1k triangles, 3.8 m',
+      nodes=['Object_654', 'Object_664', 'Object_424', 'Object_662', 'Object_422'], **AUTO),   # kind: car
+    P('auto_micro_white', 'auto', 'microcar, white', 'orchids',
+      note='a white two-door microcar, 0.4k triangles, 3.9 m',
+      nodes=['Object_216', 'Object_224', 'Object_220', 'Object_222', 'Object_218'], **AUTO),   # kind: car
 ]

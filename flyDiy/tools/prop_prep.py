@@ -547,6 +547,18 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
             log.append('    ! spec-gloss map %s has no alpha channel: glossiness'
                        ' comes from the factor, not the texture' % arm_name)
         armed = False
+    # A FLOOR UNDER THE ROUGHNESS for the whole prop (G432, the everyday
+    # vehicles): a traffic-sim pack paints its bodies roughness 0 in the map's
+    # G - a mirror under the sky probe - and its wheels at no map at all. One
+    # number on the row lifts the map's G channel AND the scalar to a
+    # clearcoat's roughness, before the map is measured (a floored channel
+    # that comes out flat folds to the scalar like any other).
+    rmin = (row or {}).get('roughMin')
+    if arm_img is not None and rmin:
+        ch = list(arm_img.convert('RGB').split())
+        ch[1] = ch[1].point(lambda v: max(v, int(round(rmin * 255))))
+        arm_img = Image.merge('RGB', ch)
+        log.append('    roughness floored at %.2f by the table (map G lifted)' % rmin)
     if arm_img is not None:
         img, name = arm_img, arm_name
         st = channel_stats(img)
@@ -578,6 +590,9 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
         log.append('    ! roughness came out %.3f with no map - clamped to 0.4'
                    ' (check the source material)' % out['rough'])
         out['rough'] = 0.4
+    if rmin and out['rough'] < rmin:
+        out['rough'] = rmin
+        log.append('    roughness floored at %.2f by the table' % rmin)
 
     if 'normalTexture' in mdef:
         img, name = img_of(mdef['normalTexture'])

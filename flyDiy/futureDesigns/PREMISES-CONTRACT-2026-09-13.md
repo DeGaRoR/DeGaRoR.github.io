@@ -604,3 +604,12 @@ after the freeze, against this document.
   (the snapshot the game flies), stands a five-rung THREE.LOD (interior off past 30 m, decimated past 120
   and 450 m, gone past 2.5 km) and carries a hitbox by identity (fuselage / wing / tail / engine / gear /
   floats) on `userData.hitbox`. The picker reads `PARKED.keys()` at call time. GATE PARKED.
+- **v1.13 (2026-09-15, G432, the user: "real everyday cars ... possibly generate some proto
+  traffic").** A road may carry `traffic` (a number, vehicles per km; absent or 0 = none). The
+  composer publishes it on the road (`roads[].traffic`); the RENDERER runs that many everyday vehicles
+  (the pier table's `auto` group, `HOUSE_GEN.AUTO_KEYS`) up and down the road on the right-hand side
+  of their direction of travel at a quarter of the width off the centreline, 35-55 km/h, turning at
+  the ends, keeping their distance, on the composed ground, deterministic from the road's id;
+  `R.tick(dt)` moves them beside the trams, `R.traffic()` reports them, `stats.traffic` counts them.
+  The editor's road rows carry `traffic (per km)`. Nothing in the record moves: the traffic is a
+  rendering of the road, like its wear.

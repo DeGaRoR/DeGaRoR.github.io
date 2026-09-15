@@ -543,6 +543,13 @@ for (const fx of fixtures) {
     check(!!A && fc.siteOf(A.id) === (W.premises.overlay.runways[0].site || null), '5b the strip\'s site (its stand, its way out) is registered for the pilot');
     const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, rec.layers.runways[0])), cw = F.toWorld(rec.layers.runways[0].c[0], rec.layers.runways[0].c[1]);
     check(W.surface(cw[0], cw[1]) === (rec.layers.runways[0].surface === undefined ? PG.SURFACE.GRASS : rec.layers.runways[0].surface), '5b the strip\'s surface answers through the world', String(W.surface(cw[0], cw[1])));
+    // 5c - PROTO TRAFFIC (G432, contract v1.13): a road's `traffic` reaches the composed road; absent
+    //   is 0; a negative count is 0; the official premises (Skarvik) runs some on its one road
+    { const t0 = PG.compose(PG.normalise({ layers: { roads: [{ id: 'r1', pts: [[0, 0], [300, 0]], w: 4, traffic: 6 }, { id: 'r2', pts: [[0, 40], [300, 40]], w: 4 }, { id: 'r3', pts: [[0, 80], [300, 80]], w: 4, traffic: -3 }] } }), FLIGHT, { pool: () => [], globals: {} });
+      const by = Object.fromEntries(t0.roads.map(r => [r.id, r.traffic]));
+      check(by.r1 === 6 && by.r2 === 0 && by.r3 === 0, '5c a road\'s traffic reaches the composed road (absent and negative are 0)', JSON.stringify(by));
+      const off = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'premises_v1_official.json'), 'utf8')).rec;
+      check(off.layers.roads.some(r => +r.traffic > 0), '5c the official premises runs traffic on a road'); }
     const bare = fc.makeWorld(0);
     check(bare.premises && bare.premises.overlay === null && bare.terrainH(cw[0], cw[1]) === FLIGHT.terrainH(cw[0], cw[1]), '5b a world with no premises is the bare world');
   }

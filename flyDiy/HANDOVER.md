@@ -49599,3 +49599,116 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   taken — the built outputs (flight_core.js, index.html, dev.html) with the
   sources, ENERGYBASE's baseline, the two re-frozen fixtures and the v9
   fixture with them.
+
+## G432 — THE EVERYDAY VEHICLES: ONE PACK AS 42 PROPS, THE DRIVES AND GARAGES, THE CAR PARKS AND YARDS, AND PROTO TRAFFIC (2026-09-15, the user: "inclusion of cars in the world editor. Available as assets to place, but also automatically placed. Warning, we had abandoned cars in the backyard, now we have real everyday cars to be integrated in the garages, the front yards, and possibly generate some proto traffic ... They should be fully game ready, check it out and do the proper asset prep steps")
+
+- THE DELIVERY, READ. `assets/vehicles/orchids_simulator_traffic_car_pack.glb`
+  (24 MB, Sketchfab, "Orchids Simulator Traffic Car Pack" by Oren garage,
+  CC-BY-4.0 — the provenance is in the file's own `asset.extras`): ONE file,
+  717 nodes named `_N` / `Object_N` (nothing named), 323 meshes, 76 435
+  triangles, 56 materials, 77 PNGs (1k atlases for the western half of the
+  fleet, 1024x512 sheets for the Russian half, one shared 1k wheel atlas,
+  one shared black for the axles). Game-ready as delivered: 0.4-8.9k
+  triangles a vehicle, no interiors, one or two materials each — inside the
+  5-12k / two-material ruling of G392 with room to spare.
+- SELECTED BY NODE, READ OFF THE FILE. Nothing names a vehicle, so the
+  vehicles were found by clustering the meshes' WORLD boxes (a 6 cm overlap
+  to belong; a cluster under a metre — a van's wing mirror, 4 cm off its
+  body — joins the nearest big one): 43 clusters, rendered on a contact sheet
+  (three.js in the pane) from the front and the three-quarter to name each
+  one and to read the axis — every one lies along z, NOSE TO +z, wheels on
+  the ground, at true size: no scale, no turn, no `place` correction beyond
+  the baker's floor. 42 rows in `tools/pier_table.py`, group `auto`
+  ("everyday vehicles"), each a literal `P('auto_<name>', 'auto', ...,
+  nodes=[...Object_N], **AUTO)` (GATE HOUSE reads the rows out of the python
+  source); the 43rd — a second copy of the police 4x4 at 4.6k triangles in
+  eight materials — left out, one is enough. Kinds, carried by the mirror
+  (YARD_KIT `auto`): car 21, pickup 3, suv 4, van 4 (the minibus is a van),
+  truck 9 (two semis, a canvas lorry, three box trucks, three flatbeds),
+  bus 1, police 1, old 1 (a rusted 60s saloon, whole on its wheels — a
+  backyard car, not a drive's).
+- ONE ROW SHAPE (`AUTO = dict(tex=512, metalCap=0.2, roughMin=0.4)`). The
+  export leaves glTF's default metalness 1 on the shared wheel atlas and on
+  ten other materials (a tyre as brushed steel — the G280 trap again), and
+  the western bodies carry a roughness map that is 0 over the paint (a
+  mirror under the sky probe). `metalCap` (G285) holds every material to a
+  dielectric with a little chrome left; `roughMin` is NEW on the baker
+  (prop_prep.bake_material): a floor under the roughness for the whole
+  prop, lifting the map's G channel before it is measured (a floored channel
+  that comes out flat folds to the scalar like any other) and the scalar
+  after the no-map clamp. Judged in the prop bench (`_props.html?packs=pier`
+  — the bench takes a pack set now — group `auto`): at 0.3 the roofs greyed
+  to the dome under the bench's bright sky, 0.4 matches the abandoned cars'
+  clamp — one fleet, one tonal range. Bodies at 512 like every other row
+  (the sources are 1k; raise `tex`).
+- BAKED: `python tools/pier_prep.py` (35 s, the whole table — the 51 old rows
+  re-baked byte-identical, the media store is content-addressed), `node
+  tools/prop_lod.js` (LEVELS gains `auto`, cut like the cars: the 2k bodies
+  get a 700 past 45 m and a 200 past 120 m, the semis a 2.5k first), `node
+  tools/build.js`. 42 bins under media/geo/pier (1.4 MB), 72 new maps under
+  media/tex/pier (diff + arm, the shared atlases once), 70 LOD bins. GATE HOUSE rule 27
+  green: table = packs = mirror, the metres the baker's.
+- THE MIRROR: 42 YARD_KIT rows in `_house_gen.js` with `auto: '<kind>'`,
+  generated from the baked pack (L along z, W, H); `HG.AUTO_KEYS(kinds)` the
+  menu (`AUTO_KEYS()` every one). CAR_KEYS still reads `car` — the wreck
+  planner never deals an everyday car as a wreck.
+- WHERE THEY STAND (`_village_gen.js`): `AUTO_MENUS` by place — drive
+  (car x2, pickup x2, suv, van: rural), garage (car, pickup, suv), carpark
+  (car x3, pickup, suv, van), industrial (truck x2, van, pickup) —
+  `autoMenu(place)` expands a menu to keys through the spread (least-used
+  first), falling back to the four least-wrecked abandoned cars when the
+  pack is absent. planDrive's pad and planLot's commercial bays draw
+  `pickAuto`; THE GARAGE'S CAR IS AN EVERYDAY ONE (planCar, `garage`), the
+  backyard stays a wreck's — the abandoned cars plus the pack's rusty
+  saloon (`old`); THE WORKS YARD (planLot industrial) parks one or two
+  trucks along its sides nose to the road when it is 12 m deep and wide
+  enough. GATE VILLAGE rule 7 says so now: a drive or garage car must be
+  `auto` and not `old`, a backyard car a wreck or `old`.
+- IN THE EDITOR: nothing to do — the prop tool lists every PROP_REG group at
+  call time, so `everyday vehicles · <label>` is in the OBJECTS picker of the
+  bench and the game.
+- PROTO TRAFFIC (contract v1.13). A road may carry `traffic` (vehicles per
+  km; the editor's road rows gain the slider, 0-20). The composer publishes
+  it on the composed road (`roads[].traffic`, absent/negative = 0);
+  `render_premises.syncTraffic` runs `round(traffic * length / 1000)` (at
+  least one) everyday vehicles on it — the carpark menu plus trucks and the
+  bus, `propPlace` so the LOD ladder rides along — each at
+  `max(0.9, min(1.6, w/4))` off the centreline on the RIGHT of its direction
+  of travel (forward x up = (-tz, tx)), 35-55 km/h (semis and the bus at
+  80 % of that), turning round at the road's ends, slowing to the one ahead
+  inside two lengths, the ground read every tick (heightAt + tiltToGround,
+  so a graded road's profile is followed), deterministic from the road's id.
+  `R.tick(dt)` moves them beside the trams; the game's worldUpdate and the
+  bench's tick fire on `stats.trams || stats.traffic`; `R.traffic()` reports
+  them. Skarvik (`premises_v1_official.json`, rev 3 -> 4 so a saved WIP of
+  rev 3 yields) runs 6 / km on r1 = 9 vehicles on its 1.5 km road. Measured
+  in the game (headless Chrome, `tools/island_shot.js` + an `--eval`): 9
+  cars, an eastbound one at z = road + 1.0 and a westbound one at road - 1.0
+  — the right-hand rule holds; they had moved 170 m in the wait. GATE
+  PREMISES rule 5c: the field reaches the composed road, absent and negative
+  are 0, the official premises runs some.
+- SEEN IN THE GAME: Skarvik's front yards with a green hatchback, a silver
+  saloon, an orange classic, a blue saloon on their pads; the Niva driving
+  the road (screenshots/cars/, gitignored).
+- FOUND, NOT MINE: (1) in the game on this tree the HOUSES DO NOT RENDER at
+  Skarvik — 59 house groups in `premises:houses`, every mesh visible with its
+  512 map loaded and no shader diagnostics, the geometry draws red under an
+  override MeshBasicMaterial, the house material draws NOTHING (yards,
+  fences, people, cars, trees all fine; the same in the pane with the app's
+  renderer and headless). The material's hooks are the house's own (sag,
+  dirt, clouds) plus the ATMO/AP/cloud-shadow splices; not touched here.
+  (2) GATE PREMISES 5b ("outside the extent every height is the bare
+  world's") is red with HEAD's 27_premises.js as much as with this one.
+  Both to be read at HEAD in the worktree proof and handed to their owners.
+- TRAPS: the Bash tool truncates a heredoc past ~10 KB and EATS backslashes
+  (`\'` in a Python string arrives as `'`) — write patch scripts with the
+  Write tool and run them; `island_shot.js` hangs when a previous headless
+  Chrome of the rig is still alive (kill `cdp_shot_*` profiles first); the
+  pane's game never leaves "first light" (dead rAF) but `FLYDIY_RENDERER` +
+  an own camera + `toDataURL` to a POST sink pictures the live scene.
+- OWED: the cars' shadows/AO on the lot patch use the box like the wrecks
+  (fine); the traffic does not know junctions (each road its own loop, no
+  yielding where two cross) nor the runway (a road across a strip would
+  drive over it); a bus route, a stop; headlights at night (the pack has no
+  lamp geometry — G96's rule); the parked aeroplanes' hitbox has no car
+  equivalent (a taxiing aeroplane drives through a parked car).

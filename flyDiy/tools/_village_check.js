@@ -685,11 +685,18 @@ function battery(name, vil) {
       }
     }
     // 7 — the car (G276): a known car, on its plot a half-length inside the
-    //   line, clear of the house and the path, on dry ground
+    //   line, clear of the house and the path, on dry ground. G432: an
+    //   EVERYDAY vehicle (YARD_KIT `auto`) on the drive pad or at the garage
+    //   door - never a wreck there; in the backyard a wreck, or the pack's
+    //   rusty saloon (`auto: 'old'`), never a car in daily use
     for (const c of [plot.car, plot.boat]) if (c) {
       const K = plot.car === c ? HG.YARD_KIT[c.key] : HG.PIER_KIT[c.key];
-      check(!!K && (K.car || c.key === 'boat_tirola'),
+      check(!!K && (K.car || K.auto || c.key === 'boat_tirola'),
             name + ': plot ' + plot.id + ' parked something that is not a car or the trailer boat', c.key);
+      if (K && plot.car === c) {
+        if (c.pad || c.garage) check(!!K.auto && K.auto !== 'old', name + ': plot ' + plot.id + ' has a wreck on its drive', c.key);
+        else check(!!K.car || K.auto === 'old', name + ': plot ' + plot.id + ' has a car in daily use dumped in its backyard', c.key);
+      }
       check(VG.inPoly(plot.poly, c.x, c.z), name + ': the car on plot ' + plot.id + ' is off its plot');
       check(T.h(c.x, c.z) > T.waterY + 0.25, name + ': the car on plot ' + plot.id + ' is in the water');
       check(Math.abs(c.y - T.h(c.x, c.z)) < 0.01, name + ': the car on plot ' + plot.id + ' floats');

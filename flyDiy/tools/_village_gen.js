@@ -1042,10 +1042,14 @@ function planCar(vil, plot, house, built, rnd, thing) {
   if (house.P.civic || house.P.big) return null;   // no wreck on the town hall's lawn
   const garage = !isBoat && plot.out && plot.out.kind === 'garage';
   if (!garage && rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;   // a garage always has its car
-  const T = vil.T, keys = HG.CAR_KEYS;
+  const T = vil.T;
+  // THE GARAGE'S CAR IS AN EVERYDAY ONE (G432, the user: "real everyday cars
+  // to be integrated in the garages, the front yards"): the wrecks stay in
+  // the backyard (the abandoned cars + the pack's rusty saloon, kind `old`)
+  const keys = garage ? autoMenu('garage') : HG.CAR_KEYS.concat(HG.AUTO_KEYS ? HG.AUTO_KEYS(['old']) : []);
   let key = isBoat ? 'boat_tirola' : (vil.spread ? vil.spread.pick(keys.filter(k => k !== 'car_buick'), rnd)
                                                 : keys[Math.floor(rnd() * keys.length) % keys.length]);
-  if (!isBoat && rnd() < 0.12 && !(vil.spread && vil.spread.used.car_buick)) key = 'car_buick';   // the big one, once
+  if (!isBoat && !garage && rnd() < 0.12 && !(vil.spread && vil.spread.used.car_buick)) key = 'car_buick';   // the big one, once
   const K = isBoat ? HG.PIER_KIT.boat_tirola : HG.YARD_KIT[key];
   const n = plot.n, tg = plot.tg;
   // the backyard direction, away from the house's front
@@ -1381,7 +1385,26 @@ function lotGround(vil, plot, house, built, occ) {
 //                nothing else (the big building brings its own props)
 //   sports       the theme's (nothing here)
 // `plot.cat` is read off the house (its preset's category) or the zone.
-const DRIVE_CARS = ['car_kcar', 'car_fiat', 'car_hudson', 'car_multicab'];   // the least wrecked, until the user's cars land
+// THE EVERYDAY VEHICLES BY PLACE (G432): the drive pad and the garage take
+// what a household drives (a pickup or an SUV as often as a car - rural), the
+// car park what shops draw, the works yard what works there. YARD_KIT's
+// `auto` word (HOUSE_GEN.AUTO_KEYS) is the menu; the wrecks (DRIVE_CARS, the
+// least wrecked of the abandoned cars) stand in only when the pack is absent.
+const DRIVE_CARS = ['car_kcar', 'car_fiat', 'car_hudson', 'car_multicab'];
+const AUTO_MENUS = {
+  drive:      ['car', 'car', 'pickup', 'pickup', 'suv', 'van'],
+  garage:     ['car', 'pickup', 'suv'],
+  carpark:    ['car', 'car', 'car', 'pickup', 'suv', 'van'],
+  industrial: ['truck', 'truck', 'van', 'pickup'],
+};
+function autoMenu(place) {
+  const AK = HG.AUTO_KEYS;
+  if (!AK || !AK().length) return DRIVE_CARS;
+  const out = [];
+  for (const kind of AUTO_MENUS[place] || AUTO_MENUS.drive) for (const k of AK([kind])) out.push(k);
+  return out.length ? out : DRIVE_CARS;
+}
+const pickAuto = (vil, rnd, place) => { const menu = autoMenu(place); return vil.spread ? vil.spread.pick(menu, rnd) : menu[Math.floor(rnd() * menu.length)]; };
 function lotCat(plot, house) {
   const P = house.P || {};
   if (house.cat) return house.cat;
@@ -1451,7 +1474,7 @@ function planDrive(vil, plot, house, built, rnd) {
   for (let i = 0; i + 1 < pts.length; i++) segs.push([W(pts[i]), W(pts[i + 1])]);
   let car = null;
   if (pad && rnd() < 0.7) {
-    const key = vil.spread ? vil.spread.pick(DRIVE_CARS, rnd) : DRIVE_CARS[Math.floor(rnd() * DRIVE_CARS.length)];
+    const key = pickAuto(vil, rnd, 'drive');
     const c = W([pad.u, pad.v]);
     car = { key, x: c[0], z: c[1], ry: Math.atan2(n[0], n[1]) + Math.PI + (rnd() - 0.5) * 0.12, y: vil.T.h(c[0], c[1]), pad: true };
   }
@@ -1468,7 +1491,20 @@ function planLot(vil, plot, house, built, rnd, cat) {
   const w = plot.w;
   if (cat === 'industrial') {
     const v1 = Math.min(plot.depth - 1, F.d + house.P.w / 2 + 6);
-    return { kind: 'gravel', poly: plotRect(plot, 0.8, w - 0.8, 0.6, v1), bays: [], cars: [] };
+    // A TRUCK IN THE YARD (G432): one or two of the works' vehicles parked
+    // along the yard's side, nose to the road, clear of the building's front
+    const cars = [];
+    const f0 = plot.poly[0], tg = plot.tg, n = plot.n;
+    const W = (u, v) => [f0[0] + tg[0] * u + n[0] * v, f0[1] + tg[1] * u + n[1] * v];
+    const nT = v1 - 0.6 > 14 && w > 16 ? 1 + (rnd() < 0.5 ? 1 : 0) : (v1 - 0.6 > 12 && w > 12 ? 1 : 0);
+    for (let i = 0; i < nT; i++) {
+      const key = pickAuto(vil, rnd, 'industrial'), K = HG.YARD_KIT[key] || { L: 6, W: 2.5 };
+      const u = i ? w - 0.8 - K.W / 2 - 0.8 : 0.8 + K.W / 2 + 0.8, v = 0.6 + K.L / 2 + 1.5;
+      if (v + K.L / 2 > v1 - 0.5) continue;
+      const c = W(u, v);
+      cars.push({ key, x: c[0], z: c[1], ry: Math.atan2(n[0], n[1]) + Math.PI + (rnd() - 0.5) * 0.08, y: vil.T.h(c[0], c[1]) });
+    }
+    return { kind: 'gravel', poly: plotRect(plot, 0.8, w - 0.8, 0.6, v1), bays: [], cars };
   }
   if (cat === 'official') {
     const half = Math.min(w / 2 - 1.5, F.halfL + 1.0);
@@ -1486,7 +1522,7 @@ function planLot(vil, plot, house, built, rnd, cat) {
   const W = (u, v) => [f0[0] + tg[0] * u + n[0] * v, f0[1] + tg[1] * u + n[1] * v];
   for (let i = 0; i <= nB; i++) bays.push([W(u0 + i * bayW, v0 + 0.3), W(u0 + i * bayW, v0 + 5.3)]);   // the bay lines, 5 m deep from the road side
   for (let i = 0; i < nB; i++) if (rnd() < 0.35) {
-    const key = vil.spread ? vil.spread.pick(DRIVE_CARS, rnd) : DRIVE_CARS[Math.floor(rnd() * DRIVE_CARS.length)];
+    const key = pickAuto(vil, rnd, 'carpark');
     const c = W(u0 + (i + 0.5) * bayW, v0 + 2.9);
     cars.push({ key, x: c[0], z: c[1], ry: Math.atan2(n[0], n[1]) + Math.PI + (rnd() - 0.5) * 0.1, y: vil.T.h(c[0], c[1]) });
   }
@@ -2067,6 +2103,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { lotCat, planDrive, planLot, planFencesFor, DRIVE_CARS, VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, streetLamp, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
+window.VILLAGE_GEN = { lotCat, planDrive, planLot, planFencesFor, DRIVE_CARS, AUTO_MENUS, autoMenu, VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, streetLamp, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

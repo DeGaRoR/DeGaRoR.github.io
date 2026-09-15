@@ -50,7 +50,7 @@ function make(THREE, scene, world, rec0, opts) {
                                                      : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   let O = composeNow();
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
@@ -482,8 +482,65 @@ function make(THREE, scene, world, rec0, opts) {
     }
     stats.trams = TRAMS.size;
   }
-  // the clock: the host's dt in seconds; the cabins move
-  function tick(dt) { for (const [, t] of TRAMS) t.run.tick(dt).apply(); return TRAMS.size; }
+  // ---- PROTO TRAFFIC (G432, the user: "possibly generate some proto traffic"): a road whose record says
+  // `traffic` (vehicles per km) runs that many everyday vehicles up and down it - each an AUTO prop
+  // (propPlace: the LOD ladder rides along), on the right-hand side of its direction of travel at a
+  // quarter of the road's width off the centreline, at 35-55 km/h, turning round at the road's ends,
+  // keeping its distance from the one ahead. The ground is read every tick (heightAt + the tilt), so a
+  // car follows a graded road's own profile. Deterministic from the road's id: the same cars, the same
+  // way round, at every boot. Rebuilt when the road's line, width or count changes.
+  const TRAFFIC = new Map();       // road id -> { key, cars: [{ grp, key, s, dir, v, v0, K }], pr, w, L }
+  const trafficKey = rd => JSON.stringify([rd.pts, rd.w, rd.traffic]);
+  const trafficMenu = () => {
+    const HG = window.HOUSE_GEN, VG = window.VILLAGE_GEN, PR = propReg();
+    const m = VG && VG.autoMenu ? VG.autoMenu('carpark').concat(HG && HG.AUTO_KEYS ? HG.AUTO_KEYS(['truck', 'bus']) : []) : [];
+    return m.filter(k => PR && PR.props[k]);
+  };
+  function syncTraffic() {
+    const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
+    const want = new Map();
+    if (pp) for (const rd of O.roads) if (rd.traffic > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
+    for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) G.traffic.remove(c.grp); TRAFFIC.delete(id); } }
+    const menu = trafficMenu();
+    for (const [id, rd] of want) {
+      if (TRAFFIC.has(id) || !menu.length) continue;
+      const pr = PG.polyRoad(rd.pts, rd.w), L = pr.length;
+      const n = Math.max(1, Math.round(rd.traffic * L / 1000));
+      const rnd = PG.mulberry32(PG.fnv(String(id)) ^ 0x7a4f);
+      const cars = [];
+      for (let i = 0; i < n; i++) {
+        const key = menu[Math.floor(rnd() * menu.length)];
+        const K = (HG && HG.YARD_KIT && HG.YARD_KIT[key]) || { L: 4.5, W: 1.8 };
+        const dir = i % 2 ? -1 : 1, v0 = (35 + rnd() * 20) / 3.6 * (K.L > 7 ? 0.8 : 1);
+        const grp = pp(THREE, key, 0, 0, 0, 0); grp.name = 'traffic:' + id + ':' + i;
+        G.traffic.add(grp);
+        cars.push({ grp, key, K, s: (i + 0.5) * L / n, dir, v: v0, v0 });
+      }
+      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L });
+      moveTraffic(TRAFFIC.get(id), 0);
+    }
+    stats.traffic = 0; for (const [, t] of TRAFFIC) stats.traffic += t.cars.length;
+  }
+  function moveTraffic(t, dt) {
+    const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4));
+    for (const c of t.cars) {
+      // the one ahead in my direction: slow to its speed inside two lengths, else my own
+      let gap = Infinity, vAhead = c.v0;
+      for (const d of t.cars) if (d !== c && d.dir === c.dir) { let g = (d.s - c.s) * c.dir; if (g < 0) g += t.L; if (g < gap) { gap = g; vAhead = d.v; } }
+      const tgt = gap < c.K.L + 6 ? Math.min(c.v0, vAhead * 0.9) : c.v0;
+      c.v += (tgt - c.v) * Math.min(1, dt * 1.5);
+      c.s += c.dir * c.v * dt;
+      if (c.s > t.L) { c.s = 2 * t.L - c.s; c.dir = -1; } else if (c.s < 0) { c.s = -c.s; c.dir = 1; }
+      const a = t.pr.at(c.s), tx = a.tg[0] * c.dir, tz = a.tg[1] * c.dir;
+      const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
+      const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
+      const ry = Math.atan2(tx, tz) + (F.yaw || 0);
+      c.grp.position.set(w[0], heightAt(w[0], w[1]), w[1]);
+      tiltToGround(c.grp, heightAt, w[0], w[1], ry);
+    }
+  }
+  // the clock: the host's dt in seconds; the cabins and the traffic move
+  function tick(dt) { for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); return TRAMS.size + TRAFFIC.size; }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -942,6 +999,7 @@ function make(THREE, scene, world, rec0, opts) {
       buildRoads();
       buildRunways();
       syncTrams();   // the trams run in the game whether or not the editor is open (G398.3)
+      syncTraffic();
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
@@ -963,6 +1021,7 @@ function make(THREE, scene, world, rec0, opts) {
     paintMaterials();
     buildOutlines();
     syncTrams();
+    syncTraffic();
     buildRunways();
     buildHandles();
     syncHouses();
@@ -1017,6 +1076,7 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z })) })),
     setRecord: r => { rec = PG.normalise(r); },
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point

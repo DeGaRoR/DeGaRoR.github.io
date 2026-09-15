@@ -237,7 +237,7 @@ function tick(t) {
   rafSeen = true;
   if (R.stats.queued) { R.step(2); PREMISES_PAGE && PREMISES_PAGE.ed.plaque(); dirtyDraw = true; }
   // the tram runs (G398.3): the renderer's clock, and a frame while a cabin moves
-  if (R.tick && R.stats.trams) { const dt = tramLast ? Math.min(0.1, (t - tramLast) / 1000) : 0; if (R.tick(dt)) dirtyDraw = true; }
+  if (R.tick && (R.stats.trams || R.stats.traffic)) { const dt = tramLast ? Math.min(0.1, (t - tramLast) / 1000) : 0; if (R.tick(dt)) dirtyDraw = true; }
   tramLast = t;
   if (dirtyDraw) render(t);
   requestAnimationFrame(tick);

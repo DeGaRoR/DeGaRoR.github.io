@@ -73,9 +73,12 @@
 <script src="../src/viewer/props.js"></script>
 <script>
 (async () => {
-  const packs = await (await fetch('../src/props/props_packs.json')).json();
+  // ?packs=pier shows the pier kit's library instead (G432: the everyday vehicles have no shelf
+  // of their own; the house bench stands them one at a time)
+  const set = new URLSearchParams(location.search).get('packs') || 'props';
+  const packs = await (await fetch('../src/' + set + '/' + set + '_packs.json')).json();
   for (const f of packs) {
-    const src = await (await fetch('../src/props/' + f)).text();
+    const src = await (await fetch('../src/' + set + '/' + f)).text();
     (0, eval)(src);
   }
   start();
