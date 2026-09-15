@@ -157,6 +157,7 @@ function runTrace(o) {
   for (let s = 0; s < maxS * 60; s++) {
     ap.update(1 / 60); sim.step(1 / 60);
     const t = s / 60, d = ap.dbg, c = sim.ctl, v = sim.cgVel(), ph = ap.phase, onG = sim.wheelsOnGround();
+    if (o.probe && (ph !== last || o.probeEvery)) o.probe(ap, sim, t);
     const cd = (ap.status && ap.status.conds) || [];
     const g = k => { const q = cd.find(x => x.what === k); return q ? q.have : null; };
     if (ph !== last) {
@@ -177,6 +178,10 @@ function runTrace(o) {
       // the SIGNED cross-track to the current leg (the status line carries |xt|)
       let xt = null;
       const Lg = ap.legs && ap.legs[ap.legI], cgp = sim.cgPos();
+      // P1: an enroute leg restarts where the aeroplane is when the climb-out
+      // hold ends — the crossing is judged afresh from there
+      if (Lg && Lg.A && leg.A0 && (Lg.A[0] !== leg.A0[0] || Lg.A[1] !== leg.A0[1])) { leg.crossed = false; leg.overshoot = 0; leg.settleT = null; leg.t0 = t; }
+      if (Lg && Lg.A) leg.A0 = [Lg.A[0], Lg.A[1]];
       if (Lg && Lg.A && Lg.B) {
         const dx = Lg.B[0] - Lg.A[0], dz = Lg.B[1] - Lg.A[1], ln = Math.hypot(dx, dz) || 1e-9;
         xt = (-(cgp[0] - Lg.A[0]) * dz + (cgp[2] - Lg.A[1]) * dx) / ln;

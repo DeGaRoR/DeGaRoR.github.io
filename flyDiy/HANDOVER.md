@@ -49033,3 +49033,122 @@ mattering; the hook is the `run` phase in BOOT.log.
   shadow map and the light at the craft and the probe (C3: the water reflects the
   clouds), the cirrus veil, the types' table, in-cloud through the mist, the
   editor/CONDITIONS lines, `&cloud=` (C4).
+
+## G422 — THE PILOT TRACK, P1.A: THE RUNWAY MODEL — WHAT STANDS PAST THE
+## ENDS; THE DIRECTION SCORED, NOT PICKED; THE VALLEY STRIP LANDED (2026-09-15)
+
+PILOT-ROADMAP §4 P1 begins: the runway is read WITH its surroundings, and
+the two directions of every strip are scored — the wind, the slope, the
+approach the obstacles allow, the climb-out — instead of "into wind, else
+the nearest to the nose". Before this, every cross-country to A3 (15
+archetypes in the full run) flew away from the strip for 900 s, and the
+`dn4` fixture went around for terrain without ever trying the other way.
+
+**THE MODEL** (25_airfield.js `siteRunwayModel(aero, world)`, pure, memoised
+per aerodrome in the pilot): the strip's profile off the terrain (`hAt`,
+`grade`), and per landing direction k: `reqGs` — the slope that clears
+every obstacle in a corridor (the strip's width + 25 m a side, 25 m steps
+to 600 m then 100 m to 6 km) by 15 m, the aeroplane crossing the threshold
+at the SCREEN height (15 m, every field length's 50 ft); `obst` (d, h);
+`reqClimb` — the gradient a go-around / departure needs past the far end,
+to 1.5 km, over THREE tracks (straight, and 30 deg left / right from 300 m
+past the end — a strip in a valley is left turning) with the easiest kept
+as `climbTurn`. `ground(x, z)` is the terrain or the water PLUS THE CANOPY.
+- THE CANOPY (20_world.js `world.canopyH(x, z, r)`): the tallest tree
+  within r of the point, 16 m x its placed scale — a stand-in for the packs'
+  own heights (13-20 m at size 1; the viewer draws the pack, not `s`).
+- THE APPROACH FANS (24_world_aero.js `inBox`): the world planted trees to
+  within 30 m of every strip's ends — a 20 m tree 25 m off A3's threshold
+  asked a 38 deg approach; A5's asked 20 deg. A strip is only a runway if
+  what stands past its ends lets an aeroplane in: the tree placement now
+  keeps a fan clear off each end (350 m, from a 50 m shoulder at 1:7 — a
+  1:10 surface over a 20 m canopy). 105 trees fewer of 24816. The
+  premises' strips (27_premises.js) keep their hand-drawn clear zones.
+- THE SCORE (`siteScoreDirections(model, wind, lim, pref, oneWay)`): +3 per
+  m/s of headwind; -60 per unit grade landing downhill / taking off uphill
+  (1 m/s of wind per 5 %); an approach steeper than the aeroplane's own
+  slope costs the fraction of its margin to `gsMax` it uses (100 at the
+  limit, refused past it); a climb-out past half the aeroplane's gradient
+  costs the fraction of the other half (100 at the limit, refused past it)
+  — the two margins are spent in the same coin; the preference (the
+  arrival's direction, the nose, a one-way strip's `landHdg`) breaks ties
+  at 0.5, and a one-way strip is one-way (-500 the other way, whatever the
+  wind — G398.3 let the wind override it). `lim` off the sheet: gsMax =
+  clamp(1.4 / LDbest, 0.07, 0.16) (the flaps and the gear cost ~40 % of the
+  clean glide), the go-around gradient 0.8 x the measured Vy climb.
+  Measured, calm: HOME / A0 / A2 / A4 / A6 either way; A3 k1 (land toward
+  +z, the 2.4 deg approach, the climb-out 8.4 % turning right) over k0 (the
+  8.6 deg approach over the hill); A5 4.1 deg both ways.
+
+**THE PILOT** (43_pilot.js): `dirAt(a, pref, mode)` scores when a model
+exists (the old rule where none does); the arrival plan reads its
+direction's record — the slope flown is max(the archetype's, 1.05 x reqGs)
+capped at gsMax; the pattern's side is the climb-out's turn when it has one
+(climbTurn +1 about +y is side -1: wp's c is to the LEFT of u), else the
+side whose TERRAIN under the downwind + base is lower by a quarter of the
+circuit height (the trees do not move a circuit), forced when the other
+side stands over half the circuit height above the strip; the circuit
+height is raised so the pattern flies 0.7 hC over the ground (canopy
+included) under it (A3: 221 m). The take-off direction is scored in
+'takeoff' mode (the run ahead of the nose as the preference; uphill costs,
+the approach does not); the CIRCUIT lands the scored direction with the
+climb-out as the preference — flat and calm it is the way it took off,
+bit-for-bit the P0.7 flights; on the `dn4` hillside it is THE OTHER WAY
+(the crosswind leg sits one radius DOWN the frame, the downwind is flown
+the way the aeroplane already flies: a jog out to W, no reversal). Found
+on the way:
+- THE FAF WAS IN THE WRONG PLACE ON EVERY SLOPING STRIP: the slope ends on
+  the aim's ground (aimAlt, P0.8) but the level before the FAF is hC over
+  the aerodrome's datum, and the FAF was hC / gs from the aim — 37 m of
+  ground under the aim put the level 37 m above the slope at the FAF,
+  never captured, two go-arounds. The FAF is now where the slope reaches
+  the level (`hFaf`).
+- L1 FAR OFF THE PATH ASKED FOR NOTHING: `pathLocate` searches 60 points
+  (300 m) about the last index; an aeroplane that left the path during the
+  climb-out hold was 4 km off it, the window held the path's start, the
+  reference sat behind the aeroplane, sin(eta) ~ 0 — every A3 flight.
+  Far off the path the whole path is searched (`pathLocate(..., full)`,
+  39_ground_path.js), eta is clamped to +-90 deg and the range floored at
+  L1: the bank limit toward the path, Park's own capture.
+- THE CLIMB-OUT HOLD IS THE OBSTACLE-CLEARANCE CLIMB (C.3), flown live:
+  the enroute leg is not flown while the ground along it (every 150 m,
+  30 m clear) asks a gradient over 0.8 of the measured climb; the heading
+  held is the ESCAPE — of a fan about the climb-out (every 30 deg over
+  +-90) the one whose ground asks the least, and when none can be made a
+  climbing turn toward it (the valley departure). Held to the LEG HEIGHT
+  (W10 rule 3) the cub bound for A3 flew 4 km the wrong way for a 448 m
+  ridge floor; released at a fixed height it turned onto the ridge and
+  crossed it by 9 m; held on the climb-out heading it flew A3's k1
+  departure into the hill. The CLIMB phase turns early by the same rule
+  (`terrain-turn`, said once): A3's departure toward the hill turns at
+  26 m instead of climbing to 122 m with 1.5 m of ground to spare.
+- EVERY FIRST LEG BEGINS TWO RADII AHEAD along the track, the path from
+  the aeroplane, so the turn onto it is a corner the path fillets — a leg
+  through the aeroplane's own position, flown at 100 deg to it, read
+  250-390 m of overshoot on every cross-country (and 308 m on the
+  turn-back after a hold); 15 m now.
+- RESUMED FAR FROM THE STRIP (the AP box handed back over the next
+  valley) the arrival is joined the cross-country way; the crosswind form
+  is the climb-out's (within half a pattern width of the centreline).
+- `pilot_trace`: `o.probe(ap, sim, t)` on phase change (or every tick with
+  `probeEvery`) for scripted probes; the enroute overshoot is judged afresh
+  when the leg restarts.
+
+MEASURED (pilot_runs/core_p1a.js, the quick set against the G399.6
+baseline): 6 good / 3 warn / 0 bad, from 5 / 3 / 1 — the cub lands at A3
+(1.14 Vs, 9 m short of the aim, 230 m, 643 s) for the first time; the C172
+in 489 s and the Savannah in 600 s; A5 (0.89 m/s, 1.18 Vs); A3 -> HOME
+(the departure over the hill); `dn4` lands UPHILL (1.22 Vs, -6 m, 220 m);
+the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
+509 s against 520 on HEAD). The baseline moved to this run.
+
+- Gates: PILOT; PILOTMATRIX (quick, no cell worse).
+- OWED (P1, next): the approach TECHNIQUES (short / soft / slope) and the
+  gust factor; the protocol record; the core set + `--all` on the
+  direction record; the 4 m/s gusting crosswind ground roll; the canopy's
+  real heights from the packs; the meadows (M1-M3) have no fans — a
+  forced-landing field is P3's; `pilot_trace --from A3` rolls from the
+  spawn's heading (the game's departFrom scores it — the trace does not
+  taxi to the scored end); TECS cuts the throttle to 0.4 when asked to
+  slow 3 m/s while 170 m below its height (the speed term outweighs the
+  climb demand — bound it to half climbMax, measured on the matrix).

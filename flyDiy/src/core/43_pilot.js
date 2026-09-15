@@ -324,7 +324,7 @@ function makePilot(sim, def, world, opts) {
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
-  let airPath = null, airPathI = 0, pathDbg = null;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
@@ -411,14 +411,45 @@ function makePilot(sim, def, world, opts) {
     const wv = world.wind(a.x, (a.elev || 0) + (h || 30), a.z, ap.t);
     return [wv[0], wv[2]];
   };
-  // the take-off / landing direction at an aerodrome: into wind when there is
-  // one, else the runway direction nearest the preference (a unit vector)
-  const dirAt = (a, px, pz) => {
+  // P1.A (PILOT-ROADMAP §4): THE RUNWAY MODEL — the strip and what stands
+  // past its ends (25_airfield.js siteRunwayModel), read once per aerodrome
+  // and kept; null where the core has no world to read
+  const siteModels = {};
+  const siteModelOf = (a) => {
+    if (!a || typeof siteRunwayModel !== 'function' || !world || typeof world.terrainH !== 'function') return null;
+    const k = a.id || (a.x + ',' + a.z);
+    if (!(k in siteModels)) { try { siteModels[k] = siteRunwayModel(a, world); } catch (e) { siteModels[k] = null; } }
+    return siteModels[k];
+  };
+  // the aeroplane's own limits, off the sheet: the steepest approach it can
+  // fly at idle in the landing configuration (1.4 / LDbest — the flaps and
+  // the gear cost about 40 % of the clean glide; 6 deg without a sheet) and
+  // the gradient a go-around may count on (0.8 of the measured Vy climb —
+  // it begins at Vref, flaps down)
+  const gsMax = SH0 && SH0.LDbest ? clamp(1.4 / SH0.LDbest, 0.07, 0.16) : 0.105;
+  const gammaGA = SH0 && SH0.gammaClimb ? 0.8 * SH0.gammaClimb : 0.08;
+  const dirLim = (mode) => ({ gs: A.gs, gsMax, gammaClimb: gammaGA, mode });
+  // the take-off / landing direction at an aerodrome: the runway model's two
+  // directions SCORED (25_airfield.js siteScoreDirections: the wind, the
+  // slope, the approach the obstacles allow, the climb-out) with the
+  // preference as the tie-break; without a model, into wind when there is
+  // one, else the runway direction nearest the preference (a unit vector).
+  // `mode` 'land' (default) or 'takeoff' — a strip in a valley is landed
+  // toward the hill and left away from it
+  const dirAt = (a, px, pz, mode) => {
     const axx = snap(Math.cos(a.hdg)), axz = snap(Math.sin(a.hdg));
-    let dx = px, dz = pz;
     const w = windAt(a, 30);
+    const M = siteModelOf(a);
+    if (M && typeof siteScoreDirections === 'function') {
+      let pref = [px, pz];
+      // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction
+      if (typeof a.landHdg === 'number') pref = [Math.cos(a.landHdg), Math.sin(a.landHdg)];
+      const sc = siteScoreDirections(M, w, dirLim(mode || 'land'), pref, typeof a.landHdg === 'number');
+      ap.dirWhy = sc.why[sc.k];
+      return M.dir[sc.k].u.slice();
+    }
+    let dx = px, dz = pz;
     if (Math.hypot(w[0], w[1]) > 0.7) { dx = -w[0]; dz = -w[1]; }
-    // G398.3: a ONE-WAY strip (a premises runway with `approach`) names its landing direction; in calm air it wins over the preference
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
@@ -451,6 +482,19 @@ function makePilot(sim, def, world, opts) {
     const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9;
     return { ux: dx / len, uz: dz / len, len };
   };
+  // P1: THE GRADIENT THE GROUND AHEAD ASKS — the steepest (ground + clear -
+  // alt) / distance over the same six samples: what the climb must beat
+  // to fly that way from here (the runway model's cone, flown live)
+  const gradAhead = (x, z, dx, dz, dist, alt, clear) => {
+    if (!world || typeof world.terrainH !== 'function') return -1;
+    let g = -1;
+    const n = Math.max(6, Math.ceil(dist / 150));          // every 150 m: a ridge is narrower than a sixth of a leg
+    for (let k = 1; k <= n; k++) {
+      const d = dist * k / n;
+      g = Math.max(g, (groundH(x + dx * d, z + dz * d) + clear - alt) / d);
+    }
+    return g;
+  };
   const terrainAhead = (x, z, dx, dz, dist) => {
     if (!world || typeof world.terrainH !== 'function') return -1e9;
     let h = -1e9;
@@ -474,9 +518,25 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = to.len < 450;
     if (to.len < 700) ap.xAim = sThr + Math.max(60, 0.12 * to.len);
     if (ap.shortFld && VApprShort) ap.VAppr = VApprShort; else ap.VAppr = sheetVAppr ?? A.VAppr;
-    const hC = ap.hCruise;
-    const Dfaf = hC / ap.gs;
-    const Diaf = Dfaf + Math.max(400, 10 * VTurn);
+    let hC = ap.hCruise;
+    // P1.A: THE SLOPE THE OBSTACLES ASK. The runway model's record for this
+    // direction: the approach is flown at the archetype's own slope, or the
+    // slope the obstacle cone needs (+5 %) when that is steeper, never past
+    // gsMax; the pattern is flown on the side the climb-out turns to (a
+    // valley strip's departure and go-around turn the same way), else on
+    // the side whose ground under the downwind + base is lower
+    const M = siteModelOf(to);
+    const D = M ? M.dir[(u[0] * M.dir[1].u[0] + u[1] * M.dir[1].u[1]) > 0 ? 1 : 0] : null;
+    ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax)) : A.gs;
+    ap.siteDir = D;
+    // P1 (found on the dn4 fixture, flown uphill for the first time): the
+    // slope ends on the AIM'S ground (aimAlt, P0.8) while the level before
+    // the FAF is hC over the aerodrome's datum — the FAF is where the slope
+    // reaches THAT level, not hC / gs from the aim: 37 m of ground under
+    // the aim put the level 37 m above the slope at the FAF, never captured
+    const hFaf = () => Math.max(60, ap.altRef + hC - aimAlt());   // the level's height over the aim
+    let Dfaf = hFaf() / ap.gs;
+    let Diaf = Dfaf + Math.max(400, 10 * VTurn);
     // P0.8: the crosswind leg carries TWO fillets, each of the radius the
     // aeroplane turns at the speed it flies there (the cruise speed plus the
     // wind, at the planned bank) — a width planned on VTurn alone put the
@@ -484,7 +544,37 @@ function makePilot(sim, def, world, opts) {
     // and the aeroplane crossed the downwind by 240 m at its bank limit
     const wv0 = windAt(to, 30), RcW = (ap.VCruise + Math.hypot(wv0[0], wv0[1])) ** 2 / (9.81 * Math.tan(bankLim)) * 1.05;
     const W = clamp(Math.max(ST.patW * Rturn, 2.2 * RcW), 300, 1800);
-    ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side: 1 };
+    // the pattern's side: the TERRAIN under each side's downwind and base,
+    // sampled (the trees do not move a circuit: the canopy counts for the
+    // height below, not the side); the lower side when it is lower by a
+    // quarter of the circuit height, else the left (side 1); forced when
+    // the climb-out turns (climbTurn +1 about +y is side -1: wp's c is to
+    // the LEFT of u) or when the other side stands more than half the
+    // circuit height above the strip
+    let side = 1, sideForced = false;
+    if (M) {
+      const gOf = (sd, fn) => {
+        let g = -1e9;
+        for (let s = ap.xAim + 300; s >= ap.xAim - Diaf; s -= 150) { const q = wp(F, s, sd * W); g = Math.max(g, fn(q[0], q[1])); }
+        for (let c = 0; c <= W; c += 150) { const q = wp(F, ap.xAim - Diaf, sd * c); g = Math.max(g, fn(q[0], q[1])); }
+        return g;
+      };
+      const tL = gOf(1, M.floor), tR = gOf(-1, M.floor), gStrip = M.hAt(0.5 * M.R.len);
+      if (D && D.climbTurn) { side = -D.climbTurn; sideForced = true; }
+      else side = tR < tL - 0.25 * hC ? -1 : 1;
+      if (Math.max(tL, tR) - gStrip > 0.5 * hC) sideForced = true;
+      const gL = gOf(1, M.ground), gR = gOf(-1, M.ground);
+      // THE CIRCUIT HEIGHT over a strip in a valley: the pattern flies at
+      // least 0.7 hC over the ground (canopy included) under the chosen
+      // side's downwind and base — the strip's own hC where the ground is
+      // the strip's, higher where the ground rises under the pattern (the
+      // per-leg terrain floor is the reactive guard; this is the plan, so
+      // the slope from the FAF is planned from that height)
+      const gSide = side > 0 ? gL : gR;
+      if (gSide - gStrip + 0.7 * hC > hC) { hC = gSide - gStrip + 0.7 * hC; Dfaf = hFaf() / ap.gs; Diaf = Dfaf + Math.max(400, 10 * VTurn); }
+      ap.patGround = { L: Math.round(gL), R: Math.round(gR), strip: Math.round(gStrip), hC: Math.round(hC) };
+    }
+    ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side, sideForced };
     return ap.plan;
   };
   const patternLegs = (P, sJoin, side) => {
@@ -549,13 +639,16 @@ function makePilot(sim, def, world, opts) {
     const onStrip = Math.abs(cross) <= half + 2 && Math.abs(along) <= from.len / 2 + 2;
     const w = windAt(from, 30);
     let t;
-    if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
-    else {
-      const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
-      const ahead = from.len / 2 - sgN * along;
-      if (!onStrip || ahead >= need) t = [d0[0] * sgN, d0[1] * sgN];
-      else t = [-d0[0] * sgN, -d0[1] * sgN];
-    }
+    // P1.A: with a runway model the take-off direction is SCORED (the wind,
+    // the slope, the climb-out) with the nose as the tie-break; without one,
+    // into wind when there is one, else the way the nose points
+    const sgN = (nose[0] * d0[0] + nose[1] * d0[1]) >= 0 ? 1 : -1;
+    const ahead = from.len / 2 - sgN * along;
+    const enough = !onStrip || ahead >= need;                     // the run ahead of the nose suffices
+    if (siteModelOf(from)) t = dirAt(from, enough ? nose[0] : -nose[0], enough ? nose[1] : -nose[1], 'takeoff');
+    else if (Math.hypot(w[0], w[1]) > 0.7) t = dirAt(from, nose[0], nose[1]);
+    else if (enough) t = [d0[0] * sgN, d0[1] * sgN];
+    else t = [-d0[0] * sgN, -d0[1] * sgN];
     const T = (t[0] * d0[0] + t[1] * d0[1]) >= 0 ? 0 : 1;
     ap.frame = mkFrame(from, -t[0], -t[1]);
     ap.dirX = -1;
@@ -785,23 +878,33 @@ function makePilot(sim, def, world, opts) {
     // limit-cycling 9-22 deg around 23) and 378-502 m on the stearman.
     const pathFollow = (bl) => {
       if (!airPath || !airPath.pts.length) return false;
-      const L = pathLocate(airPath, airPathI, cg[0], cg[2]);
-      airPathI = L.i;
+      let L = pathLocate(airPath, airPathI, cg[0], cg[2]);
       const P = airPath.pts;
       const Vg2 = Math.max(o_.Vg ?? Vg, 8);
       const L1 = Math.max(60, 4.0 * Vg2);
+      // P1 (found on the A3 cross-countries: every archetype flew away
+      // from the strip for 900 s): the locate window is 60 points (300 m)
+      // about the last index — an aeroplane that left the path during the
+      // climb-out hold was 4 km off it, the window held the path's START,
+      // the reference sat BEHIND the aeroplane, sin(eta) ~ 0 and L1 asked
+      // for nothing. Far off the path the whole path is searched, and the
+      // capture is L1's own: the reference L1 ahead of the nearest point
+      // with the range floored at L1 — |eta| past 90 deg is the bank limit
+      // toward the path, the way Park's law captures from any side
+      if (L.dist > 2 * L1) { L = pathLocate(airPath, airPathI, cg[0], cg[2], true); }
+      airPathI = L.i;
       let j = L.i;
       const s0 = P[L.i].s;
       while (j < P.length - 1 && P[j].s - s0 < L1) j++;
       const rx = P[j].x - cg[0], rz = P[j].z - cg[2], rl = Math.hypot(rx, rz) || 1e-9;
       const tx = vcg[0] / Math.max(tl2, 1e-6), tz = vcg[2] / Math.max(tl2, 1e-6);
-      const eta = tl2 > 3 ? Math.atan2(rz * tx - rx * tz, rx * tx + rz * tz) : 0;
+      const eta = tl2 > 3 ? clamp(Math.atan2(rz * tx - rx * tz, rx * tx + rz * tz), -1.5708, 1.5708) : 0;
       // on a circle of radius R the reference L1 ahead sits at sin(eta) =
       // L1 / 2R, so the law returns V^2 / R by itself: the arc's centripetal
       // acceleration is NOT added again (a first cut did, and the cub rolled
       // to its limit at the start of every fillet, turned inside the arc and
       // crossed the leg by 67 m on the far side)
-      const aL1 = 2 * Vg2 * Vg2 * Math.sin(eta) / Math.max(rl, 20);
+      const aL1 = 2 * Vg2 * Vg2 * Math.sin(eta) / clamp(rl, 20, L1);
       const phC = clamp(Math.atan(aL1 / 9.81), -bl, bl);
       rollTo(phC);
       pathDbg = { i: L.i, ey: L.ey, sRem: L.sRem, eta, kap: P[L.i].kap, phC };
@@ -1195,36 +1298,57 @@ function makePilot(sim, def, world, opts) {
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
       if (ap.xc) u = dirAt(to, to.x - cg[0], to.z - cg[2]);
+      // P1.A: the circuit lands the SCORED direction (the wind, the slope,
+      // the obstacles) with the climb-out as the preference — on a flat strip
+      // in calm air that is the way it took off; on a hillside the other way
+      else if (siteModelOf(to)) u = dirAt(to, climbDir[0], climbDir[2], 'land');
       else u = ap.takeoffDir || [F.ux * ap.dirX, F.uz * ap.dirX];
       const P = planArrival(to, u, from);
       const FL = P.F;
       const sNow = alongOf(FL, cg), cNow = leftOf(FL, cg);
-      if (!ap.xc) {
+      // P1: the crosswind form is the CLIMB-OUT's — the aeroplane near the
+      // extended centreline; resumed anywhere else (the AP box handed back
+      // over the next valley) the arrival is joined the cross-country way
+      if (!ap.xc && Math.abs(cNow) < 0.5 * P.W) {
         // G381: the crosswind leg begins where the ARC ends — one turn
         // radius ahead at the climbing bank — and the arc is armed from the
         // climb-out direction, so the aeroplane rolls out ON the leg
         // instead of R inside it
         const bC = Math.min(bankLim, A.bankClimb ?? 0.35);
         const Rc = (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bC)) + 0.5 * V * bC / (A.bankSlew ?? 0.18);
-        const sA = sNow + Rc;
-        startLegs([{ name: 'CROSSWIND', A: wp(FL, sA, 0), B: wp(FL, sA, P.W), h: P.hC, V: 'cruise' }]
-          .concat(patternLegs(P, sA, 1)));
+        // P1.A: "ahead" is along the climb-out — when the landing runs the
+        // other way (s falls as the aeroplane flies) the crosswind leg sits
+        // one radius DOWN the frame, and the downwind that follows is flown
+        // the way the aeroplane already flies: a jog out to W, no reversal
+        const dirS = (u[0] * climbDir[0] + u[1] * climbDir[2]) >= 0 ? 1 : -1;
+        const sA = sNow + dirS * Rc;
+        startLegs([{ name: 'CROSSWIND', A: wp(FL, sA, 0), B: wp(FL, sA, P.side * P.W), h: P.hC, V: 'cruise' }]
+          .concat(patternLegs(P, sA, P.side)));
         return 'CROSSWIND';
       }
       const toIaf = wp(FL, P.sIaf, 0);
       const vx = toIaf[0] - cg[0], vz = toIaf[1] - cg[2], vl = Math.hypot(vx, vz) || 1e-9;
       const cosA = (vx * FL.ux + vz * FL.uz) / vl;
       const straightIn = sNow < P.sIaf - 300 && cosA > 0.5;
+      // P1: the first leg begins two turn radii AHEAD along the track, the
+      // path from the aeroplane — the turn onto the leg is a corner the
+      // path fillets (a leg through the aeroplane's own position, flown at
+      // 100 deg to it, read 300 m of overshoot on every cross-country)
+      const tl0 = Math.hypot(vcg[0], vcg[2]);
+      const Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
+      const ahead = tl0 > 3 ? [cg[0] + vcg[0] / tl0 * Rc2, cg[2] + vcg[2] / tl0 * Rc2] : [cg[0], cg[2]];
       if (straightIn) {
-        startLegs([{ name: 'INBOUND', A: [cg[0], cg[2]], B: toIaf, h: P.hC, V: 'cruise', enroute: true },
+        startLegs([{ name: 'INBOUND', A: ahead, B: toIaf, h: P.hC, V: 'cruise', enroute: true },
                    { name: 'FINAL', A: toIaf, B: wp(FL, P.sAim, 0) }]);
       } else {
-        const side = Math.abs(cNow) < 100 ? 1 : (cNow > 0 ? 1 : -1);
+        // the join from the side the aeroplane arrives on, unless the plan's side is forced (P1.A)
+        const side = P.sideForced ? P.side : Math.abs(cNow) < 100 ? P.side : (cNow > 0 ? 1 : -1);
         const sJoin = P.sAim + Math.max(400, 2 * Rturn);
         const entry = wp(FL, sJoin, side * P.W);
-        startLegs([{ name: 'ENROUTE', A: [cg[0], cg[2]], B: entry, h: P.hC, V: 'cruise', enroute: true }]
+        startLegs([{ name: 'ENROUTE', A: ahead, B: entry, h: P.hC, V: 'cruise', enroute: true }]
           .concat(patternLegs(P, sJoin, side)));
       }
+      if (tl0 > 3) pathFrom = [cg[0], cg[2]];
       ap.holdDir = climbDir;
       return ap.legs[0].name;
     };
@@ -1626,7 +1750,17 @@ function makePilot(sim, def, world, opts) {
           }
           ap.hCruise = Math.max(A.hSafe + 10, agl);
         }
-        if (agl >= hTurn || stalled || marginal) {
+        // P1: THE CLIMB TURNS EARLY WHEN THE GROUND AHEAD ASKS MORE THAN
+        // THE AEROPLANE CLIMBS (the obstacle-clearance climb, C.3): past
+        // the safe height the straight climb-out is given up for the plan
+        // — the circuit's crosswind on the scored side, the route's escape
+        // heading — the moment the runway-line ground within 1.5 km needs
+        // a gradient over 0.8 of the measured climb, 30 m clear (A3's k1 departure
+        // climbed into the 8 % hill with 1.5 m to spare at 122 m)
+        const climbDirNow = [F.ux * ap.dirX, F.uz * ap.dirX];
+        const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA;
+        if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
+        if (agl >= hTurn || stalled || marginal || terrainTurn) {
           const first = planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
           if (!climbMode) { thrC = A.thrCruise; thcI = 0.04; }
@@ -1659,13 +1793,61 @@ function makePilot(sim, def, world, opts) {
           const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, dRem))) + (A.hClear ?? 130);
           hTgt = Math.max(cruise, floor);
         } else hTgt = legAlt(L);
-        const holdOut = L.enroute && hTgt - cg[1] > 60 && ap.holdDir && phaseT < 150 && ap.legI === 0;
+        // P1: THE HOLD IS THE OBSTACLE-CLEARANCE CLIMB (PILOT-ROADMAP C.3):
+        // while the ground along the leg asks a gradient the aeroplane
+        // cannot make from here (0.8 of its measured climb, 30 m clear) the
+        // leg is not flown; the heading held is the ESCAPE — of a fan about
+        // the climb-out (every 30 deg over +-90) the one whose ground asks
+        // the least (1 % of hysteresis toward the one held), and when none
+        // can be made the aeroplane CIRCLES toward it, climbing (the valley
+        // departure). The runway model's cone, flown live. Held to the LEG
+        // HEIGHT (W10 rule 3) the cub bound for A3 flew 4 km the wrong way
+        // for a 448 m ridge floor; released at a fixed height it turned onto
+        // the ridge and crossed it by 9 m; held on the climb-out heading it
+        // flew A3's k1 departure straight into the hill (aglT 0.5 m)
+        let gNeed = -1, holdOut = false;
+        if (L.enroute && ap.legI === 0 && ap.holdDir && phaseT < 150) {
+          const g = legGeom(L);
+          gNeed = gradAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, r.len - r.s)), cg[1], 30);
+          if (gNeed > gammaGA) {
+            holdOut = true;
+            const h0 = Math.atan2(ap.holdDir[2], ap.holdDir[0]);
+            let best = null;
+            for (let k = -3; k <= 3; k++) {
+              const h = h0 + k * Math.PI / 6;
+              let gk = gradAhead(cg[0], cg[2], Math.cos(h), Math.sin(h), 1500, cg[1], 30);
+              if (escapeHdg != null && Math.abs(Math.atan2(Math.sin(h - escapeHdg), Math.cos(h - escapeHdg))) < 0.1) gk -= 0.01;
+              if (!best || gk < best.g) best = { h, g: gk };
+            }
+            escapeHdg = best.h; escapeCircle = best.g > gammaGA;
+            if (escapeCircle) {
+              // no heading can be made: a climbing turn toward the least bad
+              // one — the selected heading stays 50 deg ahead of the track
+              const trk = Math.atan2(vcg[2], vcg[0]), toward = Math.atan2(Math.sin(best.h - trk), Math.cos(best.h - trk));
+              escapeHdg = trk + (toward >= 0 ? 0.87 : -0.87);
+            }
+            ap.escape = { hdg: Math.round(escapeHdg * 57.3), need: Math.round(gNeed * 1000) / 10, best: Math.round(best.g * 1000) / 10, circle: escapeCircle };
+          }
+        }
+        if (!holdOut) { escapeHdg = null; escapeCircle = false; }
+        // P1: the climb-out hold carried the aeroplane kilometres from the
+        // enroute leg's start (its own take-off position); when the hold
+        // ends the leg begins where the aeroplane is, and the path with it
+        // — two radii AHEAD along the track, so the turn onto the leg is a
+        // corner the path fillets (a leg through the aeroplane's own
+        // position, flown the other way, read 308 m of "overshoot" on the
+        // turn-back); the path starts at the aeroplane
+        if (heldOut && !holdOut && L.enroute && ap.legI === 0) {
+          const tl = Math.hypot(vcg[0], vcg[2]) || 1, Rc2 = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
+          L.A = [cg[0] + vcg[0] / tl * Rc2, cg[2] + vcg[2] / tl * Rc2]; airPath = null; pathFrom = [cg[0], cg[2]];
+        }
+        heldOut = !!holdOut;
         // P0.6: the path is built once per leg list and followed by L1; the
         // G381 arc + pursuit stay behind `path: false`
-        if (!airPath) { airPath = buildAirPath(ap.legs, ap.legs[0] && ap.legs[0].name === 'CROSSWIND' ? [cg[0], cg[2]] : null); airPathI = 0; }
+        if (!airPath) { airPath = buildAirPath(ap.legs, ap.legs[0] && ap.legs[0].name === 'CROSSWIND' ? [cg[0], cg[2]] : pathFrom); airPathI = 0; pathFrom = null; }
         const onPath = !!airPath && !holdOut;
         altMode(hTgt, legSpeed(L), bankLim, holdOut ? 'HDG' : onPath ? 'PATH' : 'NAV');
-        if (holdOut) SEL.hdg = Math.atan2(ap.holdDir[2], ap.holdDir[0]);
+        if (holdOut) SEL.hdg = escapeHdg;
         flapTgt = 0;
         // the card is judged on the settled downwind (41_test_pilot.js)
         if (cardAcc && ap.phase === 'DOWNWIND' && !climbMode && phaseT > 8) {

@@ -676,6 +676,24 @@ function makeWorld(seed, opts) {
     setDay(p);
   }
 
+  // P1.A (PILOT-ROADMAP §3.2): THE CANOPY — the top of the vegetation over
+  // (x, z): the tallest tree within `r` (40 m by default) of the point, at
+  // 16 m per unit of its placed scale — a stand-in for the packs' own
+  // heights (13-20 m at size 1, trees_pack.js; the viewer draws the pack,
+  // not `s`) until the placement publishes them. 0 in the clear. The
+  // runway model's obstacle cone reads it (25_airfield.js); the viewer's
+  // canopy map is a different thing (a shadow).
+  const _cnr = [];
+  function canopyH(x, z, r) {
+    r = r || 40;
+    treesNear(x, z, _cnr);
+    let top = 0;
+    for (const i of _cnr) {
+      const t = trees[i], d2 = (t.x - x) * (t.x - x) + (t.z - z) * (t.z - z);
+      if (d2 <= r * r) top = Math.max(top, 16 * t.s);
+    }
+    return top;
+  }
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
@@ -688,7 +706,7 @@ function makeWorld(seed, opts) {
     terrainH, waterH, surface, SURFACE,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
-    treesNear,
+    treesNear, canopyH,
     // informative stage-3 block (not contract surface): road/building
     // records and queries for gates, renderer and debug.
     roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, bakeMs: SET.stats.bakeMs },

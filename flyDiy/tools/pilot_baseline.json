@@ -1,6 +1,6 @@
 {
  "set": "quick",
- "when": "2026-09-14T23:04:34.105Z",
+ "when": "2026-09-15T10:49:29.470Z",
  "results": [
   {
    "key": "cub",
@@ -11,20 +11,21 @@
    "tail": "rule",
    "slope": 0,
    "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 337.5,
+   "t": 336,
    "phases": [
     "ROLL@0",
     "LIFTOFF@16.9",
     "CLIMB@24.4",
     "CROSSWIND@47.8",
     "DOWNWIND@67.5",
-    "BASE@180.6",
-    "FINAL@198.8",
-    "FLARE@312.3",
-    "ROLLOUT@316.9",
-    "STOPPED@337.5"
+    "BASE@179.9",
+    "FINAL@198.1",
+    "FLARE@310.7",
+    "ROLLOUT@315.3",
+    "STOPPED@336"
    ],
    "goArounds": 0,
    "verdicts": [],
@@ -47,17 +48,17 @@
      "name": "DOWNWIND",
      "overshoot": 15,
      "settleT": 9.9,
-     "rollRev": 3.7
+     "rollRev": 4
     },
     {
      "name": "BASE",
      "overshoot": 15,
-     "settleT": 9.8,
+     "settleT": 9.9,
      "rollRev": 0.5
     }
    ],
    "final": {
-    "captureT": 218,
+    "captureT": 216.8,
     "aboveRms": 0.7,
     "vRms": 0.07,
     "vErrMean": -0.02,
@@ -65,9 +66,9 @@
     "thrMax": 0.4
    },
    "flare": {
-    "entryAgl": 6.34,
+    "entryAgl": 6.35,
     "entryVs": -1.37,
-    "t0": 312.25,
+    "t0": 310.7,
     "dur": 4.6
    },
    "landing": {
@@ -109,7 +110,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 135,
+   "wall": 70,
    "cell": "cub:HOME:calm"
   },
   {
@@ -121,20 +122,21 @@
    "tail": "rule",
    "slope": 0,
    "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 260.8,
+   "t": 259.7,
    "phases": [
     "ROLL@0",
     "LIFTOFF@8.6",
     "CLIMB@13.5",
     "CROSSWIND@24.1",
     "DOWNWIND@50.9",
-    "BASE@108.3",
-    "FINAL@141.2",
-    "FLARE@238.7",
-    "ROLLOUT@245.3",
-    "STOPPED@260.8"
+    "BASE@107.9",
+    "FINAL@140.8",
+    "FLARE@237.6",
+    "ROLLOUT@244.3",
+    "STOPPED@259.7"
    ],
    "goArounds": 0,
    "verdicts": [],
@@ -150,14 +152,14 @@
     {
      "name": "CROSSWIND",
      "overshoot": 15,
-     "settleT": 14,
+     "settleT": 14.1,
      "rollRev": 0.7
     },
     {
      "name": "DOWNWIND",
      "overshoot": 15,
      "settleT": 14.1,
-     "rollRev": 2.8
+     "rollRev": 2.6
     },
     {
      "name": "BASE",
@@ -167,9 +169,9 @@
     }
    ],
    "final": {
-    "captureT": 160,
-    "aboveRms": 1,
-    "vRms": 0.1,
+    "captureT": 159.5,
+    "aboveRms": 0.9,
+    "vRms": 0.09,
     "vErrMean": 0.01,
     "thrMin": 0.2,
     "thrMax": 0.26
@@ -177,7 +179,7 @@
    "flare": {
     "entryAgl": 8.99,
     "entryVs": -1.94,
-    "t0": 238.65,
+    "t0": 237.63333333333333,
     "dur": 6.6
    },
    "landing": {
@@ -191,7 +193,7 @@
     "drift": 0
    },
    "rollout": {
-    "maxE": 1.5,
+    "maxE": 1.6,
     "zeroX": 0,
     "maxDr": 0.25,
     "xtEnd": 0
@@ -219,7 +221,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 115,
+   "wall": 60,
    "cell": "c172:HOME:calm"
   },
   {
@@ -231,20 +233,21 @@
    "tail": "rule",
    "slope": 0,
    "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 298.8,
+   "t": 297,
    "phases": [
     "ROLL@0",
     "LIFTOFF@6.3",
     "CLIMB@10.5",
     "CROSSWIND@19.4",
     "DOWNWIND@43.9",
-    "BASE@125.4",
-    "FINAL@153.2",
-    "FLARE@273.1",
-    "ROLLOUT@278.3",
-    "STOPPED@298.8"
+    "BASE@124.8",
+    "FINAL@152.5",
+    "FLARE@271.4",
+    "ROLLOUT@276.5",
+    "STOPPED@297"
    ],
    "goArounds": 0,
    "verdicts": [],
@@ -277,31 +280,31 @@
     }
    ],
    "final": {
-    "captureT": 170.6,
+    "captureT": 169.7,
     "aboveRms": 0.7,
-    "vRms": 0.08,
+    "vRms": 0.09,
     "vErrMean": -0.03,
     "thrMin": 0.12,
     "thrMax": 0.17
    },
    "flare": {
-    "entryAgl": 6.15,
-    "entryVs": -1.27,
-    "t0": 273.1333333333333,
+    "entryAgl": 6.14,
+    "entryVs": -1.33,
+    "t0": 271.3666666666667,
     "dur": 5.1
    },
    "landing": {
-    "sink": 1.01,
-    "V": 22.4,
+    "sink": 0.95,
+    "V": 22.5,
     "VoverVs": 1.16,
-    "pastAim": 5,
-    "off": -0.2,
-    "run": 236,
+    "pastAim": 4,
+    "off": 0.2,
+    "run": 238,
     "three": true,
-    "drift": -0.38
+    "drift": -0.33
    },
    "rollout": {
-    "maxE": 6.7,
+    "maxE": 7,
     "zeroX": 0,
     "maxDr": 0.45,
     "xtEnd": 0
@@ -329,7 +332,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 875,
+   "wall": 421,
    "cell": "stearman:HOME:calm"
   },
   {
@@ -351,25 +354,26 @@
      "refH": 10
     }
    },
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 341.6,
+   "t": 340,
    "phases": [
     "ROLL@0",
-    "LIFTOFF@16.2",
+    "LIFTOFF@16.3",
     "CLIMB@23.7",
     "CROSSWIND@46",
     "DOWNWIND@68.5",
-    "BASE@167.3",
-    "FINAL@193",
-    "FLARE@318.6",
-    "ROLLOUT@323.1",
-    "STOPPED@341.6"
+    "BASE@166.7",
+    "FINAL@192.4",
+    "FLARE@317",
+    "ROLLOUT@321.5",
+    "STOPPED@340"
    ],
    "goArounds": 0,
    "verdicts": [],
    "takeoff": {
-    "run": 208,
+    "run": 209,
     "Vlo": 26
    },
    "climb": {
@@ -380,14 +384,14 @@
     {
      "name": "CROSSWIND",
      "overshoot": 20,
-     "settleT": 11.5,
+     "settleT": 11.6,
      "rollRev": 0.9
     },
     {
      "name": "DOWNWIND",
      "overshoot": 15,
      "settleT": 9.8,
-     "rollRev": 3.6
+     "rollRev": 3.7
     },
     {
      "name": "BASE",
@@ -397,7 +401,7 @@
     }
    ],
    "final": {
-    "captureT": 210.5,
+    "captureT": 209.2,
     "aboveRms": 0.7,
     "vRms": 0.07,
     "vErrMean": -0.03,
@@ -407,11 +411,11 @@
    "flare": {
     "entryAgl": 6.34,
     "entryVs": -1.25,
-    "t0": 318.5833333333333,
+    "t0": 316.98333333333335,
     "dur": 4.5
    },
    "landing": {
-    "sink": 1.32,
+    "sink": 1.33,
     "V": 21.6,
     "VoverVs": 1.15,
     "pastAim": -19,
@@ -421,7 +425,7 @@
     "drift": -0.12
    },
    "rollout": {
-    "maxE": 2.8,
+    "maxE": 2.9,
     "zeroX": 0,
     "maxDr": 0.11,
     "xtEnd": 0
@@ -449,7 +453,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 189,
+   "wall": 95,
    "cell": "cub:HOME:x2"
   },
   {
@@ -471,20 +475,21 @@
      "refH": 10
     }
    },
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 309.9,
+   "t": 308.6,
    "phases": [
     "ROLL@0",
     "LIFTOFF@5.9",
     "CLIMB@10.2",
-    "CROSSWIND@19",
+    "CROSSWIND@19.1",
     "DOWNWIND@44.8",
-    "BASE@119.7",
-    "FINAL@155.6",
-    "FLARE@286.7",
-    "ROLLOUT@291.6",
-    "STOPPED@309.9"
+    "BASE@119.2",
+    "FINAL@155.1",
+    "FLARE@285",
+    "ROLLOUT@289.9",
+    "STOPPED@308.6"
    ],
    "goArounds": 0,
    "verdicts": [],
@@ -494,7 +499,7 @@
    },
    "climb": {
     "hTurn": 81.1,
-    "vsMean": 7.24
+    "vsMean": 7.2
    },
    "legs": [
     {
@@ -506,45 +511,45 @@
     {
      "name": "DOWNWIND",
      "overshoot": 15,
-     "settleT": 15.2,
-     "rollRev": 4.1
+     "settleT": 15.3,
+     "rollRev": 4.2
     },
     {
      "name": "BASE",
      "overshoot": 15,
-     "settleT": 16.2,
+     "settleT": 16.3,
      "rollRev": 0.8
     }
    ],
    "final": {
-    "captureT": 169.1,
+    "captureT": 168.4,
     "aboveRms": 0.6,
-    "vRms": 0.08,
-    "vErrMean": 0,
+    "vRms": 0.1,
+    "vErrMean": 0.01,
     "thrMin": 0.13,
-    "thrMax": 0.19
+    "thrMax": 0.18
    },
    "flare": {
-    "entryAgl": 6.14,
-    "entryVs": -1.2,
-    "t0": 286.68333333333334,
+    "entryAgl": 6.15,
+    "entryVs": -1.23,
+    "t0": 284.95,
     "dur": 4.9
    },
    "landing": {
-    "sink": 1.29,
+    "sink": 1.28,
     "V": 22.1,
     "VoverVs": 1.14,
-    "pastAim": -9,
-    "off": -0.2,
-    "run": 189,
+    "pastAim": -10,
+    "off": -0.3,
+    "run": 196,
     "three": true,
     "drift": 0.07
    },
    "rollout": {
-    "maxE": 11.1,
+    "maxE": 7,
     "zeroX": 0,
-    "maxDr": 0.45,
-    "xtEnd": 0.1
+    "maxDr": 0.34,
+    "xtEnd": 0
    },
    "Vs": 19.3,
    "VsLanding": 19.3,
@@ -569,7 +574,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 1044,
+   "wall": 515,
    "cell": "stearman:HOME:x2"
   },
   {
@@ -591,20 +596,21 @@
      "refH": 10
     }
    },
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 275.4,
+   "t": 274.2,
    "phases": [
     "ROLL@0",
     "LIFTOFF@8.1",
     "CLIMB@13",
     "CROSSWIND@23.8",
     "DOWNWIND@51.4",
-    "BASE@103.9",
-    "FINAL@145.6",
-    "FLARE@254.2",
-    "ROLLOUT@261.1",
-    "STOPPED@275.4"
+    "BASE@103.5",
+    "FINAL@145.3",
+    "FLARE@253.1",
+    "ROLLOUT@259.9",
+    "STOPPED@274.2"
    ],
    "goArounds": 0,
    "verdicts": [],
@@ -627,7 +633,7 @@
      "name": "DOWNWIND",
      "overshoot": 15,
      "settleT": 15.6,
-     "rollRev": 1.7
+     "rollRev": 2.1
     },
     {
      "name": "BASE",
@@ -637,21 +643,21 @@
     }
    ],
    "final": {
-    "captureT": 163.6,
+    "captureT": 162.8,
     "aboveRms": 1,
     "vRms": 0.1,
     "vErrMean": 0.02,
     "thrMin": 0.23,
-    "thrMax": 0.27
+    "thrMax": 0.28
    },
    "flare": {
-    "entryAgl": 9,
+    "entryAgl": 8.98,
     "entryVs": -1.76,
-    "t0": 254.21666666666667,
+    "t0": 253.1,
     "dur": 6.8
    },
    "landing": {
-    "sink": 1.06,
+    "sink": 1.05,
     "V": 19,
     "VoverVs": 1.11,
     "pastAim": 20,
@@ -689,7 +695,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 193,
+   "wall": 82,
    "cell": "c172:HOME:x2"
   },
   {
@@ -701,20 +707,24 @@
    "tail": "rule",
    "slope": 0,
    "weather": null,
-   "outcome": "gave-up",
-   "phase": "FINAL",
-   "t": 900,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 675.8,
    "phases": [
     "ROLL@0",
     "LIFTOFF@16.9",
     "CLIMB@24.4",
-    "INBOUND@64.2",
-    "FINAL@891.6"
+    "ENROUTE@64.2",
+    "DOWNWIND@434.5",
+    "BASE@520.2",
+    "FINAL@538.4",
+    "FLARE@650.7",
+    "ROLLOUT@655.5",
+    "STOPPED@675.8"
    ],
    "goArounds": 0,
-   "verdicts": [
-    "891.6s leg-timeout: INBOUND took 827 s — moving to FINAL"
-   ],
+   "verdicts": [],
    "takeoff": {
     "run": 231,
     "Vlo": 25.9
@@ -725,20 +735,58 @@
    },
    "legs": [
     {
-     "name": "INBOUND",
-     "overshoot": 24302,
-     "settleT": null,
+     "name": "ENROUTE",
+     "overshoot": 15,
+     "settleT": 15.6,
      "rollRev": 0
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 15,
+     "settleT": 8,
+     "rollRev": 0
+    },
+    {
+     "name": "BASE",
+     "overshoot": 15,
+     "settleT": 10,
+     "rollRev": 1.1
     }
    ],
-   "final": null,
-   "flare": null,
-   "landing": null,
-   "rollout": null,
+   "final": {
+    "captureT": 555.7,
+    "aboveRms": 0.7,
+    "vRms": 0.08,
+    "vErrMean": -0.03,
+    "thrMin": 0.25,
+    "thrMax": 0.41
+   },
+   "flare": {
+    "entryAgl": 6.62,
+    "entryVs": -1.38,
+    "t0": 650.7166666666667,
+    "dur": 4.8
+   },
+   "landing": {
+    "sink": 1.49,
+    "V": 21.5,
+    "VoverVs": 1.14,
+    "pastAim": -9,
+    "off": 0,
+    "run": 230,
+    "three": true,
+    "drift": 0
+   },
+   "rollout": {
+    "maxE": 0,
+    "zeroX": 0,
+    "maxDr": 0,
+    "xtEnd": 0
+   },
    "Vs": 18.8,
    "VsLanding": 18.8,
    "VAppr": 23.8,
-   "mass": 479,
+   "mass": 480,
    "sheet": {
     "Vs": 18.27,
     "Vs0": 18.27,
@@ -758,7 +806,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 483,
+   "wall": 142,
    "cell": "cub:HOME-A3:calm"
   },
   {
@@ -770,20 +818,21 @@
    "tail": "rule",
    "slope": -0.04,
    "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
    "outcome": "completed",
    "phase": "STOPPED",
-   "t": 331,
+   "t": 323.2,
    "phases": [
     "ROLL@0",
     "LIFTOFF@22",
     "CLIMB@31.9",
     "CROSSWIND@45.3",
     "DOWNWIND@65.1",
-    "BASE@175.6",
-    "FINAL@193.8",
-    "FLARE@309.1",
-    "ROLLOUT@311.9",
-    "STOPPED@331"
+    "BASE@172.3",
+    "FINAL@190.5",
+    "FLARE@301.3",
+    "ROLLOUT@304.1",
+    "STOPPED@323.2"
    ],
    "goArounds": 0,
    "verdicts": [],
@@ -806,27 +855,27 @@
      "name": "DOWNWIND",
      "overshoot": 15,
      "settleT": 9.7,
-     "rollRev": 3.8
+     "rollRev": 3.9
     },
     {
      "name": "BASE",
      "overshoot": 15,
      "settleT": 9.8,
-     "rollRev": 0.5
+     "rollRev": 0.6
     }
    ],
    "final": {
-    "captureT": 214.7,
+    "captureT": 209.1,
     "aboveRms": 0.7,
-    "vRms": 0.06,
-    "vErrMean": -0.03,
+    "vRms": 0.07,
+    "vErrMean": -0.02,
     "thrMin": 0.25,
-    "thrMax": 0.42
+    "thrMax": 0.4
    },
    "flare": {
-    "entryAgl": 8.77,
-    "entryVs": -1.37,
-    "t0": 309.1,
+    "entryAgl": 8.79,
+    "entryVs": -1.36,
+    "t0": 301.31666666666666,
     "dur": 2.8
    },
    "landing": {
@@ -835,14 +884,14 @@
     "VoverVs": 1.19,
     "pastAim": -1,
     "off": 0,
-    "run": 213,
+    "run": 212,
     "three": false,
-    "drift": -0.01
+    "drift": 0
    },
    "rollout": {
     "maxE": 0.1,
     "zeroX": 0,
-    "maxDr": 0.03,
+    "maxDr": 0.04,
     "xtEnd": 0
    },
    "Vs": 18.8,
@@ -868,7 +917,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 176,
+   "wall": 67,
    "cell": "cub:HOME:calm:up4"
   },
   {
@@ -880,27 +929,24 @@
    "tail": "rule",
    "slope": 0.04,
    "weather": null,
-   "outcome": "gave-up",
-   "phase": "FINAL",
-   "t": 420,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 314.8,
    "phases": [
     "ROLL@0",
     "LIFTOFF@14.2",
     "CLIMB@20.4",
     "CROSSWIND@49.2",
-    "DOWNWIND@69",
-    "BASE@183.2",
-    "FINAL@201.5",
-    "GOAROUND@270.6",
-    "CROSSWIND@277.9",
-    "DOWNWIND@299.7",
-    "BASE@350.7",
-    "FINAL@369"
+    "DOWNWIND@68.9",
+    "BASE@143.3",
+    "FINAL@161.5",
+    "FLARE@293",
+    "ROLLOUT@295.3",
+    "STOPPED@314.8"
    ],
-   "goArounds": 1,
-   "verdicts": [
-    "270.6s go-around: terrain under the approach (attempt 1)"
-   ],
+   "goArounds": 0,
+   "verdicts": [],
    "takeoff": {
     "run": 173,
     "Vlo": 24.4
@@ -914,54 +960,55 @@
      "name": "CROSSWIND",
      "overshoot": 15,
      "settleT": 10.7,
-     "rollRev": 1
+     "rollRev": 0.5
     },
     {
      "name": "DOWNWIND",
      "overshoot": 15,
-     "settleT": 9.9,
-     "rollRev": 3.9
+     "settleT": 10.3,
+     "rollRev": 0.3
     },
     {
      "name": "BASE",
      "overshoot": 15,
-     "settleT": 9.9,
-     "rollRev": 0.5
-    },
-    {
-     "name": "CROSSWIND",
-     "overshoot": 25,
-     "settleT": 8,
-     "rollRev": 0.9
-    },
-    {
-     "name": "DOWNWIND",
-     "overshoot": 15,
-     "settleT": 8.2,
-     "rollRev": 2.5
-    },
-    {
-     "name": "BASE",
-     "overshoot": 15,
-     "settleT": 9.9,
-     "rollRev": 0.5
+     "settleT": 10,
+     "rollRev": 0.6
     }
    ],
    "final": {
-    "captureT": 219.3,
-    "aboveRms": 5.6,
-    "vRms": 1.18,
-    "vErrMean": 0.44,
-    "thrMin": 0.05,
-    "thrMax": 0.61
+    "captureT": 180.8,
+    "aboveRms": 0.6,
+    "vRms": 0.06,
+    "vErrMean": -0.02,
+    "thrMin": 0.22,
+    "thrMax": 0.37
    },
-   "flare": null,
-   "landing": null,
-   "rollout": null,
+   "flare": {
+    "entryAgl": -32.71,
+    "entryVs": -1.56,
+    "t0": 292.95,
+    "dur": 2.3
+   },
+   "landing": {
+    "sink": 1.76,
+    "V": 22.9,
+    "VoverVs": 1.22,
+    "pastAim": -6,
+    "off": 0,
+    "run": 220,
+    "three": true,
+    "drift": 0
+   },
+   "rollout": {
+    "maxE": 0,
+    "zeroX": 0,
+    "maxDr": 0,
+    "xtEnd": 0
+   },
    "Vs": 18.8,
    "VsLanding": 18.8,
    "VAppr": 23.8,
-   "mass": 480,
+   "mass": 481,
    "sheet": {
     "Vs": 18.27,
     "Vs0": 18.27,
@@ -981,7 +1028,7 @@
    },
    "tecs": true,
    "path": true,
-   "wall": 231,
+   "wall": 64,
    "cell": "cub:HOME:calm:dn4"
   }
  ]

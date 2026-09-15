@@ -159,10 +159,11 @@ function patternPath(pattern, ids, ds, from) {
 // U-turn's two legs are 22 m apart). Returns the index, the signed cross-track
 // (+ = the aeroplane is on the path's left, the +atan2 side) and the length
 // still to run.
-function pathLocate(path, i0, x, z) {
+function pathLocate(path, i0, x, z, full) {
   const P = path.pts;
   if (!P.length) return { i: 0, ey: 0, sRem: 0, dist: 0 };
-  const a = Math.max(0, (i0 | 0) - 5), b = Math.min(P.length - 1, (i0 | 0) + 60);
+  // `full`: the whole path (P1 — a follower far off its path re-finds it)
+  const a = full ? 0 : Math.max(0, (i0 | 0) - 5), b = full ? P.length - 1 : Math.min(P.length - 1, (i0 | 0) + 60);
   let best = a, bd = Infinity;
   for (let i = a; i <= b; i++) {
     const d = (P[i].x - x) * (P[i].x - x) + (P[i].z - z) * (P[i].z - z);

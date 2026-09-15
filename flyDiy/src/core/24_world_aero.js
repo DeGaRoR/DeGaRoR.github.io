@@ -161,13 +161,24 @@ function bakeAerodromes(D) {
     }
     return -1;
   }
-  function inBox(x, z, m) {
+  // The strip's box widened by `m`, AND (P1.A, PILOT-ROADMAP §3.2) the
+  // APPROACH FAN off each end: a strip is only a runway if what stands past
+  // its ends lets an aeroplane in — here a 1:10 surface over a 20 m canopy
+  // wants 350 m clear, so the fan runs `fan` (350 m) out from each end,
+  // widening at 1:7 from a 50 m shoulder (the runway model's corridor).
+  // The tree placement asks this (20_world.js); the premises' strips carry
+  // their own clear zones (27_premises.js), drawn by hand.
+  function inBox(x, z, m, fan) {
+    fan = fan ?? 350;
     for (const st of strips) {
-      if (x < st.bx0 - m || x > st.bx1 + m || z < st.bz0 - m || z > st.bz1 + m) continue;
+      const r = m + fan;
+      if (x < st.bx0 - r || x > st.bx1 + r || z < st.bz0 - r || z > st.bz1 + r) continue;
       const rx = x - st.x, rz = z - st.z;
       const lu = rx * st.dx + rz * st.dz;
       const lv = -rx * st.dz + rz * st.dx;
       if (Math.abs(lu) < st.len / 2 + m && Math.abs(lv) < st.wid / 2 + m) return true;
+      const out = Math.abs(lu) - st.len / 2;
+      if (out >= 0 && out < fan && Math.abs(lv) < st.wid / 2 + 50 + out / 7) return true;
     }
     return false;
   }

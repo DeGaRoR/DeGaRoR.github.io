@@ -219,6 +219,157 @@ function siteMarkers(home) {
 }
 
 
+// ---- THE RUNWAY MODEL (P1.A, PILOT-ROADMAP-2026-09-14.md) ------------------
+// What the pilot reads a runway FROM, with the world around it: the strip's
+// profile off the terrain, and for each of its two landing directions the
+// approach the obstacles allow and the climb the departure needs. Pure —
+// the world is passed in (its terrainH / waterH / surface), nothing is
+// drawn, nothing is tuned: every number is a geometry the planner scores
+// (principle 10: decisions are scored, not branched).
+//
+//   ground(x, z)   the surface the aeroplane must clear: the terrain or the
+//                  water over it, plus the CANOPY (world.canopyH — the
+//                  tallest tree within 20 m; where a world has none, 18 m
+//                  over the forest-floor class stands in)
+//   floor(x, z)    the same without the canopy (the terrain or the water)
+//   hAt(s)         the strip's height along it (s from end0, metres)
+//   grade          the strip's mean gradient end0 -> end1
+//   dir[k]         k = 0 lands along -hdg over thr1 (sitePattern's approach
+//                  0), k = 1 along +hdg over thr0:
+//       reqGs      the slope the approach needs to clear every obstacle in
+//                  the cone by `clear` (15 m) when it crosses the threshold
+//                  at the SCREEN height (15 m, the 50 ft of every field
+//                  length) — 0 when the ground is below the threshold all
+//                  the way out; the pilot flies max(its own slope, reqGs)
+//       obst       the obstacle that sets it { d (m from the threshold), h }
+//       reqClimb   the gradient a go-around / departure needs to clear the
+//                  ground past the far end by `clear`, leaving the far end
+//                  at the screen height — the same cone, the other way, out
+//                  to `climbReach` (1500 m): past that the departure has
+//                  turned away (the crosswind turn) and the hill beyond is
+//                  the route's business, not the runway's. THREE tracks are
+//                  scored — straight, and 30 deg left / right from 300 m
+//                  past the end (a turning departure is how a strip in a
+//                  valley is flown; the first 300 m are straight for every
+//                  track: the aeroplane is 25 m up and cannot bank before)
+//                  — and the easiest is kept: `climbTurn` is its sense (0
+//                  straight, -1 / +1 the rotation's sense about +y)
+//       grade      the strip's gradient IN THE LANDING DIRECTION (+ = uphill)
+//       thrH, farH the ground height at the landing threshold and the far end
+// The cone: `reach` (6 km) out from the threshold along the approach, 25 m
+// steps over the first 600 m (a tree line stands a few tens of metres out)
+// then `step` (100 m), the width of the strip plus a 25 m shoulder either
+// side (the pilot holds the centreline within a few metres; a wing spans
+// ten) — a hill beside the approach is not an obstacle, a ridge across it
+// is. The canopy is read within 20 m of each sample.
+function siteRunwayModel(aero, world, opts) {
+  opts = opts || {};
+  const R = siteRunway(aero);
+  const clear = opts.clear ?? 15, screen = opts.screen ?? 15, reach = opts.reach ?? 6000, climbReach = opts.climbReach ?? 1500, step = opts.step ?? 100, canopy = opts.canopy ?? 18;
+  const hasT = world && typeof world.terrainH === 'function';
+  const floor = (x, z) => {                              // the terrain or the water over it
+    if (!hasT) return aero.elev || 0;
+    const t = world.terrainH(x, z);
+    const w = (typeof world.waterH === 'function') ? world.waterH(x, z) : -Infinity;
+    return w > t ? w : t;
+  };
+  const ground = (x, z) => {
+    let h = floor(x, z);
+    // the canopy: the world's own trees when it has them (canopyH), else the
+    // forest-floor class as an 18 m stand-in
+    if (!hasT) return h;
+    if (typeof world.canopyH === 'function') h += world.canopyH(x, z, 20);
+    else if (typeof world.surface === 'function' && world.surface(x, z) === 3) h += canopy;
+    return h;
+  };
+  const hAt = s => floor(R.end0.x + R.dx * s, R.end0.z + R.dz * s);   // the strip itself: no canopy
+  const grade = (hAt(R.len) - hAt(0)) / R.len;
+  const half = R.wid / 2 + 25;
+  const ds = []; for (let d = 25; d < 600; d += 25) ds.push(d); for (let d = 600; d <= reach; d += step) ds.push(d);
+  const dir = [];
+  for (const k of [0, 1]) {
+    const sg = k === 0 ? -1 : 1;
+    const u = [R.dx * sg, R.dz * sg];                 // the landing direction
+    const thr = k === 0 ? R.thr1 : R.thr0, td = k === 0 ? R.td0 : R.td1;
+    const far = k === 0 ? R.end0 : R.end1;
+    const aim = { x: td.x - u[0] * 70, z: td.z - u[1] * 70 };
+    const thrH = floor(thr.x, thr.z), farH = floor(far.x, far.z);
+    let reqGs = 0, obst = null;
+    for (const d of ds) {
+      // the highest ground across the corridor at this distance
+      let h = -Infinity;
+      for (const c of [-half, 0, half]) {
+        const x = thr.x - u[0] * d - u[1] * c, z = thr.z - u[1] * d + u[0] * c;
+        h = Math.max(h, ground(x, z));
+      }
+      const g = (h + clear - screen - thrH) / d;
+      if (g > reqGs) { reqGs = g; obst = { d, h: Math.round(h * 10) / 10 }; }
+    }
+    let reqClimb = Infinity, climbObst = null, climbTurn = 0;
+    const dTurn = 300;
+    for (const turn of [0, -1, 1]) {
+      const a = turn * 0.5236, ca = Math.cos(a), sa = Math.sin(a);
+      const ut = [u[0] * ca - u[1] * sa, u[0] * sa + u[1] * ca];   // the track, turned
+      const P0 = [far.x + u[0] * dTurn, far.z + u[1] * dTurn];     // where the turn begins
+      let req = 0, ob = null;
+      for (const d of ds) {
+        if (d > climbReach) break;
+        const straight = d <= dTurn;
+        const v = straight ? u : ut, o = straight ? [far.x, far.z] : P0, dd = straight ? d : d - dTurn;
+        let h = -Infinity;
+        for (const c of [-half, 0, half]) {
+          const x = o[0] + v[0] * dd - v[1] * c, z = o[1] + v[1] * dd + v[0] * c;
+          h = Math.max(h, ground(x, z));
+        }
+        const g = (h + clear - screen - farH) / d;
+        if (g > req) { req = g; ob = { d, h: Math.round(h * 10) / 10 }; }
+      }
+      // straight wins a tie (a turn costs height too); a turn only when it clearly pays
+      if (req < reqClimb - (turn ? 0.005 : 0)) { reqClimb = req; climbObst = ob; climbTurn = turn; }
+    }
+    dir.push({ k, u, thr: [thr.x, thr.z], td: [td.x, td.z], aim: [aim.x, aim.z],
+               reqGs: Math.round(reqGs * 1e4) / 1e4, obst, reqClimb: Math.round(reqClimb * 1e4) / 1e4, climbObst, climbTurn,
+               grade: Math.round(grade * sg * 1e4) / 1e4, thrH: Math.round(thrH * 10) / 10, farH: Math.round(farH * 10) / 10 });
+  }
+  return { R, hAt, grade, dir, ground, floor };
+}
+// THE DIRECTION, SCORED. One number per direction over the model, a wind
+// and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, mode 'land' or
+// 'takeoff'): the headwind component earns (3 per m/s; a tailwind past
+// 2.5 m/s costs 30 per m/s beyond), a downhill landing
+// or an uphill take-off costs (60 per unit grade — 1 m/s of wind per 5 %),
+// an approach steeper than the aeroplane's own slope costs the FRACTION of
+// its margin to gsMax it uses (100 at the limit; steeper is refused), a
+// go-around / climb-out gradient past half the climb costs the fraction of
+// the other half it uses (100 at the limit; more is refused) — the two
+// margins are spent in the same coin — and a preference (the direction it is arriving on,
+// the nose, or a one-way strip's) breaks ties — `oneWay` makes the
+// preference a rule (-500 the other way: a one-way strip is landed one way
+// whatever the wind). Returns { k, score[], why[] }.
+function siteScoreDirections(model, wind, lim, pref, oneWay) {
+  const gsNom = lim.gs ?? 0.057, gsMax = lim.gsMax ?? 0.105, climb = lim.gammaClimb ?? 0.08, land = lim.mode !== 'takeoff';
+  const out = [];
+  for (const D of model.dir) {
+    const why = [];
+    let sc = 0;
+    if (wind) {
+      const hw = -(wind[0] * D.u[0] + wind[1] * D.u[1]); sc += 3 * hw; why.push('wind ' + hw.toFixed(1));
+      // a tailwind past 2.5 m/s (the 5 kt of every POH) costs 30 per m/s more: 5 m/s down the strip weighs as much as an approach at its limit
+      if (hw < -2.5) { sc -= 30 * (-2.5 - hw); why.push('tailwind'); }
+    }
+    if (land && D.grade < 0) { sc -= 60 * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
+    if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
+    if (land && D.reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
+    else if (land && D.reqGs > gsNom) { sc -= 100 * (D.reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
+    if (D.reqClimb > climb) { sc -= 1000; why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
+    else if (D.reqClimb > 0.5 * climb) { sc -= 100 * (D.reqClimb - 0.5 * climb) / climb; why.push('climb-out ' + (D.reqClimb * 100).toFixed(1) + '%' + (D.climbTurn ? (D.climbTurn > 0 ? ' turning right' : ' turning left') : '')); }
+    if (pref) { const pl = Math.hypot(pref[0], pref[1]) || 1, p = (D.u[0] * pref[0] + D.u[1] * pref[1]) / pl; sc += 0.5 * p; if (oneWay && p < 0) { sc -= 500; why.push('one-way'); } }
+    out.push({ k: D.k, score: Math.round(sc * 100) / 100, why });
+  }
+  const best = out[0].score >= out[1].score ? 0 : 1;
+  return { k: best, score: out.map(o => o.score), why: out.map(o => o.why.join(', ')) };
+}
+
 // ---- the strip's markings, painted once for both scenes --------------------
 // A 2D context and the runway record; no THREE, no DOM beyond the context's own
 // methods, so this stays in core beside the numbers it is drawing.
