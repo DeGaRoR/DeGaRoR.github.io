@@ -48684,3 +48684,48 @@ with version numbers and a refresh button) is the last session.
   ruling). Flown: the fixture's and the card's water circuits, the trike
   case — see the landing line. FLOATS/SEAPLANE/PILOT owed when the box is
   free.
+
+## G396.5 — THE PERF STUDY: THE RECREATION CARDS AGAINST THE REAL AEROPLANES
+## (2026-09-15, the user: "get the real numbers and compare them to our builds
+## ... identify the key indicators ... diagnose the discrepancies, focusing
+## on the biggest ones")
+
+- `tools/perf_study.js` (a bench, not a gate) and
+  `futureDesigns/PERF-STUDY-2026-09-15.md` (the table and the diagnosis).
+  Twelve recreation cards, nine indicators a POH prints (empty weight, S,
+  T0/W, Vs1, V75, Vmax, ROC, L/D, take-off roll) measured off the built
+  aeroplane loaded toward MTOW, against the types' book values; three cards
+  flown by the pilot for the take-off run, the climb, the cruise throttle and
+  the landing roll.
+- HONEST: static thrust (±5 %), the power balance and the polar on the
+  fabric-and-strut family (Cub V75 +5 %, ROC −2 %, L/D −7 %; Air Camper
+  +3/+1/−1; Jodel −12/−7/−15), the empty weight of the EAB/ULM classes
+  (−13..+4 %).
+- THE THREE BIG ONES, ranked:
+  1. THE MASS MODEL DOES NOT SCALE (n23 class empty −44..−74 %: 172 412 vs
+     736 kg, Beaver 660 vs 1361, Caravan 558 vs 2145; MW5 +77 %). The
+     fuselage weighs 43-47 kg on every card from the Cub to the Caravan:
+     the frame bills linear density x length at a constant gauge while the
+     stiffness scales with the mass. Cascades into every dynamic number of
+     the big cards. A frame chantier: component weights that follow the
+     design load.
+  2. CLEAN AIRFRAMES CARRY A FABRIC-AND-STRUTS DRAG (V75: Jodel −12 %, 172
+     −17 %, RV-alike −37 %; CdS 0.68 m² on the RV-alike against ~0.20 real,
+     the Cub right at 0.77). The drag build-up does not discriminate
+     construction. An aero chantier: wetted area x skin friction by finish,
+     the exposed members added.
+  3. THE TAILDRAGGERS UNSTICK AT 1.2-1.3 Vs (TO roll: Cub 224 analytic /
+     291 flown against 113 real; Air Camper +92 %). The stance (−9.4 deg
+     against the J-3's −11.5), the 2412 for a USA 35B, the pilot's Vr.
+- CARDS: the Cub-alike's wing is the class default (14.7 vs 16.6 m², Vs
+  +15 % from the area alone), the Air Camper's likewise, the Savannah has
+  no slats (Vs +48 %, TO +297 %), the Beaver's wing is +23 %; four cards fly
+  the wrong engine (Tiger Moth, Stearman, DA62, MW5). Cheap, and they hide
+  behind 1-3.
+- FLOWN: the landing roll is the flown number furthest out (Cub 239 m
+  against 88; the approach at 1.42 Vs and a gentle brake law), and the
+  172's landing record reads 33 m — the record's datum is suspect.
+- Study limits: the cargo clamp caps the load to MTOW (the big cards
+  measured 10-57 % light), 75 % power taken as 75 % of thrust. No gates
+  needed (no source touched); none run (the box at its limit, the user's
+  ruling).
