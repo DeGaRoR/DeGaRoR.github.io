@@ -211,12 +211,12 @@ DIRS = {
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
-      pilesCut=1.9, slots=None, opaque=False, metalCap=None):
+      pilesCut=1.9, slots=None, opaque=False, metalCap=None, tone=None):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir=DIRS.get(src, ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
-                pilesCut=pilesCut, slots=slots, opaque=opaque, metalCap=metalCap)
+                pilesCut=pilesCut, slots=slots, opaque=opaque, metalCap=metalCap, tone=tone)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -445,10 +445,11 @@ PROPS = [
     P('truck_fire', 'vehicle', 'fire engine', 'firebig',
       note='a pumper with its roof ladder, 1.9k triangles, three materials (spec-gloss, '
            'the windows alpha-blended); delivered nose to -z, turned round; 9.6 m long',
-      rot=(0, 180, 0), tex=512),   # no slots row: a fix on an empty pbr block would stop the spec-gloss conversion (metal is 0 there already)
+      rot=(0, 180, 0), tex=512,   # no slots row: a fix on an empty pbr block would stop the spec-gloss conversion (metal is 0 there already)
+      tone={'sat': 1.5, 'bright': 1.0}),   # the two trucks in one tonal range (G414.1): measured S 77 / V 98 against the tender's 122 / 88
     P('truck_fire_small', 'vehicle', 'crash tender', 'firesmall',
       note='a small airfield fire tender with a roof monitor, 2.5k triangles, one '
            'material; delivered at a hundredth (6 cm long) with a shadow plane under '
            'it, which mats leaves out; nose to +z as delivered',
-      scale=100.0, mats=['mor_firetruck_mat'], tex=512, slots={'mor_firetruck_mat': {'metal': 0.1}}),
+      scale=100.0, mats=['mor_firetruck_mat'], tex=512, slots={'mor_firetruck_mat': {'metal': 0.1}}, tone={'sat': 0.78, 'bright': 1.04}),
 ]

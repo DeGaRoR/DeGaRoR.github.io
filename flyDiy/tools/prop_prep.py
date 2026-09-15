@@ -36,7 +36,7 @@ is otherwise switched off rather than guessed at.
 import base64, hashlib, importlib.util, io, json, math, os, struct, sys
 from media_lib import write_media, write_media_named, prune_media, BASE_DECL
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageEnhance
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(ROOT, 'assets', 'props')
@@ -491,6 +491,19 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
 
     if 'baseColorTexture' in pbr:
         img, name = img_of(pbr['baseColorTexture'])
+        # THE TONE (G414.1, the user: "increase the saturation of the big
+        # firetruck, and lower the one of the small one. Get them in the same
+        # tonal range"): a row may carry `tone` = {sat, bright} - gains on the
+        # base colour's chroma and value, applied to the map before it is
+        # encoded, so two game assets from two studios read as one fleet
+        tone = (row or {}).get('tone')
+        if tone:
+            a = img.getchannel('A') if img.mode == 'RGBA' else None
+            rgb = img.convert('RGB')
+            if tone.get('sat') is not None: rgb = ImageEnhance.Color(rgb).enhance(tone['sat'])
+            if tone.get('bright') is not None: rgb = ImageEnhance.Brightness(rgb).enhance(tone['bright'])
+            img = rgb if a is None else Image.merge('RGBA', rgb.split() + (a,))
+            log.append('    tone: saturation x%.2f, brightness x%.2f' % (tone.get('sat', 1), tone.get('bright', 1)))
         kind = 'diff_a' if (out.get('blend') and has_real_alpha(img)) else 'diff'
         tid, w, h, nb = bank.encode(img, budget, kind)
         out['map'] = tid

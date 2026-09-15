@@ -426,36 +426,65 @@ function build(P0, lod, F) {
     // the sill board on top
     if (W && Q.lod === 0) beam(bags.trim, [A[0], ySill + 0.03, A[1]], [B[0], ySill + 0.03, B[1]], 0.10, 0.03, [0, 1, 0], e);
   }
-  // the glazing: each face a pane (opaque, lit on the switch) between the sill ring and the head ring, leaning out
+  // THE GLAZING (G414.1, the user: "give them the same windows as the other houses, with lights and
+  // reflections ... better window finishing"): each face's panes are the HOUSE'S GLASS - the two-pass
+  // reflective glass bag, its glow on the switch, its interior dressing (`setWin`: nothing hung, the lit
+  // room behind) - with the cab's inside a hand behind them in the pane bag (a dark warm panel carrying
+  // the glow, the shop window's answer), between the sill ring and the head ring, leaning out. The
+  // finish is the house's casing: painted jambs at the corners and between the panes, a head board,
+  // a sill board proud of the glass, all in the trim; the derelict keeps its bare rusty mullions.
   const ring0 = K.ringN(0, 0, r, n, rot, ySill + 0.06), ring1 = K.ringN(0, 0, rTop, n, rot, yHead);
   let panes = 0, mullions = 0;
   const glazed = !broken;
   const mid = n === 4 ? 2 : 1;                                   // panes per face
+  const paneH = yHead - ySill - 0.06;
   for (let i = 0; i < n; i++) {
     const a0 = ring0[i], b0 = ring0[(i + 1) % n], a1 = ring1[i], b1 = ring1[(i + 1) % n];
-    const c = K.lerp3(a0, b0, 0.5), outN = nrm([c[0], (rTop - r) > 0 ? -Math.sin(tilt) * 0 : 0, c[2]]);
+    const c = K.lerp3(a0, b0, 0.5), outN = nrm([c[0], 0, c[2]]);
     const N = nrm(crs(sub(b0, a0), sub(a1, a0)));
     const Nf = dot(N, outN) < 0 ? mul(N, -1) : N;
+    const faceL = len(sub(b0, a0)), paneW = faceL / mid - 0.06;
+    const orient = q => (dot(nrm(crs(sub(q[1], q[0]), sub(q[3], q[0]))), Nf) > 0 ? q : q.slice().reverse());
     if (glazed) {
-      bags.pane.setGlow(litOn);
       for (let k = 0; k < mid; k++) {
         const q = [K.lerp3(a0, b0, k / mid), K.lerp3(a0, b0, (k + 1) / mid), K.lerp3(a1, b1, (k + 1) / mid), K.lerp3(a1, b1, k / mid)];
         const eu = nrm(sub(q[1], q[0])), vu = nrm(sub(q[3], q[0]));
-        face(bags.pane, dot(nrm(crs(sub(q[1], q[0]), sub(q[3], q[0]))), Nf) > 0 ? q : q.slice().reverse(), Nf, uvFrame(q[0], eu, vu));
+        // the glass a hair inside the frame's face
+        const qg = q.map(p => add(p, mul(Nf, -0.012)));
+        bags.glass.setGlow(litOn); bags.glass.setWin(paneW, paneH, 0);
+        face(bags.glass, orient(qg), Nf, uvFrame(qg[0], eu, vu));
+        bags.glass.setWin(0); bags.glass.setGlow(0);
+        // the inside, 45 cm behind the glass: the cab's dark room, lit with it
+        const qb = q.map(p => add(p, mul(Nf, -0.45)));
+        bags.pane.setGlow(litOn);
+        face(bags.pane, orient(qb), Nf, uvFrame(qb[0], eu, vu));
+        bags.pane.setGlow(0);
         panes++;
       }
-      bags.pane.setGlow(0);
     }
-    // the corner mullion and the mid mullions, a hair outside the glass
-    const keep = !broken || rnd() > 0.45 * der;
-    if (keep) { beam(bags.steel, add(a0, mul(Nf, 0.03)), add(a1, mul(Nf, 0.03)), 0.04, 0.05, Nf, 0.02); mullions++; }
-    if (Q.lod === 0) for (let k = 1; k < mid; k++) {
-      if (broken && rnd() < 0.5 * der) continue;
-      beam(bags.steel, add(K.lerp3(a0, b0, k / mid), mul(Nf, 0.03)), add(K.lerp3(a1, b1, k / mid), mul(Nf, 0.03)), 0.025, 0.04, Nf, 0); mullions++;
+    if (glazed && Q.lod === 0) {
+      // THE CASING, the house's: jambs (one at this face's first corner, one between every two
+      // panes), the head board, the sill board proud - trim stock in the trim's paint, chamfered
+      const tW = 0.09, tT = 0.022, o = mul(Nf, 0.024);
+      const bev = { bevel: 0.006 };
+      for (let k = 0; k < mid; k++) {
+        const j0 = add(K.lerp3(a0, b0, k / mid), o), j1 = add(K.lerp3(a1, b1, k / mid), o);
+        beam(bags.trim, [j0[0], j0[1] - 0.02, j0[2]], [j1[0], j1[1] + 0.03, j1[2]], tW / 2, tT, Nf, 0, bev); mullions++;
+      }
+      beam(bags.trim, add(add(a1, o), [0, 0.03, 0]), add(add(b1, o), [0, 0.03, 0]), tW / 2, tT, Nf, tW / 2, bev);                    // the head
+      const so = mul(Nf, 0.045);
+      beam(bags.trim, add(a0, so), add(b0, so), 0.05, 0.03, Nf, tW / 2, bev);                                                        // the sill, proud
+    } else {
+      // the bare frame: a corner mullion and the mid mullions in steel, a hair outside the glass line
+      const keep = !broken || rnd() > 0.45 * der;
+      if (keep) { beam(bags.steel, add(a0, mul(Nf, 0.03)), add(a1, mul(Nf, 0.03)), 0.04, 0.05, Nf, 0.02); mullions++; }
+      if (Q.lod === 0) for (let k = 1; k < mid; k++) {
+        if (broken && rnd() < 0.5 * der) continue;
+        beam(bags.steel, add(K.lerp3(a0, b0, k / mid), mul(Nf, 0.03)), add(K.lerp3(a1, b1, k / mid), mul(Nf, 0.03)), 0.025, 0.04, Nf, 0); mullions++;
+      }
+      beam(bags.steel, add(a1, mul(Nf, 0.03)), add(b1, mul(Nf, 0.03)), 0.05, 0.06, Nf, 0.03);
+      if (Q.lod === 0) beam(bags.steel, add(a0, mul(Nf, 0.03)), add(b0, mul(Nf, 0.03)), 0.04, 0.05, Nf, 0.03);
     }
-    // the head rail and the sill rail of the frame
-    beam(bags.steel, add(a1, mul(Nf, 0.03)), add(b1, mul(Nf, 0.03)), 0.05, 0.06, Nf, 0.03);
-    if (Q.lod === 0) beam(bags.steel, add(a0, mul(Nf, 0.03)), add(b0, mul(Nf, 0.03)), 0.04, 0.05, Nf, 0.03);
   }
   LIT.panes = panes; LIT.windows = litOn ? panes : 0;
   // the roof: the eave ring out past the head, a soffit under it

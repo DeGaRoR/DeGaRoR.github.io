@@ -1904,7 +1904,8 @@ for (const name of Object.keys(HG.PRESETS)) {
       check(S.cab.panes >= 6 && hi.bags.pane.tris >= 12, 'tower ' + name + ': the cab has no panes', String(S.cab.panes));
       check(S.gone === 0 && S.roof.kind !== 'half', 'tower ' + name + ': broken with the derelict dial off');
     }
-    check(hi.bags.glass.tris === 0 || (P.mast && P.beacon && !der), 'tower ' + name + ': see-through glass without a beacon', String(hi.bags.glass.tris));
+    // the cab's glass is the house's (G414.1): a pane per face division in the glass bag, its room behind in the pane bag; the derelict has neither
+    check(der ? hi.bags.glass.tris === 0 : hi.bags.glass.tris >= 2 * S.cab.panes, 'tower ' + name + ': the cab is not glazed with the house glass', String(hi.bags.glass.tris));
     check(S.lit.lights.length === 0 && S.lit.windows === 0, 'tower ' + name + ': lit with the switch off');
     const on = TW.build(Object.assign({}, P, { lights: 1 }), 0);
     if (!der) {

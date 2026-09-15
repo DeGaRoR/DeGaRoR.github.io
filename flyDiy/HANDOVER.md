@@ -48431,3 +48431,33 @@ roll loop was never touched: not a gain, not a limit, not a schedule.
   something in the solver is eating it. And every cluster's rotation
   extraction must converge about EVERY axis before its projection is
   applied — a projection onto a stale rotation is a damper.
+
+## G414.1 — THE CAB'S WINDOWS ARE THE HOUSE'S, THE TRUCKS IN ONE TONE (2026-09-15,
+## the user: "give them the same windows as the other houses, with lights and
+## reflections, etc. And better window finishing for the control towers ... increase
+## the saturation of the big firetruck, and lower the one of the small one. Get them
+## in the same tonal range")
+
+- THE GLAZING is the house's glass now: each pane a face in the glass bag
+  (the two-pass reflective glass with its Fresnel, its rain-track smears,
+  its glow on the switch, `setWin` with nothing hung - the lit room behind),
+  and the cab's inside a hand behind it in the pane bag (a dark warm panel
+  carrying the glow, the shop window's answer) - so the cab reflects the sky
+  by day and glows warm at night like every window in the village. The
+  derelict keeps no glass.
+- THE FINISH is the house's casing: painted jambs at every corner and between
+  the panes, a head board, a sill board proud of the glass, chamfered trim
+  stock in the trim's paint (harbour red on the field cab, white on the
+  club, nordic blue on the block tower); the bare rusty steel mullions stay
+  for the derelict only.
+- THE TRUCKS: a `tone` on a prop row ({sat, bright} gains on the base colour
+  before it is encoded, tools/prop_prep.py) - the engine at saturation x1.5,
+  the tender at x0.78 / brightness x1.04, measured from the maps' HSV means
+  (S 77 / V 98 against S 122 / V 88) so the two studios' reds read as one
+  fleet.
+- Rule 44 reads the glass bag for the glazed cabs. Gates NOT run at the
+  user's word ("do not run gates now") - node --check only; the next landing
+  runs them.
+- SEEN: y1_club_glass, y2_field_glass, y3_hut_glass, y4_block_glass,
+  y6_regional_glass (day, the sun on the front), y1b_club_night,
+  y3b_hut_night (blue hour, lights on), y7b_firehall_tone.
