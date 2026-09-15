@@ -64,6 +64,8 @@ var DAY_CLOCK = (function () {
       const url = fromUrl(), pref = read();
       if (url) { if (url.preset) api.preset(url.preset); else w.setDay(url); }
       else if (pref && pref.date) w.setDay({ date: pref.date, utc: pref.utc, rate: pref.rate != null ? pref.rate : 1 });
+      // ?cloud=0.45  or  ?cloud=0.9,st  (CLOUDS C4): the cover and the type, for a reproducible shot
+      if (W && W.location) { const c = /[?&]cloud=([0-9.]+)(?:,([a-z]{2}))?/.exec(W.location.search); if (c) { const o = { cloudCover: Math.max(0, Math.min(1, +c[1])) }; if (c[2]) o.cloudType = c[2]; w.setDay(o); } }
       if (W) W.addEventListener('pagehide', save);
     },
     // the tick: dt seconds of play (the loop's 1/60); saves at most every 30 s

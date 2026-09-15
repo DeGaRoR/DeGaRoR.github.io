@@ -959,7 +959,7 @@
     if (typeof document !== 'undefined') { document.querySelectorAll('select[data-mood]').forEach(s => { s.selectedIndex = hangarMood; }); if (window.EDITOR_SYNC_NIGHT) window.EDITOR_SYNC_NIGHT(); }
     if (!(opt && opt.fromClock) && typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
       const name = hangar.moods[hangarMood], p = MOOD_PRESET[name];
-      if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set({ cloudCover: name === 'OVERCAST' ? 0.9 : 0.2 }); }
+      if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set(name === 'OVERCAST' ? { cloudCover: 0.9, cloudType: 'st' } : { cloudCover: 0.2, cloudType: 'cu' }); }   // C4: an overcast is a stratus deck
     }
     if (inGarage) applyEnv();
     if (hangar && hangar.renderSky) hangar.renderSky(renderer);
@@ -6831,6 +6831,13 @@
                 o => o.value === CK.day().rate, o => CK.rate(o.value));
         flNote(body, 'One clock for the shed and the world. It runs with play; ' +
                      'the sun, the sky and the lights follow it.');
+        // THE CLOUDS (C4): the cover and the type are the day's - the weather the pilot flies
+        if (typeof CLOUD_FIELD !== 'undefined') {
+          flRange(body, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => { CK.set({ cloudCover: v }); flRefreshDay(); }, v => (v * 100).toFixed(0) + ' %');
+          flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })),
+                  o => o.value === CK.day().cloudType, o => { CK.set({ cloudType: o.value }); flRefreshDay(); });
+          flNote(body, 'The base is the dewpoint\'s (125 m a degree of spread); the type sets the thickness.');
+        }
       }
       flNote(body, 'A day is air AND wind. The weather changes live — the ' +
                    'pilot flies EAS and takes it mid-flight.');

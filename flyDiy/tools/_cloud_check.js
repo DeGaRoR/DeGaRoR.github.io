@@ -128,6 +128,23 @@ console.log('6. the splice rules');
   yes(/aa\.setPost\(r => \{ if \(!inGarage\) CLOUDS\.composite\(r\); \}\)/.test(src('viewer/app.js')) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js composites after the resolve and dims the flare by the column');
   yes(/s\.rgb \*= s\.a;/.test(cj) && /c\.rgb \/= max\(c\.a, 1e-4\);/.test(cj), 'the composite filters premultiplied (an empty texel must not darken its neighbour)');
   yes(/EXT_disjoint_timer_query_webgl2/.test(cj), 'the pass carries its own GPU timer');
+  // C3: the probe and the shed see the layer (the dome march), the hemisphere rises under a cloud, the shed's key takes the column
+  yes(/vec4 march\(vec3 o, vec3 d, float tScene, float jitterK\)/.test(cj) && /gl_FragColor = march\(o, d, tScene, uDials2\.x\);/.test(cj) && /vec4 m = march\(uEye, d, 1e9, 0\.0\);/.test(cj), 'one march text serves the fullscreen pass and the dome (the probe, the shed)');
+  const rw3 = src('viewer/render_world.js');
+  yes(/decorate: typeof CLOUDS !== 'undefined' && CLOUDS\.domeMesh \? es => \{ const m = CLOUDS\.domeMesh\(0, 20, 24\);/.test(rw3) && /dirty: typeof CLOUDS !== 'undefined' && CLOUDS\.probeDirty/.test(rw3), 'the world\'s probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)');
+  yes(/if \(o\.decorate\) o\.decorate\(es\);/.test(at) && /o\.dirty\(\)\) return probe\.bake\(day\);/.test(at), 'ATMO.makeProbe takes the decorator and the dirty test');
+  yes(/hemiBoost: RIG\.hemi \/ 0\.274 \* \(typeof CLOUDS !== 'undefined' && CLOUDS\.hemiUnder \? CLOUDS\.hemiUnder\(cT\) : 1\)/.test(rw3) && /cloudT: cT/.test(rw3), 'the hemisphere rises under the cloud at the eye and whitens (sky_light cloudT)');
+  yes(/if \(o\.keyGain != null && !isMoon\) I \*= o\.keyGain;/.test(src('viewer/sky_light.js')) && /keyGain: cloudT/.test(src('viewer/hangar.js')) && /CLOUDS\.domeMesh\(SHED_FRAME_YAW, 598, 24\)/.test(src('viewer/hangar.js')), 'the shed sees the layer on its backdrop and its key takes the column (the dome keeps its scale)');
+  const idx = rw3.indexOf('CLOUDS.update(day, camera, world)'), gate = rw3.indexOf('if (day.version === dayVer && Math.abs(el - dayEl) < 0.02');
+  yes(idx > 0 && gate > 0 && idx < gate, 'the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow\'s scalars)');
+  // C4: the veil, the in-cloud slab, the weather on the rails
+  yes(/uniform vec4 uVeil; uniform vec3 uVeilSun, uVeilSky;/.test(at) && /L \+= veil\(d, uSun\);/.test(at), 'the dome carries the cirrus veil');
+  yes((at.match(/uniform vec4 uMist\[4\];/g) || []).length === 2 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (both copies of the mist GLSL)');
+  yes(/c\.rho = rho; c\.base = lay\.base; c\.top = lay\.top;/.test(cj) && /A\.U\.veil\.value/.test(cj), 'clouds.js writes the veil and the slab from the day');
+  yes(/\[\?&\]cloud=\(\[0-9\.\]\+\)\(\?:,\(\[a-z\]\{2\}\)\)\?/.test(src('viewer/day_clock.js')), '?cloud=<cover>[,<type>] on the URL');
+  yes(/flRange\(body, 'cloud cover'/.test(src('viewer/app.js')) && /CLOUD_FIELD\.TYPE_ORDER\.map\(t => \(\{ label: CLOUD_FIELD\.TYPES\[t\]\.label, value: t \}\)\)/.test(src('viewer/app.js')), 'the flight rail carries the cover and the type');
+  yes(/rows\.slider\(insp, 'cloud cover'/.test(src('viewer/premises_ui.js')) && /rows\.select\(insp, 'cloud type'/.test(src('viewer/premises_ui.js')), 'the WORLD editor carries the cover and the type');
+  yes(/cloudCover: 0\.9, cloudType: 'st'/.test(src('viewer/app.js')), 'the OVERCAST mood is a stratus deck');
   yes(/glslVersion: THREE\.GLSL3/.test(cj) && /sampler3D/.test(cj), 'the march is GLSL3 (a sampler3D needs it)');
   yes(/#include <tonemapping_fragment>/.test(cj) && /#include <colorspace_fragment>/.test(cj), 'the composite is tone-mapped and encoded by three\'s own chunks (the target is display-space)');
   yes(/ATMO\.GLSL\.AP/.test(cj) && /ATMO\.GLSL\.MIST/.test(cj) && /ATMO\.apUniforms/.test(cj), 'the march takes the aerial perspective and the mist from ATMO (one splice, shared)');

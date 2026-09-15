@@ -49269,3 +49269,60 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   the probe with the layer (the water reflects the clouds), the shed's backdrop; the
   cirrus veil, the types' table, in-cloud through the mist, the editor/CONDITIONS lines,
   `&cloud=`; the eye pass on the tops; god-rays off the same tile.
+
+## G426 — THE CLOUD CHANTIER, C3 + C4: THE LIGHT AT THE CRAFT, THE PROBE, THE SHED, THE VEIL,
+## IN CLOUD, THE WEATHER ON THE RAILS (2026-09-15, the user: "ok, let's keep going")
+- THE DOME MARCH: the march factored to one GLSL text (`march(o, d, tScene, jitterK)`),
+  served by the fullscreen pass (the ray from the projection, the scene's depth) and by
+  a SPHERE material (`CLOUDS.domeMat / domeMesh`: the eye a uniform, no scene depth, a
+  frame yaw like the dome's, 24 steps, blended over the dome in linear radiance). It
+  draws the layer INTO THE REFLECTION PROBE (atmo.js makeProbe takes `decorate(es)`,
+  `dirty()`, `baked()`; the probe re-bakes when the clouds drifted 400 m past the eye,
+  at most every 4 s, 0.6 ms a bake) - the water and the aeroplane's skin reflect the
+  clouds - and ON THE SHED'S BACKDROP (hangar.applyDay adds the sphere at r 598 in the
+  shed's frame): one sky. The shed's frame is not the world's, so there the splice's
+  shadow is off (`CLOUDS.S.inShed`) and the key takes the column's transmittance at the
+  field (`keyGain`, the key alone - `sunGain` would have dimmed the dome's scale too).
+  Unverified in the headless rig: the garage there boots an empty build with no shed
+  (the peers' loading flow under a fresh profile); the code is guarded on its handles.
+- THE LIGHT AT THE CRAFT: the sun itself is shadowed per pixel by the splice (a global
+  key gain would double-shadow); the HEMISPHERE is one light, so it takes the column at
+  the eye - `CLOUDS.hemiUnder(T) = 1 + 0.7 (1 - T)` (an overcast's diffuse is ~1.7x a
+  clear day's; F8 `sky under cloud`) and whitens toward the sun's transmitted colour
+  (sky_light `cloudT`: the deck's light, not the zenith's blue).
+- THE VEIL (C4): cirrus / cirrostratus on the dome - a 2D value-noise sheet at 9 km
+  (60 km sheets, 9 km streaks), its coverage a share of the day's cover by type (st
+  0.55, sc 0.4, cu 0.35, cb 0.7 - F8 `veil` scales it, `veil height`), thresholded like
+  the weather map, drifted by the upper wind (2.2x the surface's, veered a quarter),
+  optically thin: (the sun's transmittance at 9 km x a forward HG lobe + the sky's
+  radiance there) x (1 - exp(-tau)), tau lengthening toward the horizon. Under the
+  corona, over the discs. Subtle at a cumulus day's 0.17; a stratus day's veil reads.
+- IN CLOUD (C4): the eye inside the layer - the mist takes a fourth vec4 (`uMist[4]`,
+  both copies of the mist GLSL): a uniform slab between the layer's base and top whose
+  density is the field's at the eye by the CPU proxy (the map's coverage x the profile
+  at the eye's height x the fitted columnK x 2.5), added to the mist's optical depth in
+  closed form (`slabLen`). Measured: inside a 70 % stratocumulus at 627 m, rho 0.009 /m
+  - a 110 m white-out, the frame one grey. F8 `in cloud` off/on.
+- THE DRIFT'S SECONDS: the day's UT seconds + a 97-day per-date offset, not the Julian
+  day's 1.8e7 s - at 5e7 m of drift a float kept 4 m and the 11 m detail jittered;
+  continuous through a day, a jump at the date's roll (noted).
+- THE UPDATE EVERY FRAME: CLOUDS.update had sat under render_world's dayApply gate (a
+  sun move of 0.02 deg, ~5 s at 1x) - the drift, the eye (the probe's, the slab's) and
+  the shadow's scalars moved in steps; it runs with ATMO.update now, before the gate.
+- THE WEATHER ON THE RAILS (user-facing): the flight rail's `standard day` slot carries
+  `cloud cover` and the four types as pills (the base is the dewpoint's, the type sets
+  the thickness); the WORLD editor's TIME section the same; the OVERCAST mood is a
+  stratus deck (0.9, st), the others a cumulus day (0.2, cu); `?cloud=0.45` or
+  `?cloud=0.9,st` on the URL for a reproducible shot (day_clock.bind).
+- GATE CLOUD: section 6 grew to 35 static rules (the one march text, the probe's
+  decorator and dirty test, the hemisphere's rise, the shed's keyGain and sphere, the
+  update before the gate, the veil's uniforms, the slab in both mist copies, the URL,
+  the rail, the editor, the overcast deck) - grepped against the sources, all hold; NOT
+  RUN (the user's order). GATE ATMO's rules by construction (the atlas's five chunks and
+  one flag untouched; the dome's tone-map tail untouched).
+- PROOF: screenshots/clouds-2026-09-15/c4_veil.png (the stand under 50 % cumulus, the
+  veil at 2.5x for the eye); the in-cloud frame (one grey, not kept). The probe: 2-4
+  bakes a minute as the clouds drift; the pass 0.5-1.0 ms.
+- OWED: the eye pass on the tops and the veil (the user's), the 22 deg halo, god-rays
+  off the tile, precipitation (the wetness channel), the shed verified in a headed run,
+  the light's hemisphere under the veil (a cirrus day is a shade less blue - not modelled).

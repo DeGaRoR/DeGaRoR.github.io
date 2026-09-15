@@ -249,7 +249,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
     ATMO.update(renderer, world.day, 0);
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
-    probe = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x6d7a45, gb, onSwap: t => { envMap = t; scene.environment = t; } });
+    probe = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x6d7a45, gb, onSwap: t => { envMap = t; scene.environment = t; },
+      // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
+      // re-baked as the clouds drift past the eye
+      decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
+      dirty: typeof CLOUDS !== 'undefined' && CLOUDS.probeDirty ? () => CLOUDS.probeDirty() : null,
+      baked: typeof CLOUDS !== 'undefined' && CLOUDS.probeBaked ? () => CLOUDS.probeBaked() : null });
     if (probe) probe.bake(world.day);
   } else {
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
@@ -3920,7 +3925,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const day = world.day;
     if (!day || rigCur.manual) return;
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
-    if (probe && !rigCur.manual) probe.maybe(day, 1.5);                                   // S5: the reflection probe follows the sun (1.5 deg) and the day's dials
+    // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
+    if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
+    if (probe && !rigCur.manual) probe.maybe(day, 1.5);                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -3934,9 +3941,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // THE PHYSICAL PATH (S3): the key, the hemisphere, the dome's scale and
       // the exposure from the atmosphere, through light_rig; the rows'
       // sunI / hemi / exposure are GAINS on the alps anchors they were judged against
+      // CLOUDS C3: under a cloud the diffuse light rises as the sun is lost (the sun itself is shadowed per
+      // pixel by the splice; the hemisphere is one light, so it takes the layer's transmittance at the eye)
+      const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
       SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer, unit: LIGHT_UNIT,
-        sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274, exposureK: rigCur.exposure / 0.92,
-        hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y });
+        sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
+        hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
       sun.intensity = RIG.sun * LIGHT_UNIT * k;
@@ -3946,7 +3956,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
-    if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) CLOUDS.update(day, camera, world);   // the layer, the map, the light, the drift (C1)
   }
   const rigRows = {};
   const hexOf = (c, d) => (c && c.getHex) ? c.getHex() : d;   // the gate's stub has no Color

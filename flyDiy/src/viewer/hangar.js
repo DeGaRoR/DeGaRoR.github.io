@@ -3163,7 +3163,7 @@ function setLights(pick) {
 // says when the sun has moved enough (1.5 deg) for it to be shot again.
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
-let skyPhys = false, skyBakedSun = null;
+let skyPhys = false, skyBakedSun = null, cloudMesh = null;
 const dayDirShed = [0, 1, 0];                       // the key's direction in the shed's frame (the flare reads it)
 function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
 function applyDay(day, renderer) {
@@ -3171,12 +3171,17 @@ function applyDay(day, renderer) {
   if (!skyPhys && skyMesh) {
     const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);
     if (m) { skyMesh.material = m; skyMesh.scale.x = 1; skyMesh.rotation.y = 0; skyPhys = true; }
+    // CLOUDS C3: the layer over the shed's backdrop - one sky - marched from the field (the eye at the origin)
+    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(SHED_FRAME_YAW, 598, 24); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
   }
   if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
+  // the clouds' day (the shed frame is not the world's: the splice stays off, the key takes the layer's transmittance)
+  let cloudT = 1;
+  if (typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = true; CLOUDS.update(day, null, null); cloudT = CLOUDS.sunT(0, 0, 0); if (cloudMesh) cloudMesh.visible = CLOUDS.active; }
   // THE LAMPS SET THE NIGHT'S EXPOSURE: the schedule opens 15 stops for a starlit sky, but a shed
   // with 70 cd lamps is lit by its lamps, which were judged at the rows' exposure (~1.0); the cap
   // is that, half a stop over, so a golden hour still opens and the dusk and night hold the lamps' level
-  const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, altM: 0, exposureCap: LAMP_EX_CAP });
+  const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, keyGain: cloudT, altM: 0, exposureCap: LAMP_EX_CAP });
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
   dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];

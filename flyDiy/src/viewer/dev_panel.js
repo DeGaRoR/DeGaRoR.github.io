@@ -247,6 +247,10 @@
       Cf.appendChild(slider('shadow softness', 0.1, 1, 0.05, () => (cs() ? cs().shadowSoft : NaN), v => { if (cs()) cs().shadowSoft = v; }, v => v.toFixed(2) + ' x sigma (the light round the cloud)'));
       Cf.appendChild(select('upsample', [['1', 'depth-aware 3x3 (the ridge keeps its edge)'], ['0', 'nearest']], () => (cs() ? String(cs().upsample) : '1'), v => { if (cs()) cs().upsample = +v; }));
       Cf.appendChild(slider('jitter', 0, 1, 0.05, () => (cs() ? cs().jitter : NaN), v => { if (cs()) cs().jitter = v; }, v => v.toFixed(2) + ' of a step (grain against banding, near only)'));
+      Cf.appendChild(slider('veil', 0, 2.5, 0.05, () => (cs() ? cs().veil : NaN), v => { if (cs()) cs().veil = v; }, v => v > 0 ? v.toFixed(2) + ' x the type’s share of the cover' : 'off'));
+      Cf.appendChild(slider('veil height', 5, 12, 0.5, () => (cs() ? cs().veilKm : NaN), v => { if (cs()) cs().veilKm = v; }, v => v.toFixed(1) + ' km'));
+      Cf.appendChild(slider('sky under cloud', 0, 2, 0.05, () => (cs() ? cs().hemiUnderCloud : NaN), v => { if (cs()) cs().hemiUnderCloud = v; }, v => '+' + (v * 100).toFixed(0) + ' % diffuse at full cover'));
+      Cf.appendChild(select('in cloud', [['1', 'the mist takes the layer at the eye'], ['0', 'off']], () => (cs() ? String(cs().inCloud) : '1'), v => { if (cs()) cs().inCloud = +v; }));
       Cf.appendChild(select('resolution', [['off', 'off'], ['half', 'half'], ['full', 'full']], () => (cs() ? cs().mode : 'off'),
         v => { if (cs()) { cs().mode = v; if (W.FLYDIY_AA && W.FLYDIY_AA.needRT) W.FLYDIY_AA.needRT(v !== 'off'); } }));
       { // the layer, read out

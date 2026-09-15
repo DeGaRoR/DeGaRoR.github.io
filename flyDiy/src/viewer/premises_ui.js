@@ -871,6 +871,9 @@ function mount(host, ctx) {
       rows.slider(insp, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => CK.set({ localHours: v }),
                   v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
       rows.select(insp, 'rate', CK.RATES.map(r => [String(r), r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x']), () => String(CK.day().rate), v => CK.rate(+v));
+      // THE CLOUDS (C4): the day's cover and type
+      rows.slider(insp, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => CK.set({ cloudCover: v }), v => (v * 100).toFixed(0) + ' %');
+      if (typeof CLOUD_FIELD !== 'undefined') rows.select(insp, 'cloud type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => CK.day().cloudType, v => CK.set({ cloudType: v }));
       rows.note(insp, 'the sun, the sky and the lights follow the clock; drag a LIGHT slider below to take the sun by hand');
     }
     if (ctx.rig) {

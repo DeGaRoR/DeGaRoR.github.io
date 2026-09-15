@@ -45,6 +45,7 @@ var SKY_LIGHT = (function () {
   // applyDay(day, o): o = { key, hemi, scene, renderer, unit (LIGHT_UNIT or 1), roomGain, sunGain, hemiBoost,
   //                         hemiGnd (hex), gb (ground bounce), exposureK, altM }
   // returns { isMoon, el, exposure, sunI, hemiI }
+  const _c3 = (typeof THREE !== 'undefined' && THREE.Color) ? new THREE.Color() : { setRGB() { return this; } };
   function applyDay(day, o) {
     if (!day || typeof ATMO === 'undefined') return null;
     if (K_SUN == null && !calibrate()) return null;
@@ -62,6 +63,7 @@ var SKY_LIGHT = (function () {
       const fade = isMoon ? (moon[1] > -0.02 ? 1 : 0) : Math.min(1, Math.max(0, (el + 1.5) / 2));
       let I = K_SUN * mT * unit * gain * fade;
       if (isMoon) I *= moonE;
+      if (o.keyGain != null && !isMoon) I *= o.keyGain;   // the key alone (CLOUDS C3: the layer's transmittance over a room - the dome keeps its scale)
       key.intensity = I;
       if (key.color && key.color.setRGB) {
         if (isMoon) key.color.setRGB(0.92 * _T[0] / mT, 0.96 * _T[1] / mT, _T[2] / mT);
@@ -82,7 +84,11 @@ var SKY_LIGHT = (function () {
       const boost = o.hemiBoost != null ? o.hemiBoost : 1;
       // a floor: starlight and airglow, so a moonless night is not black (1e-7 of noon, x the night's 14 stops = a whisper)
       hemi.intensity = Math.max(K_HEMI * L * unit * boost, 3e-7 * unit);
-      if (hemi.color && hemi.color.setRGB) hemi.color.setRGB(_E[0] / mE, _E[1] / mE, _E[2] / mE);
+      if (hemi.color && hemi.color.setRGB) {
+        hemi.color.setRGB(_E[0] / mE, _E[1] / mE, _E[2] / mE);
+        // CLOUDS C3: under a cloud the sky's light is the deck's (the sun's transmitted colour diffused), not the zenith's blue
+        if (o.cloudT != null && o.cloudT < 1 && !isMoon) { const mT = maxc(_T), w = 0.6 * (1 - Math.max(0, o.cloudT)); hemi.color.lerp(_c3.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT), w); }
+      }
       if (hemi.groundColor && hemi.groundColor.setHex && o.hemiGnd != null) {
         hemi.groundColor.setHex(o.hemiGnd).multiplyScalar(o.gb != null ? o.gb : 1);
       }

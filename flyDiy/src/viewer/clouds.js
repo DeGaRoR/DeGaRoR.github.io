@@ -50,7 +50,7 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,
               detail: 0.55, g: 0.75, period: 6000, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, columnK: 0.15, jitter: 0.6, depthK: 1 };
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
   let map = null, mapKey = '', weatherTex = null, rt = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, frame = 0;
@@ -64,7 +64,7 @@ var CLOUDS = (function () {
     uSun: { value: null }, uSunCol: { value: null }, uMoon: { value: null }, uMoonCol: { value: null },
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
     uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 },
-    uShadowK: { value: null }, uDials2: { value: null }, uDepthK: { value: 1 },
+    uShadowK: { value: null }, uDials2: { value: null }, uDepthK: { value: 1 }, uEye: { value: null },
   };
   // THE SHADOW'S SHARED UNIFORM: the scalars by reference through ShaderLib and inject(); the tile itself is
   // in ATMO's atlas (uApAtlas, already on every fogged program)
@@ -148,12 +148,7 @@ var CLOUDS = (function () {
 
   // ---- the march --------------------------------------------------------------
   const QUAD_VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-  const marchFrag = () => `precision highp float; precision highp sampler3D;
-    ${GLSL3_OUT}
-    layout(location = 1) out highp vec4 outK;
-    varying vec2 vUv;
-    uniform sampler2D uDepth;
-    uniform mat4 uInvProj, uCamMat; uniform vec3 uCamPos; uniform vec2 uRes; uniform float uLogFar;
+  const MARCH_GLSL = () => `
     uniform vec4 uSun, uMoon;   // direction xyz, w: the moon lit?
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
     uniform float uScale, uFrame; uniform vec2 uSteps; uniform vec4 uDials, uDials2;   // dials: powder, g, ms decay, maxKm | jitter, 0, 0, 0
@@ -180,24 +175,18 @@ var CLOUDS = (function () {
       float powder = mix(1.0, 1.0 - exp(-2.0 * rho * uLayer.z * dt * 4.0), uDials.x * (0.5 - 0.5 * cosT));   // darker cores away from the sun
       return uSunCol * s * powder;
     }
-    void main() {
-      vec2 ndc = vUv * 2.0 - 1.0;
-      vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
-      vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
-      // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
-      float dz = texture(uDepth, vUv).r;
-      outK = vec4(exp2(dz * uLogFar) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
-      float tScene = dz >= 0.99999 ? 1e9 : (exp2(dz * uLogFar) - 1.0) / max(1e-4, -dv.z);
+    // march(o, d, tScene, jitterK): the layer along the ray from o - (radiance / alpha, alpha), or alpha 0
+    vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {
       // the slab [base, top]
       float yb = uLayer.x, yt = uLayer.x + uLayer.y, t0, t1;
-      if (abs(d.y) < 1e-5) { if (o.y < yb || o.y > yt) { gl_FragColor = vec4(0.0); return; } t0 = 0.0; t1 = uDials.w * 1000.0; }
+      if (abs(d.y) < 1e-5) { if (o.y < yb || o.y > yt) return vec4(0.0); t0 = 0.0; t1 = uDials.w * 1000.0; }
       else {
         float ta = (yb - o.y) / d.y, tb = (yt - o.y) / d.y;
         t0 = max(0.0, min(ta, tb)); t1 = max(ta, tb);
-        if (t1 <= 0.0) { gl_FragColor = vec4(0.0); return; }
+        if (t1 <= 0.0) return vec4(0.0);
       }
       t1 = min(t1, min(tScene, uDials.w * 1000.0));
-      if (t1 <= t0) { gl_FragColor = vec4(0.0); return; }
+      if (t1 <= t0) return vec4(0.0);
       // THE STEP: N steps over the slab when the path is short; a floor and a ceiling on the step so a
       // grazing path (tens of km through the layer) is marched at a length that resolves a cloud, then
       // 0.4 % of the distance (a far cloud is small on screen; 4N steps reach the horizon); empty air is crossed in strides -
@@ -208,7 +197,7 @@ var CLOUDS = (function () {
       // a jitter per PIXEL (interleaved gradient noise) breaks the banding; per frame it would shimmer
       // (no history averages it yet - the temporal pass is owed), so uFrame scales it to nothing by default
       float j = fract(52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y) + uFrame * 0.618034);
-      float t = t0 + dt0 * j * uDials2.x * smoothstep(8000.0, 1500.0, t0);   // the jitter's amplitude (a dial: grain against banding) - near only: far, the fine steps need none and the grain read as blocks
+      float t = t0 + dt0 * j * jitterK * smoothstep(8000.0, 1500.0, t0);   // the jitter's amplitude (a dial: grain against banding) - near only: far, the fine steps need none and the grain read as blocks
       vec3 col = vec3(0.0); float T = 1.0, tw = 0.0, tsum = 0.0;
       vec3 L = uSun.xyz; float cosT = dot(d, L), cosM = dot(d, uMoon.xyz);
       for (float i = 0.0; i < 256.0; i += 1.0) {
@@ -232,12 +221,46 @@ var CLOUDS = (function () {
         t += dt;
       }
       float alpha = 1.0 - T;
-      if (alpha < 0.002) { gl_FragColor = vec4(0.0); return; }
+      if (alpha < 0.002) return vec4(0.0);
       // the aerial perspective and the mist at the cloud's transmittance-weighted mean distance
       float tm = tsum > 0.0 ? tw / tsum : t0;
       vec3 c = col / max(alpha, 1e-4);
       if (uAtmoAP.z > 0.5) { vec4 ap = apSample(d, tm * 0.001); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
-      gl_FragColor = vec4(c * uScale, alpha);
+      return vec4(c * uScale, alpha);
+    }`;
+  // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target
+  const marchFrag = () => `precision highp float; precision highp sampler3D;
+    ${GLSL3_OUT}
+    layout(location = 1) out highp vec4 outK;
+    varying vec2 vUv;
+    uniform sampler2D uDepth;
+    uniform mat4 uInvProj, uCamMat; uniform vec3 uCamPos; uniform vec2 uRes; uniform float uLogFar;
+    ${MARCH_GLSL()}
+    void main() {
+      vec2 ndc = vUv * 2.0 - 1.0;
+      vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
+      vec3 d = normalize(mat3(uCamMat) * dv), o = uCamPos;
+      // the scene's depth (logarithmic: w = (far + 1)^depth - 1, the clip w = the view depth)
+      float dz = texture(uDepth, vUv).r;
+      outK = vec4(exp2(dz * uLogFar) * 0.001, 0.0, 0.0, 1.0);    // the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %
+      float tScene = dz >= 0.99999 ? 1e9 : (exp2(dz * uLogFar) - 1.0) / max(1e-4, -dv.z);
+      gl_FragColor = march(o, d, tScene, uDials2.x);
+    }`;
+  // THE DOME MARCH (C3): the same layer on a sphere round the eye - for the reflection probe (the
+  // water and the skin reflect the clouds) and the shed's backdrop (one sky) - no scene depth, the
+  // eye a uniform (the craft's place in the world; the shed stands at the field), a frame yaw like the
+  // dome's, fewer steps (a probe texel is coarse), blended over the dome in linear radiance
+  const DOME_VERT = `varying vec3 vD; void main(){ vD = (modelMatrix * vec4(position,1.0)).xyz - cameraPosition; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+  const domeFrag = () => `precision highp float; precision highp sampler3D;
+    ${GLSL3_OUT}
+    varying vec3 vD; uniform vec3 uEye;
+    ${MARCH_GLSL()}
+    void main() {
+      vec3 d = normalize(vD);
+      { float c = cos(uFrame), s = sin(uFrame); d = vec3(d.x * c + d.z * s, d.y, -d.x * s + d.z * c); }   // into the world's frame
+      vec4 m = march(uEye, d, 1e9, 0.0);
+      if (m.a < 0.002) discard;
+      gl_FragColor = m;
     }`;
   // ATMO's own GLSL: the AP atlas sample + the mist (the splice's functions, verbatim)
   const ATMO_GLSL = () => (typeof ATMO !== 'undefined' && ATMO.GLSL) ? ATMO.GLSL.AP + ATMO.GLSL.MIST : 'uniform vec4 uAtmoAP; vec4 apSample(vec3 d, float k) { return vec4(0.0, 0.0, 0.0, 1.0); } vec3 mistApply(vec3 c, vec3 d, float D, float y) { return c; }';
@@ -328,6 +351,34 @@ var CLOUDS = (function () {
     sh.uniforms.uCloudP = cloudUniforms.uCloudP;
   }
 
+  // domeMat(frameYaw, steps): the dome march for a sphere round the eye (the probe, the shed)
+  const domeMats = [];
+  function domeMat(frameYaw, steps) {
+    if (!ready) return null;
+    const uni = Object.assign({}, U, { uSteps: { value: new THREE.Vector2(steps || 24, 3) }, uFrame: { value: frameYaw || 0 }, uEye: U.uEye });
+    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
+    else uni.uAtmoAP = { value: new Float32Array(4) };
+    const m = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: DOME_VERT, fragmentShader: domeFrag(), glslVersion: THREE.GLSL3, side: THREE.BackSide,
+      transparent: true, blending: THREE.NormalBlending, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+    domeMats.push(m);
+    return m;
+  }
+  // domeMesh(frameYaw, radius, steps): the sphere itself, drawn after the dome (renderOrder 1)
+  function domeMesh(frameYaw, radius, steps) {
+    const m = domeMat(frameYaw, steps); if (!m) return null;
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius || 20, 32, 20), m);
+    mesh.renderOrder = 1; mesh.frustumCulled = false;
+    return mesh;
+  }
+  // probeDirty(): has the layer moved enough since the probe last baked it (the drift, the map, the layer)
+  let probeDrift = [1e9, 1e9], probeKey = '';
+  function probeDirty() {
+    if (!active()) return probeKey !== '';
+    const key = mapKey + '|' + (lay ? lay.base + '|' + lay.thick : '');
+    const moved = Math.abs(drift[0] - probeDrift[0]) + Math.abs(drift[1] - probeDrift[1]) > S.probeMoveM;
+    return key !== probeKey || moved;
+  }
+  function probeBaked() { probeDrift[0] = drift[0]; probeDrift[1] = drift[1]; probeKey = active() ? mapKey + '|' + (lay ? lay.base + '|' + lay.thick : '') : ''; }
   function init(r) {
     if (ready || !r || typeof THREE === 'undefined' || !THREE.WebGL3DRenderTarget) return ready;
     renderer = r;
@@ -343,7 +394,7 @@ var CLOUDS = (function () {
     U.uSpanDrift.value = new THREE.Vector4(0, 0, S.period, S.detailPeriod); U.uSun.value = new THREE.Vector4(0, 1, 0, 0); U.uMoon.value = new THREE.Vector4(0, 1, 0, 0);
     U.uSunCol.value = new THREE.Vector3(1, 1, 1); U.uMoonCol.value = new THREE.Vector3(); U.uAmbTop.value = new THREE.Vector3(); U.uAmbBot.value = new THREE.Vector3();
     U.uSteps.value = new THREE.Vector2(S.steps, S.lightSteps); U.uDials.value = new THREE.Vector4(S.powder, S.g, S.ms, S.maxKm); U.uTexel.value = new THREE.Vector2();
-    U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0);
+    U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
@@ -402,7 +453,7 @@ var CLOUDS = (function () {
     return map;
   }
   // update(day, camera, world): every frame from the world's dayApply - the layer, the map, the light, the drift
-  const _T = [0, 0, 0], _E = [0, 0, 0], _Em = [0, 0, 0], _Eg = [0, 0, 0];
+  const _T = [0, 0, 0], _E = [0, 0, 0], _Em = [0, 0, 0], _Eg = [0, 0, 0], _Tv = [0, 0, 0], _Ev = [0, 0, 0], _Egv = [0, 0, 0], _w4 = [0, 0, 0, 0];
   const _cc = (typeof THREE !== 'undefined' && THREE.Color) ? new THREE.Color() : null;
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
   let sunEl = 0;
@@ -419,7 +470,10 @@ var CLOUDS = (function () {
     // the drift: the wind at the layer x the clock (the day's own seconds - deterministic on the clock)
     let wx = 3, wz = 1;
     if (world && typeof world.wind === 'function') { const w = world.wind(0, lay.base, 0, 0); if (w) { wx = w[0] * 1.5; wz = w[2] * 1.5; } }
-    const secs = (day.jd != null ? (day.jd - 2461000) * 86400 : (day.utc || 0));
+    // the clock's seconds for the drift: the day's UT seconds plus a per-date offset (97 days' worth wraps) - a
+    // small number, so the noise coordinates keep their precision (a 5e7 m drift left 4 m of float, and the
+    // 11 m detail jittered); continuous through a day, a jump at the date's roll
+    const secs = (day.utc || 0) + ((day.jdn || 0) % 97) * 86400;
     drift[0] = wx * secs * S.driftK; drift[1] = wz * secs * S.driftK;
     U.uSpanDrift.value.set(drift[0], drift[1], S.period, S.detailPeriod);
     // the light: the sun's transmittance at the layer's middle, the sky's irradiance at its top, the ground's light below
@@ -443,8 +497,35 @@ var CLOUDS = (function () {
     } else { U.uSunCol.value.set(1, 1, 1); U.uAmbTop.value.set(0.2, 0.25, 0.35); U.uAmbBot.value.set(0.1, 0.1, 0.1); }
     U.uSteps.value.set(S.steps, S.lightSteps); U.uDials.value.set(S.powder, S.g, S.ms, S.maxKm); U.uDials2.value.set(S.jitter, 0, 0, 0);
     lastCover = day.cloudCover;
+    // THE VEIL (C4): cirrus over the low layer - a share of the cover by type (a cumulus day carries a thin
+    // one, an overcast a fuller), drifted by the upper wind (twice the surface's, veered), lit by the sun's
+    // transmittance at its height and the sky's radiance there - ATMO's dome draws it
+    if (A && A.U.veil) {
+      const VEIL_K = { st: 0.55, sc: 0.4, cu: 0.35, cb: 0.7 };
+      const vc = Math.max(0, Math.min(1, day.cloudCover * (VEIL_K[lay.type] || 0.35) * S.veil)) * (S.mode !== 'off' ? 1 : 0);
+      const km = S.veilKm, vT = _Tv, vE = _Ev;
+      A.sunTransmittance(km, sun[1], vT); A.skyIrradiance(km, sun, vE);
+      const sy = Math.max(0, sun[1]), mE = A.U.eMoon.value;
+      if (mE > 0 && moon[1] > 0) { A.skyIrradiance(km, moon, _Egv); vE[0] += _Egv[0] * mE; vE[1] += _Egv[1] * mE; vE[2] += _Egv[2] * mE; }
+      const v = A.U.veil.value; v[0] = vc; v[1] = -wz * 2.2 * secs * S.driftK; v[2] = wx * 2.2 * secs * S.driftK; v[3] = km * 1000;
+      const vs = A.U.veilSun.value, vk = A.U.veilSky.value;
+      vs[0] = vT[0] * sy; vs[1] = vT[1] * sy; vs[2] = vT[2] * sy;
+      vk[0] = vE[0] / Math.PI; vk[1] = vE[1] / Math.PI; vk[2] = vE[2] / Math.PI;
+    }
+    // IN CLOUD (C4): the eye inside the layer - the field's density there (the column's proxy: the map's
+    // coverage x the profile at the eye's height x the fitted columnK) as a uniform slab in the mist
+    if (A && A.MIST && A.MIST.cloud) {
+      const c = A.MIST.cloud, ey = U.uEye.value;
+      let rho = 0;
+      if (S.inCloud && S.mode !== 'off' && ey && ey.y > lay.base && ey.y < lay.top) {
+        const w = CLOUD_FIELD.sample(map, ey.x, ey.z, drift, _w4), h = (ey.y - lay.base) / lay.thick;
+        rho = S.sigma * w[0] * CLOUD_FIELD.profile(lay.type, h, w[1]) * S.columnK * 2.5;
+      }
+      c.rho = rho; c.base = lay.base; c.top = lay.top;
+    }
     // the shadow's scalars: on only when the layer is live and baked (the tile sampler reads white until then)
-    const on = active() && bakeAt >= NB + 1 && S.shadow > 0 && !shadowDirty ? 1 : 0;
+    if (U.uEye.value) { if (camera && camera.position) U.uEye.value.copy(camera.position); else if (S.inShed) U.uEye.value.set(0, 0, 0); }   // the shed stands at the field
+    const on = active() && bakeAt >= NB + 1 && S.shadow > 0 && !shadowDirty && !S.inShed ? 1 : 0;
     const fade = Math.max(0, Math.min(1, (sun[1] - 0.02) / 0.13));
     cloudScalars[0] = drift[0]; cloudScalars[1] = drift[1]; cloudScalars[2] = map.span; cloudScalars[3] = on;
     cloudScalars[4] = sun[0]; cloudScalars[5] = sun[1]; cloudScalars[6] = sun[2]; cloudScalars[7] = lay.base + lay.thick * 0.5;
@@ -574,7 +655,10 @@ var CLOUDS = (function () {
     out.scalars = Array.from(cloudScalars).map(v => +v.toFixed(3));
     return out;
   }
-  const API = { S, init, install, inject, update, draw, composite, bakeStep, probe, sunT, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get map() { return map; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
+  // (an overcast day's diffuse is ~1.7x a clear day's), a dial
+  const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
+  const API = { S, init, install, inject, update, draw, composite, bakeStep, probe, sunT, hemiUnder, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get map() { return map; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();
