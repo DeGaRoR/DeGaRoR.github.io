@@ -496,16 +496,25 @@ function build(P0, lod, F) {
   if (broken && rnd() < 0.85) {
     // THE ROOF HALF GONE: the half that stays is the back one, sagging toward the front edge
     roofHalf = true;
-    const keepN = Math.floor(n / 2) + 1;
-    const start = Math.round(n * 0.5 + n / 4) % n;          // the back faces
-    const half = []; for (let k = 0; k < keepN; k++) half.push(roofRing[(start + k) % n]);
-    const sag = half.map((p, i) => [p[0], p[1] - (i === 0 || i === keepN - 1 ? 0.55 : 0.0) - (p[2] > 0 ? 0.35 : 0), p[2]]);
-    plate(bags.roof, sag, 0.08, [0, -1, 0], p => [p[0], p[2]]);
+    // the back half of the eave polygon, cut on the cab's middle line (z = 0): the corners behind
+    // it and the two points where the eave crosses it, in order - a convex plate whatever n is
+    const half = [];
+    for (let k = 0; k < n; k++) {
+      const a = roofRing[k], b = roofRing[(k + 1) % n];
+      if (a[2] <= 0) half.push(a);
+      if ((a[2] <= 0) !== (b[2] <= 0)) { const t = a[2] / (a[2] - b[2]); half.push(K.lerp3(a, b, t)); }
+    }
+    const sag = half.map(p => [p[0], p[1] - (Math.abs(p[2]) < 0.05 ? 0.55 : 0.0), p[2]]);   // the torn edge hangs
+    // EVERY PART KEEPS ITS THICKNESS (G414.2, the user: "you need to keep thickness for all parts, in
+    // particular the collapsed roof"): the half that stays is a 10 cm plate, and the sheet that came
+    // down is a plate too, dropped along its own normal - never a bare quad
+    plate(bags.roof, sag, 0.10, [0, -1, 0], p => [p[0], p[2]]);
     // a sheet that came down: leaning on the sill wall from the deck, on the front
     const sx = -rFlat * 0.3, sw = 1.1, sd = rFlat + 0.02;
-    face(bags.roof, [[sx, yDeck + 0.02, sd + 1.4], [sx + sw, yDeck + 0.02, sd + 1.4], [sx + sw, ySill + 0.3, sd], [sx, ySill + 0.3, sd]], nrm([0, 1.4, 1.0]), uvFrame([sx, yDeck, sd + 1.4], [1, 0, 0], nrm([0, ySill + 0.3 - yDeck, -1.4])));
-    face(bags.roof, [[sx, ySill + 0.3, sd], [sx + sw, ySill + 0.3, sd], [sx + sw, yDeck + 0.02, sd + 1.4], [sx, yDeck + 0.02, sd + 1.4]], nrm([0, -1.4, -1.0]), uvFrame([sx, yDeck, sd + 1.4], [1, 0, 0], nrm([0, ySill + 0.3 - yDeck, -1.4])));
-    roofTop = yE + 0.08;
+    const sheet = [[sx, yDeck + 0.02, sd + 1.4], [sx + sw, yDeck + 0.02, sd + 1.4], [sx + sw, ySill + 0.3, sd], [sx, ySill + 0.3, sd]];
+    const sN = nrm(crs(sub(sheet[1], sheet[0]), sub(sheet[3], sheet[0])));
+    plate(bags.roof, sheet, 0.06, sN[1] > 0 ? mul(sN, -1) : sN, p => [p[0], p[1] + p[2]]);
+    roofTop = yE + 0.10;
   } else if (roofKind === 0) {
     plate(bags.roof, roofRing, 0.10, [0, -1, 0], p => [p[0], p[2]], { sub: Q.lod === 0 ? 0.6 : 0 });
     if (Q.lod === 0) K.prismRings(bags.trim, K.ringN(0, 0, eaveR + 0.02, n, rot, yE - 0.12), K.ringN(0, 0, eaveR + 0.02, n, rot, yE + 0.16), false, false);

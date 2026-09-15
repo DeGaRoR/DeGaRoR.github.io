@@ -502,8 +502,9 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
             rgb = img.convert('RGB')
             if tone.get('sat') is not None: rgb = ImageEnhance.Color(rgb).enhance(tone['sat'])
             if tone.get('bright') is not None: rgb = ImageEnhance.Brightness(rgb).enhance(tone['bright'])
+            if tone.get('contrast') is not None: rgb = ImageEnhance.Contrast(rgb).enhance(tone['contrast'])   # about the map's mean
             img = rgb if a is None else Image.merge('RGBA', rgb.split() + (a,))
-            log.append('    tone: saturation x%.2f, brightness x%.2f' % (tone.get('sat', 1), tone.get('bright', 1)))
+            log.append('    tone: saturation x%.2f, brightness x%.2f, contrast x%.2f' % (tone.get('sat', 1), tone.get('bright', 1), tone.get('contrast', 1)))
         kind = 'diff_a' if (out.get('blend') and has_real_alpha(img)) else 'diff'
         tid, w, h, nb = bank.encode(img, budget, kind)
         out['map'] = tid

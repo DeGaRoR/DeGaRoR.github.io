@@ -446,7 +446,7 @@ PROPS = [
       note='a pumper with its roof ladder, 1.9k triangles, three materials (spec-gloss, '
            'the windows alpha-blended); delivered nose to -z, turned round; 9.6 m long',
       rot=(0, 180, 0), tex=512,   # no slots row: a fix on an empty pbr block would stop the spec-gloss conversion (metal is 0 there already)
-      tone={'sat': 1.5, 'bright': 1.0}),   # the two trucks in one tonal range (G414.1): measured S 77 / V 98 against the tender's 122 / 88
+      tone={'sat': 1.5, 'bright': 1.1, 'contrast': 1.1}),   # G414.2: +10 % exposure, +10 % contrast on the engine   # the two trucks in one tonal range (G414.1): measured S 77 / V 98 against the tender's 122 / 88
     P('truck_fire_small', 'vehicle', 'crash tender', 'firesmall',
       note='a small airfield fire tender with a roof monitor, 2.5k triangles, one '
            'material; delivered at a hundredth (6 cm long) with a shadow plane under '

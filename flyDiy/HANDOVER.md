@@ -48461,3 +48461,18 @@ roll loop was never touched: not a gain, not a limit, not a schedule.
 - SEEN: y1_club_glass, y2_field_glass, y3_hut_glass, y4_block_glass,
   y6_regional_glass (day, the sun on the front), y1b_club_night,
   y3b_hut_night (blue hour, lights on), y7b_firehall_tone.
+
+## G414.2 — THE ENGINE PUNCHED, THE DERELICT'S PARTS THICK (2026-09-15, the user:
+## "boost contrast 10%, exposure 10% on the big truck" / "your derelict option is
+## nice, but you need to keep thickness for all parts, in particular the collapsed
+## roof")
+
+- `tone` takes `contrast` too (ImageEnhance.Contrast about the map's mean);
+  the engine at saturation x1.5, brightness x1.1, contrast x1.1.
+- The derelict's roof half is the eave polygon CUT ON THE CAB'S MIDDLE LINE
+  (the corners behind it and the two crossing points, in order - a convex
+  plate whatever n is; the square cab had kept a triangle), a 10 cm plate
+  with its torn edge hanging 55 cm; the sheet that came down is a plate
+  dropped along its own normal, 6 cm - no bare quad anywhere on the tower.
+- SEEN: z0b_wwii_roof, z7_firehall_tone. Gates not run (the user's word
+  stands from G414.1).
