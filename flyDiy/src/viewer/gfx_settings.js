@@ -224,6 +224,18 @@
                  'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
                  'colour management reloads the page. The F8 panel is the developer’s: every ' +
                  'dial, nothing saved.');
+    // THE STORAGE LINE (LOADING S4, the user: "a clear button from the interface
+    // to refresh caches manually, and show the version numbers local and server
+    // side"): the build this page runs, the server's (version.json, no-store),
+    // the media cache's size, the worker's state - and the button
+    if (W.STORAGE) {
+      H.row(body, 'storage');
+      const st = H.note(body, W.STORAGE.line());
+      const upd = () => { if (st && body.isConnected) st.textContent = W.STORAGE.line(); };
+      W.STORAGE.checkServer().then(upd); W.STORAGE.measure().then(upd);
+      H.pills(body, [{ label: 'refresh caches', value: 'refresh', title: 'drop the media cache, update the worker and reload the page' }],
+        () => false, () => { if (st) st.textContent = 'refreshing…'; W.STORAGE.refresh(); });
+    }
     hosts++;
     if (!rafId) { last = 0; rafId = W.requestAnimationFrame(tick); }
     const iv = setInterval(() => {

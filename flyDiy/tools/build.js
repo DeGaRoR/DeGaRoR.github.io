@@ -284,7 +284,9 @@ const MANIFEST = {
     // manifest is a plain assignment, the loader reads it at eval and publishes
     // treeWarm/treeBuild, and the world asks whether the payload is ready
     // before it decides between a real tree and the cone it drew for a year.
-    scripts: ['assets.js', 'aa_resolve.js',
+    // storage.js first (LOADING S4): the media cache's worker registers at load and
+    // the version line reads FLYDIY_BUILD; nothing else depends on it
+    scripts: ['storage.js', 'assets.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'site_tex.js', 'site_ground.js',
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
@@ -616,7 +618,34 @@ window.FLYDIY_BOOT.then(function () {
   const MARK = id => `<script>window.BOOT&&BOOT.phase('${id}','${id === 'vendor' ? 'reading the renderer' : 'reading the model'}')</script>`;
   // the core's sha (LOADING S2): a cache of something the physics computed
   // (the shakedown) is only valid for the core that computed it
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}'</script>`;
+  // ...and THE BUILD (LOADING S4): one id for the whole page's code (core + every
+  // viewer and editor script), written into both pages, into version.json beside
+  // them (the server's copy, fetched with no-store) and into sw.js - the version
+  // line in the GRAPHICS menu compares the first two
+  const BUILD_ID = sha(coreBody + scripts.join('\n') + editor.join('\n')).slice(0, 12);
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}'</script>`;
+  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
+  // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
+  // there is named by its content hash, so a hit can never be stale; scripts,
+  // pages, bench/ and everything else are never touched. One cache for every
+  // build (the names change when the bytes do); the REFRESH CACHES button in
+  // the GRAPHICS menu drops it. Registered by index.html alone (storage.js).
+  fs.writeFileSync(path.join(ROOT, 'sw.js'), `// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build ${BUILD_ID}.
+// The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
+const CACHE = 'flydiy-media-v1';
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  let u; try { u = new URL(req.url); } catch (err) { return; }
+  if (u.origin !== self.location.origin || u.pathname.indexOf('/media/') < 0) return;
+  e.respondWith(caches.open(CACHE).then(c => c.match(req).then(hit => hit || fetch(req).then(res => {
+    if (res && res.ok) c.put(req, res.clone()).catch(() => {});
+    return res;
+  }))));
+});
+`);
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}\n${CORE_SHA}`);
   art = fill(art, 'MODELS', payloadRefs);
@@ -631,6 +660,7 @@ window.FLYDIY_BOOT.then(function () {
     .concat(editor.map(s => `<script>\n${s}</script>`))
     .concat(renderTags).join('\n'));
   art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
+  // the CORE marker block is filled above; the worker's registration is storage.js's (RENDER)
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
   if (!art.includes('function makeAutopilot')) {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');

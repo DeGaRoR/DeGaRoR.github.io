@@ -14,20 +14,23 @@
 // The output is committed, like the model payloads.
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, pruneMedia, encodeTex, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'assets', 'concrete_floor_damaged_01');
 const OUT = path.join(ROOT, 'src', 'viewer', 'hangar_floor.js');
 const SUB = 'tex/floor';
 
-const bake = (k, f, ext) =>
-  writeMedia(SUB, k, ext, fs.readFileSync(path.join(SRC, f)));
+// prepped by role (LOADING S4): the PNG normal becomes WebP; the JPEGs pass through
+const bake = (k, f, role) => {
+  const enc = encodeTex(fs.readFileSync(path.join(SRC, f)), role, 1024);
+  return writeMedia(SUB, k, enc.ext, enc.data);
+};
 
 const maps = {
-  diff: bake('diff', 'diff_1k.jpg', 'jpg'),
-  nor: bake('nor', 'nor_gl_1k.png', 'png'),
-  rough: bake('rough', 'rough_1k.jpg', 'jpg'),
+  diff: bake('diff', 'diff_1k.jpg', 'color'),
+  nor: bake('nor', 'nor_gl_1k.png', 'normal'),
+  rough: bake('rough', 'rough_1k.jpg', 'data'),
 };
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/floor_tex_prep.js from

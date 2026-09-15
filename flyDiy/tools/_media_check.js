@@ -140,7 +140,7 @@ function manifestFiles() {
   return v.concat(packs, pier, totems, panelhw, cabin, models, chars, trees, shots);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin)/g;   // webp: LOADING S4's texture prep
 
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it

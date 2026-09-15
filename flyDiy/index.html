@@ -33589,7 +33589,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='d0bc9d49ac0c'</script>
+<script>window.FLYDIY_CORE_SHA='d0bc9d49ac0c';window.FLYDIY_BUILD='8d2f4bb9847a'</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -33616,12 +33616,12 @@ if (typeof module !== 'undefined')
 <script src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
 <script src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
 <script src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script src="src/chars/ch42_char.js?v=eefcfa0f"></script>
-<script src="src/chars/ch02_char.js?v=d3241b54"></script>
-<script src="src/chars/remy_char.js?v=71ee3d75"></script>
-<script src="src/chars/ch22_char.js?v=84232ae5"></script>
-<script src="src/chars/ch01_char.js?v=0ed66519"></script>
-<script src="src/chars/ch20_char.js?v=17c02a9a"></script>
+<script src="src/chars/ch42_char.js?v=bad6494c"></script>
+<script src="src/chars/ch02_char.js?v=190e2922"></script>
+<script src="src/chars/remy_char.js?v=33b3e4f7"></script>
+<script src="src/chars/ch22_char.js?v=6de5f22b"></script>
+<script src="src/chars/ch01_char.js?v=2a57366c"></script>
+<script src="src/chars/ch20_char.js?v=ea8887fe"></script>
 <script src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
 <script src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
@@ -88258,6 +88258,70 @@ window.CAGE_UI_BOOT = CAGE_UI_BOOT;
 if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 </script>
 <script>
+// storage.js - THE MEDIA CACHE AND THE VERSION LINE (LOADING S4, G421)
+//
+// The user's ruling (2026-09-14): a service worker, yes - but he has had
+// sync trouble with them, so: (1) it caches ONLY media/ (content-hashed
+// names: a file never changes under its URL, so cache-first cannot go
+// stale; scripts and pages are never cached - a new build is a new page on
+// the next load, as it always was); (2) the interface shows the build this
+// page runs, the build the server has, and how much media is cached; (3) a
+// REFRESH CACHES button clears the cache, updates the worker and reloads.
+// Registered from index.html only (build.js writes sw.js and version.json
+// beside it); dev.html never registers, and the rigs measure on a fresh
+// profile. `window.STORAGE` is what the GRAPHICS menu's row reads.
+(function () {
+  'use strict';
+  const W = (typeof window !== 'undefined') ? window : null;
+  if (!W) return;
+  const CACHE = 'flydiy-media-v1';
+  const S = { build: W.FLYDIY_BUILD || null, server: null, serverAt: null, cached: null, cachedMB: null, sw: 'none', error: null };
+  const hasSW = () => !!(W.navigator && W.navigator.serviceWorker && /^https?:/.test(W.location.protocol));
+  const isDev = () => /dev\.html/.test(W.location.pathname);
+
+  function register() {
+    if (!hasSW() || isDev()) { S.sw = isDev() ? 'off (dev.html)' : 'unavailable'; return; }
+    W.addEventListener('load', () => {
+      W.navigator.serviceWorker.register('sw.js').then(r => {
+        S.sw = r.active ? 'active' : 'installing';
+        r.addEventListener('updatefound', () => { const had = !!r.active; const w = r.installing; S.sw = had ? 'updating' : 'installing';
+          if (w) w.addEventListener('statechange', () => { if (w.state === 'activated') S.sw = 'active'; }); });
+      })
+        .catch(e => { S.sw = 'failed'; S.error = String(e && e.message || e); });
+    });
+  }
+  // the server's build: version.json, never from a cache
+  function checkServer() {
+    return fetch('version.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)
+      .then(v => { S.server = v && v.build ? v.build : null; S.serverAt = v && v.date ? v.date : null; return S.server; })
+      .catch(() => { S.server = null; return null; });
+  }
+  // what the cache holds (the entries' content-length, summed)
+  function measure() {
+    if (!W.caches) { S.cached = 0; S.cachedMB = 0; return Promise.resolve(S); }
+    return W.caches.open(CACHE).then(c => c.keys().then(keys => Promise.all(keys.map(k => c.match(k).then(r => {
+      const n = r && r.headers && +r.headers.get('content-length'); return n > 0 ? n : 0; })))
+      .then(sizes => { S.cached = keys.length; S.cachedMB = sizes.reduce((a, b) => a + b, 0) / 1048576; return S; })))
+      .catch(() => { S.cached = null; return S; });
+  }
+  // the button: drop the media cache, ask the worker to update, reload the page
+  function refresh() {
+    const steps = [];
+    if (W.caches) steps.push(W.caches.delete(CACHE).catch(() => {}));
+    if (hasSW()) steps.push(W.navigator.serviceWorker.getRegistration().then(r => r ? r.update().catch(() => {}) : null).catch(() => {}));
+    return Promise.all(steps).then(() => { W.location.reload(); });
+  }
+  const line = () => {
+    const b = S.build ? S.build.slice(0, 8) : '?';
+    const sv = S.server === null ? 'server unknown' : (S.server === S.build ? 'server the same' : 'server ' + S.server.slice(0, 8) + ' (a newer build - reload)');
+    const c = S.cachedMB === null ? 'cache unknown' : ('media cached ' + S.cachedMB.toFixed(1) + ' MB in ' + S.cached + ' files');
+    return 'build ' + b + ' · ' + sv + ' · ' + c + ' · worker ' + S.sw + (S.error ? ' (' + S.error + ')' : '');
+  };
+  register();
+  W.STORAGE = { state: S, line, refresh, measure, checkServer, CACHE };
+})();
+</script>
+<script>
 // assets.js — the ONE way the page fetches an external binary asset.
 //
 // Since 2026-09-01 geometry lives as .bin files under media/geo/ (and
@@ -94959,58 +95023,35 @@ const HANGAR_FLOOR_IMG = (typeof Image !== 'undefined') ? (() => {
   const mk = src => { const i = new Image(); i.src = B + src; return i; };
   return {
     diff: mk('media/tex/floor/diff.9b41f6e1.jpg'),
-    nor: mk('media/tex/floor/nor.83ef2ff6.png'),
-    rough: mk('media/tex/floor/rough.045a7994.jpg'),
+    nor: mk('media/tex/floor/nor.1a132ce7.webp'),
+    rough: mk('media/tex/floor/rough.0aee720d.webp'),
   };
 })() : null;
 </script>
 <script>
 // GENERATED FILE - DO NOT EDIT. Built by tools/wall_tex_prep.js from
 // assets/hangar_walls/ (Poly Haven CC0). The files live under
-// media/tex/walls/ (hash-in-filename); loading starts at script eval, ahead
-// of the first garage entry building the room — and every consumer waits on
-// img.complete/onload, so a slow network is a late needsUpdate, not a bug.
+// media/tex/walls/ (hash-in-filename). A SET LOADS WHEN IT IS READ (LOADING
+// S4): the maps are getters that create their Image on first access, so the
+// one set the room wears is fetched and the other eight are not (they used
+// to start at script eval, 18 MB of every boot) - and every consumer waits
+// on img.complete/onload, so a slow network is a late needsUpdate, not a bug.
 const HANGAR_WALL_TILE_M = 2;
 const HANGAR_WALL_SETS = (typeof Image !== 'undefined') ? (() => {
   const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  const lazy = (name, p) => { const o = { name }, im = {};
+    for (const k in p) Object.defineProperty(o, k, { enumerable: true, get() { if (!im[k]) { im[k] = new Image(); im[k].src = B + p[k]; } return im[k]; } });
+    return o; };
   return {
-    factory: { name: 'factory wall',
-      diff: mk('media/tex/walls/factory_diff_1k.6a8d2d4d.jpg'),
-      nor: mk('media/tex/walls/factory_nor_gl_1k.40fdacff.png'),
-      rough: mk('media/tex/walls/factory_rough_1k.e53fef4b.jpg') },
-    rustymetal: { name: 'rusty painted metal',
-      diff: mk('media/tex/walls/rustymetal_diff_1k.b086937b.jpg'),
-      nor: mk('media/tex/walls/rustymetal_nor_gl_1k.3a2391a9.png'),
-      rough: mk('media/tex/walls/rustymetal_rough_1k.198ba8a5.jpg') },
-    rustysheet: { name: 'rusty metal sheet',
-      diff: mk('media/tex/walls/rustysheet_diff_1k.ecfacdea.jpg'),
-      nor: mk('media/tex/walls/rustysheet_nor_gl_1k.6d9db254.png'),
-      rough: mk('media/tex/walls/rustysheet_rough_1k.a411dacb.jpg') },
-    concrete004: { name: 'concrete 004',
-      diff: mk('media/tex/walls/concrete004_diff_1k.446261c8.jpg'),
-      nor: mk('media/tex/walls/concrete004_nor_gl_1k.91f36858.png'),
-      rough: mk('media/tex/walls/concrete004_rough_1k.b68ea96b.jpg') },
-    concrete008: { name: 'concrete 008',
-      diff: mk('media/tex/walls/concrete008_diff_1k.a203166d.jpg'),
-      nor: mk('media/tex/walls/concrete008_nor_gl_1k.37a8c9b4.png'),
-      rough: mk('media/tex/walls/concrete008_rough_1k.3c925041.jpg') },
-    slabwall: { name: 'concrete slab',
-      diff: mk('media/tex/walls/slabwall_diff_1k.9a8fa059.jpg'),
-      nor: mk('media/tex/walls/slabwall_nor_gl_1k.dff6cf30.png'),
-      rough: mk('media/tex/walls/slabwall_rough_1k.efa3f157.jpg') },
-    sandstone: { name: 'sandstone brick',
-      diff: mk('media/tex/walls/sandstone_diff_1k.cfce6a38.jpg'),
-      nor: mk('media/tex/walls/sandstone_nor_gl_1k.74799391.png'),
-      rough: mk('media/tex/walls/sandstone_rough_1k.7ed96061.jpg') },
-    planks09: { name: 'brown planks',
-      diff: mk('media/tex/walls/planks09_diff_1k.7dccb662.jpg'),
-      nor: mk('media/tex/walls/planks09_nor_gl_1k.8a096032.png'),
-      rough: mk('media/tex/walls/planks09_rough_1k.d40ed17b.jpg') },
-    rawplank: { name: 'raw plank wall',
-      diff: mk('media/tex/walls/rawplank_diff_1k.f81252ac.jpg'),
-      nor: mk('media/tex/walls/rawplank_nor_gl_1k.37031e67.png'),
-      rough: mk('media/tex/walls/rawplank_rough_1k.80b9237e.jpg') },
+    factory: lazy('factory wall', { diff: 'media/tex/walls/factory_diff_1k.6a8d2d4d.jpg', nor: 'media/tex/walls/factory_nor_gl_1k.5ddb399e.webp', rough: 'media/tex/walls/factory_rough_1k.c543c5bb.webp' }),
+    rustymetal: lazy('rusty painted metal', { diff: 'media/tex/walls/rustymetal_diff_1k.b086937b.jpg', nor: 'media/tex/walls/rustymetal_nor_gl_1k.396e828d.webp', rough: 'media/tex/walls/rustymetal_rough_1k.f029d83b.webp' }),
+    rustysheet: lazy('rusty metal sheet', { diff: 'media/tex/walls/rustysheet_diff_1k.ecfacdea.jpg', nor: 'media/tex/walls/rustysheet_nor_gl_1k.fe791cbf.webp', rough: 'media/tex/walls/rustysheet_rough_1k.aa0feef8.webp' }),
+    concrete004: lazy('concrete 004', { diff: 'media/tex/walls/concrete004_diff_1k.446261c8.jpg', nor: 'media/tex/walls/concrete004_nor_gl_1k.788b24df.webp', rough: 'media/tex/walls/concrete004_rough_1k.a07da26c.webp' }),
+    concrete008: lazy('concrete 008', { diff: 'media/tex/walls/concrete008_diff_1k.a203166d.jpg', nor: 'media/tex/walls/concrete008_nor_gl_1k.aebf6e8b.webp', rough: 'media/tex/walls/concrete008_rough_1k.df19642f.webp' }),
+    slabwall: lazy('concrete slab', { diff: 'media/tex/walls/slabwall_diff_1k.9a8fa059.jpg', nor: 'media/tex/walls/slabwall_nor_gl_1k.e16fe110.webp', rough: 'media/tex/walls/slabwall_rough_1k.80b21972.webp' }),
+    sandstone: lazy('sandstone brick', { diff: 'media/tex/walls/sandstone_diff_1k.cfce6a38.jpg', nor: 'media/tex/walls/sandstone_nor_gl_1k.b357782b.webp', rough: 'media/tex/walls/sandstone_rough_1k.9892f24e.webp' }),
+    planks09: lazy('brown planks', { diff: 'media/tex/walls/planks09_diff_1k.7dccb662.jpg', nor: 'media/tex/walls/planks09_nor_gl_1k.b86d380d.webp', rough: 'media/tex/walls/planks09_rough_1k.1aa7bee4.webp' }),
+    rawplank: lazy('raw plank wall', { diff: 'media/tex/walls/rawplank_diff_1k.f81252ac.jpg', nor: 'media/tex/walls/rawplank_nor_gl_1k.a10fd28f.webp', rough: 'media/tex/walls/rawplank_rough_1k.9d0ef655.webp' }),
   };
 })() : null;
 </script>
@@ -112121,6 +112162,18 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
                  'lit surfaces (a short hitch). The tone curve and the exposure are live; ' +
                  'colour management reloads the page. The F8 panel is the developer’s: every ' +
                  'dial, nothing saved.');
+    // THE STORAGE LINE (LOADING S4, the user: "a clear button from the interface
+    // to refresh caches manually, and show the version numbers local and server
+    // side"): the build this page runs, the server's (version.json, no-store),
+    // the media cache's size, the worker's state - and the button
+    if (W.STORAGE) {
+      H.row(body, 'storage');
+      const st = H.note(body, W.STORAGE.line());
+      const upd = () => { if (st && body.isConnected) st.textContent = W.STORAGE.line(); };
+      W.STORAGE.checkServer().then(upd); W.STORAGE.measure().then(upd);
+      H.pills(body, [{ label: 'refresh caches', value: 'refresh', title: 'drop the media cache, update the worker and reload the page' }],
+        () => false, () => { if (st) st.textContent = 'refreshing…'; W.STORAGE.refresh(); });
+    }
     hosts++;
     if (!rafId) { last = 0; rafId = W.requestAnimationFrame(tick); }
     const iv = setInterval(() => {
@@ -116074,7 +116127,7 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script src="src/viewer/house_tex.js?v=3d332680"></script>
+<script src="src/viewer/house_tex.js?v=8e254eaf"></script>
 <script src="src/viewer/lot_tex.js?v=7028621f"></script>
 <script src="src/viewer/sign_tex.js?v=e3e0b1ad"></script>
 <script src="src/pier/pier_pier.js?v=ba429deb"></script>

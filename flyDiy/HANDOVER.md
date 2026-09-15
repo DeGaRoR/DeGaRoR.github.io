@@ -134,8 +134,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   boot.js (THE LOADING SCREEN, G406: window.BOOT - the boot's step chain, the
   readiness aggregator, the overlay's words; in the BOOT slot of body.html,
   before the vendor; the pictures are tools/shots_prep.py's, named by
-  shots_pack.json). MANIFEST.viewer.scripts: the LAST entry fills the APP
-  slot, everything before it fills RENDER.
+  shots_pack.json), storage.js (THE MEDIA CACHE + THE VERSION LINE, G421:
+  window.STORAGE - registers sw.js from index.html only, reads FLYDIY_BUILD
+  against version.json, measures the cache, REFRESH CACHES; sw.js and
+  version.json are build.js's, generated beside the pages). MANIFEST.viewer.scripts:
+  the LAST entry fills the APP slot, everything before it fills RENDER.
 - `tools/build.js` — MANIFEST is the single ordering authority (registry →
   fiches → world → solver → autopilot → exports). Concats core →
   tools/flight_core.js (gates require it unchanged); assembles `index.html`
@@ -48729,3 +48732,71 @@ with version numbers and a refresh button) is the last session.
   measured 10-57 % light), 75 % power taken as 75 % of thrust. No gates
   needed (no source touched); none run (the box at its limit, the user's
   ruling).
+
+## G421 — THE BYTES: TEXTURES PREPPED BY THE BAKERS, SETS THAT LOAD WHEN READ, THE MEDIA CACHE WITH ITS VERSION LINE (2026-09-15, LOADING S4)
+
+Session 4 of `futureDesigns/LOADING-2026-09-14.md`, the last. The user's
+rulings (2026-09-14): "assets should be prepped, including textures sizes
+and formats" - the as-is rule is about live decimation of external
+GEOMETRY, and the Mixamo geometry stays untouched; a service worker, yes,
+but he has had sync trouble with them: "careful with the online first
+setting, and have a clear button from the interface to refresh caches
+manually, and to show the version numbers local and server side".
+
+MEASURED (tools/boot_perf.js, warm, the analytic world): the boot's bytes
+146 -> 64 MB (images 114 -> 32 MB; the bins 23 MB and the scripts 8 MB are
+what they were); the pilot's maps 53 MB of 4096 PNG -> 1.5 MB; the six
+characters on disk 303 -> 16 MB; the nine wall sets 18 -> 6.5 MB and only
+the one the room wears is fetched at all. Cold boot 18.5 s on this tip (the
+compile step 9.1 s of it, the driver's), stillness 0 after the lift. The
+worker, proved with a two-load rig in one headless profile: run 1 60.3 MB,
+run 2 8.7 MB with 376/376 media requests answered by the worker; the version
+line reads `build <sha> · server the same · media cached 55.2 MB in 376
+files · worker active`. (tools/boot_perf.js hangs on a profile whose page a
+worker controls - measure on a fresh one, as it does by default.)
+
+WHAT LANDED:
+- THE ENCODER (tools/media_lib.py `encode_tex(raw, role, max_px)`, and
+  `encodeTex` in tools/_media_lib.js for the node bakers, through the
+  python): a ROLE picks the format - color: JPEG q86 progressive, WebP q88
+  when it carries alpha; normal: WebP q92 (JPEG blocks tear a normal);
+  data (roughness, glossiness, specular, AO, metal): WebP q85, one channel
+  when the three are the same; keep: byte-exact (a leaf cutout whose alpha
+  the coverage mips need). A JPEG source that already fits the cap passes
+  through untouched (a second JPEG generation is a loss for nothing). The
+  SOURCES under assets/ are not touched; the GLBs are not touched.
+- THE BAKERS ON IT: char_prep.py (the role from the map's name, 2048 - the
+  seat is two metres from the eye; `CHAR_TEX_MAX`), wall_tex_prep.js and
+  floor_tex_prep.js (the 1k normals to WebP, the JPEGs through). GATE
+  MEDIA's REF_RE and the dev server's MIME know .webp.
+- A SET LOADS WHEN IT IS READ: hangar_walls.js, hangar_floor.js and
+  house_tex.js are emitted with GETTERS (walls: `lazy(...)`; the houses as
+  `get diff()` on the literal itself, so GATE HOUSE's parser still reads the
+  `k: { kind: ...` line it has always read): a map's Image is made on first
+  access (one per url), so the room's one wall set is fetched and the eight
+  others are not, and the houses' 11 MB wait for the roll-out; every
+  consumer already read `S.diff` and waited on complete/load, so nothing
+  else moved. (The other tables - site, lot, sign, skin, vessel, panel,
+  wood, sky - still fire at script eval; the same getter is a one-line
+  change per baker, owed.)
+- THE MEDIA CACHE (src/viewer/storage.js + build.js): build.js writes
+  `sw.js` beside the pages - cache-first for GET /media/ on this origin,
+  NOTHING ELSE (a media file is named by its content hash, so a hit cannot
+  be stale; a page or a script is never in it, a new build is a new page on
+  the next load as it always was); one cache `flydiy-media-v1` for every
+  build. index.html registers it at `load` (storage.js); dev.html never
+  does; a rig's fresh profile has none. THE VERSION LINE: build.js writes
+  `window.FLYDIY_BUILD` (sha of the page's whole code) into both pages and
+  `version.json` beside them; the GRAPHICS menu's new `storage` row reads
+  the page's build, fetches the server's (no-store), sums the cache's
+  content-lengths, names the worker's state, and its REFRESH CACHES pill
+  drops the cache, updates the worker and reloads.
+
+NOT DONE / OWED: the media MANIFEST at build time (url, bytes, owner) and
+the t=0 PREFETCH of the garage-critical set - after the prep the serial
+chains cost 0.2 s locally and the ticker's bytes come from
+PerformanceObserver, so the manifest's value is the exact byte progress on
+a slow link and the SW's prune; the remaining eager tables (above); the
+prop textures (13 MB, hangar and world props alike, all at boot - a lazy
+propTexture is the same getter idea); the sky base (5.5 MB JPEG at 4k -
+a 2k would do at the door); trees' leaf PNGs stay PNG (the coverage mips).

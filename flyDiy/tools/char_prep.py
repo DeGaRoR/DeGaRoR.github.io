@@ -29,7 +29,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from glb_inspect import load, accessor, view_bytes  # noqa: E402
-from media_lib import write_media, prune_media, BASE_DECL  # noqa: E402
+from media_lib import write_media, prune_media, encode_tex, BASE_DECL  # noqa: E402
+CHAR_TEX_MAX = 2048   # the delivered size of a character's maps (LOADING S4)
 import chars_table as TABLE  # noqa: E402
 
 OUT_DIR = os.path.join(ROOT, 'src', 'chars')
@@ -66,15 +67,20 @@ def bake(row, report):
     skin = skins[0]
     joints = skin['joints']
     ibm = accessor(j, bin_, skin['inverseBindMatrices'])
-    # ---- textures, byte-exact
+    # ---- textures, PREPPED (LOADING S4, the user's ruling: sizes and formats
+    # are the baker's; the GLB under assets/ stays as-is). Mixamo ships 4096
+    # PNGs - 53 MB for one pilot, fetched every boot; the seat is two metres
+    # from the eye. 2048, and the format by the map's role (media_lib.encode_tex).
     texs, tex_bytes = {}, 0
     for ti, im in enumerate(j.get('images', [])):
         raw, _ = view_bytes(j, bin_, im['bufferView'])
-        ext = {'image/png': 'png', 'image/jpeg': 'jpg'}[im['mimeType']]
         name = im.get('name', 'tex%d' % ti)
+        low = name.lower()
+        role = 'normal' if 'normal' in low else ('data' if any(k in low for k in ('gloss', 'spec', 'rough', 'metal', 'occl', 'ao')) else 'color')
+        data, ext = encode_tex(raw, role, CHAR_TEX_MAX)
         if not report:
-            texs['t%d' % ti] = write_media('tex/chars/' + row['key'], name, ext, raw)
-        tex_bytes += len(raw)
+            texs['t%d' % ti] = write_media('tex/chars/' + row['key'], name, ext, data)
+        tex_bytes += len(data)
     mats = []
     for m in j.get('materials', []):
         pbr = m.get('pbrMetallicRoughness', {})

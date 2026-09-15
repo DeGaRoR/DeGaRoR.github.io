@@ -17,7 +17,7 @@
 // The output is committed, like the model payloads.
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const { writeMedia, pruneMedia, encodeTex, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'assets', 'hangar_walls');
@@ -40,32 +40,38 @@ const SETS = [
   ['rawplank', 'raw plank wall'],
 ];
 
-const bake = (k, f, ext) =>
-  writeMedia(SUB, `${k}_${f.replace(/\.(jpg|png)$/, '')}`, ext,
-    fs.readFileSync(path.join(SRC, k, f)));
+// THE MAPS ARE PREPPED (LOADING S4): the role picks the format - the 1k
+// JPEG colour and roughness pass through, the PNG normals (1.3-2 MB each,
+// 18 MB of the boot) become WebP q92 (~250 KB); the sources stay as-is
+const bake = (k, f, role) => {
+  const enc = encodeTex(fs.readFileSync(path.join(SRC, k, f)), role, 1024);
+  return writeMedia(SUB, `${k}_${f.replace(/\.(jpg|png)$/, '')}`, enc.ext, enc.data);
+};
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/wall_tex_prep.js from
 // assets/hangar_walls/ (Poly Haven CC0). The files live under
-// media/tex/walls/ (hash-in-filename); loading starts at script eval, ahead
-// of the first garage entry building the room — and every consumer waits on
-// img.complete/onload, so a slow network is a late needsUpdate, not a bug.
+// media/tex/walls/ (hash-in-filename). A SET LOADS WHEN IT IS READ (LOADING
+// S4): the maps are getters that create their Image on first access, so the
+// one set the room wears is fetched and the other eight are not (they used
+// to start at script eval, 18 MB of every boot) - and every consumer waits
+// on img.complete/onload, so a slow network is a late needsUpdate, not a bug.
 const HANGAR_WALL_TILE_M = 2;
 const HANGAR_WALL_SETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  const lazy = (name, p) => { const o = { name }, im = {};
+    for (const k in p) Object.defineProperty(o, k, { enumerable: true, get() { if (!im[k]) { im[k] = new Image(); im[k].src = B + p[k]; } return im[k]; } });
+    return o; };
   return {
 `;
 let report = [];
 const emitted = [];
 const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
 for (const [k, name] of SETS) {
-  const d = bake(k, 'diff_1k.jpg', 'jpg');
-  const n = bake(k, 'nor_gl_1k.png', 'png');
-  const r = bake(k, 'rough_1k.jpg', 'jpg');
+  const d = bake(k, 'diff_1k.jpg', 'color');
+  const n = bake(k, 'nor_gl_1k.png', 'normal');
+  const r = bake(k, 'rough_1k.jpg', 'data');
   emitted.push(d, n, r);
-  body += `    ${k}: { name: '${name}',\n` +
-    `      diff: mk('${d}'),\n      nor: mk('${n}'),\n` +
-    `      rough: mk('${r}') },\n`;
+  body += `    ${k}: lazy('${name}', { diff: '${d}', nor: '${n}', rough: '${r}' }),\n`;
   report.push(`${k} ${((sz(d) + sz(n) + sz(r)) / 1048576).toFixed(1)} MB`);
 }
 body += `  };

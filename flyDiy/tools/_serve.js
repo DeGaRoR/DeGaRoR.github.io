@@ -14,7 +14,7 @@ const ROOT = process.argv[3] ? path.resolve(process.argv[3]) : process.cwd();
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.obj': 'text/plain',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon', '.wasm': 'application/wasm',
   '.woff2': 'font/woff2', '.bin': 'application/octet-stream',
 };

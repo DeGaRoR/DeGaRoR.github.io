@@ -168,7 +168,12 @@ let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/house_tex_prep.js fr
 // suppress the roof's drawn standing seams.
 const HOUSE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   ${BASE_DECL}
-  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  // A SET LOADS WHEN IT IS READ (LOADING S4): the maps are getters that make
+  // their Image on first access - the world's houses ask for theirs at the
+  // roll-out, and nothing here fetches at script eval any more (11 MB of
+  // every boot); consumers wait on img.complete/onload as they always did
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
   return {
 `;
 const report = [];
@@ -188,8 +193,8 @@ for (const [k, kind, name, tile, pxWant, metal, paint, ribbed, opt] of SETS) {
     (opt && opt.punch !== undefined ? `, punch: ${opt.punch}` : '');
   body += `    ${k}: { kind: '${kind}', name: '${name}', tile: ${tile}, ` +
     `px: ${px}, metal: ${metal}, ribbed: ${ribbed}${flags},\n` +
-    `      diff: mk('${d}'),\n      nor: mk('${n}'),\n      rough: mk('${r}'),\n` +
-    (p ? `      paint: mk('${p}') },\n` : `      paint: null },\n`);
+    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n      get rough() { return mk('${r}'); },\n` +
+    (p ? `      get paint() { return mk('${p}'); } },\n` : `      paint: null },\n`);
   report.push(`${k} ${kind} ${px}px/${tile}m=${Math.round(px / tile)}`);
 }
 body += `  };

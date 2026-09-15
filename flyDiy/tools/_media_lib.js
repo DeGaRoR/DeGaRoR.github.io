@@ -65,4 +65,18 @@ function pruneMedia(subdir, keepRels) {
 const BASE_DECL =
   "const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';";
 
-module.exports = { writeMedia, pruneMedia, BASE_DECL, MEDIA };
+// THE TEXTURE PREP (LOADING S4): the python encoder behind media_lib.py's
+// encode_tex, for the node bakers - a role picks the format (color -> JPEG,
+// or WebP with alpha; normal -> WebP q92; data -> WebP, one channel when
+// grey; keep -> byte-exact), a size cap resamples. Returns { data, ext }.
+function encodeTex(buf, role, maxPx) {
+  const os = require('os'), cp = require('child_process');
+  const tmp = path.join(os.tmpdir(), 'flydiy_tex_' + process.pid + '_' + Math.random().toString(16).slice(2));
+  fs.writeFileSync(tmp + '.in', buf);
+  const r = cp.spawnSync('python', [path.join(__dirname, 'media_lib.py'), 'encode', role, String(maxPx || 2048), tmp + '.in', tmp + '.out'], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error('encodeTex: ' + (r.stderr || r.stdout));
+  const data = fs.readFileSync(tmp + '.out'), ext = r.stdout.trim();
+  try { fs.unlinkSync(tmp + '.in'); fs.unlinkSync(tmp + '.out'); } catch (e) {}
+  return { data, ext };
+}
+module.exports = { writeMedia, pruneMedia, BASE_DECL, MEDIA, encodeTex };

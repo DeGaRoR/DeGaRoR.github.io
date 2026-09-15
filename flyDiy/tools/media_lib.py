@@ -80,3 +80,69 @@ def prune_media_stems(subdir, stems, keep_rels, sep='.'):
     return _prune(os.path.join(MEDIA, *subdir.split('/')),
                   {r.split('/')[-1] for r in keep_rels},
                   lambda f: f.startswith(own))
+
+
+# ---------------------------------------------------------------------------
+# THE TEXTURE PREP (LOADING S4, G421 - the user's ruling 2026-09-14: "assets
+# should be prepped, including textures sizes and formats"; the geometry
+# stays as-is, the SOURCE files under assets/ stay as-is). One encoder for
+# every baker: a role says what the map is, and the role picks the format.
+#   color   sRGB albedo: JPEG q86 progressive; WebP q88 when it carries alpha
+#   normal  tangent-space normal: WebP q92 (JPEG blocks tear a normal)
+#   data    roughness / glossiness / specular / AO / metal: WebP q85, one
+#           channel when the three are the same
+#   keep    byte-exact (a leaf cutout whose alpha the coverage mips need)
+# A JPEG source that already fits max_px passes through untouched (a second
+# JPEG generation is a loss for nothing). The returned ext names the bytes.
+# ---------------------------------------------------------------------------
+def encode_tex(raw, role, max_px=2048, quality=None):
+    import io
+    from PIL import Image
+    if role == 'keep':
+        return raw, _ext_of(raw)
+    im = Image.open(io.BytesIO(raw))
+    fmt = (im.format or '').upper()
+    w, h = im.size
+    if fmt == 'JPEG' and max(w, h) <= max_px and role == 'color':
+        return raw, 'jpg'
+    im.load()
+    if max(w, h) > max_px:
+        s = max_px / float(max(w, h))
+        im = im.resize((max(1, int(round(w * s))), max(1, int(round(h * s)))), Image.LANCZOS)
+    has_alpha = im.mode in ('RGBA', 'LA') and im.getchannel('A').getextrema()[0] < 255
+    out = io.BytesIO()
+    if role == 'color':
+        if has_alpha:
+            im.convert('RGBA').save(out, 'WEBP', quality=quality or 88, method=4)
+            return out.getvalue(), 'webp'
+        im.convert('RGB').save(out, 'JPEG', quality=quality or 86, optimize=True, progressive=True)
+        return out.getvalue(), 'jpg'
+    if role == 'normal':
+        im.convert('RGB').save(out, 'WEBP', quality=quality or 92, method=4)
+        return out.getvalue(), 'webp'
+    # data: one channel when the map is grey
+    rgb = im.convert('RGB')
+    r, g, b = rgb.split()
+    grey = (r.tobytes() == g.tobytes() == b.tobytes())
+    (r if grey else rgb).save(out, 'WEBP', quality=quality or 85, method=4)
+    return out.getvalue(), 'webp'
+
+
+def _ext_of(raw):
+    if raw[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'png'
+    if raw[:2] == b'\xff\xd8':
+        return 'jpg'
+    if raw[:4] == b'RIFF' and raw[8:12] == b'WEBP':
+        return 'webp'
+    return 'bin'
+
+
+if __name__ == '__main__':
+    # the node bakers' door: media_lib.py encode <role> <max_px> <in> <out> -> prints the ext
+    import sys
+    if len(sys.argv) >= 6 and sys.argv[1] == 'encode':
+        raw = open(sys.argv[4], 'rb').read()
+        data, ext = encode_tex(raw, sys.argv[2], int(sys.argv[3]))
+        open(sys.argv[5], 'wb').write(data)
+        print(ext)

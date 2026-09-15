@@ -237,7 +237,8 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     fetches: M.fetches.length, longTaskTotalMs: longSum, longTasks: longTop, profileTotalMs: +(total / 1000).toFixed(0), stillness: still,
     byFile: top(byFile, 25), byFn: top(byFn, 40), inclusive: [...incl].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / 1000).toFixed(0)]),
     netTotalKB: netRows.reduce((a, r) => a + r.kb, 0), netRequests: netRows.length, netFailed: netRows.filter(r => r.failed).length,
-    netByType: byType, bytesByDir: [...bytesByDir].sort((a, b) => b[1] - a[1]).slice(0, 12), samples };
+    netByType: byType, bytesByDir: [...bytesByDir].sort((a, b) => b[1] - a[1]).slice(0, 12),
+    bigFiles: netRows.filter(r => r.kb >= 300).sort((a, b) => b.kb - a.kb).slice(0, 40).map(r => [r.url.replace(/\?.*$/, ''), r.kb, r.t1]), samples };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   const pad = (s, n) => String(s).padEnd(n);

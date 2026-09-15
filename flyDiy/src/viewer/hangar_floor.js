@@ -10,7 +10,7 @@ const HANGAR_FLOOR_IMG = (typeof Image !== 'undefined') ? (() => {
   const mk = src => { const i = new Image(); i.src = B + src; return i; };
   return {
     diff: mk('media/tex/floor/diff.9b41f6e1.jpg'),
-    nor: mk('media/tex/floor/nor.83ef2ff6.png'),
-    rough: mk('media/tex/floor/rough.045a7994.jpg'),
+    nor: mk('media/tex/floor/nor.1a132ce7.webp'),
+    rough: mk('media/tex/floor/rough.0aee720d.webp'),
   };
 })() : null;
