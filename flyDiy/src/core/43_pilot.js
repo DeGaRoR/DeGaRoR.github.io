@@ -324,7 +324,7 @@ function makePilot(sim, def, world, opts) {
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
@@ -503,9 +503,10 @@ function makePilot(sim, def, world, opts) {
     if (!world || typeof world.terrainH !== 'function') return -1;
     let g = -1;
     const n = Math.max(6, Math.ceil(dist / 150));          // every 150 m: a ridge is narrower than a sixth of a leg
+    const canopy = typeof world.canopyH === 'function';    // P1.C: the trees are what a climb-out clears
     for (let k = 1; k <= n; k++) {
-      const d = dist * k / n;
-      g = Math.max(g, (groundH(x + dx * d, z + dz * d) + clear - alt) / d);
+      const d = dist * k / n, px = x + dx * d, pz = z + dz * d;
+      g = Math.max(g, (groundH(px, pz) + (canopy ? world.canopyH(px, pz, 20) : 0) + clear - alt) / d);
     }
     return g;
   };
@@ -1581,7 +1582,28 @@ function makePilot(sim, def, world, opts) {
             : capT;
         }
         if (thRest === null) thRest = th;
-        if (rollS0 === null) { rollS0 = sAl; committedTO = false; }
+        if (rollS0 === null) {
+          rollS0 = sAl; committedTO = false;
+          // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
+          // plan's twin: 'short' when the strip is under 2 x the sheet's
+          // take-off run (an accelerate-stop wants about two runs) — the
+          // brakes held until the power is up, the take-off asked to FIT
+          // rather than the stop, the climb
+          // at Vx while anything ahead stands above the aeroplane; 'soft'
+          // when the surface rolls hard (GROUND_SURF 0.10) — the tail kept
+          // down (a trike's nose light), unstuck early at 0.95 Vr, held in
+          // ground effect until Vy before climbing; 'normal' otherwise.
+          // Every departure climbs at Vx until the ground ahead is below it
+          // (C.3, the obstacle-clearance climb), then Vy.
+          const from0 = ap.route.from;
+          const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[from0.surface]) || null;
+          const soft = !!row && row[0] >= 0.10;
+          const runNeed = SH0 && SH0.TORun ? SH0.TORun : null;
+          const short = runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
+          ap.dep = { technique: short ? 'short' : soft ? 'soft' : 'normal', Vx: SH0 && SH0.Vx ? Math.round(SH0.Vx * 10) / 10 : null,
+                     runNeed: runNeed != null ? Math.round(runNeed) : null, len: from0.len || null, surface: from0.surface };
+          ap.report.dep = ap.dep;
+        }
         flapTgt = fTO;
         const runUsed = Math.abs(sAl - rollS0);
         const left = runwayLeft();
@@ -1614,7 +1636,11 @@ function makePilot(sim, def, world, opts) {
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
           if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
             const dVr = (vr * vr - V * V) / (2 * accF);
-            if (dVr > left - stopDist(vr) - ST.reserve)
+            // P1.C short: the take-off must FIT, the stop is not asked (the
+            // accelerate-stop is the long strip's luxury; on 340 m of gravel
+            // the cub rejected at 7 s a run the sheet says it makes)
+            const shortT = ap.dep && ap.dep.technique === 'short';
+            if (dVr > left - (shortT ? 0 : stopDist(vr)) - ST.reserve)
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -1633,8 +1659,19 @@ function makePilot(sim, def, world, opts) {
           if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr && !atHump)
             reject = 'not accelerating (' + accF.toFixed(2) + ' m/s^2 at V=' + V.toFixed(1) + ') — thrust is going nowhere';
         } else if (V < vr) {
-          reject = 'out of runway: ' + Math.round(left) + ' m left, ' + Math.round(sd) +
-                   ' m to stop, V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
+          // P1.C: PAST THE POINT OF STOPPING THE QUESTION IS WHETHER VR
+          // COMES BEFORE THE FENCE, not whether a stop still fits (it does
+          // not, by definition): the cub on 340 m of gravel was rejected at
+          // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
+          // 249 m — both a second from flying
+          const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
+          if (dVr > left - ST.reserve)
+            reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
+                     ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
+          else if (!committedTO) {
+            committedTO = true;
+            say('committed-takeoff', 'past the point of stopping at V=' + V.toFixed(1) + ' with ' + Math.round(left) + ' m left — Vr in ' + Math.round(dVr) + ' m, continuing');
+          }
         } else if (left < 0) {
           reject = 'ran off the end at V=' + V.toFixed(1) + ' still on the wheels — will not unstick';
         } else if (!committedTO) {
@@ -1653,17 +1690,22 @@ function makePilot(sim, def, world, opts) {
         }
         // the rotation: a taildragger's tail-up / three-point schedule, a
         // tricycle's nosewheel up at Vr — every aeroplane rotates
-        let vert = 'DE', pitch = 0;
+        let vert = 'DE', pitch = 0, deRoll = A.rollDe;
+        const softTO = ap.dep && ap.dep.technique === 'soft', shortTO = ap.dep && ap.dep.technique === 'short';
+        const vrT = softTO ? 0.95 * vr : vr;                   // P1.C soft: unstuck early, into ground effect
         if (rotateTD) {
           vert = 'PITCH';
-          pitch = V > vr ? (A.thRotate ?? A.liftoffTh)
-                : (threePoint || V < (A.VTailUp ?? 0)) ? (threePoint ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
+          pitch = V > vrT ? (A.thRotate ?? A.liftoffTh)
+                : (threePoint || softTO || V < (A.VTailUp ?? 0)) ? ((threePoint || softTO) ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
                 : (A.thTailUp ?? 0.02);
-        } else if (V > vr) { vert = 'PITCH'; pitch = A.thRotate ?? A.liftoffTh; }
-        const rotating = vert === 'PITCH' && V > vr && onG > 0;
+        } else if (V > vrT) { vert = 'PITCH'; pitch = A.thRotate ?? A.liftoffTh; }
+        else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
+        const rotating = vert === 'PITCH' && V > vrT && onG > 0;
         IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
         IthGain = rotating ? (A.rotateI ?? 0.8) : null;
-        engage('RWY', vert, 'SET', { pitch, de: A.rollDe, thr: ap.t > 0.5 ? thrRoll : 0 });
+        engage('RWY', vert, 'SET', { pitch, de: deRoll, thr: ap.t > 0.5 ? thrRoll : 0 });
+        // P1.C short: the brakes hold the aeroplane until the power is up
+        if (shortTO && V < 1.5 && thrRoll < Math.min(0.98, (V < (A.VTailUp ?? 0) ? GP.cap : 1) - 0.02)) c.brake = A.brakeMax;
         // G396.2: ON THE WATER, FULL BACK STICK THROUGH THE HUMP AND OFF THE
         // STEP. The attitude servo asks for the lift-off pitch and its gains
         // (an air loop) reach 0.38 of stick, which a planing float ignores:
@@ -1726,7 +1768,7 @@ function makePilot(sim, def, world, opts) {
         // unsticks it at 96: the stick stays back while a float is still
         // wet, and the servo takes over once the aeroplane is clear.
         if (sim.hydro && onG > 0) deFloor = A.deWater ?? 0.70;
-        if (aglL > A.hSafe)
+        if (aglL > A.hSafe || (ap.dep && ap.dep.technique === 'soft'))   // P1.C soft: the attitude for speed from the first metre — level in ground effect until Vy
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
@@ -1785,7 +1827,13 @@ function makePilot(sim, def, world, opts) {
         // tenth, the nose a little lower — instead of the best-rate attitude
         // held all the way to the circuit (the user: "it climbs like at max
         // speed"); the flaps come up at the same height
-        const iasC = agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
+        // P1.C (C.3): Vx — the sheet's best angle — while the ground within
+        // 1.5 km along the climb-out (canopy included, 15 m clear) stands
+        // above the aeroplane; Vy / the cruise-climb once it is below
+        const climbDir0 = [F.ux * ap.dirX, F.uz * ap.dirX];
+        const obstAhead = SH0 && SH0.Vx && gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0;
+        if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + SH0.Vx.toFixed(1) + ' m/s until clear'); } }
+        const iasC = obstAhead ? SH0.Vx : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —

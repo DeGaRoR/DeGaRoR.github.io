@@ -49776,3 +49776,54 @@ MEASURED (a clean worktree at G424, the core set): 47 cells, 29 good / 17 warn /
   (the idle sink is short of the slope at 1.2 Vs0 — a slip, or the
   planner's slope capped by the idle glide); the protocol record; the
   4 m/s gusting crosswind ground roll.
+
+## G422.2 — THE PILOT TRACK, P1.C: THE DEPARTURE PLAN — SHORT, SOFT, VX
+## UNTIL CLEAR; PAST THE POINT OF STOPPING THE QUESTION IS VR BEFORE THE
+## FENCE (2026-09-15)
+
+**THE DEPARTURE PLAN** (43_pilot.js, made as the roll begins; `ap.dep` on
+the report as `dep`, the approach plan's twin — PILOT-ROADMAP C.3-C.4):
+- 'short' when the strip is under 2 x the sheet's take-off run (an
+  accelerate-stop wants about two runs): the brakes hold the aeroplane
+  until the power is up (to the ground-power cap while the tail is down),
+  and the roll asks the TAKE-OFF TO FIT rather than the stop — the cub on
+  340 m of gravel (A5) was rejected at 7 s ("will not reach Vr: needs 64 m
+  more") for a run the sheet says it makes in 250.
+- 'soft' when the surface rolls hard (GROUND_SURF 0.10: duff, sand,
+  scree): the tail kept down (a trike's nosewheel light, de 0.20), unstuck
+  at 0.95 Vr, the attitude for speed from the first metre — level in
+  ground effect until Vy.
+- 'normal' otherwise. Every departure climbs at Vx (the sheet's best
+  angle) while the ground within 1.5 km along the climb-out, CANOPY
+  INCLUDED, stands above the aeroplane by 15 m (`vx-climb`, said once),
+  then Vy / the cruise-climb (C.3, the obstacle-clearance climb). The live
+  gradient `gradAhead` reads the canopy now (the trees are what a
+  climb-out clears): G422's terrain-turn and escape fan read it too.
+- PAST THE POINT OF STOPPING the roll asked whether a stop still fits (it
+  does not, by definition) and rejected: the cub on A5 at 17.3 of 18.7 m/s
+  with 217 m left, the C172 at 19.3 of 20.4 with 249 m — both a second
+  from flying. The question is whether VR COMES BEFORE THE FENCE (dVr at
+  the measured acceleration against the strip left, the reserve kept):
+  `committed-takeoff` says the distance; a run that cannot make it is
+  still rejected with the distance on the record.
+- `pilot_trace` prints the departure plan.
+
+MEASURED (a clean worktree at HEAD 3e1ea8dd — G431's airframes, the
+reference core set run first: 28 good / 14 warn / 5 bad; the five: the
+tigermoth's 1.22 Vs arrival in 2 m/s across, the beaver's 101-110 m
+fillets, the C172 at A3 touching down at 3.07 m/s and in the 6 m/s
+headwind — G431's flare, the ruling it owes): P1.C 28 / 14 / 5, NO CELL
+WORSE, eleven cells differ only by the Vx climb on the sloped fixtures and
+the motorglider's climb-out under HOME's trees. Off A5 (340 m): the cub
+(short: committed at 17.3 m/s, Vr in 16 m, 235 m of run, Vx to 20 m,
+terrain-turn at 28 m, lands HOME), the Savannah (short: 174 m, Vr in
+2 m), the Stearman (short: 183 m, Vr in 26 m), the C172 (normal: 114 m,
+Vr in 7 m) — every one of them was rejected before. On sand the cub
+rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
+
+- Gates: PILOT (clean worktree at this commit); PILOTMATRIX against the
+  committed baseline stays G431's red (seven cells, the ruling owed) —
+  no cell worse than HEAD on the core set.
+- OWED (P1): the 4 m/s gusting crosswind ground roll; the protocol record
+  + circuit joins; a `soft` / `short` matrix fixture; the Savannah and the
+  cub 2-3.5 m above their raised A5 slope with the throttle on its floor.

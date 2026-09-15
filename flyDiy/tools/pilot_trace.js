@@ -247,7 +247,7 @@ function runTrace(o) {
                    three: !!L.three, drift: TD ? r2(TD.drift) : null } : null,
     rollout: roll.e.length ? { maxE: r1(Math.max(...roll.e.map(Math.abs))), zeroX, maxDr: r2(Math.max(...roll.dr.map(Math.abs))),
                                xtEnd: r1(roll.xt[roll.xt.length - 1]) } : null,
-    Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VApprOf()), appr: ap.report.appr || null, mass: Math.round(sim.totalM),
+    Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VApprOf()), appr: ap.report.appr || null, dep: ap.report.dep || null, mass: Math.round(sim.totalM),
     sheet: ap.useSheet ? ap.sheet.show() : null, tecs: ap.useTecs, path: ap.usePath,
     wall: Math.round((Date.now() - t0) / 1000),
   };
@@ -299,6 +299,7 @@ if (require.main === module) {
     for (const l of out.legs) console.log('  ' + l.name.padEnd(9) + ' overshoot ' + String(l.overshoot).padStart(4) + ' m  settle ' + (l.settleT == null ? '  —' : l.settleT + ' s') + '  roll reversals ' + l.rollRev + '/min');
     if (out.final) console.log('  final: captured at ' + out.final.captureT + ' s · above-slope rms ' + out.final.aboveRms + ' m · V-VAppr rms ' + out.final.vRms + ' (mean ' + out.final.vErrMean + ') · thr ' + out.final.thrMin + '..' + out.final.thrMax);
     if (out.flare) console.log('  flare: from ' + out.flare.entryAgl + ' m at ' + out.flare.entryVs + ' m/s, ' + out.flare.dur + ' s');
+    if (out.dep) console.log('  departure: ' + out.dep.technique + (out.dep.Vx ? ' · Vx ' + out.dep.Vx + ' m/s' : '') + (out.dep.runNeed ? ' · run needed ' + out.dep.runNeed + ' m of ' + out.dep.len : ''));
     if (out.appr) console.log('  approach: ' + out.appr.technique + ' · Vref ' + out.appr.Vref + ' m/s' + (out.appr.gust ? ' (+' + (out.appr.gust / 2).toFixed(1) + ' for a ' + out.appr.gust + ' m/s gust)' : '') + ' · aim ' + out.appr.aimIn + ' m in · flap ' + out.appr.flap + (out.appr.runNeed ? ' · run needed ' + out.appr.runNeed + ' m of ' + out.appr.len : ''));
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));
     if (out.rollout) console.log('  rollout: max heading ' + out.rollout.maxE + ' deg, ' + out.rollout.zeroX + ' reversals, rudder ' + out.rollout.maxDr + ' · ' + out.rollout.xtEnd + ' m off at the stop');
