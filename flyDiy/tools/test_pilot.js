@@ -508,7 +508,11 @@ checkCardHeld(card);
 });
 
 part('-- FAST: the stock build, asked for 45 m/s it does not have --', () => {
-const fast = fly(null, 340, { V: 45 });
+// PERF STUDY chantier 2 (2026-09-15): the stock holds 41.8 of the 45 m/s
+// asked now (the wetted drag build-up; it held 36 on the frontal-area row)
+// and flies its circuit legs that much longer — 340 s was the draggy
+// aeroplane's budget
+const fast = fly(null, 420, { V: 45 });
 for (const v of fast.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardFast(fast);
 });

@@ -1375,11 +1375,19 @@ const DESIGN_ROWS = [
       // every tricycle ever built and is why its fairing had nothing to fair.
       // 0.30 / 0.09 keeps the SUM within 5 mm, so the aeroplane sits where it
       // sat and only the proportions of the leg change.
+      // THE STANCE (PERF STUDY chantier 3, 2026-09-15): at 0.30 every trike
+      // born here sat 2 deg NOSE-DOWN (measured on the joined C172-alike:
+      // deck -1.95 deg; the RV-alike -1.0, the Caravan-alike -2.1) — the
+      // wing at -0.5 deg to the ground, the nosewheel loaded, and the pilot's
+      // full up elevator could not raise the nose before 1.35 Vs: 560-680 m
+      // of roll on a 172. A tricycle sits a touch nose-UP (GEN_RULES.trikeDeck
+      // 1.2 on the rule gear, a real 172 ~1 deg): 0.37 puts the drawn ones
+      // there (+0.2..+1.2 measured on the three).
       { value: 'trike', label: 'Tricycle',
         icon: iconSide({ canopy: 'screen', gear: 'trike' }),
         writes: { cage: { s2On: 1, s2Leg: 2, s2Z: 2.60, s2X: 0, s2R: 0.14,
                           s2Steer: 1, s2Brake: 0, s1Z: 0.95, s1Steer: 0,
-                          s2Drop: 0.30, s2_twLegDrop: 0.09,
+                          s2Drop: 0.37, s2_twLegDrop: 0.09,
                           s1On: 1, gearFloats: 0 },
                   spec: { gear: { type: 'tricycle' } } } },
       // THE FLOATS (H1, G383): both wheel stations off, the flag on; the
@@ -1526,8 +1534,24 @@ const ARCHETYPES = [
            finArch: 'rounded', empennage: 'conv', scheme: 'sweep', base: 0xf2c437, trim: 0x1b3a5c },
     // 2026-09-04 (the user: "be a little more inventive with the liveries
     // ... use at least the preset decals"): the Cub's lightning flash
-    over: { cage: PLAN_RECT,
-            spec: { finish: { decals: { m1On: 1, m1Pat: 3, m1A: 0x1b3a5c,
+    // PERF STUDY chantier 0 (2026-09-15): THE J-3'S OWN WING. The card had
+    // flown the class default (9.8 x 1.5 m, 14.7 m2, a 2412 at 1.5 deg):
+    // Vs +15 % and an unstick at 1.28 Vs. The type is 10.7 x 1.6 m (16.6
+    // m2) on a USA 35B (4.5 % camber, CLmax ~1.7): the nearest four-digit
+    // is a 4412 (Cl0 0.31, CLmax 1.58 here). The 3 deg of incidence stand
+    // in for the 2 deg of deck angle the stance cannot give (ours 9.2 on
+    // its tailwheel, the J-3 11.5): wing-to-ground 12.2 deg against the
+    // type's 13. MEASURED at the baked mass: Vs 61.7 km/h (real 61),
+    // Vun/Vs 1.15, analytic roll 112 m (real 113).
+    // THE CAPACITIES ARE THE DESIGN (PERF STUDY chantier 1, 2026-09-15):
+    // the frame's gauge is sized for the design gross — every seat filled
+    // and the tanks full — so a recreation card states the type's tankage
+    // (and its bays: a bay seats a row as wide as the cockpit's). The J-3
+    // carries 12 US gal (45 L) in the nose.
+    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 10.7, wgChord: 1.6,
+                                                  wgCamber: 4, wgIncidence: 3 }),
+            spec: { fuel: { litres: 45 },
+                    finish: { decals: { m1On: 1, m1Pat: 3, m1A: 0x1b3a5c,
                                         m1B: 0xffffff, m1D: 0x1b3a5c } } } } },
   // G185: the parasol — the wing on a cabane, lift struts to the lower
   // longeron, wood, two open cockpits. The Air Camper is the type.
@@ -1539,40 +1563,50 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xb5342a, trim: 0xf4f2ea },
+    // PERF STUDY chantier 0: the Air Camper's 1930s section is a thick
+    // cambered one (a modified USA 35B / Clark Y family) - a 4412 stands in
     over: { cage: { wgSpan: 8.8, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
-                    wgParaH: 0.50 } } },
+                    wgParaH: 0.50, wgCamber: 4 },
+            spec: { fuel: { litres: 60 } } } },
   // G185: THE BIPLANES. A parasol first plane over a low second, N struts
   // and both wire sets; the DH.82's swept upper plane and lower-only
   // ailerons; the PT-17's radial and oleos; the aerobatic four-aileron
   // I-strut fiction; the sesquiplane fiction. Every value a panel key or a
   // live option (GATE DESIGN); every one flown (GATE ARCHETYPES).
-  // (the DH.82's inverted Gipsy Major has no row in the join's engine map
-  // yet — the card flies the A-65 and says so; the Gipsy row is owed)
+  // (the DH.82's inverted Gipsy Major had no row in the join's engine map
+  // until G195; PERF STUDY chantier 0 (2026-09-15) puts the card on it -
+  // the study had flagged its power numbers as not comparable)
   { key: 'tigermoth', kind: 'recreation', name: 'Tiger Moth-alike', note: 'wood & fabric biplane, ' +
-      'swept upper plane, lower ailerons, wires, tandem open cockpits (flat four for the Gipsy)',
+      'swept upper plane, lower ailerons, wires, tandem open cockpits, inverted Gipsy Major',
     sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
-           engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
+           engFamily: 'inline', engModel: 'DH Gipsy Major', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
                     wgParaH: 0.40, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
                     w2Pos: 2, w2Stagger: 0.55, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0 } } },
+                    bpInter: 0, bpWires: 1, bpCabane: 0 },
+            spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
+  // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
+  // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
+  // +156 %, V75 +35 % against the type - the engine, not the airframe)
   { key: 'stearman', kind: 'recreation', name: 'Stearman-alike', note: 'radial biplane trainer, ' +
       'oleo gear, wires and N struts, lower ailerons',
     sel: { class: 'n23', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
-           engFamily: 'radial', engModel: 'P&W R-985', engMount: 'nose',
+           engFamily: 'radial', engModel: 'Continental W-670', engMount: 'nose',
+           prop: 'alu2',                       // chantier 2: a 2.5 m two-blade metal, not the cage's 1.91
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
            finArch: 'broad', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 9.80, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
                     wgDx: 0.60,      // wings forward: the R-985 sits on the nose (CG 22 % MAC, margin 21 %)
                     wgParaH: 0.45, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
                     w2Pos: 2, w2Stagger: 0.60, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0 } } },
+                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5 },
+            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
@@ -1598,9 +1632,11 @@ const ARCHETYPES = [
                     wgParaH: 0.45, w2Span: 6.5, w2Chord: 1.15, w2ChordTip: 1.15,
                     w2Pos: 2, w2Stagger: 0.35, wgAilOn: 1, w2AilOn: 0,
                     bpInter: 0, bpWires: 1, bpCabane: 0 } } },
+  // PERF STUDY chantier 1: two seats side by side is the cockpit alone (no
+  // bay); a bay had given the D.119-, RV-7- and Savannah-alikes four seats
   { key: 'jodel', kind: 'recreation', name: 'Jodel-alike', note: 'cantilever wood wing, ' +
       'side-by-side, the page’s own aeroplane reborn',
-    sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
+    sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 2, wgBrace: 1, wgTip: 2, wgFlapType: 1,
            engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
@@ -1608,19 +1644,24 @@ const ARCHETYPES = [
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
     // a cheat line along the Jodel's waist
     over: { cage: PLAN_TAPER,
-            spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x7c3327,
+            spec: { fuel: { litres: 65 },
+                    finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x7c3327,
                                         m1B: 0xefe6cf, m1D: 0x7c3327 } } } } },
   { key: 'c172', kind: 'recreation', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
       'slotted flaps',
-    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+    // PERF STUDY chantier 1: ONE bay — a bay seats a row as wide as the
+    // cockpit, so a 2+2 is one; three bays had given the card eight seats
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
            wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            finArch: 'swept', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
     // the twin stripe every 172 of the seventies wore
-    over: { cage: PLAN_C172,
-            spec: { finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x2c4a31,
+    // PERF STUDY chantier 2: the 172's spring legs wear their fairings
+    over: { cage: Object.assign({}, PLAN_C172, { s1LegFair: 1 }),
+            spec: { fuel: { litres: 200, tank: 'wing' },            // 56 US gal usable in the wings
+                    finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x2c4a31,
                                         m1B: 0xc96f2a, m1D: 0xefe6cf } } } } },
   // THE TURBOPROP SINGLE (2026-09-05, TURBOPROP §9 — the reason the arc
   // exists): a PT6A-114A on a strutted high-wing tricycle with the most
@@ -1655,29 +1696,36 @@ const ARCHETYPES = [
                                   // still on approach at 420 s; at wgDx 0.10 it
                                   // completes at 340 s (sink 2.0), at 0.20 at 347
                                   wgDx: 0.10 }),
-            spec: { fuel: { litres: 600 }, prop: { D: 2.7, blades: 3 },
+            spec: { fuel: { litres: 1257, tank: 'wing' }, prop: { D: 2.7, blades: 3 },   // 332 US gal in the wings
                     finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x1b3a5c,
                                         m1B: 0x7fa8c9, m1D: 0xc7c9cc } } } } },
   { key: 'rv', kind: 'recreation', name: 'RV-alike', note: 'low wing, bubble, cantilever alloy, fast',
-    sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
+    sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 0,
            canopy: 'bubble', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x7c3327 },
     // the RV's two-tone sweep, bent up aft
-    over: { cage: PLAN_TAPER,
-            spec: { finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
+    // PERF STUDY chantier 0: the type's legs are faired (the drag model
+    // prices a bare leg at Cd 1.0, a faired one 0.30)
+    // PERF STUDY chantier 2: the RV's cowl ENCLOSES its IO-360 (the derived
+    // cowl, tapered off this narrow firewall, left the cylinders 8 cm in the
+    // wind at 0.11 m2 — a cowl is not obliged to cover its engine, a card is)
+    over: { cage: Object.assign({}, PLAN_TAPER, { s1LegFair: 1 }),
+            spec: { fuel: { litres: 159, tank: 'wing' },            // 42 US gal in the wings
+                    cowl: { halfW: 0.42 },
+                    finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
                                         m1B: 0xc7c9cc, m1D: 0x7c3327 } } } } },
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
-    sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 1,
+    sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 0,
            wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 3,
            engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xf4f2ea },
-    over: { cage: PLAN_RECT } },
+    over: { cage: PLAN_RECT, spec: { fuel: { litres: 68, tank: 'wing' } } } },
   { key: 'ul1', kind: 'fiction', name: 'Single-seat ultralight', note: 'the smallest ' +
       'buildable, minimum systems',
     sel: { class: 'ul1', role: 'trainer', seatLayout: 0, paxCount: 0,
@@ -1812,7 +1860,9 @@ const ARCHETYPES = [
            canopy: 'screen', mirror: 0, intCons: 1, covering: 'open',
            boomStyle: 1, section: 0,
            wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 0,
-           engFamily: 'inline', engModel: 'rotax 582', engMount: 'wingTop',
+           // PERF STUDY chantier 0 (2026-09-15): the MW5's engine is the
+           // 503 (a row since G195), not the 582 the card flew
+           engFamily: 'inline', engModel: 'rotax 503', engMount: 'wingTop',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'bare' },
     // (the sweep is the tip's own station since G140 — wgTipX walks the tip aft)
@@ -1824,7 +1874,15 @@ const ARCHETYPES = [
     // the ultralight's nose lifts at 12 s. At 0.15 m the roll is 32 s, at
     // 0.05 m 27 s; the engine stays over the wing. The rest is the trike's
     // rotation, which is the pilot's and is flagged, not the card's.
-    over: { cage: Object.assign({}, PLAN_RECT, { wgTipX: 0.30, engPylonH: 0.15 }) } },
+    // PERF STUDY chantier 0: the MW5's wing is sailcloth over aluminium
+    // tubes - the wing's own construction row (2 = steel tube + fabric,
+    // cover 0.42 kg/m2), not the ply D-box the wood default billed (0.80)
+    over: { cage: Object.assign({}, PLAN_RECT, { wgTipX: 0.30, engPylonH: 0.15,
+                                                  wgCons: 2 }),
+            // day VFR, no battery: the trainer role seeds 'basic' over the
+            // class's 'minimal', and a 503 microlight has neither starter
+            // nor alternator (17 kg of electrics on a 160 kg aeroplane)
+            spec: { systems: { fit: 'minimal' } } } },
   // ...and "the Archaeopteryx is probably one of the strangest designs out
   // there. Rod almost directly on the high wing, a suspended cabin with aero
   // nose, and an electric engine in pusher config, at the bottom" — the pod
@@ -1873,7 +1931,8 @@ const ARCHETYPES = [
                                                    // 420 s; at wgDx 0.10 (SM 14.7 %)
                                                    // it completes at 279 s, sink 1.13
                                                    wgDx: 0.10 }),
-            spec: { finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x1b3a5c,
+            spec: { fuel: { litres: 320, tank: 'wing' },            // 86 US gal (the DA62's 76 usable + reserve)
+                    finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   // THE LARGER TWIN — the first "larger plane": a strut-braced high wing on
   // a boxy alloy body, four bays, an IO-360 a side at the front spar, fixed
@@ -1937,15 +1996,22 @@ const ARCHETYPES = [
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.
   { key: 'beaver', kind: 'recreation', name: 'Beaver-alike', note: 'the bush ' +
       'radial: R-985, strut high wing, four bays, taildragger',
-    sel: { class: 'n23', role: 'bush', seatLayout: 1, paxCount: 4,
+    sel: { class: 'n23', role: 'bush', seatLayout: 1, paxCount: 3,   // eight seats (the DHC-2's 7-8)
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
            wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 2,
            engFamily: 'radial', engModel: 'P&W R-985', engMount: 'nose',
+           // PERF STUDY chantier 2: the prop through the TILE (the caravan's
+           // rule) — the card flew the cage's 1.91 m two-blade wood on a 450
+           // hp radial: T0/W 0.19 and a 575 m roll. The 2B20 is 2.59 m.
+           prop: 'alu2',
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
            finArch: 'broad', empennage: 'conv', scheme: 'sweep', base: 0xf2c437, trim: 0x2c4a31 },
-    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 14.6, wgChord: 1.95,
-                                                  wgChordTip: 1.95 }),
-            spec: { finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x3d5c40,
+    // PERF STUDY chantier 0: the DHC-2's wing is 14.6 x 1.59 m (23.2 m2);
+    // the card had 28.5 m2 and stalled 24 % slow at its real mass
+    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 14.6, wgChord: 1.59,
+                                                  wgChordTip: 1.59, cw_propD: 2.59 }),
+            spec: { fuel: { litres: 360 }, prop: { D: 2.59, blades: 2 },   // 95 US gal in the belly tanks
+                    finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x3d5c40,
                                         m1B: 0xefe6cf, m1D: 0x3d5c40 } } } } },
 ];
 
@@ -2128,6 +2194,17 @@ function designBake(sel, over) {
   };
   if (tipKeys[Math.round(full.wgTip)])
     wing.tip = tipKeys[Math.round(full.wgTip)];
+  // PERF STUDY chantier 0 (2026-09-15): THE AIRFOIL AND THE INCIDENCE ARE
+  // INTENT. The join's own line verbatim (_cage_join.js: naca from
+  // wgCamber/wgThick, incidence, washout); without it every card flew
+  // GEN_DEFAULT's 2412 at 1.5 deg whatever its panel said, and the
+  // Cub-alike's USA 35B stand-in (a 4412) could not be stated.
+  {
+    const cam = Math.round(+full.wgCamber || 0), thk = Math.round(+full.wgThick || 12);
+    wing.naca = cam * 1000 + (cam > 0 ? 400 : 0) + thk;
+    if (full.wgIncidence != null) wing.incidence = +full.wgIncidence;
+    if (full.wgWashout != null) wing.washout = +full.wgWashout;
+  }
   // G185: a parasol's cabane height and the SECOND plane ride the intent
   // channel too — the pre-join spec GATE ARCHETYPES flies must be a biplane
   // when the card says so, or the card flies a monoplane and passes wrongly
@@ -2140,6 +2217,14 @@ function designBake(sel, over) {
   // to balance: the Stearman-alike sat 3 % MAC AHEAD of its leading edge
   // (47 % static margin) and ran out of up elevator on approach, twice.
   if (+full.wgDx) wing.place = { dx: -(+full.wgDx), dy: 0 };
+  // PERF STUDY chantier 0 (2026-09-15): THE WING'S CONSTRUCTION IS INTENT
+  // TOO - the join's own 1..4 vocabulary verbatim (_cage_join.js wgCons);
+  // 0 says nothing and the wing follows the fuselage, as it always did.
+  // The MW5-alike's sailcloth on tubes was billed as a ply D-box (0.80
+  // kg/m2 against 0.42) until the card could say `steel`.
+  if (Math.round(+full.wgCons || 0) > 0)
+    wing.material = ['carbon', 'steel', 'fabric', 'alloy'][
+      Math.min(3, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' };
   if (+full.w2On) {
@@ -2184,6 +2269,23 @@ function designBake(sel, over) {
   // ...and so is an open frame (G172's joined row)
   if (!(full.skinOn == null || +full.skinOn))
     designMerge(out, { fuselage: { covering: 'open' } });
+  // PERF STUDY chantier 0 (2026-09-15): THE CONSTRUCTION AND THE FAIRINGS
+  // ARE INTENT. The perf study (G396.5) measured every card as a
+  // tube-and-fabric aeroplane on bare wheels - the RV-alike with
+  // `intCons: 3, s1Fair: 1` included - because this pre-join spec carried
+  // neither, and the join (which does write the fairing) never wrote the
+  // fuselage's material at all. The mappings are the join's own, verbatim
+  // (_cage_join.js fus.material / spec.gear.fairing..twLegFair); the join
+  // rewrites them on the very next build in the app.
+  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][
+    Math.max(0, Math.min(3, Math.round(+full.intCons || 0)))] } });
+  if (full.canopy != null)
+    designMerge(out, { cabin: { canopy: { style: Math.round(+full.canopy) === 3 ? 'bubble' : 'screen' } } });
+  designMerge(out, { gear: {
+    fairing: ['none', 'spat', 'full'][Math.round(+full.s1Fair || 0)] || 'none',
+    twFairing: ['none', 'spat', 'full'][Math.round(+full.s2Fair || 0)] || 'none',
+    legFair: Math.round(+full.s1LegFair || 0) ? 'fair' : 'none',
+    twLegFair: Math.round(+full.s2LegFair || 0) ? 'fair' : 'none' } });
   // G328: ...AND THE TWIN BOOMS. tail.type 'twinBoom' is what the JOIN writes
   // when it measures the drawn booms (M.boomX); the headless path runs no
   // join, so the Skymaster-alike and the P-38-alike flew GATE ARCHETYPES

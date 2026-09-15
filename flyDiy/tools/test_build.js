@@ -636,11 +636,29 @@ function nullPaths(o, pre, out) {
   // v7 rod save keeps its tube (boomLen += taperLen).
   // ...and G267's, keyed 8: the twin boom's diameter and taper lifted into
   // the loft's four sizes.
-  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6,7,8' &&
+  // ...and the construction wire's, keyed 9 (PERF STUDY chantier 0,
+  // 2026-09-15): an ABSENT cage.intCons is filled from the material the
+  // save was flying, so the join's new write moves only a CHOSEN tile.
+  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6,7,8,9' &&
      typeof MIG[5] === 'function' && typeof MIG[6] === 'function' &&
-     typeof MIG[7] === 'function' && typeof MIG[8] === 'function',
+     typeof MIG[7] === 'function' && typeof MIG[8] === 'function' &&
+     typeof MIG[9] === 'function',
      'the migrator table carries exactly v5->v6 (the wing stations), ' +
-     'v6->v7 (the energy vessels), v7->v8 (the rod taper) and v8->v9 (the boom loft)');
+     'v6->v7 (the energy vessels), v7->v8 (the rod taper), v8->v9 (the boom loft) ' +
+     'and v9->v10 (the construction tile)');
+  // the v9->v10 lift itself: no tile -> the flown material's tile; a tile
+  // already chosen is kept whatever the spec says (the tile is the declaration)
+  {
+    const lift = MIG[9];
+    const a = lift({ v: 9, fuselage: { material: 'alloy' }, cage: {} });
+    ok(a.cage.intCons === 3, 'v9->v10: an absent tile on an alloy spec becomes the alloy tile');
+    const w = lift({ v: 9, fuselage: { material: 'wood' }, cage: { intCons: 1 } });
+    ok(w.cage.intCons === 1, 'v9->v10: a chosen tile is kept over the spec\'s material');
+    const n = lift({ v: 9, cage: {} });
+    ok(n.cage.intCons === 1, 'v9->v10: no material at all -> the steel tube tile (the default aeroplane)');
+    const c = lift({ v: 9, fuselage: { material: 'carbon' } });
+    ok(!c.cage, 'v9->v10: a save with no cage is left alone');
+  }
   // the v7->v8 lift itself, on the shape the user's file has: a rod with a
   // 1.46 m taper and a 2.99 m boom keeps its 4.45 m tube; a lofted boom and
   // a twin boom are left alone; absent keys read as the cage defaults
@@ -784,12 +802,19 @@ function nullPaths(o, pre, out) {
   // that is the system working, not leaking — genFrame's second pass places
   // the mains against the CG the first pass produced, and an 8 kg lighter
   // wing shifts it (measured: 26.28 -> 26.23 kg on the default aeroplane).
-  ok(['fuselage', 'tail', 'bracing', 'engines'].every(s2 =>
-       !L0[s2] === !LC[s2] && (!L0[s2] ||
-         (L0[s2].mass === LC[s2].mass && L0[s2].cost === LC[s2].cost))),
-     'G116: the fixed-geometry sections did not move');
-  ok(Math.abs(LC.gear.mass - L0.gear.mass) <
-       0.1 * Math.abs(LC.wings.mass - L0.wings.mass),
+  // PERF STUDY chantier 1 (2026-09-15): the fixed-geometry sections MOVE A
+  // LITTLE now, and that is the design working — a lighter wing lowers the
+  // design gross, and every class's gauge follows it (genDesignGross) — so
+  // "did not move" became "moved by an order less than the wing did", the
+  // gear rule's own shape. The engines never move: they are bought.
+  const dW = Math.abs(LC.wings.mass - L0.wings.mass);
+  ok(['fuselage', 'tail', 'bracing'].every(s2 =>
+       !L0[s2] === !LC[s2] && (!L0[s2] || Math.abs(LC[s2].mass - L0[s2].mass) < 0.1 * dW)),
+     'G116: the fixed-geometry sections moved by an order less than the wing (the gauge follows the gross)');
+  ok(!L0.engines === !LC.engines && (!L0.engines ||
+       (L0.engines.mass === LC.engines.mass && L0.engines.cost === LC.engines.cost)),
+     'G116: the engines did not move');
+  ok(Math.abs(LC.gear.mass - L0.gear.mass) < 0.1 * dW,
      'G116: the gear re-rig is an order smaller than the wing change');
   // the fin's own material moves the tail section and nothing else
   const cf = clone(base);
@@ -797,8 +822,9 @@ function nullPaths(o, pre, out) {
   const LF = led(cf);
   ok(LF.tail.mass !== L0.tail.mass && LF.tail.cost !== L0.tail.cost,
      'G116: a carbon fin moves the tail ledger');
-  ok(LF.wings.mass === L0.wings.mass && LF.fuselage.mass === L0.fuselage.mass,
-     "G116: ...and neither the wing's nor the fuselage's");
+  ok(Math.abs(LF.wings.mass - L0.wings.mass) < 0.1 * Math.abs(LF.tail.mass - L0.tail.mass) &&
+     Math.abs(LF.fuselage.mass - L0.fuselage.mass) < 0.1 * Math.abs(LF.tail.mass - L0.tail.mass),
+     "G116: ...and the wing's and the fuselage's by an order less (the gauge)");
   // an unknown material is CLAMPED back to absent, never obeyed
   const bad = clone(base);
   bad.wings[0].material = 'unobtainium';

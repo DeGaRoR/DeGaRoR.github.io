@@ -297,9 +297,9 @@ function genClimbAt(sim, def, W, aMax) {
 //    down the roll while drag climbs, so the mean is nothing like the
 //    standing value. Integrate s = INT V dV / a(V) instead.
 //
-// The roll integrates at ZERO body alpha — the aeroplane accelerates roughly
-// level — which under-reads lift and so over-reads both the weight on the
-// wheels and the rolling drag: conservative, deliberately.
+// The roll used to integrate at ZERO body alpha ("conservative, deliberately");
+// since PERF STUDY chantier 3 it integrates at the attitude the pilot runs
+// it (three-point to VTailUp, then A.thTailUp) — see the loop.
 function genTORunAt(sim, def, W) {
   const A_ = def.params.ap;
   // THE ROLL HAPPENS IN GROUND EFFECT (G159), and leaving it out was worth
@@ -323,10 +323,17 @@ function genTORunAt(sim, def, W) {
   }
   const NS = 32;
   let sRoll = 0;
+  // PERF STUDY chantier 3 (2026-09-15): the roll at the attitude the pilot
+  // runs it — a taildragger three-point until its tail comes up (VTailUp),
+  // then at the run attitude (A.thTailUp, a few degrees under the fly-off
+  // one); a tricycle at zero. The alpha-0 roll was "conservative,
+  // deliberately", and it was also not what anyone flies.
+  const thRest = A_.deck > 0 ? A_.deck : 0;
+  const vTU = A_.VTailUp || 0, thRun = A_.thTailUp || 0;
   for (let i = 0; i < NS; i++) {
     const Vi = Vun * (i + 0.5) / NS;
     const Ti = sim.thrustAt(Vi, 0);
-    const ri = genProbeAt(sim, Vi, 0);
+    const ri = genProbeAt(sim, Vi, thRest > 0 && Vi < vTU ? thRest : thRun);
     const Ni = Math.max(0, W - ri.Fy);                  // weight still on wheels
     const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
     sRoll += Vi * (Vun / NS) / ai;
@@ -782,6 +789,10 @@ function genSpecAtFuel(S, litres) {
   if (cs.energy && cs.energy.kind !== 'battery' && Array.isArray(cs.energy.vessels))
     for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
   cs.fuel.litres = L;
+  // PERF STUDY chantier 1: the DESIGN capacity rides along, idempotently —
+  // the frame's gauge is sized for full tanks (genDesignGross), and a spec
+  // scaled to reserves would otherwise build itself a lighter tube
+  if (!(cs.fuel.designL > 0)) cs.fuel.designL = keepF;
   return cs;
 }
 

@@ -81,6 +81,15 @@ const GATES = [
   // polar + the measured weathervane, and the plaque agreeing with itself.
   // Carries --selftest.
   { id: 'HONEST', file: 'test_honest.js', tier: 'core' },
+  // THE WEIGHT (PERF STUDY chantier 1, 2026-09-15): eleven recreation cards
+  // built as the game flies them (the joined bake) and their empty weight
+  // held in declared bands around the POH's — the gauge's ratchet. ~50 s
+  // (a headless scene per card). Carries --selftest.
+  { id: 'WEIGHT', file: '_weight_check.js', tier: 'core', wall: 120 },
+  // THE DRAG (PERF STUDY chantier 2, 2026-09-15): six cards' parasite drag
+  // area off the probe sweep against their types, and the wetted build-up's
+  // directions on the stock aeroplane. ~2 min. Carries --selftest.
+  { id: 'DRAG', file: '_drag_check.js', tier: 'core', wall: 240 },
   // THE BIPLANE (G185): the truss (rigidity rank, the wire-cut negative),
   // the parasol's cabane, the tension-only wire, and — from G185.5 — the
   // vortex kernel against Prandtl's sigma, Munk's stagger theorem and the

@@ -276,10 +276,82 @@ function genStrips(S, fr) {
   return strips;
 }
 
+// THE WETTED BODY (PERF STUDY chantier 2, 2026-09-15). The surface the air
+// rubs on, from the DECLARED loft — the frame's station table (x, half
+// width, floor, deck) closed by the spec's own section curve (genSect at
+// the crown exponents, 60b_gen_loft) — never the rendered mesh (ROADMAP:
+// aero is not re-derived from arbitrary mesh). Plus the cowl ahead of the
+// firewall, through the same section function the cowl's floor was solved
+// with. Returns m2, with the body's length and its greatest frontal area.
+function genFusSwet(S, ST) {
+  const fu = S.fuse || {};
+  const nT = genCrownToN(fu.crownTop == null ? 0.72 : fu.crownTop);
+  const nB = genCrownToN(fu.crownSide == null ? 0.07 : fu.crownSide);
+  const N = 32;
+  const per = (halfW, h, nTop, nBot) => {
+    if (!(halfW > 0) || !(h > 0)) return 0;
+    let L = 0, prev = null;
+    for (let i = 0; i <= N; i++) {
+      const th = 2 * Math.PI * i / N;
+      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      if (prev) L += Math.hypot(q[0] - prev[0], q[1] - prev[1]);
+      prev = q;
+    }
+    return L;
+  };
+  let swet = 0, frontal = 0;
+  const P = ST.map(st => per(st.w, st.yt - st.yb, nT, nB));
+  for (const st of ST) frontal = Math.max(frontal, 2 * st.w * (st.yt - st.yb));
+  for (let i = 0; i < ST.length - 1; i++) swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+  let cowlL = 0;
+  if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
+    cowlL = S.cowl.len;
+    const K = 8; let prevP = null;
+    for (let i = 0; i <= K; i++) {
+      const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
+      if (prevP != null) swet += 0.5 * (prevP + pc) * (cowlL / K);
+      prevP = pc;
+    }
+  }
+  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal };
+}
+
 // Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the
 // Cub's own geometry reproduces its hand-tuned [0.55, 0.8, 0.8] / [0, 0.5, 0.5]:
-// 0.75 on max frontal area, 0.57 on forward side area, 0.31 aft (the aft body
-// is tapered and cleaner, which is why the two are not the same number).
+// 0.57 on forward side area, 0.31 aft (the aft body is tapered and cleaner,
+// which is why the two are not the same number) — the CROSS-FLOW rows.
+//
+// THE AXIAL ROW IS A BUILD-UP (PERF STUDY chantier 2, 2026-09-15). It was
+// 0.75 x the greatest frontal area — one number fitted on the Cub, paid by
+// every construction alike, and it did not discriminate: the RV-alike (a
+// cantilever alloy low-wing with a bubble and spats) cruised at 194 km/h
+// where the type does 310, carrying a Cub's drag; on the joined cabins it
+// read 1.5 m2 on a 172. Now:
+//   body       wetted area x the skin's own cdWet (GEN_MATERIALS, by
+//              construction) x Raymer's body form factor (1 + 60/f^3 +
+//              f/400 on the fineness ratio) x a slab-side penalty on the
+//              crown rows (Hoerner: a box section runs ~10 % over a round)
+//   cool       the engine's cooling drag, by what the spec knows of it
+//              (GEN_DRAG.kCool per kW of heat rejected: a pressure cowl, a
+//              ducted radiator, a turbine's inlet) plus the cylinders that
+//              stand OUTSIDE the cowl at a bare block's Cd, and a radial's
+//              wall of cylinders bare or behind a ring (registry `layout`)
+//   screen     the windscreen: an open cockpit's heads in the wind, a flat
+//              screen's step (taller where the cowl deck is low), a blown
+//              hood's fairing (cabin.canopy.style, the tile's own word)
+//   junct      wing-body and tail junctions (Hoerner's interference, per
+//              junction; a low wing without a fillet pays more, a strutted
+//              high wing less)
+//   exh        the exhaust stacks
+//   gear       the undercarriage and the lift struts, ADDED as they are
+//              (genGearCdA) — no reference gear subtracted: the body row no
+//              longer contains a Cub's bare wheels
+//   brace      the truss (cabane, interplane, wires: genParams, unchanged)
+// ONE free constant: tubeFabric's cdWet, solved so the stock aeroplane's
+// body row reads what the fiche calibrated; the other rows are literature
+// and the clean cards check them (GATE DRAG). The pieces are published as
+// gen.drag for the plaque and the study.
 function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
@@ -289,9 +361,61 @@ function genFusCdA(S, fr) {
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
     if (i < 2) sFwd += A; else sAft += A;
   }
+  const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
+  const wet = genFusSwet(S, ST);
+  const dEq = Math.sqrt(4 * Math.max(1e-6, wet.frontal) / Math.PI);
+  const f = Math.max(2, wet.L / Math.max(0.1, dEq));
+  const FF = 1 + 60 / (f * f * f) + f / 400;
+  const fu = S.fuse || {};
+  const crown = 0.5 * ((fu.crownTop == null ? 0.72 : fu.crownTop) +
+                       Math.min(1, (fu.crownSide == null ? 0.07 : fu.crownSide) / 0.6));
+  const boxK = 1 + D.boxK * (1 - crown);
+  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK;
+  // the cooling, by the engine and its cowl
+  const EN = (S.engines && S.engines[0]) || {};
+  const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const electric = eng.aspiration === 'electric';
+  const radial = eng.layout === 'radial';
+  const cw = S.cowl || {}, covers = cw.covers || {};
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  let cool = 0, heads = 0;
+  if (!electric) {
+    const k = th.family === 'turbine' ? D.kCool.turbine
+            : th.cooling === 'liquid' ? D.kCool.liquid
+            : radial ? (cowlOn ? D.kCool.radialRing : D.kCool.radialBare) : D.kCool.pressureCowl;
+    cool = k * th.coolKW;
+    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal
+    const E = S.engBox;
+    if (E && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
+        (!cowlOn || !covers.sides)) {
+      const at = cw.atEngine || {};
+      const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
+      heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
+    }
+  }
+  // the windscreen
+  const cb = S.cab || {}, cn = cb.canopy || {};
+  const seats = Math.max(1, S.seats || 1);
+  const screen = cb.glazing === 'none' ? D.screen.open + D.screen.openPerSeat * seats
+               : cn.style === 'bubble' ? D.screen.bubble
+               : D.screen.flat + D.screen.flatStep * (1 - (fu.cowlDeck == null ? 0.66 : fu.cowlDeck));
+  // the junctions
+  const strut = !!(S.bracing && S.bracing.type === 'strut');
+  let junct = 0;
+  for (const w of (S.wings || [])) {
+    const k = w.position === 'low' && !strut ? D.junct.lowBare : strut ? D.junct.strutHigh : 1;
+    junct += 2 * D.junct.wing * k;
+  }
+  junct += 3 * D.junct.tail;
+  const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
+  const exh = electric ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
   const out = {
-    fusCdA: [0.75 * frontal, 0.57 * sFwd, 0.57 * sFwd],
+    fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
+    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
+            body, cool, heads, screen, junct, exh },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
   // wind. Priced as a DELTA on the covered figure — the gear model's own rule
@@ -554,15 +678,34 @@ function genTuneAP(def) {
     const CLlo = (g.ClMax3D || 1.4) / 1.21;
     liftoff = (CLlo - P.Cl0) / Math.max(0.5, P.a3d) - inc;
   }
+  let deckRad = 0;
   if (!trike) {
     const P = def.parts, G = S.gear;
     const twN = def.nodes[P.TW];
     const deck = Math.atan((((twN && twN.p[1]) || 0) - G.twR - (G.y - G.contactR))
                            / Math.max(0.1, P.twX - P.gx));
-    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, deck);
+    if (isFinite(deck) && deck > 0.05) { liftoff = Math.min(liftoff, deck); deckRad = deck; }
   }
   // never AT the stall: the rotation has to leave the wing somewhere to go
   A.liftoffTh = r3(cl(liftoff, 0.02, 0.85 * g.aStall));
+  // THE RUN ATTITUDE AND THE ROTATION TARGET (PERF STUDY chantier 3,
+  // 2026-09-15). Every pilot read `A.thTailUp` and `A.thRotate` and nothing
+  // set them: a taildragger ran tail-UP at +0.02 rad from VTailUp to Vr and
+  // then asked its servo for the lift-off attitude from there — a 0.30
+  // integrator's worth of authority short, 4-8 s late, unstuck at 1.4 Vs on
+  // every build (the study's 4.3: a J-3 leaves at 1.05-1.10 Vs, tail-low).
+  // The real technique: the tail comes up to a LOW attitude, a few degrees
+  // under the fly-off one, the aeroplane accelerates there and flies itself
+  // off at Vr with the servo already close. A tricycle keeps its 0.02
+  // (it rolls on its nosewheel and rotates).
+  // (MEASURED on the float card, GATE SEAPLANE's crosswind run: with this
+  // attitude the run swings 35.8 deg (bound 30); scoped back to 0.02 it
+  // never leaves the water and veers 778 m off the lane — so the water's
+  // trouble is not this row's; the float card's mass and drag moved under
+  // G429/G430 and the water arc owns the re-tune)
+  A.thRotate = A.liftoffTh;
+  A.thTailUp = trike ? 0.02 : r3(cl(A.liftoffTh - 0.05, 0.02, A.liftoffTh));
+  A.deck = r3(deckRad);          // the three-point rest attitude (rad; 0 on a tricycle), genTORunAt's
   // flareThMax - alpha(1.10 VsFlap) = -0.056 +/- 0.031 on six of seven. The
   // SIGN is the doctrine ("flareThMax BELOW the L=W attitude kills float");
   // the chinook is the outlier because its body datum puts that alpha near 0.
@@ -911,11 +1054,16 @@ function genParams(S, fr, strips) {
   // the sky rather than the definition of the yardstick.
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
   const cda = genFusCdA(S, fr);
-  // G115: the undercarriage and bracing join the drag build-up, as a DELTA
-  // from the calibration's implicit reference gear (see genGearCdADelta).
+  // G115: the undercarriage and bracing join the drag build-up. PERF STUDY
+  // chantier 2 (2026-09-15): ADDED AS THEY ARE — the body row is a wetted
+  // build-up now and contains no reference gear to subtract from; the delta
+  // (genGearCdADelta) is still published as `gearDCdA`, the reading GATE
+  // HONEST's relative checks are written against (spats buy, tyres cost).
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
-  cda.fusCdA[0] += gearDCdA;
+  const gearCdA = genGearCdA(S, S.geom.semi);
+  cda.fusCdA[0] += gearCdA;
+  cda.drag.gear = gearCdA;
   // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted
   // engines"). A nose engine is inside the frontal area the fuselage row
   // already prices; every other mount hangs its engine in the airstream and
@@ -958,6 +1106,8 @@ function genParams(S, fr, strips) {
     }
   }
   cda.fusCdA[0] += braceDCdA + tailBraceDCdA;
+  cda.drag.brace = braceDCdA + tailBraceDCdA;
+  cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -1041,6 +1191,7 @@ function genParams(S, fr, strips) {
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
            Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, tailBraceDCdA, plant: pl,
+           drag: cda.drag,          // chantier 2: the body's build-up, piece by piece
            // G185: the planes' own numbers beside the combined ones, the
            // combined MAC's leading edge (the % MAC datum on a biplane — a
            // monoplane keeps its wing's xLE), and the span the yaw instrument

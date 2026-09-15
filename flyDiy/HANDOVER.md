@@ -49326,3 +49326,276 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
 - OWED: the eye pass on the tops and the veil (the user's), the 22 deg halo, god-rays
   off the tile, precipitation (the wetness channel), the shed verified in a headed run,
   the light's hemisphere under the veil (a cirrus day is a shade less blue - not modelled).
+
+## G428 — THE PERF STUDY, CHANTIER 0: THE INSTRUMENT AND THE CARDS (2026-09-15; the study's three defects validated, the tile that reached nothing, the cards on their own wings and engines)
+
+- THE VALIDATION. The perf study (G396.5, futureDesigns/PERF-STUDY-2026-09-15
+  .md) ranked three model errors; every one re-read at its line and CONFIRMED:
+  (1) the fuselage 43-47 kg on every card because `61_gen_frame B()` bills
+  `lin x L` at one gauge (only k/c scale, `kScale`); (2) the body drag `0.75 x
+  frontal` (62_gen_aero genFusCdA) blind to construction — the RV-alike
+  differed from the Cub by exactly the -0.036 m2 cantilever credit; (3) the
+  unstick at 1.2-1.3 Vs: `liftoffTh` CL-derived then deck-capped, the Cub
+  card on the class wing (14.7 m2, a 2412 at 1.5 deg), and the pilot running
+  tail-up at +0.02 rad to Vr = 0.99 Vs with `A.thTailUp` / `A.thRotate` read
+  by all three pilots and SET BY NOTHING. The plan: instrument + cards, mass,
+  drag, unstick, in that order (the user's ruling).
+- THE STUDY UNDERSTATED TWO THINGS. (a) `spec.fuselage.material` — the
+  single biggest physics row (every lin, the cover, k/c, refMass, the price,
+  the surfaces' default) — WAS WRITTEN BY NOTHING: the construction tile
+  (`intCons`) drew the interior since G104 and the join never carried it (the
+  2026-09-01 audit's headline, ruling owed since). `designBake` carried
+  neither it nor `s1Fair`, `wgCons`, the airfoil or the incidence: every card
+  the study and GATE ARCHETYPES flew was a tube-and-fabric, bare-wheeled
+  2412 at 1.5 deg. (b) The study loaded the big cards through `cargo.kg`,
+  clamped at 400: they were measured 10-57 % light.
+- THE WIRE (the user's ruling, "wire it"): `_cage_join.js` writes
+  `fus.material` from the tile on every join (the tile IS the declaration; a
+  P without the key writes nothing); `designBake` carries `fuselage.material`,
+  `gear.fairing/twFairing/legFair/twLegFair`, `wings[0].material` (wgCons
+  > 0), `naca` + `incidence` + `washout`, and `cabin.canopy.style`.
+  GEN_SPEC_V 9 -> 10 with GEN_MIGRATORS[9]: an ABSENT tile is filled from the
+  material the save was flying (else every save without the key took the
+  cage default, 0 = composite, and flew carbon); a CHOSEN tile moves the
+  aeroplane from its next load — the stock Garage Special (tile wood, spec
+  tubeFabric) flies wood now. PHYSICS_V 3 -> 4. The v9 fixture:
+  tools/fixtures/build_v9_stock_2026-09-15.json, pulled from the built
+  index.html through GARAGE_SPEC.json() before the bump. GATE JOIN +14 rows,
+  GATE BUILD's migrator set + the lift's four cases.
+- THE STUDY'S INSTRUMENT (tools/perf_study.js): ballast to MTOW through the
+  G121 door at the aeroplane's OWN CG (every node scaled), `--ledger` (the
+  ledger row by row, the systems rows, the cabin, the join's errors), the
+  parasite FIT (D = a q + b/q over 2.0-3.5 Vs: `CdS` column, ranked row, REAL
+  gains the types' figures), `--birth` (the pre-join spec). Measured before
+  any model change: the material alone c172 412 -> 579 kg, rv 435 -> 573,
+  caravan 558 -> 795, beaver 660 -> 962; at MTOW the big cards' power balance
+  is HONEST (caravan Vs 141 / 144, ROC 5.5 / 5.0; beaver Vs 103 / 111, ROC
+  5.4 / 5.2) — the study's own prediction.
+- THE CARDS: the Cub-alike on the J-3's wing (10.7 x 1.6, 16.4 m2) with a
+  4412 (the nearest four-digit to the USA 35B's Cl0 0.35 / CLmax 1.64) at 3
+  deg (2 deg of it standing in for the deck the stance cannot give: 9.2 vs
+  the J-3's 11.5 on its tailwheel) — MEASURED Vs 61.7 km/h (real 61), Vun/Vs
+  1.15, analytic roll 112 m (real 113) at the baked mass; the Air Camper's
+  4412; the Beaver on its 23.2 m2; the MW5's sailcloth wing (wgCons steel);
+  the RV's faired legs; the Tiger Moth on its Gipsy Major, the Stearman on
+  its W-670, the MW5 on its 503 (rows since G195; `engineMatch` flips) —
+  Tiger Moth V75 143/145, Vmax 166/175, ROC 3.0/3.2; Stearman 174/170,
+  197/200, 4.4/4.3: the fabric-and-strut family's power balance holds.
+- GATES: JOIN, BUILD, DESIGN, SAVE, STARTER, PARTS, ENERGYBASE (--bless: the
+  wood and alloy fixtures moved with their tiles), PANEL, MASS, HONEST,
+  BENCH, GEN, PILOT, TAKEOFF, FLAPS, GE, STRESS, LOAD, FLEX, MOUNT, RPM, ELEC,
+  FIT, CLIP, HINGE, SKINMAT PASS. ARCHETYPES: two alloy fiction cards
+  (P-38-alike, Twin bush hauler) red — they weigh what their tile says now
+  and cannot fly as designed; re-flown after chantier 1 (below). ENERGY red
+  at HEAD (the peers' `require('zlib')` in 19_terrain_codec, G416's note).
+- TRAPS: dev.html reads the sources directly — a visit with the wire in
+  place wrote a v10 WIP autosave that index.html (still v9) loaded back; the
+  fixture was pulled after clearing `flydiy.wip` on the pane's own origin.
+  A peer's mid-edit render_world.js broke the page build for an hour
+  (flight_core.js builds first and stood). `_cage_design.js` is CRLF; the
+  patch helper preserves the ending.
+
+## G429 — THE PERF STUDY, CHANTIER 1: COMPONENT WEIGHTS FOLLOW THE DESIGN LOAD (2026-09-15; the gauge, the joined bake, GATE WEIGHT)
+
+- THE JOINED BAKE (tools/_bake_joined.js) — the finding that reframed the
+  chantier: the birth spec `designBake` composes carries what the tiles
+  CHOSE, never what the join MEASURES (the cabin box, its seats, the
+  profile, the gear stations, the tail), so every headless consumer flew
+  every card on GEN_DEFAULT's Cub cabin — 0.72 m tandem, two seats, under
+  the Caravan-alike's wing. The fuselage weighed the same on every card for
+  that reason as much as for the gauge. `bakeCard(key)` runs the page's own
+  chain under node: the drawing layers in the headless scene
+  (_scene_headless.js, the real three.js) then `_cage_join.js`'s measure()
+  over it (loaded into that context with a CAGE_UI stub and CAGE_UI_LAZY),
+  the fragment merged as garage.js does. ~3 s a card. The study and the two
+  new gates measure the JOINED spec; GATE ARCHETYPES still flies the birth
+  one (its own ruling to change). THE TRAP: the join's edMount() walks up
+  from the wing group to the group whose GRANDPARENT is the scene (the
+  editor's inner mount); headless, the layers hung off the Scene, the walk
+  stopped at the wing group and every mount-frame measurement was taken in
+  the WING's frame — the Jodel-alike's stab read 1.96 m aft of the firewall
+  (its wing station), SM 0.005, a 42 deg pitch-up off the runway; the
+  Savannah-/MW5-alikes read the wing as their stab (hSpan 9.2-9.4). Two
+  identity groups over the layers give the walk the page's answer.
+- THE DESIGN GROSS (61_gen_frame genDesignGross, the user's ruling: derived,
+  a fixed point): the structure at its gauge + the engines and systems +
+  EVERY seat filled (GEN_RULES.occupantKg, one keeper for the 80) + the tanks
+  FULL (fuel.designL rides genSpecAtFuel so the reserve sheet and the fill
+  slider build the same tube) + the baggage + a freight bay at its capacity
+  (cargoKgM3; `cargo.kg` is a LOADING and excluded). Solved by 20 Newton
+  steps between genFrame's two passes on pass 1's measurement (`parts.gauged`
+  per class with its first moments), so the second pass bills the gauge and
+  the gear is placed against the CG the gauged lattice will have — no third
+  pass, and a double generate is byte-equal.
+- THE GAUGE (GEN_GAUGE): `gauge_c = clamp((W0 / refGross)^e_c, 0.6, 3.0)`,
+  e wing 0.49 / tail 0.41 / gear 0.75 (Raymer's GA exponents verbatim), fus
+  0.30 (his size term is ours already); `refGross` on every material row
+  (the MTOW the row was fitted at: 550 / 650 / 1111 / 600) beside refMass;
+  `coverGauged` (ply, sheet and laminate thicken with the load; cloth does
+  not). Billed in B() and cover(); the bearer is not gauged.
+- THE SKINNED BOX'S WEBS ARE THE SKIN: the cantilever torsion-box lattice
+  billed its webs, rib posts and shear diagonals at the spar cap's density
+  while the alloy cover already IS that web — the RV-alike's bracing 52 kg
+  on a cantilever, a 173 kg wing against the type's 70. `web` members bill
+  GEN_RULES.boxWebK (0.30) of their density on a skinned material; k
+  untouched. And a wing's skin is not a fuselage's: GEN_SURF_MATERIALS alloy
+  cover 4.5 -> 2.6 kg/m2, carbon 2.4 -> 1.6 (a 172's wing 105 kg over 32 m2).
+- THE OUTFIT: the FURNISHING row by Raymer on the design gross (GEN_OUTFIT
+  furnK by tier x (0.0582 W0 - 29.5 kg); inside the fixed point; a 172 35
+  kg, a Caravan 180); the cowl bills only when there is one (`cowl.on`); an
+  open frame bills a windscreen and no side windows; wheels by their radius
+  (GEN_RULES.wheelKg / wheelTwKg; the stock reproduces 3.5 / 2.0).
+- THE CARDS state their DESIGN: the types' tankage (Cub 45 L, 172 200, RV
+  159, Beaver 360, Caravan 1257...) and their bays (a bay seats a row as wide
+  as the cockpit: the 172 ONE bay = 2+2, the two-seaters none — three bays
+  had given the 172-alike eight seats), the MW5's minimal fit (the trainer
+  role seeded 'basic' over the class's 'minimal').
+- MEASURED (GATE WEIGHT, the joined bake): cub 354 / 345 (+3 %), jodel 348 /
+  360 (-3), c172 640 / 736 (-13), rv 484 / 500 (-3), stearman 894 / 878 (+2),
+  tigermoth 574 / 506 (+13), pietenpol 339 / 280 (+21), beaver 1115 / 1361
+  (-18), caravan 1178 / 2145 (-45, from -74), savannah 370 / 300 (+23), mw5
+  213 / 160 (+33). The bands are DECLARED with their reasons in the table:
+  the alloy ULMs' build standard (a BUILD STANDARD row seeded by the class
+  is owed: the load test would read it too), the Caravan's utility-category
+  equipment (~500 kg of rows the outfit has not got). The design gross:
+  c172 1144 (real 1111), rv 779 (816), beaver 2054 (2313), caravan 2818
+  (3629).
+- GATES: GATE WEIGHT (tools/_weight_check.js, core; the empty weights in
+  their bands, the gear 2-9 % of W0, the structure 40-72 % of the empty
+  weight — MEASURED: 53-66 on every card, the engine is the other lump — the
+  gauge inside its clamp; --selftest 6/6 CAUGHT). GATE BUILD G116 reworded:
+  a wing material change moves the fixed sections by an order LESS than the
+  wing (the gauge follows the gross), the engines not at all; two vintage
+  fixtures' cg0 RE-FROZEN with the note (v5 swept 510.6 -> 521.3, v8
+  drawn-tail 472.2 -> 497.6). ENERGYBASE --bless.
+## G430 — THE PERF STUDY, CHANTIER 2: WETTED AREA BY CONSTRUCTION, THE MEMBERS ADDED (2026-09-15; genFusCdA is a build-up, GATE DRAG)
+
+- THE AXIAL ROW WAS ONE NUMBER: `0.75 x the greatest frontal area`, fitted
+  on the Cub, paid by every construction alike (62_gen_aero genFusCdA), the
+  gear a DELTA from a reference gear floored at -0.08 m2. On the joined
+  cabins it read 1.5 m2 on the 172-alike (V75 115 km/h) and 1.0 on the Cub.
+- THE BUILD-UP (genFusSwet + genFusCdA, constants in GEN_DRAG with their
+  provenance, the skin's coefficient on the material row): the WETTED AREA
+  from the declared loft — the frame's station table closed by the spec's
+  own section curve (genSect at the crown exponents; the cowl through
+  S.cowl.secAt over its published `len`) — never the rendered mesh
+  (ROADMAP's rule); `body = swet x cdWet x FF x boxK` (Raymer's body form
+  factor 1 + 60/f^3 + f/400 on the fineness ratio; a slab-side penalty on
+  the crown rows); `cool` per kW of heat rejected (genEngineThermo.coolKW:
+  pressure cowl 0.0004 m2/kW, radiator 0.0006, turbine 0.0002, a bare radial
+  0.0030 / ringed 0.0009 — `layout: 'radial'` added to the eight radial
+  registry rows) plus the cylinders standing OUTSIDE the cowl at a bare
+  block's Cd on their own frontal (cowl.covers / atEngine); `screen` (an
+  open cockpit's heads, a flat screen's step, a bubble's fairing —
+  `cabin.canopy.style`, a new declared row the join and the bake write
+  from the canopy tile); `junct` (Hoerner's per-junction interference: a
+  bare-root low wing pays more, a strutted high wing less); `exh`; the GEAR
+  AND STRUTS ADDED AS THEY ARE (genGearCdA; the delta is still published as
+  `gearDCdA`, GATE HONEST's reading — its relative checks stand untouched);
+  the truss as before. Published piece by piece as `gen.drag`. cdWet per
+  row: tubeFabric 0.0125 (the ONE free constant), wood 0.0055, alloy 0.0050,
+  carbon 0.0045 (turbulent Cf ~0.003 with the construction's roughness).
+  The cross-flow rows keep the fiche's 0.57 / 0.31.
+- MEASURED (GATE DRAG, the parasite fit D = a q + b/q over 1.5-3.0 Vs on
+  the joined bake): cub 0.78 / 0.75, jodel 0.46 / 0.45, c172 0.56 / 0.47,
+  rv 0.38 / 0.20, beaver 0.90 / 0.80, caravan 0.70 / 0.57. The study: cub
+  V75 126 / 120, Vmax 145 / 140, ROC 2.4 / 2.3, L/D 9.3 / 9.5; jodel V75 178
+  / 175, Vmax 199 / 200, L/D 11.3 / 11.0; c172 V75 203 / 218, Vmax 230 /
+  230, ROC 4.0 / 3.7; caravan V75 283 / 324, ROC 5.7 / 5.0; beaver (on its
+  2.59 m 2B20 through the prop tile — the card flew the cage's 1.91 m
+  two-blade wood on 450 hp: T0/W 0.19) V75 238 / 222, Vmax 267 / 260, ROC
+  5.2 / 5.2; rv V75 240 / 310. THE DECLARED RESIDUAL: the RV-alike's wing
+  row (genPolar's 0.0055 + 0.018 t + matCd0 = 0.0089 on a smooth alloy
+  2412 where the section runs 0.0065-0.0070: 0.135 m2 of its 0.38) — its own
+  measurement, GEN_SURF_MATERIALS.cd0's; the band says so.
+- THE CARDS: the RV's cowl encloses its IO-360 (`cowl.halfW 0.42`; the
+  derived cowl off its narrow firewall left the cylinders 8 cm in the wind
+  at 0.11 m2), the 172's spring legs faired, the wing-tank types' fuel in
+  the WING ROOT (`fuel.tank 'wing'`: c172, rv, caravan, savannah, da62 —
+  200 L of avgas on the nose had put the 172-alike's CG so far forward it
+  could not rotate before 1.36 Vs), the Stearman's 2.5 m metal prop.
+- GATES: GATE DRAG (tools/_drag_check.js, core: six cards in bands, the
+  build-up's directions on the stock — alloy < fabric, round < box, the
+  cylinders outside a narrow cowl cost, a bubble < a flat screen, the gear
+  only adds, the pieces sum to the row; the stock's axial reported 0.475 —
+  the fiche's 0.574 had the gear inside it; --selftest 7/7). tools/
+  _perf_probe.js: the study's instruments (probeAt, sweepAt, levelSpeedAt,
+  parasiteFit, ballast) shared with the gate; alphaForLift's floor -0.15
+  (a cambered wing at 3 Vs sits below -0.08), the fit window 1.5-3.0 Vs (a
+  Cub has no 3.5 Vs).
+- OWED: GEN_SURF_MATERIALS.cd0 re-measured (the RV's last 0.15 m2); the
+  cage's roundness tile (topRound / botRound) reaching fuselage.crownTop /
+  crownSide (the boxK reads the spec's defaults today); airport-driven and
+  weather-driven drag stay where they were.
+
+## G431 — THE PERF STUDY, CHANTIER 3: THE RUN ATTITUDE, THE ROTATION TARGET, THE TRIKE'S STANCE (2026-09-15)
+
+- `A.thTailUp` and `A.thRotate` were read by all three pilots (40 / 41 / 43)
+  and SET BY NOTHING: a taildragger ran tail-up at +0.02 rad from VTailUp
+  to Vr = 0.99 Vs and asked its servo for the lift-off attitude from there
+  — a 0.30 integrator's authority short, 4-8 s late, 1.38 Vs on the Cub
+  (pilot_baseline). genTuneAP sets them now: `thRotate = liftoffTh`,
+  `thTailUp = liftoffTh - 0.05` on a taildragger (the tail comes up to a
+  low attitude a few degrees under the fly-off one, the aeroplane
+  accelerates there and flies itself off with the servo already close; a
+  tricycle keeps its 0.02), and `A.deck` (the three-point rest attitude)
+  for genTORunAt, whose roll integrates at the attitude the pilot runs it
+  (three-point to VTailUp, then thTailUp) instead of "alpha 0,
+  conservative, deliberately".
+- MEASURED on the Cub-alike (its J-3 wing, the 4412 at 3 deg, chantier 0):
+  the tail up at 14.6 m/s, the run at 3-4 deg of body pitch, lift-off at
+  19.9 m/s = 1.16 Vs (was 1.38), 130 m at the baked mass, 162 flown at MTOW
+  (real 113; analytic 120); climb 2.1 / 2.3, cruise 117 km/h at 0.75 (real
+  120). Jodel flown 198 / 200 m, climb 3.9 / 3.5. 172-alike 391 / 288 at
+  MTOW (244 at the baked mass).
+- THE TRIKE SAT NOSE-DOWN: the design flow's tricycle option wrote `s2Drop
+  0.30`, and every trike born from it stood 2 deg nose-DOWN (the joined
+  172-alike deck -1.95, the RV -1.0, the Caravan -2.1): the wing at -0.5 deg
+  to the ground, the nosewheel loaded, and full up elevator could not raise
+  the nose before 1.35 Vs — 560-680 m on a 172 at MTOW, and the memory's
+  "trikes never rotate" of the 2026-09-06 flight pass. `s2Drop 0.37` puts
+  the drawn trikes at +0.2..+1.2 deg (GEN_RULES.trikeDeck 1.2 on the rule
+  gear; a real 172 ~1 deg). The 172-alike lifts at 30.5 m/s = 1.16 Vs now.
+- OWED: the landing (the Cub-alike stops in 197 m where the type does 88:
+  the approach at 1.42 Vs, the hold-off, the brake law), the trike's squat
+  under ballast (a 210 kg ballast puts the joined 172-alike 3 deg nose-down
+  on its own springs: the nose leg is softer than the mains), the seaplane
+  unstick (the twin float card's 1.45 Vs is the WATER doc's).
+
+## THE PERF STUDY CHANTIERS — STATE AT HAND-OFF (2026-09-15, end of the session)
+
+- GREEN on the whole tree (chantiers 0-3 in): AA, INPUT, ATMOS, DAY, ATMO, GE,
+  FLAPS, STRESS, GEN, PILOT, NAV, TAKEOFF, HONEST, WEIGHT, DRAG, BIPLANE,
+  MASS, SKIN, BOOT, BUILD (G116 reworded, two fixtures re-frozen), SKINMAT,
+  FIT, CLIP, HINGE, JOIN, STARTER, SAVE, BENCH, PARTS, DESIGN, HYDRODYN,
+  FLOATS, ENERGYBASE (--bless), RPM, PANEL, ELEC, HOTHIGH (the kerosene check
+  reworded for the gauge), FLEX, LOAD, MOUNT.
+- RED, the peers' at HEAD (G416's list): AERO, ENERGY (`require('zlib')`).
+- RED, THIS WORK'S, ALL ON THE PILOT'S SIDE — the model is right and the
+  aeroplanes are heavier, cleaner and faster than the pilot was tuned for:
+  (1) GATE ARCHETYPES: the Caravan-alike, the DA62-alike, the P-38-alike, the
+  Twin bush hauler and the aerobatic biplane go around ("terrain under the
+  approach": below 15 m more than 400 m out — the approach sinks under the
+  slope) or give up on final, WITH THEIR FULL TANKS and drawn tails. The
+  Caravan-alike at 400 L completes (lands at 1.12 Vs); at 1000 L (1826 kg,
+  SM 0.20, not a CG matter; three times the skin drag changes nothing) it
+  goes low. A card's tankage is its DESIGN (the gauge needs it) and the gate
+  flies it full — the seats have `pilots` for exactly this ("LOADING, not
+  capacity"), the fuel has genSpecAtFuel and no loading row. RULING OWED: a
+  gate loading for the fuel (half tanks, as a circuit is flown) vs the
+  pilot's approach on a heavy clean aeroplane (the pilot track's P1).
+  (2) GATE PILOTMATRIX: 7 cells regressed to WARN against pilot_baseline.json
+  — c172 touchdown sink 0.95 -> 2.0 m/s (calm) and 1.05 -> 2.16 (x2); cub x2
+  roll-out swing 2.9 -> 9.6 deg (the J-3 wing at 3 deg lifts the wheels
+  light on a three-point roll-out); cub up4. No cell went bad. RULING OWED:
+  re-bless with this table, or the pilot's flare and roll-out steer first.
+  (3) GATE SEAPLANE: the float card's crosswind run swings 35.8 deg (bound
+  30) with the run attitude; scoped back to 0.02 it never leaves the water
+  (778 m off the lane) — the float card's mass and drag moved (G429/G430)
+  and the water arc owns the re-tune.
+- NOT COMMITTED: nothing of this is landed; the tree carries chantiers 0-3
+  together (the plan's file list; `git status` shows them beside the peers'
+  edits). Land per docs/SHARED-TREE-PRACTICES.md once the rulings above are
+  taken — the built outputs (flight_core.js, index.html, dev.html) with the
+  sources, ENERGYBASE's baseline, the two re-frozen fixtures and the v9
+  fixture with them.

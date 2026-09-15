@@ -204,3 +204,59 @@ datum, to be checked — the pilot session's).
 4. THE UNSTICK (4.3) — the pilot's and the polar's, after 3.
 5. High-lift devices for the STOL cards.
 6. The landing: the approach speed and the brake law (4.6), and the landing record's datum.
+
+## 6. THE CHANTIERS LANDED (2026-09-15, G428-G431) — the table re-measured
+
+Four chantiers in the plan's order: the instrument and the cards (G428), the
+mass model (G429), the drag build-up (G430), the unstick (G431). Every
+"ours" below is the JOINED spec — the card as the game flies it
+(tools/_bake_joined.js: the join's measured cabin, seats, profile, gear and
+tail over the birth spec; §2 flew the birth spec on GEN_DEFAULT's Cub cabin)
+— loaded to MTOW at its own CG through the G121 door (§2 had the cargo
+clamp at 400 kg). `node tools/perf_study.js`; `--birth` for §2's road.
+
+| card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| cub | Piper J-3C-65 Cub | 354 / 345 (3 %) | 486 / 550 | 16.4 / 16.6 (-2 %) | 0.23 / 0.22 | 65 / 61 (7 %) | 126 / 120 (5 %) | 145 / 140 (4 %) | 2.4 / 2.3 (5 %) | 9.4 / 9.5 (-1 %) | 0.78 / 0.75 (4 %) | 122 / 113 (8 %) | 185 / — (—) |
+| pietenpol | Pietenpol Air Camper (A-65) | 339 / 280 (21 %) | 482 / 482 | 12.9 / 13.5 (-5 %) | 0.26 / 0.26 | 68 / 56 (22 %) | 143 / 120 (19 %) | 162 / 137 (18 %) | 3.2 / 2.5 (30 %) | 9.2 / 8.0 (15 %) | 0.58 / — (—) | 131 / 120 (9 %) | 195 / — (—) |
+| tigermoth | DH.82 Tiger Moth (Gipsy Major 130 hp) | 574 / 506 (13 %) | 736 / 828 | 23.7 / 22.2 (7 %) | 0.24 | 69 / 72 (-4 %) | 146 / 145 (1 %) | 170 / 175 (-3 %) | 3.0 / 3.2 (-7 %) | 8.7 / 8.0 (8 %) | 0.96 / — (—) | 144 / 150 (-4 %) | 209 / — (—) |
+| stearman | Boeing-Stearman PT-17 (R-670 220 hp) | 894 / 878 (2 %) | 1139 / 1232 | 28.8 / 27.6 (4 %) | 0.27 | 77 / 87 (-11 %) | 158 / 170 (-7 %) | 183 / 200 (-9 %) | 3.7 / 4.3 (-14 %) | 7.9 / 7.5 (6 %) | 1.34 / — (—) | 150 / 180 (-17 %) | 217 / — (—) |
+| jodel | Jodel D.119 (O-200) | 348 / 360 (-3 %) | 495 / 650 | 12.3 / 12.7 (-3 %) | 0.25 / 0.25 | 84 / 68 (24 %) | 182 / 175 (4 %) | 203 / 200 (2 %) | 4.4 / 3.5 (26 %) | 11.4 / 11.0 (3 %) | 0.46 / 0.45 (2 %) | 154 / 200 (-23 %) | 218 / — (—) |
+| c172 | Cessna 172R (IO-360-L2A 160 hp) | 640 / 736 (-13 %) | 904 / 1111 | 16.3 / 16.2 (0 %) | 0.22 / 0.21 | 95 / 87 (9 %) | 203 / 218 (-7 %) | 230 / 230 (0 %) | 4.0 / 3.7 (7 %) | 11.0 / 9.0 (22 %) | 0.56 / 0.47 (19 %) | 222 / 288 (-23 %) | 311 / — (—) |
+| caravan | Cessna 208 Caravan (PT6A-114A 675 shp) | 1179 / 2145 (-45 %) | 2099 / 3629 | 23.1 / 26.0 (-11 %) | 0.24 | 143 / 144 (-1 %) | 282 / 324 (-13 %) | 308 / 340 (-9 %) | 5.6 / 5.0 (13 %) | 12.3 / 11.0 (11 %) | 0.70 / 0.57 (22 %) | 470 / 354 (33 %) | 646 / — (—) |
+| rv | Van's RV-7 (IO-360 180 hp) | 484 / 500 (-3 %) | 699 / 816 | 12.4 / 11.2 (11 %) | 0.30 | 93 / 93 (-0 %) | 240 / 310 (-23 %) | 263 / 340 (-23 %) | 7.3 / 8.0 (-8 %) | 12.5 / 11.0 (14 %) | 0.38 / 0.20 (90 %) | 188 / 150 (25 %) | 257 / — (—) |
+| savannah | ICP Savannah S (Rotax 912 100 hp) | 370 / 300 (23 %) | 509 / 600 | 13.3 / 13.0 (3 %) | 0.24 | 77 / 52 (47 %) | 144 / 160 (-10 %) | 166 / 190 (-13 %) | 2.7 / 5.0 (-45 %) | 8.7 / 9.0 (-3 %) | 0.63 / — (—) | 172 / 60 (187 %) | 246 / — (—) |
+| mw5 | Whittaker MW5 Sorcerer (Rotax 503) | 213 / 160 (33 %) | 308 / 308 | 13.6 / 12.1 (13 %) | 0.34 | 55 / 48 (14 %) | 100 / 90 (12 %) | 116 / 105 (10 %) | 3.2 / 3.0 (5 %) | 6.7 / 8.0 (-16 %) | 1.17 / — (—) | 67 / 80 (-16 %) | 103 / — (—) |
+| da62 | Diamond DA62 (2 x AE330 180 hp) (engine differs) | 973 / 1600 (-39 %) | 1324 / 2300 | 17.8 / 17.1 (4 %) | 0.21 | 129 / 143 (-10 %) | 237 / 315 (-25 %) | 264 / 350 (-25 %) | 4.2 / 5.2 (-18 %) | 12.1 / 12.0 (1 %) | 0.68 / — (—) | 425 / 500 (-15 %) | 582 / — (—) |
+| beaver | DHC-2 Beaver (R-985 450 hp) | 1115 / 1361 (-18 %) | 1494 / 2313 | 23.2 / 23.2 (0 %) | 0.24 | 115 / 111 (3 %) | 238 / 222 (7 %) | 267 / 260 (3 %) | 5.2 / 5.2 (-0 %) | 11.0 / 9.0 (22 %) | 0.90 / 0.80 (12 %) | 444 / 170 (161 %) | 628 / — (—) |
+
+Mean signed error over the eleven engine-matched cards (§2's eight in
+brackets): empty +1 % (−21), V75 −1 % (−10), Vmax −2 % (−9), ROC +1 %
+(+36), L/D +7 % (−2), Vs +10 % (+7), TO roll +31 % (+50), CdS +25 % (new),
+S +2 % (−1), T0 +2 % (0).
+
+Flown (the pilot, at MTOW): cub TO run 162 m (§4.6: 291; real 113), climb
+2.1 / 2.3, cruise 117 km/h at 0.75 (real 120), landing 197 (239; real 88);
+jodel 198 / 200, climb 3.9 / 3.5, landing 296; c172 391 / 288, climb 2.9 /
+3.7; rv 295 / 150, climb 5.7 / 8.0. The Cub-alike unsticks at 1.16 Vs (was
+1.38), the 172-alike at 1.16 (was 1.27 — and 1.36 nose-down on the drawn
+trike gear before its stance was set).
+
+What each chantier moved is in HANDOVER G428-G431. WHAT IS LEFT, ranked:
+1. The RV-alike's wing row (V75 240 / 310; CdS 0.38 / 0.20): genPolar's
+   `0.0055 + 0.018 t + matCd0` reads 0.0089 on a smooth alloy 2412 where
+   the section runs 0.0065-0.0070 — GEN_SURF_MATERIALS.cd0, its own
+   measurement.
+2. The build standard: an alloy ULM (Savannah +23 %, MW5 +33 %) is built
+   ~35 % lighter than a certified alloy aeroplane of its size (0.4 mm
+   skins, no fatigue life) — a row seeded by the class at birth, as
+   systems.fit is; the load test would read it too. The Caravan-alike
+   (−45 %) is the utility category's equipment (cargo floor, pod, de-ice,
+   oxygen, an interior for ten) the outfit has no rows for.
+3. The landing (the Cub-alike 197 m where the type does 88): the approach
+   at 1.42 Vs, the hold-off, the brake law — a pilot session's.
+4. The STOL cards' slats (Savannah Vs +47 %, TO +200 %): no leading-edge
+   device in the wing model.
+5. The Beaver-alike's roll (439 / 170) is a flaps-up figure against a
+   flapped POH one; the trike's squat under ballast (the joined 172-alike
+   sits 3 deg nose-down with 210 kg on its own springs).

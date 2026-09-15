@@ -68,6 +68,23 @@
 // because the members themselves (`lin`) are still a truss standing in for a
 // stringer field. That is the next lever and it is deliberately not pulled
 // here -- one change, one measurement.
+//
+// THE GAUGE (PERF STUDY chantier 1, 2026-09-15). The lever above, pulled,
+// and it is not a fourth areal density: the perf study (G396.5) measured
+// the fuselage at 43-47 kg on every card from the Cub to the Caravan,
+// because `lin` and `cover` are constants of the MATERIAL while a real
+// member's section is sized for the aeroplane's design load — the same
+// reasoning refMass already applies to k/c and never to the mass. So every
+// structural row is billed at its gauge: `(W0 / refGross) ^ e` per class
+// (GEN_GAUGE, Raymer's exponents), W0 the DESIGN GROSS the frame derives
+// (61_gen_frame genDesignGross: the structure at its gauge, plus every
+// seat filled, the tanks full and the baggage — a fixed point, solved).
+//   refGross     the design gross the row's lin/cover were written AT: the
+//                MTOW of the aeroplane the row was fitted on. Not refMass
+//                (an as-loaded mass, the k/c calibration's).
+//   coverGauged  whether `cover` follows the gauge: a skin that carries
+//                the load thickens with it (ply, sheet, laminate); cloth
+//                does not.
 const GEN_MATERIALS = {
   tubeFabric: {
     name: '4130 tube + fabric',
@@ -114,6 +131,19 @@ const GEN_MATERIALS = {
     // big engine simply folds the gear (measured: a 750 kg radial put the
     // aeroplane on its firewall with the gear hanging unloaded).
     refMass: 390,
+    // the lin rows are the J-3 fiche's, and a J-3 is designed for 550 kg;
+    // its cloth is cloth at any gross
+    refGross: 550, coverGauged: false,
+    // THE SKIN'S DRAG (PERF STUDY chantier 2, 2026-09-15): the equivalent
+    // flat-plate drag coefficient per square metre of WETTED body — the
+    // turbulent skin friction (0.0027-0.0030 at a light aeroplane's Reynolds
+    // numbers, Hoerner ch. 2) with the roughness, the seams and the sag of
+    // the construction on top. Doped fabric over a truss sags between its
+    // stringers and carries tapes and stitches: this row is the ONE free
+    // constant of the drag build-up, solved so the stock aeroplane's body
+    // reads what the Cub fiche calibrated (genFusCdA); the three rows below
+    // are literature and the clean cards check them.
+    cdWet: 0.0125,
     // `price` is credits per kg of finished structure — the stock, the covering
     // and the labour rolled into one number. Steel tube and fabric is the cheap
     // way to build an aeroplane; that is most of why the Cub exists.
@@ -137,6 +167,8 @@ const GEN_MATERIALS = {
     k:     { fus: 4.15e5, wing: 3.15e6, gear: 1.31e5 },
     c:     { fus: 311,   wing: 1198,  gear: 2416 },
     refMass: 630,                       // the Jodel's row, and the Jodel's mass
+    refGross: 650, coverGauged: true,   // the D.119's MTOW; ply thickens with the load
+    cdWet: 0.0055,                      // painted ply: smooth, a few laps and screws
     // Dearer than steel tube despite cheaper stock: `price` is the FINISHED
     // cost with the labour in it, and a wooden airframe is thousands of hours
     // of gluing and clamping where a tube fuselage is a fortnight of welding.
@@ -184,6 +216,10 @@ const GEN_MATERIALS = {
     k:     { fus: 9.36e5, wing: 4.62e6, gear: 1.60e5 },
     c:     { fus: 585,   wing: 1888,  gear: 2606 },
     refMass: 998,
+    // the 172R's MTOW: the k/c came off the C172 fiche and the 15 % residual
+    // above was measured at that size; sheet and stringers follow the load
+    refGross: 1111, coverGauged: true,
+    cdWet: 0.0050,                      // sheet: flush and mixed rivets, laps, oil-canning
     price: 78,                          // jigs, rivets, and a skilled hand
     cd0: 0.0012, clmaxK: 1.02,          // flush rivets, but laps and oil-canning
   },
@@ -216,6 +252,8 @@ const GEN_MATERIALS = {
     k:     { fus: 1.21e6, wing: 3.60e6, gear: 1.55e5 },
     c:     { fus: 275,   wing: 900,   gear: 1866 },
     refMass: 420,                       // tuned at the size this generator builds
+    refGross: 600, coverGauged: true,   // a two-seat composite at that size; the laminate follows the load
+    cdWet: 0.0045,                      // moulded: the smoothest body on the list
     price: 165,                         // moulds, cloth, vacuum, and the hours
     cd0: 0.0004, clmaxK: 1.05,          // moulded: the best surface on the list
   },
@@ -268,13 +306,23 @@ const GEN_SURF_MATERIALS = {
                  gear: GEN_MATERIALS.wood.k.gear },
             c: { fus: GEN_MATERIALS.wood.c.fus, wing: 700,
                  gear: GEN_MATERIALS.wood.c.gear },
-            cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood' },
+            cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood',
+            // the Cub's wing corroborated the row at 550 kg; the cloth stays cloth
+            refGross: 550, coverGauged: false },
   steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,
             lin: GEN_MATERIALS.tubeFabric.lin, k: GEN_MATERIALS.tubeFabric.k,
             c: GEN_MATERIALS.tubeFabric.c,
-            cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube' },
-  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal' }),
-  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite' }),
+            cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
+            refGross: 550, coverGauged: false },
+  // A WING'S SKIN IS NOT A FUSELAGE'S (PERF STUDY chantier 1, 2026-09-15):
+  // the fuselage rows' cover carries frames, doors, floors and windows in
+  // its 4.5 kg/m2; a wing panel is skin, stringers and ribs — a GA alloy
+  // wing weighs 2.5-3 kg/m2 of its wetted surface (a 172's 105 kg over 32
+  // m2 with its spars), a composite one 1.5-2. Measured with the box's webs
+  // billed as skin (GEN_RULES.boxWebK): the RV-alike's wing 173 -> ~90 kg,
+  // the 172's 180 -> ~110.
+  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal', cover: 2.6 }),
+  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6 }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -1424,6 +1472,71 @@ const GEN_OUTFIT = {
   // driver is the reach — semi-span plus tail arm — and dual controls cost a
   // second stick and a second set of pedals.
   ctlKgM: 0.62, ctlDualKg: 3.4,
+  // FURNISHING (PERF STUDY chantier 1, 2026-09-15): what a cabin is lined
+  // with — side panels, floor, trim, headliner, soundproofing, carpet, the
+  // heater and its ducting — by the fit's tier, as a fraction of Raymer's
+  // GA furnishings equation (Aircraft Design 15.3: 0.0582 W0 - 65 lb, W0
+  // the design gross in lb; 0.0582 W0 - 29.5 in kg): nothing on a day-VFR
+  // minimum (a bare truss and a sling), half of it on a basic fit, all of
+  // it on an IFR aeroplane. A 172 (W0 1111) gets 35 kg, a Caravan (3629)
+  // 180, a basic-fit Cub (550) 1.4. Billed in the frame's second pass, on
+  // the design gross the first pass solved (it is part of that fixed point).
+  furnK: { minimal: 0, basic: 0.5, ifr: 1.0, custom: 0.5 },
+  furnKgPerKg: 0.0582, furnKgOffset: 29.5,
+};
+
+// THE GAUGE LAW (PERF STUDY chantier 1, 2026-09-15). Per structural class,
+// the exponent of the design-gross ratio the class's mass follows:
+//   gauge_c = clamp((W0 / refGross_material) ^ e_c, lo, hi)
+// Raymer (Aircraft Design, 15.3, the GA equations): wing (Nz Wdg)^0.49,
+// horizontal tail (Nz Wdg)^0.414, main gear (Nl Wl)^0.768. The fuselage is
+// 0.30, not his 0.177: his fuselage's size sits in Sf^1.086, which our
+// lin x L and cover x area already carry, and on tube-and-fabric the load
+// must reach the members — measured against the seven engine-matched
+// cards, not argued (GATE WEIGHT). Nz is common to every class today
+// (GEN_LOAD_LIMIT) and cancels in the ratio; a category field enters as
+// (Nz / 3.8)^e when it exists. The clamp keeps a foam trainer from
+// vanishing and a Twin Wasp from building itself of bridge steel.
+// THE DRAG BUILD-UP'S CONSTANTS (PERF STUDY chantier 2, 2026-09-15; read by
+// 62_gen_aero genFusCdA). Every number is a flat-plate drag AREA in m2 or
+// a factor, with where it comes from. The skin's own coefficient per m2 of
+// wetted body (cdWet) sits on the material row.
+const GEN_DRAG = {
+  cdWetDefault: 0.0125,        // a material row without cdWet reads as fabric
+  // the slab-side penalty on the crown rows: a box section runs ~10 % over
+  // a round one of the same area (Hoerner ch. 6, rectangular bodies)
+  boxK: 0.10,
+  // cooling drag per kW of heat the engine rejects at rated power
+  // (genEngineThermo.coolKW): the classic 5 % of a light aeroplane's drag
+  // for a pressure-baffled cowl (a 172's 60 kW of heat ~ 0.024 m2); a
+  // liquid-cooled installation's radiator and duct run 50 % over the
+  // baffled air-cooled figure (Hoerner ch. 9); a turbine's inlet is an
+  // engine's own affair (its momentum drag is in the thrust); a bare
+  // radial is a wall of cylinders (Hoerner: a nine-cylinder bare radial
+  // ~ 0.5 m2 on a 450 hp engine's ~170 kW of heat), a Townend ring or a
+  // NACA cowl takes two thirds of it off
+  kCool: { pressureCowl: 0.0004, liquid: 0.0006, turbine: 0.0002,
+           radialBare: 0.0030, radialRing: 0.0009 },
+  // the cylinders that stand outside the cowl: a bare finned block's Cd on
+  // its own frontal (the nacelle rule's 0.9)
+  cdBlock: 0.9,
+  // the windscreen: an open cockpit's coaming and heads (Hoerner: 0.03 m2
+  // the hole, 0.02 a seated head and shoulders), a flat screen's step
+  // (0.02, plus 0.01 for every full cabin height it stands over the cowl
+  // deck), a blown hood's fairing (0.01)
+  screen: { open: 0.030, openPerSeat: 0.020, flat: 0.020, flatStep: 0.010, bubble: 0.010 },
+  // interference per junction (Hoerner ch. 8, at these chords): a wing
+  // root 0.006 m2, a low wing without a fillet half again, a strutted high
+  // wing on its cabane less; a tail junction 0.003
+  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
+  // an exhaust stack in the wind
+  exhStack: 0.003,
+};
+
+const GEN_GAUGE = {
+  e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
+  lo: 0.6, hi: 3.0,
+  iterations: 20,        // Newton steps on the fixed point; fixed, so a double generate is byte-equal
 };
 
 // ===========================================================================
@@ -2300,6 +2413,26 @@ const GEN_RULES = {
   washSpread:  1.12,   // propwash effective radius / prop radius (Cub-fitted)
   stabWash:    0.60,   // fraction of propwash seen by the stab / fin
   finWash:     1.00,
+  // THE DESIGN GROSS'S OWN NUMBERS (PERF STUDY chantier 1, 2026-09-15):
+  // what the frame adds to the empty structure to know the load it is
+  // built for — every seat filled, the tanks full, the baggage, a freight
+  // bay at its capacity — whatever is aboard today.
+  occupantKg:  80,     // one keeper for the 80 the cabin billed per person
+  cargoKgM3:   120,    // a light aeroplane's freight bay, at its density limit (600 kg cap)
+  cargoKgMax:  600,
+  // WHEELS BY SIZE (the audit's arc 7): tyre, rim, bearings and a brake, by
+  // the wheel's radius. A 5.00-5 (R 0.18) is 2.7 kg, an 8.00-6 (0.26) 6.7,
+  // a 26" bush tyre (0.33) 12, a 4" microlight wheel (0.13) 1.2 — the
+  // exponent sits between area and volume. The stock Cub (R 0.20 / 0.10)
+  // reproduces the 3.5 / 2.0 literals it had.
+  wheelKg:     R => 3.5 * Math.pow(Math.max(0.03, R) / 0.20, 2.5),
+  wheelTwKg:   R => 2.0 * Math.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
+  // bracing section): the fraction of the cap's linear density a web, rib
+  // post or shear diagonal of the torsion-box lattice bills when the
+  // material's cover is the load-bearing skin. The stiffness is the
+  // member's own either way.
+  boxWebK:     0.30,
 };
 
 // SECTIONS (G3). The spec is organised the way the aeroplane is, and the way
@@ -2347,7 +2480,12 @@ function genCentreSkin(c) { return GEN_CENTRE_SKIN[c] == null ? 1 : GEN_CENTRE_S
 // defaults it needs are pinned in GEN_MIGRATE_CAGE_DEFAULTS and asserted
 // against cageDefaults() by GATE PARTS, because the core cannot read the
 // cage's own table.
-const GEN_SPEC_V = 9;
+// v9 -> v10 (PERF STUDY chantier 0, 2026-09-15): the construction tile
+// (cage.intCons) reaches fuselage.material through the join, so the row
+// changed HOME; GEN_MIGRATORS[9] fills an ABSENT tile from the material the
+// save was flying, so only a chosen tile moves an aeroplane. The v9 fixture
+// that proves it: build_v9_stock_2026-09-15.json (tile wood, spec tube).
+const GEN_SPEC_V = 10;
 const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 // THE PHYSICS VERSION (TAIL CHANTIER 2 P5, ruling (p)). GEN_SPEC_V says what
 // a saved FILE means; this says what the SOLVER answers — and a certificate
@@ -2368,7 +2506,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      (GEN_INSTR / GEN_ELEC / GEN_AVIONICS) — the panel, the electrics and
 //      the radios bill their own masses on the firewall ring where one
 //      lump did, so every plaque's empty weight moved by a few kilos
-const PHYSICS_V = 3;
+//   4  2026-09-15, PERF STUDY chantier 0: the construction tile reaches
+//      fuselage.material (mass, stiffness, price, the surfaces' default)
+//      and the fairing / airfoil / incidence rows ride the birth spec; a
+//      plaque whose tile and material disagreed reads a different aeroplane
+const PHYSICS_V = 4;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -2476,6 +2618,26 @@ const GEN_MIGRATORS = {
     if (+c.boomStyle === 1 && !+c.boomTwin) {
       const fu = r.fuselage || (r.fuselage = {});
       if (fu.boom == null) fu.boom = 'rod';
+    }
+    return r;
+  },
+  // 9 -> 10 (PERF STUDY chantier 0, 2026-09-15): THE CONSTRUCTION TILE
+  // REACHES THE PHYSICS. The join now writes fuselage.material from the
+  // cage's `intCons` on every join (the tile IS the declaration, the
+  // user's ruling), which changes HOME: the row used to be the spec's own,
+  // written by nothing. A save that CHOSE a tile flies it from its next
+  // load (a wood interior on a tube-and-fabric spec was the lie, not the
+  // fix). A save with NO tile - drawn before the row existed, or slimmed
+  // without it - would take the cage default (0, composite) and fly carbon:
+  // so the absent tile is filled from the material the save was flying,
+  // and nothing moves for it. The map is the tile's own order (CONS_MAP).
+  9: r => {
+    const c = r && r.cage;
+    if (!c || typeof c !== 'object') return r;
+    if (c.intCons == null) {
+      const m = r.fuselage && r.fuselage.material;
+      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3 }[m];
+      if (c.intCons == null) c.intCons = 1;
     }
     return r;
   },};
@@ -2659,6 +2821,12 @@ const GEN_DEFAULT = {
     // from, so they move the fixed edge loop; `height` and `skew` move only the
     // middle of the shell.
     canopy: {
+      // THE STYLE (PERF STUDY chantier 2, 2026-09-15): what the cage's canopy
+      // tile draws — a flat windscreen on the body's own glazing, or a blown
+      // hood — written by the join and the bake (the tile IS the
+      // declaration); the drag build-up reads it (a flat screen is a step,
+      // a bubble a faired one). The rows below it are the shell's own.
+      style: 'screen',
       // `height` is the rise above the body's own deck line: 0 means the
       // fuselage face turns to glass and nothing protrudes.
       height: 0, sill: 0.30, skew: 0.42,
@@ -3463,6 +3631,7 @@ function clampSpec(spec) {
   // and carrying it as a third shape would mean two code paths for one shell.
   if (cb.glazing === 'greenhouse') { cb.glazing = 'bubble'; cb.canopy.facet = true; }
   const cn = cb.canopy || (cb.canopy = {});
+  cn.style    = (cn.style === 'bubble') ? 'bubble' : 'screen';   // chantier 2: the drawn style
   cn.height   = genClamp(cn.height   == null ? 0    : cn.height,   0,    0.90);
   cn.width    = genClamp(cn.width    == null ? 1.0  : cn.width,    0.85, 1.60);
   cn.bubble   = genClamp(cn.bubble   == null ? 0.70 : cn.bubble,   0,    1);
@@ -4499,6 +4668,7 @@ function resolveSpec(spec) {
     put(cw, 'bot', nB, 'cowl.bot');
     S.cowl.secAt = t => secAt(t, cw.halfW, cw.top, cw.bot);
     S.cowl.tAt = x => Math.max(0, Math.min(1, (0 - x) / len));
+    S.cowl.len = len;                   // chantier 2: the drag build-up wets it
     // What the cowl covers, reported rather than enforced: a cowl is not obliged
     // to enclose its engine (a Cub's cylinders stick out), but the player should
     // be told which it is instead of finding out by looking at a collapsed nose.

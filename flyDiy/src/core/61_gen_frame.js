@@ -26,8 +26,27 @@ function genQuadArea(P, a, b, c, d) {
 
 // One pass of the lattice. gearX/track are supplied by genFrame on the second
 // pass once the CG is known (see the gear section).
-function genLattice(S, gearX, track, kScale, gross) {
+// `gauge` (PERF STUDY chantier 1) is the second pass's { fus, wing, tail,
+// gear } — the factor every structural row is billed at (see GEN_GAUGE);
+// absent on the first pass, which is billed at 1 and MEASURED: the pass
+// returns `gauged` (the mass per class that would follow the gauge, and
+// its first moments) so genFrame can solve the design gross between the
+// two passes without a third.
+function genLattice(S, gearX, track, kScale, gross, gauge) {
   const M = GEN_MATERIALS[S.material];
+  const GG = gauge || null;
+  // the class -> gauge bucket: the fuselage's own rows; the wing's, and the
+  // truss classes that hang off it (cabane, interplane, wires); the tail's;
+  // the gear's. The engine bearer (mnt) is steel on every aeroplane at the
+  // engine's own weight (G179) and is not gauged.
+  const bucketOf = (cls, mnt) => mnt ? null
+    : (cls === 'wing' || cls === 'cabane' || cls === 'interplane' || cls === 'wire') ? 'wing'
+    : cls === 'tail' ? 'tail' : cls === 'gear' ? 'gear' : 'fus';
+  const gauged = { fus: { m: 0, x: 0, y: 0, z: 0 }, wing: { m: 0, x: 0, y: 0, z: 0 },
+                   tail: { m: 0, x: 0, y: 0, z: 0 }, gear: { m: 0, x: 0, y: 0, z: 0 } };
+  // ...and the reference gross each bucket is gauged against: the BILLING
+  // material's own (a carbon wing on a tube fuselage is gauged as carbon)
+  const gaugeRef = {};
   // THE PART'S OWN CONSTRUCTION REACHES THE STRUCTURE (G116 mass + price,
   // G117 stiffness + damping — the user: "carbon should cost", then
   // "WYSIWYG is the rule"). `wing.material` / `tail.finMaterial` /
@@ -268,7 +287,16 @@ function genLattice(S, gearX, track, kScale, gross) {
       const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
                     P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
         ? R.fusAftGauge : 1;
-      const h = 0.5 * L * row(MM.lin, cls) * aftG;
+      // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
+      // aeroplane's design gross. Pass 1 bills at 1 and records what would
+      // follow the gauge; pass 2 bills at the solved factor.
+      const bk = bucketOf(cls, mnt);
+      const g1 = bk && GG ? GG[bk] : 1;
+      const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
+      const h0 = 0.5 * L * row(MM.lin, cls) * aftG * webK, h = h0 * g1;
+      if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
+        G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
+        if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
       nodes[a].m += h; nodes[b].m += h;
       bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
     }
@@ -311,8 +339,14 @@ function genLattice(S, gearX, track, kScale, gross) {
   const cover = (area, ids) => {
     coverA += area;
     for (const i of ids) if (!coverSeen[i]) { coverSeen[i] = 1; coverIds.push(i); }
-    const m = area * MB.cover;
+    // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
+    // the bucket is the section's: the wings', the tail's, else the body's
+    const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
+    const m0 = area * MB.cover, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
+    if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
+      for (const i of ids) { G.x += p0 * P[i][0]; G.y += p0 * P[i][1]; G.z += p0 * P[i][2]; }
+      if (!gaugeRef[bk]) gaugeRef[bk] = MB.refGross || 550; }
     for (const i of ids) nodes[i].m += per;
     bill(m, m * MB.price);
   };
@@ -784,6 +818,17 @@ function genLattice(S, gearX, track, kScale, gross) {
     }
     let cFB = null, cRB = null;
     sec('bracing');
+    // THE BOX'S WEBS ARE THE SKIN (PERF STUDY chantier 1, 2026-09-15). The
+    // torsion box below is a lattice standing in for a two-spar box: its
+    // caps are spar caps and weigh as such, but its webs, rib posts and
+    // shear diagonals are, on a SKINNED wing (ply, sheet, laminate — the
+    // rows whose cover is gauged), the very skin the cover row already
+    // bills. Billed at the cap's density they doubled the RV-alike's wing
+    // (bracing 52 kg on a cantilever, a 173 kg wing against the type's
+    // 70). `web` members are billed at GEN_RULES.boxWebK of their density
+    // when the billing material is skinned; a fabric wing's drag bracing
+    // is real and stays at 1. Stiffness is untouched.
+    const WEB = { web: true };
     // G140: where the visible strut lands. Uncranked: the first interior
     // station, exactly as always. Cranked: THE CRANK — the crank station is
     // the strut station now (zCrank was inserted into zs, so it is findable
@@ -879,15 +924,15 @@ function genLattice(S, gearX, track, kScale, gross) {
           const z = zAll[i];
           cFB[i] = mkLower(cF[i], z, xFat(z));
           cRB[i] = mkLower(cR[i], z, xRat(z));
-          B(cF[i], cFB[i], 'wing'); B(cR[i], cRB[i], 'wing');
-          B(cFB[i], cRB[i], 'wing');
-          B(cF[i], cRB[i], 'wing'); B(cR[i], cFB[i], 'wing');
+          B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
+          B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
+          B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
         }
         for (let i = bs; i < zAll.length - 1; i++) {
           B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');
-          B(cFB[i], cRB[i+1], 'wing'); B(cRB[i], cFB[i+1], 'wing');
-          B(cF[i], cFB[i+1], 'wing'); B(cFB[i], cF[i+1], 'wing');
-          B(cR[i], cRB[i+1], 'wing'); B(cRB[i], cR[i+1], 'wing');
+          B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WEB);
+          B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WEB); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WEB);
+          B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WEB);
         }
         // THE STRUT IS THE LOWER CHORD (G140, measured before this pair
         // existed): the box's lower caps END at the crank, so the outer
@@ -922,15 +967,15 @@ function genLattice(S, gearX, track, kScale, gross) {
         cFB.push(mkLower(cF[i], z, xFat(z)));
         cRB.push(mkLower(cR[i], z, xRat(z)));
         // station cell: webs down from each cap, lower rib, and its diagonals
-        B(cF[i], cFB[i], 'wing'); B(cR[i], cRB[i], 'wing');
-        B(cFB[i], cRB[i], 'wing');
-        B(cF[i], cRB[i], 'wing'); B(cR[i], cFB[i], 'wing');
+        B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
+        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
+        B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
       }
       for (let i = 0; i < zs.length; i++) {
         B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');   // lower caps
-        B(cFB[i], cRB[i+1], 'wing'); B(cRB[i], cFB[i+1], 'wing');   // lower plan
-        B(cF[i], cFB[i+1], 'wing'); B(cFB[i], cF[i+1], 'wing');     // front web
-        B(cR[i], cRB[i+1], 'wing'); B(cRB[i], cR[i+1], 'wing');     // rear web
+        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WEB);   // lower plan
+        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WEB); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WEB);     // front web
+        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WEB);     // rear web
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
@@ -1772,7 +1817,8 @@ function genLattice(S, gearX, track, kScale, gross) {
   // INTERNAL: under the covering it should not be visible.
   B(GAL, F[iFwd].TL, 'gear', false, 'inner');
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
-  pt(GAL, 3.5 + mFairMain); pt(GAR, 3.5 + mFairMain);  // wheels + fairings
+  // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
+  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -1804,7 +1850,7 @@ function genLattice(S, gearX, track, kScale, gross) {
     B(TW, EL, 'gear', false, 'wire'); B(TW, ER, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, 3.0 + mFairTw);
+    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
@@ -1831,7 +1877,7 @@ function genLattice(S, gearX, track, kScale, gross) {
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
-    pt(TW, 2.0 + mFairTw);
+    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the tailwheel assembly, by size
   }
   } else {
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
@@ -2178,7 +2224,10 @@ function genLattice(S, gearX, track, kScale, gross) {
     // aeroplane's material, because a fabric-over-frame cowl on a tube
     // aeroplane is not an alloy pressing.
     let cowlM = 0;
-    if (S.cowl && S.cowl.halfW > 0) {
+    // ...and only when there IS one (PERF STUDY chantier 1): the open-frame
+    // MW5-alike billed a cowl it does not wear — `cowl.on` false is the
+    // access table's own reading of a cowl-less aeroplane
+    if (S.cowl && S.cowl.halfW > 0 && S.cowl.on !== false) {
       const cw = S.cowl.halfW, ch = (S.cowl.top || 0) + (S.cowl.bot || 0);
       // ellipse perimeter, Ramanujan's first approximation
       const a2 = cw, b2 = 0.5 * ch;
@@ -2197,8 +2246,17 @@ function genLattice(S, gearX, track, kScale, gross) {
     const reach = S.geom.semi + S.fuse.tailArm;
     const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
+    // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
+    // windows — there is no side to put them in
     const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
-      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 + 2 * cb.len * cb.h * 0.30);
+      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
+                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0));
+    // THE FURNISHING (PERF STUDY chantier 1): the lining, by the fit's tier
+    // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
+    // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
+    // same term in its fixed point); pass 1 bills nothing here
+    const furnM = (GG && GG.W0 > 0)
+      ? (O.furnK[genSystemsResolve(S).tier] || 0) * Math.max(0, O.furnKgPerKg * GG.W0 - O.furnKgOffset) : 0;
     // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
     // centre of gravity is the real one: seats and controls and glazing on
     // the cabin rings, the panel and the plumbing at the panel frame, the
@@ -2218,8 +2276,11 @@ function genLattice(S, gearX, track, kScale, gross) {
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[2].BL, F[2].BR, 0.5 * ctlM);
+    // the furnishing on the cabin floor, both rings
+    half(F[1].BL, F[1].BR, 0.5 * furnM);
+    half(F[2].BL, F[2].BR, 0.5 * furnM);
     spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                     28 * (exhM + plumbM + ctlM)));
+                     28 * (exhM + plumbM + ctlM) + 60 * furnM));
   }
   sec('paint');
   {
@@ -2283,6 +2344,9 @@ function genLattice(S, gearX, track, kScale, gross) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
+    // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
+    // and the gauge it was billed at (pass 2)
+    gauged, gaugeRef, gauge: GG,
   };
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
@@ -2301,6 +2365,61 @@ function genLatticeCG(nodes) {
   return [x/m, y/m, z/m, m];
 }
 
+// THE DESIGN GROSS (PERF STUDY chantier 1, 2026-09-15). The load the
+// structure is built for — not the load aboard today: the structure at its
+// gauge, the engines and the systems, EVERY seat filled, the tanks FULL, the
+// baggage and a freight bay at its capacity. A fixed point, because the
+// structure's own mass follows the gauge and the gauge follows the gross:
+//   W0 = Mfix + sum_c Ms_c * (W0 / Wref_c) ^ e_c
+// with Ms_c the pass-1 (gauge 1) structural mass of class c, Mfix everything
+// else. Newton, a fixed count (GEN_GAUGE.iterations) so a double generate
+// is byte-equal; the exponents are under 1 so it converges from below.
+// Returns { W0, gauge, dm, cg } — the gauge per class, the mass the second
+// pass will add over the first, and the CG the gauged lattice will have
+// (the first moments the pass recorded, so the gear is placed against the
+// mass that flies without a third pass).
+function genDesignGross(S, a, cg) {
+  const G = GEN_GAUGE, L = a.parts.ledger || {}, GD = a.parts.gauged || {};
+  let payload = 0; for (const k in L) if (L[k].payload) payload += L[k].mass;
+  let Ms = 0; for (const c in GD) Ms += GD[c].m;
+  // the capacities
+  const seats = Math.max(1, S.seats || 1);
+  const F = genEnergyResolve(S);
+  // a spec scaled to a fill (genSpecAtFuel) carries its design capacity in
+  // fuel.designL, so the reserve sheet, the dry case and the fill slider
+  // build the same tube as the full one; a pack's cells are empty weight
+  const litresD = (S.fuel && S.fuel.designL > 0) ? S.fuel.designL : ((S.fuel && S.fuel.litres) || 0);
+  const fuelFull = F.battery ? 0 : litresD * ((GEN_FUELS[F.medium] || GEN_FUELS.avgas100LL).kgL);
+  const fu = S.fuse || {}, cb = S.cab || {};
+  const freight = fu.cargoLen > 1e-6
+    ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
+  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
+  const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
+  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, Math.pow(W / ref(c), G.e[c])));
+  // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
+  // and belongs to the same fixed point
+  const O = GEN_OUTFIT, fK = (O.furnK && O.furnK[genSystemsResolve(S).tier]) || 0;
+  const furnOf = W => fK * Math.max(0, O.furnKgPerKg * W - O.furnKgOffset);
+  let W = Mfix + Ms;
+  for (let i = 0; i < G.iterations; i++) {
+    let f = Mfix + furnOf(W) - W, df = -1 + (furnOf(W) > 0 ? fK * O.furnKgPerKg : 0);
+    for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
+      f += GD[c].m * g;
+      const raw = Math.pow(W / ref(c), G.e[c]);
+      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
+    W = Math.max(Mfix, W - f / df);
+  }
+  const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
+  for (const c in GD) { gauge[c] = GD[c].m > 0 ? gOf(c, W) : 1; dm[c] = GD[c].m * (gauge[c] - 1);
+    mAdd += dm[c]; xAdd += GD[c].x * (gauge[c] - 1); yAdd += GD[c].y * (gauge[c] - 1); zAdd += GD[c].z * (gauge[c] - 1); }
+  // (the furnishing lands on the cabin rings; its moment is taken as the
+  // pass-1 CG's — a few kilos at the cabin, which is where the CG is)
+  const m2 = cg[3] + mAdd;
+  return { W0: W, gauge, dm, mAdd,
+           cg: [(cg[0] * cg[3] + xAdd + cg[0] * furnOf(W)) / m2, (cg[1] * cg[3] + yAdd + cg[1] * furnOf(W)) / m2,
+                (cg[2] * cg[3] + zAdd + cg[2] * furnOf(W)) / m2, m2] };
+}
+
 // Two fixed passes: the first sizes the aeroplane, the second places the main
 // gear against the CG it produced. Fixed count, so generation stays
 // deterministic (GATE GEN byte-compares a double-generate).
@@ -2308,7 +2427,13 @@ function genFrame(S) {
   const R = GEN_RULES, D = Math.PI / 180;
   const M = GEN_MATERIALS[S.material];
   const a = genLattice(S, S.gear.x, S.gear.track);
-  const cg = genLatticeCG(a.nodes);
+  const cg1 = genLatticeCG(a.nodes);
+  // THE GAUGE (PERF STUDY chantier 1): the design gross solved on the first
+  // pass's measurement, the second pass billed at it; the CG below is the
+  // one the gauged lattice will have, so the gear is placed against the
+  // mass that flies. (The float placement further down reads it too.)
+  const DG = genDesignGross(S, a, cg1);
+  const cg = DG.cg;
   // structure sized for the mass the first pass produced. Sub-linear: a bigger
   // aeroplane is not stiffer in proportion, and clamped so a foam trainer does
   // not end up with rubber tube nor a radial with an unbreakable one.
@@ -2363,7 +2488,8 @@ function genFrame(S) {
              + S.place.gearDx;
   const tr = Math.max(0.5, (S.gear.track !== null && S.gear.track !== undefined
     ? S.gear.track : R.trackRatio * (cg[1] - (gy - S.gear.contactR))) + S.place.gearDtrack);
-  const out = genLattice(S, gx, tr, kScale, cg[3]);   // H1: the gross mass sizes the floats
+  const out = genLattice(S, gx, tr, kScale, cg[3], DG.gauge);   // H1: the gross mass sizes the floats
   out.cg0 = genLatticeCG(out.nodes);
+  out.parts.designGross = DG.W0;                    // the plaque's and GATE WEIGHT's
   return out;
 }

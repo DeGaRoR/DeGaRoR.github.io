@@ -72,7 +72,7 @@ const POWERPLANTS = {
     price: 65000,
     // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
     // -92's 4 900 ft low-blower critical altitude
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', rpm: 2700, gear: 1.78 },
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2700, gear: 1.78 },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
@@ -154,17 +154,17 @@ const POWERPLANTS = {
   // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
   r985_hs2b20: {
     price: 48000,
-    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', rpm: 2300 },
+    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2300 },
     prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
   },
   verner7u_wood: {
     price: 22000,
-    engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2400 },
+    engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2400 },
     prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
   },
   rotec3600_std: {
     price: 30000,
-    engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3600, gear: 2 },
+    engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 3600, gear: 2 },
     prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
   },
   // THE AMATEUR IN-LINES (G165, the other half of the user's "more radial
@@ -260,26 +260,26 @@ const POWERPLANTS = {
   // THE CLASSIC RADIALS: 150 -> 220 -> 300 -> 360 -> 450 -> 600 hp
   w670_hs2b: {
     price: 36000,
-    engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2075 },
+    engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2075 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 3352, kV2: 0.3684 },
   },
   r755_hs2b: {
     price: 41000,
-    engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2200 },
+    engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2200 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 4127, kV2: 0.3684 },
   },
   // the aerobatic radial of today (Yak-52, Sukhoi): supercharged, and
   // nearly ground-boosted — rated to 500 m
   m14p_v530: {
     price: 43000,
-    engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air', rpm: 2900, gear: 1.52 },
+    engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2900, gear: 1.52 },
     prop:   { name: '2-blade alloy 2.40 m', D: 2.40, Tstatic: 4421, kV2: 0.3163 },
   },
   // the Wasp (Harvard, Otter, Ag Cat): ground-boosted — 600 hp at the
   // strip, 550 at 5 000 ft, so its ceiling is nearly the NA law
   r1340_hs12d40: {
     price: 52000,
-    engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air', rpm: 2250 },
+    engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air', layout: 'radial', rpm: 2250 },
     prop:   { name: '2-blade alloy 2.74 m', D: 2.74, Tstatic: 6792, kV2: 0.4123 },
   },
   // the two-stroke's 50 hp rung (mass with its gearbox, the 582's convention)
@@ -425,6 +425,10 @@ const GEN_ENG_THERMO = {
   turbine:  { sfcKgKWh: 0.35, eta: null, cool: { air: 0.05, liquid: 0.05 } },
 };
 
+// `layout: 'radial'` (PERF STUDY chantier 2, 2026-09-15) on the radial rows:
+// the drag build-up's cooling term reads it (a bare radial is a wall of
+// cylinders; a Townend ring or a NACA cowl takes two thirds of that off) and
+// the exhaust count (a collector ring's stubs). Additive; no other reader.
 // The thermo sheet for one engine dict ({powerW, family, cooling, ...}).
 // Legacy dicts predate the fields: an electric aspiration says 'electric',
 // and every pre-G134 piston row without a declaration was a four-stroke on

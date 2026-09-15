@@ -372,6 +372,10 @@ function cageJoinSpec(P, M, T) {
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed
   if (P.glazeOn != null && !+P.glazeOn) cabin.glazing = 'none';
+  // PERF STUDY chantier 2 (2026-09-15): THE CANOPY'S STYLE reaches the drag
+  // build-up — a flat windscreen is a step in the flow, a blown hood a
+  // faired one (genFusCdA). The tile's own reading (canopy 3 = bubble).
+  if (P.canopy != null) cabin.canopy = { style: Math.round(+P.canopy) === 3 ? 'bubble' : 'screen' };
   if (M.halfW > 0) cabin.halfW = M.halfW;
   if (M.cabH > 0) cabin.h = M.cabH;
   if (M.seating) cabin.seating = M.seating;
@@ -419,6 +423,23 @@ function cageJoinSpec(P, M, T) {
   // pricing a faired pod — a naked aeroplane that flew covered. The G121.1
   // rule: the drawn state IS the declaration. Absent = 'skin', the default.
   if (!(P.skinOn == null || +P.skinOn)) fus.covering = 'open';
+  // PERF STUDY chantier 0 (2026-09-15, the user's ruling): THE CONSTRUCTION
+  // TILE REACHES THE PHYSICS. `intCons` had drawn the interior since G104
+  // (consOf: carbon / tube / wood / metal) while spec.fuselage.material -
+  // the single biggest physics row: every member's linear density, the
+  // cover mass, k/c and refMass, the price, the wing's default surface -
+  // was written by NOTHING (the 2026-09-01 audit's headline). An aluminium
+  // aeroplane flew tube-and-fabric. Written on every join, the same G121.1
+  // rule as the covering: the tile IS the declaration, and a save whose
+  // tile and material disagree flies the tile from its next load. The
+  // order is the tile's own (CONS_MAP in _cage_ui.js), NOT the wing's
+  // 1..4 vocabulary above. A P WITHOUT the key (a headless caller, a save
+  // the 9 -> 10 migrator has not seen) says nothing - the spec keeps the
+  // material it has; the cage default is 0 (composite) and would have
+  // put every such build on carbon.
+  if (P.intCons != null)
+    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy'][
+      Math.max(0, Math.min(3, Math.round(+P.intCons || 0)))];
   // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
   // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
   // lattice it flies is not the tube it draws. Written on every join: the
