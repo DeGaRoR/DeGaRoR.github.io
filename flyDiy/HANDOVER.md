@@ -49866,3 +49866,95 @@ rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
 - OWED to the sky/cloud sessions: the same class of miss could hide in any
   material that sets `defines` or `customProgramCacheKey` by hand; the
   accessor covers the hook path only.
+
+## G433 — THE OBSTACLES: EVERYTHING ON THE GROUND IS SOLID, TO A CELL (2026-09-15, the user: "hitbox for static car props (you can audit hitboxes for everything by the way, and IDK if we need to do optimisation on these). No more than 1 meter discrepancy with the visual mesh. No hitbox for automated cars yet, except if you tell me it's neutral in terms of performance")
+
+- THE AUDIT, BEFORE. The solver collided with ONE thing: trees (30_solver.js,
+  a cylinder R = 0.7 s + 0.12, height h + 4.6 s, treesNear's 64 m bins). The
+  parked aeroplanes carried named boxes by identity (G411, parked.js) that
+  NOTHING read. Houses, big buildings, towers, the mill, the tram station,
+  every prop, every car, every boat, the settlements' own buildings on the
+  analytic world, fences, billboards: pictures the aeroplane flew through.
+- ONE SHAPE FOR EVERYTHING: `src/core/29_obstacles.js` (pure, in the core and
+  the node exports). A COLUMN GRID in the object's own yaw frame: a cell of
+  0.5 m (props, cars, boats, parked aeroplanes, billboards) or 1 m (houses,
+  outbuildings, site items) holds the LOWEST and the HIGHEST surface point
+  over it — a deck on posts keeps the air under it free, a car's roof is its
+  height — plus a 2-D signed distance to the footprint's edge (a 3-4 chamfer
+  transform) for the push direction. `rasterise(pos, idx, cell)` samples every
+  triangle on a barycentric lattice at half a cell; `box(L, W, H, cell)` is the
+  same shape for a plain box. `penetration(rec, px, py, pz, out)` answers a
+  point with the shortest way out — up from a roof, sideways along the
+  distance field's gradient from a wall, down only from under something that
+  stands clear of the ground (never into the ground under a grounded box).
+  The REGISTRY (`OBSTACLES.make()`, `W.obstacles` on every world): 64 m bins,
+  add / remove / move (re-bins when a thing crosses a line) / near / maxTop.
+- THE SOLVER (30_solver.js): `obstFrame()` once a FRAME reads the bins round
+  the CG and keeps the shapes whose reach covers the aeroplane (xr + 15 m,
+  the top + 15 m) — nothing when higher than the tallest thing registered;
+  each substep pushes every node inside a shape out along its penetration
+  with the trees' own spring and damper (KTn / CTn, the damping only on the
+  velocity INTO the thing); `out.obst` counts the nodes in contact.
+- WHO REGISTERS. The analytic world's settlement buildings at makeWorld
+  (20_world.js: boxes w x l x hgt at 1 m, one shape per size class, 129 on
+  the analytic world). The GAME's premises renderer (render_premises.js)
+  registers what it stands from the very meshes it draws — `shapeOf(grp)`
+  walks the group (a LOD's full level only; smoke, skirts, glows and anything
+  flatter than 15 cm left out; the frame the group's world yaw and position):
+  the house with its deck, its people and its yard props (1 m), the
+  outbuilding, the site items (the mill, the towers, the hangar shells), the
+  plot's cars and boats, the hand-placed props, billboards and parked
+  aeroplanes (0.5 m) — and takes them down with the group (hitDrop in
+  syncHouses; dispose clears all). A prop whose bytes are still on the wire
+  (props.js propPending) or a parked holder not yet filled is QUEUED and
+  registered by the first tick that finds its full level standing
+  (PENDING_HIT / hitPendingStep). The bench registers nothing.
+- THE TRAFFIC HAS HITBOXES (TRAFFIC_HITBOX = true): a shape per car at
+  creation, `R.move(id, x, z, yaw, y)` every tick beside the group. Measured
+  in the game (headless, Skarvik, 9 cars): R.tick x300 = 14.2 ms without,
+  15.4-17.2 ms with — 4-10 microseconds a tick. NEUTRAL, so it is on.
+- THE 1 m RULE, PROVED: GATE OBSTACLE (`tools/_obstacle_check.js`, core
+  tier) rasterises every baked prop of the pier packs (93) from its own
+  decoded geometry at 0.5 m and asserts: every vertex of the mesh lies in an
+  occupied column between that column's lo and hi (worst miss 0.0000 m), and
+  no occupied column reaches more than a cell outside the mesh's own box
+  (worst 0.000 m). Houses at 1 m cells are bounded the same way by
+  construction (the grid is the mesh's own footprint, a cell round). The
+  gate also rolls the stock aeroplane at full throttle down HOME's strip into
+  an 8 x 30 x 5 m wall stood across its measured track at 70 m: with no wall
+  it rolls 85 m through the place; against it the nose stops at 70.2 m (the
+  near face), the CG at 61 m, at rest under a third of throttle; and the
+  registry's bins, move, remove and maxTop.
+- IN THE GAME (headless Skarvik, one boot): 115 shapes registered — 43
+  houses, 4 outbuildings, 12 items, 39 cars, 8 boats, 9 traffic — plus the
+  129 settlement boxes = 244 in the world. The aeroplane dropped 1.2 m above
+  a parked car: 17 nodes in contact at the most, it landed on the roof and
+  slid off to the ground beside it, finite. The solver's frame near the yards
+  costs 9-20 % more in headless Chrome (a 10x-slow CPU; 24 substeps x ~100
+  nodes x ~10 shapes) — under 0.2 ms real; nothing when nothing is near.
+- NOT REGISTERED, BY CHOICE: fences (1.4 m pickets, thin — the aeroplane
+  would stop on a fence at taxi; a ruling for the user), the tram's cabins and
+  ropes, the runway furniture (windsock, PAPI), the shed at HOME (the
+  aeroplane must taxi out of it), trees (their own cylinders). The parked
+  aeroplanes' named boxes stay for whoever wants identity (which part was
+  hit); the grid is what stops you.
+- THE WORLD EDITOR'S SAVE, FOR THE RECORD (the user: "how does the world
+  editor save what has been configured? Can we also have a JSON export?"):
+  it has both since v9 — every edit autosaves a second later to localStorage
+  (`flydiy.premises.game` in the game = the world at the next boot;
+  `flydiy.premises.wip` on the bench); FILE > `save (Ctrl+S)` writes a named
+  slot (`flydiy.premises.slot.<name>`, `load slot` lists them); FILE >
+  `export json` downloads the ENVELOPE (`{what:'flydiy-premises', v, name,
+  premises, plaque, log}`) as `<name>.json`; FILE > `import` takes a pasted
+  envelope or a bare record. An official world premises is that envelope
+  committed under tools/fixtures/ (Skarvik: premises_v1_official.json, its
+  `rev` bumped so a saved WIP of an older rev yields at boot).
+- TRAPS: a prop group is EMPTY at placement (the bin is fetched) — register
+  on the tick that finds it, never at place; a LOD's levels are groups of
+  groups (walk, do not traverse); the codec wants a typed-array VIEW with a
+  buffer (`new Uint8Array(buf)`), a bare ArrayBuffer throws in decodePropPart;
+  `Object.assign({}, W0, {...})` is how a gate gives the world its own
+  registry without touching the shared one.
+- OWED: the identity of what was hit (the parked boxes' vocabulary, for a
+  damage model); a debug view of the grids (F8); fences and the shed at the
+  user's ruling; the traffic yielding to a taxiing aeroplane.

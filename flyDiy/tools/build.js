@@ -63,6 +63,10 @@ const MANIFEST = {
     // quadtree as the ground, the cover grid as the classifier, the canopy
     // grid as the trees' height. makeWorld(seed, { island }) takes it; pure.
     '28_island.js',
+    // THE OBSTACLES (G433): the solid things on the ground as column grids - the
+    // world's registry (20_ makes it), the solver's push-out (30_), the viewer
+    // stands and takes down the shapes; pure.
+    '29_obstacles.js',
     '30_solver.js',
     // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
     // cockpit and the gates; after the solver only by kinship

@@ -284,6 +284,11 @@ const GATES = [
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
   // on the same ground, the material dupe, the island's parked objects (~2 s)
   { id: 'PARKED', file: '_parked_check.js', tier: 'core' },
+  // THE OBSTACLES (G433): the column grids the solver pushes out of - the
+  // shape and the push, the registry's bins, the discrepancy of every baked
+  // prop's shape against its own mesh (a cell, 0.5 m), an aeroplane rolled at
+  // a wall stops against it, the analytic world's settlements registered (~40 s)
+  { id: 'OBSTACLE', file: '_obstacle_check.js', tier: 'core' },
   // THE FLOAT IN WATER (G370): the H0 spike, headless — Archimedes against
   // the analytic sections and a Monte-Carlo volume, omega*dt / c*dt of the
   // water terms against the fleet's envelope, the hump on three tows, the

@@ -446,6 +446,17 @@ function makeWorld(seed, opts) {
       grid.get(key).push(idx);
     }
   }
+  const obstacles = (typeof OBSTACLES !== 'undefined') ? OBSTACLES.make() : null;
+  if (obstacles && SET && SET.buildings) {
+    // the analytic world's settlement boxes (23_world_settle.js): w along the row, l across it,
+    // stood on the ground at their centre; a box shape per size class, shared
+    const shapes = new Map();
+    for (const b of SET.buildings) {
+      const k = b.w.toFixed(1) + 'x' + b.l.toFixed(1) + 'x' + b.hgt.toFixed(1);
+      let sh = shapes.get(k); if (!sh) { sh = OBSTACLES.box(b.l, b.w, b.hgt, 1.0); shapes.set(k, sh); }
+      obstacles.add({ x: b.x, z: b.z, yaw: b.rot, y0: terrainH(b.x, b.z), shape: sh, tag: 'settle' });
+    }
+  }
   function treesNear(x, z, out) {
     out.length = 0;
     const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
@@ -707,6 +718,10 @@ function makeWorld(seed, opts) {
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
+    // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
+    // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
+    // it stands (houses, props, cars, parked aeroplanes) and moves the traffic
+    obstacles,
     // informative stage-3 block (not contract surface): road/building
     // records and queries for gates, renderer and debug.
     roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, bakeMs: SET.stats.bakeMs },

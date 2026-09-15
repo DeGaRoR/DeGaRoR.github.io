@@ -328,7 +328,22 @@ function makeSim(def, world) {
       v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
     }
   }
-  const _treeScratch = [];
+  const _treeScratch = [], _obstScratch = [], _obstRecs = [], _pen = [0, 0, 0];
+  // the obstacles this frame can touch (G433): the registry's bins round the CG, kept to the shapes
+  // whose reach covers the aeroplane's own (a node is never 15 m from the CG) - read once a FRAME,
+  // not a substep, and only when low enough for the tallest of them
+  function obstFrame() {
+    _obstRecs.length = 0;
+    if (!world || !world.obstacles || !world.obstacles.count || p[1] >= world.obstacles.maxTop + 3) return;
+    const OB = world.obstacles, near = OB.near(p[0], p[2], _obstScratch);
+    for (const id of near) {
+      const r = OB.get(id); if (!r) continue;
+      const dx = r.x - p[0], dz = r.z - p[2], reach = r.shape.xr + 15;
+      if (dx * dx + dz * dz > reach * reach) continue;
+      if (p[1] > r.y0 + r.shape.top + 15) continue;
+      _obstRecs.push(r);
+    }
+  }
   // G194: `eng` is null (every engine running, full lever — bit-identical to
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
   // that the pilots never read or write: the player's levers over the
@@ -1296,6 +1311,25 @@ function makeSim(def, world) {
         }
       }
     }
+    // THE OBSTACLES (G433): every solid thing the world registered (29_obstacles.js - houses, props,
+    // cars, the parked aeroplanes, the settlements' boxes, the traffic), a column grid each; a node
+    // inside one is pushed out along the shortest way (up, or sideways along the footprint's distance
+    // field) by the trees' own spring and damper. Only when low enough to reach the tallest of them.
+    out.obst = 0;
+    if (_obstRecs.length) {
+      for (let i = 0; i < n; i++) {
+        const i3 = i*3;
+        for (const r of _obstRecs) {
+          if (!OBSTACLES.penetration(r, p[i3], p[i3+1], p[i3+2], _pen)) continue;
+          const px = _pen[0], py = _pen[1], pz = _pen[2], L = Math.hypot(px, py, pz) || 1e-6;
+          const nx = px / L, ny = py / L, nz = pz / L;
+          const vn = v[i3]*nx + v[i3+1]*ny + v[i3+2]*nz;               // the velocity into the thing, damped; the rest kept
+          const fk = KTn[i] * L - (vn < 0 ? CTn[i] * vn : 0);
+          f[i3] += fk*nx; f[i3+1] += fk*ny; f[i3+2] += fk*nz;
+          out.obst++;
+        }
+      }
+    }
     if (out.trq) out.trqTotal = trqOf();
     // integrate; damp only deformation (velocity relative to rigid mean)
     let vmx=0, vmy=0, vmz=0;
@@ -1329,6 +1363,7 @@ function makeSim(def, world) {
       const gH = world.terrainH;
       for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
     }
+    obstFrame();
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }

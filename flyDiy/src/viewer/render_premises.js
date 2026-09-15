@@ -500,7 +500,7 @@ function make(THREE, scene, world, rec0, opts) {
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
     if (pp) for (const rd of O.roads) if (rd.traffic > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
-    for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) G.traffic.remove(c.grp); TRAFFIC.delete(id); } }
+    for (const [id, t] of TRAFFIC) { const rd = want.get(id); if (!rd || trafficKey(rd) !== t.key) { for (const c of t.cars) { hitDrop(c.grp); G.traffic.remove(c.grp); } TRAFFIC.delete(id); } }
     const menu = trafficMenu();
     for (const [id, rd] of want) {
       if (TRAFFIC.has(id) || !menu.length) continue;
@@ -514,7 +514,9 @@ function make(THREE, scene, world, rec0, opts) {
         const dir = i % 2 ? -1 : 1, v0 = (35 + rnd() * 20) / 3.6 * (K.L > 7 ? 0.8 : 1);
         const grp = pp(THREE, key, 0, 0, 0, 0); grp.name = 'traffic:' + id + ':' + i;
         G.traffic.add(grp);
-        cars.push({ grp, key, K, s: (i + 0.5) * L / n, dir, v: v0, v0 });
+        const car = { grp, key, K, s: (i + 0.5) * L / n, dir, v: v0, v0, hit: 0 };
+        if (TRAFFIC_HITBOX) hitAdd(grp, 'traffic', 0.5, id => { car.hit = id; });
+        cars.push(car);
       }
       TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L });
       moveTraffic(TRAFFIC.get(id), 0);
@@ -535,12 +537,14 @@ function make(THREE, scene, world, rec0, opts) {
       const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
       const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
       const ry = Math.atan2(tx, tz) + (F.yaw || 0);
-      c.grp.position.set(w[0], heightAt(w[0], w[1]), w[1]);
+      const gy = heightAt(w[0], w[1]);
+      c.grp.position.set(w[0], gy, w[1]);
       tiltToGround(c.grp, heightAt, w[0], w[1], ry);
+      if (c.hit) { const R = OBS(); if (R) R.move(c.hit, w[0], w[1], ry, gy); }
     }
   }
   // the clock: the host's dt in seconds; the cabins and the traffic move
-  function tick(dt) { for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); return TRAMS.size + TRAFFIC.size; }
+  function tick(dt) { hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); return TRAMS.size + TRAFFIC.size; }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -619,6 +623,73 @@ function make(THREE, scene, world, rec0, opts) {
     return ghostObj;
   }
 
+  // ---- THE OBSTACLES (G433, the user: "hitbox for static car props ... audit hitboxes for everything
+  // ... no more than 1 meter discrepancy with the visual mesh"): everything this renderer stands in
+  // the GAME is registered with the world's registry (29_obstacles.js) as a column grid rasterised
+  // from the very meshes drawn - a house with its deck, its people and its yard props at 1 m cells,
+  // a prop, a car, a parked aeroplane at 0.5 m - and taken down with it. The bench registers nothing
+  // (its world flies nothing). The traffic's cars move theirs every tick (TRAFFIC_HITBOX; the cost is
+  // a re-bin when a car crosses a 64 m line - nothing the frame sees).
+  const TRAFFIC_HITBOX = true;
+  const OBS = () => (o.game && world && world.obstacles && typeof OBSTACLES !== 'undefined') ? world.obstacles : null;
+  const HIT_SKIP = /^(hitbox:|smoke|aoskirt)/;
+  const OBST_IDS = new Set();
+  function shapeOf(grp, cell) {
+    grp.updateMatrixWorld(true);
+    const e = grp.matrixWorld.elements, yaw = Math.atan2(e[8], e[0]), px = e[12], py = e[13], pz = e[14];
+    const inv = new THREE.Matrix4().makeRotationY(yaw).setPosition(px, py, pz).invert();
+    const pos = [], idx = [], M = new THREE.Matrix4(), v = new THREE.Vector3();
+    const walk = obj => {
+      if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; }   // the full level only
+      if (obj.isMesh && obj.geometry && obj.geometry.attributes.position && !HIT_SKIP.test(obj.name || '')) {
+        const mt = obj.material;
+        const ghost = mt && mt.transparent && (mt.opacity < 0.5 || mt.depthWrite === false);   // smoke, skirts, glows
+        if (!ghost) {
+          M.multiplyMatrices(inv, obj.matrixWorld);
+          const P = obj.geometry.attributes.position, base = pos.length / 3;
+          let y0 = Infinity, y1 = -Infinity;
+          for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y; }
+          if (y1 - y0 < 0.15) pos.length = base * 3;                                              // a flat thing (a lot patch, a slab) is the ground's
+          else { const I = obj.geometry.index; if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i); }
+        }
+      }
+      for (const c of obj.children) walk(c);
+    };
+    walk(grp);
+    if (!idx.length) return null;
+    const shape = OBSTACLES.rasterise(pos, idx, cell);
+    return shape ? { x: px, z: pz, yaw, y0: py, shape } : null;
+  }
+  // a prop's bytes may still be on the wire (props.js propPending) and a parked aeroplane's holder
+  // fills when its capture lands: a group not ready is queued and registered by the first tick that
+  // finds its full level standing; `then(id)` tells the caller (the traffic keeps the id to move it)
+  const PENDING_HIT = [];
+  function hitReady(grp) {
+    let meshes = 0, pending = false;
+    const walk = obj => { if (obj.userData && obj.userData.propPending) pending = true; if (obj.isLOD) { const l0 = obj.levels.length ? obj.levels[0].object : null; if (l0) walk(l0); return; } if (obj.isMesh) meshes++; for (const c of obj.children) walk(c); };
+    walk(grp);
+    return !pending && meshes > 0;
+  }
+  function hitAdd(grp, tag, cell, then) {
+    const R = OBS(); if (!R || !grp) return 0;
+    if (!hitReady(grp)) { PENDING_HIT.push({ grp, tag, cell: cell || 0.5, then }); return 0; }
+    try { const s = shapeOf(grp, cell || 0.5); if (!s) return 0; s.tag = tag; const id = R.add(s); (grp.userData.obst = grp.userData.obst || []).push(id); OBST_IDS.add(id); if (then) then(id); return id; }
+    catch (e) { console.warn('obstacle', tag, e && e.message); return 0; }
+  }
+  function hitPendingStep() {
+    if (!PENDING_HIT.length) return;
+    for (let i = PENDING_HIT.length - 1; i >= 0; i--) {
+      const q = PENDING_HIT[i];
+      if (!q.grp.parent) { PENDING_HIT.splice(i, 1); continue; }     // torn down before it landed
+      if (!hitReady(q.grp)) continue;
+      PENDING_HIT.splice(i, 1);
+      hitAdd(q.grp, q.tag, q.cell, q.then);
+    }
+  }
+  function hitDrop(grp) {
+    const R = OBS(); if (!R || !grp) return;
+    grp.traverse(g => { if (g.userData && g.userData.obst) { for (const id of g.userData.obst) { R.remove(id); OBST_IDS.delete(id); } g.userData.obst = null; } });
+  }
   // ---- the houses: the generator on every sown plot, two per tick, cached ---------------
   const HOUSES = new Map();     // plot id -> { seed, grp, tris }
   const queue = [];
@@ -669,6 +740,7 @@ function make(THREE, scene, world, rec0, opts) {
     const built = HG.build(house.P, 0, F);
     built.BAGS = HG.BAGS;
     const grp = placeBuilt(G.houses, house, built, F, HG);
+    hitAdd(grp, 'house', 1.0);
     const D = dressPlot(plot, house, built, V, Tv);
     return { grp, tris: built.stats.tris + D.tris, house, built, extra: D.groups, lights: litOf(built) + D.lights };
   }
@@ -740,7 +812,8 @@ function make(THREE, scene, world, rec0, opts) {
       try {
         const F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2);
         const b2 = HG.build(plot.out.P, 0, F2); b2.BAGS = HG.BAGS; plot.out.built = b2;
-        out.groups.push(placeBuilt(G.houses, plot.out, b2, F2, HG)); out.tris += b2.stats.tris; out.lights += litOf(b2);
+        const og = placeBuilt(G.houses, plot.out, b2, F2, HG); hitAdd(og, 'outbuilding', 1.0);
+        out.groups.push(og); out.tris += b2.stats.tris; out.lights += litOf(b2);
       } catch (e) { console.warn('premises outbuilding', plot.id, e && e.message); plot.out = null; }
     }
     // the car and the boat on the ground, tilted to it; the occluders the lot patch reads
@@ -755,6 +828,7 @@ function make(THREE, scene, world, rec0, opts) {
     const lotCars = plot.lot && plot.lot.cars ? plot.lot.cars : [];
     for (const c of [plot.car, plot.boat].concat(lotCars)) if (c && pp && PR && PR.props[c.key]) {
       const o = pp(THREE, c.key, c.x, c.z, c.ry, c.y); tiltToGround(o, T.h, c.x, c.z, c.ry); grp.add(o);
+      hitAdd(o, plot.boat === c ? 'boat' : 'car', 0.5);
       const K = plot.boat === c ? (HG.PIER_KIT || {})[c.key] : (HG.YARD_KIT || {})[c.key];
       if (K) occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.boat === c ? 0.6 : 0.65, soft: plot.boat === c ? 0.9 : 1.0 });
     }
@@ -818,6 +892,7 @@ function make(THREE, scene, world, rec0, opts) {
       const g = pp(THREE, ob.key, w[0], w[1], yaw, ob.y);
       if (ob.on === 'ground') tiltToGround(g, (x, z) => O.terrainAt(x, z), w[0], w[1], yaw);
       G.houses.add(g);
+      hitAdd(g, 'prop', 0.5);
       let tris = 0; g.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
       return { grp: g, tris: Math.round(tris), house: ob };
     }
@@ -829,6 +904,8 @@ function make(THREE, scene, world, rec0, opts) {
       if (!PK || !PK.place) return null;
       const g = PK.place(THREE, ob.key, w[0], ob.y, w[1], yaw);
       G.houses.add(g);
+      // the holder fills when the capture lands: registered then (step() looks for it)
+      hitAdd(g, 'aircraft', 0.5);
       return { grp: g, tris: Math.round(PK.trisOf ? PK.trisOf(g) : 0), house: ob };
     }
     if (ob.kind === 'billboard') {
@@ -841,6 +918,7 @@ function make(THREE, scene, world, rec0, opts) {
       for (const k of bb.BAGS) bb.bags[k].mesh(grp, F.MAT[k]);
       if (bb.bags.aoskirt && window.HOUSE_GEN && window.HOUSE_GEN.MAT && window.HOUSE_GEN.MAT.aoskirt) { const sk = bb.bags.aoskirt.mesh(grp, window.HOUSE_GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
       G.houses.add(grp);
+      hitAdd(grp, 'billboard', 0.5);
       let tris = 0; grp.traverse(m => { if (m.isMesh && m.geometry) { const q = m.geometry; tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
       return { grp, tris: Math.round(tris), house: ob };
     }
@@ -855,6 +933,7 @@ function make(THREE, scene, world, rec0, opts) {
     const built = GEN.build(it.P, 0, F);
     built.BAGS = built.BAGS || GEN.BAGS;          // a build may carry bags of its own (the hangar shell's, G405.1)
     const grp = placeBuilt(G.houses, it, built, F, GEN);
+    hitAdd(grp, 'item', 1.0);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
     // A HAND-PLACED SITE ITEM DRESSES LIKE A PLOT (G401, the user: "the ground textures of all lots"): a
     // synthetic plot round its foot - the frontage on its +z side, the road a line 6 m in front - through
@@ -915,7 +994,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const st of rec.layers.sites || []) if (st.fences && st.fences.length) want.set('sf:' + st.id, { id: 'sf:' + st.id, seed: PG.fnv(JSON.stringify(st.fences)), isFence: true, rec: st });
     const VGe = window.VILLAGE_GEN;
     for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed) {
-      for (const g of [h.grp].concat(h.extra || [])) if (g) { if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
+      for (const g of [h.grp].concat(h.extra || [])) if (g) { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
       if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) FENCED.delete(VGe.edgeKey(sg.a, sg.b));
       HOUSES.delete(id);
     } }
@@ -933,6 +1012,8 @@ function make(THREE, scene, world, rec0, opts) {
     }
     stats.queued = queue.length; stats.houses = 0; stats.objects = 0; stats.houseTris = 0; stats.lights = 0;
     for (const [, h] of HOUSES) { stats.houseTris += h.tris || 0; stats.lights += h.lights || 0; if (h.isObject) stats.objects++; else stats.houses++; }
+    hitPendingStep();
+    stats.obstacles = OBST_IDS.size;
     if (built) paintWear();   // the garden paths are the built houses' (planPath reads the door)
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
     return built;
@@ -1065,6 +1146,7 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
     for (const [, m] of chunks) m.geometry.dispose();
     if (patch) { patch.geometry.dispose(); patch = null; }
     chunks.clear();
@@ -1076,7 +1158,8 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
-    traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z })) })),
+    traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
+    obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); },
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point
