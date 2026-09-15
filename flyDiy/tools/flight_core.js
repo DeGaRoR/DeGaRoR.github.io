@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a39c2062ce3a9d03
+// body-sha256: 4bc4c064ebf3131e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2010,6 +2010,17 @@ function makeWorld(seed, opts) {
       grid.get(key).push(idx);
     }
   }
+  const obstacles = (typeof OBSTACLES !== 'undefined') ? OBSTACLES.make() : null;
+  if (obstacles && SET && SET.buildings) {
+    // the analytic world's settlement boxes (23_world_settle.js): w along the row, l across it,
+    // stood on the ground at their centre; a box shape per size class, shared
+    const shapes = new Map();
+    for (const b of SET.buildings) {
+      const k = b.w.toFixed(1) + 'x' + b.l.toFixed(1) + 'x' + b.hgt.toFixed(1);
+      let sh = shapes.get(k); if (!sh) { sh = OBSTACLES.box(b.l, b.w, b.hgt, 1.0); shapes.set(k, sh); }
+      obstacles.add({ x: b.x, z: b.z, yaw: b.rot, y0: terrainH(b.x, b.z), shape: sh, tag: 'settle' });
+    }
+  }
   function treesNear(x, z, out) {
     out.length = 0;
     const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
@@ -2271,6 +2282,10 @@ function makeWorld(seed, opts) {
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
+    // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
+    // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
+    // it stands (houses, props, cars, parked aeroplanes) and moves the traffic
+    obstacles,
     // informative stage-3 block (not contract surface): road/building
     // records and queries for gates, renderer and debug.
     roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, bakeMs: SET.stats.bakeMs },
@@ -3661,8 +3676,8 @@ function siteRunwayModel(aero, world, opts) {
   return { R, hAt, grade, dir, ground, floor };
 }
 // THE DIRECTION, SCORED. One number per direction over the model, a wind
-// and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, mode 'land' or
-// 'takeoff'): the headwind component earns (3 per m/s; a tailwind past
+// and the aeroplane's limits (`lim`: gs, gsMax, gammaClimb, LDGrun, TORun,
+// mode 'land' or 'takeoff'): the headwind component earns (3 per m/s; a tailwind past
 // 2.5 m/s costs 30 per m/s beyond), a downhill landing
 // or an uphill take-off costs (60 per unit grade — 1 m/s of wind per 5 %),
 // an approach steeper than the aeroplane's own slope costs the FRACTION of
@@ -3685,6 +3700,10 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
       if (hw < -2.5) { sc -= 30 * (-2.5 - hw); why.push('tailwind'); }
     }
     if (land && D.grade < 0) { sc -= 60 * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
+    // B.6: never downhill into a strip under 1.5 x the landing run; the strip itself shorter than the run is said either way
+    if (land && lim.LDGrun && D.grade < -0.005 && model.R.len < 1.5 * lim.LDGrun) { sc -= 1000; why.push('downhill on a short strip'); }
+    if (land && lim.LDGrun && model.R.len < 1.15 * lim.LDGrun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.LDGrun) + ' m run');
+    if (!land && lim.TORun && model.R.len < 1.15 * lim.TORun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.TORun) + ' m take-off');
     if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
     if (land && D.reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
     else if (land && D.reqGs > gsNom) { sc -= 100 * (D.reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg'); }
@@ -6184,6 +6203,192 @@ var ISLAND_GEN = (function () {
   return { makeIsland, WC, ISLAND_GEO };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = ISLAND_GEN;
+// 29_obstacles.js — THE SOLID THINGS ON THE GROUND (G433, the user: "hitbox for
+// static car props ... audit hitboxes for everything ... No more than 1 meter
+// discrepancy with the visual mesh").
+//
+// Until now the solver collided with TREES only (30_solver.js: a cylinder per
+// tree, treesNear); houses, props, cars, the parked aeroplanes' named boxes
+// (parked.js, read by nothing) were pictures the aeroplane flew through.
+//
+// ONE SHAPE FOR EVERYTHING: a COLUMN GRID in the object's own frame - a cell
+// of 0.5 or 1 m holds the lowest and the highest surface point over it (so a
+// deck on posts keeps the air under it free, a car's roof its height), plus a
+// 2-D signed distance to the footprint's edge for the push direction. It is
+// rasterised from the object's own triangles (the same mesh the eye sees),
+// so the discrepancy is bounded by the cell: an L-shaped house, a semi with
+// its trailer, a boat's bow are all followed to the cell. A plain box is the
+// same shape with one column height (`box`).
+//
+// The REGISTRY is the world's (W.obstacles, 20_world.js): bins of 64 m like
+// the trees', near(x, z) for the solver, add/move/remove for the viewer that
+// stands and takes down the objects (render_premises.js), move for the
+// traffic. `penetration(rec, px, py, pz, out)` answers a point: null, or the
+// world displacement that takes it out - the smaller of straight up and
+// sideways along the distance field's gradient - which the solver turns into
+// a spring force per node (the trees' KTn / CTn).
+//
+// Pure: no THREE, browser and node.
+const OBSTACLES = (() => {
+  'use strict';
+  const BIN = 64;
+
+  // ---- the shape: a column grid over a triangle soup in the object's frame -----------------
+  // pos: flat xyz (Float32Array or Array), idx: triangle indices or null (consecutive triples),
+  // cell: metres. opts.pad: cells of free border kept round the footprint (1).
+  function rasterise(pos, idx, cell, opts) {
+    const nTri = idx ? idx.length / 3 : pos.length / 9;
+    if (!nTri) return null;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    const nv = pos.length / 3;
+    for (let i = 0; i < nv; i++) { const x = pos[i * 3], z = pos[i * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    if (!isFinite(x0)) return null;
+    const pad = (opts && opts.pad !== undefined) ? opts.pad : 1;
+    const ox = Math.floor(x0 / cell) * cell - pad * cell, oz = Math.floor(z0 / cell) * cell - pad * cell;
+    const nx = Math.ceil((x1 - ox) / cell) + pad + 1, nz = Math.ceil((z1 - oz) / cell) + pad + 1;
+    const lo = new Float32Array(nx * nz).fill(Infinity), hi = new Float32Array(nx * nz).fill(-Infinity);
+    const mark = (x, y, z) => {
+      const i = Math.floor((x - ox) / cell), j = Math.floor((z - oz) / cell);
+      if (i < 0 || j < 0 || i >= nx || j >= nz) return;
+      const k = j * nx + i;
+      if (y < lo[k]) lo[k] = y;
+      if (y > hi[k]) hi[k] = y;
+    };
+    // every triangle sampled on a barycentric lattice at half a cell (its vertices always)
+    const step = cell * 0.5;
+    for (let t = 0; t < nTri; t++) {
+      const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
+      const ax = pos[a * 3], ay = pos[a * 3 + 1], az = pos[a * 3 + 2];
+      const bx = pos[b * 3], by = pos[b * 3 + 1], bz = pos[b * 3 + 2];
+      const cx = pos[c * 3], cy = pos[c * 3 + 1], cz = pos[c * 3 + 2];
+      const e1 = Math.hypot(bx - ax, bz - az), e2 = Math.hypot(cx - ax, cz - az), e3 = Math.hypot(cx - bx, cz - bz);
+      const n = Math.min(64, Math.max(1, Math.ceil(Math.max(e1, e2, e3) / step)));
+      for (let u = 0; u <= n; u++) for (let v = 0; v <= n - u; v++) {
+        const fu = u / n, fv = v / n, fw = 1 - fu - fv;
+        mark(ax * fw + bx * fu + cx * fv, ay * fw + by * fu + cy * fv, az * fw + bz * fu + cz * fv);
+      }
+    }
+    // the 2-D signed distance to the footprint's edge (metres; negative inside): a 3-4 chamfer
+    // transform in cells, outward from the occupied cells and inward from the free ones
+    const occ = new Uint8Array(nx * nz);
+    let top = -Infinity, any = 0;
+    for (let k = 0; k < nx * nz; k++) if (hi[k] >= lo[k]) { occ[k] = 1; any++; if (hi[k] > top) top = hi[k]; }
+    if (!any) return null;
+    const d = new Float32Array(nx * nz);
+    const dt = (inside) => {
+      const D = new Float32Array(nx * nz);
+      for (let k = 0; k < nx * nz; k++) D[k] = (occ[k] === inside) ? 1e9 : 0;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const k = j * nx + i; let m = D[k];
+        if (i > 0) m = Math.min(m, D[k - 1] + 3);
+        if (j > 0) { m = Math.min(m, D[k - nx] + 3); if (i > 0) m = Math.min(m, D[k - nx - 1] + 4); if (i + 1 < nx) m = Math.min(m, D[k - nx + 1] + 4); }
+        D[k] = m;
+      }
+      for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
+        const k = j * nx + i; let m = D[k];
+        if (i + 1 < nx) m = Math.min(m, D[k + 1] + 3);
+        if (j + 1 < nz) { m = Math.min(m, D[k + nx] + 3); if (i + 1 < nx) m = Math.min(m, D[k + nx + 1] + 4); if (i > 0) m = Math.min(m, D[k + nx - 1] + 4); }
+        D[k] = m;
+      }
+      return D;
+    };
+    const dOut = dt(0), dIn = dt(1);      // dOut: free cells' distance to the footprint; dIn: occupied cells' distance to free ground
+    for (let k = 0; k < nx * nz; k++) d[k] = (occ[k] ? -(dIn[k] / 3) : (dOut[k] / 3)) * cell;
+    const xr = Math.max(Math.hypot(ox, oz), Math.hypot(ox + nx * cell, oz), Math.hypot(ox, oz + nz * cell), Math.hypot(ox + nx * cell, oz + nz * cell));
+    return { cell, nx, nz, ox, oz, lo, hi, d, top, xr, cells: any };
+  }
+  // a plain box, L along z, W along x, H up, its footprint centred on the origin, its underside on y = 0
+  function box(L, W, H, cell) {
+    const c = cell || 0.5, hw = W / 2, hl = L / 2;
+    const pos = [-hw, 0, -hl, hw, 0, -hl, hw, 0, hl, -hw, 0, hl, -hw, H, -hl, hw, H, -hl, hw, H, hl, -hw, H, hl];
+    const idx = [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
+    return rasterise(pos, idx, c);
+  }
+
+  // ---- a point against a placed shape --------------------------------------------------------
+  // rec: { x, z, yaw, y0, c, s, shape }. out: [dx, dy, dz] world displacement to be out of it, or null.
+  const MARGIN = 0.05;
+  function penetration(rec, px, py, pz, out) {
+    const S = rec.shape;
+    const dx = px - rec.x, dz = pz - rec.z;
+    if (dx * dx + dz * dz > S.xr * S.xr) return null;
+    const lx = dx * rec.c - dz * rec.s, lz = dx * rec.s + dz * rec.c;
+    const i = Math.floor((lx - S.ox) / S.cell), j = Math.floor((lz - S.oz) / S.cell);
+    if (i < 0 || j < 0 || i >= S.nx || j >= S.nz) return null;
+    const k = j * S.nx + i;
+    if (S.hi[k] < S.lo[k]) return null;
+    const y = py - rec.y0;
+    if (y > S.hi[k] || y < S.lo[k]) return null;
+    // up (or down, from under a deck), and sideways along the distance field's gradient
+    const up = S.hi[k] - y + MARGIN, down = y - S.lo[k] + MARGIN;
+    const iL = Math.max(0, i - 1), iR = Math.min(S.nx - 1, i + 1), jL = Math.max(0, j - 1), jR = Math.min(S.nz - 1, j + 1);
+    let gx = (S.d[j * S.nx + iR] - S.d[j * S.nx + iL]) / ((iR - iL) * S.cell), gz = (S.d[jR * S.nx + i] - S.d[jL * S.nx + i]) / ((jR - jL) * S.cell);
+    const gl = Math.hypot(gx, gz);
+    if (gl < 1e-6) { gx = lx - (S.ox + S.nx * S.cell / 2); gz = lz - (S.oz + S.nz * S.cell / 2); const g2 = Math.hypot(gx, gz) || 1; gx /= g2; gz /= g2; } else { gx /= gl; gz /= gl; }
+    const side = -S.d[k] + S.cell * 0.5 + MARGIN;
+    const o = out || [0, 0, 0];
+    // down only from under something that stands clear of the ground (a deck on posts, a wing): a
+    // box on the ground never pushes a node into the ground
+    if (S.lo[k] > 0.25 && down < up && down < side) { o[0] = 0; o[1] = -down; o[2] = 0; return o; }
+    if (up <= side) { o[0] = 0; o[1] = up; o[2] = 0; return o; }
+    // local (gx, gz) -> world through the yaw (world = R(yaw) local: wx = lx c + lz s, wz = -lx s + lz c)
+    o[0] = (gx * rec.c + gz * rec.s) * side; o[1] = 0; o[2] = (-gx * rec.s + gz * rec.c) * side;
+    return o;
+  }
+
+  // ---- the registry ---------------------------------------------------------------------------
+  function make() {
+    const recs = new Map();
+    const bins = new Map();
+    let nextId = 1, maxTop = -Infinity;
+    const key = (bx, bz) => bx + ',' + bz;
+    const binsOf = r => {
+      const R = r.shape.xr, out = [];
+      for (let bx = Math.floor((r.x - R) / BIN); bx <= Math.floor((r.x + R) / BIN); bx++)
+        for (let bz = Math.floor((r.z - R) / BIN); bz <= Math.floor((r.z + R) / BIN); bz++) out.push(key(bx, bz));
+      return out;
+    };
+    const link = r => { r.bins = binsOf(r); for (const k of r.bins) { let b = bins.get(k); if (!b) bins.set(k, b = []); b.push(r.id); } };
+    const unlink = r => { for (const k of r.bins || []) { const b = bins.get(k); if (!b) continue; const i = b.indexOf(r.id); if (i >= 0) b.splice(i, 1); if (!b.length) bins.delete(k); } r.bins = null; };
+    const retop = () => { maxTop = -Infinity; for (const [, r] of recs) { const t = r.y0 + r.shape.top; if (t > maxTop) maxTop = t; } };
+    const api = {
+      add(o) {
+        if (!o || !o.shape) return 0;
+        const r = { id: nextId++, x: +o.x || 0, z: +o.z || 0, yaw: +o.yaw || 0, y0: +o.y0 || 0, c: 0, s: 0, shape: o.shape, tag: o.tag || '', bins: null };
+        r.c = Math.cos(r.yaw); r.s = Math.sin(r.yaw);
+        recs.set(r.id, r); link(r);
+        const t = r.y0 + r.shape.top; if (t > maxTop) maxTop = t;
+        return r.id;
+      },
+      remove(id) { const r = recs.get(id); if (!r) return false; unlink(r); recs.delete(id); retop(); return true; },
+      move(id, x, z, yaw, y0) {
+        const r = recs.get(id); if (!r) return false;
+        r.x = x; r.z = z; if (yaw !== undefined) { r.yaw = yaw; r.c = Math.cos(yaw); r.s = Math.sin(yaw); }
+        if (y0 !== undefined) { r.y0 = y0; const t = y0 + r.shape.top; if (t > maxTop) maxTop = t; }
+        const nb = binsOf(r);
+        if (!r.bins || nb.length !== r.bins.length || nb.some((k, i) => k !== r.bins[i])) { unlink(r); link(r); }
+        return true;
+      },
+      get: id => recs.get(id) || null,
+      near(x, z, out) {
+        out.length = 0;
+        const bx = Math.floor(x / BIN), bz = Math.floor(z / BIN);
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+          const cell = bins.get(key(bx + a, bz + b));
+          if (cell) for (const id of cell) if (out.indexOf(id) < 0) out.push(id);
+        }
+        return out;
+      },
+      get count() { return recs.size; },
+      get maxTop() { return maxTop; },
+      list: () => Array.from(recs.values()),
+      clear() { recs.clear(); bins.clear(); maxTop = -Infinity; },
+    };
+    return api;
+  }
+  return { rasterise, box, penetration, make, BIN, MARGIN };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES };
 // ============================================================
 // ---------------------------------------------------------------------------
 // THE VORTEX KERNEL (G185.5) — the mutual interference between the planes of
@@ -6514,7 +6719,22 @@ function makeSim(def, world) {
       v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
     }
   }
-  const _treeScratch = [];
+  const _treeScratch = [], _obstScratch = [], _obstRecs = [], _pen = [0, 0, 0];
+  // the obstacles this frame can touch (G433): the registry's bins round the CG, kept to the shapes
+  // whose reach covers the aeroplane's own (a node is never 15 m from the CG) - read once a FRAME,
+  // not a substep, and only when low enough for the tallest of them
+  function obstFrame() {
+    _obstRecs.length = 0;
+    if (!world || !world.obstacles || !world.obstacles.count || p[1] >= world.obstacles.maxTop + 3) return;
+    const OB = world.obstacles, near = OB.near(p[0], p[2], _obstScratch);
+    for (const id of near) {
+      const r = OB.get(id); if (!r) continue;
+      const dx = r.x - p[0], dz = r.z - p[2], reach = r.shape.xr + 15;
+      if (dx * dx + dz * dz > reach * reach) continue;
+      if (p[1] > r.y0 + r.shape.top + 15) continue;
+      _obstRecs.push(r);
+    }
+  }
   // G194: `eng` is null (every engine running, full lever — bit-identical to
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
   // that the pilots never read or write: the player's levers over the
@@ -7482,6 +7702,25 @@ function makeSim(def, world) {
         }
       }
     }
+    // THE OBSTACLES (G433): every solid thing the world registered (29_obstacles.js - houses, props,
+    // cars, the parked aeroplanes, the settlements' boxes, the traffic), a column grid each; a node
+    // inside one is pushed out along the shortest way (up, or sideways along the footprint's distance
+    // field) by the trees' own spring and damper. Only when low enough to reach the tallest of them.
+    out.obst = 0;
+    if (_obstRecs.length) {
+      for (let i = 0; i < n; i++) {
+        const i3 = i*3;
+        for (const r of _obstRecs) {
+          if (!OBSTACLES.penetration(r, p[i3], p[i3+1], p[i3+2], _pen)) continue;
+          const px = _pen[0], py = _pen[1], pz = _pen[2], L = Math.hypot(px, py, pz) || 1e-6;
+          const nx = px / L, ny = py / L, nz = pz / L;
+          const vn = v[i3]*nx + v[i3+1]*ny + v[i3+2]*nz;               // the velocity into the thing, damped; the rest kept
+          const fk = KTn[i] * L - (vn < 0 ? CTn[i] * vn : 0);
+          f[i3] += fk*nx; f[i3+1] += fk*ny; f[i3+2] += fk*nz;
+          out.obst++;
+        }
+      }
+    }
     if (out.trq) out.trqTotal = trqOf();
     // integrate; damp only deformation (velocity relative to rigid mean)
     let vmx=0, vmy=0, vmz=0;
@@ -7515,6 +7754,7 @@ function makeSim(def, world) {
       const gH = world.terrainH;
       for (let i = 0; i < n; i++) { gcx[i] = p[i*3]; gcz[i] = p[i*3+2]; gcy[i] = gH(p[i*3], p[i*3+2]); }
     }
+    obstFrame();
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }
@@ -11640,7 +11880,7 @@ function makePilot(sim, def, world, opts) {
   // P0.6 (PILOT-ROADMAP §6.3 rules 1 and 3): THE PATH — the circuit as one
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, vxHeld = false, vxSaid = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false;
@@ -11744,7 +11984,7 @@ function makePilot(sim, def, world, opts) {
   // it begins at Vref, flaps down)
   const gsMax = SH0 && SH0.LDbest ? clamp(1.4 / SH0.LDbest, 0.07, 0.16) : 0.105;
   const gammaGA = SH0 && SH0.gammaClimb ? 0.8 * SH0.gammaClimb : 0.08;
-  const dirLim = (mode) => ({ gs: A.gs, gsMax, gammaClimb: gammaGA, mode });
+  const dirLim = (mode) => ({ gs: A.gs, gsMax, gammaClimb: gammaGA, mode, LDGrun: SH0 && SH0.LDGrun ? SH0.LDGrun : null, TORun: SH0 && SH0.TORun ? SH0.TORun : null });
   // the take-off / landing direction at an aerodrome: the runway model's two
   // directions SCORED (25_airfield.js siteScoreDirections: the wind, the
   // slope, the approach the obstacles allow, the climb-out) with the
@@ -11769,6 +12009,20 @@ function makePilot(sim, def, world, opts) {
     else if (typeof a.landHdg === 'number') { dx = Math.cos(a.landHdg); dz = Math.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
+  };
+  // P1.B: THE GUST, READ OFF THE DAY — the wind at the aerodrome sampled
+  // over the next 30 s (the field is deterministic in t): the spread of
+  // its speed. Half of it goes on Vref (the POH's rule); nothing asks the
+  // world what it was set to
+  const gustAt = (a) => {
+    if (!world || !world.wind) return 0;
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k <= 60; k++) {
+      const wv = world.wind(a.x, (a.elev || 0) + 30, a.z, ap.t + k * 0.5);
+      const sp = Math.hypot(wv[0], wv[2]);
+      lo = Math.min(lo, sp); hi = Math.max(hi, sp);
+    }
+    return Math.max(0, hi - lo);
   };
   // a point in a landing frame: s along u, c to the LEFT of u
   const wp = (F, s, c) => [F.ox + s * F.ux + c * F.uz, F.oz + s * F.uz - c * F.ux];
@@ -11805,9 +12059,10 @@ function makePilot(sim, def, world, opts) {
     if (!world || typeof world.terrainH !== 'function') return -1;
     let g = -1;
     const n = Math.max(6, Math.ceil(dist / 150));          // every 150 m: a ridge is narrower than a sixth of a leg
+    const canopy = typeof world.canopyH === 'function';    // P1.C: the trees are what a climb-out clears
     for (let k = 1; k <= n; k++) {
-      const d = dist * k / n;
-      g = Math.max(g, (groundH(x + dx * d, z + dz * d) + clear - alt) / d);
+      const d = dist * k / n, px = x + dx * d, pz = z + dz * d;
+      g = Math.max(g, (groundH(px, pz) + (canopy ? world.canopyH(px, pz, 20) : 0) + clear - alt) / d);
     }
     return g;
   };
@@ -11830,10 +12085,40 @@ function makePilot(sim, def, world, opts) {
     ap.refAlt = (ap.restAlt == null ? 0 : ap.restAlt) + (to.elev - (from ? from.elev : to.elev));
     const sCen = alongOf(F, [to.x, 0, to.z]);
     const sThr = sCen - to.len / 2;
-    ap.xAim = Math.max(A.xAim, sThr + 40);
-    ap.shortFld = to.len < 450;
-    if (to.len < 700) ap.xAim = sThr + Math.max(60, 0.12 * to.len);
-    if (ap.shortFld && VApprShort) ap.VAppr = VApprShort; else ap.VAppr = sheetVAppr ?? A.VAppr;
+    // P1.B: THE APPROACH PLAN (PILOT-ROADMAP B.2-B.6) — what the runway, the
+    // machine and the day ask, in one record the phases read:
+    //   technique  'short' when the strip is under 450 m or under 1.6 x the
+    //              sheet's landing run: Vref 1.2 Vs0, the aim 30 m past the
+    //              threshold (8 % of the strip on a longer one), the brakes
+    //              from the moment every wheel is down;
+    //              'soft' when the surface rolls hard (a GROUND_SURF rolling
+    //              resistance of 0.10: duff, sand, scree): no brakes until
+    //              the aeroplane is walking, the nose held off;
+    //              'normal' otherwise — 1.3 Vs0 on the 20 % mark (a strip
+    //              under 700 m: 12 % in, 60 m at least)
+    //   Vref       the technique's speed + half the gust (gustAt)
+    //   aim        s along the frame; flap the build's landing setting
+    // The record is on the report (`appr`) so the matrix can read what was
+    // flown. The slope is the runway model's (below).
+    {
+      const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[to.surface]) || null;
+      const soft = !!row && row[0] >= 0.10;
+      const runNeed = SH0 && SH0.LDGrun ? SH0.LDGrun : null;
+      const short = to.len < 450 || (runNeed != null && to.len < 1.6 * runNeed);
+      const gust = gustAt(to);
+      const technique = short ? 'short' : soft ? 'soft' : 'normal';
+      const Vbase = short && VApprShort ? VApprShort : (sheetVAppr ?? A.VAppr);
+      const aim = short ? sThr + Math.max(30, 0.08 * to.len)
+                : to.len < 700 ? sThr + Math.max(60, 0.12 * to.len)
+                : Math.max(A.xAim, sThr + 40);
+      const FS0 = def.params.flaps;
+      ap.appr = { technique, Vref: Math.round((Vbase + 0.5 * gust) * 10) / 10, Vbase: Math.round(Vbase * 10) / 10, gust: Math.round(gust * 10) / 10,
+                  aimIn: Math.round(aim - sThr), flap: FS0 ? (FS0.ldg ?? 1) : 0, len: to.len, surface: to.surface,
+                  runNeed: runNeed != null ? Math.round(runNeed) : null };
+      ap.report.appr = ap.appr;
+      ap.xAim = aim; ap.shortFld = short; ap.VAppr = Vbase + 0.5 * gust;
+      if (runNeed != null && to.len < 1.15 * runNeed && !ap.stripShortSaid) { ap.stripShortSaid = true; say('strip-short', to.len + ' m of strip for a ' + Math.round(runNeed) + ' m landing run — landing short-field, no margin'); }
+    }
     let hC = ap.hCruise;
     // P1.A: THE SLOPE THE OBSTACLES ASK. The runway model's record for this
     // direction: the approach is flown at the archetype's own slope, or the
@@ -12335,7 +12620,18 @@ function makePilot(sim, def, world, opts) {
       } else hdotC = 0.2 * ((o.alt ?? cg[1]) - cg[1]);
       hdotC = clamp(hdotC, vsDn, vsUp);
       const VdotC = clamp(0.33 * (Vc - V), -1.5, 1.5);
-      const STEr = tHdot + V * accF / g9, STErC = hdotC + V * VdotC / g9;
+      // P1.B: THE SPEED TERM CANNOT CANCEL A SATURATED HEIGHT DEMAND. Asked
+      // to slow 3 m/s while 170 m below its height (the CLIMB's Vy+ into
+      // the route's Vy) the speed term (-3.2 m/s of energy rate) outweighed
+      // the full-climb demand (+2.93) and the throttle sat at 0.4 with the
+      // hill rising under the aeroplane (A3's departure). With the height
+      // demand on its stop the speed term may take at most half of it: the
+      // throttle stays near the stop and the excess speed is traded for
+      // height by the elevator (the balance loop asks exactly that)
+      let sKdot = V * VdotC / g9;
+      if (hdotC >= 0.95 * vsUp) sKdot = Math.max(sKdot, -0.5 * hdotC);
+      else if (hdotC <= 0.95 * vsDn) sKdot = Math.min(sKdot, -0.5 * hdotC);
+      const STEr = tHdot + V * accF / g9, STErC = hdotC + sKdot;
       // the throttle: feed-forward from the sheet, P + I on the energy-rate error
       const ff = STErC >= 0 ? tThrCruise + STErC / tClimbMax * (1 - tThrCruise)
                             : tThrCruise + STErC / tSinkIdle * (tThrCruise - tThrFloor);
@@ -12842,7 +13138,28 @@ function makePilot(sim, def, world, opts) {
             : capT;
         }
         if (thRest === null) thRest = th;
-        if (rollS0 === null) { rollS0 = sAl; committedTO = false; }
+        if (rollS0 === null) {
+          rollS0 = sAl; committedTO = false;
+          // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
+          // plan's twin: 'short' when the strip is under 2 x the sheet's
+          // take-off run (an accelerate-stop wants about two runs) — the
+          // brakes held until the power is up, the take-off asked to FIT
+          // rather than the stop, the climb
+          // at Vx while anything ahead stands above the aeroplane; 'soft'
+          // when the surface rolls hard (GROUND_SURF 0.10) — the tail kept
+          // down (a trike's nose light), unstuck early at 0.95 Vr, held in
+          // ground effect until Vy before climbing; 'normal' otherwise.
+          // Every departure climbs at Vx until the ground ahead is below it
+          // (C.3, the obstacle-clearance climb), then Vy.
+          const from0 = ap.route.from;
+          const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[from0.surface]) || null;
+          const soft = !!row && row[0] >= 0.10;
+          const runNeed = SH0 && SH0.TORun ? SH0.TORun : null;
+          const short = runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
+          ap.dep = { technique: short ? 'short' : soft ? 'soft' : 'normal', Vx: SH0 && SH0.Vx ? Math.round(SH0.Vx * 10) / 10 : null,
+                     runNeed: runNeed != null ? Math.round(runNeed) : null, len: from0.len || null, surface: from0.surface };
+          ap.report.dep = ap.dep;
+        }
         flapTgt = fTO;
         const runUsed = Math.abs(sAl - rollS0);
         const left = runwayLeft();
@@ -12875,7 +13192,11 @@ function makePilot(sim, def, world, opts) {
           // the Tiger Moth-alike on a hot day, 0.10 m/s^2 against 0.3 real
           if (V < vr && phaseT > 7 && accF > 0.02 && !atHump) {
             const dVr = (vr * vr - V * V) / (2 * accF);
-            if (dVr > left - stopDist(vr) - ST.reserve)
+            // P1.C short: the take-off must FIT, the stop is not asked (the
+            // accelerate-stop is the long strip's luxury; on 340 m of gravel
+            // the cub rejected at 7 s a run the sheet says it makes)
+            const shortT = ap.dep && ap.dep.technique === 'short';
+            if (dVr > left - (shortT ? 0 : stopDist(vr)) - ST.reserve)
               reject = 'will not reach Vr: ' + accF.toFixed(2) + ' m/s^2 needs ' +
                        Math.round(dVr) + ' m more, ' + Math.round(left) + ' m left';
           }
@@ -12894,8 +13215,19 @@ function makePilot(sim, def, world, opts) {
           if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr && !atHump)
             reject = 'not accelerating (' + accF.toFixed(2) + ' m/s^2 at V=' + V.toFixed(1) + ') — thrust is going nowhere';
         } else if (V < vr) {
-          reject = 'out of runway: ' + Math.round(left) + ' m left, ' + Math.round(sd) +
-                   ' m to stop, V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
+          // P1.C: PAST THE POINT OF STOPPING THE QUESTION IS WHETHER VR
+          // COMES BEFORE THE FENCE, not whether a stop still fits (it does
+          // not, by definition): the cub on 340 m of gravel was rejected at
+          // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
+          // 249 m — both a second from flying
+          const dVr = accF > 0.02 ? (vr * vr - V * V) / (2 * accF) : Infinity;
+          if (dVr > left - ST.reserve)
+            reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
+                     ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
+          else if (!committedTO) {
+            committedTO = true;
+            say('committed-takeoff', 'past the point of stopping at V=' + V.toFixed(1) + ' with ' + Math.round(left) + ' m left — Vr in ' + Math.round(dVr) + ' m, continuing');
+          }
         } else if (left < 0) {
           reject = 'ran off the end at V=' + V.toFixed(1) + ' still on the wheels — will not unstick';
         } else if (!committedTO) {
@@ -12914,17 +13246,22 @@ function makePilot(sim, def, world, opts) {
         }
         // the rotation: a taildragger's tail-up / three-point schedule, a
         // tricycle's nosewheel up at Vr — every aeroplane rotates
-        let vert = 'DE', pitch = 0;
+        let vert = 'DE', pitch = 0, deRoll = A.rollDe;
+        const softTO = ap.dep && ap.dep.technique === 'soft', shortTO = ap.dep && ap.dep.technique === 'short';
+        const vrT = softTO ? 0.95 * vr : vr;                   // P1.C soft: unstuck early, into ground effect
         if (rotateTD) {
           vert = 'PITCH';
-          pitch = V > vr ? (A.thRotate ?? A.liftoffTh)
-                : (threePoint || V < (A.VTailUp ?? 0)) ? (threePoint ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
+          pitch = V > vrT ? (A.thRotate ?? A.liftoffTh)
+                : (threePoint || softTO || V < (A.VTailUp ?? 0)) ? ((threePoint || softTO) ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
                 : (A.thTailUp ?? 0.02);
-        } else if (V > vr) { vert = 'PITCH'; pitch = A.thRotate ?? A.liftoffTh; }
-        const rotating = vert === 'PITCH' && V > vr && onG > 0;
+        } else if (V > vrT) { vert = 'PITCH'; pitch = A.thRotate ?? A.liftoffTh; }
+        else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
+        const rotating = vert === 'PITCH' && V > vrT && onG > 0;
         IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
         IthGain = rotating ? (A.rotateI ?? 0.8) : null;
-        engage('RWY', vert, 'SET', { pitch, de: A.rollDe, thr: ap.t > 0.5 ? thrRoll : 0 });
+        engage('RWY', vert, 'SET', { pitch, de: deRoll, thr: ap.t > 0.5 ? thrRoll : 0 });
+        // P1.C short: the brakes hold the aeroplane until the power is up
+        if (shortTO && V < 1.5 && thrRoll < Math.min(0.98, (V < (A.VTailUp ?? 0) ? GP.cap : 1) - 0.02)) c.brake = A.brakeMax;
         // G396.2: ON THE WATER, FULL BACK STICK THROUGH THE HUMP AND OFF THE
         // STEP. The attitude servo asks for the lift-off pitch and its gains
         // (an air loop) reach 0.38 of stick, which a planing float ignores:
@@ -12987,7 +13324,7 @@ function makePilot(sim, def, world, opts) {
         // unsticks it at 96: the stick stays back while a float is still
         // wet, and the servo takes over once the aeroplane is clear.
         if (sim.hydro && onG > 0) deFloor = A.deWater ?? 0.70;
-        if (aglL > A.hSafe)
+        if (aglL > A.hSafe || (ap.dep && ap.dep.technique === 'soft'))   // P1.C soft: the attitude for speed from the first metre — level in ground effect until Vy
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
@@ -13046,7 +13383,13 @@ function makePilot(sim, def, world, opts) {
         // tenth, the nose a little lower — instead of the best-rate attitude
         // held all the way to the circuit (the user: "it climbs like at max
         // speed"); the flaps come up at the same height
-        const iasC = agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
+        // P1.C (C.3): Vx — the sheet's best angle — while the ground within
+        // 1.5 km along the climb-out (canopy included, 15 m clear) stands
+        // above the aeroplane; Vy / the cruise-climb once it is below
+        const climbDir0 = [F.ux * ap.dirX, F.uz * ap.dirX];
+        const obstAhead = SH0 && SH0.Vx && gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0;
+        if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + SH0.Vx.toFixed(1) + ' m/s until clear'); } }
+        const iasC = obstAhead ? SH0.Vx : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
@@ -13338,8 +13681,10 @@ function makePilot(sim, def, world, opts) {
 
       case 'ROLLOUT': {
         if (trike) {
-          if (V > (A.VDerotate ?? 20)) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
-          else engage('RWY', 'DE', 'SET', { de: 0.15, thr: 0 });
+          // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
+          const soft = ap.appr && ap.appr.technique === 'soft';
+          if (V > (soft ? 0.7 * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
+          else engage('RWY', 'DE', 'SET', { de: soft ? 0.35 : 0.15, thr: 0 });
         } else if (A.flareMode !== 'ramp' && A.flareMode !== 'vs') {
           // G381: AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE. The stick
           // comes back the moment the wing cannot fly it again (1.15 VRot;
@@ -13361,7 +13706,14 @@ function makePilot(sim, def, world, opts) {
         // and it noses over — and a trike landed fast (the drawn-tail
         // Caravan-alike at 1.6 Vs) rolled 836 m waiting for it, stopping 8 m
         // from the end of an 1100 m strip.
-        if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
+        // P1.B: the technique — short: the brakes from the moment every
+        // wheel is down, the ramp twice as quick; soft: none until the
+        // aeroplane is walking (0.5 Vs), the nose held off by the elevator
+        // laws above (full up on a taildragger; a trike derotates late)
+        const tq = ap.appr ? ap.appr.technique : 'normal';
+        if (tq === 'soft') { if (Vg < 0.5 * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99)) brakeRamp = Math.min(brakeRamp + 0.5 * A.brakeRampRate * dt, 0.5 * A.brakeMax); }
+        else if (tq === 'short') { if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + 2 * A.brakeRampRate * dt, A.brakeMax); }
+        else if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
           brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
         // G381.1: THROUGH A SKIP THE PILOT KEEPS FLYING IT. A bounce in a
         // crosswind put the wheels back in the air for a second, the ground
@@ -26404,4 +26756,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
