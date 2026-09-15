@@ -199,6 +199,8 @@
     A.appendChild(slider('humidity', 0.05, 1, 0.01, () => (dy() ? dy().rh : NaN), v => { if (ck()) ck().set({ rh: v }); }, v => (v * 100).toFixed(0) + ' %'));
     A.appendChild(slider('cloud cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }));
     A.appendChild(slider('stars', 0, 3, 0.1, () => (W.ATMO && W.ATMO.U.stars ? W.ATMO.U.stars.value : NaN), v => { if (W.ATMO && W.ATMO.U.stars) W.ATMO.U.stars.value = v; }));
+    const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
+    A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));
     { const n = note(''); const R = { el: n, refresh: () => { const S = W.SKY_LIGHT, K = S && S.K(); n.textContent = K && K.K_SUN ? `K_sun ${K.K_SUN.toFixed(2)} K_hemi ${K.K_HEMI.toFixed(2)} · ${S.isMoon ? 'the moon is the key' : 'the sun is the key'} · exposure base ${(W.GFX && W.GFX.exposureBase ? W.GFX.exposureBase() : 0).toFixed(3)}` : 'atmosphere off (painted dome)'; } }; rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the rig row’s sun / hemisphere / exposure below are GAINS on the alps anchors (2.8 / 0.274 / 0.92) under the physical sky'));
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------

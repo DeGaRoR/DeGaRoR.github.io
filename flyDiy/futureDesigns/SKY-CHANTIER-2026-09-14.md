@@ -14,6 +14,10 @@ cuts the work into sessions. Each session lands with its gate under its own
 
 ---
 
+**CLOSED 2026-09-15**: A G408, B G409, C G410, D G412, E G415, F (see HANDOVER). What stays owed is listed in F’s entry.
+
+---
+
 ## 0. RULINGS TAKEN (the user, 2026-09-14)
 
 | ruling | decision |
@@ -91,7 +95,7 @@ Measure first: `pmrem.fromScene` time; the `scene.environmentIntensity` A/B (fac
 ### E — THE CLOCK ON EVERY RAIL + PERSISTENCE — **LANDED 2026-09-15 (see HANDOVER, SESSION E)**
 `body.html #selTime` → the preset select in `#flStore`; `FL_BUILD.slot_day` borrows it + an hour range + rate pills + a date row; the `air` flyout's `time of day` becomes a live readout; `flDay()` appends `DAY_CLOCK.label()`. Garage: `GARAGE_ENV`'s moods trio → presets, `_cage_ui.js` hour + rate rows, `editor.js` glyphs. WORLD editor: `premises_ui.js viewRows` sun sliders → readouts + preset / hour. CONDITIONS gain `dewC / rh` and an optional `day.preset`; cockpit `tClock` from `ctx.day`; `43_pilot.js` `setStatus.night` and `ap.lights {nav, beacon}` from sunset to sunrise, applied when not by hand; `pilot_trace.js --date/--utc`; the logbook row gains `day`.
 
-### F — S6: THE NIGHT'S CONSUMERS (+ mist and glare if the budget allows)
+### F — S6: THE NIGHT'S CONSUMERS (+ mist and glare if the budget allows) — **LANDED 2026-09-15 (see HANDOVER, SESSION F). THE CHANTIER IS CLOSED; mist, glare, clouds and the eye pass are owed to their own sessions.**
 `props.js propSetGlowOf(key, f)` on the lamp fixtures' emissives; `render_premises.js` a CONSTANT pool of 8 PointLights re-assigned every ~0.5 s to the nearest published lights (a count change recompiles every lit material), 0 by day, declared on the world board; moon and stars tuned against the lamps; a screenshot sheet at five hours on both worlds. Optional S7: a height-limited mist volume from `rh` and the cloud-base spread, bloom on the disc, an occlusion-gated flare (zero behind geometry — the gate). Closes DEBT-REGISTER "nothing switches on at night by itself".
 
 ---

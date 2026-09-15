@@ -48141,3 +48141,50 @@ Files: `tools/run_gates.js`, `tools/_shard.js` (new), `tools/build.js`,
 `tools/_hinge_check.js`, `tools/_village_check.js`, `tools/_house_check.js`,
 `tools/_strut_check.js`, `tools/_fit_check.js`, `tools/_premises_check.js`,
 `tools/_takeoff_check.js`, `tools/_cage_fit.js`, `.gitignore`, this file.
+=======
+## G417 — THE SKY CHANTIER, SESSION F: THE NIGHT'S CONSUMERS, AND THE CLOSE
+## (2026-09-15; DEBT-REGISTER "nothing switches on at night by itself" - closed)
+
+- THE LAMPS COME ON WITH THE DUSK. Every house the premises build now
+  carries its lights (render_premises: `P.lights = 1` on houses and
+  HOUSE_GEN items - the porch lamp, the pier lamps, the lit-window flags
+  are GEOMETRY; the day says whether they glow), and placeBuilt keeps the
+  published records (`stats.lit.lights`: the bulb's place in the house
+  frame, colour, level, reach, the fixture's prop key) and the finish's
+  glass uniforms on the group. THE LAMP POOL: a CONSTANT eight PointLights
+  on the premises root (a count that changes recompiles every lit material
+  - cockpit.js's own note), re-assigned every 30 frames to the published
+  lamps nearest the eye within 500 m, `on` = (2 deg - sunEl) / 4 clamped
+  (they fade in through the horizon), declared on the world switchboard
+  (`lamps`) and claimed for GATE LIGHT's census; the fixtures' emissives
+  glow with them by prop KEY (props.js propSetGlowOf - the shed's EMIT
+  registry keeps its own lamps) and the lit panes' uLitK follows. THE
+  LEVEL: the village bench's night (k x 2.2 x 1.1 x nightGain 2, G376,
+  judged at exposure ~1.0) DIVIDED BY THE LIVE EXPOSURE BASE - the third
+  time this chantier met the same bug (the stars, the shed, the lamps):
+  a source judged at one exposure under a schedule that opens 15 stops.
+  On screen a lamp reads as the bench's night whatever the sky does; an F8
+  dial (`village lamps`, with the lit count) scales it. Measured on Jolene
+  at a December night: 8 of 8 pool lights lit on Skarvik's fixtures.
+- SEEN: Jolene under a 90 % moon and stars with the field's lamps as lamps
+  (the first cut was eight white flares); the contact sheet at
+  screenshots/sky-2026-09-15/sheet.jpg - the analytic world at dawn / noon
+  / golden / dusk / night, Jolene at noon / golden / a December night, the
+  shed at golden hour and at night.
+- GATES: DAY / ATMO / LIGHT / WORLDRENDER / UISMOKE / PROPS / HOUSE /
+  VILLAGE / BOOT / MEDIA green; PILOT direct green; PREMISES the foreign 5b.
+- THE CHANTIER CLOSES HERE (six sessions, G408 / G409 / G410 / G412 / G415
+  / this): the day, the sun, the atmosphere, the aerial perspective, the
+  probe and the shed's sky, the clock on every rail, the night's lamps.
+  futureDesigns/SKY-CHANTIER-2026-09-14.md is the record.
+- OWED, for their own sessions: MIST (a height-limited volume off the
+  day's humidity and the terrain's water), BLOOM on the disc and an
+  occlusion-gated flare (a post-process; the resolve pass owns no colour
+  by rule - a ruling); CLOUDS (the next chantier: the day carries
+  cloudBase / cloudCover / cloudType; the billboards are lit and placed);
+  the exposure schedule's eye pass (light_rig EV_KNOTS, the F8 rows); the
+  6.3 MB graded-sky media deletion (+ GATE MEDIA) and the
+  `flydiy.hangarEnvSrc` pref; runway edge lights; the GRAPHICS `lighting`
+  row (now the rows' gains) to retire or rename; the frame cost of the
+  passes on the real GPU (tree_perf under the atmosphere); interior
+  lighting at night (INTERIOR-LIGHTING-2026-09-12.md).

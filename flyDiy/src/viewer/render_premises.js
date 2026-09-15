@@ -589,6 +589,11 @@ function make(THREE, scene, world, rec0, opts) {
       for (const q of st.people || []) if (PR.props[q.key]) grp.add(pp(THREE, q.key, q.x, q.z, q.ry, q.y));
       for (const q of st.yard || []) { if (!PR.props[q.key]) continue; const ob = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.on === 'ground' && g) tiltToGround(ob, g, q.x, q.z, q.ry); grp.add(ob); }
       if (st.lit) for (const L of st.lit.lights) if (L.prop && PR.props[L.prop]) grp.add(pp(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
+      // THE NIGHT'S LAMPS (SKY chantier, S6): every light the house published - the bulb's place in the
+      // house frame, its colour, its level, its reach, its fixture's prop key - kept on the group for the
+      // lamp pool below; the fixture stood above is its emitting geometry (rule 29)
+      if (st.lit && st.lit.lights.length) { grp.userData.lamps = st.lit.lights.map(L => ({ x: L.x, y: L.y, z: L.z, col: L.col, k: L.k, range: L.range, prop: L.prop || null })); }
+      if (F && F.GLASS_U && F.GLASS_U.uLitK) { grp.userData.glassU = F.GLASS_U; F.GLASS_U.uLitK.value = 0; }   // the panes' glow is the day's: 0 until dusk
     }
     parent.add(grp);
     return grp;
@@ -609,6 +614,10 @@ function make(THREE, scene, world, rec0, opts) {
     if (SPREAD) house.P.spread = SPREAD;
     const F = HG.makeFinish();
     HG.applyFinish(house.P, F);
+    // THE LIGHTS ARE BUILT IN (SKY chantier, S6): every house carries its porch lamp, its pier
+    // lamps and its lit-window flags whatever the hour - the fixtures are geometry; whether
+    // they glow is the DAY'S (the lamp pool below scales the panes' uLitK and the lamps' emissive)
+    if (o.game !== false) house.P.lights = 1;
     const built = HG.build(house.P, 0, F);
     built.BAGS = HG.BAGS;
     const grp = placeBuilt(G.houses, house, built, F, HG);
@@ -795,6 +804,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!GEN) return null;
     const F = GEN.makeFinish();
     GEN.applyFinish(it.P, F);
+    if (o.game !== false && it.gen === 'HOUSE_GEN') it.P.lights = 1;   // S6: the lights are built in; the day says whether they glow
     const built = GEN.build(it.P, 0, F);
     built.BAGS = built.BAGS || GEN.BAGS;          // a build may carry bags of its own (the hangar shell's, G405.1)
     const grp = placeBuilt(G.houses, it, built, F, GEN);
@@ -1014,8 +1024,65 @@ function make(THREE, scene, world, rec0, opts) {
     scene.remove(root);
   }
 
+  // ---- THE LAMP POOL (SKY chantier, S6) ------------------------------------------------------
+  // A forward renderer prices every point light in every lit fragment, and a count that CHANGES
+  // recompiles every lit material (cockpit.js): so the world carries a CONSTANT pool of LAMP_N
+  // PointLights, re-assigned every half second to the published lamps nearest the eye, at
+  // intensity 0 by day. The fixtures' emissives glow with them (props.js propSetGlowOf). The
+  // level is the village bench's night level (k x 2.2 x 1.1 x nightGain 2, G376 judged against
+  // the moon's 0.22), scaled by `on` (0 by day .. 1 at night).
+  const LAMP_N = 8, LAMP_REACH = 500;
+  const lampPool = [];
+  for (let i = 0; i < LAMP_N; i++) { const pl = new THREE.PointLight(0xffffff, 0, 8, 2); pl.name = 'lamp:' + i; pl.visible = true; root.add(pl); lampPool.push(pl); }
+  let lampFrame = 0, lampLit = 0;
+  const _lv = new THREE.Vector3();
+  const propKeysOfLamps = () => { const s = new Set(); for (const [, h] of HOUSES) if (h.grp && h.grp.userData.lamps) for (const L of h.grp.userData.lamps) if (L.prop) s.add(L.prop); return s; };
+  let glowWas = -1;
+  // THE LAMPS KEEP THE LEVEL THEY WERE JUDGED AT: the bench set them at exposure ~1.0 and the
+  // night's exposure opens 15 stops for the sky, so a lamp's intensity is divided by the live
+  // exposure base - on screen it reads as the bench's night, whatever the schedule does
+  const LAMP_EX_REF = 1.0;
+  let lampGain = 1;                                  // the user's dial (F8 atmosphere fold)
+  function lampUpdate(eye, on, exBase) {
+    on = Math.min(1, Math.max(0, on || 0));
+    if ((lampFrame++ % 30) !== 0) return;
+    const exK = lampGain * LAMP_EX_REF / Math.max(0.05, exBase || 1);
+    const level = 2.2 * 1.1 * 2.0 * on * exK;
+    const cands = [];
+    for (const [, h] of HOUSES) {
+      const g = h.grp, Ls = g && g.userData.lamps;
+      if (!Ls) continue;
+      for (const L of Ls) {
+        _lv.set(L.x, L.y, L.z); g.localToWorld(_lv);
+        const d2 = _lv.distanceToSquared(eye);
+        if (d2 < LAMP_REACH * LAMP_REACH) cands.push({ d2, x: _lv.x, y: _lv.y, z: _lv.z, L });
+      }
+    }
+    cands.sort((a, b) => a.d2 - b.d2);
+    lampLit = 0;
+    for (let i = 0; i < LAMP_N; i++) {
+      const pl = lampPool[i], c = cands[i];
+      if (!c || on <= 0) { pl.intensity = 0; continue; }
+      pl.position.set(c.x, c.y, c.z);
+      pl.color.setRGB(c.L.col[0], c.L.col[1], c.L.col[2]);
+      pl.intensity = c.L.k * level;
+      pl.distance = c.L.range;
+      lampLit++;
+    }
+    stats.litNow = lampLit;
+    const glowNow = on * exK;
+    if (Math.abs(glowWas - glowNow) > 1e-6 * Math.max(1, glowNow)) {
+      glowWas = glowNow;
+      if (typeof propSetGlowOf === 'function') propSetGlowOf(propKeysOfLamps(), 2.0 * glowNow);
+      for (const [, h] of HOUSES) if (h.grp && h.grp.userData.glassU) h.grp.userData.glassU.uLitK.value = 2.2 * 2.0 * glowNow;   // the lit panes, at the bench's night level
+    }
+  }
+  stats.litNow = 0;
+
   const R = {
     root, groups: G, stats,
+    lamps: { update: lampUpdate, pool: lampPool, mute: () => { for (const pl of lampPool) pl.intensity = 0; }, count: () => { let n = 0; for (const [, h] of HOUSES) if (h.grp && h.grp.userData.lamps) n += h.grp.userData.lamps.length; return n; },
+             get gain() { return lampGain; }, set gain(v) { lampGain = Math.max(0, +v || 0); lampFrame = 0; } },
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     setRecord: r => { rec = PG.normalise(r); },
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
