@@ -1,0 +1,12 @@
+Beaver-alike (rule tail) HOME {"wind":{"base":[2,0,2],"gust":0,"refH":10}} · normal
+  ROLL@0 LIFTOFF@4.8 CLIMB@9.2 CROSSWIND@16.6 DOWNWIND@36.1 BASE@105.8 FINAL@128.8 FLARE@248.1 ROLLOUT@253.7 STOPPED@267.4
+  take-off: run 51 m, lift-off 24.8 m/s · crosswind turn at 75.1 m
+  CROSSWIND overshoot   14 m  settle 18.1 s  roll reversals 0/min
+  DOWNWIND  overshoot  240 m  settle 9.2 s  roll reversals 1.3/min
+  BASE      overshoot   15 m  settle 13.6 s  roll reversals 1.3/min
+  final: captured at 143.4 s · above-slope rms 0.7 m · V-VAppr rms 0.07 (mean 0.04) · thr 0.15..0.22
+  flare: from 7.18 m at -1.39 m/s, 5.5 s
+  landing: sink 0.84 m/s · 17.8 m/s = 1.17 Vs · -1 m past the aim · -0.2 m off · run 105 m
+  rollout: max heading 5.1 deg, 0 reversals, rudder 0.5 · 0.1 m off at the stop
+  completed at 267.4 s (242 s wall)
+{"key":"beaver","name":"Beaver-alike","from":"HOME","to":"HOME","style":"normal","tail":"rule","slope":0,"weather":{"wind":{"base":[2,0,2],"gust":0,"refH":10}},"outcome":"completed","phase":"STOPPED","t":267.4,"phases":["ROLL@0","LIFTOFF@4.8","CLIMB@9.2","CROSSWIND@16.6","DOWNWIND@36.1","BASE@105.8","FINAL@128.8","FLARE@248.1","ROLLOUT@253.7","STOPPED@267.4"],"goArounds":0,"verdicts":[],"takeoff":{"run":51,"Vlo":24.8},"climb":{"hTurn":75.1,"vsMean":7.94},"legs":[{"name":"CROSSWIND","overshoot":14,"settleT":18.1,"rollRev":0},{"name":"DOWNWIND","overshoot":240,"settleT":9.2,"rollRev":1.3},{"name":"BASE","overshoot":15,"settleT":13.6,"rollRev":1.3}],"final":{"captureT":143.4,"aboveRms":0.7,"vRms":0.07,"vErrMean":0.04,"thrMin":0.15,"thrMax":0.22},"flare":{"entryAgl":7.18,"entryVs":-1.39,"t0":248.11666666666667,"dur":5.5},"landing":{"sink":0.84,"V":17.8,"VoverVs":1.17,"pastAim":-1,"off":-0.2,"run":105,"three":false,"drift":-0.09},"rollout":{"maxE":5.1,"zeroX":0,"maxDr":0.5,"xtEnd":0.1},"Vs":18.1,"VsLanding":15.2,"VAppr":19.7,"mass":864,"sheet":{"Vs":17.7,"Vs0":15.19,"Vref":19.74,"Vrot":18,"Vx":21.75,"Vy":25,"Vbg":25.15,"Vms":19.11,"Vcruise":39.9,"climbMax":13.04,"sinkMin":1.93,"LDbest":11.41,"TORun":63,"LDGrun":122.53,"mass":866.4},"tecs":true,"path":true,"wall":242}

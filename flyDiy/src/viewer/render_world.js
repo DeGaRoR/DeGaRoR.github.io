@@ -554,9 +554,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the dome is a MeshBasicMaterial parented to the CAMERA: unlit, always
       // full brightness, and the last thing left on screen when everything
       // else is off
-      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; })
-      // S6: the village lamps - a constant pool of eight point lights, assigned to the nearest fixtures at dusk
-      .declare('lamps', 'village lamps', 'light', () => { if (premisesR && premisesR.lamps) premisesR.lamps.mute(); });
+      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; });
   }
   function applyWorldLights() {
     if (!worldSwitch) return;
@@ -3888,9 +3886,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let premTramLast = 0;
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
-    // THE LAMPS COME ON WITH THE DUSK (S6): the pool follows the eye; on from +2 deg to -2 deg of sun
-    if (premisesR && premisesR.lamps && world.day) premisesR.lamps.update(camera.position, (2 - world.day.sunEl) / 4,
-      (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null) ? window.GFX.exposureBase() : 1);
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
     if (premisesR && premisesR.tick && premisesR.stats.trams) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
@@ -4138,5 +4133,5 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
              applyWorldLights();
              return worldSwitch.list().filter(l => worldSwitch.on(l.key)).map(l => l.key); },
            claimed: () => new Set([sun, hemi,
-             worldSky && worldSky.material].concat(premisesR && premisesR.lamps ? premisesR.lamps.pool : []).filter(Boolean)) };
+             worldSky && worldSky.material].filter(Boolean)) };
 }

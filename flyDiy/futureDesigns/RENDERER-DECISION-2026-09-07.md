@@ -696,10 +696,149 @@ reads the base. (2) The shed rail's flyout sat 96 px down with a
 `calc(100% - 44px)` height and spilled past the window once the colour rows
 joined; `calc(100% - 120px)` now, scrolling.
 
+## 4k. W0.5b IS GATED, NOT BACKGROUNDED — the ruling, and the rule for every new shader (2026-09-14)
+
+The user, one day after §4i: *"we have not moved all materials to TSL, and
+then we can't have the WebGPU renderer, is that right? Is this a good idea to
+move to TSL in case we'd switch renderers at some point? Is this work worth
+doing? If yes, we should start it in the background. In the meantime, I'm
+implementing a sky in GLSL."* Measured on this tree, then ruled.
+
+**Yes, and stricter than "not all".** The node renderer ignores every
+`onBeforeCompile` and refuses a `ShaderMaterial` or a `MeshDepthMaterial` at
+draw (§4i). The moment the renderer object changes, every GLSL site is dead at
+once — so W0.5b is a flag with two variants per material, and NOTHING draws
+right under it until the LAST site is ported. All of the port's value arrives
+at the flip; none before it.
+
+**The surface, counted** (`node tools/tsl_census.js`, the game page's own
+script list — the instrument this section reads from now on):
+
+| kind | sites | where |
+|---|---|---|
+| `onBeforeCompile` hooks | **34** | render_world 12, _house_gen 7, aeroskin 3, render_premises 2, editor 2, one each in hangar, cabin, lot_tex, props, site_ground, trees, _cage_panel, _cage_energy |
+| raw `ShaderMaterial` | 7 | render_world 2, hangar 2, aeroskin, aa_resolve, _cage_ui |
+| custom `MeshDepthMaterial` | 5 | render_world 3, render_premises, hangar |
+| **TSL variants written** | **3** | the dome, the impostor normal bake, the glass companion |
+
+46 sites the node renderer cannot draw; 3 ported. **Since the flag landed
+(3176e5ee, 2026-09-13 16:13 — 88 commits, one day): +14 sites on the page,
+0 ported.** Six are NEW GLSL (render_world +2 for the ground stack,
+render_premises +2 hooks +1 depth, lot_tex +1); eight JOINED the page with
+the premises port (_house_gen's 7, cabin's 1). Either way the surface grew by
+a third of everything ever ported, in a day, while the world sprint — sky,
+water, splat, mist, clouds — is precisely the stretch of the roadmap that
+writes shaders.
+
+**The performance case stands at zero, measured.** §4f: the forest is 0.6 ms
+of a 10.6 ms frame, the near tier's triangles are free, the physics 1.4 ms —
+"the platform is not the constraint". G400: **13.1 ms full AA with 220 k
+impostors** on WebGL2. WebGPU's win (compute culling, indirect draws) fixes a
+CPU wall this project has now measured twice and does not have.
+
+**The one feature case is being removed by the user's own hand.** S3–S6 were
+gated on the port for a single reason — `@pmndrs/sky` is WebGPU-only
+(SKY-ATMOSPHERE §3). A sky written in GLSL un-gates them and takes away the
+only concrete thing the port would have unlocked.
+
+### The ruling: NOT now, and not as a background stream
+
+The port is a BOUNDED CHANTIER, to run at a stable moment with the user's eye
+on the A/Bs — W0.5a's method, which worked — and not a stream beside the
+sprint. In order of weight:
+
+1. **It is all-or-nothing, and the middle is pure cost.** Two variants per
+   material, one of them unseen; a peer's GLSL edit to render_world.js
+   desyncs the TSL twin silently. This project's own lesson from W0.5a (§4g):
+   *every real breakage was in the first frame and none in a green node
+   battery.* A TSL variant nobody looks at is exactly what the project has
+   learned not to trust.
+2. **It is a race the port loses by construction.** +14 sites in a day
+   against 3 ported in total. A background port during the world sprint never
+   reaches the flip.
+3. **There is no frame to win** (above). The jump that DID pay — colour
+   management, hardware sRGB decode, per-fragment Lambert, r186's chunks —
+   is W0.5a, and it is landed.
+4. **The future-proofing case is real but not time-bound.** `WebGLRenderer`
+   is maintained in r186; three's new features land on the node renderer.
+   The port costs the same later PLUS whatever GLSL is written in between —
+   so what protects the future is HOW the new shaders are written, not WHEN
+   the old ones are ported. That is the rule below.
+5. **The user's eye is the gate.** The aeroskin (3 hooks + the raw glass, the
+   25 weathering layers riding on the skin's hook, the material lab), the
+   village's look (_house_gen's 7), and the tone-map arrangement (the
+   `isXRRenderTarget` trick is WebGLRenderer-only; under the node renderer
+   the dome is decoded on the way in and every `toneMapped: false` material
+   needs an output node) each need a same-frame A/B judged by eye. Sessions
+   with the user present; not background time.
+
+**What the port buys when it does happen, so the reason is on record:**
+three's node `PostProcessing`, compute (GPU culling, particles, a sky-view LUT
+per frame), TSL-only shelf libraries (clouds are the likely next one), and
+WGSL's future in the browser. Honest size at today's surface: **6–10 sessions
+of the W0.5a kind** — baseline shots first, port, compare, flip — in §4h's
+order, the aeroskin last.
+
+### The rule for every new shader from here — PORT-CHEAP
+
+The sky in GLSL is the right call today: TSL cannot draw on the shipped
+`WebGLRenderer`, and a TSL sky would light only the flagged page's plain
+world. What keeps the eventual port at "a few mechanical sites" instead of
+"another twelve splices" — for the sky, and for the water, the mist, the
+clouds and W1's splat after it:
+
+1. **The model lives in JS, not in the shader.** The day, the sun (NOAA), the
+   atmosphere's parameters, and every LUT that depends on the day alone —
+   transmittance (256×64), multi-scatter (32×32) — are computed in JS into
+   `DataTexture`s. Renderer-neutral, headless-gateable (almanac values, a
+   transmittance row against a reference table), WORLD-CONTRACT §0 as
+   written, and the key light and the probe read them through `light_rig.js`
+   (SKY (af)) with no shader at all. Only the per-frame sky-view LUT and the
+   aerial-perspective volume are GPU passes.
+2. **Standalone programs of pure functions — no chunk splices.** The dome and
+   the LUT passes are fullscreen/dome `ShaderMaterial`s that touch none of
+   three's lighting chunks. All of §4g's pain (`geometryNormal`, `vMapUv`,
+   `<packing>`, the anchor that moved into a chunk) was splices. A pure GLSL
+   function maps 1:1 to a TSL `Fn`, and the TSL bundle carries **`glslFn`**
+   (verified in `vendor/three.webgpu.min.js`): a GLSL function wrapped as a
+   node on the node renderer's WebGL backend — a zero-cost bridge for pure
+   functions on flip day, the WGSL twin written later. A splice has no such
+   bridge.
+3. **Aerial perspective is ONE splice.** It must reach every world material
+   (it replaces `scene.fog`), so it is one function in one `fog_fragment`
+   replacement — view distance, view direction, sun → the AP LUT — installed
+   from one place (`worldLambert()` already funnels the 27 world Lambert
+   sites in render_world.js). Under TSL it is one `fogNode`. Never
+   per-material.
+4. **Anchor on `#include` lines only**, never on a literal template line
+   (the glass-pass trap, §4g).
+5. **The census is run at every shader landing** and the number goes in the
+   HANDOVER entry: `node tools/tsl_census.js --since <the previous G>`.
+
+### The triggers — when the port becomes a chantier
+
+Run W0.5b + W0.5c as ONE chantier, W0.5a-style, when ANY of these is true:
+
+- a measured wall WebGPU addresses (instance-submission CPU time on the F8
+  rig / `tools/tree_perf.js`, or a compute-shaped need — a per-frame LUT,
+  particles — the GLSL path cannot afford);
+- a shelf dependency the world needs that is TSL-only (clouds, most likely);
+- three deprecates `WebGLRenderer`, or the next three bump breaks the GLSL
+  path faster than it is worth re-fixing;
+- the world's shader set goes stable (sky, water, mist, splat landed) — the
+  cheapest moment regardless of the above.
+
+Until then: the flag stays (`dev.html?tsl=1` must keep booting), the bench
+`tools/_tsl.html` stays, the three variants stay, and nothing new is ported.
+`tools/tsl_census.js` is a tool and not a gate on purpose: peers write GLSL on
+the shipped path by design, and a count must never turn their work red.
+
 ## 5. RULINGS OWED
 
 - (t) WebGPURenderer/TSL as the world renderer target; the aeroskin port as
-  its own chantier.
+  its own chantier. **AMENDED 2026-09-14 (§4k): the target stands, the port
+  is GATED on the §4k triggers and runs as one bounded chantier — not in the
+  background, not beside the world sprint.**
 - (u) The tree spike as the next world chantier, ahead of W1's splat pass
   (the user's stated priority), with a numeric gate.
 - (v) The atmosphere taken off the shelf rather than written (§8.4).
@@ -712,3 +851,11 @@ joined; `calc(100% - 120px)` now, scrolling.
   battery (§4d). Recommended as a standing ruling.
 - **(am) The solver in a Web Worker** as an independent frame-time chantier,
   unrelated to the backend (§4d). Recommended for the debt register.
+- **(an) W0.5b/c is gated, not backgrounded** (§4k): the port runs as one
+  W0.5a-style chantier when a trigger fires — a measured wall, a TSL-only
+  dependency, three deprecating WebGLRenderer, or the world's shader set going
+  stable. **Ruled 2026-09-14** on the user's question.
+- **(ao) Every new shader is written PORT-CHEAP** (§4k): the model in JS, LUTs
+  as DataTextures, standalone pure-function programs, at most one splice per
+  effect, `#include` anchors only, the census in the HANDOVER entry. The sky
+  in GLSL is the first under the rule. **Ruled 2026-09-14.**

@@ -1,0 +1,4220 @@
+{
+ "url": "http://localhost:8363/flyDiy/dev.html",
+ "tag": "s2wt_warm",
+ "cold": false,
+ "secs": 40,
+ "date": "2026-09-14",
+ "gpu": {
+  "programs": 132,
+  "geometries": 1494,
+  "textures": 376,
+  "parallel": true,
+  "gl": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+ },
+ "milestones": [
+  {
+   "k": "DOMContentLoaded",
+   "t": 354
+  },
+  {
+   "k": "def:CHAR_TEX_LANDED",
+   "t": 654
+  },
+  {
+   "k": "def:ASSET_FETCH",
+   "t": 969
+  },
+  {
+   "k": "def:treeReady",
+   "t": 1011
+  },
+  {
+   "k": "def:PROP_LANDED",
+   "t": 3966
+  },
+  {
+   "k": "def:TREE_FILL",
+   "t": 9924
+  },
+  {
+   "k": "def:WORLD",
+   "t": 9998
+  },
+  {
+   "k": "load",
+   "t": 10008
+  },
+  {
+   "k": "def:CAGE_UI",
+   "t": 10366
+  },
+  {
+   "k": "firstRAF",
+   "t": 13001
+  },
+  {
+   "k": "bootGone",
+   "t": 23425
+  }
+ ],
+ "bootGone": 23425,
+ "bootLog": [
+  {
+   "k": "boot.js",
+   "t": 0
+  },
+  {
+   "k": "phase",
+   "t": 0,
+   "id": "scripts"
+  },
+  {
+   "k": "phase",
+   "t": 1037,
+   "id": "world"
+  },
+  {
+   "k": "phase",
+   "t": 2066,
+   "id": "renderer"
+  },
+  {
+   "k": "phase",
+   "t": 2097,
+   "id": "aeroplane"
+  },
+  {
+   "k": "run",
+   "t": 4708,
+   "set": "garage",
+   "steps": 8
+  },
+  {
+   "k": "step",
+   "t": 4823,
+   "id": "worldScene",
+   "ms": 4952,
+   "programs": 7
+  },
+  {
+   "k": "landed",
+   "t": 9783,
+   "key": "room",
+   "ok": true,
+   "what": "st:8363/flyDiy/media/tex/floor/diff.9b41f6e1.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 9783,
+   "key": "room",
+   "ok": true,
+   "what": "t:8363/flyDiy/media/tex/floor/rough.045a7994.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 9784,
+   "key": "room",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/floor/nor.83ef2ff6.png"
+  },
+  {
+   "k": "landed",
+   "t": 9784,
+   "key": "sky",
+   "ok": true,
+   "what": "host:8363/flyDiy/media/tex/sky/gain.337591c8.png"
+  },
+  {
+   "k": "landed",
+   "t": 9784,
+   "key": "sky",
+   "ok": true,
+   "what": "host:8363/flyDiy/media/tex/sky/base.f14bc399.jpg"
+  },
+  {
+   "k": "step",
+   "t": 9825,
+   "id": "aircraft",
+   "ms": 26,
+   "programs": 7
+  },
+  {
+   "k": "landed",
+   "t": 9860,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9860,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9875,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9877,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9877,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9877,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9877,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9878,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9878,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9891,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9892,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9892,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9894,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9894,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9894,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9895,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9898,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9899,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9899,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9899,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9901,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9902,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9902,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9902,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9903,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9904,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9904,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9905,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9905,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9905,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9906,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9907,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9907,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9908,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9909,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9920,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9922,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9924,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9924,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9925,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9925,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9926,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9926,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9926,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9927,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9927,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9928,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9929,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9929,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9932,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9935,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9938,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9939,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9940,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9941,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9942,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9942,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9942,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9942,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9954,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9957,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9958,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9958,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9958,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9958,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9958,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9960,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9960,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9960,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9960,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 9960,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "step",
+   "t": 9972,
+   "id": "garage",
+   "ms": 51,
+   "programs": 7
+  },
+  {
+   "k": "landed",
+   "t": 10033,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10043,
+   "key": "props",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/219be04c6920.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b23d5b7d8ac1.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3648583c5766.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d60256203227.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "env",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b5d11bd1abaa.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10046,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/7c6bfb1658c8.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10047,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/be5193c1c1b0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10047,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2a4d84c091b6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10047,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2f29c45f5453.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10047,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/190d34a1f721.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10047,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c017c1202410.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10047,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/cb09f4830658.png"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d1892b00c072.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8e21bc659ff9.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b114e50e8a9e.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6a2723c7f7b1.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/42d9a1bf5354.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "treeBin",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "treeBin",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/1bef7a5913e4.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "treeBin",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "treeBin",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 10050,
+   "key": "treeBin",
+   "ok": true
+  },
+  {
+   "k": "step",
+   "t": 10083,
+   "id": "editor",
+   "ms": 2610,
+   "programs": 7
+  },
+  {
+   "k": "landed",
+   "t": 10380,
+   "key": "skin",
+   "ok": true,
+   "what": "lyDiy/media/tex/wood/maple_aero_512.2a5e4c9d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10490,
+   "key": "skin",
+   "ok": true,
+   "what": "iy/media/tex/wood/laminate_aero_512.88ac0df3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10491,
+   "key": "skin",
+   "ok": true,
+   "what": "Diy/media/tex/skin/leather_aero_512.73449514.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10491,
+   "key": "skin",
+   "ok": true,
+   "what": "flyDiy/media/tex/skin/panel_aero_1k.3609dbf2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10491,
+   "key": "skin",
+   "ok": true,
+   "what": "flyDiy/media/tex/skin/foil_aero_512.b96de146.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10492,
+   "key": "skin",
+   "ok": true,
+   "what": "yDiy/media/tex/skin/sillAlu_aero_1k.a51b4a39.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10693,
+   "key": "skin",
+   "ok": true,
+   "what": "flyDiy/media/tex/skin/hide_aero_512.2e381f49.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10713,
+   "key": "skin",
+   "ok": true,
+   "what": "/media/tex/skin/rubberGrip_aero_512.e371d52d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10714,
+   "key": "skin",
+   "ok": true,
+   "what": "/media/tex/skin/plasticScr_aero_512.b1bfbee8.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10742,
+   "key": "skin",
+   "ok": true,
+   "what": "/media/tex/skin/plasticGrn_aero_512.a351409b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 10822,
+   "key": "skin",
+   "ok": true,
+   "what": "media/tex/skin/plasticWorn_aero_512.81fe75e2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12850,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d52536a382cb.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12850,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/0bf94305612f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12850,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3af9e74c0db7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12850,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/da1c4995622c.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12850,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/200354702536.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12850,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/7f4e5148e3b0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/bf813641d645.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/889a24e5ca02.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/14848230ecc0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/cecf25ee6103.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a84eb9a2c79f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/7adc7feecc36.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12851,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a840c4c60bd7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a1d8aeed6a8d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/98ef35a1e5b8.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b2036e247d0f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ffb3f4a82d0a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/98be41bceb05.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fcaf7dea1072.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/aea376976b9c.png"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/1d5dbc493541.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6ee6229984e3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 12852,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8114c90ac1db.jpg"
+  },
+  {
+   "k": "step",
+   "t": 12858,
+   "id": "sync",
+   "ms": 3103,
+   "programs": 7
+  },
+  {
+   "k": "landed",
+   "t": 15975,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9c8b3e2b8ad8.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 15975,
+   "key": "env",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 15975,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ff59f2cbe9a3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 15982,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8118876c40df.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/76a6829cfb8b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6f9302c4f8ab.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b51a3f57410e.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e6d5ba84b897.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9299e608cb3f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/14258136bc4f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ff796a1d32b5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/badabee2f71c.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/816969ea1cdf.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8cf4b59e9a49.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ae08533e25a3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/38942ec522d7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d2f52dded1a6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/aa75b7093db2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9127f31785b0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/280cc598ad14.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/52dfcf3c3017.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/99690f97f929.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fa815da162b2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/eaa5dd5c090d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8ccc439cff40.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/05d47e0b8b38.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8f4345f2092b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/41c449f3b2d1.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/1888f941c22a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/56ea2f5bd2f0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/890958c81fd7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/54f3d11e6fc6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e421be965993.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/f568b494df63.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2a0949200339.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d204c856ea7f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/126631ccd5b5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/5707633c84f0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/69a9d6d15d95.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/25e2ef432627.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ca2b6ca0856b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9b3ed74df6fe.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/588cbbf12124.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b073c02e40c1.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ecd562833594.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b7a81901cef6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d8ac8d130239.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b8a578f90b96.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c7c5000573b7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c13e8f9a5179.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/4ae4d527514e.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ca630327effa.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ed4d34027dcb.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/adfdfe3d265f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fb9d8d46ac86.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/bc41b2350402.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/49bc84d51bb6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/17a9dea0f0c0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/cd2c5d26a451.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/83536fe825b0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3aafcdb8eb70.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/71d261754d5a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/94cfc6b9721d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2bc5547a1ac3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16207,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/4f2e70a7d561.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/72de1a5c1c38.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/bbc797c57ea5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b492e9a8be16.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3c9d294bbb8a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d45b40471ae5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/18be586be956.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/58244a9223e2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b0e4e088c2e0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/33a75e3ad60b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fa1ded500b43.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b92644f9c05b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fded48ac5879.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/74c5e9a4776f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/880168c9cd10.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9684818de747.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b3f90eb439e9.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c45d4c738a6a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6f3e707e0724.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/48233a69038d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8eed3eaec1d3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a9f28a7dc3c7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e56d5afb0fb3.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c6470904db37.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9e867e8c5b76.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/96f4368ee7db.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/42adbe921ece.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6c9b7aaf5a80.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ba84c2bc39ae.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/beefb9edd199.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e147c6757847.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/4010effa8c5f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/f915b4455b33.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9b113570db2b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/68dc2e4a41b0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/cc287d12e294.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/124271cc5538.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/47f8c2bb9fc9.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/bf2b390224ec.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/02866b6537d6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/7da5fe81f545.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/618a74d4dbcb.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/750238437b57.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/652fc1bbee14.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e849615113a9.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/861174a800c9.png"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/20e4cd4f728a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6f7643763eea.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/270ac06bc15f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8dd2924f1006.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c3805ec6f214.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/5753c761b716.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/02f0127068d5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6a034dc4eda5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a365cd96049f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2422b01b7e94.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3903364c688f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ba5734fd5a2a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/15ff4753097d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e7904062ec1a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/4f942f596259.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/732359d459d2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/7cfcbaacf950.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/cf90b261d62c.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/637d2aa8cf0b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3c2973f4c490.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/09be2969224a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/e1f07f47e026.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/f59570cf32c0.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16208,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/78bc6e1f0726.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8daf95f2ddab.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/33bd02994477.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2e27385054d8.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/5e280741641b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/76dd13eb1eb5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/efd844a331d5.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/012db45e8741.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a3be37a38a4f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/f3369f52585a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8246982f1147.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/3ac7282b2b71.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/af547b76526b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/28e6554c9c2b.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/101e91b66dcb.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/9da68c62f50f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a2d25c76958e.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/b553d2a28263.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/d93bc0b61e03.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/7e89111eaaa9.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/60f3c3f112c7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fd299684d9e6.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/bc4eda6b8bc4.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/1838147903c7.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/807fe7f3e84e.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/0029efd3e493.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/a0a16e4b458f.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/39c2c9c33254.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/12fbdfdb1c33.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/961be17a845c.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/8ee684a71ae2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/ac1a518d2ea1.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/c18e94c52f36.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/2b0df6454af2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/1dcba3343f9a.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/6c599b735a1d.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/fa2b10e9b372.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/182245d054f2.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 16209,
+   "key": "propTex",
+   "ok": true,
+   "what": "ost:8363/flyDiy/media/tex/props/91ab26765ba7.jpg"
+  },
+  {
+   "k": "step",
+   "t": 17137,
+   "id": "restore",
+   "ms": 5,
+   "programs": 10
+  },
+  {
+   "k": "landed",
+   "t": 17163,
+   "key": "crew",
+   "ok": true,
+   "what": "ch20"
+  },
+  {
+   "k": "step",
+   "t": 17163,
+   "id": "compile",
+   "ms": 4420,
+   "programs": 127
+  },
+  {
+   "k": "landed",
+   "t": 17902,
+   "key": "crewBuild",
+   "ok": true
+  },
+  {
+   "k": "landed",
+   "t": 18732,
+   "key": "propTex",
+   "ok": true,
+   "what": "t:8363/flyDiy/media/tex/panelhw/3a60ad7d066c.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 18732,
+   "key": "propTex",
+   "ok": true,
+   "what": "t:8363/flyDiy/media/tex/panelhw/ddee1e364d55.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 18732,
+   "key": "propTex",
+   "ok": true,
+   "what": "t:8363/flyDiy/media/tex/panelhw/45b3f5dcacbb.jpg"
+  },
+  {
+   "k": "landed",
+   "t": 18823,
+   "key": "crewTex",
+   "ok": true,
+   "what": "ia/tex/chars/ch20/Ch20_1001_Diffuse.9be49524.png"
+  },
+  {
+   "k": "landed",
+   "t": 18824,
+   "key": "crewTex",
+   "ok": true,
+   "what": "dia/tex/chars/ch20/Ch20_1001_Normal.4f801cb0.png"
+  },
+  {
+   "k": "step",
+   "t": 21588,
+   "id": "firstFrame",
+   "ms": 930,
+   "programs": 131
+  },
+  {
+   "k": "frame1",
+   "t": 22518
+  },
+  {
+   "k": "landing",
+   "t": 23050
+  },
+  {
+   "k": "ready",
+   "t": 23201
+  },
+  {
+   "k": "gone",
+   "t": 23201
+  }
+ ],
+ "paints": [
+  {
+   "k": "first-paint",
+   "t": 256
+  },
+  {
+   "k": "first-contentful-paint",
+   "t": 256
+  }
+ ],
+ "propsLanded": 129,
+ "charsLanded": 2,
+ "fetches": 54,
+ "longTaskTotalMs": 24836,
+ "longTasks": [
+  {
+   "t": 5046,
+   "d": 4952
+  },
+  {
+   "t": 1259,
+   "d": 3675
+  },
+  {
+   "t": 13082,
+   "d": 3103
+  },
+  {
+   "t": 10306,
+   "d": 2612
+  },
+  {
+   "t": 19249,
+   "d": 2355
+  },
+  {
+   "t": 21811,
+   "d": 930
+  },
+  {
+   "t": 16592,
+   "d": 741
+  },
+  {
+   "t": 17447,
+   "d": 679
+  }
+ ],
+ "profileTotalMs": 40102,
+ "stillness": {
+  "drop_vs_2s": 0,
+  "drop_vs_5s": 0,
+  "s2_vs_5s": 0
+ },
+ "byFile": [
+  [
+   "three.min.js",
+   21586
+  ],
+  [
+   "20_world.js",
+   3869
+  ],
+  [
+   "(native)",
+   3188
+  ],
+  [
+   "30_solver.js",
+   2568
+  ],
+  [
+   "aeroskin.js",
+   1003
+  ],
+  [
+   "aeroweather.js",
+   776
+  ],
+  [
+   "render_world.js",
+   674
+  ],
+  [
+   "21_world_hydro.js",
+   624
+  ],
+  [
+   "app.js",
+   606
+  ],
+  [
+   "_cage_gen.js",
+   568
+  ],
+  [
+   "_strut_gen.js",
+   487
+  ],
+  [
+   "50_model_codec.js",
+   352
+  ],
+  [
+   "23_world_settle.js",
+   336
+  ],
+  [
+   "_cage_crew.js",
+   310
+  ],
+  [
+   "_cage_ui.js",
+   274
+  ],
+  [
+   "_cage_join.js",
+   241
+  ],
+  [
+   "trees.js",
+   212
+  ],
+  [
+   "_gear_kit.js",
+   170
+  ],
+  [
+   "_gear_gen.js",
+   162
+  ],
+  [
+   "_fit_site.js",
+   157
+  ],
+  [
+   "_shoulder_gen.js",
+   156
+  ],
+  [
+   "24_world_aero.js",
+   146
+  ],
+  [
+   "garage.js",
+   136
+  ],
+  [
+   "hangar.js",
+   114
+  ],
+  [
+   "_eng_mesh.js",
+   114
+  ]
+ ],
+ "byFn": [
+  [
+   "three.min.js y:4199",
+   1963
+  ],
+  [
+   "three.min.js Jd.renderBufferDirect:4223",
+   1816
+  ],
+  [
+   "three.min.js x:4199",
+   1650
+  ],
+  [
+   "(native) (idle):0",
+   1433
+  ],
+  [
+   "three.min.js R:4165",
+   1333
+  ],
+  [
+   "three.min.js _:4172",
+   1145
+  ],
+  [
+   "(native) (program):0",
+   1053
+  ],
+  [
+   "30_solver.js substep:1136",
+   917
+  ],
+  [
+   "20_world.js hash2:24",
+   880
+  ],
+  [
+   "three.min.js c:3826",
+   855
+  ],
+  [
+   "three.min.js yl:4223",
+   772
+  ],
+  [
+   "20_world.js vnoise:29",
+   753
+  ],
+  [
+   "three.min.js og:4223",
+   751
+  ],
+  [
+   "three.min.js d:3826",
+   664
+  ],
+  [
+   "(native) (garbage collector):0",
+   536
+  ],
+  [
+   "30_solver.js aeroPass:750",
+   511
+  ],
+  [
+   "three.min.js Sy:4121",
+   511
+  ],
+  [
+   "20_world.js h0a:63",
+   505
+  ],
+  [
+   "three.min.js f:3826",
+   491
+  ],
+  [
+   "aeroweather.js aeroWxCavity:339",
+   483
+  ],
+  [
+   "three.min.js Ne:4121",
+   478
+  ],
+  [
+   "three.min.js setValue:4121",
+   467
+  ],
+  [
+   "_strut_gen.js radAt:279",
+   464
+  ],
+  [
+   "app.js poseModel:2850",
+   415
+  ],
+  [
+   "20_world.js blendM:165",
+   411
+  ],
+  [
+   "20_world.js regSurf:340",
+   401
+  ],
+  [
+   "three.min.js applyMatrix4:4",
+   348
+  ],
+  [
+   "three.min.js zr:4121",
+   339
+  ],
+  [
+   "50_model_codec.js applySkinDeform:189",
+   335
+  ],
+  [
+   "three.min.js g:4172",
+   322
+  ],
+  [
+   "three.min.js l:4075",
+   300
+  ],
+  [
+   "three.min.js Yh:4223",
+   296
+  ],
+  [
+   "aeroskin.js h:1087",
+   291
+  ],
+  [
+   "three.min.js multiplyMatrices:4",
+   268
+  ],
+  [
+   "three.min.js getX:4",
+   243
+  ],
+  [
+   "three.min.js copy:4",
+   240
+  ],
+  [
+   "aeroskin.js aeroDetailTex:1183",
+   234
+  ],
+  [
+   "three.min.js upload:4121",
+   230
+  ],
+  [
+   "30_solver.js vkSegment:23",
+   222
+  ],
+  [
+   "21_world_hydro.js scan:312",
+   210
+  ]
+ ],
+ "inclusive": [
+  [
+   "render @aa_resolve.js",
+   16998
+  ],
+  [
+   "buildWorldScene @render_world.js",
+   4865
+  ],
+  [
+   "bakeGround @render_world.js",
+   4191
+  ],
+  [
+   "colorAt @render_world.js",
+   3924
+  ],
+  [
+   "terrainH @20_world.js",
+   3546
+  ],
+  [
+   "syncBuild @app.js",
+   2987
+  ],
+  [
+   "h0a @20_world.js",
+   2557
+  ],
+  [
+   "openEditor @app.js",
+   2522
+  ],
+  [
+   "CAGE_UI_BOOT @_cage_ui.js",
+   2490
+  ],
+  [
+   "genShakedown @64_gen_build.js",
+   2450
+  ],
+  [
+   "bakeHangarEnv @app.js",
+   2185
+  ],
+  [
+   "setAircraft @app.js",
+   1662
+  ],
+  [
+   "surface @22_world_biomes.js",
+   1608
+  ],
+  [
+   "apply @app.js",
+   1580
+  ],
+  [
+   "render @bench.js",
+   1346
+  ],
+  [
+   "getHangar @app.js",
+   1062
+  ],
+  [
+   "genHangarBuild @hangar.js",
+   1023
+  ],
+  [
+   "makeWorld @20_world.js",
+   983
+  ],
+  [
+   "plantWoodland @render_world.js",
+   742
+  ],
+  [
+   "renderSky @hangar.js",
+   717
+  ],
+  [
+   "buildModel @app.js",
+   355
+  ],
+  [
+   "buildGen @64_gen_build.js",
+   230
+  ],
+  [
+   "coverageMips @trees.js",
+   201
+  ],
+  [
+   "bakeImpostorAtlasNow @render_world.js",
+   128
+  ],
+  [
+   "forestHere @render_world.js",
+   122
+  ],
+  [
+   "enterGarage @app.js",
+   120
+  ],
+  [
+   "fillPropMesh @props.js",
+   87
+  ],
+  [
+   "render @editor.js",
+   55
+  ],
+  [
+   "treeBuild @trees.js",
+   27
+  ],
+  [
+   "fromScene @three.min.js",
+   18
+  ],
+  [
+   "makeSim @30_solver.js",
+   5
+  ],
+  [
+   "walk @aeroskin.js",
+   3
+  ],
+  [
+   "walk @editor.js",
+   3
+  ],
+  [
+   "treeSettle @render_world.js",
+   1
+  ]
+ ],
+ "netTotalKB": 148834,
+ "netRequests": 708,
+ "netFailed": 0,
+ "netByType": {
+  "Document": 51,
+  "Other": 8,
+  "Stylesheet": 157,
+  "Image": 116178,
+  "Script": 8412,
+  "Font": 75,
+  "Fetch": 23953
+ },
+ "bytesByDir": [
+  [
+   "media/tex",
+   116178
+  ],
+  [
+   "media/geo",
+   23953
+  ],
+  [
+   "src/viewer",
+   2317
+  ],
+  [
+   "src/core",
+   1374
+  ],
+  [
+   "vendor/three.min.js",
+   730
+  ],
+  [
+   "tools/_house_gen.js",
+   455
+  ],
+  [
+   "tools/_cage_gen.js",
+   397
+  ],
+  [
+   "tools/_cage_ui.js",
+   228
+  ],
+  [
+   "src/pier",
+   210
+  ],
+  [
+   "tools/_cage_crew.js",
+   188
+  ],
+  [
+   "tools/_eng_mesh.js",
+   162
+  ],
+  [
+   "tools/_cage_join.js",
+   160
+  ]
+ ],
+ "samples": [
+  {
+   "t": 294,
+   "bootGone": 0,
+   "tree": null,
+   "fill": null,
+   "props": 0,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "scripts",
+    "pending": []
+   }
+  },
+  {
+   "t": 562,
+   "bootGone": 0,
+   "tree": null,
+   "fill": null,
+   "props": 0,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "scripts",
+    "pending": []
+   }
+  },
+  {
+   "t": 816,
+   "bootGone": 0,
+   "tree": null,
+   "fill": null,
+   "props": 0,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "scripts",
+    "pending": []
+   }
+  },
+  {
+   "t": 1069,
+   "bootGone": 0,
+   "tree": false,
+   "fill": null,
+   "props": 0,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "scripts",
+    "pending": []
+   }
+  },
+  {
+   "t": 5036,
+   "bootGone": 0,
+   "tree": false,
+   "fill": null,
+   "props": 0,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "aeroplane",
+    "pending": [
+     "sky 0/2",
+     "the room 0/3",
+     "props 0/129"
+    ]
+   }
+  },
+  {
+   "t": 10047,
+   "bootGone": 0,
+   "tree": false,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 0,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "worldScene",
+    "pending": [
+     "lighting 0/2",
+     "props 0/129"
+    ]
+   }
+  },
+  {
+   "t": 13076,
+   "bootGone": 0,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "editor",
+    "pending": [
+     "lighting 1/2",
+     "prop textures 41/212",
+     "the crew 0/1"
+    ]
+   }
+  },
+  {
+   "t": 17361,
+   "bootGone": 0,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "sync",
+    "pending": [
+     "the crew 0/1"
+    ]
+   }
+  },
+  {
+   "t": 18776,
+   "bootGone": 0,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "compile",
+    "pending": [
+     "prop textures 212/215",
+     "crew textures 0/2"
+    ]
+   }
+  },
+  {
+   "t": 19045,
+   "bootGone": 0,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 0,
+   "boot": {
+    "state": "loading",
+    "phase": "compile",
+    "pending": [
+     "crew textures 0/2"
+    ]
+   }
+  },
+  {
+   "t": 21606,
+   "bootGone": 0,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "loading",
+    "phase": "compile",
+    "pending": []
+   }
+  },
+  {
+   "t": 23198,
+   "bootGone": 0,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "loading",
+    "phase": "firstFrame",
+    "pending": []
+   }
+  },
+  {
+   "t": 23485,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 23761,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 24397,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 24678,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 25006,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 25294,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 25592,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 26237,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 26518,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 26857,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 27178,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 27470,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 27766,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 28064,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 28332,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 28627,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 29139,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 29418,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 29683,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 29975,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 30261,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 30598,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 30872,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 31152,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 31419,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 31695,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 32011,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 32300,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 32597,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 32864,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 33123,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 33395,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 33697,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 33971,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 34263,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 34550,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 34841,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 35155,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 35429,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 35705,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 35991,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 36328,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 36652,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 36945,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 37200,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 37506,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 37810,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 38114,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 38381,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 38680,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 38959,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 39245,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 39499,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 39766,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  },
+  {
+   "t": 40032,
+   "bootGone": 23425,
+   "tree": true,
+   "fill": {
+    "live": 0,
+    "queued": 0
+   },
+   "props": 129,
+   "chars": 2,
+   "boot": {
+    "state": "gone",
+    "phase": null,
+    "pending": []
+   }
+  }
+ ]
+}

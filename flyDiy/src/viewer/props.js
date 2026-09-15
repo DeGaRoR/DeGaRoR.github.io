@@ -92,19 +92,7 @@ function propMaterial(THREE, rec) {
   if (rec.blend) { o.transparent = true; o.opacity = rec.opacity; }
   const m = new THREE.MeshStandardMaterial(o);
   m.userData.env0 = m.envMapIntensity;
-  m.userData.emis0 = m.emissiveIntensity;     // the author's level: propSetGlowOf scales from it
   return m;
-}
-// THE LAMPS COME ON WITH THE DUSK (SKY chantier, S6): the fixtures a scene placed (the village's
-// wall lamps, pendants, floods) glow by their prop KEY - a factor over the author's emissive -
-// so a placed lamp is dark at noon and lit at night, and the shed's own registry (hangar.js EMIT)
-// keeps its lamps to itself: this touches only the keys a caller names.
-function propSetGlowOf(keys, f) {
-  for (const key of keys) {
-    const b = PROP_BUILT.get(key);
-    if (!b) continue;
-    for (const m of b.mats) if (m.emissive && m.userData.emis0 != null) m.emissiveIntensity = m.userData.emis0 * f;
-  }
 }
 
 // ---- the geometry bytes (2026-09-01, external media) ----------------------
@@ -318,5 +306,5 @@ function propDispose(key) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
-                     propSetEnv, propSetGlowOf, propEnv, propDispose, propWarm, propReady, propDust,
+                     propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
                      propLevels };

@@ -600,6 +600,15 @@
         "8430"
       ],
       "port": 8430
+    },
+    {
+      "name": "flydiy-parked",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8440"
+      ],
+      "port": 8440
     }
   ]
 }

@@ -536,14 +536,14 @@ comes from in `tools/_island.html` (the bench) and in `dev.html?world=jolene`
 | ground colour | Landsat tint × radar overlay × canopy shade × shore × snow | ✔ live, every layer a slider (the stack) | ✔ the same stack BAKED unlit by `island_prep` (`.albedo.rgb`), mapped over both rings; not live |
 | ground normal detail | radar band-pass bump | ✔ live, fading with camera distance | ✗ not yet (the game's terrain normal is the mesh's; W1) |
 | land classes | WorldCover 10 m + the heath reclass (tree cover under 2.5 m canopy → shrub) | ✔ eight smooth weight fields, the contour blur | ✔ `effClass` → the classifier: tree → FOREST_FLOOR, built → PAVED, bare → ROCK/SCREE by slope, the rest GRASS, water → WATER |
-| lakes | WorldCover class 80 ∪ Landsat NDWI, a signed field, flat in the DEM (G405–G407) | ✔ drawn as water class | ✔ one quad per lake at its level, the edge the field's own 4 m fade (G413 — no hard discard, the ground paint kept inside the line: the "deep vs pale" battle is gone); `waterAt` answers the class (t + 0.3) |
-| rivers | — (no map source; WorldCover holds only the wide ones as water) | ✗ | ✔ THE BLEND (G413, the default `?hydro=blend`): the bake's rivers between the map's lakes — the lake field handed to the bake as its lakes (a reach ends where it enters one, restarts below), 1024 cells over the island (0.63 s), 1.2 km² of drainage to be a river, kW 0.22 / 28 m max (narrowed), routed round every premises strip by a drainage dome. `?hydro=map` = lakes alone, `?hydro=proc` = the bake's own lakes and rivers |
+| lakes | WorldCover class 80 | ✔ drawn as water class | ✔ `waterAt` answers the class (t + 0.3); the hydrology bake floods NO sinks on an island |
+| rivers | — (no map source; WorldCover holds only the wide ones as water) | ✗ | ✗ OFF on the island for now (A0m2 1e12; the DEM's beds stay). Procedural later, on top |
 | where trees stand | effective class = tree cover | ✔ | ✔ `forestHere` reads the classifier |
 | how MANY trees | the canopy height as a coverage ramp | ✔ stems per 100 m², thinned by canopy | ✔ (G399) the fill keeps a grid point with p = (canopy − `cover from`) / (`full cover` − `cover from`); F8 › trees › from the map |
 | how TALL trees | the canopy height layer (Meta/WRI 1 m → 10 m) | ✔ height = canopy × jitter | ✔ (G399) the fill scales each tree to canopy × `size gain` / the model's own height (clamped `size min`..`max`), the mix's spread as jitter; the woodland too (canopy / 16) |
 | which SPECIES | — | ✗ (cones) | procedural: the ladder's pool weighted by altitude / patches / wet-or-steep (W0c.29). By canopy: owed (W3) |
 | the trees themselves | the ladder's five collections, three rungs, impostors | ✗ (cones for placement only) | ✔ the real ladder, measured |
-| snow | the DEM above the snowline, SHED OFF STEEP GROUND (G409: full under 25°, none by 40° — the user: "no snow on high slopes") | ✔ live, north faces first, slope from the normal | ✔ live in the ground hook (slope from the world position's screen derivatives — `normal` is not yet defined at `map_fragment`); the baked albedo and the terrain type (900 m+, slope < 35°) carry the same rule |
+| snow | the DEM above the snowline | ✔ live, north faces first | ✔ baked into the albedo at 830–950 m; not live |
 | the light | — | the bench's sun knobs | the rig rows (`alps` at boot on an island), F8 › environment |
 | fog | — | none | none on an island (20–90 km); F8 › environment › fog |
 

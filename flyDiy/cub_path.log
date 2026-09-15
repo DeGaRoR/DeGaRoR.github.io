@@ -1,0 +1,12 @@
+Cub-alike (rule tail) HOME calm · normal
+  ROLL@0 LIFTOFF@16.9 CLIMB@24.4 CROSSWIND@47.7 DOWNWIND@68 BASE@181.2 FINAL@197.6 FLARE@311.2 ROLLOUT@315.8 STOPPED@336.5
+  take-off: run 231 m, lift-off 25.9 m/s · crosswind turn at 78 m
+  CROSSWIND overshoot   67 m  settle 9 s  roll cycle 2.3 deg
+  DOWNWIND  overshoot   15 m  settle 15.8 s  roll cycle 3.3 deg
+  BASE      overshoot   15 m  settle 10 s  roll cycle 5.6 deg
+  final: captured at 216.7 s · above-slope rms 0.7 m · V-VAppr rms 0.07 (mean -0.02) · thr 0.25..0.4
+  flare: from 6.34 m at -1.37 m/s, 4.6 s
+  landing: sink 1.21 m/s · 21.8 m/s = 1.16 Vs · -7 m past the aim · 0 m off · run 237 m · three-point
+  rollout: max heading 0.1 deg, 0 reversals, rudder 0.01 · 0 m off at the stop
+  completed at 336.5 s (167 s wall)
+{"key":"cub","name":"Cub-alike","from":"HOME","to":"HOME","style":"normal","tail":"rule","slope":0,"weather":null,"outcome":"completed","phase":"STOPPED","t":336.5,"phases":["ROLL@0","LIFTOFF@16.9","CLIMB@24.4","CROSSWIND@47.7","DOWNWIND@68","BASE@181.2","FINAL@197.6","FLARE@311.2","ROLLOUT@315.8","STOPPED@336.5"],"goArounds":0,"verdicts":[],"takeoff":{"run":231,"Vlo":25.9},"climb":{"hTurn":78,"vsMean":2.66},"legs":[{"name":"CROSSWIND","overshoot":67,"settleT":9,"rollLC":2.3},{"name":"DOWNWIND","overshoot":15,"settleT":15.8,"rollLC":3.3},{"name":"BASE","overshoot":15,"settleT":10,"rollLC":5.6}],"final":{"captureT":216.7,"aboveRms":0.7,"vRms":0.07,"vErrMean":-0.02,"thrMin":0.25,"thrMax":0.4},"flare":{"entryAgl":6.34,"entryVs":-1.37,"t0":311.2,"dur":4.6},"landing":{"sink":1.21,"V":21.8,"VoverVs":1.16,"pastAim":-7,"off":0,"run":237,"three":true,"drift":-0.01},"rollout":{"maxE":0.1,"zeroX":0,"maxDr":0.01,"xtEnd":0},"Vs":18.8,"VsLanding":18.8,"VAppr":23.8,"mass":481,"sheet":{"Vs":18.27,"Vs0":18.27,"Vref":23.75,"Vrot":18.7,"Vx":22.62,"Vy":26,"Vbg":24.63,"Vms":18.72,"Vcruise":33.1,"climbMax":2.93,"sinkMin":2.44,"LDbest":8.86,"TORun":250,"LDGrun":173.08,"mass":481.36},"tecs":true,"path":true,"wall":167,"csv":"cub_path.csv"}

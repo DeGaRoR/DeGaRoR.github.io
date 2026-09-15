@@ -10,11 +10,13 @@ Read this first; then the documents it points at, in the order they are named.
 The second world (URSOY — Admiralty Island, Southeast Alaska, on a 5 m IFSAR
 DTM + ESA WorldCover) arrives BESIDE the analytic world, and the analytic world
 keeps flying throughout. The spine, as ruled: **the tree spike first (W0, done)
-→ the three.js upgrade (W0.5a) → TSL, then the backend flag (W0.5b/c) →
-the quadtree on the analytic world (W2), whose first content is the first
-world → the splat material, written once, in TSL (W1) → trees productionised
+→ the three.js upgrade (W0.5a, done) → the quadtree on the analytic world
+(W2), whose first content is the first world → the splat material, written
+once, port-cheap (W1) → trees productionised
 (W3) → the data (U1) → one 20 × 20 km slice of Ursoy as THE SHIPPED WORLD
 (W4) → nomination and the editor (W6, W7) → the whole island, deferred (W5).**
+TSL and the backend flag (W0.5b/c) came OFF the spine on 2026-09-14
+(RENDERER-DECISION §4k): gated on a trigger, run as one chantier when it fires.
 Canonical: `WORLD-V2.md` §11; the ROADMAP's Phase 3 / Phase 7 were reconciled
 to it today (D0) — before that they still said "clipmap", "erosion at 4096²",
 "hero tiles" and "Corsica on GLO-30, decision open".
@@ -28,15 +30,15 @@ to it today (D0) — before that they still said "clipmap", "erosion at 4096²",
 | **W0c the ladder (W0 + W0e's verdict)** | ✔ **closed** (W0c.6–33) | HANDOVER W0c, TREE-IMPORT.md §8 |
 | W0d canopy shell (R3) | not done; partly moot (impostor ring to 4 km, terrain mask beyond); R5 open | WORLD-V2 §8.3, §12.12 |
 | **W0.5a three.js upgrade** (r128 → r186, still WebGL) | ✔ **landed 2026-09-13** | RENDERER-DECISION §4g, HANDOVER W0.5a |
-| W0.5b TSL · W0.5c backend flag | **IN PROGRESS**: the flag is in (`dev.html?tsl=1`, §4i), 3 materials ported, ~28 hooks to go in §4i's order; GLSL stays default | RENDERER-DECISION §4g, §4h, §4i |
+| W0.5b TSL · W0.5c backend flag | **GATED (2026-09-14)**: the flag is in (`dev.html?tsl=1`, §4i), 3 of 46 sites ported and none more until a §4k trigger fires; every new shader written port-cheap; `node tools/tsl_census.js` keeps the count | RENDERER-DECISION §4i, **§4k** |
 | W2a switch · W2b loader/sampler · W2c second world = first world | not started; `terrain_bake.js` / `terrain_codec.js` exist, run once (2.55×, 3 361 leaves) | WORLD-V2 §2–5, §11 |
-| W1 splat material (TSL) | not started | WORLD-V2 §8.1 |
+| W1 splat material (port-cheap GLSL) | not started | WORLD-V2 §8.1, RENDERER-DECISION §4k |
 | W3 trees productionised | half inside W0c (density as data, species by place, hand placement); per-class table waits for U1 | TREE-IMPORT.md §8 |
 | U1 the data | not started; **GDAL not installed** | ISLAND-PREPACK.md |
 | W4 the slice — the shipped world | not started | WORLD-V2 §11 note |
 | W6 · W7 · W5 | later / later / deferred | ISLAND-ADMIRALTY.md §12, WORLD-V2 §6–7 |
 | S1 the day · S2 the sun | pure data, not gated on anything — can land any time | SKY-ATMOSPHERE §6 |
-| S3–S6 atmosphere, aerial perspective, probe, mist+glare | **gated on W0.5a** (`@pmndrs/sky` needs modern three + TSL) | SKY-ATMOSPHERE §6 |
+| S3–S6 atmosphere, aerial perspective, probe, mist+glare | **un-gated (2026-09-14)**: the sky is written by hand in GLSL, port-cheap (SKY-ATMOSPHERE §4b); `@pmndrs/sky` withdrawn | SKY-ATMOSPHERE §4b, §6 |
 
 ## 3. WHAT THE TREE CHANTIER DELIVERED, AND WHAT IT DECIDED
 

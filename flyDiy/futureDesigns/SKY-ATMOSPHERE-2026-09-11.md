@@ -221,6 +221,41 @@ That also means the fallback improves for free whenever the model is tuned, and
 that a WebGL2 user gets the right sunset colours at the wrong fidelity rather
 than a different sunset.
 
+## 4b. AMENDMENT 2026-09-14 — THE SKY IS WRITTEN BY HAND, IN GLSL, PORT-CHEAP
+
+The user is writing the sky in GLSL, and RENDERER-DECISION §4k has ruled the
+TSL port GATED (no frame to win, 3 of 46 sites ported, the surface growing
+faster than any background port). Two consequences for this document:
+
+- **Ruling (ad) is withdrawn.** `@pmndrs/sky` is WebGPU-only and cannot draw
+  on the shipped `WebGLRenderer`; its TSL was the sole reason S3–S6 were
+  gated on the port. **S3–S6 are un-gated.** Its MODEL (Hillaire 2020 — the
+  four LUTs, NOAA sun, ozone) is still the reference; only the shelf is gone.
+- **§4's "one model, two renderers" survives in a stronger form.** The model
+  is JS; the GLSL dome is the first renderer of it; the TSL dome, on flip
+  day, is the second — and the fallback-table idea is not needed, because the
+  GLSL sky IS the shipped sky.
+
+**The sky's own contract, so the port stays cheap** (§4k's rule, applied):
+
+1. **The day, the sun, the atmosphere's parameters and the day-only LUTs —
+   transmittance (256×64) and multi-scatter (32×32) — are computed in JS**
+   and uploaded as `DataTexture`s. Renderer-neutral; GATE SKY checks the sun
+   against almanac values and a transmittance row against a reference table
+   headless. The key light and the probe read the transmittance in JS,
+   through `light_rig.js` (ruling (af)) — no shader on that path.
+2. **The dome and the per-frame sky-view LUT are standalone
+   `ShaderMaterial`s of pure functions** — fullscreen/dome programs that
+   touch none of three's lighting chunks. Every function maps 1:1 to a TSL
+   `Fn`, and the TSL bundle's `glslFn` bridges a pure GLSL function onto the
+   node renderer's WebGL backend at zero cost on flip day.
+3. **Aerial perspective is ONE splice** — one function in one
+   `fog_fragment` replacement, installed through `worldLambert()`'s funnel in
+   render_world.js, never per material. Under TSL: one `fogNode`.
+4. **`#include` anchors only** (the glass-pass trap, RENDERER-DECISION §4g).
+5. **The census at landing:** `node tools/tsl_census.js --since <prev G>` in
+   the HANDOVER entry, so the sky's sites are on the register by count.
+
 ---
 
 ## 5. THE LAYERS, IN DEPENDENCY ORDER
@@ -281,7 +316,7 @@ W0/W0.5.
 |---|---|---|---|
 | **S1 — THE DAY** | **S** | extend `setWeather` with when/where/water/aerosol; derive cloud base, visibility; publish `world.day`; save/round-trip | GATE SKY: the day round-trips; cloud base matches the dewpoint rule; `atmos` unchanged bit-for-bit when only visual terms move |
 | **S2 — THE SUN** | **S–M** | NOAA solar position replaces the constant vector; the directional light follows it; the gradient stays but MOVES | GATE SKY: **sun azimuth/elevation against published almanac values** for known lat/long/date — checkable to arcminutes, headless, no renderer. The cheapest strong gate in the document |
-| **S3 — THE ATMOSPHERE** | **L** | `@pmndrs/sky` in; LUTs; the key light sampled from transmittance through `light_rig`; the gradient re-derived as the WebGL2 fallback table (§4) | the rig's census still complete; fallback vs WebGPU colour delta bounded at N sampled hours |
+| **S3 — THE ATMOSPHERE** | **L** | the Hillaire model by hand in port-cheap GLSL (§4b): the LUTs in JS, the dome and sky-view pass as standalone programs; the key light sampled from transmittance through `light_rig` | the rig's census still complete; GATE SKY: a transmittance row against a reference table; the census count in the entry |
 | **S4 — AERIAL PERSPECTIVE** | **M** | replaces `scene.fog`; the 5.2 km wall goes | with `WORLD-V2` §8.3 R3 |
 | **S5 — THE DYNAMIC PROBE** | **M** | re-bake on sun movement; **the window fix** | a sunset probe differs measurably from a noon probe; frame budget held |
 | **S6 — MIST + GLARE** | **M** | ground/valley fog volume; bloom; occlusion-gated flare | flare is zero when the sun is behind geometry |
@@ -297,9 +332,11 @@ Deferred, each its own session: **clouds** (the user's own call, and
   from it; no second temperature model anywhere. **Recommended** — this is the
   user's own constraint and the socket already exists.
 - **(ad)** `@pmndrs/sky` (Hillaire, TSL, MIT) as the WebGPU atmosphere rather
-  than writing one. **Recommended.**
+  than writing one. ~~Recommended.~~ **WITHDRAWN 2026-09-14 (§4b): WebGPU-only,
+  and the port is gated; the sky is written by hand in GLSL, port-cheap.**
 - **(ae)** The painted dome is KEPT as the WebGL2 fallback but re-derived from
-  the model's own LUT, never hand-tuned again (§4). **Recommended.**
+  the model's own LUT, never hand-tuned again (§4). **Superseded 2026-09-14
+  (§4b): the GLSL sky IS the shipped sky; no fallback table.**
 - **(af)** The atmosphere feeds the key light THROUGH `light_rig.js`; the
   census must stay complete. **Recommended** — this is the rule that stops the
   project growing a fourth light rig.

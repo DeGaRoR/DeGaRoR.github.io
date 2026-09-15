@@ -397,14 +397,26 @@ W4 — no new data, no size change, no contract change.*
    **the flag itself landed the same evening (§4i): `dev.html?tsl=1` boots the
    game on WebGPURenderer (WebGL2 backend), three materials ported, the rest a
    checklist in §4i with the GLSL path untouched and default.**
+   **RULED 2026-09-14 (§4k, rulings (an)/(ao)): GATED, not backgrounded — off
+   the spine.** 46 GLSL sites the node renderer cannot draw, 3 ported, +14 in
+   the day after the flag; no frame to win (13.1 ms at 220 k impostors on
+   WebGL2); the only feature it unlocked (`@pmndrs/sky`) replaced by the
+   user's own GLSL sky. The port runs as ONE W0.5a-style chantier (6–10
+   sessions, the user's eye on the A/Bs) when a trigger fires: a measured
+   wall, a TSL-only dependency (clouds), three deprecating WebGLRenderer, or
+   the world's shader set going stable. Until then every new shader is
+   written PORT-CHEAP (model in JS, LUTs as DataTextures, standalone
+   pure-function programs, one splice per effect) and
+   `node tools/tsl_census.js` keeps the number.
 3. **W2 — the adaptive quadtree, on the analytic world** [L]. The baker
    (`tools/terrain_bake.js`, already run once), the format
    (`terrain_codec.js`, 2.55×), the renderer and the physics sampler with
    §5.4's gradient rule — against `h0`, whose right answer is known, with the
    whole battery as the oracle: **the second world's first content is the
    first world.** Removes the ring seam, the ~100 m far strips and the fog cap.
-4. **W1 — the splat terrain material** [M], in TSL, on the quadtree — written
-   once, on the mesh it ships on. The ten CC0 scans are shipped in
+4. **W1 — the splat terrain material** [M], in port-cheap GLSL (§4k — the
+   weights in JS, one program, no lighting-chunk splices), on the quadtree —
+   written once, on the mesh it ships on. The ten CC0 scans are shipped in
    `site_tex.js`; the weights come from the SURFACE classifier + biomes.
 5. **W3 — trees productionised** [M]. Half landed inside W0c (density as
    data, species by altitude / patches / wet-or-steep, hand placement); the
