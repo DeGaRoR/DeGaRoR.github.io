@@ -322,7 +322,11 @@ function makeWorld(seed, opts) {
   // layer composes on the stage 0-4 ground, so the strips the generator
   // sites keep their grading under it.
   let PM = null, PMrec = null;
-  const baseWorld = { id: ISL ? 'ISLAND-' + ISL.id : 'W-24km', terrainH: baseH, waterH: (x, z) => HYD.water(x, z) };
+  // the base world's water (what the premises compose against): the hydrology's alone on the analytic
+  // world (Skarvik's plots are sown on it - byte for byte); on an island THE SEA TOO (G434.1: the
+  // composer read -Infinity over the whole coast, a harbour zone's water level came from a pond up the
+  // hill and the harbour never sowed a plot)
+  const baseWorld = { id: ISL ? 'ISLAND-' + ISL.id : 'W-24km', terrainH: baseH, waterH: ISL ? ((x, z) => waterAt(baseH(x, z), x, z)) : ((x, z) => HYD.water(x, z)) };
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;

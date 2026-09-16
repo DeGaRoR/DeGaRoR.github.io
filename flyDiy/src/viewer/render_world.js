@@ -1453,14 +1453,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               'float lakeA = smoothstep(-3.0, 1.0, (texture2D(uGPackA, (vWL.xz - uGGrid.xy) / uGGrid.zw).a * 255.0 - 128.0) * 4.0); if (lakeA <= 0.0) discard;')   // G424: the lake field is the packed A's alpha
             .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= lakeA;');
         };
-        let n = 0;
+        let n = 0, seaSkipped = 0;
+        // A "LAKE" THAT IS THE SEA (G434.1, the user: "the water still shows the light blue polygons
+        // atop the deeper blue"): the lake field is the cover's water class plus NDWI, and along the
+        // coast it takes the tidal flats and the sea's own cells as lakes at the DEM's 1 m - their
+        // quads lay over the sea plane as pale jagged sheets. A lake whose box reaches the coast field's
+        // waterline within 30 m and whose level is under 3 m is the sea: no quad
+        const isSea = L => {
+          if (!world.island.coastAt || L.level >= 3) return false;
+          for (let t = 0; t <= 1.0001; t += 0.1) for (const q of [[L.x0 + (L.x1 - L.x0) * t, L.z0], [L.x0 + (L.x1 - L.x0) * t, L.z1], [L.x0, L.z0 + (L.z1 - L.z0) * t], [L.x1, L.z0 + (L.z1 - L.z0) * t]])
+            if (world.island.coastAt(q[0], q[1]) < 30) return true;
+          return false;
+        };
         for (const L of world.island.lakes) {
           if (L.level <= 0.2 || L.cells < 3) continue;
+          if (isSea(L)) { seaSkipped++; continue; }
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
           const m = new THREE.Mesh(g, lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
           m.receiveShadow = true; scene.add(m); n++;
         }
-        console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge');
+        console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
       }
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
       for (const [lx, lz, ws, mask] of world.hydro.lakeSurf) {
@@ -3658,6 +3670,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       });
       premisesR.rebuild();
       while (premisesR.stats.queued) premisesR.step(4);
+      // the rings were sampled before the patch stood: sink them under it now (G434.1)
+      if (premisesR.patchBounds) { const pb = premisesR.patchBounds(); if (pb) refreshGround(pb); }
     } catch (e) { console.warn('premises: the record did not render', e); }
   }
   { // stage-4 aerodromes: strip decals + windsocks at every field/strip
@@ -3867,10 +3881,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // THE GROUND FOLLOWS A LIVE EDIT (G387): every ring vertex inside the box re-sampled from terrainH
   // (which reads the premises layer at call time), the normals redone - the premises' own patch
   // re-samples itself; this is the 17.6 m ring under and around it
+  // THE RING UNDER THE PREMISES' PATCH (G434.1): a ring vertex inside a chunk the fine patch covers
+  // sinks 4 m - the patch (2 m, the true ground) is the surface there and the ring's coarse chords,
+  // above the true ground wherever it is concave, no longer cut through the roads, the lots, the
+  // house pads and the graded shoulders laid on the composed height. At the patch's border the
+  // patch tucks 2.2 m under the ring as before: the seam is the ring's, by design.
+  function groundSink(x, z) { return (premisesR && premisesR.patchCovers && premisesR.patchCovers(x, z)) ? 4 : 0; }   // hoisted: the boot calls refreshGround before this line
   function refreshGround(bb) {
     for (const g of groundGeos) {
       const pa = g.attributes.position; let n = 0;
-      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z)); n++; }
+      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++; }
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
   }

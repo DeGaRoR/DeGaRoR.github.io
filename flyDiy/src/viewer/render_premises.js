@@ -223,7 +223,7 @@ function make(THREE, scene, world, rec0, opts) {
   // in between where nothing was composed; the chunks the record touches are a tenth of that. The
   // border of the built region tucks 2.2 m under the ring as the whole patch did: a vertex reads its
   // distance to the nearest UNBUILT neighbour chunk (the 40 m fade fits inside one chunk).
-  let patch = null, patchKey = '', patchMatOwn = null;
+  let patch = null, patchKey = '', patchMatOwn = null, patchAct = null;
   const PCH = 64;
   function activeChunks(b) {
     const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j;
@@ -273,6 +273,7 @@ function make(THREE, scene, world, rec0, opts) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); g.setIndex(idx);
       g.userData.chunks = list; g.userData.neighbours = A;
+      patchAct = A;   // the world's rings read it (patchCovers): the ring sinks under the patch (G434.1)
       // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
       // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
       if (!patchMatOwn) {
@@ -1248,6 +1249,12 @@ function make(THREE, scene, world, rec0, opts) {
     setRecord: r => { rec = PG.normalise(r); },
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point
+    // WHERE THE FINE PATCH IS (G434.1): the world's ring sinks its vertices under it - the ring's 17 m
+    // chords sat above the true ground wherever it is concave and cut through every road, lot and pad
+    // laid on the composed height (the user: "roads clip through terrain, the terrain shows through the
+    // house patches"); `world` here so the rings can ask
+    patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
+    patchBounds: () => (patch ? extentWorld() : null),
     materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },

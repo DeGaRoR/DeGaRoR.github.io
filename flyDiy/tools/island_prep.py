@@ -248,7 +248,8 @@ def main():
     # distance to land in metres / 4 (0 on land, 255 = 1 km+) - there is no
     # bathymetry, and a shelf that deepens with distance from the shore is
     # what the eye expects of one.
-    try:
+    def write_coast(landmask):
+        """the signed coast field off the land mask; called again after the tidal flats join the sea (G434.1)"""
         from scipy import ndimage
         dist, (ni, nj) = ndimage.distance_transform_edt(~landmask, return_indices=True)
         dist_m = dist * cell
@@ -264,6 +265,10 @@ def main():
         sdf = ndimage.gaussian_filter(sdf.astype("float32"), 1.0)
         np.clip(np.round(sdf), 0, 255).astype("uint8").tofile(out + ".coast.u8")
         layers["coast"] = {"file": ".coast.u8", "unit": "signed m/4, 128 = the waterline, + inland"}
+        return dist, ni, nj
+    try:
+        from scipy import ndimage
+        dist, ni, nj = write_coast(landmask); dist_m = dist * cell
         ext = (~landmask) & (dist_m <= 300.0)
         def extend(a):
             """fill the 300 m sea fringe of a layer with its nearest land value"""
@@ -406,6 +411,88 @@ def main():
         print(f"  tint: {len(lsat)} scene(s); cloud/shadow over land {100*cloud.sum()/max(landmask.sum(),1):.2f} %; "
               f"NDVI over land mean {ndvi[landmask].mean():.2f}")
 
+
+    oE, oN = isl["origin"]
+    # ---- THE LAKES (G405): the cover's water class over land, as a SIGNED
+    # distance like the coast (128 = the edge, + inside the lake, 4 m a unit),
+    # so the water's edge is a smooth line through the cells; the renderer
+    # lays a flat surface per lake at the DEM's own level.
+    if covers:
+        try:
+            from scipy import ndimage
+            lake = (cov == 80) & landmask
+            if os.path.exists(out + ".ndwi.u8"):
+                nw = np.fromfile(out + ".ndwi.u8", dtype="uint8").reshape(H, W).astype("float32") / 127.0 - 1.0
+                wet = (nw > -0.2) & landmask       # -0.2: a 30 m pixel half over a 20 m pond (measured G406)
+                # the imagery's water joins the class's; specks (< 5 cells) and one-cell fringes go
+                lake = lake | wet
+                lake = ndimage.binary_opening(lake, iterations=1)
+                lab0, n0 = ndimage.label(lake); sizes = ndimage.sum(lake, lab0, range(1, n0 + 1))
+                small = np.isin(lab0, [i + 1 for i, sz in enumerate(sizes) if sz < 5]); lake[small] = False
+                print(f"  water: class {int(((cov == 80) & landmask).sum())} cells, NDWI adds {int((wet & ~(cov == 80)).sum())}, union {int(lake.sum())}")
+            d_in = ndimage.distance_transform_edt(lake) * cell
+            d_out = ndimage.distance_transform_edt(~lake) * cell
+            lsd = np.where(lake, 128.0 + np.minimum(d_in, 508.0) / 4.0, 128.0 - np.minimum(d_out, 508.0) / 4.0)
+            lsd = ndimage.gaussian_filter(lsd.astype("float32"), 1.0)
+            np.clip(np.round(lsd), 0, 255).astype("uint8").tofile(out + ".lake.u8")
+            # THE TIDAL FLATS ARE THE SEA (G434.1, the user: "the water still shows the light blue
+            # polygons atop the deeper blue"): a wet component that TOUCHES the sea and lies under
+            # 2.5 m is the flat the tide left, not a lake - as a lake it stood at the DEM's 1 m over
+            # the sea plane as a pale sheet with the cells' stepped edge (the ground painted lake-blue
+            # above the water). Its cells join the sea: the DEM to 0, the land mask off (the shelf
+            # and the coast field follow), the cover to water, and no lake at all.
+            lab, nl = ndimage.label(lake)
+            sea_touch = ndimage.binary_dilation(~landmask, iterations=1)
+            tidal = np.zeros_like(lake)
+            n_tidal = 0
+            for li, sl in enumerate(ndimage.find_objects(lab), start=1):
+                if sl is None: continue
+                comp = (lab[sl] == li)
+                if not (comp & sea_touch[sl]).any(): continue
+                if float(np.percentile(dem[sl][comp], 20)) >= 2.5: continue
+                tidal[sl] |= comp; n_tidal += 1
+            if n_tidal:
+                lake[tidal] = False; dem[tidal] = 0.0; landmask[tidal] = False; cov[tidal] = 80
+                cov.tofile(out + ".u8")
+                write_coast(landmask)
+                d_in = ndimage.distance_transform_edt(lake) * cell
+                d_out = ndimage.distance_transform_edt(~lake) * cell
+                lsd = np.where(lake, 128.0 + np.minimum(d_in, 508.0) / 4.0, 128.0 - np.minimum(d_out, 508.0) / 4.0)
+                lsd = ndimage.gaussian_filter(lsd.astype("float32"), 1.0)
+                np.clip(np.round(lsd), 0, 255).astype("uint8").tofile(out + ".lake.u8")
+                lab, nl = ndimage.label(lake)
+                print(f"  tidal flats: {n_tidal} wet components touching the sea under 2.5 m joined it ({int(tidal.sum())*cell*cell/1e6:.2f} km2); coast rewritten")
+            layers["lake"] = {"file": ".lake.u8", "unit": "signed m/4, 128 = the edge, + inside", "lakes": int(nl),
+                              "km2": float(lake.sum() * cell * cell / 1e6), "source": "class 80 | NDWI > 0, the tidal flats to the sea"}
+            # the lake mask itself, and THE LAKES FLATTENED IN THE DEM (G407, the user:
+            # "flatten within the outline, no need for additional geometry, impact
+            # the terrain directly"): each component to one level - the 20th
+            # percentile of the DEM under it (a water surface sits on the lowest
+            # flat, the rest is radar noise on the water) - written back into the
+            # heights the asset is baked from and the sampler reads; the renderer
+            # lays ONE quad per lake at that level and its material discards
+            # outside the field. lakes.json lists them (bbox + level).
+            lake.astype("uint8").tofile(out + ".lakemask.u8")
+            lakes = []
+            idx = ndimage.find_objects(lab)
+            for li, sl in enumerate(idx, start=1):
+                if sl is None: continue
+                comp = (lab[sl] == li)
+                if comp.sum() < 3: continue
+                lvl = float(np.percentile(dem[sl][comp], 20))
+                dem[sl][comp] = lvl
+                j0, j1 = sl[0].start, sl[0].stop; i0, i1 = sl[1].start, sl[1].stop
+                lakes.append({"x0": round(x0 - oE + i0 * cell, 1), "x1": round(x0 - oE + i1 * cell, 1),
+                              "z0": round(oN - z1 + j0 * cell, 1), "z1": round(oN - z1 + j1 * cell, 1), "level": round(lvl, 2), "cells": int(comp.sum())})
+            dem.tofile(out + ".f32")                       # the heights again, lakes flat
+            json.dump(lakes, open(out + ".lakes.json", "w"))
+            layers["lake"]["listed"] = len(lakes)
+            print(f"  lakes flattened in the DEM: {len(lakes)} levels; .lakes.json written")
+            print(f"  lakes: {nl} from the cover's water class, {lake.sum()*cell*cell/1e6:.1f} km2")
+        except ImportError:
+            pass
+
+    # (the albedo is baked AFTER the lakes since G434.1: the tidal flats moved the coast it reads)
     # ---- THE ALBEDO: the bench's stack, baked (2026-09-14 evening) ----------
     # The game's ground colour for the island - the user's recipe from the
     # bench (tint x radar overlay x canopy shade, snow on top, the rocky shore
@@ -440,59 +527,6 @@ def main():
         layers["albedo"] = {"file": ".albedo.rgb", "recipe": "tint > radar(ori1) overlay 0.75 > canopy shade x0.7 > shore > snow; unlit"}
         print("  albedo: the bench's stack baked, unlit")
 
-    oE, oN = isl["origin"]
-    # ---- THE LAKES (G405): the cover's water class over land, as a SIGNED
-    # distance like the coast (128 = the edge, + inside the lake, 4 m a unit),
-    # so the water's edge is a smooth line through the cells; the renderer
-    # lays a flat surface per lake at the DEM's own level.
-    if covers:
-        try:
-            from scipy import ndimage
-            lake = (cov == 80) & landmask
-            if os.path.exists(out + ".ndwi.u8"):
-                nw = np.fromfile(out + ".ndwi.u8", dtype="uint8").reshape(H, W).astype("float32") / 127.0 - 1.0
-                wet = (nw > -0.2) & landmask       # -0.2: a 30 m pixel half over a 20 m pond (measured G406)
-                # the imagery's water joins the class's; specks (< 5 cells) and one-cell fringes go
-                lake = lake | wet
-                lake = ndimage.binary_opening(lake, iterations=1)
-                lab0, n0 = ndimage.label(lake); sizes = ndimage.sum(lake, lab0, range(1, n0 + 1))
-                small = np.isin(lab0, [i + 1 for i, sz in enumerate(sizes) if sz < 5]); lake[small] = False
-                print(f"  water: class {int(((cov == 80) & landmask).sum())} cells, NDWI adds {int((wet & ~(cov == 80)).sum())}, union {int(lake.sum())}")
-            d_in = ndimage.distance_transform_edt(lake) * cell
-            d_out = ndimage.distance_transform_edt(~lake) * cell
-            lsd = np.where(lake, 128.0 + np.minimum(d_in, 508.0) / 4.0, 128.0 - np.minimum(d_out, 508.0) / 4.0)
-            lsd = ndimage.gaussian_filter(lsd.astype("float32"), 1.0)
-            np.clip(np.round(lsd), 0, 255).astype("uint8").tofile(out + ".lake.u8")
-            lab, nl = ndimage.label(lake)
-            layers["lake"] = {"file": ".lake.u8", "unit": "signed m/4, 128 = the edge, + inside", "lakes": int(nl),
-                              "km2": float(lake.sum() * cell * cell / 1e6), "source": "class 80 | NDWI > 0"}
-            # the lake mask itself, and THE LAKES FLATTENED IN THE DEM (G407, the user:
-            # "flatten within the outline, no need for additional geometry, impact
-            # the terrain directly"): each component to one level - the 20th
-            # percentile of the DEM under it (a water surface sits on the lowest
-            # flat, the rest is radar noise on the water) - written back into the
-            # heights the asset is baked from and the sampler reads; the renderer
-            # lays ONE quad per lake at that level and its material discards
-            # outside the field. lakes.json lists them (bbox + level).
-            lake.astype("uint8").tofile(out + ".lakemask.u8")
-            lakes = []
-            idx = ndimage.find_objects(lab)
-            for li, sl in enumerate(idx, start=1):
-                if sl is None: continue
-                comp = (lab[sl] == li)
-                if comp.sum() < 3: continue
-                lvl = float(np.percentile(dem[sl][comp], 20))
-                dem[sl][comp] = lvl
-                j0, j1 = sl[0].start, sl[0].stop; i0, i1 = sl[1].start, sl[1].stop
-                lakes.append({"x0": round(x0 - oE + i0 * cell, 1), "x1": round(x0 - oE + i1 * cell, 1),
-                              "z0": round(oN - z1 + j0 * cell, 1), "z1": round(oN - z1 + j1 * cell, 1), "level": round(lvl, 2), "cells": int(comp.sum())})
-            dem.tofile(out + ".f32")                       # the heights again, lakes flat
-            json.dump(lakes, open(out + ".lakes.json", "w"))
-            layers["lake"]["listed"] = len(lakes)
-            print(f"  lakes flattened in the DEM: {len(lakes)} levels; .lakes.json written")
-            print(f"  lakes: {nl} from the cover's water class, {lake.sum()*cell*cell/1e6:.1f} km2")
-        except ImportError:
-            pass
 
     # ---- THE TERRAIN TYPE (G405, the user: "a precise vegetation map with
     # clear tree-bush-stone-sand-grass for splatting and spawning"): ONE map

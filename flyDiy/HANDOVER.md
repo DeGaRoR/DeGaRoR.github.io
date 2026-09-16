@@ -50194,3 +50194,59 @@ warn line is 5). GATE PILOT green.
   join (P3); the A5 slope with the throttle on its floor (the cub sits 2 m
   high at the floor, 0.6 m/s fast, lands 17 m short at 1.17 Vs — a slip
   is the remedy, later); the `--all` run on the whole of P1.
+
+
+## G434.1 — THE RING UNDER THE PREMISES, AND THE TIDAL FLATS ARE THE SEA (2026-09-16,
+## the user: "there's a lot of clipping. Roads clip through terrain, the terrain shows
+## through the house patches, I can't see the lots being drawn. The surface around the
+## highway clips dramatically in the terrain, and the water still shows the light blue
+## polygons atop the deeper blue of the water")
+
+- ONE CAUSE FOR THE FIRST FOUR: the island's ground is the inner ring, a 512
+  x 512 grid over 9 km (17.6 m cells) sampled at terrainH, while every road
+  ribbon, lot patch, house pad and graded shoulder the premises draw sits on
+  the exact composed height. The DEM has real relief at 5 m: the ring's chords
+  lie ABOVE the true surface wherever the ground is concave and cut through
+  whatever is laid on it. On the analytic world (smooth at 17 m) this never
+  showed. THE FIX: the ring SINKS 4 m under the premises' fine patch -
+  render_premises publishes `patchCovers(x, z)` (the 64 m chunks it built) and
+  `patchBounds()`, render_world's refreshGround samples every ring vertex at
+  terrainH - 4 where the patch covers it, at the boot (after the premises
+  stand) and after every live edit (the same call). The patch (2 m, 4 cm over
+  the ground) is the visible surface there; at its border it tucks 2.2 m under
+  the ring as before - the seam is the ring's, by design. Measured: the village
+  road, the lots (fences, lawns, pads) and the house pads read whole.
+- THE PALE POLYGONS ON THE SEA: not the lake quads (skipping every quad whose
+  box reaches the coast changed nothing - the sheets stayed). They are the
+  GROUND: island_prep's lake field is "class 80 | NDWI > -0.2" over the land
+  mask, and the tidal flats along the coast - DEM 0.5-1.5 m, wet in the
+  imagery, cover 'land' - came out as lakes at the DEM's 1 m; the ground shader
+  paints a lake's bed lake-blue and the flats stand above the sea plane (0),
+  so they showed as pale sheets with the cells' stepped edge. THE FIX is the
+  data's: a wet component that touches the sea and lies under 2.5 m joins the
+  sea in island_prep (the DEM to 0, the land mask off so the shelf and the
+  coast field follow, the cover to water, no lake); the coast field is written
+  again and the albedo is baked AFTER the lakes now (it reads the coast the
+  flats moved). bench/jolene regenerated (10 m and 5 m) and the terrain assets
+  rebaked. The renderer keeps a belt: a lake quad whose box reaches within 30
+  m of the waterline under 3 m is left to the sea.
+- THE HARBOUR SOWED NOTHING AGAIN once the flats were sea: the premises compose
+  against the BASE world, whose waterH was the hydrology's alone (no sea) - on
+  the island it reads waterAt now (the sea at 0, the map's lakes); the analytic
+  world keeps the hydrology's (Skarvik byte for byte). And a zone reads the
+  LOWEST water level its box touches (the highest, a pond 4.6 m up the hill,
+  had made the whole shore band "water"). 10 harbour plots, 74 residential.
+- THE JUNCTION TRAP, so nobody repeats it: proving G434 in a clean worktree I
+  junctioned bench/, media/, assets/ and node_modules/ into it; `git worktree
+  remove --force` FOLLOWED the junctions and emptied the real bench/ (the
+  island's grids, the terrain assets, the totem staging, 1.4 GB) and
+  node_modules/. Everything regenerated from assets/ (island_prep.py x2,
+  terrain_bake.js x2, totem_prep.py --stage, shots_prep.py --preview, npm
+  install) in an hour; the raw data under assets/island/raw was untouched.
+  Before removing a worktree, `cmd /c rmdir` every junction in it first - or
+  never junction into a worktree.
+- Owed: a lot's ground patch laps the road where a plot meets a junction (a
+  dark lawn blob on the ribbon in the village); the ring's own facets on the
+  untouched terrain (17.6 m chords on 5 m relief) - a finer inner ring or a
+  quadtree ring is the real answer; the shore band's pale beach tone on the
+  new sea cells.

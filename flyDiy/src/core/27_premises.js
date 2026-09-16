@@ -1070,12 +1070,15 @@ function compose(rec0, world, opts) {
     const waterY = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity;
     // THE WATER A ZONE SEES (G434): the level of the sea or the lake that touches it - sampled over the
     // zone's own box, not read at the anchor (an anchor on a field 4 km inland reads -Infinity there, and
-    // a harbour zone on the shore sowed nothing: no plot ever "reached the water")
+    // a harbour zone on the shore sowed nothing: no plot ever "reached the water"). THE LOWEST finite
+    // level found (G434.1): a coastal zone's box also holds ponds up the hill - the highest of them
+    // (4.6 m at Annette) made the whole shore band "water" and the harbour sowed nothing again; the
+    // sea is the lowest water there is, and a lakeside zone with no sea reads its lake
     const zoneWaterY = z => {
       if (!world.waterH || !z.poly || z.poly.length < 3) return waterY;
-      const bb = polyBBox(z.poly); let best = waterY;
-      for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v > best) best = v; }
-      return best;
+      const bb = polyBBox(z.poly); let best = Infinity;
+      for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v < best) best = v; }
+      return isFinite(best) ? best : waterY;
     };
     const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
