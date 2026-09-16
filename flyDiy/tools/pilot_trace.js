@@ -205,8 +205,14 @@ function runTrace(o) {
         // the OVERSHOOT: the largest cross-track after the aeroplane has first
         // REACHED the leg (|xt| < 15 m) — an arc that joins from a radius
         // inside reads 0; a pursuit that crosses and swings back reads its swing
+        // P1.F: A FILLET IS NOT A WANDER — while the path under the aeroplane
+        // curves (the corner onto the next leg, cut on purpose) the distance
+        // from the leg's straight line is the fillet's, not an overshoot;
+        // the hot day's 118-169 m "crosswind overshoots" were the corner
+        // onto the downwind, wider at the true airspeed
+        const inFillet = Math.abs(d.kap || 0) > 1e-4;
         if (!leg.crossed && Math.abs(xt) < 15) leg.crossed = true;
-        else if (leg.crossed) leg.overshoot = Math.max(leg.overshoot, Math.abs(xt));
+        else if (leg.crossed && !inFillet) leg.overshoot = Math.max(leg.overshoot, Math.abs(xt));
         if (leg.settleT == null && t - leg.t0 > 8 && Math.abs(xt) < 20) leg.settleT = r1(t - leg.t0);
       }
     }

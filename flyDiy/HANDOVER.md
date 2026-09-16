@@ -50250,3 +50250,53 @@ warn line is 5). GATE PILOT green.
   untouched terrain (17.6 m chords on 5 m relief) - a finer inner ring or a
   quadtree ring is the real answer; the shore band's pale beach tone on the
   new sea cells.
+
+## G422.5 — THE PILOT TRACK, P1.F: THE FULL RUN ON P1 READ — THE STRAIGHT-IN
+## SLOWS BEFORE THE FIX, THE FILLET AT THE TRUE AIRSPEED, A FILLET IS NOT A
+## WANDER (2026-09-16)
+
+**THE FULL RUN** (`pilot_matrix --set all`, 176 cells on a clean worktree
+at G422.4, 3 h 10): 78 good / 70 warn / 28 bad. Against G399.7's full run
+(61 / 56 / 59, on the airframes before G431): 67 cells better, 36 worse,
+73 the same. The better: every cross-country to A3 and A5 (all fifteen
+core machines land where every one flew away), the `x4` roll-outs, the
+Caravan-alike's circuits, the T-tail's, six drawn tails. The worse, by
+class:
+- THE A0 CLASS — nine machines (the Jodel, C172, RV, Savannah,
+  motorglider, e-trainer, V-tail, twin, beaver) on the 5.5 km hop to the
+  paved strip: the straight-in ARRIVED AT THE FIX AT CRUISE SPEED (the
+  C172 at 51 m/s), zoomed 30 m shedding it to 25 and rode 12 m above the
+  slope. G399.7's climb-out hold (to the leg height) had hidden it: the
+  aeroplane reached the fix late and slow. FIXED: an enroute leg's last
+  1.5 km is flown at the pattern speed (VTurn, what the base leg flies) —
+  the C172's slope rms 12 -> 3 m, its speed rms 2.06 -> 0.56; the beaver
+  7 -> 2.3 and 3.0 -> 0.94.
+- THE HOT DAY (35 C, 2.2 / 2.6 m/s gusting): "118-280 m crosswind
+  overshoots" on six machines. Two things: the fillet was PLANNED ON THE
+  INDICATED SPEED and flown at the true one plus the wind (sigma 0.9: 5 %
+  of speed, 10 % of radius) — the fillet and the pattern width now take
+  the true airspeed (sim.out.easK); and THE METRIC READ THE CORNER CUT
+  ONTO THE DOWNWIND AS A WANDER — the pilot publishes the path's
+  curvature under the aeroplane (`dbg.kap`) and `pilot_trace` counts no
+  overshoot while the path curves (a fillet is not a wander): the C172's
+  hot crosswind 149 -> 34 m, its base 55 -> 29; the cub's calm legs read
+  4 / 4 / 10 m (15 / 15 / 15 before — the 15 m was the crossing itself).
+  The Stearman's 118 m on the hot crosswind is real (a 373 m turn at the
+  climb bank with a tailwind on the climb-out, the bank on its stop for
+  20 s) — OWED.
+- G431's AIRFRAMES (the run attitude, G428-G431): the C172's and cub's
+  HOME cells (touchdown sinks 2.0-2.2 m/s, the 9.6 -> 6.2 deg swing is
+  G422.3's), the beaver's 101-110 m fillets, the Pitts-alike (2.1-2.5 m/s
+  arrivals, a give-up in calm), the P-38 landing UNDER ITS STALL SPEED
+  (0.93-0.96 Vs, 115-136 m past the aim, the speed 3 m/s off — the twin's
+  Vs0 / flap reading), the radial in x4, five drawn tails giving up — the
+  ruling G431 owes (re-bless the baseline, or the flare first) and the
+  tail chantier's.
+- The motorglider at A5 (320 m past the aim at 1.57 Vs, sink 5.7): the
+  short-field 1.2 Vs0 on an L/D of 25 with the throttle on its floor —
+  it cannot come down; the glider circuit is P2 (F.2).
+
+- Gates: PILOT; PILOTMATRIX (the 14-cell quick set against G422.4's own
+  run: no cell worse; the committed baseline stays G431's red).
+- OWED: the Stearman's hot crosswind; the base join; the A5 slope with the
+  throttle on its floor; the motorglider's circuit (P2).
