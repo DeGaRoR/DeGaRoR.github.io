@@ -50097,3 +50097,56 @@ rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
   media/ pack (the loader reads bench/); a taxiway hook joining the apron to
   the strip in the editor's own tools; GATE PILOT's core set on the pilot's
   descent-onto-the-slope change (flown here on HOME, w3 and SEA only).
+
+## G422.3 — THE PILOT TRACK, P1.D: THE CROSSWIND GROUND ROLL IN A REAL WIND —
+## THE BANK COMES OFF ON THE WHEELS, THE TAIL IS UP WHEN THE TAILWHEEL IS,
+## THE PEDAL WITH THE SPEED, THE LOOP WITH THE MASS; NO TECHNIQUE ON THE
+## WATER (2026-09-16)
+
+The full run (G399.7) had measured 17-55 deg roll-out swings on the
+taildraggers in 4 m/s gusting across (`x4`); on G431's airframes the cub
+GROUND-LOOPED 96 deg and stopped 36 m off the strip, the beaver 150 deg
+and 74 m. Read off the trace (43_pilot.js `groundSteer`), four causes,
+each a law and none a number for one aeroplane:
+- THE BANK STAYED ON. The wing-low target (xwBank x the crosswind, 8-11
+  deg in 4 m/s) is the decrab's, for the air; held on the wheels it lifted
+  the downwind main and the aeroplane pivoted on one wheel. From the FIRST
+  main down (a trike: all three) the target is the ground's own bank
+  within 2 deg into wind (xwBankGround — the trike's rule, every type
+  now); the roll loop on the measured bank keeps the upwind wing down
+  against the crosswind's own rolling moment. Cub 96 -> 37 deg.
+- THE TAIL WAS "DOWN" BY THE PITCH. Banked 8 deg on one main at a
+  three-point attitude the cub read tail-down, the rudder was clamped to
+  the tailwheel's 0.45 and the nose swung 32 deg before the tail touched.
+  `sim.wheelContacts()` (30_solver.js, new: the mains in order and the
+  tail / nose wheel, the floats on the water) — the tail is up when the
+  TAILWHEEL is off. Cub 37 -> 10.6 deg, on the centreline.
+- THE TAIL-DOWN PEDAL WAS THE TAXI'S. 0.45 keeps a swerve out of the taxi;
+  at 19 m/s three-point the beaver weathervaned 31 deg each way on 0.45 of
+  rudder the fin alone could have held. The stop climbs with the speed to
+  the full pedal by VTailUp.
+- THE LOOP WAS THE CUB'S. The heading gain falls and the damping rises
+  with the square root of the mass — the yaw inertia grows with it, the
+  tailwheel's moment does not: a loop tuned on 480 kg rang 1264 kg at
+  10-19 m/s (+-35 deg at a 4 s period). Beaver 150 -> 11.7 deg, 0 m off.
+MEASURED (`x4`): cub 10.4 deg, Stearman 10.9, Tiger Moth 14 (26), C172
+3.7, the twin 3.4 — every one on the centreline at the stop; in 2 m/s
+across the cub 6.5 deg (9.6 at HEAD: one of G431's seven), the Stearman
+6.5.
+
+**NO TECHNIQUE ON THE WATER** (found by the vehicles session: GATE
+SEAPLANE's crosswind take-off red at HEAD — lift-off null, 780 m off the
+lane, a 180 deg swing): the water's GROUND_SURF row rolls at 0.35, so
+G422.2's departure plan read the SEA lane as "soft", the stick went to the
+tail-down schedule and the hump law (H4) lost the floatplane. Neither plan
+applies on the water (surface 4, or a hull under the aeroplane) — the
+water has its own laws. GATE SEAPLANE: the crosswind take-off is back to G431's own report — off the water in 5.4 s, 9.2 m off the lane, the 35.8 deg swing against the bound of 30 that the water arc owns (G431: 'the float card's mass and drag moved'); the calm circuit and the taxi green.
+
+MEASURED (the core set on a clean worktree at HEAD, G431's airframes,
+against HEAD's own run): 47 cells, 29 good / 14 warn / 4 bad from 28 / 14 / 5 — the Tiger Moth in 2 m/s across out of the bad (15.5 -> 8.5 deg); every roll-out swing down but the Stearman's (7 -> 8.5): the cub 9.6 -> 6.2 (G431's seventh cell), the Pietenpol 14.2 -> 11.9, the Tiger Moth calm 6.1 -> 0.7, the ul1 9.5 -> 7.7, the beaver 30.1 -> 7.7 and on the centreline; the four bad are G431's (the beaver's fillets, the C172's flare at A3 and in the 6 m/s headwind).
+
+- Gates: PILOT; SEAPLANE; PILOTMATRIX against HEAD's core run (the
+  committed baseline stays G431's red — the ruling owed).
+- OWED (P1): the protocol record + circuit joins; a `soft` / `short` /
+  `x4` fixture in the quick set; the A5 slope with the throttle on its
+  floor; the Tiger Moth's 14 deg (the biplane's fin in the gust).

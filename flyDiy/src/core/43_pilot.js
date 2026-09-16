@@ -546,9 +546,10 @@ function makePilot(sim, def, world, opts) {
     // flown. The slope is the runway model's (below).
     {
       const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[to.surface]) || null;
-      const soft = !!row && row[0] >= 0.10;
+      const water = to.surface === 4 || !!sim.hydro;            // the water has its own laws (H4): no technique
+      const soft = !water && !!row && row[0] >= 0.10;
       const runNeed = SH0 && SH0.LDGrun ? SH0.LDGrun : null;
-      const short = to.len < 450 || (runNeed != null && to.len < 1.6 * runNeed);
+      const short = !water && (to.len < 450 || (runNeed != null && to.len < 1.6 * runNeed));
       const gust = gustAt(to);
       const technique = short ? 'short' : soft ? 'soft' : 'normal';
       const Vbase = short && VApprShort ? VApprShort : (sheetVAppr ?? A.VAppr);
@@ -1119,10 +1120,22 @@ function makePilot(sim, def, world, opts) {
       // taildragger's 0.45 clamp it weathervaned 40 deg on the step and left
       // the lane 186 m off; with this, see the H4 entry.
       const onWater = !!(sim.hydro);
+      // P1.D: the tail is up when the TAILWHEEL is off the ground
+      // (sim.wheelContacts), not when the pitch says so — banked 8 deg on
+      // one main at a three-point attitude the cub read "tail down", the
+      // rudder was clamped to the tailwheel's 0.45 and the nose swung 32 deg
+      // before the tail touched
+      const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
       // (GATE TAKEOFF reads this line by regex: the tail-state schedule first)
-      const tailUp = rotateTD && !onWater && onG <= 2 && thRest !== null && (thRest - th) > 0.04
+      const tailUp = rotateTD && !onWater && (WC ? (!WC.tw && onG >= 1) : (onG <= 2 && thRest !== null && (thRest - th) > 0.04))
                   || (onWater && onG <= 2 && V > 6);
-      const drMax = tailUp ? 0.95 : (onWater ? 0.9 : 0.45);
+      // P1.D: the tail-down rudder stop is the TAILWHEEL's (0.45 keeps a
+      // swerve out of the taxi), and it climbs with the speed to the full
+      // pedal by VTailUp — at 19 m/s three-point in 4 m/s gusting across
+      // the beaver weathervaned 31 deg each way on 0.45 of rudder that the
+      // fin alone could have held
+      const vTU = A.VTailUp ?? 12;
+      const drMax = tailUp ? 0.95 : (onWater ? 0.9 : clamp(0.45 + 0.5 * V / vTU, 0.45, 0.95));
       // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
       // branch below already schedules on (VTailUp/V)^2 once the tail is up;
       // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the
@@ -1141,10 +1154,15 @@ function makePilot(sim, def, world, opts) {
       // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
       const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
                : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
-      const kP = tailUp
+      const kM = Math.sqrt(Math.max(200, sim.totalM || 500) / 500);
+      const kP = (tailUp
         ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2 * kS;
-      const kD = tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS);
+        : 3.2 * kS) / kM;
+      // P1.D: the heading gain falls and the damping rises with the square
+      // root of the mass — the yaw inertia grows with it, the tailwheel's
+      // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
+      // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
+      const kD = (tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS)) * kM;
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
       // ground roll, and the pilot had only the first. This held the wings
@@ -1174,7 +1192,16 @@ function makePilot(sim, def, world, opts) {
       // wing-low bias belongs after the nosewheel is off.
       const vRef = trike ? (A.VSteer ?? 12) : (A.VTailUp ?? 12);
       let phW = (A.xwBank ?? 0.06) * wX * clamp(vRef / Math.max(V, 6), 0.4, 1.6);
-      if (trike && onG >= 3) phW = clamp(phW, -(A.xwBankGround ?? 0.035), A.xwBankGround ?? 0.035);
+      // P1.D: ON THE WHEELS THE BANK COMES OFF — every type. The wing-low
+      // target (xwBank x the crosswind, 8-11 deg in 4 m/s across) is the
+      // decrab's, for the air; held on the ground it lifted the downwind
+      // main and the cub ground-looped 96 deg on one wheel, the beaver 150
+      // (the G431 wing at 3 deg on a three-point roll runs light). With
+      // both mains down the target is the ground's own bank within 2 deg
+      // into wind; the roll loop on the measured bank keeps the upwind
+      // wing down against the crosswind's own rolling moment; from the FIRST
+      // main down on a taildragger (the wing-low touchdown lands one wheel)
+      if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -(A.xwBankGround ?? 0.035), A.xwBankGround ?? 0.035);
       c.da = clamp(-2.0 * (ph - phW) - 1.0 * p, -0.30, 0.30);
       tailUpNow = tailUp;
     };
@@ -1596,10 +1623,15 @@ function makePilot(sim, def, world, opts) {
           // Every departure climbs at Vx until the ground ahead is below it
           // (C.3, the obstacle-clearance climb), then Vy.
           const from0 = ap.route.from;
+          // ON THE WATER neither applies (GATE SEAPLANE, found by the vehicles
+          // session): the water's 0.35 rolling row read as "soft", the stick
+          // went to the tail-down schedule and the hump law (H4) lost the
+          // floatplane 780 m off its lane — the water has its own laws
+          const onWaterNow = !!sim.hydro || from0.surface === 4;
           const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[from0.surface]) || null;
-          const soft = !!row && row[0] >= 0.10;
+          const soft = !onWaterNow && !!row && row[0] >= 0.10;
           const runNeed = SH0 && SH0.TORun ? SH0.TORun : null;
-          const short = runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
+          const short = !onWaterNow && runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
           ap.dep = { technique: short ? 'short' : soft ? 'soft' : 'normal', Vx: SH0 && SH0.Vx ? Math.round(SH0.Vx * 10) / 10 : null,
                      runNeed: runNeed != null ? Math.round(runNeed) : null, len: from0.len || null, surface: from0.surface };
           ap.report.dep = ap.dep;
