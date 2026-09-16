@@ -604,9 +604,19 @@
   // (the quadtree) and the grids are fetched BEFORE any script runs, because
   // makeWorld is called during app.js's own evaluation. From bench/ today
   // (gitignored, the developer's machine); from media/ when the world ships.
-  // Absent, nothing here runs and the analytic world boots as it always has.
+  // JOLENE IS THE DEFAULT (G434, the user: "make Jolene the new starting
+  // terrain ... the old map stays"): the map is ?world= when given, else the
+  // GRAPHICS menu's choice (localStorage flydiy.world), else jolene; 'none' is
+  // the analytic world. The list is published for the menu. An island whose
+  // files are not there (a page served without bench/) falls back to the
+  // analytic world with a line in the console - never a page that hangs.
+  var WORLDS = [{ id: 'jolene', name: 'Jolene Island' }, { id: 'none', name: 'Home Strip (the analytic world)' }];
+  window.FLYDIY_WORLDS = WORLDS;
   var name = new URLSearchParams(location.search).get('world');
-  if (!name || !/^[a-z0-9_]+$/.test(name)) return;
+  if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
+  if (!name) name = 'jolene';
+  window.FLYDIY_WORLD = name;
+  if (name === 'none' || name === 'analytic' || !/^[a-z0-9_]+$/.test(name)) { window.FLYDIY_WORLD = 'none'; return; }
   var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem', F = 'bench/terrain/' + name + '5_e4';   // F: the far terrain's coarser tree
   var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
   var u8 = function (b) { return new Uint8Array(b); };
@@ -621,7 +631,8 @@
       .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
         grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakes: r[13] },
         far: (r[14] && r[15] && r[16]) ? { header: r[14], topo: r[15], payload: r[16] } : null,
-        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; });
+        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; })
+      .catch(function (e) { console.warn('flyDiy: the island "' + name + '" did not load (' + (e && e.message) + '); the analytic world boots instead'); window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; });
   });
 })();
 </script>
@@ -638,7 +649,7 @@
 <script type="text/x-flydiy" src="src/core/24_world_aero.js?v=d64ca7a2"></script>
 <script type="text/x-flydiy" src="src/core/25_airfield.js?v=fb246cd2"></script>
 <script type="text/x-flydiy" src="src/core/26_hangar_fit.js?v=9d1aacd2"></script>
-<script type="text/x-flydiy" src="src/core/27_premises.js?v=7e5d13c6"></script>
+<script type="text/x-flydiy" src="src/core/27_premises.js?v=894440ac"></script>
 <script type="text/x-flydiy" src="src/core/28_island.js?v=df1ed2fa"></script>
 <script type="text/x-flydiy" src="src/core/29_obstacles.js?v=9d9eabc3"></script>
 <script type="text/x-flydiy" src="src/core/30_solver.js?v=0771ff7a"></script>
@@ -649,7 +660,7 @@
 <script type="text/x-flydiy" src="src/core/40_autopilot.js?v=4e93d271"></script>
 <script type="text/x-flydiy" src="src/core/41_test_pilot.js?v=969e4e7c"></script>
 <script type="text/x-flydiy" src="src/core/42_crosswind.js?v=83889afb"></script>
-<script type="text/x-flydiy" src="src/core/43_pilot.js?v=8a8b4fc9"></script>
+<script type="text/x-flydiy" src="src/core/43_pilot.js?v=a0052b03"></script>
 <script type="text/x-flydiy" src="src/core/44_machine_sheet.js?v=617e94d9"></script>
 <script type="text/x-flydiy" src="src/core/50_model_codec.js?v=d79b8ef7"></script>
 <script type="text/x-flydiy" src="src/core/51_prop_codec.js?v=41cfe1da"></script>
@@ -666,7 +677,7 @@
 <script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=f1fdd2a7"></script>
 <script type="text/x-flydiy" src="src/core/70_player.js?v=cb70cff9"></script>
 <script type="text/x-flydiy" src="src/core/90_node_exports.js?v=d4b8d6bf"></script>
-<script>window.FLYDIY_CORE_SHA='4bc4c064ebf3';window.FLYDIY_BUILD='3604972e22a0'</script>
+<script>window.FLYDIY_CORE_SHA='0d2d084d799c';window.FLYDIY_BUILD='54fa588f10c6'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
@@ -758,7 +769,7 @@
 <script type="text/x-flydiy" src="src/viewer/site_ground.js?v=73fcc780"></script>
 <script type="text/x-flydiy" src="src/viewer/trees_pack.js?v=9c0f0680"></script>
 <script type="text/x-flydiy" src="src/viewer/trees.js?v=0d298602"></script>
-<script type="text/x-flydiy" src="src/viewer/render_world.js?v=379c72ed"></script>
+<script type="text/x-flydiy" src="src/viewer/render_world.js?v=2930ea9b"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_floor.js?v=0c2feb86"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_walls.js?v=d8d6dd2e"></script>
 <script type="text/x-flydiy" src="src/viewer/hangar_sky.js?v=b7ea6353"></script>
@@ -769,7 +780,7 @@
 <script type="text/x-flydiy" src="src/viewer/panel_tex.js?v=5525a0ab"></script>
 <script type="text/x-flydiy" src="src/viewer/aeroweather.js?v=d7efa167"></script>
 <script type="text/x-flydiy" src="src/viewer/aeroskin.js?v=09d484aa"></script>
-<script type="text/x-flydiy" src="src/viewer/hangar.js?v=014d4f4f"></script>
+<script type="text/x-flydiy" src="src/viewer/hangar.js?v=adee695c"></script>
 <script type="text/x-flydiy" src="src/viewer/garage.js?v=550cbe18"></script>
 <script type="text/x-flydiy" src="src/viewer/workshop.js?v=0b02e453"></script>
 <script type="text/x-flydiy" src="src/viewer/plaque.js?v=54bb23a0"></script>
@@ -778,10 +789,10 @@
 <script type="text/x-flydiy" src="src/viewer/refplane.js?v=ab23636b"></script>
 <script type="text/x-flydiy" src="src/viewer/design_flow.js?v=67b1d1a1"></script>
 <script type="text/x-flydiy" src="src/viewer/balance.js?v=2a8bb781"></script>
-<script type="text/x-flydiy" src="src/viewer/pattern_vis.js?v=9a104f0f"></script>
+<script type="text/x-flydiy" src="src/viewer/pattern_vis.js?v=e87eda94"></script>
 <script type="text/x-flydiy" src="src/viewer/input.js?v=5d8b961f"></script>
 <script type="text/x-flydiy" src="src/viewer/input_panel.js?v=7dbc0a4a"></script>
-<script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=ef734fa0"></script>
+<script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=3b68d0e1"></script>
 <script type="text/x-flydiy" src="src/viewer/editor.js?v=855ed49e"></script>
 <script type="text/x-flydiy" src="src/viewer/cockpit.js?v=419a8f4b"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
@@ -811,10 +822,10 @@
 <script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=8aaf4554"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=4f8329a7"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=b8ce37dc"></script>
-<script type="text/x-flydiy" src="src/viewer/app.js?v=d3cad236"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=4dd00c05"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=374a983a"></script>
 <script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=81245f56"></script>
 <script>
 window.FLYDIY_BOOT.then(function () {

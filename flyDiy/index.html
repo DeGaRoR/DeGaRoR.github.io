@@ -13385,7 +13385,17 @@ const RUNWAY_LOOKS = {
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
 // the air is calm - a strip with a ridge at one end lands from the other and departs toward it; null
 // leaves the pilot its choice (the runway direction nearest its inbound track)
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null };
+// THE CLUB HANGAR (G434, contract v1.14): `hangar` { x, z, hdg } in the premises frame stands the
+// GARAGE'S OWN SHELL (genHangarBuild's exterior, the player's dims) at the field, its door facing
+// hdg - the building the aeroplane rolls out of; runwaySite carries it into the world as the
+// site's `hangar` (25_airfield.js's shape: x, z, ry, HW, HD, EAVE, + y the composed ground)
+// THE GLIDESLOPE LIGHTS (G434): `papi[k]` is true (a PAPI, four units), 'vasi' (a two-bar VASI) or
+// false (none) at end k; the approach that lands over end k reads it
+// A WATER STRIP (G434): surface WATER is a SEA LANE - no grade, no strip, no exclude; the record
+// registers a `kind: 'water'` aerodrome (the analytic SEA's shape) the seaplanes spawn on
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null };
+const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
+function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
 // THE PROFILE (v8, contract v1.8): a strip's centreline height along its length as CONTROL POINTS
 // [[t, dy], ...] - t 0..1 from end 0, dy relative to the strip's elevation (the ground at its centre
@@ -13454,15 +13464,22 @@ function runwayBox(r, margin) {
 // parked pointing the way it will leave - the core's own ruling at HOME), merged over the record's
 // `site` (an authored pattern rides there untouched)
 function runwaySite(r, F) {
-  if (!r.stand || !r.taxiOut || !r.taxiOut.length) return r.site || null;
   const W = q => F.toWorld(q[0], q[1]);
+  const base = Object.assign({}, r.site || {});
+  // the club hangar (G434): the garage's shell in the world, its door along hdg (hangar.js draws the
+  // door at local -x, so rotation.y = pi - hdg puts it there: 25_airfield.js's own -pi/2 for a door at -z)
+  if (r.hangar && isFinite(+r.hangar.x) && isFinite(+r.hangar.z)) {
+    const hw = W([+r.hangar.x, +r.hangar.z]), hh = (+r.hangar.hdg || 0) - F.yaw;
+    base.hangar = Object.assign({ x: +hw[0].toFixed(3), z: +hw[1].toFixed(3), hdg: +hh.toFixed(4), ry: +(Math.PI - hh).toFixed(4) }, HANGAR_DIMS);
+  }
+  if (!r.stand || !r.taxiOut || !r.taxiOut.length) return Object.keys(base).length ? base : null;
   const st = W([r.stand.x, r.stand.z]), tx = r.taxiOut.map(W);
   let hdg;
   if (r.stand.hdg !== null && r.stand.hdg !== undefined) hdg = +r.stand.hdg - F.yaw;
   else hdg = Math.atan2(tx[0][1] - st[1], tx[0][0] - st[0]);
-  return Object.assign({}, r.site || {}, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
+  return Object.assign(base, { stand: { x: +st[0].toFixed(3), z: +st[1].toFixed(3), hdg: +hdg.toFixed(4) }, taxiOut: tx.map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]) });
 }
-function runwayAerodrome(r, F, elev, flats, hAt) {
+function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const E = runwayEnds(r);
   const c = F.toWorld(r.c[0], r.c[1]);
   const dw = [E.d[0] * Math.cos(F.yaw) + E.d[1] * Math.sin(F.yaw), -E.d[0] * Math.sin(F.yaw) + E.d[1] * Math.cos(F.yaw)];
@@ -13476,7 +13493,11 @@ function runwayAerodrome(r, F, elev, flats, hAt) {
   const flatBox = runwayBox(r, shoulder).map(q => F.toWorld(q[0], q[1]));
   // ... and every authored flatten (an apron cut beside the strip is flat ground too)
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
-  const flat = (x, z) => inPoly(flatBox, x, z) || flatPolys.some(pl => inPoly(pl, x, z));
+  // ... and every GRADED ROAD (G434): a road's bed is flat across and smoothed along by construction -
+  // a taxiway traced as a road is ground a pattern may walk on (the validator asks flat())
+  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: +rd.w || 3.6 }));
+  const onRoad = (x, z) => { if (!roadsL.length) return false; const L = F.toLocal(x, z); return roadsL.some(rd => roadDist(rd, L[0], L[1]) <= rd.w / 2 + 1); };
+  const flat = (x, z) => inPoly(flatBox, x, z) || flatPolys.some(pl => inPoly(pl, x, z)) || onRoad(x, z);
   // the aeroplane is placed at the stand when the strip has one
   const S = runwaySite(r, F);
   const spawnAt = S && S.stand ? [S.stand.x, S.stand.z] : spawn;
@@ -13484,6 +13505,10 @@ function runwayAerodrome(r, F, elev, flats, hAt) {
   const groundAt = (x, z) => { if (!hAt) return elev; const L = F.toLocal(x, z); return +hAt(L[0], L[1]).toFixed(2); };
   if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
   const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
+  // a SEA LANE (G434): the analytic SEA's shape - kind 'water', no site, flat everywhere (the water is)
+  if (runwayIsWater(r)) return { id: r.id, name: r.name || 'sea lane', kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
+           surface: SURFACE.WATER, look: 'none', elev, tdz, spawn, spawnElev: elev, flyIn: false, premises: true, water: true,
+           landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false] };
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
@@ -13684,7 +13709,8 @@ function compose(rec0, world, opts) {
   // rule: flat across, the profile smoothed along); a surface strip of its class
   const roads = rec.layers.roads.filter(r => r.pts && r.pts.length >= 2);
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
-  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0) }));
+  // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
+  const roadObjs = roads.map(r => ({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false }));
   const nAuth = mods.length;
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
@@ -13693,6 +13719,14 @@ function compose(rec0, world, opts) {
   const aerodromes = [];
   for (const r of runways) {
     const E = runwayEnds(r);
+    // a SEA LANE (G434): the water's own level, nothing graded, nothing painted, nothing excluded
+    if (runwayIsWater(r)) {
+      const cw = F.toWorld(r.c[0], r.c[1]);
+      const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
+      aerodromes.push(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null));
+      r.site = null;
+      continue;
+    }
     const elev = T1(r.c[0], r.c[1]);
     const fall = runwayShoulder(r);
     // the centreline on its PROFILE, sampled every 6 m into the grade (the old linear slope is a two-point profile)
@@ -13702,9 +13736,10 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: gpts, width: r.wid, falloff: fall, abs: true }, F.y0);
     if (M) mods.push(M);
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
-    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1));   // T1 sees the strip's own grade (pushed above)
+    aerodromes.push(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
     if (r.site && r.site.stand) { const L = F.toLocal(r.site.stand.x, r.site.stand.z); r.site.stand.elev = +T1(L[0], L[1]).toFixed(2); }   // the ground under the stand (v9): the placer reads it
+    if (r.site && r.site.hangar) { const L = F.toLocal(r.site.hangar.x, r.site.hangar.z); r.site.hangar.y = +T1(L[0], L[1]).toFixed(2); }   // the ground under the club hangar (G434): the shed stands on it
   }
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -13718,6 +13753,19 @@ function compose(rec0, world, opts) {
     dense.push(r.pts[r.pts.length - 1]);
     let hs = dense.map(p => T1r(p[0], p[1]));
     for (let pass = 0; pass < 4; pass++) hs = hs.map((h, i) => (i === 0 || i === hs.length - 1) ? h : (hs[i - 1] + 2 * h + hs[i + 1]) / 4);
+    // THE GRADE LIMIT (G434, contract v1.14): `grade` is the steepest the road may run - the humps
+    // are CUT to it and the dips FILLED (a lower then an upper envelope of that slope, both ways),
+    // the ends held where they meet the ground; a taxiway across a 4 m mound had climbed 8 % and
+    // dropped 12 % onto the runway, following the DEM the way a track does and a taxiway never would
+    if (+r.grade > 0) {
+      const g = +r.grade, ds = i => Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]);
+      const h0 = hs[0], h1 = hs[hs.length - 1];
+      for (let i = 1; i < hs.length; i++) hs[i] = Math.min(hs[i], hs[i - 1] + g * ds(i));
+      for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.min(hs[i], hs[i + 1] + g * ds(i + 1));
+      for (let i = 1; i < hs.length; i++) hs[i] = Math.max(hs[i], hs[i - 1] - g * ds(i));
+      for (let i = hs.length - 2; i >= 0; i--) hs[i] = Math.max(hs[i], hs[i + 1] - g * ds(i + 1));
+      hs[0] = h0; hs[hs.length - 1] = h1;
+    }
     // a level approach at both ends: a road that starts on another road (a spur off the shore road) must
     // not lift the first road's edge on its first metres - the height is held for 7 m from each end
     { let acc = 0; for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc < 7) hs[i] = hs[0]; else break; } acc = 0; for (let i = dense.length - 2; i >= 0; i--) { acc += Math.hypot(dense[i][0] - dense[i + 1][0], dense[i][1] - dense[i + 1][1]); if (acc < 7) hs[i] = hs[dense.length - 1]; else break; } }
@@ -13739,7 +13787,7 @@ function compose(rec0, world, opts) {
   // the weight of one material at a point: 1 well inside, 0 well outside, a smoothstep across the fade band
   const matWeight = (m, lx, lz) => { const d = -sdPoly(m.poly, lx, lz); if (m.fade <= 0) return d >= 0 ? 1 : 0; const u = (d + m.fade / 2) / m.fade; return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u); };
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), what: s.what || ['trees'] }));
-  for (const r of runways) { const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id }); }
+  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id }); }
   // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
   for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) excl.push({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id });
   // a clear zone is a derived exclude of trees
@@ -13801,6 +13849,15 @@ function compose(rec0, world, opts) {
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
     const waterY = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity;
+    // THE WATER A ZONE SEES (G434): the level of the sea or the lake that touches it - sampled over the
+    // zone's own box, not read at the anchor (an anchor on a field 4 km inland reads -Infinity there, and
+    // a harbour zone on the shore sowed nothing: no plot ever "reached the water")
+    const zoneWaterY = z => {
+      if (!world.waterH || !z.poly || z.poly.length < 3) return waterY;
+      const bb = polyBBox(z.poly); let best = waterY;
+      for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const w = F.toWorld(bb.x0 - 60 + (bb.x1 - bb.x0 + 120) * i / 12, bb.z0 - 60 + (bb.z1 - bb.z0 + 120) * j / 12); const v = world.waterH(w[0], w[1]); if (isFinite(v) && v > best) best = v; }
+      return best;
+    };
     const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
@@ -13824,7 +13881,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        { let n = 0; for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
+        { let n = 0; for (const p of sowPlots(z, roads, Object.assign({}, ctx, { waterY: zoneWaterY(z) }))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // THE PARKS (stage 5c, contract v1.5): a plot whose pick is a PARK entry stands the park on the
@@ -13903,7 +13960,7 @@ function compose(rec0, world, opts) {
     const pool = o.pool || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
-      for (const t of planForest(z, tctx)) O.records.trees.push(t);
+      for (const t of planForest(z, Object.assign({}, tctx, { waterY: zoneWaterY(z) }))) O.records.trees.push(t);
     // the hand-placed trees (objects of kind 'tree'), in the premises frame, TREE_PLACE's record
     for (const ob of rec.layers.objects) if (ob.kind === 'tree') O.records.trees.push({ x: ob.x, z: ob.z, key: ob.key, size: ob.size || 1, yaw: ob.yaw || 0, sink: 0, h: 12, id: ob.id, placed: true });
     // the hand-placed PROPS and BILLBOARDS (contract v1.6): a prop is a PROP_REG key stood on the
@@ -13943,6 +14000,8 @@ function issues(rec0) {
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    if (r.papi && (!Array.isArray(r.papi) || r.papi.length !== 2 || !r.papi.every(v => v === true || v === false || v === 'vasi'))) out.push('runway ' + r.id + ': papi is [end 0, end 1] of true, false or vasi');
+    if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -13952,7 +14011,7 @@ function issues(rec0) {
   }
   for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
-  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r));
+  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
@@ -14158,7 +14217,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
@@ -21659,6 +21718,14 @@ function makePilot(sim, def, world, opts) {
         const iasF = ap.VAppr * ST.VapprK;
         // P0.5: the slope and the level before it are two references of the one law
         if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
+        // ABOVE THE SLOPE ON ENTRY (G434, the hill strip on Jolene): the enroute leg's clearance over
+        // the ground under it (hClear) had left the aeroplane 30 m over the pattern height, the
+        // level was latched THERE and the slope, descending to the aim, only fell away under it -
+        // "high on the slope" at 534 m out, twice, on a strip it could have landed on. Above the
+        // slope by more than the capture window the target is the SLOPE itself, descended onto at
+        // half again the slope's own rate; the latched level is for the aeroplane the slope rises
+        // to meet (the branch above)
+        else if (above > 4) engage(latF, 'TECS', 'TECS', { alt: hGS, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs) });
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;
@@ -34846,7 +34913,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='4bc4c064ebf3';window.FLYDIY_BUILD='3604972e22a0'</script>
+<script>window.FLYDIY_CORE_SHA='0d2d084d799c';window.FLYDIY_BUILD='54fa588f10c6'</script>
 <script src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script src="src/models/d112_model.js?v=1c93058a"></script>
@@ -96210,6 +96277,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // ...unless HOME is a premises runway with no declared site furniture (an
   // island's field, G404): the premises renderer draws its strip, apron and
   // buildings, and there is no analytic shed, fence or windsock to stand
+  // THE CLUB HANGAR ON AN ISLAND (G434): the premises' HOME site names a `hangar` (the runway
+  // record's, runwaySite's shape) and ONLY the shed is stood here - the garage's own shell on the
+  // composed ground, the building the aeroplane rolls out of; the apron, the fence, the windsock,
+  // the paving and the strip's paint are the premises record's own (materials, surfaces, sites,
+  // the strip's look), drawn by render_premises and standStrip below. Nothing analytic is invented.
+  const ISLAND_SITE = !!world.island;
   if (!(world.island && !(siteOf('HOME') && siteOf('HOME').hangar))) { // THE BASE AERODROME, from the ONE declaration (G123)
     // Every number in this block used to be a literal: a 1100 x 30 strip at
     // (-520, 0) restated by hand beside the 'HOME' record that already said
@@ -96238,7 +96311,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // rectangles arrive as world-frame {x0,x1,z0,z1}; a decal wants centre+size
     const decalRect = (r, color, y) => decal(Math.abs(r.x1 - r.x0), Math.abs(r.z1 - r.z0),
       color, y, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2);
-    { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
+    if (!ISLAND_SITE) { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
       // the old per-marking decal stack (5..17 cm) was visibly floating and
       // buried the foam trainer (14 cm tall) under its own runway markings.
       //
@@ -96288,7 +96361,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
     const markMat = worldLambert({ color: C(0xe4dccb) });
-    for (const P of siteMarkers(HOME)) {
+    if (!ISLAND_SITE) for (const P of siteMarkers(HOME)) {
       const m = new THREE.Mesh(markGeo, markMat);
       m.position.set(P.x, 0.35, P.z);
       m.castShadow = true; m.receiveShadow = true; scene.add(m);
@@ -96310,7 +96383,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
       return g;
     };
-    for (const b of SITE.buildings)
+    for (const b of SITE.buildings || [])
       building(b.x, b.z, b.w, b.d, b.h, b.ry, b.trim ? trim : null);
 
     // THE HANGAR IS THE HANGAR (G123). Where a 15 x 10 box stood, the real
@@ -96425,13 +96498,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         lod.addLevel(coarse, 320);
         node = lod;
       }
-      node.position.set(H.x, 0, H.z);
+      // on the composed ground where the site puts it (an island's field is not at 0; G434)
+      node.position.set(H.x, H.y !== undefined ? H.y : 0, H.z);
       node.rotation.y = H.ry;
       scene.add(node);
       shedNode = node;
     }
     standShed(shedDims);
     setShedDims = dims => standShed(dims);
+    if (!ISLAND_SITE) {   // the analytic furniture (G434: the premises draw an island's)
 
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, SITE.windsock.h),
       worldLambert({ color: C(0xd8d2c4) }));
@@ -96587,6 +96662,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         scene.add(siteTufts(THREE, rows, tm2, 0.0));
       }
     }
+    }   // !ISLAND_SITE
   }
 
   { // stage-3 settlements: instanced houses/barns + bridge decks
@@ -96825,8 +96901,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sock.castShadow = true; scene.add(keep(sock));
       const sk = { pole: [px2, a.elev + 5.5, pz2], mesh: sock }; socks.push(sk); stood.push(sk);   // W13 wind-driven
     };
+    // a premises HOME (an island's field, G404) is stood like every premises strip - it was skipped
+    // with the analytic HOME until G434 (no paint, no sock, until the first live edit repainted it);
+    // a WATER lane stands nothing (a decal under the sea and a windsock in it, G434)
     for (const a of world.aerodromes) {
-      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      if (a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)) continue;
       standStrip(a);
     }
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
@@ -96838,7 +96917,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); }
         stripStood.delete(id);
       }
-      for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow') standStrip(a);
+      for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);
     };
   }
 
@@ -105125,6 +105204,14 @@ if (!EXT) {
              z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) };
   };
   const LP = (x, z) => siteToLocal(x, z, HGR);
+  // A PREMISES FIELD (G434): the site the world editor composed carries the shed (its hangar) and the
+  // stand, and none of the analytic declaration's furniture (apron, taxiway, fence, windsock, the
+  // boxes, the windbreak, the clutter) - the field outside the door is the record's own. The room
+  // then shows the strip at its true heading, a slab in front of the door, and nothing invented.
+  // (Before G434 `SITE.apron.x0` threw here on an island and the whole room was refused.)
+  const PLAIN = !!(SITE && !SITE.apron);
+  // the slab in front of the door, in the shed's own frame (the door is at local -x)
+  const SLAB_RECT = { x0: -HD - 42, x1: -HD + 0.5, z0: -HW - 12, z1: HW + 12 };
 
   // ---- THE LIBRARY MATERIALS ---------------------------------------------
   // The ground wears scanned sets now (assets/airfield -> site_tex.js), and
@@ -105323,17 +105410,32 @@ if (!EXT) {
     const a = LP(R.end0.x, R.cz - R.half), b = LP(R.end0.x, R.cz + R.half);
     const sx0 = Math.min(a.x, b.x), sx1 = Math.max(a.x, b.x);
     const sz0 = Math.min(a.z, b.z);
-    const SW = sx1 - sx0, SCX = (sx0 + sx1) / 2, SCZ = sz0 + SEEN / 2;
+    let SW = sx1 - sx0, SCX = (sx0 + sx1) / 2, SCZ = sz0 + SEEN / 2, SL = SEEN, SROT = 0;
+    if (PLAIN) {
+      // the strip at its own heading (G434): the segment of the centreline nearest the shed, up to
+      // 450 m either way, clipped to the ends; the plane turned to the strip's direction in the
+      // shed's frame (siteToLocal is a rotation: local x = world z - Hz, local z = Hx - world x)
+      const s0 = (HGR.x - R.end0.x) * R.dx + (HGR.z - R.end0.z) * R.dz;
+      const sa = Math.max(0, s0 - 450), sb = Math.min(R.len, s0 + 450);
+      const mid = { x: R.end0.x + R.dx * (sa + sb) / 2, z: R.end0.z + R.dz * (sa + sb) / 2 };
+      const c = LP(mid.x, mid.z);
+      SW = R.wid; SL = Math.max(1, sb - sa); SCX = c.x; SCZ = c.z;
+      // the strip's direction in the local frame: d_local = (dz, -dx); a PlaneGeometry's long side
+      // runs along local z after rotateX, and rotateY(phi) carries (0, 1) to (sin phi, cos phi)
+      SROT = Math.atan2(R.dz, -R.dx);
+    }
 
     // THE STRIP IS MOWN GRASS WITH PAINT ON IT, in two layers, and that is not
     // a detail. One layer — a canvas of green with the markings drawn into it —
     // is a PICTURE of a runway: it cannot carry the scanned grass the rest of
     // the field wears, so the strip reads as a flat painted band laid on a
     // textured meadow, which is exactly how the first cut of this looked.
-    const sBase = new THREE.PlaneGeometry(SW, SEEN);
+    const sBase = new THREE.PlaneGeometry(SW, SL);
     sBase.rotateX(-Math.PI / 2);
-    metricUV(sBase, SW, SEEN);
-    const strip = new THREE.Mesh(sBase, M.strip);
+    metricUV(sBase, SW, SL);
+    if (SROT) sBase.rotateY(SROT);
+    // a paved premises strip wears the taxiway's concrete in the room (the field's own look is the world's)
+    const strip = new THREE.Mesh(sBase, (PLAIN && HOME && HOME.surface === 5) ? M.taxi : M.strip);
     strip.position.set(SCX, Y_STRIP, SCZ);
     strip.receiveShadow = true;
     put(strip);
@@ -105346,8 +105448,9 @@ if (!EXT) {
     // do not commute the way writing them one after another suggests. Reading
     // each vertex back into the runway's own frame has no such ambiguity, and
     // it works for any heading the record might carry.
-    const sMark = new THREE.PlaneGeometry(SW, SEEN);
+    const sMark = new THREE.PlaneGeometry(SW, SL);
     sMark.rotateX(-Math.PI / 2);
+    if (SROT) sMark.rotateY(SROT);
     { const uv = sMark.attributes.uv, po = sMark.attributes.position;
       for (let i = 0; i < uv.count; i++) {
         const Wp = siteToWorld(SCX + po.getX(i), SCZ + po.getZ(i), HGR);
@@ -105370,7 +105473,7 @@ if (!EXT) {
     put(marks);
 
     // ---- THE APRON ------------------------------------------------------
-    const ap = L(SITE.apron);
+    const ap = PLAIN ? SLAB_RECT : L(SITE.apron);
     pad(ap, Y_APRON, M.apron);
     kerb(ap, Y_APRON, SLAB, M.apron);
     // SAW-CUT JOINTS on a 5 m grid, the way a slab that size is actually
@@ -105382,14 +105485,14 @@ if (!EXT) {
     // the slot drain across the door line, and the lead-in the aeroplane
     // follows out to the taxiway
     paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
-    const tx = L(SITE.taxiway);
-    const lead = (tx.z0 + tx.z1) / 2;
+    const tx = PLAIN ? null : L(SITE.taxiway);
+    const lead = tx ? (tx.z0 + tx.z1) / 2 : 0;
     paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
-    paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
+    if (tx) paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
           0xd8bd4a, Y_APRON + 0.006, 0.9);
     // tie-down rings, from the declaration
     const ringGeo = new THREE.TorusGeometry(0.22, 0.05, 6, 10);
-    for (const rg of SITE.clutter.rings) {
+    for (const rg of (SITE.clutter ? SITE.clutter.rings : [])) {
       const q2 = LP(rg[0], rg[1]);
       const m = new THREE.Mesh(ringGeo, M.steel);
       m.position.set(q2.x, Y_APRON + 0.02, q2.z);
@@ -105399,17 +105502,19 @@ if (!EXT) {
     }
 
     // ---- THE TAXIWAY, which now actually reaches the strip ---------------
+    if (tx) {
     pad(tx, Y_TAXI, M.taxi);
     kerb(tx, Y_TAXI, SLAB - 0.04, M.taxi);
     for (let z = tx.z0 + 3; z < tx.z1 - 1; z += 6)
       paint((tx.x0 + tx.x1) / 2 - 0.09, z, (tx.x0 + tx.x1) / 2 + 0.09, z + 3,
             0xd8bd4a, Y_TAXI + 0.006, 0.85);
+    }
   }
 
   // ---- THE FURNITURE ------------------------------------------------------
   // All of it from the declaration, so the middle distance out of this door is
-  // the middle distance you taxi through.
-  if (SITE) {
+  // the middle distance you taxi through. (A premises field declares none: G434.)
+  if (SITE && !PLAIN) {
     const lam = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85,
       metalness: 0, fog: false });
     const wallM = lam(0xcbb79a), roofM = lam(0x9c5f43), trimM = lam(0x6d5744);
@@ -105501,9 +105606,10 @@ if (!EXT) {
       roughness: 0.92, metalness: 0, fog: false, envMapIntensity: ENV_OUT }));
 
     // where a tuft may NOT stand: the paving, the strip, and the shed itself
-    const blocks = [L(SITE.apron), L(SITE.taxiway),
+    const blocks = PLAIN ? [SLAB_RECT, { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }]
+                : [L(SITE.apron), L(SITE.taxiway),
                     { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }];
-    if (R) {
+    if (R && !PLAIN) {
       const a = LP(R.end0.x, R.cz - R.half), b = LP(R.end1.x, R.cz + R.half);
       blocks.push({ x0: Math.min(a.x, b.x) - 1, x1: Math.max(a.x, b.x) + 1,
                     z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) });
@@ -112981,37 +113087,56 @@ function buildPatternVis(THREE, pattern, groundY, core) {
   // slope, the way a real PAPI reads. `papiUpdate(x, y, z)` recolours them
   // from the aeroplane's position every frame; `setActive(k, gs)` re-aims
   // the boxes when the slope flown changes. Dark from behind.
+  // ...AND THE VASI (G434, the user: "setup of the VASI systems (automatic glideslope)"). The
+  // record says which system stands at each end (`aero.papi[end]`: true a PAPI, 'vasi' a two-bar
+  // VASI, false none - the approach that lands over end k reads papi[k]; k = 0 lands over thr1).
+  // A VASI is TWO BARS of two lights, both on the left: the downwind bar where the PAPI stands,
+  // the upwind bar 210 m further along the landing direction; each bar reads its own angle to the
+  // aeroplane, the downwind bar set a quarter degree under the slope and the upwind bar a quarter
+  // over - on the slope the near bar is white and the far one red (red over white, "you're all
+  // right"), both white high, both red low. AUTOMATIC: the slope both systems are set to is the
+  // approach's own (ap.gs, re-aimed by setActive when the pilot's planned slope changes), never a
+  // number of their own - the lights show the glideslope the pilot flies.
   const papis = [];
+  const kindAt = k => { const A = core && core.aero; if (!A || !Array.isArray(A.papi)) return 'papi'; const v = A.papi[k === 0 ? 1 : 0]; return v === 'vasi' ? 'vasi' : v ? 'papi' : 'none'; };
   if (pattern && pattern.approaches) {
     const white = 0xfff4d6, red = 0xff3a2a, dark = 0x2a2622;
     for (const ap of pattern.approaches) {
+      const kind = kindAt(ap.k);
+      if (kind === 'none') continue;
       const u = ap.u, aim = ap.aimAP;
       const lx = u[1], lz = -u[0];                     // left of the landing direction
       const bx = aim[0] + lx * 22, bz = aim[1] + lz * 22;
       const units = [];
-      for (let i = 0; i < 4; i++) {
-        const g = new THREE.BoxGeometry(1.2, 0.9, 1.2);
+      const unit = (x, z, bar, off) => {
+        const g = new THREE.BoxGeometry(kind === 'vasi' ? 1.6 : 1.2, 0.9, 1.2);
         const m = new THREE.MeshBasicMaterial({ color: dark });
         const box = new THREE.Mesh(g, m);
-        const x = bx + lx * (i * 3.2), z = bz + lz * (i * 3.2);
         box.position.set(x, gy(x, z) + 0.6, z);
+        box.rotation.y = Math.atan2(-u[1], u[0]);
         box.frustumCulled = false;
         layers.papi.add(box);
-        units.push({ box, m, x, z, y: gy(x, z) + 0.6 });
+        units.push({ box, m, x, z, y: gy(x, z) + 0.6, bar, off });
+      };
+      if (kind === 'vasi') {
+        // the downwind bar (2 units) at the aim, the upwind bar 210 m on; `off` is each bar's setting about the slope
+        for (let i = 0; i < 2; i++) unit(bx + lx * (i * 4.0), bz + lz * (i * 4.0), 0, -0.0044);
+        for (let i = 0; i < 2; i++) unit(bx + u[0] * 210 + lx * (i * 4.0), bz + u[1] * 210 + lz * (i * 4.0), 1, +0.0044);
+      } else {
+        for (let i = 0; i < 4; i++) unit(bx + lx * (i * 3.2), bz + lz * (i * 3.2), 0, (i - 1.5) * 0.0058);   // -0.5 .. +0.5 deg about the slope
       }
-      papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark });
+      papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark, kind });
     }
   }
   const papiUpdate = (x, y, z) => {
     for (const P of papis) {
-      const dist = (P.units[0].x - x) * P.u[0] + (P.units[0].z - z) * P.u[1];
-      for (let i = 0; i < 4; i++) {
-        const U = P.units[i];
+      for (const U of P.units) {
+        // each unit reads its own distance along the landing direction (a VASI's bars stand 210 m apart)
+        const dist = (U.x - x) * P.u[0] + (U.z - z) * P.u[1];
         let col = P.dark;
         if (dist > 40) {
           const ang = Math.atan2(y - U.y, dist);
-          const a_i = P.gs + (i - 1.5) * 0.0058;      // -0.5 .. +0.5 deg about the slope
-          col = ang > a_i ? P.white : P.red;
+          col = ang > P.gs + U.off ? P.white : P.red;
         }
         if (U.m.color.getHex() !== col) U.m.color.setHex(col);
       }
@@ -114282,6 +114407,15 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) }
   const mount = (body, H) => {
     const pick = (k, v) => { set(k, v); if (H.refresh) H.refresh(); };
+    // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
+    // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
+    if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {
+      const cur = W.FLYDIY_WORLD || 'none';
+      H.row(body, 'world');
+      H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
+        o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
+      H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    }
     H.row(body, 'preset');
     H.pills(body, Object.keys(PRESETS).concat(['custom']).map(p => ({
         label: p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
@@ -118291,9 +118425,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script src="src/viewer/tram_run.js?v=44b3c79c"></script>
 <script src="tools/_village_gen.js?v=31861016"></script>
 <script src="src/viewer/parked.js?v=00f22b4d"></script>
-<script src="src/viewer/render_premises.js?v=8aaf4554"></script>
+<script src="src/viewer/render_premises.js?v=4f8329a7"></script>
 <script src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script src="src/viewer/premises_ui.js?v=b8ce37dc"></script>
+<script src="src/viewer/premises_ui.js?v=4dd00c05"></script>
 <script>
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -118314,12 +118448,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
   // fixture from tools/fixtures (a test's door; read synchronously because the world is made
   // here, during the script's own evaluation)
+  // THE WIP KEY IS THE MAP'S (G434): an island's saved premises must never compose onto the analytic
+  // world (nor Skarvik's edits onto the island) now that the GRAPHICS menu swaps maps
+  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : '');
   const premisesAtBoot = (() => {
     try {
       const q = new URLSearchParams(location.search).get('premises');
       if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
       if (q === 'none') return null;
-      const saved = localStorage.getItem('flydiy.premises.game');
+      const saved = localStorage.getItem(WIP_KEY);
       // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE
       // PREMISES composes every premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field.
       // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
@@ -118333,7 +118470,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_official.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
       if (saved && fixture) {
         try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
-          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem('flydiy.premises.game'); return fixture; } } catch (e) {}
+          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem(WIP_KEY); return fixture; } } catch (e) {}
       }
       return saved || fixture;
     } catch (e) { return null; }
@@ -118405,7 +118542,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {
         onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
-        viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
+        viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: WIP_KEY,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
@@ -121741,7 +121878,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       ? world.terrainH(x, z) : (from.elev || 0);
     try {
       patVis = window.PATTERN_VIS.buildPatternVis(THREE, P, gy,
-        { patternPath: (typeof patternPath === 'function') ? patternPath : null });
+        { patternPath: (typeof patternPath === 'function') ? patternPath : null, aero: from });   // G434: the record says PAPI, VASI or none at each end
       scene.add(patVis.group);
       patVis.setLayers(patOnGet());
       patVisK = -1; patLegsRef = null;
@@ -123808,7 +123945,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     rig = null;
     if (inGarage) enterGarage();                      // back on its wheels
   }
+  let specPending = false, rolledOut = false;   // a spec that landed after the roll-out (G434): rebuilt on the next entry
   function enterGarage() {
+    rolledOut = false;
+    if (specPending) { specPending = false; setAircraft('gen'); }
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -123866,7 +124006,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // through enterGarage, so the sandbags have to be taken off here too — or
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
-    inGarage = false;
+    inGarage = false; rolledOut = true;
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     setExp(WORLD_EXPOSURE);
@@ -124484,6 +124624,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     };
     fill($('selFrom'), null, null, null);
     fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null);
+    // the select SAYS where the flight starts (G434): HOME need not be the registry's first row (Jolene's
+    // 02/20 is composed before 13/31 so the crossing keeps 13/31's profile) and the bar read the first option
+    if ([...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
     $('selFrom').onchange = e => { fromId = e.target.value; fullReset(); };
     // W14 multi-hop: picking a new destination AFTER LANDING chains the
     // next leg seamlessly — same sim, no reset, no teleport. The fresh AP
@@ -125246,7 +125389,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the editor' : 'open the world editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
-      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (bare world at the next boot)'; c.onclick = () => { try { localStorage.removeItem('flydiy.premises.game'); } catch (e) {} flNote(body, 'cleared - reload for a bare world'); }; body.appendChild(c); }
+      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
     },
     // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
     graphics(body) {
@@ -126310,7 +126453,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     defaults: () => JSON.parse(JSON.stringify(GEN_DEFAULT)),
     // a changed spec is a DIFFERENT AEROPLANE, and editing one puts it back on
     // the stand: the solver stops, so a slider drag costs you nothing
-    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; setAircraft('gen'); enterGarage(); },
+    // ...UNLESS THE AEROPLANE HAS ALREADY ROLLED OUT (G434): the roll-out's own syncBuild commits the
+    // spec and that commit runs the energy worker, whose answer comes back through this door seconds
+    // later (under load, after the roll-out screen has lifted) - it used to rebuild the aeroplane and
+    // walk the flight back into the shed. Measured on Jolene headless: every roll-out ended in the
+    // garage 5 s after it began. A late spec waits for the next visit to the garage.
+    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     shake: () => shakeOf(),
     isGen: () => curKey === 'gen',
