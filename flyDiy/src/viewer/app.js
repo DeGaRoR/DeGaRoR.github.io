@@ -17,12 +17,15 @@
   // localStorage flydiy.premises.game (what the WORLD rail saves), or ?premises=<name> for a
   // fixture from tools/fixtures (a test's door; read synchronously because the world is made
   // here, during the script's own evaluation)
+  // THE WIP KEY IS THE MAP'S (G434): an island's saved premises must never compose onto the analytic
+  // world (nor Skarvik's edits onto the island) now that the GRAPHICS menu swaps maps
+  const WIP_KEY = 'flydiy.premises.game' + ((typeof window !== 'undefined' && window.ISLAND_BOOT) ? '.' + window.ISLAND_BOOT.id : '');
   const premisesAtBoot = (() => {
     try {
       const q = new URLSearchParams(location.search).get('premises');
       if (q) { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_' + q + '.json', false); x.send(); if (x.status === 200) return x.responseText; }
       if (q === 'none') return null;
-      const saved = localStorage.getItem('flydiy.premises.game');
+      const saved = localStorage.getItem(WIP_KEY);
       // an island brings its own premises: tools/fixtures/island_<island>.json (its own prefix: GATE
       // PREMISES composes every premises_v1_* fixture on the ANALYTIC world). G401: Jolene's old field.
       // A saved copy (the WORLD rail's WIP) wins unless it is the SAME premises at an older `rev`
@@ -36,7 +39,7 @@
       else { const x = new XMLHttpRequest(); x.open('GET', 'tools/fixtures/premises_v1_official.json', false); x.send(); if (x.status === 200) fixture = x.responseText; }
       if (saved && fixture) {
         try { const S = JSON.parse(saved), F = JSON.parse(fixture); const sp = S.premises || S, fp = F.premises || F;
-          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem('flydiy.premises.game'); return fixture; } } catch (e) {}
+          if (sp.id === fp.id && (sp.rev || 0) < (fp.rev || 0)) { localStorage.removeItem(WIP_KEY); return fixture; } } catch (e) {}
       }
       return saved || fixture;
     } catch (e) { return null; }
@@ -108,7 +111,7 @@
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {
         onSection: S => { const e = $('premSec'); if (e) e.textContent = S.label; },
         THREE, world, R: PREM.R, camera: PREM.host.camera, ground: PREM.host.ground, ray: PREM.host.ray, cameras: PREM.host.cameras, rows: PREM.host.rows, els,
-        viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: 'flydiy.premises.game',
+        viewEl: PREM.view, storage: (() => { try { return localStorage; } catch (e) { return null; } })(), wipKey: WIP_KEY,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
@@ -3444,7 +3447,7 @@
       ? world.terrainH(x, z) : (from.elev || 0);
     try {
       patVis = window.PATTERN_VIS.buildPatternVis(THREE, P, gy,
-        { patternPath: (typeof patternPath === 'function') ? patternPath : null });
+        { patternPath: (typeof patternPath === 'function') ? patternPath : null, aero: from });   // G434: the record says PAPI, VASI or none at each end
       scene.add(patVis.group);
       patVis.setLayers(patOnGet());
       patVisK = -1; patLegsRef = null;
@@ -5511,7 +5514,10 @@
     rig = null;
     if (inGarage) enterGarage();                      // back on its wheels
   }
+  let specPending = false, rolledOut = false;   // a spec that landed after the roll-out (G434): rebuilt on the next entry
   function enterGarage() {
+    rolledOut = false;
+    if (specPending) { specPending = false; setAircraft('gen'); }
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -5569,7 +5575,7 @@
     // through enterGarage, so the sandbags have to be taken off here too — or
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
-    inGarage = false;
+    inGarage = false; rolledOut = true;
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     setExp(WORLD_EXPOSURE);
@@ -6187,6 +6193,9 @@
     };
     fill($('selFrom'), null, null, null);
     fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null);
+    // the select SAYS where the flight starts (G434): HOME need not be the registry's first row (Jolene's
+    // 02/20 is composed before 13/31 so the crossing keeps 13/31's profile) and the bar read the first option
+    if ([...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
     $('selFrom').onchange = e => { fromId = e.target.value; fullReset(); };
     // W14 multi-hop: picking a new destination AFTER LANDING chains the
     // next leg seamlessly — same sim, no reset, no teleport. The fresh AP
@@ -6949,7 +6958,7 @@
       const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the editor' : 'open the world editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
-      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (bare world at the next boot)'; c.onclick = () => { try { localStorage.removeItem('flydiy.premises.game'); } catch (e) {} flNote(body, 'cleared - reload for a bare world'); }; body.appendChild(c); }
+      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
     },
     // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
     graphics(body) {
@@ -8013,7 +8022,12 @@
     defaults: () => JSON.parse(JSON.stringify(GEN_DEFAULT)),
     // a changed spec is a DIFFERENT AEROPLANE, and editing one puts it back on
     // the stand: the solver stops, so a slider drag costs you nothing
-    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; setAircraft('gen'); enterGarage(); },
+    // ...UNLESS THE AEROPLANE HAS ALREADY ROLLED OUT (G434): the roll-out's own syncBuild commits the
+    // spec and that commit runs the energy worker, whose answer comes back through this door seconds
+    // later (under load, after the roll-out screen has lifted) - it used to rebuild the aeroplane and
+    // walk the flight back into the shed. Measured on Jolene headless: every roll-out ended in the
+    // garage 5 s after it began. A late spec waits for the next visit to the garage.
+    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     shake: () => shakeOf(),
     isGen: () => curKey === 'gen',

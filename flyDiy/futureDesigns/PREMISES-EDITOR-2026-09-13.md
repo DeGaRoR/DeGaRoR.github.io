@@ -585,3 +585,17 @@ game, and become a new official airport."
 - **The patch beyond the inner ring** wears the outer ring's material (its canopy tint), not a bare
   Lambert on the bake: it had read as sand under the woods.
 - Pictures: `screenshots/premises/v9_skarvik_*.jpg`.
+
+## 12. JOLENE AFB — THE ISLAND'S FIELD, AND THE CLUB HANGAR (G434, as landed)
+
+The island's official premises (`tools/fixtures/island_jolene.json`, rev 4) is the starting
+world's field: the runway inspector gained the CLUB HANGAR (the garage's own shell stood behind
+the stand facing it — "stand the club hangar behind the stand", a `door faces` slider, its disc
+among the strip's handles, "remove"), the glideslope LIGHTS per end (PAPI / VASI / none), a
+road's `steepest (%)` (the bed cut and filled to that gradient — a taxiway) and `drawn as a
+ribbon` (off for a taxiway under its own material polygon), and the length slider reaches
+3 000 m (13/31 is 2 325). A runway whose class is WATER is a sea lane (the seaplanes' `SEA`).
+The record was written by `tools/jolene_author.py` (contract v1.14 says what); everything in
+it is the editor's own vocabulary and the editor edits it. What the editor still lacks for a
+field like this: a taxiway TOOL (a road with the paving polygon and the grade in one gesture),
+a turnaround tool, the windsock and the beacon as site props.

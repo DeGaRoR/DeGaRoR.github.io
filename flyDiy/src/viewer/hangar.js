@@ -1600,6 +1600,14 @@ if (!EXT) {
              z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) };
   };
   const LP = (x, z) => siteToLocal(x, z, HGR);
+  // A PREMISES FIELD (G434): the site the world editor composed carries the shed (its hangar) and the
+  // stand, and none of the analytic declaration's furniture (apron, taxiway, fence, windsock, the
+  // boxes, the windbreak, the clutter) - the field outside the door is the record's own. The room
+  // then shows the strip at its true heading, a slab in front of the door, and nothing invented.
+  // (Before G434 `SITE.apron.x0` threw here on an island and the whole room was refused.)
+  const PLAIN = !!(SITE && !SITE.apron);
+  // the slab in front of the door, in the shed's own frame (the door is at local -x)
+  const SLAB_RECT = { x0: -HD - 42, x1: -HD + 0.5, z0: -HW - 12, z1: HW + 12 };
 
   // ---- THE LIBRARY MATERIALS ---------------------------------------------
   // The ground wears scanned sets now (assets/airfield -> site_tex.js), and
@@ -1798,17 +1806,32 @@ if (!EXT) {
     const a = LP(R.end0.x, R.cz - R.half), b = LP(R.end0.x, R.cz + R.half);
     const sx0 = Math.min(a.x, b.x), sx1 = Math.max(a.x, b.x);
     const sz0 = Math.min(a.z, b.z);
-    const SW = sx1 - sx0, SCX = (sx0 + sx1) / 2, SCZ = sz0 + SEEN / 2;
+    let SW = sx1 - sx0, SCX = (sx0 + sx1) / 2, SCZ = sz0 + SEEN / 2, SL = SEEN, SROT = 0;
+    if (PLAIN) {
+      // the strip at its own heading (G434): the segment of the centreline nearest the shed, up to
+      // 450 m either way, clipped to the ends; the plane turned to the strip's direction in the
+      // shed's frame (siteToLocal is a rotation: local x = world z - Hz, local z = Hx - world x)
+      const s0 = (HGR.x - R.end0.x) * R.dx + (HGR.z - R.end0.z) * R.dz;
+      const sa = Math.max(0, s0 - 450), sb = Math.min(R.len, s0 + 450);
+      const mid = { x: R.end0.x + R.dx * (sa + sb) / 2, z: R.end0.z + R.dz * (sa + sb) / 2 };
+      const c = LP(mid.x, mid.z);
+      SW = R.wid; SL = Math.max(1, sb - sa); SCX = c.x; SCZ = c.z;
+      // the strip's direction in the local frame: d_local = (dz, -dx); a PlaneGeometry's long side
+      // runs along local z after rotateX, and rotateY(phi) carries (0, 1) to (sin phi, cos phi)
+      SROT = Math.atan2(R.dz, -R.dx);
+    }
 
     // THE STRIP IS MOWN GRASS WITH PAINT ON IT, in two layers, and that is not
     // a detail. One layer — a canvas of green with the markings drawn into it —
     // is a PICTURE of a runway: it cannot carry the scanned grass the rest of
     // the field wears, so the strip reads as a flat painted band laid on a
     // textured meadow, which is exactly how the first cut of this looked.
-    const sBase = new THREE.PlaneGeometry(SW, SEEN);
+    const sBase = new THREE.PlaneGeometry(SW, SL);
     sBase.rotateX(-Math.PI / 2);
-    metricUV(sBase, SW, SEEN);
-    const strip = new THREE.Mesh(sBase, M.strip);
+    metricUV(sBase, SW, SL);
+    if (SROT) sBase.rotateY(SROT);
+    // a paved premises strip wears the taxiway's concrete in the room (the field's own look is the world's)
+    const strip = new THREE.Mesh(sBase, (PLAIN && HOME && HOME.surface === 5) ? M.taxi : M.strip);
     strip.position.set(SCX, Y_STRIP, SCZ);
     strip.receiveShadow = true;
     put(strip);
@@ -1821,8 +1844,9 @@ if (!EXT) {
     // do not commute the way writing them one after another suggests. Reading
     // each vertex back into the runway's own frame has no such ambiguity, and
     // it works for any heading the record might carry.
-    const sMark = new THREE.PlaneGeometry(SW, SEEN);
+    const sMark = new THREE.PlaneGeometry(SW, SL);
     sMark.rotateX(-Math.PI / 2);
+    if (SROT) sMark.rotateY(SROT);
     { const uv = sMark.attributes.uv, po = sMark.attributes.position;
       for (let i = 0; i < uv.count; i++) {
         const Wp = siteToWorld(SCX + po.getX(i), SCZ + po.getZ(i), HGR);
@@ -1845,7 +1869,7 @@ if (!EXT) {
     put(marks);
 
     // ---- THE APRON ------------------------------------------------------
-    const ap = L(SITE.apron);
+    const ap = PLAIN ? SLAB_RECT : L(SITE.apron);
     pad(ap, Y_APRON, M.apron);
     kerb(ap, Y_APRON, SLAB, M.apron);
     // SAW-CUT JOINTS on a 5 m grid, the way a slab that size is actually
@@ -1857,14 +1881,14 @@ if (!EXT) {
     // the slot drain across the door line, and the lead-in the aeroplane
     // follows out to the taxiway
     paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
-    const tx = L(SITE.taxiway);
-    const lead = (tx.z0 + tx.z1) / 2;
+    const tx = PLAIN ? null : L(SITE.taxiway);
+    const lead = tx ? (tx.z0 + tx.z1) / 2 : 0;
     paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
-    paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
+    if (tx) paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
           0xd8bd4a, Y_APRON + 0.006, 0.9);
     // tie-down rings, from the declaration
     const ringGeo = new THREE.TorusGeometry(0.22, 0.05, 6, 10);
-    for (const rg of SITE.clutter.rings) {
+    for (const rg of (SITE.clutter ? SITE.clutter.rings : [])) {
       const q2 = LP(rg[0], rg[1]);
       const m = new THREE.Mesh(ringGeo, M.steel);
       m.position.set(q2.x, Y_APRON + 0.02, q2.z);
@@ -1874,17 +1898,19 @@ if (!EXT) {
     }
 
     // ---- THE TAXIWAY, which now actually reaches the strip ---------------
+    if (tx) {
     pad(tx, Y_TAXI, M.taxi);
     kerb(tx, Y_TAXI, SLAB - 0.04, M.taxi);
     for (let z = tx.z0 + 3; z < tx.z1 - 1; z += 6)
       paint((tx.x0 + tx.x1) / 2 - 0.09, z, (tx.x0 + tx.x1) / 2 + 0.09, z + 3,
             0xd8bd4a, Y_TAXI + 0.006, 0.85);
+    }
   }
 
   // ---- THE FURNITURE ------------------------------------------------------
   // All of it from the declaration, so the middle distance out of this door is
-  // the middle distance you taxi through.
-  if (SITE) {
+  // the middle distance you taxi through. (A premises field declares none: G434.)
+  if (SITE && !PLAIN) {
     const lam = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85,
       metalness: 0, fog: false });
     const wallM = lam(0xcbb79a), roofM = lam(0x9c5f43), trimM = lam(0x6d5744);
@@ -1976,9 +2002,10 @@ if (!EXT) {
       roughness: 0.92, metalness: 0, fog: false, envMapIntensity: ENV_OUT }));
 
     // where a tuft may NOT stand: the paving, the strip, and the shed itself
-    const blocks = [L(SITE.apron), L(SITE.taxiway),
+    const blocks = PLAIN ? [SLAB_RECT, { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }]
+                : [L(SITE.apron), L(SITE.taxiway),
                     { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }];
-    if (R) {
+    if (R && !PLAIN) {
       const a = LP(R.end0.x, R.cz - R.half), b = LP(R.end1.x, R.cz + R.half);
       blocks.push({ x0: Math.min(a.x, b.x) - 1, x1: Math.max(a.x, b.x) + 1,
                     z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) });

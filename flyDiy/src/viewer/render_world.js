@@ -3175,6 +3175,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // ...unless HOME is a premises runway with no declared site furniture (an
   // island's field, G404): the premises renderer draws its strip, apron and
   // buildings, and there is no analytic shed, fence or windsock to stand
+  // THE CLUB HANGAR ON AN ISLAND (G434): the premises' HOME site names a `hangar` (the runway
+  // record's, runwaySite's shape) and ONLY the shed is stood here - the garage's own shell on the
+  // composed ground, the building the aeroplane rolls out of; the apron, the fence, the windsock,
+  // the paving and the strip's paint are the premises record's own (materials, surfaces, sites,
+  // the strip's look), drawn by render_premises and standStrip below. Nothing analytic is invented.
+  const ISLAND_SITE = !!world.island;
   if (!(world.island && !(siteOf('HOME') && siteOf('HOME').hangar))) { // THE BASE AERODROME, from the ONE declaration (G123)
     // Every number in this block used to be a literal: a 1100 x 30 strip at
     // (-520, 0) restated by hand beside the 'HOME' record that already said
@@ -3203,7 +3209,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // rectangles arrive as world-frame {x0,x1,z0,z1}; a decal wants centre+size
     const decalRect = (r, color, y) => decal(Math.abs(r.x1 - r.x0), Math.abs(r.z1 - r.z0),
       color, y, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2);
-    { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
+    if (!ISLAND_SITE) { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
       // the old per-marking decal stack (5..17 cm) was visibly floating and
       // buried the foam trainer (14 cm tall) under its own runway markings.
       //
@@ -3253,7 +3259,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
     const markMat = worldLambert({ color: C(0xe4dccb) });
-    for (const P of siteMarkers(HOME)) {
+    if (!ISLAND_SITE) for (const P of siteMarkers(HOME)) {
       const m = new THREE.Mesh(markGeo, markMat);
       m.position.set(P.x, 0.35, P.z);
       m.castShadow = true; m.receiveShadow = true; scene.add(m);
@@ -3275,7 +3281,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
       return g;
     };
-    for (const b of SITE.buildings)
+    for (const b of SITE.buildings || [])
       building(b.x, b.z, b.w, b.d, b.h, b.ry, b.trim ? trim : null);
 
     // THE HANGAR IS THE HANGAR (G123). Where a 15 x 10 box stood, the real
@@ -3390,13 +3396,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         lod.addLevel(coarse, 320);
         node = lod;
       }
-      node.position.set(H.x, 0, H.z);
+      // on the composed ground where the site puts it (an island's field is not at 0; G434)
+      node.position.set(H.x, H.y !== undefined ? H.y : 0, H.z);
       node.rotation.y = H.ry;
       scene.add(node);
       shedNode = node;
     }
     standShed(shedDims);
     setShedDims = dims => standShed(dims);
+    if (!ISLAND_SITE) {   // the analytic furniture (G434: the premises draw an island's)
 
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, SITE.windsock.h),
       worldLambert({ color: C(0xd8d2c4) }));
@@ -3552,6 +3560,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         scene.add(siteTufts(THREE, rows, tm2, 0.0));
       }
     }
+    }   // !ISLAND_SITE
   }
 
   { // stage-3 settlements: instanced houses/barns + bridge decks
@@ -3790,8 +3799,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sock.castShadow = true; scene.add(keep(sock));
       const sk = { pole: [px2, a.elev + 5.5, pz2], mesh: sock }; socks.push(sk); stood.push(sk);   // W13 wind-driven
     };
+    // a premises HOME (an island's field, G404) is stood like every premises strip - it was skipped
+    // with the analytic HOME until G434 (no paint, no sock, until the first live edit repainted it);
+    // a WATER lane stands nothing (a decal under the sea and a windsock in it, G434)
     for (const a of world.aerodromes) {
-      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      if (a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)) continue;
       standStrip(a);
     }
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
@@ -3803,7 +3815,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); }
         stripStood.delete(id);
       }
-      for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow') standStrip(a);
+      for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);
     };
   }
 

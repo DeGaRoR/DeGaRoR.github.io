@@ -558,9 +558,19 @@ function buildViewer(coreBody) {
   // (the quadtree) and the grids are fetched BEFORE any script runs, because
   // makeWorld is called during app.js's own evaluation. From bench/ today
   // (gitignored, the developer's machine); from media/ when the world ships.
-  // Absent, nothing here runs and the analytic world boots as it always has.
+  // JOLENE IS THE DEFAULT (G434, the user: "make Jolene the new starting
+  // terrain ... the old map stays"): the map is ?world= when given, else the
+  // GRAPHICS menu's choice (localStorage flydiy.world), else jolene; 'none' is
+  // the analytic world. The list is published for the menu. An island whose
+  // files are not there (a page served without bench/) falls back to the
+  // analytic world with a line in the console - never a page that hangs.
+  var WORLDS = [{ id: 'jolene', name: 'Jolene Island' }, { id: 'none', name: 'Home Strip (the analytic world)' }];
+  window.FLYDIY_WORLDS = WORLDS;
   var name = new URLSearchParams(location.search).get('world');
-  if (!name || !/^[a-z0-9_]+$/.test(name)) return;
+  if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
+  if (!name) name = 'jolene';
+  window.FLYDIY_WORLD = name;
+  if (name === 'none' || name === 'analytic' || !/^[a-z0-9_]+$/.test(name)) { window.FLYDIY_WORLD = 'none'; return; }
   var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem', F = 'bench/terrain/' + name + '5_e4';   // F: the far terrain's coarser tree
   var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
   var u8 = function (b) { return new Uint8Array(b); };
@@ -575,7 +585,8 @@ function buildViewer(coreBody) {
       .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
         grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakes: r[13] },
         far: (r[14] && r[15] && r[16]) ? { header: r[14], topo: r[15], payload: r[16] } : null,
-        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; });
+        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; })
+      .catch(function (e) { console.warn('flyDiy: the island "' + name + '" did not load (' + (e && e.message) + '); the analytic world boots instead'); window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; });
   });
 })();
 </script>`;

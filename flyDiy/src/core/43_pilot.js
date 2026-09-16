@@ -2015,6 +2015,14 @@ function makePilot(sim, def, world, opts) {
         const iasF = ap.VAppr * ST.VapprK;
         // P0.5: the slope and the level before it are two references of the one law
         if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
+        // ABOVE THE SLOPE ON ENTRY (G434, the hill strip on Jolene): the enroute leg's clearance over
+        // the ground under it (hClear) had left the aeroplane 30 m over the pattern height, the
+        // level was latched THERE and the slope, descending to the aim, only fell away under it -
+        // "high on the slope" at 534 m out, twice, on a strip it could have landed on. Above the
+        // slope by more than the capture window the target is the SLOPE itself, descended onto at
+        // half again the slope's own rate; the latched level is for the aeroplane the slope rises
+        // to meet (the branch above)
+        else if (above > 4) engage(latF, 'TECS', 'TECS', { alt: hGS, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -2.4 * V * ap.gs) });
         else engage(latF, 'TECS', 'TECS', { alt: finalLevel, vs: null, gs: null, ias: iasF, bank: bF, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs) });
         ap.trackHold = !onPathF;
         if (!onPathF) airPath = null;

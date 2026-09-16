@@ -513,6 +513,32 @@ The plan as it was written the same afternoon, for the record:
   (the ladder driven by cover × canopy) → W4 (Jolene as THE SHIPPED WORLD).
   The bench is where each layer's weights are settled before W1 is written.
 
+### 12.5b JOLENE IS THE STARTING TERRAIN (G434, 2026-09-16, the user: "make Jolene
+the new starting terrain ... the old map stays, just it's not the one loaded by
+default anymore")
+
+The loader (build.js's island block, in dev.html and index.html) boots
+`?world=` when given, else the GRAPHICS menu's choice (`localStorage
+flydiy.world`), else **jolene**; `none` is the analytic world. The GRAPHICS
+menu's first row, WORLD, lists the two (`window.FLYDIY_WORLDS`) and reloads
+on a pick. A page served without `bench/` (GitHub Pages today) falls back to
+the analytic world with a console line, never a hung boot. Each map keeps its
+own saved premises (`flydiy.premises.game.<island>`). The field is
+`tools/fixtures/island_jolene.json` rev 4, WRITTEN by `tools/jolene_author.py`
+off the satellite views and the rasters (honest: not through the editor's
+mouse; the editor opens and edits it): JOLENE AFB 13/31 (HOME, the club with
+the garage's own shell as its hangar, the stand, the taxiway V, VASI both
+ends, turnarounds, the 140 m shoulders), 02/20, TAMGAS HILL STRIP (a profiled
+520 m gravel strip on the rise 2.5 km NW, landed uphill from the water),
+ANNETTE DOCK (the sea lane the seaplanes spawn on), the village on the
+headland (a harbour zone at the dock, a residential zone, four streets), the
+roads (Airport Rd along 13/31's SW side, the road from 02/20's NE end to the
+village, the track to the strip). `tools/island_node.js` loads the island in
+node (GATE WORLD composes the fixture when the files are there;
+`pilot_trace.js --world jolene --stand`). Flown headless: the cub's circuit
+from the stand (taxi 204 s, landed 0 m off), HOME -> the hill strip (landed
+uphill, 88 m past the aim), the floatplane's circuit off the dock.
+
 ### 12.6 Owed
 
 The palette by eye (the composite runs dark at the shipped weights; the

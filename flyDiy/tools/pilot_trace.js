@@ -94,7 +94,10 @@ function runTrace(o) {
   const C = coreOf();
   const t0 = Date.now();
   const S = specOf(o.key, o.drawnTail);
-  const world0 = C.makeWorld();
+  // THE ISLAND (G434): --world jolene flies the data world with its own premises (tools/island_node.js
+  // reads what the page's loader fetches; absent files throw - the caller asked for an island)
+  const world0 = o.world ? (() => { const IN = require(path.join(T, 'island_node.js')); const fx = path.join(T, 'fixtures', 'island_' + o.world + '.json');
+    const W = IN.islandWorld(o.world, { premises: fs.existsSync(fx) ? fs.readFileSync(fx, 'utf8') : null }); if (!W) throw new Error('no island files for ' + o.world + ' under bench/'); return W; })() : C.makeWorld();
   const weather = {};
   if (o.wind || o.gust) weather.wind = { base: [o.wind ? o.wind[0] : 0, 0, o.wind ? o.wind[1] : 0], gust: o.gust || 0, refH: 10 };
   if (o.oat != null) weather.oatC = o.oat;
@@ -136,12 +139,17 @@ function runTrace(o) {
   const def = C.buildGen(S.spec);
   const sim = C.makeSim(def, world);
   sim.reset(0);
-  if (from.id !== 'HOME') C.placeAtAerodrome(sim, from);
+  // an island's HOME is not the spawn identity (G434): placed like any other strip; --stand starts on
+  // the site's stand and taxis out the way the game does (departFrom with the site)
+  const site = o.stand && typeof C.siteOf === 'function' ? C.siteOf(from.id) : null;
+  if (site && site.stand) { if (typeof sim.stance === 'function') sim.stance(); C.placeAtStand(sim, from, site.stand); }
+  else if (from.id !== 'HOME' || o.world) C.placeAtAerodrome(sim, from);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   // the machine sheet (P0.4): the shakedown handed lazily (2 s, once), the ladder flag on request
   let shk = null;
   const ap = C.makePilot(sim, def, world, { style: o.style || 'normal', shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
-  if (from !== to || from.id !== 'HOME') ap.setRoute(from, to);
+  if (site && site.stand) { ap.setRoute(from, to); ap.departFrom(from, to, site); }
+  else if (from !== to || from.id !== 'HOME' || o.world) ap.setRoute(from, to);
   const A = def.params.ap, G = def.params.gen;
   // V/Vs is judged against the stall in the LANDING configuration
   const FS = def.params.flaps, VsL = (FS && (FS.ldg ?? 1) > 0 && G.VsFlap) ? G.VsFlap : G.Vs;
@@ -276,6 +284,8 @@ function parseArgs(argv) {
     else if (a === '--date') o.date = nx();
     else if (a === '--utc') o.utc = nx();
     else if (a === '--core') o.core = nx();
+    else if (a === '--world') o.world = nx();       // G434: an island (its premises composed)
+    else if (a === '--stand') o.stand = true;       // G434: start on the site's stand, taxi out
     else if (a === '--drawn-tail') o.drawnTail = true;
     else if (a === '--csv') o.csv = (argv[i + 1] && !argv[i + 1].startsWith('--')) ? nx() : true;
     else if (a === '--json') o.json = nx();
@@ -287,7 +297,7 @@ function parseArgs(argv) {
 
 if (require.main === module) {
   const o = parseArgs(process.argv.slice(2));
-  if (!o.key) { console.log('usage: node tools/pilot_trace.js <archetype|spec.json> [--from ID] [--to ID] [--wind x,z] [--gust g] [--oat C] [--qnh Pa] [--style s] [--drawn-tail] [--slope g] [--surface N] [--max S] [--csv [file]] [--json file] [--quiet]'); process.exit(1); }
+  if (!o.key) { console.log('usage: node tools/pilot_trace.js <archetype|spec.json> [--from ID] [--to ID] [--world island] [--stand] [--wind x,z] [--gust g] [--oat C] [--qnh Pa] [--style s] [--drawn-tail] [--slope g] [--surface N] [--max S] [--csv [file]] [--json file] [--quiet]'); process.exit(1); }
   let out;
   try { out = runTrace(o); }
   catch (e) { console.log(JSON.stringify({ key: o.key, error: e.message })); process.exit(1); }

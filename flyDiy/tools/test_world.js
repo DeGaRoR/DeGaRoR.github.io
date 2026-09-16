@@ -166,6 +166,37 @@ checks['waterH sea/land'] = W.waterH(0, 4000) === 0 && W.terrainH(0, 4000) < 0 &
   checks['perf terrainH<2.5us'] = ms < 2500;
 }
 
+// --- THE ISLAND'S OWN PREMISES (G434): when the island's files are on this machine (bench/, gitignored),
+// Jolene's record composes on the data world and its field holds - HOME with its club hangar and its
+// stand, the sea lane, the hill strip; every stand's pattern sound; no record issue. Absent files: said,
+// never red (the gate cannot fetch an island).
+{
+  let IN = null; try { IN = require('./island_node.js'); } catch (e) {}
+  const fs = require('fs'), path = require('path');
+  const fx = path.join(__dirname, 'fixtures', 'island_jolene.json');
+  const boot = IN && IN.islandBoot('jolene');
+  if (!boot || !fs.existsSync(fx)) console.log('island: no jolene files under bench/ - the island checks are skipped');
+  else {
+    const C = require('./flight_core.js');
+    const WI = IN.islandWorld('jolene', { premises: fs.readFileSync(fx, 'utf8') });
+    const O = WI.premises.overlay, ids = WI.aerodromes.map(a => a.id);
+    checks['island: HOME, SEA and the hill strip registered'] = ids.includes('HOME') && ids.includes('SEA') && ids.includes('w3') && !WI.aerodromes.some(a => a.id === 'HOME' && !a.premises);
+    checks['island: the sea lane is water, on the water'] = (() => { const s = WI.aerodromes.find(a => a.id === 'SEA'); if (!s || s.kind !== 'water') return false; const d = [Math.cos(s.hdg), Math.sin(s.hdg)]; for (let t = 0; t <= s.len; t += 50) for (const c of [-80, 0, 80]) { const x = s.spawn[0] + d[0] * t - d[1] * c, z = s.spawn[1] + d[1] * t + d[0] * c; if (WI.terrainH(x, z) > WI.waterH(x, z) - 1) return false; } return true; })();
+    // (the buildings' generators are the bench's, not the core's: their keys are GATE PREMISES's business)
+    checks['island: no record issue composed'] = O.records.issues.filter(i => !/no catalogue entry/.test(i)).length === 0;
+    const st = C.siteOf('HOME');
+    checks['island: HOME has its stand, its way out and the club hangar on the composed ground'] = !!(st && st.stand && st.taxiOut && st.hangar && Math.abs(st.hangar.y - WI.terrainH(st.hangar.x, st.hangar.z)) < 0.05 && Math.abs(st.stand.elev - WI.terrainH(st.stand.x, st.stand.z)) < 0.05);
+    for (const id of ['HOME', 'w3']) {
+      const a = WI.aerodromes.find(q => q.id === id), s = C.siteOf(id);
+      let iss = ['no site']; try { iss = s ? C.sitePatternIssues(C.sitePattern(a, s), a, s, 6, C.patternPath) : ['no site']; } catch (e) { iss = [e.message]; }
+      checks['island: ' + id + ' pattern sound' + (iss.length ? ' (' + iss[0] + ')' : '')] = iss.length === 0;
+    }
+    checks['island: the village sowed its plots (harbour and residential)'] = O.records.plots.some(p => p.zone === 'z_harbour') && O.records.plots.filter(p => p.zone === 'z_village').length >= 10;
+    const M = C.siteRunwayModel(WI.aerodromes.find(q => q.id === 'HOME'), WI);
+    checks['island: 13/31 approaches under 4 % both ways (the fans clear)'] = M.dir.every(d => d.reqGs < 0.04);
+  }
+}
+
 const failed = Object.keys(checks).filter(k => !checks[k]);
 console.log(`world: seed ${W.seed} | ${W.trees.length} trees | ${W.aerodromes.length} aerodromes | ${Object.keys(checks).length} checks, ${failed.length} failed`);
 for (const f of failed) console.log(`  FAIL: ${f}`);

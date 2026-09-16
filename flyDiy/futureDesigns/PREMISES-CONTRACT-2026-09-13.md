@@ -613,3 +613,33 @@ after the freeze, against this document.
   `R.tick(dt)` moves them beside the trams, `R.traffic()` reports them, `stats.traffic` counts them.
   The editor's road rows carry `traffic (per km)`. Nothing in the record moves: the traffic is a
   rendering of the road, like its wear.
+- **v1.14 (2026-09-16, G434, the user: "make Jolene the new starting terrain ... a proper airport
+  ... a club hangar ... emulating the garage ... a proper roll out phase ... VASI ... seaplanes at
+  the Annette Dock ... a small strip using the new profile feature").** Four additions to the RUNWAY
+  record and two to a ROAD. (a) `hangar` `{ x, z, hdg }` in the premises frame stands the GARAGE'S
+  OWN SHELL (genHangarBuild's exterior at the player's dims, the room the aeroplane was built in) at
+  the field, its door facing `hdg`; `runwaySite` carries it into the world as the site's `hangar`
+  (25_airfield.js's shape: x, z, ry = pi - hdg, HW/HD/EAVE hangar.js's defaults, `y` the composed
+  ground) - the roll-out's reveal shot and its shed clamp read it, the world stands the shed on it
+  and NOTHING ELSE of the analytic base furniture (an island's apron, fence, windsock and paving are
+  the record's own polygons and sites). The editor's runway inspector stands it behind the stand,
+  turns it, and its disc moves it. (b) `papi[k]` is `true` (a four-unit PAPI), `'vasi'` (a two-bar
+  VASI: the downwind bar abeam the aim, the upwind bar 210 m on; red over white on the slope) or
+  `false` at end k; the approach that lands over end k reads it; both systems are set to the
+  approach's own slope (the pilot's planned gs), never a number of their own. (c) A runway whose
+  `surface` is WATER (4) is a SEA LANE: nothing graded, painted or excluded; it registers a `kind:
+  'water'` aerodrome in the analytic SEA's shape (spawn at end 0 on the water's level, `water: true`)
+  and the seaplanes spawn on it when its id is `SEA`. (d) A runway's `flat` (the ground a pattern may
+  walk on) includes every GRADED ROAD's bed - a taxiway traced as a road is flat by construction.
+  ROADS: `grade` (a fraction; absent = follows the ground) is the steepest the road may run: the
+  smoothed bed's humps are cut to it and its dips filled (a lower then an upper envelope of that
+  slope, both ways, the ends held); `ribbon: false` draws no ribbon over it (a taxiway under its own
+  material polygon). THE ZONES' WATER: a harbour or forest zone reads the level of the water that
+  TOUCHES IT (sampled over its own box), not the anchor's - an anchor 4 km inland read -Infinity and
+  no harbour ever sowed a plot. THE RENDERER (game): the fine patch is built in 64 m chunks only where
+  the record touches the ground (a modifier, a polygon, a road's segment, a strip and its shoulder, a
+  zone, a site, an object; the border tucks 2.2 m under the ring at every unbuilt neighbour), 4 cm
+  over the ground; the material map is 1024 px over the UNION of the material polygons, mixed in
+  AFTER the ground's own stack (the island's albedo hook had overwritten every material at
+  map_fragment: no polygon had ever shown on Jolene). GATE WORLD composes the island's fixture when
+  the island's files are on the machine.

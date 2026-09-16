@@ -213,6 +213,15 @@
   // helpers: { row(host, label) -> element, pills(host, list, isOn, pick), note(host, text) }
   const mount = (body, H) => {
     const pick = (k, v) => { set(k, v); if (H.refresh) H.refresh(); };
+    // THE WORLD (G434): the map the game boots on - the page's loader published the list and its
+    // choice (build.js: ?world=, else this pref, else Jolene); picking another stores it and reloads
+    if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {
+      const cur = W.FLYDIY_WORLD || 'none';
+      H.row(body, 'world');
+      H.pills(body, W.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id, title: w.id === 'none' ? 'the procedural 24 km world the game was built on: Home Strip, Skarvik' : 'the island from the data: its own field, dock and village' })),
+        o => o.value === cur, o => { if (o.value === cur) return; try { W.localStorage.setItem('flydiy.world', o.value); } catch (e) {} W.location.reload(); });
+      H.note(body, 'The map reloads the page. Each map keeps its own saved premises (the world editor’s record).');
+    }
     H.row(body, 'preset');
     H.pills(body, Object.keys(PRESETS).concat(['custom']).map(p => ({
         label: p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',

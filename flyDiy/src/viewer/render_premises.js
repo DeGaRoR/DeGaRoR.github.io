@@ -70,10 +70,15 @@ function make(THREE, scene, world, rec0, opts) {
   // mixes the sets in by the slot weights, tiled in world metres
   // a DATA texture, not a canvas: a 2D canvas premultiplies its colour by its alpha on store, and a slot in the
   // alpha channel at 0 wiped the other three - four honest bytes per pixel
-  const MMN = 512, MMD = new Uint8Array(MMN * MMN * 4);
+  // THE MAP'S OWN BOUNDS (G434): the game paints it over the UNION of the material polygons (+ their
+  // fades), not over the extent - an extent that spans a field, a village 4 km off and the road
+  // between would give a 45 m taxiway four texels; 1024 in the game, the bench keeps its 512 window
+  const MMN = o.game ? 1024 : 512, MMD = new Uint8Array(MMN * MMN * 4);
+  const mb = { x0: 0, z0: 0, x1: 1, z1: 1 };           // the map's bounds in the world; W/H below when not the game
+  let MW = 1, MH = 1;
   const matTex = new THREE.DataTexture(MMD, MMN, MMN, THREE.RGBAFormat); matTex.flipY = false; matTex.wrapS = matTex.wrapT = THREE.ClampToEdgeWrapping; matTex.minFilter = THREE.LinearFilter; matTex.magFilter = THREE.LinearFilter; matTex.needsUpdate = true;
   const SLOTS = [null, null, null, null];   // set keys by slot
-  const uMat = { value: matTex }, uMatOn = { value: 0 }, uTile = { value: new THREE.Vector4(2.4, 2.4, 2.4, 2.4) };
+  const uMat = { value: matTex }, uMatOn = { value: 0 }, uTile = { value: new THREE.Vector4(2.4, 2.4, 2.4, 2.4) }, uMB = { value: new THREE.Vector4(0, 0, 1, 1) };
   const uSet = [0, 1, 2, 3].map(() => ({ value: null }));
   const SET_TEX = {};
   const texSets = () => Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
@@ -86,21 +91,33 @@ function make(THREE, scene, world, rec0, opts) {
   }
   // the injection: after the map, the slots' sets mixed in by their weights (both the bench ground and the game patch)
   function injectMaterials(sh) {
-    sh.uniforms.uMat = uMat; sh.uniforms.uMatOn = uMatOn; sh.uniforms.uTile = uTile; sh.uniforms.uMB = uB;
+    sh.uniforms.uMat = uMat; sh.uniforms.uMatOn = uMatOn; sh.uniforms.uTile = uTile; sh.uniforms.uMB = uMB;
     for (let i = 0; i < 4; i++) sh.uniforms['uSet' + i] = uSet[i];
     if (sh.vertexShader.indexOf('varying vec3 vPW;') < 0) sh.vertexShader = 'varying vec3 vPW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPW = transformed;');
     sh.fragmentShader = (sh.fragmentShader.indexOf('varying vec3 vPW;') < 0 ? 'varying vec3 vPW;\n' : '') + 'uniform sampler2D uMat, uSet0, uSet1, uSet2, uSet3;\nuniform vec4 uMB, uTile;\nuniform float uMatOn;\n' +
-      sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' +
+      // AFTER THE GROUND'S OWN STACK (G434): the island's ground hook appends its albedo (class, tint,
+      // radar, shade, snow) right after map_fragment and that overwrote every material painted there -
+      // on Jolene no material polygon had ever shown. The mix goes in ahead of color_fragment now, the
+      // last stop before the lighting, whatever a ground hook did to the map's colour before it.
+      sh.fragmentShader.replace('#include <color_fragment>', '\n' +
         '  if (uMatOn > 0.5) { vec4 mw = texture2D(uMat, (vPW.xz - uMB.xy) / uMB.zw);\n' +
         '    if (mw.r > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet0, vPW.xz / uTile.x).rgb, mw.r);\n' +
         '    if (mw.g > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet1, vPW.xz / uTile.y).rgb, mw.g);\n' +
         '    if (mw.b > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet2, vPW.xz / uTile.z).rgb, mw.b);\n' +
-        '    if (mw.a > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet3, vPW.xz / uTile.w).rgb, mw.a); }');
+        '    if (mw.a > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uSet3, vPW.xz / uTile.w).rgb, mw.a); }\n#include <color_fragment>');
   }
   // the map painted: every material polygon in priority order, "over" per pixel with its fade weight
   function paintMaterials() {
-    const mats = O.materials || [], F = O.frame, N = 512;
+    const mats = O.materials || [], F = O.frame, N = MMN;
     const D = MMD; D.fill(0);
+    // the bounds: the bench's window; the game's the polygons' union with their fades and a texel's margin
+    if (o.game && mats.length) {
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (const m of mats) for (const q of [[m.bbox.x0, m.bbox.z0], [m.bbox.x1, m.bbox.z0], [m.bbox.x1, m.bbox.z1], [m.bbox.x0, m.bbox.z1]]) { const w = F.toWorld(q[0], q[1]); x0 = Math.min(x0, w[0] - m.fade - 4); z0 = Math.min(z0, w[1] - m.fade - 4); x1 = Math.max(x1, w[0] + m.fade + 4); z1 = Math.max(z1, w[1] + m.fade + 4); }
+      mb.x0 = x0; mb.z0 = z0; mb.x1 = x1; mb.z1 = z1;
+    } else { mb.x0 = bounds.x0; mb.z0 = bounds.z0; mb.x1 = bounds.x1; mb.z1 = bounds.z1; }
+    MW = Math.max(1, mb.x1 - mb.x0); MH = Math.max(1, mb.z1 - mb.z0);
+    uMB.value.set(mb.x0, mb.z0, MW, MH);
     for (let i = 0; i < 4; i++) SLOTS[i] = null;
     const slotOf = key => { let k = SLOTS.indexOf(key); if (k < 0) { k = SLOTS.indexOf(null); if (k < 0) return -1; SLOTS[k] = key; } return k; };
     let any = false;
@@ -110,11 +127,13 @@ function make(THREE, scene, world, rec0, opts) {
       uTile.value.setComponent(k, tile);
       // the pixels the polygon and its fade band cover, in the bounds' raster
       const bb = m.bbox, f = m.fade;
-      const px0 = Math.max(0, Math.floor((F.toWorld(bb.x0, bb.z0)[0] - bounds.x0) / W * N) - 2), px1 = Math.min(N - 1, Math.ceil((F.toWorld(bb.x1, bb.z1)[0] - bounds.x0) / W * N) + 2);
-      const pz0 = Math.max(0, Math.floor((F.toWorld(bb.x0, bb.z0)[1] - bounds.z0) / H * N) - 2), pz1 = Math.min(N - 1, Math.ceil((F.toWorld(bb.x1, bb.z1)[1] - bounds.z0) / H * N) + 2);
-      const lo = Math.min(px0, px1) - Math.ceil(f / W * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / W * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / H * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / H * N) + 1;
+      // (a turned frame: the four corners of the local box, not two of them)
+      const cw = [[bb.x0, bb.z0], [bb.x1, bb.z0], [bb.x1, bb.z1], [bb.x0, bb.z1]].map(q => F.toWorld(q[0], q[1]));
+      const px0 = Math.max(0, Math.floor((Math.min(...cw.map(q => q[0])) - mb.x0) / MW * N) - 2), px1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(q => q[0])) - mb.x0) / MW * N) + 2);
+      const pz0 = Math.max(0, Math.floor((Math.min(...cw.map(q => q[1])) - mb.z0) / MH * N) - 2), pz1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(q => q[1])) - mb.z0) / MH * N) + 2);
+      const lo = Math.min(px0, px1) - Math.ceil(f / MW * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / MW * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / MH * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / MH * N) + 1;
       for (let j = Math.max(0, lz); j <= Math.min(N - 1, hz); j++) for (let i = Math.max(0, lo); i <= Math.min(N - 1, hi); i++) {
-        const wx = bounds.x0 + (i + 0.5) / N * W, wz = bounds.z0 + (j + 0.5) / N * H, L = F.toLocal(wx, wz);
+        const wx = mb.x0 + (i + 0.5) / N * MW, wz = mb.z0 + (j + 0.5) / N * MH, L = F.toLocal(wx, wz);
         const w = O.materialWeight(m, L[0], L[1]); if (w <= 0) continue;
         const at = (j * N + i) * 4;
         for (let c = 0; c < 4; c++) D[at + c] = Math.round(D[at + c] * (1 - w));
@@ -197,14 +216,63 @@ function make(THREE, scene, world, rec0, opts) {
   let water = null;
   // THE PATCH (game): one fine mesh over the extent, 2 m polys, its border tucked 2.2 m under the ring
   // (the strips' own W13.2 law), the world's outer texture on it; re-sampled in place on a rebuild
+  // ...IN CHUNKS (G434): 64 m chunks over the extent, and only the ones the record TOUCHES are built - a
+  // modifier's box (a grade, a flatten, a shelf), a surface or material polygon, a road, a strip and
+  // its shoulder, a zone (its plots), a site, an object - each with its falloff's margin. An extent
+  // spanning a field, a village 4 km away and the road between built 5 M vertices over the muskeg
+  // in between where nothing was composed; the chunks the record touches are a tenth of that. The
+  // border of the built region tucks 2.2 m under the ring as the whole patch did: a vertex reads its
+  // distance to the nearest UNBUILT neighbour chunk (the 40 m fade fits inside one chunk).
   let patch = null, patchKey = '', patchMatOwn = null;
+  const PCH = 64;
+  function activeChunks(b) {
+    const F = O.frame, rec = O.rec, L = rec.layers, act = new Set(), key = (i, j) => i + ',' + j;
+    const i0 = Math.floor(b.x0 / PCH), i1 = Math.floor(b.x1 / PCH), j0 = Math.floor(b.z0 / PCH), j1 = Math.floor(b.z1 / PCH);
+    // a chunk is marked when its CENTRE lies within `m` + half the chunk's diagonal of the feature
+    // (a polygon's edge, a road's segment) - never by a bounding box: a diagonal 2 km road or strip
+    // boxes a square kilometre of muskeg it never touches
+    const HALFD = PCH * 0.7072;
+    const eachChunk = (bb, m, test) => {   // bb LOCAL; test(lx, lz) at the chunk centre in LOCAL coords
+      const c = [[bb.x0 - m, bb.z0 - m], [bb.x1 + m, bb.z0 - m], [bb.x1 + m, bb.z1 + m], [bb.x0 - m, bb.z1 + m]].map(q => F.toWorld(q[0], q[1]));
+      const x0 = Math.min(...c.map(q => q[0])), x1 = Math.max(...c.map(q => q[0])), z0 = Math.min(...c.map(q => q[1])), z1 = Math.max(...c.map(q => q[1]));
+      for (let i = Math.max(i0, Math.floor(x0 / PCH)); i <= Math.min(i1, Math.floor(x1 / PCH)); i++) for (let j = Math.max(j0, Math.floor(z0 / PCH)); j <= Math.min(j1, Math.floor(z1 / PCH)); j++) {
+        const k = key(i, j); if (act.has(k)) continue;
+        const lc = F.toLocal((i + 0.5) * PCH, (j + 0.5) * PCH);
+        if (test(lc[0], lc[1])) act.add(k);
+      }
+    };
+    const markBox = (bb, m) => eachChunk(bb, m, (lx, lz) => lx >= bb.x0 - m - HALFD && lx <= bb.x1 + m + HALFD && lz >= bb.z0 - m - HALFD && lz <= bb.z1 + m + HALFD);
+    const markPoly = (poly, m) => { if (poly && poly.length >= 3) eachChunk(PG.polyBBox(poly), m, (lx, lz) => PG.sdPoly(poly, lx, lz) <= m + HALFD); };
+    const markLine = (pts, m) => { for (let s = 1; s < pts.length; s++) { const a = pts[s - 1], b = pts[s]; eachChunk({ x0: Math.min(a[0], b[0]), z0: Math.min(a[1], b[1]), x1: Math.max(a[0], b[0]), z1: Math.max(a[1], b[1]) }, m, (lx, lz) => PG.distPtSeg(lx, lz, a, b) <= m + HALFD); } };
+    for (const t of L.terrain) { if (t.poly) markPoly(t.poly, (+t.falloff || 6) + 4); else if (t.pts) markLine(t.pts, (+t.width || 4) / 2 + (+t.falloff || 6) + 4); }
+    for (const s of L.surface) markPoly(s.poly, 4);
+    for (const m of L.material) markPoly(m.poly, (+m.fade || 0) + 4);
+    for (const r of L.roads) if (r.pts && r.pts.length >= 2) markLine(r.pts, (+r.w || 3.6) / 2 + (+r.falloff || 6) + 6);
+    for (const r of O.runways || []) { if (PG.runwayIsWater && PG.runwayIsWater(r)) continue; markPoly(PG.runwayBox(r, PG.runwayShoulder(r) + 30), 4); }
+    for (const z of L.zones) markPoly(z.poly, 40);
+    for (const st of L.sites) { const a = st.at || { x: 0, z: 0 }; let r = 80; for (const it of st.items || []) r = Math.max(r, Math.hypot(it.x || 0, it.z || 0) + 40); if (st.yard) r = Math.max(r, Math.hypot(st.yard.x1 || 0, st.yard.z1 || 0) + 40, Math.hypot(st.yard.x0 || 0, st.yard.z0 || 0) + 40); markBox({ x0: a.x - r, z0: a.z - r, x1: a.x + r, z1: a.z + r }, 0); }
+    for (const ob of L.objects) markBox({ x0: ob.x, z0: ob.z, x1: ob.x, z1: ob.z }, 30);
+    for (const sh of O.shelves || []) if (sh.poly) markPoly(sh.poly, (+sh.falloff || 6) + 4); else if (sh.rect && sh.c) markBox({ x0: sh.c[0] - 60, z0: sh.c[1] - 60, x1: sh.c[0] + 60, z1: sh.c[1] + 60 }, 0);
+    return { act, i0, i1, j0, j1, key };
+  }
   function buildPatch() {
-    const b = extentWorld(), key = [b.x0, b.z0, b.x1, b.z1].join(',');
-    const RES = 2, LX = b.x1 - b.x0, LZ = b.z1 - b.z0;
+    const b = extentWorld();
+    const A = activeChunks(b), list = [...A.act].sort();
+    const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
+    const RES = 2;
     if (!patch || patchKey !== key) {
       if (patch) { G.ground.remove(patch); patch.geometry.dispose(); }
-      const g = new THREE.PlaneGeometry(LX, LZ, Math.ceil(LX / RES), Math.ceil(LZ / RES));
-      g.rotateX(-Math.PI / 2); g.translate((b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2);
+      // one geometry: every active chunk a (PCH/RES + 1)^2 grid, its own vertices (the seams sample the same ground)
+      const n = PCH / RES, per = (n + 1) * (n + 1), pos = new Float32Array(list.length * per * 3), uvs = new Float32Array(list.length * per * 2), idx = [];
+      let v = 0;
+      for (const k of list) {
+        const [ci, cj] = k.split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH, base = v;
+        for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) { pos[v * 3] = cx0 + i * RES; pos[v * 3 + 1] = 0; pos[v * 3 + 2] = cz0 + j * RES; v++; }
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = base + j * (n + 1) + i, b2 = a + 1, c = a + n + 1, d = c + 1; idx.push(a, c, b2, b2, c, d); }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); g.setIndex(idx);
+      g.userData.chunks = list; g.userData.neighbours = A;
       // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
       // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
       if (!patchMatOwn) {
@@ -218,10 +286,24 @@ function make(THREE, scene, world, rec0, opts) {
       G.ground.add(patch); patchKey = key;
     }
     const pa = patch.geometry.attributes.position, uv = patch.geometry.attributes.uv;
+    const act = patch.geometry.userData.neighbours.act, ck = patch.geometry.userData.neighbours.key;
     for (let i = 0; i < pa.count; i++) {
       const x = pa.getX(i), z = pa.getZ(i);
-      const edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z), r = Math.min(1, Math.max(0, edge) / 40);
-      pa.setY(i, world.terrainH(x, z) - 2.2 * (1 - r) * (1 - r));
+      // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge
+      let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
+      const ci = Math.floor((x - 0.01) / PCH), cj = Math.floor((z - 0.01) / PCH);
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        if (!di && !dj) continue;
+        if (act.has(ck(ci + di, cj + dj))) continue;
+        const nx0 = (ci + di) * PCH, nz0 = (cj + dj) * PCH;
+        const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
+        edge = Math.min(edge, Math.hypot(dx, dz));
+      }
+      const r = Math.min(1, Math.max(0, edge) / 40);
+      // 4 cm over the ground (G434): the ring's own mesh sits at the same height where the ground is
+      // flat and the two fought (the ring's pale PAVED bake speckled the pad's concrete); the strips'
+      // decals ride 7 cm up on the same law
+      pa.setY(i, world.terrainH(x, z) + 0.04 * r - 2.2 * (1 - r) * (1 - r));
       if (o.patchUV) { const q = o.patchUV(x, z); uv.setXY(i, q[0], q[1]); }
     }
     pa.needsUpdate = true; uv.needsUpdate = true;
@@ -236,6 +318,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const c of G.roads.children.slice()) { G.roads.remove(c); if (c.geometry) c.geometry.dispose(); }
     if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     for (const rd of O.roads) {
+      if (rd.ribbon === false) continue;   // a taxiway under its own material polygon (G434)
       const pr = PG.polyRoad(rd.pts, rd.w), n = Math.max(2, Math.ceil(pr.length / 3));
       const pos = [], col = [], idx = [], hw = rd.w / 2 + 0.6;
       const tone = new THREE.Color(ROAD_TONE[rd.surface] || 0x8f8574);
@@ -570,6 +653,8 @@ function make(THREE, scene, world, rec0, opts) {
       put(E.end0, 'e0'); put(E.end1, 'e1'); put(f.entry.c, 'c', true);
       // THE STAND and its way out: the stand's disc and one per taxi point (the last stays on the centreline)
       if (f.entry.stand && f.entry.taxiOut) { put([f.entry.stand.x, f.entry.stand.z], 'stand'); f.entry.taxiOut.forEach((q, i) => put(q, 'tx' + i, true)); }
+      // THE CLUB HANGAR (G434): its disc moves the garage's shell; the inspector turns it
+      if (f.entry.hangar) put([f.entry.hangar.x, f.entry.hangar.z], 'hangar');
       // THE HOLDS: the pattern's two stop bars, draggable along the centreline (the pattern's hand)
       const A = O.aerodromes[O.runways.findIndex(r => r.id === selectedId)];
       if (A && SITE.sitePattern) {
@@ -1084,7 +1169,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
-      stats.tris = patch ? patch.geometry.index.count / 3 : 0; stats.chunks = patch ? 1 : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
+      stats.tris = patch ? patch.geometry.index.count / 3 : 0; stats.chunks = patch ? patch.geometry.userData.chunks.length : 0; stats.ms = performance.now() - t0; stats.rebuilt = n;
       return stats;
     }
     if (!dirty || !dirty.bbox) {
@@ -1163,7 +1248,7 @@ function make(THREE, scene, world, rec0, opts) {
     setRecord: r => { rec = PG.normalise(r); },
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point
-    materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, bounds), slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - bounds.x0) / W * MMN), j = Math.floor((z - bounds.z0) / H * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
+    materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },

@@ -195,37 +195,56 @@ function buildPatternVis(THREE, pattern, groundY, core) {
   // slope, the way a real PAPI reads. `papiUpdate(x, y, z)` recolours them
   // from the aeroplane's position every frame; `setActive(k, gs)` re-aims
   // the boxes when the slope flown changes. Dark from behind.
+  // ...AND THE VASI (G434, the user: "setup of the VASI systems (automatic glideslope)"). The
+  // record says which system stands at each end (`aero.papi[end]`: true a PAPI, 'vasi' a two-bar
+  // VASI, false none - the approach that lands over end k reads papi[k]; k = 0 lands over thr1).
+  // A VASI is TWO BARS of two lights, both on the left: the downwind bar where the PAPI stands,
+  // the upwind bar 210 m further along the landing direction; each bar reads its own angle to the
+  // aeroplane, the downwind bar set a quarter degree under the slope and the upwind bar a quarter
+  // over - on the slope the near bar is white and the far one red (red over white, "you're all
+  // right"), both white high, both red low. AUTOMATIC: the slope both systems are set to is the
+  // approach's own (ap.gs, re-aimed by setActive when the pilot's planned slope changes), never a
+  // number of their own - the lights show the glideslope the pilot flies.
   const papis = [];
+  const kindAt = k => { const A = core && core.aero; if (!A || !Array.isArray(A.papi)) return 'papi'; const v = A.papi[k === 0 ? 1 : 0]; return v === 'vasi' ? 'vasi' : v ? 'papi' : 'none'; };
   if (pattern && pattern.approaches) {
     const white = 0xfff4d6, red = 0xff3a2a, dark = 0x2a2622;
     for (const ap of pattern.approaches) {
+      const kind = kindAt(ap.k);
+      if (kind === 'none') continue;
       const u = ap.u, aim = ap.aimAP;
       const lx = u[1], lz = -u[0];                     // left of the landing direction
       const bx = aim[0] + lx * 22, bz = aim[1] + lz * 22;
       const units = [];
-      for (let i = 0; i < 4; i++) {
-        const g = new THREE.BoxGeometry(1.2, 0.9, 1.2);
+      const unit = (x, z, bar, off) => {
+        const g = new THREE.BoxGeometry(kind === 'vasi' ? 1.6 : 1.2, 0.9, 1.2);
         const m = new THREE.MeshBasicMaterial({ color: dark });
         const box = new THREE.Mesh(g, m);
-        const x = bx + lx * (i * 3.2), z = bz + lz * (i * 3.2);
         box.position.set(x, gy(x, z) + 0.6, z);
+        box.rotation.y = Math.atan2(-u[1], u[0]);
         box.frustumCulled = false;
         layers.papi.add(box);
-        units.push({ box, m, x, z, y: gy(x, z) + 0.6 });
+        units.push({ box, m, x, z, y: gy(x, z) + 0.6, bar, off });
+      };
+      if (kind === 'vasi') {
+        // the downwind bar (2 units) at the aim, the upwind bar 210 m on; `off` is each bar's setting about the slope
+        for (let i = 0; i < 2; i++) unit(bx + lx * (i * 4.0), bz + lz * (i * 4.0), 0, -0.0044);
+        for (let i = 0; i < 2; i++) unit(bx + u[0] * 210 + lx * (i * 4.0), bz + u[1] * 210 + lz * (i * 4.0), 1, +0.0044);
+      } else {
+        for (let i = 0; i < 4; i++) unit(bx + lx * (i * 3.2), bz + lz * (i * 3.2), 0, (i - 1.5) * 0.0058);   // -0.5 .. +0.5 deg about the slope
       }
-      papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark });
+      papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark, kind });
     }
   }
   const papiUpdate = (x, y, z) => {
     for (const P of papis) {
-      const dist = (P.units[0].x - x) * P.u[0] + (P.units[0].z - z) * P.u[1];
-      for (let i = 0; i < 4; i++) {
-        const U = P.units[i];
+      for (const U of P.units) {
+        // each unit reads its own distance along the landing direction (a VASI's bars stand 210 m apart)
+        const dist = (U.x - x) * P.u[0] + (U.z - z) * P.u[1];
         let col = P.dark;
         if (dist > 40) {
           const ang = Math.atan2(y - U.y, dist);
-          const a_i = P.gs + (i - 1.5) * 0.0058;      // -0.5 .. +0.5 deg about the slope
-          col = ang > a_i ? P.white : P.red;
+          col = ang > P.gs + U.off ? P.white : P.red;
         }
         if (U.m.color.getHex() !== col) U.m.color.setHex(col);
       }

@@ -49958,3 +49958,142 @@ rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
 - OWED: the identity of what was hit (the parked boxes' vocabulary, for a
   damage model); a debug view of the grids (F8); fences and the shed at the
   user's ruling; the traffic yielding to a taxiing aeroplane.
+
+
+## G434 — JOLENE IS THE STARTING TERRAIN: JOLENE AFB, THE CLUB HANGAR AND THE
+## ROLL-OUT, THE TAXIWAY V, THE VASI, ANNETTE DOCK, TAMGAS HILL STRIP, THE VILLAGE
+## AND THE ROADS (2026-09-16, the user: "make Jolene the new starting terrain ...
+## proper UI for swapping the maps ... a proper airport that should be placed and
+## remain editable with the world editor ... a club hangar emulating the garage
+## ... a proper roll out phase ... 2 taxiways in a V ... VASI ... seaplanes at the
+## Annette Dock ... a small strip using the new profile feature ... a small
+## village ... draw roads following the satellite views")
+
+- THE MAP (tools/build.js's loader, both pages): `?world=` when given, else
+  the GRAPHICS menu's pref (`flydiy.world`), else JOLENE; `none` is the
+  analytic world (`window.FLYDIY_WORLD`, the list `window.FLYDIY_WORLDS`).
+  The GRAPHICS flyout's first row, WORLD (gfx_settings.js), picks and
+  reloads. An island whose files are absent (a page served without bench/)
+  falls back to the analytic world with a console line - the promise chain
+  had rejected and the page hung. Each map keeps its own saved premises
+  (app.js WIP_KEY = `flydiy.premises.game.<island>`; an island's edits had
+  composed onto the analytic world otherwise).
+- THE FIELD (tools/fixtures/island_jolene.json rev 4, WRITTEN by
+  tools/jolene_author.py off the satellite views and the island's rasters
+  - G404's own honesty: not through the editor's mouse; the editor opens
+  it): JOLENE AFB 13/31 = HOME (the long WWII arm, worn concrete, 2 325 m,
+  VASI both ends, its profile kept), 02/20 composed FIRST so the crossing
+  keeps 13/31's profile; the CLUB on the pad west of the junction (the
+  satellite's circled building) = VILLAGE_GEN's 'airport s' row (the long
+  club hangar, the flying club, the fuel shed, the tool shed, the rail
+  fence) with the club hangar's slot taken by THE GARAGE'S OWN SHELL; the
+  stand on the apron in front of its door; THE TAXIWAY V read off the ORI
+  and the albedo (the NE arm to 13/31's edge = the way out, the E arm to the
+  junction), paved roads 24 m wide with no ribbon under cracked-concrete
+  polygons; the three turnaround octagons; the 140 m cleared shoulders
+  (gravel surface strips either side, never over the strip; 'dry' material);
+  the approach fans excluding trees (60 m at the bar to 320 m wide 450 m
+  out - 13/31 asks 2.3-2.9 % both ways, it asked 5.2-5.5 % with the trees at
+  25 m); three parked archetypes on the apron. TAMGAS HILL STRIP (w3): 520 x
+  18 m gravel on the rise 2.5 km NW (searched on the DEM: a 2-4 % run, under
+  3 m off a ramp, no water), an eleven-knot PROFILE (2 % in the touchdown
+  fifths, 3.6 % between - five knots overshot the cubic to 3.3 %), the uphill
+  end at the DEM's height (cut 4 m into the hill it asked the go-around 12.8
+  %; 8 now), landed uphill from the water (approach 0), a PAPI at the low
+  end, the field shed and the hut on the strip's LOWER side (the uphill side
+  was a cut terrace with a 14 % taxi). ANNETTE DOCK (SEA): the sea lane from
+  the pier NW into the channel, searched on the coast field (water 220 m
+  either side of 1 500 m and 300 m past the end). THE VILLAGE on the
+  headland: a harbour zone at the dock (8 plots on the water side of the
+  harbour street, traced 35 m inland of the GAME's waterline - the DEM's 0
+  line is 40 m out on the shelf), a residential zone (30 plots), four
+  streets. THE ROADS: Airport Rd along 13/31's SW side (150 m off, the ORI's
+  line) to the club's gate; the road from 02/20's NE end to the village (the
+  straight line on the albedo); the track to the strip; proto traffic on the
+  two long ones.
+- THE CONTRACT (v1.14): a runway's `hangar` {x, z, hdg} stands the garage's
+  shell (runwaySite -> site.hangar in 25_airfield's shape, ry = pi - hdg, y
+  the composed ground); `papi[k]` true | 'vasi' | false; a WATER runway is a
+  sea lane (kind 'water', nothing graded, the seaplanes spawn on `SEA`);
+  `flat` includes every graded road's bed (the pattern validator walks a
+  taxiway traced as a road); a road's `grade` (the steepest it may run: the
+  bed's humps cut and dips filled by an envelope pass, the ends held - the
+  NE arm had climbed 8 % over a DEM mound and dropped 12 % onto the runway)
+  and `ribbon: false`; a zone reads the level of the water that TOUCHES IT
+  (an anchor 4 km inland read -Infinity: no harbour had ever sown a plot).
+- THE ROOM ON AN ISLAND (hangar.js): the premises' site carries no apron /
+  taxiway / fence / clutter / boxes / windbreak, and `SITE.apron.x0` THREW -
+  the garage was refused ("hangar unavailable, the garage will be empty")
+  and with it the roll-out, on every island boot since G404. A PLAIN site
+  draws the strip at its true heading (the segment nearest the shed, up to
+  450 m either way, the plane turned to it; the concrete for a paved strip),
+  a slab in front of the door, and nothing invented.
+- THE SHED ON AN ISLAND (render_world.js): only the shed is stood from the
+  premises' site (on its composed ground, `H.y`); the analytic furniture
+  stays behind `!ISLAND_SITE`. A premises HOME is stood like every premises
+  strip (the boot loop had skipped every HOME - no paint, no sock on
+  Jolene until an edit repainted it); a water lane stands nothing (the
+  analytic SEA had a decal under the sea and a windsock in it).
+- THE LATE SPEC (app.js): the roll-out's syncBuild commits the spec, the
+  commit runs the energy worker, and its answer came back through
+  GARAGE.apply -> enterGarage seconds later - under load AFTER the roll-out
+  screen, walking the flight back into the shed (every headless roll-out on
+  Jolene ended in the garage 5 s after it began). After the roll-out
+  (`rolledOut`) a spec waits (`specPending`) for the next visit to the
+  garage. And the departure select SAYS where the flight starts (HOME need
+  not be the registry's first row).
+- THE VASI (pattern_vis.js): two bars of two, 210 m apart, each reading its
+  own angle, the downwind bar a quarter degree under the slope and the
+  upwind bar a quarter over (red over white on the slope); `aero.papi[end]`
+  picks PAPI / VASI / none per end (the flags had been declared and never
+  read); both are set to the approach's own gs (setActive re-aims them).
+- THE RENDERER (render_premises.js): the fine patch in 64 m CHUNKS where
+  the record touches the ground (by distance to a polygon's edge or a
+  road's segment - a bounding box of a diagonal 2 km road boxed a square
+  kilometre; 717 chunks / 1.47 M tris for the whole island record against
+  2.28 M verts for the old 3.2 x 2.3 km extent alone), 4 cm over the ground
+  (the ring's pale PAVED bake speckled the pad's concrete at 0), the border
+  tucked at every unbuilt neighbour; the MATERIAL MAP 1 024 px over the
+  polygons' union, mixed in ahead of color_fragment - the island's albedo
+  hook appends its stack after map_fragment and had OVERWRITTEN every
+  material painted there (no polygon had ever shown on Jolene); `ribbon:
+  false` honoured; the hangar's disc among the runway's handles.
+- THE PILOT (43_pilot.js): ABOVE THE SLOPE ON ENTRY the target is the slope
+  itself, descended onto at half again its rate - the enroute leg's hClear
+  over the hill and its canopy had left the cub 30 m over the pattern
+  height, the level was latched there and the slope only fell away under
+  it ("high on the slope 534 m out", twice, gave up). HOME -> w3 lands
+  uphill now (1.18 Vs, 88 m past the aim, 0 m off).
+- THE EDITOR (premises_ui.js): lights per end (PAPI / VASI / none), the club
+  hangar (stand it behind the stand / turn / remove; its disc), a road's steepest and ribbon rows, the length slider to 3 000 and the width to 30.
+- THE INSTRUMENTS: tools/island_node.js (the island in node: what the
+  loader fetches, read off bench/; `islandWorld(name, { premises })`);
+  `pilot_trace.js --world jolene [--stand]` (placed like any strip, the
+  stand + departFrom the game's way); GATE WORLD composes the island's
+  fixture when the files are there (HOME/SEA/w3 registered, the lane on the
+  water, the stand and the hangar on the composed ground, both patterns
+  sound, the village sown, 13/31's approaches under 4 %; skipped, said,
+  without bench/). Pictures: headless Chrome + CDP (scratchpad shots.js:
+  the chooser's cub, 16 s for the birth's jobs, bGo once, the roll-out
+  screen waited out, then camSet / teleport per shot).
+- MEASURED: the cub's circuit from the stand (taxi 204 s down the runway
+  to hold0, run 143 m, landed 1.13 Vs 115 m past the aim, 0 m off, 545 s);
+  the floatplane's circuit off the dock (soft technique, 1.17 Vs, -15 m,
+  0 m off); the analytic world's roll-out unchanged (`?world=none`).
+- Gates, proved in a clean worktree at this commit (bench/, media/ and
+  assets/ junctioned in): ATMO, UISMOKE, WORLDRENDER, GFX, MEDIA, BUILD,
+  HANGAR, PARKED, OBSTACLE green, the island block of WORLD green. FOUR
+  REDS ARE HEAD'S OWN (5c4e33b4, the G433 built tip, run the same way in a
+  worktree at that commit): WORLD's `golden trees hash` and
+  `default==seed0`, AERO's five (centreline flat / slope, strips dry, tdz
+  on pad, reachable or fly-in), SITE's `1100` (render_world.js:884,
+  `ISLA.hMax || 1100`), PREMISES 5b (outside the extent every height is the
+  bare world's). Not this landing's; not fixed here.
+- OWED: the seaplane's dock as a pier prop (the lane spawns off the bare
+  point); the club's windsock and beacon (theme props); the strip look's
+  brightness against the pad's (the runway's sheet is a Lambert on the
+  decal, the pad's the ring's material with the island stack); the village
+  by the user's eye (the plots' picks, the north shore's houses); the shipped
+  media/ pack (the loader reads bench/); a taxiway hook joining the apron to
+  the strip in the editor's own tools; GATE PILOT's core set on the pilot's
+  descent-onto-the-slope change (flown here on HOME, w3 and SEA only).
