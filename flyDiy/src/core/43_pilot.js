@@ -620,7 +620,29 @@ function makePilot(sim, def, world, opts) {
       if (gSide - gStrip + 0.7 * hC > hC) { hC = gSide - gStrip + 0.7 * hC; Dfaf = hFaf() / ap.gs; Diaf = Dfaf + Math.max(400, 10 * VTurn); }
       ap.patGround = { L: Math.round(gL), R: Math.round(gR), strip: Math.round(gStrip), hC: Math.round(hC) };
     }
-    ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side, sideForced };
+    // P1.E: THE PROTOCOL (PILOT-ROADMAP §3.3, G.4) — a strip's DECLARED
+    // circuit, `to.circuit` { hand: 'left' | 'right', height: m over the
+    // strip, join: 'downwind' | 'straight' }: the hand names the side (a
+    // left-hand circuit turns left: the downwind lies to the LEFT of the
+    // landing direction, wp's c > 0, side 1), the height the least the
+    // pattern flies (the terrain may ask more, never less), the join
+    // whether a straight-in is allowed ('downwind': never — the aeroplane
+    // joins the downwind at the entry). The terrain's FORCED side (a
+    // climb-out that turns, a ridge over half the circuit height) wins
+    // over the hand and is said once; a preference does not
+    const PR = to.circuit && typeof to.circuit === 'object' ? to.circuit : null;
+    let join = 'straight';
+    if (PR) {
+      const handSide = PR.hand === 'right' ? -1 : PR.hand === 'left' ? 1 : 0;
+      if (handSide) {
+        if (sideForced && side !== handSide) { if (!ap.protocolSaid) { ap.protocolSaid = true; say('protocol-overridden', 'the ' + PR.hand + '-hand circuit declared at ' + (to.id || 'the strip') + ' is flown ' + (side > 0 ? 'left' : 'right') + '-hand — the terrain on that side'); } }
+        else { side = handSide; sideForced = true; }
+      }
+      if (PR.height > 0 && PR.height > hC) { hC = PR.height; Dfaf = hFaf() / ap.gs; Diaf = Dfaf + Math.max(400, 10 * VTurn); }
+      if (PR.join === 'downwind') join = 'downwind';
+    }
+    ap.plan = { F, sAim: ap.xAim, sFaf: ap.xAim - Dfaf, sIaf: ap.xAim - Diaf, W, hC, side, sideForced, join, protocol: PR };
+    ap.report.circuit = { hand: side > 0 ? 'left' : 'right', hC: Math.round(hC), join, declared: PR ? { hand: PR.hand || null, height: PR.height || null, join: PR.join || null } : null };
     return ap.plan;
   };
   const patternLegs = (P, sJoin, side) => {
@@ -1412,7 +1434,7 @@ function makePilot(sim, def, world, opts) {
       const toIaf = wp(FL, P.sIaf, 0);
       const vx = toIaf[0] - cg[0], vz = toIaf[1] - cg[2], vl = Math.hypot(vx, vz) || 1e-9;
       const cosA = (vx * FL.ux + vz * FL.uz) / vl;
-      const straightIn = sNow < P.sIaf - 300 && cosA > 0.5;
+      const straightIn = P.join !== 'downwind' && sNow < P.sIaf - 300 && cosA > 0.5;   // P1.E: a 'downwind' protocol never straight-in
       // P1: the first leg begins two turn radii AHEAD along the track, the
       // path from the aeroplane — the turn onto the leg is a corner the
       // path fillets (a leg through the aeroplane's own position, flown at

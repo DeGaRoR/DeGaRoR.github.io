@@ -50150,3 +50150,47 @@ against HEAD's own run): 47 cells, 29 good / 14 warn / 4 bad from 28 / 14 / 5 �
 - OWED (P1): the protocol record + circuit joins; a `soft` / `short` /
   `x4` fixture in the quick set; the A5 slope with the throttle on its
   floor; the Tiger Moth's 14 deg (the biplane's fin in the gust).
+
+## G422.4 — THE PILOT TRACK, P1.E: THE PROTOCOL RECORD — A STRIP'S DECLARED
+## CIRCUIT (HAND, HEIGHT, JOIN); THE MATRIX'S NEW FIXTURES (2026-09-16)
+
+**THE PROTOCOL** (PILOT-ROADMAP §3.3, G.4): a strip may DECLARE how it is
+flown — `circuit: { hand: 'left' | 'right', height: m over the strip,
+join: 'downwind' | 'straight' }` on the runway record (27_premises.js
+RUNWAY_DEF, contract v1.15, validated: hand left/right, height > 0, join
+downwind/straight; `runwaySite` carries it into the aerodrome record for
+strips and sea lanes alike; the editor's row is OWED to the premises
+session). The pilot (43_pilot.js planArrival) reads it: the hand names the
+side (a left-hand circuit turns left — the downwind lies to the LEFT of
+the landing direction, wp's c > 0, side 1); the height is the LEAST the
+pattern flies (the terrain may ask more, never less — A3's 221 m stands
+over a declared 150); 'downwind' forbids the straight-in (the aeroplane
+joins the downwind at the entry). The terrain's FORCED side (a climb-out
+that turns, a ridge over half the circuit height) wins over the hand and
+is said once (`protocol-overridden`); the terrain's mere preference does
+not. `ap.report.circuit` { hand, hC, join, declared } is on the report;
+`pilot_trace --circuit hand,height,join` sets it as a fixture and prints
+the `circuit:` line. Measured: the C172 flies a declared right-hand
+circuit at HOME (crosswind to the right, 165 m — the trees under the
+pattern ask 15 over the declared 150); at A3 a declared left-hand is
+flown right-hand and said (the climb-out turns right), a declared 200 m
+is flown at 200.
+
+**THE FIXTURES** (tools/pilot_matrix.js): `sand` (the destination's
+surface SAND — the soft-field arrival), `rh` (a declared right-hand
+circuit at 150 m, no straight-in); the QUICK set grows 9 -> 14 cells (the
+cub and the Stearman in `x4`, the cub at A5, the cub on sand, the C172
+right-hand); the CORE set 47 -> 57 (`x4` on the cub, Stearman, Tiger
+Moth, beaver, C172 and the twin; sand and rh on the cub and the C172).
+Measured on P1.E (a clean worktree at G422.3): quick 5 good / 9 warn / 0
+bad — the warns are G431's (the C172's 2.0-2.2 m/s touchdowns, the
+Stearman's 8.5 deg swings) and the x4 roll-outs at 10.4-10.9 deg (the
+warn line is 5). GATE PILOT green.
+
+- Gates: PILOT; PILOTMATRIX (the committed baseline stays G431's red —
+  the ruling owed; the 14-cell set has no baseline entry for its five new
+  cells until the baseline is re-blessed).
+- OWED: the editor's `circuit` row (premises); a base join; the overhead
+  join (P3); the A5 slope with the throttle on its floor (the cub sits 2 m
+  high at the floor, 0.6 m/s fast, lands 17 m short at 1.17 Vs — a slip
+  is the remedy, later); the `--all` run on the whole of P1.

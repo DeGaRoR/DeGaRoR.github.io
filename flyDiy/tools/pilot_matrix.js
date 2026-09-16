@@ -39,7 +39,9 @@ const WEATHERS = {
 // the rising ground 770 m before the aim: lands short, no flare); `dn4`: the
 // landing runs DOWNHILL over the hill the approach must cross (the pilot goes
 // around for terrain, and has to choose the other direction — P1)
-const FIXTURES = { flat: {}, up4: { slope: -0.04 }, dn4: { slope: 0.04 }, up2: { slope: -0.02 }, dn2: { slope: 0.02 } };
+// `sand`: the destination's surface is SAND (7) — the soft-field arrival (P1.B); `rh`: a declared
+// right-hand circuit at 150 m with no straight-in (P1.E, the protocol record)
+const FIXTURES = { flat: {}, up4: { slope: -0.04 }, dn4: { slope: 0.04 }, up2: { slope: -0.02 }, dn2: { slope: 0.02 }, sand: { surface: 7 }, rh: { circuit: 'right,150,downwind' } };
 const MACHINES_QUICK = ['cub', 'c172', 'stearman'];
 const MACHINES_CORE = ['cub', 'pietenpol', 'tigermoth', 'stearman', 'jodel', 'c172', 'rv', 'savannah', 'ul1', 'pusherPod', 'motorglider', 'etrainer', 'vtail', 'twinBush', 'beaver'];
 const MACHINES_ALL = MACHINES_CORE.concat(['pittsAlike', 'sesqui', 'caravan', 'radial', 'ttail', 'mw5', 'archaeopteryx', 'da62', 'skymaster', 'p38']);
@@ -52,11 +54,18 @@ function cellsOf(set) {
     add('cub', 'HOME', null, 'x2'); add('stearman', 'HOME', null, 'x2'); add('c172', 'HOME', null, 'x2');
     add('cub', 'HOME', 'A3', 'calm');                       // a 480 m grass strip, 10 km out
     add('cub', 'HOME', null, 'calm', null, false, 'up4'); add('cub', 'HOME', null, 'calm', null, false, 'dn4');
+    // P1: the 4 m/s gusting cross on two taildraggers, the short field, the soft field, the declared circuit
+    add('cub', 'HOME', null, 'x4'); add('stearman', 'HOME', null, 'x4');
+    add('cub', 'HOME', 'A5', 'calm'); add('cub', 'HOME', null, 'calm', null, false, 'sand'); add('c172', 'HOME', null, 'calm', null, false, 'rh');
   } else if (set === 'core') {
     for (const k of MACHINES_CORE) { add(k, 'HOME', null, 'calm'); add(k, 'HOME', null, 'x2'); }
     for (const k of ['cub', 'c172', 'savannah']) { add(k, 'HOME', 'A3', 'calm'); add(k, 'HOME', 'A5', 'calm'); }
     add('cub', 'HOME', null, 'hot'); add('c172', 'HOME', null, 'head6');
     for (const k of ['cub', 'c172', 'savannah']) for (const f of ['up4', 'dn4', 'up2']) add(k, 'HOME', null, 'calm', null, false, f);
+    // P1: the gusting cross on the taildraggers and the trikes, the soft field, the declared circuit
+    for (const k of ['cub', 'stearman', 'tigermoth', 'beaver', 'c172', 'twinBush']) add(k, 'HOME', null, 'x4');
+    for (const k of ['cub', 'c172']) add(k, 'HOME', null, 'calm', null, false, 'sand');
+    for (const k of ['cub', 'c172']) add(k, 'HOME', null, 'calm', null, false, 'rh');
   } else if (set === 'all') {
     for (const k of MACHINES_ALL) for (const w of ['calm', 'x2', 'x4', 'hot']) add(k, 'HOME', null, w);
     for (const k of MACHINES_ALL) { add(k, 'HOME', null, 'calm', null, true); }
@@ -115,6 +124,8 @@ function runCell(c, extra) {
     if (c.drawnTail) args.push('--drawn-tail');
     const fx = FIXTURES[c.fixture] || {};
     if (fx.slope) args.push('--slope', String(fx.slope));
+    if (fx.surface != null) args.push('--surface', String(fx.surface));
+    if (fx.circuit) args.push('--circuit', fx.circuit);
     for (const a of extra || []) args.push(a);
     const p = spawn(process.execPath, args, { cwd: T, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';

@@ -608,7 +608,11 @@ const RUNWAY_LOOKS = {
 // false (none) at end k; the approach that lands over end k reads it
 // A WATER STRIP (G434): surface WATER is a SEA LANE - no grade, no strip, no exclude; the record
 // registers a `kind: 'water'` aerodrome (the analytic SEA's shape) the seaplanes spawn on
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null };
+// THE CIRCUIT PROTOCOL (G422.4, contract v1.15): `circuit` { hand: 'left' | 'right', height: m over
+// the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
+// least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
+// pilot to the terrain and the wind. The editor's row is owed.
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, profile: null, approach: null, hangar: null, circuit: null };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -723,12 +727,12 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   // a SEA LANE (G434): the analytic SEA's shape - kind 'water', no site, flat everywhere (the water is)
   if (runwayIsWater(r)) return { id: r.id, name: r.name || 'sea lane', kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
            surface: SURFACE.WATER, look: 'none', elev, tdz, spawn, spawnElev: elev, flyIn: false, premises: true, water: true,
-           landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false] };
+           landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false], circuit: r.circuit || null };
   return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null,
-           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
+           slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
 // ---------------------------------------------------------------------------
@@ -1215,6 +1219,15 @@ function issues(rec0) {
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    if (r.circuit != null) {
+      const c = r.circuit;
+      if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
+      else {
+        if (c.hand != null && c.hand !== 'left' && c.hand !== 'right') out.push('runway ' + r.id + ': circuit.hand is left or right');
+        if (c.height != null && !(+c.height > 0)) out.push('runway ' + r.id + ': circuit.height is metres over the strip');
+        if (c.join != null && c.join !== 'downwind' && c.join !== 'straight') out.push('runway ' + r.id + ': circuit.join is downwind or straight');
+      }
+    }
     if (r.papi && (!Array.isArray(r.papi) || r.papi.length !== 2 || !r.papi.every(v => v === true || v === false || v === 'vasi'))) out.push('runway ' + r.id + ': papi is [end 0, end 1] of true, false or vasi');
     if (r.hangar && !(isFinite(+r.hangar.x) && isFinite(+r.hangar.z))) out.push('runway ' + r.id + ': the hangar needs x and z');
   }

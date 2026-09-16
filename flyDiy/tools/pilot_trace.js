@@ -136,6 +136,7 @@ function runTrace(o) {
   if (!from) throw new Error('unknown aerodrome ' + o.from);
   if (!to) throw new Error('unknown aerodrome ' + o.to);
   if (o.surface != null) to.surface = o.surface;         // P1.B: the fixture's surface
+  if (o.circuit) to.circuit = o.circuit;                 // P1.E: the fixture's protocol
   const def = C.buildGen(S.spec);
   const sim = C.makeSim(def, world);
   sim.reset(0);
@@ -255,7 +256,7 @@ function runTrace(o) {
                    three: !!L.three, drift: TD ? r2(TD.drift) : null } : null,
     rollout: roll.e.length ? { maxE: r1(Math.max(...roll.e.map(Math.abs))), zeroX, maxDr: r2(Math.max(...roll.dr.map(Math.abs))),
                                xtEnd: r1(roll.xt[roll.xt.length - 1]) } : null,
-    Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VApprOf()), appr: ap.report.appr || null, dep: ap.report.dep || null, mass: Math.round(sim.totalM),
+    Vs: r1(Vs), VsLanding: r1(VsL), VAppr: r1(VApprOf()), appr: ap.report.appr || null, dep: ap.report.dep || null, circuit: ap.report.circuit || null, mass: Math.round(sim.totalM),
     sheet: ap.useSheet ? ap.sheet.show() : null, tecs: ap.useTecs, path: ap.usePath,
     wall: Math.round((Date.now() - t0) / 1000),
   };
@@ -281,6 +282,7 @@ function parseArgs(argv) {
     else if (a === '--max') o.maxS = +nx();
     else if (a === '--slope') o.slope = +nx();
     else if (a === '--surface') o.surface = +nx();   // P1.B: the destination's surface class overridden (7 = sand, 3 = forest floor: the soft-field technique)
+    else if (a === '--circuit') { const q = nx().split(','); o.circuit = { hand: q[0] || null, height: q[1] ? +q[1] : null, join: q[2] || null }; }   // P1.E: the destination's declared circuit (hand,height,join)
     else if (a === '--date') o.date = nx();
     else if (a === '--utc') o.utc = nx();
     else if (a === '--core') o.core = nx();
@@ -297,7 +299,7 @@ function parseArgs(argv) {
 
 if (require.main === module) {
   const o = parseArgs(process.argv.slice(2));
-  if (!o.key) { console.log('usage: node tools/pilot_trace.js <archetype|spec.json> [--from ID] [--to ID] [--world island] [--stand] [--wind x,z] [--gust g] [--oat C] [--qnh Pa] [--style s] [--drawn-tail] [--slope g] [--surface N] [--max S] [--csv [file]] [--json file] [--quiet]'); process.exit(1); }
+  if (!o.key) { console.log('usage: node tools/pilot_trace.js <archetype|spec.json> [--from ID] [--to ID] [--world island] [--stand] [--wind x,z] [--gust g] [--oat C] [--qnh Pa] [--style s] [--drawn-tail] [--slope g] [--surface N] [--circuit hand,height,join] [--max S] [--csv [file]] [--json file] [--quiet]'); process.exit(1); }
   let out;
   try { out = runTrace(o); }
   catch (e) { console.log(JSON.stringify({ key: o.key, error: e.message })); process.exit(1); }
@@ -310,6 +312,7 @@ if (require.main === module) {
     if (out.final) console.log('  final: captured at ' + out.final.captureT + ' s · above-slope rms ' + out.final.aboveRms + ' m · V-VAppr rms ' + out.final.vRms + ' (mean ' + out.final.vErrMean + ') · thr ' + out.final.thrMin + '..' + out.final.thrMax);
     if (out.flare) console.log('  flare: from ' + out.flare.entryAgl + ' m at ' + out.flare.entryVs + ' m/s, ' + out.flare.dur + ' s');
     if (out.dep) console.log('  departure: ' + out.dep.technique + (out.dep.Vx ? ' · Vx ' + out.dep.Vx + ' m/s' : '') + (out.dep.runNeed ? ' · run needed ' + out.dep.runNeed + ' m of ' + out.dep.len : ''));
+    if (out.circuit) console.log('  circuit: ' + out.circuit.hand + '-hand at ' + out.circuit.hC + ' m, join ' + out.circuit.join + (out.circuit.declared ? ' (declared ' + JSON.stringify(out.circuit.declared) + ')' : ''));
     if (out.appr) console.log('  approach: ' + out.appr.technique + ' · Vref ' + out.appr.Vref + ' m/s' + (out.appr.gust ? ' (+' + (out.appr.gust / 2).toFixed(1) + ' for a ' + out.appr.gust + ' m/s gust)' : '') + ' · aim ' + out.appr.aimIn + ' m in · flap ' + out.appr.flap + (out.appr.runNeed ? ' · run needed ' + out.appr.runNeed + ' m of ' + out.appr.len : ''));
     if (out.landing) console.log('  landing: sink ' + out.landing.sink + ' m/s · ' + out.landing.V + ' m/s = ' + out.landing.VoverVs + ' Vs · ' + out.landing.pastAim + ' m past the aim · ' + out.landing.off + ' m off · run ' + out.landing.run + ' m' + (out.landing.three ? ' · three-point' : ''));
     if (out.rollout) console.log('  rollout: max heading ' + out.rollout.maxE + ' deg, ' + out.rollout.zeroX + ' reversals, rudder ' + out.rollout.maxDr + ' · ' + out.rollout.xtEnd + ' m off at the stop');
