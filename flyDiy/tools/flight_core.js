@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 71f15bbe6017ce11
+// body-sha256: 17faf90791105d44
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -12231,7 +12231,7 @@ function makePilot(sim, def, world, opts) {
     // wind, at the planned bank) — a width planned on VTurn alone put the
     // beaver's two 365 m fillets on a 565 m leg, patternPath halved them,
     // and the aeroplane crossed the downwind by 240 m at its bank limit
-    const wv0 = windAt(to, 30), RcW = (ap.VCruise + Math.hypot(wv0[0], wv0[1])) ** 2 / (9.81 * Math.tan(bankLim)) * 1.05;
+    const wv0 = windAt(to, 30), easK0 = (sim.out && sim.out.easK) || 1, RcW = (ap.VCruise / easK0 + Math.hypot(wv0[0], wv0[1])) ** 2 / (9.81 * Math.tan(bankLim)) * 1.05;   // P1.F: at the true airspeed
     const W = clamp(Math.max(ST.patW * Rturn, 2.2 * RcW), 300, 1800);
     // the pattern's side: the TERRAIN under each side's downwind and base,
     // sampled (the trees do not move a circuit: the canopy counts for the
@@ -12317,7 +12317,11 @@ function makePilot(sim, def, world, opts) {
     // leg by 190-240 m on a fillet planned in still air); a wider fillet is
     // always flyable, the aeroplane banks a little less
     const wv = windAt(ap.route.to || ap.route.from, 30), wMag = Math.hypot(wv[0], wv[1]);
-    const rOf = (Vl, climbing) => (Vl + wMag) * (Vl + wMag) / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
+    // P1.F: the turn is flown over the ground at the TRUE airspeed plus the
+    // wind — the plan's speeds are indicated (EAS); on the hot day (35 C,
+    // sigma 0.9) the true speed is 5 % higher and the radius 10 %
+    const easK = (sim.out && sim.out.easK) || 1;
+    const rOf = (Vl, climbing) => (Vl / easK + wMag) * (Vl / easK + wMag) / (9.81 * Math.tan(climbing ? bC : bankLim)) * 1.05;
     if (from) add(from[0], from[1], 0);
     for (let k = 0; k < legs.length; k++) {
       const L = legs[k], N = legs[k + 1];
@@ -13646,7 +13650,14 @@ function makePilot(sim, def, world, opts) {
         // G381 arc + pursuit stay behind `path: false`
         if (!airPath) { airPath = buildAirPath(ap.legs, ap.legs[0] && ap.legs[0].name === 'CROSSWIND' ? [cg[0], cg[2]] : pathFrom); airPathI = 0; pathFrom = null; }
         const onPath = !!airPath && !holdOut;
-        altMode(hTgt, legSpeed(L), bankLim, holdOut ? 'HDG' : onPath ? 'PATH' : 'NAV');
+        // P1.F: THE STRAIGHT-IN SLOWS BEFORE THE FIX. An enroute leg is flown
+        // at the cruise; its last 1.5 km at the pattern speed (VTurn, what
+        // the base leg flies) so the final begins at a speed the slope can
+        // be captured from — the C172 arrived at A0's fix at 51 m/s, zoomed
+        // 30 m shedding it to 25 and rode 12 m above the slope (nine
+        // machines, one class, in the full run)
+        const Vleg = (L.enroute && r.len - r.s < 1500 && ap.legI === ap.legs.length - 2) ? VTurn : legSpeed(L);
+        altMode(hTgt, Vleg, bankLim, holdOut ? 'HDG' : onPath ? 'PATH' : 'NAV');
         if (holdOut) SEL.hdg = escapeHdg;
         flapTgt = 0;
         // the card is judged on the settled downwind (41_test_pilot.js)
@@ -13912,7 +13923,8 @@ function makePilot(sim, def, world, opts) {
     } else { aDa = c.da; aDr = c.dr; }
     holdWas = holdActive; holdActive = false;
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, aglG, grade: gGrade, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
-               xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };
+               xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow,
+               kap: AF.lat === 'PATH' && pathDbg ? pathDbg.kap : 0 };   // P1.F: the path's curvature under the aeroplane (a fillet is not a wander — the matrix reads it)
     // the measurements a panel reads (ap.instruments), SI
     ap._m = { ias: V, tas: Vt, gs: Vg, alt: cg[1], agl, aglT, vs: vcg[1], pitch: th, bank: ph,
               hdg: PILOT_UNITS.deg(Math.atan2(nose[1], nose[0])),
