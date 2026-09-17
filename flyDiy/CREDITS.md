@@ -838,6 +838,76 @@ with the measurements it was derived from, is `tools/_trees_tuning.json`.
   - 2 trees, 1 billboard, 24 terrain pieces · 341,109 tris
   - **welded by material** — 11,771 triangle islands across its tree meshes; a subject is one representative with its island count, because a scattered instance is randomly rotated and cannot be deduplicated
 
+### Second batch (2026-09-15) — `assets/vegetation/`, candidates
+
+The deciduous pack, the muskeg pines and the grass prototypes, under
+evaluation on the same bench (`node tools/tree_inspect.js --credits=vegetation`
+prints these rows). None baked yet. Three of the pine downloads are the same
+model twice: `pine_tree (4)` is byte-identical to `(3)`, and `(2)` is
+b4_cobra's re-upload of evolveduk's tree (`(5)`, which is also the
+`treesRaw/_dismissed/pine_tree.glb` of W0a) — the attribution for that
+geometry belongs to evolveduk.
+
+- **Dry grass** — `vegetation/grass/dry_grass.glb`
+  - author: Pixel-bit (https://sketchfab.com/Pixel-bit)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/dry-grass-d1484537470441b999d37077aeb9b47a
+  - 7 cover · 112 tris · tallest 0.9 m
+
+- **Grass patches** — `vegetation/grass/grass_patches.glb`
+  - author: DJMaesen (https://sketchfab.com/bumstrum)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/grass-patches-6952780b80594a31aab2dedf7249a47a
+  - 3 cover · 1,910 tris · tallest 129.5 m · **units: x0.0077 to a metre**
+
+- **Realtime Grass** — `vegetation/grass/realtime_grass.glb`
+  - author: mfhscoobydoo (https://sketchfab.com/mfhscoobydoo)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/realtime-grass-07d38555cae844f7abdeace9d19c4777
+  - 12 cover, 1 terrain piece · 14,120 tris · tallest 4.9 m
+
+- **Simple grass chunks** — `vegetation/grass/simple_grass_chunks.glb`
+  - author: 3dhdscan (https://sketchfab.com/3dhdscan)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60
+  - 5 cover · 77,966 tris · tallest 0.8 m
+
+- **Pine** — `vegetation/pine/pine.glb`
+  - author: Lampi (https://sketchfab.com/lampilamp)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/pine-0289b4ff919448c195cd4b8309ac6f34
+  - 1 tree · 12,197 tris · tallest 10.9 m
+
+- **pine_tree** — `vegetation/pine/pine_tree (2).glb`
+  - author: b4_cobra (https://sketchfab.com/sultanbaddad3)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/pine-tree-7409d6a0c54d44af927489936f71441c
+  - 1 tree · 5,627 tris · tallest 5.3 m
+
+- **Pine tree** — `vegetation/pine/pine_tree (3).glb`
+  - author: Georgeous (https://sketchfab.com/intice184)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/pine-tree-6c0ca146235e49529828136cd0cee63a
+  - 1 tree · 20,517 tris · tallest 14.3 m
+
+- **Pine tree** — `vegetation/pine/pine_tree (4).glb` — duplicate of `vegetation/pine/pine_tree (3).glb` (identical bytes)
+  - author: Georgeous (https://sketchfab.com/intice184)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/pine-tree-6c0ca146235e49529828136cd0cee63a
+  - 1 tree · 20,517 tris · tallest 14.3 m
+
+- **Pine Tree** — `vegetation/pine/pine_tree (5).glb` — duplicate of `vegetation/pine/pine_tree (2).glb` (same geometry, another export)
+  - author: evolveduk (https://sketchfab.com/evolveduk)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9
+  - 1 tree · 5,627 tris · tallest 5.3 m
+
+- **Various Forest Assets Pack** — `vegetation/treesNew/various_forest_assets_pack.glb`
+  - author: Dari (https://sketchfab.com/dariiiii)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c
+  - 24 trees, 3 shrubs, 7 terrain pieces · 130,487 tris · tallest 22.1 m
+
 ### Poly Haven — CC0 (may ship, no attribution required)
 
 Offline-render trees, 1.5–17.2 M triangles each in a `.bin` of up to 900 MB.

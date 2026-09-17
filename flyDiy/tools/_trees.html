@@ -70,7 +70,9 @@
     padding:3px 8px;border-radius:4px;font:inherit;cursor:pointer}
   button.on{border-color:var(--acc);color:var(--acc)}
   input[type=range]{width:86px;accent-color:var(--acc)}
-  main{display:flex;height:calc(100vh - 41px)}
+  body{display:flex;flex-direction:column;height:100vh}
+  header{flex:none}
+  main{display:flex;flex:1;min-height:0}
   #view{position:relative;flex:1;min-width:0}
   canvas{display:block;width:100%;height:100%}
   aside{border-left:1px solid var(--grid);overflow-y:auto;padding:10px;
@@ -122,6 +124,8 @@
     <option value="trees">trees</option>
     <option value="shrubs">shrubs</option>
     <option value="billboards">billboards</option>
+    <option value="cover">cover (grass)</option>
+    <option value="species">species (authored)</option>
     <option value="terrain">terrain (in place)</option>
   </select></label>
   <label>lod <select id="lod">
@@ -180,7 +184,11 @@
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const RAW = '../assets/treesRaw/';
+// Two roots since 2026-09-15 (treesRaw + vegetation/<kind>/): the inspector
+// writes each asset's path relative to assets/, and this is the only place
+// the page turns it into a URL.
+const ASSETS = '../assets/';
+const urlOf = a => ASSETS + a.file.split('/').map(encodeURIComponent).join('/');
 
 // ---- scene ---------------------------------------------------------------
 const cv = $('c');
@@ -991,6 +999,13 @@ function aoFixAsset(name) {
     bakeAO(h);
     n++;
   }
+  // COVER carries no baked occlusion: a grass clump is eight triangles at
+  // ground level and the bake under aoBake 4 blackened its base (the user:
+  // "really strange shading"); the floor's own shade is the terrain's job
+  for (const G of (a.cover || [])) {
+    const h = buildGroup(built, G);
+    if (h) h.traverse(o => { if (o.isMesh && o.geometry) ensureAoAttr(o.geometry, 1); });
+  }
   // anything the pass did not reach still needs the attribute, or it draws black
   for (const G of (a.terrain || []).concat(a.billboards || [])) {
     const h = buildGroup(built, G);
@@ -1007,6 +1022,7 @@ function hookTint(mat) {
   mat.userData.uLight = { value: 1 };
   mat.userData.uLeaf = { value: mat.userData.alphaMode === 'OPAQUE' ? 0 : 1 };
   mat.userData.uCut = { value: 0.4 };
+  mat.userData.uLeafFill = { value: 1 };
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
@@ -1015,6 +1031,7 @@ function hookTint(mat) {
     sh.uniforms.uLight = mat.userData.uLight;
     sh.uniforms.uSharp = U_SHARP;
     sh.uniforms.uCut = mat.userData.uCut;
+    sh.uniforms.uLeafFill = mat.userData.uLeafFill;
     sh.uniforms.uWrap = U_WRAP;
     sh.uniforms.uSSS = U_SSS;
     sh.uniforms.uSSSP = U_SSSP;
@@ -1028,11 +1045,15 @@ function hookTint(mat) {
     sh.fragmentShader = ['uniform float uHue;', 'uniform float uSat;',
       'uniform float uLight;', 'uniform float uWrap;', 'uniform float uSSS;',
       'uniform float uSSSP;', 'uniform float uLeaf;', 'uniform float uSharp;',
-      'uniform float uCut;', 'uniform float uAoBake;', 'uniform float uBakeCut;',
+      'uniform float uCut;', 'uniform float uLeafFill;', 'uniform float uAoBake;', 'uniform float uBakeCut;',
       'uniform float uBakeAlb;', 'varying float vAoV;',
       ''].join(NL) +
       sh.fragmentShader
-        .replace('#include <map_fragment>', ['#include <map_fragment>', TINT_GLSL].join(NL))
+        // LEAF FILL before the tint's sharpen: alpha^k, k < 1 thickens a
+        // soft cutout on the same texture (a species dial, see scaleIslands)
+        .replace('#include <map_fragment>', ['#include <map_fragment>',
+          'if (uLeaf > 0.5 && uLeafFill != 1.0) diffuseColor.a = pow(diffuseColor.a, uLeafFill);',
+          TINT_GLSL].join(NL))
         // AO belongs on the AMBIENT term, not on the albedo: the sun does not
         // stop reaching a leaf because there is another leaf beside it. It goes
         // in at lights_fragment_end, beside the leaf wrap, because that is the
@@ -1085,6 +1106,7 @@ function applyTune(mat, t) {
   mat.userData.uSat.value = leaf ? t.sat * MASTER.sat : 1;
   mat.userData.uLight.value = (leaf ? t.light : (t.bark === undefined ? 1 : t.bark))
                               * MASTER.light;
+  if (mat.userData.uLeafFill) mat.userData.uLeafFill.value = leaf && t.leafFill !== undefined ? t.leafFill : 1;
 }
 
 
@@ -1354,8 +1376,11 @@ function buildGroup(built, G) {
   if (!G.inPlace) grp.position.set(-ctr.x, -bb.min.y, -ctr.z);
   const holder = new THREE.Group();
   holder.add(grp);
-  const t = CUR ? tuneOf(CUR.name) : TUNE_DEFAULT;
-  const k = (TRUE_SCALE ? 1 : (CUR.scaleHint || 1)) * (t.size || 1);
+  // the SPECIES' dials when one is being built (TUNE_KEY), else the file's;
+  // `sizes` is the per-subject scale a pack authored at two sizes needs
+  const t = TUNE_KEY ? tuneOf(TUNE_KEY) : CUR ? tuneOf(CUR.name) : TUNE_DEFAULT;
+  const k = (TRUE_SCALE ? 1 : ((CUR && CUR.scaleHint) || 1)) * (t.size || 1) *
+            ((t.sizes && t.sizes[G.name]) || 1);
   if (k !== 1) holder.scale.setScalar(k);
   // The sink rides in userData as well as in the transform. Placing a tree —
   // in the stand or on the ladder — writes position.set(x, y, z), which
@@ -1433,14 +1458,33 @@ function showShelf(built) {
   let list = KIND === 'trees' ? subjectsOf(CUR) : groupsOf(CUR);
   if (ISOLATE) list = list.filter(G => G.name === ISOLATE);
   const cols = [];
+  if (KIND === 'species') {
+    // every species of this file, its subjects x variants with the ops applied,
+    // captioned - the authoring view (a bent pine beside its straight source)
+    for (const sp of speciesOfFile(CUR.name)) {
+      retintSpecies(sp);
+      for (const pr of speciesProtos(sp, built)) {
+        const c = pr.near;
+        const cap = labelSprite(sp.key.replace(/\.glb$/, '') + (pr.v ? ' v' + (pr.v + 1) : ''),
+                                pr.G.name.slice(0, 22) + ' · ' + triCount(c).toLocaleString() + ' tris');
+        cap.position.set(0, c.userData.h + 1.2, 0);
+        c.add(cap);
+        cols.push(c);
+      }
+    }
+  } else
   for (const G of list) { const h = buildGroup(built, G); if (h) cols.push(h); }
-  cols.sort((a, b) => b.userData.h - a.userData.h);
+  if (KIND !== 'species') cols.sort((a, b) => b.userData.h - a.userData.h);
   const inPlace = KIND === 'terrain';
+  // COVER is judged at a metre: a tuft on the tree shelf's 2.2 m columns,
+  // seen from 14 m, is a speck beside the figure
+  const small = KIND === 'cover' || (KIND === 'species' && speciesOfFile(CUR.name).every(sp => sp.kind === 'cover'));
+  const minW = small ? 0.5 : 2.2, gap = small ? 0.25 : 0.7;
   let x = 0, maxH = 0;
   for (const c of cols) {
     if (!inPlace) {
-      const w = Math.max(2.2, c.userData.w * 1.12);
-      x += w / 2; c.position.x = x; x += w / 2 + 0.7;
+      const w = Math.max(minW, c.userData.w * 1.12);
+      x += w / 2; c.position.x = x; x += w / 2 + gap;
     }
     maxH = Math.max(maxH, c.userData.h);
     stage.add(c);
@@ -1455,6 +1499,10 @@ function showShelf(built) {
     target.copy(ct);
     dist = Math.max(20, Math.max(sz.x, sz.z) * 1.1);
     yaw = 0.6; pitch = 0.42; place();
+  } else if (small) {
+    man.position.set(-1.2, 0, 0); man.visible = true;
+    target.set(x / 2, maxH * 0.4, 0);
+    dist = Math.max(3, Math.max(x * 0.7, maxH * 2.5)); pitch = 0.22; place();
   } else {
     man.position.set(-1.8, 0, 0); man.visible = true;
     target.set(x / 2, maxH * 0.45, 0);
@@ -1525,7 +1573,7 @@ async function load(entry, keepIsolate) {
   if (!entry.renderable) { clearStage(); man.visible = false; $('msg').textContent = ''; paintFacts(null); render(); return; }
   try {
     if (!cache[entry.name]) {
-      const ab = await (await fetch(RAW + entry.name)).arrayBuffer();
+      const ab = await (await fetch(urlOf(entry))).arrayBuffer();
       cache[entry.name] = buildGLB(ab);
     }
     const built = cache[entry.name];
@@ -1543,22 +1591,49 @@ async function load(entry, keepIsolate) {
 }
 
 // ---- rail + facts --------------------------------------------------------
+// The rail is by FOLDER - the user's own filing of what a download is for
+// (the W0a conifers, the deciduous pack, the muskeg pines, the grass) - and
+// a pack is listed when it holds a subject of ANY plant kind: the grass
+// packs have no tree in them and were invisible under the old "tree source"
+// rule. A welded scene (every tree merged) and a duplicate download are
+// shown dimmed, with the reason.
+const RAIL_GROUPS = [
+  ['treesRaw', 'CONIFERS — W0a (treesRaw)'],
+  ['vegetation/treesNew', 'DECIDUOUS + MIXED (vegetation/treesNew)'],
+  ['vegetation/pine', 'MUSKEG PINES (vegetation/pine)'],
+  ['vegetation/shrubs', 'SHRUBS (vegetation/shrubs)'],
+  ['vegetation/grass', 'GRASS — cover (vegetation/grass)'],
+];
+const isPlantSource = a => (a.trees.length && !a.trees.every(t => t.merged)) ||
+  a.shrubs.length || a.cover.length || a.billboards.length;
 function paintRail() {
   const ui = $('ui');
-  const isTreeSource = a => a.trees.length && !a.trees.every(t => t.merged);
-  const rows = INDEX.assets.filter(a => isTreeSource(a) || !a.renderable).sort((a, b) =>
-    (b.renderable ? 1 : 0) - (a.renderable ? 1 : 0) || b.trees.length - a.trees.length || b.tris - a.tris);
-  let h = '<div class="grp">CANDIDATES — near asset</div>', off = false;
-  for (const a of rows) {
-    if (!a.renderable && !off) { h += '<div class="grp">OFFLINE — bake source only</div>'; off = true; }
-    const sel = CUR && CUR.name === a.name ? ' sel' : '';
-    const n = a.trees.length + a.shrubs.length + a.billboards.length +
-              a.terrain.length;
-    const bad = a.licence && a.licence.ok === false;
-    h += '<div class="item' + sel + (a.renderable ? '' : ' off') + '" data-n="' + a.name + '">' +
-         '<span' + (bad ? ' class="bad"' : '') + '>' + (bad ? '⛔ ' : '') +
-         a.name.replace(/\.(glb|gltf\.zip)$/, '').slice(0, 30) + '</span>' +
-         '<i>' + n + ' subj · ' + (a.tris > 999999 ? (a.tris / 1e6).toFixed(1) + ' M' : a.tris.toLocaleString()) + '</i></div>';
+  let h = '';
+  const seen = new Set();
+  const groups = RAIL_GROUPS.slice();
+  for (const a of INDEX.assets)                // a folder the table does not name
+    if (!groups.some(g => g[0] === a.folder)) groups.push([a.folder, a.folder]);
+  for (const [folder, title] of groups) {
+    const rows = INDEX.assets.filter(a => a.folder === folder && (isPlantSource(a) || !a.renderable))
+      .sort((a, b) => (b.renderable ? 1 : 0) - (a.renderable ? 1 : 0) ||
+                      (a.duplicateOf ? 1 : 0) - (b.duplicateOf ? 1 : 0) ||
+                      b.trees.length - a.trees.length || b.tris - a.tris);
+    if (!rows.length) continue;
+    h += '<div class="grp">' + title + '</div>';
+    let off = false;
+    for (const a of rows) {
+      if (!a.renderable && !off) { h += '<div class="grp">OFFLINE — bake source only</div>'; off = true; }
+      const sel = CUR && CUR.name === a.name ? ' sel' : '';
+      const n = a.trees.length + a.shrubs.length + a.cover.length + a.billboards.length +
+                a.terrain.length;
+      const bad = a.licence && a.licence.ok === false;
+      const dim = !a.renderable || a.duplicateOf;
+      h += '<div class="item' + sel + (dim ? ' off' : '') + '" data-n="' + a.name + '"' +
+           (a.duplicateOf ? ' title="duplicate of ' + a.duplicateOf + ' — ' + a.duplicateHow + '"' : '') + '>' +
+           '<span' + (bad ? ' class="bad"' : '') + '>' + (bad ? '⛔ ' : '') + (a.duplicateOf ? '= ' : '') +
+           a.name.replace(/\.(glb|gltf\.zip)$/, '').slice(0, 30) + '</span>' +
+           '<i>' + n + ' subj · ' + (a.tris > 999999 ? (a.tris / 1e6).toFixed(1) + ' M' : a.tris.toLocaleString()) + '</i></div>';
+    }
   }
   h += '<div id="facts"></div>';
   ui.innerHTML = h;
@@ -1576,18 +1651,21 @@ function paintFacts(stats) {
   h += '<tr><td class="k">triangles</td><td class="' + (a.tris > 200000 ? 'bad' : a.tris > 40000 ? 'warn' : 'ok') + '">' + num(a.tris) + '</td></tr>';
   h += '<tr><td class="k">textures</td><td>' + a.images + ' images, ' + a.texMB + ' MB</td></tr>';
   h += '<tr><td class="k">subjects</td><td>' + a.trees.length + ' tree · ' + a.shrubs.length +
-       ' shrub · ' + a.billboards.length + ' billboard' +
+       ' shrub · ' + a.cover.length + ' cover · ' + a.billboards.length + ' billboard' +
        (a.terrain.length ? ' · ' + a.terrain.length + ' terrain' : '') + '</td></tr>';
+  if (a.duplicateOf)
+    h += '<tr><td class="k">duplicate</td><td class="warn">of ' + a.duplicateOf + ' — ' + a.duplicateHow + '</td></tr>';
   h += '<tr><td class="k">tallest</td><td class="' + (a.scaleFlag ? 'bad' : '') + '">' +
        (a.tallest ? a.tallest.toFixed(1) + ' m' : '—') + '</td></tr>';
   h += '</table>';
 
   if (a.scaleFlag)
     h += '<div class="note bad">SCALE. The tallest subject measures ' + a.tallest.toFixed(1) +
-         ' m — about ' + (1 / a.scaleHint).toFixed(0) + 'x a real conifer. The export is in the wrong units. ' +
+         ' m — about ' + (1 / a.scaleHint).toFixed(a.scaleHint > 1 ? 2 : 0) + 'x a real ' +
+         (a.folderKind === 'cover' ? 'tuft' : 'conifer') + '. The export is in the wrong units. ' +
          'Turn off "true scale" to view it at x' + a.scaleHint.toFixed(4) + '; the file is not changed.</div>';
 
-  const anyMerged = [].concat(a.trees, a.shrubs, a.billboards, a.terrain)
+  const anyMerged = [].concat(a.trees, a.shrubs, a.cover, a.billboards, a.terrain)
     .some(G => G.merged);
   if (anyMerged) {
     h += '<div class="note warn">WELDED BY MATERIAL. This export merges every instance of a ' +
@@ -1597,7 +1675,7 @@ function paintFacts(stats) {
          'collection, not of a trunk. A ground-cover and road reference; not a near asset.</div>';
   }
   if (a.rawMeshes && a.rawMeshes > 30 && !anyMerged) {
-    const uniq = a.trees.length + a.shrubs.length + a.billboards.length + a.terrain.length;
+    const uniq = a.trees.length + a.shrubs.length + a.cover.length + a.billboards.length + a.terrain.length;
     h += '<div class="note">SCENE — ' + a.rawNodes + ' nodes, ' + a.rawMeshes +
          ' meshes, <b>' + uniq + ' unique geometries</b>. The copies are counted, not drawn ' +
          'separately: identical geometry is one subject wearing an instance count.</div>';
@@ -1755,9 +1833,10 @@ const _mcv = document.createElement('canvas');
 _mcv.width = _mcv.height = 64;
 const _mctx = _mcv.getContext('2d', { willReadFrequently: true });
 
-function measureAsset(name, built) {
+function measureAsset(name, built) { return measureMats(built.mats); }
+function measureMats(list) {
   let R = 0, G = 0, B = 0, n = 0, mats = 0, pending = 0;
-  for (const m of built.mats) {
+  for (const m of list) {
     if (m.userData.alphaMode === 'OPAQUE') continue;   // bark and ground: not leaves
     if (!m.map || !m.map.image) { pending++; continue; }
     mats++;
@@ -1828,6 +1907,8 @@ function saveTune() {
 function retint(name) {
   const built = cache[name];
   if (!built) return;
+  const sps = speciesOfFile(name);
+  if (sps.length) { for (const sp of sps) retintSpecies(sp); return; }
   if (MIPFIX) mipFixAsset(name);
   aoFixAsset(name);
   const t = tuneOf(name);
@@ -1866,9 +1947,9 @@ function rng(seed) {                   // deterministic: a stand you can re-judg
 
 async function ensureLoaded(name) {
   if (cache[name]) return cache[name];
-  const a = INDEX.assets.find(x => x.name === name);
+  const a = INDEX.assets.find(x => x.name === name || x.file === name);
   if (!a || !a.renderable) return null;
-  const ab = await (await fetch(RAW + encodeURIComponent(name))).arrayBuffer();
+  const ab = await (await fetch(urlOf(a))).arrayBuffer();
   cache[name] = buildGLB(ab);
   return cache[name];
 }
@@ -1908,17 +1989,6 @@ function stripFoliage(src) {
   return any ? c : null;
 }
 
-function pickWeighted(pool, r) {
-  let total = 0;
-  for (const p of pool) total += (tuneOf(p.a.name).proportion || 0) / (p.a._nProto || 1);
-  if (total <= 0) return pool[Math.floor(r * pool.length)];
-  let acc = r * total;
-  for (const p of pool) {
-    acc -= (tuneOf(p.a.name).proportion || 0) / (p.a._nProto || 1);
-    if (acc <= 0) return p;
-  }
-  return pool[pool.length - 1];
-}
 
 
 // ==========================================================================
@@ -2099,7 +2169,7 @@ function normalMatFor(src) {
   return m;
 }
 
-function bakeImpostor(proto, tile) {
+function bakeImpostor(proto, tile, plainMips) {
   const TILE = tile || IMP_TILE;
   const staged = proto.clone(true);
   staged.position.set(0, 0, 0);
@@ -2271,7 +2341,12 @@ function bakeImpostor(proto, tile) {
     t.needsUpdate = true;
     return t;
   };
-  const mips = buildAtlasMips(rt, N, IMP_G, TILE, Math.round(255 * U_ICUT.value));
+  // A SNAG'S CHAIN IS STRAIGHT. Coverage preservation exists for a canopy
+  // that thins as it shrinks; a bare tree's twigs are one texel wide and the
+  // rescale boosted every faint twig texel to a solid block - the muskeg's
+  // dead sticks wore white 4-pixel squares at every coarse level. Averaged
+  // straight, a twig fades with distance, which is what a twig does.
+  const mips = buildAtlasMips(rt, N, IMP_G, TILE, Math.round(255 * U_ICUT.value), !!plainMips);
   // The NORMAL sheet takes a STRAIGHT chain. Coverage preservation is an alpha
   // correction fitted to keep a cutout's silhouette alive as it shrinks; a
   // normal has no silhouette to keep, and rescaling its alpha would only make
@@ -2839,6 +2914,8 @@ function updateImpFields() {
 // with a hit rate.
 function impBakeSig(name) {
   const t = tuneOf(name);
+  const sp = spOf(name);
+  name = sp ? sp.file : name;
   // How many maps have actually decoded is PART OF THE SIGNATURE, so an atlas
   // baked while a texture was still in flight is superseded the moment it
   // lands rather than outliving the session.
@@ -2851,32 +2928,604 @@ function impBakeSig(name) {
   // rebakes. It holds ALBEDO and NORMALS now: none of those reach it, and the
   // ones that do are the ones that change the tree itself. The AO is new to
   // the list for the same reason - it is IN the albedo now.
-  return [t.hue, t.sat, t.light, t.bark, t.alpha, t.sink, t.dead, t.stick,
+  return [t.hue, t.sat, t.light, t.bark, t.alpha, t.sink, t.dead, t.stick, t.size,
           MIPFIX ? 1 : 0, U_AOBAKE.value,
-          CROWN_STRETCH, CROWN_W, TRUNK_DARK, nMap, nReady].join(',');
+          CROWN_STRETCH, CROWN_W, TRUNK_DARK, nMap, nReady,
+          t.bend || 0, t.bendFreq || 0, t.lean || 0, t.flatTop || 0, t.sparse === undefined ? 1 : t.sparse,
+          t.prune === undefined ? 1 : t.prune, JSON.stringify(t.sizes || 0),
+          t.leafScale === undefined ? 1 : t.leafScale, t.leafFill === undefined ? 1 : t.leafFill,
+          t.branches === undefined ? 3 : t.branches, t.taper === undefined ? 0.12 : t.taper].join(',');
 }
-function impostorFor(key, proto, name, tile) {
-  const sig = impBakeSig(name) + ',' + (tile || IMP_TILE);
+function impostorFor(key, proto, name, tile, plainMips) {
+  const sig = impBakeSig(name) + ',' + (tile || IMP_TILE) + (plainMips ? ',plain' : '');
   const hit = IMP_CACHE.get(key);
   if (hit && hit.sig === sig) return hit;
   if (hit && hit.tex) hit.tex.dispose();    // 4 MB a tile-sheet; do not leak them
   if (hit && hit.nrm) hit.nrm.dispose();    // and the normal sheet is a second
-  const at = bakeImpostor(proto, tile);
+  const at = bakeImpostor(proto, tile, plainMips);
   if (at) at.sig = sig;
   IMP_CACHE.set(key, at);
   return at;
 }
 
+// ==========================================================================
+// SPECIES — what the stand is made of (2026-09-15)
+//
+// A species is the unit the dials, the draw and the payload speak about. In
+// W0a it was the FILE: one conifer per download, so the tuning was keyed by
+// file name and nobody noticed the difference. The deciduous pack holds 24
+// subjects of nine kinds in one file, and the muskeg's dead sticks are
+// another author's subjects. So a species is a TUNING ENTRY that names the
+// file it reads, the subjects it takes from it (all, by default), the snags
+// drawn for its `dead` fraction (subjects of ANY file - the pack's dead
+// conifers stand in for the pines, the user's ruling: "consider the dead
+// trees a part of another species and include in the dead percentage"), its
+// KIND (tree / shrub / cover - which layer plants it), per-subject `sizes`
+// and the authoring ops. An entry with no `file` is a species of the file
+// it is named after - every W0a row, unchanged.
+// ==========================================================================
+let SPECIES = [];   // [{ key, file, asset, kind, subjects: [G], snags: [{asset, G}] }]
+let TUNE_KEY = null;               // the species whose dials buildGroup reads
+const spOf = key => SPECIES.find(s => s.key === key);
+const speciesOfFile = file => SPECIES.filter(s => s.file === file);
+const groupsAll = a => [].concat(a.trees || [], a.shrubs || [], a.cover || [], a.billboards || []);
+function buildSpecies() {
+  SPECIES = [];
+  const byFile = n => INDEX.assets.find(a => a.name === n || a.file === n);
+  const claimed = new Set();
+  for (const key in TUNE) {
+    const t = TUNE[key];
+    const a = byFile(t.file || key);
+    if (!a || !a.renderable) continue;
+    const kind = t.kind || 'tree';
+    const pool = kind === 'cover' ? a.cover.concat(a.shrubs)
+               : kind === 'shrub' ? a.shrubs.concat(a.trees) : subjectsOf(a);
+    // a GENERATED species (`gen`) has no subject in the file: it borrows a
+    // material from it (the stick wears the pack's dead bark)
+    let subjects = t.gen ? []
+      : t.subjects ? t.subjects.map(n => groupsAll(a).find(G => G.name === n)).filter(Boolean)
+      : pool.filter(G => !G.merged);
+    // `parts`: only these ELEMENTS of each subject (by the inspector's element
+    // name) - simple_grass_chunks' one plant was fused with the 52 k-triangle
+    // ground scan beside it, and the species wants the plant
+    if (t.parts && t.parts.length)
+      subjects = subjects.map(G => Object.assign({}, G, { els: G.els.filter(e => t.parts.indexOf(e.name) >= 0) }))
+                         .filter(G => G.els.length);
+    if (!subjects.length && !t.gen) continue;
+    const snags = (t.snags || []).map(ref => {
+      const k = ref.indexOf('|');
+      const f = k >= 0 ? ref.slice(0, k) : (t.file || key), n = k >= 0 ? ref.slice(k + 1) : ref;
+      const sa = byFile(f);
+      if (!sa) return null;
+      const G = groupsAll(sa).find(x => x.name === n);
+      return G ? { asset: sa, G: G } : null;
+    }).filter(Boolean);
+    SPECIES.push({ key: key, file: a.name, asset: a, kind: kind, subjects: subjects, snags: snags });
+    claimed.add(a.name);
+  }
+  // a renderable file with trees and no entry is its own species, as before
+  for (const a of INDEX.assets) {
+    if (!a.renderable || claimed.has(a.name)) continue;
+    const subjects = subjectsOf(a).filter(G => !G.merged);
+    if (!subjects.length) continue;
+    SPECIES.push({ key: a.name, file: a.name, asset: a, kind: 'tree', subjects: subjects, snags: [] });
+  }
+}
+// the materials a set of groups actually wears - the dials reach these and
+// nothing else, so two species sharing a file keep their own colour
+function matsOfGroups(built, groups) {
+  const set = new Set();
+  const take = o => o.traverse(m => { if (m.isMesh && m.material) set.add(m.material); });
+  for (const G of groups) for (const e of G.els) {
+    const src = built.byNode.get(e.node);
+    if (src) take(src);
+    for (const cl of (e.clips || [])) { const h = built.byNode.get(cl.node); if (h) take(h); }
+  }
+  return [...set];
+}
+function retintSpecies(sp) {
+  const built = cache[sp.file];
+  if (!built) return;
+  if (MIPFIX) mipFixAsset(sp.file);
+  aoFixAsset(sp.file);
+  const t = tuneOf(sp.key);
+  for (const m of matsOfGroups(built, sp.subjects)) { CUT = t.alpha; applyAlpha(m); applyTune(m, t); }
+  if (t.material) {                        // a generated species' borrowed material
+    const m = built.mats.find(x => x.userData.matName === t.material);
+    if (m) { CUT = t.alpha === undefined ? 0.4 : t.alpha; applyAlpha(m); applyTune(m, t); }
+  }
+  // a snag from another file wears this species' bark dial (its own leaf dials never apply: it has no leaves)
+  for (const s of sp.snags) {
+    const sb = cache[s.asset.name];
+    if (!sb) continue;
+    // and that file's AO bake, or the snag is built on an unbound aoV and
+    // draws BLACK (pow(0, aoBake)) - the pines' first muskeg did exactly that
+    if (s.asset.name !== sp.file) { if (MIPFIX) mipFixAsset(s.asset.name); aoFixAsset(s.asset.name); }
+    for (const m of matsOfGroups(sb, [s.G])) { CUT = t.alpha; applyAlpha(m); applyTune(m, t); }
+  }
+}
+function measureSpecies(sp) {
+  const built = cache[sp.file];
+  return built ? measureMats(matsOfGroups(built, sp.subjects)) : null;
+}
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+// ==========================================================================
+// AUTHORING OPS — a species is not always what was downloaded
+//
+// The muskeg's shore pine is short, leaning and twisted; every pine on the
+// shelf is a straight young tree. Rather than hunt for a download, the
+// species carries OPS that derive the prototype from the subject: `bend`
+// (the bole follows a seeded curve, metres of offset at the crown, the
+// foliage moving with the wood it hangs from), `bendFreq` (how many turns of
+// it), `lean` (degrees off vertical, in a seeded direction), `flatTop` (the
+// top 45 % compressed - the wind's work), `sparse` (the fraction of foliage
+// islands kept - a starved crown), `prune` (the fraction of branch islands
+// kept on the wood - "a couple of dead short branches"). `variants` makes N
+// prototypes from one subject with N seeds, so one straight pine becomes
+// three different crooked ones. Every op is a pure function on the built
+// holder, like cullFoliage and growCrown; the impostor signature carries
+// them (impBakeSig), so a changed op is a fresh sheet.
+// ==========================================================================
+const OPS_KEYS = ['bend', 'bendFreq', 'lean', 'flatTop', 'sparse', 'prune', 'variants', 'bendPct', 'leafScale'];
+function hasOps(t) {
+  return (t.bend || 0) > 0 || (t.lean || 0) > 0 || (t.flatTop || 0) > 0 ||
+         (t.sparse !== undefined && t.sparse < 1) || (t.prune !== undefined && t.prune < 1) ||
+         (t.leafScale !== undefined && Math.abs(t.leafScale - 1) > 1e-3);
+}
+// FOLIAGE MORE VISIBLE (the user, on the pines: "the foliage of the base
+// model is too weak, especially compared to the impostors"): every leaf
+// island scaled about its own centroid, so the cards grow without the crown
+// moving - a fuller crown from the same cards. `leafFill` (an alpha exponent
+// in the shader, applyTune) is the companion: thicker cutouts on the same
+// texture. Both reach the bake, so the sheet grows with the mesh.
+function scaleIslands(root, k) {
+  if (Math.abs(k - 1) < 1e-3) return;
+  root.updateMatrixWorld(true);
+  const v = new THREE.Vector3(), inv = new THREE.Matrix4();
+  root.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.userData.alphaMode === 'OPAQUE') return;
+    const g = o.geometry.clone(), pos = g.attributes.position;
+    if (!pos) return;
+    const info = geoComponents(g);
+    inv.copy(o.matrixWorld).invert();
+    for (const C of info.comps) {
+      const vs = new Set();
+      for (const t of C.tris) for (let q = 0; q < 3; q++) vs.add(info.idx ? info.idx[t * 3 + q] : t * 3 + q);
+      // the centroid in WORLD space, the scale about it, back to local
+      const c = new THREE.Vector3(C.x, C.y, C.z).applyMatrix4(o.matrixWorld);
+      for (const i of vs) {
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld);
+        v.sub(c).multiplyScalar(k).add(c).applyMatrix4(inv);
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+    }
+    pos.needsUpdate = true;
+    g.computeBoundingSphere(); g.computeBoundingBox();
+    o.geometry = g;
+  });
+}
+// fn(v, t) mutates a WORLD-space vertex; t is its height 0..1 over the root
+function warpVertices(root, fn) {
+  root.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(root);
+  if (!isFinite(bb.min.x)) return;
+  const y0 = bb.min.y, h = Math.max(0.01, bb.max.y - y0);
+  const v = new THREE.Vector3(), inv = new THREE.Matrix4();
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry.attributes.position) return;
+    const g = o.geometry.clone(), pos = g.attributes.position;
+    inv.copy(o.matrixWorld).invert();
+    for (let i = 0; i < pos.count; i++) {
+      v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld);
+      fn(v, (v.y - y0) / h);
+      v.applyMatrix4(inv);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+    // a clone carries the SOURCE's boxes; Box3.setFromObject trusts them
+    g.computeBoundingSphere(); g.computeBoundingBox();
+    o.geometry = g;
+  });
+}
+// keep a seeded fraction of the ISLANDS of the cutout (or the opaque) meshes
+function sparseIslands(root, keepFrac, seed, opaque) {
+  const r = rng(seed);
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    if ((o.material.userData.alphaMode === 'OPAQUE') !== !!opaque) return;
+    const info = geoComponents(o.geometry), src = info.idx, out = [];
+    for (const C of info.comps) {
+      if (r() > keepFrac) continue;
+      for (const t of C.tris) for (let k = 0; k < 3; k++) out.push(src ? src[t * 3 + k] : t * 3 + k);
+    }
+    const ng = o.geometry.clone();
+    ng.setIndex(out);
+    ng.computeBoundingSphere(); ng.computeBoundingBox();
+    o.geometry = ng;
+  });
+}
+// the wood split into stem and branches (barkSplit), a fraction of the
+// branch islands dropped, and the two put back under the group
+function pruneBranches(grp, keep, seed) {
+  const stem = grp.clone(true), br = grp.clone(true);
+  for (const c of [stem, br]) { c.position.set(0, 0, 0); c.quaternion.set(0, 0, 0, 1); c.scale.set(1, 1, 1); }
+  cullFoliage(stem, () => false); cullFoliage(br, () => false);
+  barkSplit(stem, true); barkSplit(br, false);
+  sparseIslands(br, keep, seed, true);
+  stripBark(grp);
+  grp.add(stem); grp.add(br);
+}
+// `bent` false: this variant is one of the (1 - bendPct) straight ones -
+// the bend and the lean are skipped, the rest of the ops still apply
+function applyOps(holder, t, seed, bent) {
+  const grp = holder.children[0];
+  if (!grp) return holder;
+  const r = rng((seed * 2654435761 + 7) >>> 0);
+  const p1 = r() * 6.2832, bdir = r() * 6.2832, dir = r() * 6.2832, leanK = 0.6 + 0.8 * r();
+  const amp = bent === false ? 0 : (t.bend || 0), freq = t.bendFreq || 1.2;
+  const lean = bent === false ? 0 : Math.tan((t.lean || 0) * Math.PI / 180) * leanK;
+  const flat = t.flatTop || 0;
+  if (t.sparse !== undefined && t.sparse < 1) sparseIslands(grp, t.sparse, seed + 11, false);
+  if (t.prune !== undefined && t.prune < 1) pruneBranches(grp, t.prune, seed + 23);
+  if (t.leafScale !== undefined) scaleIslands(grp, t.leafScale);
+  if (amp > 0 || lean > 0 || flat > 0) {
+    holder.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(holder);
+    const y0 = bb.min.y, h = Math.max(0.01, bb.max.y - y0);
+    warpVertices(grp, (v, tt) => {
+      // THE CURVATURE IS AT THE BASE (the user: "too much bending at the
+      // top, where the leaves are... concentrated at the bottom, an
+      // intensity gradient to the top"): the offset rises as 1-(1-t)^2.5,
+      // so the bole bends low and the crown is CARRIED, not distorted; the
+      // wiggle rides a (1-t)^2 envelope for the same reason. One direction
+      // per tree, seeded.
+      const u = Math.max(0, tt);
+      const prof = 1 - Math.pow(1 - u, 2.5);
+      const wig = Math.sin(u * freq * Math.PI + p1) * Math.pow(1 - u, 2) * 0.35;
+      const off = amp * (prof + wig);
+      v.x += off * Math.cos(bdir) + lean * Math.cos(dir) * (v.y - y0);
+      v.z += off * Math.sin(bdir) + lean * Math.sin(dir) * (v.y - y0);
+      if (flat > 0 && tt > 0.55) v.y = y0 + h * (0.55 + (tt - 0.55) * (1 - flat));
+    });
+  }
+  // the holder's facts follow the new shape; it still stands on zero
+  holder.updateMatrixWorld(true);
+  const bb2 = new THREE.Box3().setFromObject(holder);
+  if (isFinite(bb2.min.x)) {
+    grp.position.y -= bb2.min.y - holder.position.y;
+    holder.userData.h = bb2.max.y - bb2.min.y;
+    holder.userData.w = Math.max(bb2.max.x - bb2.min.x, bb2.max.z - bb2.min.z);
+  }
+  return holder;
+}
+// ==========================================================================
+// THE CHEAP DEAD TREE (the user, 2026-09-15): "a basic trunk, very low poly,
+// maybe a very little bending option, 2-3 dead branches out of it and a
+// correct trunk mapping on the dead tree texture" - a generated species
+// (`gen: stick`) wearing the pack's dead bark (`material`). A tapered
+// open cylinder of 8 sides, `branches` tapered cylinders leaving it between
+// 35 and 85 % of the height at 35-65 deg, all under 250 triangles; the bark
+// tiles along the bole; the AO byte is the foot-to-crown gradient. The bend
+// op then leans it like any subject. Straight to its sheet past L0.
+// ==========================================================================
+function stickProto(sp, built, t, seed) {
+  const r = rng((seed * 1103515245 + 12345) >>> 0);
+  const mat = built.mats.find(x => x.userData.matName === t.material) || built.mats.find(x => x.userData.alphaMode === 'OPAQUE');
+  const h = 12 * (t.size || 1), rBase = 0.22 * Math.sqrt(t.size || 1), rTop = rBase * (t.taper === undefined ? 0.12 : t.taper);
+  const grp = new THREE.Group();
+  const shade = (g, y0, hh) => {
+    const pos = g.attributes.position, a = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) a[i] = trunkShade((pos.getY(i) - y0) / Math.max(1e-3, hh));
+    g.setAttribute('aoV', new THREE.BufferAttribute(a, 1));
+  };
+  const bole = new THREE.CylinderGeometry(rTop, rBase, h, 8, 6, true);
+  {                                        // the bark tiles along the bole, ~1.5 m a repeat
+    const uv = bole.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * h / 1.5);
+    bole.translate(0, h / 2, 0);
+    shade(bole, 0, h);
+  }
+  grp.add(new THREE.Mesh(bole, mat));
+  const nb = Math.max(0, Math.round(t.branches === undefined ? 3 : t.branches));
+  for (let i = 0; i < nb; i++) {
+    const tt = 0.35 + 0.5 * r(), len = h * (0.10 + 0.12 * r());
+    const rAt = rBase + (rTop - rBase) * tt;
+    const bg = new THREE.CylinderGeometry(rAt * 0.12, rAt * 0.55, len, 6, 2, true);
+    const uv = bg.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k) * len / 1.5);
+    bg.translate(0, len / 2, 0);
+    const m = new THREE.Mesh(bg, mat);
+    m.rotation.set(0, r() * 6.2832, (35 + 30 * r()) * Math.PI / 180, 'YXZ');
+    m.rotation.order = 'YZX';
+    m.position.set(0, tt * h, 0);
+    m.updateMatrixWorld(true);
+    bg.applyMatrix4(m.matrix); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0);
+    shade(bg, 0, h);
+    grp.add(m);
+  }
+  const holder = new THREE.Group();
+  holder.add(grp);
+  holder.userData = { name: 'stick', h: h, w: h * 0.25, group: null, sink: t.sink || 0, gen: 'stick' };
+  holder.position.y = -(t.sink || 0);
+  return holder;
+}
+
+// every prototype of a species: subjects x variants, dials and ops applied.
+// `w` is the prototype's share of the species' draw: with `bendPct` < 1 the
+// first variant of each subject is kept STRAIGHT and takes (1 - bendPct),
+// the bent ones share the rest (the user: "a percentage only of trees bent")
+function speciesProtos(sp, built) {
+  const t = tuneOf(sp.key), out = [];
+  const gen = t.gen === 'stick';
+  const ops = hasOps(t) || gen;
+  const nv = ops ? Math.max(1, Math.round(t.variants || 1)) : 1;
+  const pct = (t.bend || 0) > 0 || (t.lean || 0) > 0 ? (t.bendPct === undefined ? 1 : t.bendPct) : 1;
+  const split = pct < 1 && nv > 1;
+  const subjects = gen ? [{ name: 'stick' }] : sp.subjects;
+  const nS = Math.max(1, subjects.length);
+  for (const G of subjects) for (let v = 0; v < nv; v++) {
+    let h;
+    if (gen) h = stickProto(sp, built, t, (hashStr(sp.key) + v * 977) >>> 0);
+    else {
+      const saveC = CUR, saveL = LODSEL;
+      CUR = sp.asset; LODSEL = -1; TUNE_KEY = sp.key;
+      h = buildGroup(built, G);
+      TUNE_KEY = null; CUR = saveC; LODSEL = saveL;
+    }
+    if (!h) continue;
+    const bent = !(split && v === 0);
+    if (ops) applyOps(h, t, (hashStr(sp.key + '|' + G.name) + v * 977) >>> 0, bent);
+    h.userData.variant = v; h.userData.species = sp.key;
+    const w = !split ? 1 / (nS * nv) : (v === 0 ? (1 - pct) / nS : pct / (nS * (nv - 1)));
+    out.push({ sp: sp, G: G, v: v, near: h, w: w, bent: bent });
+  }
+  return out;
+}
+
+// ==========================================================================
+// INSTANCED FIELDS — the understory is thousands of small things
+//
+// A tree is cloned into the stage (260 of them); a shrub layer is hundreds
+// and a grass layer is thousands, and a clone each is a draw call each. One
+// InstancedMesh per (prototype part) instead, the prototype's own parts and
+// materials, so the tint hooks, the AO attribute and the cutout all ride
+// along unchanged (r128 instances through <project_vertex>).
+// ==========================================================================
+function instanceField(proto) {
+  proto.updateMatrixWorld(true);
+  const parts = [];
+  proto.traverse(o => { if (o.isMesh) parts.push({ geo: o.geometry, mat: o.material, m: o.matrixWorld.clone() }); });
+  const F = { parts: parts, items: [], group: null };
+  F.add = (x, y, z, s, yaw) => { F.items.push(x, y, z, s, yaw); };
+  F.build = () => {
+    const n = F.items.length / 5;
+    if (!n || !F.parts.length) return null;
+    const g = new THREE.Group(), M = new THREE.Matrix4(), T = new THREE.Matrix4(), S = new THREE.Vector3();
+    for (const p of F.parts) {
+      const im = new THREE.InstancedMesh(p.geo, p.mat, n);
+      for (let i = 0; i < n; i++) {
+        const o = i * 5, s = F.items[o + 3];
+        T.makeRotationY(F.items[o + 4]); T.scale(S.set(s, s, s));
+        T.setPosition(F.items[o], F.items[o + 1], F.items[o + 2]);
+        M.multiplyMatrices(T, p.m);
+        im.setMatrixAt(i, M);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = SHADOWS; im.receiveShadow = SHADOWS;
+      im.frustumCulled = false;
+      g.add(im);
+    }
+    F.group = g;
+    return g;
+  };
+  return F;
+}
+
+// ==========================================================================
+// WET GROUND — the muskeg's pools, a judging surface
+//
+// Not the game's water: a plane whose colour and roughness come from ONE
+// tileable value noise, and the planter reads the SAME function (poolAt), so
+// a tree is refused in a pool and a sedge tuft prefers its edge for the
+// reason the picture shows.
+// ==========================================================================
+const WET_PERIOD = 400;                         // m; the texture tiles on it
+function hash2(ix, iz) {
+  let n = (ix * 374761393 + iz * 668265263 + 1013904223) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function vnoiseT(u, w, N) {                     // u, w in [0,1); N cells, wrapping
+  const x = u * N, z = w * N;
+  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+  const W = k => ((k % N) + N) % N;
+  const a = hash2(W(ix), W(iz)), b = hash2(W(ix + 1), W(iz)), c = hash2(W(ix), W(iz + 1)), d = hash2(W(ix + 1), W(iz + 1));
+  const top = a + (b - a) * sx, bot = c + (d - c) * sx;
+  return top + (bot - top) * sz;
+}
+function poolAt(x, z) {                          // 0 = peat, 1 = open water
+  const u = (((x % WET_PERIOD) + WET_PERIOD) % WET_PERIOD) / WET_PERIOD;
+  const w = (((z % WET_PERIOD) + WET_PERIOD) % WET_PERIOD) / WET_PERIOD;
+  const n = 0.55 * vnoiseT(u, w, 5) + 0.30 * vnoiseT(u + 0.37, w + 0.11, 11) + 0.15 * vnoiseT(u + 0.71, w + 0.53, 23);
+  const thr = 0.66 - 0.30 * (FOREST.wet || 0);
+  const e = 0.035;
+  const s = Math.min(1, Math.max(0, (n - (thr - e)) / (2 * e)));
+  return s * s * (3 - 2 * s);
+}
+let WET_MAT = null, WET_KEY = '';
+function wetMaterial() {
+  const key = String(FOREST.wet || 0);
+  if (WET_MAT && WET_KEY === key) return WET_MAT;
+  const N = 512, cv2 = document.createElement('canvas'), rv = document.createElement('canvas');
+  cv2.width = cv2.height = N; rv.width = rv.height = N;
+  const c = cv2.getContext('2d'), r = rv.getContext('2d');
+  const img = c.createImageData(N, N), rim = r.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = i / N * WET_PERIOD, z = j / N * WET_PERIOD;
+    const p = poolAt(x, z);
+    const m = 0.5 + 0.5 * vnoiseT(i / N, j / N, 41);       // the sedge mat's mottle
+    const peat = [52 + 22 * m, 48 + 24 * m, 30 + 8 * m];
+    const pool = [38, 50, 56];
+    const o = (j * N + i) * 4;
+    for (let k = 0; k < 3; k++) img.data[o + k] = peat[k] + (pool[k] - peat[k]) * p;
+    img.data[o + 3] = 255;
+    const rough = 255 * (1 - 0.85 * p);
+    rim.data[o] = rim.data[o + 1] = rim.data[o + 2] = rough; rim.data[o + 3] = 255;
+  }
+  c.putImageData(img, 0, 0); r.putImageData(rim, 0, 0);
+  const tex = new THREE.CanvasTexture(cv2), rt = new THREE.CanvasTexture(rv);
+  for (const t of [tex, rt]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(8000 / WET_PERIOD, 8000 / WET_PERIOD); }
+  tex.encoding = THREE.sRGBEncoding;
+  if (WET_MAT) { WET_MAT.map.dispose(); WET_MAT.roughnessMap.dispose(); WET_MAT.dispose(); }
+  WET_MAT = new THREE.MeshStandardMaterial({ map: tex, roughnessMap: rt, roughness: 1, metalness: 0 });
+  WET_KEY = key;
+  return WET_MAT;
+}
+const PLAIN_GROUND_MAT = ground.material;
+
+// ==========================================================================
+// MIXES — the user's biomes, as presets (2026-09-15): conifer (W0a, as is),
+// muskeg, grassland, borders. A mix is a PICK with proportions (and the dead
+// fraction) per species, plus the stand's dials. Selecting one writes those
+// into the species' dials, so the rows below the stand show what the mix
+// says; `save mix` snapshots the rows back. Committed in _trees_tuning.json.
+// ==========================================================================
+let MIXES = {};
+let MIX_NAME = 'conifer';
+const MIX_FOREST_KEYS = ['ground', 'count', 'radius', 'under', 'cover', 'reach', 'wet', 'mix', 'edge', 'glades', 'split', 'spread', 'scale'];
+function applyMix(name) {
+  const M = MIXES[name];
+  if (!M) return;
+  MIX_NAME = name;
+  for (const k in PICK) PICK[k] = false;
+  for (const k in (M.species || {})) {
+    if (!spOf(k)) continue;
+    PICK[k] = true;
+    const t = tuneOf(k);
+    const o = M.species[k];
+    if (o.proportion !== undefined) t.proportion = o.proportion;
+    if (o.dead !== undefined) t.dead = o.dead;
+    if (o.density !== undefined) t.density = o.density;
+    TUNE[k] = t;
+  }
+  for (const k of MIX_FOREST_KEYS) if (M.forest && M.forest[k] !== undefined) FOREST[k] = M.forest[k];
+  saveTune(); savePick();
+  try { localStorage.setItem('flydiy.trees.mix', name); } catch (e) {}
+}
+function snapshotMix() {
+  const species = {};
+  for (const s of SPECIES) if (PICK[s.key]) {
+    const t = tuneOf(s.key);
+    species[s.key] = s.kind === 'cover' ? { proportion: t.proportion, density: t.density }
+                                        : { proportion: t.proportion, dead: t.dead || 0 };
+  }
+  const forest = {};
+  for (const k of MIX_FOREST_KEYS) forest[k] = FOREST[k];
+  return { species: species, forest: forest };
+}
+
+// ==========================================================================
+// FIT IMPLIGHT — the impostor measured against its own geometry (2026-09-15)
+//
+// docs/TREE-IMPORT.md section 6: "fit implight by measuring the impostor
+// against its own geometry at the same camera and BISECTING - the Newton
+// step oscillates". Done by hand for the conifers; a button now, because a
+// shrub's dense crown is mostly ambient-lit inside and the sheet's single
+// AO exponent lands a holly 1.5x brighter than its mesh. The species' first
+// prototype is drawn alone from one camera as geometry, then as its sheet;
+// the mean luminance over each one's OWN pixels (against an empty frame) is
+// the number; eight bisection steps of `implight` bring the sheet to the
+// mesh. The stage is put back as it was.
+// ==========================================================================
+const _fitCv = document.createElement('canvas'); _fitCv.width = 480; _fitCv.height = 280;
+function frameLum() {
+  render();
+  const c = _fitCv.getContext('2d');
+  c.drawImage(renderer.domElement, 0, 0, _fitCv.width, _fitCv.height);
+  return c.getImageData(0, 0, _fitCv.width, _fitCv.height).data;
+}
+// THE DOC'S METRIC (W0c.18): the mean luminance over the FRAME, background
+// included - the object's light in the picture, which is what a distant tree
+// is. A per-covered-pixel mean weighs a silhouette's rim and interior the
+// way a viewer at 20 m does, not one at 400 m, and it put the cedar (judged
+// at 1.0 in W0c) at 0.58. `n` counts the pixels the object changed.
+function coveredLum(frame, empty) {
+  let sum = 0, n = 0;
+  for (let i = 0; i < frame.length; i += 4) {
+    const d = Math.abs(frame[i] - empty[i]) + Math.abs(frame[i + 1] - empty[i + 1]) + Math.abs(frame[i + 2] - empty[i + 2]);
+    if (d >= 24) n++;
+    sum += 0.2126 * frame[i] + 0.7152 * frame[i + 1] + 0.0722 * frame[i + 2];
+  }
+  return { lum: sum / (frame.length / 4), n: n };
+}
+async function fitImplight(key) {
+  const sp = spOf(key);
+  if (!sp) return null;
+  const built = await ensureLoaded(sp.file);
+  if (!built) return null;
+  await texturesReady();
+  retintSpecies(sp);
+  const pr = speciesProtos(sp, built)[0];
+  if (!pr) return null;
+  const t = tuneOf(key);
+  const keep = stage.children.slice(), keepFields = IMP_FIELDS.slice();
+  const cam = { target: target.clone(), dist: dist, yaw: yaw, pitch: pitch, man: man.visible, gv: ground.visible, grid: grid.visible };
+  clearStage(); man.visible = false; grid.visible = false;
+  // A GROVE, NOT A SPECIMEN. Alone, the mesh shades itself through the shadow
+  // map while the sheet carries only its baked AO, and the fit lands at 0.6
+  // for a cedar W0c judged at 1.0 in the stand. In a grove the trees shade
+  // each other and both tiers receive that alike - the doc's measurement was
+  // a stand from 40 m. 5 x 5 copies at 0.9 crown widths, jittered, seeded.
+  const h = pr.near.userData.h || 5, w = pr.near.userData.w || h * 0.5;
+  const gr = rng(4242), spots = [];
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++)
+    spots.push([(i - 2) * w * 0.9 + (gr() - 0.5) * w * 0.4, (j - 2) * w * 0.9 + (gr() - 0.5) * w * 0.4, gr() * 6.28]);
+  target.set(0, h * 0.4, 0); dist = Math.max(14, h * 3.2 + w * 2); yaw = 0.5; pitch = 0.2; place();
+  const empty = frameLum();
+  const GF = instanceField(pr.near);
+  for (const q of spots) GF.add(q[0], 0, q[1], 1, q[2]);
+  const geo = GF.build(); stage.add(geo); measureStage();
+  const gL = coveredLum(frameLum(), empty);
+  stage.remove(geo);
+  const at = impostorFor(sp.key + '|' + pr.G.name + (pr.v ? '|v' + pr.v : '') + (sp.kind === 'shrub' ? '|shrub' : ''),
+                         pr.near, sp.key, sp.kind === 'shrub' ? IMP_TILE_HI : IMP_TILE);
+  let result = null;
+  if (at && gL.n > 50) {
+    const IF = makeImpField(at, t.impa, 1, t.sink);
+    for (const q of spots) IF.add(q[0], -(t.sink || 0), q[1], 1);
+    const m = IF.build(); IF.update(camera); stage.add(m); IMP_FIELDS.length = 0; IMP_FIELDS.push(IF);
+    measureStage();
+    const u = m.material.userData.uILight;
+    let lo = 0.4, hi = 2.0, iL = 0;
+    for (let k = 0; k < 8; k++) {
+      const mid = (lo + hi) / 2; u.value = mid;
+      iL = coveredLum(frameLum(), empty).lum;
+      if (iL > gL.lum) hi = mid; else lo = mid;       // brighter than the mesh: a smaller gamma
+    }
+    const fit = +((lo + hi) / 2).toFixed(3);
+    t.implight = fit; TUNE[key] = t; saveTune();
+    result = { key: key, geometry: +gL.lum.toFixed(1), impostor: +iL.toFixed(1), implight: fit, px: gL.n };
+    stage.remove(m);
+  }
+  IMP_FIELDS.length = 0; for (const F of keepFields) IMP_FIELDS.push(F);
+  for (const o of keep) stage.add(o);
+  man.visible = cam.man; ground.visible = cam.gv; grid.visible = cam.grid;
+  target.copy(cam.target); dist = cam.dist; yaw = cam.yaw; pitch = cam.pitch; place();
+  measureStage(); render();
+  return result;
+}
+
 async function showForest() {
   clearStage();
   man.visible = true;
-  const picked = INDEX.assets.filter(a => PICK[a.name] && a.renderable &&
-    a.trees.length && !a.trees.every(t => t.merged));
+  const picked = SPECIES.filter(s => PICK[s.key] && s.asset.renderable);
   $('msg').textContent = 'building stand...';
 
   // the ground first, because the trees are placed onto it
   forestGround = null;
-  if (FOREST.ground !== 'plane') {
+  if (FOREST.ground !== 'plane' && FOREST.ground !== 'wet') {
     const gb = await ensureLoaded(FOREST.ground);
     const ga = INDEX.assets.find(x => x.name === FOREST.ground);
     if (gb && ga) {
@@ -2888,8 +3537,10 @@ async function showForest() {
       if (holder.children.length) { stage.add(holder); forestGround = holder; }
     }
   }
+  const wet = FOREST.ground === 'wet';
+  ground.material = wet ? wetMaterial() : PLAIN_GROUND_MAT;
   ground.visible = !forestGround;
-  grid.visible = !forestGround;
+  grid.visible = !forestGround && !wet;
 
   const ray = new THREE.Raycaster();
   const down = new THREE.Vector3(0, -1, 0);
@@ -2900,6 +3551,7 @@ async function showForest() {
     return hit ? hit.point.y : null;
   };
   const groundY0 = () => groundY([0, 0]);
+  const wetAt = (x, z) => wet ? poolAt(x, z) : 0;
 
   // THE EYE IS CHOSEN BEFORE THE TREES, because the rung a tree gets is a
   // function of how far away it will actually be. Setting the camera at the
@@ -2935,123 +3587,179 @@ async function showForest() {
     glades.push({ x: Math.cos(ga) * gr, z: Math.sin(ga) * gr,
                   r: FOREST.radius * (0.06 + 0.10 * gRand()) });
   }
+  // how far a point stands from the nearest edge - the rim, or a glade's lip
+  const edgeOf = (x, z, rr) => {
+    let edge = FOREST.radius - rr, inGlade = false;
+    for (const g of glades) {
+      const d = Math.hypot(x - g.x, z - g.z);
+      if (d < g.r) { inGlade = true; }
+      else if (d - g.r < edge) edge = d - g.r;
+    }
+    return { edge: edge, inGlade: inGlade };
+  };
 
-  // prototypes: the whole ladder, both series, per subject
-  const protos = [];
-  for (const a of picked) {
-    const built = await ensureLoaded(a.name);
+  // prototypes: the whole ladder, both series, per subject (x variants)
+  const protos = [], shrubs = [], covers = [];
+  for (const sp of picked) {
+    const built = await ensureLoaded(sp.file);
     if (!built) continue;
+    for (const s of sp.snags) await ensureLoaded(s.asset.name);
     await texturesReady();                 // the bake reads these; see imageTex
-    retint(a.name);
-    if (!MEAS[a.name] || !MEAS[a.name].px) MEAS[a.name] = measureAsset(a.name, built);
-    for (const G of subjectsOf(a).slice(0, 6)) {
-      const near = protoOf(built, a, G, false);
-      if (!near) continue;
-      const pr = { a: a, G: G, near: near };
+    retintSpecies(sp);
+    if (!MEAS[sp.key] || !MEAS[sp.key].px) MEAS[sp.key] = measureSpecies(sp);
+    const list = speciesProtos(sp, built).slice(0, 12);
+    for (const pr of list) {
+      const near = pr.near, G = pr.G;
+      const vkey = sp.key + '|' + G.name + (pr.v ? '|v' + pr.v : '');
+      if (sp.kind === 'cover') { covers.push(pr); continue; }
+      if (sp.kind === 'dead') {
+        // a dead tree's ladder: the model, then its sheet - no stick rungs
+        // (the user: "for the dead trees we go from billboard to model")
+        pr.deadOnly = true;
+        if (FOREST.impostor) pr.atlasD = impostorFor(vkey + '|dead', near, sp.key, IMP_TILE_HI, true);
+        protos.push(pr);
+        continue;
+      }
+      if (sp.kind === 'shrub') {
+        // a shrub's ladder: the full mesh near, then straight to a fine sheet
+        if (FOREST.impostor) pr.atlas = impostorFor(vkey + '|shrub', near, sp.key, IMP_TILE_HI);
+        shrubs.push(pr);
+        continue;
+      }
       // rung 0-2 as meshes, rung 3 as a field; the specimen series first
+      const fake = { name: sp.key, scaleHint: sp.asset.scaleHint };
       pr.spec = [near,
-                 makeVariant(near, 'foliage', a, G),
-                 makeVariant(near, 'halfFoliage', a, G)];
-      pr.forest = [makeVariant(near, 'fFull', a, G),
-                   makeVariant(near, 'crownStick', a, G),
-                   makeVariant(near, 'crownHalf', a, G)];
+                 makeVariant(near, 'foliage', fake, G),
+                 makeVariant(near, 'halfFoliage', fake, G)];
+      pr.forest = [makeVariant(near, 'fFull', fake, G),
+                   makeVariant(near, 'crownStick', fake, G),
+                   makeVariant(near, 'crownHalf', fake, G)];
       for (let k = 0; k < 3; k++) {
         if (!pr.spec[k]) pr.spec[k] = near;
         if (!pr.forest[k]) pr.forest[k] = pr.spec[k];
       }
       if (FOREST.impostor) {
-        pr.atlasS = impostorFor(a.name + '|' + G.name, near, a.name);
-        pr.atlasF = impostorFor(a.name + '|' + G.name + '|forest', pr.forest[0], a.name);
-        if ((tuneOf(a.name).dead || 0) > 0) {
-          pr.snag = stripFoliage(near) || null;
-          if (pr.snag) pr.atlasD = impostorFor(a.name + '|' + G.name + '|snag',
-                                               pr.snag, a.name, IMP_TILE_HI);
-        }
+        pr.atlasS = impostorFor(vkey, near, sp.key);
+        pr.atlasF = impostorFor(vkey + '|forest', pr.forest[0], sp.key);
       }
       protos.push(pr);
     }
-    for (const G of a.billboards.slice(0, 2)) {
-      const b = protoOf(built, a, G, false);
-      if (b) protos.push({ a: a, G: G, near: b, spec: [b, b, b], forest: [b, b, b],
-                           billboardOnly: true });
-    }
+    // THE SNAGS of a tree species: the pack's dead trees if it names any
+    // (each its own prototype and sheet), else the tree with its leaves
+    // stripped, as W0a did
+    if (sp.kind === 'tree' && (tuneOf(sp.key).dead || 0) > 0) {
+      const snags = [];
+      for (const s of sp.snags) {
+        const sb = cache[s.asset.name];
+        if (!sb) continue;
+        const saveC = CUR, saveL = LODSEL;
+        CUR = s.asset; LODSEL = -1; TUNE_KEY = sp.key;
+        const h = buildGroup(sb, s.G);
+        TUNE_KEY = null; CUR = saveC; LODSEL = saveL;
+        if (h) snags.push({ near: h, key: sp.key + '|snag|' + s.G.name });
+      }
+      if (!snags.length) for (const pr of list) if (pr.sp === sp && pr.spec) {
+        const sn = stripFoliage(pr.near);
+        if (sn) snags.push({ near: sn, key: sp.key + '|' + pr.G.name + '|snag' });
+      }
+      if (FOREST.impostor) for (const s of snags) s.atlas = impostorFor(s.key, s.near, sp.key, IMP_TILE_HI, true);
+      sp._snags = snags;
+    } else sp._snags = [];
   }
-  for (const a of picked) a._nProto = protos.filter(p => p.a === a).length || 1;
-  if (!protos.length) { $('msg').textContent = 'nothing selected'; render(); return; }
+
+  if (!protos.length && !shrubs.length && !covers.length) { $('msg').textContent = 'nothing selected'; render(); return; }
   const planted = {};
 
   IMP_FIELDS.length = 0;
-  if (FOREST.impostor) for (const p of protos) {
-    const t = tuneOf(p.a.name);
-    // the three series, TAGGED - a field that cannot say which series it is
-    // cannot be isolated, and an artefact blamed on the wrong one costs three
-    // fixes that change nothing
-    if (p.atlasS) { p.fieldS = makeImpField(p.atlasS, t.impa, t.implight, t.sink);
-                    p.fieldS.kind = 'specimen'; IMP_FIELDS.push(p.fieldS); }
-    // the stand tree stands on a stick; see STAND_CUT
-    if (p.atlasF) { p.fieldF = makeImpField(p.atlasF, t.impa, t.implight, t.sink,
-                                            undefined, STAND_CUT);
-                    p.fieldF.kind = 'stand'; IMP_FIELDS.push(p.fieldF); }
-    // the snag: its own alpha curve and no coverage dither, see impostorMaterial
-    if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink, 1,
-                                            SNAG_CUT, false);
-                    p.fieldD.kind = 'snag'; IMP_FIELDS.push(p.fieldD); }
+  if (FOREST.impostor) {
+    for (const p of protos) {
+      const t = tuneOf(p.sp.key);
+      // the three series, TAGGED - a field that cannot say which series it is
+      // cannot be isolated, and an artefact blamed on the wrong one costs three
+      // fixes that change nothing
+      if (p.atlasS) { p.fieldS = makeImpField(p.atlasS, t.impa, t.implight, t.sink);
+                      p.fieldS.kind = 'specimen'; IMP_FIELDS.push(p.fieldS); }
+      // the stand tree stands on a stick; see STAND_CUT
+      if (p.atlasF) { p.fieldF = makeImpField(p.atlasF, t.impa, t.implight, t.sink,
+                                              undefined, STAND_CUT);
+                      p.fieldF.kind = 'stand'; IMP_FIELDS.push(p.fieldF); }
+      if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink, 1, SNAG_CUT, false);
+                      p.fieldD.kind = 'snag'; IMP_FIELDS.push(p.fieldD); }
+    }
+    for (const sp of picked) for (const s of (sp._snags || [])) {
+      const t = tuneOf(sp.key);
+      // the snag: its own alpha curve and no coverage dither, see impostorMaterial
+      if (s.atlas) { s.field = makeImpField(s.atlas, t.impa, t.implight, t.sink, 1, SNAG_CUT, false);
+                     s.field.kind = 'snag'; IMP_FIELDS.push(s.field); }
+    }
+    for (const p of shrubs) {
+      const t = tuneOf(p.sp.key);
+      if (p.atlas) { p.field = makeImpField(p.atlas, t.impa, t.implight, t.sink);
+                     p.field.kind = 'shrub'; IMP_FIELDS.push(p.field); }
+    }
   }
   const rand = rng(FOREST.seed);
   // the three boundaries ride on ONE dial, so the whole ladder moves together
   const b0 = FOREST.split, b1 = FOREST.split * 2.2, b2 = FOREST.split * 4.5;
   const lodN = [0, 0, 0, 0], serN = [0, 0, 0];
   let placedNear = 0, placedFar = 0, deadN = 0, rejected = 0, done = 0;
+  const trunks = [];                                  // where the trees stand, for the understory
 
-  for (let tries = 0; done < FOREST.count && tries < FOREST.count * 8; tries++) {
+  const weightOf = p => (tuneOf(p.sp.key).proportion || 0) * (p.w || 1);
+  const draw = (pool, r) => {
+    let total = 0;
+    for (const p of pool) total += weightOf(p);
+    if (total <= 0) return pool[Math.floor(r * pool.length)];
+    let acc = r * total;
+    for (const p of pool) { acc -= weightOf(p); if (acc <= 0) return p; }
+    return pool[pool.length - 1];
+  };
+
+  if (protos.length) for (let tries = 0; done < FOREST.count && tries < FOREST.count * 8; tries++) {
     const ang = rand() * Math.PI * 2;
     const rr = Math.sqrt(rand()) * FOREST.radius;
     const x = Math.cos(ang) * rr, z = Math.sin(ang) * rr;
-    // how far is this from the nearest edge - the rim, or the lip of a glade
-    let edge = FOREST.radius - rr, inGlade = false;
-    for (const g of glades) {
-      const d = Math.hypot(x - g.x, z - g.z);
-      if (d < g.r) { inGlade = true; break; }
-      if (d - g.r < edge) edge = d - g.r;
-    }
-    if (inGlade) { rejected++; continue; }
+    const E = edgeOf(x, z, rr);
+    if (E.inGlade) { rejected++; continue; }
+    if (wetAt(x, z) > 0.5) { rejected++; continue; }   // nothing roots in a pool
     const y = groundY([x, z]);
     if (y === null) { rejected++; continue; }
     done++;
 
-    const p = pickWeighted(protos, rand());
-    const t = tuneOf(p.a.name);
+    const p = draw(protos, rand());
+    const t = tuneOf(p.sp.key);
     // An edge tree is always the specimen shape. An INTERIOR one usually is
     // not - but not never: a stand where every inside tree is a bare pole and
     // a tuft reads empty at density, because a real one is uneven. Some trees
     // got there first, or stand over a gap, and are furnished most of the way
     // down. `furnished` is that fraction, and it is a look decision, not a
     // measurement, so it sits on a dial.
-    const rim = edge < FOREST.edge;
+    const rim = E.edge < FOREST.edge;
     const spec = rim || rand() < FOREST.mix;
     const dEye = Math.hypot(x - eyeX, z - eyeZ);
     let lod = dEye < b0 ? 0 : dEye < b1 ? 1 : dEye < b2 ? 2 : 3;
-    if (p.billboardOnly) lod = Math.min(lod, 2);
 
     // A SNAG IS ITS OWN SERIES, and a two-rung one: the full mesh while it is
     // close, then the impostor for everything else. The stick rungs the live
     // series climbs make no sense here - there is no canopy to stand on a
     // stick - and a sheet baked at IMP_TILE_HI reads better at L1 than a
     // decimated trunk would.
-    let dead = !p.billboardOnly && rand() < (t.dead || 0);
-    if (dead && p.snag === undefined) p.snag = stripFoliage(p.near) || null;
-    if (dead && !p.snag) dead = false;
+    const snags = p.sp._snags || [];
+    const dead = p.deadOnly || (snags.length && rand() < (t.dead || 0));
+    const snag = p.deadOnly ? { near: p.near, field: p.fieldD }
+               : dead ? snags[Math.floor(rand() * snags.length)] : null;
     if (dead) deadN++;
-    const series = dead ? [p.snag, null, null] : spec ? p.spec : p.forest;
-    const field = dead ? p.fieldD : spec ? p.fieldS : p.fieldF;
+    const series = dead ? [snag.near, null, null] : spec ? p.spec : p.forest;
+    const field = dead ? snag.field : spec ? p.fieldS : p.fieldF;
     serN[dead ? 2 : spec ? 0 : 1]++;
 
     const vary = Math.exp((rand() * 2 - 1) * FOREST.spread);
+    trunks.push(x, z, (p.near.userData.w || 4) * 0.5 * vary * FOREST.scale);
     // the live series turns into a billboard at L3; a snag does at L1
     const wantField = lod === 3 || (dead && lod >= 1);
     if (wantField && field) {
       field.add(x, y - (t.sink || 0) * vary * FOREST.scale, z, vary * FOREST.scale);
-      planted[p.a.name] = (planted[p.a.name] || 0) + 1;
+      planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
       placedFar++; lodN[lod]++;
       continue;
     }
@@ -3069,9 +3777,96 @@ async function showForest() {
     // the default 0.2 reproduces the 0.82-1.22x this used to do by fiat.
     inst.scale.multiplyScalar(vary * FOREST.scale);
     stage.add(inst);
-    planted[p.a.name] = (planted[p.a.name] || 0) + 1;
+    planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
     lodN[lod]++;
     if (lod === 0) placedNear++; else placedFar++;
+  }
+
+  // ==========================================================================
+  // THE UNDERSTORY (2026-09-15) - shrubs and cover, over the same ground
+  //
+  // The same disc, the same glades, the same seeded draw and spread - but a
+  // shrub is a light-gap plant: it is refused under a trunk and favoured
+  // toward an edge (the rim, a glade's lip, or a pool's shore in the wet).
+  // `under` is shrubs per 1000 m2. The near ones are their full mesh in one
+  // InstancedMesh per prototype part, the rest a sheet like a snag's.
+  // COVER is grass and its kin: `cover` per m2, planted NEAR THE EYE ONLY
+  // (to `reach`, thinning over the last third) - past that the ground's own
+  // colour carries it, as the game's forest floor does for the canopy.
+  // ==========================================================================
+  const nearTrunk = (x, z) => {
+    for (let i = 0; i < trunks.length; i += 3)
+      if (Math.hypot(x - trunks[i], z - trunks[i + 1]) < trunks[i + 2] * 0.6) return true;
+    return false;
+  };
+  let shrubN = 0, shrubFar = 0, coverN = 0;
+  const under = FOREST.under || 0;
+  if (shrubs.length && under > 0) {
+    const uRand = rng(FOREST.seed * 31 + 5);
+    const fields = new Map();
+    const want = Math.round(Math.PI * FOREST.radius * FOREST.radius / 1000 * under);
+    for (let tries = 0, n = 0; n < want && tries < want * 6; tries++) {
+      const ang = uRand() * Math.PI * 2, rr = Math.sqrt(uRand()) * FOREST.radius;
+      const x = Math.cos(ang) * rr, z = Math.sin(ang) * rr;
+      const E = edgeOf(x, z, rr);
+      const pw = wetAt(x, z);
+      if (pw > 0.5) continue;
+      // edge bias: certain at the rim/lip, a third of the time deep inside
+      const edgeK = E.inGlade ? 0.9 : Math.max(0.3, 1 - E.edge / (FOREST.edge * 2 + 1));
+      if (uRand() > edgeK) continue;
+      if (nearTrunk(x, z)) continue;
+      const y = groundY([x, z]);
+      if (y === null) continue;
+      n++;
+      const p = draw(shrubs, uRand());
+      const t = tuneOf(p.sp.key);
+      const vary = Math.exp((uRand() * 2 - 1) * FOREST.spread) * FOREST.scale;
+      const dEye = Math.hypot(x - eyeX, z - eyeZ);
+      planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
+      if (dEye > b1 && p.field) { p.field.add(x, y - (t.sink || 0) * vary, z, vary); shrubFar++; continue; }
+      let F = fields.get(p);
+      if (!F) { F = instanceField(p.near); fields.set(p, F); }
+      F.add(x, y, z, vary, uRand() * Math.PI * 2);
+      shrubN++;
+    }
+    for (const F of fields.values()) { const g = F.build(); if (g) stage.add(g); }
+  }
+  // DENSITY PER GRASS TYPE (the user): each cover species is planted on its
+  // own, at its `density` per m2 times the stand's `cover` multiplier - a
+  // reed patch is one thing per 6 m2, a blade plate is three per m2
+  const cov = FOREST.cover === undefined ? 1 : FOREST.cover, reach = FOREST.reach || 80;
+  if (covers.length && cov > 0) for (const sp of picked) {
+    if (sp.kind !== 'cover') continue;
+    const mine = covers.filter(p => p.sp === sp);
+    const dens = tuneOf(sp.key).density;
+    if (!mine.length || !(dens > 0)) continue;
+    const cRand = rng(FOREST.seed * 53 + 9 + hashStr(sp.key) % 1000);
+    const fields = new Map();
+    const want = Math.round(Math.PI * reach * reach * dens * cov);
+    for (let tries = 0, n = 0; n < want && tries < want * 4; tries++) {
+      const ang = cRand() * Math.PI * 2, rr = Math.sqrt(cRand()) * reach;
+      const x = eyeX + Math.cos(ang) * rr, z = eyeZ + Math.sin(ang) * rr;
+      const rd = Math.hypot(x, z);
+      if (rd > FOREST.radius) continue;
+      // thin over the last third of the reach, so the edge is a fade
+      if (rr > reach * 0.67 && cRand() < (rr - reach * 0.67) / (reach * 0.33)) continue;
+      const pw = wetAt(x, z);
+      if (pw > 0.6) continue;
+      // a sedge tuft likes the shore: twice as likely on a pool's edge
+      if (wet && pw < 0.2 && cRand() < 0.4) continue;
+      if (nearTrunk(x, z)) continue;
+      const y = groundY([x, z]);
+      if (y === null) continue;
+      n++;
+      const p = draw(mine, cRand());
+      const vary = Math.exp((cRand() * 2 - 1) * (FOREST.spread + 0.15));
+      planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
+      let F = fields.get(p);
+      if (!F) { F = instanceField(p.near); fields.set(p, F); }
+      F.add(x, y, z, vary, cRand() * Math.PI * 2);
+      coverN++;
+    }
+    for (const F of fields.values()) { const g = F.build(); if (g) stage.add(g); }
   }
 
   // the fields are filled by now: turn each into its one mesh
@@ -3084,8 +3879,10 @@ async function showForest() {
   measureStage();
   const t = tally();
   const stats = { tris: t.tris, meshes: t.meshes, near: placedNear,
-                  far: placedFar, protos: protos.length, planted: planted, dead: deadN,
-                  lod: lodN, series: serN, glades: glades.length, rejected: rejected };
+                  far: placedFar, protos: protos.length + shrubs.length + covers.length,
+                  planted: planted, dead: deadN,
+                  lod: lodN, series: serN, glades: glades.length, rejected: rejected,
+                  shrubs: shrubN, shrubFar: shrubFar, cover: coverN };
   paintForestPanel(stats);
   render();
   // Textures decode asynchronously, so the first measurement of a freshly
@@ -3094,11 +3891,10 @@ async function showForest() {
   let tries = 0;
   const chase = setInterval(() => {
     let missing = 0;
-    for (const a of picked) {
-      if (MEAS[a.name] && MEAS[a.name].px) continue;
-      const b = cache[a.name];
-      if (b) { MEAS[a.name] = measureAsset(a.name, b); if (MIPFIX) mipFixAsset(a.name); }
-      if (!MEAS[a.name] || !MEAS[a.name].px) missing++;
+    for (const sp of picked) {
+      if (MEAS[sp.key] && MEAS[sp.key].px) continue;
+      if (cache[sp.file]) { MEAS[sp.key] = measureSpecies(sp); if (MIPFIX) mipFixAsset(sp.file); }
+      if (!MEAS[sp.key] || !MEAS[sp.key].px) missing++;
     }
     if (!missing || ++tries > 12) { clearInterval(chase); paintForestPanel(stats); }
     else paintForestPanel(stats);
@@ -3567,9 +4363,13 @@ const VAR_FIELDS = [];
 // and this pass is meant to be answerable.
 function paintForestPanel(stats) {
   const ui = $('ui');
-  const rows = INDEX.assets.filter(a => a.renderable && (a.trees.length || a.billboards.length));
   const terr = INDEX.assets.filter(a => a.renderable && a.terrain.length);
+  const sw = v => '<i style="color:var(--acc)">' + v + '</i>';
   let h = '<div class="grp">THE STAND</div><table>';
+  h += '<tr><td class="k">mix</td><td><select id="fMix2">' +
+       Object.keys(MIXES).map(k => '<option value="' + k + '"' + (MIX_NAME === k ? ' selected' : '') + '>' + k + '</option>').join('') +
+       '</select> <button id="fMixSave" title="snapshot the picks, proportions, dead fractions and the stand dials into this mix">save mix</button>' +
+       ' <button id="fMixNew" title="a new mix from the current state">new</button></td></tr>';
   if (stats) {
     h += '<tr><td class="k">drawn</td><td>' + stats.tris.toLocaleString() + ' tris · ' +
          stats.meshes + ' meshes</td></tr>' +
@@ -3578,86 +4378,123 @@ function paintForestPanel(stats) {
          '<tr><td class="k">series</td><td>' + (stats.series ? stats.series[0] : 0) +
          ' furnished · ' + (stats.series ? stats.series[1] : 0) + ' stand-shaped · ' +
          (stats.series ? stats.series[2] : 0) + ' snags' + '</td></tr>' +
+         '<tr><td class="k">understory</td><td>' + (stats.shrubs || 0) + ' shrubs near · ' +
+         (stats.shrubFar || 0) + ' far · ' + (stats.cover || 0) + ' cover</td></tr>' +
          '<tr><td class="k">prototypes</td><td>' + stats.protos +
          (stats.glades ? ' · ' + stats.glades + ' glades, ' + stats.rejected + ' rejected' : '') +
          '</td></tr>';
   }
   h += '<tr><td class="k">ground</td><td><select id="fGround"><option value="plane">flat plane</option>' +
+       '<option value="wet"' + (FOREST.ground === 'wet' ? ' selected' : '') + '>wet (muskeg pools)</option>' +
        terr.map(a => '<option value="' + a.name + '"' + (FOREST.ground === a.name ? ' selected' : '') +
          '>' + a.name.replace(/\.glb$/, '') + ' (' + a.terrain.length + ')</option>').join('') +
        '</select></td></tr>';
-  h += '<tr><td class="k">trees</td><td><input type="range" id="fCount" min="20" max="2000" step="20" value="' +
-       FOREST.count + '"> <i style="color:var(--acc)">' + FOREST.count + '</i></td></tr>';
-  h += '<tr><td class="k">size</td><td><input type="range" id="fScale" min="0.3" max="2.5" step="0.05" value="' +
-       FOREST.scale + '"> <i style="color:var(--acc)">x' + FOREST.scale.toFixed(2) + '</i></td></tr>';
-  h += '<tr><td class="k">spread</td><td><input type="range" id="fSpread" min="0" max="1" step="0.02" value="' +
-       FOREST.spread + '"> <i style="color:var(--acc)">' + spreadLabel(FOREST.spread) + '</i></td></tr>';
-  h += '<tr><td class="k">L0 band</td><td><input type="range" id="fSplit" min="10" max="200" step="5" value="' +
-       FOREST.split + '"> <i style="color:var(--acc)">' + FOREST.split + ' m · L1 ' +
-       Math.round(FOREST.split * 2.2) + ' · L2 ' + Math.round(FOREST.split * 4.5) + '</i></td></tr>';
-  h += '<tr><td class="k">glades</td><td><input type="range" id="fGlade" min="0" max="14" step="1" value="' +
-       FOREST.glades + '"> <i style="color:var(--acc)">' + FOREST.glades + '</i></td></tr>';
-  h += '<tr><td class="k">edge band</td><td><input type="range" id="fEdge" min="0" max="40" step="1" value="' +
-       FOREST.edge + '"> <i style="color:var(--acc)">' + FOREST.edge + ' m specimen</i></td></tr>';
-  h += '<tr><td class="k">furnished</td><td><input type="range" id="fMix" min="0" max="1" step="0.05" value="' +
-       FOREST.mix + '"> <i style="color:var(--acc)">' + Math.round(FOREST.mix * 100) +
-       '% of the interior</i></td></tr>';
-  h += '<tr><td class="k">radius</td><td><input type="range" id="fRad" min="60" max="600" step="20" value="' +
-       FOREST.radius + '"> <i style="color:var(--acc)">' + FOREST.radius + ' m</i></td></tr>';
+  const row = (label, id, min, max, step, val, txt) =>
+    '<tr><td class="k">' + label + '</td><td><input type="range" id="' + id + '" min="' + min + '" max="' + max +
+    '" step="' + step + '" value="' + val + '"> ' + sw(txt) + '</td></tr>';
+  h += row('trees', 'fCount', 20, 2000, 20, FOREST.count, FOREST.count);
+  h += row('size', 'fScale', 0.3, 2.5, 0.05, FOREST.scale, 'x' + FOREST.scale.toFixed(2));
+  h += row('spread', 'fSpread', 0, 1, 0.02, FOREST.spread, spreadLabel(FOREST.spread));
+  h += row('L0 band', 'fSplit', 10, 200, 5, FOREST.split, FOREST.split + ' m · L1 ' +
+       Math.round(FOREST.split * 2.2) + ' · L2 ' + Math.round(FOREST.split * 4.5));
+  h += row('glades', 'fGlade', 0, 14, 1, FOREST.glades, FOREST.glades);
+  h += row('edge band', 'fEdge', 0, 40, 1, FOREST.edge, FOREST.edge + ' m specimen');
+  h += row('furnished', 'fMix', 0, 1, 0.05, FOREST.mix, Math.round(FOREST.mix * 100) + '% of the interior');
+  h += row('radius', 'fRad', 60, 600, 20, FOREST.radius, FOREST.radius + ' m');
+  h += row('shrubs', 'fUnder', 0, 40, 0.5, FOREST.under || 0, (FOREST.under || 0) + ' per 1000 m²');
+  h += row('cover', 'fCover', 0, 3, 0.05, FOREST.cover === undefined ? 1 : FOREST.cover,
+           'x' + (FOREST.cover === undefined ? 1 : FOREST.cover).toFixed(2) + ' of each type\'s density');
+  h += row('reach', 'fReach', 20, 200, 5, FOREST.reach || 80, (FOREST.reach || 80) + ' m of cover');
+  if (FOREST.ground === 'wet') h += row('pools', 'fWet', 0, 1, 0.05, FOREST.wet || 0, Math.round((FOREST.wet || 0) * 100) + '% wet');
   h += '<tr><td class="k">far tier</td><td><button id="fImp"' + (FOREST.impostor ? ' class="on"' : '') +
        '>' + (FOREST.impostor ? 'baked impostors' : 'shipped LOD / same mesh') + '</button>' +
        (FOREST.impostor ? ' <i style="color:var(--dim)">' + IMP_CACHE.size + ' atlases, ' +
          (IMP_G * IMP_G) + ' views each</i>' : '') + '</td></tr>';
-  h += '<tr><td class="k">seed</td><td><input type="range" id="fSeed" min="1" max="60" step="1" value="' +
-       FOREST.seed + '"> <i style="color:var(--acc)">' + FOREST.seed + '</i></td></tr>';
+  h += row('seed', 'fSeed', 1, 60, 1, FOREST.seed, FOREST.seed);
   h += '</table>';
 
   h += '<div class="grp">COLOUR — MEASURED, THEN CORRECTED</div>';
   h += '<div style="margin-bottom:6px">reference <select id="fRef">' +
-       rows.map(a => '<option value="' + a.name + '"' + (REFNAME === a.name ? ' selected' : '') + '>' +
-         a.name.replace(/\.glb$/, '').slice(0, 26) + '</option>').join('') +
-       '</select> <button id="fSuggest">suggest</button> <button id="fClear">clear all</button></div>';
+       SPECIES.map(s => '<option value="' + s.key + '"' + (REFNAME === s.key ? ' selected' : '') + '>' +
+         s.key.replace(/\.glb$/, '').slice(0, 26) + '</option>').join('') +
+       '</select> <button id="fSuggest">suggest</button> <button id="fClear">clear all</button>' +
+       ' <button id="fFitAll" title="fit implight for every picked tree and shrub species">fit impostors</button></div>';
   h += '<div class="note">Hue and lightness are matched to the reference; saturation is pulled ' +
        'down to the LOWEST measured in the set, never up. These are starting values — the dials are yours.</div>';
 
-  // what each weight actually works out to, over the collections in the mix
-  let shareTot = 0;
-  for (const a of rows) if (PICK[a.name]) shareTot += tuneOf(a.name).proportion || 0;
+  // what each weight actually works out to, over the species in the mix
+  const shareTot = {};
+  for (const s of SPECIES) if (PICK[s.key]) shareTot[s.kind] = (shareTot[s.kind] || 0) + (tuneOf(s.key).proportion || 0);
+  const DIALS = {
+    tree: [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01], ['light', 0.4, 1.8, 0.01], ['bark', 0.3, 2, 0.02],
+           ['alpha', 0, 0.9, 0.05], ['size', 0.05, 3, 0.01], ['sink', 0, 4, 0.05], ['proportion', 0, 3, 0.05],
+           ['stick', 0.01, 0.3, 0.005], ['impa', 1, 20, 0.5], ['implight', 0.4, 2, 0.01], ['dead', 0, 1, 0.01],
+           ['leafScale', 0.5, 2.5, 0.05], ['leafFill', 0.3, 1.5, 0.05],
+           ['bend', 0, 4, 0.05], ['bendFreq', 0.3, 4, 0.1], ['lean', 0, 35, 1], ['bendPct', 0, 1, 0.05],
+           ['flatTop', 0, 0.8, 0.02], ['sparse', 0.1, 1, 0.02], ['prune', 0, 1, 0.02], ['variants', 1, 4, 1]],
+    dead: [['bark', 0.3, 3, 0.02], ['size', 0.05, 3, 0.01], ['sink', 0, 4, 0.05], ['proportion', 0, 3, 0.05],
+           ['impa', 1, 20, 0.5], ['implight', 0.4, 2, 0.01],
+           ['bend', 0, 4, 0.05], ['bendFreq', 0.3, 4, 0.1], ['lean', 0, 35, 1], ['bendPct', 0, 1, 0.05],
+           ['variants', 1, 4, 1], ['branches', 0, 6, 1], ['taper', 0.02, 0.6, 0.02]],
+    shrub: [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01], ['light', 0.4, 1.8, 0.01], ['bark', 0.3, 2, 0.02],
+            ['alpha', 0, 0.9, 0.05], ['size', 0.05, 3, 0.01], ['sink', 0, 2, 0.05], ['proportion', 0, 3, 0.05],
+            ['impa', 1, 20, 0.5], ['implight', 0.4, 2, 0.01], ['leafScale', 0.5, 2.5, 0.05], ['leafFill', 0.3, 1.5, 0.05],
+            ['sparse', 0.1, 1, 0.02], ['variants', 1, 4, 1]],
+    cover: [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01], ['light', 0.4, 1.8, 0.01],
+            ['alpha', 0, 0.9, 0.05], ['size', 0.005, 3, 0.005], ['sink', 0, 1, 0.02],
+            ['density', 0, 4, 0.02], ['proportion', 0, 3, 0.05]],
+  };
+  const OPS_DEF = { bend: 0, bendFreq: 1.2, lean: 0, flatTop: 0, sparse: 1, prune: 1, variants: 1, bendPct: 1,
+                    leafScale: 1, leafFill: 1, branches: 3, taper: 0.12, density: 0.5 };
   h += '<table class="fRows">';
-  for (const a of rows) {
-    const t = tuneOf(a.name), m = MEAS[a.name];
-    const sw = m && m.rgb ? 'rgb(' + m.rgb.join(',') + ')' : '#333';
-    h += '<tr><td colspan="2" style="padding-top:7px;border-top:1px solid var(--grid)">' +
-         '<label style="color:var(--fg)"><input type="checkbox" class="fPick" data-n="' + a.name + '"' +
-         (PICK[a.name] ? ' checked' : '') + '> ' + a.name.replace(/\.glb$/, '').slice(0, 30) + '</label> ' +
-         '<span class="sw" style="background:' + sw + '"></span>' +
-         '<i style="color:var(--dim);font-size:10px">' +
-         (m && m.px ? 'H ' + (m.h * 360).toFixed(0) + '&deg; S ' + (m.s * 100).toFixed(0) +
-            '% L ' + (m.l * 100).toFixed(0) + '%' : 'not measured') + '</i></td></tr>';
-    for (const dial of [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01],
-                        ['light', 0.4, 1.8, 0.01], ['bark', 0.3, 2, 0.02],
-                        ['alpha', 0, 0.9, 0.05], ['size', 0.2, 3, 0.02],
-                        ['sink', 0, 4, 0.05], ['proportion', 0, 3, 0.05],
-                        ['stick', 0.01, 0.3, 0.005], ['impa', 1, 20, 0.5],
-                        ['implight', 0.4, 2, 0.01], ['dead', 0, 0.6, 0.01]]) {
-      h += '<tr><td class="k" style="width:44px;font-size:10px">' + dial[0] + '</td><td>' +
-           '<input type="range" class="fDial" data-n="' + a.name + '" data-k="' + dial[0] +
-           '" min="' + dial[1] + '" max="' + dial[2] + '" step="' + dial[3] + '" value="' + t[dial[0]] + '" ' +
-           'style="width:150px"> <i style="color:var(--acc);font-size:10px">' +
-           (+t[dial[0]]).toFixed(dial[3] < 0.01 ? 3 : 2) +
-           (dial[0] === 'proportion' && PICK[a.name] && shareTot > 0
-              ? ' <span style="color:var(--dim)">= ' +
-                (100 * (t.proportion || 0) / shareTot).toFixed(0) + '%' +
-                (stats && stats.planted ? ' · ' + (stats.planted[a.name] || 0) + ' planted' : '') +
-                '</span>' : '') +
-           '</i></td></tr>';
+  for (const kind of ['tree', 'dead', 'shrub', 'cover']) {
+    const list = SPECIES.filter(s => s.kind === kind);
+    if (!list.length) continue;
+    h += '<tr><td colspan="2" class="grp" style="padding-top:12px">' + kind.toUpperCase() +
+         (kind === 'cover' ? ' — near the eye only' : kind === 'dead' ? ' — model, then the sheet' : 'S') + '</td></tr>';
+    for (const s of list) {
+      const t = tuneOf(s.key), m = MEAS[s.key];
+      const swc = m && m.rgb ? 'rgb(' + m.rgb.join(',') + ')' : '#333';
+      const open = !!PICK[s.key];
+      h += '<tr><td colspan="2" style="padding-top:7px;border-top:1px solid var(--grid)">' +
+           '<label style="color:var(--fg)"><input type="checkbox" class="fPick" data-n="' + s.key + '"' +
+           (open ? ' checked' : '') + '> ' + s.key.replace(/\.glb$/, '').slice(0, 30) + '</label> ' +
+           '<span class="sw" style="background:' + swc + '"></span>' +
+           '<i style="color:var(--dim);font-size:10px">' + (tuneOf(s.key).gen ? 'generated, ' + tuneOf(s.key).material + ' of ' : s.subjects.length + (s.file !== s.key ? ' of ' : ' subj')) + (s.file !== s.key ? s.file.replace(/\.glb$/, '').slice(0, 18) : '') +
+           (s.snags.length ? ' · ' + s.snags.length + ' snag' : '') + ' · ' +
+           (m && m.px ? 'H ' + (m.h * 360).toFixed(0) + '&deg; S ' + (m.s * 100).toFixed(0) +
+              '% L ' + (m.l * 100).toFixed(0) + '%' : 'not measured') + '</i></td></tr>';
+      if (!open) continue;                            // a species out of the mix keeps its rows folded
+      for (const dial of DIALS[kind]) {
+        const val = t[dial[0]] !== undefined ? t[dial[0]] : (OPS_DEF[dial[0]] !== undefined ? OPS_DEF[dial[0]] : 0);
+        h += '<tr><td class="k" style="width:44px;font-size:10px">' + dial[0] + '</td><td>' +
+             '<input type="range" class="fDial" data-n="' + s.key + '" data-k="' + dial[0] +
+             '" min="' + dial[1] + '" max="' + dial[2] + '" step="' + dial[3] + '" value="' + val + '" ' +
+             'style="width:150px"> <i style="color:var(--acc);font-size:10px">' +
+             (+val).toFixed(dial[3] < 0.01 ? 3 : dial[3] >= 1 ? 0 : 2) +
+             (dial[0] === 'implight' ? ' <button class="fFit" data-n="' + s.key + '" title="measure the sheet against the mesh and bisect implight">fit</button>' : '') +
+             (dial[0] === 'proportion' && shareTot[kind] > 0
+                ? ' <span style="color:var(--dim)">= ' +
+                  (100 * (t.proportion || 0) / shareTot[kind]).toFixed(0) + '%' +
+                  (stats && stats.planted ? ' · ' + (stats.planted[s.key] || 0) + ' planted' : '') +
+                  '</span>' : '') +
+             '</i></td></tr>';
+      }
     }
   }
   h += '</table>';
   ui.innerHTML = h;
 
   $('fGround').onchange = e => { FOREST.ground = e.target.value; showForest(); };
+  $('fMix2').onchange = e => { applyMix(e.target.value); showForest(); };
+  $('fMixSave').onclick = () => { MIXES[MIX_NAME] = snapshotMix(); saveMixes(); $('msg').textContent = 'mix "' + MIX_NAME + '" saved — export json to commit it'; };
+  $('fMixNew').onclick = () => {
+    const name = prompt('name of the new mix', MIX_NAME + '_2');
+    if (!name) return;
+    MIXES[name] = snapshotMix(); MIX_NAME = name; saveMixes(); paintForestPanel(stats);
+  };
   const live = (id, key, fmt) => {
+    if (!$(id)) return;
     $(id).oninput = e => {
       FOREST[key] = +e.target.value;
       e.target.nextElementSibling.textContent = fmt(FOREST[key]);
@@ -3672,6 +4509,10 @@ function paintForestPanel(stats) {
   live('fEdge', 'edge', v => v + ' m specimen');
   live('fMix', 'mix', v => Math.round(v * 100) + '% of the interior');
   live('fRad', 'radius', v => v + ' m');
+  live('fUnder', 'under', v => v + ' per 1000 m²');
+  live('fCover', 'cover', v => 'x' + v.toFixed(2) + ' of each type\'s density');
+  live('fReach', 'reach', v => v + ' m of cover');
+  live('fWet', 'wet', v => Math.round(v * 100) + '% wet');
   live('fSeed', 'seed', v => v);
 
   $('fImp').onclick = () => {
@@ -3682,32 +4523,60 @@ function paintForestPanel(stats) {
   $('fRef').onchange = e => { REFNAME = e.target.value; };
   $('fSuggest').onclick = async () => {
     // measure everything that is IN the mix before proposing anything
-    for (const a of rows) {
-      if (!PICK[a.name]) continue;
-      const b = await ensureLoaded(a.name);
-      if (b) MEAS[a.name] = measureAsset(a.name, b);
+    for (const s of SPECIES) {
+      if (!PICK[s.key]) continue;
+      const b = await ensureLoaded(s.file);
+      if (b) MEAS[s.key] = measureSpecies(s);
     }
     const n = suggestTuning(REFNAME);
-    $('msg').textContent = 'set ' + n + ' collections from measurement';
+    $('msg').textContent = 'set ' + n + ' species from measurement';
     for (const k in cache) retint(k);
     showForest();
   };
-  $('fClear').onclick = () => { TUNE = {}; saveTune(); for (const k in cache) retint(k); showForest(); };
+  $('fClear').onclick = () => {
+    // the dials only: a species' file, subjects, snags and kind are not tuning
+    for (const k in TUNE) { const keep = {}; for (const f of ['file', 'kind', 'subjects', 'snags', 'sizes']) if (TUNE[k][f] !== undefined) keep[f] = TUNE[k][f]; TUNE[k] = keep; }
+    saveTune(); for (const k in cache) retint(k); showForest();
+  };
 
   for (const el of ui.querySelectorAll('.fPick'))
     el.onchange = () => { PICK[el.dataset.n] = el.checked; savePick(); showForest(); };
+  for (const el of ui.querySelectorAll('.fFit'))
+    el.onclick = async () => {
+      $('msg').textContent = 'fitting ' + el.dataset.n + '...';
+      const r = await fitImplight(el.dataset.n);
+      $('msg').textContent = r ? el.dataset.n + ': mesh ' + r.geometry + ' · sheet ' + r.impostor + ' → implight ' + r.implight : 'no fit';
+      showForest();
+    };
+  $('fFitAll').onclick = async () => {
+    const out = [];
+    for (const s of SPECIES) {
+      if (!PICK[s.key] || s.kind === 'cover') continue;
+      $('msg').textContent = 'fitting ' + s.key + '...';
+      const r = await fitImplight(s.key);
+      if (r) out.push(s.key.replace(/\.glb$/, '') + ' ' + r.implight);
+    }
+    $('msg').textContent = 'implight: ' + out.join(' · ');
+    showForest();
+  };
   for (const el of ui.querySelectorAll('.fDial'))
     el.oninput = () => {
       const t = tuneOf(el.dataset.n);
       t[el.dataset.k] = +el.value;
       TUNE[el.dataset.n] = t;
       saveTune();
-      el.nextElementSibling.textContent = (+el.value).toFixed(+el.step < 0.01 ? 3 : 2);
-      // these three move geometry rather than colour, so they rebuild
-      if (['sink', 'size', 'proportion', 'dead', 'stick', 'impa', 'implight'].indexOf(el.dataset.k) >= 0) { showForest(); return; }
-      retint(el.dataset.n);
-      render();
+      el.nextElementSibling.firstChild.textContent = (+el.value).toFixed(+el.step < 0.01 ? 3 : +el.step >= 1 ? 0 : 2);
+      // colour is live; everything else moves geometry and rebuilds on release
+      if (['hue', 'sat', 'light', 'bark', 'alpha'].indexOf(el.dataset.k) >= 0) {
+        const sp = spOf(el.dataset.n); if (sp) retintSpecies(sp);
+        render();
+      }
     };
+  for (const el of ui.querySelectorAll('.fDial'))
+    el.onchange = () => { if (['hue', 'sat', 'light', 'bark', 'alpha'].indexOf(el.dataset.k) < 0) showForest(); };
+}
+function saveMixes() {
+  try { localStorage.setItem('flydiy.trees.mixes', JSON.stringify(MIXES)); } catch (e) {}
 }
 function savePick() {
   try { localStorage.setItem('flydiy.trees.pick', JSON.stringify(PICK)); } catch (e) {}
@@ -3728,6 +4597,7 @@ function setMode(m) {
   }
   scene.fog.near = m === 'ladder' ? 900 : 400;
   scene.fog.far = m === 'ladder' ? 4200 : 2600;
+  ground.material = PLAIN_GROUND_MAT; ground.visible = true; grid.visible = true;   // the stand's wet ground is the stand's
   if (CUR) load(CUR, true);
 }
 {
@@ -3888,7 +4758,7 @@ $('tuneReset').onclick = () => { MASTER.hue = 0; MASTER.sat = 1; MASTER.light = 
 
 $('expo').onclick = () => {
   const body = JSON.stringify({
-    note: 'flyDiy tree bench — per-collection leaf tuning (W0a). Save as flyDiy/tools/_trees_tuning.json.',
+    note: 'flyDiy tree bench — per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.',
     generated: new Date().toISOString(),
     reference: REFNAME,
     master: MASTER,
@@ -3901,6 +4771,8 @@ $('expo').onclick = () => {
             crownH: CROWN_STRETCH, crownW: CROWN_W,
             icut: U_ICUT.value, isph: U_ISPH.value, ilit: U_ILIT.value },
     included: Object.keys(PICK).filter(k => PICK[k]),
+    mix: MIX_NAME,
+    mixes: MIXES,
     measured: MEAS,
     tuning: TUNE,
   }, null, 1);
@@ -4144,15 +5016,26 @@ setInterval(render, 120);
   }
   INDEX.assets = INDEX.assets.filter(a => a.kind !== 'error');
   for (const a of INDEX.assets)
-    for (const k of ['trees', 'shrubs', 'billboards', 'terrain'])
+    for (const k of ['trees', 'shrubs', 'cover', 'billboards', 'terrain'])
       if (!a[k]) a[k] = [];
+  buildSpecies();
+  // the mixes: committed first, this machine's edits on top
+  if (COMMITTED && COMMITTED.mixes) MIXES = COMMITTED.mixes;
+  try {
+    const mx = localStorage.getItem('flydiy.trees.mixes');
+    if (mx) Object.assign(MIXES, JSON.parse(mx));
+    const mn = localStorage.getItem('flydiy.trees.mix');
+    if (mn && MIXES[mn]) MIX_NAME = mn;
+  } catch (e) {}
+  if (!MIXES[MIX_NAME]) MIX_NAME = Object.keys(MIXES)[0] || 'conifer';
 
   // THE COMMITTED MIX is the default: _trees_tuning.json's `included` is the
   // curated near/medium set, and the collections outside it are still loaded
   // and still measured — they carry proportion 0, so the scatter simply
   // plants none of them until somebody raises the dial.
   if (!Object.keys(PICK).length) {
-    if (COMMITTED && COMMITTED.included && COMMITTED.included.length)
+    if (MIXES[MIX_NAME]) applyMix(MIX_NAME);
+    else if (COMMITTED && COMMITTED.included && COMMITTED.included.length)
       for (const n of COMMITTED.included) PICK[n] = true;
     else
       for (const a of INDEX.assets)
@@ -4186,8 +5069,8 @@ setInterval(render, 120);
   syncTuneBar();
   buildSky();
   place(); paintRail();
-  const first = INDEX.assets.filter(a => a.renderable)
-    .sort((a, b) => b.trees.length - a.trees.length)[0];
+  const first = INDEX.assets.filter(a => a.renderable && a.folder === 'treesRaw')
+    .sort((a, b) => b.trees.length - a.trees.length)[0] || INDEX.assets.find(a => a.renderable);
   if (first) load(first);
 })();
 </script>

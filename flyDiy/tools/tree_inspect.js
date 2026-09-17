@@ -46,7 +46,13 @@
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto');
 
-const RAW = path.join(__dirname, '..', 'assets', 'treesRaw');
+// TWO ROOTS (2026-09-15): the conifers of W0a in assets/treesRaw, and the
+// second batch - the deciduous pack, the tortuous muskeg pines, the grass -
+// under assets/vegetation/<kind>/. Walked recursively; every asset records
+// the path the bench and tree_prep.py fetch it by (`file`, relative to
+// assets/) and the folder it came from (`folder`) so the shelf can rail by it.
+const ASSETS = path.join(__dirname, '..', 'assets');
+const RAW_DIRS = ['treesRaw', 'vegetation'];
 const OUT = path.join(__dirname, '_trees_index.json');
 // --trace=<substring> prints every group of the matching asset, with its box
 const TRACE_ARG = (process.argv.find(a => a.startsWith('--trace')) || '').split('=')[1] || null;
@@ -288,6 +294,12 @@ function licenceOf(credit) {
 }
 
 // FOUR KINDS (user, 2026-09-08): tree, shrub, billboard, terrain.
+// A FIFTH (2026-09-15): COVER - grass, fern, litter, the tufts and cards
+// that dress the forest floor. Its own kind because it scatters by a
+// different rule (dense, near only, no ladder past a fade) and reads at a
+// different range; the grass prototypes under assets/vegetation/grass are
+// its first candidates. A file under vegetation/grass IS cover by the
+// user's own filing, whatever its names say (the folder is a decision).
 // A ROCK IS PART OF THE GROUND, not a subject of its own — it is scattered
 // with the terrain and never against the trees — so the rock layer goes back
 // where it came from. Everything that is not a plant IS the terrain: the
@@ -314,12 +326,16 @@ const GROUND = SEG('road|dirt|mud|puddle|gravel|terrain|ground|sand|soil|path|tr
 // carries thirteen 26-33 m "Background_Tree_Atlas" cards at ~100 triangles
 // each. They are not near assets and they are not a defect either: they are
 // somebody's R2 rung, and worth having as a comparison for our own bake.
-const CARD_MAT = /atlas|billboard|impostor|imposter/i;
+// ...but an ATLAS is also what a leaf texture is called: every deciduous
+// tree of various_forest_assets_pack wears an `OakBranchAtlas`, and the first
+// pass put fourteen real trees (one of 22 141 triangles) in the billboard
+// rail on the strength of it. A card's atlas is not a branch's.
+const CARD_MAT = /(?<!branch|leaf|leaves|foliage)atlas|billboard|impostor|imposter/i;
 
 // ============================================================
 // THE GROUPING — a pack's node graph, read once
 // ============================================================
-function group(g, bin) {
+function group(g, bin, folderKind) {
   const nodes = g.nodes || [];
   const scene = g.scenes[g.scene || 0];
 
@@ -630,9 +646,19 @@ function group(g, bin) {
       const fb = (b.box[3] - b.box[0]) * (b.box[5] - b.box[2]);
       return fa > 0 && fb > 0 && Math.max(fa, fb) / Math.min(fa, fb) < 25;
     };
+    // And a subject that ALREADY holds two parts in two materials under its
+    // own node - `AppleTree_0 -> {bark mesh, BranchAtlas mesh}` - is whole:
+    // it has nothing to merge with. various_forest_assets_pack lays 30 such
+    // trees on a grid tighter than their crowns, every tree in its own two
+    // materials, so the footprint + disjoint-materials rule fused Oak with
+    // the apple and the cherry beside it ("Oak_25, 4 parts, 22 141 tris").
+    // Two whole subjects never merge; a LONE part (Lampi's pine is a bark
+    // mesh beside a `stump -> branch` node) may still join one.
+    const whole = X => X.els.length === 1 && X.els[0].meshNodes.length > 1 && X.els[0].mats.length > 1;
     const mergeable = X => !byMaterial && !multiLevel(X) && (X.copies || 1) === 1;
     const host = !mergeable(G) ? null
-      : merged.find(H => mergeable(H) && overlapXZ(H, G) && disjoint(H, G) && sizeLike(H, G));
+      : merged.find(H => mergeable(H) && !(whole(H) && whole(G)) &&
+                         overlapXZ(H, G) && disjoint(H, G) && sizeLike(H, G));
     if (host) {
       host.els = host.els.concat(G.els);
       host.lods[0] = (host.lods[0] || 0) + (G.lods[0] || 0);
@@ -667,6 +693,13 @@ function group(g, bin) {
     // (which IS the material) means anything.
     // A tree recovered from a welded mesh already knows what it is.
     const forced = G.els.reduce((f, e) => f || e.forcedKind, null);
+    // The merge keeps the SHORTER part name, and `stump01_1` is shorter than
+    // `bark04_0_bark04_0Mat_0` - so Lampi's pine, bark + stump + branch, was
+    // named after its stump and PROP sent the whole tree to the terrain
+    // rail. A group any of whose parts is bark, branch or foliage is a plant.
+    const anyTree = G.els.some(e => TREE_MAT.test(e.name)) || TREE_MAT.test(matNames);
+    const cutout = G.els.some(e => e.mats.some(mi => {
+      const m = g.materials[mi]; return m && m.alphaMode && m.alphaMode !== 'OPAQUE'; }));
     // A BILLBOARD is a tree too — it is only a tree drawn as a card, and the
     // two will coexist in the world. It keeps its own kind so the ladder can
     // tell which rung an asset already is, not because it is not a tree.
@@ -674,14 +707,18 @@ function group(g, bin) {
     else if ((CARD_MAT.test(matNames) || CARD_MAT.test(G.key)) && !multiLevel(G)) G.kind = 'billboard';
     // A card is TALL and thin. Requiring height as well as a low triangle
     // count keeps a 63-triangle rock 0.85 m high out of the billboard rail.
-    else if (G.tris <= 64 && h > 1.5 && !multiLevel(G)) G.kind = 'billboard';
-    else if (PROP.test(G.key)) G.kind = 'terrain';    // rocks belong to the ground
+    else if (G.tris <= 64 && h > 1.5 && !multiLevel(G) && folderKind !== 'cover') G.kind = 'billboard';
+    else if (PROP.test(G.key) && !anyTree) G.kind = 'terrain';    // rocks belong to the ground
+    // a thing with no height is the ground it lies on (realtime_grass's plane)
+    else if (h < 0.05 && G.tris > 100) G.kind = 'terrain';
+    else if (folderKind) G.kind = folderKind;
     // In a SCENE, everything that is not a plant or a rock is the ground —
     // road, litter, grass, backdrop — and it is kept in place to scatter on.
     else if (isScene && (GROUND.test(G.key) || COVER.test(G.key))) G.kind = 'terrain';
     else if (!byMaterial && foot > 300 && G.tris > 200 && h < Math.sqrt(foot) * 0.6) G.kind = 'terrain';
     else if (GROUND.test(G.key)) G.kind = 'terrain';
-    else if (COVER.test(G.key)) G.kind = h < 4 ? 'shrub' : 'tree';
+    else if (COVER.test(G.key)) G.kind = h < 1.5 ? 'cover' : h < 4 ? 'shrub' : 'tree';
+    else if (h < 1.2 && cutout) G.kind = 'cover';
     else if (h < 4) G.kind = 'shrub';
     else G.kind = 'tree';
   }
@@ -709,8 +746,12 @@ function readGLB(file) {
   return { json, bin, binLen: bin ? bin.length : 0 };
 }
 
+// the folder's own word on what a pack holds, see the FIVE KINDS note
+const FOLDER_KIND = { 'vegetation/grass': 'cover', 'vegetation/shrubs': 'shrub' };
+
 function analyse(name, g, ctx) {
-  const groups = group(g, ctx.bin);
+  const folderKind = FOLDER_KIND[ctx.folder] || null;
+  const groups = group(g, ctx.bin, folderKind);
 
   // images: size and, crucially, whether they carry an alpha channel
   let texBytes = 0;
@@ -752,6 +793,7 @@ function analyse(name, g, ctx) {
 
   const shape = G => ({
     name: G.key, kind: G.kind, h: +G.h.toFixed(2), tris: G.tris, parts: G.parts,
+    sig: G.els.map(e => e.sig).sort().join('+'),
     copies: G.copies || 1, islands: G.islands || 0, merged: !!G.merged,
     // TERRAIN is drawn where it stands: it is the surface we will scatter
     // onto, so its own coordinates are the point of keeping it.
@@ -772,13 +814,19 @@ function analyse(name, g, ctx) {
   const kinds = k => groups.filter(G => G.kind === k).map(shape);
   const trees = kinds('tree').sort((a, b) => b.h - a.h);
   const shrubs = kinds('shrub').sort((a, b) => b.h - a.h);
+  const cover = kinds('cover').sort((a, b) => b.h - a.h);
   const billboards = kinds('billboard').sort((a, b) => b.h - a.h);
   const terrain = kinds('terrain').sort((a, b) => b.tris - a.tris);
 
   // a stand of conifers is 15-60 m; far outside that is a unit problem in the
   // export, and it is the reason to MEASURE rather than trust
-  const hs = trees.filter(t => !t.merged).map(t => t.h);
+  // A COVER pack is judged against a metre, not a stand: grass_patches is
+  // shipped in centimetres with no unit node, and its 1.2 m tuft measures
+  // 120 m. The hint brings it to a metre and says so; the file is not fixed.
+  const subj = folderKind === 'cover' ? cover.concat(shrubs) : trees;
+  const hs = subj.filter(t => !t.merged).map(t => t.h);
   const tallest = hs.length ? Math.max.apply(null, hs) : 0;
+  const hiLo = folderKind === 'cover' ? [5, 0.1, 1] : [90, 3, 22];
 
   return {
     name,
@@ -802,32 +850,47 @@ function analyse(name, g, ctx) {
     rawNodes: (g.nodes || []).length,
     extensions: [].concat(g.extensionsUsed || [], g.extensionsRequired || [])
       .filter((v, i, a) => a.indexOf(v) === i),
-    trees, shrubs, billboards, terrain,
+    trees, shrubs, cover, billboards, terrain,
+    folderKind,
     weldedTrees: groups.filter(G => G.els.some(e => e.clips)).length,
     tallest: +tallest.toFixed(2),
-    scaleFlag: hs.length ? (tallest > 90 || tallest < 3) : false,
+    scaleFlag: hs.length ? (tallest > hiLo[0] || tallest < hiLo[1]) : false,
     // what a sane export would have measured, so the page can offer the view
     // side by side without pretending the asset is fixed
-    scaleHint: hs.length && (tallest > 90 || tallest < 3) ? +(22 / tallest).toFixed(5) : 1,
+    scaleHint: hs.length && (tallest > hiLo[0] || tallest < hiLo[1]) ? +(hiLo[2] / tallest).toFixed(5) : 1,
   };
 }
 
 // ---- run -----------------------------------------------------------------
-const files = fs.existsSync(RAW) ? fs.readdirSync(RAW).sort() : [];
+const files = [];                                 // { f: basename, rel, full }
+for (const d of RAW_DIRS) (function walk(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const e of fs.readdirSync(dir).sort()) {
+    const full = path.join(dir, e);
+    if (e.startsWith('_')) continue;              // _dismissed: judged, kept as a note
+    if (fs.statSync(full).isDirectory()) walk(full);
+    else files.push({ f: e, full, rel: path.relative(ASSETS, full).split(path.sep).join('/') });
+  }
+})(path.join(ASSETS, d));
 const report = [];
 
-for (const f of files) {
-  const full = path.join(RAW, f);
+for (const { f, full, rel } of files) {
   const st = fs.statSync(full);
   if (!st.isFile()) continue;
   const lower = f.toLowerCase();
+  const folder = path.posix.dirname(rel);
   try {
     if (lower.endsWith('.glb')) {
       const r0 = readGLB(full);
       TRACE = !!(TRACE_ARG && f.indexOf(TRACE_ARG) >= 0);
-      const r = analyse(f, r0.json, { bin: r0.bin });
+      const r = analyse(f, r0.json, { bin: r0.bin, folder });
+      // THE SAME BYTES TWICE. The pine folder holds two downloads of one
+      // Georgeous pine and a third of a pine already judged in W0a - a
+      // browser's `(2)`, `(3)` say nothing. The binary chunk's hash does.
+      r.binSha = crypto.createHash('sha1').update(r0.bin || Buffer.alloc(0)).digest('hex').slice(0, 12);
       TRACE = false;
       r.kind = 'glb';
+      r.file = rel; r.folder = folder;
       r.fileMB = +(st.size / 1048576).toFixed(2);
       r.binMB = +(r0.binLen / 1048576).toFixed(2);
       r.renderable = true;
@@ -842,8 +905,9 @@ for (const f of files) {
         const e = z.entries.find(x => x.name.endsWith(base));
         return e ? e.usize : 0;
       };
-      const r = analyse(f, g, { texSize: texOf });
+      const r = analyse(f, g, { texSize: texOf, folder });
       r.kind = 'gltf-in-zip';
+      r.file = rel; r.folder = folder;
       r.fileMB = +(st.size / 1048576).toFixed(2);
       r.binMB = +((g.buffers || []).reduce((s, b) => s + (b.byteLength || 0), 0) / 1048576).toFixed(2);
       // A browser is not going to hold a 900 MB vertex buffer. These are the
@@ -854,43 +918,65 @@ for (const f of files) {
       report.push(r);
     }
   } catch (e) {
-    report.push({ name: f, kind: 'error', error: e.message, fileMB: +(st.size / 1048576).toFixed(2) });
+    report.push({ name: f, kind: 'error', error: e.message, file: rel, folder,
+                  fileMB: +(st.size / 1048576).toFixed(2) });
+  }
+}
+
+// duplicates: same binary, or the same subject geometry under another export
+// (b4_cobra's `pine_tree` is evolveduk's tree re-uploaded: different bytes,
+// the same islands). The first file in walk order is the original.
+for (let i = 0; i < report.length; i++) {
+  const r = report[i];
+  if (r.kind === 'error') continue;
+  const sigs = new Set([].concat(r.trees || [], r.shrubs || [], r.cover || [], r.billboards || [])
+    .map(t => t.sig).filter(Boolean));
+  for (let j = 0; j < i; j++) {
+    const o = report[j];
+    if (o.kind === 'error' || o.duplicateOf) continue;
+    if (r.binSha && o.binSha === r.binSha) { r.duplicateOf = o.file; r.duplicateHow = 'identical bytes'; break; }
+    const os = new Set([].concat(o.trees || [], o.shrubs || [], o.cover || [], o.billboards || [])
+      .map(t => t.sig).filter(Boolean));
+    if (sigs.size && sigs.size === os.size && [...sigs].every(x => os.has(x))) {
+      r.duplicateOf = o.file; r.duplicateHow = 'same geometry, another export'; break;
+    }
   }
 }
 
 fs.writeFileSync(OUT, JSON.stringify(
-  { generated: new Date().toISOString(), raw: 'assets/treesRaw', assets: report }, null, 1));
+  { generated: new Date().toISOString(), raw: RAW_DIRS.map(d => 'assets/' + d), assets: report }, null, 1));
 
 const pad = (s, n) => String(s).padStart(n);
 const totMB = report.reduce((s, r) => s + (r.fileMB || 0), 0);
-console.log('\nassets/treesRaw — ' + report.length + ' assets, ' + totMB.toFixed(0) + ' MB on disk\n');
+console.log('\n' + RAW_DIRS.map(d => 'assets/' + d).join(' + ') + ' — ' + report.length + ' assets, ' + totMB.toFixed(0) + ' MB on disk\n');
 console.log('  ' + 'asset'.padEnd(44) + pad('MB', 7) + pad('tris', 11) +
-            pad('tree', 6) + pad('shrub', 6) + pad('bboard', 7) + pad('terr', 6) + pad('tallest', 9) + '  notes');
+            pad('tree', 6) + pad('shrub', 6) + pad('cover', 6) + pad('bboard', 7) + pad('terr', 6) + pad('tallest', 9) + '  notes');
 for (const r of report) {
   if (r.kind === 'error') { console.log('  ' + r.name.padEnd(44) + '  ERROR ' + r.error); continue; }
   const notes = [];
   if (!r.renderable) notes.push('offline');
-  if (r.scaleFlag) notes.push('SCALE x' + (1 / r.scaleHint).toFixed(0));
+  if (r.scaleFlag) notes.push('SCALE x' + (1 / r.scaleHint).toFixed(r.scaleHint > 1 ? 2 : 0));
+  if (r.duplicateOf) notes.push('DUPLICATE of ' + r.duplicateOf + ' (' + r.duplicateHow + ')');
   if (r.licence && r.licence.ok === false) notes.push('LICENCE ' + r.licence.text.split(' (')[0]);
   if (r.terrain && r.terrain.length) notes.push('terrain');
-  const cop = [].concat(r.trees, r.shrubs, r.billboards, r.terrain).reduce((m, x) => Math.max(m, x.copies || 1), 1);
+  const cop = [].concat(r.trees, r.shrubs, r.cover, r.billboards, r.terrain).reduce((m, x) => Math.max(m, x.copies || 1), 1);
   if (cop > 1) notes.push(r.rawMeshes + ' meshes -> ' +
-    (r.trees.length + r.shrubs.length + r.billboards.length + r.terrain.length) + ' unique');
+    (r.trees.length + r.shrubs.length + r.cover.length + r.billboards.length + r.terrain.length) + ' unique');
   if (r.cannotCut) notes.push(r.cannotCut + ' cutout w/o alpha');
   if (r.alphaBlend) notes.push(r.alphaBlend + ' BLEND');
   const chains = r.trees.filter(t => t.lods.length > 1 || t.chainInside).length;
   if (chains) notes.push(chains + ' LOD chains');
-  console.log('  ' + r.name.padEnd(44) + pad(r.fileMB, 7) + pad(r.tris.toLocaleString(), 11) +
-    pad(r.trees.length, 6) + pad(r.shrubs.length, 6) + pad(r.billboards.length, 7) +
+  console.log('  ' + (r.folder === 'treesRaw' ? r.name : r.file).padEnd(44) + pad(r.fileMB, 7) + pad(r.tris.toLocaleString(), 11) +
+    pad(r.trees.length, 6) + pad(r.shrubs.length, 6) + pad(r.cover.length, 6) + pad(r.billboards.length, 7) +
     pad(r.terrain.length, 6) +
     pad(r.tallest ? r.tallest.toFixed(1) + 'm' : '—', 9) + '  ' + notes.join(' · '));
 }
 if (process.argv.indexOf('--print') >= 0) {
   for (const r of report) {
     if (r.kind === 'error') continue;
-    console.log('\n### ' + r.name + '  (' + r.fileMB + ' MB)');
-    for (const t of r.trees.concat(r.shrubs))
-      console.log('    ' + (t.kind === 'shrub' ? '~' : ' ') + t.name.padEnd(30) +
+    console.log('\n### ' + r.file + '  (' + r.fileMB + ' MB)');
+    for (const t of r.trees.concat(r.shrubs, r.cover))
+      console.log('    ' + (t.kind === 'shrub' ? '~' : t.kind === 'cover' ? ',' : ' ') + t.name.padEnd(30) +
         pad(t.h.toFixed(1) + 'm', 8) + pad(t.copies > 1 ? 'x' + t.copies : '', 7) + '  ' +
         (t.parts > 1 ? t.parts + ' parts' : '       ') + '  ' +
         t.lods.map(l => 'L' + l.lod + ' ' + l.tris.toLocaleString()).join(' · ') +
@@ -904,4 +990,32 @@ if (process.argv.indexOf('--print') >= 0) {
     if (r.weldedTrees) console.log('    ' + r.weldedTrees + ' trees cut out of welded meshes');
   }
 }
+// --credits[=<folder prefix>]: the CREDITS.md rows, from asset.extras and
+// nothing else - paste them under "Trees, billboards and terrain". A row goes
+// in when a collection is CHOSEN (docs/TREE-IMPORT.md section 1), so print
+// them per folder as the batches come through.
+const CRED = process.argv.find(a => a.startsWith('--credits'));
+if (CRED) {
+  const pre = CRED.split('=')[1] || '';
+  for (const r of report) {
+    if (r.kind === 'error' || !r.credit || !r.file.startsWith(pre)) continue;
+    const c = r.credit;
+    const parts = [];
+    if (r.trees.length) parts.push(r.trees.length + ' tree' + (r.trees.length > 1 ? 's' : ''));
+    if (r.shrubs.length) parts.push(r.shrubs.length + ' shrub' + (r.shrubs.length > 1 ? 's' : ''));
+    if (r.cover.length) parts.push(r.cover.length + ' cover');
+    if (r.billboards.length) parts.push(r.billboards.length + ' billboard' + (r.billboards.length > 1 ? 's' : ''));
+    if (r.terrain.length) parts.push(r.terrain.length + ' terrain piece' + (r.terrain.length > 1 ? 's' : ''));
+    console.log('- **' + (c.title || r.name) + '** — `' + r.file + '`' +
+      (r.duplicateOf ? ' — duplicate of `' + r.duplicateOf + '` (' + r.duplicateHow + ')' : ''));
+    if (c.author) console.log('  - author: ' + c.author);
+    if (c.license) console.log('  - licence: ' + c.license);
+    if (c.source) console.log('  - source: ' + c.source);
+    console.log('  - ' + parts.join(', ') + ' · ' + r.tris.toLocaleString() + ' tris' +
+      (r.tallest ? ' · tallest ' + r.tallest.toFixed(1) + ' m' : '') +
+      (r.scaleFlag ? ' · **units: x' + r.scaleHint.toFixed(4) + ' to a metre**' : ''));
+    console.log('');
+  }
+}
+
 console.log('\nwrote ' + path.relative(path.join(__dirname, '..'), OUT) + '\n');

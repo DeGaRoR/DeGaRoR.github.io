@@ -47142,9 +47142,9 @@ user saw was the double.
   76 m cells and with flooding the DEM's radar noise; the map's lakes are
   the right shapes at 10 m. The ruling is the user's: maps first, the bake's
   rivers as the procedural layer on top when wanted.
-=======
-=======
-=======
+
+
+
 ## G408 — THE SKY CHANTIER, SESSION A: THE DAY AND THE SUN (2026-09-14, the user:
 ## "We really need a full day-night cycle by now, and a top-class lighting and
 ## atmosphere generator ... It's time")
@@ -47292,7 +47292,7 @@ stearman's calm rollout swing 5.9 -> 6.5 deg, the threshold at 6).
 - OWED (P0.7): retiring the old modes and their exceptions once a full
   `--all` run has judged every archetype under the defaults; the A5
   overshoot metric; the hold on a slope (the hold's brake holds it today).
-=======
+
 ## G409 — THE SKY CHANTIER, SESSION B: THE ATMOSPHERE (2026-09-14, the user:
 ## "a top-class lighting and atmosphere generator")
 
@@ -47421,7 +47421,7 @@ half weight. The card: 143 km/h held, completed, the landing 1.1 m/s.
 - Gates: PILOT (12 cases) on this commit's worktree — the proof of G399.4
   and G399.5 together; PILOTMATRIX's baseline moved forward in the same
   proof (see the next entry).
-=======
+
 ## G410 — THE SKY CHANTIER, SESSION C: AERIAL PERSPECTIVE (2026-09-14, the user:
 ## "the fog wall" - WORLD-V2 §8.3 R3 / §8.4, deleted)
 
@@ -47716,7 +47716,7 @@ worktree: the same three) - another session's landing, not this chantier's.
   fixtures), UISMOKE, BUILD, MEDIA, WORLD, WORLDRENDER, SITE.
 - OWED: the world's trees do not follow a live edit (a corridor cleared in the editor shows
   at the next boot); the premises' own trees are not planted in the game; a name board.
-=======
+
 ## G412 — THE SKY CHANTIER, SESSION D: THE PROBE FOLLOWS THE SUN, ONE SKY IN
 ## THE SHED (2026-09-15, the user: "the sunset through the windows really
 ## doesn't look that good" - the window fix)
@@ -47930,7 +47930,7 @@ the downhill strip (the approach over the hill the strip sits on — the
 pilot refuses it, correctly, and does not yet choose the other direction).
 The warns: the stearman's rollout swings (6.7 deg calm, 11.1 in 2 m/s
 across). GATE PILOTMATRIX ratchets against this file from here.
-=======
+
 ## G415 — THE SKY CHANTIER, SESSION E: THE CLOCK ON EVERY RAIL (2026-09-15)
 
 - THE FLIGHT RAIL: body.html's `#selTime` is the clock's PRESET select
@@ -48144,7 +48144,7 @@ Files: `tools/run_gates.js`, `tools/_shard.js` (new), `tools/build.js`,
 `tools/_hinge_check.js`, `tools/_village_check.js`, `tools/_house_check.js`,
 `tools/_strut_check.js`, `tools/_fit_check.js`, `tools/_premises_check.js`,
 `tools/_takeoff_check.js`, `tools/_cage_fit.js`, `.gitignore`, this file.
-=======
+
 ## G417 — THE SKY CHANTIER, SESSION F: THE NIGHT'S CONSUMERS, AND THE CLOSE
 ## (2026-09-15; DEBT-REGISTER "nothing switches on at night by itself" - closed)
 
@@ -48504,7 +48504,7 @@ called it and threw after the mesh was in the scene and before `draw()`,
 so the picture stood until the next mouse move redrew it. `ground` is the
 function now (the flat field at its floor), the rectangle is `groundRect`
 (rule 41 reads it). GATE HOUSE run for this one.
-=======
+
 ## G419 — THE SKY CHANTIER, S7: THE SUN'S GLARE AND THE MIST (2026-09-15, the user:
 ## "I would love the bloom and flare, and mist ... decide for that one")
 
@@ -48919,120 +48919,6 @@ slow link only, and a per-url manifest is ~50 KB in the page for a bar
 that is already fed by PerformanceObserver. Owed still if a real slow-link
 measurement (CDP emulateNetworkConditions) shows the serial chains
 mattering; the hook is the `run` phase in BOOT.log.
-=======
-## G423 — THE CLOUD CHANTIER, C1: THE FIELD AND THE FIRST MARCH (2026-09-15, the user:
-## "Let's look at the clouds ... This one has to look good, shade good, coherent and
-## realistic" / "Let's start on the clouds according to the plan")
-- THE PLAN: futureDesigns/CLOUDS-2026-09-15.md - there was no cloud plan, only a
-  deferral three times over and a data slot. The answer to "voxels?": not voxel
-  meshes; a density FIELD sampled by rays, the Guerrilla / Nubis method (Schneider
-  2015/2017), two layers (the volumetric low layer under a 2D cirrus veil - C4's),
-  one field every consumer derives from, four sessions C1-C4. This is C1.
-- src/core/08_cloud_field.js (new, pure, node-runnable): THE WEATHER MAP 256^2
-  tiling over 40 km - RGBA = coverage | height (0.5..1, bigger columns stand
-  taller) | lumpiness | wetness (reserved) - from a seeded tileable value-noise
-  fbm whose threshold is the (1 - cover) QUANTILE, so the covered fraction of the
-  map IS the day's cloudCover (exact to the texel count: 0.100/0.300/0.600/0.900
-  measured); the type's soft edge width. THE PROFILE (Schneider): a rounded
-  bottom, a top the height channel sets, per type (st 300 m, sc 700, cu 1500,
-  cb 4000); `layer(day)` = the day's dewpoint base (clamped 120..5000 m) + the
-  type's thickness; `columnOD` (the shadow's term, C3) = coverage x the profile's
-  mean fill x the column's height x sigma; `sample` bilinear + drift, tiling.
-  17 ms a map.
-- src/viewer/clouds.js (new): THE MARCH. Two 3D noise textures baked on the GPU
-  at first use into WebGL3DRenderTargets a slice at a time (128^3 RGBA8: Perlin-
-  Worley + three Worley octaves; 32^3 detail Worley; ~20 frames of 6 slices,
-  tiling by construction); the weather map as an 8-bit DataTexture (a float
-  texture filters linearly only by extension - the first draft's samplers were
-  incomplete and read opaque black, the classic (0,0,0,1)). A GLSL3 fullscreen
-  program (sampler3D needs it; three defines varying/texture2D for GLSL3 but NOT
-  gl_FragColor - the out is declared by hand): the ray from the inverse
-  projection and the camera matrix, the slab [base, top] intersected for an eye
-  under, in or above the layer, the path stopped at the SCENE'S DEPTH read from the
-  resolve target's new depth texture - the renderer's depth is LOGARITHMIC
-  (app.js: logarithmicDepthBuffer true), so w = (far + 1)^depth - 1 and the
-  distance is w over the view ray's -z - the mountains poke through the layer, the
-  aeroplane stands in front of a cloud. The step: N (48) over the slab with a
-  24-160 m floor/ceiling growing 6 % a km, strides of 3x where the weather map
-  is clear and 1.5x where the column is but the noise is not, stop at T < 1 %
-  or the path's end, an interleaved-gradient jitter a frame. Per step: density =
-  remap(perlin-worley, worley fbm - 1) x the profile, remapped by the coverage,
-  eroded by the detail (wispy at the bottom, billowy above, a curl from the base
-  noise); extinction sigma 0.08 /m x density; a 5-step light march toward the
-  sun (lengthening steps, no detail); the multi-scatter octaves (Wrenninge: sum
-  a^i exp(-od a^i) phase(g a^i), a = 0.5, three octaves) over a dual-lobe HG
-  (0.7 forward g 0.75, 0.3 back); a powder term weighted away from the sun;
-  ambient = the sky's irradiance / pi at the layer's top above, 0.3 of it + the
-  ground's reflected light below, lerped by height; the moon through eMoon like
-  the dome. The integration is Hillaire's energy-conserving form: L += T (S)(1 -
-  Tstep), S in SUN UNITS (E_sun = 1: the sun's transmittance at the layer's middle
-  from ATMO's tables), so a top reads E x phase at the silver lining and the tone
-  map sees the same numbers the dome gives it - THE UNITS BUG guarded a fourth
-  time. THE SAME aerial perspective and mist the scene gets, at the cloud's
-  transmittance-weighted mean distance: atmo.js now exports ATMO.GLSL {AP, MIST}
-  and ATMO.apUniforms (the atlas sample refactored into apSample(dir, distKm),
-  the splice's own atmoAP() calls it - GATE ATMO's five-chunk / one-flag rules
-  untouched). Output: radiance x U.scale + alpha (1 - T) into a half-res HalfFloat
-  target; the composite tone-maps with three's own chunks (the resolve target is
-  DISPLAY-SPACE, every transparent thing composites there in display space) and
-  alpha-blends over the frame. A `probe()` reads the march target, a noise slice,
-  the weather texture and the depth back (the instrument that found the
-  incomplete samplers).
-- aa_resolve.js: `needRT(on)` (the target and its depth even at tier `off` - a
-  0-sample target, the blit resolve), a DepthTexture (UnsignedInt248 +
-  DepthStencilFormat: the G131 stencil rides on the target; r186 resolves the
-  multisampled depth into it on leaving the target - `resolveDepthBuffer`), and
-  `setOverlay(fn)` called between the scene and the resolve with the target
-  bound. r186's depthTexture setter reads `.renderTarget` - pass null, never
-  undefined.
-- app.js: CLOUDS.init after the pass; the overlay draws the clouds in the world
-  only (the shed sees the dome; the layer in the probe is C3's). render_world.js:
-  the 64 billboard puffs retired; dayApply hands the day, the camera and the
-  world (the wind at the base x the day's seconds = the drift, deterministic on
-  the clock) to CLOUDS.update every frame. gfx_settings.js: GRAPHICS `clouds`
-  off / half / full in every preset (low off, medium/high half, ultra full),
-  applied live (the tier flips needRT). dev_panel.js: a `clouds` fold - type
-  (the four, with their thickness), cover, seed, base and thickness overrides,
-  density, detail, curl, scale, phase g, powder, multi-scatter, ambient, sun,
-  steps, light steps, drift, resolution, and the layer read out (base-top, the
-  map's cover, the pass's ms or the bake's progress).
-- GATE CLOUD (tools/_cloud_check.js, core, after ATMO): the cover is the cover
-  (every type, 0.1..0.9 within 5 %; 0 none, 1 all; the mean rises), the profile
-  (0 at base and top, in [0,1], fills somewhere, a half column nowhere fuller),
-  the layer (base, thickness, clamps, unknown type = cu, overrides), the column
-  (monotone in cover, zero when clear, tiling, a full column = fill x height x
-  sigma), determinism (same seed = same bits, a new seed differs), and the splice
-  rules read off the sources (standalone program, GLSL3, three's tone-map chunks,
-  ATMO's GLSL and uniforms taken, the mean distance, no Date, the core's map and
-  layer, the profile verbatim in GLSL, the puffs gone, the row in every preset,
-  the depth texture and the overlay in the pass, both files in the build).
-  Written, syntax-checked, its static rules grepped - NOT RUN (the user's order
-  stands; GATE ATMO's 59 were run once by reflex after the atmo.js refactor -
-  PASS - before I remembered the order).
-- PROOF (headless Chrome + CDP, scratch cdp_eval.js: boot, roll out, evaluate,
-  shoot; screenshots/clouds-2026-09-15/): c1_noon_stand.png - Jolene at noon
-  under 45 % cumulus from the stand, the layer at the day's 1293 m base, the far
-  clouds in aerial perspective, a mountain in FRONT of the layer (the depth
-  read); c1_above_noon.png - the eye 540 m above a lowered layer's tops (F8
-  overrides), the tops shaded, the sea and the island between the clouds;
-  c1_golden.png - the underside at 8 deg with the flare. Frame time in the
-  headless rig is noise on a 33 ms frame (off 32.7 / half 36.0 / full 36.0 /
-  off 35.2) - the GPU cost is C2's to measure properly (tree_perf's method).
-- FOUND, NOT MINE: on Jolene the premises ground patch's MeshLambertMaterial
-  (render_premises.js `premises-patch-materials`, the island ring's material
-  cloned + uMat + uSet0..3) FAILS TO LINK - "texture image units count exceeds
-  MAX_TEXTURE_IMAGE_UNITS(16)" (the ring's ground shader already carries 15
-  samplers: nine island layers, the shadow cascade's four, map, the AP atlas).
-  Proved on pristine G419 in the proof worktree (the same error, the same
-  program), so it predates this session; the patch draws nothing on the island.
-  Owed to the premises' keeper: fewer sets on the island's patch, or the ring's
-  layers packed.
-- OWED (C2-C4, the plan): the look (the powder and the octaves against
-  photographs, the near cloud's softness = the noise's 47 m texel at a 6 km
-  period, temporal 2x2 reprojection, the depth-aware upsample at the ridge), the
-  shadow map and the light at the craft and the probe (C3: the water reflects the
-  clouds), the cirrus veil, the types' table, in-cloud through the mist, the
-  editor/CONDITIONS lines, `&cloud=` (C4).
 
 ## G422 — THE PILOT TRACK, P1.A: THE RUNWAY MODEL — WHAT STANDS PAST THE
 ## ENDS; THE DIRECTION SCORED, NOT PICKED; THE VALLEY STRIP LANDED (2026-09-15)
@@ -49152,7 +49038,122 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   taxi to the scored end); TECS cuts the throttle to 0.4 when asked to
   slow 3 m/s while 170 m below its height (the speed term outweighs the
   climb demand — bound it to half climbMax, measured on the matrix).
-=======
+
+
+## G423 — THE CLOUD CHANTIER, C1: THE FIELD AND THE FIRST MARCH (2026-09-15, the user:
+## "Let's look at the clouds ... This one has to look good, shade good, coherent and
+## realistic" / "Let's start on the clouds according to the plan")
+- THE PLAN: futureDesigns/CLOUDS-2026-09-15.md - there was no cloud plan, only a
+  deferral three times over and a data slot. The answer to "voxels?": not voxel
+  meshes; a density FIELD sampled by rays, the Guerrilla / Nubis method (Schneider
+  2015/2017), two layers (the volumetric low layer under a 2D cirrus veil - C4's),
+  one field every consumer derives from, four sessions C1-C4. This is C1.
+- src/core/08_cloud_field.js (new, pure, node-runnable): THE WEATHER MAP 256^2
+  tiling over 40 km - RGBA = coverage | height (0.5..1, bigger columns stand
+  taller) | lumpiness | wetness (reserved) - from a seeded tileable value-noise
+  fbm whose threshold is the (1 - cover) QUANTILE, so the covered fraction of the
+  map IS the day's cloudCover (exact to the texel count: 0.100/0.300/0.600/0.900
+  measured); the type's soft edge width. THE PROFILE (Schneider): a rounded
+  bottom, a top the height channel sets, per type (st 300 m, sc 700, cu 1500,
+  cb 4000); `layer(day)` = the day's dewpoint base (clamped 120..5000 m) + the
+  type's thickness; `columnOD` (the shadow's term, C3) = coverage x the profile's
+  mean fill x the column's height x sigma; `sample` bilinear + drift, tiling.
+  17 ms a map.
+- src/viewer/clouds.js (new): THE MARCH. Two 3D noise textures baked on the GPU
+  at first use into WebGL3DRenderTargets a slice at a time (128^3 RGBA8: Perlin-
+  Worley + three Worley octaves; 32^3 detail Worley; ~20 frames of 6 slices,
+  tiling by construction); the weather map as an 8-bit DataTexture (a float
+  texture filters linearly only by extension - the first draft's samplers were
+  incomplete and read opaque black, the classic (0,0,0,1)). A GLSL3 fullscreen
+  program (sampler3D needs it; three defines varying/texture2D for GLSL3 but NOT
+  gl_FragColor - the out is declared by hand): the ray from the inverse
+  projection and the camera matrix, the slab [base, top] intersected for an eye
+  under, in or above the layer, the path stopped at the SCENE'S DEPTH read from the
+  resolve target's new depth texture - the renderer's depth is LOGARITHMIC
+  (app.js: logarithmicDepthBuffer true), so w = (far + 1)^depth - 1 and the
+  distance is w over the view ray's -z - the mountains poke through the layer, the
+  aeroplane stands in front of a cloud. The step: N (48) over the slab with a
+  24-160 m floor/ceiling growing 6 % a km, strides of 3x where the weather map
+  is clear and 1.5x where the column is but the noise is not, stop at T < 1 %
+  or the path's end, an interleaved-gradient jitter a frame. Per step: density =
+  remap(perlin-worley, worley fbm - 1) x the profile, remapped by the coverage,
+  eroded by the detail (wispy at the bottom, billowy above, a curl from the base
+  noise); extinction sigma 0.08 /m x density; a 5-step light march toward the
+  sun (lengthening steps, no detail); the multi-scatter octaves (Wrenninge: sum
+  a^i exp(-od a^i) phase(g a^i), a = 0.5, three octaves) over a dual-lobe HG
+  (0.7 forward g 0.75, 0.3 back); a powder term weighted away from the sun;
+  ambient = the sky's irradiance / pi at the layer's top above, 0.3 of it + the
+  ground's reflected light below, lerped by height; the moon through eMoon like
+  the dome. The integration is Hillaire's energy-conserving form: L += T (S)(1 -
+  Tstep), S in SUN UNITS (E_sun = 1: the sun's transmittance at the layer's middle
+  from ATMO's tables), so a top reads E x phase at the silver lining and the tone
+  map sees the same numbers the dome gives it - THE UNITS BUG guarded a fourth
+  time. THE SAME aerial perspective and mist the scene gets, at the cloud's
+  transmittance-weighted mean distance: atmo.js now exports ATMO.GLSL {AP, MIST}
+  and ATMO.apUniforms (the atlas sample refactored into apSample(dir, distKm),
+  the splice's own atmoAP() calls it - GATE ATMO's five-chunk / one-flag rules
+  untouched). Output: radiance x U.scale + alpha (1 - T) into a half-res HalfFloat
+  target; the composite tone-maps with three's own chunks (the resolve target is
+  DISPLAY-SPACE, every transparent thing composites there in display space) and
+  alpha-blends over the frame. A `probe()` reads the march target, a noise slice,
+  the weather texture and the depth back (the instrument that found the
+  incomplete samplers).
+- aa_resolve.js: `needRT(on)` (the target and its depth even at tier `off` - a
+  0-sample target, the blit resolve), a DepthTexture (UnsignedInt248 +
+  DepthStencilFormat: the G131 stencil rides on the target; r186 resolves the
+  multisampled depth into it on leaving the target - `resolveDepthBuffer`), and
+  `setOverlay(fn)` called between the scene and the resolve with the target
+  bound. r186's depthTexture setter reads `.renderTarget` - pass null, never
+  undefined.
+- app.js: CLOUDS.init after the pass; the overlay draws the clouds in the world
+  only (the shed sees the dome; the layer in the probe is C3's). render_world.js:
+  the 64 billboard puffs retired; dayApply hands the day, the camera and the
+  world (the wind at the base x the day's seconds = the drift, deterministic on
+  the clock) to CLOUDS.update every frame. gfx_settings.js: GRAPHICS `clouds`
+  off / half / full in every preset (low off, medium/high half, ultra full),
+  applied live (the tier flips needRT). dev_panel.js: a `clouds` fold - type
+  (the four, with their thickness), cover, seed, base and thickness overrides,
+  density, detail, curl, scale, phase g, powder, multi-scatter, ambient, sun,
+  steps, light steps, drift, resolution, and the layer read out (base-top, the
+  map's cover, the pass's ms or the bake's progress).
+- GATE CLOUD (tools/_cloud_check.js, core, after ATMO): the cover is the cover
+  (every type, 0.1..0.9 within 5 %; 0 none, 1 all; the mean rises), the profile
+  (0 at base and top, in [0,1], fills somewhere, a half column nowhere fuller),
+  the layer (base, thickness, clamps, unknown type = cu, overrides), the column
+  (monotone in cover, zero when clear, tiling, a full column = fill x height x
+  sigma), determinism (same seed = same bits, a new seed differs), and the splice
+  rules read off the sources (standalone program, GLSL3, three's tone-map chunks,
+  ATMO's GLSL and uniforms taken, the mean distance, no Date, the core's map and
+  layer, the profile verbatim in GLSL, the puffs gone, the row in every preset,
+  the depth texture and the overlay in the pass, both files in the build).
+  Written, syntax-checked, its static rules grepped - NOT RUN (the user's order
+  stands; GATE ATMO's 59 were run once by reflex after the atmo.js refactor -
+  PASS - before I remembered the order).
+- PROOF (headless Chrome + CDP, scratch cdp_eval.js: boot, roll out, evaluate,
+  shoot; screenshots/clouds-2026-09-15/): c1_noon_stand.png - Jolene at noon
+  under 45 % cumulus from the stand, the layer at the day's 1293 m base, the far
+  clouds in aerial perspective, a mountain in FRONT of the layer (the depth
+  read); c1_above_noon.png - the eye 540 m above a lowered layer's tops (F8
+  overrides), the tops shaded, the sea and the island between the clouds;
+  c1_golden.png - the underside at 8 deg with the flare. Frame time in the
+  headless rig is noise on a 33 ms frame (off 32.7 / half 36.0 / full 36.0 /
+  off 35.2) - the GPU cost is C2's to measure properly (tree_perf's method).
+- FOUND, NOT MINE: on Jolene the premises ground patch's MeshLambertMaterial
+  (render_premises.js `premises-patch-materials`, the island ring's material
+  cloned + uMat + uSet0..3) FAILS TO LINK - "texture image units count exceeds
+  MAX_TEXTURE_IMAGE_UNITS(16)" (the ring's ground shader already carries 15
+  samplers: nine island layers, the shadow cascade's four, map, the AP atlas).
+  Proved on pristine G419 in the proof worktree (the same error, the same
+  program), so it predates this session; the patch draws nothing on the island.
+  Owed to the premises' keeper: fewer sets on the island's patch, or the ring's
+  layers packed.
+- OWED (C2-C4, the plan): the look (the powder and the octaves against
+  photographs, the near cloud's softness = the noise's 47 m texel at a 6 km
+  period, temporal 2x2 reprojection, the depth-aware upsample at the ridge), the
+  shadow map and the light at the craft and the probe (C3: the water reflects the
+  clouds), the cirrus veil, the types' table, in-cloud through the mist, the
+  editor/CONDITIONS lines, `&cloud=` (C4).
+
 ## G424 — THE ISLAND'S LAYERS PACKED: THE PREMISES PATCH LINKS ON JOLENE (2026-09-15, a finding handed over from the cloud chantier, G423)
 
 - THE FINDING: on Jolene the premises ground patch's MeshLambertMaterial
@@ -49192,6 +49193,7 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   did not. run_gates.js REBUILDS the generated files before any subset - on the
   shared tree that re-emits flight_core.js/index.html/dev.html from every
   peer's uncommitted src.
+
 
 ## G425 — THE CLOUD CHANTIER, C2: THE LOOK, THE COST, AND THE SHADOW ON THE GROUND (2026-09-15,
 ## the user: "go C2. Do the clouds cast shadows on the terrain?")
@@ -49326,6 +49328,105 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
 - OWED: the eye pass on the tops and the veil (the user's), the 22 deg halo, god-rays
   off the tile, precipitation (the wetness channel), the shed verified in a headed run,
   the light's hemisphere under the veil (a cirrus day is a shade less blue - not modelled).
+
+## G427 — VEGETATION, V0: THE SECOND BATCH ON THE SHELF (2026-09-15, the user: "back to the tree bench for integration of new assets; deciduous trees and shrubs [one pack], a new Alaska biome of tortuous pine and waterlands [muskeg], grass prototypes... another section of the bench reusing the spread, the lighting, the colouring and the impostor generation... selection first, then authoring and tests, then game-ready")
+
+The plan is `futureDesigns/VEGETATION-2026-09-15.md` (SELECTION → AUTHORING
++ TESTS → BAKE; the UNDERSTORY layer and MIX presets are the bench section
+asked for, §2). This entry is V0: the inventory, honest, on the shelf.
+- TWO ROOTS: `tree_inspect.js` walks `assets/treesRaw` + `assets/vegetation/
+  <kind>/` (skipping `_dismissed/`); every asset carries `file` + `folder`;
+  the bench (`urlOf`) and `tree_prep.py` fetch by `file`. A FIFTH KIND, cover
+  (grass / tufts / cards under ~1.2 m; `vegetation/grass` is cover by the
+  user's filing), with its own shelf framing (a tuft on the tree shelf's
+  2.2 m columns from 14 m was a speck). The rail is BY FOLDER and lists a
+  pack with a subject of any plant kind — the grass packs had no tree and
+  were invisible under the "tree source" rule.
+- THREE CLASSIFICATION FAULTS the new packs exposed (all "names lie", see
+  docs/TREE-IMPORT.md §2): `atlas` in a leaf material = billboard (fourteen
+  deciduous trees, one of 22 141 tris, in the card rail); the footprint merge
+  fused NEIGHBOURS on a grid tighter than the crowns (Oak "4 parts" = oak +
+  apple + cherry — two whole subjects never merge now, a lone part still
+  may); the merge's shorter-name rule + PROP's `stump` sent Lampi's whole
+  pine to the terrain rail (tree vocabulary in any part wins). The W0a
+  packs' grouping is BIT-IDENTICAL to HEAD's after the three (diffed
+  against `git show HEAD:…_trees_index.json`); GATE TREE / TREES pass; the
+  payload untouched.
+- DUPLICATES flagged (binary SHA or same subject signatures): of the five
+  pine downloads, `(4)` = `(3)` = the W0a-parked Georgeous pine, `(5)` = the
+  W0a-dismissed evolveduk pine, `(2)` = a re-upload of it; `pine.glb`
+  (Lampi, 10.9 m, 12 k) is the one new pine. None is tortuous — the shore
+  pine is an authoring op (`bend`, §2.1 of the plan).
+- THE PACK (Dari, CC-BY): 24 trees (five birches, maple/oak/ash, an orchard
+  three, three conifers, FOUR DEAD — the muskeg's sticks), 3 shrubs, 7
+  terrain (boulders, logs); all leaves BLEND; the shrubs authored large
+  (14.8 m) → a per-SUBJECT scale is owed. THE GRASS: four shapes
+  (tussock clumps, cm-without-unit-node patches — 120 m grass, the scale
+  hint is per folder kind now — crossed-card plates, photogrammetry chunks).
+- CREDITS.md: ten rows under "Second batch", printed by `--credits=vegetation`
+  (the tree section's "regenerated" was a one-time print; there is a printer
+  now).
+- THE RULINGS (same day): pines = Lampi + Georgeous + evolveduk, the
+  duplicates deleted and the files renamed (`pine_lampi/georgeous/evolveduk
+  .glb`); the pack's conifers dropped, one entry per species and per
+  tree/shrub; the grass as proposed; FOUR mixes - conifer (as is), muskeg,
+  grassland (grass + a few bushes/deciduous), borders (deciduous shrubs as
+  fillers); a dead tree is not a species but its species' `dead` fraction.
+- V1 THE BENCH SECTION (docs/TREE-IMPORT.md §4.1-4.4): a SPECIES is a
+  tuning entry (`file`, `kind`, `subjects`, `snags` as `file|subject` refs,
+  `sizes`, the ops); `buildSpecies()` at boot, TUNE_KEY into buildGroup,
+  retint/measure per species' own materials (two species sharing a file
+  keep their colours). THE UNDERSTORY: shrubs per 1000 m² (edge-biased,
+  refused under trunks, InstancedMesh near / IMP_TILE_HI sheet far), cover
+  per m² around the eye to `reach` with a fade, `ground: wet` (pools from
+  one tileable noise the texture and the planter both read). MIXES in the
+  tuning + panel (select / save / new). THE OPS: bend, bendFreq, lean,
+  flatTop, sparse, prune, variants - pure functions on the holder, in the
+  impostor signature; the `species (authored)` shelf kind. THE FITTER:
+  `fit` per species / `fit impostors` - a 5x5 grove as mesh then sheet,
+  frame-mean luminance, eight bisection steps of `implight`.
+- TRAPS: a snag built from another file before that file's AO bake draws
+  BLACK (aoV unbound) - retintSpecies bakes the snag files; a cloned
+  geometry keeps its source's boundingBox and the ops "did nothing" to the
+  reported height; the fit on a lone specimen lands 0.6 (self-shadow vs
+  baked AO) - fit a grove; a per-covered-pixel metric disagrees with the
+  doc's frame mean. The snag sheet's twig blocks at 60-120 m are the 224
+  tile's texels, not the mips (plain chain for snags tried, no change at
+  that range; kept for what it does further out).
+- MEASURED: fitter under alps / imp lit 0.6 - cedar 0.60, spruce 0.67,
+  birch 0.61, holly 0.63, deciduous shrub 0.65: a TIER offset, no family
+  spread. Not written into the committed tuning (implight stays 1.0; the
+  button is the user's).
+- THE SECOND PASS (the user's eye, same day): fruit trees and Lampi's pine
+  OUT of the tuning (the file stays on disk, unlisted); maple / oak /
+  georgeous / evolveduk at the screenshot values; DEAD TREES ARE THEIR OWN
+  SPECIES again (kind `dead`: `dead_conifer`, `dead_deciduous` - "very
+  different, I need control: a lot whiter and less tall" - own bark to 3,
+  size, proportion, bend ops; the model then its sheet, no stick rungs;
+  `snags` refs dropped from every entry); the CHEAP DEAD TREE `dead_stick`
+  (`gen: stick`, the pack's `BarkMat.003` tiled along a tapered 8-sided
+  bole, `branches` 3 at 35-65 deg, 168 tris, bent like any subject); the
+  BEND PROFILE moved to the base (1-(1-t)^2.5, the crown carried; the
+  wiggle on (1-t)^2) - "too much bending at the top, where the leaves are";
+  `bendPct` (the first variant of each subject stays straight and takes
+  1-bendPct of the draw); `leafScale` (islands scaled about their centroid)
+  + `leafFill` (alpha^k before the sharpen, per material via applyTune) for
+  "the foliage of the base model is too weak". Verified on a row (sticks,
+  dead conifers, both pines x3) and the muskeg mix.
+- THE GRASS PASS (the user's eye, same day): `parts` on a species (the
+  chunk file's ONE plant, 37 tris, not the ground scan the inspector fused
+  with it; the r12 "very small grass" ignored); `density` per cover species
+  (per m2, the stand's `cover` a multiplier - reed 0.12, dry 0.5, scan 1.0,
+  plates 2.5: "we definitely need more of them"); cover carries NO baked AO
+  (the dry grass's "strange shading" was aoBake 4 blackening a clump's
+  base); the panel's aside is a flex child now (the header wraps to three
+  lines and the old 100vh-41px cut the rows off the bottom). The plates were
+  never meant to bend - a crossed card is what they are; density is the
+  answer. 105 k cover instances in 126 draw calls on the grassland mix.
+- OWED: the user's eye on the four mixes (the shrubs' lime under MASTER,
+  the cover densities, the dead trees' whiteness - `bark` runs to 3 now),
+  §2.4 gates, then §3 the bake (tree_prep reads species + ops + mixes +
+  the generated stick; media stems from species keys).
 
 ## G428 — THE PERF STUDY, CHANTIER 0: THE INSTRUMENT AND THE CARDS (2026-09-15; the study's three defects validated, the tile that reached nothing, the cards on their own wings and engines)
 
@@ -49718,116 +49819,6 @@ the six HOME cells bit-for-bit. GATE PILOT green (the BOX resume case
   lamp geometry — G96's rule); the parked aeroplanes' hitbox has no car
   equivalent (a taxiing aeroplane drives through a parked car).
 
-## G422.1 — THE PILOT TRACK, P1.B: THE APPROACH PLAN — SHORT, SOFT, THE GUST
-## ON VREF, THE STRIP AGAINST THE RUN; TECS'S SPEED TERM BOUNDED (2026-09-15)
-
-**THE APPROACH PLAN** (43_pilot.js planArrival, PILOT-ROADMAP B.2-B.6): one
-record, `ap.appr` (on the report as `appr`), that the phases read instead
-of the constants they held:
-- `technique` — 'short' when the strip is under 450 m or under 1.6 x the
-  sheet's landing run (LDGrun): Vref 1.2 Vs0, the aim 30 m past the
-  threshold (8 % of a longer strip), the brakes from the moment every
-  wheel is down at twice the ramp; 'soft' when the surface's rolling
-  resistance is 0.10 or more (GROUND_SURF: forest floor, sand, scree): no
-  brakes until the aeroplane walks (0.5 Vs, then half), the nose held off
-  (a trike derotates at 0.7 Vs to full up; a taildragger's stick is full
-  back already); 'normal' otherwise — 1.3 Vs0 on the 20 % mark, 12 % in
-  (60 m at least) under 700 m, as before.
-- `Vref` — the technique's speed + HALF THE GUST: `gustAt` samples the
-  world's wind at the aerodrome over the next 30 s (the field is
-  deterministic in t) and takes the spread of its speed; nothing asks the
-  world what it was set to (the pilot reads the day).
-- `strip-short` said once when the strip is under 1.15 x the landing run;
-  the score (25_airfield.js siteScoreDirections, `lim.LDGrun / TORun`)
-  refuses a DOWNHILL landing on a strip under 1.5 x the run (B.6) and
-  names a strip shorter than the run or the take-off in its `why`.
-Measured: the cub at A5 (340 m gravel) lands short-field — Vref 21.9, the
-aim 30 m in, 164-190 m of roll (266 before); in a 2 m/s wind gusting 2
-(3.2 m/s of spread) Vref 23.5, sink 1.18 at 1.18 Vs, 1 m past the aim, the
-throttle working 0.05-0.48; on SAND (`pilot_trace --surface 7`, the new
-fixture flag) the cub rolls 219 m without a brake (237 on grass with), the
-C172 158 m nose-high. The trace prints the plan (`approach:` line) and
-judges the speed against the PLAN's Vref (it read ap.VAppr at the stand,
-so a short-field or gusty approach read as a speed error).
-
-**TECS** (`tecs`, P1.B): the speed term cannot cancel a saturated height
-demand — asked to slow 3 m/s while 170 m below its height (the CLIMB's
-Vy+ into the route's Vy) it outweighed the full-climb demand and the
-throttle sat at 0.4 with a hill rising under the aeroplane (A3's
-departure, before G422's terrain-turn); with the height demand on its
-stop the speed term may take at most half of it, the excess speed goes to
-height on the elevator. Quick set unchanged to the second (the cub's HOME
-circuit 335.2 s against 336).
-
-MEASURED (a clean worktree at G424, the core set): 47 cells, 29 good / 17 warn / 1 bad — from 23-24 / 14-15 / 9 at P0.7 (G399.7). Every A3, A5 and dn4 cell lands; the one bad is the C172's 158 m fillet in the 6 m/s headwind (`head6`, P0-era). The warns: the taildraggers' 1.6-2.0 m/s sinks and 6-7 deg swings in 2 m/s across (P0-era), the motorglider's 51-75 m fillet overshoot, the Savannah 3.5 m above its raised 4.1 deg slope at A5 with the throttle on its floor (the cub too, below the threshold).
-
-- Gates: PILOT (58/58 from a clean worktree at this commit). PILOTMATRIX
-  RED at this commit — the SAME seven cells G431 (the run attitude, landed
-  meanwhile) reported against pilot_baseline.json: the C172's touchdown
-  sink 0.95 -> 2.0 / 2.16 m/s, the cub's 9.6 deg roll-out swing in 2 m/s
-  across, cub up4 — the airframes moved under the pilot (the cub now
-  unsticks at 21.5 m/s, lands at 19.5); this entry's own measurements were
-  taken on a clean worktree at G424, before them. The RULING G431 owes
-  (re-bless the table, or the flare and the roll-out steer first) stands;
-  the baseline is not moved here.
-- OWED (P1): the take-off techniques (C.4: soft / short as ROLL
-  sub-modes); a `soft` fixture in the matrix; the cub at A5 flies 0.6 m/s
-  fast and 2 m above its 4.1 deg slope with the throttle on its floor
-  (the idle sink is short of the slope at 1.2 Vs0 — a slip, or the
-  planner's slope capped by the idle glide); the protocol record; the
-  4 m/s gusting crosswind ground roll.
-
-## G422.2 — THE PILOT TRACK, P1.C: THE DEPARTURE PLAN — SHORT, SOFT, VX
-## UNTIL CLEAR; PAST THE POINT OF STOPPING THE QUESTION IS VR BEFORE THE
-## FENCE (2026-09-15)
-
-**THE DEPARTURE PLAN** (43_pilot.js, made as the roll begins; `ap.dep` on
-the report as `dep`, the approach plan's twin — PILOT-ROADMAP C.3-C.4):
-- 'short' when the strip is under 2 x the sheet's take-off run (an
-  accelerate-stop wants about two runs): the brakes hold the aeroplane
-  until the power is up (to the ground-power cap while the tail is down),
-  and the roll asks the TAKE-OFF TO FIT rather than the stop — the cub on
-  340 m of gravel (A5) was rejected at 7 s ("will not reach Vr: needs 64 m
-  more") for a run the sheet says it makes in 250.
-- 'soft' when the surface rolls hard (GROUND_SURF 0.10: duff, sand,
-  scree): the tail kept down (a trike's nosewheel light, de 0.20), unstuck
-  at 0.95 Vr, the attitude for speed from the first metre — level in
-  ground effect until Vy.
-- 'normal' otherwise. Every departure climbs at Vx (the sheet's best
-  angle) while the ground within 1.5 km along the climb-out, CANOPY
-  INCLUDED, stands above the aeroplane by 15 m (`vx-climb`, said once),
-  then Vy / the cruise-climb (C.3, the obstacle-clearance climb). The live
-  gradient `gradAhead` reads the canopy now (the trees are what a
-  climb-out clears): G422's terrain-turn and escape fan read it too.
-- PAST THE POINT OF STOPPING the roll asked whether a stop still fits (it
-  does not, by definition) and rejected: the cub on A5 at 17.3 of 18.7 m/s
-  with 217 m left, the C172 at 19.3 of 20.4 with 249 m — both a second
-  from flying. The question is whether VR COMES BEFORE THE FENCE (dVr at
-  the measured acceleration against the strip left, the reserve kept):
-  `committed-takeoff` says the distance; a run that cannot make it is
-  still rejected with the distance on the record.
-- `pilot_trace` prints the departure plan.
-
-MEASURED (a clean worktree at HEAD 3e1ea8dd — G431's airframes, the
-reference core set run first: 28 good / 14 warn / 5 bad; the five: the
-tigermoth's 1.22 Vs arrival in 2 m/s across, the beaver's 101-110 m
-fillets, the C172 at A3 touching down at 3.07 m/s and in the 6 m/s
-headwind — G431's flare, the ruling it owes): P1.C 28 / 14 / 5, NO CELL
-WORSE, eleven cells differ only by the Vx climb on the sloped fixtures and
-the motorglider's climb-out under HOME's trees. Off A5 (340 m): the cub
-(short: committed at 17.3 m/s, Vr in 16 m, 235 m of run, Vx to 20 m,
-terrain-turn at 28 m, lands HOME), the Savannah (short: 174 m, Vr in
-2 m), the Stearman (short: 183 m, Vr in 26 m), the C172 (normal: 114 m,
-Vr in 7 m) — every one of them was rejected before. On sand the cub
-rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
-
-- Gates: PILOT (clean worktree at this commit); PILOTMATRIX against the
-  committed baseline stays G431's red (seven cells, the ruling owed) —
-  no cell worse than HEAD on the core set.
-- OWED (P1): the 4 m/s gusting crosswind ground roll; the protocol record
-  + circuit joins; a `soft` / `short` matrix fixture; the Savannah and the
-  cub 2-3.5 m above their raised A5 slope with the throttle on its floor.
-
 ## G432.2 — THE HOUSES BACK: EVERY MATERIAL TAKES THE AERIAL-PERSPECTIVE SAMPLER, HOOK OF ITS OWN OR NOT (2026-09-15, the user: "check why the houses don't render too please")
 
 - THE FINDING. In the game (not the benches) every house, big building,
@@ -50098,103 +50089,6 @@ rolls 253 m tail-down to 25.3 m/s and flies (231 / 25.9 on grass).
   the strip in the editor's own tools; GATE PILOT's core set on the pilot's
   descent-onto-the-slope change (flown here on HOME, w3 and SEA only).
 
-## G422.3 — THE PILOT TRACK, P1.D: THE CROSSWIND GROUND ROLL IN A REAL WIND —
-## THE BANK COMES OFF ON THE WHEELS, THE TAIL IS UP WHEN THE TAILWHEEL IS,
-## THE PEDAL WITH THE SPEED, THE LOOP WITH THE MASS; NO TECHNIQUE ON THE
-## WATER (2026-09-16)
-
-The full run (G399.7) had measured 17-55 deg roll-out swings on the
-taildraggers in 4 m/s gusting across (`x4`); on G431's airframes the cub
-GROUND-LOOPED 96 deg and stopped 36 m off the strip, the beaver 150 deg
-and 74 m. Read off the trace (43_pilot.js `groundSteer`), four causes,
-each a law and none a number for one aeroplane:
-- THE BANK STAYED ON. The wing-low target (xwBank x the crosswind, 8-11
-  deg in 4 m/s) is the decrab's, for the air; held on the wheels it lifted
-  the downwind main and the aeroplane pivoted on one wheel. From the FIRST
-  main down (a trike: all three) the target is the ground's own bank
-  within 2 deg into wind (xwBankGround — the trike's rule, every type
-  now); the roll loop on the measured bank keeps the upwind wing down
-  against the crosswind's own rolling moment. Cub 96 -> 37 deg.
-- THE TAIL WAS "DOWN" BY THE PITCH. Banked 8 deg on one main at a
-  three-point attitude the cub read tail-down, the rudder was clamped to
-  the tailwheel's 0.45 and the nose swung 32 deg before the tail touched.
-  `sim.wheelContacts()` (30_solver.js, new: the mains in order and the
-  tail / nose wheel, the floats on the water) — the tail is up when the
-  TAILWHEEL is off. Cub 37 -> 10.6 deg, on the centreline.
-- THE TAIL-DOWN PEDAL WAS THE TAXI'S. 0.45 keeps a swerve out of the taxi;
-  at 19 m/s three-point the beaver weathervaned 31 deg each way on 0.45 of
-  rudder the fin alone could have held. The stop climbs with the speed to
-  the full pedal by VTailUp.
-- THE LOOP WAS THE CUB'S. The heading gain falls and the damping rises
-  with the square root of the mass — the yaw inertia grows with it, the
-  tailwheel's moment does not: a loop tuned on 480 kg rang 1264 kg at
-  10-19 m/s (+-35 deg at a 4 s period). Beaver 150 -> 11.7 deg, 0 m off.
-MEASURED (`x4`): cub 10.4 deg, Stearman 10.9, Tiger Moth 14 (26), C172
-3.7, the twin 3.4 — every one on the centreline at the stop; in 2 m/s
-across the cub 6.5 deg (9.6 at HEAD: one of G431's seven), the Stearman
-6.5.
-
-**NO TECHNIQUE ON THE WATER** (found by the vehicles session: GATE
-SEAPLANE's crosswind take-off red at HEAD — lift-off null, 780 m off the
-lane, a 180 deg swing): the water's GROUND_SURF row rolls at 0.35, so
-G422.2's departure plan read the SEA lane as "soft", the stick went to the
-tail-down schedule and the hump law (H4) lost the floatplane. Neither plan
-applies on the water (surface 4, or a hull under the aeroplane) — the
-water has its own laws. GATE SEAPLANE: the crosswind take-off is back to G431's own report — off the water in 5.4 s, 9.2 m off the lane, the 35.8 deg swing against the bound of 30 that the water arc owns (G431: 'the float card's mass and drag moved'); the calm circuit and the taxi green.
-
-MEASURED (the core set on a clean worktree at HEAD, G431's airframes,
-against HEAD's own run): 47 cells, 29 good / 14 warn / 4 bad from 28 / 14 / 5 — the Tiger Moth in 2 m/s across out of the bad (15.5 -> 8.5 deg); every roll-out swing down but the Stearman's (7 -> 8.5): the cub 9.6 -> 6.2 (G431's seventh cell), the Pietenpol 14.2 -> 11.9, the Tiger Moth calm 6.1 -> 0.7, the ul1 9.5 -> 7.7, the beaver 30.1 -> 7.7 and on the centreline; the four bad are G431's (the beaver's fillets, the C172's flare at A3 and in the 6 m/s headwind).
-
-- Gates: PILOT; SEAPLANE; PILOTMATRIX against HEAD's core run (the
-  committed baseline stays G431's red — the ruling owed).
-- OWED (P1): the protocol record + circuit joins; a `soft` / `short` /
-  `x4` fixture in the quick set; the A5 slope with the throttle on its
-  floor; the Tiger Moth's 14 deg (the biplane's fin in the gust).
-
-## G422.4 — THE PILOT TRACK, P1.E: THE PROTOCOL RECORD — A STRIP'S DECLARED
-## CIRCUIT (HAND, HEIGHT, JOIN); THE MATRIX'S NEW FIXTURES (2026-09-16)
-
-**THE PROTOCOL** (PILOT-ROADMAP §3.3, G.4): a strip may DECLARE how it is
-flown — `circuit: { hand: 'left' | 'right', height: m over the strip,
-join: 'downwind' | 'straight' }` on the runway record (27_premises.js
-RUNWAY_DEF, contract v1.15, validated: hand left/right, height > 0, join
-downwind/straight; `runwaySite` carries it into the aerodrome record for
-strips and sea lanes alike; the editor's row is OWED to the premises
-session). The pilot (43_pilot.js planArrival) reads it: the hand names the
-side (a left-hand circuit turns left — the downwind lies to the LEFT of
-the landing direction, wp's c > 0, side 1); the height is the LEAST the
-pattern flies (the terrain may ask more, never less — A3's 221 m stands
-over a declared 150); 'downwind' forbids the straight-in (the aeroplane
-joins the downwind at the entry). The terrain's FORCED side (a climb-out
-that turns, a ridge over half the circuit height) wins over the hand and
-is said once (`protocol-overridden`); the terrain's mere preference does
-not. `ap.report.circuit` { hand, hC, join, declared } is on the report;
-`pilot_trace --circuit hand,height,join` sets it as a fixture and prints
-the `circuit:` line. Measured: the C172 flies a declared right-hand
-circuit at HOME (crosswind to the right, 165 m — the trees under the
-pattern ask 15 over the declared 150); at A3 a declared left-hand is
-flown right-hand and said (the climb-out turns right), a declared 200 m
-is flown at 200.
-
-**THE FIXTURES** (tools/pilot_matrix.js): `sand` (the destination's
-surface SAND — the soft-field arrival), `rh` (a declared right-hand
-circuit at 150 m, no straight-in); the QUICK set grows 9 -> 14 cells (the
-cub and the Stearman in `x4`, the cub at A5, the cub on sand, the C172
-right-hand); the CORE set 47 -> 57 (`x4` on the cub, Stearman, Tiger
-Moth, beaver, C172 and the twin; sand and rh on the cub and the C172).
-Measured on P1.E (a clean worktree at G422.3): quick 5 good / 9 warn / 0
-bad — the warns are G431's (the C172's 2.0-2.2 m/s touchdowns, the
-Stearman's 8.5 deg swings) and the x4 roll-outs at 10.4-10.9 deg (the
-warn line is 5). GATE PILOT green.
-
-- Gates: PILOT; PILOTMATRIX (the committed baseline stays G431's red —
-  the ruling owed; the 14-cell set has no baseline entry for its five new
-  cells until the baseline is re-blessed).
-- OWED: the editor's `circuit` row (premises); a base join; the overhead
-  join (P3); the A5 slope with the throttle on its floor (the cub sits 2 m
-  high at the floor, 0.6 m/s fast, lands 17 m short at 1.17 Vs — a slip
-  is the remedy, later); the `--all` run on the whole of P1.
-
 
 ## G434.1 — THE RING UNDER THE PREMISES, AND THE TIDAL FLATS ARE THE SEA (2026-09-16,
 ## the user: "there's a lot of clipping. Roads clip through terrain, the terrain shows
@@ -50250,56 +50144,6 @@ warn line is 5). GATE PILOT green.
   untouched terrain (17.6 m chords on 5 m relief) - a finer inner ring or a
   quadtree ring is the real answer; the shore band's pale beach tone on the
   new sea cells.
-
-## G422.5 — THE PILOT TRACK, P1.F: THE FULL RUN ON P1 READ — THE STRAIGHT-IN
-## SLOWS BEFORE THE FIX, THE FILLET AT THE TRUE AIRSPEED, A FILLET IS NOT A
-## WANDER (2026-09-16)
-
-**THE FULL RUN** (`pilot_matrix --set all`, 176 cells on a clean worktree
-at G422.4, 3 h 10): 78 good / 70 warn / 28 bad. Against G399.7's full run
-(61 / 56 / 59, on the airframes before G431): 67 cells better, 36 worse,
-73 the same. The better: every cross-country to A3 and A5 (all fifteen
-core machines land where every one flew away), the `x4` roll-outs, the
-Caravan-alike's circuits, the T-tail's, six drawn tails. The worse, by
-class:
-- THE A0 CLASS — nine machines (the Jodel, C172, RV, Savannah,
-  motorglider, e-trainer, V-tail, twin, beaver) on the 5.5 km hop to the
-  paved strip: the straight-in ARRIVED AT THE FIX AT CRUISE SPEED (the
-  C172 at 51 m/s), zoomed 30 m shedding it to 25 and rode 12 m above the
-  slope. G399.7's climb-out hold (to the leg height) had hidden it: the
-  aeroplane reached the fix late and slow. FIXED: an enroute leg's last
-  1.5 km is flown at the pattern speed (VTurn, what the base leg flies) —
-  the C172's slope rms 12 -> 3 m, its speed rms 2.06 -> 0.56; the beaver
-  7 -> 2.3 and 3.0 -> 0.94.
-- THE HOT DAY (35 C, 2.2 / 2.6 m/s gusting): "118-280 m crosswind
-  overshoots" on six machines. Two things: the fillet was PLANNED ON THE
-  INDICATED SPEED and flown at the true one plus the wind (sigma 0.9: 5 %
-  of speed, 10 % of radius) — the fillet and the pattern width now take
-  the true airspeed (sim.out.easK); and THE METRIC READ THE CORNER CUT
-  ONTO THE DOWNWIND AS A WANDER — the pilot publishes the path's
-  curvature under the aeroplane (`dbg.kap`) and `pilot_trace` counts no
-  overshoot while the path curves (a fillet is not a wander): the C172's
-  hot crosswind 149 -> 34 m, its base 55 -> 29; the cub's calm legs read
-  4 / 4 / 10 m (15 / 15 / 15 before — the 15 m was the crossing itself).
-  The Stearman's 118 m on the hot crosswind is real (a 373 m turn at the
-  climb bank with a tailwind on the climb-out, the bank on its stop for
-  20 s) — OWED.
-- G431's AIRFRAMES (the run attitude, G428-G431): the C172's and cub's
-  HOME cells (touchdown sinks 2.0-2.2 m/s, the 9.6 -> 6.2 deg swing is
-  G422.3's), the beaver's 101-110 m fillets, the Pitts-alike (2.1-2.5 m/s
-  arrivals, a give-up in calm), the P-38 landing UNDER ITS STALL SPEED
-  (0.93-0.96 Vs, 115-136 m past the aim, the speed 3 m/s off — the twin's
-  Vs0 / flap reading), the radial in x4, five drawn tails giving up — the
-  ruling G431 owes (re-bless the baseline, or the flare first) and the
-  tail chantier's.
-- The motorglider at A5 (320 m past the aim at 1.57 Vs, sink 5.7): the
-  short-field 1.2 Vs0 on an L/D of 25 with the throttle on its floor —
-  it cannot come down; the glider circuit is P2 (F.2).
-
-- Gates: PILOT; PILOTMATRIX (the 14-cell quick set against G422.4's own
-  run: no cell worse; the committed baseline stays G431's red).
-- OWED: the Stearman's hot crosswind; the base join; the A5 slope with the
-  throttle on its floor; the motorglider's circuit (P2).
 
 
 ## G434.2 — THE PATCH UNDER THE LOTS (2026-09-17, the user: "the patches still don't show")

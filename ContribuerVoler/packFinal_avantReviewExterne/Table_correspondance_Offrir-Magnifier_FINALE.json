@@ -1,0 +1,609 @@
+{
+  "note": "Table de correspondance — version 2, coordonnée au dossier V4 et à l’annexe V2. Paramètres numériques du prototype tissage-v15 ; directives chromatiques encore à implémenter. Les bandes sont un calibrage provisoire, non une garantie de viabilité esthétique.",
+  "etat_initial": {
+    "intention": "Monde vierge. Courbes continues, matière floue, palette d'humus et d'eau. Aucune trace humaine : ni angle droit, ni bord net, ni calage sur une grille.",
+    "palette": {
+      "paper": "#0c100d",
+      "ink": "#4a5248",
+      "colCount": 6,
+      "c1": "#6f8f5a",
+      "c2": "#b8c48a",
+      "c3": "#3f6b63",
+      "c4": "#8a6a44",
+      "c5": "#d8d2b8",
+      "c6": "#4a6b7a"
+    },
+    "mouvement": {
+      "lattice": 12,
+      "latticeTilt": 0.0,
+      "module": 14,
+      "arcFit": 0.95,
+      "segMin": 20,
+      "segMax": 70,
+      "radMin": 20,
+      "radMax": 90,
+      "turnSteps": 1,
+      "meander": 0.75,
+      "wander": 0.0015,
+      "speed": 0.9
+    },
+    "tissage": {
+      "look": 20,
+      "lane": 7,
+      "capture": 34,
+      "affinity": 0.85,
+      "followMin": 150,
+      "followMax": 700,
+      "diverge": 0.002,
+      "crossTurn": 0.25,
+      "refract": 30
+    },
+    "pinceau": {
+      "brush": 14,
+      "bristles": 7,
+      "brushProfile": "rond",
+      "brushHold": "suit le trait",
+      "scatter": 0.9,
+      "dot": 2.4,
+      "deposit": 0.14,
+      "pickup": 0.6,
+      "capacity": 45,
+      "dry": 0.006
+    },
+    "matiere": {
+      "subtractive": 0.55,
+      "fidelity": 0.35,
+      "grain": 0.55,
+      "maxDens": 1.0,
+      "drying": 2500,
+      "memoire": "fenêtre glissante",
+      "fenetre": 25,
+      "fondu": 45,
+      "evap": 0.002
+    },
+    "calques": {
+      "traceAlpha": 0.35,
+      "traceWidth": 1.6,
+      "traceFade": 0.02
+    },
+    "taches": {
+      "blobStyle": "flou",
+      "blobShape": "lobée",
+      "blobSnap": "libre",
+      "blobSizeSnap": "libre",
+      "blobEdge": 0.15,
+      "blobRim": 0.0,
+      "blobTexture": 0.45,
+      "blobEdgeNoise": 0.35,
+      "blobs": 12,
+      "blobSize": 160,
+      "blobDensity": 1.1
+    },
+    "vie": {
+      "erasers": 0.08,
+      "eraseForce": 0.12,
+      "birthRate": 480,
+      "maxAgents": 55,
+      "agents": 30
+    },
+    "espace": {
+      "thirst": 0.6,
+      "thirstLevel": 0.25,
+      "topoCount": 3,
+      "topoSize": 140,
+      "topoSpeed": 0.15,
+      "topoSeek": 0.2
+    },
+    "etats": {
+      "stressDist": 10,
+      "stressOn": 14,
+      "stressMin": 120,
+      "relax": 0.25,
+      "sLattice": "4",
+      "sTiltStep": 0.5
+    }
+  },
+  "empreinte": {
+    "intention": "Effet commun à toute contribution, quel qu'en soit le contenu : la présence humaine durcit la géométrie. Non soumis au rappel — c'est un cliquet. Le monde ne redevient pas vierge.",
+    "par_contribution": {
+      "arcFit": -0.012,
+      "module": 0.45,
+      "scatter": -0.006,
+      "grain": -0.005,
+      "blobEdge": 0.01,
+      "blobEdgeNoise": -0.004,
+      "traceAlpha": 0.004,
+      "meander": -0.004
+    },
+    "seuils": [
+      {
+        "apres": 12,
+        "lattice": 8
+      },
+      {
+        "apres": 35,
+        "lattice": 6,
+        "blobSnap": "demi-module"
+      },
+      {
+        "apres": 70,
+        "lattice": 4,
+        "blobStyle": "encre"
+      },
+      {
+        "apres": 120,
+        "blobSnap": "module",
+        "blobSizeSnap": "module",
+        "brushHold": "orientation fixe"
+      }
+    ]
+  },
+  "axes": [
+    {
+      "nom": "confiance ↔ méfiance",
+      "pole_plus": "confiance",
+      "pole_moins": "méfiance",
+      "porte_sur": "la couleur et la lumière",
+      "palette": {
+        "saturation": 0.1,
+        "luminosite_pigments": 0.08,
+        "luminosite_fond": 0.05,
+        "ecart_de_teinte": -0.06,
+        "derive_de_teinte": 0.04
+      },
+      "parametres": {
+        "maxDens": 0.01,
+        "subtractive": -0.012,
+        "fidelity": 0.008
+      }
+    },
+    {
+      "nom": "sérénité ↔ inquiétude",
+      "pole_plus": "sérénité",
+      "pole_moins": "inquiétude",
+      "porte_sur": "l'agitation du mouvement",
+      "parametres": {
+        "speed": -0.02,
+        "segMin": 0.016,
+        "segMax": 0.018,
+        "radMin": 0.014,
+        "radMax": 0.016,
+        "wander": -0.014,
+        "stressDist": -0.018,
+        "sSpeed": -0.012,
+        "sSeg": 0.01,
+        "meander": -0.008
+      }
+    },
+    {
+      "nom": "lien ↔ isolement",
+      "pole_plus": "lien",
+      "pole_moins": "isolement",
+      "porte_sur": "la grégarité des entités",
+      "parametres": {
+        "affinity": 0.02,
+        "followMax": 0.016,
+        "followMin": 0.01,
+        "lane": -0.012,
+        "diverge": -0.014,
+        "crossTurn": 0.01,
+        "refract": -0.01,
+        "look": 0.008
+      }
+    },
+    {
+      "nom": "don ↔ dépossession",
+      "pole_plus": "don",
+      "pole_moins": "dépossession",
+      "porte_sur": "l'économie de la matière — l'axe du titre",
+      "parametres": {
+        "deposit": 0.018,
+        "capacity": 0.014,
+        "pickup": -0.016,
+        "erasers": -0.02,
+        "eraseForce": -0.014,
+        "evap": -0.012,
+        "blobDensity": 0.01
+      }
+    },
+    {
+      "nom": "passé ↔ futur",
+      "pole_plus": "passé",
+      "pole_moins": "futur",
+      "porte_sur": "la mémoire de la toile",
+      "parametres": {
+        "fenetre": 0.022,
+        "fondu": 0.018,
+        "drying": 0.014,
+        "traceFade": -0.012,
+        "evap": -0.008
+      }
+    },
+    {
+      "nom": "concret ↔ abstrait",
+      "pole_plus": "concret",
+      "pole_moins": "abstrait",
+      "porte_sur": "la facture de la marque",
+      "parametres": {
+        "brush": 0.018,
+        "dot": 0.014,
+        "blobSize": 0.016,
+        "blobDensity": 0.008,
+        "bristles": -0.01,
+        "traceWidth": 0.01,
+        "blobStrokes": 0.008,
+        "blobRim": 0.012
+      }
+    }
+  ],
+  "dynamique": {
+    "pas": "nouvelle_valeur = valeur + coefficient × position_de_l_axe × demi_bande",
+    "rappel": "après chaque contribution, valeur += 0.02 × (valeur_initiale − valeur). Ne s’applique pas aux paramètres de l’empreinte.",
+    "bornes": "réflexion sur les bornes de la bande, jamais d'écrêtage",
+    "equilibre": "La dérive, l’atténuation et la compensation entre contributions sont des intentions de calibrage à vérifier sur le générateur intégré.",
+    "absence": "Un axe non calculé (position null) n’entraîne aucun déplacement sur ses paramètres.",
+    "statut": "Correspondance de travail ; l’application automatique au prototype HTML est encore à intégrer et à tester.",
+    "palette": "Les champs axes[0].palette expriment des intentions artistiques de couleur et lumière ; ce ne sont pas des clés directes du prototype HTML."
+  },
+  "bandes_de_derive": {
+    "affinity": [
+      0.2,
+      1.0
+    ],
+    "agentScale": [
+      0.8,
+      1.8
+    ],
+    "agents": [
+      18.0,
+      60.0
+    ],
+    "arcFit": [
+      0.15,
+      0.95
+    ],
+    "birthRate": [
+      180.0,
+      900.0
+    ],
+    "blobCross": [
+      0.0,
+      1.0
+    ],
+    "blobDensity": [
+      0.8,
+      2.0
+    ],
+    "blobEdge": [
+      0.15,
+      1.0
+    ],
+    "blobEdgeNoise": [
+      0.0,
+      0.4
+    ],
+    "blobRim": [
+      0.0,
+      0.5
+    ],
+    "blobSize": [
+      40.0,
+      220.0
+    ],
+    "blobStrokes": [
+      0.6,
+      1.8
+    ],
+    "blobTexture": [
+      0.0,
+      0.6
+    ],
+    "blobs": [
+      4.0,
+      20.0
+    ],
+    "bristles": [
+      3.0,
+      9.0
+    ],
+    "brush": [
+      4.0,
+      26.0
+    ],
+    "capacity": [
+      10.0,
+      60.0
+    ],
+    "capture": [
+      10.0,
+      45.0
+    ],
+    "crossTurn": [
+      0.0,
+      0.5
+    ],
+    "deposit": [
+      0.08,
+      0.4
+    ],
+    "disp": [
+      1.3,
+      3.0
+    ],
+    "diverge": [
+      0.001,
+      0.012
+    ],
+    "dot": [
+      1.0,
+      3.0
+    ],
+    "dry": [
+      0.0,
+      0.06
+    ],
+    "drying": [
+      300.0,
+      4000.0
+    ],
+    "eraseForce": [
+      0.08,
+      0.35
+    ],
+    "erasers": [
+      0.0,
+      0.3
+    ],
+    "evap": [
+      0.0,
+      0.02
+    ],
+    "fenetre": [
+      3.0,
+      60.0
+    ],
+    "fidelity": [
+      0.2,
+      0.9
+    ],
+    "focusTime": [
+      300.0,
+      1500.0
+    ],
+    "followMax": [
+      120.0,
+      700.0
+    ],
+    "followMin": [
+      20.0,
+      200.0
+    ],
+    "fondu": [
+      3.0,
+      60.0
+    ],
+    "grain": [
+      0.0,
+      0.6
+    ],
+    "lane": [
+      3.0,
+      12.0
+    ],
+    "look": [
+      8.0,
+      34.0
+    ],
+    "maxAgents": [
+      25.0,
+      70.0
+    ],
+    "maxDens": [
+      0.7,
+      1.5
+    ],
+    "meander": [
+      0.0,
+      0.8
+    ],
+    "module": [
+      12.0,
+      70.0
+    ],
+    "pickup": [
+      0.2,
+      0.9
+    ],
+    "radMax": [
+      25.0,
+      120.0
+    ],
+    "radMin": [
+      5.0,
+      40.0
+    ],
+    "refract": [
+      10.0,
+      90.0
+    ],
+    "relax": [
+      0.1,
+      0.6
+    ],
+    "sBrush": [
+      0.4,
+      2.0
+    ],
+    "sDiv": [
+      0.3,
+      6.0
+    ],
+    "sFlow": [
+      0.4,
+      2.2
+    ],
+    "sRad": [
+      0.15,
+      2.0
+    ],
+    "sSeg": [
+      0.15,
+      2.0
+    ],
+    "sSocial": [
+      0.0,
+      1.6
+    ],
+    "sSpeed": [
+      0.5,
+      2.4
+    ],
+    "sTexture": [
+      0.4,
+      3.0
+    ],
+    "sTiltStep": [
+      0.0,
+      1.0
+    ],
+    "scatter": [
+      0.1,
+      1.0
+    ],
+    "segMax": [
+      70.0,
+      300.0
+    ],
+    "segMin": [
+      15.0,
+      90.0
+    ],
+    "speed": [
+      0.8,
+      3.0
+    ],
+    "stressDist": [
+      8.0,
+      30.0
+    ],
+    "stressMin": [
+      40.0,
+      400.0
+    ],
+    "stressOn": [
+      4.0,
+      40.0
+    ],
+    "subtractive": [
+      0.2,
+      0.9
+    ],
+    "thirst": [
+      0.0,
+      0.8
+    ],
+    "thirstLevel": [
+      0.1,
+      0.6
+    ],
+    "topoCount": [
+      0.0,
+      4.0
+    ],
+    "topoSeek": [
+      0.0,
+      1.0
+    ],
+    "topoSize": [
+      50.0,
+      180.0
+    ],
+    "topoSpeed": [
+      0.0,
+      0.8
+    ],
+    "traceAlpha": [
+      0.35,
+      1.0
+    ],
+    "traceFade": [
+      0.004,
+      0.05
+    ],
+    "traceWidth": [
+      0.7,
+      3.0
+    ],
+    "turnSteps": [
+      1.0,
+      2.0
+    ],
+    "wander": [
+      0.0,
+      0.004
+    ]
+  },
+  "parametres_hors_derive": [
+    "memory",
+    "seed",
+    "lattice",
+    "latticeTilt",
+    "turnSteps",
+    "colCount",
+    "showAgents",
+    "agentMark",
+    "markColor",
+    "markOutline",
+    "layerPaint",
+    "layerTrace",
+    "layerMarks",
+    "nameWhen",
+    "focusTime",
+    "topoShow",
+    "blobShape",
+    "brushProfile",
+    "randomScope",
+    "randomAmount"
+  ],
+  "questionnaire": {
+    "version": "V3 (questions de travail, § 3.3 du dossier)",
+    "nombre_questions": 12,
+    "echelle": {
+      "1": "Pas du tout",
+      "2": "Pas vraiment",
+      "3": "Un peu",
+      "4": "Assez",
+      "5": "Tout à fait"
+    },
+    "paires_par_axe": {
+      "confiance ↔ méfiance": [
+        "Q01",
+        "Q02"
+      ],
+      "sérénité ↔ inquiétude": [
+        "Q03",
+        "Q04"
+      ],
+      "lien ↔ isolement": [
+        "Q05",
+        "Q06"
+      ],
+      "don ↔ dépossession": [
+        "Q07",
+        "Q08"
+      ],
+      "passé ↔ futur": [
+        "Q09",
+        "Q10"
+      ],
+      "concret ↔ abstrait": [
+        "Q11",
+        "Q12"
+      ]
+    },
+    "calcul": "position = (note_premier_pole - note_second_pole) / 4",
+    "absence": "Si une des deux notes manque : position null ; aucun déplacement pour cet axe.",
+    "neutralite": "Deux réponses fortes et égales produisent une position 0 ; aucune pondération de conviction indépendante.",
+    "archivage": "Ne pas archiver les réponses individuelles après dérivation ; conserver les coordonnées et la phrase libre validée selon la procédure à finaliser."
+  }
+}

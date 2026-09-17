@@ -25,11 +25,19 @@ CC0 and still gets a provenance row.
 
     node tools/tree_inspect.js            # -> tools/_trees_index.json
     node tools/tree_inspect.js --print    # and the per-group table
+    node tools/tree_inspect.js --credits=vegetation   # the CREDITS.md rows
 
 The inspector decides *what a file contains*; the bench only draws. It reports
 per collection: subjects, triangles per subject, textures and their resolution,
-alpha mode and cutoff, licence. Four kinds only: **tree, shrub, billboard,
-terrain**.
+alpha mode and cutoff, licence. Five kinds: **tree, shrub, cover, billboard,
+terrain** — cover (2026-09-15) is grass, tufts and cards under ~1.2 m, the
+floor's own layer; a file under `assets/vegetation/grass/` is cover by the
+user's filing. Two roots are walked, `assets/treesRaw` (the W0a conifers)
+and `assets/vegetation/<kind>/` (the second batch, see
+`futureDesigns/VEGETATION-2026-09-15.md`); every asset carries `file` and
+`folder`, the bench rails by folder, and a `_dismissed/` folder is skipped.
+Duplicate downloads (the same bytes, or the same subject geometry under
+another export) are flagged and shown dimmed.
 
 Three traps it exists to handle, all met in practice:
 
@@ -42,6 +50,18 @@ Three traps it exists to handle, all met in practice:
   two whole trees always do.
 - **Regexes must be segment-anchored.** `Back*ground*_Tree_Atlas` matched
   `ground` and put 13 billboard cards in the terrain bucket.
+- **An atlas is also a leaf texture.** `OakBranchAtlas` put fourteen real
+  trees (one of 22 141 tris) in the billboard rail; a card's atlas is not a
+  branch's.
+- **Neighbours are not parts.** The footprint + disjoint-materials merge
+  fused a pack laid out on a grid tighter than its crowns, every tree in its
+  own two materials ("Oak, 4 parts" = oak + apple + cherry). A subject that
+  already holds bark AND foliage under its own node is whole; two whole
+  subjects never merge, a lone part still may (Lampi's pine is a bark mesh
+  beside a `stump → branch` node).
+- **The merge keeps the shorter name, and PROP reads it.** `stump01_1` is
+  shorter than `bark04_0_bark04_0Mat_0`, and `stump` is a rock word, so a
+  whole pine went to the terrain rail. Tree vocabulary in ANY part wins.
 
 Nothing is imported until that table exists.
 
@@ -75,6 +95,85 @@ in the right-hand rail:
 boot; localStorage holds the working copy on top. **The committed file must
 carry the values actually fitted** — a stale one means a fresh browser sees a
 different tree from the one that was signed off.
+
+### 4.1 A species, not a file (2026-09-15)
+
+The dials are per SPECIES. In W0a a species was a file (one conifer per
+download) and the tuning was keyed by file name; the deciduous pack holds 24
+subjects of nine kinds in one file and the muskeg's dead sticks are another
+author's subjects. A tuning entry may therefore name:
+
+| field | what |
+|---|---|
+| `file` | the download it reads (absent = the entry's own name, every W0a row) |
+| `kind` | `tree` / `dead` / `shrub` / `cover` — which layer plants it (§4.2); a DEAD species is its own thing (the user, second pass: "very different, I need control over them — a lot whiter and less tall"): its own `bark` (to 3), `size`, `proportion`, the bend ops, and a two-rung ladder, the model then its sheet (`IMP_TILE_HI`, a straight mip chain), no stick rungs |
+| `gen` `material` | a GENERATED species: `gen: stick` is the cheap dead tree — a tapered 8-sided bole with `branches` short branches at 35–65°, under 250 triangles, wearing the file's `material` (the pack's dead bark, tiled along the bole), `taper` its top radius; bent like any subject, straight to its sheet past L0 |
+| `subjects` | the inspector's subject names it takes from the file (absent = all of that kind) |
+| `snags` | `"<file>|<subject>"` refs drawn for its `dead` fraction — the pack's dead conifers stand in for the pines, its dead broadleaves for every deciduous species (the user's ruling: a dead tree is not a species, it is another species' dead percentage); absent = the tree with its leaves stripped, as before |
+| `sizes` | per-subject scale, for a pack authored at two sizes (`DeciduousShrub2_31: 0.4`) |
+| `parts` | only these ELEMENTS of each subject, by the inspector's element name — simple_grass_chunks' one plant (`rostlinka_07c`, 37 tris) was fused with the 52 k-triangle ground scan beside it; the species wants the plant, instanced |
+| `density` | a cover species' own count per m² around the eye (the user: "density per grass type"); the stand's `cover` is a multiplier over all of them. A reed patch at 0.12, blade plates at 2.5 |
+| `bend` `bendFreq` `lean` `bendPct` `flatTop` `sparse` `prune` `variants` `leafScale` `leafFill` | the AUTHORING OPS (§4.3) |
+
+The rail's `species (authored)` kind shows a file's species as they will be
+planted — every subject × variant with the ops applied and a caption.
+
+### 4.2 The understory
+
+The forest view plants three layers over one ground with one seeded draw:
+TREES as before (the ladder, the series, the snags); SHRUBS at `shrubs` per
+1000 m², refused under a trunk, favoured toward an edge (rim, glade, pool
+shore), the full mesh near in one `InstancedMesh` per prototype part and a
+sheet past L1 (baked at `IMP_TILE_HI` like a snag's); COVER per species at
+its own `density` per m² (× the stand's `cover`) around the EYE only, to
+`reach` metres and thinning over the last third — past that the ground's
+own colour carries it. Cover carries NO baked occlusion: eight triangles at
+ground level under `aoBake` 4 went black at the base ("really strange
+shading"); the floor's shade is the terrain's job. `ground: wet` is the muskeg's
+judging surface: pools from one tileable value noise (`poolAt`) that the
+texture and the planter both read, so no tree roots in a pool and a sedge
+tuft prefers its shore; `pools` is the wet fraction.
+
+MIXES are the user's biomes as presets in the tuning (`mixes`): a pick with
+proportions and dead fractions per species plus the stand's dials — `conifer`
+(W0a as is), `muskeg`, `grassland`, `borders`. Selecting one writes those
+into the rows; `save mix` snapshots the rows back; `export json` carries them.
+
+### 4.3 The authoring ops
+
+The shore pine of a muskeg is short, leaning and twisted; every pine on the
+shelf is a straight young tree. The species derives its prototypes from the
+subject rather than waiting for a download: `bend` (metres of lateral offset
+at the crown, the foliage moving with the wood — **the curvature is at the
+base**: the offset rises as 1−(1−t)^2.5 so the bole bends low and the crown
+is carried, not distorted; the user's second pass, "too much bending at the
+top, where the leaves are"), `bendFreq` (the wiggle's turns, on a (1−t)²
+envelope), `lean` (degrees, in a seeded direction), `bendPct` (the share of
+trees bent: the first variant of each subject is kept straight and takes
+1−bendPct of the draw), `flatTop` (the top 45 % compressed by that fraction),
+`sparse` (fraction of foliage islands kept), `prune` (fraction of branch
+islands kept on the wood — the stem/branch split of `barkSplit`), `variants`
+(N seeds → N prototypes from one subject), and for the foliage that "is too
+weak, especially compared to the impostors": `leafScale` (every leaf island
+scaled about its own centroid — fuller from the same cards) and `leafFill`
+(alpha^k in the shader before the sharpen; k < 1 thickens a soft cutout).
+Both reach the bake, so the sheet grows with the mesh. Each is a pure function on the built holder like `cullFoliage`
+and `growCrown`; the impostor signature carries them. A cloned geometry keeps
+its SOURCE's boxes — recompute them, or `Box3.setFromObject` reports the old
+height and the ops "do nothing".
+
+### 4.4 `fit` — the impostor against its mesh
+
+§6's fit (measure, bisect) is a button per species and `fit impostors` for
+the mix: a 5×5 grove of the species' first prototype from one camera, as
+geometry then as its sheet, the mean luminance over the frame (the object's
+light in the picture — a per-covered-pixel mean weighs the rim like a viewer
+at 20 m and put the cedar at 0.58), eight bisection steps of `implight`. A
+GROVE, not a specimen: alone, the mesh shades itself through the shadow map
+while the sheet carries only its baked AO. Measured 2026-09-15 under the alps
+row at `imp lit` 0.6: cedar 0.60, spruce 0.67, birch 0.61, holly 0.63,
+deciduous shrub 0.65 — no per-family spread, so it is the tier's offset (the
+doc's own smell test), and the bench's `imp lit` is where it belongs.
 
 ## 5. The ladder every collection gets
 

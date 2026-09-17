@@ -67,7 +67,11 @@ from media_lib import write_media, prune_media_stems, BASE_DECL
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW = os.path.join(ROOT, 'assets', 'treesRaw')
+# two roots since 2026-09-15 (treesRaw + vegetation/<kind>/): the index
+# carries each asset's path relative to assets/ (`file`); RAW is the fallback
+# for an index written before it did
+ASSETS = os.path.join(ROOT, 'assets')
+RAW = os.path.join(ASSETS, 'treesRaw')
 IDX = os.path.join(ROOT, 'tools', '_trees_index.json')
 TUNE = os.path.join(ROOT, 'tools', '_trees_tuning.json')
 OUT = os.path.join(ROOT, 'src', 'core', 'trees_pack.json')
@@ -708,9 +712,9 @@ def main():
             'collections': []}
     stems, total, texAll = [], 0, []
     for a in picked:
-        path = os.path.join(RAW, a['name'])
+        path = os.path.join(ASSETS, *a['file'].split('/')) if a.get('file')             else os.path.join(RAW, a['name'])
         if not os.path.exists(path):
-            print('  MISSING %s' % a['name']); continue
+            print('  MISSING %s' % a.get('file', a['name'])); continue
         g, bin_ = read_glb(path)
         t = tuning.get(a['name'], {})
         stem = a['name'].replace('.glb', '').replace('.', '_')
