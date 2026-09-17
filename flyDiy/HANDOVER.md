@@ -50300,3 +50300,12 @@ class:
   run: no cell worse; the committed baseline stays G431's red).
 - OWED: the Stearman's hot crosswind; the base join; the A5 slope with the
   throttle on its floor; the motorglider's circuit (P2).
+
+
+## G434.2 — THE PATCH UNDER THE LOTS (2026-09-17, the user: "the patches still don't show")
+
+- The fine patch rode 4 cm over the ground (G434, against the ring's bake) and the
+  lot grounds sit AT the ground (lotGround: T.h) - the lift buried every lawn, dry
+  pad and path. The ring sinks 4 m under the patch since G434.1, so the lift is
+  gone: the patch is 2 cm UNDER the ground now; the lots, the road ribbons (+6 cm)
+  and the pads draw over it. Seen: lawns, dry ground, paths on every village plot.

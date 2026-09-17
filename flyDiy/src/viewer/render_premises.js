@@ -304,7 +304,7 @@ function make(THREE, scene, world, rec0, opts) {
       // 4 cm over the ground (G434): the ring's own mesh sits at the same height where the ground is
       // flat and the two fought (the ring's pale PAVED bake speckled the pad's concrete); the strips'
       // decals ride 7 cm up on the same law
-      pa.setY(i, world.terrainH(x, z) + 0.04 * r - 2.2 * (1 - r) * (1 - r));
+      pa.setY(i, world.terrainH(x, z) - 0.02 * r - 2.2 * (1 - r) * (1 - r));   // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the ring sinks 4 m under the patch now, so no fight there
       if (o.patchUV) { const q = o.patchUV(x, z); uv.setXY(i, q[0], q[1]); }
     }
     pa.needsUpdate = true; uv.needsUpdate = true;
