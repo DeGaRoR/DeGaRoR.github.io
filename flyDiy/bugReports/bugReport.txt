@@ -1,0 +1,96 @@
+flydiy playtest feedback
+Playing on the legacy map, with flydiy-build (4).json (included in the bugreports folder)
+- impostors are all dark and little furnished. Something changed their appearance and it does not corresponds to the bench anymore. What happens?
+- In interior view, there should be a way to access and exit mouse-as-haed rotation, because once I enter, I cannot click anything on the UI anymore
+- We may want to replace the spinning blade at high speed with a blurred flat image spinning, MSFS style
+- The airspeed needle crosses through the dial
+- the numbers and writings ar eqite blurred and difficult to read, does not feel HD
+- For a flight sim, we should be 98% looking at impostors. The full LOD levels should only kick in real close. I keep thinking than LOD0 straight to impostor may be the way to go, with lod0 at 20 meters or so. We need finer controls
+- The clouds look good, but we can see quite blocky shapes still. In particular, we can see clear bands in the sky. They just look not chopped off enough
+- The loading screens are confusing, mentioning the garage after "roll out untested"
+- When clicking on "log the flight", I got back to the garage UI, but still the renderer area shows some sky. 
+- Same issue clicking on "the shed". I have played with time of the day settings. It looks like the camera is initialized ouside of the hangar, see screenshots in bug reports. The only thing that works is to click on interior view, then back to another view. I was in interior view in game when this happened
+- In the garage, the clouds render on top of the aircraft and the hangar. Issue with Z index. Screenshot 2026-09-17 185731.png
+- the floor pokes through the fuselage, it needs to be further guarded
+- the camera should be able to go down to the floor level
+- the tanks could be initially auto fitted by simply downsizing their reservoir's capacity until they fit
+- Nose cones tend to jiggle and not be perfectly aligned perpendicular to their rotation direction
+- We can retire the fake gor rays of the garage
+- Initialize the flaps as a dash switch 
+- Offer options for the positioning of the flap floor lever, 2 axes, constrained on the floor
+- I don't think that the controls have all been given proper PBR materials, check it out
+- There is a control poking through the aircraft, I can't identify Screenshot 2026-09-17 190717.png
+- The pilot camera tends to go aft as the plne takes speeds, ends up frequently behinf the seat, maybe behing the aft bulkhead.
+- The sun shows though every material, including non transparent
+- The wing's normals may be too low definition
+- A clik on show interior takes few seconds to display, while it was fast befroe. The interface is fully non-responsive during that time
+- The feet of the pilot are not well calibrated to the pedals
+- I thought Jolene was loading by default by now
+- the dials have 2 little "horn" protrusion, on the top half, at abot b3 and 9 o clock, what are these? They look wrong.
+- My small build does not feature battery, alternator, or the key at all. These buttons should always be there
+- I need an indication of the version umber somewhere
+- The new autopilot tends to ascillate a lot with the use of the rudder, at least with the build in bug testing flydiy-build (3).json
+- Clicking from flight to "the shed" freezes the interafce without proper loading screen
+- The wings are oftne seen from a razing angle, do the textures have the right settings fro that? Including the normals?
+- The top trap bay does not seem to color the same as the cowl. The "pixelated trap" is not bent to fit, and it shows a lot of any curved cowl. It need to be better fitted, and do we need to keep the pixelated look? Screenshot 2026-09-17 192338.png
+- the wingtip lights would be worth redoing properly. Either intergated as cutout, or at least well fitted on the wings. They're a bit of an eyesore atm
+- The fairings have a faulty edge in front and at the back Screenshot 2026-09-17 192550.png Screenshot 2026-09-17 192612.png
+- The wing loading test is cool visually, but a lot of planes fail it, and there seems to be really no option. Especially when the wing geometry is the one from a real plane. That annoying.
+- SHadow seem to "refresh" every so many meters, or land pixels. It shows, it is jittery. Can't we have smooth shadow, the the plane and for the rest?
+- The buuble UI arc should be hidden by default, with an option next to their settings to visualize them
+- Let's give a little more love to the table and the plan on it. Give these proper PBR materials, have a little lip at the bottom of the drawing table, and ensure the plan is well in contact with the table, and in a secure and stable position
+- the outside lights shold have their own section, detached from the cabin section. 
+- Clicking on the wing bay lights should bring us this last menu
+- The winglet tip needs to be redone with a proper winglet, not just a straight up band
+- There's a green tint on the dahs and all light in interior view. Maybe the reflection of a skydome with a lot of grass?
+- If the registratio  of the plane is more than 8 characters, abbreviate to 7 characters plus a dot
+- The placement of the dials on the dahs seems to be predetermined, while I believe that they should be optimized for the actual dash, and placed accrodingy, in central positions first
+- Clicking on pause changes the camera angle
+- The floor has shading issues. Maybe try smooth shading, at least for the flat parts?
+- The cabrbon seeat has interior edges at its ends, rendering it practically unusable, since it would cut the back of the neck and the legs...
+- The supporting beams for the wings should be optional. Wehn we choose that the center should be hoollow, maybe it can simply be, by unchecking the "transversal beam" option, activated by default. Also, make these beams proper tube, or square section beams with proper raw metal material and fitments
+- Slightly increase the size of the tape on the light controls. You can do it untill they start overlapping with each other
+- When bubble mode is activated, position the flood ligting in the aft bulkhead if available, and otherwise don't draw it at all
+- There should be a finish option to paint the hinges the same volor than their supporting parts by default, or too keep them bare metal, or to let them have their own finish. Initialized on same colour as parent part.
+- Issue with the rendering oof the ailerons or flap actuating mechanism, see Screenshot 2026-09-17 195236.png
+- Need a proper left menu option for the time of day in flight- Need to regroup small options in the flight left menu
+- Need a proper welcome screen, and a career management mechanism
+- I tried to send flydiy-build (4).json to Tyl strip, and it crashed in the sea on the way... Why?
+- We need a fuel and charge indicator, in the UI, and also on the panel.
+- The options for cutting engines out is actually the key on the dashboard, so it can disappear fromt he left menu
+- Planes with 2 engines should have a double throttle
+- In the garage time of day editor, I select dusk and I get night. I select susnet and I get Dusk. Something is wrong in the picker
+- The dim box only measures fuselage, so it's pretty useless. Retire this, and prefer have a length/wingspan on the top of the plaque, where it already says 403 kg all-up. Also add empty weight
+- Cockpit lights should be on when starting in a dark moment of the day
+- Light potentiometers should have little lit/glowing indication showing their current position in the dark
+- Allpossible dahsboard controls should be able to be mapped to joysticks, and they should have default keyboard mappings
+- I think we shoud try and lower the garage's FOV. Can you give me a slider in the options, so I can play with it?
+- The fuel indicator should update whether liquid fuel or electricity is selected
+- Check the behaviour of the needles on empty. I think they might come back at full and stay there
+- If the issue on the trip to Tym is no fuel anymore, something should state it plainly, and the autopilot should probably directly start an emergency landing manoeuver
+- When crashing in the water, the plane makes no splash. Let's have rough particles, using the same system as the seaplane for crashing into the water for now
+- The RPM needle is OK falling back much lower than zero. Actually, its real zero seems closer to the max graduation of the RPM. We need RPM in the trace to be able to compare, but it reads real faulty
+- The graduation of the gauges should follow the convention chosen for the units.
+- We ned a fuel gauge absolutely and urgently. What I saw dropping was the oil pressure.
+The whole TYL trip is interesing. It means that on that charge, the plane does only a few kilometers. Is that realistic with modern battery technology?
+- When in interior view, you may give the nose an extra subdivision, becasue the polygonality of the ose is very visible from the cockpit. The cowl is OK, but the top part of the nose feels blocky.Screenshot 2026-09-17 201309.png
+- I followed my plane at the bottom of the sea, and it's like it continued flying somehow? WHat happens to the physics once the plane is submerged?
+- The tip of the twin booms are too low poly Screenshot 2026-09-17 201534.png
+- Depsite the engine showing 0 RPM, the blade keep spinning forever, including at the bottom of the ocean
+- Instruments dahs auto placement fails by default, not showing the key and overlapping throttle and metal toggles Screenshot 2026-09-17 201832.png
+- When selecting "battery" (normally a stale option) the dahs is recomputed correctly Screenshot 2026-09-17 202009.png
+- We need a dedicated credits screen, and drop the little text here and there (PA-18 model: Emmanuel Baranger (helijah) · livery: Brett Harrison · C172 model: NLM (CC-BY 4.0) · reference aeroplanes: Emmanuel Baranger (helijah), CC-BY 4.0), centralize over there
+- The autopilot systematically oscillate with the rudder on he downwinf leg. Large amplitude oscillations, seems very unnecessary. It tries to stay on the exact trajectory, and does worse
+
+Making the cessna 172
+- The cabin section can only be straight. The passenger pillar should be able to be adjusted
+- tail cone roof/keel height are too limited in the low band, need to go negative
+- OPtion for a single wing truss
+- The cowl should be able to ease through its length, separately at the top and bottom
+- The last certification remains stuck on crosswinds. Don't really need that, it's a circuit it wants ot fly
+- The yoke renders too much into the panel, and does not show at all in the garage
+- Lots of hinges are egenrated in flight on the cessna
+- We should run the comparison fiche against the reall 172 now that we have an ok model
+- We need to get rid of all the "rings" controls
+- The slider "Pillar window" seems to do nothing
+- The in-game livery mapping remains different than in garage
