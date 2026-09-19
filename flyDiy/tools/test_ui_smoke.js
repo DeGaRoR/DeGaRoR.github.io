@@ -10,7 +10,7 @@
 const fs = require('fs'), vm = require('vm'), path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const blocks = [...html.matchAll(/<script(?: type="text\/x-flydiy")?>([\s\S]*?)<\/script>/g)].map(m => m[1]);   // G434.3: the inlined scripts are inert (text/x-flydiy) until the island loader promotes them
 const pick = (marker, label) => {
   const b = blocks.find(x => x.includes(marker));
   if (!b) { console.log(`missing ${label} block (no "${marker}")`); console.log('GATE UISMOKE: FAIL'); process.exit(1); }

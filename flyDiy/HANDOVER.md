@@ -50166,3 +50166,6 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   index.html?world=none -> Home Strip.
 - THE MAP PILLS on the flight rail's WORLD flyout too (the same as the GRAPHICS
   row): Jolene Island / Home Strip; a pick stores flydiy.world and reloads.
+- GATE UISMOKE reads the inert blocks too (its regex wanted a bare <script>): green
+  again; the G434.3 (built) commit 8f8d1884 was landed with that gate red for the
+  minute between.
