@@ -6951,6 +6951,14 @@
     },
     // G387: WORLD - the premises editor over the flight scene
     world(body) {
+      // THE MAP (G434.3): the same pills as the GRAPHICS menu's, here on the WORLD flyout where a player looks for them
+      if (Array.isArray(window.FLYDIY_WORLDS) && window.FLYDIY_WORLDS.length) {
+        const cur = window.FLYDIY_WORLD || 'none';
+        flRow(body, 'map');
+        flPills(body, window.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id })), o => o.value === cur,
+          o => { if (o.value === cur) return; try { localStorage.setItem('flydiy.world', o.value); } catch (e) {} location.reload(); });
+        flNote(body, 'Picking a map reloads the page; each map keeps its own saved premises.');
+      }
       if (!window.PREMISES_UI || !window.PREMISES_HOST || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');

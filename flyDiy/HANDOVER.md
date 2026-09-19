@@ -50153,3 +50153,16 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   pad and path. The ring sinks 4 m under the patch since G434.1, so the lift is
   gone: the patch is 2 cm UNDER the ground now; the lots, the road ribbons (+6 cm)
   and the pads draw over it. Seen: lawns, dry ground, paths on every village plot.
+
+
+## G434.3 — THE ISLAND ON THE SHIPPED PAGE (2026-09-19, the user: "I still don't see it on load, and we
+## really need a proper way to switch maps")
+
+- The island loader lived in DEV_LOADER alone: dev.html booted Jolene, index.html -
+  the page that is played - never did, whatever the pref said. build.js now shares
+  ISLAND_LOADER between the pages: on index.html every script after the vendor is
+  made inert (type text/x-flydiy) and promoted in order once the island's files are
+  in (or refused: the analytic world). Booted headless: index.html -> Jolene;
+  index.html?world=none -> Home Strip.
+- THE MAP PILLS on the flight rail's WORLD flyout too (the same as the GRAPHICS
+  row): Jolene Island / Home Strip; a pick stores flydiy.world and reloads.

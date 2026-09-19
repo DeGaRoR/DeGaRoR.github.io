@@ -529,30 +529,9 @@ function buildViewer(coreBody) {
   // The node renderer throws on a render before init(), and the boot bakes
   // (PMREM, impostors) render - so under the flag the renderer is made HERE,
   // initialised, and only then is the rest of the page let run (DEV_PROMOTE).
-  const DEV_LOADER = `<script>
-(function () {
-  var q = new URLSearchParams(location.search), tsl = q.get('tsl');
-  try { if (!q.has('tsl')) tsl = localStorage.getItem('flydiy.tsl') || ''; } catch (e) {}
-  window.FLYDIY_TSL = (tsl === '1' || tsl === 'gpu') ? tsl : '';
-  document.write('<script src="vendor/' + (window.FLYDIY_TSL ? 'three.webgpu.min.js' : 'three.min.js') + '"><\\/script>');
-})();
-</script>
-<script>
-(function () {
-  var cm = new URLSearchParams(location.search).get('cm');
-  try { if (cm === null) cm = localStorage.getItem('flydiy.cm'); } catch (e) {}
-  if (cm === '0') THREE.ColorManagement.enabled = false;   // "as authored" (the r128 reading); managed is the ruling
-  var ready = Promise.resolve();
-  if (window.FLYDIY_TSL) {
-    var r = new THREE.WebGPURenderer({ canvas: document.getElementById('c'), antialias: true,
-      logarithmicDepthBuffer: true, forceWebGL: window.FLYDIY_TSL !== 'gpu' });
-    window.FLYDIY_RENDERER = r;
-    ready = r.init();
-  }
-  window.FLYDIY_BOOT = ready;
-})();
-</script>
-<script>
+  // THE ISLAND LOADER, shared by BOTH pages (G434.3): it lived in DEV_LOADER alone, so index.html -
+  // the page that is played - never booted Jolene, whatever the pref said
+  const ISLAND_LOADER = `<script>
 (function () {
   // THE ISLAND (W2, 2026-09-14): ?world=jolene boots the data world. The asset
   // (the quadtree) and the grids are fetched BEFORE any script runs, because
@@ -590,6 +569,31 @@ function buildViewer(coreBody) {
   });
 })();
 </script>`;
+  const DEV_LOADER = `<script>
+(function () {
+  var q = new URLSearchParams(location.search), tsl = q.get('tsl');
+  try { if (!q.has('tsl')) tsl = localStorage.getItem('flydiy.tsl') || ''; } catch (e) {}
+  window.FLYDIY_TSL = (tsl === '1' || tsl === 'gpu') ? tsl : '';
+  document.write('<script src="vendor/' + (window.FLYDIY_TSL ? 'three.webgpu.min.js' : 'three.min.js') + '"><\\/script>');
+})();
+</script>
+<script>
+(function () {
+  var cm = new URLSearchParams(location.search).get('cm');
+  try { if (cm === null) cm = localStorage.getItem('flydiy.cm'); } catch (e) {}
+  if (cm === '0') THREE.ColorManagement.enabled = false;   // "as authored" (the r128 reading); managed is the ruling
+  var ready = Promise.resolve();
+  if (window.FLYDIY_TSL) {
+    var r = new THREE.WebGPURenderer({ canvas: document.getElementById('c'), antialias: true,
+      logarithmicDepthBuffer: true, forceWebGL: window.FLYDIY_TSL !== 'gpu' });
+    window.FLYDIY_RENDERER = r;
+    ready = r.init();
+  }
+  window.FLYDIY_BOOT = ready;
+})();
+</script>
+${ISLAND_LOADER}
+`;
   const DEV_PROMOTE = `<script>
 window.FLYDIY_BOOT.then(function () {
   var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
@@ -662,7 +666,7 @@ self.addEventListener('fetch', e => {
   }))));
 });
 `);
-  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}`);
+  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}\n<!--ISLAND-LOADER-->`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}\n${CORE_SHA}`);
   art = fill(art, 'MODELS', payloadRefs);
   // THE WORLD PACK'S PLACE (G386): after every viewer script the generators read and BEFORE app.js,
@@ -676,6 +680,29 @@ self.addEventListener('fetch', e => {
     .concat(editor.map(s => `<script>\n${s}</script>`))
     .concat(renderTags).join('\n'));
   art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
+  // THE ISLAND ON THE SHIPPED PAGE (G434.3): index.html's scripts are inlined and run as they parse,
+  // and makeWorld runs during app.js's evaluation - so every script after the vendor is made INERT
+  // (type text/x-flydiy) and promoted, in order, once the island's files are fetched (or refused,
+  // with the analytic world as the fallback). dev.html has done exactly this since W2.
+  {
+    const cut = art.indexOf('<!--ISLAND-LOADER-->');
+    if (cut < 0) throw new Error('build: the ISLAND-LOADER marker is missing from the shell');
+    const head = art.slice(0, cut), tail = art.slice(cut)
+      .replace(/<script>/g, '<script type="text/x-flydiy">')
+      .replace(/<script src=/g, '<script type="text/x-flydiy" src=');
+    const promote = `<script>
+window.FLYDIY_BOOT.then(function () {
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
+  for (var i = 0; i < tags.length; i++) {
+    var s = document.createElement('script');
+    if (tags[i].getAttribute('src')) s.src = tags[i].getAttribute('src'); else s.textContent = tags[i].textContent;
+    s.async = false;
+    document.body.appendChild(s);
+  }
+}, function (e) { console.error('flyDiy: the boot did not initialise', e); });
+</script>`;
+    art = head + '<script>window.FLYDIY_BOOT = Promise.resolve();</script>\n' + ISLAND_LOADER + '\n' + tail + '\n' + promote;
+  }
   // the CORE marker block is filled above; the worker's registration is storage.js's (RENDER)
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
   if (!art.includes('function makeAutopilot')) {
