@@ -8087,7 +8087,47 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 </script>
 <script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>
 <script>window.BOOT&&BOOT.phase('vendor','reading the renderer')</script>
+<script>window.FLYDIY_BOOT = Promise.resolve();</script>
 <script>
+(function () {
+  // THE ISLAND (W2, 2026-09-14): ?world=jolene boots the data world. The asset
+  // (the quadtree) and the grids are fetched BEFORE any script runs, because
+  // makeWorld is called during app.js's own evaluation. From bench/ today
+  // (gitignored, the developer's machine); from media/ when the world ships.
+  // JOLENE IS THE DEFAULT (G434, the user: "make Jolene the new starting
+  // terrain ... the old map stays"): the map is ?world= when given, else the
+  // GRAPHICS menu's choice (localStorage flydiy.world), else jolene; 'none' is
+  // the analytic world. The list is published for the menu. An island whose
+  // files are not there (a page served without bench/) falls back to the
+  // analytic world with a line in the console - never a page that hangs.
+  var WORLDS = [{ id: 'jolene', name: 'Jolene Island' }, { id: 'none', name: 'Home Strip (the analytic world)' }];
+  window.FLYDIY_WORLDS = WORLDS;
+  var name = new URLSearchParams(location.search).get('world');
+  if (name === null) { try { name = localStorage.getItem('flydiy.world'); } catch (e) {} }
+  if (!name) name = 'jolene';
+  window.FLYDIY_WORLD = name;
+  if (name === 'none' || name === 'analytic' || !/^[a-z0-9_]+$/.test(name)) { window.FLYDIY_WORLD = 'none'; return; }
+  var T = 'bench/terrain/' + name + '5_e2', G = 'bench/' + name + '/dem', F = 'bench/terrain/' + name + '5_e4';   // F: the far terrain's coarser tree
+  var get = function (u, kind) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return kind === 'json' ? r.json() : r.arrayBuffer(); }); };
+  var u8 = function (b) { return new Uint8Array(b); };
+  var gz = function (buf) { var ds = new DecompressionStream('gzip'); return new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer().then(u8); };
+  var opt = function (u) { return get(u).then(u8, function () { return null; }); };
+  window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
+    return Promise.all([get(T + '.json', 'json'), get(T + '.topo').then(u8), get(T + '.bin').then(gz),
+                        get(G + '.json', 'json'), get(G + '.u8').then(u8), opt(G + '.canopy.u8'),
+                        opt(G + '.coast.u8'), opt(G + '.albedo.rgb'), opt(G + '.tint.rgb'), opt(G + '.ori1.u8'), opt(G + '.ndvi.u8'),
+                        opt(G + '.lake.u8'), opt(G + '.ttype.u8'), get(G + '.lakes.json', 'json').then(null, function () { return null; }),
+                        get(F + '.json', 'json').then(null, function () { return null; }), opt(F + '.topo'), opt(F + '.bin').then(function (b) { return b ? gz(b.buffer) : null; })])
+      .then(function (r) { window.ISLAND_BOOT = { id: name, header: r[0], topo: r[1], payload: r[2],
+        grid: { meta: r[3], cover: r[4], canopy: r[5], coast: r[6], albedo: r[7], tint: r[8], ori1: r[9], ndvi: r[10], lake: r[11], ttype: r[12], lakes: r[13] },
+        far: (r[14] && r[15] && r[16]) ? { header: r[14], topo: r[15], payload: r[16] } : null,
+        hydro: new URLSearchParams(location.search).get('hydro') || 'blend' }; })
+      .catch(function (e) { console.warn('flyDiy: the island "' + name + '" did not load (' + (e && e.message) + '); the analytic world boots instead'); window.FLYDIY_WORLD = 'none'; window.ISLAND_BOOT = null; });
+  });
+})();
+</script>
+<!--ISLAND-LOADER-->
+<script type="text/x-flydiy">
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35006,44 +35046,44 @@ function playerShedDims(doc, id, site) {
 }
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
-<script>window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script>window.FLYDIY_CORE_SHA='e0e6a360e772';window.FLYDIY_BUILD='46b55fc654cf'</script>
-<script src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script src="src/models/c172_model.js?v=267306e7"></script>
-<script src="src/models/d112_model.js?v=3be353d3"></script>
-<script src="src/models/pio200_model.js?v=981cd31e"></script>
-<script src="src/models/c195_model.js?v=8974dedd"></script>
-<script src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script src="src/models/guepard_model.js?v=bf419178"></script>
-<script src="src/models/da40_model.js?v=82bf8782"></script>
-<script src="src/models/g115_model.js?v=87b45f7c"></script>
-<script src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script src="src/models/pa28_model.js?v=a6c43592"></script>
-<script src="src/props/props_bench.js?v=7c6e64b4"></script>
-<script src="src/props/props_storage.js?v=e051184c"></script>
-<script src="src/props/props_machine.js?v=14f1da60"></script>
-<script src="src/props/props_handling.js?v=a92f7dd8"></script>
-<script src="src/props/props_vessel.js?v=96edf5b9"></script>
-<script src="src/props/props_tools.js?v=d179d596"></script>
-<script src="src/props/props_curio.js?v=8ca61851"></script>
-<script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
-<script src="src/props/props_fixture.js?v=93362da1"></script>
-<script src="src/props/props_airframe.js?v=88d864cd"></script>
-<script src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
-<script src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
-<script src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
-<script src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script src="src/chars/ch42_char.js?v=086852d8"></script>
-<script src="src/chars/ch02_char.js?v=51d9d671"></script>
-<script src="src/chars/remy_char.js?v=9b3e0f50"></script>
-<script src="src/chars/ch22_char.js?v=d244bcf3"></script>
-<script src="src/chars/ch01_char.js?v=c039fedb"></script>
-<script src="src/chars/ch20_char.js?v=d6f91211"></script>
-<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
-<script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
-<script>
+<script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='17faf9079110';window.FLYDIY_BUILD='4adae7bbd55b'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
+<script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
+<script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
 //
 // ROADMAP P8 §4 asks for "a part tree + inspector [that] replaces the flat
@@ -36226,7 +36266,7 @@ if (typeof window !== 'undefined') window.CAGE_PARTS = API;
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // FIN GEN — the vertical tail as the user drew it (G22). The primitive is the
 // user's own Blender sketch (Downloads/proceduralPlaneFinCage.obj, byte-copied
 // to tools/_fin_ref.obj), reproduced exactly the way _cage_gen.js reproduces
@@ -37521,7 +37561,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIN_GEN = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE DESIGN — THE MACRO ROWS. The birth certificate's one declaration
 // (futureDesigns/NEW-AIRCRAFT.md), beside _cage_parts.js for the same reason
 // that file gives in its own header: several things read it and none of them
@@ -39888,7 +39928,7 @@ if (typeof window !== 'undefined') window.CAGE_DESIGN = API;
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE PAGE 5 — the aeroplane the light editor opens on, and its curated
 // panel. Lifted out of the (since deleted) _cage5 bench so every later bench
 // and the game's editor are ONE page definition with layers over it: a
@@ -40985,7 +41025,7 @@ window.CAGE_PAGE_SETUP = () => {
 })();
 };
 </script>
-<script>
+<script type="text/x-flydiy">
 'use strict';
 // ===========================================================================
 // KNIFE_GEN — cut a drawn window through the SUBDIVIDED skin (knife project).
@@ -41721,7 +41761,7 @@ if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // THE SHOULDER — proof of concept (2026-09-13).
 //
 // The user: "the messy border between window and fuselage/door ... model
@@ -43010,7 +43050,7 @@ if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.SHOULDER_GEN = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE2 GENERATOR — parametric rebuild of templatePlaneProcedural_{0,1,2}.
 //
 // NOT a throwaway any more, and the header used to say it was: these files are
@@ -51120,7 +51160,7 @@ if (typeof window !== 'undefined')
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE CHAR — rigged characters for the crew layer (G204).
 //
 // The ATD-01 dummy in _cage_crew.js is a 21-bone skeleton with analytic IK
@@ -51699,7 +51739,7 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
   animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE CREW — the cockpit occupancy layer (G17; born on the _cage5 bench,
 // now one layer of _cage8.html and the game's editor).
 //
@@ -55266,7 +55306,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // THE INSTRUMENT PANEL, PURE — the panel arc, session 3 (2026-09-11).
 //
 // No THREE, no DOM at module scope, node-loadable: what an instrument IS
@@ -56058,7 +56098,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // THE INSTRUMENT PANEL LAYER — the panel arc (futureDesigns/PANEL-2026-09-11.md).
 //
 // SESSION 2 (2026-09-11): THE FIT AS A LIST. This file owns `spec.systems`
@@ -57724,7 +57764,7 @@ window.CAGE_PANEL = {
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // GEAR KIT — the geometry primitives the undercarriage bench is built
 // from (G20). Throwaway prototype family (gitignored with _cage*/_gear*),
 // never in MANIFEST.
@@ -58023,7 +58063,7 @@ window.GEAR_KIT = {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // GEAR GENERATOR — the undercarriage bench (G20). Throwaway prototype
 // family (gitignored with _cage*/_gear*), never in MANIFEST.
 //
@@ -59782,7 +59822,7 @@ window.GEAR_GEN = { MAT, TYRE, gearMat, stubAirframe, drawStub, objAirframe, dra
                     legTailwheel, Bag };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // GEAR — THE PARAMETER MODEL, shared. Lifted VERBATIM out of _gear.html so
 // the bench and the cage editor's gear layer read ONE set of defaults, one
 // per-station key expansion and one preset table. Nothing here draws or knows
@@ -59979,7 +60019,7 @@ window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, WHEEL_ROWS,
                      PRESETS, gearDefaults, gearLegP, gearStations };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // FIT SITE (G81) — WHERE A FITTING GOES.
 //
 // GEN_ACCESS's design (HANDOVER, G68's gap list) is "a declared table of
@@ -60897,7 +60937,7 @@ if (typeof window !== 'undefined') window.FIT_SITE = API;
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // FIT GEN (G83) — THE FITTINGS THEMSELVES.
 //
 // One function per `form` named in GEN_ACCESS, each building its geometry into
@@ -61358,7 +61398,7 @@ if (typeof window !== 'undefined') window.FIT_GEN = API;
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // HINGE GEN (G238) — THE SHAPES A CONTROL SURFACE HANGS AND MOVES ON.
 //
 // The third file of the hinge arc: `GEN_HINGE_KIT` (60_gen_spec.js) says what
@@ -61780,7 +61820,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.HINGE_GEN = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ROD FIT — the bolted SADDLE that carries a tail on a bare tube boom
 // (G307, the fitment study P3; the user's ruling: "fin/stab/tailwheel on a
 // rod meet bolted saddle clamps, not the tube"; the G26 follow-up "tail
@@ -61890,7 +61930,7 @@ if (NODE) module.exports = API;
 if (W) W.ROD_FIT = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ENGINE GENERATOR — a simple, physical light-aero engine.
 //
 // WHY THIS EXISTS. The propeller graduated out of the registry in G4.7: its
@@ -62732,7 +62772,7 @@ if (typeof window !== 'undefined')
   window.ENG_GEN = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, TURB_STYLE,
                      ENG_DEFAULT, ENG_MAT, ENG_UNIT, engResolve, engBuild };
 </script>
-<script>
+<script type="text/x-flydiy">
 // ENGINE MESH — the VISUAL builder, standing on _eng_gen.js's physics.
 //
 // WHY A SECOND BUILDER. engResolve is the truth about mass, power and the
@@ -65871,7 +65911,7 @@ const EM = (() => {
 if (typeof module !== 'undefined') module.exports = EM;
 if (typeof window !== 'undefined') window.ENG_MESH = EM;
 </script>
-<script>
+<script type="text/x-flydiy">
 // ENGINE — THE PAGE MODEL, shared. Lifted VERBATIM out of _engine.html so
 // the bench and the cage editor's engine layer read ONE palette, one default
 // construction and one preset table — the _gear_page.js move (G21§2: a hand
@@ -66280,7 +66320,7 @@ window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
                     CUSTOM_ENGINE: 'custom engine' };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // COWL & PROPELLER GENERATOR — ported from the standalone tool
 // (Downloads/cowl-generator-v19.html, "v3 — one continuous surface, apertures
 // cut into it"). The GENERATOR is here; the scene, the panel and the CDN
@@ -67695,7 +67735,7 @@ const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, super
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;
 </script>
-<script>
+<script type="text/x-flydiy">
 // COWL PANEL ROWS — the tool's OWN panel, extracted from
 // cowl-generator-v19.html, not retyped. Every slider, toggle and dropdown it
 // declares, with that control's label, range and visibility condition.
@@ -67950,7 +67990,7 @@ const COWL_ROWS = [
 if (typeof module !== 'undefined') module.exports = { COWL_ROWS };
 if (typeof window !== 'undefined') window.COWL_ROWS = COWL_ROWS;
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE COWL LAYER — the cowl and the propeller, on the nose of the aeroplane.
 //
 // The cowl generator was developed standalone on the web and ported verbatim
@@ -69036,7 +69076,7 @@ PAGE.post = ctx => {
 window.CAGE_NOSE = { noseFace, engineFaces };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE ENGINE LAYER (G29, full surface G31) — the dressed engine
 // (G24/G25's _eng_mesh.js) on the nose of the aeroplane.
 //
@@ -70110,7 +70150,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // STRUT GENERATOR (G86/G87) — WHERE A LIFT STRUT MEETS THE FUSELAGE.
 //
 // The user's report, with the two feet circled on a screenshot: "struts need
@@ -70734,7 +70774,7 @@ if (typeof window !== 'undefined') window.STRUT_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // _boom_gen.js — THE TWIN BOOM'S OWN TUBE (G267, the user: "their end toward
 // the wing should be profiled, customizable like the nose cone (from ogival
 // to conical). Their other end should offer the same thing. We should be
@@ -70976,7 +71016,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.BOOM_GEN = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE WING LAYER (G30, ROADMAP P2) — the GAME's wing on the cage.
 //
 // P2's ruling is "import from the game, and rework from there": the wing
@@ -72900,7 +72940,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE BRACE LAYER (G185) — the cabane, the interplane struts and the bracing
 // wires: everything that holds a plane up that is not a lift strut.
 //
@@ -73225,7 +73265,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE GEAR LAYER — the undercarriage, standing on the LIVE cage.
 //
 // The gear bench (_gear.html) built its legs against an AIRFRAME CONTRACT so
@@ -73845,7 +73885,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE FLOAT LAYER — the seaplane's floats, drawn on the live cage (H2, G389).
 //
 // WATER-2026-09-13.md §1.5 and ruling (as): "the join MEASURES the drawn
@@ -74093,7 +74133,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE FIN LAYER — the user's 2D fin sketch, on the aeroplane (cage7, G22).
 //
 // _fin_gen.js is the module (fit-checked against tools/_fin_ref.obj by
@@ -74930,7 +74970,7 @@ PAGE.post = ctx => {
 window.CAGE_FIN_DRAW = { finMesh, finQuadWire, finWire, mats, SEC, saddleMat };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE STAB LAYER — the horizontal tail (stabilizer + elevator), on the
 // aeroplane (cage7, G23 prototype).
 //
@@ -75309,7 +75349,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // TAIL HEADLESS — the drawn tail without the page (TAIL CHANTIER 2, P0).
 //
 // The fin and stab LAYERS (_cage_fin.js, _cage_stab.js) compose a spec, pick
@@ -75568,7 +75608,7 @@ if (NODE) module.exports = API;
 if (W) W.TAIL_HEADLESS = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE ACCESS LAYER (G83) — THE FITTINGS, ON THE LIVE CAGE.
 //
 // The third piece of GEN_ACCESS and the one you can see. The table
@@ -76370,7 +76410,7 @@ PAGE.post = ctx => {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE LIGHT LAYER (G96) — the aeroplane's own lights, and the switches that
 // work them.
 //
@@ -77908,9 +77948,9 @@ function buildSwitches(parent, P) {
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // BAY SITE (G97) - NO SHEBANG: this file is in the game bundle since G99,
-// and a shebang is a syntax error in a <script>.
+// and a shebang is a syntax error in a <script type="text/x-flydiy">.
 // BAY SITE (G97) — THE INSIDE OF THE AEROPLANE, WHICH HAS NEVER EXISTED.
 //
 // GEN_ACCESS put things ON the skin, and `_fit_site.js` answers "where is that
@@ -78189,7 +78229,7 @@ if (typeof module !== 'undefined') module.exports = API;
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // VESSEL GEN (G99) — A TANK IS A SOLID, AND THIS FILE SAYS WHERE IT IS.
 //
 // The energy module's core half (60c_gen_energy.js) knows a vessel as a
@@ -78758,7 +78798,7 @@ const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, defau
 if (typeof window !== 'undefined') window.VESSEL_GEN = API;
 if (typeof module !== 'undefined') module.exports = API;
 </script>
-<script>
+<script type="text/x-flydiy">
 // VESSEL MESH — WHAT A TANK LOOKS LIKE, as opposed to where it is.
 //
 // `_vessel_gen.js` is the PLACEMENT: a vessel's box, its station, its level,
@@ -79525,7 +79565,7 @@ if (typeof window !== 'undefined') window.VESSEL_MESH = API;
 if (typeof module !== 'undefined') module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE ENERGY LAYER (G99) — THE TANKS AND THE PACKS, DRAWN, MOVED, AND READ.
 //
 // The user's own specification for this arc, verbatim: "a few predetermined
@@ -81460,7 +81500,7 @@ window.CAGE_ENERGY = {
 };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE HINGE LAYER (G238/G239) — THE HARDWARE, ON THE LIVE AEROPLANE.
 //
 // The second piece of the hinge arc and the one you can see. `GEN_HINGE_KIT`
@@ -82403,7 +82443,7 @@ PAGE.post = ctx => {
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE JOIN (G45, ROADMAP P3) — the declared physics-bearing table, as
 // code. HANDOVER G45 is the authority: a knob reaches the flown
 // aeroplane ONLY through the mapping below — JOINED rows write spec
@@ -85207,7 +85247,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // file was always for.
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // CAGE UI — the shared demonstrator runtime for _cage2/_cage3 (and later
 // pages). Throwaway, gitignored with the _cage* family, never in MANIFEST.
 //
@@ -89798,7 +89838,7 @@ build();
 window.CAGE_UI_BOOT = CAGE_UI_BOOT;
 if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 </script>
-<script>
+<script type="text/x-flydiy">
 // storage.js - THE MEDIA CACHE AND THE VERSION LINE (LOADING S4, G421)
 //
 // The user's ruling (2026-09-14): a service worker, yes - but he has had
@@ -89862,7 +89902,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
   W.STORAGE = { state: S, line, refresh, measure, checkServer, CACHE };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // assets.js — the ONE way the page fetches an external binary asset.
 //
 // Since 2026-09-01 geometry lives as .bin files under media/geo/ (and
@@ -89909,7 +89949,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
   if (typeof window !== 'undefined') window.ASSET_FETCH = assetFetch;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ---------------------------------------------------------------------------
 // THE RESOLVE PASS (G144) — anti-aliasing, and the banding that came with it
 // ---------------------------------------------------------------------------
@@ -90331,7 +90371,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // light_rig.js — THE ONE PLACE THAT DECIDES WHAT LIGHT IS.
 //
 // WHY THIS FILE EXISTS (user, 2026-08-30: "the plane is lit from the bottom …
@@ -90605,7 +90645,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE CLOCK — the viewer's hand on world.day (SKY S1, 2026-09-14).
 //
@@ -90701,7 +90741,7 @@ var DAY_CLOCK = (function () {
 })();
 if (typeof window !== 'undefined') window.DAY_CLOCK = DAY_CLOCK;
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE ATMOSPHERE — Hillaire 2020, by hand (SKY S3, 2026-09-14).
 //
@@ -91567,7 +91607,7 @@ var ATMO = (function () {
 if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks
 if (typeof module !== 'undefined' && module.exports) module.exports = ATMO;
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE SKY'S LIGHT — the day applied to a room's rig (SKY S3, 2026-09-14).
 //
@@ -91688,7 +91728,7 @@ var SKY_LIGHT = (function () {
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SKY_LIGHT;
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE SUN'S GLARE — the flare over the frame (SKY S7, 2026-09-15).
 //
@@ -91805,7 +91845,7 @@ var SKY_GLARE = (function () {
   return API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE CLOUDS — a volumetric layer over the world (CLOUDS C1 + C2, 2026-09-15).
 //
@@ -92471,7 +92511,7 @@ var CLOUDS = (function () {
   return API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/site_tex_prep.js from
 // assets/airfield/ (CC0: Poly Haven + ambientCG; see CREDITS.md). The files
 // live under media/tex/site/ (hash-in-filename); a map's Image is made when
@@ -92530,7 +92570,7 @@ const SITE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   };
 })() : null;
 </script>
-<script>
+<script type="text/x-flydiy">
 // ===========================================================================
 // THE AERODROME'S GROUND — one factory, both scenes (G123)
 // ===========================================================================
@@ -92749,7 +92789,7 @@ function siteEdgeFade(THREE, mat, soft, w, d) {
   return mat;
 }
 </script>
-<script>
+<script type="text/x-flydiy">
 // trees_pack.js - BAKED by tools/tree_prep.py, do not edit.
 // The tree payload manifest: one collection per curated pack,
 // its subjects, their rungs, and the maps their materials wear.
@@ -92764,7 +92804,7 @@ const TREE_PACK = {"note": "baked by tools/tree_prep.py \u2014 see docs/TREE-IMP
  ]};
 if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
 </script>
-<script>
+<script type="text/x-flydiy">
 // trees.js — the ONE place the page turns the baked tree payload into geometry
 // and materials. Mirrors props.js: warm the bytes, build once, hand out shared
 // buffers. `render_world.js` is the only caller.
@@ -93193,7 +93233,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   }
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ================= world rendering (shared generator) =================
 // Golden hour: low sun aft-right, warm haze, long shadows.
 // Builds every static scene element from the shared `world` object and
@@ -97332,7 +97372,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
              worldSky && worldSky.material].filter(Boolean)) };
 }
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/floor_tex_prep.js from
 // assets/concrete_floor_damaged_01/ (Poly Haven CC0). The files live under
 // media/tex/floor/ (hash-in-filename); loading starts at script eval, well
@@ -97350,7 +97390,7 @@ const HANGAR_FLOOR_IMG = (typeof Image !== 'undefined') ? (() => {
   };
 })() : null;
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/wall_tex_prep.js from
 // assets/hangar_walls/ (Poly Haven CC0). The files live under
 // media/tex/walls/ (hash-in-filename). A SET LOADS WHEN IT IS READ (LOADING
@@ -97377,7 +97417,7 @@ const HANGAR_WALL_SETS = (typeof Image !== 'undefined') ? (() => {
   };
 })() : null;
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/sky_tex_prep.js
 // from assets/hangar_sky/ — ONE panorama (alps_field_8k.hdr) graded into
 // 6 hours by tools/sky_grade.py, each measured exactly as a
@@ -97469,7 +97509,7 @@ const HANGAR_SKY_GRADE = (() => {
   };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE PROP LIBRARY — one factory that turns any baked prop into a three.js
 // group, and ONE material recipe that every prop in the batch lands on.
@@ -97781,7 +97821,7 @@ if (typeof module !== 'undefined' && module.exports)
                      propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
                      propLevels };
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/wood_tex_prep.js from
 // assets/wood/ (CC0: Poly Haven + ambientCG; see CREDITS.md). Each image IS
 // an AEROSKIN detail sheet (R,G normal / B height ride, mean 0.80) — DATA,
@@ -97803,7 +97843,7 @@ const WOOD_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
   };
 })() : null;
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/skin_tex_prep.js from
 // assets/skin/ (CC0: ambientCG; see CREDITS.md). Each image IS an AEROSKIN
 // detail sheet (R,G normal / B the 0.80-mean ride) — DATA, not a picture;
@@ -97831,7 +97871,7 @@ const SKIN_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
   };
 })() : null;
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/vessel_tex_prep.js from
 // assets/vessel/ (CC0: Poly Haven, ambientCG; see CREDITS.md). Three maps per
 // set, the hangar props' own recipe (src/viewer/props.js): diff is sRGB base
@@ -97863,7 +97903,7 @@ const VESSEL_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
   };
 })() : null;
 </script>
-<script>
+<script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/labels_prep.py from
 // assets/interior/labels.png (the user's own tape labels). ONE column
 // sheet, one tile per label, the tape centred in its tile; the panel
@@ -97881,7 +97921,7 @@ const PANEL_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
 })() : {};
 if (typeof window !== 'undefined') window.PANEL_TEX_SHEETS = PANEL_TEX_SHEETS;
 </script>
-<script>
+<script type="text/x-flydiy">
 // aeroweather.js — THE WEATHERING (G345). What time, flying, grass strips and
 // rain do to the aeroplane's surfaces, as ONE module that aeroskin.js splices
 // into its hooks. It replaces G70's single condition dial (four masks on
@@ -99230,7 +99270,7 @@ const AEROWX_API = {
 if (typeof window !== 'undefined') window.AEROWX = AEROWX_API;
 if (typeof module !== 'undefined') module.exports = AEROWX_API;
 </script>
-<script>
+<script type="text/x-flydiy">
 // AEROSKIN — ONE MATERIAL FOR THE WHOLE AEROPLANE (G67, ROADMAP P9).
 //
 // This replaces G38's uniform recipe, which was declared there as a
@@ -103715,7 +103755,7 @@ if (typeof module !== 'undefined')
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk };
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE HANGAR — the garage's room, ported from the design session's hangar.html
 // (futureDesigns/transfer-glazing2/hangar.html). Everything is built from
@@ -107462,7 +107502,7 @@ return {
 };
 }
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // GARAGE — the builder's panel, and the paint.
 //
@@ -108792,7 +108832,7 @@ function garageInit(api) {
   try { if (window.GARAGE_SPEC) window.GARAGE_SPEC.syncShelf = sync; } catch (e) {}
 }
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // WORKSHOP PIECES — half-built aeroplanes, from the game's own generator.
 //
@@ -109367,7 +109407,7 @@ function wsPiece(THREE, kind, mats) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { wsPiece, wsSpec, wsGeo, wsWingBand };
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE PLAQUE'S SHEET (G208) — how a measured number is shown.
 //
@@ -109788,7 +109828,7 @@ if (typeof module !== 'undefined' && module.exports)
   module.exports = { plaqueSheet, plaqueJudge, plaqueBandPos, PLAQUE_WHY,
                      PLAQUE_WHY_BAY, PLAQUE_WHY_VESSEL, PLAQUE_SECTIONS, PLAQUE_BOUNDS };
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE CERTIFICATION STICKERS (G208) — what an approved aeroplane wears.
 //
@@ -110194,7 +110234,7 @@ if (typeof module !== 'undefined' && module.exports)
                      STICKER_PAGE, stickerRoundel, stickerArcText, stickerEmblem,
                      stickerStripW, stickerResolve, stickerPlacements, stickerDilate };
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE ENGINEERING BENCH (G64) — where a build earns its numbers.
 // CERTIFIED (G208) — where it keeps them.
@@ -111198,7 +111238,7 @@ if (typeof module !== 'undefined' && module.exports)
   module.exports = { BENCH_TESTS, BENCH_COSMETIC, benchStripCosmetic, benchHash,
                      benchFingerprint, benchFlightStep, benchTrimWords, benchNum };
 </script>
-<script>
+<script type="text/x-flydiy">
 // refplane.js — THE REFERENCE PLANE (G89-G92, ROADMAP F1).
 //
 // A real aeroplane, standing in the shed beside the one you are building, so
@@ -112171,7 +112211,7 @@ window.REFPLANE = {
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // DESIGN FLOW — the tile RENDERER over tools/_cage_design.js, and the birth
 // flow's viewport host. One component, two hosts (NEW-AIRCRAFT §8.1):
 //
@@ -112807,7 +112847,7 @@ window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth,
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // BALANCE (G101) — THE WEIGHT-AND-BALANCE CHART, and the numbers under it.
 //
 // The user, at the start of the energy arc: "we need things physically
@@ -113003,7 +113043,7 @@ if (typeof window !== 'undefined') window.BALANCE = API;
 if (typeof module !== 'undefined') module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // PATTERN VIS (G193) — the declared ground pattern and the two approaches,
 // drawn in the flight world so the player can SEE what the pilot is steering
 // to (the user: "enable visibility of the patterns through options in
@@ -113318,7 +113358,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
 
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ---------------------------------------------------------------------------
 // MANUAL CONTROLS (G200) — the device-agnostic input model
 // ---------------------------------------------------------------------------
@@ -113999,7 +114039,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ---------------------------------------------------------------------------
 // THE CONTROLS PANEL (G200) — one mapping interface, opened from both screens
 // ---------------------------------------------------------------------------
@@ -114305,7 +114345,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // gfx_settings.js - GRAPHICS SETTINGS (G286)
 //
 // The menu a PC game has: a PRESET and, under it, the handful of options a
@@ -114585,7 +114625,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   };
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // ============================================================
 // THE EDITOR PANEL (G77) — the part tree and the inspector.
 //
@@ -118001,7 +118041,7 @@ function editorInit(api) {
   window.CAGE_ON_PAGE = collectDerived;
 }
 </script>
-<script>
+<script type="text/x-flydiy">
 // THE COCKPIT IN FLIGHT — the panel arc, session 4 (2026-09-12).
 //
 // What the flown aeroplane's panel does: the READINGS every hand turns by
@@ -118512,37 +118552,37 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script src="src/viewer/lot_tex.js?v=290372c3"></script>
-<script src="src/viewer/sign_tex.js?v=f6c42517"></script>
-<script src="src/pier/pier_pier.js?v=ba429deb"></script>
-<script src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
-<script src="src/pier/pier_people.js?v=1c02dfbe"></script>
-<script src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
-<script src="src/pier/pier_car.js?v=6beac5ec"></script>
-<script src="src/pier/pier_vehicle.js?v=565c7b29"></script>
-<script src="src/pier/pier_auto.js?v=cc5e850a"></script>
-<script src="src/pier/pier_lods.js?v=aaede226"></script>
-<script src="src/totems/totems_poles.js?v=63ad4d9f"></script>
-<script src="tools/_house_kit.js?v=d635a246"></script>
-<script src="tools/_house_gen.js?v=9e8ae296"></script>
-<script src="tools/_big_gen.js?v=aa1ee37b"></script>
-<script src="tools/_sport_gen.js?v=4e7d9a83"></script>
-<script src="tools/_shed_gen.js?v=4b29f5fe"></script>
-<script src="tools/_hangar_gen.js?v=a711b43f"></script>
-<script src="tools/_tower_gen.js?v=962e54a2"></script>
-<script src="tools/_tram_gen.js?v=b91a8a59"></script>
-<script src="tools/_totem_gen.js?v=1d5256d5"></script>
-<script src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
-<script src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
-<script src="src/viewer/cabin.js?v=f0aac315"></script>
-<script src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script src="tools/_village_gen.js?v=62ac423a"></script>
-<script src="src/viewer/parked.js?v=2c7dc7ba"></script>
-<script src="src/viewer/render_premises.js?v=7bb8bf6c"></script>
-<script src="src/viewer/premises_host.js?v=a05bd741"></script>
-<script src="src/viewer/premises_ui.js?v=727266ce"></script>
-<script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=705b955e"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=b97f1530"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=4dd00c05"></script>
+<script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
   // the vendor and owns #boot; this script reports its phases and every asset
@@ -125496,6 +125536,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     },
     // G387: WORLD - the premises editor over the flight scene
     world(body) {
+      // THE MAP (G434.3): the same pills as the GRAPHICS menu's, here on the WORLD flyout where a player looks for them
+      if (Array.isArray(window.FLYDIY_WORLDS) && window.FLYDIY_WORLDS.length) {
+        const cur = window.FLYDIY_WORLD || 'none';
+        flRow(body, 'map');
+        flPills(body, window.FLYDIY_WORLDS.map(w => ({ label: w.name, value: w.id })), o => o.value === cur,
+          o => { if (o.value === cur) return; try { localStorage.setItem('flydiy.world', o.value); } catch (e) {} location.reload(); });
+        flNote(body, 'Picking a map reloads the page; each map keeps its own saved premises.');
+      }
       if (!window.PREMISES_UI || !window.PREMISES_HOST || !window.RENDER_PREMISES || !world.premises) { flNote(body, 'This build has no world editor (the world pack did not load).'); return; }
       const rec = world.premises.rec;
       flNote(body, rec ? 'A premises is composed into this world: ' + (rec.name || rec.id || 'unnamed') + '.' : 'No premises in this world yet.');
@@ -127056,7 +127104,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
 })();
 </script>
-<script>
+<script type="text/x-flydiy">
 // dev_panel.js - THE DEVELOPER'S DIALS (W0c.11)
 //
 // Every number the forest and the light are tuned by, on a slider, in the
@@ -127399,3 +127447,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 </script>
 </body>
 </html>
+
+<script>
+window.FLYDIY_BOOT.then(function () {
+  var tags = document.querySelectorAll('script[type="text/x-flydiy"]');
+  for (var i = 0; i < tags.length; i++) {
+    var s = document.createElement('script');
+    if (tags[i].getAttribute('src')) s.src = tags[i].getAttribute('src'); else s.textContent = tags[i].textContent;
+    s.async = false;
+    document.body.appendChild(s);
+  }
+}, function (e) { console.error('flyDiy: the boot did not initialise', e); });
+</script>
