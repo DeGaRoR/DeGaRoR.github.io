@@ -14,6 +14,17 @@
 //   node tools/perf_study.js --birth       -> the pre-join (birth) spec, as GATE
 //                                            ARCHETYPES flies it; the default is the
 //                                            JOINED spec, as the game flies it (chantier 1)
+//   node tools/perf_study.js --build=my.json --vs=c172 [--engine=io360_mccauley] [--fly] [--md=]
+//                                         -> A SAVED BUILD (the garage's export, or a
+//                                            bare spec) against one reference row,
+//                                            with the DIMENSIONS table (the type
+//                                            sheet) and the BUILD CHECK (stance,
+//                                            balance, sandbags, hot and high) the
+//                                            bench would print; --engine swaps the
+//                                            registry row it flies; --fly flies it;
+//                                            --md= keeps the trace (chantier 3,
+//                                            2026-09-20: the user's Cessna 172
+//                                            against the 172R)
 //
 // THE INDICATORS (each one is a number a real POH states at MTOW, sea level,
 // ISA, and each one is MEASURED here, never read off a rule):
@@ -55,7 +66,10 @@ const { D, C } = BJ.loadPanel();
 const REAL = {
   cub:       { name: 'Piper J-3C-65 Cub', mtow: 550, empty: 345, S: 16.6, b: 10.7, powerKW: 48,
                Vs1: 61, V75: 120, Vmax: 140, roc: 2.3, TO: 113, LDG: 88, LD: 9.5, T0: 1200, CdS: 0.75, engineMatch: true,
-               src: 'POH J-3C-65: stall 38 mph, cruise 75 mph, Vmax 87 mph, 450 fpm, TO run 370 ft, ldg 290 ft' },
+               src: 'POH J-3C-65: stall 38 mph, cruise 75 mph, Vmax 87 mph, 450 fpm, TO run 370 ft, ldg 290 ft',
+               dims: { length: 6.83, height: 2.03, AR: 6.9, cRoot: 1.60, cTip: 1.60, hSpan: 2.90, track: 1.83,
+                       fuelL: 45, seats: 2, engineHP: 65, engineKg: 77, propD: 1.83, cabinW: 0.72,
+                       src: 'J-3 type sheet: 22 ft 5 in x 35 ft 3 in x 6 ft 8 in, chord 63 in, 12 US gal, Sensenich 72 in' } },
   pietenpol: { name: 'Pietenpol Air Camper (A-65)', mtow: 476, empty: 280, S: 13.5, b: 8.8, powerKW: 48,
                Vs1: 56, V75: 120, Vmax: 137, roc: 2.5, TO: 120, LDG: 100, LD: 8, T0: 1200, engineMatch: true,
                src: 'type data: stall 35 mph, cruise 75, Vmax 85, 500 fpm' },
@@ -69,8 +83,16 @@ const REAL = {
                Vs1: 68, V75: 175, Vmax: 200, roc: 3.5, TO: 200, LDG: 150, LD: 11, T0: 1600, CdS: 0.45, engineMatch: true,
                src: 'type data D.119: stall 68 km/h, cruise 175, Vmax 200, 700 fpm, TO 200 m' },
   c172:      { name: 'Cessna 172R (IO-360-L2A 160 hp)', mtow: 1111, empty: 736, S: 16.2, b: 11.0, powerKW: 119,
-               Vs1: 87, V75: 218, Vmax: 230, roc: 3.7, TO: 288, LDG: 168, LD: 9, T0: 2290, CdS: 0.47, engineMatch: true,
-               src: 'POH 172R: Vs1 47 KCAS, 75 % cruise ~118 KTAS at SL, 720 fpm, ground roll 945 ft, ldg roll 550 ft' },
+               // Vs1 was 87 (the flaps-30 KCAS) until 2026-09-20: the POH's
+               // section 5 gives 44 KIAS / 51-52 KCAS flaps up at 2450 lb
+               Vs1: 95, V75: 218, Vmax: 230, roc: 3.7, TO: 288, LDG: 168, LD: 9, T0: 2290, CdS: 0.47, engineMatch: true,
+               TO50: 514, LDG50: 395, Vs0: 87, Vy: 146, ceiling: 4100,
+               src: 'POH 172R: Vs1 44 KIAS / 51 KCAS flaps up, Vs0 33 KIAS / 47 KCAS flaps 30, Vy 79 KIAS, 75 % cruise ~118 KTAS at SL, 720 fpm, ground roll 945 ft / 50 ft 1685 ft, ldg roll 550 ft / 50 ft 1295 ft, ceiling 13 500 ft',
+               // THE TYPE SHEET (chantier 3): what a builder measures with a tape
+               dims: { length: 8.28, height: 2.72, AR: 7.5, cRoot: 1.63, cTip: 1.12, hSpan: 3.40, track: 2.53, wheelbase: 1.65,
+                       fuelL: 212, seats: 4, engineHP: 160, engineKg: 138, propD: 1.905, cabinW: 1.00, Sh: 3.3, Sv: 1.6,
+                       dihedral: 1.73, incidence: 1.5, washout: 3, flapMax: 30, flapSpan: 0.54, ailSpan: 0.35,
+                       src: 'Cessna 172R type sheet: 27 ft 2 in x 36 ft 1 in x 8 ft 11 in, root 5 ft 4 in, tip 3 ft 8.5 in, stab span 11 ft 4 in, track 8 ft 3.5 in, 56 US gal, McCauley 1C235 75 in, cabin 39.5 in, flaps 0-30 deg; ailerons 6 ft 4 in = 0.35 of the semispan, the flaps the rest of the panel from the root = 0.54' } },
   caravan:   { name: 'Cessna 208 Caravan (PT6A-114A 675 shp)', mtow: 3629, empty: 2145, S: 25.96, b: 15.9, powerKW: 503,
                Vs1: 144, V75: 324, Vmax: 340, roc: 5.0, TO: 354, LDG: 224, LD: 11, CdS: 0.57, engineMatch: true,
                src: 'POH 208: Vs1 78 KCAS, Vs0 61, cruise 175 KTAS at SL, 975 fpm, ground roll 1160 ft, ldg 735 ft' },
@@ -99,10 +121,15 @@ const { sweepAt, levelSpeedAt, parasiteFit, ballast } = require(path.join(T, '_p
 function measure(key) {
   const a = D.ARCHETYPES.find(x => x.key === key);
   if (!a) return null;
-  const R = REAL[key];
   let spec0, joinErrs = [];
   if (birth) spec0 = D.designBake(a.sel, a.over);
   else { const bj = BJ.bakeCard(key); spec0 = bj.spec; joinErrs = bj.errors; }
+  return Object.assign(measureSpec(spec0, REAL[key], a.name), { key, joinErrs });
+}
+// A SAVED BUILD (chantier 3): the garage's export already carries the join's
+// measurements (the profile, the cabin, the gear stations, the tail's areas),
+// so it flies as it is - the aeroplane the game flies, not a re-bake of it
+function measureSpec(spec0, R, name) {
   const def0 = C.buildGen(spec0);
   const sim0 = C.makeSim(def0, null); sim0.reset(0);
   // THE SPLIT the ledger keeps: empty (structure, engine, systems) against
@@ -132,8 +159,55 @@ function measure(key) {
   const G = def.params.gen || {};
   const drag = { CdS: fit && fit.CdS, kInd: fit && fit.kInd, fusCdA: def.params.fusCdA && def.params.fusCdA[0],
                  gearDCdA: G.gearDCdA, braceDCdA: G.braceDCdA, breakdown: G.drag || null };
-  return { key, name: a.name, mass: sim.totalM, asBaked, empty, payload, ballast: kg, S: sh.Sw, b: sh.span, T0, T0W: T0 / W, Vs: Vs * 3.6, V75: V75 && V75 * 3.6, Vmax: Vmax && Vmax * 3.6,
-           roc, Vy: Vy * 3.6, LD, TO: to.sRoll, TO50: to.TORun, powerKW: (def.params.powerW || (PR.powerW || 0)) / 1000, nE, sh, def, spec, drag, ledger: L, joinErrs };
+  return { name, mass: sim.totalM, asBaked, empty, payload, ballast: kg, S: sh.Sw, b: sh.span, T0, T0W: T0 / W, Vs: Vs * 3.6, V75: V75 && V75 * 3.6, Vmax: Vmax && Vmax * 3.6,
+           roc, Vy: Vy * 3.6, LD, TO: to.sRoll, TO50: to.TORun, powerKW: (def.params.powerW || (PR.powerW || 0)) / 1000, nE, sh, def, spec, drag, ledger: L, joinErrs: [] };
+}
+
+// THE TYPE SHEET, measured off the def (chantier 3): the extents a builder
+// takes with a tape - length and height off the node cloud in the body frame
+// (settled on its wheels), the rest off the spec the join wrote
+function dimsOf(m) {
+  const def = m.def, S = m.spec, sim = C.makeSim(def, null); sim.reset(0);
+  for (let i = 0; i < 150; i++) sim.step(1 / 60);
+  const [xA, yU] = sim.axes();
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let i = 0; i < sim.n; i++) {
+    const p = [sim.p[i * 3], sim.p[i * 3 + 1], sim.p[i * 3 + 2]];
+    const x = p[0] * xA[0] + p[1] * xA[1] + p[2] * xA[2], y = p[0] * yU[0] + p[1] * yU[1] + p[2] * yU[2];
+    x0 = Math.min(x0, x - sim.r[i]); x1 = Math.max(x1, x + sim.r[i]); y0 = Math.min(y0, y - sim.r[i]); y1 = Math.max(y1, y + sim.r[i]);
+  }
+  const w = S.wings && S.wings[0] || {}, g = S.gear || {}, t = S.tail || {}, e = def.params.engine || {}, PR = def.params.prop || {};
+  const sh = m.sh, G = def.params.gen || {};
+  const fuel = (S.energy && S.energy.vessels || []).reduce((a, v) => a + (v.capacity || 0), 0) || (S.fuel && S.fuel.litres) || 0;
+  // the cloud runs from the engine's flange nodes to the tail post: length
+  // is flange -> rudder trailing edge, and a type sheet's spinner-to-rudder
+  // figure runs ~0.3 m longer (measured on the 172 build, 2026-09-20). NOTE
+  // every station the join writes (gear.x, wings[].xLE, cabin.seatsX,
+  // tail.hX) is metres aft of the WINDSCREEN-BASE ring (the join's zFw =
+  // 'wsFront'), not the firewall: a type sheet's fuselage stations must be
+  // re-based before they are compared (the 172's firewall is ~0.5 m ahead)
+  return { length: (t.vX != null && t.vChord != null ? t.vX + t.vChord : x1) - x0, height: y1 - y0, AR: G.AR, cRoot: w.chord, cTip: w.chord * (w.taper == null ? 1 : w.taper), hSpan: t.hSpan, track: g.track,
+           wheelbase: (g.x != null && g.twX != null) ? Math.abs(g.x - g.twX) : null,
+           fuelL: fuel, seats: S.cabin && S.cabin.seats, engineHP: (e.powerW || 0) / 745.7, engineKg: e.mass, propD: PR.D, cabinW: S.cabin && S.cabin.halfW * 2,
+           Sh: t.Sh, Sv: t.Sv, dihedral: w.dihedral, incidence: w.incidence, washout: w.washout,
+           flapMax: (C.GEN_FLAP_TRAVEL && S.controls && S.controls.flap && C.GEN_FLAP_TRAVEL[S.controls.flap.type]) || null,
+           flapSpan: S.controls && S.controls.flap && S.controls.flap.span,
+           engineName: e.name, propName: PR.name || (C.POWERPLANTS[S.engines[0].type] || { prop: {} }).prop.name, material: S.fuselage && S.fuselage.material, gearType: g.type };
+}
+
+// THE BUILD CHECK (chantier 3): what the bench's three cards say about a
+// build, headless - the shakedown's stance and balance, the sandbags ticked
+// to their verdict, the hot-and-high sheet. Reported, never enforced, as the
+// bench itself does.
+function buildCheck(m) {
+  const def = m.def, S = m.spec;
+  const out = { shake: m.sh };
+  const sim = C.makeSim(def, null); sim.reset(0);
+  const rig = C.makeLoadTest(sim, def, { material: S.fuselage && S.fuselage.material,
+                                         wingMaterial: typeof C.genSurfKey === 'function' ? C.genSurfKey(S, 'wing', 0) : undefined });
+  if (rig.state.ok) { for (let i = 0; i < 60 * 60 && !rig.state.done; i++) rig.step(1 / 60); out.load = rig.state; }
+  out.dalt = C.genDensityAlt(def);
+  return out;
 }
 
 function fly(def, spec, kg) {
@@ -168,7 +242,10 @@ const mdOut = (args.find(x => x.startsWith('--md=')) || '').slice(5);
 const only = ((args.find(x => x.startsWith('--only=')) || '').slice(7)).split(',').filter(Boolean);
 const showLedger = args.includes('--ledger');
 const birth = args.includes('--birth');
-const keys = (only.length ? only : Object.keys(REAL)).filter(k => D.ARCHETYPES.some(a => a.key === k));
+const buildFile = (args.find(x => x.startsWith('--build=')) || '').slice(8);
+const vsKey = (args.find(x => x.startsWith('--vs=')) || '').slice(5);
+const engineKey = (args.find(x => x.startsWith('--engine=')) || '').slice(9);
+const keys = buildFile ? [] : (only.length ? only : Object.keys(REAL)).filter(k => D.ARCHETYPES.some(a => a.key === k));
 const f = (v, d = 0) => v == null || !isFinite(v) ? '—' : (+v).toFixed(d);
 const pct = (ours, real) => (ours == null || real == null || !isFinite(ours)) ? '—' : ((ours / real - 1) * 100).toFixed(0) + ' %';
 const lines = [];
@@ -176,6 +253,60 @@ const out = s => { console.log(s); lines.push(s); };
 out('| card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |');
 out('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
 const results = [];
+if (buildFile) {
+  const raw = JSON.parse(require('fs').readFileSync(buildFile, 'utf8'));
+  const spec = raw.spec || raw;
+  let name = raw.name || path.basename(buildFile);
+  if (engineKey) {
+    if (!C.POWERPLANTS[engineKey]) { console.log('no registry row ' + engineKey + ': ' + Object.keys(C.POWERPLANTS).join(' ')); process.exit(2); }
+    for (const e of spec.engines) e.type = engineKey;
+    name += ' (on ' + engineKey + ')';
+  }
+  const guess = vsKey || (/172|cessna/i.test(name) ? 'c172' : /cub|j-?3/i.test(name) ? 'cub' : Object.keys(REAL).find(k => new RegExp(k, 'i').test(name)) || '');
+  const R = REAL[guess];
+  if (!R) { console.log('no reference row for the build "' + name + '": pass --vs=' + Object.keys(REAL).join('|')); process.exit(2); }
+  const m = measureSpec(spec, R, name);
+  const cell = (ours, real, d) => f(ours, d) + ' / ' + f(real, d) + ' (' + pct(ours, real) + ')';
+  const eHP = m.def.params.engine ? m.def.params.engine.powerW / 745.7 : 0;
+  const engOK = !!(R.dims && Math.abs(eHP / R.dims.engineHP - 1) < 0.15);
+  out('| ' + name + ' | ' + R.name + (engOK ? '' : ' (engine differs)') + ' | ' + cell(m.empty, R.empty) + ' | ' + f(m.asBaked) + ' / ' + f(m.mass) + ' | ' + cell(m.S, R.S, 1) + ' | ' + f(m.T0W, 2) + (R.T0 ? ' / ' + f(R.T0 / (R.mtow * 9.81), 2) : '') +
+      ' | ' + cell(m.Vs, R.Vs1) + ' | ' + cell(m.V75, R.V75) + ' | ' + cell(m.Vmax, R.Vmax) + ' | ' + cell(m.roc, R.roc, 1) + ' | ' + cell(m.LD, R.LD, 1) + ' | ' + cell(m.drag.CdS, R.CdS, 2) + ' | ' + cell(m.TO, R.TO) + ' | ' + cell(m.TO50, R.TO50) + ' |');
+  results.push({ k: 'build', R: Object.assign({}, R, { engineMatch: engOK }), m });
+  // THE DIMENSIONS against the type sheet
+  const d = dimsOf(m), rd = R.dims || {};
+  out('');
+  out('DIMENSIONS (ours / ' + R.name + '; ours at MTOW ' + f(m.mass, 0) + ' kg, ballast ' + f(m.ballast, 0) + ' kg):');
+  out('  engine     ' + (d.engineName || '-') + ' ' + f(d.engineHP, 0) + ' hp ' + f(d.engineKg, 0) + ' kg, prop ' + (d.propName || '-') + ' ' + f(d.propD, 2) + ' m' +
+      (rd.engineHP ? '   / ' + f(rd.engineHP, 0) + ' hp ' + f(rd.engineKg, 0) + ' kg, prop ' + f(rd.propD, 2) + ' m' : ''));
+  out('  fuselage   ' + (d.material || '-') + ', ' + (d.gearType || '-') + ' gear, ' + f(d.seats, 0) + ' seats / ' + f(rd.seats, 0));
+  const rowsD = [['length m (eng flange-rudder TE)', 'length', 2], ['height m', 'height', 2], ['span m', 'span', 2], ['area m2', 'area', 1], ['AR', 'AR', 1], ['root chord m', 'cRoot', 2], ['tip chord m', 'cTip', 2],
+                 ['dihedral deg', 'dihedral', 1], ['incidence deg', 'incidence', 1], ['washout deg', 'washout', 1], ['flap max deg', 'flapMax', 0], ['flap span frac', 'flapSpan', 2],
+                 ['stab span m', 'hSpan', 2], ['stab area m2', 'Sh', 2], ['fin area m2', 'Sv', 2], ['track m', 'track', 2], ['wheelbase m', 'wheelbase', 2],
+                 ['cabin width m', 'cabinW', 2], ['fuel L', 'fuelL', 0], ['wing load kg/m2 at MTOW', 'wingLoad', 1], ['power load kg/hp at MTOW', 'powerLoad', 1]];
+  const oursD = Object.assign({ span: m.b, area: m.S, wingLoad: m.mass / m.S, powerLoad: m.mass / Math.max(1e-6, eHP) }, d);
+  const realD = Object.assign({ span: R.b, area: R.S, wingLoad: R.mtow / R.S, powerLoad: rd.engineHP ? R.mtow / rd.engineHP : null }, rd);
+  for (const [label, k, dec] of rowsD) out('  ' + label.padEnd(30) + f(oursD[k], dec).padStart(7) + ' / ' + f(realD[k], dec).padStart(6) + '  ' + pct(oursD[k], realD[k]));
+  // THE BUILD CHECK
+  const bc = buildCheck(m), s = bc.shake;
+  out('');
+  out('BUILD CHECK (the bench, headless; as baked ' + f(m.asBaked, 0) + ' kg):');
+  out('  stance     ' + (s.onWheels ? 'on its wheels' : 'NOT on its wheels (rests on ' + s.restsOn + ')') + (s.gearFolded ? ', GEAR FOLDED' : '') +
+      ', deck ' + f(s.deckAngle, 1) + ' deg, suspension travel ' + f(s.susTravel * 1000, 0) + ' mm, nose-over ' + f(s.noseOver, 0) + ' deg, power-over ' + f(s.powerOver, 2));
+  out('  balance    CG ' + f((s.cgX - s.xLEmac) / s.cBar * 100, 0) + ' % MAC, static margin ' + f(s.staticMargin * 100, 0) + ' % (NP ' + f((s.npX - s.xLEmac) / s.cBar * 100, 0) + ' % MAC), stab trim ' + f(s.stabTrim * 180 / Math.PI, 1) + ' deg, Cn-beta ' + f(s.cnBeta, 3) + ', d(eps)/d(a) ' + f(s.dEpsDa, 2));
+  out('  shake      ' + (s.flyableCircuit ? 'FLIES A CIRCUIT' : 'WILL NOT FLY A CIRCUIT') + ': Vs ' + f(s.Vs * 3.6, 0) + ' km/h, cruise ' + f(s.VCruise * 3.6, 0) + ' km/h at thr ' + f(s.thrCruise, 2) + ', climb ' + f(s.climbRate, 2) + ' m/s, TO ' + f(s.TORun, 0) + ' m, L/D best ' + f(s.LDbest, 1) + ' at ' + f(s.VbestLD * 3.6, 0) + ' km/h, ' + f(s.hp, 0) + ' hp, ' + f(s.powerLoad, 1) + ' kg/hp');
+  if (bc.load) out('  sandbags   ' + bc.load.verdict + ': limit ' + f(bc.load.limitPct, 2) + ' % of semispan, ultimate ' + f(bc.load.ultPct, 2) + ' %' + (bc.load.ultYield == null ? '' : ', worst member ' + f(bc.load.ultYield, 0) + ' % of yield (' + (bc.load.worstCls || '-') + ')'));
+  else out('  sandbags   no wing to load');
+  if (bc.dalt) { const hot = bc.dalt.cases.find(c => c.id === 'hot');
+    out('  hot & high ' + ((hot.climbRate || 0) >= 0.3 && (hot.TORun || 0) <= 1100 ? 'WORKS HOT AND HIGH' : 'SEA LEVEL ONLY') + ': ' + f(hot.densAlt, 0) + ' m DA, TO ' + f(hot.TORun, 0) + ' m, climb ' + f(hot.climbRate, 2) + ' m/s, service ceiling ' +
+        (bc.dalt.serviceCeiling == null ? '> ' + f(bc.dalt.ceilingCap, 0) : f(bc.dalt.serviceCeiling, 0)) + ' m' + (R.ceiling ? ' / ' + f(R.ceiling, 0) + ' m' : '')); }
+  const L = m.ledger || {};
+  out('  ledger     ' + Object.keys(L).map(k => k + ' ' + f(L[k].mass, 0) + (L[k].payload ? '*' : '')).join(', ') + '  (* payload; empty ' + f(m.empty, 0) + ' kg)');
+  try { const sy = C.genSystemsResolve(m.spec); out('  systems    ' + sy.rows.map(x => x.key + ' ' + f(x.kg, 1)).join(', ')); } catch (e) {}
+  const dr = m.drag;
+  out('  drag       CdS fit ' + f(dr.CdS, 3) + ' m2 (induced k ' + f(dr.kInd, 0) + ')  fusCdA ' + f(dr.fusCdA, 3) + '  gear ' + f(dr.gearDCdA, 3) + '  brace ' + f(dr.braceDCdA, 3) +
+      (dr.breakdown ? '  ' + Object.keys(dr.breakdown).map(c => c + ' ' + f(dr.breakdown[c], 3)).join(' ') : ''));
+  if (args.includes('--fly')) flyKeys.push('build');
+}
 for (const k of keys) {
   const R = REAL[k]; let m;
   try { m = measure(k); } catch (e) { out('| ' + k + ' | ' + R.name + ' | build threw: ' + e.message.slice(0, 40) + ' |'); continue; }
@@ -237,6 +368,6 @@ for (const x of disc.slice(0, 40)) out('  ' + (x.d > 0 ? '+' : '') + (x.d * 100)
 out('');
 out('BY INDICATOR (mean signed error over the engine-matched cards):');
 const byWhat = {};
-for (const x of disc) { if (!REAL[x.card].engineMatch) continue; (byWhat[x.what] = byWhat[x.what] || []).push(x.d); }
+for (const x of disc) { const rr = results.find(r => r.k === x.card); if (!rr || !rr.R.engineMatch) continue; (byWhat[x.what] = byWhat[x.what] || []).push(x.d); }
 for (const w in byWhat) { const a = byWhat[w]; out('  ' + w.padEnd(7) + ' ' + ((a.reduce((p, q) => p + q, 0) / a.length) * 100).toFixed(0).padStart(4) + ' %  (n ' + a.length + ', spread ' + (Math.min(...a) * 100).toFixed(0) + '..' + (Math.max(...a) * 100).toFixed(0) + ')'); }
 if (mdOut) require('fs').writeFileSync(mdOut, lines.join('\n') + '\n');

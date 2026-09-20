@@ -1,0 +1,76 @@
+{
+ "cage": {
+  "engPreset": 2,
+  "eng_cyl": 2,
+  "eng_fwSpread": 2.4,
+  "eng_injected": 1,
+  "eng_mountGap": 1.76,
+  "eng_mountR": 1.88,
+  "eng_rpm": 2450,
+  "cw_propD": 1.905,
+  "cw_rpm": 2400,
+  "cw_power": 160,
+  "wgChord": 1.63,
+  "wgCrankChord": 1.63,
+  "wgCrankAt": 0.45,
+  "wgChordTip": 1.12,
+  "wgIncidence": 1.5,
+  "wgWashout": 3,
+  "wgDihedral": 1.7,
+  "wgDihedralOut": 1.7,
+  "stSpan": 1.19,
+  "halfW": 0.67,
+  "roofHalfW": 0.64,
+  "wgDx": -0.3,
+  "noseLen": 0.45,
+  "wgFlapSpan": 0.55,
+  "wgAilSpan": 0.35,
+  "s1LegFair": 1,
+  "s2LegFair": 1,
+  "stHinge": 0.4
+ },
+ "engines": [
+  {
+   "type": "io360_mccauley",
+   "mount": "nose",
+   "place": {
+    "dx": -0.67,
+    "dy": 0
+   },
+   "sense": 1
+  }
+ ],
+ "energy": {
+  "kind": "fuel",
+  "fuel": "avgas100LL",
+  "cell": "lifepo4",
+  "kWh": 0,
+  "vessel": null,
+  "finish": null,
+  "hue": 0,
+  "tint": null,
+  "vessels": [
+   {
+    "bay": "wingRoot",
+    "capacity": 212,
+    "along": 0.28,
+    "lv": null,
+    "rot": 0,
+    "form": "box",
+    "finish": null,
+    "hue": null,
+    "tint": null
+   }
+  ]
+ },
+ "fuel": {
+  "litres": 212,
+  "tank": "wing"
+ },
+ "prop": {
+  "D": 1.905
+ },
+ "meta": {
+  "name": "cessna172"
+ }
+}

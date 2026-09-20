@@ -51300,3 +51300,30 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - GATES: HINGE, FIT, COWL, PARTS, JOIN, FLEX, GEAR, CLIP green; UISMOKE, SKIN, VIEW, DESIGN, MEDIA
   re-proved at landing. Rigs: scratch a7_livery.js (frames, blocks, atlas column, field probes),
   a7_doorm.js (the door disc's normal), a7_spat.js / a7_hinge.js (a mesh projected to the screen).
+
+## G445 — THE C172 STUDY: A SAVED BUILD AGAINST ITS TYPE SHEET, AND THE BUILD CORRECTED
+## (2026-09-20, the user: "compare our figures against this very, very well known aircraft
+## ... a little tool outputting the key specs against a reference ... check that my plane
+## is well built" / "do the c172 more accurate through changes yourself and deliver the
+## JSON corrected build")
+
+- tools/perf_study.js --build=<export.json> --vs=<REAL key> [--engine=<row>] [--fly]
+  [--md=]: a garage export flown as it is (the join's measurements are in the file),
+  against one REAL row, with a DIMENSIONS sheet (the type sheet: length, chords, tail
+  spans, track, fuel, engine, prop; c172 and cub rows carry `dims`) and a BUILD CHECK
+  (stance, balance, sandbags, hot-and-high, ledger, drag build-up). The 172R row's Vs1
+  corrected 87 -> 95 km/h (POH section 5: 44 KIAS / 51 KCAS flaps up; 87 was flaps 30).
+- futureDesigns/C172-STUDY-2026-09-20.md: the study, the correction (the edit set
+  re-joined through tools/_bake_joined.js, proven idempotent first), the traps, the owed
+  list; builds/cessna172_2026-09-20{,_corrected}.json.
+- FOUND: the join's x-datum is the WINDSCREEN BASE (`zFw` = the wsFront ring), not the
+  firewall; a NOSE engine is weighed by the prop rule (60_gen_spec engX) 0.67 m aft of
+  where the cowl page draws it (the join measures M.engUnits and writes x for other
+  mounts only) — `engines[0].place.dx` carries the fix on this build, the editor's join
+  would drop it (owed: the join writes the nose flange; every card's CG moves);
+  io360_mccauley is a 180 hp row named after the 160 hp L2A (owed: the row) — the IO-360
+  dials at 2450 rpm fly an honest "custom" 159 hp; the strut rides the crank and the
+  sandbag reading jumps 73 -> 129 % of yield between crankAt 0.45 and 0.48 (owed: a GATE
+  LOAD sweep); the pilot's LIFTOFF integrator cap (0.15) could not hold a 172-tailed
+  aeroplane's lift-off attitude until the elevator was the type's 44 % (owed: P2).
+- No gate changed; the instrument is a bench. GATE battery not run (tools only).
