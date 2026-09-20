@@ -69,7 +69,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       await sleep(WAIT);
       const shot = await cmd('Page.captureScreenshot', { format: 'png' });
       const file = path.join(OUT, s.name + '.png'); fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
-      console.log('cloud_shot: ' + file + '  ' + await ev("JSON.stringify({clouds: !!(window.CLOUDS && CLOUDS.active), shed: !!document.querySelector('#c'), text: document.body.innerText.slice(0, 80)})"));
+      console.log('cloud_shot: ' + file + '  ' + await ev("JSON.stringify({clouds: !!(window.CLOUDS && CLOUDS.active), shed: !!document.querySelector('#c'), text: document.body.innerText.slice(0, 400)})"));
     }
     ws.close(); killChrome(); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
     return;

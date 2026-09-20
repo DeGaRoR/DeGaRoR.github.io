@@ -50886,3 +50886,31 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - OWED: the shed's aeroplane keeps the design's switch positions (the snapshot's `lights`) - a
   night in the shed lights the room's lamps, not the aeroplane's; runway edge lights (G417's
   owed); the flight rail's NIGHT lists the world's sources by key - a player-facing wording.
+
+## G440 — THE STANDING AEROPLANE'S LIGHTS FOLLOW THE HOUR IN THE SHED (2026-09-21, the user:
+## "do the owed shed aeroplane lights at night too, then commit")
+
+- tools/_cage_light.js: THE HOUR'S HAND ON THE LAMPS. The design's rows (li_*) are the switch
+  positions the aeroplane was drawn with, and by day the shed shows them. The layer now records
+  every lamp's materials with the DESIGN's level (`lampMats`: the cached lens and cup from the
+  factories, the rotor's `base` from the row rather than from the material - the cache hands back
+  a material the night may already have driven) and publishes `CAGE_LIGHT.drive(levels)`:
+  {nav, beacon, instr, ...} lights the drawn lenses (x2.4), cups (x0.55, reflect honoured), the
+  beacon's dome (its rotor base; the mirror keeps sweeping) and the panel layer's dial faces
+  (x1.6, base kept in userData) at those levels over the design's; `drive(null)` is the design
+  again. `driveLevels` outlives a rebuild - a slider dragged at night rebuilds the lamps lit.
+  Nothing new emits: the same geometry at another level.
+- app.js shedCraftLights(day), from the garage frame beside hangar.applyDay: when the sun goes,
+  the pilot's rule (cockpit.js CK.lightsFor - the flight's) laid over the design: nav, beacon and
+  the panel lit; the landing and taxi lights left to the design (an aeroplane on a stand throws
+  no beam). Sunrise takes the drive off. Re-applied when the layer object changes (a rebuild).
+- GATES: CLOUD holds the drive's shape, the design-level record, the shed's rule; PANEL's
+  published-factories rule retargeted (the record grew a `drive` after `lensMat, cupMat`).
+  CLOUD / LIGHT / HANGAR / PANEL green (+ the rest of the battery at the landing).
+- SEEN: screenshots/clouds-2026-09-20/ui/shed_night.png - the shed by night and by day from the
+  side and the interior: the dial faces glow at night, the starboard tip green; the beacon
+  flashes on its own phase.
+- The rig: tools/cloud_shot.js echoes 400 characters of the page text (was 80) - room for a
+  diagnostic div a shot's JS prepends.
+- OWED: runway edge lights (G417's owed); a player-facing wording for the world's source keys
+  on the flight rail's NIGHT; the shed's flood / pedal dimmers stay the design's at night.

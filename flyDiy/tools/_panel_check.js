@@ -306,7 +306,7 @@ function run() {
       'join: a gauge part carries its law as a table (stops / perSI / steps)');
     check(/lights\.on = !!\+Pl\.lightOn/.test(join) && /cageM, people, lights[,\s}]/.test(join), 'join: the snapshot carries the switch positions');
     const light = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
-    check(/m\.userData\.lampKey = key; m\.userData\.lampCol = col;/.test(light) && /m\.userData\.lampCup = key;/.test(light) && /lensMat, cupMat \};/.test(light),
+    check(/m\.userData\.lampKey = key; m\.userData\.lampCol = col;/.test(light) && /m\.userData\.lampCup = key;/.test(light) && /lensMat, cupMat,\s*\n\s*\/\/ G440/.test(light),
       'light layer: the lens and the cup say which light they are, and the factories are published');
     const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
     check(/m\.panel && window\.CAGE_PANEL && window\.CAGE_PANEL\.material/.test(app), 'app: a panel bucket takes the atlas material');

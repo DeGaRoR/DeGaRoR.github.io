@@ -1202,6 +1202,31 @@ function sites(scene, group, P) {
 
 // ---------------------------------------------------------------------------
 let group = null, board = null;
+// THE HOUR'S HAND ON THE LAMPS (G440, the user: "do the owed shed aeroplane lights at night too").
+// The design's rows (li_*) are the switch positions the aeroplane was DRAWN with, and by day
+// that is what the shed shows. At night the shed applies the pilot's rule over them - the
+// same CK.lightsFor the flight flies by (nav, beacon, the panel) - through this drive, and
+// takes it off again at sunrise. Nothing new emits: it is the drawn lenses, cups, the
+// beacon's dome and the dial faces at another level, restored to the design's own.
+// `lampMats` is rebuilt with the group; `driveLevels` outlives a rebuild (a slider dragged
+// at night rebuilds the lamps, and they must come back lit).
+let lampMats = [], driveLevels = null;
+const LENS_K = 2.4, CUP_K = 0.55;
+function applyDrive() {
+  const L = driveLevels;
+  for (const e of lampMats) {
+    const lv = (L && L[e.key] != null) ? Math.max(0, Math.min(1, +L[e.key])) : e.lv;
+    if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;
+    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K;
+  }
+  for (const R of rotors) R.base = ((L && L.beacon != null) ? Math.max(0, Math.min(1, +L.beacon)) : R.lv) * LENS_K;
+  // the dial faces are the panel layer's one emissive material (the instrument dimmer)
+  const PL = window.CAGE_PANEL, fm = PL && PL.material ? PL.material('faces') : null;
+  if (fm) {
+    if (fm.userData.liBase == null) fm.userData.liBase = fm.emissiveIntensity;
+    fm.emissiveIntensity = (L && L.instr != null) ? Math.max(0, Math.min(1, +L.instr)) * 1.6 : fm.userData.liBase;
+  }
+}
 const level = (P, k) => {
   if (!+P.lightOn) return 0;
   const v = +P['li_' + k];
@@ -1218,7 +1243,7 @@ PAGE.post = (ctx) => {
     group = null;
   }
   // the old rotors belong to a group that has just been thrown away
-  rotors.length = 0;
+  rotors.length = 0; lampMats = [];
   if (tickRAF) { cancelAnimationFrame(tickRAF); tickRAF = 0; }
   if (!+P.lightOn) return;
   bayFromP(P);            // the same resolution the wing layer did, one owner
@@ -1263,9 +1288,13 @@ PAGE.post = (ctx) => {
     // behind. So a recessed lamp is a REFLECTOR CUP with a bulb in it and a
     // RIM round the cut, and the glass belongs to the wing.
     const lodge = Bag(hwMat('lodge')), seal = Bag(hwMat('seal'));
-    const lens = Bag(lensMat(key, lv, col));
+    const lensM = lensMat(key, lv, col), cupM = cupMat(lv, col, reflectOn, key);
+    const lens = Bag(lensM);
     // the reflector: the lodge's alloy, lit by the bulb it surrounds
-    const cup = Bag(cupMat(lv, col, reflectOn, key));
+    const cup = Bag(cupM);
+    // for the hour's drive (applyDrive): the design's level, the factories' materials
+    if (!lampMats.some(e => e.mat === lensM)) lampMats.push({ key, kind: 'lens', mat: lensM, lv });
+    if (!lampMats.some(e => e.mat === cupM)) lampMats.push({ key, kind: 'cup', mat: cupM, lv, reflect: reflectOn });
     if (site.recess) {
       // THE REFLECTOR AND THE BULB ARE SOLIDS, and the bulb is the emitter —
       // it is drawn in the lens material because a bulb IS the light. The
@@ -1386,7 +1415,7 @@ PAGE.post = (ctx) => {
       mir.mesh(rot); fil.mesh(rot);
       group.add(rot);
       rotors.push({ rot, host: group, dome: o, mat: o.material,
-                    base: o.material.emissiveIntensity,
+                    base: lv * LENS_K, lv,      // the design's, not the material's (see applyDrive)
                     ax: nrm(site.ax), e1: side, e2: nrm(cross(site.ax, side)),
                     rpm: beaconRpm, p: seat.slice() });
     }
@@ -1475,7 +1504,12 @@ PAGE.post = (ctx) => {
                         lit: lit.map(x => x[0]),
                         // the panel arc (session 4): the flight rebuilds a
                         // lamp's lens and cup through the same factories
-                        lensMat, cupMat };
+                        lensMat, cupMat,
+                        // G440: the hour's hand - drive({nav, beacon, instr, ...}) lights the drawn
+                        // lamps at those levels over the design's; drive(null) is the design again
+                        drive: levels => { driveLevels = levels || null; applyDrive(); return driveLevels; },
+                        driven: () => driveLevels };
+  if (driveLevels) applyDrive();   // the night survives a rebuild
   if (stat) {
     const on = Object.keys(LIGHTS).filter(k => drawn[k] && level(P, k) > 0);
     stat.textContent += '  ·  lights: ' + Object.keys(drawn).length + ' fitted' +

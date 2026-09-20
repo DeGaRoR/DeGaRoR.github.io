@@ -956,6 +956,23 @@
     setExp(inRoom ? hangar.setMood(hangarMood).ex : WORLD_EXPOSURE);
     syncEnvBtn();
   }
+  // THE STANDING AEROPLANE'S LIGHTS FOLLOW THE HOUR (G440, the user: "do the owed shed aeroplane
+  // lights at night too"): by day the shed shows the design's switch positions (the li_* rows);
+  // when the sun goes, the pilot's rule (cockpit.js CK.lightsFor - the same one the flight
+  // flies by) is laid over them through the light layer's drive - nav, beacon and the panel
+  // lit; the landing and taxi lights left to the design, an aeroplane on a stand throws no
+  // beam. Sunrise takes the drive off. Re-applied when the layer rebuilds (a slider at night).
+  let shedLitNight = null, shedLitLayer = null;
+  function shedCraftLights(day) {
+    const CL = window.CAGE_LIGHT;
+    if (!CL || !CL.drive || !day) return;
+    const night = !day.sunUp;
+    if (night === shedLitNight && CL === shedLitLayer) return;
+    shedLitNight = night; shedLitLayer = CL;
+    if (!night) { CL.drive(null); return; }
+    const r = (typeof CK !== 'undefined' && CK && CK.lightsFor) ? CK.lightsFor(day, 0, 1e4) : { nav: 1, beacon: 1, instr: 1 };
+    CL.drive({ nav: r.nav, beacon: r.beacon, instr: r.instr });
+  }
   // ONE SKY (S5): the garage's `time of day` select is the CLOCK's hand now - a mood
   // names an hour (the alps afternoon 33 deg, golden 8, sunset, dusk, night), the day
   // drives the sky, and the row's lamps/panel/card follow through moodFor.
@@ -8361,6 +8378,7 @@
         const r = hangar.applyDay(world.day, renderer);
         if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
         if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
+        shedCraftLights(world.day);
       }
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
