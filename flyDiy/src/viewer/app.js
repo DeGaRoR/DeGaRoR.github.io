@@ -177,8 +177,9 @@
   // the resolve, reading its depth; the world only (the shed sees the dome; the layer in it is C3's)
   if (typeof CLOUDS !== 'undefined' && aa && aa.setOverlay) {
     CLOUDS.init(renderer);
-    aa.setOverlay((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
-    aa.setPost(r => { if (!inGarage) CLOUDS.composite(r); });   // C2: over the resolved frame (a draw into the 8x target = a second resolve)
+    // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
+    // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
+    aa.setPre((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass

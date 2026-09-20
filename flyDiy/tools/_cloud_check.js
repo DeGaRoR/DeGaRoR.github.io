@@ -124,8 +124,9 @@ console.log('6. the splice rules');
   yes(/AP_TILE = 512, AP_TILE_Y = AP_H \+ 2, AP_ATLAS_H = AP_TILE_Y \+ AP_TILE/.test(at) && /TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H/.test(at), 'the atlas carries the tile above the AP rows and publishes its geometry');
   yes(/CLOUDS\.inject\(sh\)/.test(at) && /renderer\.setScissor\(0, 0, AP_N \* AP_W, AP_H\)/.test(at), 'ATMO.inject hands the shadow its scalars; the AP pass writes only its own rows');
   yes(/_C \*= cloudShadow\(\);/.test(src('viewer/trees.js')), 'the trees\' own leaf terms take the cloud shadow');
-  yes(/setPost: f => \{ S\.post = f \|\| null; \}/.test(aa) && /if \(S\.post\) S\.post\(renderer, camera, S\.rt\);/.test(aa), 'the resolve pass has the post hook: the composite draws over the RESOLVED frame (a draw into the 8x target is a second resolve)');
-  yes(/aa\.setPost\(r => \{ if \(!inGarage\) CLOUDS\.composite\(r\); \}\)/.test(src('viewer/app.js')) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js composites after the resolve and dims the flare by the column');
+  yes(/setPre: f => \{ S\.pre = f \|\| null; \}/.test(aa) && /if \(S\.pre\) S\.pre\(renderer, camera, S\.rt\);/.test(aa), 'the resolve pass has the PRE hook (G436.7): the march runs before the scene, off the previous frame\'s depth');
+  yes(/aa\.setPre\(\(r, cam, rt\) => \{ if \(!inGarage\) CLOUDS\.draw\(r, cam, rt\); \}\)/.test(src('viewer/app.js')) && /CLOUDS\.sunT\(camera\.position\.x/.test(src('viewer/app.js')), 'app.js marches before the scene and dims the flare by the column');
+  yes(/gl_FragDepth = log2\(1\.0 \+ w\) \/ uLogFar;/.test(cj) && /depthTest: true, depthWrite: false, transparent: true, toneMapped: true/.test(cj) && /compMesh\.renderOrder = 1e6/.test(cj) && /scene\.add\(CLOUDS\.compositeMesh\(\)\)/.test(rw), 'the composite is a quad IN the world scene at the cloud\'s log depth, last, tested per MSAA sample (the 1-px line round the aeroplane)');
   yes(/s\.rgb \*= s\.a;/.test(cj) && /c\.rgb \/= max\(c\.a, 1e-4\);/.test(cj), 'the composite filters premultiplied (an empty texel must not darken its neighbour)');
   yes(/EXT_disjoint_timer_query_webgl2/.test(cj), 'the pass carries its own GPU timer');
   // C3: the probe and the shed see the layer (the dome march), the hemisphere rises under a cloud, the shed's key takes the column

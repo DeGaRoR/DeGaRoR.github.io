@@ -553,6 +553,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // its own. The field's plain caster meshes are tagged into it as they appear (nearTag, below).
   const sunNear = (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.make) ? SHADOW_NEAR.make(scene) : null;
   if (sunNear) sun.shadow.camera.layers.set(SHADOW_NEAR.FAR_LAYER);   // the far map sees FAR_LAYER: every caster but the craft (nearTag puts it there)
+  // THE CLOUDS' COMPOSITE (A6, G436.7): a fullscreen quad drawn last in this scene at the cloud's depth
+  if (typeof CLOUDS !== 'undefined' && CLOUDS.compositeMesh && CLOUDS.compositeMesh()) scene.add(CLOUDS.compositeMesh());
   // (every 30 frames: the plain caster meshes within 90 m of the CG join the near layer, the rest leave it -
   // the far map already holds every shadow the world casts, the near map exists for the craft and for what
   // shades the CRAFT (it reads the near map alone: the club hangar over a parked aeroplane); tagging all

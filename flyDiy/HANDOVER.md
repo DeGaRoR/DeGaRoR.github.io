@@ -50381,3 +50381,22 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   eye is inside (the water, the skin's top - barely seen from the seat). No material list: the swap
   is one pointer a frame; a per-material envMap for the cabin's set would spare the outside its
   neutral cap if that ever shows.
+
+
+## G436.7 — THE 1-PX SKY LINE ROUND THE AEROPLANE OVER A CLOUD (2026-09-20, A6 item 5)
+
+- THE CAUSE: the clouds composited over the RESOLVED frame (G425: a draw into the 8x target after
+  its resolve cost a second resolve). A resolved pixel on the aeroplane's silhouette is a blend of
+  skin and sky whose ONE resolved depth says "skin" - so no cloud was laid there and the sky half of
+  the blend stayed blue over a grey cloud: a pale line round the craft, at full cloud resolution
+  too (screenshots/clouds-2026-09-20/edge/sheet_edge2.jpg, left).
+- THE FIX: the march runs BEFORE the scene (aa_resolve's new PRE hook; its rays end at the previous
+  frame's resolved depth - a frame stale at a ridge, invisible), and the composite is a fullscreen
+  quad IN the world scene (render_world adds CLOUDS.compositeMesh(); renderOrder 1e6, transparent,
+  depth-tested, no depth write), its gl_FragDepth the march's key (the transmittance-weighted mean
+  distance along the pixel's ray) in the renderer's logarithmic convention, log2(1 + w) /
+  log2(far + 1): the skin's MSAA samples reject it, the sky's take it, the resolve blends - the
+  edge is anti-aliased like any other, and the ridge line too. One draw inside the pass, no second
+  resolve. The line is gone (sheet_edge2.jpg, right); the march's GPU time unchanged (0.7-1.5 ms).
+  The post hook stays in aa_resolve (unused); CLOUDS.composite() is a no-op.
+- GATE CLOUD: the hook rules rewritten (the pre hook, the quad at the cloud's depth).

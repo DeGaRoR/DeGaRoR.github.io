@@ -54,7 +54,7 @@ var CLOUDS = (function () {
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
-  let map = null, mapKey = '', weatherTex = null, rt = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, frame = 0;
+  let map = null, mapKey = '', weatherTex = null, rt = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, compMesh = null, frame = 0;
   let maps = [], lays = [];                // the decks (A6): one weather map and one layer per deck; map / lay stay the first's
   let shadowRT = null, shadowMat = null, shadowDirty = true, shadowDrift = [1e9, 1e9];
   let lay = null, dayRef = null, lastCover = 0, stats = { ms: 0, gpuMs: 0, shadowMs: 0, slicesBaked: 0, cover: 0 };
@@ -379,9 +379,22 @@ var CLOUDS = (function () {
   // space, through a depth-aware upsample - the four half texels round the pixel weighted by the
   // bilinear weight x the nearness of the depth they saw to the pixel's own (both logarithmic depths
   // turned back into distances), so the ridge keeps its edge; where no texel agrees, plain bilinear
-  const COMP_FRAG = `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK;
+  // INSIDE THE SCENE PASS (A6, 2026-09-20 - the playtest: "a 1-px sky line round the plane over clouds"):
+  // the composite was a draw over the RESOLVED frame, and a resolved pixel on the aeroplane's silhouette
+  // is a blend of skin and sky whose ONE depth says "skin" - so no cloud was laid there and the sky half
+  // of the blend stayed blue over a grey cloud: the line. The composite is a fullscreen quad IN the world
+  // scene now, drawn last, depth-tested per MSAA sample against the scene at the cloud's own distance
+  // (gl_FragDepth from the march's key, in the renderer's logarithmic convention): the skin's samples
+  // reject it, the sky's take it, the resolve blends - the edge is anti-aliased like any other. One draw
+  // in the pass, no second resolve (the 7 ms of G425 was a draw into the target AFTER its resolve).
+  const COMP_FRAG = `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
     float dist(float dz) { return exp2(dz * uLogFar); }
     void main() {
+      // the cloud's depth: the key (the transmittance-weighted mean distance along this pixel's ray) as the
+      // renderer's log depth - log2(1 + w) / log2(far + 1), w the view-axis distance
+      { vec2 ndc = vUv * 2.0 - 1.0; vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
+        float w = max(0.0, texture2D(uKeyTex, vUv).r * 1000.0 * (-dv.z));
+        gl_FragDepth = log2(1.0 + w) / uLogFar; }
       vec4 c;
       if (uUp < 0.5) c = texture2D(uCloudTex, vUv);
       else {
@@ -528,7 +541,8 @@ var CLOUDS = (function () {
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
-    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDepthK: U.uDepthK }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG, depthTest: false, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG, depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
     shadowMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     shadowRT = (typeof ATMO !== 'undefined' && ATMO.G && ATMO.G.rtAP) ? ATMO.G.rtAP : null;   // the tile lives in the atlas (the flag stays off without it)
     // the GPU timer
@@ -807,6 +821,7 @@ var CLOUDS = (function () {
   }
   // draw(renderer, camera, target): the aa overlay - the march at its resolution, then the composite over the target
   function draw(r, camera, target) {
+    if (compMesh) compMesh.visible = false;
     if (!active() || !target || !target.depthTexture) return;
     const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
     if (!bakeStep()) return;
@@ -832,21 +847,14 @@ var CLOUDS = (function () {
     q = tBegin('pass'); quad.material = marchMat; r.render(fsScene, fsCam); tEnd(q);
     r.setRenderTarget(target); r.setClearColor(_cc, prevCA);
     marched = true;
+    if (compMesh) compMesh.visible = true;
     if (t0) stats.ms = stats.ms * 0.9 + 0.1 * ((performance.now()) - t0);
   }
-  // composite(renderer): the aa post hook - the march's frame over the RESOLVED frame (the canvas, or
-  // whatever the resolve wrote): a second fullscreen draw into the multisampled target would cost a
-  // second resolve (7 ms measured); here it is a tenth of a millisecond
+  // compositeMesh(): the fullscreen quad the WORLD scene holds (render_world adds it), drawn last in the
+  // pass at the cloud's depth - see COMP_FRAG. composite(r) is kept as a no-op for the old post hook.
   let marched = false;
-  function composite(r) {
-    if (!marched || !rt) return;
-    marched = false;
-    const q = tBegin('comp');
-    const prevAC = r.autoClear; r.autoClear = false;
-    quad.material = compMat; r.render(fsScene, fsCam);
-    r.autoClear = prevAC;
-    tEnd(q);
-  }
+  function compositeMesh() { return compMesh; }
+  function composite() {}
   // sunT(x, y, z): the layer's transmittance toward the sun from a world point (the CPU column, the flare's dimmer)
   function sunT(x, y, z) {
     if (!active() || !lay || !map || sunEl < 0.04 || S.shadow <= 0) return 1;
@@ -906,7 +914,7 @@ var CLOUDS = (function () {
   // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
   // (an overcast day's diffuse is ~1.7x a clear day's), a dial
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
-  const API = { S, init, install, inject, update, draw, composite, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  const API = { S, init, install, inject, update, draw, composite, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();

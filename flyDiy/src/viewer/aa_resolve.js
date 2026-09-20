@@ -258,7 +258,7 @@
       // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
       // march composites there, reading the scene's depth) - it asks for the target even at tier
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
-      overlay: null, post: null, needRT: false,
+      overlay: null, post: null, pre: null, needRT: false,
     };
 
     try {
@@ -357,6 +357,10 @@
       // an encoded target, exactly as they do onto the canvas — so the hangar's
       // moods reach the frame without this pass knowing they exist.
       const prevTarget = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
+      // THE PRE HOOK (A6): the clouds march BEFORE the scene, off the previous frame's resolved depth
+      // (their integration's end - a frame stale at a ridge, invisible), and composite INSIDE the pass
+      // as a quad at their own depth (the silhouettes per MSAA sample) - see clouds.js COMP_FRAG
+      if (S.pre) S.pre(renderer, camera, S.rt);
       renderer.setRenderTarget(S.rt);
       renderer.render(scene, camera);
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
@@ -398,7 +402,7 @@
 
     return {
       render, setSize, setTier, dispose, setDither,
-      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; },
+      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target
