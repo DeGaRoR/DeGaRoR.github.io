@@ -64,8 +64,17 @@ var DAY_CLOCK = (function () {
       const url = fromUrl(), pref = read();
       if (url) { if (url.preset) api.preset(url.preset); else w.setDay(url); }
       else if (pref && pref.date) w.setDay({ date: pref.date, utc: pref.utc, rate: pref.rate != null ? pref.rate : 1 });
-      // ?cloud=0.45  or  ?cloud=0.9,st  (CLOUDS C4): the cover and the type, for a reproducible shot
-      if (W && W.location) { const c = /[?&]cloud=([0-9.]+)(?:,([a-z]{2}))?/.exec(W.location.search); if (c) { const o = { cloudCover: Math.max(0, Math.min(1, +c[1])) }; if (c[2]) o.cloudType = c[2]; w.setDay(o); } }
+      // ?cloud=0.45  or  ?cloud=0.9,st  (CLOUDS C4): the cover and the type, for a reproducible shot;
+      // ?cloud=0.45,cu;0.3,ac,3500;0.5,as (A6): the upper decks after semicolons - cover, type, base (m, optional)
+      if (W && W.location) {
+        const c = /[?&]cloud=([0-9.]+)(?:,([a-z]{2}))?((?:;[0-9.]+(?:,[a-z]{2})?(?:,[0-9]+)?)*)/.exec(W.location.search);
+        if (c) {
+          const o = { cloudCover: Math.max(0, Math.min(1, +c[1])) }; if (c[2]) o.cloudType = c[2];
+          if (c[3]) o.cloudUpper = c[3].split(';').filter(Boolean).map(s => { const p = s.split(','); const u = { cover: +p[0], type: p[1] || 'ac' }; if (p[2]) u.base = +p[2]; return u; });
+          else o.cloudUpper = null;
+          w.setDay(o);
+        }
+      }
       if (W) W.addEventListener('pagehide', save);
     },
     // the tick: dt seconds of play (the loop's 1/60); saves at most every 30 s

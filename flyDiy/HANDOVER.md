@@ -50169,3 +50169,86 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
 - GATE UISMOKE reads the inert blocks too (its regex wanted a bare <script>): green
   again; the G434.3 (built) commit 8f8d1884 was landed with that gate red for the
   minute between.
+
+
+## G436 — A6 CLOUDS: THE SLAB'S CAUSE, AND SEVERAL DECKS AT ONCE (2026-09-20, the user: "point A6 of
+## the playtest report ... clouds are the most important (the nimbus looks good, the others look
+## blocky). We'll also need to generate several cloud layers simultaneously, at different altitudes")
+## (G435 was taken by A1 the same day, on its own branch)
+
+- THE INSTRUMENT FIRST: tools/cloud_shot.js - island_shot's rig (headless Chrome on the box's GPU,
+  the roll-out, the chooser polled away) then the DEVCAM taken through the CAMERA rail's `free`
+  pill, SHOT_MODE on, and ONE boot serving MANY shots (`--shots "name:eye x,y,z:yaw:pitch:<js>@@..."`),
+  each printed with CLOUDS.stats / the layer / the day; `--probe` adds CLOUDS.probe(), `--ui day`
+  leaves that rail flyout open in the frame. A 45 s boot serves a whole sheet.
+- THE SLAB, MEASURED: the baked Perlin-Worley's R channel sat at p5 0.63 / p95 0.85 (a CPU port of
+  NOISE_GLSL in scratch, then CLOUDS.probe()'s new `noiseP` percentiles: the same numbers), and the
+  density's `remap(n.r, lf - 1, 1, 0, 1)` could only RAISE it (0.75-0.89) - above the coverage
+  threshold (1 - cov) of every column past a quarter cover. The noise carved nothing: a cloud was its
+  weather texel extruded between the profile's base and the cap - flat-topped slabs with straight
+  edges, stacked at the horizon by the quantised height channel (the user's "blocky shapes, clear
+  bands"). The cumulonimbus looked right only because its 4 km slab is tall enough for the noise to
+  show. FIX: every octave of the bake stretched to the byte by its measured p2/p98 (perlin fbm
+  0.366-0.579, worley fbm 0.258-0.720, the dilated pair 0.274-1.0; the 8-bit texture now carries a
+  full-contrast field, median near a half), and the erosion SUBTRACTS the worley fbm
+  (`remap(n.r, lf * erode, 1, 0, 1)`) with `erode` PER TYPE (st 0.12, sc 0.30, cu 0.50, cb 0.50 - a
+  stratus is a sheet the noise barely touches, a cumulus is carved to half its column; the first cut
+  used one 0.5 and the stratus vanished to a few puffs). The base noise's PERIOD is the type's too
+  (st 9 km, sc 4, cu 6, cb 8, ac 2.5, as 12; F8 `scale` 0 = the type's). The base wobbles a twelfth
+  of the deck with the map's lumpiness (one condensation level, not one plane). The sky's ambient
+  falls with the depth toward the sun (`0.35 + 0.65 exp(-od x ambDepth)`, F8 `ambient depth` 0.12):
+  a core darker than a fringe - the flat grey underside had no gradation.
+- SEVERAL DECKS (the ask): 08_cloud_field.js `layers(day)` - the low deck is layer(day) as before
+  (the dewpoint base, the day's cover and type), then `day.cloudUpper = [{ cover, type, base?,
+  thick? }]` (two at most, MAX_LAYERS 3), each base clamped above the deck below + LAYER_GAP 150 m
+  and under 12 km, a missing base = the type's `alt` (ac 3500, as 4000, sc 1500, st 400 ...); two
+  new types, ALTOCUMULUS (500 m, small 2.5 km cells) and ALTOSTRATUS (1.2 km, a sheet); `upperWith
+  (upper, i, patch)` for the rails. 07_day.js: `cloudUpper` sanitised getter + `cloudLayers`.
+  clouds.js: every per-deck number an array of MAXL (uLayerA base/thick/on/period, uProfA
+  bot/top/erode/gain, uDriftA the drift on each deck's own wind), the weather maps ONE
+  DataArrayTexture (a slice a deck: an ESSL 3.00 sampler array cannot take a loop index, a slice
+  can; `precision highp sampler2DArray` must be declared - no default), `density(li, ...)` /
+  `weather(li, ...)`, and the march cuts each live deck's slab into a segment [t0, t1], walks them in
+  the order of their entry (an insertion sort of three; the decks never overlap in height so along
+  a ray they never interleave), the transmittance carried across, one step budget (4N + 64). A deck
+  under another takes the upper deck's shadow (`upperOD`: three cheap steps through each deck
+  above, asked once per segment per pixel, softened by shadowSoft like the ground's tile - at full
+  strength the cumulus tops under an altocumulus went NAVY, the sky ambient being all that was
+  left; the ambient's dimming under a deck is floored at a half). The shadow tile bakes every
+  deck: an upper deck read where the sun's ray through the first deck's middle crosses ITS middle
+  (the relative shift along the sun; re-baked as the sun moves a third of a degree when there is
+  more than one deck). sunT sums the columns above the point; the in-cloud slab is the deck the
+  eye is in; the probe's key covers every deck. `?cloud=0.45,cu;0.35,ac;0.5,as,6000`; the flight
+  rail's day slot, the WORLD editor's TIME section and F8 carry `upper deck 1 / 2` (cover, type
+  pills, base). Cost: 1.2-1.7 ms GPU at half resolution with two decks (0.5-1.0 with one).
+- THE COVER IS THE COVER, THE SECOND TIME: with the noise carving, the map's 45 % made a 21 % SKY
+  (skyFraction: the deck marched from the ground over four 64 x 32 hemispheres across the tile,
+  the alpha read back, weighted by solid angle - the METAR's cover, sides included; measured to
+  track the tile's straight-down opaque share within a point). The fit: per deck, 300 ms after the
+  last change (a slider settles), the map's cover bisected (`inflate` 1..1/cover, six
+  regenerations at 17 ms) until the sky's share is the day's; the maps back at the day's cover and
+  refitted (`refit()`) when a look dial moves (erode, period, detail, sigma, steps). NOT a coverage
+  gain: a gain saturates the columns and the noise stops carving - the slab came back (gain 1.9
+  made a 45 % day a grey ceiling; kept as the F8 dial `covGain`, `cover fit` off). GATE CLOUD's
+  rule 1 (the map's covered fraction = its cover argument) holds unchanged; the fit feeds the
+  argument. A 45 % cumulus day is a LOT of cloud from 400 m at a low pitch (the sides of a 1.5 km
+  cloud take most of the low sky) - honest; the rail's cumulus mood stays 0.2.
+- TRAPS: the fit needed the bake to come round - a PAUSED clock drifts nothing, so bakeShadow
+  never ran again after the debounce and the fit never happened (the rig pauses the game: st 50 %
+  showed as a few puffs); `needCal && due -> shadowDirty`. The Bash tool truncated a long heredoc
+  silently (the gate's section 7 arrived cut at 38 lines) - the Write tool for anything long. The
+  rig's shot separator is `@@` (a `;` inside the shot's JS split it). CRLF sources: an exact-string
+  edit through python must normalise the EOL (scratch ed.py).
+- GATE CLOUD: 171 (section 7: layers() ordered / gapped / capped, the types' erode-period-alt, the
+  sheets erode less than the heaps, upperWith, the day's getters; static: the array texture, the
+  MAXL arrays, the ordered segments, upperOD, the tile's per-deck shift, the bake's stretch, the
+  subtractive erosion, the sky-fraction fit and its debounce, the ambient depth, the rails, the
+  rig). CLOUD / ATMO / DAY / AA / LIGHT / WORLDRENDER / UISMOKE green on the loose sources.
+- PROOF (screenshots/clouds-2026-09-20/): sheet_before_after.jpg (HEAD's slabs beside the carved
+  cumulus and the stratus deck), sheet_two_decks.jpg (cumulus 45 % + altocumulus 35 %: from below,
+  between, above), sheet_types.jpg (sc, cb, as + ac decks), t7/rail_day.png (the rail's deck rows).
+- OWED (A6's other items, not touched): the shadow cascade for the craft (P1), the sun through every
+  material, the night's overexposed interior and horizon bands, the green cabin tint, the 1-px
+  silhouette line over a cloud, the shed's apron lit at night; the impostor bisect is B1's. On the
+  clouds: the user's eye on the new tops / the altostratus, the far horizon band's flat pancakes at
+  a grazing angle, the 22 deg halo, god-rays, precipitation.

@@ -140,8 +140,8 @@ console.log('6. the splice rules');
   // C4: the veil, the in-cloud slab, the weather on the rails
   yes(/uniform vec4 uVeil; uniform vec3 uVeilSun, uVeilSky;/.test(at) && /L \+= veil\(d, uSun\);/.test(at), 'the dome carries the cirrus veil');
   yes((at.match(/uniform vec4 uMist\[4\];/g) || []).length === 2 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (both copies of the mist GLSL)');
-  yes(/c\.rho = rho; c\.base = lay\.base; c\.top = lay\.top;/.test(cj) && /A\.U\.veil\.value/.test(cj), 'clouds.js writes the veil and the slab from the day');
-  yes(/\[\?&\]cloud=\(\[0-9\.\]\+\)\(\?:,\(\[a-z\]\{2\}\)\)\?/.test(src('viewer/day_clock.js')), '?cloud=<cover>[,<type>] on the URL');
+  yes(/c\.rho = rho; c\.base = inL\.base; c\.top = inL\.top;/.test(cj) && /A\.U\.veil\.value/.test(cj), 'clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)');
+  yes(/\[\?&\]cloud=\(\[0-9\.\]\+\)\(\?:,\(\[a-z\]\{2\}\)\)\?/.test(src('viewer/day_clock.js')) && /o\.cloudUpper = c\[3\]/.test(src('viewer/day_clock.js')), '?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL');
   yes(/flRange\(body, 'cloud cover'/.test(src('viewer/app.js')) && /CLOUD_FIELD\.TYPE_ORDER\.map\(t => \(\{ label: CLOUD_FIELD\.TYPES\[t\]\.label, value: t \}\)\)/.test(src('viewer/app.js')), 'the flight rail carries the cover and the type');
   yes(/rows\.slider\(insp, 'cloud cover'/.test(src('viewer/premises_ui.js')) && /rows\.select\(insp, 'cloud type'/.test(src('viewer/premises_ui.js')), 'the WORLD editor carries the cover and the type');
   yes(/cloudCover: 0\.9, cloudType: 'st'/.test(src('viewer/app.js')), 'the OVERCAST mood is a stratus deck');
@@ -150,13 +150,60 @@ console.log('6. the splice rules');
   yes(/ATMO\.GLSL\.AP/.test(cj) && /ATMO\.GLSL\.MIST/.test(cj) && /ATMO\.apUniforms/.test(cj), 'the march takes the aerial perspective and the mist from ATMO (one splice, shared)');
   yes(/apSample\(d, tm \* 0\.001\)/.test(cj) && /mistApply\(/.test(cj), 'and applies them at the cloud\'s own mean distance');
   yes(!/new Date|Date\.now/.test(cj) && !/new Date|Date\.now/.test(core), 'no wall clock: the drift is the day\'s seconds');
-  yes(/CLOUD_FIELD\.weatherMap\(/.test(cj) && /CLOUD_FIELD\.layer\(/.test(cj), 'the pass samples the core\'s map and layer (one field)');
-  yes(/smoothstep\(0\.0, uProfile\.x, h\) \* \(1\.0 - smoothstep\(uProfile\.y \* hs, hs, h\)\)/.test(cj), 'the GLSL profile is the core\'s profile, verbatim');
+  yes(/CLOUD_FIELD\.weatherMap\(/.test(cj) && /CLOUD_FIELD\.layers\(/.test(cj), 'the pass samples the core\'s maps and layers (one field)');
+  yes(/smoothstep\(0\.0, uProfA\[li\]\.x, h\) \* \(1\.0 - smoothstep\(uProfA\[li\]\.y \* hs, hs, h\)\)/.test(cj), 'the GLSL profile is the core\'s profile, verbatim (per deck)');
   yes(!/PointsMaterial\(\{ map: tex, size: 340/.test(rw) && /CLOUDS\.update\(day, camera, world\)/.test(rw), 'render_world retired the billboard puffs and hands the day to the clouds');
   yes(/k: 'clouds'/.test(gfx) && ['low', 'medium', 'high', 'ultra'].every(p => new RegExp(p + ':\\s*\\{[^}]*clouds: \'(off|half|full)\'').test(gfx)), 'the GRAPHICS menu has the clouds row in every preset');
   yes(/depthTexture: S\.needRT/.test(aa) && /S\.overlay\(renderer, camera, S\.rt\)/.test(aa) && /needRT, setOverlay/.test(aa), 'the resolve pass carries the depth texture and the overlay hook');
   const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
   yes(/'08_cloud_field\.js'/.test(build) && /'clouds\.js'/.test(build), 'both files are in the build');
+}
+
+// ---- 7. SEVERAL DECKS + THE LOOK (A6, 2026-09-20) --------------------------------------------
+console.log('7. several decks (A6): the field');
+{
+  const day = { cloudCover: 0.4, cloudType: 'cu', cloudBase: 1300, cloudUpper: [{ cover: 0.3, type: 'ac' }, { cover: 0.5, type: 'as', base: 100 }] };
+  const L = F.layers(day);
+  yes(L.length === 3 && L[0].type === 'cu' && L[1].type === 'ac' && L[2].type === 'as', 'layers(): the low deck first, the upper decks after, in order');
+  yes(L[0].base === 1300 && L[0].cover === 0.4 && L[0].index === 0, 'the first deck is layer(day): the dewpoint base, the day\'s cover');
+  yes(L[1].base === F.TYPES.ac.alt, 'an upper deck without a base takes its type\'s alt');
+  yes(L[2].base >= L[1].top + F.LAYER_GAP && L[1].base >= L[0].top + F.LAYER_GAP, 'the decks never overlap: each base above the deck below plus the gap (a base of 100 m is lifted)');
+  yes(F.layers({ cloudCover: 0.2, cloudType: 'cu', cloudUpper: [{}, {}, {}, {}] }).length === F.MAX_LAYERS, 'at most MAX_LAYERS decks');
+  yes(F.layers({ cloudCover: 0.2, cloudType: 'cu' }).length === 1 && F.layers({ cloudCover: 0.2, cloudType: 'cu' })[0].base === F.layer({ cloudCover: 0.2, cloudType: 'cu' }).base, 'no cloudUpper: one deck, layer() itself');
+  const cb = F.layers({ cloudCover: 0.3, cloudType: 'cb', cloudBase: 1000, cloudUpper: [{ cover: 0.3, type: 'ac' }] });
+  yes(cb[1].base >= cb[0].top + F.LAYER_GAP && cb[1].base <= 12000, 'a deck over a cumulonimbus rides above its 4 km top, under 12 km');
+  for (const t of F.TYPE_ORDER) yes(F.TYPES[t].erode >= 0 && F.TYPES[t].erode <= 1 && F.TYPES[t].period >= 1000 && F.TYPES[t].alt > 0, `type ${t} carries erode, period and alt`);
+  yes(F.TYPES.st.erode < F.TYPES.sc.erode && F.TYPES.sc.erode < F.TYPES.cu.erode, 'the sheets erode less than the heaps (stratus < stratocumulus < cumulus)');
+  yes(F.TYPE_ORDER.includes('ac') && F.TYPE_ORDER.includes('as'), 'altocumulus and altostratus are types (the upper decks\' own)');
+  const u = F.upperWith([{ cover: 0.3, type: 'ac' }], 1, { cover: 0.5 });
+  yes(u.length === 2 && u[0].cover === 0.3 && u[1].cover === 0.5 && u[1].type === 'ac', 'upperWith() births a missing deck and patches the named one');
+  yes(F.upperWith(null, 0, { type: 'as' })[0].type === 'as', 'upperWith() on no decks');
+  const D = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '07_day.js'), 'utf8');
+  yes(/get cloudUpper\(\)/.test(D) && /get cloudLayers\(\)/.test(D) && /slice\(0, 2\)/.test(D), 'the day publishes cloudUpper (sanitised, two at most) and cloudLayers');
+}
+console.log('7b. several decks + the look: the march (static)');
+{
+  const cj = src('viewer/clouds.js');
+  yes(/uniform sampler2DArray uWeather;/.test(cj) && /new THREE\.DataArrayTexture\(u8, N_MAP, N_MAP, MAXL\)/.test(cj), 'the weather maps are one 2D array texture, a slice a deck');
+  yes(/uniform vec4 uLayerA\[MAXL\];/.test(cj) && /uniform vec4 uProfA\[MAXL\];/.test(cj) && /uniform vec4 uDriftA\[MAXL\];/.test(cj), 'the per-deck numbers are arrays of MAXL');
+  yes(/float density\(int li, vec3 p, vec4 w, bool cheap\)/.test(cj) && /vec4 weather\(int li, vec3 p\)/.test(cj), 'density and weather take the deck');
+  yes(/float s0\[MAXL\], s1\[MAXL\]; int ord\[MAXL\]; int n = 0;/.test(cj) && /for \(; k > 0; k--\) \{ if \(s0\[k - 1\] <= t0\) break;/.test(cj), 'the march walks the decks\' segments in the order of their entry');
+  yes(/float upperOD\(int li, vec3 p, vec3 L\)/.test(cj) && /upOD = upperOD\(li, p, L\) \* uDials2\.y/.test(cj), 'a deck stands in the softened shadow of the decks above it');
+  yes(/vec2 xzj = xz \+ \(uSun\.y > 0\.05 \? uSun\.xz \* \(\(midj - mid0\) \/ uSun\.y\) : vec2\(0\.0\)\);/.test(cj), 'the shadow tile bakes every deck, an upper deck shifted along the sun to the first deck\'s middle');
+  yes(/precision highp sampler2DArray;/.test(cj), 'the array sampler declares its precision (ESSL 3.00 has no default for it)');
+  yes(/remap\(perlinFbm\(p, 4\.0\), 0\.366, 0\.579, 0\.0, 1\.0\)/.test(cj) && /remap\(remap\(pf, 0\.0, 1\.0, w4, 1\.0\), 0\.274, 1\.0, 0\.0, 1\.0\)/.test(cj), 'the noise bake is stretched to the byte by its measured percentiles (the slab\'s cause)');
+  yes(/remap\(n\.r, lf \* uProfA\[li\]\.z, 1\.0, 0\.0, 1\.0\) \* prof/.test(cj), 'the worley fbm erodes by subtraction (the type\'s erode), never from lf - 1');
+  yes(/function skyFraction\(r\)/.test(cj) && /got = skyFraction\(r\)/.test(cj) && /inflate\[i\] = 0\.5 \* \(lo \+ hi\); remapDeck\(i\);/.test(cj), 'the cover fit: the map inflated until the sky\'s share (four hemispheres from the ground) is the deck\'s cover');
+  yes(/calDueAt = now\(\) \+ 300/.test(cj) && /if \(needCal && now\(\) >= calDueAt\) shadowDirty = true;/.test(cj), 'the fit waits 300 ms for a slider and runs even with the clock paused');
+  yes(/PA\[o \+ 2\] = T\.erode \* S\.erodeK/.test(cj) && /LA\[o \+ 3\] = S\.period > 0 \? S\.period : T\.period/.test(cj), 'erode and period are the type\'s, scaled / overridden by the dials');
+  yes(/0\.35 \+ 0\.65 \* exp\(-odS \* uDials2\.z\)/.test(cj), 'the ambient falls with the depth toward the sun (a core darker than a fringe)');
+  yes(/od \+= CLOUD_FIELD\.columnOD\(maps\[i\]/.test(cj), 'sunT sums the column over the decks above the point');
+  yes(/out\[k \+ 'P'\] = \[0\.05, 0\.25, 0\.5, 0\.75, 0\.95\]/.test(cj), 'the probe reports the noise\'s percentiles (the instrument that found the slab)');
+  const A = src('viewer/app.js'), P = src('viewer/premises_ui.js'), DP = src('viewer/dev_panel.js');
+  yes(/flRange\(body, 'upper deck ' \+ \(di \+ 1\)/.test(A) && /CLOUD_FIELD\.upperWith\(CK\.day\(\)\.cloudUpper, di, patch\)/.test(A), 'the flight rail carries the upper decks (cover, type, base)');
+  yes(/rows\.slider\(insp, 'upper deck ' \+ \(di \+ 1\)/.test(P) && /rows\.slider\(insp, 'deck ' \+ \(di \+ 1\) \+ ' base'/.test(P), 'the WORLD editor carries the upper decks');
+  yes(/slider\('upper deck ' \+ \(di \+ 1\)/.test(DP) && /slider\('erode'/.test(DP) && /select\('cover fit'/.test(DP), 'F8 carries the upper decks, erode and the cover fit');
+  yes(fs.existsSync(path.join(__dirname, 'cloud_shot.js')), 'the rig that judges the sky (tools/cloud_shot.js) is there');
 }
 
 console.log(`${checks} checks, ${fails} failed`);

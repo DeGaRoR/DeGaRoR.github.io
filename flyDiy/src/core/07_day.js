@@ -156,6 +156,15 @@ var DAY = (function () {
       get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
       get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
       get cloudType() { return s.cloudType || DEFAULT.cloudType; },
+      // THE UPPER DECKS (A6, 2026-09-20): [{ cover, type, base? }] above the low layer - at most two, sanitised
+      // (a cover clamped, a base a number or absent); cloudLayers puts the low layer first, the field
+      // (08_cloud_field.js layers()) stacks them without overlap
+      get cloudUpper() {
+        const u = Array.isArray(s.cloudUpper) ? s.cloudUpper : [];
+        return u.slice(0, 2).map(o => { const r = { cover: clamp(+(o && o.cover) || 0, 0, 1), type: String((o && o.type) || 'ac') };
+          if (o && o.base != null && isFinite(+o.base)) r.base = +o.base; if (o && o.thick != null && +o.thick > 0) r.thick = +o.thick; return r; });
+      },
+      get cloudLayers() { return [{ cover: day.cloudCover, type: day.cloudType, base: d.cloudBase }].concat(day.cloudUpper); },
       get qnhPa() { return s.qnhPa != null ? s.qnhPa : 101325; },
       // utcFor(elDeg, rising) — the UT second on THIS civil day when the sun crosses an
       // elevation (bisection on the monotone half-day); null when it never does.

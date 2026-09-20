@@ -897,6 +897,14 @@ function mount(host, ctx) {
       // THE CLOUDS (C4): the day's cover and type
       rows.slider(insp, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => CK.set({ cloudCover: v }), v => (v * 100).toFixed(0) + ' %');
       if (typeof CLOUD_FIELD !== 'undefined') rows.select(insp, 'cloud type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => CK.day().cloudType, v => CK.set({ cloudType: v }));
+      // THE UPPER DECKS (A6): the same two rows the flight rail carries, per deck
+      if (typeof CLOUD_FIELD !== 'undefined') for (let di = 0; di < CLOUD_FIELD.MAX_LAYERS - 1; di++) {
+        const up = () => CK.day().cloudUpper[di] || { cover: 0, type: 'ac' };
+        const put = patch => { CK.set({ cloudUpper: CLOUD_FIELD.upperWith(CK.day().cloudUpper, di, patch) }); if (ctx.redraw) ctx.redraw(); };
+        rows.slider(insp, 'upper deck ' + (di + 1), 0, 1, 0.05, () => up().cover, v => put({ cover: v }), v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'none');
+        rows.select(insp, 'deck ' + (di + 1) + ' type', CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label]), () => up().type, v => put({ type: v }));
+        rows.slider(insp, 'deck ' + (di + 1) + ' base', 500, 9000, 100, () => (up().base != null ? up().base : CLOUD_FIELD.TYPES[CLOUD_FIELD.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m');
+      }
       rows.note(insp, 'the sun, the sky and the lights follow the clock; drag a LIGHT slider below to take the sun by hand');
     }
     if (ctx.rig) {

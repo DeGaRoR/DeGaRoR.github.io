@@ -6846,6 +6846,16 @@
           flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })),
                   o => o.value === CK.day().cloudType, o => { CK.set({ cloudType: o.value }); flRefreshDay(); });
           flNote(body, 'The base is the dewpoint\'s (125 m a degree of spread); the type sets the thickness.');
+          // THE UPPER DECKS (A6): two more layers above the low one, each its own cover, type and base
+          for (let di = 0; di < CLOUD_FIELD.MAX_LAYERS - 1; di++) {
+            const up = () => CK.day().cloudUpper[di] || { cover: 0, type: 'ac' };
+            const put = patch => { CK.set({ cloudUpper: CLOUD_FIELD.upperWith(CK.day().cloudUpper, di, patch) }); flRefreshDay(); };
+            flRange(body, 'upper deck ' + (di + 1), 0, 1, 0.05, () => up().cover, v => put({ cover: v }), v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'none');
+            if (up().cover > 0) {
+              flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })), o => o.value === up().type, o => put({ type: o.value }));
+              flRange(body, 'deck ' + (di + 1) + ' base', 500, 9000, 100, () => (up().base != null ? up().base : CLOUD_FIELD.TYPES[CLOUD_FIELD.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m');
+            }
+          }
         }
       }
       flNote(body, 'A day is air AND wind. The weather changes live — the ' +

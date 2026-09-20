@@ -228,13 +228,24 @@
       const types = (typeof CLOUD_FIELD !== 'undefined') ? CLOUD_FIELD.TYPE_ORDER.map(t => [t, CLOUD_FIELD.TYPES[t].label + ' (' + CLOUD_FIELD.TYPES[t].thick + ' m)']) : [['cu', 'cumulus']];
       Cf.appendChild(select('type', types, () => (dy() ? dy().cloudType : 'cu'), v => { if (ck()) ck().set({ cloudType: v }); }));
       Cf.appendChild(slider('cover', 0, 1, 0.02, () => (dy() ? dy().cloudCover : NaN), v => { if (ck()) ck().set({ cloudCover: v }); }, v => (v * 100).toFixed(0) + ' %'));
+      // THE UPPER DECKS (A6): cover / type / base per deck above the low one
+      if (typeof CLOUD_FIELD !== 'undefined') for (let di = 0; di < CLOUD_FIELD.MAX_LAYERS - 1; di++) {
+        const up = () => (dy() ? dy().cloudUpper[di] : null) || { cover: 0, type: 'ac' };
+        const put = patch => { if (ck()) ck().set({ cloudUpper: CLOUD_FIELD.upperWith(dy().cloudUpper, di, patch) }); };
+        Cf.appendChild(slider('upper deck ' + (di + 1), 0, 1, 0.05, () => up().cover, v => put({ cover: v }), v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'none'));
+        Cf.appendChild(select('deck ' + (di + 1) + ' type', types, () => up().type, v => put({ type: v })));
+        Cf.appendChild(slider('deck ' + (di + 1) + ' base', 500, 9000, 100, () => (up().base != null ? up().base : CLOUD_FIELD.TYPES[CLOUD_FIELD.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m'));
+      }
       Cf.appendChild(slider('seed', 1, 99, 1, () => (cs() ? cs().seed : NaN), v => { if (cs()) cs().seed = v; }));
+      Cf.appendChild(slider('erode', 0, 2, 0.05, () => (cs() ? cs().erodeK : NaN), v => { if (cs()) cs().erodeK = v; }, v => v.toFixed(2) + ' x the type’s'));
+      Cf.appendChild(select('cover fit', [['1', 'the map fitted to the sky’s share (METAR cover)'], ['0', 'off: the map’s covered fraction = the cover']], () => (cs() ? String(cs().calCover) : '1'), v => { if (cs()) cs().calCover = +v; }));
+      Cf.appendChild(slider('ambient depth', 0, 0.5, 0.01, () => (cs() ? cs().ambDepth : NaN), v => { if (cs()) cs().ambDepth = v; }, v => v.toFixed(2) + ' (the core darker than the fringe)'));
       Cf.appendChild(slider('base override', 0, 4000, 50, () => (cs() ? cs().base : NaN), v => { if (cs()) cs().base = v; }, v => v > 0 ? v + ' m' : 'the day’s (dewpoint)'));
       Cf.appendChild(slider('thickness override', 0, 5000, 100, () => (cs() ? cs().thick : NaN), v => { if (cs()) cs().thick = v; }, v => v > 0 ? v + ' m' : 'the type’s'));
       Cf.appendChild(slider('density', 0.005, 0.15, 0.005, () => (cs() ? cs().sigma : NaN), v => { if (cs()) cs().sigma = v; }, v => v.toFixed(3) + ' /m'));
       Cf.appendChild(slider('detail', 0, 0.8, 0.02, () => (cs() ? cs().detail : NaN), v => { if (cs()) cs().detail = v; }));
       Cf.appendChild(slider('curl', 0, 1, 0.05, () => (cs() ? cs().curl : NaN), v => { if (cs()) cs().curl = v; }));
-      Cf.appendChild(slider('scale', 2000, 30000, 500, () => (cs() ? cs().period : NaN), v => { if (cs()) cs().period = v; }, v => v + ' m'));
+      Cf.appendChild(slider('scale', 0, 30000, 500, () => (cs() ? cs().period : NaN), v => { if (cs()) cs().period = v; }, v => v > 0 ? v + ' m' : 'the type’s'));
       Cf.appendChild(slider('phase g', 0, 0.95, 0.01, () => (cs() ? cs().g : NaN), v => { if (cs()) cs().g = v; }));
       Cf.appendChild(slider('powder', 0, 1, 0.05, () => (cs() ? cs().powder : NaN), v => { if (cs()) cs().powder = v; }));
       Cf.appendChild(slider('multi-scatter', 0, 0.9, 0.05, () => (cs() ? cs().ms : NaN), v => { if (cs()) cs().ms = v; }));
@@ -255,7 +266,7 @@
         v => { if (cs()) { cs().mode = v; if (W.FLYDIY_AA && W.FLYDIY_AA.needRT) W.FLYDIY_AA.needRT(v !== 'off'); } }));
       { // the layer, read out
         const n = note('');
-        const R = { el: n, refresh: () => { const c = cl(), L = c && c.layer; n.textContent = !c ? 'no clouds module' : !c.ready ? 'clouds: no 3D targets' : (L ? `layer ${L.base.toFixed(0)}-${L.top.toFixed(0)} m (${L.type}) · map cover ${(c.stats.cover * 100).toFixed(0)} % · ` : '') + (c.baked ? `GPU ${c.stats.gpuMs.toFixed(2)} ms + shadow ${c.stats.shadowMs.toFixed(2)} ms (CPU ${c.stats.ms.toFixed(2)})` : `baking ${c.stats.slicesBaked}/129`) + (c.active ? '' : ' · idle'); } };
+        const R = { el: n, refresh: () => { const c = cl(), Ls = (c && c.layers) || []; n.textContent = !c ? 'no clouds module' : !c.ready ? 'clouds: no 3D targets' : Ls.map((L, i) => `${L.type} ${L.base.toFixed(0)}-${L.top.toFixed(0)} m ${(L.cover * 100).toFixed(0)} % (map ${((c.stats.covers && c.stats.covers[i] || 0) * 100).toFixed(0)} %)`).join(' · ') + ' · ' + (c.baked ? `GPU ${c.stats.gpuMs.toFixed(2)} ms + shadow ${c.stats.shadowMs.toFixed(2)} ms (CPU ${c.stats.ms.toFixed(2)})` : `baking ${c.stats.slicesBaked}/129`) + (c.active ? '' : ' · idle'); } };
         rows.push(R); live.push(R);
         Cf.appendChild(n);
       }

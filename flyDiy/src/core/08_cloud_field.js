@@ -27,16 +27,25 @@ var CLOUD_FIELD = (function () {
   'use strict';
   const SPAN = 40000;                     // m, the map's tile
   const N_DEFAULT = 256;
-  // the types: thickness (m), the profile's bottom / top fractions, the map's base frequency (cells per tile)
+  // the types: thickness (m), the profile's bottom / top fractions, the map's base frequency (cells per tile),
+  // the map's soft edge (width), the columns' least height (hsMin), and - A6, 2026-09-20 - how much the
+  // noise ERODES the column (erode: the worley fbm's share subtracted from the base noise - a stratus is a
+  // sheet the noise barely touches, a cumulus is carved to half its column), the base noise's PERIOD (m: the
+  // cells' size - a cumulus 1.5 km across, an altocumulus 600 m), and `alt`: the base an UPPER DECK takes when
+  // none is given (the first layer's base is always the dewpoint's)
   const TYPES = Object.freeze({
     // top: where the column's fill starts to fall toward its own top (hs) - a cumulus keeps its density
     // to near the top (a domed, sharp cap, C2's eye); a stratus fades over half its depth
-    st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.50, freq: 2, width: 0.45, hsMin: 0.7 }),
-    sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.70, freq: 4, width: 0.35, hsMin: 0.6 }),
-    cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.82, freq: 6, width: 0.30, hsMin: 0.5 }),
-    cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.88, freq: 3, width: 0.30, hsMin: 0.6 }),
+    st: Object.freeze({ label: 'stratus',       thick: 300,  bot: 0.05, top: 0.50, freq: 2,  width: 0.45, hsMin: 0.7, erode: 0.12, period: 9000,  alt: 400 }),
+    sc: Object.freeze({ label: 'stratocumulus', thick: 700,  bot: 0.06, top: 0.70, freq: 4,  width: 0.35, hsMin: 0.6, erode: 0.30, period: 4000,  alt: 1500 }),
+    cu: Object.freeze({ label: 'cumulus',       thick: 1500, bot: 0.08, top: 0.82, freq: 6,  width: 0.30, hsMin: 0.5, erode: 0.50, period: 6000,  alt: 1200 }),
+    cb: Object.freeze({ label: 'cumulonimbus',  thick: 4000, bot: 0.06, top: 0.88, freq: 3,  width: 0.30, hsMin: 0.6, erode: 0.50, period: 8000,  alt: 1000 }),
+    ac: Object.freeze({ label: 'altocumulus',   thick: 500,  bot: 0.10, top: 0.65, freq: 10, width: 0.40, hsMin: 0.7, erode: 0.35, period: 2500,  alt: 3500 }),
+    as: Object.freeze({ label: 'altostratus',   thick: 1200, bot: 0.05, top: 0.55, freq: 2,  width: 0.50, hsMin: 0.7, erode: 0.10, period: 12000, alt: 4000 }),
   });
-  const TYPE_ORDER = ['st', 'sc', 'cu', 'cb'];
+  const TYPE_ORDER = ['st', 'sc', 'cu', 'cb', 'ac', 'as'];
+  const MAX_LAYERS = 3;                   // the low deck + two upper decks (the cirrus veil is the dome's, not a layer)
+  const LAYER_GAP = 150;                  // m of clear air between one deck's top and the next one's base
   const typeOf = t => TYPES[t] ? t : 'cu';
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -112,6 +121,25 @@ var CLOUD_FIELD = (function () {
     const thick = override && override.thick != null ? override.thick : T.thick;
     return { base, thick, top: base + thick, type };
   }
+  // layers(day, override) -> [layer0, ...upper]: SEVERAL DECKS AT ONCE (A6, 2026-09-20 - the user: "generate several
+  // cloud layers simultaneously, at different altitudes"). The first is layer(day) - the day's cover and type at the
+  // dewpoint base; the others come from day.cloudUpper = [{ cover, type, base?, thick? }] (at most MAX_LAYERS - 1),
+  // each base clamped ABOVE the deck below (LAYER_GAP of clear air - the march walks the decks in order along the
+  // ray and never overlaps them) and under 12 km; a missing base is the type's `alt`. Every entry carries its
+  // cover, its type and its index (the weather map and the drift are per deck).
+  function layers(day, override) {
+    const first = layer(day, override);
+    first.cover = clamp(day && day.cloudCover != null ? day.cloudCover : 0.2, 0, 1); first.index = 0;
+    const out = [first], up = (day && day.cloudUpper) || [];
+    for (let i = 0; i < up.length && out.length < MAX_LAYERS; i++) {
+      const u = up[i] || {}, type = typeOf(u.type), T = TYPES[type], prev = out[out.length - 1];
+      let base = u.base != null && isFinite(+u.base) ? +u.base : T.alt;
+      base = clamp(base, prev.top + LAYER_GAP, 12000);
+      const thick = u.thick != null && +u.thick > 0 ? +u.thick : T.thick;
+      out.push({ base, thick, top: base + thick, type, cover: clamp(u.cover != null ? +u.cover : 0, 0, 1), index: out.length });
+    }
+    return out;
+  }
   // columnOD(map, x, z, layer, sigma): the column's optical depth straight down (the shadow's term, C3) -
   // coverage x the profile's mean fill x the column's height x sigma (per metre)
   const FILL = {};   // the profile's mean over h for hs = 1, per type (a constant of the type)
@@ -122,7 +150,15 @@ var CLOUD_FIELD = (function () {
   }
   const SIGMA = 0.04;     // extinction per metre at full density (a fair-weather cumulus is 0.02-0.1)
 
-  const API = { SPAN, TYPES, TYPE_ORDER, SIGMA, FILL, typeOf, weatherMap, sample, coverFraction, profile, layer, columnOD, vnoise, fbm };
+  // upperWith(upper, i, patch): the day's cloudUpper with deck i (0 = the first upper deck) patched - a new array
+  // for day.set({ cloudUpper }); a missing deck is born as a 0-cover altocumulus (the rails' rows share this)
+  function upperWith(upper, i, patch) {
+    const out = (Array.isArray(upper) ? upper : []).slice(0, MAX_LAYERS - 1).map(o => Object.assign({}, o));
+    while (out.length <= i && out.length < MAX_LAYERS - 1) out.push({ cover: 0, type: 'ac' });
+    if (out[i]) Object.assign(out[i], patch);
+    return out;
+  }
+  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, typeOf, weatherMap, sample, coverFraction, profile, layer, layers, upperWith, columnOD, vnoise, fbm };
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
