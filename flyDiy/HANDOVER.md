@@ -50748,7 +50748,8 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   rows through a built room's moodFor. Measured before/after in the game: sunset -> DUSK / SUNSET, dusk ->
   NIGHT / DUSK, golden -> SUNSET / GOLDEN. (Solar midnight at 55 N in June is -11.6: night. At 60 N it
   would be -6.6 and read dusk, which is what the sky is.)
-- THE CLOUDS OVER THE AEROPLANE IN THE SHED (hangar.js applyDay): the shed's cloud dome is CLOUDS.domeMesh's
+- THE CLOUDS OVER THE AEROPLANE IN THE SHED: landed by A6 as G436.2 before this entry reached master (the
+  same depth test, through domeMesh's own option); this entry's version of it was dropped at the merge. As found: the shed's cloud dome is CLOUDS.domeMesh's
   transparent, depthTest:false material at renderOrder 1 - right for the world, where the layer is
   composited over the resolved frame, but a transparent mesh draws after every opaque and with no depth
   test painted over the walls and the fuselage. The shed's own copy is depth-tested now (domeMat makes a
@@ -50775,3 +50776,71 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   a disposed mesh) - identical on the pre-A2 build, so not this landing's; A5 (the room) should find the
   raycaster (the editor's hover? the glare's occluders?) that walks the scene during the re-bake.
 - Gates: UISMOKE, HANGAR (+rule 7), BOOT, CLOUD, LIGHT, GFX, MEDIA, BUILD, VIEW, SAVE, STARTER green.
+
+## G439 — A5 OF THE PLAYTEST TRIAGE: THE GARAGE ROOM (2026-09-20, the user: "switching to field shed
+## from club hangar gives over exposure, even after reloading the page"; "in the shed, big issues when
+## clicking on lights, a lot of settings alternate"; "the floor pokes through the fuselage"; "the camera
+## should be able to go down to the floor level"; "retire the fake god rays"; "the bubble UI arcs hidden
+## by default, with an option next to their settings"; "give the table and the plan proper PBR
+## materials, a lip, the plan in contact"; "a slider for the garage's FOV"; "the dim box only measures
+## the fuselage - retire it, length/wingspan on the top of the plaque, add empty weight"; "using the
+## explode option had moved the height of the wings, strange")
+
+- THE FIELD SHED'S "OVEREXPOSURE" WAS THE ROOM'S REFLECTION PROBE INSIDE A LAMP. bakeHangarEnv's cube
+  camera stood at a fixed (0, 3.2, 0) - a club number, eave 7. The field shed's eave is 3.6 and its
+  five pendants hang at 0.74 x eave with their shades above: the probe sat inside the middle fitting,
+  0.2 m from the bulb. Measured by shooting the cube myself (readRenderTargetPixels, half float): the
+  down face's mean 9.0 / peak 695 with the Cessna aboard against 0.9 / 49 with build (4) - whether the
+  probe cut the shade or the bulb turned on a few centimetres of room height (the floor guard below,
+  the wheel radius), hence build-dependent and "the same after reloading". A whole room lit like noon
+  at night, through scene.environment (env = null: 34; env: 185). The probe stands at 0.45 x the eave
+  in a room under 7 m (1.62 m in the field shed); the club keeps 3.2 exactly (GATE LIGHT's belly
+  measurement was made there - its rule now reads the new expression and pins the club's number).
+  After: field shed at night 52.6 with the Cessna, 50.3 with build (4); the club 68 / 76, unchanged.
+- THE LAMPS FOLLOW THEIR HANG HEIGHT (hangar.js LAMP_HK = (EAVE/7)^2, clamped 0.1..1.6): the moods'
+  candela were judged in the club; the field shed's floor took 3.8x the light from the same rows. The
+  club is the identity, bit for bit.
+- THE "ALTERNATING" LIGHT SETTINGS: every switch verified one at a time in the game (key, lamps, desk,
+  stove, panels, env, sky - each mutes its own source only); what alternated under the user's hand was
+  the mood select flipping a row on every re-bake, A2's dusk-picker bug (G437). The 'shafts' switch is
+  gone with the shafts.
+- THE GLARE'S OCCLUSION RAY THREW on every SPRITE in the scene (the CG/NP post labels: Sprite.raycast
+  reads raycaster.camera, which the ray never had) - the ~25 "Cannot read properties of null (reading
+  'matrixWorld')" per mood change seen in G437. The ray has the camera now; and a ray that throws is
+  BLOCKED, not open - the first cut called it open and the moon's glow washed the shed (measured, then
+  unmeasured). Zero page exceptions in the verification runs.
+- THE FLOOR NEVER STANDS INSIDE THE AEROPLANE (app.js enterGarage): groundY bounded from below by the
+  lowest non-wheel node less 0.06 m of skin; the wheels hover by the deficit instead.
+- THE EYE DOWN TO THE FLOOR: the drag's elevation floor -0.05 -> -0.35, the room clamp gy+0.5 -> gy+0.12.
+  AND A LOW SHED LOWERS THE EYE (garageCamera, also on a shell switch): at 14 m and 0.22 rad the eye
+  stood 3 m over the aeroplane and the field shed's ceiling clamp pinned it over the lamps; under a
+  5 m eave the elevation is solved for an eye at eave - 1.4.
+- THE DUST SHAFTS RETIRED (hangar.js DRAW_SHAFTS false, the switch row gone; the group and the rows'
+  `shaft` numbers inert for a future volumetric).
+- THE CANOPY LOOPS HIDDEN BY DEFAULT (VIEW.loops 0), with a `show loops` row beside `canopy loops` in
+  the bubble section - a VIEW ROW (page-5 opts.view: reads and writes VIEW, never P, never in a save;
+  claimed in the part table as `_viewLoops` so GATE PARTS sees it rendered); the DISPLAY flyout's row
+  and it follow each other.
+- THE DRAWING TABLE rebuilt on the board's own frame (hangar.js planTable): the plan (the player's
+  plan_wall prop laid flat, its back on the varnish), the lip along the low edge, the rolls in the
+  trough - all children of the tilted top, so nothing floats 2.5 cm over it any more; the room's
+  mapped wood instead of a flat colour. (Not photographed: the orbit is the aeroplane's.)
+- THE GARAGE'S FIELD OF VIEW: a slider in the camera flyout (28-70 deg, pref flydiy.garageFov,
+  api garageFov/setGarageFov), applied on entering the garage; the flight keeps cam.fov.
+- THE MEASURE FLYOUT RETIRED: #acSpec reads "842 kg all-up · 622 kg empty · 6.7 m × 11.0 m span" (the
+  ledger's own empty/payload split off def.parts.ledger, the nodes' x extent, the strips' span); the
+  dims pane stays parked in the nursery like #edStat.
+- EXPLODE MOVED THE WING - THE AS-BUILT SHEET WAS NOT AS BUILT (_cage_gen.js cageSheet): the layers'
+  sheet was the exploded build with cutOffs subtracted, and only faces carrying a cutOff were undone;
+  the joint strips, the interior structure and the shoulder are drawn AFTER the explode on the exploded
+  vertices with no flag. Headless at explodeD 0.7 on the Cessna: 16 926 vertices still off (6 148 joint
+  faces, the roof's 0.7 up), the airframe contract read the cabin deck at 0.225 instead of 0.745 at the
+  wing station, the wing layer hung the wing 0.52 m low, and CAGE_JOIN.export() - every slider pause,
+  no view neutraliser - wrote that yRoot into the flown spec. The sheet is now the same build with
+  explodeD 0 (one more cageSheet while exploded; the display keeps its offsets): 0 vertices differ,
+  the anchor holds 0.755 at explode 0.7 in the game.
+- The floor's "shading issues" are unreproduced without the user's screenshot; the field shed's blown
+  floor pool under the lamps is gone with the candela. Owed: a photograph of the table.
+- Gates: UISMOKE, HANGAR (+rule 7 from G437), LIGHT (rule updated), VIEW, PARTS, BENCH, SAVE, GFX, BOOT,
+  CAGEFIT, FIT, JOIN, CLIP, DESIGN, HINGE, COWL, SHOULDER, STARTER, GEAR, STRUT, SKIN, PANEL, CABIN green.
+  Dev handles added to FLIGHT_PROBE for the rig: renderer, hangarScene, camGet.

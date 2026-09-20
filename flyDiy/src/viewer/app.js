@@ -382,7 +382,7 @@
       const m = camera.near + 0.25 + 0.06;      // near + clear air + half the sheet
       x = Math.max(-(d.HD - m), Math.min(d.HD - m, x));
       z = Math.max(-(d.HW - m), Math.min(d.HW - m, z));
-      y = Math.max(gy + 0.5, Math.min(gy + d.EAVE - 0.5, y));
+      y = Math.max(gy + 0.12, Math.min(gy + d.EAVE - 0.5, y));   // G439 (A5): the eye may lie on the floor (the user: "the camera should be able to go down to the floor level")
     }
     camera.position.set(x, y, z);
     camera.lookAt(target);
@@ -626,7 +626,15 @@
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
-      cam.position.set(0, 3.2, 0);
+      // G439 (A5): THE PROBE STANDS UNDER THE LAMPS. 3.2 m is a club-hangar
+      // number (eave 7); in the field shed (eave 3.6, the pendants hung at
+      // 0.74 x eave with their shades above) the cube camera stood INSIDE the
+      // middle lamp's fitting, 0.2 m from its bulb, and the probe's down face
+      // read 9 (peak 695) against 0.9 - a whole room lit like noon at night,
+      // and by a few centimetres of floor guard either way (build-dependent).
+      // The club keeps its 3.2 exactly; a lower room takes 0.45 x its eave.
+      const probeY = (hangar.dims && hangar.dims.EAVE < 7) ? Math.min(3.2, 0.45 * hangar.dims.EAVE) : 3.2;
+      cam.position.set(0, probeY, 0);
       // THE AEROPLANE WAS IN ITS OWN REFLECTION PROBE (G62.3, found chasing
       // the user's "global pink glow in the whole hangar"). This camera sits
       // at 3.2 m in the middle of the floor - a metre above a wing that spans
@@ -1017,6 +1025,7 @@
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
+      if (inGarage) garageCamera();          // G439: a new room, the eye re-framed to its height
       if (WF && WF.setShedDims)
         WF.setShedDims(Object.assign({ shell: shedHome().shell },
           playerShedDims(player, 'HOME',
@@ -3830,7 +3839,19 @@
     // says both, beside the aeroplane you are changing); the node count was a
     // debug number printed over a render. What the flight wants from it is the
     // one number that decides how the aeroplane behaves today: what it weighs.
-    $('acSpec').textContent = `${mass} all-up`;
+    // G439 (A5): ...AND THE THREE NUMBERS A BUILDER ASKS FIRST, in place of the
+    // retired measure flyout (which measured the fuselage cage alone): the
+    // empty weight (the ledger's own split, 64_gen_build), the length over the
+    // nodes, the span over the wing strips.
+    {
+      let empty = 0, L0 = Infinity, L1 = -Infinity;
+      const led = (def.parts && def.parts.ledger) || def.params.ledger;   // the frame's own split (61_gen_frame)
+      if (led) for (const k in led) if (!led[k].payload) empty += led[k].mass;
+      for (const nd of def.nodes) { L0 = Math.min(L0, nd.p[0]); L1 = Math.max(L1, nd.p[0]); }
+      const len = Number.isFinite(L1 - L0) ? (L1 - L0).toFixed(1) + ' m' : null;
+      const dims = [len, half > 0 ? (2 * half).toFixed(1) + ' m span' : null].filter(Boolean).join(' × ');
+      $('acSpec').textContent = `${mass} all-up` + (led ? ` · ${empty.toFixed(0)} kg empty` : '') + (dims ? ` · ${dims}` : '');
+    }
     // the plaque belongs to the build on the stand, so every aircraft
     // change re-asks: a rebuilt aeroplane must never wear the previous
     // build's numbers — it would be reading someone else's certificate.
@@ -4073,7 +4094,7 @@
       azT += (e.clientX - px) * 0.006; elT += (e.clientY - py) * 0.006;
       // inside, you can look at your own feet and straight up at the skylight
       elT = edEyeOn() ? Math.max(-1.45, Math.min(1.45, elT))
-                      : Math.max(-0.05, Math.min(1.4, elT));
+                      : Math.max(-0.35, Math.min(1.4, elT));   // G439: down to the floor (the room clamp is the stop)
       px = e.clientX; py = e.clientY;
     } else if (touches.size === 2) {
       const [a, b] = [...touches.values()];
@@ -4508,7 +4529,8 @@
                           cam: () => ({ az, el, dist, azT, elT, distT, reveal: flReveal }),
                           camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
                           // G326: ...and a capture rig that wants a given view says so
-                          camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; } };
+                          camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
+                          renderer: () => renderer, hangarScene: () => hangarScene, camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)
@@ -5545,6 +5567,11 @@
   // trick worked because exitInterior wrote the orbit. Done ONLY on the way
   // in from a flight: every spec change also comes through enterGarage, and
   // a camera that re-framed on every dashboard row was session 4g's bug.
+  // G439 (A5): THE GARAGE'S OWN FIELD OF VIEW (the user: "I think we should
+  // try and lower the garage's FOV; give me a slider in the options so I can
+  // play with it"). A preference, not a spec value; the flight keeps its own
+  // (cam.fov), and each screen applies its number on entry.
+  let garageFov = Math.max(25, Math.min(80, +prefGet('flydiy.garageFov', 46) || 46));
   function garageCamera() {
     HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
     if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
@@ -5553,7 +5580,18 @@
     camera.up.set(0, 1, 0);
     edPan.set(0, 0, 0);
     az = azT = -2.5; el = elT = 0.22; dist = distT = 14;   // the boot's own framing (the rail's 'r')
+    // G439 (A5): A LOW SHED LOWERS THE EYE. At 14 m and 0.22 rad the eye
+    // stands 3 m over the aeroplane's centre; the field shed's eave is 3.6 m,
+    // and the room clamp pinned the camera to the ceiling, over the lamps,
+    // looking down on lit floor and walls a metre away - the "overexposed"
+    // field shed with the Cessna aboard. The elevation is bounded by the
+    // room's own height when there is a room to read.
+    if (hangar && hangar.dims && hangar.dims.EAVE < 5) {
+      const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
+      el = elT = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / dist)))));
+    }
     flReveal = 0;
+    camera.fov = garageFov; camera.updateProjectionMatrix();
   }
   function enterGarage() {
     rolledOut = false;
@@ -5595,6 +5633,19 @@
     // less its radius, which is the same definition standOnWheels levelled on.
     const iM = def.parts.GAL;
     groundY = iM == null ? 0 : sim.p[iM * 3 + 1] - def.nodes[iM].r;
+    // G439 (A5): THE FLOOR NEVER STANDS INSIDE THE AEROPLANE. A keel, a pod or
+    // a float drawn lower than the wheels' contact plane had the slab through
+    // it (the user: "the floor pokes through the fuselage, it needs to be
+    // further guarded"). The lowest NON-WHEEL node, less the skin's own
+    // stand-off, bounds the floor from below; the wheels then hover by the
+    // deficit, which the plaque's "stands on" row already names - a floor in
+    // the cabin says nothing, a gap under a tyre says what is wrong.
+    {
+      let lo = Infinity;
+      for (let i = 0; i < sim.n; i++) if (!(def.nodes[i].r > 0)) lo = Math.min(lo, sim.p[i * 3 + 1]);
+      const skin = 0.06;
+      if (Number.isFinite(lo) && lo - skin < groundY) groundY = lo - skin;
+    }
     applyEnv();
     railPhase = ''; setRail('GARAGE');
     // the cage build comes back up if the editor has ever booted (G65), and
@@ -8111,6 +8162,14 @@
     apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     shake: () => shakeOf(),
+    // G439: the garage's field of view, degrees (the camera flyout's slider)
+    garageFov: () => garageFov,
+    setGarageFov: v => {
+      garageFov = Math.max(25, Math.min(80, +v || 46));
+      prefSet('flydiy.garageFov', String(garageFov));
+      if (inGarage) { camera.fov = garageFov; camera.updateProjectionMatrix(); }
+      return garageFov;
+    },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
     rollOut: () => { rollOut(() => { started = true; }); },

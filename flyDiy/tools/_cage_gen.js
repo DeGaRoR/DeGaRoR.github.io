@@ -8074,19 +8074,22 @@ function cageSheet(P, opts) {
   // translation as cutOff — the DISPLAY keeps the offsets, the contracts
   // must never move with a flying door (user: the undercarriage followed
   // `explode`)
+  // G439 (A5): THE SHEET IS THE SAME BUILD WITH THE EXPLODE OFF, not the
+  // exploded build with its cutOffs subtracted. The subtraction only knew
+  // the faces that carry a cutOff; everything drawn AFTER the explode on the
+  // exploded vertices - the joint strips (6 148 faces on the Cessna), the
+  // interior structure, the shoulder - has vertices of its own and no flag,
+  // and stayed where the explosion put it. Measured headless at explodeD
+  // 0.7: 16 926 vertices still off, the roof's joints 0.7 up, and the
+  // airframe contract read the cabin deck at 0.225 instead of 0.745 at the
+  // wing station - so the wing layer hung the wing half a metre low, and
+  // CAGE_JOIN.export() (every slider pause, no view neutraliser) wrote that
+  // height into the flown spec: the user's "using the explode option had
+  // moved the height of the wings". One more build while exploded, which
+  // is a viewing mode; the display keeps its offsets.
   let sheet = s;
-  if ((P.explodeD || 0) > 0) {
-    const V2 = s.V.map(p => p.slice());
-    const undone = new Set();
-    for (const f of s.F) if (f.cutOff)
-      for (const vi of f.v) {
-        if (undone.has(vi)) continue;
-        undone.add(vi);
-        V2[vi] = [V2[vi][0] - f.cutOff[0], V2[vi][1] - f.cutOff[1],
-                  V2[vi][2] - f.cutOff[2]];
-      }
-    sheet = Object.assign({}, s, { V: V2 });
-  }
+  if ((P.explodeD || 0) > 0)
+    sheet = cageSheet(Object.assign({}, P, { explodeD: 0 }), opts).mesh;
   return { spec, cage: m, mesh: s, sheet };
 }
 

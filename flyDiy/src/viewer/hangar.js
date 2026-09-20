@@ -2397,10 +2397,19 @@ function stoveCorner(x, z, ry) {
 
 
 // a drawing board with plans, under a lamp
+// G439 (A5): REBUILT ON THE BOARD (the user: "give these proper PBR
+// materials, have a little lip at the bottom of the drawing table, and ensure
+// the plan is well in contact with the table, and in a secure and stable
+// position"). The paper sat 2.5 cm ABOVE the tilted top - two boxes given the
+// same rotation from two different centres. Everything that lies on the board
+// is now a CHILD of the board, in its frame: the plan (the player's own
+// plan_wall prop, laid flat, its back on the varnish), the lip along the low
+// edge that holds it, the rolls in the trough. The wood is the room's mapped
+// wood, not a flat colour.
 function planTable(x, z, ry) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  const TILT = 0.22;
-  const top = box(1.5, 0.05, 1.0, M.woodPale, 0, 0.95, 0);
+  const TILT = 0.22, T = 0.05;
+  const top = box(1.5, T, 1.0, M.wood, 0, 0.95, 0);
   top.rotation.x = -TILT; g.add(top);
   // EACH LEG IS AS LONG AS THE BOARD IS HIGH ABOVE IT. The top is tilted, so
   // one height for all four left the raised side standing 18 cm clear of the
@@ -2409,13 +2418,20 @@ function planTable(x, z, ry) {
     const h = 0.95 + sz * 0.42 * Math.sin(TILT) - 0.026;
     g.add(box(0.07, h, 0.07, M.wood, sx * 0.65, h / 2, sz * 0.42));
   }
-  const paper = box(1.2, 0.006, 0.82,
-    new THREE.MeshStandardMaterial({ color: 0xe8e3d6, roughness: 0.95 }), 0, 1.0, 0.02);
-  paper.rotation.x = -0.22; g.add(paper);
+  // the lip: a batten along the LOW edge (-z, the side the legs are short on)
+  top.add(box(1.5, 0.035, 0.03, M.wood, 0, T / 2 + 0.0175, -0.485));
+  // the plan: the prop laid flat (its own frame hangs it in xy from its top
+  // edge; -90 deg about x lays it in xz with the sheet along +z), its back on
+  // the top's surface, scaled to the board, against the lip
+  const plan = PROPS_OK ? prop('plan_wall', 0, 0, 0, T / 2 + 0.002, top) : null;
+  if (plan) { plan.rotation.x = -Math.PI / 2; plan.position.z = -0.455; plan.scale.setScalar(0.85); }
+  else top.add(box(1.2, 0.006, 0.82,
+    new THREE.MeshStandardMaterial({ color: 0xe8e3d6, roughness: 0.95 }), 0, T / 2 + 0.003, 0.02));
+  // the rolls, in the trough above the lip, lying on the board
   for (let k = 0; k < 3; k++) {
     const r = cyl(0.035, 0.035, 0.9, new THREE.MeshStandardMaterial({ color: 0xded7c6, roughness: 0.95 }),
-                  0.4 + k * 0.09, 1.06, -0.3, 10);
-    r.rotation.z = Math.PI / 2; r.rotation.y = 0.1; g.add(r);
+                  0.4 + k * 0.09, T / 2 + 0.035, -0.30, 10);
+    r.rotation.z = Math.PI / 2; r.rotation.y = 0.1; top.add(r);
   }
   G.add(g); return g;
 }
@@ -2818,6 +2834,7 @@ const lamps = [];
 // 1.178097 rad. It was 0.62 (71 deg full), a tighter pool of light that put
 // the shed's floor in five discs with dark between them. Inside setLampRig's
 // own [0.10, 1.30] clamp and inside the slider's 20..140 range, both checked.
+const LAMP_HK = Math.max(0.1, Math.min(1.6, (EAVE / 7.0) * (EAVE / 7.0)));   // G439: the hang height's inverse square, club = 1
 const LAMP = { gain: 1, angle: 1.178097, kelvin: 4000,
                rgb: new THREE.Color(0xffd9a0) };
 const kelvinRGB = (K, out) => {
@@ -2989,7 +3006,12 @@ const faceShafts = cam => {
 // the count became a parameter of the depth — and a shed with no roof
 // lights (the timber field shed) gets no roof dust at all, because a cone
 // of lit dust under an unbroken deck is a picture of a leak.
-for (const s of [1, -1]) for (let k = 0; k < ROOFLIGHTS.n; k++) {
+// G439 (A5): RETIRED (the user: "we can retire the fake god rays of the
+// garage"). The cards are not drawn any more; the group, the switch and the
+// rows' `shaft` numbers stay inert so no caller changes, and a future volumetric
+// light has the hooks. The loop is kept as the record of where they stood.
+const DRAW_SHAFTS = false;
+if (DRAW_SHAFTS) for (const s of [1, -1]) for (let k = 0; k < ROOFLIGHTS.n; k++) {
   const x = ROOFLIGHTS.x(k);
   const dir = [0.14, -1, -s * 0.12];
   const len = (EAVE + 1.2) * 0.88 * Math.hypot(dir[0], dir[1], dir[2]);
@@ -3101,7 +3123,7 @@ const LIGHTS = [
   { key: 'stove',  name: 'stove fire',           kind: 'light' },
   { key: 'panels', name: 'roof panels',          kind: 'emissive' },
   { key: 'env',    name: 'environment (PMREM)',  kind: 'env' },
-  { key: 'shafts', name: 'dust shafts',          kind: 'unlit' },
+  // 'shafts' (dust shafts, unlit) retired G439: nothing is drawn, so no switch
   // THE THIRD KIND, and the one that has never had a switch. The backdrop is a
   // MeshBasicMaterial: it is lit by nothing, so it is at full brightness in a
   // room where every light is off, and no amount of muting can touch it.
@@ -3258,8 +3280,15 @@ const setMood = i => {
   if (j !== moodI) { moodI = j; if (!phys) { setSky(m); aimKey(m.sunUV, m.yaw); } }
   if (!phys) { key.intensity = m.keyI; key.color.setHex(m.kc); }
   // the mood sets the candela; the rig's three knobs ride on top of it
+  // G439 (A5): THE LAMPS LIGHT THE FLOOR THE SAME IN EVERY SHELL. The mood's
+  // candela were judged in the club, lamps at 0.74 x a 7.0 m eave; the field
+  // shed hangs the same five fittings at 2.66 m and the floor took 3.8x the
+  // light, the walls closer still - at night the field shed was lit like
+  // noon and the aeroplane blown white (the user's 003140, "even after
+  // reloading the page"). Inverse-square on the hang height, the club's own
+  // eave the identity, so every row's number still means what it measured.
   for (const L of lamps) {
-    L.intensity = m.lamp * LAMP.gain;
+    L.intensity = m.lamp * LAMP.gain * LAMP_HK;
     L.angle = LAMP.angle;
     L.color.copy(LAMP.rgb);
   }

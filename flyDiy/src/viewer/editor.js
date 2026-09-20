@@ -1538,9 +1538,12 @@ function editorInit(api) {
     { k: 'explode', label: 'explode', title: 'The build, taken apart',
       icon: 'M9 2.4v4.2|M9 11.4v4.2|M2.4 9h4.2|M11.4 9h4.2|M7.4 7.4h3.2v3.2H7.4z',
       rows: ['explode', 'cutaway'] },
-    { k: 'measure', label: 'measure', title: 'What the build measures',
-      icon: 'M2.6 6.4h12.8v5.2H2.6z|M5.4 6.4v2.2|M8.2 6.4v3|M11 6.4v2.2|M13.8 6.4v3',
-      rows: ['dims box'] },
+    // G439 (A5): `measure` RETIRED (the user: "the dim box only measures the
+    // fuselage, so it's pretty useless - retire this, and prefer a
+    // length/wingspan on the top of the plaque where it already says 403 kg
+    // all-up, also add empty weight"). The whole aeroplane's length, span and
+    // empty weight sit in #acSpec now (app.js); the dims pane and its box
+    // stay parked in the nursery, unrendered, like #edStat.
     // G200: THE CONTROLS — the mapping panel, from the shed too (the user's
     // ruling: "triggered from both environments"). LITERAL FIELDS ONLY: GATE
     // VIEW reads this table in an empty vm, and `controls` is not one of the
@@ -2138,6 +2141,18 @@ function editorInit(api) {
       wrap2.appendChild(b);
     }
     body.appendChild(wrap2);
+    // G439 (A5): THE FIELD OF VIEW, a slider - the user wants to try the
+    // garage narrower. app.js keeps the number (a preference), degrees.
+    if (api.garageFov && api.setGarageFov) {
+      const r = document.createElement('div'); r.className = 'r';
+      r.innerHTML = '<span class="k" title="the garage camera’s vertical field of view, degrees">field of view</span>' +
+        '<input type="range" min="28" max="70" step="1" style="flex:1">' +
+        '<b style="min-width:3ch;text-align:right"></b>';
+      const inp = r.querySelector('input'), out = r.querySelector('b');
+      inp.value = String(api.garageFov()); out.textContent = api.garageFov() + '°';
+      inp.oninput = () => { const v = api.setGarageFov(+inp.value); out.textContent = v + '°'; };
+      body.appendChild(r);
+    }
     // G255: SCREENSHOT MODE — every panel, rail and mark off the screen, the
     // render alone; one transparent way back (top right) and the Esc key.
     // app.js owns the switch (window.SHOT_MODE) because both screens use it.

@@ -285,7 +285,7 @@ const CAGE_PARTS = [
       ['shape', ['wsRun', 'wsTopOff', 'wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
-                         'canLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
+                         'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                          'bubAt3', 'bubW3']],
       // the screen BASE ring pair (wsFront + wsAft): where the screen stands
       // on the shell, and how wide the shell is there

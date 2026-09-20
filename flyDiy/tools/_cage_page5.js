@@ -342,6 +342,9 @@ window.CAGE_PAGE = {
          { when: P => +P.canopy === 3 }],
         ['canLoops',  'canopy loops',   1, 3, 1,
          { when: P => +P.canopy === 3 }],
+        // G439: a VIEW row (opts.view) - draws the loops as guide arcs; off by default
+        ['_viewLoops', 'show loops',     0, 1, 1,
+         { when: P => +P.canopy === 3, view: 'loops' }],
         ['bubH2',     'loop2 height',   0, 1.4, 0.01,
          { when: P => +P.canopy === 3 && +P.canLoops >= 2 }],
         ['bubAt2',    'loop2 apex',     0.15, 0.85, 0.01,

@@ -67,12 +67,20 @@ var SKY_GLARE = (function () {
   function rayClear(origin, dir) {
     const occ = occluders() || [];
     if (occ.length && _ray.o) {
+      // G439 (A5): A RAY THAT CANNOT BE JUDGED IS A BLOCKED ONE. The raycast over
+      // the whole shed threw "Cannot read properties of null (reading 'matrixWorld')"
+      // ~25 times on every mood change - every SPRITE in the scene (the CG/NP post
+      // labels: Sprite.raycast reads raycaster.camera, which this ray never had; it
+      // has it now, see update). One bad object must not cost the frame, and a
+      // throw must not open the ray: called open, the moon's glow washed the whole
+      // field shed white at night (measured, then unmeasured).
       _ray.o.set(origin, dir); _ray.o.far = 8000;
-      let hits = _ray.o.intersectObjects(occ, true);
+      let hits = null;
+      try { hits = _ray.o.intersectObjects(occ, true); } catch (e) { return false; }
       for (const h of hits) if (h.object.visible && h.distance > 0.3 && solidHit(h)) return false;
       _o2.copy(dir).multiplyScalar(60).add(origin); _d2.copy(dir).negate();
       _ray.o.set(_o2, _d2); _ray.o.far = 60 - 0.3;
-      hits = _ray.o.intersectObjects(occ, true);
+      try { hits = _ray.o.intersectObjects(occ, true); } catch (e) { return false; }
       for (const h of hits) if (h.object.visible && solidHit(h)) return false;
     }
     if (terrainH && dir.y < 0.35) {
@@ -84,6 +92,7 @@ var SKY_GLARE = (function () {
   // update(camera, dir (THREE.Vector3 world unit vector), o: { lum (the light's transmittance, 0..1), isMoon, phase, aspect })
   function update(camera, dir, o) {
     if (!init() || !camera) return;
+    if (_ray.o) _ray.o.camera = camera;   // G439: sprites (the CG/NP posts) raycast against the camera; without it they threw
     frame++;
     const lum = o.lum != null ? o.lum : 1;
     // the light's place on screen

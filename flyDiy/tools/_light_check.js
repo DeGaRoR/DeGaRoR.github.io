@@ -152,7 +152,11 @@ const shed = read('hangar.js');
           /subjects\.forEach\(o\s*=>\s*\{[^}]*visible\s*=\s*false/.test(bake),
           'the subjects list is declared but never hidden for the bake');
   }
-  check(/cam\.position\.set\(0,\s*3\.2,\s*0\)/.test(bake),
+  // G439: the probe is 3.2 m in the club (the eave this gate measured under)
+  // and 0.45 x the eave in a lower shed - the field shed's fixed 3.2 m stood
+  // inside its middle pendant lamp. The club's number must stay 3.2 exactly.
+  check(/const probeY = \(hangar\.dims && hangar\.dims\.EAVE < 7\) \? Math\.min\(3\.2, 0\.45 \* hangar\.dims\.EAVE\) : 3\.2;/.test(bake) &&
+        /cam\.position\.set\(0,\s*probeY,\s*0\)/.test(bake),
         'the probe moved: re-measure the belly before trusting this gate');
 }
 

@@ -271,7 +271,7 @@ const matCache = {};
 // of LOOKING and still wins when it asks for less; a default that always
 // asks for less was a cap wearing a preference's clothes.
 const VIEW = { glassA: 1, bodyA: 1, skinA: 1, structA: 1, cowlA: 1,
-               loops: 1, xray: 0 };
+               loops: 0, xray: 0 };   // G439: the canopy loops hidden by default
 // layers read viewer state (the cowl layer's alpha) through this — G29
 window.CAGE_VIEW = VIEW;
 // SEE INSIDE (the user: "maybe we should have a view where the interior is
@@ -2018,11 +2018,12 @@ fillPresetSel();
   };
   const dl = document.createElement('div'); dl.className = 'r';
   dl.innerHTML = `<span class="k">canopy loops</span>
-    <label style="flex:none"><input type="checkbox" id="canLoopsV"
-      checked></label>`;
+    <label style="flex:none"><input type="checkbox" id="canLoopsV"></label>`;
   det.appendChild(dl);
   dl.querySelector('#canLoopsV').onchange = e => {
-    VIEW.loops = e.target.checked ? 1 : 0; build();
+    VIEW.loops = e.target.checked ? 1 : 0;
+    syncSliders();   // G439: the section's own `show loops` row follows
+    build();
   };
   // THE GAME'S ROOM LIGHTS THE BUILD (G36). The G35.2-4 arc tried to
   // reproduce the stand view's pipeline inside the bench renderer —
@@ -2553,6 +2554,19 @@ const renderItems = (parent, items, path) => {
     if (G.CAGE_AFT_SUB && (!opts || !opts.copyFrom))
       for (const [ak, fk] of G.CAGE_AFT_SUB)
         if (ak === k) o2 = Object.assign({}, opts, { copyFrom: fk });
+    // G439 (A5): A VIEW ROW - `opts.view` names a VIEW flag; the row reads and
+    // writes that flag, never P, so it sits beside the settings it shows (the
+    // canopy loops, the user: "hidden by default, with an option next to their
+    // settings") and never lands in a save. The DISPLAY flyout's row of the
+    // same flag follows it.
+    if (opts && opts.view) {
+      mkRow(parent, k, label, lo, hi, st, VIEW[opts.view] ? 1 : 0, v => {
+        VIEW[opts.view] = +v >= 1 ? 1 : 0;
+        document.querySelectorAll('#canLoopsV').forEach(c => { c.checked = !!VIEW.loops; });
+        build();
+      }, names, o2);
+      continue;
+    }
     mkRow(parent, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); },
           names, o2);
   }
