@@ -26,7 +26,7 @@
 const GEN_HANGAR_NEEDS = ['Group', 'Color', 'Fog', 'Mesh', 'BoxGeometry',
   'CylinderGeometry', 'PlaneGeometry', 'ConeGeometry', 'TorusGeometry',
   'ShapeGeometry', 'Shape', 'BufferGeometry', 'Float32BufferAttribute',
-  'MeshStandardMaterial', 'MeshBasicMaterial', 'MeshPhysicalMaterial',
+  'MeshStandardMaterial', 'MeshBasicMaterial', 'MeshPhysicalMaterial', 'MeshLambertMaterial',
   'HemisphereLight', 'DirectionalLight', 'PointLight', 'SpotLight',
   'CanvasTexture',
   'Vector2', 'Vector3', 'Matrix4', 'Box3'];
@@ -1752,8 +1752,9 @@ if (!EXT) {
   let paintOrder = 40;
   const paint = (x0, z0, x1, z1, col, y, op) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0)),
-      new THREE.MeshBasicMaterial({ color: col, transparent: op !== undefined,
+      new THREE.MeshLambertMaterial({ color: col, transparent: op !== undefined,   // lit (A6): the apron's paint takes the night
         opacity: op === undefined ? 1 : op, depthWrite: false, fog: false }));
+    m.receiveShadow = true;
     m.rotation.x = -Math.PI / 2;
     m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
     m.renderOrder = paintOrder++;
@@ -1862,8 +1863,11 @@ if (!EXT) {
     stex.colorSpace = THREE.SRGBColorSpace;
     stex.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
     stex.wrapS = stex.wrapT = THREE.ClampToEdgeWrapping;
-    const marks = new THREE.Mesh(sMark, new THREE.MeshBasicMaterial({
+    // LIT (A6, 2026-09-20 - the playtest: "the hangar's runway material and the yellow lines lit at
+    // night"): an unlit paint keeps its day brightness under the night's exposure
+    const marks = new THREE.Mesh(sMark, new THREE.MeshLambertMaterial({
       map: stex, transparent: true, depthWrite: false, fog: false }));
+    marks.receiveShadow = true;
     marks.position.set(SCX, Y_STRIP + 0.01, SCZ);
     marks.renderOrder = 30;
     put(marks);

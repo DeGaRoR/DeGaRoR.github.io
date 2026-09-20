@@ -3289,10 +3289,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       base.renderOrder = 2;
       base.receiveShadow = true;
       scene.add(base);
+      // LIT, not Basic (A6, 2026-09-20): an unlit paint is a day-bright paint at night - at the night's
+      // exposure (x43 000) the threshold bars and the edge lines were white slabs on a moonlit field
       const strip = new THREE.Mesh(mkGeo(false),
-        new THREE.MeshBasicMaterial({ map: rtex, transparent: true, depthWrite: false }));
+        worldLambert({ map: rtex, transparent: true, depthWrite: false }));
       strip.position.set(R.cx, 0.025, R.cz);
       strip.renderOrder = 3;
+      strip.receiveShadow = true;
       scene.add(strip);
     }
 

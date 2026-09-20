@@ -251,33 +251,48 @@ function make(THREE) {
     CK.glow(dt);
   };
   // each lamp's lens and cup, the faces' backlight
+  // THE NIGHT DIMMER (A6, 2026-09-20 - the playtest: "lights on at night -> the interior overexposed"):
+  // every lamp here was judged at the day's exposure (~0.92), and the night's schedule opens 15.5
+  // stops for the moonlit world (light_rig EV_KNOTS: a game night, readable) - x42 000 on a 0.9 cd
+  // flood is a white cabin. The tone mapper has no eye of its own, so the lamps take the dimmer a
+  // pilot turns at night: intensities x (0.92 / exposure)^p - p 0.92 for what is read up close (the
+  // faces, the flood, the pedal light: on screen ~2x the day's), 0.8 for what is seen from outside
+  // (the landing light, the lenses: ~5x, a presence in the dark). The shed caps its exposure instead
+  // (hangar.js LAMP_EX_CAP) - a room lit by its lamps; a cockpit flies over a world that must stay seen.
+  CK.nightK = (p) => {
+    const W = typeof window !== 'undefined' ? window : {};
+    const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null) ? W.GFX.exposureBase() : 0.92;
+    return Math.pow(0.92 / Math.max(0.92, ex), p);
+  };
   CK.glow = dt => {
     const busOk = CK.busOk !== false;
     const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * 0.75 * CK.t)), 10);
+    const kIn = CK.nightK(0.92), kOut = CK.nightK(0.8);
     for (const l of (CK.lamps || [])) {
       // the master / alternator buttons light with their own switch (4d),
       // the lamps with theirs when the lights are fitted
       const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt';
       const v = fitted && busOk ? clamp(+CK.sw['sw_' + l.key] || 0, 0, 1) : 0;
       const gain = l.key === 'beacon' ? beacon : 1;
+      const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
       if (l.mesh.material && l.mesh.material.emissive)
-        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55);
+        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (inside ? kIn : kOut);
     }
     if (CK.model && CK.model.spot) {
       const land = CK.lightOn && busOk ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;
       const taxi = CK.lightOn && busOk ? clamp(+CK.sw.sw_taxi || 0, 0, 1) : 0;
-      CK.model.spot.intensity = 4.0 * land + 1.6 * taxi;
+      CK.model.spot.intensity = (4.0 * land + 1.6 * taxi) * kOut;
       CK.model.spot.angle = land ? 0.30 : 0.62;
     }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
-      CK.model.floodLight.intensity = 0.9 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+      CK.model.floodLight.intensity = 0.9 * kIn * (CK.lightOn && busOk ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
     if (CK.model && CK.model.pedalLight)
-      CK.model.pedalLight.intensity = 0.35 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
+      CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
     const PLm = W.CAGE_PANEL && W.CAGE_PANEL.material ? W.CAGE_PANEL.material('faces') : null;
     CK.dimNow = CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0;   // the hands read it in pose (G305)
-    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6;
+    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6 * kIn;
   };
 
   // ---- the hands ---------------------------------------------------------------

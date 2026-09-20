@@ -265,6 +265,7 @@ var ATMO = (function () {
   const GLSL_LIB = `
     #define PI 3.14159265359
     uniform sampler2D uT, uMS;
+    uniform float uLutGain;   // THE NIGHT'S GAIN (A6): the sky-view and AP tables hold radiance x this (2^the exposure's stops) - see update()
     uniform vec4 uAtm[4];   // [0]=Rg,Rt,rayH,mieH  [1]=mieS,mieA,mieG,mieK  [2]=ozC,ozW,ozK,albedo  [3]=rayS
     uniform vec3 uOzA;
     float raySphere(float r, float mu, float R) {
@@ -346,7 +347,7 @@ var ATMO = (function () {
       vec3 Tp;
       vec3 L = skyRadiance(uR, d, uSun, 1.0, 32, Tp);
       if (uEMoon > 0.0) { vec3 Tm; L += skyRadiance(uR, d, uMoon, uEMoon, 12, Tm); }
-      gl_FragColor = vec4(L, Tp.g);
+      gl_FragColor = vec4(L * uLutGain, Tp.g);
     }`;
   const QUAD_VERT = `varying vec2 vUv2; void main(){ vUv2 = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
@@ -397,7 +398,7 @@ var ATMO = (function () {
           Tp *= exp(-e * dt);
         }
       }
-      gl_FragColor = vec4(L, Tp.g);
+      gl_FragColor = vec4(L * uLutGain, Tp.g);
     }`;
   // THE ONE SPLICE (RENDERER-DECISION §4k rule 3). three lays its fog on AFTER
   // the tone map, in display space (r186: opaque -> tonemapping -> colorspace ->
@@ -452,7 +453,7 @@ var ATMO = (function () {
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
   const AP_SAMPLE_GLSL = `
     uniform sampler2D uApAtlas;
-    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: the tables' gain (A6: the night's stops)
     vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
       float v = 0.5 + 0.5 * sign(el) * sqrt(abs(el) / 1.57079632679);
@@ -464,7 +465,8 @@ var ATMO = (function () {
       v = clamp(v * ${AP_H}.0, 0.5, ${AP_H}.0 - 0.5) / ${AP_ATLAS_H}.0;   // the AP rows of the shared atlas
       vec4 a = k0 < 0.0 ? vec4(0.0, 0.0, 0.0, 1.0) : texture2D(uApAtlas, vec2((k0 + uu) / ${AP_N}.0, v));
       vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
-      return mix(a, b, f);
+      vec4 r = mix(a, b, f); r.rgb /= max(1.0, uAtmoAP.w);   // the table's gain taken back out
+      return r;
     }`;
   const AP_PARS_FRAG = `
     varying vec3 vAtmoV;
@@ -559,7 +561,7 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
-    uniform float uGlare, uEyeY;                          // the corona's strength (S7); the eye's height for the mist
+    uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
     // uVeil.x (a threshold on the noise like the weather map's), drifted by uVeil.yz, optically thin:
     // L += (sun x T at the sheet x a forward phase + the sky's radiance there) x (1 - exp(-tau))
@@ -632,7 +634,7 @@ var ATMO = (function () {
       vec3 d = normalize(vD);
       { float c = cos(uFrame), s = sin(uFrame); d = vec3(d.x * c + d.z * s, d.y, -d.x * s + d.z * c); }   // into the world's frame
       vec4 sky = texture2D(uSky, skyUV2(d));
-      vec3 L = sky.rgb;
+      vec3 L = sky.rgb / uLutGain;                           // the table's gain taken back out (A6)
       float Tview = sky.a;                                   // the path's (green) transmittance, for the discs and stars
       // the sun: a limb-darkened disc of angular radius sunRad, through the transmittance along its own path
       float cs = dot(d, uSun), sr = uAtm2.z;
@@ -694,6 +696,7 @@ var ATMO = (function () {
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
     glare: { value: 1 }, eyeY: { value: 0 },
+    lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
   };
   function uploadTex(tex, lut, W, Hh) {
@@ -711,6 +714,7 @@ var ATMO = (function () {
       uAtm: { value: [new THREE.Vector4(P.Rg, P.Rt, P.rayH, P.mieH), new THREE.Vector4(P.mieS, P.mieA, P.mieG, P.mieK),
                       new THREE.Vector4(P.ozC, P.ozW, P.ozK, P.albedo), new THREE.Vector4(P.rayS[0], P.rayS[1], P.rayS[2], 0)] },
       uOzA: { value: new THREE.Vector3(P.ozA[0], P.ozA[1], P.ozA[2]) },
+      uLutGain: U.lutGain,
     };
   }
   function refreshAtmUniforms(u) {
@@ -751,6 +755,13 @@ var ATMO = (function () {
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
     U.eMoon.value = day ? (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.MOON_RATIO : 2.5e-6) * day.moonPhase : 0;
     U.r.value = P.Rg + Math.max(R_MIN, (camAltM || 0) / 1000);
+    // THE NIGHT'S GAIN (A6, the playtest: "white bands on the night horizon"): the tables are HalfFloat and a
+    // night sky is ~1e-6 of the sun - under 6e-5 a half float is subnormal and steps in 6e-8: at the night's
+    // x43 000 exposure those steps were the bands. The tables hold radiance x 2^(the exposure's stops) (the
+    // same schedule the exposure takes, light_rig), every reader divides (the dome, apSample - the fogged
+    // materials and the clouds through uAtmoAP.w); by day the gain is 1 and nothing moves
+    U.lutGain.value = (day && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.exposureStops) ? Math.pow(2, Math.max(0, Math.min(16, LIGHT_RIG.exposureStops(day.sunEl)))) : 1;
+    apScalars[3] = U.lutGain.value;
     const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
     renderer.autoClear = true;
     renderer.setRenderTarget(G.rtSky); renderer.render(G.scene, G.cam);
@@ -787,7 +798,7 @@ var ATMO = (function () {
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
-                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky },
+                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));

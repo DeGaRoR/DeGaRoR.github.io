@@ -50330,3 +50330,37 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   that tags the near casters; a new caster shades nothing for at most half a second), and the
   craft joins / leaves FAR_LAYER instead. Layer 0 is never touched.
 - GATE LIGHT section 6: the far layer, the never-layer-0 rule, the glare's second ray.
+
+
+## G436.5 — THE NIGHT: THE LAMPS' DIMMER, THE PAINT LIT, THE TABLES' GAIN (2026-09-20, A6 item 3)
+
+- THE INTERIOR OVEREXPOSED WITH THE LIGHTS ON (195801), reproduced: the cockpit's flood (0.9 cd),
+  the pedal light, the faces' backlight and the lenses were judged at the day's exposure (~0.92),
+  and the night's schedule opens 15.5 stops for the moonlit world (a game night, readable): a
+  x42 000 flood is a white cabin. cockpit.js CK.nightK(p) = (0.92 / exposure)^p - the dimmer a
+  pilot turns at night: p 0.92 for what is read up close (the faces, the flood, the pedal light, the
+  master / alt buttons: ~2x the day's on screen), 0.8 for what is seen from outside (the landing
+  light, the nav and beacon lenses: ~5x, a presence in the dark). The shed caps its EXPOSURE
+  instead (LAMP_EX_CAP) - a room lit by its lamps; a cockpit flies over a world that must stay
+  seen. Before / after: screenshots/clouds-2026-09-20/night/sheet_night.jpg (top).
+- THE WHITE BANDS ON THE NIGHT HORIZON (200031), found on a December night at 55 N (the sun at
+  -53 deg, exposure x43 000): the sky-view and aerial-perspective tables are HalfFloat, and a
+  night sky is ~1e-6 of the sun - under 6e-5 a half float is SUBNORMAL and steps in 6e-8; at the
+  night's exposure those steps were the purple / blue bands across the horizon. atmo.js: the
+  tables hold radiance x uLutGain = 2^(the exposure's stops) (light_rig's own schedule - the
+  same number the exposure takes), and every reader divides: the dome (uLutGain), apSample
+  (uAtmoAP.w - the fogged materials and the clouds through the one splice). By day the gain is 1
+  and nothing moves; GATE ATMO's 64 hold. The June "night" at 55 N never showed it (-11.5 deg,
+  13 stops, the sky still 1e-5).
+- THE RUNWAY MATERIAL AND THE YELLOW LINES LIT AT NIGHT (126): the world's strip (the markings
+  texture over the grass), the shed's runway marks and the shed's apron paint were
+  MeshBasicMaterial - unlit, a day-bright paint under the night's exposure: the threshold bars
+  were white slabs on a moonlit field. Lambert now (worldLambert / MeshLambertMaterial, receiving
+  shadows); 'MeshLambertMaterial' joined GEN_HANGAR_NEEDS. The shed's own frame is not verified
+  in the headless rig (G436.2's note); the world's strip is (sheet_night.jpg, bottom).
+- The rig pauses the sim, so CK.frame never ran and the lamps stayed off: the shot's JS calls
+  CK.glow(0) itself. Nav / beacon come from the pilot's rule (ap.lights) and override the
+  switches unless byHand.
+- OWED: the green tint on the dash (item 4); the 1-px sky line over a cloud (item 5); the club
+  hangar's wall reads bright on the December night (its material, or the moon on concrete - not
+  measured); the hangar's lit windows are fine.
