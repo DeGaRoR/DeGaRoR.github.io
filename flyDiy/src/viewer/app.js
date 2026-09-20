@@ -3490,20 +3490,24 @@
     }
     if (typeof sim.stance === 'function') sim.stance();
     const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
-    patternVisFor(from, st);
     // ...AND WHETHER IT DOES IS THE PLAYER'S (2026-09-04, the user: "the
     // planes are really a lot too slow when rolling out of the hangar ... an
     // option to just remove that"). The rail's `start` flyout writes this
     // pref; off, the aeroplane is placed on the spawn identity itself, lined
     // up on the strip, exactly as every flight began before G151. Read here,
     // on every applyRoute, so RESTART is what applies it.
-    const stand = (st && flStartTaxi()) ? st.stand : null;
+    // THE STAND FOLLOWS THE DOOR (2026-09-20): the site's stand is authored for the declared shell; the
+    // player's (the works is 7.5 m deeper) walks it out of the doorway - 25_airfield.js standFor
+    const shedD = (st && typeof playerShedDims === 'function') ? playerShedDims(playerLoad(), 'HOME', st) : null;
+    const stand = (st && flStartTaxi()) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD) : st.stand) : null;
+    const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
+    patternVisFor(from, stSite);
     if (stand) {
       placeAtStand(sim, from, stand);
       ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
       // G193: the whole SITE, not its taxiOut list — the pilot builds the
       // pattern (the taxi graph, the hold, the two touchdown targets) from it
-      ap.departFrom(from, to, st);   // then plan from the live pose
+      ap.departFrom(from, to, stSite);   // then plan from the live pose (the walked stand in it)
     } else {
       placeAtAerodrome(sim, from);   // HOME is a bit-exact no-op
       ap.setRoute(from, to);

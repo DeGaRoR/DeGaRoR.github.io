@@ -151,6 +151,20 @@ function run(mut) {
      'siteOf(HOME) does not return the registry record');
   ok(CORE.siteOf('NOPE') === null && CORE.siteOf('M1') === null,
      'an absent or meadow site must read as null, not undefined');
+  // THE STAND FOLLOWS THE DOOR (2026-09-20): the player's deeper shell walks the stand out along the
+  // door's facing by the extra depth, held to the apron; the club's own dims move nothing
+  {
+    const S0 = CORE.AIRFIELD_SITES.HOME, club = CORE.standFor(S0, { HD: S0.hangar.HD }), works = CORE.standFor(S0, { HD: 20 }), deep = CORE.standFor(S0, { HD: 26 });
+    ok(club === S0.stand, 'standFor at the declared depth is the site\'s own stand');
+    ok(Math.abs(works.z - (S0.stand.z - 7.5)) < 1e-6 && works.x === S0.stand.x && works.hdg === S0.stand.hdg,
+       'standFor walks the works (HD 20) 7.5 m out along the door\'s facing (-z at HOME), heading kept');
+    ok(works.z <= S0.hangar.z - 20 - 2, 'the works\' stand clears its own door line by 2 m at least');
+    ok(deep.z >= S0.apron.z0 + 2 - 1e-6, 'a deck deeper than the apron allows is held 2 m inside the apron (HD 26)');
+    const isl = CORE.standFor({ hangar: { x: -190, z: 712, ry: Math.PI, HD: 12.5 }, stand: { x: -154, z: 712, hdg: -1.249 } }, { HD: 20 });
+    ok(Math.abs(isl.x - (-146.5)) < 1e-6 && isl.z === 712, 'an island site facing +x (ry pi) walks its stand +x');
+    ok(CORE.standFor(null, { HD: 20 }) === null && CORE.standFor(S0, null) === S0.stand, 'standFor without a site or dims is inert');
+  }
+  ok(S.buildings.length === 0, 'the placeholder box buildings are gone (the works stood through one)');
   // ...and the shed the whole battery is proven against is frozen: the
   // hangar record byte-for-byte, so a rename can never smuggle a move.
   ok(JSON.stringify(SITES.HOME.hangar) === JSON.stringify(

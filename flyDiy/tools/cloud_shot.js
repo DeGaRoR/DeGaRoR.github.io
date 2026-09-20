@@ -12,7 +12,8 @@
 // (shots separated by @@) is name : eye x,y,z (world, absolute) : yaw deg (0 = -z, 90 = +x) : pitch
 // deg (up positive) : a JS line evaluated before it (CLOUDS.S dials, the
 // clock, anything). The page's exceptions are printed; --log prints its
-// console. After every shot CLOUDS.stats and the layer are printed, so the
+// console; `--pre <js>` runs before any page script (the player's shed record in localStorage).
+// After every shot CLOUDS.stats and the layer are printed, so the
 // picture carries its numbers (the GPU timer's ms, the cover, the base).
 'use strict';
 const { spawn } = require('child_process');
@@ -22,7 +23,7 @@ const http = require('http');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const URL = opt('url', 'http://localhost:8431/flyDiy/dev.html?world=none');
-const AT = opt('at', '0,150,0').split(',').map(Number);
+const AT = (opt('at', '0,150,0') === 'none' ? '0,150,0' : opt('at', '0,150,0')).split(',').map(Number);
 const OUT = opt('out', 'screenshots/clouds-2026-09-20');
 const WAIT = +opt('wait', 4000);
 const SHOTS = opt('shots', 'up:0,400,0:0:35:').split('@@').map(s => { const p = s.split(':'); return { name: p[0], eye: (p[1] || '0,400,0').split(',').map(Number), yaw: +(p[2] || 0), pitch: +(p[3] || 30), js: p.slice(4).join(':') }; });
@@ -52,6 +53,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && (r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description || r.result.exceptionDetails.text))); return r.result.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable');
+  // --pre <js>: run before any page script on every document (the player's localStorage doc, a pref, a flag)
+  const PRE = opt('pre', null);
+  if (PRE) await cmd('Page.addScriptToEvaluateOnNewDocument', { source: PRE });
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
   await sleep(+opt('boot', 20000));
@@ -80,7 +84,8 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // the fresh profile's chooser (NEW AEROPLANE / keep the current build) can appear after the roll-out: poll it away
   const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
   for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
-  await ev(`(()=>{const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();const gy=w.terrainH(${AT[0]},${AT[2]});
+  if (opt('at', '') === 'none') await ev("(()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()");   // --at none: the aeroplane stays where the roll-out put it (the stand)
+  else await ev(`(()=>{const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();const gy=w.terrainH(${AT[0]},${AT[2]});
     const dx=${AT[0]}-cg[0],dy=(gy+${AT[1]})-cg[1],dz=${AT[2]}-cg[2];
     for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}
     const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);

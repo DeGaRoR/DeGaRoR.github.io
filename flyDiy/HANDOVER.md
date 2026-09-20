@@ -50400,3 +50400,43 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   resolve. The line is gone (sheet_edge2.jpg, right); the march's GPU time unchanged (0.7-1.5 ms).
   The post hook stays in aa_resolve (unused); CLOUDS.composite() is a no-op.
 - GATE CLOUD: the hook rules rewritten (the pre hook, the quad at the cloud's depth).
+
+
+## G436.8 — THE STAND FOLLOWS THE DOOR, THE BOXES GONE (2026-09-20, the user: "selecting a different
+## hangar preset ends up with the plane spawning into the largest hangar (the works). It needs to be
+## fixed on both maps ... When selecting the works hangar, another polygon is poking through, just
+## remove these old assets")
+
+- THE CAUSE: a site's `stand` is authored for the declared shell (the club, HD 12.5 - HOME's stand
+  9.5 m off the door line at z 49.5; Jolene's 23.5 m off at x -154), and the player's shell is
+  composed over it at the roll-out (playerShedDims: the works is HD 20, the picker writes the shell's
+  dims into the player's shed record). The building grew 7.5 m toward a stand that did not move: the
+  aeroplane stood in the doorway.
+- 25_airfield.js standFor(site, dims): the stand walked OUT along the door's facing by the extra
+  depth - hangar.js draws the door at local -x, so under rotation.y = ry the facing is (-cos ry,
+  sin ry): HOME's -pi/2 gives (0, -1), the island's runwaySite (ry pi) gives (+1, 0) - held 2 m
+  inside the apron when the site declares one (HOME: the fence is at z 26, so a deck past the
+  apron's HD ~20.5 stays at z 32; a preset never goes there). app.js applyRoute spawns on it, draws
+  the pattern from it and hands the pilot a site copy carrying it (departFrom's taxi graph starts
+  there). Measured: works at HOME cg (42.4, 32.8) - 9 m clear of the door at z 42 (was 2 m); Jolene
+  cg x -146.8 (the walk +7.5 along +x). screenshots/clouds-2026-09-20/stand/sheet.jpg (club vs
+  works, three eyes), sheet_jolene.jpg.
+- THE POLYGON POKING THROUGH THE WORKS: the analytic site's two placeholder box buildings (a
+  clubhouse at x 16, a second shed at x 60..72) cleared the CLUB's footprint only; the works (HW 20:
+  x 22..62) stood through the second. Both removed (`buildings: []` - the list stays for the gate).
+- GATE SITE had been RED since G400 (2026-09-14): render_world's island height fallback `|| 1100`
+  read as the old runway length by the gate's 1100 rule - spelled 1.1e3. Green again (193), with
+  the stand rules (the club moves nothing, the works walks 7.5 m, the apron holds HD 26, the island
+  facing, inert without a site or dims) and the boxes' absence.
+- THE RIG: cloud_shot.js `--pre <js>` (Page.addScriptToEvaluateOnNewDocument - the player's shed
+  record into localStorage before the page reads it) and `--at none` (no teleport: the aeroplane
+  where the roll-out put it).
+- THE OWED LIST FROM G436.3-G436.5, closed: the reflection probe seeing the craft - moot since
+  G436.4 (the craft never leaves layer 0); the shed's apron paint at night - the same Lambert change
+  as the world's strip, proven there (the shed's framing presets do not take in the headless rig,
+  the door is behind the camera); the club hangar's wall on a December night - light sheeting under
+  the moon, judged physical, not chased.
+- AND THE BENCH: two of this session's landings EMPTIED flyDiy/bench (the build worktree carried a
+  junction to it and `git worktree remove --force` followed the link; the Jolene bench session
+  regenerated the terrain twice). No link exists anywhere now; the build worktree gets no bench;
+  the rig reads a plain copy or the fallback server. G434.1 had already recorded the trap.

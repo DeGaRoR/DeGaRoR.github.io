@@ -64,12 +64,12 @@ const AIRFIELD_SITES = {
 
     windsock: { x: -30, z: 20, h: 6 },
 
-    // the neighbours, still boxes: a clubhouse and a second shed. Both clear the
-    // real hangar's footprint (x 27..57, z 49.5..74.5) and the apron.
-    buildings: [
-      { x: 16, z: 54, w: 6.5, d: 5.5, h: 2.8, ry: -0.09, trim: true },
-      { x: 66, z: 70, w: 12,  d: 8.5, h: 3.9, ry: 0.16 },
-    ],
+    // THE NEIGHBOURS ARE GONE (2026-09-20, the user: "when selecting the works hangar, another
+    // polygon is poking through, just remove these old assets"): the two placeholder boxes (a
+    // clubhouse at x 16 and a second shed at x 60..72) cleared the CLUB's footprint only - the
+    // works (HW 20: x 22..62) stood through the second one. The list stays, empty, for the
+    // island's sites and the gate's rules.
+    buildings: [],
 
     // the windbreak behind the sheds. Pulled in from z 88..91 to 84: the old line
     // sat ON the pad's 90 m edge, where the terrain is not quite zero any more.
@@ -465,6 +465,31 @@ function siteOnFlat(aero, x, z) {
 function siteHangarBox(H) {
   const h = H || AIRFIELD_SITE.hangar;
   return { x0: h.x - h.HW, x1: h.x + h.HW, z0: h.z - h.HD, z1: h.z + h.HD };
+}
+// THE STAND FOLLOWS THE DOOR (2026-09-20, the user: "selecting a different hangar preset ends up
+// with the plane spawning into the largest hangar (the works)"). A site's `stand` is authored for
+// the declared shell (the club's HD 12.5: HOME's stand sits 9.5 m off the door line at z 49.5); the
+// player's shell is composed over it at the roll-out (playerShedDims - the works is HD 20), so the
+// door line moved 7.5 m toward the stand and the aeroplane stood in the doorway. standFor(site,
+// dims) returns the stand walked OUT along the door's facing by the extra depth - hangar.js draws
+// the door at local -x, so under rotation.y = ry that facing is (-cos ry, sin ry): HOME's -pi/2
+// gives (0, -1), the island's runwaySite the same rule through its own ry. The walk is held to
+// the apron when the site declares one (HOME's z0 30 - the fence stands at z 26): a deck deeper
+// than the apron allows is the sliders' extreme, not a preset, and noted. The heading is kept:
+// the aeroplane still points at taxiOut[0] within a degree at these shifts.
+function standFor(site, dims) {
+  if (!site || !site.stand) return site ? site.stand : null;
+  const h = site.hangar, st = site.stand;
+  if (!h || !dims || !(dims.HD > h.HD)) return st;
+  const dx = -Math.cos(h.ry), dz = Math.sin(h.ry);
+  let d = dims.HD - h.HD;
+  if (site.apron) {   // stay 2 m inside the apron's far edge along the walk
+    const ap = site.apron, EDGE = 2;
+    const lim = dx < -1e-6 ? (st.x - (ap.x0 + EDGE)) / -dx : dx > 1e-6 ? ((ap.x1 - EDGE) - st.x) / dx : Infinity;
+    const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
+    d = Math.max(0, Math.min(d, lim, limz));
+  }
+  return { x: +(st.x + dx * d).toFixed(3), z: +(st.z + dz * d).toFixed(3), hdg: st.hdg, walked: +d.toFixed(3) };
 }
 
 // ---- THE PATTERN (G193): the ground graph and the two approaches ---------

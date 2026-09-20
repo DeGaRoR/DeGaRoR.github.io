@@ -920,7 +920,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
         uGP90: { value: Math.max(4, (ISLA.canopyP90 || 15)) },
-        uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1100) },
+        uGMode: { value: 0 }, uGHMax: { value: Math.max(100, ISLA.hMax || 1.1e3) },   // (1.1e3: GATE SITE reads a bare 1100 as the old runway length - red since G400)
         uGBlur: { value: GROUND.classBlur }, uGWobble: { value: GROUND.edgeWobble }, uGWaterMap: { value: GROUND.waterMap }, uGCell: { value: G.cell },
         // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
         uGW1: { value: (() => { const w1 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w1[k * 4 + i] = 255; } }
