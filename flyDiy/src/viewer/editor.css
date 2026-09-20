@@ -1296,6 +1296,10 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edFlyBody select { flex:1; min-width:0; }
 
+/* 2026-09-20: the day panel's date field, dressed as the row select */
+#edFlyBody .r input[type=date] { flex:1; min-width:0; padding:4px 8px; font:400 11.5px/1.2 'IBM Plex Sans';
+  color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
+
 #edFlyBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
 #edFlyBody #dims { position:static !important; margin:4px 0 0;
@@ -1328,6 +1332,11 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   cursor:pointer; transition:border-color .12s ease; }
 
 #edView .pill:hover { border-color:rgba(255,255,255,.3); }
+
+/* 2026-09-20: THE PILL THAT IS ON. #edView is not inside #edWrap, so the rail's flyouts (the
+   graphics menu's pills since G200, the clouds' and the day's since today) had no on-state at
+   all - eight identical presets and no way to tell which sky you were in. The same rule. */
+#edView .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc); border-color:var(--ed-acc); }
 
 #edView .pill.wide { display:block; width:100%; margin-top:12px;
   text-align:center; color:var(--ed-acc); }

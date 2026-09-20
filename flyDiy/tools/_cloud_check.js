@@ -143,7 +143,9 @@ console.log('6. the splice rules');
   yes((at.match(/uniform vec4 uMist\[4\];/g) || []).length === 2 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (both copies of the mist GLSL)');
   yes(/c\.rho = rho; c\.base = inL\.base; c\.top = inL\.top;/.test(cj) && /A\.U\.veil\.value/.test(cj), 'clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)');
   yes(/\[\?&\]cloud=\(\[0-9\.\]\+\)\(\?:,\(\[a-z\]\{2\}\)\)\?/.test(src('viewer/day_clock.js')) && /o\.cloudUpper = c\[3\]/.test(src('viewer/day_clock.js')), '?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL');
-  yes(/flRange\(body, 'cloud cover'/.test(src('viewer/app.js')) && /CLOUD_FIELD\.TYPE_ORDER\.map\(t => \(\{ label: CLOUD_FIELD\.TYPES\[t\]\.label, value: t \}\)\)/.test(src('viewer/app.js')), 'the flight rail carries the cover and the type');
+  // 2026-09-20: the low deck's cover and type moved from the brief's day slot to the clouds panel (one keeper); the day panel keeps a door to it
+  yes(/H\.range\(host, 'cover', 0, 1, 0\.05, \(\) => day\(\)\.cloudCover/.test(src('viewer/clouds_ui.js')) && /cf\.TYPE_ORDER\.map\(t => \(\{ label: cf\.TYPES\[t\]\.label, value: t \}\)\)/.test(src('viewer/clouds_ui.js')), 'the clouds panel carries the low deck\'s cover and type');
+  yes(!/flRange\(body, 'cloud cover'/.test(src('viewer/app.js')) && /ctx\.open\('clouds'\)/.test(src('viewer/day_ui.js')), 'the day slot no longer draws the cover itself; the day panel opens the clouds flyout');
   yes(/rows\.slider\(insp, 'cloud cover'/.test(src('viewer/premises_ui.js')) && /rows\.select\(insp, 'cloud type'/.test(src('viewer/premises_ui.js')), 'the WORLD editor carries the cover and the type');
   yes(/cloudCover: 0\.9, cloudType: 'st'/.test(src('viewer/app.js')), 'the OVERCAST mood is a stratus deck');
   yes(/glslVersion: THREE\.GLSL3/.test(cj) && /sampler3D/.test(cj), 'the march is GLSL3 (a sampler3D needs it)');
@@ -207,6 +209,16 @@ console.log('7b. several decks + the look: the march (static)');
     yes(/head\('sky'\)/.test(CU) && /head\('cirrus veil'\)/.test(CU) && /head\('look'\)/.test(CU) && /head\('motion'\)/.test(CU) && /head\('render'\)/.test(CU) && /PRESETS = \[/.test(CU), 'the panel: presets, the decks, the veil, the look, the motion, the render');
     yes(/PREF = 'flydiy\.clouds'/.test(CU) && /API\.apply\(\);/.test(CU) && /cloudUpper: day\.cloudUpper && day\.cloudUpper\.length \? day\.cloudUpper : null/.test(src('viewer/day_clock.js')), 'the look is saved as flydiy.clouds and applied at load; the weather is saved with the day');
     yes(/'clouds_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'clouds_ui.js is in the build'); }
+  // 2026-09-20: ONE DAY PANEL on both rails (day_ui.js) - the flight's `day` slot and the shed's `night` flyout mount the same
+  // module in their own rows; #selCond stays the keeper (pressed through its own change), DAY_CLOCK the one state (no #selTime)
+  { const DU = src('viewer/day_ui.js'), E = src('viewer/editor.js'), B = src('viewer/body.html');
+    yes(/head\('conditions'\)/.test(DU) && /head\('the hour'\)/.test(DU) && /sel\.dispatchEvent\(new Event\('change'\)\)/.test(DU) && /CK\.preset\(o\.value\)/.test(DU) && /CK\.set\(\{ localHours: v \}\)/.test(DU) && /CK\.set\(\{ date: i\.value \}\)/.test(DU) && /CK\.rate\(o\.value\)/.test(DU), 'the day panel: the conditions through #selCond, the presets, the hour, the date, the rate through the clock');
+    yes(/window\.DAY_UI\.mount\(body, \{ row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField \}/.test(A) && /refresh: flRefreshDay, open: flyOpenSet/.test(A), 'the flight rail\'s day slot mounts it, the plate refreshed, the clouds a flyout away');
+    yes(/if \(t\.k === 'night'\) buildDay\(body\);/.test(E) && /window\.DAY_UI\.mount\(body, H, dayCtx\(\)\)/.test(E) && /rows: \['lights', 'world lights', 'ground bounce'\]/.test(E), 'the shed\'s night flyout mounts it over the borrowed light rows (the tree\'s mood select not borrowed)');
+    yes(/window\.CLOUDS_UI\.mount\(body, railRows\(\), dayCtx\(\)\)/.test(E), 'the clouds and the day share the rail\'s row vocabulary (railRows)');
+    yes(!/id="selTime"/.test(B) && !/flS\('Time'\)/.test(A), '#selTime is gone: the presets are pills, DAY_CLOCK the one state');
+    yes(/k: 'time', state: 'DAY_CLOCK preset'/.test(E) && /CK\.preset\(P\[\(i \+ 1\) % P\.length\]\)/.test(E), 'the quick bar\'s time button presses the clock, not the mood');
+    yes(/'day_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'day_ui.js is in the build'); }
   yes(/rows\.slider\(insp, 'upper deck ' \+ \(di \+ 1\)/.test(P) && /rows\.slider\(insp, 'deck ' \+ \(di \+ 1\) \+ ' base'/.test(P), 'the WORLD editor carries the upper decks');
   yes(/slider\('upper deck ' \+ \(di \+ 1\)/.test(DP) && /slider\('erode'/.test(DP) && /select\('cover fit'/.test(DP), 'F8 carries the upper decks, erode and the cover fit');
   yes(fs.existsSync(path.join(__dirname, 'cloud_shot.js')), 'the rig that judges the sky (tools/cloud_shot.js) is there');

@@ -74,19 +74,9 @@
       <option value="hot">Hot afternoon &middot; 35&deg;C, 1008</option>
       <option value="cold">Winter morning &middot; 0&deg;C, 1030</option>
     </select>
-    <!-- THE TIME OF DAY (SKY chantier, 2026-09-15): the clock's presets, solved on the
-         day's own almanac (dawn is the sun at -6 deg rising, golden 8 deg falling, night
-         the solar midnight); the hour and the rate ride beside it in the brief's `day` slot -->
-    <select id="selTime" aria-label="Time of day" title="the hour, on the day's own almanac">
-      <option value="dawn">Dawn &middot; civil twilight</option>
-      <option value="morning">Morning &middot; sun 25&deg;</option>
-      <option value="noon">Noon</option>
-      <option value="afternoon" selected>Afternoon &middot; sun 33&deg;</option>
-      <option value="golden">Golden hour &middot; sun 8&deg;</option>
-      <option value="sunset">Sunset</option>
-      <option value="dusk">Dusk &middot; civil twilight</option>
-      <option value="night">Night &middot; solar midnight</option>
-    </select>
+    <!-- THE TIME OF DAY (SKY chantier, 2026-09-15) was a select here; since 2026-09-20 the
+         clock's presets are the day panel's pills (day_ui.js, on both rails) and DAY_CLOCK is
+         the one state - no element to borrow. -->
     <!-- THE COVERING. Off the HUD and into the `camera` flyout as a row of
          pills, because what the aeroplane is DRAWN AS is a looking question
          and the rail is where looking lives. The button keeps its id, its

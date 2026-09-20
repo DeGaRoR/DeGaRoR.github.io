@@ -618,6 +618,15 @@
         "8450"
       ],
       "port": 8450
+    },
+    {
+      "name": "flydiy-clouds",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8431"
+      ],
+      "port": 8431
     }
   ]
 }

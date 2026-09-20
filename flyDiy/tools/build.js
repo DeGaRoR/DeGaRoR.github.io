@@ -292,7 +292,7 @@ const MANIFEST = {
     // storage.js first (LOADING S4): the media cache's worker registers at load and
     // the version line reads FLYDIY_BUILD; nothing else depends on it
     scripts: ['storage.js', 'assets.js', 'aa_resolve.js',
-              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
+              'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',

@@ -1523,13 +1523,18 @@ function editorInit(api) {
     // out there and not in here? — is about the pair, not either one.
     // `label` is the resting fallback only: syncNightLabel writes the current
     // mood's own name over it (G136).
-    { k: 'night', label: 'night', title: 'The light, in here and out there',
+    { k: 'night', label: 'night', title: 'The day, and the light in here and out there',
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z',
-      // THE RAIL BORROWS, THE TREE OWNS. These four rows live in the shed's
+      // THE RAIL BORROWS, THE TREE OWNS. These three rows live in the shed's
       // hangar group (the world root retired at G136), and this flyout shows
       // them because looking is what the rail is for. borrow()/returnRows()
       // put each one back where it came from.
-      rows: ['time of day', 'lights', 'world lights', 'ground bounce'] },
+      // 2026-09-20: `time of day` (the tree's MOOD select) is not borrowed any
+      // more - the flyout opens on the DAY PANEL (day_ui.js, the same one the
+      // flight rail's `day` slot mounts: the conditions, the clock's presets,
+      // the hour, the date, the rate) and the mood follows the clock as it
+      // always has (hangar.moodFor, each frame). The light rows sit under it.
+      rows: ['lights', 'world lights', 'ground bounce'] },
     { k: 'explode', label: 'explode', title: 'The build, taken apart',
       icon: 'M9 2.4v4.2|M9 11.4v4.2|M2.4 9h4.2|M11.4 9h4.2|M7.4 7.4h3.2v3.2H7.4z',
       rows: ['explode', 'cutaway'] },
@@ -1721,7 +1726,11 @@ function editorInit(api) {
         if (R && R.cycleCut) R.cycleCut();
       } },
     // ---- the light --------------------------------------------------------
-    { k: 'time', row: 'time of day',
+    // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
+    // tree's mood select - the mood follows the clock each frame (hangar.moodFor), and the
+    // day panel on the rail shows the same presets as pills. The glyph is still the mood's.
+    { k: 'time', state: 'DAY_CLOCK preset',
+      why: 'the next of the clock\'s presets; the rail\'s night flyout offers the same presets as the day panel\'s pills',
       view: () => {
         const GE = window.GARAGE_ENV;
         const list = (GE && GE.moods && GE.moods()) || [];
@@ -1756,9 +1765,17 @@ function editorInit(api) {
             : 'No room to light — the shed is not in this build',
           icon: ICON[name] || ICON.AFTERNOON };
       },
-      // THROUGH THE SELECT, so _cage_ui's own handler moves the mood and the
-      // rail's night label hears the change it is already listening for.
+      // THROUGH THE CLOCK: the preset after the one nearest the hour; the mood, the sky and
+      // the rail's night label follow (app.js setMood fromClock -> EDITOR_SYNC_NIGHT). Without a
+      // clock (a build with no day) the tree's mood select is pressed as before.
       act: () => {
+        const CK = window.DAY_CLOCK;
+        if (CK && CK.day()) {
+          const P = CK.PRESETS, i = P.indexOf(CK.nearestPreset());
+          CK.preset(P[(i + 1) % P.length]);
+          if (flyOpen === 'night') openFly('night');
+          return;
+        }
         const r = labelIndex().get('time of day');
         const sel = r && r.querySelector('select');
         const GE = window.GARAGE_ENV;
@@ -1940,6 +1957,7 @@ function editorInit(api) {
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX
     if (t.k === 'clouds') buildClouds(body);       // the clouds panel (2026-09-20)
+    if (t.k === 'night') buildDay(body);           // the day panel (2026-09-20), the light rows borrowed under it
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
@@ -2001,11 +2019,13 @@ function editorInit(api) {
     };
     window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
   }
-  // 2026-09-20: THE CLOUDS - clouds_ui.js's panel in this rail's own rows, a range input on the
-  // flyout's own .r row (editor.css styles it), the pills as the GRAPHICS menu's; a pick rebuilds
-  // the flyout so the pills show the new state (openFly re-places it, measured full)
-  function buildClouds(body) {
-    if (!window.CLOUDS_UI) return;
+  // 2026-09-20: THE SHARED PANELS' ROW VOCABULARY - the clouds panel (clouds_ui.js) and the day
+  // panel (day_ui.js) draw in this rail's own rows: a range input on the flyout's own .r row
+  // (editor.css styles it), the pills as the GRAPHICS menu's, a select as the tree's, a native
+  // field (the date) beside it. A pick rebuilds the OPEN flyout so the pills show the new state
+  // (openFly re-places it, measured full) - `flyOpen`, not a name, because a pill may have just
+  // opened a sibling (the day panel's door to the clouds).
+  function railRows() {
     const row = (host, label) => {
       const r = document.createElement('div'); r.className = 'r';
       const k = document.createElement('span'); k.className = 'k'; k.textContent = label;
@@ -2024,7 +2044,7 @@ function editorInit(api) {
         const b = document.createElement('button');
         b.className = 'pill' + (isOn(o) ? ' on' : '');
         b.textContent = o.label; if (o.title) b.title = o.title;
-        if (o.why) b.disabled = true; else b.onclick = () => { pick(o); openFly('clouds'); };
+        if (o.why) b.disabled = true; else b.onclick = () => { pick(o); openFly(flyOpen); };
         w.appendChild(b);
       }
       host.appendChild(w); return w;
@@ -2033,8 +2053,28 @@ function editorInit(api) {
       const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
       host.appendChild(n); return n;
     };
-    window.CLOUDS_UI.mount(body, { row, range, pills, note },
-      { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: () => { if (typeof syncNightLabel === 'function') syncNightLabel(); } });
+    const select = (host, label, options, get, set) => {
+      const r = row(host, label);
+      const s = document.createElement('select');
+      for (const o of options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.label; s.appendChild(e); }
+      s.value = get(); s.onchange = () => set(s.value);
+      r.appendChild(s); return s;
+    };
+    const field = (host, label, el) => { const r = row(host, label); r.appendChild(el); return r; };
+    return { row, range, pills, note, select, field };
+  }
+  const dayCtx = () => ({ day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,
+                          refresh: () => { if (typeof syncNightLabel === 'function') syncNightLabel(); }, open: openFly });
+  function buildClouds(body) {
+    if (!window.CLOUDS_UI) return;
+    window.CLOUDS_UI.mount(body, railRows(), dayCtx());
+  }
+  // the day panel, then a head for the shed's own light rows openFly borrows under it
+  function buildDay(body) {
+    if (!window.DAY_UI) return;
+    const H = railRows();
+    window.DAY_UI.mount(body, H, dayCtx());
+    H.row(body, 'in the shed').classList.add('fsec');
   }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;

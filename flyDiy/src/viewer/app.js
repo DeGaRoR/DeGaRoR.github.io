@@ -6695,6 +6695,7 @@
       b.className = 'pill' + (isOn(o) ? ' on' : '');
       b.type = 'button';
       b.textContent = o.label;
+      if (o.title) b.title = o.title;
       if (o.why) { b.disabled = true; b.title = o.why; }
       else b.onclick = () => { pick(o); flyOpenSet(flyOpen); };
       w.appendChild(b);
@@ -6702,6 +6703,16 @@
     host.appendChild(w);
     return w;
   };
+  // 2026-09-20 (the day panel): a select of the flyout's own, and a native field (the date)
+  // dressed as the borrowed selects are - the shared panels (day_ui.js) ask for both
+  const flSelect = (host, label, options, get, set) => {
+    const r = flRow(host, label);
+    const s = document.createElement('select'); s.className = 'fsel';
+    for (const o of options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.label; s.appendChild(e); }
+    s.value = get(); s.onchange = () => set(s.value);
+    r.appendChild(s); return s;
+  };
+  const flField = (host, label, el) => { const r = flRow(host, label); el.className = 'fsel'; r.appendChild(el); return r; };
   const flNote = (host, txt) => {
     const n = document.createElement('div');
     n.className = 'fnote'; n.textContent = txt;
@@ -6842,35 +6853,15 @@
           'no reset.'
         : 'Changing the origin restarts the flight.');
     },
+    // 2026-09-20: THE DAY PANEL (day_ui.js) - the same panel the shed's `night` flyout mounts:
+    // the conditions (#selCond stays the keeper, pressed through its own change), the clock's
+    // presets, the hour, the date, the rate, and a door to the CLOUDS flyout. The brief's plate
+    // and the rail's day line follow through flRefreshDay. (#selTime is gone from #flStore: the
+    // presets are the panel's pills now, DAY_CLOCK the one state.)
     slot_day(body) {
-      flBorrow(flS('Cond'), flRow(body, 'standard day'));
-      // THE CLOCK (SKY chantier): the preset select IS the state (it lives in #flStore and is
-      // borrowed here), the hour scrubs the day's own local clock, the rate is how fast it runs
-      const CK = (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null;
-      if (CK && CK.day()) {
-        const sel = flS('Time');
-        sel.value = CK.nearestPreset();
-        sel.onchange = () => { CK.preset(sel.value); flRefreshDay(); };
-        flBorrow(sel, flRow(body, 'time of day'));
-        flRange(body, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => { CK.set({ localHours: v }); sel.value = CK.nearestPreset(); flRefreshDay(); },
-                v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
-        { const r = flRow(body, 'date'); const i = document.createElement('input'); i.type = 'date'; i.className = 'fsel'; i.value = CK.day().date;
-          i.onchange = () => { if (i.value) { CK.set({ date: i.value }); flRefreshDay(); } }; r.appendChild(i); }
-        flPills(body, CK.RATES.map(r => ({ label: r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x', value: r })),
-                o => o.value === CK.day().rate, o => CK.rate(o.value));
-        flNote(body, 'One clock for the shed and the world. It runs with play; ' +
-                     'the sun, the sky and the lights follow it.');
-        // THE CLOUDS (C4): the cover and the type are the day's - the weather the pilot flies
-        if (typeof CLOUD_FIELD !== 'undefined') {
-          flRange(body, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => { CK.set({ cloudCover: v }); flRefreshDay(); }, v => (v * 100).toFixed(0) + ' %');
-          flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })),
-                  o => o.value === CK.day().cloudType, o => { CK.set({ cloudType: o.value }); flRefreshDay(); });
-          flNote(body, 'The base is the dewpoint\'s (125 m a degree of spread); the type sets the thickness. ' +
-                       'The upper decks, the veil and the look are the CLOUDS flyout\'s.');
-        }
-      }
-      flNote(body, 'A day is air AND wind. The weather changes live — the ' +
-                   'pilot flies EAS and takes it mid-flight.');
+      if (!window.DAY_UI) { flBorrow(flS('Cond'), flRow(body, 'standard day')); return; }
+      window.DAY_UI.mount(body, { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField },
+        { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, open: flyOpenSet });
     },
     // -------- the rail --------------------------------------------------
     camera(body) {

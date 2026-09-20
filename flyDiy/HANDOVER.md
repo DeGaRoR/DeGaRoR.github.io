@@ -50496,3 +50496,40 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   rows while the flight's `day` slot has its own clock rows (date, hour, rate, presets) - one day
   panel for both rails is the next step of the same ruling; the flight rail has no NIGHT (the day
   slot is it) and the shed no CAMERA framing pills of the flight's kind.
+
+## G436.11 — ONE DAY PANEL ON BOTH RAILS (2026-09-20, the user: "yes, do the same for the day
+## panel on both rails")
+
+- src/viewer/day_ui.js (new): `DAY_UI.mount(host, H, ctx)`, the clouds panel's contract widened
+  by two helpers - H = { row, range, pills, note, select, field }, ctx = { day: DAY_CLOCK,
+  refresh, open(k) }. Three sections: CONDITIONS (a select mirroring #selCond's options; a pick
+  sets #selCond and fires its own change - world.setWeather stays the one handler, the plate's
+  flDay() still reads it), THE HOUR (the clock's eight presets as pills with the almanac hints
+  #selTime used to carry, the local hour, the date as a native field, the rate pills, a note
+  with DAY_CLOCK.label()), CLOUDS (one pill, "the clouds… (45 % cumulus)", opening the CLOUDS
+  flyout through ctx.open - the low deck's cover and type are that panel's now, one keeper).
+- app.js: slot_day mounts it with the flight's rows (flSelect and flField added: a select and a
+  native field dressed .fsel), refresh = flRefreshDay, open = flyOpenSet; flPills honours a
+  pill's title. The cover/type rows the day slot drew since C4 are gone from it (the clouds
+  panel has them). body.html: #selTime retired (nothing read it but the slot; DAY_CLOCK is the
+  state, the presets are pills). flight.css: the borrowed-select comment says what is borrowed.
+- editor.js: railRows() is the shed's row vocabulary for BOTH shared panels (row, range, pills,
+  note, select, field; a pick re-opens `flyOpen`, not a name - the day panel's clouds pill has
+  just opened a sibling), dayCtx() the shared context (refresh = syncNightLabel, open = openFly).
+  The NIGHT flyout opens on the day panel (buildDay) with an "in the shed" head over the three
+  borrowed light rows; `time of day` (the tree's MOOD select, which reached the clock through
+  hangar.js's mood table and overwrote the cloud cover on the way) is not borrowed any more -
+  the mood follows the clock each frame as it has since S5 (hangar.moodFor), the select stays
+  in the tree. The quick bar's `time` button presses the CLOCK (the preset after the nearest;
+  `state`/`why` declared for GATE VIEW rule 4) and re-opens the night flyout if it is up; the
+  mood select is its fallback for a build without a clock. editor.css: the date field in the
+  flyout dressed as the row select (color-scheme dark for the picker).
+- GATE CLOUD: the rule that read the cover off the day slot now reads it off the clouds panel,
+  plus seven day-panel rules (the sections and their writes, both mounts, railRows shared,
+  #selTime gone, the quick bar on the clock, day_ui.js in the build). 184 checks.
+- SEEN: screenshots/clouds-2026-09-20/ui/day_*.png - the shed's night flyout (day panel + light
+  rows), the flight's day slot, the quick bar's time press.
+- GATES: CLOUD / VIEW / LIGHT / GFX / HANGAR / UISMOKE green.
+- OWED: the flight rail has no NIGHT (the day slot is it) and the shed no CAMERA framing pills of
+  the flight's kind; the tree's mood select still couples the cloud cover (0.9 st / 0.2 cu) when
+  pressed by hand - retire the coupling or the select.
