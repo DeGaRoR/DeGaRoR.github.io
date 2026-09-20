@@ -79,7 +79,10 @@ const REAL = {
   stearman:  { name: 'Boeing-Stearman PT-17 (R-670 220 hp)', mtow: 1232, empty: 878, S: 27.6, b: 9.8, powerKW: 164,
                Vs1: 87, V75: 170, Vmax: 200, roc: 4.3, TO: 180, LDG: 150, LD: 7.5, engineMatch: true,
                src: 'type data: stall 55 mph, cruise 106, Vmax 124, 840 fpm' },
-  jodel:     { name: 'Jodel D.119 (O-200)', mtow: 650, empty: 360, S: 12.7, b: 8.2, powerKW: 75,
+  // the `jodel` CARD is the D.112 since G445.4 (the user's build, two seats
+  // on an A-65); the D.119 row it was measured against until then keeps
+  // its numbers under `d119` for the record
+  d119:      { name: 'Jodel D.119 (O-200)', mtow: 650, empty: 360, S: 12.7, b: 8.2, powerKW: 75,
                Vs1: 68, V75: 175, Vmax: 200, roc: 3.5, TO: 200, LDG: 150, LD: 11, T0: 1600, CdS: 0.45, engineMatch: true,
                src: 'type data D.119: stall 68 km/h, cruise 175, Vmax 200, 700 fpm, TO 200 m' },
   // the D.112 (2026-09-20, the user's Jodel build "should be a D112"): the
@@ -123,6 +126,7 @@ const REAL = {
                src: 'type data: stall 60 kn clean, 45 flaps, cruise 120 kn, Vmax 140, 1020 fpm, TO 560 ft' },
 };
 
+REAL.jodel = REAL.d112;                          // the card is the D.112 (G445.4)
 // THE PROBES live in tools/_perf_probe.js since chantier 2 (GATE DRAG reads
 // the same instruments): probeAt, alphaForLift, sweep/sweepAt, levelSpeedAt,
 // parasiteFit, ballast

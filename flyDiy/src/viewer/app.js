@@ -5123,8 +5123,12 @@
     // twitchy; negative is unflyable.
     const smCls = v => judge('static margin', v || 0);
     R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
-    if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
+    if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac)) {
       R('CG as loaded', n1((s.cgX - s.xLEmac) / s.cBar * 100, 0) + '% MAC');
+      // G445.7: the empty CG beside it — no one aboard, tanks dry, no freight
+      if (typeof s.cgEmptyX === 'number' && isFinite(s.cgEmptyX))
+        R('CG empty', n1((s.cgEmptyX - s.xLEmac) / s.cBar * 100, 0) + '% MAC');
+    }
     // G115: the directional half, at last — the fin was the one surface with
     // no readout. Measured Cn_beta (weathervane stiffness): the stock build
     // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative

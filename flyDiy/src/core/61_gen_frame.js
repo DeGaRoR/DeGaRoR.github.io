@@ -284,9 +284,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (!(opt && opt.noMass)) {
       // G351: the rear fuselage's gauge (GEN_RULES.fusAftGauge) on a
       // fuselage member aft of the cabin box
+      // G445.7 (the MASS chantier): ...AND IT FOLLOWS THE SECTION. A flat
+      // 0.6 aft of the box left 35 kg on the Jodel's tail cone (S3 to the
+      // post) where a plywood or tube cone weighs 11-15, and 31 on the Cub's:
+      // the lattice's members are as long per bay at the post as at the
+      // cabin, while a real cone's skin and frames shrink with its
+      // perimeter. The member's gauge is the local section's perimeter over
+      // the cabin box's (the joined profile where the build has one, the
+      // box-to-post taper where it has not), floored at fusAftPerimMin.
+      // Measured: the empty CG was 37 % of chord on the Cub AND the Jodel
+      // where the books say 24 and 26; the same 13 % on two constructions.
       const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
                     P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
-        ? R.fusAftGauge : 1;
+        ? R.fusAftGauge * perimK(0.5 * (P[a][0] + P[b][0])) : 1;
       // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
       // aeroplane's design gross. Pass 1 bills at 1 and records what would
       // follow the gauge; pass 2 bills at the solved factor.
@@ -301,6 +311,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
     }
   };
+  // G445.7: the aft fuselage's perimeter, relative to the cabin box's, at a
+  // station — an ellipse through the section's half-width and height (the
+  // joined `fuse.profile` rows: w, yb, yt over t from the box's rear to the
+  // tail post; a bake without one tapers the box linearly to the post's
+  // tailW / tailBot / tailTop). A fuselage-class member aft of the box bills
+  // its length at fusAftGauge x this, floored at GEN_RULES.fusAftPerimMin.
+  const perimK = (() => {
+    const fu = S.fuse || {}, cb = S.cab || {};
+    const hw0 = Math.max(0.05, cb.halfW || 0.5), h0 = Math.max(0.1, cb.h || 1.0);
+    const p0 = Math.PI * (hw0 + 0.5 * h0);
+    const x0 = fu.boxRear || 0, x1 = Math.max(x0 + 0.1, fu.tailArm || (x0 + 3));
+    const prof = Array.isArray(fu.profile) && fu.profile.length >= 2 ? fu.profile : null;
+    const floor = R.fusAftPerimMin == null ? 0.3 : R.fusAftPerimMin;
+    return x => {
+      const t = Math.max(0, Math.min(1, (x - x0) / (x1 - x0)));
+      let hw, h;
+      if (prof) {
+        let i = 1; while (i < prof.length - 1 && prof[i].t < t) i++;
+        const A = prof[i - 1], B = prof[i], u = Math.max(0, Math.min(1, (t - A.t) / Math.max(1e-6, B.t - A.t)));
+        hw = A.w + (B.w - A.w) * u; h = (A.yt - A.yb) + ((B.yt - B.yb) - (A.yt - A.yb)) * u;
+      } else {
+        const hw1 = fu.tailW != null ? fu.tailW : 0.05, h1 = (fu.tailTop != null && fu.tailBot != null) ? (fu.tailTop - fu.tailBot) : 0.4;
+        hw = hw0 + (hw1 - hw0) * t; h = h0 + (h1 - h0) * t;
+      }
+      const p = Math.PI * (Math.max(0, hw) + 0.5 * Math.max(0, h));
+      return Math.max(floor, Math.min(1, p / p0));
+    };
+  })();
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
   // file is already written component by component; tagging every call site
@@ -342,7 +380,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
     const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
-    const m0 = area * MB.cover, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
+    // G445.7: THE SKIN AFT OF THE CABIN IS SKIN. The fuselage row's cover
+    // (4.5 kg/m2 on alloy) "carries frames, doors, floors and windows" —
+    // the cabin's things — and was billed on the bare tail cone at the same
+    // rate: 36 kg of cone skin on the 172, its empty CG at 49 % of chord
+    // where a 172R's is 24. A body panel whose centroid is aft of the box
+    // takes the section's perimeter factor (perimK, floored at
+    // fusAftCoverMin): stringers and a thinner sheet, no doors.
+    let kA = 1;
+    if (SEC === 'fuselage' && S.fuse && S.fuse.boxRear != null && ids.length) {
+      let cx = 0; for (const i of ids) cx += P[i][0] / ids.length;
+      if (cx > S.fuse.boxRear) kA = Math.max(R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin, perimK(cx));
+    }
+    const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
     if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
       for (const i of ids) { G.x += p0 * P[i][0]; G.y += p0 * P[i][1]; G.z += p0 * P[i][2]; }

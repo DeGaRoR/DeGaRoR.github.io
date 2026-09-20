@@ -2261,6 +2261,16 @@ const GEN_RULES = {
   // the rear fuselage, the rod boom, the tail post. Stiffness is untouched
   // (the tubes' clusters hold the aft structure now, not the member gauge).
   fusAftGauge: 0.6,
+  // G445.7: ...times the local section's perimeter over the cabin box's
+  // (61_gen_frame perimK), floored here. A tube fuselage's longerons step
+  // down a gauge or two toward the post and its diagonals shorten; a
+  // plywood cone is its skin. 0.3 keeps the last bays at the post from
+  // billing nothing.
+  fusAftPerimMin: 0.3,
+  // ...and the same factor on the body COVER aft of the box (the row's
+  // kg/m2 carries the cabin's doors, floor and windows), floored higher: a
+  // bare skin with its stringers is about half the cabin panel's weight
+  fusAftCoverMin: 0.5,
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -2320,7 +2330,7 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
-  tailSection: 0.25,
+  tailSection: 0.20,   // G445.7: 16-20 kg read against the J-3's 14-16; 0.20 lands there
   // the prism's depth (the third chord under the stab, the pair either side
   // of the fin) as a fraction of the local chord — the WING's own box depth
   // (sparBoxDepth), because a lattice of constant-k members is stiff out of

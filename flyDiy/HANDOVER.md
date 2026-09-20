@@ -51484,3 +51484,23 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   D.112's ~12) and the tail cone 35 kg (~11), the same on the Cub, 13 % of chord aft
   on every aeroplane (empty CG 37 % on both; the books 24-26). With real masses the
   Jodel reads CG 21 / margin 15 — the D.112's own. The MASS chantier follows.
+
+## G445.7 — THE MASS CHANTIER: THE AFT FUSELAGE FOLLOWS ITS SECTION, THE TAIL WEIGHS WHAT
+## A TAIL WEIGHS, THE EMPTY CG ON THE PLAQUE (2026-09-20, the user: "start the mass chantier")
+
+- The diagnosis (JODEL-STUDY §4): the empty CG sat at 37 % of chord on the Cub AND the
+  Jodel (books 24 / 26) — the lattice billed tube by member length to the post and the
+  body cover at the cabin's kg/m2 on the bare cone; G351's flat 0.6 aft was a step, not
+  the shape. Three rules (61_gen_frame, GEN_RULES): a fuselage member aft of the box at
+  fusAftGauge x the local section's perimeter over the cabin box's (`perimK` off the
+  joined profile, floor fusAftPerimMin 0.3); a body cover panel aft of the box at the
+  same factor (floor fusAftCoverMin 0.5 — stringers and a thinner sheet, no doors);
+  tailSection 0.25 -> 0.20 (the J-3's 14-16 kg). genShakedown.cgEmptyX and a 'CG empty'
+  row on the plaque (app.js). Results: Jodel CG 34 -> 30 % (empty 37 -> 32, book 26),
+  margin 2 -> 6; Cub 31 -> 26 (empty 28, book 24), margin 18; 172 50 -> 43. Empties
+  within 3 % on the Cub and the Jodel; the 172 is 100 kg LIGHT and the missing mass is
+  forward (engine installation, panel, cabin fit-out) — the next MASS item. Every card's
+  CG moved 2-6 % forward; the pushers' and twins' negative margins predate this.
+- perf_study: the `jodel` card measures against the D.112 row (REAL.jodel = REAL.d112;
+  the D.119 kept as `d119`).
+- GATES: see the battery below.

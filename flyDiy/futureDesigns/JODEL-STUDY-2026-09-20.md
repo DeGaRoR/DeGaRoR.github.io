@@ -108,6 +108,44 @@ mass per metre tapering with the section (perimeter × covering + a frame
 per ring, not a tube lattice at the cabin's gauge to the post), (c) the
 empty CG printed on the plaque beside the loaded one, with the type's
 range where a REAL row has it. Every card's CG moves forward 5-13 % of
-chord; the pilot matrix moves with it. Not started here.
+chord; the pilot matrix moves with it.
+
+### 4.1 The chantier, done (G445.7)
+
+Three rules in 61_gen_frame's mass model, all measured on the three builds:
+
+1. **The aft lattice follows the section** — a fuselage member with both
+   ends aft of the cabin box bills at `fusAftGauge` (0.6, G351's flat cut)
+   × the local perimeter over the cabin box's (`perimK`: an ellipse through
+   the joined profile's w and yt−yb, or the box-to-post taper on a bake),
+   floored at `fusAftPerimMin` 0.3. The Jodel's aft members: 14 → 8 kg.
+2. **The aft skin is skin** — a body cover panel whose centroid is aft of
+   the box takes the same factor, floored at `fusAftCoverMin` 0.5 (the
+   row's kg/m² carries the cabin's doors, floor and windows; a cone has
+   stringers and a thinner sheet). The 172's cone skin: 36 → 18 kg.
+3. **The tail at the J-3's weight** — `tailSection` 0.25 → 0.20 (its own
+   note: 16-20 kg read against the J-3's 14-16). Cub 18 → 16, Jodel 20 → 17.
+
+And the EMPTY CG on the plaque beside the loaded one (`genShakedown.cgEmptyX`:
+the same spec with nobody aboard, dry tanks, no freight, built once).
+
+| | empty kg (book) | CG loaded | CG empty (book) | NP | margin |
+|---|---|---|---|---|---|
+| Jodel D.112, before → after | 329 → 326 (320) | 34 → 30 % | 37 → 32 % (26) | 36 | 2 → 6 % |
+| Cub, before → after | 342 → 339 (345) | 31 → 26 % | 37 → 28 % (24) | 44 | 13 → 18 % |
+| 172, before → after | 664 → 630 (736) | 50 → 43 % | 49 → 43 % (24-27) | 65 | 15 → 22 % |
+
+The Jodel's residual (32 vs 26 empty, margin 6 vs ~10): the tail's last
+5 kg at 4 m (17 vs a D.112's ~12) and the model's tail effectiveness (NP
+36 vs a real ~40) — 2-3 % of chord each. THE 172 IS THE OTHER WAY ROUND:
+100 kg LIGHT (630 vs 736) and that mass is forward — the engine
+installation (a 172R's engine+mount+cowl+prop+exhaust ~180 kg against the
+row's 138+prop), the panel and avionics (~30 kg against 11), the cabin's
+doors, glazing and four upholstered seats (outfit 74). Its empty CG at 43 %
+is missing forward mass, not carrying aft excess: the next MASS item, a
+forward one. Fleet: every card's CG moved 2-6 % of chord forward; the
+cards' pre-existing negative margins (pusherPod, da62, twinBush,
+skymaster, vtail at 0) are not touched by rules that only take aft mass
+away.
 - The 45 L nose tank reads "through the crew (105 points)" on the bench —
   the same ENERGY item as the Cub's.

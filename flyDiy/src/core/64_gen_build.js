@@ -518,6 +518,27 @@ function genShakedown(def, opts) {
     xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
     braceDCdA: g.braceDCdA || 0,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar, cBar,
+    // G445.7 (the MASS chantier): THE EMPTY CG beside the loaded one — the
+    // number a weight-and-balance sheet starts from, and the one that showed
+    // the model's bias (37 % of chord on the Cub AND the Jodel where the
+    // books say 24-26). The same spec with no one aboard, no fuel and no
+    // freight, built once; null on a fiche without the doors.
+    cgEmptyX: (() => {
+      try {
+        if (!S || !S.fuel) return null;
+        const cs = genSpecAtFuel(S, 0);
+        if (cs.cabin) {
+          if (Array.isArray(cs.cabin.occupied)) cs.cabin.occupied = cs.cabin.occupied.map(() => 0);
+          else cs.cabin.occupied = new Array(Math.max(1, cs.cabin.seats || 1)).fill(0);
+          cs.cabin.baggage = 0;
+        }
+        if (cs.cargo) cs.cargo.kg = 0;
+        cs.baggage = 0; cs.cargoKg = 0;
+        const dE = buildGen(cs);
+        const sE = makeSim(dE, null); sE.reset(0);
+        return sE.cgPos()[0];
+      } catch (e) { return null; }
+    })(),
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),
