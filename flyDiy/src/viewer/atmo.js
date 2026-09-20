@@ -547,6 +547,7 @@ var ATMO = (function () {
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
     if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
     if (typeof CLOUDS !== 'undefined' && CLOUDS.inject) CLOUDS.inject(sh);   // the clouds' shadow sampler rides the same two paths (C2)
+    if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.inject) SHADOW_NEAR.inject(sh);   // the craft's near map flag (A6)
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
 

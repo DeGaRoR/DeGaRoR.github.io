@@ -33,6 +33,9 @@ if (!CHROME) { console.error('cloud_shot: no Chrome'); process.exit(2); }
 const udd = path.join(require('os').tmpdir(), 'cdp_shot_' + PORT + '_' + Date.now());
 const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1920,1080', '--hide-scrollbars',
   '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', 'about:blank'], { stdio: 'ignore' });
+// Chrome's renderer and GPU children outlive a plain kill on Windows (fifty of them were found eating the box
+// after a day of runs): the whole tree goes
+const killChrome = () => { try { if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else killChrome(); } catch (e) { try { killChrome(); } catch (e2) {} } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej); });
 (async () => {
@@ -64,7 +67,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       const file = path.join(OUT, s.name + '.png'); fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
       console.log('cloud_shot: ' + file + '  ' + await ev("JSON.stringify({clouds: !!(window.CLOUDS && CLOUDS.active), shed: !!document.querySelector('#c'), text: document.body.innerText.slice(0, 80)})"));
     }
-    ws.close(); ch.kill(); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
+    ws.close(); killChrome(); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
     return;
   }
   let flying = false;
@@ -106,6 +109,6 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     console.log('cloud_shot: ' + file + '  ' + info);
     if (argv.includes('--probe')) console.log('  probe ' + await ev("JSON.stringify(CLOUDS.probe())"));
   }
-  ws.close(); ch.kill();
+  ws.close(); killChrome();
   try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
-})().catch(e => { console.error('cloud_shot: ' + e.message); ch.kill(); process.exit(1); });
+})().catch(e => { console.error('cloud_shot: ' + e.message); killChrome(); process.exit(1); });

@@ -538,6 +538,29 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sc.left = -110; sc.right = 110; sc.top = 110; sc.bottom = -110;
     sc.near = 20; sc.far = 1500; sc.updateProjectionMatrix(); }
   scene.add(sun); scene.add(sun.target);
+  // THE CRAFT'S OWN SHADOW MAP (A6, shadow_near.js): a black second light with a 2048^2 map over a 60 m
+  // box round the CG - the far map above keeps its 0.2-1 m texels for the world; the craft reads only
+  // its own. The field's plain caster meshes are tagged into it as they appear (nearTag, below).
+  const sunNear = (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.make) ? SHADOW_NEAR.make(scene) : null;
+  // (every 30 frames: the plain caster meshes within 90 m of the CG join the near layer, the rest leave it -
+  // the far map already holds every shadow the world casts, the near map exists for the craft and for what
+  // shades the CRAFT (it reads the near map alone: the club hangar over a parked aeroplane); tagging all
+  // 3 600 casters drew 218 meshes / 300 k triangles a frame into the near map)
+  let nearTagTick = 0;
+  const _nS = THREE.Sphere ? new THREE.Sphere() : null;   // (the headless world test's THREE stub has no Sphere)
+  const nearTag = cg => {
+    if (!sunNear || !_nS || (nearTagTick++ % 30)) return;
+    const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3;
+    scene.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || !o.castShadow || !o.geometry || o.userData.craft) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      if (!o.geometry.boundingSphere) return;
+      _nS.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+      const dx = _nS.center.x - cg[0], dy = _nS.center.y - cg[1], dz = _nS.center.z - cg[2];
+      const near = Math.sqrt(dx * dx + dy * dy + dz * dz) - _nS.radius < R;
+      if (near !== o.layers.isEnabled(NL)) { if (near) o.layers.enable(NL); else o.layers.disable(NL); }
+    });
+  };
 
   // ---- THE WORLD'S SWITCHBOARD -------------------------------------------
   // The shed has had one since G62.3 and the world has never had anything: no
@@ -3922,6 +3945,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sun.target.position.copy(_sT);
     sun.position.set(_sT.x + SUN.x * 700, _sT.y + SUN.y * 700, _sT.z + SUN.z * 700);
     uShadowR.value = half;
+    if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera); nearTag(cg); }
     farRender(uCam.value);
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
       shadowHalf = half;
@@ -4080,6 +4104,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
       sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    }
+    // the craft's near map follows the tier (A6): half the far map's side - 512 under `near`, 1024 under
+    // `full` (6 cm a texel over the 60 m box), 2048 under `ultra` (3 cm); the 2048 pass drew 218 meshes /
+    // 300 k triangles at 2.7 ms in the headless rig
+    if (sunNear && R.shadowMap && sunNear.shadow.mapSize.x !== Math.max(512, Math.min(2048, R.shadowMap / 2))) {
+      const n = Math.max(512, Math.min(2048, R.shadowMap / 2)); SHADOW_NEAR.S.size = n; sunNear.shadow.mapSize.set(n, n);
+      if (sunNear.shadow.map) { sunNear.shadow.map.dispose(); sunNear.shadow.map = null; }
     }
     if (worldSky && R.dome && worldSky.material.uniforms && worldSky.material.uniforms.uTop) {
       const u = worldSky.material.uniforms;

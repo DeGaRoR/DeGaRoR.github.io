@@ -3750,6 +3750,7 @@
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
       if (mm > 0 && typeof window !== 'undefined') window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; }
     if (model) craft.add(model.grp);
+    if (model && window.SHADOW_NEAR) SHADOW_NEAR.tagCraft(craft);   // A6: the craft casts into its own 3 cm shadow map and reads only that one
     // THE COCKPIT (the panel arc, session 4): the readings, the switches,
     // the bus and the lamps bind to this aeroplane; the altimeter's datum
     // is the field it stands on. Absent the module (the smoke gate) nothing

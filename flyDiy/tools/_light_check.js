@@ -450,6 +450,23 @@ if (process.argv.includes('--selftest')) {
 //     __lit.sweep()     // belly as a % of the wing's own top, every mood
 //     __lit.ablate(4)   // NIGHT, from black, one source at a time
 // A belly above ~25% of the top in any mood means it has come back.
+// ---- 6. THE CRAFT'S OWN SHADOW MAP (A6, 2026-09-20: shadow_near.js) --------------------------
+// The world's far map (0.2-1 m texels) stepped its shadow across the aeroplane a texel at a time
+// ("the shadows refresh every so many metres"). A black second light casts a 60 m map round the CG;
+// the craft reads that map ALONE (CRAFT_NEAR_ONLY), the world reads min(near, far) inside the box.
+{
+  const near = read('shadow_near.js'), world = read('render_world.js'), app = read('app.js'), atmo = read('atmo.js'), build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+  check(/new THREE\.DirectionalLight\(0x000000, 1\)/.test(near) && /c\.layers\.set\(NEAR_LAYER\)/.test(near), 'near: a black light whose shadow camera sees the near layer only');
+  check(/#ifdef CRAFT_NEAR_ONLY\s+directLight\.color \*= sNear;/.test(near) && /directLight\.color \*= inNear \? min\( sNear, sFar \) : sFar;/.test(near), 'near: the craft reads the near map alone, the world min(near, far) inside the box');
+  check(/if \( uNearP\.x > 0\.5 \)/.test(near) && /UNROLLED_LOOP_INDEX == 1/.test(near), 'near: the rule is gated on the live flag (the shed has no near light) and skips the black light\'s own iteration');
+  check(/mat\.defines\.CRAFT_NEAR_ONLY = 1; mat\.needsUpdate = true;/.test(near) && /m\.receiveShadow = true;/.test(near), 'near: the craft\'s materials take the define and receive their own shadow (the opaque casters)');
+  check(/throwM > S\.half \* 0\.7/.test(near) && /m\.layers\.disable\(0\)/.test(near), 'near: the craft leaves the far map while its ground shadow lies inside the box');
+  check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
+  check(/nearTag = cg =>/.test(world) && /_nS\.radius < R/.test(world) && /Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes within reach of the CG; the map is half the tier\'s far map');
+  check(/SHADOW_NEAR\.tagCraft\(craft\)/.test(app), 'app: the craft is tagged when the model joins the world');
+  check(/SHADOW_NEAR\.inject\(sh\)/.test(atmo), 'atmo: the near flag rides the inject chain');
+  check(/'shadow_near\.js'/.test(build), 'build: shadow_near.js is in the page');
+}
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE LIGHT: FAIL');

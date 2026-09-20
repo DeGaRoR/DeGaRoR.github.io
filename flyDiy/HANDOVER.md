@@ -50271,3 +50271,42 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   `--garage` mode boots the shed without a roll-out - but the garage's frame does not advance under
   headless Chrome (a select change, the dusk preset and BENCH_CHANGED() all left the first frame);
   after a roll-out and THE SHED it does. A2's camera-outside-the-shed bug is visible there (owed to A2).
+
+
+## G436.3 — THE CRAFT'S OWN SHADOW MAP (2026-09-20, A6 item 1: "the shadows refresh every so many
+## metres")
+
+- THE CAUSE, as the triage read it: one 2048 map over a 1080 m box (RIG.shadowMin 540 since W0c.31)
+  - 0.53 m texels, PCF, snapped - so a shadow on the aeroplane re-quantised a texel at a time as it
+  moved. Found on the way: the craft never RECEIVED a shadow at all (three's default; no wing on
+  the fuselage ever), and in the rig its ground shadow from the far map was absent too (bias?
+  headless? - not chased: the near map carries it now).
+- src/viewer/shadow_near.js (new): a BLACK second DirectionalLight (it lights nothing) with a
+  map over a 60 m box round the CG (512 / 1024 / 2048 by the GRAPHICS shadow tier - half the far
+  map's side: 3-12 cm a texel), snapped to its own texels, its shadow camera on NEAR_LAYER (3) so
+  only what is tagged casts into it: the craft (app.js tags the group when the model joins the
+  world; the craft's meshes gain receiveShadow and the define CRAFT_NEAR_ONLY) and the plain
+  caster meshes within 90 m of the CG (render_world nearTag, every 30 frames - the club hangar
+  over a parked aeroplane; the far map keeps the trees and everything else). ONE patch of
+  lights_fragment_begin for the sun (light 0): a craft material reads the near map ALONE (never
+  the far map's stepping on its skin), everything else min(near, far) inside the box and far
+  outside; the black light's own iteration (shadow + BRDF) is skipped; uNearP.x gates the rule
+  (the shed's scene has no near light; the flag rides ShaderLib + ATMO's inject chain). The craft
+  leaves layer 0 (the far map) while its ground shadow lies inside the box (under 40 m AGL and a
+  sun not throwing it past the box's edge) - the far map's coarse copy would bloat the crisp
+  edges (min is a union) - and rejoins it above, so its shadow far below still exists, coarse.
+  The main camera sees the craft through NEAR_LAYER whatever layer 0 says.
+- SEEN (screenshots/clouds-2026-09-20/shadow/sheet_near.jpg): the parked Cub's shadow on the
+  grass - none from the far map, crisp struts / wheels / wing from the near one; the wing's
+  shadow on the fuselage side; from above the wing on the ground with the fuselage's outline.
+- COST: with every plain caster tagged the pass drew 218 meshes / 300 k triangles at ~2.7 ms in
+  the headless rig (CPU-bound, other sessions' rigs on the box - the numbers were noise after
+  that: 50 stray headless Chromes were found; cloud_shot.js kills its tree now); the reach rule
+  leaves the craft alone at the Jolene stand (0 other casters). A proper GPU number is D1's.
+- GATE LIGHT section 6 (ten rules on the module, the world, the app, atmo, the build); GATE
+  WORLDRENDER's stub has no THREE.Sphere (guarded); GATE CLOUD's shed rule updated to G436.2.
+- OWED: the near map under `shadows: near` could be 512 at 12 cm - judge on a slow box; the
+  reflection probe's camera does not see NEAR_LAYER (the craft leaves the water's reflection
+  below 40 m AGL - a line in atmo.js's probe if it shows); the far map's missing craft shadow at
+  HEAD (bias -0.0009 over a 1480 m range = 1.3 m) deserves a look when the ground shadow at
+  altitude is judged.
