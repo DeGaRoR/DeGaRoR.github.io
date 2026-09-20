@@ -421,7 +421,10 @@ function facesMaterial() {
   const cv = atlas();
   atlasTex = new THREE.CanvasTexture(cv);
   atlasTex.colorSpace = THREE.SRGBColorSpace;
-  atlasTex.anisotropy = 8;
+  // G442.2 (A3, the playtest: "the numerals are blurred, not HD"): the card's
+  // full anisotropy (16 on this class of card; the plate is read at 25-40
+  // deg from the eye and 8 taps smeared the numerals along the tilt)
+  atlasTex.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 16;
   atlasTex.flipY = true;
   // THE FACE IS LIT, NOT GLOWING (G298): no emissiveMap. The atlas's alpha
   // carries the posts' irradiance (_panel_gen.js postIrradiance); the hook
@@ -466,10 +469,18 @@ function needleAt(g, deg, dim) {
   m.emissiveIntensity = dim * 0.9 * (G.postIrrAt ? G.postIrrAt(deg, NEEDLE_R) : 1);
   return m;
 }
+// G442.2: THE FACE IS SAMPLED SHARP. A 79 mm face is 512 px in the atlas
+// (6.5 px/mm) and reads at ~3 px/mm from the eye: the mip chain picks level
+// 1, a box-filtered half, and the numerals go soft ("not HD"). A mip bias of
+// -1 on the face's own sample keeps level 0 up to twice the screen density
+// (the anisotropic taps above keep it from shimmering); memory unchanged.
+// The chunk is inlined so the one texture2D becomes a biased texture().
+const FACES_MAP_FRAGMENT = () => (THREE.ShaderChunk.map_fragment || '#include <map_fragment>')
+  .replace('texture2D( map, vMapUv )', 'texture( map, vMapUv, -1.0 )');
 const FACES_HOOK = function (shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <map_fragment>',
-             '#include <map_fragment>\n  float aeroIrr = diffuseColor.a; diffuseColor.a = 1.0;')
+             FACES_MAP_FRAGMENT() + '\n  float aeroIrr = diffuseColor.a; diffuseColor.a = 1.0;')
     .replace('#include <emissivemap_fragment>',
              '  totalEmissiveRadiance *= diffuseColor.rgb * aeroIrr * 2.2;');
 };
@@ -483,10 +494,13 @@ function postsAt(bag, lensBag, cx, cy, zB, r) {
     const a = clockRad(deg);
     const rd = [-Math.sin(a), Math.cos(a), 0];                // out from the centre
     const base = [cx + rd[0] * r * 0.93, cy + rd[1] * r * 0.93, zB - 0.0085];
-    // the barrel leans 28 deg inward, 7 mm long, 2.2 mm radius
+    // the hood leans 28 deg inward - 5 mm long, 2.0 mm radius, MATTE BLACK
+    // (G442.2, the playtest: "two little horn protrusions at 10 and 2, what
+    // are these?" - the plated 7 mm barrels read as horns; a post light is
+    // a small black hood with its lens under it)
     const ax = nrm3([-rd[0] * 0.47, -rd[1] * 0.47, -0.88]);
-    K.revolve(bag, base, ax, [[0.0022, 0], [0.0022, 0.0060], [0.0016, 0.0070], [0, 0.0070]], 12, false);
-    const tip = [base[0] + ax[0] * 0.0072, base[1] + ax[1] * 0.0072, base[2] + ax[2] * 0.0072];
+    K.revolve(bag, base, ax, [[0.0020, 0], [0.0020, 0.0042], [0.0014, 0.0050], [0, 0.0050]], 12, false);
+    const tip = [base[0] + ax[0] * 0.0052, base[1] + ax[1] * 0.0052, base[2] + ax[2] * 0.0052];
     K.revolve(lensBag, tip, ax, [[0.0015, -0.0004], [0.0015, 0.0008], [0.0009, 0.0016], [0, 0.0020]], 10, false);
   }
 }
@@ -1520,7 +1534,7 @@ function build(parent, A, P, pilotX) {
       // the posts on every round face's bezel (G298)
       if (!d.coaming) {
         postsAt(post, postLens, cx, cy, zB, r);
-        post.mesh(dg, matFor('barrel'));
+        post.mesh(dg, matFor('hub'));                    // G442.2: a black hood, not a plated horn
         const CL = window.CAGE_LIGHT;
         postLens.mesh(dg, CL && CL.lensMat ? CL.lensMat('instr', faceDim(P), 0xffc47a) : matFor('needle'));
       }
@@ -1598,7 +1612,7 @@ function build(parent, A, P, pilotX) {
       nb.mesh(g, needleAt(g, degH, faceDim(P)));         // lit by the posts (G305)
       g.rotation.z = clockRad(degH);
     }
-    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.06);
+    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.10);   // G442.2: the cap hides the tails
     meshDial();
   }
   // ---- the switch row, each on the plate under it

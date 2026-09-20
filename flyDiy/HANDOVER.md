@@ -51108,3 +51108,31 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   potentiometer glow, the 7-char registration, graduations by units, PBR on every control, the
   dash controls bindable (input.js); the key's bow above.
 
+
+## G442.2 — A3 PART 3: THE NUMERALS SHARP, THE HUB CAP, THE POST LIGHTS, THE YOKE'S BOOT (2026-09-20)
+
+- THE BLUR (P1, "not HD"): a 79 mm face is 512 px in the atlas (6.5 px/mm) and reads at ~3 px/mm
+  from the eye at 1x, so the mip chain took level 1 - a box-filtered half. The faces' own sample
+  is biased -1 (THREE.ShaderChunk.map_fragment inlined in FACES_HOOK, `texture(map, uv, -1.0)`)
+  and the atlas takes the card's full anisotropy (FLYDIY_ANISO, 16) instead of 8. Measured at 1x
+  on the Cub's six-pack (tools/panel_shot.js --scale 1 --look 22, the same clip): mean |Laplacian|
+  12.13 -> 14.97 (+23 %), no memory. NOT done: 1024-px slots for the primary six (a 4096 x 4096
+  atlas, 85 MB with mips) - the next step if the user still finds it soft; the bias keeps level 0
+  up to twice the screen density, so a denser atlas would show.
+- "THE AIRSPEED NEEDLE CROSSES THROUGH THE DIAL" (P2): the hand's counterweight tail (0.18 r)
+  poked out the far side of a 0.06 r hub and the needle read as a bar across the face. The hub
+  cap is 0.10 r now, painted (_panel_gen hub) and drawn (hubAt) alike, every tail 0.08 r under it.
+- "THE HORNS AT 10 AND 2" (P2): they are the POST LIGHTS of G298 (the user's "light them from
+  inside the dial, like IRL") - plated 7 mm barrels leaning over the bezel. Now 5 mm matte black
+  hoods (matFor('hub')), the lens under each unchanged.
+- THE YOKE (P1, "renders into the panel"): its collar stood at A.zDash, which is not where the
+  measured plate is at the column's height - it is at F.depthAt(sx, yY) - 1 mm now (the
+  throttle's rule), and the column's footprint (+-48 mm) joins A.keepOut so no dial and no switch
+  is placed on the boot. cessna (2): the row ends at 0.195, the boot starts at 0.207. "Absent
+  in the garage" NOT reproduced here (the rig shoots the flight; the shed's interior preset is
+  the place to look) - owed.
+- PROOF (screenshots/panel-2026-09-20/): blur_before_1x / blur_after_1x, hub_cap_posts (build (4)
+  at 25 kt: the hands out of a cap, the black hoods), c2_yoke.
+- GATE PANEL green (no new checks: the bias and the hoods are looks, the hub is a number the
+  existing hand checks ride). PANEL UISMOKE JOIN CABIN SKINMAT LIGHT green.
+

@@ -155,29 +155,29 @@ function scaleOf(key, units, o) {
 // 'symbol' }. Two-axis parts (the attitude ball) carry `drive2`.
 // ---------------------------------------------------------------------------
 const FACES = {
-  asi:    { painter: 'asi', hands: [{ name: 'needle', drive: 'ias', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 }] },
+  asi:    { painter: 'asi', hands: [{ name: 'needle', drive: 'ias', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 }] },
   alt:    { painter: 'alt', hands: [
-              { name: 'h100', drive: 'alt', law: 'turn', per: 1000, L: 0.86, w: 0.05, tail: 0.15 },
-              { name: 'h1k',  drive: 'alt', law: 'turn', per: 10000, L: 0.58, w: 0.09, tail: 0.10 },
+              { name: 'h100', drive: 'alt', law: 'turn', per: 1000, L: 0.86, w: 0.05, tail: 0.08 },
+              { name: 'h1k',  drive: 'alt', law: 'turn', per: 10000, L: 0.58, w: 0.09, tail: 0.08 },
               { name: 'h10k', drive: 'alt', law: 'turn', per: 100000, L: 0.90, w: 0.025, tail: 0.0 }] },
-  vsi:    { painter: 'vsi', hands: [{ name: 'needle', drive: 'vs', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 }] },
+  vsi:    { painter: 'vsi', hands: [{ name: 'needle', drive: 'vs', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 }] },
   ai:     { painter: 'ai', hands: [{ name: 'ball', kind: 'drum', drive: 'roll', drive2: 'pitch', law: 'ball' }] },
   aiE:    { painter: 'ai', hands: [{ name: 'ball', kind: 'drum', drive: 'roll', drive2: 'pitch', law: 'ball' }] },
   turn:   { painter: 'turn', hands: [{ name: 'plane', kind: 'symbol', drive: 'r', law: 'lin', L: 0.7, w: 0.06 }] },
   dg:     { painter: 'dg', hands: [{ name: 'card', kind: 'card', drive: 'hdg', law: 'card' }] },
   compass:{ painter: 'compass', hands: [{ name: 'card', kind: 'drumV', drive: 'hdg', law: 'card' }] },
-  tacho:  { painter: 'tacho', hands: [{ name: 'needle', drive: 'rpmEng', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 }] },
-  gmeter: { painter: 'gmeter', hands: [{ name: 'needle', drive: 'nz', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 },
+  tacho:  { painter: 'tacho', hands: [{ name: 'needle', drive: 'rpmEng', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 }] },
+  gmeter: { painter: 'gmeter', hands: [{ name: 'needle', drive: 'nz', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 },
                                        { name: 'max', drive: 'nzMax', law: 'lin', L: 0.82, w: 0.03, tail: 0.0 },
                                        { name: 'min', drive: 'nzMin', law: 'lin', L: 0.82, w: 0.03, tail: 0.0 }] },
-  oilP:   { painter: 'oilP', hands: [{ name: 'needle', drive: 'oilP', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
-  oilT:   { painter: 'oilT', hands: [{ name: 'needle', drive: 'oilT', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
-  fuel:   { painter: 'fuel', hands: [{ name: 'needle', drive: 'fuelFrac', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
-  volts:  { painter: 'volts', hands: [{ name: 'needle', drive: 'volts', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
+  oilP:   { painter: 'oilP', hands: [{ name: 'needle', drive: 'oilP', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  oilT:   { painter: 'oilT', hands: [{ name: 'needle', drive: 'oilT', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  fuel:   { painter: 'fuel', hands: [{ name: 'needle', drive: 'fuelFrac', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  volts:  { painter: 'volts', hands: [{ name: 'needle', drive: 'volts', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
   clock:  { painter: 'clock', hands: [
-              { name: 'hour', drive: 'clockH', law: 'turn', per: 12, L: 0.55, w: 0.08, tail: 0.12 },
-              { name: 'minute', drive: 'clockM', law: 'turn', per: 60, L: 0.85, w: 0.06, tail: 0.15 },
-              { name: 'second', drive: 'clockS', law: 'turn', per: 60, L: 0.88, w: 0.02, tail: 0.2 }] },
+              { name: 'hour', drive: 'clockH', law: 'turn', per: 12, L: 0.55, w: 0.08, tail: 0.08 },
+              { name: 'minute', drive: 'clockM', law: 'turn', per: 60, L: 0.85, w: 0.06, tail: 0.08 },
+              { name: 'second', drive: 'clockS', law: 'turn', per: 60, L: 0.88, w: 0.02, tail: 0.08 }] },
   // the radios: a face with a window, no hands yet (session 5 paints the
   // digits live)
   com:    { painter: 'com', hands: [] },
@@ -569,9 +569,13 @@ function unitText(g, F, txt, dy, k) {
   g.font = `500 ${Math.round(F.r * (k || 0.11))}px ${FONT}`;
   g.fillText(txt, F.cx, F.cy + F.r * (dy == null ? 0.42 : dy));
 }
+// THE HUB CAP (G442.2, the playtest: 'the airspeed needle crosses through the
+// dial'): a hand's counterweight tail poked out the far side of a 0.06 r hub
+// and the needle read as a bar across the face - the cap is 0.10 r, the size
+// a real instrument's is, and every tail (0.08 r) hides under it
 function hub(g, F, k) {
   g.fillStyle = '#2a2d33';
-  g.beginPath(); g.arc(F.cx, F.cy, F.r * (k || 0.06), 0, 2 * Math.PI); g.fill();
+  g.beginPath(); g.arc(F.cx, F.cy, F.r * (k || 0.10), 0, 2 * Math.PI); g.fill();
 }
 
 const PAINT = {
@@ -757,13 +761,13 @@ const PAINT = {
     const F = faceBase(g, R);
     ticks(g, F, 'oilP', units, o, { fontK: 0.17 });
     unitText(g, F, 'OIL', -0.30, 0.13); unitText(g, F, scaleOf('oilP', units, o).unit, 0.36, 0.11);
-    hub(g, F, 0.08);
+    hub(g, F, 0.10);
   },
   oilT(g, R, units, o) {
     const F = faceBase(g, R);
     ticks(g, F, 'oilT', units, o, { fontK: 0.17 });
     unitText(g, F, 'OIL TEMP', -0.30, 0.11); unitText(g, F, '°C', 0.36, 0.12);
-    hub(g, F, 0.08);
+    hub(g, F, 0.10);
   },
   fuel(g, R, units, o) {
     const F = faceBase(g, R);
@@ -773,13 +777,13 @@ const PAINT = {
       labelOf: v => String(Math.round(v * 10) / 10) });
     unitText(g, F, S.title || 'FUEL', 0.30, 0.14);
     if (S.unit) unitText(g, F, S.unit, 0.52, 0.10);
-    hub(g, F, 0.08);
+    hub(g, F, 0.10);
   },
   volts(g, R, units, o) {
     const F = faceBase(g, R);
     ticks(g, F, 'volts', units, o, { fontK: 0.17 });
     unitText(g, F, 'VOLTS', 0.36, 0.11);
-    hub(g, F, 0.08);
+    hub(g, F, 0.10);
   },
   clock(g, R, units, o) {
     const F = faceBase(g, R);
@@ -793,7 +797,7 @@ const PAINT = {
       if (big) { const [lx, ly] = pol(cx, cy, r * 0.62, a); g.font = `600 ${Math.round(r * 0.19)}px ${FONT}`; g.fillText(String(i / 5 || 12), lx, ly); }
     }
     unitText(g, F, '8 DAY', 0.40, 0.09);
-    hub(g, F, 0.07);
+    hub(g, F, 0.10);
   },
   // the radios: a dark controller face with a lit window, digits static
   // until session 5 makes them live

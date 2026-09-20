@@ -775,17 +775,25 @@ function buildYoke(g0, A, P, sx) {
   const yY = A.waistY - 0.04;
   const zHub = A.zBack + 0.54;
   // the column: a steel tube through a plated collar on the panel's face,
-  // three screws round the collar (session 4e)
+  // three screws round the collar (session 4e). G442.2 (the playtest: "the
+  // yoke renders into the panel"): the collar sits at the PLATE'S OWN DEPTH
+  // where the column meets it (A.face.depthAt, the throttle's rule) - at
+  // A.zDash it stood inside a plate that is not at zDash there - and the
+  // column's footprint is published (A.keepOut, below) so no dial and no
+  // switch is placed where the boot is.
+  const F = A.face || null;
+  const zCol = F && F.depthAt ? F.depthAt(sx, yY) - 0.001 : A.zDash;
   {
     const K = window.GEAR_KIT;
-    tube(g, K ? M.frame : M.ctrl, [sx, yY, A.zDash + 0.05], [sx, yY, zHub], 0.0125);
+    tube(g, K ? M.frame : M.ctrl, [sx, yY, zCol + 0.05], [sx, yY, zHub], 0.0125);
     if (K) {
       const col = K.Bag();
-      K.revolve(col, [sx, yY, A.zDash], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
-      for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, A.zDash - 0.004], [0, 0, -1], 0.0025, 0.002); }
+      K.revolve(col, [sx, yY, zCol], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
+      for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, zCol - 0.004], [0, 0, -1], 0.0025, 0.002); }
       col.mesh(g, M.plated);
     }
   }
+  if (Array.isArray(A.keepOut)) A.keepOut.push({ x0: sx - 0.048, x1: sx + 0.048, y0: yY - 0.048, y1: yY + 0.048, what: 'yoke' });
   // G240: A YOKE DOES NOT SWING, IT SLIDES AND SPINS. Pitch is the column
   // running in and out of the panel — a translation, which a rigid part can
   // carry as easily as a rotation once the contract allows one — and roll is
@@ -3061,6 +3069,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // The throttle stays single — one engine, one lever — and belongs to
   // the pilot's station.
   const stickMode = Math.round(P.ctlStick), thrMode = Math.round(P.ctlThr);
+  A.keepOut = [];                                       // G442.1/.2: the controls' footprints on the plate, for the panel's layout
   const mkStation = seat => {
     // NAMED (G113): the station's stick and pedals under one wrapper, so a
     // control resolves to the Controls part when clicked
@@ -3125,7 +3134,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // The knob stands 0.72 x thrLen out of the plate: seen from the pilot's
   // eye above, it covers the plate ABOVE its own height as well - the band
   // reaches up by half that stand-off (the eye's depression is ~30 deg).
-  A.keepOut = [];
+  A.keepOut = A.keepOut || [];
   if (thrMode === 1 && thr && thr.obj && thr.obj.parent && thr.obj.parent.position) {
     const p = thr.obj.parent.position, m = 0.045;      // the moving group sits on the pivot: the collar's x / y
     const out = (P.thrLen != null ? P.thrLen : 0.16) * 0.72;
