@@ -50310,3 +50310,23 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   below 40 m AGL - a line in atmo.js's probe if it shows); the far map's missing craft shadow at
   HEAD (bias -0.0009 over a 1480 m range = 1.3 m) deserves a look when the ground shadow at
   altitude is judged.
+
+
+## G436.4 — THE SUN THROUGH EVERY MATERIAL, AND THE CRAFT BACK ON LAYER 0 (2026-09-20, A6 item 2)
+
+- THE FLARE (sky_glare.js) is gated on five rays from the eye toward the sun against the craft; a
+  Raycaster honours material.side and the skin is FrontSide, so from INSIDE the cabin every hit was
+  a back face and the ray came back clear: in the cockpit view the flare shone through the roof
+  ("the sun shows through every material, including non transparent"). A second ray is cast BACK
+  from 60 m out along the sun toward the eye - it meets the skin's outside face first - and a hit
+  short of the eye occludes; glass (a transparent material under 0.8 opacity) is not an occluder on
+  either ray, so the sun still flares through the windscreen. Measured in the game: cockpit, the
+  head turned to the sun through the roof: vis 0.00 (was 0.99); the eye under the wing: 0.00; the
+  free eye at the sun: 1.00.
+- FOUND ON THE WAY: G436.3's first cut took the craft OFF LAYER 0 under 40 m AGL (to keep it out of
+  the far map) - and a Raycaster tests layer 0 by default: the flare's rays, and the cockpit's
+  click / hover picks, would have missed the craft. Now the far map's camera sees FAR_LAYER (2),
+  which render_world's nearTag puts on every caster but the craft (the same 30-frame traversal
+  that tags the near casters; a new caster shades nothing for at most half a second), and the
+  craft joins / leaves FAR_LAYER instead. Layer 0 is never touched.
+- GATE LIGHT section 6: the far layer, the never-layer-0 rule, the glare's second ray.

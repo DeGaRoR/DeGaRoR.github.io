@@ -54,14 +54,26 @@ var SKY_GLARE = (function () {
     return true;
   }
   const V3 = () => ((typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null);
-  const _v = V3(), _d = V3();
+  const _v = V3(), _d = V3(), _d2 = V3();
   // one ray: the aeroplane / the shed by raycast, the terrain by its profile along the ray
+  // A6 (2026-09-20, the playtest: "the sun shows through every material, including non transparent" -
+  // the cockpit view): a Raycaster honours material.side, and the skin is FrontSide - from INSIDE the
+  // cabin every hit was a back face and the ray came back clear, so the flare shone through the roof.
+  // A second ray is cast BACK from 60 m out along the sun toward the eye: it meets the skin's outside
+  // face first; a hit short of the eye is an occluder. Glass lets the light through (the windscreen:
+  // a transparent material under 0.8 opacity is not an occluder on either ray).
+  const _o2 = V3();
+  const solidHit = h => { const m = h.object.material; const mm = Array.isArray(m) ? m[0] : m; return !(mm && mm.transparent && mm.opacity < 0.8); };
   function rayClear(origin, dir) {
     const occ = occluders() || [];
     if (occ.length && _ray.o) {
-      _ray.o.set(origin, dir);
-      const hits = _ray.o.intersectObjects(occ, true);
-      for (const h of hits) if (h.object.visible && h.distance > 0.3) return false;
+      _ray.o.set(origin, dir); _ray.o.far = 8000;
+      let hits = _ray.o.intersectObjects(occ, true);
+      for (const h of hits) if (h.object.visible && h.distance > 0.3 && solidHit(h)) return false;
+      _o2.copy(dir).multiplyScalar(60).add(origin); _d2.copy(dir).negate();
+      _ray.o.set(_o2, _d2); _ray.o.far = 60 - 0.3;
+      hits = _ray.o.intersectObjects(occ, true);
+      for (const h of hits) if (h.object.visible && solidHit(h)) return false;
     }
     if (terrainH && dir.y < 0.35) {
       let t = 40;

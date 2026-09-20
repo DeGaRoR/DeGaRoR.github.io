@@ -542,6 +542,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // box round the CG - the far map above keeps its 0.2-1 m texels for the world; the craft reads only
   // its own. The field's plain caster meshes are tagged into it as they appear (nearTag, below).
   const sunNear = (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.make) ? SHADOW_NEAR.make(scene) : null;
+  if (sunNear) sun.shadow.camera.layers.set(SHADOW_NEAR.FAR_LAYER);   // the far map sees FAR_LAYER: every caster but the craft (nearTag puts it there)
   // (every 30 frames: the plain caster meshes within 90 m of the CG join the near layer, the rest leave it -
   // the far map already holds every shadow the world casts, the near map exists for the craft and for what
   // shades the CRAFT (it reads the near map alone: the club hangar over a parked aeroplane); tagging all
@@ -551,8 +552,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const nearTag = cg => {
     if (!sunNear || !_nS || (nearTagTick++ % 30)) return;
     const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3;
+    const FL = SHADOW_NEAR.FAR_LAYER;
     scene.traverse(o => {
-      if (!o.isMesh || o.isInstancedMesh || !o.castShadow || !o.geometry || o.userData.craft) return;
+      if (!o.castShadow || o.userData.craft) return;
+      if (!o.layers.isEnabled(FL)) o.layers.enable(FL);              // every caster into the far map (the trees, the lot)
+      if (!o.isMesh || o.isInstancedMesh || !o.geometry) return;
       if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
       if (!o.geometry.boundingSphere) return;
       _nS.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);

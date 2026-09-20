@@ -460,7 +460,10 @@ if (process.argv.includes('--selftest')) {
   check(/#ifdef CRAFT_NEAR_ONLY\s+directLight\.color \*= sNear;/.test(near) && /directLight\.color \*= inNear \? min\( sNear, sFar \) : sFar;/.test(near), 'near: the craft reads the near map alone, the world min(near, far) inside the box');
   check(/if \( uNearP\.x > 0\.5 \)/.test(near) && /UNROLLED_LOOP_INDEX == 1/.test(near), 'near: the rule is gated on the live flag (the shed has no near light) and skips the black light\'s own iteration');
   check(/mat\.defines\.CRAFT_NEAR_ONLY = 1; mat\.needsUpdate = true;/.test(near) && /m\.receiveShadow = true;/.test(near), 'near: the craft\'s materials take the define and receive their own shadow (the opaque casters)');
-  check(/throwM > S\.half \* 0\.7/.test(near) && /m\.layers\.disable\(0\)/.test(near), 'near: the craft leaves the far map while its ground shadow lies inside the box');
+  check(/throwM > S\.half \* 0\.7/.test(near) && /m\.layers\.disable\(FAR_LAYER\)/.test(near) && !/layers\.disable\(0\)/.test(near), 'near: the craft leaves the far map (FAR_LAYER, never layer 0 - the picks and the flare rays live there) while its ground shadow lies inside the box');
+  check(/sun\.shadow\.camera\.layers\.set\(SHADOW_NEAR\.FAR_LAYER\)/.test(world) && /if \(!o\.layers\.isEnabled\(FL\)\) o\.layers\.enable\(FL\);/.test(world), 'world: the far map camera sees FAR_LAYER and every caster is put there');
+  const glare = read('sky_glare.js');
+  check(/_ray\.o\.set\(_o2, _d2\); _ray\.o\.far = 60 - 0\.3;/.test(glare) && /const solidHit = h =>/.test(glare), 'glare: a second ray back toward the eye (the skin back faces from the cockpit), glass lets the light through');
   check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
   check(/nearTag = cg =>/.test(world) && /_nS\.radius < R/.test(world) && /Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes within reach of the CG; the map is half the tier\'s far map');
   check(/SHADOW_NEAR\.tagCraft\(craft\)/.test(app), 'app: the craft is tagged when the model joins the world');
