@@ -51385,3 +51385,11 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   against the 112 L billed (the box held 152 L and poked out top and bottom aft).
   Loft watertight (every edge on exactly two faces). GATE ENERGY/ENERGYBASE/BAY/PARTS
   as before (ENERGY's zlib red inherited).
+- G445.2b: IN THE PAGE the root tank read "runs out of wing" after 6 cm - the layer's
+  vertex slicer wants six vertices within 12 cm of a station and the 172's three-panel
+  loft has rows 37 cm apart; a probe-based slice (leAt/teAt + eleven chord samples,
+  cached per station) answers where the slicer finds nothing. Measured in the page:
+  6 ribs a side, 1.54 -> 2.78 m, zero misses. tools/garage_shot.js (island_shot's
+  CDP rig on the garage: the shelf, a stock row, the game's orbit camera, see-inside,
+  the wing skin hidden for a tank picture, the roll-out) wrote screenshots/c172_g435_*
+  - the Browser pane had lost its WebGL context for the session.

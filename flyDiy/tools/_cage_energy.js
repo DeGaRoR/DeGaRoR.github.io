@@ -390,8 +390,36 @@ function placeAll(ctx, inv) {
         ? (x, z) => { const t = Wk.overAt(x, z), u = Wk.underAt(x, z);
                       return (t && u) ? { yTop: t.y, yBot: u.y } : null; }
         : null;
+      // ...AND THE SLICE THE PROBES GIVE WHERE THE VERTEX SLICER FINDS NOTHING
+      // (G445.2): wingSlicer wants six vertices within 12 cm of a station,
+      // and a loft whose rows sit 37 cm apart (the 172's three panels) has
+      // none between them - the root tank stopped after 6 cm, "runs out of
+      // wing". Cast instead: the leading and trailing edges the wing layer
+      // walks, the thickest of eleven chord samples between them. Cached per
+      // station like the slicer's own answers; the slicer still answers first.
+      const slPr = (sl && prof && Wk.leAt && Wk.teAt) ? (() => {
+        const cache = new Map();
+        return xAt => {
+          const r0 = sl(xAt);
+          if (r0) return r0;
+          const key = Math.round(xAt * 200);
+          if (cache.has(key)) return cache.get(key);
+          let r = null;
+          const le = Wk.leAt(xAt), te = Wk.teAt(xAt);
+          if (le && te) {
+            let y0 = 1e9, y1 = -1e9;
+            for (let i = 0; i <= 10; i++) {
+              const p = prof(xAt, te.z + (le.z - te.z) * i / 10);
+              if (p) { y0 = Math.min(y0, p.yBot); y1 = Math.max(y1, p.yTop); }
+            }
+            if (y1 > y0) r = { y0, y1, zLE: le.z, zTE: te.z, n: 0, cast: true };
+          }
+          cache.set(key, r);
+          return r;
+        };
+      })() : sl;
       pl = (sl && sm > 0)
-        ? G.wingPlace(sm, bay, v, res.installedL, sl, C.RULES || {}, bay.litres, prof)
+        ? G.wingPlace(sm, bay, v, res.installedL, slPr, C.RULES || {}, bay.litres, prof)
         : { on: 'wing', ok: false, why: ['no wing to put it in'], sides: [] };
     } else {
       const cache = cacheOf(bay);
