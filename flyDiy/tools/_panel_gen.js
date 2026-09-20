@@ -327,7 +327,43 @@ function layout(A, o) {
     if (!fits(cx, cy, D_BIG / 2)) { overflow.push(k); return; }
     dials.push({ k, cx, cy, r: D_BIG / 2 });
   };
+  // THE COMPACT PANEL (G442.4, the user: "the placement of the dials seems
+  // predetermined; they should be optimized for the actual dash, in central
+  // positions first"). The T and its blanking holes are the SIX-PACK's rule:
+  // a scan that must not move when a gyro is not bought. A panel with no
+  // gyro T at all (no attitude, no DG, no turn coordinator - build (4)'s
+  // asi alt tacho fuel) has no scan to keep, and its dials pack from the
+  // pilot's centre OUT: the big ones on the top row (the ASI in the middle,
+  // the altimeter to its right, the tacho to its left, then the VSI and the
+  // G-meter), the small ones on a row under them the same way, the clock
+  // among them. Each takes the highest place that fits under the crown.
+  const compact = !has('ai') && !has('aiE') && !has('dg') && !has('turn');
+  let gx0 = 0, dir = -1, groupW = 0;             // the engine group's edge, for the radios
   const aiKey = has('aiE') ? 'aiE' : (has('ai') ? 'ai' : null);
+  if (compact) {
+    const big = ['asi', 'alt', 'tacho', 'vsi', 'gmeter'].filter(has);
+    const smalls = ['fuel', 'oilP', 'oilT', 'volts', 'clock'].filter(has);
+    // offsets from the centre, alternating: 0, the pilot's right (-x), left (+x), ...
+    const spread = (n, pitch) => { const o = [0]; for (let i = 1; o.length < n; i++) { o.push(-i * pitch); if (o.length < n) o.push(i * pitch); } return o; };
+    const rowOf = (keys, r, pitch, yWant) => {
+      const offs = spread(keys.length, pitch);
+      let low = yWant;
+      keys.forEach((k, i) => {
+        const cx = clamp(xC + offs[i], -xLim + r, xLim - r);
+        const cy = fits(cx, yWant, r) ? yWant : topAt(cx, r);
+        if (cy == null) { overflow.push(k); return; }
+        dials.push({ k, cx, cy, r });
+        low = Math.min(low, cy - r);
+      });
+      return low;
+    };
+    const yB = topAt(xC, D_BIG / 2);
+    const low0 = rowOf(big, D_BIG / 2, colW, yB != null ? yB : yTop - D_BIG / 2);
+    const y1 = low0 - GAP - D_SMALL / 2;
+    rowOf(smalls, D_SMALL / 2, D_SMALL + GAP, y1);
+    const onRows = dials.filter(d => !d.coaming);
+    gx0 = onRows.length ? Math.min(...onRows.map(d => d.cx - d.r)) - GAP : xC;
+  } else {
   for (const k of ['asi', 'alt', 'turn', 'dg', 'vsi']) if (has(k)) tSlot(k, T_KEYS[k][0], T_KEYS[k][1]);
   if (aiKey) tSlot(aiKey, T_KEYS.ai[0], T_KEYS.ai[1]);
   // the clock, left of the ASI when there is room
@@ -345,9 +381,9 @@ function layout(A, o) {
   // last small gauge is the one that falls off, and the one that says how
   // long the flight can last is not the one to lose
   const small = ['fuel', 'oilP', 'oilT', 'volts'].filter(has);
-  let groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
-  let gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
-  let dir = -1;
+  groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
+  gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
+  dir = -1;
   if (gx0 - groupW < -xLim) { gx0 = xT + 1.5 * colW + GAP + 0.010 + (has('clock') ? D_SMALL + GAP : 0); dir = 1; }
   let gy = y0;
   {
@@ -380,6 +416,7 @@ function layout(A, o) {
       i++;
     }
   }
+  }   // (the T)
   // the radios: a column past the engine group, 57 mm controllers
   const radios = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
   if (radios.length) {
@@ -401,7 +438,7 @@ function layout(A, o) {
   // that has no gyro to scan there is no scan to keep, and the hole takes
   // the dial that had nowhere else - the T's first row first, big dials at
   // their size, small ones centred in the slot.
-  if (overflow.length) {
+  if (overflow.length && !compact) {
     const taken = (cx, cy) => dials.some(d => !d.coaming && Math.hypot(d.cx - cx, d.cy - cy) < d.r + 1e-6);
     for (const k of overflow.slice()) {
       const r = (k === 'tacho' || k === 'gmeter' || k in T_KEYS || k === 'aiE') ? D_BIG / 2 : D_SMALL / 2;
@@ -472,7 +509,7 @@ function layout(A, o) {
   const ext = onPanel.length ? {
     x0: Math.min(...onPanel.map(d => d.cx - d.r)), x1: Math.max(...onPanel.map(d => d.cx + d.r)),
     y0: Math.min(...onPanel.map(d => d.cy - d.r)), y1: Math.max(...onPanel.map(d => d.cy + d.r)), z: zFace } : null;
-  return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side,
+  return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side, compact,
            // the plate's plane, for the builder to stand the dials on
            plane: F ? { zTop: F.zTop, yTop: F.yTop, tilt: F.tilt } : null };
 }

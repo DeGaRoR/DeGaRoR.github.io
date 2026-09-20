@@ -51167,9 +51167,8 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - THE DASH BINDABLE (input.js, the model; app.js dispatches; cockpit.js `dashAction` does what
   the click does): eleven steps in a `dash` group with default keys - taxi T, landing L, nav N,
   beacon K, instrument lights I and cabin flood O (a quarter up, round to off), master M, the
-  key J / H (a pack's power key toggles), parking brake P, fuel selector U. A light thrown by
-  the hand (click or key) is the hand's from then on (`handLit`: the pilot's sunset rule no
-  longer overrides it). The mapping panel lists the group between The flight and Engines.
+  key J / H (a pack's power key toggles), parking brake P, fuel selector U. A light or a dimmer thrown by
+  the hand (click or key) is the hand's (handSw: the rule leaves it until the next edge). The mapping panel lists the group between The flight and Engines.
 - PBR AUDIT (the user: "I don't think the controls have all been given proper PBR materials"):
   every crew material name has a finish in AERO_HARD.crew (grip, boot, plated, cast, hide, ptt,
   ball, tread, plateAl, seatAlu, frame, metal, knob, ctrl, trim...) and goes through
@@ -51186,3 +51185,23 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   the yoke, the 1024-px faces if the bias is not enough. Then T1.2's blurred prop disc rides
   out.rpm.
 
+
+## G442.4 — A3 PART 5: THE COMPACT PANEL (2026-09-20, the user: "the placement of the dials seems
+## predetermined; they should be optimized for the actual dash, in central positions first")
+
+- THE RULE: the T and its blanking holes are the SIX-PACK's (a scan that must not move when a
+  gyro is not bought). A panel with NO gyro T at all (no attitude, no DG, no turn coordinator -
+  build (4)'s asi alt tacho fuel) has no scan to keep: `compact`, packed from the pilot's centre
+  OUT - the big dials on the top row (ASI in the middle, the altimeter to the pilot's right, the
+  tacho to the left, then the VSI and the G-meter), the small ones on a row under them the same
+  way with the fuel / charge gauge in the middle, the clock among them; each takes the highest
+  place that fits under the crown and off the keep-outs. With any gyro the T stands as before,
+  and the G442 holes rule still takes an overflowed dial into an empty T slot. `compact` on the
+  layout record.
+- build (4): RPM · AIRSPEED · ALTITUDE across the middle, CHARGE centred under, the key clear of
+  the throttle (screenshots/panel-2026-09-20/b4_compact.png).
+- GATE PANEL: the short plate is compact (positions asserted), the same plate with a turn
+  coordinator keeps its T and fills its holes. PANEL UISMOKE JOIN CABIN DESIGN green.
+- OWED: the fitter for a T that does not fit its plate at all (a very short plate with a
+  six-pack still overflows the small dials - the Cub's plate is wide enough; a narrow one is a
+  design question: fewer instruments, or a second row under the lip).

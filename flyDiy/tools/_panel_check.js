@@ -293,8 +293,19 @@ function run() {
         elec: { hasBus: false }, extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'pedal', 'pax'], flapSwitch: true });
       const by4 = {}; for (const d of L4.dials) by4[d.k] = d;
       check(L4.overflow.length === 0 && !!by4.fuel, 'short plate: every fitted dial is on the dash, the fuel / charge gauge among them', L4.overflow.join());
-      check(by4.fuel && by4.tacho && Math.abs(by4.fuel.cx - by4.tacho.cx) < 0.02 && by4.fuel.cy < by4.tacho.cy, 'short plate: the energy gauge is first under the tacho');
-      check(L4.dials.filter(d => d.inHole).length === 2 && by4.oilP.inHole && Math.abs(by4.oilP.cx - L4.xT) < 1e-6, 'short plate: the oil gauges took the empty T holes, the middle column first', JSON.stringify(L4.dials.filter(d => d.inHole).map(d => d.k)));
+      // G442.4: NO GYRO T -> THE COMPACT PANEL, from the pilot's centre out: the ASI in the middle, the altimeter to
+      // the pilot's right (-x), the tacho to the left, the small ones on a row under them, the fuel gauge in the middle
+      check(L4.compact === true, 'short plate: a panel with no gyro T is compact');
+      check(by4.asi && Math.abs(by4.asi.cx) < 1e-6 && by4.alt && by4.alt.cx < -0.08 && by4.tacho && by4.tacho.cx > 0.08 && near(by4.alt.cy, by4.asi.cy) && near(by4.tacho.cy, by4.asi.cy),
+        'compact: ASI centred, altimeter right, tacho left, one row', L4.dials.map(d => d.k + '@' + d.cx.toFixed(2)).join());
+      check(by4.fuel && Math.abs(by4.fuel.cx) < 1e-6 && by4.fuel.cy < by4.asi.cy - 0.06 && by4.oilP.cy === by4.fuel.cy && by4.oilT.cy === by4.fuel.cy,
+        'compact: the small gauges on the row under, the energy gauge in the middle');
+      // ...and WITH a gyro (a turn coordinator) the T stands, and the empty DG / VSI holes take the overflowed small dials
+      const L4t = G.layout(A4, { items: ['asi', 'alt', 'turn', 'tacho', 'oilP', 'oilT', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [],
+        elec: { hasBus: true, altA: 20 } });
+      const by4t = {}; for (const d of L4t.dials) by4t[d.k] = d;
+      check(L4t.compact === false && L4t.overflow.length === 0, 'a gyro T: the T stands and nothing overflows', L4t.overflow.join());
+      check(L4t.dials.filter(d => d.inHole).length >= 1 && by4t.fuel && !!by4t.turn, 'a gyro T: the empty holes took the small dials that had nowhere else', JSON.stringify(L4t.dials.filter(d => d.inHole).map(d => d.k)));
       let ov4 = null;
       for (let i = 0; i < L4.dials.length; i++) for (let j = i + 1; j < L4.dials.length; j++) {
         const p = L4.dials[i], q = L4.dials[j]; if (p.coaming || q.coaming) continue;
