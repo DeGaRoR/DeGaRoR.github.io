@@ -1548,6 +1548,10 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edFlyBody select { flex:1; min-width:0; }
 
+/* 2026-09-20: the day panel's date field, dressed as the row select */
+#edFlyBody .r input[type=date] { flex:1; min-width:0; padding:4px 8px; font:400 11.5px/1.2 'IBM Plex Sans';
+  color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
+
 #edFlyBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
 #edFlyBody #dims { position:static !important; margin:4px 0 0;
@@ -1580,6 +1584,11 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   cursor:pointer; transition:border-color .12s ease; }
 
 #edView .pill:hover { border-color:rgba(255,255,255,.3); }
+
+/* 2026-09-20: THE PILL THAT IS ON. #edView is not inside #edWrap, so the rail's flyouts (the
+   graphics menu's pills since G200, the clouds' and the day's since today) had no on-state at
+   all - eight identical presets and no way to tell which sky you were in. The same rule. */
+#edView .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc); border-color:var(--ed-acc); }
 
 #edView .pill.wide { display:block; width:100%; margin-top:12px;
   text-align:center; color:var(--ed-acc); }
@@ -2277,8 +2286,9 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #ui .frng::-moz-range-thumb { width:11px; height:11px; border:none;
   border-radius:50%; background:var(--ed-acc); }
 
-/* the borrowed selects — #selFrom, #selDest, #selCond, #selTime — wear the
-   editor's row select, because in the flyout that is what they are */
+/* the borrowed selects — #selFrom, #selDest — and the flyouts' own (the day panel's
+   conditions select, its date field) wear the editor's row select, because in the
+   flyout that is what they are */
 #ui .fsel { flex:1; min-width:0; padding:5px 8px;
   font:400 11px/1.2 'IBM Plex Sans'; letter-spacing:0; text-transform:none;
   color:var(--ed-ink); background:var(--ed-btn-bg);
@@ -3398,19 +3408,9 @@ body.benchBusy #edInfo { opacity:.72; }
       <option value="hot">Hot afternoon &middot; 35&deg;C, 1008</option>
       <option value="cold">Winter morning &middot; 0&deg;C, 1030</option>
     </select>
-    <!-- THE TIME OF DAY (SKY chantier, 2026-09-15): the clock's presets, solved on the
-         day's own almanac (dawn is the sun at -6 deg rising, golden 8 deg falling, night
-         the solar midnight); the hour and the rate ride beside it in the brief's `day` slot -->
-    <select id="selTime" aria-label="Time of day" title="the hour, on the day's own almanac">
-      <option value="dawn">Dawn &middot; civil twilight</option>
-      <option value="morning">Morning &middot; sun 25&deg;</option>
-      <option value="noon">Noon</option>
-      <option value="afternoon" selected>Afternoon &middot; sun 33&deg;</option>
-      <option value="golden">Golden hour &middot; sun 8&deg;</option>
-      <option value="sunset">Sunset</option>
-      <option value="dusk">Dusk &middot; civil twilight</option>
-      <option value="night">Night &middot; solar midnight</option>
-    </select>
+    <!-- THE TIME OF DAY (SKY chantier, 2026-09-15) was a select here; since 2026-09-20 the
+         clock's presets are the day panel's pills (day_ui.js, on both rails) and DAY_CLOCK is
+         the one state - no element to borrow. -->
     <!-- THE COVERING. Off the HUD and into the `camera` flyout as a row of
          pills, because what the aeroplane is DRAWN AS is a looking question
          and the rail is where looking lives. The button keeps its id, its
@@ -35146,41 +35146,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='c70a5445e8f7';window.FLYDIY_BUILD='4daf965738b7'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='10cc5ebc2da8';window.FLYDIY_BUILD='3a92e3cd85b2'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -93028,6 +93028,90 @@ var CLOUDS_UI = (function () {
 </script>
 <script type="text/x-flydiy">
 // ============================================================
+// THE DAY'S OWN PANEL (2026-09-20, the user: "do the same for the day panel
+// on both rails" - after the clouds panel, one panel on two rails).
+//
+// The flight rail's `day` slot and the shed's `night` flyout used to say the
+// same thing in two vocabularies: the brief borrowed #selCond and #selTime
+// out of #flStore and drew the hour, the date and the rate in its own rows;
+// the shed borrowed the tree's `time of day` row, a MOOD select that reached
+// the clock through hangar.js's mood table (and overwrote the cloud cover on
+// the way). This is the one panel both mount, in each rail's own rows:
+//   THE CONDITIONS - the air and the wind (#selCond stays the keeper: its
+//     handler is world.setWeather, and this panel presses it, never rebuilds it).
+//   THE HOUR - the clock's presets, solved on the day's own almanac; the local
+//     hour; the date; the rate the clock runs at with play.
+//   THE CLOUDS - a door to the CLOUDS flyout (the weather is that panel's; one
+//     fact, one keeper).
+// The host hands in its row vocabulary (row, range, pills, note, select,
+// field) and a context (the clock, a refresh, a way to open a sibling flyout).
+// Every write goes through DAY_CLOCK, so the shed's sky, the world's sun,
+// the lamps and the plate all hear the same change.
+// ============================================================
+var DAY_UI = (function () {
+  'use strict';
+  // the clock's presets, said the way #selTime used to say them
+  const PRESETS = [
+    { k: 'dawn',      label: 'dawn',      title: 'Dawn · civil twilight, the sun 6° under' },
+    { k: 'morning',   label: 'morning',   title: 'Morning · the sun at 25°, rising' },
+    { k: 'noon',      label: 'noon',      title: 'Solar noon on this date' },
+    { k: 'afternoon', label: 'afternoon', title: 'Afternoon · the sun at 33°, falling (the alps hour)' },
+    { k: 'golden',    label: 'golden',    title: 'Golden hour · the sun at 8°' },
+    { k: 'sunset',    label: 'sunset',    title: 'Sunset · the upper limb on the horizon' },
+    { k: 'dusk',      label: 'dusk',      title: 'Dusk · civil twilight, the sun 6° under' },
+    { k: 'night',     label: 'night',     title: 'Night · the solar midnight, the darkest hour there is' },
+  ];
+  const hhmm = v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60) % 60).padStart(2, '0');
+  const rateLabel = r => (r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x');
+  // the conditions select, in the DOM on both screens (#flStore); pressed through its own change event
+  const condSel = () => (typeof document !== 'undefined' ? document.getElementById('selCond') : null);
+
+  // mount(host, H, ctx): H = { row, range, pills, note, select, field } the rail's helpers;
+  // ctx = { day: DAY_CLOCK, refresh, open(k) }
+  function mount(host, H, ctx) {
+    const CK = ctx && ctx.day;
+    const refresh = () => { if (ctx && ctx.refresh) ctx.refresh(); };
+    const head = txt => { const r = H.row(host, txt); r.classList.add('fsec'); return r; };
+    // ---- the conditions ---------------------------------------------------------------
+    const sel = condSel();
+    if (sel && H.select) {
+      head('conditions');
+      H.select(host, 'standard day', Array.from(sel.options).map(o => ({ label: o.textContent, value: o.value })),
+        () => sel.value, v => { sel.value = v; sel.dispatchEvent(new Event('change')); refresh(); });
+      H.note(host, 'A day is air AND wind. The weather changes live — the pilot flies EAS and takes it mid-flight; ' +
+                   'the dewpoint sets the low deck’s base.');
+    }
+    // ---- the hour ------------------------------------------------------------------------
+    if (!CK || !CK.day()) { H.note(host, 'This build has no clock.'); return; }
+    head('the hour');
+    H.pills(host, PRESETS.map(p => ({ label: p.label, value: p.k, title: p.title })),
+      o => o.value === CK.nearestPreset(), o => { CK.preset(o.value); refresh(); });
+    H.range(host, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => { CK.set({ localHours: v }); refresh(); }, hhmm);
+    if (H.field) {
+      const i = document.createElement('input'); i.type = 'date'; i.value = CK.day().date;
+      i.onchange = () => { if (i.value) { CK.set({ date: i.value }); refresh(); } };
+      H.field(host, 'date', i);
+    }
+    H.pills(host, CK.RATES.map(r => ({ label: rateLabel(r), value: r, title: r === 0 ? 'The clock stands' : 'The clock runs at ' + r + '× with play' })),
+      o => o.value === CK.day().rate, o => { CK.rate(o.value); refresh(); });
+    H.note(host, 'One clock for the shed and the world. It runs with play; the sun, the sky, the lamps and the ' +
+                 'almanac follow it (' + CK.label() + ').');
+    // ---- the clouds are next door --------------------------------------------------------
+    if (ctx && ctx.open && typeof CLOUD_FIELD !== 'undefined') {
+      head('clouds');
+      const d = CK.day();
+      const cover = d.cloudCover > 0 ? (d.cloudCover * 100).toFixed(0) + ' % ' + (CLOUD_FIELD.TYPES[d.cloudType] ? CLOUD_FIELD.TYPES[d.cloudType].label : d.cloudType) : 'clear';
+      H.pills(host, [{ label: 'the clouds… (' + cover + ')', value: 'clouds', title: 'The decks, the veil, the look - the CLOUDS flyout' }],
+        () => false, () => ctx.open('clouds'));
+    }
+  }
+  const API = { PRESETS, mount, hhmm };
+  if (typeof window !== 'undefined') window.DAY_UI = API;
+  return API;
+})();
+</script>
+<script type="text/x-flydiy">
+// ============================================================
 // THE CRAFT'S OWN SHADOW MAP (A6, 2026-09-20 - the playtest: "the shadows
 // refresh every so many metres" on the aeroplane and the ground under it).
 //
@@ -116875,13 +116959,18 @@ function editorInit(api) {
     // out there and not in here? — is about the pair, not either one.
     // `label` is the resting fallback only: syncNightLabel writes the current
     // mood's own name over it (G136).
-    { k: 'night', label: 'night', title: 'The light, in here and out there',
+    { k: 'night', label: 'night', title: 'The day, and the light in here and out there',
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z',
-      // THE RAIL BORROWS, THE TREE OWNS. These four rows live in the shed's
+      // THE RAIL BORROWS, THE TREE OWNS. These three rows live in the shed's
       // hangar group (the world root retired at G136), and this flyout shows
       // them because looking is what the rail is for. borrow()/returnRows()
       // put each one back where it came from.
-      rows: ['time of day', 'lights', 'world lights', 'ground bounce'] },
+      // 2026-09-20: `time of day` (the tree's MOOD select) is not borrowed any
+      // more - the flyout opens on the DAY PANEL (day_ui.js, the same one the
+      // flight rail's `day` slot mounts: the conditions, the clock's presets,
+      // the hour, the date, the rate) and the mood follows the clock as it
+      // always has (hangar.moodFor, each frame). The light rows sit under it.
+      rows: ['lights', 'world lights', 'ground bounce'] },
     { k: 'explode', label: 'explode', title: 'The build, taken apart',
       icon: 'M9 2.4v4.2|M9 11.4v4.2|M2.4 9h4.2|M11.4 9h4.2|M7.4 7.4h3.2v3.2H7.4z',
       rows: ['explode', 'cutaway'] },
@@ -117073,7 +117162,11 @@ function editorInit(api) {
         if (R && R.cycleCut) R.cycleCut();
       } },
     // ---- the light --------------------------------------------------------
-    { k: 'time', row: 'time of day',
+    // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
+    // tree's mood select - the mood follows the clock each frame (hangar.moodFor), and the
+    // day panel on the rail shows the same presets as pills. The glyph is still the mood's.
+    { k: 'time', state: 'DAY_CLOCK preset',
+      why: 'the next of the clock\'s presets; the rail\'s night flyout offers the same presets as the day panel\'s pills',
       view: () => {
         const GE = window.GARAGE_ENV;
         const list = (GE && GE.moods && GE.moods()) || [];
@@ -117108,9 +117201,17 @@ function editorInit(api) {
             : 'No room to light — the shed is not in this build',
           icon: ICON[name] || ICON.AFTERNOON };
       },
-      // THROUGH THE SELECT, so _cage_ui's own handler moves the mood and the
-      // rail's night label hears the change it is already listening for.
+      // THROUGH THE CLOCK: the preset after the one nearest the hour; the mood, the sky and
+      // the rail's night label follow (app.js setMood fromClock -> EDITOR_SYNC_NIGHT). Without a
+      // clock (a build with no day) the tree's mood select is pressed as before.
       act: () => {
+        const CK = window.DAY_CLOCK;
+        if (CK && CK.day()) {
+          const P = CK.PRESETS, i = P.indexOf(CK.nearestPreset());
+          CK.preset(P[(i + 1) % P.length]);
+          if (flyOpen === 'night') openFly('night');
+          return;
+        }
         const r = labelIndex().get('time of day');
         const sel = r && r.querySelector('select');
         const GE = window.GARAGE_ENV;
@@ -117292,6 +117393,7 @@ function editorInit(api) {
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX
     if (t.k === 'clouds') buildClouds(body);       // the clouds panel (2026-09-20)
+    if (t.k === 'night') buildDay(body);           // the day panel (2026-09-20), the light rows borrowed under it
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
@@ -117353,11 +117455,13 @@ function editorInit(api) {
     };
     window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
   }
-  // 2026-09-20: THE CLOUDS - clouds_ui.js's panel in this rail's own rows, a range input on the
-  // flyout's own .r row (editor.css styles it), the pills as the GRAPHICS menu's; a pick rebuilds
-  // the flyout so the pills show the new state (openFly re-places it, measured full)
-  function buildClouds(body) {
-    if (!window.CLOUDS_UI) return;
+  // 2026-09-20: THE SHARED PANELS' ROW VOCABULARY - the clouds panel (clouds_ui.js) and the day
+  // panel (day_ui.js) draw in this rail's own rows: a range input on the flyout's own .r row
+  // (editor.css styles it), the pills as the GRAPHICS menu's, a select as the tree's, a native
+  // field (the date) beside it. A pick rebuilds the OPEN flyout so the pills show the new state
+  // (openFly re-places it, measured full) - `flyOpen`, not a name, because a pill may have just
+  // opened a sibling (the day panel's door to the clouds).
+  function railRows() {
     const row = (host, label) => {
       const r = document.createElement('div'); r.className = 'r';
       const k = document.createElement('span'); k.className = 'k'; k.textContent = label;
@@ -117376,7 +117480,7 @@ function editorInit(api) {
         const b = document.createElement('button');
         b.className = 'pill' + (isOn(o) ? ' on' : '');
         b.textContent = o.label; if (o.title) b.title = o.title;
-        if (o.why) b.disabled = true; else b.onclick = () => { pick(o); openFly('clouds'); };
+        if (o.why) b.disabled = true; else b.onclick = () => { pick(o); openFly(flyOpen); };
         w.appendChild(b);
       }
       host.appendChild(w); return w;
@@ -117385,8 +117489,28 @@ function editorInit(api) {
       const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
       host.appendChild(n); return n;
     };
-    window.CLOUDS_UI.mount(body, { row, range, pills, note },
-      { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: () => { if (typeof syncNightLabel === 'function') syncNightLabel(); } });
+    const select = (host, label, options, get, set) => {
+      const r = row(host, label);
+      const s = document.createElement('select');
+      for (const o of options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.label; s.appendChild(e); }
+      s.value = get(); s.onchange = () => set(s.value);
+      r.appendChild(s); return s;
+    };
+    const field = (host, label, el) => { const r = row(host, label); r.appendChild(el); return r; };
+    return { row, range, pills, note, select, field };
+  }
+  const dayCtx = () => ({ day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,
+                          refresh: () => { if (typeof syncNightLabel === 'function') syncNightLabel(); }, open: openFly });
+  function buildClouds(body) {
+    if (!window.CLOUDS_UI) return;
+    window.CLOUDS_UI.mount(body, railRows(), dayCtx());
+  }
+  // the day panel, then a head for the shed's own light rows openFly borrows under it
+  function buildDay(body) {
+    if (!window.DAY_UI) return;
+    const H = railRows();
+    window.DAY_UI.mount(body, H, dayCtx());
+    H.row(body, 'in the shed').classList.add('fsec');
   }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;
@@ -119332,36 +119456,36 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=705b955e"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=b97f1530"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=b3b0f782"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=9e8ae296"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=7bb8bf6c"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -126060,6 +126184,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       b.className = 'pill' + (isOn(o) ? ' on' : '');
       b.type = 'button';
       b.textContent = o.label;
+      if (o.title) b.title = o.title;
       if (o.why) { b.disabled = true; b.title = o.why; }
       else b.onclick = () => { pick(o); flyOpenSet(flyOpen); };
       w.appendChild(b);
@@ -126067,6 +126192,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     host.appendChild(w);
     return w;
   };
+  // 2026-09-20 (the day panel): a select of the flyout's own, and a native field (the date)
+  // dressed as the borrowed selects are - the shared panels (day_ui.js) ask for both
+  const flSelect = (host, label, options, get, set) => {
+    const r = flRow(host, label);
+    const s = document.createElement('select'); s.className = 'fsel';
+    for (const o of options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.label; s.appendChild(e); }
+    s.value = get(); s.onchange = () => set(s.value);
+    r.appendChild(s); return s;
+  };
+  const flField = (host, label, el) => { const r = flRow(host, label); el.className = 'fsel'; r.appendChild(el); return r; };
   const flNote = (host, txt) => {
     const n = document.createElement('div');
     n.className = 'fnote'; n.textContent = txt;
@@ -126207,35 +126342,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           'no reset.'
         : 'Changing the origin restarts the flight.');
     },
+    // 2026-09-20: THE DAY PANEL (day_ui.js) - the same panel the shed's `night` flyout mounts:
+    // the conditions (#selCond stays the keeper, pressed through its own change), the clock's
+    // presets, the hour, the date, the rate, and a door to the CLOUDS flyout. The brief's plate
+    // and the rail's day line follow through flRefreshDay. (#selTime is gone from #flStore: the
+    // presets are the panel's pills now, DAY_CLOCK the one state.)
     slot_day(body) {
-      flBorrow(flS('Cond'), flRow(body, 'standard day'));
-      // THE CLOCK (SKY chantier): the preset select IS the state (it lives in #flStore and is
-      // borrowed here), the hour scrubs the day's own local clock, the rate is how fast it runs
-      const CK = (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null;
-      if (CK && CK.day()) {
-        const sel = flS('Time');
-        sel.value = CK.nearestPreset();
-        sel.onchange = () => { CK.preset(sel.value); flRefreshDay(); };
-        flBorrow(sel, flRow(body, 'time of day'));
-        flRange(body, 'local hour', 0, 24, 1 / 12, () => CK.localHours(), v => { CK.set({ localHours: v }); sel.value = CK.nearestPreset(); flRefreshDay(); },
-                v => String(Math.floor(v)).padStart(2, '0') + ':' + String(Math.round((v % 1) * 60)).padStart(2, '0'));
-        { const r = flRow(body, 'date'); const i = document.createElement('input'); i.type = 'date'; i.className = 'fsel'; i.value = CK.day().date;
-          i.onchange = () => { if (i.value) { CK.set({ date: i.value }); flRefreshDay(); } }; r.appendChild(i); }
-        flPills(body, CK.RATES.map(r => ({ label: r === 0 ? 'frozen' : r === 1 ? 'real time' : r + 'x', value: r })),
-                o => o.value === CK.day().rate, o => CK.rate(o.value));
-        flNote(body, 'One clock for the shed and the world. It runs with play; ' +
-                     'the sun, the sky and the lights follow it.');
-        // THE CLOUDS (C4): the cover and the type are the day's - the weather the pilot flies
-        if (typeof CLOUD_FIELD !== 'undefined') {
-          flRange(body, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => { CK.set({ cloudCover: v }); flRefreshDay(); }, v => (v * 100).toFixed(0) + ' %');
-          flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })),
-                  o => o.value === CK.day().cloudType, o => { CK.set({ cloudType: o.value }); flRefreshDay(); });
-          flNote(body, 'The base is the dewpoint\'s (125 m a degree of spread); the type sets the thickness. ' +
-                       'The upper decks, the veil and the look are the CLOUDS flyout\'s.');
-        }
-      }
-      flNote(body, 'A day is air AND wind. The weather changes live — the ' +
-                   'pilot flies EAS and takes it mid-flight.');
+      if (!window.DAY_UI) { flBorrow(flS('Cond'), flRow(body, 'standard day')); return; }
+      window.DAY_UI.mount(body, { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField },
+        { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, open: flyOpenSet });
     },
     // -------- the rail --------------------------------------------------
     camera(body) {
