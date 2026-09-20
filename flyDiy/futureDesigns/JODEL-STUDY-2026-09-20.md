@@ -30,6 +30,10 @@ Balance: as found CG 42 %, **static margin −5 %** (NP 37 %); corrected CG
 34 %, margin 2 %, stab trim −3.1°, dε/dα 0.65 (the low tail sits in the
 wing's downwash). Sandbags HELD, 56 %.
 
+Registration F-PJDL, wear 0.1, and a livery (G445.5): ivory body, a burgundy
+sweep under a gold line rising over the aft fuselage (marking kit pattern
+2), burgundy spinner and registration.
+
 ## 2. What was corrected
 
 The DR.1050 in it, taken out: `paxCount` 1 → 0 (the rear bench; cabin.len
@@ -46,12 +50,14 @@ The DR.1050 in it, taken out: `paxCount` 1 → 0 (the rear bench; cabin.len
   stall (position error). Ours, 72 km/h at CLmax ~1.5, is the honest one.
   The row keeps the published number with this note.
 - **Static margin 2 %.** The pilot flies it (the 172 as found flew on 3 %),
-  but a D.112 keeps ~10 %. Two causes the model owns (the NP at 36 % MAC with
-  the tail in the downwash) and one the build may: where the wing sits on the
-  fuselage. Not moved — the user's geometry, and the d112 payload's wing
-  station was not read (its vertex rows are too sparse for the scan that
-  gave the tail). Owed: read the payload's LE station against the cabin, as
-  §0 of the C172 study re-based the 172's.
+  but a D.112 keeps ~10 %. READ AGAINST THE PAYLOAD (G445.5, a plane cut of
+  the d112 model's triangles at |y| = 1.6 m): the leading edge sits 1.26 m
+  behind the spinner tip on the model and 1.29 m on the build; the stab
+  0.6 m above the wing root on the model, 0.8 m on the build. The wing is
+  where the Jodel's is. What is left is the model's: the downwash kernel
+  puts the tail's dε/dα at 0.65 and the neutral point at 36 % MAC, and the
+  airframe's mass sits 4 % of chord aft of a D.112's loaded CG. An aero item
+  (the C172 study's §5.1 says the same for a high wing), not a build fault.
 - ROC −20 %, V75 −11 %: the 65 hp against the +9 % of wing and the drag
   family (§5.2 of the C172 study).
 - The 45 L nose tank reads "through the crew (105 points)" on the bench —

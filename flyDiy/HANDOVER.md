@@ -51451,3 +51451,19 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   body) — an ENERGY item, the tank above the legs as a real Cub's; the Jodel's wing
   station against its payload; the perf tool's `--engine` vs the applied preset index.
 - GATES: DESIGN, STARTER, SAVE, BUILD, UISMOKE, PARTS, FIN green.
+
+## G445.5 — THE JODEL'S WING STATION READ, THE REGISTRATIONS, THE LIVERY (2026-09-20, the
+## user: "look at the jodel wing station. Also, adjust the registration, make them look
+## newer, and give the jodel a cool paintjob. You're right that the cub should be our new
+## default")
+
+- THE JODEL'S WING IS WHERE THE MODEL'S IS: a plane cut of the d112 payload's triangles
+  at |y| = 1.6 m (the rib-row vertices are too sparse for a band scan) puts the leading
+  edge 1.26 m behind the spinner tip; the build 1.29. The stab 0.6 m over the wing root
+  on the model, 0.8 on the build. The 2 % margin is the model's (dε/dα 0.65, NP 36 %) —
+  an aero item, logged in the study; nothing moved.
+- Registrations: Cub F-BCUB, 172 F-GCES, Jodel F-PJDL (three aeroplanes, three regs — two
+  wore F-PGAR). Wear: Cub 1 -> 0.15, Jodel 1 -> 0.1, the 172 factory.
+- The Jodel's livery: ivory sections, a burgundy sweep under a gold line (marking kit
+  pattern 2, m1 on the fuselage), burgundy spinner and registration.
+- The three stock rows and the three cards carry it (regenerated from the build files).
