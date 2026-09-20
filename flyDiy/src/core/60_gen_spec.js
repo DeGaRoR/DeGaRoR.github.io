@@ -4560,6 +4560,18 @@ function resolveSpec(spec) {
   S.engX = -Math.max(0.18 + 0.32 * propR,
                      (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
            + pl.engineDx;
+  // G445.1 (the C172 study): A MEASURED NOSE FLANGE OUTRANKS THE RULE. The
+  // join writes `engines[0].x` for a nose mount now (the station the engine
+  // layer drew, metres aft of the datum ring, negative ahead of it), as it
+  // always did for the other mounts; the rule stays for a bake with no
+  // drawn engine. Measured on the user's 172: the rule put the flange at
+  // -0.49 m, the drawn one is at -1.16, and the 144 kg that hang on it moved
+  // the CG 7 % MAC aft of the aeroplane on the screen.
+  {
+    const e0 = S.engines[0];
+    if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0)
+      S.engX = e0.x + pl.engineDx;
+  }
 
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is

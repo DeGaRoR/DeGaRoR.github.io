@@ -51327,3 +51327,61 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   LOAD sweep); the pilot's LIFTOFF integrator cap (0.15) could not hold a 172-tailed
   aeroplane's lift-off attitude until the elevator was the type's 44 % (owed: P2).
 - No gate changed; the instrument is a bench. GATE battery not run (tools only).
+
+## G445.1 — THE NOSE ENGINE IS WEIGHED WHERE IT IS DRAWN, AND THE 172 IS A STOCK DESIGN
+## (2026-09-20, the user: "mount it in browser for inspection, and make it available as
+## factory saved build")
+
+- A garage LOAD runs the spec back out through the join (BUILD_SYNC) and the merge
+  replaces the engines array whole, so the G445 stopgap (`engines[0].place.dx`) died
+  on the first load. The join now writes the station the engine layer drew
+  (M.engUnits[0], kind 'nose') as `engines[0].x` for a NOSE mount too (it always did
+  for pusher/wing), and 60_gen_spec takes a measured nose `x` over the prop rule
+  (`engX = -(0.18 + 0.32 propR)` stays for a bake with no drawn engine). On the 172
+  the flange lands at -1.10 m from the windscreen-base ring (the rule said -0.49),
+  the mass node at -0.76, where the drawn engine's centre is.
+- FLEET CONSEQUENCE, measured: every active nose-engine card had its engine weighed
+  0.25-0.8 m aft of where it is drawn; the CG moves forward 1-11 % MAC (tigermoth
+  -10.8, pittsAlike -8.5, rv -7.7, ttail -6.7, jodel/vtail/skymaster/c172 -5, cub
+  -4.1, the radials/beaver/caravan -1..-3). The battery's verdict: see the study
+  §6.1 (GATES_VERDICT). GEN_ENG_CG (GATE ENGID) is the CG within the engine and is
+  untouched.
+- 'cessna 172' is on the shelf's STOCK DESIGNS (tools/_cage_page5.js `presets` +
+  `builds`, imported verbatim from builds/cessna172_2026-09-20_corrected.json, the
+  piper cub's pattern). Loaded in the browser through the fleet: 1016 kg all-up,
+  B-CESS, the loaded spec carries x -1.10, 159 hp custom, 212 L, chord 1.63, stab
+  3.41, elevator 0.44, leg fairings; the posts read CG 31 % / margin 30 %.
+- v2 of the build after the user's look in the shed (study §4.6): the wing at the
+  type's station (`wgDx` +0.13: LE 0.15 m aft of the windscreen base; NP 65 / CG 50 /
+  margin 15 % = the 172's, stab trim 0.5°, take-off 286 m flown vs POH 288, circuit
+  landed), the mains 0.2 m forward (`s1Z` 1.15: nose load 23 %), the seats pulled in
+  (`seatGap` 0.18), THE LAP-BELT OPTION DELETED (the row, the parts list, the design
+  tiles, the drawing in _cage_crew.js; a saved `seatBelt` is read and ignored). The
+  take-off "shake" is the trike steering loop hunting at ~1 Hz above 21 m/s (±1.9°
+  heading on v1, ±0.8° on v2) — a pilot-track item (A8/P2).
+- THE BATTERY: no new red (ENGINE and WINGSPLIT fail on HEAD's built core too; ENERGY,
+  AERO, SITE, WORLD, PREMISES are peers' known reds). WINGSPLIT's owner: the rest
+  frame's origin is the mass CG, so its frozen positions move with any mass change.
+- Built: flight_core.js, index.html, dev.html (node tools/build.js).
+
+## G445.2 — THE WING TANK IS THE SPAR BAY'S OWN SECTION (2026-09-20, the user: "the
+## wing mounted tanks should have a good geometry. Now they're just boxes that do not
+## fit. They should have the shape of the wing, and just fit")
+
+- Triage: remark 131 ("fuel-wing option clips everywhere") sat in A7b, unopened.
+- VESSEL_GEN.wingPlace takes a `prof(x, z)` (the drawn skin's top and bottom at a
+  span/chord, the wing layer's own overAt/underAt ray probes) and emits `ribs` per
+  side: stations every 0.30 m of span, 8 chord samples between the spar planes (20 mm
+  in from each), the skin inset by the 12 mm wall; a missed sample falls back to the
+  old box's height. VESSEL_MESH.wingLoft lofts the ring (top front->rear, bottom
+  rear->front) station to station with a rib at each end, normals turned outward by
+  the section's centre (the box's lesson), metre-true uv; `{fill, inset}` cuts the
+  same solid flat at the level for the fuel. The layer draws the loft where ribs
+  exist and the box where no probe answers; the corners (the fit test, the crew test,
+  GATE ENERGY's analytic slice) are unchanged.
+- Measured headless on the 172 (the real wing layer in _scene_headless): 5 ribs a
+  side, zero misses, every sample exactly 12 mm inside the skin, the depth following
+  the aerofoil 0.178 -> 0.204 -> 0.176 m front to rear; the loft holds 135 L a side
+  against the 112 L billed (the box held 152 L and poked out top and bottom aft).
+  Loft watertight (every edge on exactly two faces). GATE ENERGY/ENERGYBASE/BAY/PARTS
+  as before (ENERGY's zlib red inherited).

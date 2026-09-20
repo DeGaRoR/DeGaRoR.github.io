@@ -1,11 +1,11 @@
 | card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| cessna172 | Cessna 172R (IO-360-L2A 160 hp) | 664 / 736 (-10 %) | 1017 / 1111 | 16.5 / 16.2 (2 %) | 0.20 / 0.21 | 93 / 95 (-3 %) | 193 / 218 (-11 %) | 220 / 230 (-4 %) | 3.3 / 3.7 (-11 %) | 11.1 / 9.0 (24 %) | 0.56 / 0.47 (18 %) | 301 / 288 (5 %) | 410 / 514 (-20 %) |
+| cessna172 | Cessna 172R (IO-360-L2A 160 hp) | 664 / 736 (-10 %) | 1016 / 1111 | 16.5 / 16.2 (2 %) | 0.20 / 0.21 | 93 / 95 (-3 %) | 193 / 218 (-11 %) | 220 / 230 (-4 %) | 3.3 / 3.7 (-11 %) | 11.2 / 9.0 (24 %) | 0.55 / 0.47 (18 %) | 300 / 288 (4 %) | 409 / 514 (-20 %) |
 
-DIMENSIONS (ours / Cessna 172R (IO-360-L2A 160 hp); ours at MTOW 1111 kg, ballast 94 kg):
+DIMENSIONS (ours / Cessna 172R (IO-360-L2A 160 hp); ours at MTOW 1111 kg, ballast 95 kg):
   engine     custom Flat (boxer) 4-cyl 5.9 L 159 hp 144 kg, prop Sensenich 74CK 1.91 m   / 160 hp 138 kg, prop 1.91 m
   fuselage   alloy, tricycle gear, 4 seats / 4
-  length m (eng flange-rudder TE)   7.94 /   8.28  -4 %
+  length m (eng flange-rudder TE)   7.85 /   8.28  -5 %
   height m                         2.47 /   2.72  -9 %
   span m                          11.00 /  11.00  0 %
   area m2                          16.5 /   16.2  2 %
@@ -16,7 +16,7 @@ DIMENSIONS (ours / Cessna 172R (IO-360-L2A 160 hp); ours at MTOW 1111 kg, ballas
   incidence deg                     1.5 /    1.5  0 %
   washout deg                       3.0 /    3.0  0 %
   flap max deg                       40 /     30  33 %
-  flap span frac                   0.55 /   0.42  31 %
+  flap span frac                   0.55 /   0.54  2 %
   stab span m                      3.41 /   3.40  0 %
   stab area m2                     3.11 /   3.30  -6 %
   fin area m2                      1.46 /   1.60  -9 %
@@ -27,29 +27,29 @@ DIMENSIONS (ours / Cessna 172R (IO-360-L2A 160 hp); ours at MTOW 1111 kg, ballas
   wing load kg/m2 at MTOW          67.2 /   68.6  -2 %
   power load kg/hp at MTOW          7.0 /    6.9  1 %
 
-BUILD CHECK (the bench, headless; as baked 1017 kg):
-  stance     on its wheels, deck -0.7 deg, suspension travel 3 mm, nose-over -20 deg, power-over 0.00
-  balance    CG 30 % MAC, static margin 31 % (NP 62 % MAC), stab trim -2.1 deg, Cn-beta 0.117, d(eps)/d(a) 0.34
-  shake      FLIES A CIRCUIT: Vs 89 km/h, cruise 183 km/h at thr 0.65, climb 3.70 m/s, TO 332 m, L/D best 11.1 at 134 km/h, 159 hp, 6.4 kg/hp
+BUILD CHECK (the bench, headless; as baked 1016 kg):
+  stance     on its wheels, deck -0.7 deg, suspension travel 3 mm, nose-over -19 deg, power-over 0.00
+  balance    CG 31 % MAC, static margin 30 % (NP 62 % MAC), stab trim -2.0 deg, Cn-beta 0.117, d(eps)/d(a) 0.34
+  shake      FLIES A CIRCUIT: Vs 89 km/h, cruise 183 km/h at thr 0.65, climb 3.70 m/s, TO 331 m, L/D best 11.1 at 134 km/h, 159 hp, 6.4 kg/hp
   sandbags   HELD: limit 1.30 % of semispan, ultimate 1.91 %, worst member 73 % of yield (wing)
-  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 498 m, climb 2.68 m/s, service ceiling 4926 m / 4100 m
-  ledger     fuselage 135, engines 158, wings 135, bracing 33, tail 41, gear 43, cabin 160*, vessel 10, fuel 153*, panel 8, elec 19, avionics 3, outfit 74, paint 7, cargo 40*  (* payload; empty 664 kg)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 497 m, climb 2.68 m/s, service ceiling 4930 m / 4100 m
+  ledger     fuselage 135, engines 157, wings 135, bracing 33, tail 41, gear 42, cabin 160*, vessel 10, fuel 153*, panel 8, elec 19, avionics 3, outfit 74, paint 7, cargo 40*  (* payload; empty 664 kg)
   systems    asi 0.4, alt 0.5, vsi 0.4, ai 1.1, aiE 1.0, dg 1.2, turn 0.7, tacho 0.5, gmeter 0.5, oilP 0.2, oilT 0.2, fuel 0.6, fuelSight 0.1, volts 0.1, clock 0.3, hobbs 0.1, compass 0.3, battery:lead 7.0, alternator:alt60 4.5, starter:yes 4.0, vac:pump 1.2, com:compact 1.0, xpdr:modeS 0.7, nav:vor 1.6, harness 2.4
-  drag       CdS fit 0.556 m2 (induced k 423372)  fusCdA 0.352  gear -0.080  brace 0.000  swet 20.685 L 6.936 frontal 1.496 f 5.025 FF 1.485 boxK 1.058 cdWet 0.005 body 0.163 cool 0.021 heads 0.000 screen 0.022 junct 0.017 exh 0.006 gear 0.093 brace 0.029 axial 0.352
+  drag       CdS fit 0.554 m2 (induced k 425815)  fusCdA 0.352  gear -0.080  brace 0.000  swet 20.417 L 6.851 frontal 1.496 f 4.964 FF 1.503 boxK 1.058 cdWet 0.005 body 0.162 cool 0.021 heads 0.000 screen 0.022 junct 0.017 exh 0.006 gear 0.093 brace 0.029 axial 0.352
 
 | card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | outcome |
 |---|---|---|---|---|---|
-| build | 428 / 288 (49 %) | 2.5 / 3.7 (-32 %) | 180 at 0.83 | 227 / 168 (35 %) | completed (347 s, 325 s wall) |
+| build | 425 / 288 (48 %) | 2.5 / 3.7 (-32 %) | 180 at 0.83 | 225 / 168 (34 %) | completed (347 s, 305 s wall) |
 
 RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
-  +  24 %  build     L/D     ours 11.1  real 9.0
-   -20 %  build     TO 50ft ours 410.0  real 514.0
+  +  24 %  build     L/D     ours 11.2  real 9.0
+   -20 %  build     TO 50ft ours 409.0  real 514.0
   +  18 %  build     CdS     ours 0.6  real 0.5
-   -11 %  build     V75     ours 193.2  real 218.0
+   -11 %  build     V75     ours 193.4  real 218.0
    -11 %  build     ROC     ours 3.3  real 3.7
-   -10 %  build     empty   ours 664.3  real 736.0
-  +   5 %  build     TO roll ours 301.0  real 288.0
-    -4 %  build     Vmax    ours 220.0  real 230.0
+   -10 %  build     empty   ours 663.8  real 736.0
+    -4 %  build     Vmax    ours 220.1  real 230.0
+  +   4 %  build     TO roll ours 300.0  real 288.0
     -4 %  build     T0      ours 2198.0  real 2290.0
     -3 %  build     Vs      ours 92.6  real 95.0
   +   2 %  build     S       ours 16.5  real 16.2
@@ -61,8 +61,8 @@ BY INDICATOR (mean signed error over the engine-matched cards):
   V75      -11 %  (n 1, spread -11..-11)
   ROC      -11 %  (n 1, spread -11..-11)
   empty    -10 %  (n 1, spread -10..-10)
-  TO roll    5 %  (n 1, spread 5..5)
   Vmax      -4 %  (n 1, spread -4..-4)
+  TO roll    4 %  (n 1, spread 4..4)
   T0        -4 %  (n 1, spread -4..-4)
   Vs        -3 %  (n 1, spread -3..-3)
   S          2 %  (n 1, spread 2..2)

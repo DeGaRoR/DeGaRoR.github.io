@@ -21,20 +21,23 @@
   "stSpan": 1.19,
   "halfW": 0.67,
   "roofHalfW": 0.64,
-  "wgDx": -0.3,
+  "wgDx": 0.13,
   "noseLen": 0.45,
   "wgFlapSpan": 0.55,
   "wgAilSpan": 0.35,
   "s1LegFair": 1,
   "s2LegFair": 1,
-  "stHinge": 0.4
+  "stHinge": 0.4,
+  "seatGap": 0.18,
+  "seatBelt": 0,
+  "s1Z": 1.15
  },
  "engines": [
   {
    "type": "io360_mccauley",
    "mount": "nose",
    "place": {
-    "dx": -0.67,
+    "dx": 0,
     "dy": 0
    },
    "sense": 1

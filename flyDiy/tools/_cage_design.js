@@ -891,11 +891,11 @@ const DESIGN_ROWS = [
     read: P => Math.round(P.seatType),
     options: [
       { value: 0, label: 'Tube frame', icon: ICON.seatTube,
-        writes: { cage: { seatType: 0, seatBelt: 1 } } },
+        writes: { cage: { seatType: 0 } } },
       { value: 1, label: 'Composite shell', icon: ICON.seatShell,
-        writes: { cage: { seatType: 1, seatBelt: 1 } } },
+        writes: { cage: { seatType: 1 } } },
       { value: 2, label: 'Airliner', icon: ICON.seatAirliner,
-        writes: { cage: { seatType: 2, seatBelt: 1 } } },
+        writes: { cage: { seatType: 2 } } },
     ] },
 
   // ---- structure ----------------------------------------------------------

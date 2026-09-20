@@ -257,6 +257,17 @@ function cageJoinSpec(P, M, T) {
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
+        // G445.1 (the C172 study): THE NOSE ENGINE IS WEIGHED WHERE IT IS
+        // DRAWN. The frame placed a nose engine by the prop rule
+        // (60_gen_spec: engX = -(0.18 + 0.32 propR)) - 0.49 m ahead of the
+        // windscreen-base ring on the user's 172, the block inside the cowl
+        // deck - while the engine layer draws its flange 1.17 m ahead, where
+        // a 172's is. Measured: 144 kg weighed 0.67 m aft of the drawn
+        // engine, the CG 7 % MAC aft of the aeroplane on the screen. The
+        // flange the layer drew (M.engUnits, kind 'nose') rides out as `x`
+        // like every other mount's; y stays the spec's thrustline rule (the
+        // cowl and the nose gear read engY).
+        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x) ? { x: EU[0].x } : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the

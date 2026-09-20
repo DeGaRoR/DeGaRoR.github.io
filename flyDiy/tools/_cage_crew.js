@@ -555,27 +555,11 @@ function buildSeat(parent, A, P, sx, zBack, sbs, SP) {
   if (type === 1) seatShell(parent, A, P, g);
   else if (type === 2) seatAirline(parent, A, P, g);
   else seatTube(parent, A, P, g);
-  // lap belts, hanging over the squab rim (webbing is flat — a ribbon).
-  // Off by default (user 2026-08-19: removed for now).
-  if (P.seatBelt) {
-    const szc = g.szc, panY = g.panY, hw = g.hw;
-    const bag = Bag(M.belt);
-    for (const s3 of [-1, 1]) {
-      ribbon(bag, [
-        [sx + s3 * (hw + 0.010), panY - 0.045, szc - 0.19],
-        [sx + s3 * hw * 0.96, panY + 0.015, szc - 0.10],
-        [sx + s3 * hw * 0.88, panY + 0.020, szc + 0.06],
-        [sx + s3 * hw * 0.80, panY - 0.055, szc + 0.17],
-        [sx + s3 * hw * 0.74, panY - 0.155, szc + 0.19],
-        [sx + s3 * hw * 0.72, panY - 0.235, szc + 0.17],
-      ], 0.048, 0.5);
-      const bx = sx + s3 * hw * 0.72, by = panY - 0.255, bz = szc + 0.17;
-      boxAt(parent, s3 > 0 ? M.metal : M.dark,
-            [bx, by - 0.012, bz + 0.004],
-            s3 > 0 ? [0.055, 0.045, 0.010] : [0.045, 0.060, 0.006]);
-    }
-    bag.mesh(parent);
-  }
+  // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172: "delete the
+  // option for the hanging safety belts (they got through the fuselage)").
+  // They were off by default since 2026-08-19 and hung through the sides
+  // of any cabin narrower than the stock one; a saved `seatBelt` is read
+  // and ignored.
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw,
            backH: g.backH, rake: g.rake };
 }

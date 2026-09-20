@@ -960,7 +960,7 @@ const CAGE_PARTS = [
              at: 'on the cabin floor' },
     groups: [
       ['seating', ['seatType', 'seatLayout', 'seatZ', 'seatH', 'seatRake',
-                   'seatTilt', 'seatGap', 'seatBelt']],
+                   'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
       ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
