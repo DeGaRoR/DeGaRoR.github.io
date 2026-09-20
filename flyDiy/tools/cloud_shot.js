@@ -97,7 +97,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // --ui <slot>: the flyout of that rail slot left open and the UI in the frame (a picture of the rows), else SHOT_MODE hides it
   const UI = opt('ui', null);
   await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
-  if (UI) await ev(`(()=>{const s=document.querySelector('#flSlots .flSlot[data-s="${UI}"]');if(s)s.click();return 1;})()`);
+  if (UI) await ev(`(()=>{const s=document.querySelector('#flSlots .flSlot[data-s="${UI}"]')||document.querySelector('#flRail [data-f="${UI}"]');if(s)s.click();return 1;})()`);   // a brief slot or a rail item
   else await ev("(()=>{if(window.SHOT_MODE)SHOT_MODE.enter();return 1;})()");
   await sleep(500);
   fs.mkdirSync(OUT, { recursive: true });

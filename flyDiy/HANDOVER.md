@@ -50440,3 +50440,32 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   junction to it and `git worktree remove --force` followed the link; the Jolene bench session
   regenerated the terrain twice). No link exists anywhere now; the build worktree gets no bench;
   the rig reads a plain copy or the fallback server. G434.1 had already recorded the trap.
+
+
+## G436.9 — THE CLOUDS' OWN PANEL ON THE FLIGHT RAIL (2026-09-20, the user: "we need a proper UI for
+## the cloud layers, as well as some settings covering the range of capabilities, also in a clear UI
+## accessible from the left option bar")
+
+- src/viewer/clouds_ui.js (new): CLOUDS_UI.mount(host, H, ctx) in the rail's own rows and pills (the
+  GRAPHICS idiom - app.js hands flRow / flRange / flPills / flNote and the day clock in). A `clouds`
+  item on the flight rail (a cloud glyph, between CONTROLS and GRAPHICS). Sections: SKY (eight preset
+  skies - clear, fair weather, scattered, broken deck, overcast, two decks, high sheet, storm - each
+  a set of the day's fields, the matching one lit), LOW DECK (cover, type pills, base: 0 = the
+  dewpoint's with its metres shown, else an override), UPPER DECK 1 / 2 (cover - none folds the
+  rest - type, base), CIRRUS VEIL (amount, height), LOOK (detail, erosion x the type's, underside
+  depth, shadow, shadow softness), MOTION (drift x the wind, another sky = a new seed), RENDER (off /
+  half / full through GFX.set, quality fast / standard / fine = 24 / 48 / 96 steps, light x3 / x5 /
+  x8), and a note with the GPU ms. Every row writes the same setters F8 and the WORLD editor use
+  (CLOUDS.S, DAY_CLOCK.set, CLOUD_FIELD.upperWith), so the three agree.
+- WHAT IS KEPT: the weather is the DAY'S - day_clock.js saves cloudCover / cloudType / cloudUpper in
+  flydiy.day with the date and brings them back at boot (a ?cloud= on the URL wins); the look,
+  motion and render dials are the machine's - flydiy.clouds (a whitelist of twelve CLOUDS.S keys),
+  applied over CLOUDS.S when clouds_ui.js loads. The day slot's own cloud rows shrank to the cover
+  and the type with a pointer to the panel.
+- flight.css: `.fr.fsec`, a section head inside a flyout (small caps over a hairline).
+- SEEN (screenshots/clouds-2026-09-20/ui/sheet_ui.jpg): the flyout top to bottom, the TWO DECKS
+  preset lit, the altocumulus deck's rows open.
+- GATE CLOUD: the panel's rules (the decks' rows, the rail item and its mount with the day clock, the
+  six sections, the two prefs, the build list). CLOUD / UISMOKE / DAY / ATMO green.
+- OWED: the same panel in the garage's rail (the shed shows the day's sky; its DUSK picker is the
+  day's, the clouds are the flight rail's for now); the flyout is tall - it scrolls.

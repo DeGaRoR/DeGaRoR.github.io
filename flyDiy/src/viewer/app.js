@@ -6584,6 +6584,10 @@
     // G286: GRAPHICS - the menu a PC game has: a preset and six named
     // options over handles the world publishes, saved and applied at boot.
     // The panel is gfx_settings.js's; both rails host it. A sliders glyph. (GFX)
+    // 2026-09-20: THE CLOUDS - the decks, the veil, the look and the cost, in one flyout (clouds_ui.js).
+    // A cloud glyph.
+    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
+      icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
@@ -6851,17 +6855,8 @@
           flRange(body, 'cloud cover', 0, 1, 0.05, () => CK.day().cloudCover, v => { CK.set({ cloudCover: v }); flRefreshDay(); }, v => (v * 100).toFixed(0) + ' %');
           flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })),
                   o => o.value === CK.day().cloudType, o => { CK.set({ cloudType: o.value }); flRefreshDay(); });
-          flNote(body, 'The base is the dewpoint\'s (125 m a degree of spread); the type sets the thickness.');
-          // THE UPPER DECKS (A6): two more layers above the low one, each its own cover, type and base
-          for (let di = 0; di < CLOUD_FIELD.MAX_LAYERS - 1; di++) {
-            const up = () => CK.day().cloudUpper[di] || { cover: 0, type: 'ac' };
-            const put = patch => { CK.set({ cloudUpper: CLOUD_FIELD.upperWith(CK.day().cloudUpper, di, patch) }); flRefreshDay(); };
-            flRange(body, 'upper deck ' + (di + 1), 0, 1, 0.05, () => up().cover, v => put({ cover: v }), v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'none');
-            if (up().cover > 0) {
-              flPills(body, CLOUD_FIELD.TYPE_ORDER.map(t => ({ label: CLOUD_FIELD.TYPES[t].label, value: t })), o => o.value === up().type, o => put({ type: o.value }));
-              flRange(body, 'deck ' + (di + 1) + ' base', 500, 9000, 100, () => (up().base != null ? up().base : CLOUD_FIELD.TYPES[CLOUD_FIELD.typeOf(up().type)].alt), v => put({ base: v }), v => v + ' m');
-            }
-          }
+          flNote(body, 'The base is the dewpoint\'s (125 m a degree of spread); the type sets the thickness. ' +
+                       'The upper decks, the veil and the look are the CLOUDS flyout\'s.');
         }
       }
       flNote(body, 'A day is air AND wind. The weather changes live — the ' +
@@ -6983,6 +6978,16 @@
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
+    },
+    // 2026-09-20: THE CLOUDS - clouds_ui.js in this rail's own rows and pills
+    clouds(body) {
+      if (!window.CLOUDS_UI) { flNote(body, 'This build has no cloud panel.'); return; }
+      window.CLOUDS_UI.mount(body, {
+        row: (h, label) => flRow(h, label),
+        range: (h, label, lo, hi, step, get, set, fmt) => flRange(h, label, lo, hi, step, get, set, fmt),
+        pills: (h, list, isOn, pick) => flPills(h, list, isOn, pick),
+        note: (h, txt) => { flNote(h, txt); return h.lastChild; },
+      }, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay });
     },
     // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
     graphics(body) {

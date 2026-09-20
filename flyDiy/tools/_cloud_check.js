@@ -201,7 +201,12 @@ console.log('7b. several decks + the look: the march (static)');
   yes(/od \+= CLOUD_FIELD\.columnOD\(maps\[i\]/.test(cj), 'sunT sums the column over the decks above the point');
   yes(/out\[k \+ 'P'\] = \[0\.05, 0\.25, 0\.5, 0\.75, 0\.95\]/.test(cj), 'the probe reports the noise\'s percentiles (the instrument that found the slab)');
   const A = src('viewer/app.js'), P = src('viewer/premises_ui.js'), DP = src('viewer/dev_panel.js');
-  yes(/flRange\(body, 'upper deck ' \+ \(di \+ 1\)/.test(A) && /CLOUD_FIELD\.upperWith\(CK\.day\(\)\.cloudUpper, di, patch\)/.test(A), 'the flight rail carries the upper decks (cover, type, base)');
+  { const CU = src('viewer/clouds_ui.js');
+    yes(/H\.range\(host, 'cover', 0, 1, 0\.05, \(\) => up\(\)\.cover/.test(CU) && /cf\.upperWith\(day\(\)\.cloudUpper, di, patch\)/.test(CU) && /H\.range\(host, 'base', 500, 9000, 100/.test(CU), 'the clouds panel carries the upper decks (cover, type, base)');
+    yes(/k: 'clouds', label: 'clouds'/.test(A) && /window\.CLOUDS_UI\.mount\(body/.test(A) && /day: \(typeof DAY_CLOCK !== 'undefined'\) \? DAY_CLOCK : null/.test(A), 'the flight rail has the clouds item and mounts the panel with the day clock');
+    yes(/head\('sky'\)/.test(CU) && /head\('cirrus veil'\)/.test(CU) && /head\('look'\)/.test(CU) && /head\('motion'\)/.test(CU) && /head\('render'\)/.test(CU) && /PRESETS = \[/.test(CU), 'the panel: presets, the decks, the veil, the look, the motion, the render');
+    yes(/PREF = 'flydiy\.clouds'/.test(CU) && /API\.apply\(\);/.test(CU) && /cloudUpper: day\.cloudUpper && day\.cloudUpper\.length \? day\.cloudUpper : null/.test(src('viewer/day_clock.js')), 'the look is saved as flydiy.clouds and applied at load; the weather is saved with the day');
+    yes(/'clouds_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'clouds_ui.js is in the build'); }
   yes(/rows\.slider\(insp, 'upper deck ' \+ \(di \+ 1\)/.test(P) && /rows\.slider\(insp, 'deck ' \+ \(di \+ 1\) \+ ' base'/.test(P), 'the WORLD editor carries the upper decks');
   yes(/slider\('upper deck ' \+ \(di \+ 1\)/.test(DP) && /slider\('erode'/.test(DP) && /select\('cover fit'/.test(DP), 'F8 carries the upper decks, erode and the cover fit');
   yes(fs.existsSync(path.join(__dirname, 'cloud_shot.js')), 'the rig that judges the sky (tools/cloud_shot.js) is there');

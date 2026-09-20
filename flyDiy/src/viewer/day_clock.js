@@ -24,7 +24,9 @@ var DAY_CLOCK = (function () {
   const W = typeof window !== 'undefined' ? window : null;
 
   const read = () => { try { return JSON.parse(localStorage.getItem(PREF) || 'null'); } catch (e) { return null; } };
-  const save = () => { if (!day) return; try { localStorage.setItem(PREF, JSON.stringify({ date: day.date, utc: Math.round(day.utc), rate: day.rate })); } catch (e) {} sinceSave = 0; };
+  // ... and THE WEATHER with it (2026-09-20, the clouds panel): the low deck's cover and type, the upper decks
+  const save = () => { if (!day) return; try { localStorage.setItem(PREF, JSON.stringify({ date: day.date, utc: Math.round(day.utc), rate: day.rate,
+    cloudCover: day.cloudCover, cloudType: day.cloudType, cloudUpper: day.cloudUpper && day.cloudUpper.length ? day.cloudUpper : null })); } catch (e) {} sinceSave = 0; };
   // ?day=2026-12-21T20:44Z  (UT)  or  ?day=2026-12-21T12:30  (local)  or  ?day=golden
   function fromUrl() {
     if (!W || !W.location) return null;
@@ -64,6 +66,8 @@ var DAY_CLOCK = (function () {
       const url = fromUrl(), pref = read();
       if (url) { if (url.preset) api.preset(url.preset); else w.setDay(url); }
       else if (pref && pref.date) w.setDay({ date: pref.date, utc: pref.utc, rate: pref.rate != null ? pref.rate : 1 });
+      // the saved weather comes back with the day (a ?cloud= on the URL, below, wins over it)
+      if (pref && pref.cloudCover != null) w.setDay({ cloudCover: pref.cloudCover, cloudType: pref.cloudType || 'cu', cloudUpper: Array.isArray(pref.cloudUpper) ? pref.cloudUpper : null });
       // ?cloud=0.45  or  ?cloud=0.9,st  (CLOUDS C4): the cover and the type, for a reproducible shot;
       // ?cloud=0.45,cu;0.3,ac,3500;0.5,as (A6): the upper decks after semicolons - cover, type, base (m, optional)
       if (W && W.location) {

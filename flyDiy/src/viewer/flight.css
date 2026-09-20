@@ -344,6 +344,12 @@
 
 #flFlyBody .fpills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
 
+/* 2026-09-20: a section head inside a flyout (the clouds panel's decks / veil / look / render) */
+#flFlyBody .fr.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+#flFlyBody .fr.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#flFlyBody .fr.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+
 #flFlyBody .fnote { margin-top:10px; padding-top:9px;
   border-top:1px solid var(--ed-hair);
   font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
