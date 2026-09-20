@@ -176,6 +176,11 @@
         <div class="rd" data-i="ias"><b id="r-ias">0</b><i>km/h ias</i></div>
         <div class="rd" data-i="alt"><b id="r-alt">0</b><i>m alt</i></div>
         <div class="rd" data-i="vs"><b id="r-vs">0.0</b><i>m/s vs</i></div>
+        <!-- A3 (the 2026-09-20 playtest): WHAT IS LEFT TO FLY ON, always -
+             litres of a tank or kWh of a pack, by the build's energy kind;
+             the label carries the endurance at the current draw once the
+             solver says it; red under the reserve; EMPTY when starved. -->
+        <div class="rd" data-i="nrg"><b id="r-nrg">0</b><i id="r-nrgU">L fuel</i></div>
         <div class="rd" data-i="aoa" hidden><b id="r-aoa">0.0</b><i>&deg; aoa</i></div>
         <div class="rd" data-i="bank" hidden><b id="r-bank">0.0</b><i>&deg; bank</i></div>
         <div class="rd" data-i="agl" hidden><b id="r-agl">0</b><i>m agl</i></div>
@@ -657,12 +662,12 @@
 <script type="text/x-flydiy" src="src/core/42_crosswind.js?v=2c8d2d51"></script>
 <script type="text/x-flydiy" src="src/core/43_pilot.js?v=3dfe774a"></script>
 <script type="text/x-flydiy" src="src/core/44_machine_sheet.js?v=66d57acc"></script>
-<script type="text/x-flydiy" src="src/core/50_model_codec.js?v=1195a6e6"></script>
+<script type="text/x-flydiy" src="src/core/50_model_codec.js?v=bd572561"></script>
 <script type="text/x-flydiy" src="src/core/51_prop_codec.js?v=2a556ad5"></script>
 <script type="text/x-flydiy" src="src/core/52_char_codec.js?v=9bf22959"></script>
 <script type="text/x-flydiy" src="src/core/53_tree_codec.js?v=377a975f"></script>
 <script type="text/x-flydiy" src="src/core/54_decimate.js?v=389dde44"></script>
-<script type="text/x-flydiy" src="src/core/60_gen_spec.js?v=bc55d1f9"></script>
+<script type="text/x-flydiy" src="src/core/60_gen_spec.js?v=84c1afd9"></script>
 <script type="text/x-flydiy" src="src/core/60b_gen_loft.js?v=35508464"></script>
 <script type="text/x-flydiy" src="src/core/60c_gen_energy.js?v=717580ae"></script>
 <script type="text/x-flydiy" src="src/core/61_gen_frame.js?v=c136619b"></script>
@@ -672,7 +677,7 @@
 <script type="text/x-flydiy" src="src/core/65_gen_loadtest.js?v=25f6ff09"></script>
 <script type="text/x-flydiy" src="src/core/70_player.js?v=492b9918"></script>
 <script type="text/x-flydiy" src="src/core/90_node_exports.js?v=75fc3875"></script>
-<script>window.FLYDIY_CORE_SHA='4e0c652fae6a';window.FLYDIY_BUILD='7e0721a6455f'</script>
+<script>window.FLYDIY_CORE_SHA='5047a912b429';window.FLYDIY_BUILD='4b549c873ba8'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -711,14 +716,14 @@
 <script type="text/x-flydiy" src="tools/_cage_parts.js?v=90bda308"></script>
 <script type="text/x-flydiy" src="tools/_fin_gen.js?v=ce0b0acd"></script>
 <script type="text/x-flydiy" src="tools/_cage_design.js?v=868fedb6"></script>
-<script type="text/x-flydiy" src="tools/_cage_page5.js?v=eb02f670"></script>
+<script type="text/x-flydiy" src="tools/_cage_page5.js?v=768078e3"></script>
 <script type="text/x-flydiy" src="tools/_knife_gen.js?v=860a32f8"></script>
 <script type="text/x-flydiy" src="tools/_shoulder_gen.js?v=d9f0fb70"></script>
 <script type="text/x-flydiy" src="tools/_cage_gen.js?v=dadc8a1d"></script>
 <script type="text/x-flydiy" src="tools/_cage_char.js?v=9a460cfd"></script>
-<script type="text/x-flydiy" src="tools/_cage_crew.js?v=d6b1f809"></script>
-<script type="text/x-flydiy" src="tools/_panel_gen.js?v=2df04ed3"></script>
-<script type="text/x-flydiy" src="tools/_cage_panel.js?v=dd1e051b"></script>
+<script type="text/x-flydiy" src="tools/_cage_crew.js?v=f963b73c"></script>
+<script type="text/x-flydiy" src="tools/_panel_gen.js?v=8f4549db"></script>
+<script type="text/x-flydiy" src="tools/_cage_panel.js?v=c2f4cb75"></script>
 <script type="text/x-flydiy" src="tools/_gear_kit.js?v=d726c883"></script>
 <script type="text/x-flydiy" src="tools/_gear_gen.js?v=42866a17"></script>
 <script type="text/x-flydiy" src="tools/_gear_page.js?v=e15517ca"></script>
@@ -743,13 +748,13 @@
 <script type="text/x-flydiy" src="tools/_cage_stab.js?v=8ffbaff0"></script>
 <script type="text/x-flydiy" src="tools/_tail_headless.js?v=6be0eef1"></script>
 <script type="text/x-flydiy" src="tools/_cage_access.js?v=3aed980a"></script>
-<script type="text/x-flydiy" src="tools/_cage_light.js?v=939c3caf"></script>
+<script type="text/x-flydiy" src="tools/_cage_light.js?v=ca6a5bc1"></script>
 <script type="text/x-flydiy" src="tools/_bay_site.js?v=7bbcf819"></script>
 <script type="text/x-flydiy" src="tools/_vessel_gen.js?v=f2f8b059"></script>
 <script type="text/x-flydiy" src="tools/_vessel_mesh.js?v=3eaf3a6b"></script>
 <script type="text/x-flydiy" src="tools/_cage_energy.js?v=ea37adde"></script>
 <script type="text/x-flydiy" src="tools/_cage_hinge.js?v=b65a3536"></script>
-<script type="text/x-flydiy" src="tools/_cage_join.js?v=53cb5aeb"></script>
+<script type="text/x-flydiy" src="tools/_cage_join.js?v=dc8839a8"></script>
 <script type="text/x-flydiy" src="tools/_cage_ui.js?v=cf8b586f"></script>
 <script type="text/x-flydiy" src="src/viewer/storage.js?v=8db5ea93"></script>
 <script type="text/x-flydiy" src="src/viewer/assets.js?v=5ae00b40"></script>
@@ -790,11 +795,11 @@
 <script type="text/x-flydiy" src="src/viewer/design_flow.js?v=b53e559c"></script>
 <script type="text/x-flydiy" src="src/viewer/balance.js?v=6b250999"></script>
 <script type="text/x-flydiy" src="src/viewer/pattern_vis.js?v=75fb61a9"></script>
-<script type="text/x-flydiy" src="src/viewer/input.js?v=4f0eecc3"></script>
-<script type="text/x-flydiy" src="src/viewer/input_panel.js?v=551221ee"></script>
+<script type="text/x-flydiy" src="src/viewer/input.js?v=2d29ecd7"></script>
+<script type="text/x-flydiy" src="src/viewer/input_panel.js?v=d1ff1579"></script>
 <script type="text/x-flydiy" src="src/viewer/gfx_settings.js?v=18442ef7"></script>
 <script type="text/x-flydiy" src="src/viewer/editor.js?v=929af0e2"></script>
-<script type="text/x-flydiy" src="src/viewer/cockpit.js?v=9a1f0b2e"></script>
+<script type="text/x-flydiy" src="src/viewer/cockpit.js?v=97a1c310"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
 <script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
 <script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
@@ -825,7 +830,7 @@
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=7bb8bf6c"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
-<script type="text/x-flydiy" src="src/viewer/app.js?v=4f60883b"></script>
+<script type="text/x-flydiy" src="src/viewer/app.js?v=16ef986b"></script>
 <script type="text/x-flydiy" src="src/viewer/dev_panel.js?v=1539c94f"></script>
 <script>
 window.FLYDIY_BOOT.then(function () {

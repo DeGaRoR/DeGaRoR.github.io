@@ -3500,6 +3500,11 @@ body.benchBusy #edInfo { opacity:.72; }
         <div class="rd" data-i="ias"><b id="r-ias">0</b><i>km/h ias</i></div>
         <div class="rd" data-i="alt"><b id="r-alt">0</b><i>m alt</i></div>
         <div class="rd" data-i="vs"><b id="r-vs">0.0</b><i>m/s vs</i></div>
+        <!-- A3 (the 2026-09-20 playtest): WHAT IS LEFT TO FLY ON, always -
+             litres of a tank or kWh of a pack, by the build's energy kind;
+             the label carries the endurance at the current draw once the
+             solver says it; red under the reserve; EMPTY when starved. -->
+        <div class="rd" data-i="nrg"><b id="r-nrg">0</b><i id="r-nrgU">L fuel</i></div>
         <div class="rd" data-i="aoa" hidden><b id="r-aoa">0.0</b><i>&deg; aoa</i></div>
         <div class="rd" data-i="bank" hidden><b id="r-bank">0.0</b><i>&deg; bank</i></div>
         <div class="rd" data-i="agl" hidden><b id="r-agl">0</b><i>m agl</i></div>
@@ -22937,14 +22942,24 @@ function makeLinkage(tau) {
   // G318: the brake (a pull), the trim wheel and the fuel selector ride too —
   // `trim` and `fuel` are the cockpit's own numbers on ctl, which the solver
   // never reads; the linkage carries them to the parts like any drive
-  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel'];
+  // G442.3: `thr0`..`thr3` ride too - each engine's own lever (the pilot's
+  // throttle times ctl.eng[i]'s lever, G194's per-engine record; the pilot's
+  // throttle alone when there is no record), for a twin's double throttle
+  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel', 'thr0', 'thr1', 'thr2', 'thr3'];
   const s1 = {}, s2 = {};
   for (const k of KEYS) { s1[k] = 0; s2[k] = 0; }
+  const read = (ctl, k) => {
+    if (k.length === 4 && k.lastIndexOf('thr', 0) === 0) {
+      const i = +k[3], e = ctl.eng && ctl.eng[i];
+      return (ctl.thr || 0) * (e ? (e.on ? +e.thr : 0) : 1);
+    }
+    return ctl[k] || 0;
+  };
   return {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
       for (const k of KEYS) {
-        s1[k] += a * ((ctl[k] || 0) - s1[k]);
+        s1[k] += a * (read(ctl, k) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);
       }
       return s2;
@@ -25143,7 +25158,14 @@ const GEN_INSTR = {
              power: 'none', note: 'bulb and capillary' },
   fuel:    { name: 'fuel quantity',        d: 0.0572, kg: 0.25, price: 180,
              power: 'elec', amps: 0.1, perTank: { kg: 0.30, price: 90 },
-             note: 'one gauge, a float sender per tank' },
+             note: 'one gauge, a float sender per tank',
+             // THE CHARGE GAUGE (A3, the 2026-09-20 playtest): the same key
+             // on a battery build is the pack's state-of-charge meter, fed by
+             // the pack's own BMS - no 12 V bus and no float senders. The key
+             // stays `fuel` so every tier, save and layout slot holds; the
+             // resolver swaps this row in (see genSystemsResolve).
+             charge: { name: 'charge (state of charge)', d: 0.0572, kg: 0.20, price: 220,
+                       power: 'pack', amps: 0, note: 'the BMS read-out on the panel (a Velis shows it on its EPSI)' } },
   fuelSight: { name: 'fuel sight gauge',   d: 0,      kg: 0.05, price: 30,
              power: 'none', note: 'a cork on a wire through the cap (J-3); a nose tank only' },
   volts:   { name: 'volt / ammeter',       d: 0.0572, kg: 0.15, price: 120,
@@ -25265,15 +25287,28 @@ function genSystemsResolve(S) {
     elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
-  const src = Array.isArray(sy.items) ? sy.items
-            : (T.items || GEN_SYSTEMS.basic.items);
+  // A BATTERY BUILD HAS A CHARGE GAUGE (A3, 2026-09-20): a pack has no cork
+  // on a wire, so the minimal tier's sight glass becomes the pack's own
+  // meter, and the `fuel` key reads GEN_INSTR.fuel.charge - fed by the pack,
+  // never dropped for want of a 12 V bus. The user's 2 kWh trainer flew with
+  // NO energy instrument at all (minimal fit: fuelSight, battery 'none') and
+  // spiralled into the sea with nothing that said why.
+  const battery = !!(S && S.energy && S.energy.kind === 'battery');
+  const rowOf = k => (battery && k === 'fuel') ? GEN_INSTR.fuel.charge : GEN_INSTR[k];
+  const custom = Array.isArray(sy.items);
+  const src = (custom ? sy.items
+            : (T.items || GEN_SYSTEMS.basic.items)).map(k => (battery && k === 'fuelSight') ? 'fuel' : k);
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
   for (const k of src) {
-    const r = GEN_INSTR[k];
+    const r = rowOf(k);
     if (!r || seen.has(k)) continue;
     seen.add(k);
+    // A MOTOR HAS NO OIL (G442.1, the user's ruling): a tier's oil pressure
+    // and oil temperature are dropped on a battery build, and say so; a
+    // player's own list that names them keeps them (a custom fit is explicit)
+    if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
     items.push(k);
@@ -25285,7 +25320,7 @@ function genSystemsResolve(S) {
   const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
   let nPowered = 0;
   for (const k of items) {
-    const r = GEN_INSTR[k];
+    const r = rowOf(k);
     let kg = r.kg, price = r.price;
     if (r.perTank) { kg += r.perTank.kg * nTanks; price += r.perTank.price * nTanks; }
     rows.push({ key: k, group: 'panel', name: r.name, kg, price, amps: r.amps || 0 });
@@ -25320,6 +25355,10 @@ function genSystemsResolve(S) {
     loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
+    // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
+    // sender per tank, on the bus) or 'battery' (the pack's state of charge,
+    // fed by the pack). The dash paints it and the cockpit reads it by this.
+    energyKind: battery ? 'battery' : 'fuel',
   };
 }
 
@@ -35564,7 +35603,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='4e0c652fae6a';window.FLYDIY_BUILD='7e0721a6455f'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5047a912b429';window.FLYDIY_BUILD='4b549c873ba8'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -40594,7 +40633,7 @@ window.CAGE_PAGE = {
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
-    flapCtl: 0,                                  // G335: the flaps' control — a floor lever or a dash switch
+    flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
@@ -53040,17 +53079,25 @@ function buildYoke(g0, A, P, sx) {
   const yY = A.waistY - 0.04;
   const zHub = A.zBack + 0.54;
   // the column: a steel tube through a plated collar on the panel's face,
-  // three screws round the collar (session 4e)
+  // three screws round the collar (session 4e). G442.2 (the playtest: "the
+  // yoke renders into the panel"): the collar sits at the PLATE'S OWN DEPTH
+  // where the column meets it (A.face.depthAt, the throttle's rule) - at
+  // A.zDash it stood inside a plate that is not at zDash there - and the
+  // column's footprint is published (A.keepOut, below) so no dial and no
+  // switch is placed where the boot is.
+  const F = A.face || null;
+  const zCol = F && F.depthAt ? F.depthAt(sx, yY) - 0.001 : A.zDash;
   {
     const K = window.GEAR_KIT;
-    tube(g, K ? M.frame : M.ctrl, [sx, yY, A.zDash + 0.05], [sx, yY, zHub], 0.0125);
+    tube(g, K ? M.frame : M.ctrl, [sx, yY, zCol + 0.05], [sx, yY, zHub], 0.0125);
     if (K) {
       const col = K.Bag();
-      K.revolve(col, [sx, yY, A.zDash], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
-      for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, A.zDash - 0.004], [0, 0, -1], 0.0025, 0.002); }
+      K.revolve(col, [sx, yY, zCol], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
+      for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, zCol - 0.004], [0, 0, -1], 0.0025, 0.002); }
       col.mesh(g, M.plated);
     }
   }
+  if (Array.isArray(A.keepOut)) A.keepOut.push({ x0: sx - 0.048, x1: sx + 0.048, y0: yY - 0.048, y1: yY + 0.048, what: 'yoke' });
   // G240: A YOKE DOES NOT SWING, IT SLIDES AND SPINS. Pitch is the column
   // running in and out of the panel — a translation, which a rigid part can
   // carry as easily as a rotation once the contract allows one — and roll is
@@ -53266,6 +53313,8 @@ function buildPedals(g, A, P, sx) {
   pl0.mesh(g, M.plated);
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
+// a twin: wing nacelles (engMount 3) with the engine on - two throttle levers
+const twinEngines = P => !!(P && +P.engOn && Math.round(+P.engMount || 0) === 3);
 function buildThrottleWall(g0, A, P, sx, onFace) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const zT = A.zBack + 0.40;
@@ -53317,16 +53366,28 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // THE THROTTLE ANSWERS TOO (live crew): the lever swings forward about
   // its lateral pivot, drawn at idle, THR_ARC at full — and the grip rides
   // inside the moving group, so the live pilot's hand goes with it
-  const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
-  const K = inG(gT, kn);
-  if (KW) {
-    // a flat steel lever from a plated pivot boss, a moulded knob on its end
-    const lev = KW.Bag(), boss = KW.Bag(), kb = KW.Bag();
-    KW.sweep(lev, [[0, 0, 0], K], () => [[-0.010, -0.004], [0.010, -0.004], [0.010, 0.004], [-0.010, 0.004]], true, [inb, 0, 0]);
-    KW.revolve(boss, [0, 0, 0], [inb, 0, 0], [[0.012, -0.006], [0.012, 0.007], [0, 0.007]], 16, true);
-    KW.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.026, 0.012), 36, true);
-    lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
-  } else { tube(gT, M.metal, [0, 0, 0], K, 0.009); ballAt(gT, M.knob, K, 0.026); }
+  // G442.3 (the user: "planes with 2 engines should have a double throttle"):
+  // a twin (wing nacelles) gets TWO levers on the same axle, 28 mm apart
+  // inboard, each on its own engine's drive (thr0 / thr1: the pilot's
+  // throttle times that engine's lever, from the linkage) - the pilot's hand
+  // holds the first; a single engine keeps the one lever on 'thr'
+  const twin = twinEngines(P);
+  const levers = twin ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.028]] : [['edCtl_throttle', 'thr', 0]];
+  let gT = null, K = null;
+  for (const [nm, drv, dx] of levers) {
+    const pv = [piv[0] + dx, piv[1], piv[2]];
+    const gL = movingAt(g, nm, pv, [1, 0, 0], drv, 1, THR_ARC);
+    const KL = inG(gL, [kn[0] + dx, kn[1], kn[2]]);
+    if (KW) {
+      // a flat steel lever from a plated pivot boss, a moulded knob on its end
+      const lev = KW.Bag(), boss = KW.Bag(), kb = KW.Bag();
+      KW.sweep(lev, [[0, 0, 0], KL], () => [[-0.010, -0.004], [0.010, -0.004], [0.010, 0.004], [-0.010, 0.004]], true, [inb, 0, 0]);
+      KW.revolve(boss, [0, 0, 0], [inb, 0, 0], [[0.012, -0.006], [0.012, 0.007], [0, 0.007]], 16, true);
+      KW.revolve(kb, KL, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.026, 0.012), 36, true);
+      lev.mesh(gL, M.frame); boss.mesh(gL, M.plated); kb.mesh(gL, M.ball);
+    } else { tube(gL, M.metal, [0, 0, 0], KL, 0.009); ballAt(gL, M.knob, KL, 0.026); }
+    if (!gT) { gT = gL; K = KL; }
+  }
   // THE HAND RESTS ON THE BALL (G279, the user: "the crooked position of
   // its wrist on the throttle"): the grip axis was the LEVER's, which laid
   // the hand's width along the lever and left its length to point down
@@ -55326,6 +55387,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // The throttle stays single — one engine, one lever — and belongs to
   // the pilot's station.
   const stickMode = Math.round(P.ctlStick), thrMode = Math.round(P.ctlThr);
+  A.keepOut = [];                                       // G442.1/.2: the controls' footprints on the plate, for the panel's layout
   const mkStation = seat => {
     // NAMED (G113): the station's stick and pedals under one wrapper, so a
     // control resolves to the Controls part when clicked
@@ -55379,6 +55441,23 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     else thr = buildThrottleWall(tg, A, P, pilot.x);
   }
   st1.thr = thr;
+  // G442.1 (A3, the playtest: "the throttle over the metal toggles"): THE
+  // THROTTLE'S FOOTPRINT ON THE PLATE. The dash push-pull (ctlThr 1) stands
+  // OUT of the plate - a 40 mm collar, the rod, a 52 mm knob - low in the
+  // panel where the switch row runs, and the panel's layout never knew: on
+  // the user's 2 kWh trainer the key sat under the knob. The footprint is
+  // published on the anchor (cage frame, the plate's own x / y) and the
+  // layout places no dial and no switch inside it. The wall and shoulder
+  // throttles stand beside the seat, off the plate: nothing to keep out.
+  // The knob stands 0.72 x thrLen out of the plate: seen from the pilot's
+  // eye above, it covers the plate ABOVE its own height as well - the band
+  // reaches up by half that stand-off (the eye's depression is ~30 deg).
+  A.keepOut = A.keepOut || [];
+  if (thrMode === 1 && thr && thr.obj && thr.obj.parent && thr.obj.parent.position) {
+    const p = thr.obj.parent.position, m = 0.045;      // the moving group sits on the pivot: the collar's x / y
+    const out = (P.thrLen != null ? P.thrLen : 0.16) * 0.72;
+    A.keepOut.push({ x0: p.x - m, x1: p.x + m, y0: p.y - m, y1: p.y + m + out * 0.5, what: 'throttle' });
+  }
   let pedals = st1.pedals;
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —
   // the pilot's, drawn with the controls so the join carries them
@@ -55866,7 +55945,9 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // ---------------------------------------------------------------------------
 const UNITS = {
   aviation: { speed: { k: 1.943844, u: 'KNOTS' }, alt: { k: 3.28084, u: 'FEET' },
-              vs: { k: 196.8504 / 100, u: '×100 FT/MIN' }, press: { k: 1 / 6.894757, u: 'PSI' },
+              // psi per PASCAL (A3: it was psi per kPa, against metric's bar
+              // per pascal and the cockpit's pascals - the psi gauge pegged)
+              vs: { k: 196.8504 / 100, u: '×100 FT/MIN' }, press: { k: 1 / 6894.757, u: 'PSI' },
               temp: { k: 1, u: '°C' } },
   metric:   { speed: { k: 3.6, u: 'KM/H' }, alt: { k: 1, u: 'METRES' },
               vs: { k: 1, u: 'M/S' }, press: { k: 1e-5, u: 'BAR' },
@@ -55874,6 +55955,14 @@ const UNITS = {
 };
 // a round number at or above x, in steps
 const roundUp = (x, step) => Math.ceil(x / step - 1e-9) * step;
+// the largest 1 / 2 / 2.5 / 5 decade step at or under x (a tick step that
+// reads: 5, 10, 25 gallons - never 5.8)
+function niceStep(x) {
+  if (!(x > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  for (const m of [5, 2.5, 2, 1]) if (m * p <= x * (1 + 1e-9)) return m * p;
+  return p;
+}
 
 // what the scale of each instrument is, given the aeroplane (o: Vs0, Vs1,
 // Vh, Vne, Vfe in m/s EAS; rpm the rated engine speed; tanks litres) and
@@ -55929,11 +56018,38 @@ function scaleOf(key, units, o) {
                       { from: 0, to: 0.2 * max, col: '#e8332a', w: 0.12 }] };
     }
     case 'oilT':
+      // G442.3 (the playtest: "the graduations follow the units convention"):
+      // a US instrument reads in FAHRENHEIT - an AFFINE law (display = SI x k
+      // + off), the one scale that needs an offset; 100-250 F, the green arc
+      // 140-230, the red from 245 (the same water the metric face shows)
+      if (units !== 'metric')
+        return { min: 100, max: 250, k: 1.8, off: 32, a0: 225, sweep: 270, unit: '°F', major: 50, minor: 10,
+                 arcs: [{ from: 140, to: 230, col: '#3dbb5e', w: 0.12 }, { from: 244, to: 250, col: '#e8332a', w: 0.12 }] };
       return { min: 40, max: 130, k: 1, a0: 225, sweep: 270, unit: U.temp.u, major: 30, minor: 10,
                arcs: [{ from: 60, to: 110, col: '#3dbb5e', w: 0.12 }, { from: 118, to: 130, col: '#e8332a', w: 0.12 }] };
-    case 'fuel':
-      return { min: 0, max: 1, k: 1, a0: 300, sweep: 120, unit: '', major: 0.5, minor: 0.25,
-               arcs: [{ from: 0, to: 0.1, col: '#e8332a', w: 0.14 }], labels: { 0: 'E', 0.5: '½', 1: 'F' } };
+    case 'fuel': {
+      // THE FUEL / CHARGE GAUGE (A3, the 2026-09-20 playtest: "a fuel / charge
+      // gauge that follows the build's energy kind, litres or kWh, the units
+      // convention"). The face is painted in the QUANTITY the build carries -
+      // litres (metric) or US gallons (aviation) of a tank, kWh of a pack -
+      // E at empty, F at the design capacity, the reserve's red arc under
+      // 10 %. The hand's DRIVE is the fraction of that capacity (0..1): the
+      // stops the join bakes hold whatever the tank, and `k` is the capacity
+      // in display units, so `v * k` is what the numerals say. `o.energy` =
+      // { kind: 'fuel' | 'battery', capacity } (litres or kWh) - without it
+      // (a bench with no build) the face is the old E / half / F fraction.
+      const E = o.energy || null, battery = !!(E && E.kind === 'battery');
+      const cap = E && E.capacity > 0 ? E.capacity : 0;
+      const red = [{ from: 0, to: 0.1, col: '#e8332a', w: 0.14 }];
+      if (!cap) return { min: 0, max: 1, k: 1, a0: 300, sweep: 120, unit: '', major: 0.5, minor: 0.25,
+                         arcs: red, labels: { 0: 'E', 0.5: '½', 1: 'F' }, title: battery ? 'CHARGE' : 'FUEL', kind: battery ? 'battery' : 'fuel' };
+      const kq = battery ? 1 : (units === 'metric' ? 1 : 0.264172);   // display per litre / kWh
+      const max = cap * kq, major = niceStep(max / 2);
+      return { min: 0, max, k: max, a0: 300, sweep: 120, major, minor: major / 4,
+               unit: battery ? 'kWh' : (units === 'metric' ? 'LITRES' : 'US GAL'),
+               arcs: [{ from: 0, to: 0.1 * max, col: '#e8332a', w: 0.14 }],
+               ends: { lo: 'E', hi: 'F' }, title: battery ? 'CHARGE' : 'FUEL', kind: battery ? 'battery' : 'fuel' };
+    }
     case 'volts':
       return { min: 8, max: 16, k: 1, a0: 225, sweep: 270, unit: 'VOLTS', major: 2, minor: 1,
                arcs: [{ from: 12.5, to: 14.5, col: '#3dbb5e', w: 0.12 }, { from: 8, to: 11, col: '#e8332a', w: 0.12 }] };
@@ -55957,29 +56073,29 @@ function scaleOf(key, units, o) {
 // 'symbol' }. Two-axis parts (the attitude ball) carry `drive2`.
 // ---------------------------------------------------------------------------
 const FACES = {
-  asi:    { painter: 'asi', hands: [{ name: 'needle', drive: 'ias', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 }] },
+  asi:    { painter: 'asi', hands: [{ name: 'needle', drive: 'ias', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 }] },
   alt:    { painter: 'alt', hands: [
-              { name: 'h100', drive: 'alt', law: 'turn', per: 1000, L: 0.86, w: 0.05, tail: 0.15 },
-              { name: 'h1k',  drive: 'alt', law: 'turn', per: 10000, L: 0.58, w: 0.09, tail: 0.10 },
+              { name: 'h100', drive: 'alt', law: 'turn', per: 1000, L: 0.86, w: 0.05, tail: 0.08 },
+              { name: 'h1k',  drive: 'alt', law: 'turn', per: 10000, L: 0.58, w: 0.09, tail: 0.08 },
               { name: 'h10k', drive: 'alt', law: 'turn', per: 100000, L: 0.90, w: 0.025, tail: 0.0 }] },
-  vsi:    { painter: 'vsi', hands: [{ name: 'needle', drive: 'vs', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 }] },
+  vsi:    { painter: 'vsi', hands: [{ name: 'needle', drive: 'vs', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 }] },
   ai:     { painter: 'ai', hands: [{ name: 'ball', kind: 'drum', drive: 'roll', drive2: 'pitch', law: 'ball' }] },
   aiE:    { painter: 'ai', hands: [{ name: 'ball', kind: 'drum', drive: 'roll', drive2: 'pitch', law: 'ball' }] },
   turn:   { painter: 'turn', hands: [{ name: 'plane', kind: 'symbol', drive: 'r', law: 'lin', L: 0.7, w: 0.06 }] },
   dg:     { painter: 'dg', hands: [{ name: 'card', kind: 'card', drive: 'hdg', law: 'card' }] },
   compass:{ painter: 'compass', hands: [{ name: 'card', kind: 'drumV', drive: 'hdg', law: 'card' }] },
-  tacho:  { painter: 'tacho', hands: [{ name: 'needle', drive: 'rpmEng', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 }] },
-  gmeter: { painter: 'gmeter', hands: [{ name: 'needle', drive: 'nz', law: 'lin', L: 0.82, w: 0.055, tail: 0.18 },
+  tacho:  { painter: 'tacho', hands: [{ name: 'needle', drive: 'rpmEng', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 }] },
+  gmeter: { painter: 'gmeter', hands: [{ name: 'needle', drive: 'nz', law: 'lin', L: 0.82, w: 0.055, tail: 0.08 },
                                        { name: 'max', drive: 'nzMax', law: 'lin', L: 0.82, w: 0.03, tail: 0.0 },
                                        { name: 'min', drive: 'nzMin', law: 'lin', L: 0.82, w: 0.03, tail: 0.0 }] },
-  oilP:   { painter: 'oilP', hands: [{ name: 'needle', drive: 'oilP', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
-  oilT:   { painter: 'oilT', hands: [{ name: 'needle', drive: 'oilT', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
-  fuel:   { painter: 'fuel', hands: [{ name: 'needle', drive: 'fuelFrac', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
-  volts:  { painter: 'volts', hands: [{ name: 'needle', drive: 'volts', law: 'lin', L: 0.8, w: 0.07, tail: 0.15 }] },
+  oilP:   { painter: 'oilP', hands: [{ name: 'needle', drive: 'oilP', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  oilT:   { painter: 'oilT', hands: [{ name: 'needle', drive: 'oilT', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  fuel:   { painter: 'fuel', hands: [{ name: 'needle', drive: 'fuelFrac', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  volts:  { painter: 'volts', hands: [{ name: 'needle', drive: 'volts', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
   clock:  { painter: 'clock', hands: [
-              { name: 'hour', drive: 'clockH', law: 'turn', per: 12, L: 0.55, w: 0.08, tail: 0.12 },
-              { name: 'minute', drive: 'clockM', law: 'turn', per: 60, L: 0.85, w: 0.06, tail: 0.15 },
-              { name: 'second', drive: 'clockS', law: 'turn', per: 60, L: 0.88, w: 0.02, tail: 0.2 }] },
+              { name: 'hour', drive: 'clockH', law: 'turn', per: 12, L: 0.55, w: 0.08, tail: 0.08 },
+              { name: 'minute', drive: 'clockM', law: 'turn', per: 60, L: 0.85, w: 0.06, tail: 0.08 },
+              { name: 'second', drive: 'clockS', law: 'turn', per: 60, L: 0.88, w: 0.02, tail: 0.08 }] },
   // the radios: a face with a window, no hands yet (session 5 paints the
   // digits live)
   com:    { painter: 'com', hands: [] },
@@ -55999,7 +56115,7 @@ function angleOf(key, hand, v, units, o) {
     return (((v * S.k) / per) % 1 + 1) % 1 * 360;
   }
   if (H.law === 'lin') {
-    let d = v * S.k;
+    let d = v * S.k + (S.off || 0);                // display = SI x k (+ the one affine offset, Fahrenheit)
     if (S.dead != null) {                       // the ASI's dead low end
       const lo = S.dead, span = S.max - S.min;
       const f0 = (lo - S.min) / span;           // the first mark's fraction
@@ -56016,8 +56132,11 @@ function angleOf(key, hand, v, units, o) {
 // arithmetic as angleOf, reached through it so they cannot drift
 function angleOfDisp(key, d, units, o) {
   const S = scaleOf(key, units, o);
-  return angleOf(key, FACES[key].hands[0] || { law: 'lin' }, d / S.k, units, o);
+  return angleOf(key, FACES[key].hands[0] || { law: 'lin' }, dispToSI(S, d), units, o);
 }
+// a DISPLAY value back to the SI the hand is driven with (the join's stops,
+// the gate): the inverse of the lin law's first line
+function dispToSI(S, d) { return (d - (S.off || 0)) / S.k; }
 
 // ---------------------------------------------------------------------------
 // THE LAYOUT — the standard T on the dash face.
@@ -56057,8 +56176,13 @@ function layout(A, o) {
   const xLim = F ? Math.max(0.16, F.xMax - PAN_INSET) : Math.max(0.16, A.halfW - 0.05);
   // a dial fits where its whole circle, inset, is inside the plate's outline
   // - seven points round its rim against the column under each
+  // THE KEEP-OUTS (G442.1): the crew's throttle shadow on the plate, from the
+  // pilot's eye (A.keepOut, cage x / y rectangles) - nothing is placed under it
+  const KO = Array.isArray(A.keepOut) ? A.keepOut : [];
+  const kept = (x0, x1, y0, y1) => KO.some(k => x1 > k.x0 && x0 < k.x1 && y1 > k.y0 && y0 < k.y1);
   const fits = (cx, cy, r) => {
     if (Math.abs(cx) + r > xLim + 1e-6) return false;
+    if (kept(cx - r, cx + r, cy - r, cy + r)) return false;
     // the switch row lives along the bottom: a dial leaves it its 16 mm and a gap
     if (cy + r > yTop + 1e-6 || cy - r < yBot + SW_ROOM - 1e-6) return false;
     if (!F) return true;
@@ -56114,7 +56238,43 @@ function layout(A, o) {
     if (!fits(cx, cy, D_BIG / 2)) { overflow.push(k); return; }
     dials.push({ k, cx, cy, r: D_BIG / 2 });
   };
+  // THE COMPACT PANEL (G442.4, the user: "the placement of the dials seems
+  // predetermined; they should be optimized for the actual dash, in central
+  // positions first"). The T and its blanking holes are the SIX-PACK's rule:
+  // a scan that must not move when a gyro is not bought. A panel with no
+  // gyro T at all (no attitude, no DG, no turn coordinator - build (4)'s
+  // asi alt tacho fuel) has no scan to keep, and its dials pack from the
+  // pilot's centre OUT: the big ones on the top row (the ASI in the middle,
+  // the altimeter to its right, the tacho to its left, then the VSI and the
+  // G-meter), the small ones on a row under them the same way, the clock
+  // among them. Each takes the highest place that fits under the crown.
+  const compact = !has('ai') && !has('aiE') && !has('dg') && !has('turn');
+  let gx0 = 0, dir = -1, groupW = 0;             // the engine group's edge, for the radios
   const aiKey = has('aiE') ? 'aiE' : (has('ai') ? 'ai' : null);
+  if (compact) {
+    const big = ['asi', 'alt', 'tacho', 'vsi', 'gmeter'].filter(has);
+    const smalls = ['fuel', 'oilP', 'oilT', 'volts', 'clock'].filter(has);
+    // offsets from the centre, alternating: 0, the pilot's right (-x), left (+x), ...
+    const spread = (n, pitch) => { const o = [0]; for (let i = 1; o.length < n; i++) { o.push(-i * pitch); if (o.length < n) o.push(i * pitch); } return o; };
+    const rowOf = (keys, r, pitch, yWant) => {
+      const offs = spread(keys.length, pitch);
+      let low = yWant;
+      keys.forEach((k, i) => {
+        const cx = clamp(xC + offs[i], -xLim + r, xLim - r);
+        const cy = fits(cx, yWant, r) ? yWant : topAt(cx, r);
+        if (cy == null) { overflow.push(k); return; }
+        dials.push({ k, cx, cy, r });
+        low = Math.min(low, cy - r);
+      });
+      return low;
+    };
+    const yB = topAt(xC, D_BIG / 2);
+    const low0 = rowOf(big, D_BIG / 2, colW, yB != null ? yB : yTop - D_BIG / 2);
+    const y1 = low0 - GAP - D_SMALL / 2;
+    rowOf(smalls, D_SMALL / 2, D_SMALL + GAP, y1);
+    const onRows = dials.filter(d => !d.coaming);
+    gx0 = onRows.length ? Math.min(...onRows.map(d => d.cx - d.r)) - GAP : xC;
+  } else {
   for (const k of ['asi', 'alt', 'turn', 'dg', 'vsi']) if (has(k)) tSlot(k, T_KEYS[k][0], T_KEYS[k][1]);
   if (aiKey) tSlot(aiKey, T_KEYS.ai[0], T_KEYS.ai[1]);
   // the clock, left of the ASI when there is room
@@ -56128,10 +56288,13 @@ function layout(A, o) {
   // the engine group, to the pilot's right of the T (−x); the other side
   // when it does not fit
   const eng = ['tacho', 'gmeter'].filter(has);
-  const small = ['oilP', 'oilT', 'fuel', 'volts'].filter(has);
-  let groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
-  let gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
-  let dir = -1;
+  // the FUEL / CHARGE gauge heads the cluster (A3): on a short plate the
+  // last small gauge is the one that falls off, and the one that says how
+  // long the flight can last is not the one to lose
+  const small = ['fuel', 'oilP', 'oilT', 'volts'].filter(has);
+  groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
+  gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
+  dir = -1;
   if (gx0 - groupW < -xLim) { gx0 = xT + 1.5 * colW + GAP + 0.010 + (has('clock') ? D_SMALL + GAP : 0); dir = 1; }
   let gy = y0;
   {
@@ -56164,6 +56327,7 @@ function layout(A, o) {
       i++;
     }
   }
+  }   // (the T)
   // the radios: a column past the engine group, 57 mm controllers
   const radios = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
   if (radios.length) {
@@ -56177,6 +56341,25 @@ function layout(A, o) {
       if (cy == null || !fits(rx, cy, D_SMALL / 2) || cy - D_SMALL / 2 < yBot + 0.03) { overflow.push(k); return; }
       dials.push({ k, cx: rx, cy, r: D_SMALL / 2 });
     });
+  }
+  // NO FITTED INSTRUMENT IS LEFT OFF THE DASH WHILE A T SLOT STANDS EMPTY
+  // (A3, the 2026-09-20 playtest: the user's 2 kWh trainer had a two-dial T
+  // with the attitude hole blank between them, and its charge gauge in the
+  // overflow). The blanking plate is for the six-pack's scan; on a panel
+  // that has no gyro to scan there is no scan to keep, and the hole takes
+  // the dial that had nowhere else - the T's first row first, big dials at
+  // their size, small ones centred in the slot.
+  if (overflow.length && !compact) {
+    const taken = (cx, cy) => dials.some(d => !d.coaming && Math.hypot(d.cx - cx, d.cy - cy) < d.r + 1e-6);
+    for (const k of overflow.slice()) {
+      const r = (k === 'tacho' || k === 'gmeter' || k in T_KEYS || k === 'aiE') ? D_BIG / 2 : D_SMALL / 2;
+      let done = false;
+      for (let row = 0; row < tRows && !done; row++) for (const c of [1, 0, 2]) {
+        const cx = xT + (1 - c) * colW, cy = y0 - row * rowH;
+        if (taken(cx, cy) || !fits(cx, cy, r)) continue;
+        dials.push({ k, cx, cy, r, inHole: true }); overflow.splice(overflow.indexOf(k), 1); done = true; break;
+      }
+    }
   }
   // the compass on the coaming, on the pilot's line - the coaming is the
   // dash's TOP (the glareshield), above the plate
@@ -56194,8 +56377,15 @@ function layout(A, o) {
   // the switch row along the bottom band: key, master, alt, then the
   // light throws and the dimmers — pitch 40 mm, centred under the T
   const sw = [];
+  // THE KEY IS ALWAYS THERE (G442.1, the playtest: "the KEY / MASTER / ALT
+  // row is missing on builds without a bus"): a piston engine's key is its
+  // MAGNETO switch (OFF / R / L / BOTH) and a hand-propped Cub has one - the
+  // bus buys the START position, the master and the alternator rockers, not
+  // the key. On a battery build the key is the pack's POWER key, two
+  // positions (OFF / ON) on the same lock, `power: true` for the tape.
+  sw.push({ k: 'key', kind: 'key', power: o.energyKind === 'battery' });
   if (o.elec && o.elec.hasBus) {
-    sw.push({ k: 'key', kind: 'key' }, { k: 'master', kind: 'rocker' });
+    sw.push({ k: 'master', kind: 'rocker' });
     if (o.elec.altA) sw.push({ k: 'alt', kind: 'rocker' });
     // G318: an avionics master when a radio is fitted — the user drew the
     // tape; the bus gates the radios' loads on it
@@ -56206,15 +56396,31 @@ function layout(A, o) {
   if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
   const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
   const xSw = xLimAt(ySw);                     // the plate's own width down there
-  const pitch = Math.min(0.040, (2 * xSw - 0.02) / Math.max(1, sw.length));
-  let x = Math.min(xSw - 0.02, Math.max(-xSw + 0.02 + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
-  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, -xSw + 0.02, xSw - 0.02), y: ySw }, s)); x -= pitch; }
+  // the row's room: the plate's width at that height less the keep-outs
+  // (G442.1) - the longest free run, the one holding the pilot's centre
+  // when there is a choice; the pitch shrinks to fit before anything is lost
+  let lo = -xSw + 0.02, hi = xSw - 0.02;
+  {
+    const cuts = KO.filter(k => k.y1 > ySw - 0.012 && k.y0 < ySw + 0.012).sort((a, b) => a.x0 - b.x0);
+    const runs = []; let a = lo;
+    for (const k of cuts) { if (k.x0 - 0.012 > a) runs.push([a, Math.min(k.x0 - 0.012, hi)]); a = Math.max(a, k.x1 + 0.012); }   // a switch plate's own half width
+    if (a < hi) runs.push([a, hi]);
+    const ok = runs.filter(r => r[1] - r[0] > 0.02);
+    if (ok.length) {
+      const holds = ok.filter(r => r[0] <= xC && xC <= r[1]);
+      const best = (holds.length ? holds : ok).reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m));
+      lo = best[0]; hi = best[1];
+    }
+  }
+  const pitch = Math.min(0.040, (hi - lo) / Math.max(1, sw.length - 1 || 1));
+  let x = Math.min(hi, Math.max(lo + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
+  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, lo, hi), y: ySw, pitch }, s)); x -= pitch; }   // the pitch rides along: the tapes size to it
   // the extent, the way the crew always published it
   const onPanel = dials.filter(d => !d.coaming);
   const ext = onPanel.length ? {
     x0: Math.min(...onPanel.map(d => d.cx - d.r)), x1: Math.max(...onPanel.map(d => d.cx + d.r)),
     y0: Math.min(...onPanel.map(d => d.cy - d.r)), y1: Math.max(...onPanel.map(d => d.cy + d.r)), z: zFace } : null;
-  return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side,
+  return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side, compact,
            // the plate's plane, for the builder to stand the dials on
            plane: F ? { zTop: F.zTop, yTop: F.yTop, tilt: F.tilt } : null };
 }
@@ -56275,6 +56481,7 @@ function ticks(g, F, key, units, o, opt) {
   }
   g.strokeStyle = INK; g.lineCap = 'butt';
   const lo = S.dead != null ? S.dead : S.min;
+  let last = lo;
   for (let v = lo; v <= S.max + 1e-9; v = +(v + S.minor).toFixed(9)) {
     const isMajor = Math.abs(v / S.major - Math.round(v / S.major)) < 1e-6;
     const a = angleOfDisp(key, v, units, o);
@@ -56282,13 +56489,35 @@ function ticks(g, F, key, units, o, opt) {
     const [x0, y0] = pol(cx, cy, rOut, a), [x1, y1] = pol(cx, cy, rOut - r * len, a);
     g.lineWidth = r * (isMajor ? 0.035 : 0.018);
     g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-    if (isMajor && !opt.noLabels) {
+    // a numeral within a seventh of the sweep of the F end would sit on the
+    // F (the Cub's 11.9 US gal: "10" against "F") - the tick stays, the
+    // numeral goes
+    const crowdsEnd = S.ends && v > S.min && (S.max - v) / (S.max - S.min) < 0.14 && Math.abs(v - S.max) > 1e-9;
+    if (isMajor && !opt.noLabels && !crowdsEnd) {
       const [lx, ly] = pol(cx, cy, rOut - r * (opt.labelIn || 0.30), a);
       g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.font = `600 ${Math.round(r * (opt.fontK || 0.19))}px ${FONT}`;
       const lab = S.labels && S.labels[v] != null ? S.labels[v]
+        : (S.ends && Math.abs(v - S.min) < 1e-9) ? S.ends.lo
+        : (S.ends && Math.abs(v - S.max) < 1e-9) ? S.ends.hi
         : (opt.labelOf ? opt.labelOf(v) : String(Math.round(v * 100) / 100));
       g.fillText(lab, lx, ly);
+    }
+    last = v;
+  }
+  // THE FULL MARK (A3): a scale whose max is the tank's own capacity is not
+  // a multiple of its step, so the loop stops short of it - the end gets its
+  // major tick and its letter regardless
+  if (S.ends && S.max - last > 1e-9) {
+    const a = angleOfDisp(key, S.max, units, o);
+    const [x0, y0] = pol(cx, cy, rOut, a), [x1, y1] = pol(cx, cy, rOut - r * 0.16, a);
+    g.lineWidth = r * 0.035;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    if (!opt.noLabels) {
+      const [lx, ly] = pol(cx, cy, rOut - r * (opt.labelIn || 0.30), a);
+      g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `600 ${Math.round(r * (opt.fontK || 0.19))}px ${FONT}`;
+      g.fillText(S.ends.hi, lx, ly);
     }
   }
   return S;
@@ -56298,9 +56527,13 @@ function unitText(g, F, txt, dy, k) {
   g.font = `500 ${Math.round(F.r * (k || 0.11))}px ${FONT}`;
   g.fillText(txt, F.cx, F.cy + F.r * (dy == null ? 0.42 : dy));
 }
+// THE HUB CAP (G442.2, the playtest: 'the airspeed needle crosses through the
+// dial'): a hand's counterweight tail poked out the far side of a 0.06 r hub
+// and the needle read as a bar across the face - the cap is 0.10 r, the size
+// a real instrument's is, and every tail (0.08 r) hides under it
 function hub(g, F, k) {
   g.fillStyle = '#2a2d33';
-  g.beginPath(); g.arc(F.cx, F.cy, F.r * (k || 0.06), 0, 2 * Math.PI); g.fill();
+  g.beginPath(); g.arc(F.cx, F.cy, F.r * (k || 0.10), 0, 2 * Math.PI); g.fill();
 }
 
 const PAINT = {
@@ -56486,25 +56719,29 @@ const PAINT = {
     const F = faceBase(g, R);
     ticks(g, F, 'oilP', units, o, { fontK: 0.17 });
     unitText(g, F, 'OIL', -0.30, 0.13); unitText(g, F, scaleOf('oilP', units, o).unit, 0.36, 0.11);
-    hub(g, F, 0.08);
+    hub(g, F, 0.10);
   },
   oilT(g, R, units, o) {
     const F = faceBase(g, R);
     ticks(g, F, 'oilT', units, o, { fontK: 0.17 });
-    unitText(g, F, 'OIL TEMP', -0.30, 0.11); unitText(g, F, '°C', 0.36, 0.12);
-    hub(g, F, 0.08);
+    unitText(g, F, 'OIL TEMP', -0.30, 0.11); unitText(g, F, scaleOf('oilT', units, o).unit, 0.36, 0.12);
+    hub(g, F, 0.10);
   },
   fuel(g, R, units, o) {
     const F = faceBase(g, R);
-    ticks(g, F, 'fuel', units, o, { fontK: 0.24, labelIn: 0.34 });
-    unitText(g, F, 'FUEL', 0.30, 0.14);
-    hub(g, F, 0.08);
+    // the numerals a size down when they are quantities (E 5 10 F), the
+    // letters alone at the old size
+    const S = ticks(g, F, 'fuel', units, o, { fontK: 0.20, labelIn: 0.34,
+      labelOf: v => String(Math.round(v * 10) / 10) });
+    unitText(g, F, S.title || 'FUEL', 0.30, 0.14);
+    if (S.unit) unitText(g, F, S.unit, 0.52, 0.10);
+    hub(g, F, 0.10);
   },
   volts(g, R, units, o) {
     const F = faceBase(g, R);
     ticks(g, F, 'volts', units, o, { fontK: 0.17 });
     unitText(g, F, 'VOLTS', 0.36, 0.11);
-    hub(g, F, 0.08);
+    hub(g, F, 0.10);
   },
   clock(g, R, units, o) {
     const F = faceBase(g, R);
@@ -56518,7 +56755,7 @@ const PAINT = {
       if (big) { const [lx, ly] = pol(cx, cy, r * 0.62, a); g.font = `600 ${Math.round(r * 0.19)}px ${FONT}`; g.fillText(String(i / 5 || 12), lx, ly); }
     }
     unitText(g, F, '8 DAY', 0.40, 0.09);
-    hub(g, F, 0.07);
+    hub(g, F, 0.10);
   },
   // the radios: a dark controller face with a lit window, digits static
   // until session 5 makes them live
@@ -56616,7 +56853,7 @@ function paintAtlas(g, faces, units, o) {
 }
 
 const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
-              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP };
+              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep, dispToSI };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;
 })();
@@ -57045,7 +57282,10 @@ function facesMaterial() {
   const cv = atlas();
   atlasTex = new THREE.CanvasTexture(cv);
   atlasTex.colorSpace = THREE.SRGBColorSpace;
-  atlasTex.anisotropy = 8;
+  // G442.2 (A3, the playtest: "the numerals are blurred, not HD"): the card's
+  // full anisotropy (16 on this class of card; the plate is read at 25-40
+  // deg from the eye and 8 taps smeared the numerals along the tilt)
+  atlasTex.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 16;
   atlasTex.flipY = true;
   // THE FACE IS LIT, NOT GLOWING (G298): no emissiveMap. The atlas's alpha
   // carries the posts' irradiance (_panel_gen.js postIrradiance); the hook
@@ -57090,10 +57330,18 @@ function needleAt(g, deg, dim) {
   m.emissiveIntensity = dim * 0.9 * (G.postIrrAt ? G.postIrrAt(deg, NEEDLE_R) : 1);
   return m;
 }
+// G442.2: THE FACE IS SAMPLED SHARP. A 79 mm face is 512 px in the atlas
+// (6.5 px/mm) and reads at ~3 px/mm from the eye: the mip chain picks level
+// 1, a box-filtered half, and the numerals go soft ("not HD"). A mip bias of
+// -1 on the face's own sample keeps level 0 up to twice the screen density
+// (the anisotropic taps above keep it from shimmering); memory unchanged.
+// The chunk is inlined so the one texture2D becomes a biased texture().
+const FACES_MAP_FRAGMENT = () => (THREE.ShaderChunk.map_fragment || '#include <map_fragment>')
+  .replace('texture2D( map, vMapUv )', 'texture( map, vMapUv, -1.0 )');
 const FACES_HOOK = function (shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <map_fragment>',
-             '#include <map_fragment>\n  float aeroIrr = diffuseColor.a; diffuseColor.a = 1.0;')
+             FACES_MAP_FRAGMENT() + '\n  float aeroIrr = diffuseColor.a; diffuseColor.a = 1.0;')
     .replace('#include <emissivemap_fragment>',
              '  totalEmissiveRadiance *= diffuseColor.rgb * aeroIrr * 2.2;');
 };
@@ -57107,10 +57355,13 @@ function postsAt(bag, lensBag, cx, cy, zB, r) {
     const a = clockRad(deg);
     const rd = [-Math.sin(a), Math.cos(a), 0];                // out from the centre
     const base = [cx + rd[0] * r * 0.93, cy + rd[1] * r * 0.93, zB - 0.0085];
-    // the barrel leans 28 deg inward, 7 mm long, 2.2 mm radius
+    // the hood leans 28 deg inward - 5 mm long, 2.0 mm radius, MATTE BLACK
+    // (G442.2, the playtest: "two little horn protrusions at 10 and 2, what
+    // are these?" - the plated 7 mm barrels read as horns; a post light is
+    // a small black hood with its lens under it)
     const ax = nrm3([-rd[0] * 0.47, -rd[1] * 0.47, -0.88]);
-    K.revolve(bag, base, ax, [[0.0022, 0], [0.0022, 0.0060], [0.0016, 0.0070], [0, 0.0070]], 12, false);
-    const tip = [base[0] + ax[0] * 0.0072, base[1] + ax[1] * 0.0072, base[2] + ax[2] * 0.0072];
+    K.revolve(bag, base, ax, [[0.0020, 0], [0.0020, 0.0042], [0.0014, 0.0050], [0, 0.0050]], 12, false);
+    const tip = [base[0] + ax[0] * 0.0052, base[1] + ax[1] * 0.0052, base[2] + ax[2] * 0.0052];
     K.revolve(lensBag, tip, ax, [[0.0015, -0.0004], [0.0015, 0.0008], [0.0009, 0.0016], [0, 0.0020]], 10, false);
   }
 }
@@ -57217,11 +57468,47 @@ function paintReg() {
   g.font = `700 76px ${FONT_REG}`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.save(); g.translate(256, 84); g.rotate(-0.02);
-  g.fillText(regText || '', 0, 0);
+  // G442.3 (the playtest: build (4)'s EXPERIMENTAL ran off the tape): past
+  // eight characters the tape carries seven and a full stop
+  const rt = regText || '';
+  g.fillText(rt.length > 8 ? rt.slice(0, 7) + '.' : rt, 0, 0);
   g.restore();
   if (regTex) regTex.needsUpdate = true;
 }
 const FONT_REG = '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';
+// THE POWER KEY'S TAPE (G442.1): OFF at the lock's 7:30 end, ON over the
+// BOTH mark, on the blank tile - its own material (`panelSet: 'keytape'`),
+// bucketed by the join and rebuilt through material('keytape') like the reg
+let keyTapeMat = null;
+function keyTapeMaterial() {
+  if (keyTapeMat) return keyTapeMat;
+  const cv = HAS_DOM ? document.createElement('canvas') : null;
+  if (cv) { cv.width = 512; cv.height = 160; }
+  const tex = cv ? new THREE.CanvasTexture(cv) : null;
+  if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
+  keyTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
+  keyTapeMat.userData.aeroskin = 1;
+  keyTapeMat.userData.panelSet = 'keytape';
+  keyTapeMat.userData.inside = 1;
+  const paint = () => {
+    if (!cv) return;
+    const g = cv.getContext('2d'), sh = labelSheet();
+    if (!g || !g.clearRect) return;
+    g.clearRect(0, 0, 512, 160);
+    const bi = sh ? sh.names.indexOf('blank') : -1;
+    if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
+      g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, 0, 512, 160);
+    else { g.fillStyle = '#e6e1d5'; g.fillRect(24, 30, 464, 100); }
+    g.fillStyle = '#1b1b1d'; g.font = `700 64px ${FONT_REG}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('OFF', 130, 84); g.fillText('ON', 382, 84);
+    if (tex) tex.needsUpdate = true;
+  };
+  paint();
+  const sh = labelSheet();
+  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
+  return keyTapeMat;
+}
 function setReg(text) {
   const t = String(text == null ? '' : text).trim();
   if (t === regText && regTex) return;
@@ -57287,6 +57574,16 @@ function scaleFacts(P) {
                 S.engines && S.engines[0] && POWERPLANTS[S.engines[0].type] && POWERPLANTS[S.engines[0].type].engine));
     if (E && E.rpm > 0) o.rpm = E.rpm;
     else if (S && S.engines && S.engines[0] && S.engines[0].custom && S.engines[0].custom.rpm > 0) o.rpm = S.engines[0].custom.rpm;
+    // A3: THE FUEL / CHARGE GAUGE'S CAPACITY - what F means: the tank's
+    // DESIGN litres (genSpecAtFuel's designL when the spec is scaled to a
+    // fill; the fill is what is aboard, not what the gauge is painted to)
+    // or the pack's kWh, by the build's energy kind
+    if (S) {
+      const battery = !!(S.energy && S.energy.kind === 'battery');
+      const cap = battery ? +(S.energy.kWh || 0)
+                : (S.fuel && S.fuel.designL > 0) ? +S.fuel.designL : +((S.fuel && S.fuel.litres) || 0);
+      o.energy = { kind: battery ? 'battery' : 'fuel', capacity: cap > 0 ? cap : 0 };
+    }
   } catch (e) {}
   // the declared limits (GEN_RULES when it carries them, the study's rules
   // otherwise): Vfe = 1.8 Vs0, Vne = 1.25 Vh — printed DERIVED on the card
@@ -57692,6 +57989,19 @@ function pushPullAt(parent, x, y, z, key, on) {
 }
 // a dimmer knob: a ridged, slightly conical plastic knob on a thin skirt,
 // with a pointer line, turning about the panel's normal — 0..1 → 270°
+// THE POINTER'S OWN LAMP (G442.3, the user: "light potentiometers should have
+// a little lit / glowing indication showing their current position in the
+// dark"): a 1.4 mm bead at the pointer's nose, in the light layer's `instr`
+// lens material - the join buckets it as a lamp and the flight's instrument
+// dimmer drives it, exactly as the posts' lenses; it rides the knob's own
+// group so it turns with the position it marks. `r` is the nose's radius
+// from the axis, `zTop` the knob's top face.
+function knobBead(g, r, zTop) {
+  const CL = window.CAGE_LIGHT, K = KIT();
+  const bead = K.Bag();
+  K.revolve(bead, [0, r, zTop], [0, 0, -1], [[0.0014, 0], [0.0014, 0.0006], [0.0008, 0.0012], [0, 0.0014]], 10, false);
+  bead.mesh(g, CL && CL.lensMat ? CL.lensMat('instr', 0, 0xffc47a) : matFor('needle'));
+}
 function knobAt(parent, x, y, z, key, v) {
   const K = KIT();
   // THE KIT'S POINTER KNOB when it is in, its nose turned to 12 o'clock at
@@ -57700,6 +58010,9 @@ function knobAt(parent, x, y, z, key, v) {
     const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0005], [0, 0, 1], 'sw_' + key, 'knob',
       { k: 270 * Math.PI / 180, sgn: 1 });
     hwStand(g, 'hw_knob', 0, 0, 0, -hwPointer('hw_knob'));
+    const bb = hwGet('hw_knob').bb;
+    // (hwStand turns the pack: its +z is the nose at 12 o'clock = the group's +y, its height +y = the group's -z)
+    knobBead(g, bb ? Math.max(0.004, bb[5] * 0.8) : 0.0075, bb ? -bb[4] : -0.012);
     g.rotation.z = clockRad(-135 + 270 * (v || 0));
     return g;
   }
@@ -57718,6 +58031,7 @@ function knobAt(parent, x, y, z, key, v) {
   K.boxIn(p, [0, 0.0045, -0.0122], [0.0007, 0.0035, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   K.boxIn(p, [0, 0.0084, -0.0062], [0.0007, 0.0004, 0.0055], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   p.mesh(g, matFor('needle'));
+  knobBead(g, 0.0065, -0.0122);                       // G442.3: the pointer's lamp
   g.rotation.z = clockRad(-135 + 270 * (v || 0));   // the editor's pose
   return g;
 }
@@ -57911,6 +58225,7 @@ function build(parent, A, P, pilotX) {
   const L = G.layout(A, {
     items: R.items, side: R.side, pilotX, radios,
     elec: { hasBus: R.hasBus, altA: R.altA },
+    energyKind: R.energyKind,                                 // G442.1: the key's kind (a pack's power key)
     extLights: lightsOn && +P.lightSw ? EXT_LIGHTS : [],
     intLights: lightsOn && +P.lightSw ? INT_LIGHTS : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
@@ -58100,7 +58415,7 @@ function build(parent, A, P, pilotX) {
       // the posts on every round face's bezel (G298)
       if (!d.coaming) {
         postsAt(post, postLens, cx, cy, zB, r);
-        post.mesh(dg, matFor('barrel'));
+        post.mesh(dg, matFor('hub'));                    // G442.2: a black hood, not a plated horn
         const CL = window.CAGE_LIGHT;
         postLens.mesh(dg, CL && CL.lensMat ? CL.lensMat('instr', faceDim(P), 0xffc47a) : matFor('needle'));
       }
@@ -58178,7 +58493,7 @@ function build(parent, A, P, pilotX) {
       nb.mesh(g, needleAt(g, degH, faceDim(P)));         // lit by the posts (G305)
       g.rotation.z = clockRad(degH);
     }
-    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.06);
+    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.10);   // G442.2: the cap hides the tails
     meshDial();
   }
   // ---- the switch row, each on the plate under it
@@ -58215,14 +58530,27 @@ function build(parent, A, P, pilotX) {
     // shadow disc — flat (G284, the user: "they would fit horizontally, so
     // no need for the 45 degrees"), and a touch larger for it
     const sheet = labelSheet(), li = sheet ? sheet.names.indexOf(LABEL_OF[s.k]) : -1;
-    if (li >= 0) {
+    // G442.1: A PACK'S POWER KEY wears OFF / ON, painted on the blank tile
+    // the way the registration is (the user's sheet has no such tape)
+    if (s.kind === 'key' && s.power && sheet && HAS_DOM) {
+      const lg = new THREE.Group();
+      lg.position.set(0, 0.021, -0.0006);
+      sg.add(lg);
+      const lb = UVBag(keyTapeMaterial());
+      const w = 0.040, h = w * 160 / 512;
+      lb.v([w / 2, -h / 2, 0], [0, 0]); lb.v([-w / 2, -h / 2, 0], [1, 0]); lb.v([-w / 2, h / 2, 0], [1, 1]); lb.v([w / 2, h / 2, 0], [0, 1]);
+      lb.quad(0, 1, 2, 3);
+      const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
+    } else if (li >= 0) {
       const lg = new THREE.Group();
       // G371: the flap switch's tape clears its 44 mm escutcheon; the key's
       // OFF/R/L/BOTH tape is wider so the four words read
       lg.position.set(0, s.kind === 'flap' ? 0.029 : s.kind === 'key' ? 0.021 : 0.019, -0.0006);
       sg.add(lg);
       const lb = UVBag(labelMaterial());
-      const w = s.kind === 'key' ? 0.040 : 0.030, h = w * sheet.h / sheet.w;
+      // G442.3 (the user: "slightly increase the size of the tape on the light
+      // controls, until they start overlapping"): 2 mm under the row's pitch
+      const w = s.kind === 'key' ? 0.040 : Math.min(0.038, (s.pitch || 0.040) - 0.002), h = w * sheet.h / sheet.w;
       labelInto(lb, li, sheet.n, 0, 0, 0, w, h);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }
@@ -58278,7 +58606,7 @@ window.CAGE_PANEL = {
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
-                  : k === 'reg' ? regMaterial() : matFor(k)),
+                  : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial() : matFor(k)),
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,
@@ -78092,8 +78420,11 @@ function sites(scene, group, P) {
       const q = [s.x, yT, A.dashAftZ + 0.035], ax = aimAt(q, [s.x, A.waistY - 0.05, s.zBack + 0.35]);
       return { p: off(q, ax, sink(s.kind)), ax, onCeiling: false, rung: 'coaming' };
     };
+    // G442.3 (the user: "when bubble mode is activated, position the flood
+    // lighting in the aft bulkhead if available, and otherwise don't draw it
+    // at all"): the bubble's ladder is the arch alone - no coaming fallback
     const LADDER = {
-      flood: [[roofAt, frameAt], [headerAt, frameAt], [coamingAt], [archAt, coamingAt]],
+      flood: [[roofAt, frameAt], [headerAt, frameAt], [coamingAt], [archAt]],
       pax:   [[roofAt, frameAt], [frameAt], [], []],
     };
     const mountAt = (kind, s) => {
@@ -84931,6 +85262,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               };
               part.axC = { ax: dirOf(part.ctl.axis) };
               if (part.ctl.axis2) part.axC.ax2 = dirOf(part.ctl.axis2);
+              // A3 (2026-09-20): THE POSE THE PART WAS CAPTURED IN. The layer
+              // draws a hand at its REST (the tacho's 0 at 7:30, the fuel's E
+              // at 10 o'clock, a knob at -135), turning the group itself; the
+              // vertices go into the snapshot turned, and the flight then set
+              // the group to the law's ABSOLUTE angle - so every dial whose
+              // scale does not start at 12 o'clock read its rest angle twice
+              // (the user: "the RPM needle falls much lower than zero, its
+              // real zero seems near the max graduation"). The group's own
+              // turn about its axis, radians, for the flight to take off.
+              const er = a.rotation;
+              part.restC = er.x * part.ctl.axis[0] + er.y * part.ctl.axis[1] + er.z * part.ctl.axis[2];
               if (part.ctl.slide) {
                 const sv = new THREE.Vector3(part.ctl.slide[0], part.ctl.slide[1],
                   part.ctl.slide[2]);
@@ -85406,6 +85748,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // a `turn` hand as its period in SI, a switch / knob / key as its
           // travel, the ball and the cards by name
           Object.assign(out2.ctl, { law: c.law, gauge: c.gauge, hand: c.hand, units: c.units });
+          if (pt.restC) out2.ctl.rest = +pt.restC.toFixed(6);   // A3: the captured pose, radians about ax
           const PGn = window.PANEL_GEN;
           if (c.law === 'lin' && PGn && c.gauge) {
             const facts = (window.CAGE_PANEL && window.CAGE_PANEL.last() && window.CAGE_PANEL.last().facts) || {};
@@ -85413,7 +85756,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const H = PGn.FACES[c.gauge].hands.find(h => h.name === c.hand);
             const stops = [];
             for (let i = 0; i <= 24; i++) {
-              const v = (S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02)) / S.k;
+              const v = PGn.dispToSI ? PGn.dispToSI(S, S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02))
+                      : (S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02)) / S.k;   // G442.3: the affine face (Fahrenheit)
               stops.push([+v.toFixed(6), +PGn.angleOf(c.gauge, H, v, c.units, facts).toFixed(3)]);
             }
             out2.ctl.stops = stops;
@@ -115220,6 +115564,23 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       hint: 'hands the aeroplane over, either way', keys: { key: 'KeyA' } },
     { id: 'viewNext', kind: 'step', ctl: null, label: 'next view', group: 'flight',
       hint: 'chase · orbit · cockpit · wing · tower', keys: { key: 'KeyC' } },
+    // G442.3 (the user: "all possible dashboard controls should be able to be
+    // mapped to joysticks, and they should have default keyboard mappings"):
+    // THE DASH. Steps app.js hands to the cockpit (cockpit.js dashAction) -
+    // the same writes a click on the panel makes, so the hand on the key and
+    // the hand on the dash are one hand. Keys off the head's (Z W S Q D R F)
+    // and the flying set's.
+    { id: 'lightTaxi', kind: 'step', ctl: null, label: 'taxi light', group: 'dash', hint: 'toggle', keys: { key: 'KeyT' } },
+    { id: 'lightLand', kind: 'step', ctl: null, label: 'landing light', group: 'dash', hint: 'toggle', keys: { key: 'KeyL' } },
+    { id: 'lightNav', kind: 'step', ctl: null, label: 'nav lights', group: 'dash', hint: 'toggle', keys: { key: 'KeyN' } },
+    { id: 'lightBeacon', kind: 'step', ctl: null, label: 'beacon', group: 'dash', hint: 'toggle', keys: { key: 'KeyK' } },
+    { id: 'dimInstr', kind: 'step', ctl: null, label: 'instrument lights', group: 'dash', hint: 'a quarter up, round to off', keys: { key: 'KeyI' } },
+    { id: 'dimFlood', kind: 'step', ctl: null, label: 'cabin flood', group: 'dash', hint: 'a quarter up, round to off', keys: { key: 'KeyO' } },
+    { id: 'master', kind: 'step', ctl: null, label: 'master switch', group: 'dash', hint: 'toggle', keys: { key: 'KeyM' } },
+    { id: 'keyNext', kind: 'step', ctl: null, label: 'ignition key · turn', group: 'dash', hint: 'OFF · L · R · BOTH · START', keys: { key: 'KeyJ' } },
+    { id: 'keyPrev', kind: 'step', ctl: null, label: 'ignition key · back', group: 'dash', hint: '', keys: { key: 'KeyH' } },
+    { id: 'park', kind: 'step', ctl: null, label: 'parking brake', group: 'dash', hint: 'toggle', keys: { key: 'KeyP' } },
+    { id: 'fuelSel', kind: 'step', ctl: null, label: 'fuel selector', group: 'dash', hint: 'OFF · R · L · BOTH round', keys: { key: 'KeyU' } },
     { id: 'eng1', kind: 'axis', ctl: 'eng', idx: 0, lo: 0, hi: 1, scale: 1, shape: 'latch',
       label: 'lever · engine 1', hint: 'inert unless bound', group: 'engines', keys: null },
     { id: 'eng2', kind: 'axis', ctl: 'eng', idx: 1, lo: 0, hi: 1, scale: 1, shape: 'latch',
@@ -115934,7 +116295,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   }
 
   // ---- rows ---------------------------------------------------------------
-  const GROUPS = [['flying', 'Flying'], ['flight', 'The flight'], ['engines', 'Engines'], ['head', 'Head (a tracker as a gamepad)']];
+  const GROUPS = [['flying', 'Flying'], ['flight', 'The flight'], ['dash', 'The dash'], ['engines', 'Engines'], ['head', 'Head (a tracker as a gamepad)']];
   function renderRows() {
     const body = $('ctlBody');
     if (!body || !inp) return;
@@ -120002,6 +120363,16 @@ function make(THREE) {
     let fit = null;
     try { if (typeof genSystemsResolve === 'function') fit = genSystemsResolve(spec || {}); } catch (e) {}
     CK.fit = fit;
+    // A3: WHAT THE FUEL / CHARGE GAUGE READS AGAINST - the build's energy
+    // kind and its DESIGN capacity (litres or kWh), the same rule the dash
+    // painted its F by (_cage_panel scaleFacts). The solver's `litres0` is
+    // what was loaded, which is not what F means on a half-filled tank.
+    {
+      const battery = !!(spec && spec.energy && spec.energy.kind === 'battery');
+      const cap = battery ? +((spec.energy && spec.energy.kWh) || 0)
+                : (spec && spec.fuel && spec.fuel.designL > 0) ? +spec.fuel.designL : +((spec && spec.fuel && spec.fuel.litres) || 0);
+      CK.energy = { kind: battery ? 'battery' : 'fuel', capacity: cap > 0 ? cap : 0 };
+    }
     const loads = fit ? fit.loads.map(l => ({ key: l.key, amps: l.amps })) : [];
     for (const k of Object.keys(LIGHT_AMPS)) loads.push({ key: 'sw_' + k, amps: 0 });
     CK.bus = (typeof makeBus === 'function')
@@ -120078,7 +120449,9 @@ function make(THREE) {
   CK.lightsNight = null;          // the rule's last night state (the edge clears handSw)
   CK.lightsFor = (day, ias, hAboveField) => {
     const night = !day.sunUp, low = hAboveField < 150, slow = ias < 15;
-    return { nav: night ? 1 : 0, beacon: night ? 1 : 0, instr: night ? 1 : 0,
+    // (G442.3: the cabin's flood and the feet come up with the panel - the user's "when starting
+    // at night, all lights should be on by default"; a hand's dimmer is the hand's, as any switch)
+    return { nav: night ? 1 : 0, beacon: night ? 1 : 0, instr: night ? 1 : 0, flood: night ? 0.5 : 0, pedal: night ? 0.5 : 0,
              land: night && low && !slow ? 1 : 0, taxi: night && low && slow ? 1 : 0 };
   };
   CK.lightsRule = (day, sim, cg) => {
@@ -120105,8 +120478,7 @@ function make(THREE) {
     // nothing by hand): nav and beacon from sunset to sunrise, the panel with them, the landing
     // light low and moving, the taxi light low and slow. A switch a hand set (the panel's click,
     // the rail's pill) is the hand's until the next sunset or sunrise, when the rule takes all.
-    if (ctx.day) CK.lightsRule(ctx.day, sim, cg);
-    // the switches reach the bus and the key reaches the engine
+    if (ctx.day) CK.lightsRule(ctx.day, sim, cg);    // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
       // G318: the avionics master gates the radios' loads
@@ -120158,10 +120530,19 @@ function make(THREE) {
     raw.nz = o.nz != null ? o.nz : 1; raw.nzMax = o.nzMax != null ? o.nzMax : 1; raw.nzMin = o.nzMin != null ? o.nzMin : 1;
     raw.oilP = E.running ? 62 * PSI * Math.min(1, 0.5 + 0.5 * raw.rpmEng / 2000) : 0;
     raw.oilT = E.running ? 82 : Math.max(15, (CK.readings.oilT || 15));
-    raw.fuelFrac = busOk ? (F.frac != null ? F.frac : 1) : 0;
+    // THE FUEL / CHARGE GAUGE (A3): the fraction of the DESIGN capacity
+    // aboard - a pack's state of charge (`soc`; `frac` stays 1 on a battery
+    // build, which is why a charge gauge reading it sat on F for ever), a
+    // tank's litres over its capacity (the fill, not F, is what was loaded).
+    // The charge gauge is fed by the pack and reads while the pack has
+    // anything; the fuel gauge is on the bus and dies with it (to E).
+    const EK = CK.energy || { kind: F.kind || 'fuel', capacity: 0 };
+    const onPack = EK.kind === 'battery';
+    const qty = onPack ? (F.soc != null ? clamp(F.soc, 0, 1) : (F.frac != null ? F.frac : 1))
+              : (EK.capacity > 0 && F.litres != null) ? clamp(F.litres / EK.capacity, 0, 1)
+              : (F.frac != null ? F.frac : 1);
+    raw.fuelFrac = (onPack || busOk) ? qty : 0;
     raw.volts = bus ? bus.V : 0;
-    // the electric readings die with the bus
-    if (!busOk) { raw.fuelFrac = 0; }
     // THE CLOCK IS THE DAY'S (SKY chantier): the world's local time when a day is on the
     // context, else 12:00 plus the flight's own clock as it always was
     const tClock = (ctx.day && ctx.day.localSeconds != null) ? ctx.day.localSeconds : 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
@@ -120261,6 +120642,12 @@ function make(THREE) {
         case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
         default: a1 = 0;
       }
+      // A3: THE LAW IS ABSOLUTE, THE GEOMETRY IS NOT - the snapshot holds the
+      // part turned to the pose the garage drew it in (c.rest, radians about
+      // ax, from the join), so that turn comes off before the law's angle
+      // goes on. Without it the tacho's 0 sat at 3 o'clock, the fuel's E at
+      // 8, every dial whose scale starts off 12 o'clock read its rest twice.
+      if (c.rest) a1 -= (c.sgn || 1) * c.rest;
       vA.set(c.ax[0], c.ax[1], c.ax[2]);
       qA.setFromAxisAngle(vA, (c.sgn || 1) * a1);
       if (c.ax2) {
@@ -120288,6 +120675,8 @@ function make(THREE) {
   };
   const W0 = typeof window !== 'undefined' ? window : {};
   const isElectric = gauge => {
+    // A3: the charge gauge is the pack's, not the bus's
+    if (gauge === 'fuel' && CK.energy && CK.energy.kind === 'battery') return false;
     const I = typeof GEN_INSTR !== 'undefined' ? GEN_INSTR[gauge] : null;
     return !!(I && I.power === 'elec');
   };
@@ -120367,7 +120756,10 @@ function make(THREE) {
     else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); CK.handSw[drv] = true; did = true; }
     else if (c.law === 'key') {
       let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
-      i = button === 2 ? Math.max(0, i - 1) : Math.min(4, i + 1);
+      // G442.1: a pack's POWER key has two positions - OFF, and ON over the
+      // BOTH mark (there is no magneto and nothing to crank)
+      if (CK.energy && CK.energy.kind === 'battery') i = i > 0 ? 0 : 3;
+      else i = button === 2 ? Math.max(0, i - 1) : Math.min(4, i + 1);
       CK.setKey(KEY_STEPS[i]);
       did = true;
     }
@@ -120425,7 +120817,8 @@ function make(THREE) {
     }
     else if (G.g.c.law === 'knob') { CK.sw[G.g.c.drive] = clamp(G.v0 + dy * 0.005, 0, 1); CK.glow(0); }
     else {
-      const st = clamp(Math.round(G.v0 + dy / 28), 0, 4);
+      let st = clamp(Math.round(G.v0 + dy / 28), 0, 4);
+      if (CK.energy && CK.energy.kind === 'battery') st = st >= 2 ? 3 : 0;   // G442.1: OFF or ON
       if (st !== clamp(Math.round(+CK.sw.key || 0), 0, 4)) CK.setKey(KEY_STEPS[st]);
     }
     return true;
@@ -120436,13 +120829,39 @@ function make(THREE) {
     if (!G.moved) return CK.click(G.g, button);        // a press let go in place: a click
     return true;
   };
+  // THE DASH'S BINDABLE ACTIONS (G442.3, the user: "all possible dashboard
+  // controls should be able to be mapped to joysticks, with default keyboard
+  // mappings"): input.js's steps land here, and each does what the click on
+  // that control does - the same writes, the same lamps answering at once.
+  const DASH_LIGHT = { lightTaxi: 'taxi', lightLand: 'land', lightNav: 'nav', lightBeacon: 'beacon' };
+  const DASH_DIM = { dimInstr: 'instr', dimFlood: 'flood' };
+  CK.dashAction = id => {
+    let did = false;
+    if (DASH_LIGHT[id]) { const k = DASH_LIGHT[id]; CK.sw['sw_' + k] = +CK.sw['sw_' + k] > 0.5 ? 0 : 1; CK.handSw['sw_' + k] = true; did = true; }   // the hand's now (lightsRule)
+    else if (DASH_DIM[id]) { const k = 'sw_' + DASH_DIM[id], v = +CK.sw[k] || 0; CK.sw[k] = v >= 1 ? 0 : Math.min(1, v + 0.25); CK.handSw[k] = true; did = true; }
+    else if (id === 'master') { CK.sw.sw_master = +CK.sw.sw_master > 0.5 ? 0 : 1; did = true; }
+    else if (id === 'keyNext' || id === 'keyPrev') {
+      let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
+      if (CK.energy && CK.energy.kind === 'battery') i = i > 0 ? 0 : 3;
+      else i = id === 'keyPrev' ? Math.max(0, i - 1) : Math.min(4, i + 1);
+      CK.setKey(KEY_STEPS[i]); did = true;
+    }
+    else if (id === 'park') { CK.park = !CK.park; if (!CK.park && CK.sim && CK.sim.ctl) CK.sim.ctl.brake = 0; did = true; }
+    else if (id === 'fuelSel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
+    if (did) CK.glow(0);
+    return did;
+  };
   CK.setKey = pos => {
     const i = KEY_STEPS.indexOf(pos); if (i < 0) return;
     CK.key = pos; CK.sw.key = i;
     const sim = CK.sim; if (!sim || !sim.setEngine) return;
     const n = sim.eng ? sim.eng.length : 1;
+    // G442.1: a motor runs the moment its power key is ON - the inverter
+    // enables, nothing cranks (the solver's `swing` is the same fact)
+    const pack = CK.energy && CK.energy.kind === 'battery';
     for (let e = 0; e < n; e++) {
       if (pos === 'off') sim.setEngine(e, { key: 'off' });
+      else if (pack) sim.setEngine(e, { key: 'both', swing: true });
       else if (pos === 'start') sim.setEngine(e, { key: 'both', start: true });
       else sim.setEngine(e, { key: pos });
     }
@@ -123510,17 +123929,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         // counter-rotating pair turns in opposite directions on screen.
         const ud = p.userData || {};
         const ei = ud.engIdx || 0;
-        const eng = sim.ctl.eng && sim.ctl.eng[ei];
-        const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
-        // G435: ...AND THE ENGINE MUST BE RUNNING. The lever said "on" while
-        // the pack was flat and the key off, so the blades turned at full
-        // rate at the bottom of the sea; sim.eng[i].running is the solver's
-        // own fact (the key, the tanks, the pack), the same one the tacho
-        // reads. Dead, the prop windmills with the airspeed and stops.
-        const se = sim.eng && sim.eng[ei];
-        const on = (!eng || eng.on) && (!se || se.running);
-        const V = (sim.out && sim.out.V) || 0;
-        const target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
+        // G442.1 (A3): THE PROP TURNS AT THE SHAFT'S OWN SPEED - the solver's
+        // out.rpm[i] (00_registry genShaftRpm: the throttle's torque against
+        // the disc, a stopped engine windmilling at V / (D J1), nought when
+        // the aeroplane is still). It span from the pilot's throttle before,
+        // so a motor with a flat pack (or a cut engine, or one the key never
+        // started) kept turning at full rate for ever - the user's 2 kWh
+        // trainer glided to the sea with its prop a blur. The lever fallback
+        // stays for a core that publishes no rpm (an old fixture), gated on
+        // sim.eng[i].running as G435 (A1) gated it: dead, it windmills.
+        const rpm = sim.out && sim.out.rpm && sim.out.rpm[ei];
+        let target;
+        if (Number.isFinite(rpm)) target = rpm * (2 * Math.PI / 60);
+        else {
+          const eng = sim.ctl.eng && sim.ctl.eng[ei];
+          const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
+          const se = sim.eng && sim.eng[ei];
+          const on = (!eng || eng.on) && (!se || se.running);
+          const V = (sim.out && sim.out.V) || 0;
+          target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
+        }
         ud.spinRate = (ud.spinRate == null ? target : ud.spinRate) +
                       (target - (ud.spinRate == null ? target : ud.spinRate)) * (1 - Math.exp(-(1/60) / 1.5));
         const sense = ((def && def.params && def.params.engines || [])[ei] || {}).sense || 1;
@@ -126893,8 +127321,33 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
+  // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
+  // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
+  // the label names the kind and, once the solver publishes an endurance at
+  // the current draw (A1's sim.fuel.enduranceS), says how long that is;
+  // `warn` under the reserve (10 % of what was loaded) and EMPTY once the
+  // tanks or the pack have stopped the engines. The user's 2 kWh trainer
+  // flew to the sea with a throttle at 1.00 and nothing on the screen that
+  // said the pack was going.
+  let nrgLabel = '';
+  function hudEnergy() {
+    const F = sim.fuel; if (!F || !R.nrg) return;
+    const pack = F.kind === 'battery';
+    const qty = pack ? Math.max(0, (F.soc || 0) * (F.kWh || 0)) : Math.max(0, F.litres || 0);
+    const frac = pack ? (F.soc || 0) : (F.frac != null ? F.frac : 1);
+    const dead = !!F.starved || (frac <= 0 && sim.eng && sim.eng.every(e => !e.running));
+    R.nrg.textContent = dead ? 'EMPTY' : qty.toFixed(1);
+    let lab = pack ? 'kWh charge' : 'L fuel';
+    const endS = F.enduranceS;
+    if (!dead && Number.isFinite(endS) && endS > 0 && endS < 36e4) {
+      const m = endS / 60;
+      lab += ' · ' + (m >= 90 ? (m / 60).toFixed(1) + ' h' : Math.round(m) + ' min');
+    }
+    if (lab !== nrgLabel) { nrgLabel = lab; if (R.nrgU) R.nrgU.textContent = lab; }
+    if (RD.nrg) RD.nrg.classList.toggle('warn', dead || frac < 0.1);
+  }
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;
@@ -126907,6 +127360,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     R.ias.textContent = ias.toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
+    hudEnergy();
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
     // number the PLAQUE actually declares. The stall is one — genShakedown
     // has measured `Vs` since G4 and the bench check quotes it. Vne and a
@@ -127765,7 +128219,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // WHICH READOUTS THE PFD CARRIES — and the SMALL PFD overrides that answer
   // rather than editing it, so turning the small one off gives you back
   // exactly the set you had chosen.
-  const PFD_SMALL = ['ias', 'alt', 'vs', 'pwr'];
+  const PFD_SMALL = ['ias', 'alt', 'vs', 'nrg', 'pwr'];   // A3: the energy stays on the small one
   function flInstApply() {
     const small = !!panels.pfdSmall;
     const p = $('pfd');
@@ -127773,7 +128227,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     for (const d0 in RD) {
       if (!RD[d0]) continue;
       RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
-                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' ||
+                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' ||
                                 instOn[d0]);
     }
     const f = $('pfdFold');
@@ -128910,6 +129364,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
+      // G442.3: the dash's bindable steps go to the cockpit, as a click would
+      if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
       if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames

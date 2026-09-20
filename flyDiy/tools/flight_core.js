@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4e0c652fae6a8927
+// body-sha256: 5047a912b4299081
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -14774,14 +14774,24 @@ function makeLinkage(tau) {
   // G318: the brake (a pull), the trim wheel and the fuel selector ride too —
   // `trim` and `fuel` are the cockpit's own numbers on ctl, which the solver
   // never reads; the linkage carries them to the parts like any drive
-  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel'];
+  // G442.3: `thr0`..`thr3` ride too - each engine's own lever (the pilot's
+  // throttle times ctl.eng[i]'s lever, G194's per-engine record; the pilot's
+  // throttle alone when there is no record), for a twin's double throttle
+  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel', 'thr0', 'thr1', 'thr2', 'thr3'];
   const s1 = {}, s2 = {};
   for (const k of KEYS) { s1[k] = 0; s2[k] = 0; }
+  const read = (ctl, k) => {
+    if (k.length === 4 && k.lastIndexOf('thr', 0) === 0) {
+      const i = +k[3], e = ctl.eng && ctl.eng[i];
+      return (ctl.thr || 0) * (e ? (e.on ? +e.thr : 0) : 1);
+    }
+    return ctl[k] || 0;
+  };
   return {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
       for (const k of KEYS) {
-        s1[k] += a * ((ctl[k] || 0) - s1[k]);
+        s1[k] += a * (read(ctl, k) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);
       }
       return s2;
@@ -16980,7 +16990,14 @@ const GEN_INSTR = {
              power: 'none', note: 'bulb and capillary' },
   fuel:    { name: 'fuel quantity',        d: 0.0572, kg: 0.25, price: 180,
              power: 'elec', amps: 0.1, perTank: { kg: 0.30, price: 90 },
-             note: 'one gauge, a float sender per tank' },
+             note: 'one gauge, a float sender per tank',
+             // THE CHARGE GAUGE (A3, the 2026-09-20 playtest): the same key
+             // on a battery build is the pack's state-of-charge meter, fed by
+             // the pack's own BMS - no 12 V bus and no float senders. The key
+             // stays `fuel` so every tier, save and layout slot holds; the
+             // resolver swaps this row in (see genSystemsResolve).
+             charge: { name: 'charge (state of charge)', d: 0.0572, kg: 0.20, price: 220,
+                       power: 'pack', amps: 0, note: 'the BMS read-out on the panel (a Velis shows it on its EPSI)' } },
   fuelSight: { name: 'fuel sight gauge',   d: 0,      kg: 0.05, price: 30,
              power: 'none', note: 'a cork on a wire through the cap (J-3); a nose tank only' },
   volts:   { name: 'volt / ammeter',       d: 0.0572, kg: 0.15, price: 120,
@@ -17102,15 +17119,28 @@ function genSystemsResolve(S) {
     elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
-  const src = Array.isArray(sy.items) ? sy.items
-            : (T.items || GEN_SYSTEMS.basic.items);
+  // A BATTERY BUILD HAS A CHARGE GAUGE (A3, 2026-09-20): a pack has no cork
+  // on a wire, so the minimal tier's sight glass becomes the pack's own
+  // meter, and the `fuel` key reads GEN_INSTR.fuel.charge - fed by the pack,
+  // never dropped for want of a 12 V bus. The user's 2 kWh trainer flew with
+  // NO energy instrument at all (minimal fit: fuelSight, battery 'none') and
+  // spiralled into the sea with nothing that said why.
+  const battery = !!(S && S.energy && S.energy.kind === 'battery');
+  const rowOf = k => (battery && k === 'fuel') ? GEN_INSTR.fuel.charge : GEN_INSTR[k];
+  const custom = Array.isArray(sy.items);
+  const src = (custom ? sy.items
+            : (T.items || GEN_SYSTEMS.basic.items)).map(k => (battery && k === 'fuelSight') ? 'fuel' : k);
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
   for (const k of src) {
-    const r = GEN_INSTR[k];
+    const r = rowOf(k);
     if (!r || seen.has(k)) continue;
     seen.add(k);
+    // A MOTOR HAS NO OIL (G442.1, the user's ruling): a tier's oil pressure
+    // and oil temperature are dropped on a battery build, and say so; a
+    // player's own list that names them keeps them (a custom fit is explicit)
+    if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
     items.push(k);
@@ -17122,7 +17152,7 @@ function genSystemsResolve(S) {
   const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
   let nPowered = 0;
   for (const k of items) {
-    const r = GEN_INSTR[k];
+    const r = rowOf(k);
     let kg = r.kg, price = r.price;
     if (r.perTank) { kg += r.perTank.kg * nTanks; price += r.perTank.price * nTanks; }
     rows.push({ key: k, group: 'panel', name: r.name, kg, price, amps: r.amps || 0 });
@@ -17157,6 +17187,10 @@ function genSystemsResolve(S) {
     loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
+    // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
+    // sender per tank, on the bus) or 'battery' (the pack's state of charge,
+    // fed by the pack). The dash paints it and the cockpit reads it by this.
+    energyKind: battery ? 'battery' : 'fuel',
   };
 }
 
