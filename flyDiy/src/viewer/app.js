@@ -3018,17 +3018,26 @@
         // counter-rotating pair turns in opposite directions on screen.
         const ud = p.userData || {};
         const ei = ud.engIdx || 0;
-        const eng = sim.ctl.eng && sim.ctl.eng[ei];
-        const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
-        // G435: ...AND THE ENGINE MUST BE RUNNING. The lever said "on" while
-        // the pack was flat and the key off, so the blades turned at full
-        // rate at the bottom of the sea; sim.eng[i].running is the solver's
-        // own fact (the key, the tanks, the pack), the same one the tacho
-        // reads. Dead, the prop windmills with the airspeed and stops.
-        const se = sim.eng && sim.eng[ei];
-        const on = (!eng || eng.on) && (!se || se.running);
-        const V = (sim.out && sim.out.V) || 0;
-        const target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
+        // G442.1 (A3): THE PROP TURNS AT THE SHAFT'S OWN SPEED - the solver's
+        // out.rpm[i] (00_registry genShaftRpm: the throttle's torque against
+        // the disc, a stopped engine windmilling at V / (D J1), nought when
+        // the aeroplane is still). It span from the pilot's throttle before,
+        // so a motor with a flat pack (or a cut engine, or one the key never
+        // started) kept turning at full rate for ever - the user's 2 kWh
+        // trainer glided to the sea with its prop a blur. The lever fallback
+        // stays for a core that publishes no rpm (an old fixture), gated on
+        // sim.eng[i].running as G435 (A1) gated it: dead, it windmills.
+        const rpm = sim.out && sim.out.rpm && sim.out.rpm[ei];
+        let target;
+        if (Number.isFinite(rpm)) target = rpm * (2 * Math.PI / 60);
+        else {
+          const eng = sim.ctl.eng && sim.ctl.eng[ei];
+          const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
+          const se = sim.eng && sim.eng[ei];
+          const on = (!eng || eng.on) && (!se || se.running);
+          const V = (sim.out && sim.out.V) || 0;
+          target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
+        }
         ud.spinRate = (ud.spinRate == null ? target : ud.spinRate) +
                       (target - (ud.spinRate == null ? target : ud.spinRate)) * (1 - Math.exp(-(1/60) / 1.5));
         const sense = ((def && def.params && def.params.engines || [])[ei] || {}).sense || 1;

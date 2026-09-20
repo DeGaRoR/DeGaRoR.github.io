@@ -479,7 +479,10 @@ function make(THREE) {
     else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); CK.handSw[drv] = true; did = true; }
     else if (c.law === 'key') {
       let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
-      i = button === 2 ? Math.max(0, i - 1) : Math.min(4, i + 1);
+      // G442.1: a pack's POWER key has two positions - OFF, and ON over the
+      // BOTH mark (there is no magneto and nothing to crank)
+      if (CK.energy && CK.energy.kind === 'battery') i = i > 0 ? 0 : 3;
+      else i = button === 2 ? Math.max(0, i - 1) : Math.min(4, i + 1);
       CK.setKey(KEY_STEPS[i]);
       did = true;
     }
@@ -537,7 +540,8 @@ function make(THREE) {
     }
     else if (G.g.c.law === 'knob') { CK.sw[G.g.c.drive] = clamp(G.v0 + dy * 0.005, 0, 1); CK.glow(0); }
     else {
-      const st = clamp(Math.round(G.v0 + dy / 28), 0, 4);
+      let st = clamp(Math.round(G.v0 + dy / 28), 0, 4);
+      if (CK.energy && CK.energy.kind === 'battery') st = st >= 2 ? 3 : 0;   // G442.1: OFF or ON
       if (st !== clamp(Math.round(+CK.sw.key || 0), 0, 4)) CK.setKey(KEY_STEPS[st]);
     }
     return true;
@@ -553,8 +557,12 @@ function make(THREE) {
     CK.key = pos; CK.sw.key = i;
     const sim = CK.sim; if (!sim || !sim.setEngine) return;
     const n = sim.eng ? sim.eng.length : 1;
+    // G442.1: a motor runs the moment its power key is ON - the inverter
+    // enables, nothing cranks (the solver's `swing` is the same fact)
+    const pack = CK.energy && CK.energy.kind === 'battery';
     for (let e = 0; e < n; e++) {
       if (pos === 'off') sim.setEngine(e, { key: 'off' });
+      else if (pack) sim.setEngine(e, { key: 'both', swing: true });
       else if (pos === 'start') sim.setEngine(e, { key: 'both', start: true });
       else sim.setEngine(e, { key: pos });
     }

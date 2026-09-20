@@ -598,6 +598,39 @@ function paintReg() {
   if (regTex) regTex.needsUpdate = true;
 }
 const FONT_REG = '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';
+// THE POWER KEY'S TAPE (G442.1): OFF at the lock's 7:30 end, ON over the
+// BOTH mark, on the blank tile - its own material (`panelSet: 'keytape'`),
+// bucketed by the join and rebuilt through material('keytape') like the reg
+let keyTapeMat = null;
+function keyTapeMaterial() {
+  if (keyTapeMat) return keyTapeMat;
+  const cv = HAS_DOM ? document.createElement('canvas') : null;
+  if (cv) { cv.width = 512; cv.height = 160; }
+  const tex = cv ? new THREE.CanvasTexture(cv) : null;
+  if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
+  keyTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
+  keyTapeMat.userData.aeroskin = 1;
+  keyTapeMat.userData.panelSet = 'keytape';
+  keyTapeMat.userData.inside = 1;
+  const paint = () => {
+    if (!cv) return;
+    const g = cv.getContext('2d'), sh = labelSheet();
+    if (!g || !g.clearRect) return;
+    g.clearRect(0, 0, 512, 160);
+    const bi = sh ? sh.names.indexOf('blank') : -1;
+    if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
+      g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, 0, 512, 160);
+    else { g.fillStyle = '#e6e1d5'; g.fillRect(24, 30, 464, 100); }
+    g.fillStyle = '#1b1b1d'; g.font = `700 64px ${FONT_REG}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('OFF', 130, 84); g.fillText('ON', 382, 84);
+    if (tex) tex.needsUpdate = true;
+  };
+  paint();
+  const sh = labelSheet();
+  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
+  return keyTapeMat;
+}
 function setReg(text) {
   const t = String(text == null ? '' : text).trim();
   if (t === regText && regTex) return;
@@ -1297,6 +1330,7 @@ function build(parent, A, P, pilotX) {
   const L = G.layout(A, {
     items: R.items, side: R.side, pilotX, radios,
     elec: { hasBus: R.hasBus, altA: R.altA },
+    energyKind: R.energyKind,                                 // G442.1: the key's kind (a pack's power key)
     extLights: lightsOn && +P.lightSw ? EXT_LIGHTS : [],
     intLights: lightsOn && +P.lightSw ? INT_LIGHTS : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
@@ -1601,7 +1635,18 @@ function build(parent, A, P, pilotX) {
     // shadow disc — flat (G284, the user: "they would fit horizontally, so
     // no need for the 45 degrees"), and a touch larger for it
     const sheet = labelSheet(), li = sheet ? sheet.names.indexOf(LABEL_OF[s.k]) : -1;
-    if (li >= 0) {
+    // G442.1: A PACK'S POWER KEY wears OFF / ON, painted on the blank tile
+    // the way the registration is (the user's sheet has no such tape)
+    if (s.kind === 'key' && s.power && sheet && HAS_DOM) {
+      const lg = new THREE.Group();
+      lg.position.set(0, 0.021, -0.0006);
+      sg.add(lg);
+      const lb = UVBag(keyTapeMaterial());
+      const w = 0.040, h = w * 160 / 512;
+      lb.v([w / 2, -h / 2, 0], [0, 0]); lb.v([-w / 2, -h / 2, 0], [1, 0]); lb.v([-w / 2, h / 2, 0], [1, 1]); lb.v([w / 2, h / 2, 0], [0, 1]);
+      lb.quad(0, 1, 2, 3);
+      const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
+    } else if (li >= 0) {
       const lg = new THREE.Group();
       // G371: the flap switch's tape clears its 44 mm escutcheon; the key's
       // OFF/R/L/BOTH tape is wider so the four words read
@@ -1664,7 +1709,7 @@ window.CAGE_PANEL = {
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
-                  : k === 'reg' ? regMaterial() : matFor(k)),
+                  : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial() : matFor(k)),
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,

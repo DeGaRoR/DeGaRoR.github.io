@@ -3114,6 +3114,23 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     else thr = buildThrottleWall(tg, A, P, pilot.x);
   }
   st1.thr = thr;
+  // G442.1 (A3, the playtest: "the throttle over the metal toggles"): THE
+  // THROTTLE'S FOOTPRINT ON THE PLATE. The dash push-pull (ctlThr 1) stands
+  // OUT of the plate - a 40 mm collar, the rod, a 52 mm knob - low in the
+  // panel where the switch row runs, and the panel's layout never knew: on
+  // the user's 2 kWh trainer the key sat under the knob. The footprint is
+  // published on the anchor (cage frame, the plate's own x / y) and the
+  // layout places no dial and no switch inside it. The wall and shoulder
+  // throttles stand beside the seat, off the plate: nothing to keep out.
+  // The knob stands 0.72 x thrLen out of the plate: seen from the pilot's
+  // eye above, it covers the plate ABOVE its own height as well - the band
+  // reaches up by half that stand-off (the eye's depression is ~30 deg).
+  A.keepOut = [];
+  if (thrMode === 1 && thr && thr.obj && thr.obj.parent && thr.obj.parent.position) {
+    const p = thr.obj.parent.position, m = 0.045;      // the moving group sits on the pivot: the collar's x / y
+    const out = (P.thrLen != null ? P.thrLen : 0.16) * 0.72;
+    A.keepOut.push({ x0: p.x - m, x1: p.x + m, y0: p.y - m, y1: p.y + m + out * 0.5, what: 'throttle' });
+  }
   let pedals = st1.pedals;
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —
   // the pilot's, drawn with the controls so the join carries them

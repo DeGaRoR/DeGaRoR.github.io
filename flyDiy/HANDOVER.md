@@ -51058,3 +51058,53 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   the PFD cell is its only number.
 
 
+
+## G442.1 — A3 PART 2: NO OIL ON A MOTOR, THE PROP OFF THE SHAFT, THE KEY ALWAYS, THE THROTTLE'S
+## FOOTPRINT (2026-09-20, the user: "keep going on the items. And yes, drop oil pressure for
+## electric builds, at least by default")
+
+- THE RULING: a tier's oilP / oilT are DROPPED on a battery build, `why: 'no oil (electric)'`
+  (the systems panel's "not fitted" row says it); a custom list that names them keeps them
+  (explicit). build (4)'s fit is now asi alt tacho compass fuel.
+- THE PROP TURNS AT THE SHAFT'S SPEED (app.js, the prop-spin block): `out.rpm[i]` in rad/s, the
+  1.5 s smoothing kept - it span from `ctl.thr`, so a motor with a flat pack (or a cut engine)
+  kept turning at full rate; a stopped engine now windmills by genShaftRpm and stops with the
+  aeroplane. The lever fallback stays for a core without rpm. T1.2's blurred disc rides on this.
+- THE KEY IS ALWAYS THERE (_panel_gen layout): a piston engine's key is its MAGNETO switch and a
+  hand-propped Cub has one - the bus buys START, the master and the alternator rockers, not the
+  key. On a battery build it is the pack's POWER key: two positions, OFF and ON over the BOTH
+  mark (`power: true` on the switch record), a tape OFF · ON painted on the sheet's blank tile
+  (`keyTapeMaterial`, panelSet 'keytape', rebuilt through material('keytape') like the reg);
+  cockpit.js toggles it OFF <-> ON (click or drag) and the motor runs the moment it is ON
+  (setEngine swing: the inverter enables, nothing cranks).
+- THE THROTTLE'S FOOTPRINT (the playtest's "throttle over the metal toggles"): the dash push-pull
+  (ctlThr 1) stands OUT of the plate, low where the switch row runs, and the panel never knew -
+  build (4)'s key sat under its knob. The crew publishes `A.keepOut` (cage x / y rectangles: the
+  collar +-45 mm, reaching UP by half the knob's stand-off, since from the eye above the knob
+  covers the plate above its own height); the layout's `fits()` refuses a dial there and the
+  switch row takes the longest free run at its height (the one holding the pilot's centre), the
+  pitch shrinking before anything is lost. On build (4) the row slid inboard and the tacho took
+  the T's centre hole. Wall / shoulder throttles stand beside the seat: nothing to keep out. (A
+  first cut projected the lever from CAGE_CREW_EYE onto the plate - the eye is world-space and
+  the crew's group is not yet in a scene at that point, the numbers were nonsense; measured.)
+- THE KEY'S DRAWN POSE, an open question for the shed: with the rest contract the flight shows
+  exactly what the garage draws; at BOTH the kit key's bow hangs at ~7:30 (the wrap's 45 + the
+  law's 90 on a model whose zero has the bow at 3 o'clock), which the flight's old double count
+  had been showing at 10:30 - under "BOTH" on the tape. Either the key model wants a 90 deg
+  turn in its lock or the drawer's wrap does; the tape's words are right, the bow is the question.
+- RIG: panel_shot.js plants the build from version.json (Chrome's JSON viewer worked; CREDITS.md
+  is served as octet-stream = a download = no document) and waits for that document to COMMIT
+  before writing storage (an evaluate on the lingering about:blank is an opaque origin: "Access
+  is denied" - so is a dead server's error page, which is what every denial in the log was);
+  the page error now names the expression. Orphaned headless Chromes from timed-out runs
+  (profile `cdp_panel_*`) had to be killed by hand - eight of them; the preview servers had
+  died under them.
+- GATE PANEL: + oil dropped on a pack (and kept on an explicit list), the key row with / without
+  a bus, the power key's two positions and the motor running at ON, the keep-out on the row and
+  on a dial, app.js's prop source. PANEL UISMOKE INPUT JOIN SAVE PLAYER ELEC CABIN DESIGN green.
+- PROOF: screenshots/panel-2026-09-20/b4_key_row.png (the row clear of the knob, OFF · ON).
+- OWED (A3, next): the numerals' blur, the airspeed needle through the dial, the yoke in the
+  panel / absent in the shed, the horns, twin throttle, the flap switch default, night lights,
+  potentiometer glow, the 7-char registration, graduations by units, PBR on every control, the
+  dash controls bindable (input.js); the key's bow above.
+

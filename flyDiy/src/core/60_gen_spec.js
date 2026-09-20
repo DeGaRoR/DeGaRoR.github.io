@@ -1730,7 +1730,8 @@ function genSystemsResolve(S) {
   // spiralled into the sea with nothing that said why.
   const battery = !!(S && S.energy && S.energy.kind === 'battery');
   const rowOf = k => (battery && k === 'fuel') ? GEN_INSTR.fuel.charge : GEN_INSTR[k];
-  const src = (Array.isArray(sy.items) ? sy.items
+  const custom = Array.isArray(sy.items);
+  const src = (custom ? sy.items
             : (T.items || GEN_SYSTEMS.basic.items)).map(k => (battery && k === 'fuelSight') ? 'fuel' : k);
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
@@ -1739,6 +1740,10 @@ function genSystemsResolve(S) {
     const r = rowOf(k);
     if (!r || seen.has(k)) continue;
     seen.add(k);
+    // A MOTOR HAS NO OIL (G442.1, the user's ruling): a tier's oil pressure
+    // and oil temperature are dropped on a battery build, and say so; a
+    // player's own list that names them keeps them (a custom fit is explicit)
+    if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
     items.push(k);

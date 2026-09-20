@@ -109,7 +109,7 @@ function run() {
   // the row is the charge row, no senders; the record says the kind
   const packMin = { systems: { fit: 'minimal' }, energy: { kind: 'battery', kWh: 2, vessels: [{ bay: 'cabin', capacity: 2 }] } };
   const rPack = C.genSystemsResolve(packMin);
-  check(!rPack.hasBus && rPack.items.includes('fuel') && !rPack.items.includes('fuelSight') && rPack.dropped.length === 0,
+  check(!rPack.hasBus && rPack.items.includes('fuel') && !rPack.items.includes('fuelSight') && rPack.dropped.every(d => /no oil/.test(d.why)),
     'battery + minimal: the charge gauge is fitted without a bus, the sight glass is gone', rPack.items.join());
   check(fuelRow(rPack) && /charge/.test(fuelRow(rPack).name) && near(fuelRow(rPack).kg, I.fuel.charge.kg) && fuelRow(rPack).amps === 0,
     'battery: the row is the charge gauge, no senders, no bus load', fuelRow(rPack) && fuelRow(rPack).name);
@@ -117,6 +117,13 @@ function run() {
   const rPackBas = C.genSystemsResolve({ systems: { fit: 'basic' }, energy: { kind: 'battery', kWh: 2 } });
   check(rPackBas.items.includes('fuel') && rPackBas.loads.every(l => l.key !== 'fuel'), 'battery + basic: the charge gauge draws nothing off the bus');
   check(!rMin.items.includes('fuel') && rMin.items.includes('fuelSight'), 'a fuel build on the minimal tier keeps its sight glass');
+  // G442.1 (the user's ruling): a motor has no oil - a tier's oil gauges are dropped on a battery build, and say why;
+  // a custom list that names them keeps them
+  check(!rPack.items.includes('oilP') && !rPack.items.includes('oilT') && rPack.dropped.filter(d => /no oil/.test(d.why)).length === 2,
+    'battery + a tier: oil P and oil T dropped, "no oil (electric)"', JSON.stringify(rPack.dropped));
+  check(!rPackBas.items.includes('oilP') && rPackBas.items.includes('tacho'), 'battery + basic: no oil gauges, the tacho stays');
+  const rPackCustom = C.genSystemsResolve({ systems: { fit: 'custom', items: ['asi', 'oilP', 'fuel'] }, energy: { kind: 'battery', kWh: 2 } });
+  check(rPackCustom.items.includes('oilP'), 'battery + a custom list naming oilP keeps it (explicit)');
   // dedupe and unknown keys
   const rDup = C.genSystemsResolve({ systems: { fit: 'custom', items: ['asi', 'asi', 'nope', 'alt'] } });
   check(rDup.items.join() === 'asi,alt', 'a list is deduped and unknown keys are ignored');
@@ -273,6 +280,7 @@ function run() {
     // empty T slot before it is dropped.
     {
       const A4 = { dashTop: 0.1366, dashLip: -0.1252, dashAftZ: 2, zDash: 2, halfW: 0.313, floorAt: () => 0 };
+      // (the items as a FUEL build's minimal tier + a fuel gauge would fit them - the oil gauges stand in for any two small dials)
       const L4 = G.layout(A4, { items: ['asi', 'alt', 'tacho', 'oilP', 'oilT', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [],
         elec: { hasBus: false }, extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'pedal', 'pax'], flapSwitch: true });
       const by4 = {}; for (const d of L4.dials) by4[d.k] = d;
@@ -285,6 +293,22 @@ function run() {
         if (Math.hypot(p.cx - q.cx, p.cy - q.cy) < p.r + q.r - 1e-6) ov4 = p.k + '/' + q.k;
       }
       check(!ov4, 'short plate: nothing overlaps', ov4);
+      // G442.1: THE KEY IS ALWAYS THERE - no bus: the magneto key alone (no master, no alt); a pack: the power key
+      const kNo = L4.switches.map(s => s.k);
+      check(kNo[0] === 'key' && !kNo.includes('master') && !kNo.includes('alt'), 'no bus: the key row has the magneto key and no rockers', kNo.join());
+      check(!L4.switches[0].power, 'a fuel build: the key is the magneto switch');
+      const L5 = G.layout(A4, { items: ['asi', 'alt', 'tacho', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [], elec: { hasBus: false }, energyKind: 'battery' });
+      check(L5.switches[0].k === 'key' && L5.switches[0].power === true, 'a pack build: the key is its POWER key');
+      const L6 = G.layout(A4, { items: ['asi', 'alt'], side: 'pilot', pilotX: 0, radios: [], elec: { hasBus: true, altA: 20 } });
+      check(L6.switches.map(s => s.k).join() === 'key,master,alt', 'a bus brings the master and the alternator rockers after the key');
+      // G442.1: THE THROTTLE'S SHADOW (A.keepOut) - nothing under it: the switch row moves inboard, a dial there moves or takes a hole
+      const A7 = Object.assign({}, A4, { keepOut: [{ x0: 0.17, x1: 0.30, y0: -0.13, y1: -0.05, what: 'throttle' }] });
+      const L7 = G.layout(A7, { items: ['asi', 'alt', 'tacho', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [], elec: { hasBus: false },
+        extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'pedal', 'pax'], flapSwitch: true });
+      check(L7.switches.every(s => s.x < 0.17 - 1e-9) && L7.switches[0].k === 'key', 'keep-out: the whole switch row clears the throttle shadow, the key first', L7.switches.map(s => s.x.toFixed(3)).join());
+      const A8 = Object.assign({}, A4, { keepOut: [{ x0: 0.14, x1: 0.30, y0: -0.13, y1: 0.20, what: 'throttle' }] });
+      const L8 = G.layout(A8, { items: ['asi', 'alt', 'tacho', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [], elec: { hasBus: false } });
+      check(L8.dials.filter(d => !d.coaming).every(d => d.cx + d.r <= 0.14 + 1e-9), 'keep-out: no dial under the shadow either (the tacho took a hole)', L8.dials.map(d => d.k + '@' + d.cx.toFixed(2)).join());
     }
     // the layout: the standard T on three cabins, nothing overlapping, all
     // inside, the compass on the coaming, the switches along the bottom
@@ -367,6 +391,10 @@ function run() {
     // A3: the pose the part was captured in rides the record, so the flight's absolute law can take it off
     check(/part\.restC = er\.x \* part\.ctl\.axis\[0\]/.test(join) && /out2\.ctl\.rest = \+pt\.restC/.test(join),
       'join: a moving part carries the turn it was captured at (rest)');
+    // G442.1: the visual prop turns at the solver's shaft speed, not the pilot's throttle
+    const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+    check(/const rpm = sim\.out && sim\.out\.rpm && sim\.out\.rpm\[ei\];[\s\S]{0,200}target = rpm \* \(2 \* Math\.PI \/ 60\)/.test(appSrc),
+      'app.js: the prop spins from out.rpm[i] (a dead engine stops)');
     check(/lights\.on = !!\+Pl\.lightOn/.test(join) && /cageM, people, lights[,\s}]/.test(join), 'join: the snapshot carries the switch positions');
     const light = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
     check(/m\.userData\.lampKey = key; m\.userData\.lampCol = col;/.test(light) && /m\.userData\.lampCup = key;/.test(light) && /lensMat, cupMat,\s*\n\s*\/\/ G440/.test(light),
@@ -501,6 +529,14 @@ function run() {
       simP.fuel.soc = 0; engP[0].running = false;
       for (let i = 0; i < 400; i++) CKp.frame(1 / 60, simP, { t: 7 + i / 60 });
       check(near(CKp.readings.fuelFrac, 0, 0.01), 'pack: empty, the charge gauge reads E and stays there', CKp.readings.fuelFrac);
+      // G442.1: the pack's POWER key - two positions, and the motor runs the moment it is ON (no crank)
+      simP.fuel.soc = 0.5;
+      let patches = []; simP.setEngine = (i, p) => { patches.push(p); if (p.key === 'off') engP[0].running = false; if (p.swing) engP[0].running = true; };
+      const keyG = mk('edGauge_key', { law: 'key', drive: 'key', ax: AX, sgn: 1, k: Math.PI / 6, steps: 5 });
+      CKp.click(keyG, 0);
+      check(CKp.key === 'off' && !engP[0].running, 'power key: a click from ON goes to OFF and the motor stops', CKp.key);
+      CKp.click(keyG, 0);
+      check(CKp.key === 'both' && CKp.sw.key === 3 && engP[0].running && patches.some(p => p.swing), 'power key: ...and back ON over the BOTH mark, the motor running at once', CKp.key);
     }
     // the cockpit view hides the pilot and gives it back
     CK.cockpitView(true, model); check(!body.visible, 'cockpit view: the pilot\'s body is hidden');

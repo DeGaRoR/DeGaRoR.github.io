@@ -255,8 +255,13 @@ function layout(A, o) {
   const xLim = F ? Math.max(0.16, F.xMax - PAN_INSET) : Math.max(0.16, A.halfW - 0.05);
   // a dial fits where its whole circle, inset, is inside the plate's outline
   // - seven points round its rim against the column under each
+  // THE KEEP-OUTS (G442.1): the crew's throttle shadow on the plate, from the
+  // pilot's eye (A.keepOut, cage x / y rectangles) - nothing is placed under it
+  const KO = Array.isArray(A.keepOut) ? A.keepOut : [];
+  const kept = (x0, x1, y0, y1) => KO.some(k => x1 > k.x0 && x0 < k.x1 && y1 > k.y0 && y0 < k.y1);
   const fits = (cx, cy, r) => {
     if (Math.abs(cx) + r > xLim + 1e-6) return false;
+    if (kept(cx - r, cx + r, cy - r, cy + r)) return false;
     // the switch row lives along the bottom: a dial leaves it its 16 mm and a gap
     if (cy + r > yTop + 1e-6 || cy - r < yBot + SW_ROOM - 1e-6) return false;
     if (!F) return true;
@@ -414,8 +419,15 @@ function layout(A, o) {
   // the switch row along the bottom band: key, master, alt, then the
   // light throws and the dimmers — pitch 40 mm, centred under the T
   const sw = [];
+  // THE KEY IS ALWAYS THERE (G442.1, the playtest: "the KEY / MASTER / ALT
+  // row is missing on builds without a bus"): a piston engine's key is its
+  // MAGNETO switch (OFF / R / L / BOTH) and a hand-propped Cub has one - the
+  // bus buys the START position, the master and the alternator rockers, not
+  // the key. On a battery build the key is the pack's POWER key, two
+  // positions (OFF / ON) on the same lock, `power: true` for the tape.
+  sw.push({ k: 'key', kind: 'key', power: o.energyKind === 'battery' });
   if (o.elec && o.elec.hasBus) {
-    sw.push({ k: 'key', kind: 'key' }, { k: 'master', kind: 'rocker' });
+    sw.push({ k: 'master', kind: 'rocker' });
     if (o.elec.altA) sw.push({ k: 'alt', kind: 'rocker' });
     // G318: an avionics master when a radio is fitted — the user drew the
     // tape; the bus gates the radios' loads on it
@@ -426,9 +438,25 @@ function layout(A, o) {
   if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
   const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
   const xSw = xLimAt(ySw);                     // the plate's own width down there
-  const pitch = Math.min(0.040, (2 * xSw - 0.02) / Math.max(1, sw.length));
-  let x = Math.min(xSw - 0.02, Math.max(-xSw + 0.02 + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
-  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, -xSw + 0.02, xSw - 0.02), y: ySw }, s)); x -= pitch; }
+  // the row's room: the plate's width at that height less the keep-outs
+  // (G442.1) - the longest free run, the one holding the pilot's centre
+  // when there is a choice; the pitch shrinks to fit before anything is lost
+  let lo = -xSw + 0.02, hi = xSw - 0.02;
+  {
+    const cuts = KO.filter(k => k.y1 > ySw - 0.012 && k.y0 < ySw + 0.012).sort((a, b) => a.x0 - b.x0);
+    const runs = []; let a = lo;
+    for (const k of cuts) { if (k.x0 - 0.012 > a) runs.push([a, Math.min(k.x0 - 0.012, hi)]); a = Math.max(a, k.x1 + 0.012); }   // a switch plate's own half width
+    if (a < hi) runs.push([a, hi]);
+    const ok = runs.filter(r => r[1] - r[0] > 0.02);
+    if (ok.length) {
+      const holds = ok.filter(r => r[0] <= xC && xC <= r[1]);
+      const best = (holds.length ? holds : ok).reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m));
+      lo = best[0]; hi = best[1];
+    }
+  }
+  const pitch = Math.min(0.040, (hi - lo) / Math.max(1, sw.length - 1 || 1));
+  let x = Math.min(hi, Math.max(lo + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
+  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, lo, hi), y: ySw }, s)); x -= pitch; }
   // the extent, the way the crew always published it
   const onPanel = dials.filter(d => !d.coaming);
   const ext = onPanel.length ? {

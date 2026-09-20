@@ -54,7 +54,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (LOG && m.method === 'Runtime.consoleAPICalled') console.log('page ' + m.params.type + ': ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ').slice(0, 1200)); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
-    if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
+    if (!r.result || r.result.exceptionDetails) { const d = r.result && r.result.exceptionDetails; throw new Error('page: ' + (d ? (d.exception && d.exception.description || d.text) : JSON.stringify(r.error)).split(String.fromCharCode(10))[0] + ' in ' + expr.slice(0, 80)); } return r.result.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: SCALE, mobile: false });
   // THE BUILD FIRST: the page's origin must exist before its storage can be
@@ -64,7 +64,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (BUILD) {
     const txt = fs.readFileSync(BUILD, 'utf8');
     await cmd('Page.navigate', { url: URL.replace(/\/flyDiy\/.*$/, '/flyDiy/version.json') });
-    await sleep(1500);
+    // ...and the document must have COMMITTED: an evaluate on the about:blank
+    // still showing lands on an opaque origin ("Access is denied" - so does a dead server's error page)
+    for (let i = 0; i < 40; i++) { await sleep(500); if (await ev('/version/.test(location.pathname)').catch(() => false)) break; }
     await ev('(()=>{localStorage.setItem("flydiy.wip", ' + JSON.stringify(txt) + '); return 1;})()');
   }
   await cmd('Page.navigate', { url: URL });
