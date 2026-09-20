@@ -617,6 +617,21 @@ function genShakedown(def, opts) {
       out.energyKg = E.contentsKg;
       out.energyL = E.installedL;
       out.energyPrice = E.price;
+      // G435: HOW LONG IT RUNS, AND HOW FAR. The sheet quoted the draw and
+      // told the player to "divide the pack into it"; the user's 2 kWh
+      // trainer went into the sea on its downwind leg. Full-throttle
+      // endurance from the thermo rated figure; cruise at two thirds of it
+      // (the burn row's own rule of thumb), the still-air range at VCruise.
+      // Hours; null when the sheet has no rated draw or no energy aboard.
+      {
+        const cap = E.battery ? (S.energy && S.energy.kWh) || 0 : E.contentsKg || 0;
+        const rate = E.battery ? THr.drawKW : THr.burnKgH;
+        const hFull = cap > 0 && rate > 0 ? cap / rate : null;
+        out.enduranceFullH = hFull;
+        out.enduranceCruiseH = hFull != null ? hFull / 0.67 : null;
+        const Vc = def.params.ap && def.params.ap.VCruise;
+        out.rangeKm = hFull != null && Vc > 0 ? out.enduranceCruiseH * Vc * 3.6 : null;
+      }
     }
     out.propName = S.prop.name;
     // WHICH PITCH, AND WHETHER THE AEROPLANE CHOSE IT (G159). The plaque said

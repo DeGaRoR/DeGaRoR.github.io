@@ -50626,3 +50626,100 @@ the user's eye on every code) and then in the game's island ground hook. One rec
   code in the game (the grades, the biases, the macro tint); the ring as a Standard material for
   the roughness; the rare aerials (muskeg, sand); a variation jitter per hex cell; real displacement
   maps for the Poly Haven sets; GATE SPLAT (the recipe's shape, the manifest, the sampler count).
+
+
+## G435 — THE TWO BLOCKERS OF THE 2026-09-20 PLAYTEST TRIAGE (A1): THE TUBE ELEMENT PUSHED THE
+## AEROPLANE, AND THE ENERGY STATE IS SAID (2026-09-20, the user: "the pushers are giving thrust in the
+## wrong direction — major issue, priority"; "I tried to send flydiy-build (4) to Tyl strip and it
+## crashed in the sea on the way... why?"; "despite the engine showing 0 RPM, the blade keeps spinning
+## forever, including at the bottom of the ocean"; "what happens to the physics once submerged?")
+
+Triage doc: futureDesigns/PLAYTEST-TRIAGE-2026-09-20.md (every remark mapped to a session; this is A1).
+The builds named there live in ~/Downloads; the birdman is now tools/fixtures/build_v10_birdman_2026-09-18.json.
+
+- THE PUSHER'S THRUST WAS RIGHT; THE TUBE ELEMENT WAS PUSHING. Headless (pilot_trace birdman.json):
+  "rejected-takeoff: not accelerating — thrust is going nowhere". A raw probe: 985 N applied along
+  -xAft on the ENGL/ENGR pair exactly as on a puller (the solver has no pusher sign), the plane pitched
+  to -19 deg in 2 s, keel on the ground. And PARKED, calm, no throttle, the birdman crept 0.8 m AFT in
+  10 s, accelerating. A/B: boom 'tube' - no creep; GEN_RULES.rodBoomTube=0 (the lattice) - no creep.
+  Instrumented (a scratch copy of the core): shapeMatch injected +730 kg.m/s over those 10 s. Müller's
+  projection conserves momentum only while sum m_k q_k = 0 with the m of the substep; clusterRest takes
+  the offsets ONCE and the masses move after it - the birdman's tank is billed on the S2/S3 ring pairs,
+  INSIDE the rod cluster, and idle burn took 2.8 g a side; the rest offsets drifted 15 um off centre
+  and the projection, applied 1440 times a second with gain al/dt, turned that into a thrust.
+  FIX (30_solver.js shapeMatch): the rest offsets are re-centred by this substep's masses before the
+  covariance and the goal. Injection 0.0000 to the bit; the birdman creeps 0.07 m (the lattice's own
+  settle drift), accelerates, lifts off at 255 m. Any cluster carrying a draining tank had this
+  (a twin boom with fuel too); the fixtures did not because their tanks sit outside the clusters.
+- GATE GEN rule 11: the birdman fixture parked 10 s (creep < 0.10 m, |v| < 0.02) and 20 s of full
+  throttle from rest with the pilot's tail-down stick, de 0.30 (V > 18 m/s, worst pitch on the wheels
+  > -8.6 deg). With the leak: 0.816 m / 13.6 m/s / -19 deg; without: 0.069 m / 23.7 m/s / 0 deg. With a
+  NEUTRAL stick this thrust line tips the tail over the mains on either core - 1320 N.m of thrust
+  moment against 1330 of weight - which is the user's geometry (mains 0.37 m ahead of the CG), not a bug.
+- THE PILOT SAYS NOSE-OVER when it sees one (43_pilot.js, the accelerate-stop rules): past 12 deg
+  nose-down on the wheels and not accelerating - "the thrust line is pushing the nose into the ground".
+  A tail-high roll on a high thrust line reads -8 deg at 9 m/s and passes.
+- THE HIGH THRUST LINE GETS THE WATER'S STICK. With the leak fixed the birdman lifted off at 24 m/s and
+  sank back at 28 with the stick at the servo's 0.20 - G396.2's story on the water (the integrator's
+  0.15 ceiling cannot hold the attitude against a thrust line over the CG). THRUST_ARM (the engine
+  nodes' rest height over the mass centre, a ground fact at makePilot) > A.highThrustArm (0.30 m)
+  opens the same integrator in LIFTOFF (liftoffIWater 0.35, rotateI 0.8), closed at CLIMB as on the
+  water. AND ROLLS THREE-POINT (threePoint = !trike && (GP.cap < 1 || highThrust)): in the GAME the
+  birdman still nosed over at 15 m/s after the leak was fixed - the tail-up schedule eased the stick to
+  lift the tail at 3 m/s, the thrust line lifted it further, the nose reached -14 deg with the servo at
+  0.20 and the keel touched. The birth spec rolled and the game's JOINED spec (engine y 1.00 vs 1.12,
+  glazing, noseGap - the join's measured facts) did not: a knife edge, the same aeroplane. Held
+  three-point the stick stays back until Vr; both specs lift off (172 / 192 m) and complete the circuit,
+  headless and in the game (headless Chrome, dev.html?world=none: LIFTOFF at t+12 s of the roll).
+  Only two archetypes flip highThrust - floatplane (0.51 m) and mw5 (0.73 m) - and both fly bit-for-bit
+  the same circuit as at HEAD. OWED (A8/T1.3): the birdman's FLARE balloons - the throttle cut at 6.8 m
+  removes the thrust line's nose-down moment and 7 deg of stab trim solved at cruise power pitches it to
+  31 deg against full down elevator; it stalls on from 6 m at 0.66 Vs, 6.5 m/s. A trim solved for the
+  glide, or a flare that keeps a trickle of power on a high thrust line.
+- THE ENERGY STATE, SAID (30_solver.js): sim.fuel.starved / starvedAt (the sim second every engine
+  stopped for want of fuel or charge), sim.fuel.enduranceS (the remaining energy over this substep's
+  draw, Infinity at idle), out.starved, out.energyFrac; all reset with the panel. Build (4) is an
+  e811_velis on a 2 kWh pack: at t~130 s on the downwind leg the throttle was at 1.00 and V fell
+  31 -> 19 m/s, a spiral, the sea - and the only word was "wont-climb". 2 kWh IS about two minutes of
+  full power (a Velis carries 24.8 kWh); the number was true and unsaid.
+- THE PILOT ON EMPTY (43_pilot.js): the first `starved` airborne says 'out-of-energy' with the second,
+  the height and where it is going, sets the outcome 'forced-landing', and flies a new GLIDE phase:
+  the nearest aerodrome when it is inside 0.7 x LDbest x height (TRK), the heading held otherwise
+  (HDG), TECS at Vbg (else VAppr) asking the sheet's idle sink - not FLC, whose +0.02 rad pitch floor
+  is a climb's and mushed the first cut on at 1.01 Vs and 6 m/s - flaps for the landing under 60 m,
+  and FINAL's own hold-off flare from the flare height (committed, no go-around); SEL.deadThr keeps the
+  cockpit's lever closed while TECS winds its own throttle to the stop asking the dead engine (which is
+  what hands the speed to the elevator). Build (4): out of charge at 128 s, 138 m up, down in the field
+  at 0.96 Vs and 2.2 m/s, stopped in 40 m; in the game (headless Chrome) the same at t=153 s, the rail
+  reading GLIDE, the prop winding down 111 -> 8 -> 6 rad/s, the arrival "forced landing". On the wheels or in the flare it only says
+  it. The judgement of a field, a turn back, the wind: A8 (PLAYTEST-TRIAGE). The game already shows
+  any outcome on the arrival card ("Short of X · forced landing").
+- UNDER THE WATER THE FLIGHT IS OVER: out.submerged (30_solver.js readPanel) when the mass centre is a
+  metre under world.waterH on a build without floats; the pilot says 'in-the-water', outcome
+  'in-the-water', STOPPED. Before this a wheeled build in the sea stood on the seabed as on any ground.
+- THE PROP STOPS (app.js, the spin block): the visual rate was gated on the LEVER (eng.on), never on
+  sim.eng[i].running - a flat pack or the key off left the blades at full rate. Gated on `running` now;
+  dead, it windmills with the airspeed and stops. (A3 owns the panel; this line is the end state's
+  visible half and is recorded here so A3 does not redo it.)
+- THE PLAQUE SAYS HOW LONG AND HOW FAR (64_gen_build.js genShakedown -> app.js): `endurance` at full
+  throttle and at a cruise burning two thirds of it (minutes, red under half an hour), `still-air range`
+  at VCruise (red under 30 km); plaque.js explains both. Build (4): 2 min / 3 min / ~5 km.
+- The rest of A1's brief (the certificate/game split on the birdman's FLIES A CIRCUIT) is answered by
+  the mechanism: the shakedown flies the same solver, but its tunnel/circuit does not park the aeroplane
+  ten seconds on its wheels burning fuel before the roll, and the leak needed the burn. GATE GEN rule 11
+  is the parked case now.
+- GATE SEAPLANE IS RED AT HEAD, not here: the crosswind take-off swings 35.8 deg (bound 30) on
+  30cbf395's own core, byte for byte the same number (run in scratch against `git show HEAD:...
+  flight_core.js`). A pre-existing red for S1/A8 (PLAYTEST-TRIAGE); the parked seaplane fixture drifts
+  identically on both cores (its tank sits outside the clusters).
+- The user took A6 (sky/world rendering) to a dedicated session; nothing of A6 is in this landing.
+- Delivery: GEN (+rule 11), PILOT, TAKEOFF, HONEST, DESIGN, STRESS, FLAPS, BIPLANE, NAV, GE, UISMOKE,
+  WEIGHT, ELEC, RPM, BOOT, HYDRODYN, FLOATS, MASS, PLAYER green on the final build; FLEX, LOAD green on
+  the same solver one build earlier. The full --all had ten reds, every one A/B'd against the HEAD core
+  in scratch and identical there: SEAPLANE (above), PILOTMATRIX (c172 sink 0.95 -> 2.0, cub:x2 swing 6.2
+  on BOTH cores - the G431 baseline ruling still owed), ARCHETYPES (the aerobatic biplane goes around
+  twice and gives up on both cores; Caravan/Beaver/Tiger Moth complete when flown alone - the gate's
+  4 shards ran 45 min each under a peer's battery), WINGSPLIT, ENGINE (-20.7 kg ~ -18), WORLD, AERO,
+  SITE, PREMISES, ENERGY (the documented peers' reds). The rig that took the pictures: a scratch CDP
+  script on island_shot.js's pattern - the build written into localStorage flydiy.wip, ?world=none,
+  the roll-out clicked, FLIGHT_PROBE read every 3-10 s; the Browser pane itself had no WebGL that day.

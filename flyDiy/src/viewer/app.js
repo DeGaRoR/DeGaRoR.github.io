@@ -2982,7 +2982,13 @@
         const ei = ud.engIdx || 0;
         const eng = sim.ctl.eng && sim.ctl.eng[ei];
         const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
-        const on = !eng || eng.on;
+        // G435: ...AND THE ENGINE MUST BE RUNNING. The lever said "on" while
+        // the pack was flat and the key off, so the blades turned at full
+        // rate at the bottom of the sea; sim.eng[i].running is the solver's
+        // own fact (the key, the tanks, the pack), the same one the tacho
+        // reads. Dead, the prop windmills with the airspeed and stops.
+        const se = sim.eng && sim.eng[ei];
+        const on = (!eng || eng.on) && (!se || se.running);
         const V = (sim.out && sim.out.V) || 0;
         const target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
         ud.spinRate = (ud.spinRate == null ? target : ud.spinRate) +
@@ -5036,6 +5042,14 @@
           n1(s.burnKgH / (s.energyKgL || 0.72), 0) + ' L/h)');
       R('cooling duty', n1(s.coolKW, 0) + ' kW · ' +
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
+      // G435: the endurance said in minutes, red under half an hour (the
+      // user's 2 kWh trainer: 2 min at full throttle, into the sea)
+      if (s.enduranceFullH != null) {
+        const mm = h => Math.round(h * 60) + ' min';
+        R('endurance', mm(s.enduranceFullH) + ' full throttle · ' + mm(s.enduranceCruiseH) + ' cruise',
+          s.enduranceCruiseH < 0.5 ? 'bad' : '');
+        if (s.rangeKm != null) R('still-air range', n1(s.rangeKm, 0) + ' km', s.rangeKm < 30 ? 'bad' : '');
+      }
     }
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');

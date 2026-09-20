@@ -130,6 +130,12 @@ const PLAQUE_WHY = {
       + 'throttle. Divide the pack into it for the full-power endurance.' },
   'full-throttle burn': { what: 'fuel the engine burns at full throttle, by '
       + 'mass and by volume. Cruise burns about two thirds of it.' },
+  'endurance': { what: 'how long the energy aboard runs the engine: at full '
+      + 'throttle, and at a cruise burning two thirds of it.',
+    fix: 'a bigger pack or tank, or a leg that fits; under half an hour is '
+      + 'a circuit, not a trip.' },
+  'still-air range': { what: 'the cruise endurance flown at the cruise speed '
+      + 'with no wind. A headwind eats it; keep a reserve.' },
   'cooling duty': { what: 'the heat the engine sheds at full power and what '
       + 'carries it away. A cowl has to swallow this.' },
   // balance

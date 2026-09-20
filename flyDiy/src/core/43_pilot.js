@@ -122,7 +122,7 @@ const PILOT_PHASES = {
   ABORT: ['ABORT', 'ROLL'], LIFTOFF: ['LIFT-OFF', 'LIFTOFF'], PUTDOWN: ['PUT DOWN', 'LIFTOFF'],
   CLIMB: ['CLIMB', 'CLIMB'], CROSSWIND: ['CROSSWIND', 'CRUISE'], DOWNWIND: ['DOWNWIND', 'CRUISE'],
   BASE: ['BASE', 'TURNBACK'], ENROUTE: ['ENROUTE', 'ENROUTE'], INBOUND: ['INBOUND', 'INBOUND'],
-  FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
+  FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], GLIDE: ['GLIDE', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
   ROLLOUT: ['ROLLOUT', 'ROLLOUT'], STOPPED: ['STOPPED', 'STOPPED'],
   BOX: ['AP BOX', 'CRUISE'],
 };
@@ -153,6 +153,22 @@ function makePilot(sim, def, world, opts) {
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
     ? genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81) : { cap: 1 };
+  // G435: THE THRUST LINE'S HEIGHT OVER THE CG, a ground fact of the
+  // aeroplane as built (the rest nodes, mass-weighted). A pusher on its boom
+  // pulls the nose DOWN with the throttle: the user's birdman (0.59 m over
+  // the CG, 985 N) lifted off at 24 m/s and sank back at 28 with the stick
+  // at the servo's 0.20 - the same story G396.2 met on the water, where the
+  // integrator's 0.15 ceiling could not hold the attitude against the
+  // thrust line. A nose mount reads ~0 here and changes nothing.
+  const THRUST_ARM = (() => {
+    const N = def.nodes, E = def.refs && def.refs.engine;
+    if (!E || !E.length) return 0;
+    let M = 0, cy = 0;
+    for (const nd of N) { M += nd.m; cy += nd.m * nd.p[1]; }
+    const ey = E.reduce((s, i) => s + N[i].p[1], 0) / E.length;
+    return M > 0 ? ey - cy / M : 0;
+  })();
+  const highThrust = THRUST_ARM > (A.highThrustArm ?? 0.30);
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -163,7 +179,14 @@ function makePilot(sim, def, world, opts) {
     return { Lwb, steer: Math.abs(def.params.twSteer || 0.5) };
   })();
   const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
-  const threePoint = !trike && GP.cap < 1;
+  // G435: ...AND A HIGH THRUST LINE ROLLS THREE-POINT. The tail-up schedule
+  // eases the stick to lift the tail at 3 m/s; on the user's pusher the
+  // thrust line lifts it by itself and kept going - the nose reached -14 deg
+  // with the servo at 0.20 and the keel touched at 15 m/s (the birth spec
+  // rolled, the game's joined spec did not: a knife edge, 1320 N.m of thrust
+  // moment against 1330 of weight). Held three-point, the stick stays back
+  // until Vr and the tail rides where the thrust line puts it.
+  const threePoint = !trike && (GP.cap < 1 || highThrust);
   // every taildragger rotates at Vr (G193); every TRICYCLE rotates too (G202)
   const rotateTD = !trike && (A.rotate != null ? !!A.rotate : true);
   const taxiFF = (() => {
@@ -312,6 +335,7 @@ function makePilot(sim, def, world, opts) {
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
+  let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
@@ -1308,6 +1332,10 @@ function makePilot(sim, def, world, opts) {
         default: break;
       }
       if (AF.vert !== 'TECS') tOn = false;
+      // G435 GLIDE: TECS winds its throttle to the stop asking an engine that
+      // is dead (which is what puts the speed on the elevator); the lever the
+      // cockpit shows stays closed
+      if (SEL.deadThr) c.thr = 0;
       // lateral
       switch (AF.lat) {
         case 'HDG': ap.targetDir = [Math.cos(SEL.hdg), 0, Math.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
@@ -1508,8 +1536,71 @@ function makePilot(sim, def, world, opts) {
       if (AF.thr === 'SPD') conds.push(cond('airspeed', V, SEL.ias, Math.abs(V - SEL.ias) < 2, 'm/s'));
       setStatus('AP box: ' + AF.lat + ' ' + AF.vert + ' ' + AF.thr, conds);
     };
+    // G435: OUT OF ENERGY, SAID AND FLOWN. The user's 2 kWh trainer ran its
+    // pack down on the downwind leg and this pilot held the throttle at
+    // 1.00 into a spiral and the sea, its only word "no climb left". The
+    // solver now says `starved` (30_solver.js, the tanks or the pack
+    // stopping every engine); airborne, the pilot says it and glides for a
+    // FORCED LANDING - the nearest strip when it is inside the glide cone,
+    // straight ahead otherwise - through the flare it already knows. A
+    // starvation in the flare or on the wheels changes nothing but the note.
+    // The emergency's finer judgement (a field chosen, a turn back, the
+    // wind) is the pilot track's (PLAYTEST-TRIAGE A8); this is the floor.
+    if (sim.fuel && sim.fuel.starved && !starvedSaid) {
+      starvedSaid = true;
+      const what = sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
+      const landingPh = ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || ap.phase === 'STOPPED' || ap.phase === 'ABORT' || ap.phase === 'PUTDOWN';
+      if (onG === 0 && !landingPh && !BX.on) {
+        // the glide cone: the sheet's L/D when it has one, else a modest 8
+        const ld = (SH && SH.LDbest > 0) ? SH.LDbest : 8;
+        let best = null, bestD = Infinity;
+        for (const a of (world && world.aerodromes) || []) {
+          const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (d < bestD) { bestD = d; best = a; }
+        }
+        const reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        glideTo = reach ? best : null;
+        glideHdg = Math.atan2(nose[1], nose[0]);
+        say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — engines stopped; gliding ' +
+            (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' : 'straight ahead for a forced landing'));
+        ap.report.outcome = ap.report.outcome || 'forced-landing';
+        committed = true;
+        go('GLIDE');
+      } else say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s — engines stopped');
+    }
+    // ...and UNDER THE WATER the flight is over (30_solver.js out.submerged)
+    if (o_.submerged && ap.phase !== 'STOPPED') {
+      say('in-the-water', 'under the water at t=' + Math.round(ap.t) + ' s — the flight is over');
+      ap.report.outcome = ap.report.outcome || 'in-the-water';
+      go('STOPPED');
+    }
     if (BX.on) boxFly(); else
     switch (ap.phase) {
+      case 'GLIDE': {
+        // best glide toward the strip or the heading held, no power, flaps
+        // as for the landing once low; the hold-off flare from FINAL's height
+        // TECS, not FLC: FLC's pitch floor (+0.02 rad) is a climb's and held
+        // the nose up with no power - the first cut mushed on at 1.01 Vs and
+        // 6 m/s of sink. TECS asked for the sheet's idle sink at Vbg puts the
+        // speed on the elevator once the (dead) throttle saturates.
+        const vbg = Math.max(A.VAppr || 18, (SH && SH.Vbg > 0) ? SH.Vbg : 0) || 20;
+        const tec = { vs: -tSinkIdle, alt: null, gs: null, vsUp: null, vsDn: null, ias: vbg, deadThr: true };
+        if (glideTo) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk: [glideTo.x, glideTo.z], bank: 0.35 }));
+        else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg: glideHdg, bank: 0.25 }));
+        flapTgt = aglG < 60 ? fLDG : 0;
+        setStatus('gliding for a forced landing', [
+          cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
+          cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
+        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
+          go('FLARE'); thFlare0 = th; SEL.deadThr = false;
+          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
+          flCap = trike ? A.thMax
+                : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
+          flCap = Math.max(flCap, thFlare0 + 0.03);
+          flI = 0; flVsF = vcg[1];
+        }
+        break;
+      }
       case 'DEPART': {
         // the panel arc: the pilot runs the checklist — mags on, engine
         // running — writing exactly what the cockpit key writes, so a key
@@ -1714,6 +1805,15 @@ function makePilot(sim, def, world, opts) {
             reject = Math.round(runUsed) + ' m used (' + Math.round(ST.rejectFrac * 100) +
                      ' % of the run) still on the wheels at V=' + V.toFixed(1) + (V >= vr ? ' past Vr=' + vr.toFixed(1) : ' of Vr=' + vr.toFixed(1)) +
                      ' (the sheet says ' + Math.round(A.TORun ?? 0) + ' m) — dropping it';
+          // G435: A NOSE-OVER IS SAID AS ONE. The user's pusher (985 N on a
+          // boom-mounted engine) was thrown onto its nose in two seconds and
+          // the verdict read "thrust is going nowhere" - true and useless.
+          // Pitched past 12 deg nose-down on the wheels and not accelerating
+          // there is no run to judge; the keel is on the ground. (A tail-high
+          // roll on a high thrust line reads -8 deg at 9 m/s and is fine.)
+          if (!reject && phaseT > 1 && onG > 0 && th < -0.21 && accF < 0.5 && !sim.hydro)
+            reject = 'nose-over: ' + Math.round(-th * 180 / Math.PI) + ' deg nose-down on the wheels at V=' + V.toFixed(1) +
+                     ' — the thrust line is pushing the nose into the ground (a high pusher, the mains under the CG)';
           if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr && !atHump)
             reject = 'not accelerating (' + accF.toFixed(2) + ' m/s^2 at V=' + V.toFixed(1) + ') — thrust is going nowhere';
         } else if (V < vr) {
@@ -1819,7 +1919,8 @@ function makePilot(sim, def, world, opts) {
         // phase handed over to CLIMB with the floats wet (the card skimmed to
         // 135 km/h). The sea is the flat datum `agl` was built on.
         const aglL = sim.hydro ? agl : aglG;
-        if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        // G435: ...and a HIGH THRUST LINE on land asks the same stick (THRUST_ARM above)
+        if ((sim.hydro || highThrust) && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
         // G396.4: THE HOLD-OFF ON THE WATER. LIFTOFF eased the stick to the
         // servo's 0.22 the moment the hull let go, the floats touched again
         // and the card skimmed the step 2 s to 115 km/h where full stick
@@ -1863,7 +1964,7 @@ function makePilot(sim, def, world, opts) {
           // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
           // and its approach is tuned with it — reset there, the trike went
           // around "high on the slope" and never landed (GATE PILOT).
-          if (sim.hydro) { IthMaxT = 0.15; IthGain = null; }
+          if (sim.hydro || highThrust) { IthMaxT = 0.15; IthGain = null; }
         }
         break;
       }

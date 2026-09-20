@@ -305,12 +305,30 @@ function makeSim(def, world) {
       cx += p[i*3] * mi; cy += p[i*3+1] * mi; cz += p[i*3+2] * mi; M += mi;
     }
     cx /= M; cy /= M; cz /= M;
+    // G435: THE REST OFFSETS RE-CENTRED BY THE MASSES OF THIS SUBSTEP.
+    // "Mass-weighted, so linear momentum is conserved exactly" (above) holds
+    // only while sum m_k q_k = 0 with the m the goal is built from. The rest
+    // is taken once (clusterRest) and the masses move after it: a tank
+    // billed on a ring pair inside the cluster drains, the occupants shift.
+    // A rod boom carrying the user's pusher lost 2.8 g a side to idle burn,
+    // the offsets drifted 15 um off centre, and the projection - applied at
+    // 1440 Hz with gain al/dt - pushed 730 kg.m/s into the parked aeroplane
+    // in ten seconds: it crept 0.8 m aft at rest and, with 985 N on the
+    // boom-mounted engine, was thrown onto its nose ("thrust is going
+    // nowhere"). Recentred here the injection is 0.0000 to the bit,
+    // whatever the masses do. One more pass over the cluster's ~20 nodes.
+    let qbx = 0, qby = 0, qbz = 0;
+    for (let k = 0; k < n2; k++) {
+      const mi = m[C.idx[k]];
+      qbx += mi * C.q[k*3]; qby += mi * C.q[k*3+1]; qbz += mi * C.q[k*3+2];
+    }
+    qbx /= M; qby /= M; qbz /= M;
     // A = sum m (x - c) q^T
     const A = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], mi = m[i];
       const dx = p[i*3] - cx, dy = p[i*3+1] - cy, dz = p[i*3+2] - cz;
-      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
       A[0] += mi*dx*qx; A[1] += mi*dx*qy; A[2] += mi*dx*qz;
       A[3] += mi*dy*qx; A[4] += mi*dy*qy; A[5] += mi*dy*qz;
       A[6] += mi*dz*qx; A[7] += mi*dz*qy; A[8] += mi*dz*qz;
@@ -319,7 +337,7 @@ function makeSim(def, world) {
     const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], i3 = i*3;
-      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
       const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
       const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
       const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
@@ -410,6 +428,12 @@ function makeSim(def, world) {
   const fuel = { kind: ENERGY.kind || 'fuel', kg0: fuelKg0, kg: fuelKg0,
                  litres0: fuelKg0 / kgL, litres: fuelKg0 / kgL, frac: 1,
                  kWh: ENERGY.kWh || 0, soc: 1, burnKgH: 0, drawKW: 0,
+                 // G435: THE ENERGY STATE, SAID. `starved` the moment the tanks or
+                 // the pack stop every engine (with the sim second it happened), and
+                 // the ENDURANCE at the draw of this substep (seconds; Infinity at
+                 // idle) - the user's 2 kWh trainer spiralled into the sea on the
+                 // downwind leg with the throttle at 1.00 and nothing that said why
+                 starved: false, starvedAt: null, enduranceS: Infinity,
                  // per vessel, in the order the spec lists them: litres now
                  vessels: (ENERGY.vessels || []).map(v => ({ bay: v.bay,
                    litres0: v.litres || 0, litres: v.litres || 0 })) };
@@ -422,6 +446,8 @@ function makeSim(def, world) {
     for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; }
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
+    fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
+    out.starved = false; out.energyFrac = 1; out.submerged = false;
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
@@ -471,11 +497,15 @@ function makeSim(def, world) {
       fuel.drawKW = THERMO.drawKW * tSum * pk;
       if (fuel.kWh > 0 && fuel.drawKW > 0) {
         fuel.soc = Math.max(0, fuel.soc - fuel.drawKW * dt / 3600 / fuel.kWh);
-        if (fuel.soc <= 0) for (const e of eng) e.running = false;
-      }
+        fuel.enduranceS = fuel.soc * fuel.kWh * 3600 / fuel.drawKW;
+        if (fuel.soc <= 0) { for (const e of eng) e.running = false; starve(); }
+      } else fuel.enduranceS = Infinity;
+      out.energyFrac = fuel.soc;
       return;
     }
     fuel.burnKgH = THERMO.burnKgH * tSum * pk;
+    out.energyFrac = fuel.frac;
+    fuel.enduranceS = (fuel.kg0 > 0 && fuel.burnKgH > 0) ? fuel.frac * fuel.kg0 * 3600 / fuel.burnKgH : Infinity;
     if (!(fuel.kg0 > 0) || !(fuel.burnKgH > 0)) return;
     const f2 = Math.max(0, fuel.frac - fuel.burnKgH * dt / 3600 / fuel.kg0);
     if (f2 === fuel.frac) return;
@@ -484,7 +514,11 @@ function makeSim(def, world) {
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
       setNodeMass(FUEL_IDX[k], DRY0[k] + FUEL0[k] * f2);
-    if (f2 <= 0) for (const e of eng) e.running = false;   // tanks dry
+    if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
+  }
+  function starve() {
+    if (fuel.starved) return;
+    fuel.starved = true; fuel.starvedAt = simT; out.starved = true;
   }
   // the readings that need a frame, not a substep: nz off the CG's own
   // acceleration against the body up, the yaw rate off the heading, the
@@ -517,6 +551,16 @@ function makeSim(def, world) {
     const ax = cv[0] - (out.windX || 0), ay = cv[1] - (out.windY || 0), az = cv[2] - (out.windZ || 0);
     const Vt = Math.hypot(ax, ay, az);
     out.beta = Vt > 1 ? Math.asin(Math.max(-1, Math.min(1, (ax * zRt[0] + ay * zRt[1] + az * zRt[2]) / Vt))) : 0;
+    // G435: UNDER THE WATER THE FLIGHT IS OVER. A wheeled build in the sea
+    // stands on the seabed as on any ground (the floats' hydro is the only
+    // water the solver pushes on) and the user "followed the plane to the
+    // bottom of the sea, and it was like it continued flying". A metre of
+    // water over the mass centre is the fact; the pilot and the game end it.
+    if (!HY && world && typeof world.waterH === 'function') {
+      const c = cgPos();
+      const wh = world.waterH(c[0], c[2]);
+      out.submerged = Number.isFinite(wh) && c[1] < wh - 1.0;
+    } else out.submerged = false;
   }
 
   // wingspan datum for ground effect: outermost wing-strip node |z| in def
