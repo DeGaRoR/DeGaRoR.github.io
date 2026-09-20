@@ -1548,11 +1548,11 @@ const ARCHETYPES = [
     // and the tanks full — so a recreation card states the type's tankage
     // (and its bays: a bay seats a row as wide as the cockpit's). The J-3
     // carries 12 US gal (45 L) in the nose.
-    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 10.7, wgChord: 1.6,
-                                                  wgCamber: 4, wgIncidence: 3 }),
-            spec: { fuel: { litres: 45 },
-                    finish: { decals: { m1On: 1, m1Pat: 3, m1A: 0x1b3a5c,
-                                        m1B: 0xffffff, m1D: 0x1b3a5c } } } } },
+    // G445.4: THE CARD IS THE STOCK DESIGN — the user's Cub traced off the
+    // PA-18 payload, measured within 7 % of the J-3 POH on every column
+    // (futureDesigns/CUB-STUDY-2026-09-20.md); the tile-baked plan above
+    // (10.7 x 1.6, a 4412 at 3 deg, the lightning flash) was the card until then
+    over: { stock: 'piper cub' } },
   // G185: the parasol — the wing on a cabane, lift struts to the lower
   // longeron, wood, two open cockpits. The Air Camper is the type.
   { key: 'pietenpol', kind: 'recreation', name: 'Air Camper-alike', note: 'parasol wing ' +
@@ -1639,14 +1639,14 @@ const ARCHETYPES = [
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 2, wgBrace: 1, wgTip: 2, wgFlapType: 1,
-           engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
+           engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
-    // a cheat line along the Jodel's waist
-    over: { cage: PLAN_TAPER,
-            spec: { fuel: { litres: 65 },
-                    finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x7c3327,
-                                        m1B: 0xefe6cf, m1D: 0x7c3327 } } } } },
+    // G445.4: THE CARD IS THE STOCK DESIGN 'jodel D112' — the user's Jodel,
+    // taken back from its DR.1050 mix to the D.112's two seats, A-65 and 45 L
+    // (futureDesigns/JODEL-STUDY-2026-09-20.md); the page's own aeroplane
+    // (PLAN_TAPER, the cheat line along the waist) was the card until then
+    over: { stock: 'jodel D112' } },
   { key: 'c172', kind: 'recreation', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
       'slotted flaps — the shed’s own 172, measured against the 172R (G445)',
     // PERF STUDY chantier 1: ONE bay — a bay seats a row as wide as the

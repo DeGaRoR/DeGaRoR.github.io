@@ -1,0 +1,62 @@
+| card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| NewCub | Piper J-3C-65 Cub | 342 / 345 (-1 %) | 447 / 550 | 17.6 / 16.6 (6 %) | 0.20 / 0.22 | 62 / 61 (2 %) | 122 / 120 (2 %) | 143 / 140 (2 %) | 2.0 / 2.3 (-13 %) | 9.7 / 9.5 (2 %) | 0.77 / 0.75 (3 %) | 132 / 113 (17 %) | 199 / — (—) |
+
+DIMENSIONS (ours / Piper J-3C-65 Cub; ours at MTOW 550 kg, ballast 103 kg):
+  engine     Continental A-65 65 hp 80 kg, prop Sensenich 74CK 1.91 m   / 65 hp 77 kg, prop 1.83 m
+  fuselage   tubeFabric, taildragger gear, 2 seats / 2
+  length m (eng flange-rudder TE)   6.44 /   6.83  -6 %
+  height m                         2.58 /   2.03  27 %
+  span m                          10.70 /  10.70  0 %
+  area m2                          17.6 /   16.6  6 %
+  AR                                6.5 /    6.9  -6 %
+  root chord m                     1.70 /   1.60  6 %
+  tip chord m                      1.70 /   1.60  6 %
+  dihedral deg                      1.0 /      —  —
+  incidence deg                     2.4 /      —  —
+  washout deg                       0.0 /      —  —
+  flap max deg                       35 /      —  —
+  flap span frac                   0.38 /      —  —
+  stab span m                      2.04 /   2.90  -30 %
+  stab area m2                     1.76 /      —  —
+  fin area m2                      0.98 /      —  —
+  track m                          1.78 /   1.83  -3 %
+  wheelbase m                      5.11 /      —  —
+  cabin width m                    0.74 /   0.72  3 %
+  fuel L                             21 /     45  -53 %
+  wing load kg/m2 at MTOW          31.3 /   33.1  -6 %
+  power load kg/hp at MTOW          8.5 /    8.5  -0 %
+
+BUILD CHECK (the bench, headless; as baked 447 kg):
+  stance     on its wheels, deck 11.2 deg, suspension travel 26 mm, nose-over 33 deg, power-over 0.00
+  balance    CG 37 % MAC, static margin 4 % (NP 41 % MAC), stab trim -0.9 deg, Cn-beta 0.074, d(eps)/d(a) 0.39
+  shake      FLIES A CIRCUIT: Vs 56 km/h, cruise 109 km/h at thr 0.65, climb 2.74 m/s, TO 140 m, L/D best 9.7 at 79 km/h, 65 hp, 6.9 kg/hp
+  sandbags   HELD: limit 0.27 % of semispan, ultimate 0.41 %, worst member 57 % of yield (wing)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 219 m, climb 2.05 m/s, service ceiling 5111 m
+  ledger     fuselage 47, engines 88, wings 72, bracing 27, tail 15, gear 26, cabin 80*, vessel 4, fuel 15*, panel 5, elec 17, avionics 1, outfit 36, paint 6, cargo 10*  (* payload; empty 342 kg)
+  systems    asi 0.4, alt 0.5, ai 1.1, vsi 0.4, compass 0.3, clock 0.3, tacho 0.5, oilP 0.2, oilT 0.2, fuel 0.6, volts 0.1, battery:lead 7.0, alternator:gen20 4.0, starter:yes 4.0, vac:venturi 0.4, com:compact 1.0, harness 1.6
+  drag       CdS fit 0.772 m2 (induced k 99370)  fusCdA 0.548  gear 0.011  brace 0.000  swet 13.882 L 5.599 frontal 0.985 f 4.998 FF 1.493 boxK 1.058 cdWet 0.013 body 0.274 cool 0.009 heads 0.000 screen 0.023 junct 0.017 exh 0.006 gear 0.202 brace 0.017 axial 0.548
+
+RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
+  +  17 %  build     TO roll ours 132.0  real 113.0
+   -13 %  build     ROC     ours 2.0  real 2.3
+   -11 %  build     T0      ours 1069.5  real 1200.0
+  +   6 %  build     S       ours 17.6  real 16.6
+  +   3 %  build     CdS     ours 0.8  real 0.8
+  +   2 %  build     Vmax    ours 143.5  real 140.0
+  +   2 %  build     V75     ours 122.1  real 120.0
+  +   2 %  build     Vs      ours 62.1  real 61.0
+  +   2 %  build     L/D     ours 9.7  real 9.5
+    -1 %  build     empty   ours 341.8  real 345.0
+
+BY INDICATOR (mean signed error over the engine-matched cards):
+  TO roll   17 %  (n 1, spread 17..17)
+  ROC      -13 %  (n 1, spread -13..-13)
+  T0       -11 %  (n 1, spread -11..-11)
+  S          6 %  (n 1, spread 6..6)
+  CdS        3 %  (n 1, spread 3..3)
+  Vmax       2 %  (n 1, spread 2..2)
+  V75        2 %  (n 1, spread 2..2)
+  Vs         2 %  (n 1, spread 2..2)
+  L/D        2 %  (n 1, spread 2..2)
+  empty     -1 %  (n 1, spread -1..-1)

@@ -1,0 +1,46 @@
+| card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Jodel1050v1 | Jodel D.112 (A-65) (engine differs) | 447 / 320 (40 %) | 687 / 687 | 13.8 / 12.7 (9 %) | 0.20 / 0.23 | 82 / 56 (47 %) | 125 / 150 (-17 %) | 159 / 175 (-9 %) | 1.6 / 2.5 (-35 %) | 7.6 / 10.0 (-24 %) | 0.75 / — (—) | 260 / 200 (30 %) | 363 / — (—) |
+
+DIMENSIONS (ours / Jodel D.112 (A-65); ours at MTOW 687 kg, ballast 0 kg):
+  engine     Continental O-200-A 100 hp 85 kg, prop E-Props Durandal carbone 1.77 m   / 65 hp 77 kg, prop 1.83 m
+  fuselage   tubeFabric, taildragger gear, 4 seats / 2
+  length m (eng flange-rudder TE)   7.40 /   6.20  19 %
+  height m                         2.66 /   2.07  29 %
+  span m                           8.30 /   8.20  1 %
+  area m2                          13.8 /   12.7  9 %
+  AR                                5.0 /    5.3  -6 %
+  root chord m                     1.80 /   1.72  5 %
+  tip chord m                      1.10 /   1.20  -8 %
+  dihedral deg                      0.0 /      —  —
+  incidence deg                    -1.0 /      —  —
+  washout deg                       1.5 /      —  —
+  flap max deg                       35 /      —  —
+  flap span frac                   0.50 /      —  —
+  stab span m                      2.71 /   2.74  -1 %
+  stab area m2                        — /      —  —
+  fin area m2                         — /      —  —
+  track m                          1.96 /      —  —
+  wheelbase m                      4.56 /      —  —
+  cabin width m                    1.08 /   1.05  3 %
+  fuel L                             98 /     45  118 %
+  wing load kg/m2 at MTOW          49.8 /   41.7  19 %
+  power load kg/hp at MTOW          6.9 /    8.2  -16 %
+
+BUILD CHECK (the bench, headless; as baked 687 kg):
+  stance     on its wheels, deck 11.9 deg, suspension travel 8 mm, nose-over 38 deg, power-over 0.09
+  balance    CG 42 % MAC, static margin -5 % (NP 37 % MAC), stab trim -0.9 deg, Cn-beta 0.108, d(eps)/d(a) 0.66
+  shake      FLIES A CIRCUIT: Vs 82 km/h, cruise 129 km/h at thr 0.77, climb 1.64 m/s, TO 363 m, L/D best 7.6 at 108 km/h, 100 hp, 6.9 kg/hp
+  sandbags   HELD: limit 6.87 % of semispan, ultimate 10.10 %, worst member 96 % of yield (wing)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 579 m, climb 0.67 m/s, service ceiling 1897 m
+  ledger     fuselage 54, engines 93, wings 79, bracing 80, tail 21, gear 32, cabin 160*, vessel 10, fuel 71*, panel 5, elec 17, avionics 1, outfit 49, paint 6, cargo 10*  (* payload; empty 447 kg)
+  systems    asi 0.4, alt 0.5, ai 1.1, vsi 0.4, compass 0.3, clock 0.3, tacho 0.5, oilP 0.2, oilT 0.2, fuel 0.8, volts 0.1, battery:lead 7.0, alternator:gen20 4.0, starter:yes 4.0, vac:venturi 0.4, com:compact 1.0, harness 1.6
+  drag       CdS fit 0.752 m2 (induced k 264013)  fusCdA 0.585  gear -0.035  brace 0.000  swet 15.058 L 5.449 frontal 1.227 f 4.359 FF 1.735 boxK 1.058 cdWet 0.013 body 0.346 cool 0.013 heads 0.000 screen 0.023 junct 0.027 exh 0.006 gear 0.147 brace 0.023 axial 0.585
+
+RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
+  +  47 %  build     Vs      ours 82.1  real 56.0
+  +  40 %  build     empty   ours 446.8  real 320.0
+   -24 %  build     L/D     ours 7.6  real 10.0
+  +   9 %  build     S       ours 13.8  real 12.7
+
+BY INDICATOR (mean signed error over the engine-matched cards):

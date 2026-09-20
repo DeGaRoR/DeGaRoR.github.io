@@ -1,0 +1,64 @@
+| card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| jodelD112 | Jodel D.112 (A-65) | 338 / 320 (6 %) | 461 / 530 | 13.8 / 12.7 (9 %) | 0.20 / 0.23 | 72 / 56 (29 %) | 134 / 150 (-11 %) | 160 / 175 (-9 %) | 2.0 / 2.5 (-20 %) | 9.0 / 10.0 (-10 %) | 0.55 / — (—) | 197 / 200 (-2 %) | 272 / — (—) |
+
+DIMENSIONS (ours / Jodel D.112 (A-65); ours at MTOW 530 kg, ballast 69 kg):
+  engine     Continental A-65 65 hp 80 kg, prop Sensenich 74CK 1.83 m   / 65 hp 77 kg, prop 1.83 m
+  fuselage   wood, taildragger gear, 2 seats / 2
+  length m (eng flange-rudder TE)   6.28 /   6.20  1 %
+  height m                         2.69 /   2.07  30 %
+  span m                           8.30 /   8.20  1 %
+  area m2                          13.8 /   12.7  9 %
+  AR                                5.0 /    5.3  -6 %
+  root chord m                     1.80 /   1.72  5 %
+  tip chord m                      1.10 /   1.20  -8 %
+  dihedral deg                      0.0 /      —  —
+  incidence deg                    -1.0 /      —  —
+  washout deg                       1.5 /      —  —
+  flap max deg                       35 /      —  —
+  flap span frac                   0.50 /      —  —
+  stab span m                      2.71 /   2.74  -1 %
+  stab area m2                     2.26 /      —  —
+  fin area m2                      1.03 /      —  —
+  track m                          1.96 /      —  —
+  wheelbase m                      4.14 /      —  —
+  cabin width m                    1.07 /   1.05  2 %
+  fuel L                             45 /     45  0 %
+  wing load kg/m2 at MTOW          38.4 /   41.7  -8 %
+  power load kg/hp at MTOW          8.1 /    8.2  -0 %
+
+BUILD CHECK (the bench, headless; as baked 461 kg):
+  stance     on its wheels, deck 13.1 deg, suspension travel 3 mm, nose-over 29 deg, power-over 0.05
+  balance    CG 34 % MAC, static margin 2 % (NP 36 % MAC), stab trim -3.1 deg, Cn-beta 0.109, d(eps)/d(a) 0.65
+  shake      FLIES A CIRCUIT: Vs 67 km/h, cruise 127 km/h at thr 0.65, climb 2.58 m/s, TO 192 m, L/D best 9.0 at 99 km/h, 65 hp, 7.1 kg/hp
+  sandbags   HELD: limit 4.65 % of semispan, ultimate 6.83 %, worst member 57 % of yield (wing)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 292 m, climb 1.76 m/s, service ceiling 4020 m
+  ledger     fuselage 49, engines 89, wings 69, bracing 26, tail 20, gear 25, cabin 80*, vessel 5, fuel 32*, panel 5, elec 17, avionics 1, outfit 28, paint 5, cargo 10*  (* payload; empty 338 kg)
+  systems    asi 0.4, alt 0.5, ai 1.1, vsi 0.4, compass 0.3, clock 0.3, tacho 0.5, oilP 0.2, oilT 0.2, fuel 0.6, volts 0.1, battery:lead 7.0, alternator:gen20 4.0, starter:yes 4.0, vac:venturi 0.4, com:compact 1.0, harness 1.6
+  drag       CdS fit 0.554 m2 (induced k 151660)  fusCdA 0.381  gear -0.035  brace 0.000  swet 13.816 L 5.059 frontal 1.138 f 4.203 FF 1.819 boxK 1.058 cdWet 0.005 body 0.146 cool 0.009 heads 0.000 screen 0.023 junct 0.027 exh 0.006 gear 0.147 brace 0.023 axial 0.381
+
+| card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | outcome |
+|---|---|---|---|---|---|
+| build | 287 / 200 (44 %) | 1.6 / 2.5 (-35 %) | 124 at 0.82 | 87 / 150 (-42 %) | completed (319 s, 248 s wall) |
+
+RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
+  +  29 %  build     Vs      ours 72.3  real 56.0
+   -20 %  build     ROC     ours 2.0  real 2.5
+   -13 %  build     T0      ours 1039.4  real 1200.0
+   -11 %  build     V75     ours 134.0  real 150.0
+   -10 %  build     L/D     ours 9.0  real 10.0
+    -9 %  build     Vmax    ours 159.5  real 175.0
+  +   9 %  build     S       ours 13.8  real 12.7
+  +   6 %  build     empty   ours 338.2  real 320.0
+    -2 %  build     TO roll ours 197.0  real 200.0
+
+BY INDICATOR (mean signed error over the engine-matched cards):
+  Vs        29 %  (n 1, spread 29..29)
+  ROC      -20 %  (n 1, spread -20..-20)
+  T0       -13 %  (n 1, spread -13..-13)
+  V75      -11 %  (n 1, spread -11..-11)
+  L/D      -10 %  (n 1, spread -10..-10)
+  Vmax      -9 %  (n 1, spread -9..-9)
+  S          9 %  (n 1, spread 9..9)
+  empty      6 %  (n 1, spread 6..6)
+  TO roll   -2 %  (n 1, spread -2..-2)

@@ -49,8 +49,14 @@ const stOwn = Object.assign({}, stDef);
 PAGE.defaults = Object.assign(stDef, PAGE.defaults || {});
 // the piper cub keeps ITS tailplane (the Cub-mapped values) even though
 // the page defaults now carry the jodel one — presets stay self-contained
+// G445.4: FILL, NEVER OVERWRITE. The row is a whole saved cage now
+// (builds/cub_2026-09-20_corrected.json) and carries its own stab, stSpan
+// 1.41 included — the PA-18 payload's 2.88 m; Object.assign put FIN_PARAMS'
+// finHeight 1 over it on every load and the stock Cub kept the sketch's
+// 2.04 m tail whatever the row said. A key the row does not state still
+// takes the Cub's value, which is all the note above ever asked for.
 if (PAGE.presets && PAGE.presets['piper cub'])
-  Object.assign(PAGE.presets['piper cub'], stOwn);
+  for (const k in stOwn) if (!(k in PAGE.presets['piper cub'])) PAGE.presets['piper cub'][k] = stOwn[k];
 
 const GROUP = ['8b · tail — stab & elevator', [
   ['stOn',    'stab layer',      0, 1, 1, ['off', 'on']],

@@ -51419,3 +51419,35 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   it. GATE ARCHETYPES' three reds (aerobatic biplane, Caravan-alike, Beaver-alike give up
   their circuits) fail on the base commit 30cbf395's own join/spec/core too - inherited,
   not G445.1's engine station.
+
+## G445.4 — THE CUB AND THE JODEL D.112 ON THE SHELF AND ON THE CARDS (2026-09-20, the
+## user: "do the same for the piper cub ... make it the new default"; "this one should be
+## a jodel D112")
+
+- THE CUB (futureDesigns/CUB-STUDY-2026-09-20.md): NewCub.json measured against the
+  J-3C-65 — as found empty -1 %, Vs +2 %, V75/Vmax +2 %, L/D +2 %, ROC -13 %, roll +17 %
+  (the PERF STUDY card of the 15th read Vs +15 / roll +98). Corrected on three rows only:
+  the stab span to the PA-18 payload's own 2.88 m (stSpan 1.41 — the tail bench's sketch
+  had it 2.04), the tank to 12 US gal, the prop to the registry's 1.83 m Sensenich at
+  standard pitch: every column within 7 % (empty +2, Vs +1, V75 +5, Vmax +4, ROC +7, L/D 0,
+  CdS +6, roll -6, T0 +1); CG 31 % / margin 13 %; the pilot's circuit complete (roll 145 m).
+  The shelf's 'piper cub' row and the Cub-alike card (`over: { stock: 'piper cub' }`) are
+  this build (builds/cub_2026-09-20_corrected.json).
+- THE TRAP: _cage_stab.js / _cage_fin.js Object.assign'ed FIN_PARAMS + FIN_CUB over the
+  'piper cub' preset on every load ("self-contained against the page's jodel tail") —
+  stSpan <- finHeight = 1, so the row's 1.41 never reached the shelf or the card. Now
+  fill, never overwrite: a key the row does not state still takes the Cub's.
+- THE JODEL (futureDesigns/JODEL-STUDY-2026-09-20.md): Jodel1050v1.json — the DR.1050 in
+  it taken out (rear bench, O-200, 98 L -> two seats, A-65, 45 L, 1.83 m prop) against a
+  new `d112` REAL row (with the d112 payload's tail span 2.74 / height 2.07): empty +6 %,
+  roll -2 %, length +1 %, V75 -11, Vmax -9, ROC -20, L/D -10; Vs +29 % is the source's
+  35 mph (CLmax 2.5 - an ASI reading), noted on the row. Static margin -5 % as found,
+  2 % corrected (the low tail in the downwash; the wing not moved - the user's geometry,
+  the payload's LE station not yet read). Circuit complete. The shelf's 'jodel D112' row
+  and the Jodel-alike card (engModel A-65, `over: { stock: 'jodel D112' }`); the page's
+  own 'jodel' template row untouched.
+- OWED: the 45 L nose tanks read "through the crew" on the bench (the nose bay's rule
+  re-stations any `along` outside the field-clamped bay; a wider box runs out of the
+  body) — an ENERGY item, the tank above the legs as a real Cub's; the Jodel's wing
+  station against its payload; the perf tool's `--engine` vs the applied preset index.
+- GATES: DESIGN, STARTER, SAVE, BUILD, UISMOKE, PARTS, FIN green.

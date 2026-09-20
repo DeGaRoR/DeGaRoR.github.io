@@ -168,9 +168,12 @@ const GROUP = ['8 · tail — fin (2D)', [
 // it so the preset is SELF-CONTAINED: the page's defaults now carry the
 // angular jodel fin, and a preset key left unset would inherit it (the
 // sailplane-preset lesson, G19).
-if (PAGE.presets && PAGE.presets['piper cub'])
-  Object.assign(PAGE.presets['piper cub'],
-    FIN.FIN_PARAMS, FIN.FIN_CUB, { finCut: 2 });
+// G445.4: fill, never overwrite (see _cage_stab.js): the row carries its
+// own fin; a key it does not state takes the Cub's
+if (PAGE.presets && PAGE.presets['piper cub']) {
+  const own = Object.assign({}, FIN.FIN_PARAMS, FIN.FIN_CUB, { finCut: 2 });
+  for (const k in own) if (!(k in PAGE.presets['piper cub'])) PAGE.presets['piper cub'][k] = own[k];
+}
 
 // ---- the skin filter ------------------------------------------------------
 // the gear module's own set when it is loaded (one description of "skin");

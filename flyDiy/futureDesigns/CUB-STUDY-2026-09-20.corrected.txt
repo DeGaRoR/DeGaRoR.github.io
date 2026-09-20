@@ -1,0 +1,66 @@
+| card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| piperCub | Piper J-3C-65 Cub | 352 / 345 (2 %) | 475 / 550 | 17.6 / 16.6 (6 %) | 0.23 / 0.22 | 62 / 61 (1 %) | 126 / 120 (5 %) | 145 / 140 (4 %) | 2.5 / 2.3 (7 %) | 9.6 / 9.5 (1 %) | 0.80 / 0.75 (6 %) | 106 / 113 (-6 %) | 160 / — (—) |
+
+DIMENSIONS (ours / Piper J-3C-65 Cub; ours at MTOW 550 kg, ballast 75 kg):
+  engine     Continental A-65 65 hp 80 kg, prop Sensenich 74CK 1.91 m   / 65 hp 77 kg, prop 1.83 m
+  fuselage   tubeFabric, taildragger gear, 2 seats / 2
+  length m (eng flange-rudder TE)   6.83 /   6.83  -0 %
+  height m                         2.57 /   2.03  27 %
+  span m                          10.70 /  10.70  0 %
+  area m2                          17.6 /   16.6  6 %
+  AR                                6.5 /    6.9  -6 %
+  root chord m                     1.70 /   1.60  6 %
+  tip chord m                      1.70 /   1.60  6 %
+  dihedral deg                      1.0 /      —  —
+  incidence deg                     2.4 /      —  —
+  washout deg                       0.0 /      —  —
+  flap max deg                       35 /      —  —
+  flap span frac                   0.38 /      —  —
+  stab span m                      2.84 /   2.90  -2 %
+  stab area m2                     2.46 /      —  —
+  fin area m2                      0.98 /      —  —
+  track m                          1.78 /   1.83  -3 %
+  wheelbase m                      5.11 /      —  —
+  cabin width m                    0.74 /   0.72  3 %
+  fuel L                             45 /     45  0 %
+  wing load kg/m2 at MTOW          31.3 /   33.1  -6 %
+  power load kg/hp at MTOW          8.5 /    8.5  -0 %
+
+BUILD CHECK (the bench, headless; as baked 475 kg):
+  stance     on its wheels, deck 11.2 deg, suspension travel 23 mm, nose-over 30 deg, power-over 0.00
+  balance    CG 32 % MAC, static margin 12 % (NP 44 % MAC), stab trim -0.7 deg, Cn-beta 0.076, d(eps)/d(a) 0.41
+  shake      FLIES A CIRCUIT: Vs 57 km/h, cruise 113 km/h at thr 0.65, climb 3.03 m/s, TO 134 m, L/D best 9.6 at 81 km/h, 65 hp, 7.3 kg/hp
+  sandbags   HELD: limit 0.39 % of semispan, ultimate 0.58 %, worst member 26 % of yield (wing)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 207 m, climb 2.27 m/s, service ceiling 5220 m
+  ledger     fuselage 47, engines 89, wings 72, bracing 27, tail 18, gear 27, cabin 80*, vessel 5, fuel 32*, panel 5, elec 17, avionics 1, outfit 38, paint 6, cargo 10*  (* payload; empty 352 kg)
+  systems    asi 0.4, alt 0.5, ai 1.1, vsi 0.4, compass 0.3, clock 0.3, tacho 0.5, oilP 0.2, oilT 0.2, fuel 0.6, volts 0.1, battery:lead 7.0, alternator:gen20 4.0, starter:yes 4.0, vac:venturi 0.4, com:compact 1.0, harness 1.6
+  drag       CdS fit 0.795 m2 (induced k 98135)  fusCdA 0.557  gear 0.011  brace 0.000  swet 14.906 L 6.005 frontal 0.985 f 5.361 FF 1.403 boxK 1.058 cdWet 0.013 body 0.277 cool 0.009 heads 0.000 screen 0.023 junct 0.017 exh 0.006 gear 0.202 brace 0.023 axial 0.557
+
+| card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | outcome |
+|---|---|---|---|---|---|
+| build | 145 / 113 (28 %) | 2.1 / 2.3 (-9 %) | 113 at 0.71 | 170 / 88 (93 %) | completed (349 s, 83 s wall) |
+
+RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
+  +   7 %  build     ROC     ours 2.5  real 2.3
+    -6 %  build     TO roll ours 106.0  real 113.0
+  +   6 %  build     CdS     ours 0.8  real 0.8
+  +   6 %  build     S       ours 17.6  real 16.6
+  +   5 %  build     V75     ours 126.1  real 120.0
+  +   4 %  build     Vmax    ours 145.1  real 140.0
+  +   2 %  build     empty   ours 352.2  real 345.0
+  +   1 %  build     Vs      ours 61.8  real 61.0
+  +   1 %  build     T0      ours 1214.7  real 1200.0
+  +   1 %  build     L/D     ours 9.6  real 9.5
+
+BY INDICATOR (mean signed error over the engine-matched cards):
+  ROC        7 %  (n 1, spread 7..7)
+  TO roll   -6 %  (n 1, spread -6..-6)
+  CdS        6 %  (n 1, spread 6..6)
+  S          6 %  (n 1, spread 6..6)
+  V75        5 %  (n 1, spread 5..5)
+  Vmax       4 %  (n 1, spread 4..4)
+  empty      2 %  (n 1, spread 2..2)
+  Vs         1 %  (n 1, spread 1..1)
+  T0         1 %  (n 1, spread 1..1)
+  L/D        1 %  (n 1, spread 1..1)

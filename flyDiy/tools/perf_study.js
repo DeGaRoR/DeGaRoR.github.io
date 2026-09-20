@@ -82,6 +82,16 @@ const REAL = {
   jodel:     { name: 'Jodel D.119 (O-200)', mtow: 650, empty: 360, S: 12.7, b: 8.2, powerKW: 75,
                Vs1: 68, V75: 175, Vmax: 200, roc: 3.5, TO: 200, LDG: 150, LD: 11, T0: 1600, CdS: 0.45, engineMatch: true,
                src: 'type data D.119: stall 68 km/h, cruise 175, Vmax 200, 700 fpm, TO 200 m' },
+  // the D.112 (2026-09-20, the user's Jodel build "should be a D112"): the
+  // two-seat A-65 Jodel; the sources scatter on the climb (800 fpm and 2 m/s
+  // in one line) and the cruise (150-160), the middle is taken; the tail
+  // span and the height are the d112 reference payload's own (G89 model)
+  d112:      { name: 'Jodel D.112 (A-65)', mtow: 530, empty: 320, S: 12.7, b: 8.2, powerKW: 48,
+               Vs1: 56, V75: 150, Vmax: 175, roc: 2.5, TO: 200, LDG: 150, LD: 10, T0: 1200, engineMatch: true,
+               src: 'Wikipedia D.11 / aircraft-catalog D.112: A-65 65 hp, 8.20 m, 12.70 m2, 320 / 530 kg, stall 35 mph, cruise 100 mph, climb 800 fpm or 2 m/s (sic), Vmax 124 mph',
+               dims: { length: 6.20, height: 2.07, AR: 5.3, cRoot: 1.72, cTip: 1.2, hSpan: 2.74, fuelL: 45, seats: 2,
+                       engineHP: 65, engineKg: 77, propD: 1.83, cabinW: 1.05,
+                       src: 'D.112 type sheet: 6.20 m long, 2 seats side by side, one 45 L tank; the tail span 2.74 and the height 2.07 measured off src/models/d112 (the reference plane payload)' } },
   c172:      { name: 'Cessna 172R (IO-360-L2A 160 hp)', mtow: 1111, empty: 736, S: 16.2, b: 11.0, powerKW: 119,
                // Vs1 was 87 (the flaps-30 KCAS) until 2026-09-20: the POH's
                // section 5 gives 44 KIAS / 51-52 KCAS flaps up at 2450 lb
