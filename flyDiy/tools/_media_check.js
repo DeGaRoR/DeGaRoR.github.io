@@ -72,7 +72,14 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              (+50 KB of the same), the YARD_KIT mirror and the traffic
 //              runner (~20 KB) - measured 7.17 -> 7.29 MiB in the worktree.
 //              Nothing heavy: the geometry and the textures are refs.
-const BUDGET_MIB = 7.4;
+//   7.4 -> 7.55 (G443, 2026-09-21): six days of code since G432 - the clouds (clouds.js
+//              +30 KB, the field 08_cloud_field.js, clouds_ui.js / day_ui.js, shadow_near.js),
+//              the playtest triage's A1-A5 (the camera, the rail, the garage room), the panel
+//              arc's compact panel and gauge (G442-G442.4: _cage_panel / _panel_gen), the
+//              runway lights (1.5 KB) - master's own LF build measured 7.419 MiB at G442.4,
+//              over the line before this commit added its 5 KB. Nothing heavy: the data
+//              payload is still 118 KB against its 400 (DATA_BUDGET_KB is the guard that matters).
+const BUDGET_MIB = 7.55;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

@@ -23,6 +23,38 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
+  // THE RUNWAY LIGHTS (G443, the user: "do the runway edge lights too"; G417's owed). Every land
+  // strip carries its lights as GEOMETRY - white lenses down both edges every 60 m, green ones
+  // across each threshold - and the day says whether they glow: on from two degrees of sun down
+  // through the horizon (the premises lamps' fade), at a level judged at the day's exposure and
+  // divided back through the night's schedule (the cockpit's kOut: (0.92 / exposure)^0.8), so a
+  // lens reads as a lamp whatever the sky does. One material per colour, declared on the world's
+  // switchboard as `runway` so GATE LIGHT's census can see them and the NIGHT strip can mute them.
+  const RWY = { mats: {}, meshes: [] };
+  // one strip's lights: white edge lenses every 60 m, green threshold rows; instanced per colour per
+  // strip (its own small geometry, so repaintStrips' dispose takes nothing shared); `keep` is the
+  // strip's own record of what it stood (standStrip's) - the analytic HOME passes the identity
+  function standRunwayLights(a, keep) {
+    const rwMat = hex => RWY.mats[hex] || (RWY.mats[hex] = new THREE.MeshStandardMaterial({ color: C(0x1a1c20), emissive: C(hex), emissiveIntensity: 0, roughness: 0.3, metalness: 0 }));
+    const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
+    const along = (s, w) => [a.x + s * ca - w * sa, a.z + s * sa + w * ca];   // the sea lane's frame (G396.2)
+    const half = a.len / 2, hw = a.wid / 2;
+    const edge = [], thr = [];
+    const nE = Math.max(2, Math.round(a.len / 60));
+    for (let i = 0; i <= nE; i++) { const s = -half + (a.len * i) / nE; for (const w of [-(hw + 1.5), hw + 1.5]) edge.push(along(s, w)); }
+    for (const s of [-half - 2, half + 2]) for (let k = 0; k < 6; k++) thr.push(along(s, -hw + (a.wid * (k + 0.5)) / 6));
+    const stand = (pts, hex) => {
+      const im = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 8, 6), rwMat(hex), pts.length);
+      const M = new THREE.Matrix4(), pv = new THREE.Vector3(), q = new THREE.Quaternion(), sv = new THREE.Vector3(1, 1, 1);
+      const P = pts.map(([x, z]) => [x, world.terrainH(x, z) + 0.35, z]);
+      P.forEach((p3, i) => { pv.set(p3[0], p3[1], p3[2]); M.compose(pv, q, sv); im.setMatrixAt(i, M); });
+      im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false;
+      im.frustumCulled = false;                       // the lenses grow with the distance (runwayLightsApply); the geometry's sphere would cull them
+      im.userData.rwyLight = 1; im.userData.pts = P; im.userData.grown = false;
+      scene.add(keep(im)); RWY.meshes.push(im);
+    };
+    stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
+  }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -598,7 +630,35 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the dome is a MeshBasicMaterial parented to the CAMERA: unlit, always
       // full brightness, and the last thing left on screen when everything
       // else is off
-      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; });
+      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; })
+      // G443: the runway lights - emissive lenses, one material a colour (RWY.mats fills as the strips stand)
+      .declare('runway', 'runway lights', 'emissive', () => { for (const k in RWY.mats) RWY.mats[k].emissiveIntensity = 0; });
+  }
+  // the day's hand on the runway lights: on from 2 deg of sun down through the horizon, the level
+  // divided back through the exposure schedule (a lens judged at ~0.92 under a night that opens 15 stops)
+  const rwyM = new THREE.Matrix4(), rwyP = new THREE.Vector3(), rwyQ = new THREE.Quaternion(), rwyS = new THREE.Vector3();
+  function runwayLightsApply(day, eye) {
+    const on = Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
+    // A LIGHT IS A POINT, NOT A SPHERE: a 9 cm lens at 800 m is a fifth of a pixel and the resolve
+    // averages it away, so at night every lens is scaled to hold ~3 mrad of the eye's view (a real
+    // runway light is seen by its intensity, which a pixel cannot carry) - by day the true size again
+    if (eye) for (const im of RWY.meshes) {
+      if (on <= 0 && !im.userData.grown) continue;
+      const P = im.userData.pts;
+      for (let i = 0; i < P.length; i++) {
+        const d = on > 0 ? Math.hypot(P[i][0] - eye.x, P[i][1] - eye.y, P[i][2] - eye.z) : 0;
+        const sc = on > 0 ? Math.max(1, Math.min(150, d * 0.003 / 0.09)) : 1;
+        rwyP.set(P[i][0], P[i][1], P[i][2]); rwyS.setScalar(sc); rwyM.compose(rwyP, rwyQ, rwyS); im.setMatrixAt(i, rwyM);
+      }
+      im.instanceMatrix.needsUpdate = true; im.userData.grown = on > 0;
+    }
+    const W = typeof window !== 'undefined' ? window : {};
+    const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null) ? W.GFX.exposureBase() : 0.92;
+    // p 0.9, base 1.2: a lens that keeps its COLOUR through the tone mapper (at the cockpit's 0.8 / 2.4 the
+    // threshold's green saturated to white from 300 m)
+    const k = Math.pow(0.92 / Math.max(0.92, ex), 0.9);
+    const lit = worldSwitch ? worldSwitch.on('runway') : true;
+    for (const h in RWY.mats) RWY.mats[h].emissiveIntensity = lit ? on * 1.2 * k : 0;
   }
   function applyWorldLights() {
     if (!worldSwitch) return;
@@ -3259,6 +3319,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const WANISO = MAX_ANISO;
     const HOME = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
     const R = siteRunway(HOME);
+    standRunwayLights(HOME, o => o);                    // G443: the analytic field's lights (standStrip skips this HOME)
     const decal = (w, h, color, y, x, z) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
         worldLambert({ color: C(color), depthWrite: false,
@@ -3857,6 +3918,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         m.receiveShadow = true;
         scene.add(keep(m));
       }
+      standRunwayLights(a, keep);                       // G443: the edge and threshold lenses, stood with the strip
       // windsock off the strip edge
       const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
       const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
@@ -3879,7 +3941,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
         if (a0 && !a0.premises) continue;
-        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); }
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.geometry) o.geometry.dispose(); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); } }
         stripStood.delete(id);
       }
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);
@@ -4015,6 +4077,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
     if (probe && !rigCur.manual) probe.maybe(day, 1.5);
     if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
+    runwayLightsApply(day, camera.position);                                                // G443: before the sun-moved guard (the exposure and the eye move on their own)
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;

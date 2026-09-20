@@ -51205,3 +51205,40 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - OWED: the fitter for a T that does not fit its plate at all (a very short plate with a
   six-pack still overflows the small dials - the Cub's plate is wide enough; a narrow one is a
   design question: fewer instruments, or a second row under the lip).
+## G443 — THE RUNWAY LIGHTS (2026-09-21, the user: "do the runway edge lights too, then commit";
+## G417's owed)
+
+- render_world.js standRunwayLights(a, keep): every land strip carries its lights as GEOMETRY -
+  white lenses (9 cm) down both edges every 60 m, 1.5 m off the edge, six green ones across each
+  threshold 2 m beyond the end - one InstancedMesh per colour per strip with its own small
+  geometry (repaintStrips disposes what a strip stood; a shared sphere would have gone with the
+  first repaint), kept in the strip's record and in RWY.meshes. standStrip stands them on every
+  premises strip; the analytic HOME (which standStrip skips - G434) stands them in its own block.
+- THE DAY SAYS WHETHER THEY GLOW (runwayLightsApply, every frame before dayApply's sun-moved
+  guard, because the exposure and the eye move on their own): on = (2 deg - sunEl) / 4 clamped
+  (the premises lamps' fade through the horizon), the level 1.2 x (0.92 / exposure)^0.9 - a lens
+  judged at the day's exposure divided back through a night that opens 15 stops; at the
+  cockpit's 2.4 x (..)^0.8 the threshold's green saturated to white from 300 m.
+- A LIGHT IS A POINT, NOT A SPHERE: a 9 cm lens at 800 m is a fifth of a pixel and the resolve
+  averaged it away (the first cut: nothing to see from the threshold). At night every lens is
+  scaled to hold ~3 mrad of the eye's view (a real runway light is seen by its intensity, which
+  a pixel cannot carry), its 9 cm again by day; frustumCulled off (three culls an instanced
+  mesh on its geometry's resting sphere). One material per colour, declared on the world's
+  switchboard as `runway` (GATE LIGHT's census; the NIGHT strip's `runway` pill mutes them).
+- SEEN: screenshots/clouds-2026-09-20/ui/runway_lights.png - from the threshold at night (the
+  edges converging, the far threshold green), from the side, at dusk (fading in), by day (the
+  lenses dark and small), muted. The four white dots at the far end in every night frame are
+  NOT these (they survive the mute) - an older emitter to identify, owed.
+- FOUND ON THE WAY: G417's premises LAMP POOL (eight PointLights, the fixtures' glow, uLitK,
+  the F8 `village lamps` dial's target W.WORLD.premises.lamps) is NOT in the tree - the G417
+  commit (0119a4bc) carries HANDOVER, the doc, the sheet and dev_panel.js only; no commit in
+  history has `litNow` in render_premises.js. The village does not light at night. Owed to a
+  session of its own (the doc's account is the spec).
+- GATES: CLOUD holds the standing, the pattern, the switchboard, the day rule, the growth and
+  the repaint; WORLDRENDER (the stub's Matrix4 has compose, not makeTranslation) / LIGHT (world 5
+  sources: sun hemi env sky runway) green; the battery at the landing.
+- GATE MEDIA: the index.html budget 7.4 -> 7.55 MiB with its reason in the gate (master's own LF
+  build measured 7.419 at G442.4 - six days of code since G432, the clouds, the triage's A1-A5,
+  the panel arc; the data payload is still 118 KB of 400).
+- OWED: the runway lights on the island's premises strips judged from the air (the analytic
+  field was the bench here); the four far-end dots; the lamp pool above.
