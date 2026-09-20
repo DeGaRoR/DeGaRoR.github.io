@@ -51393,3 +51393,29 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   CDP rig on the garage: the shelf, a stock row, the game's orbit camera, see-inside,
   the wing skin hidden for a tank picture, the roll-out) wrote screenshots/c172_g435_*
   - the Browser pane had lost its WebGL context for the session.
+
+## G445.3 — THE C172-ALIKE CARD IS THE BUILD (2026-09-20, the user: "make the C172-alike
+## card this build too")
+
+- A recreation card may name a STOCK DESIGN: `over: { stock: 'cessna 172' }`. designFull
+  lays the stock cage (tools/_cage_page5.js presets, every key, as the shelf bakes it)
+  over the tiles' cage; designBake merges the stock build's sections (page5 `builds`)
+  over the composed spec, and SKIPS the tail seed and the engine-preset re-apply — the
+  drawing is already the truth, the join measured it when the build was saved (the seed
+  would have set stSpan back to 1.0: sqrt(measured Sh / drawn Sh) = 1 on a build whose
+  tail rows ARE the drawn ones). The tiles (`sel`) stay the card's stated intent —
+  the chooser shows them, archInactive walks them. ONE KEEPER (the shelf row), THREE
+  DOORS (the shelf, the chooser, the gates). Measured: the card's bake equals
+  builds/cessna172_2026-09-20_corrected.json to the leaf (only the file's `v`
+  differs); in the page, jodel on the stand -> the C172-ALIKE card -> B-CESS, 1017 kg,
+  margin 15 % (screenshots/c172_g435_card.png, tools/garage_shot.js --views card).
+- PLAN_C172 (the tile-baked plan the card wore until now) stays in the file: other
+  cards read it.
+- Consequence for the readers of the c172 card: PERF STUDY and GATE ARCHETYPES now fly
+  THIS aeroplane under that key (159 hp custom engine, 212 L, the drawn 3.41 m stab,
+  the measured nose flange).
+- The card's tile says `engModel: 'custom engine'` (the picker's last option) and GATE
+  DESIGN's identity check accepts a custom bake (custom facts with power and mass) for
+  it. GATE ARCHETYPES' three reds (aerobatic biplane, Caravan-alike, Beaver-alike give up
+  their circuits) fail on the base commit 30cbf395's own join/spec/core too - inherited,
+  not G445.1's engine station.

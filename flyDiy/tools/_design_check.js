@@ -366,6 +366,18 @@ function checkArchetypes(A) {
       catch (e) { ok = check(false, 'archetype designBake threw', `${a.key}: ${e.message}`); }
       if (baked) {
         const got = baked.engines && baked.engines[0] && baked.engines[0].type;
+        // G445.3: a card that names THE CUSTOM ENGINE (the picker's last
+        // option — the 172-alike's dialled IO-360 at 2450 rpm, 160 hp) bakes
+        // custom facts, not a registry row; the row under them is the
+        // fallback key the join writes and says nothing about the engine
+        const EP = W.ENG_PAGE || require(path.join(T, '_eng_page.js'));
+        const customName = (EP && EP.CUSTOM_ENGINE) || 'custom engine';
+        if (a.sel.engModel === customName) {
+          const cu = baked.engines && baked.engines[0] && baked.engines[0].custom;
+          ok = check(!!(cu && cu.powerW > 0 && cu.mass > 0),
+            'archetype names the custom engine and bakes custom facts',
+            `${a.key}: custom ${cu ? JSON.stringify({ powerW: cu.powerW, mass: cu.mass }) : 'absent'}`) && ok;
+        } else
         ok = check(!!JE[a.sel.engModel] && got === JE[a.sel.engModel],
           'archetype bakes the engine it names',
           `${a.key}: ${a.sel.engModel} -> ${got} (the join map says ${JE[a.sel.engModel]})`) && ok;

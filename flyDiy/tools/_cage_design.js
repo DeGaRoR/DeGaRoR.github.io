@@ -1648,21 +1648,23 @@ const ARCHETYPES = [
                     finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x7c3327,
                                         m1B: 0xefe6cf, m1D: 0x7c3327 } } } } },
   { key: 'c172', kind: 'recreation', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
-      'slotted flaps',
+      'slotted flaps — the shed’s own 172, measured against the 172R (G445)',
     // PERF STUDY chantier 1: ONE bay — a bay seats a row as wide as the
     // cockpit, so a 2+2 is one; three bays had given the card eight seats
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
            wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
-           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           // G445.3: the picker's CUSTOM ENGINE — the build's IO-360 dials at
+           // 2450 rpm (159 hp, the L2A's 160), the identity rule's own answer
+           engFamily: 'flat', engModel: 'custom engine', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            finArch: 'swept', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
-    // the twin stripe every 172 of the seventies wore
-    // PERF STUDY chantier 2: the 172's spring legs wear their fairings
-    over: { cage: Object.assign({}, PLAN_C172, { s1LegFair: 1 }),
-            spec: { fuel: { litres: 200, tank: 'wing' },            // 56 US gal usable in the wings
-                    finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x2c4a31,
-                                        m1B: 0xc96f2a, m1D: 0xefe6cf } } } } },
+    // G445.3: THE CARD IS THE STOCK DESIGN — the user's 172 corrected to
+    // the 172R type sheet (futureDesigns/C172-STUDY-2026-09-20.md), the
+    // shelf's 'cessna 172' row, verbatim; the tile-baked C172 plan
+    // (PLAN_C172, the seventies' twin stripe, 200 L in the wings) was the
+    // card until then and stays in the file for the other cards that read it
+    over: { stock: 'cessna 172' } },
   // THE TURBOPROP SINGLE (2026-09-05, TURBOPROP §9 — the reason the arc
   // exists): a PT6A-114A on a strutted high-wing tricycle with the most
   // bays the class allows. On `n23` by the user's ruling (`util` stays
@@ -2144,6 +2146,26 @@ function designOverwriteCount(P, cageWrites, defaults) {
 // engine preset — as one object, so the headless tail (_tail_headless.js
 // tailBuild) and the sweep build the drawn tail from exactly what the page
 // would draw. designBake is this plus the spec composition.
+// G445.3 (2026-09-20, the user: "make the C172-alike card this build too"):
+// A CARD THAT IS A STOCK DESIGN. `over.stock` names a row of the page's
+// stock designs (tools/_cage_page5.js presets + builds — the shelf's rows,
+// imported verbatim from a finished build) and the card bakes THAT
+// aeroplane: the stock cage over the tiles' cage (every key, as the shelf
+// bakes it), the stock build's sections over the composed spec, no tail
+// seed and no preset re-apply (the drawing is already the truth — the
+// join measured it when the build was saved). The tiles (`sel`) remain
+// the card's stated intent: the chooser shows them, archInactive walks
+// them, and a rule that reads the selection still reads the type's. One
+// keeper: the shelf row; three doors: the shelf, the chooser, the gates.
+function designStock(nm) {
+  const PG = W.CAGE_PAGE || ((typeof CAGE_PAGE !== 'undefined') ? CAGE_PAGE : null);
+  const pre = PG && PG.presets && PG.presets[nm];
+  if (!pre) throw new Error('no stock design ' + nm);
+  const cage = Object.assign({}, pre); delete cage._base;
+  const B = PG.builds && PG.builds[nm];
+  return { cage, spec: B ? JSON.parse(JSON.stringify(B)) : {} };
+}
+
 function designFull(sel, over) {
   const C2 = W.CAGE2 || ((typeof CAGE2 !== 'undefined') ? CAGE2 : null);
   const PG = W.CAGE_PAGE || ((typeof CAGE_PAGE !== 'undefined') ? CAGE_PAGE : null);
@@ -2151,6 +2173,8 @@ function designFull(sel, over) {
   const base = Object.assign(C2.cageDefaults(), (PG && PG.defaults) || {});
   const { cage, spec, missing } = designApply(base, sel);
   if (missing.length) throw new Error('unresolved: ' + missing.join(', '));
+  const stock = over && over.stock ? designStock(over.stock) : null;
+  if (stock) Object.assign(cage, stock.cage);
   // G140: the archetype's own cage patch — the retired planform tiles'
   // writes live here now. Function values resolve against the selection's
   // result, so "tip = 0.72 of the chord" reads the class's chord.
@@ -2163,7 +2187,7 @@ function designFull(sel, over) {
     }
   }
   const full = Object.assign(base, cage);
-  if ('engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
+  if (!stock && 'engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
   }
@@ -2296,7 +2320,8 @@ function designBake(sel, over) {
     designMerge(out, { tail: { type: 'twinBoom', boomX: +full.boomX || 1.2,
                                boomLen: +full.boomLen || 3.0 } });
   designMerge(out, spec);
-  if (over) designMerge(out, over.spec || over);
+  if (over && over.stock) designMerge(out, designStock(over.stock).spec);
+  else if (over) designMerge(out, over.spec || over);
   // THE SEED (TAIL CHANTIER 2 P5; RULED 2026-09-07: lands with the vortex
   // flip, one fleet move). At birth the RULE sizes the DRAWN tail once: the
   // volume coefficients' Sh and Sv — what this pre-join spec would fly — over
@@ -2308,7 +2333,7 @@ function designBake(sel, over) {
   // tail on twenty-five cards (the sweep, P0) becomes a tail sized to each
   // card's own wing. A twin-boom card keeps its drawn size (the headless
   // build cannot root its fin on the booms and says so).
-  const seed = designTailSeed(full, out);
+  const seed = (over && over.stock) ? null : designTailSeed(full, out);
   if (seed) {
     Object.assign(full, seed);
     out.cage = C2.cageToSpec(full);

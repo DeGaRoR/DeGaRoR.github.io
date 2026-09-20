@@ -93,6 +93,22 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const p = PRESETS[v]; if (!p) continue;
     await cam(p[0], p[1], p[2]); await shot(v);
   }
+  if (VIEWS.includes('card')) {
+    // G445.3: the chooser's C172-ALIKE card, picked, and the shed after it
+    await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='';}return 1})()");
+    const opened = await ev("(()=>{if(window.DESIGN_FLOW&&window.DESIGN_FLOW.openBirth){window.DESIGN_FLOW.openBirth();return 'DESIGN_FLOW.openBirth';}return null})()");
+    console.log('garage_shot: chooser via ' + opened);
+    await sleep(1500);
+    const picked = await ev("(()=>{const el=[...document.querySelectorAll('button.dfArch')].find(x=>/^C172-alike/i.test((x.querySelector('b')||x).textContent.trim()));if(!el)return null;el.click();return el.textContent.trim().slice(0,40)})()");
+    console.log('garage_shot: card ' + picked);
+    await sleep(WAIT);
+    await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build|use this|start/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
+    await sleep(2000);
+    const inf = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC&&(window.GARAGE_SPEC.get?window.GARAGE_SPEC.get():null);return s?{name:s.meta&&s.meta.name,reg:s.meta&&s.meta.reg,span:s.wings[0].span,chord:s.wings[0].chord,hSpan:s.tail&&s.tail.hSpan,fuel:s.fuel,eng:s.engines[0].custom&&s.engines[0].custom.name,x:s.engines[0].x}:null})())");
+    console.log('garage_shot: after the card ' + inf);
+    await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='hidden';}return 1})()");
+    await cam(0.85, 0.22, 11); await shot('card');
+  }
   if (VIEWS.includes('air')) {
     await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='';}return 1})()");
     let flying = false;
