@@ -34,7 +34,9 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // ---------------------------------------------------------------------------
 const UNITS = {
   aviation: { speed: { k: 1.943844, u: 'KNOTS' }, alt: { k: 3.28084, u: 'FEET' },
-              vs: { k: 196.8504 / 100, u: '×100 FT/MIN' }, press: { k: 1 / 6.894757, u: 'PSI' },
+              // psi per PASCAL (A3: it was psi per kPa, against metric's bar
+              // per pascal and the cockpit's pascals - the psi gauge pegged)
+              vs: { k: 196.8504 / 100, u: '×100 FT/MIN' }, press: { k: 1 / 6894.757, u: 'PSI' },
               temp: { k: 1, u: '°C' } },
   metric:   { speed: { k: 3.6, u: 'KM/H' }, alt: { k: 1, u: 'METRES' },
               vs: { k: 1, u: 'M/S' }, press: { k: 1e-5, u: 'BAR' },
@@ -42,6 +44,14 @@ const UNITS = {
 };
 // a round number at or above x, in steps
 const roundUp = (x, step) => Math.ceil(x / step - 1e-9) * step;
+// the largest 1 / 2 / 2.5 / 5 decade step at or under x (a tick step that
+// reads: 5, 10, 25 gallons - never 5.8)
+function niceStep(x) {
+  if (!(x > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  for (const m of [5, 2.5, 2, 1]) if (m * p <= x * (1 + 1e-9)) return m * p;
+  return p;
+}
 
 // what the scale of each instrument is, given the aeroplane (o: Vs0, Vs1,
 // Vh, Vne, Vfe in m/s EAS; rpm the rated engine speed; tanks litres) and
@@ -99,9 +109,29 @@ function scaleOf(key, units, o) {
     case 'oilT':
       return { min: 40, max: 130, k: 1, a0: 225, sweep: 270, unit: U.temp.u, major: 30, minor: 10,
                arcs: [{ from: 60, to: 110, col: '#3dbb5e', w: 0.12 }, { from: 118, to: 130, col: '#e8332a', w: 0.12 }] };
-    case 'fuel':
-      return { min: 0, max: 1, k: 1, a0: 300, sweep: 120, unit: '', major: 0.5, minor: 0.25,
-               arcs: [{ from: 0, to: 0.1, col: '#e8332a', w: 0.14 }], labels: { 0: 'E', 0.5: '½', 1: 'F' } };
+    case 'fuel': {
+      // THE FUEL / CHARGE GAUGE (A3, the 2026-09-20 playtest: "a fuel / charge
+      // gauge that follows the build's energy kind, litres or kWh, the units
+      // convention"). The face is painted in the QUANTITY the build carries -
+      // litres (metric) or US gallons (aviation) of a tank, kWh of a pack -
+      // E at empty, F at the design capacity, the reserve's red arc under
+      // 10 %. The hand's DRIVE is the fraction of that capacity (0..1): the
+      // stops the join bakes hold whatever the tank, and `k` is the capacity
+      // in display units, so `v * k` is what the numerals say. `o.energy` =
+      // { kind: 'fuel' | 'battery', capacity } (litres or kWh) - without it
+      // (a bench with no build) the face is the old E / half / F fraction.
+      const E = o.energy || null, battery = !!(E && E.kind === 'battery');
+      const cap = E && E.capacity > 0 ? E.capacity : 0;
+      const red = [{ from: 0, to: 0.1, col: '#e8332a', w: 0.14 }];
+      if (!cap) return { min: 0, max: 1, k: 1, a0: 300, sweep: 120, unit: '', major: 0.5, minor: 0.25,
+                         arcs: red, labels: { 0: 'E', 0.5: '½', 1: 'F' }, title: battery ? 'CHARGE' : 'FUEL', kind: battery ? 'battery' : 'fuel' };
+      const kq = battery ? 1 : (units === 'metric' ? 1 : 0.264172);   // display per litre / kWh
+      const max = cap * kq, major = niceStep(max / 2);
+      return { min: 0, max, k: max, a0: 300, sweep: 120, major, minor: major / 4,
+               unit: battery ? 'kWh' : (units === 'metric' ? 'LITRES' : 'US GAL'),
+               arcs: [{ from: 0, to: 0.1 * max, col: '#e8332a', w: 0.14 }],
+               ends: { lo: 'E', hi: 'F' }, title: battery ? 'CHARGE' : 'FUEL', kind: battery ? 'battery' : 'fuel' };
+    }
     case 'volts':
       return { min: 8, max: 16, k: 1, a0: 225, sweep: 270, unit: 'VOLTS', major: 2, minor: 1,
                arcs: [{ from: 12.5, to: 14.5, col: '#3dbb5e', w: 0.12 }, { from: 8, to: 11, col: '#e8332a', w: 0.12 }] };
@@ -296,7 +326,10 @@ function layout(A, o) {
   // the engine group, to the pilot's right of the T (−x); the other side
   // when it does not fit
   const eng = ['tacho', 'gmeter'].filter(has);
-  const small = ['oilP', 'oilT', 'fuel', 'volts'].filter(has);
+  // the FUEL / CHARGE gauge heads the cluster (A3): on a short plate the
+  // last small gauge is the one that falls off, and the one that says how
+  // long the flight can last is not the one to lose
+  const small = ['fuel', 'oilP', 'oilT', 'volts'].filter(has);
   let groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
   let gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
   let dir = -1;
@@ -345,6 +378,25 @@ function layout(A, o) {
       if (cy == null || !fits(rx, cy, D_SMALL / 2) || cy - D_SMALL / 2 < yBot + 0.03) { overflow.push(k); return; }
       dials.push({ k, cx: rx, cy, r: D_SMALL / 2 });
     });
+  }
+  // NO FITTED INSTRUMENT IS LEFT OFF THE DASH WHILE A T SLOT STANDS EMPTY
+  // (A3, the 2026-09-20 playtest: the user's 2 kWh trainer had a two-dial T
+  // with the attitude hole blank between them, and its charge gauge in the
+  // overflow). The blanking plate is for the six-pack's scan; on a panel
+  // that has no gyro to scan there is no scan to keep, and the hole takes
+  // the dial that had nowhere else - the T's first row first, big dials at
+  // their size, small ones centred in the slot.
+  if (overflow.length) {
+    const taken = (cx, cy) => dials.some(d => !d.coaming && Math.hypot(d.cx - cx, d.cy - cy) < d.r + 1e-6);
+    for (const k of overflow.slice()) {
+      const r = (k === 'tacho' || k === 'gmeter' || k in T_KEYS || k === 'aiE') ? D_BIG / 2 : D_SMALL / 2;
+      let done = false;
+      for (let row = 0; row < tRows && !done; row++) for (const c of [1, 0, 2]) {
+        const cx = xT + (1 - c) * colW, cy = y0 - row * rowH;
+        if (taken(cx, cy) || !fits(cx, cy, r)) continue;
+        dials.push({ k, cx, cy, r, inHole: true }); overflow.splice(overflow.indexOf(k), 1); done = true; break;
+      }
+    }
   }
   // the compass on the coaming, on the pilot's line - the coaming is the
   // dash's TOP (the glareshield), above the plate
@@ -443,6 +495,7 @@ function ticks(g, F, key, units, o, opt) {
   }
   g.strokeStyle = INK; g.lineCap = 'butt';
   const lo = S.dead != null ? S.dead : S.min;
+  let last = lo;
   for (let v = lo; v <= S.max + 1e-9; v = +(v + S.minor).toFixed(9)) {
     const isMajor = Math.abs(v / S.major - Math.round(v / S.major)) < 1e-6;
     const a = angleOfDisp(key, v, units, o);
@@ -450,13 +503,35 @@ function ticks(g, F, key, units, o, opt) {
     const [x0, y0] = pol(cx, cy, rOut, a), [x1, y1] = pol(cx, cy, rOut - r * len, a);
     g.lineWidth = r * (isMajor ? 0.035 : 0.018);
     g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-    if (isMajor && !opt.noLabels) {
+    // a numeral within a seventh of the sweep of the F end would sit on the
+    // F (the Cub's 11.9 US gal: "10" against "F") - the tick stays, the
+    // numeral goes
+    const crowdsEnd = S.ends && v > S.min && (S.max - v) / (S.max - S.min) < 0.14 && Math.abs(v - S.max) > 1e-9;
+    if (isMajor && !opt.noLabels && !crowdsEnd) {
       const [lx, ly] = pol(cx, cy, rOut - r * (opt.labelIn || 0.30), a);
       g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.font = `600 ${Math.round(r * (opt.fontK || 0.19))}px ${FONT}`;
       const lab = S.labels && S.labels[v] != null ? S.labels[v]
+        : (S.ends && Math.abs(v - S.min) < 1e-9) ? S.ends.lo
+        : (S.ends && Math.abs(v - S.max) < 1e-9) ? S.ends.hi
         : (opt.labelOf ? opt.labelOf(v) : String(Math.round(v * 100) / 100));
       g.fillText(lab, lx, ly);
+    }
+    last = v;
+  }
+  // THE FULL MARK (A3): a scale whose max is the tank's own capacity is not
+  // a multiple of its step, so the loop stops short of it - the end gets its
+  // major tick and its letter regardless
+  if (S.ends && S.max - last > 1e-9) {
+    const a = angleOfDisp(key, S.max, units, o);
+    const [x0, y0] = pol(cx, cy, rOut, a), [x1, y1] = pol(cx, cy, rOut - r * 0.16, a);
+    g.lineWidth = r * 0.035;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    if (!opt.noLabels) {
+      const [lx, ly] = pol(cx, cy, rOut - r * (opt.labelIn || 0.30), a);
+      g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `600 ${Math.round(r * (opt.fontK || 0.19))}px ${FONT}`;
+      g.fillText(S.ends.hi, lx, ly);
     }
   }
   return S;
@@ -664,8 +739,12 @@ const PAINT = {
   },
   fuel(g, R, units, o) {
     const F = faceBase(g, R);
-    ticks(g, F, 'fuel', units, o, { fontK: 0.24, labelIn: 0.34 });
-    unitText(g, F, 'FUEL', 0.30, 0.14);
+    // the numerals a size down when they are quantities (E 5 10 F), the
+    // letters alone at the old size
+    const S = ticks(g, F, 'fuel', units, o, { fontK: 0.20, labelIn: 0.34,
+      labelOf: v => String(Math.round(v * 10) / 10) });
+    unitText(g, F, S.title || 'FUEL', 0.30, 0.14);
+    if (S.unit) unitText(g, F, S.unit, 0.52, 0.10);
     hub(g, F, 0.08);
   },
   volts(g, R, units, o) {
@@ -784,7 +863,7 @@ function paintAtlas(g, faces, units, o) {
 }
 
 const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
-              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP };
+              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;
 })();

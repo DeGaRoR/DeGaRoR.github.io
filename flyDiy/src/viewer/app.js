@@ -6401,8 +6401,33 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
+  // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
+  // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
+  // the label names the kind and, once the solver publishes an endurance at
+  // the current draw (A1's sim.fuel.enduranceS), says how long that is;
+  // `warn` under the reserve (10 % of what was loaded) and EMPTY once the
+  // tanks or the pack have stopped the engines. The user's 2 kWh trainer
+  // flew to the sea with a throttle at 1.00 and nothing on the screen that
+  // said the pack was going.
+  let nrgLabel = '';
+  function hudEnergy() {
+    const F = sim.fuel; if (!F || !R.nrg) return;
+    const pack = F.kind === 'battery';
+    const qty = pack ? Math.max(0, (F.soc || 0) * (F.kWh || 0)) : Math.max(0, F.litres || 0);
+    const frac = pack ? (F.soc || 0) : (F.frac != null ? F.frac : 1);
+    const dead = !!F.starved || (frac <= 0 && sim.eng && sim.eng.every(e => !e.running));
+    R.nrg.textContent = dead ? 'EMPTY' : qty.toFixed(1);
+    let lab = pack ? 'kWh charge' : 'L fuel';
+    const endS = F.enduranceS;
+    if (!dead && Number.isFinite(endS) && endS > 0 && endS < 36e4) {
+      const m = endS / 60;
+      lab += ' · ' + (m >= 90 ? (m / 60).toFixed(1) + ' h' : Math.round(m) + ' min');
+    }
+    if (lab !== nrgLabel) { nrgLabel = lab; if (R.nrgU) R.nrgU.textContent = lab; }
+    if (RD.nrg) RD.nrg.classList.toggle('warn', dead || frac < 0.1);
+  }
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;
@@ -6415,6 +6440,7 @@
     R.ias.textContent = ias.toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
+    hudEnergy();
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
     // number the PLAQUE actually declares. The stall is one — genShakedown
     // has measured `Vs` since G4 and the bench check quotes it. Vne and a
@@ -7273,7 +7299,7 @@
   // WHICH READOUTS THE PFD CARRIES — and the SMALL PFD overrides that answer
   // rather than editing it, so turning the small one off gives you back
   // exactly the set you had chosen.
-  const PFD_SMALL = ['ias', 'alt', 'vs', 'pwr'];
+  const PFD_SMALL = ['ias', 'alt', 'vs', 'nrg', 'pwr'];   // A3: the energy stays on the small one
   function flInstApply() {
     const small = !!panels.pfdSmall;
     const p = $('pfd');
@@ -7281,7 +7307,7 @@
     for (const d0 in RD) {
       if (!RD[d0]) continue;
       RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
-                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' ||
+                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' ||
                                 instOn[d0]);
     }
     const f = $('pfdFold');

@@ -103,6 +103,20 @@ function run() {
   const rTwo = C.genSystemsResolve(two);
   const fuelRow = k => k.rows.find(r => r.key === 'fuel');
   check(near(fuelRow(rTwo).kg - fuelRow(rBas).kg, I.fuel.perTank.kg), 'two tanks, two senders');
+  // A3 (2026-09-20): A BATTERY BUILD HAS A CHARGE GAUGE. The minimal tier's
+  // sight glass becomes the pack's meter, fed by the pack - fitted with no
+  // 12 V bus at all (the user's 2 kWh trainer had no energy instrument);
+  // the row is the charge row, no senders; the record says the kind
+  const packMin = { systems: { fit: 'minimal' }, energy: { kind: 'battery', kWh: 2, vessels: [{ bay: 'cabin', capacity: 2 }] } };
+  const rPack = C.genSystemsResolve(packMin);
+  check(!rPack.hasBus && rPack.items.includes('fuel') && !rPack.items.includes('fuelSight') && rPack.dropped.length === 0,
+    'battery + minimal: the charge gauge is fitted without a bus, the sight glass is gone', rPack.items.join());
+  check(fuelRow(rPack) && /charge/.test(fuelRow(rPack).name) && near(fuelRow(rPack).kg, I.fuel.charge.kg) && fuelRow(rPack).amps === 0,
+    'battery: the row is the charge gauge, no senders, no bus load', fuelRow(rPack) && fuelRow(rPack).name);
+  check(rPack.energyKind === 'battery' && rBas.energyKind === 'fuel', 'the record says what the fuel slot measures');
+  const rPackBas = C.genSystemsResolve({ systems: { fit: 'basic' }, energy: { kind: 'battery', kWh: 2 } });
+  check(rPackBas.items.includes('fuel') && rPackBas.loads.every(l => l.key !== 'fuel'), 'battery + basic: the charge gauge draws nothing off the bus');
+  check(!rMin.items.includes('fuel') && rMin.items.includes('fuelSight'), 'a fuel build on the minimal tier keeps its sight glass');
   // dedupe and unknown keys
   const rDup = C.genSystemsResolve({ systems: { fit: 'custom', items: ['asi', 'asi', 'nope', 'alt'] } });
   check(rDup.items.join() === 'asi,alt', 'a list is deduped and unknown keys are ignored');
@@ -217,6 +231,32 @@ function run() {
     check(Sa.arcs.length === 4, 'asi: white, green, yellow arcs and the red line', Sa.arcs.length);
     check(Math.abs(Sa.arcs[1].from - facts.Vs1 * Sa.k) < 1e-9 && Math.abs(Sa.arcs[1].to - facts.Vh * Sa.k) < 1e-9, 'asi: the green arc is Vs1..Vh');
     check(Sa.max >= facts.Vne * Sa.k * 1.05, 'asi: the scale runs past Vne', Sa.max);
+    // A3: THE FUEL / CHARGE GAUGE FOLLOWS THE BUILD'S ENERGY KIND AND THE
+    // UNITS CONVENTION - litres or US gallons of a tank, kWh of a pack, F at
+    // the design capacity, E at nought, and the hand's drive is the FRACTION
+    // (the same stops whatever the tank)
+    {
+      const tank = Object.assign({}, facts, { energy: { kind: 'fuel', capacity: 44 } });
+      const pack = Object.assign({}, facts, { energy: { kind: 'battery', capacity: 2 } });
+      const Sm = G.scaleOf('fuel', 'metric', tank), Sa2 = G.scaleOf('fuel', 'aviation', tank), Sp = G.scaleOf('fuel', 'metric', pack);
+      check(near(Sm.max, 44) && Sm.unit === 'LITRES' && Sm.title === 'FUEL', 'fuel: metric paints litres to the tank capacity', Sm.max + ' ' + Sm.unit);
+      check(near(Sa2.max, 44 * 0.264172, 1e-6) && Sa2.unit === 'US GAL', 'fuel: aviation paints US gallons', Sa2.max + ' ' + Sa2.unit);
+      check(near(Sp.max, 2) && Sp.unit === 'kWh' && Sp.title === 'CHARGE' && Sp.kind === 'battery', 'battery: the face is CHARGE in kWh', Sp.max + ' ' + Sp.unit);
+      check(Sm.ends && Sm.ends.lo === 'E' && Sm.ends.hi === 'F', 'E and F at the ends');
+      for (const [u, o] of [['metric', tank], ['aviation', tank], ['metric', pack], ['aviation', {}]]) {
+        const a0 = G.angleOf('fuel', 'needle', 0, u, o), a1 = G.angleOf('fuel', 'needle', 1, u, o), aH = G.angleOf('fuel', 'needle', 0.5, u, o);
+        check(near(a0, 300) && near(a1, 420) && near(aH, 360), 'fuel: the fraction drive reads E / half / F whatever the tank (' + u + ')', [a0, aH, a1].join());
+      }
+      check(Sm.arcs[0].to > 0 && near(Sm.arcs[0].to / Sm.max, 0.1), 'fuel: the red arc is the last tenth');
+      check(G.niceStep(5.8) === 5 && G.niceStep(22) === 20 && G.niceStep(1) === 1 && G.niceStep(28) === 25 && G.niceStep(0.9) === 0.5,
+        'niceStep picks 1 / 2 / 2.5 / 5 decades');
+    }
+    // A3: both unit systems take the oil pressure in PASCALS (62 psi = 427 kPa = 4.27 bar sits at the same fraction of either face)
+    {
+      const pa = 62 * 6894.757;
+      const fA = (G.angleOf('oilP', 'needle', pa, 'aviation', facts) - 225) / 270, fM = (G.angleOf('oilP', 'needle', pa, 'metric', facts) - 225) / 270;
+      check(near(fA, 0.62, 0.005) && near(fM, 4.275 / 7, 0.005), 'oilP: pascals in, psi or bar on the face', fA + ' ' + fM);
+    }
     // the tacho's red line is the rated speed
     const St = G.scaleOf('tacho', 'aviation', facts);
     check(St.arcs.some(a => a.col === '#e8332a' && a.from < 2300 && a.to > 2300), 'tacho: the red line straddles the rated rpm');
@@ -226,6 +266,26 @@ function run() {
     check(uL < uR, 'mirror rule: cage +x (port, the pilot\'s left) reads at small u', uL + ' vs ' + uR);
     const vUp = G.faceUV(0, 0, 0.02, 0, 0, 0.08)[1], vDn = G.faceUV(0, 0, -0.02, 0, 0, 0.08)[1];
     check(vUp > vDn, 'mirror rule: up is up');
+    // A3: THE SHORT PLATE (the user's 2 kWh trainer, its dash as the crew
+    // measured it: 0.50 m wide, 0.26 m tall, no face record) - a two-dial T
+    // left the attitude hole blank and its charge gauge in the overflow.
+    // The energy gauge heads the cluster, and an overflowed dial takes an
+    // empty T slot before it is dropped.
+    {
+      const A4 = { dashTop: 0.1366, dashLip: -0.1252, dashAftZ: 2, zDash: 2, halfW: 0.313, floorAt: () => 0 };
+      const L4 = G.layout(A4, { items: ['asi', 'alt', 'tacho', 'oilP', 'oilT', 'compass', 'fuel'], side: 'pilot', pilotX: 0, radios: [],
+        elec: { hasBus: false }, extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'pedal', 'pax'], flapSwitch: true });
+      const by4 = {}; for (const d of L4.dials) by4[d.k] = d;
+      check(L4.overflow.length === 0 && !!by4.fuel, 'short plate: every fitted dial is on the dash, the fuel / charge gauge among them', L4.overflow.join());
+      check(by4.fuel && by4.tacho && Math.abs(by4.fuel.cx - by4.tacho.cx) < 0.02 && by4.fuel.cy < by4.tacho.cy, 'short plate: the energy gauge is first under the tacho');
+      check(L4.dials.filter(d => d.inHole).length === 2 && by4.oilP.inHole && Math.abs(by4.oilP.cx - L4.xT) < 1e-6, 'short plate: the oil gauges took the empty T holes, the middle column first', JSON.stringify(L4.dials.filter(d => d.inHole).map(d => d.k)));
+      let ov4 = null;
+      for (let i = 0; i < L4.dials.length; i++) for (let j = i + 1; j < L4.dials.length; j++) {
+        const p = L4.dials[i], q = L4.dials[j]; if (p.coaming || q.coaming) continue;
+        if (Math.hypot(p.cx - q.cx, p.cy - q.cy) < p.r + q.r - 1e-6) ov4 = p.k + '/' + q.k;
+      }
+      check(!ov4, 'short plate: nothing overlaps', ov4);
+    }
     // the layout: the standard T on three cabins, nothing overlapping, all
     // inside, the compass on the coaming, the switches along the bottom
     const A = (halfW, top, lip) => ({ dashTop: top, dashLip: lip, dashAftZ: 2.0, zDash: 2.0, halfW, floorAt: () => 0 });
@@ -304,6 +364,9 @@ function run() {
     check(/m0\.userData\.panelSet \|\|/.test(join) && /m0\.userData\.propMat\)\)/.test(join), 'join: a faces bucket and a textured piece keep their uv');
     check(/out2\.ctl\.stops = stops/.test(join) && /out2\.ctl\.perSI = c\.per \/ S\.k/.test(join) && /out2\.ctl\.steps = c\.steps/.test(join),
       'join: a gauge part carries its law as a table (stops / perSI / steps)');
+    // A3: the pose the part was captured in rides the record, so the flight's absolute law can take it off
+    check(/part\.restC = er\.x \* part\.ctl\.axis\[0\]/.test(join) && /out2\.ctl\.rest = \+pt\.restC/.test(join),
+      'join: a moving part carries the turn it was captured at (rest)');
     check(/lights\.on = !!\+Pl\.lightOn/.test(join) && /cageM, people, lights[,\s}]/.test(join), 'join: the snapshot carries the switch positions');
     const light = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
     check(/m\.userData\.lampKey = key; m\.userData\.lampCol = col;/.test(light) && /m\.userData\.lampCup = key;/.test(light) && /lensMat, cupMat,\s*\n\s*\/\/ G440/.test(light),
@@ -340,6 +403,8 @@ function run() {
       mk('edGauge_sw_nav', { law: 'switch', drive: 'sw_nav', ax: AX, sgn: 1, k: 0.42 }),
       mk('edGauge_sw_flood', { law: 'knob', drive: 'sw_flood', ax: AX, sgn: 1 }),
       mk('edGauge_key', { law: 'key', drive: 'key', ax: AX, sgn: 1, k: Math.PI / 6, steps: 5 }),
+      // A3: a tacho captured at its rest (0 rpm = 225 deg clock, 3.927 rad baked into the geometry)
+      mk('edGauge_tacho_needle', { law: 'lin', gauge: 'tacho', hand: 'needle', drive: 'rpmEng', ax: AX, sgn: 1, rest: 225 * Math.PI / 180, stops: [[0, 225], [3500, 495]] }),
     ];
     const grp = new THREE.Group(); for (const g of gauges) grp.add(g.obj);
     gauges[5].obj.position.set(0, 0, 1);                       // the nav switch, a metre ahead of the camera
@@ -350,7 +415,7 @@ function run() {
                     data: { lights: { on: true, nav: 0, beacon: 1 }, people: [{ key: 'ch1', role: 'pilot' }] } };
     const eng = [{ running: true, key: 'both', crank: 0 }];
     const sim = { out: { Veas: 0, vs: 0, roll: 0, pitch: 0, hdg: 0, r: 0, beta: 0, rpm: [0], rpmEng: [0], nz: 1 },
-                  fuel: { frac: 0.8 }, eng, cgPos: () => [0, 120, 0], setEngine: (i, p) => { if (p.key) eng[i].key = p.key; if (p.key === 'off') eng[i].running = false; if (p.start) { eng[i].crank = 1; eng[i].running = true; } } };
+                  fuel: { kind: 'fuel', frac: 0.8, litres: 35 }, eng, cgPos: () => [0, 120, 0], setEngine: (i, p) => { if (p.key) eng[i].key = p.key; if (p.key === 'off') eng[i].running = false; if (p.start) { eng[i].crank = 1; eng[i].running = true; } } };
     const spec = withSys({ fit: 'basic' });
     CK.bind(model, model.data, sim, spec, { fieldElev: 100, pilotKey: 'ch1' });
     check(CK.sw.sw_beacon === 1 && CK.sw.sw_nav === 0 && CK.sw.sw_master === 1 && CK.key === 'both', 'cockpit: the switches start where the design drew them, master on, key at BOTH');
@@ -377,7 +442,7 @@ function run() {
     // a still aeroplane on the ground: the venturi makes no suction
     for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: i / 60 });
     check(!CK.gyroOk && near(CK.readings.roll, CKm.REST.roll, 0.05), 'cockpit: below 20 m/s the venturi gyro is dead and the ball lies at rest');
-    check(CK.busOk && near(CK.readings.volts, 12.7, 0.15) && CK.readings.fuelFrac > 0.7, 'cockpit: the battery carries the bus at rest; the fuel gauge reads', CK.readings.volts);
+    check(CK.busOk && near(CK.readings.volts, 12.7, 0.15) && CK.readings.fuelFrac > 0.6, 'cockpit: the battery carries the bus at rest; the fuel gauge reads', CK.readings.volts);
     check(near(CK.readings.alt, 20, 0.01), 'cockpit: the altimeter reads height above the field it left', CK.readings.alt);
     // in flight: the readings arrive through their lags, the alternator carries the bus
     sim.out.Veas = 30; sim.out.roll = 0.3; sim.out.hdg = Math.PI / 2; sim.out.rpm = [2200]; sim.out.rpmEng = [2200];
@@ -385,12 +450,17 @@ function run() {
     check(CK.gyroOk && near(CK.readings.roll, 0.3, 0.01) && near(CK.readings.ias, 30, 0.1), 'cockpit: in flight the gyro erects and the readings follow');
     check(near(CK.readings.hdg, 90, 0.5), 'cockpit: heading in degrees, the nav way round', CK.readings.hdg);
     check(near(CK.readings.volts, 14.1, 0.01), 'cockpit: at cruise the alternator holds 14.1 V');
+    // A3: the fuel gauge reads litres over the DESIGN capacity (the spec's 50 L, 35 aboard -> 0.7), not `frac` (0.8 of what was loaded)
+    check(CK.energy && CK.energy.kind === 'fuel' && near(CK.energy.capacity, 50) && near(CK.readings.fuelFrac, 0.7, 0.01),
+      'cockpit: the fuel gauge is litres over the design capacity', JSON.stringify(CK.energy) + ' ' + CK.readings.fuelFrac);
     // the pose: each law
     CK.pose(model);
     const ang = g => { const q = g.obj.quaternion; return 2 * Math.atan2(Math.hypot(q.x, q.y, q.z), q.w) * Math.sign(q.x + q.y + q.z || 1); };
     check(near(ang(gauges[0]) * 180 / Math.PI, 150, 0.5), 'pose: a lin hand turns by its stops (30 m/s -> 150 deg)', ang(gauges[0]) * 180 / Math.PI);
-    check(near(ang(gauges[1]) * 180 / Math.PI, 72, 2), 'pose: the fuel hand reads the fraction', ang(gauges[1]) * 180 / Math.PI);
+    check(near(ang(gauges[1]) * 180 / Math.PI, 63, 2), 'pose: the fuel hand reads the fraction of the capacity (35 / 50 L)', ang(gauges[1]) * 180 / Math.PI);
     check(near(ang(gauges[4]) * 180 / Math.PI, 90, 0.5), 'pose: the DG card turns to the heading');
+    // A3: the captured rest comes off - at 2200 rpm the law says 394.7 deg, the group turns 394.7 - 225 = 169.7 on top of the baked 225
+    check(near(ang(gauges[8]) * 180 / Math.PI, 169.7, 0.6), 'pose: a hand captured at its rest turns by the law LESS the rest', ang(gauges[8]) * 180 / Math.PI);
     check(near(ang(gauges[3]), -0.3, 0.01), 'pose: the ball rolls against the aeroplane');
     check(near(ang(gauges[5]), -0.42, 1e-6), 'pose: a switch off lies at -k');
     check(near(ang(gauges[7]) * 180 / Math.PI, 90, 1e-6), 'pose: the key at BOTH is three steps of 30 deg');
@@ -415,6 +485,23 @@ function run() {
     for (let i = 0; i < 200; i++) CK.frame(1 / 60, sim, { t: 10 + i / 60 });
     check(!CK.busOk && lensMat.emissiveIntensity === 0, 'master off: a dead bus, and the nav lens is dark with its switch on');
     CK.pose(model); check(near(ang(gauges[1]), 0, 1e-6), 'master off: the electric fuel gauge lies at its rest stop');
+    // A3: A BATTERY BUILD'S CHARGE GAUGE reads the pack's state of charge, fed by the pack - no bus, and it still reads;
+    // at nought with the motor stopped it lies on E, not F (`frac` is 1 for ever on a pack)
+    {
+      const engP = [{ running: true, key: 'both', crank: 0 }];
+      const simP = { out: { Veas: 0, vs: 0, roll: 0, pitch: 0, hdg: 0, r: 0, beta: 0, rpm: [0], rpmEng: [0], nz: 1 },
+                     fuel: { kind: 'battery', kWh: 2, soc: 0.35, frac: 1 }, eng: engP, cgPos: () => [0, 120, 0], setEngine: () => {} };
+      const specP = { systems: { fit: 'minimal' }, energy: { kind: 'battery', kWh: 2 } };
+      const CKp = CKm.make(THREE);
+      CKp.bind(model, model.data, simP, specP, { fieldElev: 100, pilotKey: 'ch1' });
+      check(!CKp.bus.battAh && CKp.energy.kind === 'battery' && near(CKp.energy.capacity, 2), 'pack: no battery on the bus, the gauge knows the pack', JSON.stringify(CKp.energy));
+      for (let i = 0; i < 400; i++) CKp.frame(1 / 60, simP, { t: i / 60 });
+      check(near(CKp.readings.fuelFrac, 0.35, 0.01), 'pack: the charge gauge reads the state of charge with no bus', CKp.readings.fuelFrac);
+      CKp.pose(model); check(near(ang(gauges[1]) * 180 / Math.PI, 31.5, 1.5), 'pack: ...and the hand shows it', ang(gauges[1]) * 180 / Math.PI);
+      simP.fuel.soc = 0; engP[0].running = false;
+      for (let i = 0; i < 400; i++) CKp.frame(1 / 60, simP, { t: 7 + i / 60 });
+      check(near(CKp.readings.fuelFrac, 0, 0.01), 'pack: empty, the charge gauge reads E and stays there', CKp.readings.fuelFrac);
+    }
     // the cockpit view hides the pilot and gives it back
     CK.cockpitView(true, model); check(!body.visible, 'cockpit view: the pilot\'s body is hidden');
     CK.cockpitView(false, model); check(body.visible, 'cockpit view: ...and shown again outside it');

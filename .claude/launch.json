@@ -639,6 +639,16 @@
         "D:/Dev/DeGaRoR.github.io"
       ],
       "port": 8460
+    },
+    {
+      "name": "flydiy-gauge",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8462",
+        "D:/Dev/DeGaRoR.github.io/.claude/worktrees/fuel-charge-gauge-polish-034862"
+      ],
+      "port": 8462
     }
   ]
 }

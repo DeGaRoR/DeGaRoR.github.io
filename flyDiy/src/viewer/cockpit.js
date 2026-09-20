@@ -87,6 +87,16 @@ function make(THREE) {
     let fit = null;
     try { if (typeof genSystemsResolve === 'function') fit = genSystemsResolve(spec || {}); } catch (e) {}
     CK.fit = fit;
+    // A3: WHAT THE FUEL / CHARGE GAUGE READS AGAINST - the build's energy
+    // kind and its DESIGN capacity (litres or kWh), the same rule the dash
+    // painted its F by (_cage_panel scaleFacts). The solver's `litres0` is
+    // what was loaded, which is not what F means on a half-filled tank.
+    {
+      const battery = !!(spec && spec.energy && spec.energy.kind === 'battery');
+      const cap = battery ? +((spec.energy && spec.energy.kWh) || 0)
+                : (spec && spec.fuel && spec.fuel.designL > 0) ? +spec.fuel.designL : +((spec && spec.fuel && spec.fuel.litres) || 0);
+      CK.energy = { kind: battery ? 'battery' : 'fuel', capacity: cap > 0 ? cap : 0 };
+    }
     const loads = fit ? fit.loads.map(l => ({ key: l.key, amps: l.amps })) : [];
     for (const k of Object.keys(LIGHT_AMPS)) loads.push({ key: 'sw_' + k, amps: 0 });
     CK.bus = (typeof makeBus === 'function')
@@ -243,10 +253,19 @@ function make(THREE) {
     raw.nz = o.nz != null ? o.nz : 1; raw.nzMax = o.nzMax != null ? o.nzMax : 1; raw.nzMin = o.nzMin != null ? o.nzMin : 1;
     raw.oilP = E.running ? 62 * PSI * Math.min(1, 0.5 + 0.5 * raw.rpmEng / 2000) : 0;
     raw.oilT = E.running ? 82 : Math.max(15, (CK.readings.oilT || 15));
-    raw.fuelFrac = busOk ? (F.frac != null ? F.frac : 1) : 0;
+    // THE FUEL / CHARGE GAUGE (A3): the fraction of the DESIGN capacity
+    // aboard - a pack's state of charge (`soc`; `frac` stays 1 on a battery
+    // build, which is why a charge gauge reading it sat on F for ever), a
+    // tank's litres over its capacity (the fill, not F, is what was loaded).
+    // The charge gauge is fed by the pack and reads while the pack has
+    // anything; the fuel gauge is on the bus and dies with it (to E).
+    const EK = CK.energy || { kind: F.kind || 'fuel', capacity: 0 };
+    const onPack = EK.kind === 'battery';
+    const qty = onPack ? (F.soc != null ? clamp(F.soc, 0, 1) : (F.frac != null ? F.frac : 1))
+              : (EK.capacity > 0 && F.litres != null) ? clamp(F.litres / EK.capacity, 0, 1)
+              : (F.frac != null ? F.frac : 1);
+    raw.fuelFrac = (onPack || busOk) ? qty : 0;
     raw.volts = bus ? bus.V : 0;
-    // the electric readings die with the bus
-    if (!busOk) { raw.fuelFrac = 0; }
     // THE CLOCK IS THE DAY'S (SKY chantier): the world's local time when a day is on the
     // context, else 12:00 plus the flight's own clock as it always was
     const tClock = (ctx.day && ctx.day.localSeconds != null) ? ctx.day.localSeconds : 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
@@ -346,6 +365,12 @@ function make(THREE) {
         case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
         default: a1 = 0;
       }
+      // A3: THE LAW IS ABSOLUTE, THE GEOMETRY IS NOT - the snapshot holds the
+      // part turned to the pose the garage drew it in (c.rest, radians about
+      // ax, from the join), so that turn comes off before the law's angle
+      // goes on. Without it the tacho's 0 sat at 3 o'clock, the fuel's E at
+      // 8, every dial whose scale starts off 12 o'clock read its rest twice.
+      if (c.rest) a1 -= (c.sgn || 1) * c.rest;
       vA.set(c.ax[0], c.ax[1], c.ax[2]);
       qA.setFromAxisAngle(vA, (c.sgn || 1) * a1);
       if (c.ax2) {
@@ -373,6 +398,8 @@ function make(THREE) {
   };
   const W0 = typeof window !== 'undefined' ? window : {};
   const isElectric = gauge => {
+    // A3: the charge gauge is the pack's, not the bus's
+    if (gauge === 'fuel' && CK.energy && CK.energy.kind === 'battery') return false;
     const I = typeof GEN_INSTR !== 'undefined' ? GEN_INSTR[gauge] : null;
     return !!(I && I.power === 'elec');
   };

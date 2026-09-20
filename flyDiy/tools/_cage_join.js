@@ -1928,6 +1928,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               };
               part.axC = { ax: dirOf(part.ctl.axis) };
               if (part.ctl.axis2) part.axC.ax2 = dirOf(part.ctl.axis2);
+              // A3 (2026-09-20): THE POSE THE PART WAS CAPTURED IN. The layer
+              // draws a hand at its REST (the tacho's 0 at 7:30, the fuel's E
+              // at 10 o'clock, a knob at -135), turning the group itself; the
+              // vertices go into the snapshot turned, and the flight then set
+              // the group to the law's ABSOLUTE angle - so every dial whose
+              // scale does not start at 12 o'clock read its rest angle twice
+              // (the user: "the RPM needle falls much lower than zero, its
+              // real zero seems near the max graduation"). The group's own
+              // turn about its axis, radians, for the flight to take off.
+              const er = a.rotation;
+              part.restC = er.x * part.ctl.axis[0] + er.y * part.ctl.axis[1] + er.z * part.ctl.axis[2];
               if (part.ctl.slide) {
                 const sv = new THREE.Vector3(part.ctl.slide[0], part.ctl.slide[1],
                   part.ctl.slide[2]);
@@ -2403,6 +2414,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // a `turn` hand as its period in SI, a switch / knob / key as its
           // travel, the ball and the cards by name
           Object.assign(out2.ctl, { law: c.law, gauge: c.gauge, hand: c.hand, units: c.units });
+          if (pt.restC) out2.ctl.rest = +pt.restC.toFixed(6);   // A3: the captured pose, radians about ax
           const PGn = window.PANEL_GEN;
           if (c.law === 'lin' && PGn && c.gauge) {
             const facts = (window.CAGE_PANEL && window.CAGE_PANEL.last() && window.CAGE_PANEL.last().facts) || {};

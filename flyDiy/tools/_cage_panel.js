@@ -663,6 +663,16 @@ function scaleFacts(P) {
                 S.engines && S.engines[0] && POWERPLANTS[S.engines[0].type] && POWERPLANTS[S.engines[0].type].engine));
     if (E && E.rpm > 0) o.rpm = E.rpm;
     else if (S && S.engines && S.engines[0] && S.engines[0].custom && S.engines[0].custom.rpm > 0) o.rpm = S.engines[0].custom.rpm;
+    // A3: THE FUEL / CHARGE GAUGE'S CAPACITY - what F means: the tank's
+    // DESIGN litres (genSpecAtFuel's designL when the spec is scaled to a
+    // fill; the fill is what is aboard, not what the gauge is painted to)
+    // or the pack's kWh, by the build's energy kind
+    if (S) {
+      const battery = !!(S.energy && S.energy.kind === 'battery');
+      const cap = battery ? +(S.energy.kWh || 0)
+                : (S.fuel && S.fuel.designL > 0) ? +S.fuel.designL : +((S.fuel && S.fuel.litres) || 0);
+      o.energy = { kind: battery ? 'battery' : 'fuel', capacity: cap > 0 ? cap : 0 };
+    }
   } catch (e) {}
   // the declared limits (GEN_RULES when it carries them, the study's rules
   // otherwise): Vfe = 1.8 Vs0, Vne = 1.25 Vh — printed DERIVED on the card

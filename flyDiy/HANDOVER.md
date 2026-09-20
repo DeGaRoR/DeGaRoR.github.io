@@ -50967,3 +50967,94 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - GATES: UISMOKE, VIEW, GFX, BOOT, HANGAR, LIGHT, MEDIA, CLOUD, DAY, SAVE, STARTER, PARTS, DESIGN
   green. Rigs: scratch a4_eye.js (the eye in the grp frame per phase), a4_interior.js (Profiler
   around the flip + the program-key diff), a4_pause.js (pause, the orbit under).
+
+## G442 — A3 THE PANEL, PART 1: THE FUEL / CHARGE GAUGE, AND WHY EVERY ENGINE DIAL READ WRONG
+## (2026-09-20, the user: "interior polish. Pick up item A3 from the playtest feedback, starting
+## with the fuel/charge gauge"; PLAYTEST-TRIAGE-2026-09-20 §4 A3, P0)
+## (G437 is the impostor boot race, on its own branch)
+
+- THE FINDING AT HEAD, HEADLESS (scratch probe on flight_core: build (4), the e811 on 2 kWh, full
+  throttle from the stand): the build had NO energy instrument at all - its fit is `minimal`
+  (asi alt tacho oilP oilT compass fuelSight), a cork on a wire, and `fuel` is bus-powered so a
+  battery of 'none' would have dropped it anyway; on a battery build `sim.fuel.frac` stays 1.000
+  for ever (the pack drains `soc`), so any gauge reading `frac` sat on F - the user's "the needles
+  come back to full and stay". The pack was flat at t = 113 s.
+- THE RESOLVER (60_gen_spec genSystemsResolve): a battery build's `fuel` slot IS the charge gauge -
+  GEN_INSTR.fuel.charge (0.20 kg, 220 cr, power 'pack', no senders, no bus load), the minimal
+  tier's fuelSight becomes it, never dropped for want of a 12 V bus; the record says
+  `energyKind`. The key stays `fuel`: every tier, save, layout slot and gauge holds. Fuel builds:
+  bit-identical bill (every live archetype compared HEAD vs this core: same items, kg, price, mass).
+- THE FACE (_panel_gen scaleOf 'fuel'): painted in the QUANTITY the build carries, by the units
+  convention - LITRES (metric) / US GAL (aviation) of a tank, kWh of a pack - E at nought, F at
+  the DESIGN capacity (fuel.designL when the spec is scaled to a fill; the fill is what is aboard,
+  not what F means), the reserve's red arc under 10 %, a 1/2/2.5/5-decade tick step (`niceStep`),
+  the title FUEL / CHARGE. The hand's DRIVE stays the FRACTION of that capacity (`fuelFrac`,
+  `k` = the capacity in display units): the stops the join bakes hold whatever the tank. A
+  numeral within a seventh of the sweep of F drops (the Cub's "10" against "F" at 11.9 gal).
+  `o.energy = {kind, capacity}` on the panel's facts (_cage_panel scaleFacts); without it the old
+  E / half / F fraction face (the bench with no build).
+- THE READING (cockpit.js): `CK.energy` from the spec at bind; raw.fuelFrac = soc on a pack,
+  litres / design capacity on a tank (35 of 50 L reads 0.7, not `frac`'s 0.8 of the fill). The
+  charge gauge is the pack's, not the bus's: it reads with no bus and dies only with the pack
+  (isElectric('fuel') false on a battery build); the fuel gauge still dies to E with the bus.
+- THE PFD: a fourth always-on cell `nrg` - litres or kWh to one decimal, the label `L fuel` /
+  `kWh charge`, plus `· 41 min` once A1's `sim.fuel.enduranceS` is finite; `warn` under a tenth;
+  EMPTY (warn) once the tanks or the pack have stopped every engine (A1's `starved`, or frac 0 with
+  no engine running). On the small PFD too.
+- THE LAYOUT: no fitted instrument is left off the dash while a T slot stands empty - build (4)'s
+  0.50 x 0.26 m plate held a two-dial T with the attitude hole blank between them and `oilT` +
+  `fuel` in the overflow. The energy gauge heads the engine cluster (fuel oilP oilT volts: the last
+  small gauge is the one that falls off a short plate, and it must not be this one); an overflowed
+  dial takes an empty T slot (row 0, middle column first; `inHole`) before it is dropped. The
+  six-pack's blanking-plate rule stands on a six-pack.
+- THE REST TWICE (measured, the user's P1 "the RPM needle falls much lower than zero, its real
+  zero seems near the max graduation"): the layer draws a hand at its REST by turning the GROUP
+  (the tacho's 0 at 7:30 = 225 deg, the fuel's E at 300, a knob at -135), the snapshot captures
+  the vertices turned, and the flight then set the group to the law's ABSOLUTE clock angle - so
+  the tacho's 0 sat at 3 o'clock (225 + 225) and every dial whose scale does not start at 12
+  o'clock (tacho, fuel, oilP, oilT, volts, the clock's hands, a knob's -135) read its rest on top.
+  The ASI and the altimeter start at 0 deg and were the only honest ones. Measured on the part's
+  own geometry: the tacho needle's tip at 135 deg anticlockwise, the fuel's at 60. The join now
+  records the turn the part was captured at (`part.restC` = the group's own Euler about its
+  axis, `ctl.rest` radians on gauge-kind parts only; the crew's ctlMove controls untouched) and
+  cockpit.js's pose takes `sgn * rest` off before the law goes on (a switch drawn ON with its
+  rest +k and switched ON: k - k = 0 on the baked bat - relative is right for every law).
+- FOUND UNDER IT: the oil-pressure law under aviation units took kPa (`k: 1 / 6.894757`) against
+  metric's pascals (1e-5 bar) and the cockpit's pascals - the psi gauge pegged at 100 whatever the
+  engine did. psi per PASCAL now; 62 psi sits at the same fraction of either face.
+- THE INSTRUMENT: tools/panel_shot.js - island_shot's rig with a BUILD planted first (the file
+  into localStorage's flydiy.wip from a same-origin page, the game booted ONCE - a second boot left
+  the loader waiting on pieces the first had claimed; the garage boot waited out before the one
+  roll-out click - a click under its overlay raced the editor and stalled on a blank frame), the
+  cockpit pill, `--look deg` down through HEAD_CAM.pitch, `--soc f` / `--drain` (the pack emptied
+  with the sim running), the gauge's lag waited out to a hundredth BEFORE the pause (its 1.5 s is
+  frame time and a headless frame at 2x is slow), `--clip x,y,w,h` a second file of the cluster,
+  and the cockpit's own numbers printed beside the picture (readings, the hands' angles, the PFD
+  cell). `node tools/panel_shot.js --build "bugReports/flydiy-build (4).json" --look 25 --drain`.
+- PROOF (screenshots/panel-2026-09-20/, gitignored): b4_charge_full (CHARGE E 1 F kWh at F, RPM at
+  14 for 1405, the PFD "2.0 kWh charge", oilP + oilT in the T's holes), b4_charge_empty (EMPTY on
+  the PFD in the warn ink, the charge hand on E, RPM 0, oil pressure 0), cub_fuel_half (FUEL in US
+  GAL, E 5 10 F, the hand at half for 22.5 of 45 L, the PFD "22.5 L fuel", oil P ~53 psi).
+- GATE PANEL: + the battery resolver (fitted with no bus, the charge row, no senders, energyKind),
+  the scale in litres / gallons / kWh with the fraction drive invariant, niceStep, the short plate
+  (every dial on, fuel first under the tacho, the holes taken, nothing overlapping), the cockpit's
+  litres-over-capacity and the pack's soc with no bus and E when flat, the join's rest contract
+  and the pose taking it off, oilP in pascals. PANEL UISMOKE INPUT JOIN SAVE PLAYER ELEC RPM
+  ENERGYBASE STARTER CABIN GEN WEIGHT MASS BUILD DESIGN green. ARCHETYPES' reds (Caravan, Beaver,
+  Tiger Moth, aerobatic biplane: the pilot's approach on a full-tank card) and ENERGY
+  (`require('zlib')`) are HEAD's, unchanged by this (see G435.2's list).
+- TRAPS: `sed -i` on this tree flips a CRLF source to LF and git's autocrlf hides it in the diff -
+  an exact-string patcher in node that keeps the file's own EOL (scratch patch2.js), never sed.
+  The Bash heredoc swallowed a whole file once (a `'` inside) - the Write tool for anything long.
+  The browser pane has no WebGL here (sandboxed) - the CDP rig is the only eye.
+- OWED (A3's remaining list, next): the numerals' blur (the 512-px slot), the KEY / MASTER row on
+  builds without a bus, the fitter proper (central positions first, a collision test between the
+  switch row and the levers - the holes rule above is the interim), the visual prop off
+  `out.rpm[i]` (app.js ~2975), the yoke in the panel, the "horns" at 3 and 9, the twin throttle,
+  flaps as a dash switch, night lights, the potentiometers' glow, the 7-char registration, the
+  units convention on every graduation, PBR on every control, the dash controls bindable
+  (input.js). RULINGS: oil P / oil T on a battery build (a motor has no oil: drop them, or a motor
+  temperature in their place?); a fuel build on the minimal tier keeps a sight glass and no dial -
+  the PFD cell is its only number.
+
+
