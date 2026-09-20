@@ -475,19 +475,25 @@ var CLOUDS = (function () {
 
   // domeMat(frameYaw, steps): the dome march for a sphere round the eye (the probe, the shed)
   const domeMats = [];
-  function domeMat(frameYaw, steps) {
+  // domeMat(frameYaw, steps, opts): opts.depthTest - the SHED's sphere is depth-tested (A6, 2026-09-20, the
+  // playtest: "in the garage the clouds render on top of the aircraft and the hangar"): drawn after the opaques
+  // with no test it painted over the walls and the aeroplane; tested, the walls at 12 m hide it and it shows
+  // through the door and the windows, in front of the sky dome at 600 m (the same standard depth the sky
+  // writes - neither carries the log-depth chunk, so the two agree with each other and sit behind every
+  // opaque). The world's probe keeps no test (its sphere is 20 m round the eye).
+  function domeMat(frameYaw, steps, opts) {
     if (!ready) return null;
     const uni = Object.assign({}, U, { uSteps: { value: new THREE.Vector2(steps || 24, 3) }, uFrame: { value: frameYaw || 0 }, uEye: U.uEye });
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
     const m = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: DOME_VERT, fragmentShader: domeFrag(), glslVersion: THREE.GLSL3, side: THREE.BackSide,
-      transparent: true, blending: THREE.NormalBlending, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+      transparent: true, blending: THREE.NormalBlending, depthTest: !!(opts && opts.depthTest), depthWrite: false, toneMapped: false, fog: false });
     domeMats.push(m);
     return m;
   }
-  // domeMesh(frameYaw, radius, steps): the sphere itself, drawn after the dome (renderOrder 1)
-  function domeMesh(frameYaw, radius, steps) {
-    const m = domeMat(frameYaw, steps); if (!m) return null;
+  // domeMesh(frameYaw, radius, steps, opts): the sphere itself, drawn after the dome (renderOrder 1)
+  function domeMesh(frameYaw, radius, steps, opts) {
+    const m = domeMat(frameYaw, steps, opts); if (!m) return null;
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius || 20, 32, 20), m);
     mesh.renderOrder = 1; mesh.frustumCulled = false;
     return mesh;

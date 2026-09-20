@@ -3199,7 +3199,8 @@ function applyDay(day, renderer) {
     const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);
     if (m) { skyMesh.material = m; skyMesh.scale.x = 1; skyMesh.rotation.y = 0; skyPhys = true; }
     // CLOUDS C3: the layer over the shed's backdrop - one sky - marched from the field (the eye at the origin)
-    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(SHED_FRAME_YAW, 598, 24); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
+    // A6 (2026-09-20): depth-tested, or it painted over the walls and the aeroplane (the playtest's garage clouds)
+    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(SHED_FRAME_YAW, 598, 24, { depthTest: true }); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
   }
   if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
   // the clouds' day (the shed frame is not the world's: the splice stays off, the key takes the layer's transmittance)

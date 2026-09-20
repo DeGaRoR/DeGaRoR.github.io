@@ -50252,3 +50252,22 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   silhouette line over a cloud, the shed's apron lit at night; the impostor bisect is B1's. On the
   clouds: the user's eye on the new tops / the altostratus, the far horizon band's flat pancakes at
   a grazing angle, the 22 deg halo, god-rays, precipitation.
+
+
+## G436.2 — THE SHED'S CLOUDS BEHIND THE WALLS (2026-09-20, the user: "is the rendering order of the
+## clouds in the garage fixed? ... otherwise do that first")
+
+- Nobody had (the triage's A2 item 1.7; hangar.js untouched in every worktree). The shed's cloud
+  sphere (CLOUDS.domeMesh at 598 m, renderOrder 1) was `depthTest: false`: drawn after the opaques
+  with no test it painted the layer over the walls and the aeroplane (playtest 185731). Now
+  `domeMesh(yaw, r, steps, { depthTest: true })` for the shed - the walls at 12 m hide it, the door
+  and the windows show it in front of the sky dome at 600 m (both ShaderMaterials write the same
+  standard depth, neither carries the log-depth chunk, so they agree with each other and sit behind
+  every opaque - exactly how the sky dome has been tested since G426). The world's probe keeps no
+  test (its sphere is 20 m round the eye).
+- Verified in the game: the shed's spheres read back (600 m sky: test+write; 598 m clouds: test, no
+  write, order 1), and shots after a roll-out and THE SHED at 70 % cumulus (screenshots/clouds-2026-
+  09-20/garage/shed_*.png): the walls and the aeroplane clean, the deck through the door. The rig's
+  `--garage` mode boots the shed without a roll-out - but the garage's frame does not advance under
+  headless Chrome (a select change, the dusk preset and BENCH_CHANGED() all left the first frame);
+  after a roll-out and THE SHED it does. A2's camera-outside-the-shed bug is visible there (owed to A2).

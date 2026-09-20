@@ -52,6 +52,21 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
   await sleep(+opt('boot', 20000));
+  // --garage: no roll-out - the shed as booted, each shot's JS run, the screenshot (the garage's clouds, A6)
+  if (argv.includes('--garage')) {
+    fs.mkdirSync(OUT, { recursive: true });
+    const KEEP0 = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
+    for (let i = 0; i < 20; i++) { const n = await ev(KEEP0); await sleep(500); if (!n && i > 4) break; }
+    for (const s of SHOTS) {
+      if (s.js) await ev('(()=>{' + s.js + ';return 1;})()');
+      await sleep(WAIT);
+      const shot = await cmd('Page.captureScreenshot', { format: 'png' });
+      const file = path.join(OUT, s.name + '.png'); fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
+      console.log('cloud_shot: ' + file + '  ' + await ev("JSON.stringify({clouds: !!(window.CLOUDS && CLOUDS.active), shed: !!document.querySelector('#c'), text: document.body.innerText.slice(0, 80)})"));
+    }
+    ws.close(); ch.kill(); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
+    return;
+  }
   let flying = false;
   for (let a = 0; a < 14 && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
