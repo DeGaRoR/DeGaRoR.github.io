@@ -14509,6 +14509,255 @@ var ISLAND_GEN = (function () {
   return { makeIsland, WC, ISLAND_GEO };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = ISLAND_GEN;
+// ===========================================================================
+// GROUND FIELDS — the micro-variation inside ONE terrain type, shared by the
+// ground (the splat, per fragment) and the vegetation (per instance, at
+// plant time). 2026-09-20, the user: "the grass needs variation of shades,
+// the muskeg slight variations plus procedural puddles ... what would allow
+// us to automatically color grass" — the blades and the ground under them
+// must read the SAME fields, or a tuft stands on a colour it does not have.
+// ===========================================================================
+// One primitive, three fields, one table of constants, and the SAME source
+// twice: the JS below and the GLSL string `GROUND_FIELDS.glsl` are the same
+// functions line for line, hashed on 32-bit integers so a CPU sample and a
+// GPU sample of the same point give the same number (uint arithmetic in ES
+// 3.00 wraps mod 2^32; JS uses |0 and Math.imul for the same bits).
+//
+//   hash2(ix, iz)                   0..1, the integer hash (the vegetation's)
+//   vnoiseT(u, w, N)                tileable value noise, u,w in [0,1) over
+//                                   ONE period, N cells, smoothstep bilinear
+//   poolAt(x, z, wet, edge)         0 = peat, 1 = open water; the puddles.
+//                                   period POOL.period (400 m), three octaves,
+//                                   threshold 0.66 - 0.30*wet (muskeg wet 0.45);
+//                                   `edge` half-width in noise units - the
+//                                   vegetation's 0.035 is a 15 m fade, the
+//                                   ground's default is 0.01 (water is a line)
+//   mixK(x, z, period, bias, sharp) 0..1, the cloud mask that picks the SECOND
+//                                   of a code's two sets: two reads of a four-
+//                                   octave fbm, the second rotated + scaled
+//                                   (one read tiled as a polka-dot grid)
+//   blotch(x, z, seed)              0..1, per cover species: the fraction of
+//                                   its tufts kept here (WHICH grass drifts by
+//                                   area, not its colour)
+//   shade(x, z, cell)               { hue: -1..1, value: -1..1 } the colour
+//                                   swing field; a code scales it by its own
+//                                   amplitudes (the bench's `vary`)
+//   hueTurn(rgb, a)                 the colour turned about the grey axis by a rad
+//   deriveCode(tt, slopeDeg, canopyM, knobs)
+//                                   the effective code: rock -> 12 cliff by slope,
+//                                   forest -> 13 old by canopy, scrub -> 14 dense
+//                                   (the shader's splits, picked at their midpoint)
+//   groundColor(x, z, period, bias, sharp, meanA, meanB)
+//                                   the two sets' mean colours lerped by mixK -
+//                                   the number a tuft's instanceColor needs
+//   RECIPE                          the splat whole: codes (sets, scales, masks,
+//                                   vary, orient), knobs, grades, the library order
+//   CODES[ttype]                    DERIVED from RECIPE: the ground's arguments
+//                                   per terrain type (muskeg: wet + poolScale):
+//                                   period / bias / sharp for mixK, the set
+//                                   pair, the vary amplitudes - call the fields
+//                                   with the code's row, never with a constant
+//
+// Values are the vegetation session's (tools/_trees.html, G437.x): the
+// vegetation OWNS them; the ground samples them. Change a constant here and
+// both sides move together - that is the point of the file.
+'use strict';
+const GROUND_FIELDS = (() => {
+  // ---- THE TABLE (the vegetation's numbers) ------------------------------
+  const C = {
+    pool:   { period: 400, oct: [[5, 0.55, 0.0, 0.0], [11, 0.30, 0.37, 0.11], [23, 0.15, 0.71, 0.53]],   // [cells, weight, du, dw]
+              thr0: 0.66, thrWet: 0.30, edgeVeg: 0.035, edgeGround: 0.01 },
+    mix:    { period: 160, oct: [[6, 0.5, 0.0, 0.0], [12, 0.25, 0.3, 0.7], [24, 0.125, 0.6, 0.2], [48, 0.0625, 0.1, 0.9]], norm: 0.9375,
+              rot: [0.62, -0.78, 0.78, 0.62], scale2: 0.41, off2: [0.37, 0.71], w1: 0.65, w2: 0.35, bias: 0.52, biasMuskeg: 0.60, sharp: 4 },
+    blotch: { cellM: 18, cells: 64, amount: 0.6 },
+    shade:  { octA: 0.7, octB: 0.3, scaleB: 0.31, offH: [3.1, 57.0], offV: [91.0, 7.0] },
+  };
+  // ---- THE RECIPE: the splat, whole - one default for the bench AND the game --
+  // Per terrain-type code: the near sets (metres per repeat), the far sets (the
+  // aerial packs, over the detail-fade range), the mask [cell m, sharpness,
+  // bias A|B, bias C], the variation [hue deg, value, cell m], orient ('sea':
+  // the beach turned to face the water). Then the knobs and the grades per
+  // set. The bench edits a copy (localStorage), `export` prints it; the game
+  // reads this and its own localStorage copy (F8 > map layers > splat).
+  const RECIPE = {
+    codes: {
+      2:  { tex: ['dry', 'grass', 'rockyA'],   scale: [4, 4, 90],   far: ['grassRock', 'grassRock', 'rockyA'], farScale: [15, 15, 90], mix: [40, 3, 0, -0.1],    vary: [10, 0.18, 25] },
+      3:  { tex: ['mud', 'lush', null],        scale: [3, 4, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [25, 3, 0.08, 0],    vary: [8, 0.2, 15], wet: 0.32, poolScale: 3 },
+      4:  { tex: ['beach', null, null],        scale: [30, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [2, 0.06, 20], orient: 'sea' },
+      5:  { tex: ['rocksG', 'rockyB', null],   scale: [4, 90, 0],   far: ['rockyB', null, null],              farScale: [90, 0, 0],   mix: [30, 3, 0, 0],       vary: [3, 0.1, 20] },
+      6:  { tex: ['rocksB', 'rocksA', null],   scale: [50, 79, 0],  far: ['rocksA', 'rockyA', null],          farScale: [79, 90, 0],  mix: [60, 3, 0, 0],       vary: [3, 0.1, 40] },
+      7:  { tex: ['grass', 'lush', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', 'grassRock', 'rockyA'], farScale: [15, 15, 90], mix: [35, 3, 0, -0.1],    vary: [10, 0.18, 25] },
+      8:  { tex: ['leaves', 'mud', 'rocksG'],  scale: [3, 3, 2],    far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.1, -0.15], vary: [6, 0.15, 30] },
+      9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40] },
+      10: { tex: ['dirt', null, null],         scale: [2, 0, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [20, 1, 0, 0],       vary: [2, 0.06, 10] },
+      11: { tex: ['pebble', 'rocksG', null],   scale: [4.5, 2, 0],  far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [12, 3, 0, 0],       vary: [3, 0.08, 15] },   // the rocky beach (a coast_land_rocks set is owed)
+      12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40] },
+      13: { tex: ['leaves', 'rocksG', null],   scale: [3, 2, 0],    far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.2, 0],    vary: [5, 0.12, 30] },
+      14: { tex: ['lush', 'grass', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', null, 'rockyA'],       farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25] },
+    },
+    // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' },
+    knobs: {
+      cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
+      splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
+      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.25, macroExp: 2.2,   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
+      hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
+      pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
+    },
+    // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour
+    grade: { dry: { gain: '#b3b3a6', sat: 1 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 } },
+    // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
+    // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
+    library: [
+      ['beach', 29.98], ['rocksA', 78.93], ['rocksB', 50.18], ['mud', 1.25], ['leaves', 1.49], ['cliff', 6.86], ['rocksG', 2.03], ['rockyA', 89.94], ['rockyB', 89.79],
+      ['grassRock', 15.04], ['forestAir', 80.81], ['snowAir', 81.2],
+      ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
+    ],
+  };
+  // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------
+  // DERIVED from the recipe: the row a tuft calls mixK / shade with (period =
+  // 6 x cell, sharp = 4 x sharpness, bias = 0.52 - biasAB, the near set pair,
+  // the vary amplitudes; muskeg's wet + poolScale). Never with a constant.
+  const CODES = {};
+  for (const k in RECIPE.codes) { const c = RECIPE.codes[k];
+    CODES[k] = { name: RECIPE.names[k], period: Math.round(c.mix[0] * 6), bias: +(0.52 - c.mix[2]).toFixed(3), sharp: c.mix[1] * 4, sets: [c.tex[0], c.tex[1]], vary: c.vary.slice() };
+    if (c.wet !== undefined) CODES[k].wet = c.wet;
+    if (c.poolScale !== undefined) CODES[k].poolScale = c.poolScale; }
+
+  // ---- the primitive ------------------------------------------------------
+  function hash2(ix, iz) {
+    let n = (ix * 374761393 + iz * 668265263 + 1013904223) | 0;
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+  }
+  // tileable value noise over one period: u, w in [0, 1), N cells
+  function vnoiseT(u, w, N) {
+    u = u - Math.floor(u); w = w - Math.floor(w);
+    const fu = u * N, fw = w * N;
+    const iu = Math.floor(fu), iw = Math.floor(fw);
+    let tu = fu - iu, tw = fw - iw;
+    tu = tu * tu * (3 - 2 * tu); tw = tw * tw * (3 - 2 * tw);
+    const i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
+    const a = hash2(i0, j0), b = hash2(i1, j0), c = hash2(i0, j1), d = hash2(i1, j1);
+    return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
+  }
+  const fbmT = (u, w, oct) => { let n = 0; for (const [N, k, du, dw] of oct) n += k * vnoiseT(u + du, w + dw, N); return n; };
+  const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
+  const smooth = t => t * t * (3 - 2 * t);
+
+  // ---- the fields --------------------------------------------------------
+  function poolAt(x, z, wet, edge) {
+    const P = C.pool, e = edge === undefined ? P.edgeGround : edge;
+    const n = fbmT(x / P.period, z / P.period, P.oct);
+    const thr = P.thr0 - P.thrWet * wet;
+    return smooth(clamp01((n - (thr - e)) / (2 * e)));
+  }
+  function mixK(x, z, period, bias, sharp) {
+    const M = C.mix;
+    const u = x / period, w = z / period;
+    const u2 = (M.rot[0] * u + M.rot[1] * w) * M.scale2 + M.off2[0], w2 = (M.rot[2] * u + M.rot[3] * w) * M.scale2 + M.off2[1];
+    const n = (M.w1 * fbmT(u, w, M.oct) + M.w2 * fbmT(u2, w2, M.oct)) / M.norm;
+    return clamp01((n - bias) * sharp + 0.5);
+  }
+  function blotch(x, z, seed) {
+    const B = C.blotch, L = B.cellM * B.cells;
+    return 1 - B.amount * (0.5 + 0.5 * vnoiseT(x / L + (seed % 13) / 13, z / L + (seed % 7) / 7, B.cells));
+  }
+  // the colour swing: two octaves of the same noise, decorrelated, -1..1 each
+  function shade(x, z, cell) {
+    const S = C.shade, c = Math.max(cell, 1), L = c * 64, L2 = c * S.scaleB * 64;
+    const h = (S.octA * vnoiseT(x / L + S.offH[0], z / L + S.offH[0] * 0.5, 64) + S.octB * vnoiseT(x / L2 + S.offH[1], z / L2, 64)) * 2 - 1;
+    const v = (S.octA * vnoiseT(x / L + S.offV[0], z / L + S.offV[0] * 0.5, 64) + S.octB * vnoiseT(x / L2 + S.offV[1], z / L2, 64)) * 2 - 1;
+    return { hue: h, value: v };
+  }
+  // a turn of a colour about the grey axis (Rodrigues on (1,1,1)/sqrt3) - the
+  // shade field's hue swing is applied with this on both sides
+  function hueTurn(rgb, a) {
+    if (!a) return rgb.slice();
+    const k = 0.57735027, ca = Math.cos(a), sa = Math.sin(a);
+    const [r, g, b] = rgb, d = k * (r + g + b) * (1 - ca);
+    // cross(k, c) = k * (b - g, r - b, g - r)
+    return [r * ca + k * (b - g) * sa + k * d, g * ca + k * (r - b) * sa + k * d, b * ca + k * (g - r) * sa + k * d];
+  }
+  // THE DERIVED CODES, on the CPU: what the shader's sSplat does to a cell's
+  // code by the continuous fields - rock steeper than the cliff split is the
+  // cliff, forest under a tall canopy is old growth, scrub under a canopy is
+  // dense. Returns the effective code (a hard pick at the split's midpoint;
+  // the shader blends across the split's width). knobs default to RECIPE's.
+  function deriveCode(tt, slopeDeg, canopyM, knobs) {
+    const K = knobs || RECIPE.knobs;
+    if (tt === 6 && slopeDeg >= (K.cliffLo + K.cliffHi) / 2) return 12;
+    if (tt === 8 && canopyM >= (K.oldLo + K.oldHi) / 2) return 13;
+    if (tt === 7 && canopyM >= (K.denseLo + K.denseHi) / 2) return 14;
+    return tt;
+  }
+  function groundColor(x, z, period, bias, sharp, meanA, meanB) {
+    const k = mixK(x, z, period, bias, sharp);
+    return [meanA[0] + (meanB[0] - meanA[0]) * k, meanA[1] + (meanB[1] - meanA[1]) * k, meanA[2] + (meanB[2] - meanA[2]) * k];
+  }
+
+  // ---- the same functions in GLSL (ES 3.00: uint wraps mod 2^32) ---------
+  const glsl = `
+  // GROUND FIELDS (src/core/28b_ground_fields.js - the JS is the reference; keep them identical)
+  float gfHash2(int ix, int iz){
+    uint n = uint(ix) * 374761393u + uint(iz) * 668265263u + 1013904223u;
+    n = (n ^ (n >> 13u)) * 1274126177u;
+    return float(n ^ (n >> 16u)) / 4294967296.0;
+  }
+  float gfVnoiseT(float u, float w, int N){
+    u = u - floor(u); w = w - floor(w);
+    float fu = u * float(N), fw = w * float(N);
+    int iu = int(floor(fu)), iw = int(floor(fw));
+    float tu = fu - float(iu), tw = fw - float(iw);
+    tu = tu * tu * (3.0 - 2.0 * tu); tw = tw * tw * (3.0 - 2.0 * tw);
+    int i0 = iu % N, i1 = (iu + 1) % N, j0 = iw % N, j1 = (iw + 1) % N;
+    float a = gfHash2(i0, j0), b = gfHash2(i1, j0), c = gfHash2(i0, j1), d = gfHash2(i1, j1);
+    return (a + (b - a) * tu) + ((c + (d - c) * tu) - (a + (b - a) * tu)) * tw;
+  }
+  float gfPoolNoise(float u, float w){
+    return ${C.pool.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoiseT(u + ${du.toFixed(4)}, w + ${dw.toFixed(4)}, ${N})`).join(' + ')};
+  }
+  float gfPoolAt(vec2 xz, float wet, float edge){
+    float n = gfPoolNoise(xz.x / ${C.pool.period.toFixed(1)}, xz.y / ${C.pool.period.toFixed(1)});
+    float thr = ${C.pool.thr0.toFixed(4)} - ${C.pool.thrWet.toFixed(4)} * wet;
+    return smoothstep(0.0, 1.0, clamp((n - (thr - edge)) / (2.0 * edge), 0.0, 1.0));
+  }
+  float gfMixNoise(float u, float w){
+    return (${C.mix.oct.map(([N, k, du, dw]) => `${k.toFixed(4)} * gfVnoiseT(u + ${du.toFixed(4)}, w + ${dw.toFixed(4)}, ${N})`).join(' + ')}) / ${C.mix.norm.toFixed(4)};
+  }
+  float gfMixK(vec2 xz, float period, float bias, float sharp){
+    float u = xz.x / period, w = xz.y / period;
+    float u2 = (${C.mix.rot[0].toFixed(4)} * u + ${C.mix.rot[1].toFixed(4)} * w) * ${C.mix.scale2.toFixed(4)} + ${C.mix.off2[0].toFixed(4)};
+    float w2 = (${C.mix.rot[2].toFixed(4)} * u + ${C.mix.rot[3].toFixed(4)} * w) * ${C.mix.scale2.toFixed(4)} + ${C.mix.off2[1].toFixed(4)};
+    float n = ${C.mix.w1.toFixed(4)} * gfMixNoise(u, w) + ${C.mix.w2.toFixed(4)} * gfMixNoise(u2, w2);
+    return clamp((n - bias) * sharp + 0.5, 0.0, 1.0);
+  }
+  float gfBlotch(vec2 xz, int seed){
+    float L = ${(C.blotch.cellM * C.blotch.cells).toFixed(1)};
+    return 1.0 - ${C.blotch.amount.toFixed(4)} * (0.5 + 0.5 * gfVnoiseT(xz.x / L + float(seed % 13) / 13.0, xz.y / L + float(seed % 7) / 7.0, ${C.blotch.cells}));
+  }
+  vec2 gfShade(vec2 xz, float cell){
+    float c = max(cell, 1.0), L = c * 64.0, L2 = c * ${C.shade.scaleB.toFixed(4)} * 64.0;
+    float h = (${C.shade.octA.toFixed(4)} * gfVnoiseT(xz.x / L + ${C.shade.offH[0].toFixed(4)}, xz.y / L + ${(C.shade.offH[0] * 0.5).toFixed(4)}, 64) + ${C.shade.octB.toFixed(4)} * gfVnoiseT(xz.x / L2 + ${C.shade.offH[1].toFixed(4)}, xz.y / L2, 64)) * 2.0 - 1.0;
+    float v = (${C.shade.octA.toFixed(4)} * gfVnoiseT(xz.x / L + ${C.shade.offV[0].toFixed(4)}, xz.y / L + ${(C.shade.offV[0] * 0.5).toFixed(4)}, 64) + ${C.shade.octB.toFixed(4)} * gfVnoiseT(xz.x / L2 + ${C.shade.offV[1].toFixed(4)}, xz.y / L2, 64)) * 2.0 - 1.0;
+    return vec2(h, v);
+  }
+  vec3 gfHueTurn(vec3 c, float a){
+    vec3 k = vec3(0.57735027); float ca = cos(a), sa = sin(a);
+    return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca);
+  }
+`;
+
+  // a self-check: the JS against itself at a few points (the GLSL is checked
+  // on the bench by reading pixels back - see tools/_island.html)
+  function selfCheck() {
+    const a = poolAt(123.4, -567.8, 0.45), b = mixK(10, 20, 160, 0.52, 4), c = blotch(5, 5, 42), d = shade(1000, 2000, 25);
+    return isFinite(a + b + c + d.hue + d.value) && a >= 0 && a <= 1 && b >= 0 && b <= 1 && c >= 0 && c <= 1;
+  }
+
+  return { C, RECIPE, CODES, hash2, vnoiseT, poolAt, mixK, blotch, shade, hueTurn, deriveCode, groundColor, glsl, selfCheck };
+})();
+if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = GROUND_FIELDS;
 // 29_obstacles.js — THE SOLID THINGS ON THE GROUND (G433, the user: "hitbox for
 // static car props ... audit hitboxes for everything ... No more than 1 meter
 // discrepancy with the visual mesh").
@@ -35146,7 +35395,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='10cc5ebc2da8';window.FLYDIY_BUILD='3a92e3cd85b2'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='aae401f281af';window.FLYDIY_BUILD='9f40e4201a14'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -93540,6 +93789,418 @@ function siteEdgeFade(THREE, mat, soft, w, d) {
 }
 </script>
 <script type="text/x-flydiy">
+// GENERATED FILE - DO NOT EDIT. Built by tools/splat_tex_prep.js from
+// assets/splat/ + assets/lot/ (CC0: Poly Haven, ambientCG; see CREDITS.md).
+// The files live under media/tex/splat/ (hash-in-filename); a map's Image is
+// made when a consumer first reads it (a getter). THE ORDER is the module's
+// RECIPE.library (src/core/28b_ground_fields.js): a set's index here is its
+// layer in the game's texture arrays.
+//
+// THE ISLAND'S GROUND LIBRARY (alpha splatting): seventeen sets the splat
+// draws by terrain type - colour + height, normal - at 512. `mean` is the
+// set's mean colour (linear rgb 0-1, measured at import): what a tuft takes
+// at its foot (GROUND_FIELDS.groundColor), never a pixel read at runtime.
+const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
+  const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
+  return [
+    { key: 'beach', metres: 29.98, px: 512, mean: [0.2826,0.2371,0.196],
+      get diff() { return mk('media/tex/splat/beach_diff_512.ea67fba6.jpg'); },
+      get nor() { return mk('media/tex/splat/beach_nor_gl_512.6bee5c90.jpg'); },
+      get height() { return mk('media/tex/splat/beach_height_512.6bea814d.jpg'); } },
+    { key: 'rocksA', metres: 78.93, px: 512, mean: [0.2155,0.1901,0.107],
+      get diff() { return mk('media/tex/splat/rocksA_diff_512.9c1bf1ef.jpg'); },
+      get nor() { return mk('media/tex/splat/rocksA_nor_gl_512.85631457.jpg'); },
+      get height() { return mk('media/tex/splat/rocksA_height_512.251b4884.jpg'); } },
+    { key: 'rocksB', metres: 50.18, px: 512, mean: [0.1648,0.1158,0.046],
+      get diff() { return mk('media/tex/splat/rocksB_diff_512.0b0af9e9.jpg'); },
+      get nor() { return mk('media/tex/splat/rocksB_nor_gl_512.4c42214e.jpg'); },
+      get height() { return mk('media/tex/splat/rocksB_height_512.fd54b346.jpg'); } },
+    { key: 'mud', metres: 1.25, px: 512, mean: [0.0897,0.0702,0.0458],
+      get diff() { return mk('media/tex/splat/mud_diff_512.636dd758.jpg'); },
+      get nor() { return mk('media/tex/splat/mud_nor_gl_512.3c1c6eca.jpg'); },
+      get height() { return mk('media/tex/splat/mud_height_512.dbd5e95c.jpg'); } },
+    { key: 'leaves', metres: 1.49, px: 512, mean: [0.2264,0.1177,0.0461],
+      get diff() { return mk('media/tex/splat/leaves_diff_512.c5814c38.jpg'); },
+      get nor() { return mk('media/tex/splat/leaves_nor_gl_512.fd8b9ff4.jpg'); },
+      get height() { return mk('media/tex/splat/leaves_height_512.2ea4040a.jpg'); } },
+    { key: 'cliff', metres: 6.86, px: 512, mean: [0.3136,0.1726,0.11],
+      get diff() { return mk('media/tex/splat/cliff_diff_512.76c57eb9.jpg'); },
+      get nor() { return mk('media/tex/splat/cliff_nor_gl_512.226afdcc.jpg'); },
+      get height() { return mk('media/tex/splat/cliff_height_512.b8482fc3.jpg'); } },
+    { key: 'rocksG', metres: 2.03, px: 512, mean: [0.2521,0.2134,0.1638],
+      get diff() { return mk('media/tex/splat/rocksG_diff_512.98760b2f.jpg'); },
+      get nor() { return mk('media/tex/splat/rocksG_nor_gl_512.1db280fd.jpg'); },
+      get height() { return mk('media/tex/splat/rocksG_height_512.449e6feb.jpg'); } },
+    { key: 'rockyA', metres: 89.94, px: 512, mean: [0.0807,0.0773,0.0122],
+      get diff() { return mk('media/tex/splat/rockyA_diff_512.76703799.jpg'); },
+      get nor() { return mk('media/tex/splat/rockyA_nor_gl_512.f90cabd9.jpg'); },
+      get height() { return mk('media/tex/splat/rockyA_height_512.5425c5e1.jpg'); } },
+    { key: 'rockyB', metres: 89.79, px: 512, mean: [0.0855,0.053,0.0176],
+      get diff() { return mk('media/tex/splat/rockyB_diff_512.89dbf1a1.jpg'); },
+      get nor() { return mk('media/tex/splat/rockyB_nor_gl_512.49ff538c.jpg'); },
+      get height() { return mk('media/tex/splat/rockyB_height_512.330377f8.jpg'); } },
+    { key: 'grassRock', metres: 15.04, px: 512, mean: [0.169,0.1211,0.0241],
+      get diff() { return mk('media/tex/splat/grassRock_diff_512.8198f8c5.jpg'); },
+      get nor() { return mk('media/tex/splat/grassRock_nor_gl_512.1e5e64b9.jpg'); },
+      get height() { return mk('media/tex/splat/grassRock_height_512.857d1079.jpg'); } },
+    { key: 'forestAir', metres: 80.81, px: 512, mean: [0.1259,0.083,0.026],
+      get diff() { return mk('media/tex/splat/forestAir_diff_512.c019a81f.jpg'); },
+      get nor() { return mk('media/tex/splat/forestAir_nor_gl_512.7d8881b5.jpg'); },
+      get height() { return mk('media/tex/splat/forestAir_height_512.0cce78f7.jpg'); } },
+    { key: 'snowAir', metres: 81.2, px: 512, mean: [0.2491,0.2483,0.3039],
+      get diff() { return mk('media/tex/splat/snowAir_diff_512.ea591acc.jpg'); },
+      get nor() { return mk('media/tex/splat/snowAir_nor_gl_512.d34a594e.jpg'); },
+      get height() { return mk('media/tex/splat/snowAir_height_512.de33c545.jpg'); } },
+    { key: 'lush', metres: 2.4, px: 512, mean: [0.0584,0.1065,0.0218],
+      get diff() { return mk('media/tex/splat/lush_diff_512.90a67ae0.jpg'); },
+      get nor() { return mk('media/tex/splat/lush_nor_gl_512.379ad06b.jpg'); },
+      get height() { return mk('media/tex/splat/lush_height_512.fcd11ebd.jpg'); } },
+    { key: 'grass', metres: 2.4, px: 512, mean: [0.119,0.1528,0.0305],
+      get diff() { return mk('media/tex/splat/grass_diff_512.7cc9f4c2.jpg'); },
+      get nor() { return mk('media/tex/splat/grass_nor_gl_512.151550a5.jpg'); },
+      get height() { return mk('media/tex/splat/grass_height_512.518d6118.jpg'); } },
+    { key: 'pebble', metres: 4.5, px: 512, mean: [0.2178,0.2034,0.1649],
+      get diff() { return mk('media/tex/splat/pebble_diff_512.00fbe38a.jpg'); },
+      get nor() { return mk('media/tex/splat/pebble_nor_gl_512.b29a459b.jpg'); },
+      get height() { return mk('media/tex/splat/pebble_height_512.a96462f6.jpg'); } },
+    { key: 'dry', metres: 2.2, px: 512, mean: [0.3005,0.2486,0.1239],
+      get diff() { return mk('media/tex/splat/dry_diff_512.9f177ab8.jpg'); },
+      get nor() { return mk('media/tex/splat/dry_nor_gl_512.89d1ffc2.jpg'); },
+      get height() { return mk('media/tex/splat/dry_height_512.0249b249.jpg'); } },
+    { key: 'dirt', metres: 1.8, px: 512, mean: [0.1326,0.1085,0.0826],
+      get diff() { return mk('media/tex/splat/dirt_diff_512.c5983cf7.jpg'); },
+      get nor() { return mk('media/tex/splat/dirt_nor_gl_512.27f8e9b2.jpg'); },
+      get height() { return mk('media/tex/splat/dirt_height_512.ecb3a4f1.jpg'); } },
+  ];
+})() : null;
+</script>
+<script type="text/x-flydiy">
+// ===========================================================================
+// THE ISLAND'S SPLAT, IN THE GAME (alpha splatting, 2026-09-20) — the bench's
+// tools/_island.html `splat` source ported into the island ground hook of
+// render_world.js: the ground drawn by terrain type from the library
+// (media/tex/splat, seventeen sets in two texture arrays), height-blended,
+// hex-tiled, triplanar, with the shared micro-fields (28b_ground_fields.js)
+// and the macro tiers - the detail gives way to the aerial packs, then to the
+// stack the game already ships (the lit Landsat albedo IS the macro here).
+// ===========================================================================
+// WHAT THIS FILE OWNS
+//   SPLAT_GROUND.make(gU, isla)  -> { uniforms, glslCommon, glslMap, glslNormal, api }
+//     uniforms    the u S* uniforms (two arrays, the per-code tables, the knobs)
+//     glslCommon  the functions, spliced after the hook's own helpers
+//     glslMap     the call, spliced into the map_fragment block after the
+//                 stack's `t` (the stack is the macro it fades to)
+//     glslNormal  the normal's perturbation, spliced after normal_fragment_maps
+//     api         F8's handle: get/set knobs, code rows, grades, the library
+//   The arrays are assembled from SPLAT_TEX_SETS (lazily-made Images) once the
+//   maps have decoded; the ground draws the stack alone until then (uSplatOn).
+//
+// SAMPLERS (measured, tools/sampler_census.js, 2026-09-20): the near ring
+// spent 8 units, the outer ring 12, the premises patch 13, of 16; the two
+// arrays make that 10 / 14 / 15. Nothing else may be added to the island's
+// ground programs without a census.
+//
+// THE SHADER'S RULES (learned on the bench, ANGLE/D3D):
+//   - implicit texture() on the arrays: textureGrad/textureLod on a
+//     sampler2DArray is an fxc INTERNAL ERROR (links unoptimised on the third
+//     retry and took the GPU process down);
+//   - loop bounds are UNIFORMS: a constant-bound loop with the material chain
+//     inside is unrolled fourteen times;
+//   - one struct through the chain, no `out` parameters;
+//   - an oriented set (the beach facing the sea) tiles plainly, never turned.
+'use strict';
+const SPLAT_GROUND = (() => {
+  const NCODE = 15, NLIB = 24;
+  const G = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
+
+  // ---- the state: the recipe (the module's default under the browser's copy) --
+  const load = () => {
+    const R = JSON.parse(JSON.stringify(G.RECIPE));
+    try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.splat.v1') || 'null');
+      if (sv) { if (sv.codes) for (const k in sv.codes) R.codes[k] = Object.assign(R.codes[k] || {}, sv.codes[k]);
+        if (sv.knobs) Object.assign(R.knobs, sv.knobs); if (sv.grade) R.grade = sv.grade; if (sv.on !== undefined) R.on = sv.on; } } catch (e) {}
+    if (R.on === undefined) R.on = 1;
+    R.knobs.macroExp = 1;   // the game's macro is the LIT stack; the bench's exposure was its own light's
+    return R;
+  };
+  const save = R => { try { localStorage.setItem('flydiy.ground.splat.v1', JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })); } catch (e) {} };
+
+  // ---- the GLSL: the bench's splat, on the game's fields ----------------------
+  // inputs the hook already has at map_fragment: vWPi (world), gA (ori, canopy,
+  // coast, lake), uGPackB (ndvi, terrain type), uGGrid, uGCell, gVnoise, gLuma,
+  // gN (the slope normal off the screen derivatives), cameraPosition
+  const glslCommon = () => `
+  uniform highp sampler2DArray uSplat, uSplatN;
+  uniform float uSplatOn;
+  uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
+  uniform vec4 uSGrade[${NLIB}];
+  uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
+  uniform vec2 uSSeam, uSNrm, uSLakeE;
+  uniform float uSBeachRot;
+  uniform int uSNCode, uSNCand;
+  vec3 gSN; float gSRough; float gSHexRot;
+  ${G.glsl}
+  struct Smp { vec4 c; vec4 n; };
+  vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
+    float ma = max(max(ha + wa, hb + wb), hc + wc) - depth;
+    vec3 b = max(vec3(ha + wa, hb + wb, hc + wc) - ma, 0.0);
+    return b / (b.x + b.y + b.z);
+  }
+  vec2 sHweights2(float ha, float wa, float hb, float wb, float depth){
+    float ma = max(ha + wa, hb + wb) - depth;
+    vec2 b = max(vec2(ha + wa, hb + wb) - ma, 0.0);
+    return b / (b.x + b.y);
+  }
+  vec2 sHash2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+  Smp sFetch(float layer, vec2 uv, vec2 cs){
+    Smp o;
+    o.c = texture(uSplat, vec3(uv, layer));
+    o.c.rgb = sRGBTransferEOTF(vec4(o.c.rgb, 1.0)).rgb;   // the colour is sRGB bytes decoded here (an sRGB array texture is refused - GL 1281); the height in alpha is linear
+    vec4 nr = texture(uSplatN, vec3(uv, layer));
+    vec2 t = nr.xy * 2.0 - 1.0;
+    t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);
+    o.n = vec4(t, nr.z * 2.0 - 1.0, nr.a);
+    vec4 g = uSGrade[int(layer + 0.5)];
+    o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
+    return o;
+  }
+  Smp sTile(float layer, vec2 st){
+    if (uSHex.y < 0.5 || gSHexRot < 0.0) return sFetch(layer, st, vec2(1.0, 0.0));
+    vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uSHex.z);
+    vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+    float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+    vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+    vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
+    vec2 r1 = sHash2(v1), r2 = sHash2(v2), r3 = sHash2(v3);
+    float a1 = (r1.x - 0.5) * 2.0 * gSHexRot, a2 = (r2.x - 0.5) * 2.0 * gSHexRot, a3 = (r3.x - 0.5) * 2.0 * gSHexRot;
+    mat2 R1 = mat2(cos(a1), sin(a1), -sin(a1), cos(a1)), R2 = mat2(cos(a2), sin(a2), -sin(a2), cos(a2)), R3 = mat2(cos(a3), sin(a3), -sin(a3), cos(a3));
+    Smp s1 = sFetch(layer, R1 * st + r1 * 7.3, vec2(cos(a1), sin(a1)));
+    Smp s2v = sFetch(layer, R2 * st + r2 * 7.3, vec2(cos(a2), sin(a2)));
+    Smp s3 = sFetch(layer, R3 * st + r3 * 7.3, vec2(cos(a3), sin(a3)));
+    vec3 hw = sHweights3(s1.c.a, w.x, s2v.c.a, w.y, s3.c.a, w.z, uSHex.x);
+    Smp o; o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+    return o;
+  }
+  Smp sSet(float layer, float scale, vec3 P, vec3 tw, float ang){
+    scale = max(scale, 0.01);
+    vec2 p = P.xz; float ca = 1.0, sa = 0.0;
+    gSHexRot = ang != 0.0 ? -1.0 : uSHex.w;
+    if (ang != 0.0) { ca = cos(ang); sa = sin(ang); mat2 R = mat2(ca, sa, -sa, ca); p = R * p; }
+    Smp t = sTile(layer, p / scale);
+    vec2 tt = vec2(ca * t.n.x + sa * t.n.y, -sa * t.n.x + ca * t.n.y);
+    Smp o; o.c = t.c * tw.y; o.n = vec4(tt.x, 0.0, tt.y, t.n.a) * tw.y;
+    if (tw.x > 0.01) { Smp u = sTile(layer, P.zy / scale); o.c += u.c * tw.x; o.n += vec4(0.0, u.n.y, u.n.x, u.n.a) * tw.x; }
+    if (tw.z > 0.01) { Smp u = sTile(layer, P.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
+    return o;
+  }
+  Smp sTriplet(vec4 A, vec4 S, vec3 P, vec3 tw, float ang, float m1, float m2){
+    Smp a = sSet(A.x, S.x, P, tw, ang);
+    if (A.y < 0.0) return a;
+    Smp b = sSet(A.y, S.y, P, tw, ang);
+    Smp o;
+    if (A.z < 0.0) { vec2 w = sHweights2(a.c.a, 1.0 - m1, b.c.a, m1, uSHex.x); o.c = a.c * w.x + b.c * w.y; o.n = a.n * w.x + b.n * w.y; return o; }
+    Smp c = sSet(A.z, S.z, P, tw, ang);
+    vec3 w = sHweights3(a.c.a, (1.0 - m1) * (1.0 - m2), b.c.a, m1 * (1.0 - m2), c.c.a, m2, uSHex.x);
+    o.c = a.c * w.x + b.c * w.y + c.c * w.z; o.n = a.n * w.x + b.n * w.y + c.n * w.z;
+    return o;
+  }
+  Smp sMat(int i, vec3 P, vec3 tw, float seaAng, float fw, float slope){
+    vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
+    Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
+    if (A.x < 0.0) return o;
+    float ang = A.w > 0.5 ? seaAng : 0.0;
+    float period = max(M.x, 0.5) * 6.0, sharp = M.y * 4.0;
+    float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
+    float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
+    vec4 F = uSMatF[i], FS = uSMatFS[i];
+    if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
+    o.c = vec4(0.0); o.n = vec4(0.0);
+    if (fw < 0.999) { Smp t = sTriplet(A, S, P, tw, ang, m1, m2); o.c += (1.0 - fw) * t.c; o.n += (1.0 - fw) * t.n; }
+    if (fw > 0.001) { Smp t = sTriplet(F, FS, P, tw, ang, m1, m2); o.c += fw * t.c; o.n += fw * t.n; }
+    vec4 V = uSVary[i];
+    if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
+    if (i == 3 && uSPud.y > 0.0) {
+      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, uSPud.z);
+      o.c.rgb = mix(o.c.rgb, vec3(0.022, 0.030, 0.034), m);   // still water, linear
+      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m);
+    }
+    return o;
+  }
+  int sCodeAt(vec2 cellIx){
+    vec2 gn = uGGrid.zw / uGCell;
+    return min(int(texture2D(uGPackB, (cellIx + 0.5) / gn).g * 255.0 + 0.5), 11);
+  }
+  // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
+  vec3 sSplat(vec3 macro, vec3 nGeo, float canopy, vec2 uv, float sd, float lsd){
+    gSN = vec3(0.0); gSRough = 0.9;
+    vec2 xz = vWPi.xz, p = xz;
+    float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
+    if (uSSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(gVnoise(q), gVnoise(q + 77.0)) - 0.5) * 2.0 * uSSplit2.z; }
+    float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
+    vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
+    vec2 b = floor(g), f = g - b;
+    float R = max(uSSplit2.w, 0.3), wsum = 0.0;
+    for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
+      vec2 o = vec2(float(i), float(j));
+      float d = length(o - f) / R;
+      if (d >= 1.0) continue;
+      float k = (1.0 - d) * (1.0 - d);
+      w[sCodeAt(b + o)] += k; wsum += k;
+    }
+    for (int i = 0; i < uSNCode; i++) w[i] /= max(wsum, 1e-4);
+    w[4] += w[0]; w[0] = 0.0;
+    float lakeM = 0.0;
+    if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
+    w[1] = 0.0;
+    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope);
+    float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
+    float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
+    w[12] = w[6] * sCliff; w[6] *= 1.0 - sCliff;
+    w[13] = w[8] * sOld;   w[8] *= 1.0 - sOld;
+    w[14] = w[7] * sDense; w[7] *= 1.0 - sDense;
+    vec2 e = vec2(1.0 / uGGrid.z, 1.0 / uGGrid.w) * 1.5;
+    vec2 gr = vec2(texture2D(uGPackA, uv + vec2(e.x, 0.0)).b - texture2D(uGPackA, uv - vec2(e.x, 0.0)).b,
+                   texture2D(uGPackA, uv + vec2(0.0, e.y)).b - texture2D(uGPackA, uv - vec2(0.0, e.y)).b);
+    float seaAng = uSBeachRot - atan(gr.x, gr.y);
+    float d = distance(vWPi, cameraPosition);
+    float fw = smoothstep(uSDist.x, uSDist.y, d);
+    float mw = uSDist2.x * smoothstep(uSDist.z, uSDist.w, d);
+    vec3 tw = vec3(0.0, 1.0, 0.0);
+    if (uSDist2.z > 0.5) { vec3 a = pow(abs(nGeo), vec3(uSDist2.z)); tw = a / (a.x + a.y + a.z); }
+    vec4 C[8]; vec4 NN[8]; float Wt[8]; int n = 0; float ma = -10.0;
+    for (int i = 0; i < uSNCode; i++) {
+      if (w[i] < 0.004 || n >= uSNCand) continue;
+      Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
+      C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; ma = max(ma, m.c.a + w[i]); n++;
+    }
+    ma -= uSSeam.x;
+    vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0;
+    for (int j = 0; j < uSNCand; j++) {
+      if (j >= n) break;
+      float bb = max(C[j].a + Wt[j] - ma, 0.0);
+      col += C[j].rgb * bb; nrm += NN[j] * bb; tot += bb;
+    }
+    col = tot > 1e-5 ? col / tot : macro;
+    nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
+    gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM);
+    gSRough = clamp(nrm.a, 0.05, 1.0);
+    vec3 mac = macro * uSSeam.y;
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * (lc / max(gLuma(mac), 1e-3)); col = mix(col, tinted, uSDist2.y); }
+    return mix(col, mac, mw);
+  }
+`;
+  // in the map_fragment block, right after the stack's t (before the water and the shore)
+  const glslMap = () => `
+  if (uSplatOn > 0.5) t = sSplat(t, gN, can, guv, (gA.b * 255.0 - 128.0) * 4.0, lsd);
+`;
+  // after normal_fragment_maps: the sets' relief bends the shading normal (view space)
+  const glslNormal = () => `
+  if (uSplatOn > 0.5) { vec3 pw = (viewMatrix * vec4(gSN, 0.0)).xyz; normal = normalize(normal + pw); }
+`;
+
+  // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
+  function buildArrays(sets, U, done) {
+    const N = sets.length, px = sets[0].px, S = px * px * 4;
+    const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
+    const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
+    const ctx = cnv.getContext('2d', { willReadFrequently: true });
+    const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
+    Promise.all(sets.map(async (m, i) => {
+      const [d, n, h] = [m.diff, m.nor, m.height];
+      await Promise.all([dec(d), dec(n), dec(h)]);
+      const o = i * S;
+      if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
+      if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = hd[k * 4]; }
+      else for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = 128;
+      if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
+      else for (let k = 0; k < px * px; k++) { dataN[o + k * 4] = 128; dataN[o + k * 4 + 1] = 128; dataN[o + k * 4 + 2] = 255; }
+      for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
+    })).then(() => {
+      const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
+        t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
+        // NOT colorSpace = sRGB: an SRGB8_ALPHA8 array upload came back GL_INVALID_VALUE (2026-09-20) - the shader decodes
+        t.anisotropy = 8; t.needsUpdate = true; return t; };
+      U.uSplat.value = mk(data, true); U.uSplatN.value = mk(dataN, false);
+      done();
+    });
+  }
+
+  function make(gU) {
+    if (!G || typeof SPLAT_TEX_SETS === 'undefined' || !SPLAT_TEX_SETS) return null;
+    // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
+    try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
+    const R = load();
+    const LIB = SPLAT_TEX_SETS.map(s => s.key);
+    const V4 = () => new THREE.Vector4();
+    const blank = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); blank.needsUpdate = true;
+    const blankN = new THREE.DataArrayTexture(new Uint8Array([128, 128, 255, 230]), 1, 1, 1); blankN.needsUpdate = true;
+    const U = {
+      uSplat: { value: blank }, uSplatN: { value: blankN }, uSplatOn: { value: 0 },
+      uSMatA: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(-1, -1, -1, 0)) },
+      uSMatS: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(1, 1, 1, 0)) },
+      uSMatF: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(-1, -1, -1, 0)) },
+      uSMatFS: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(1, 1, 1, 0)) },
+      uSMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
+      uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
+      uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
+      uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
+      uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
+      uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
+    };
+    let ready = false;
+    const push = () => {
+      const K = R.knobs;
+      for (let i = 0; i < NCODE; i++) {
+        const m = R.codes[i], A = U.uSMatA.value[i], S = U.uSMatS.value[i], F = U.uSMatF.value[i], FS = U.uSMatFS.value[i], M = U.uSMatM.value[i], Vv = U.uSVary.value[i];
+        if (!m) { A.set(-1, -1, -1, 0); continue; }
+        const li = k => k ? LIB.indexOf(k) : -1;
+        A.set(li(m.tex[0]), li(m.tex[1]), li(m.tex[2]), m.orient === 'sea' ? 1 : 0);
+        S.set(m.scale[0] || 1, m.scale[1] || 1, m.scale[2] || 1, 0);
+        const far = m.far || [null, null, null], fs = m.farScale || [0, 0, 0];
+        F.set(li(far[0]), li(far[1]), li(far[2]), 0); FS.set(fs[0] || 1, fs[1] || 1, fs[2] || 1, 0);
+        M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
+        const v = m.vary || [0, 0, 20]; Vv.set(v[0] * Math.PI / 180, v[1], v[2], 0);
+      }
+      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat); });
+      U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
+      U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
+      U.uSDist.value.set(K.detailFrom, K.detailTo, K.macroFrom, K.macroTo);
+      U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, 0);
+      U.uSHex.value.set(K.hDepth, K.hexOn, K.hexN, K.hexRot * Math.PI / 180);
+      U.uSSeam.value.set(K.seamDepth, K.macroExp);
+      U.uSNrm.value.set(K.nrmK, K.specK);
+      U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
+      U.uSLakeE.value.set(K.lakeEdge, 1);
+      U.uSBeachRot.value = K.beachRot * Math.PI / 180;
+      U.uSplatOn.value = (ready && R.on) ? 1 : 0;
+    };
+    push();
+    buildArrays(SPLAT_TEX_SETS, U, () => { ready = true; push(); });
+    const api = {
+      on: () => !!R.on,
+      ready: () => ready,
+      library: () => SPLAT_TEX_SETS.map(s => ({ key: s.key, metres: s.metres })),
+      names: () => Object.assign({}, G.RECIPE.names),
+      knobs: () => Object.assign({}, R.knobs),
+      set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
+      code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
+      setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
+        for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
+      grade: k => Object.assign({ gain: '#ffffff', sat: 1 }, R.grade[k] || {}),
+      setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
+      reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
+      export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
+    };
+    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), api };
+  }
+  return { make };
+})();
+if (typeof window !== 'undefined') window.SPLAT_GROUND = SPLAT_GROUND;
+</script>
+<script type="text/x-flydiy">
 // trees_pack.js - BAKED by tools/tree_prep.py, do not edit.
 // The tree payload manifest: one collection per curated pack,
 // its subjects, their rungs, and the maps their materials wear.
@@ -94881,7 +95542,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {};
-    let islandGroundHook = null;
+    let islandGroundHook = null, SPL = null;
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
@@ -94916,9 +95577,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
       });
       GROUND.on = true;
+      // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
+      // type from the library (src/viewer/splat_ground.js owns it): two
+      // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
+      // on the near ring / outer ring / premises patch (tools/sampler_census.js)
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU) : null;
       islandGroundHook = sh => {
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-        Object.assign(sh.uniforms, gU);
+        Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;')
           .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPi = (modelMatrix * vec4(position, 1.0)).xyz;');
@@ -94966,7 +95632,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  return s; }\n' +
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
-            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }')
+            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' +
+            (SPL ? SPL.glslCommon : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
@@ -94997,12 +95664,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    else { s = vec3(0.85, 0.88, 0.95); a = snowA; }\n' +
             '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
             '  }\n' +
+            // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
+            // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
+            (SPL ? SPL.glslMap : '') +
             '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")
             '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
-            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
+            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SPL ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane
             '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
@@ -95025,9 +95695,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
             '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' +
             '  diffuseColor.rgb = t; }');
+        if (SPL) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal);
       };
     }
     groundApi = {
+      splat: () => (SPL ? SPL.api : null),
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),
@@ -128095,6 +128767,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     return row;
   };
   const note = t => $('div', { class: 'note', text: t });
+  const color = (label, get, set) => {
+    const inp = $('input', { type: 'color' }), out = $('output');
+    const row = $('div', { class: 'r' }, [$('label', { text: label }), inp, out]);
+    inp.oninput = () => { set(inp.value); out.textContent = inp.value; };
+    rows.push({ el: row, refresh: () => { try { inp.value = get(); out.textContent = inp.value; } catch (e) {} } });
+    return row;
+  };
+  const button = (label, fn) => { const b = $('button', { text: label }); b.onclick = () => { fn(); refresh(); }; return $('div', { class: 'r' }, [$('label', { text: '' }), b, $('output')]); };
   // A FOLD (2026-09-14, the user: "unify the world sliders with the F8 menu ...
   // the settings on individual species can be collapsed, grouped under an
   // overall tree section, but we need to surface the environment controls"):
@@ -128148,6 +128828,83 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       });
       Ms.appendChild(note('class (WorldCover palette) > tint (Landsat) > radar (IFSAR, level 1) > shade (canopy, normalised) > snow (its own mask). Remembered in this browser.'));
       M.appendChild(note('after the stack: the rocky shore off the coast field, then lightness and saturation; lit by the sun after'));
+      // ---- THE SPLAT (alpha splatting, 2026-09-20): the textures by terrain type ----
+      const SP = world().ground.splat && world().ground.splat();
+      if (SP) {
+        const Sf = fold(M, 'splat (the textures by terrain type)', true, true);
+        const ss = k => v => SP.set({ [k]: v });
+        const kn = k => () => SP.knobs()[k];
+        Sf.appendChild(select('splat', [['1', 'on'], ['0', 'off (the stack alone)']], () => String(SP.on() ? 1 : 0), v => SP.set({ on: +v })));
+        Sf.appendChild(note('the ground drawn by terrain type from the library (17 sets): up to three sets per type mixed by the shared cloud mask, height-blended, hex-tiled, triplanar on the steep; the detail gives way to the aerial sets, then to the stack above. The bench (tools/_island.html) has the same knobs; `export` prints this browser\u2019s table.'));
+        const LIB = [['', '- none -']].concat(SP.library().map(l => [l.key, `${l.key} (${l.metres} m)`]));
+        const NAMES = SP.names();
+        // THE TEXTURE PICKER: one surface at a time - its near and far triplets with their scales, the mask, the variation
+        const Sp = fold(Sf, 'surfaces (the texture picker)', true, true);
+        let cur = 2;
+        const codeOpts = Object.keys(NAMES).filter(k => +k >= 2).map(k => [k, `${k} ${NAMES[k]}`]);
+        Sp.appendChild(select('surface', codeOpts, () => String(cur), v => { cur = +v; }));
+        Sp.appendChild(note('12 cliff, 13 forest old and 14 scrub dense are derived in the shader from rock / forest / scrub by slope and canopy (the splits below)'));
+        const C = () => SP.code(cur) || { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] };
+        const setArr = (key, j, v) => { const c = C(); const a = (c[key] || [null, null, null]).slice(); a[j] = v; SP.setCode(cur, { [key]: a }); };
+        const metres = k => { const l = SP.library().find(x => x.key === k); return l ? l.metres : 1; };
+        ['A', 'B', 'C'].forEach((L, j) => {
+          Sp.appendChild(select(`near ${L}`, LIB, () => C().tex[j] || '', v => { setArr('tex', j, v || null); if (v) setArr('scale', j, metres(v)); }));
+          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => C().scale[j], v => setArr('scale', j, v), v => v + ' m'));
+        });
+        ['A', 'B', 'C'].forEach((L, j) => {
+          Sp.appendChild(select(`far ${L}`, LIB, () => (C().far || [])[j] || '', v => { setArr('far', j, v || null); if (v) setArr('farScale', j, metres(v)); }));
+          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => (C().farScale || [0, 0, 0])[j], v => setArr('farScale', j, v), v => v + ' m'));
+        });
+        Sp.appendChild(note('an empty far slot keeps the near set at distance; picking a set takes its own scale, then adjust'));
+        Sp.appendChild(slider('mask cell', 2, 200, 1, () => C().mix[0], v => setArr('mix', 0, v), v => v + ' m'));
+        Sp.appendChild(slider('mask sharpness', 0.1, 6, 0.1, () => C().mix[1], v => setArr('mix', 1, v)));
+        Sp.appendChild(slider('bias A|B', -1, 1, 0.05, () => C().mix[2], v => setArr('mix', 2, v)));
+        Sp.appendChild(slider('bias C', -1, 1, 0.05, () => C().mix[3], v => setArr('mix', 3, v)));
+        Sp.appendChild(slider('hue swing', 0, 40, 1, () => (C().vary || [0, 0, 20])[0], v => setArr('vary', 0, v), v => v + '\u00b0'));
+        Sp.appendChild(slider('value swing', 0, 0.6, 0.01, () => (C().vary || [0, 0, 20])[1], v => setArr('vary', 1, v)));
+        Sp.appendChild(slider('vary cell', 2, 120, 1, () => (C().vary || [0, 0, 20])[2], v => setArr('vary', 2, v), v => v + ' m'));
+        Sp.appendChild(select('orient', [['', 'as is'], ['sea', 'face the sea (the beach)']], () => C().orient || '', v => SP.setCode(cur, { orient: v || undefined })));
+        // THE GRADE per set: a gain and a saturation - the sheet's numbers (tools/splat_sheet.py)
+        const Sg = fold(Sf, 'grade (per set)', false, true);
+        let gk = 'dry';
+        Sg.appendChild(select('set', LIB.slice(1), () => gk, v => { gk = v; }));
+        Sg.appendChild(color('gain', () => SP.grade(gk).gain, v => SP.setGrade(gk, { gain: v })));
+        Sg.appendChild(slider('saturation', 0, 2, 0.05, () => SP.grade(gk).sat, v => SP.setGrade(gk, { sat: v })));
+        const Sd = fold(Sf, 'distance \u00b7 macro', false, true);
+        Sd.appendChild(slider('detail fades from', 0, 2000, 25, kn('detailFrom'), ss('detailFrom'), v => v + ' m'));
+        Sd.appendChild(slider('detail gone by', 50, 4000, 25, kn('detailTo'), ss('detailTo'), v => v + ' m'));
+        Sd.appendChild(slider('macro from', 0, 10000, 100, kn('macroFrom'), ss('macroFrom'), v => v + ' m'));
+        Sd.appendChild(slider('macro full by', 100, 30000, 100, kn('macroTo'), ss('macroTo'), v => v + ' m'));
+        Sd.appendChild(slider('macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix')));
+        Sd.appendChild(slider('macro tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear')));
+        Sd.appendChild(note('the macro is the stack above (the Landsat albedo the game already ships); \u201ctint under\u201d gives the detail the place\u2019s colour, luminance kept'));
+        const Sb = fold(Sf, 'blend \u00b7 tiling', false, true);
+        Sb.appendChild(slider('blend radius', 0.5, 3, 0.1, kn('splatBlend'), ss('splatBlend'), v => v + ' cells'));
+        Sb.appendChild(slider('edge wobble', 0, 40, 1, kn('splatWobble'), ss('splatWobble'), v => v + ' m'));
+        Sb.appendChild(slider('zone seam depth', 0.02, 1, 0.02, kn('seamDepth'), ss('seamDepth')));
+        Sb.appendChild(slider('height depth', 0.02, 1, 0.02, kn('hDepth'), ss('hDepth')));
+        Sb.appendChild(select('hex tiling', [['1', 'on'], ['0', 'off']], () => String(SP.knobs().hexOn), v => SP.set({ hexOn: +v })));
+        Sb.appendChild(slider('hex cells', 0.5, 6, 0.5, kn('hexN'), ss('hexN'), v => v + ' /tile'));
+        Sb.appendChild(slider('hex rotation', 0, 180, 5, kn('hexRot'), ss('hexRot'), v => v + '\u00b0'));
+        Sb.appendChild(slider('triplanar', 0, 16, 1, kn('triK'), ss('triK'), v => v ? 'k ' + v : 'off'));
+        Sb.appendChild(slider('normal strength', 0, 3, 0.05, kn('nrmK'), ss('nrmK')));
+        const Ss = fold(Sf, 'splits (derived surfaces)', false, true);
+        Ss.appendChild(slider('cliff from', 10, 60, 1, kn('cliffLo'), ss('cliffLo'), v => v + '\u00b0'));
+        Ss.appendChild(slider('cliff full at', 10, 70, 1, kn('cliffHi'), ss('cliffHi'), v => v + '\u00b0'));
+        Ss.appendChild(slider('old growth from', 2, 30, 0.5, kn('oldLo'), ss('oldLo'), v => v + ' m'));
+        Ss.appendChild(slider('old growth full', 2, 35, 0.5, kn('oldHi'), ss('oldHi'), v => v + ' m'));
+        Ss.appendChild(slider('dense scrub from', 0, 5, 0.1, kn('denseLo'), ss('denseLo'), v => v + ' m'));
+        Ss.appendChild(slider('dense scrub full', 0, 6, 0.1, kn('denseHi'), ss('denseHi'), v => v + ' m'));
+        const Sm = fold(Sf, 'micro (puddles \u00b7 water\u2019s edge \u00b7 beach)', false, true);
+        Sm.appendChild(slider('puddle wet', 0, 0.8, 0.01, kn('pudCover'), ss('pudCover')));
+        Sm.appendChild(slider('puddle edge', 0.002, 0.05, 0.001, kn('pudEdge'), ss('pudEdge')));
+        Sm.appendChild(slider('puddle scale', 0.5, 8, 0.5, kn('pudSlope'), ss('pudSlope'), v => 'x' + v));
+        Sm.appendChild(slider('lake edge', 0.2, 8, 0.2, kn('lakeEdge'), ss('lakeEdge'), v => v + ' m'));
+        Sm.appendChild(slider('beach angle', -180, 180, 5, kn('beachRot'), ss('beachRot'), v => v + '\u00b0'));
+        Sf.appendChild(button('reset to the recipe', () => SP.reset()));
+        Sf.appendChild(button('export (console)', () => { const j = SP.export(); console.log('SPLAT RECIPE ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
+        Sf.appendChild(note('remembered in this browser; `export` prints the table to the console (and the clipboard) - paste it into 28b_ground_fields.js RECIPE to make it the default'));
+      }
     }
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);
