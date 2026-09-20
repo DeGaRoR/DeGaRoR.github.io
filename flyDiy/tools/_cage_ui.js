@@ -2151,6 +2151,10 @@ fillPresetSel();
       (GE.moods() || []).forEach((n, i) => {
         const o = document.createElement('option');
         o.value = i; o.textContent = String(n).toLowerCase();
+        // 2026-09-20 (G436.12): OVERCAST is the lamp row the clock picks under nine tenths of
+        // cloud (hangar.moodFor), not an hour a hand can set - the cover is the CLOUDS panel's.
+        // Offered greyed rather than hidden: a menu that shrinks is a menu you cannot trust.
+        if (/^OVERCAST$/i.test(String(n))) { o.disabled = true; o.textContent += ' — follows the clouds'; }
         msel.appendChild(o);
       });
       msel.selectedIndex = GE.mood() || 0;

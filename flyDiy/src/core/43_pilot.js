@@ -813,19 +813,13 @@ function makePilot(sim, def, world, opts) {
                   // SKY chantier: the day's night (civil twilight ended); absent without a day
                   night: !!(world && world.day && world.day.isNight) };
   };
-  // THE LIGHTS A PILOT FLIES WITH (SKY chantier): navigation lights and the beacon from
-  // sunset to sunrise - the rule, read off the day's sun; the cockpit applies them while
-  // no hand is on the panel. Absent (null) without a day, so a headless fixture is unchanged.
-  ap.lights = null;
-  const lightsRule = () => {
-    if (!world || !world.day) { ap.lights = null; return; }
-    const up = world.day.sunUp;
-    if (!ap.lights || ap.lights.nav !== (up ? 0 : 1)) ap.lights = { nav: up ? 0 : 1, beacon: up ? 0 : 1 };
-  };
+  // THE LIGHTS A PILOT FLIES WITH (SKY chantier) were written here as ap.lights (nav and
+  // beacon from sunset to sunrise); since G436.12 the rule is the cockpit's (cockpit.js
+  // CK.lightsRule - it runs under a hand too, and knows the height and the speed for the
+  // landing and taxi lights). The status line keeps its `night` for the rail.
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
-    lightsRule();
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) {

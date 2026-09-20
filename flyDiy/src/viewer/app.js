@@ -957,10 +957,13 @@
     syncEnvBtn();
   }
   // ONE SKY (S5): the garage's `time of day` select is the CLOCK's hand now - a mood
-  // names an hour (the alps afternoon 33 deg, golden 8, sunset, dusk, night; OVERCAST is
-  // the afternoon under nine tenths of cloud), the day drives the sky, and the row's
-  // lamps/panel/card follow through moodFor
-  const MOOD_PRESET = { AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night', OVERCAST: 'afternoon' };
+  // names an hour (the alps afternoon 33 deg, golden 8, sunset, dusk, night), the day
+  // drives the sky, and the row's lamps/panel/card follow through moodFor.
+  // 2026-09-20 (G436.12): OVERCAST is not a hand's choice any more - it is the lamp row
+  // moodFor picks under nine tenths of cloud, and the clouds are the CLOUDS panel's (the
+  // select used to write cloudCover 0.9/st or 0.2/cu on every pick, over the day's own
+  // weather). No preset for it: a hand that lands on it moves nothing.
+  const MOOD_PRESET = { AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night' };
   function setMood(i, opt) {
     // the room owns the list — it is a sky per row now (G62), and a build that
     // ships four of them and one that ships five must both clamp correctly
@@ -971,7 +974,7 @@
     if (typeof document !== 'undefined') { document.querySelectorAll('select[data-mood]').forEach(s => { s.selectedIndex = hangarMood; }); if (window.EDITOR_SYNC_NIGHT) window.EDITOR_SYNC_NIGHT(); }
     if (!(opt && opt.fromClock) && typeof DAY_CLOCK !== 'undefined' && hangar && hangar.moods && DAY_CLOCK.day()) {
       const name = hangar.moods[hangarMood], p = MOOD_PRESET[name];
-      if (p) { DAY_CLOCK.preset(p); DAY_CLOCK.set(name === 'OVERCAST' ? { cloudCover: 0.9, cloudType: 'st' } : { cloudCover: 0.2, cloudType: 'cu' }); }   // C4: an overcast is a stratus deck
+      if (p) DAY_CLOCK.preset(p);   // the hour only; the weather stays the day's (the clouds panel's)
     }
     if (inGarage) applyEnv();
     if (hangar && hangar.renderSky) hangar.renderSky(renderer);
@@ -6688,6 +6691,11 @@
     // The panel is gfx_settings.js's; both rails host it. A sliders glyph. (GFX)
     // 2026-09-20: THE CLOUDS - the decks, the veil, the look and the cost, in one flyout (clouds_ui.js).
     // A cloud glyph.
+    // 2026-09-20 (G436.12): THE NIGHT on this rail too - the same item the shed has (the day
+    // panel over the lights), so the two rails converge: the day, the aeroplane's own switches
+    // from the rail (a hand on the panel without the seat), the world's light sources.
+    { k: 'night', label: 'night', title: 'The day, and the lights',
+      icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z' },
     { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
       icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
@@ -7083,6 +7091,32 @@
       if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
     },
     // 2026-09-20: THE CLOUDS - clouds_ui.js in this rail's own rows and pills
+    night(body) {
+      const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField };
+      if (window.DAY_UI) window.DAY_UI.mount(body, H, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, open: flyOpenSet });
+      // THE AEROPLANE'S LIGHTS: the cockpit's own switches (CK.sw), pressed from the rail - the
+      // same write a click on the panel makes, and the same claim: a switch the hand set stays
+      // the hand's until the next sunset or sunrise, when the pilot's rule takes all of them again
+      const K = (typeof CK !== 'undefined') ? CK : null;
+      if (K && K.sw && K.model) {
+        flRow(body, 'the aeroplane').classList.add('fsec');
+        const SW = [['nav', 'nav'], ['beacon', 'beacon'], ['land', 'landing'], ['taxi', 'taxi'], ['instr', 'panel'], ['flood', 'cabin'], ['pedal', 'pedal light']];
+        const have = SW.filter(s => ('sw_' + s[0]) in K.sw);
+        if (!K.lightOn) flNote(body, 'No lights are fitted on this build (the design\'s LIGHTS row).');
+        else flPills(body, have.map(s => ({ label: s[1], value: 'sw_' + s[0], title: 'The ' + s[1] + ' switch - as a click on the panel' })),
+          o => +K.sw[o.value] > 0.5, o => { K.sw[o.value] = +K.sw[o.value] > 0.5 ? 0 : 1; K.handSw[o.value] = true; K.glow(0); });
+        flNote(body, 'Nav and beacon from sunset to sunrise, the panel lit with them, the landing light low and moving, ' +
+                     'the taxi light low and slow - the pilot\'s rule; a switch you set stays yours until the next sunset or sunrise.');
+      }
+      // THE WORLD'S SOURCES, the shed's NIGHT strip (which of these is doing that?)
+      const GE = window.GARAGE_ENV;
+      if (GE && GE.worldLights && GE.worldLights().length) {
+        flRow(body, 'the world').classList.add('fsec');
+        flPills(body, [{ label: 'none', value: '!none' }, { label: 'all', value: '!all' }].concat(GE.worldLights().map(L => ({ label: L.key, value: L.key }))),
+          o => o.value[0] !== '!' && GE.worldLightOn(o.value),
+          o => { if (o.value === '!none') GE.setWorldLights(() => false); else if (o.value === '!all') GE.setWorldLights(() => true); else GE.setWorldLight(o.value, !GE.worldLightOn(o.value)); });
+      }
+    },
     clouds(body) {
       if (!window.CLOUDS_UI) { flNote(body, 'This build has no cloud panel.'); return; }
       window.CLOUDS_UI.mount(body, {
@@ -7499,7 +7533,10 @@
     if (t && typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day()) t.textContent = DAY_CLOCK.label();
   }
   // the plate and the rail's day line follow the clock (called on a preset / hour / date change)
-  function flRefreshDay() { const a = $('flDayV'), b = $('flLineDay'); if (a) a.textContent = flDay(); if (b) b.textContent = flDay(); }
+  // ...and the pilot's lights answer the new hour at once (G436.12): a preset picked from the rail with the sim
+  // paused would otherwise show yesterday's switches until the next frame ran the rule
+  function flRefreshDay() { const a = $('flDayV'), b = $('flLineDay'); if (a) a.textContent = flDay(); if (b) b.textContent = flDay();
+    if (typeof CK !== 'undefined' && CK && CK.model && CK.lightsRule && world && world.day && sim && sim.cgPos) { CK.lightsRule(world.day, sim, sim.cgPos()); CK.glow(0); } }
 
   // ---- THE CAMERA (new: the flight had no camera UI at all) ---------------
   // Five framings, and each one writes the SAME azT/elT/distT the mouse

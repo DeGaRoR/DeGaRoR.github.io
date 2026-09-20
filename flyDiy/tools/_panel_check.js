@@ -356,6 +356,24 @@ function run() {
     check(CK.sw.sw_beacon === 1 && CK.sw.sw_nav === 0 && CK.sw.sw_master === 1 && CK.key === 'both', 'cockpit: the switches start where the design drew them, master on, key at BOTH');
     check(CK.bus && CK.bus.battAh === 16 && CK.bus.altA === 20, 'cockpit: the bus is the fit\'s (16 Ah, 20 A)', CK.bus && CK.bus.battAh);
     check(grp.children.filter(o => o.children.some(c => c.userData.pickPad)).length === 3, 'cockpit: a pick pad on the switch, the knob and the key, none on a hand');
+    // G436.12: THE LIGHTS A PILOT FLIES WITH - the cockpit's rule, run from the frame with the day, by hand too
+    {
+      const dayUp = { sunUp: true }, dayNight = { sunUp: false };
+      CK.frame(1 / 60, sim, null, { day: dayUp, byHand: false });
+      check(CK.sw.sw_nav === 0 && CK.sw.sw_beacon === 0 && CK.sw.sw_instr === 0 && CK.sw.sw_land === 0 && CK.sw.sw_taxi === 0, 'lights: by day the rule leaves every light off (the design\'s beacon included)');
+      CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });   // a hand on the stick, the sun gone: still, on the ground (Veas 0, 20 m over the field)
+      check(CK.sw.sw_nav === 1 && CK.sw.sw_beacon === 1 && CK.sw.sw_instr === 1 && CK.sw.sw_taxi === 1 && CK.sw.sw_land === 0, 'lights: at night, by hand, nav + beacon + panel + the taxi light (low and slow), not the landing light');
+      sim.out.Veas = 30; CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });
+      check(CK.sw.sw_land === 1 && CK.sw.sw_taxi === 0, 'lights: low and moving at night, the landing light, not the taxi light');
+      sim.cgPos = () => [0, 400, 0]; CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });
+      check(CK.sw.sw_land === 0 && CK.sw.sw_taxi === 0 && CK.sw.sw_nav === 1, 'lights: high at night, no landing or taxi light, the nav lights stay');
+      CK.sw.sw_land = 1; CK.handSw.sw_land = true; CK.frame(1 / 60, sim, null, { day: dayNight, byHand: true });
+      check(CK.sw.sw_land === 1, 'lights: a switch the hand set is the hand\'s (the rule leaves it)');
+      CK.frame(1 / 60, sim, null, { day: dayUp, byHand: true });
+      check(CK.sw.sw_land === 0 && CK.sw.sw_nav === 0 && !CK.handSw.sw_land, 'lights: at sunrise the rule takes every switch again (the hand\'s claim ends at the edge)');
+      sim.out.Veas = 0; sim.cgPos = () => [0, 120, 0]; CK.handSw = {};
+      check(typeof CK.lightsFor === 'function' && CK.lightsFor({ sunUp: false }, 0, 10).taxi === 1 && CK.lightsFor({ sunUp: true }, 0, 10).taxi === 0, 'lights: the rule is a pure function of the day, the speed and the height');
+    }
     // a still aeroplane on the ground: the venturi makes no suction
     for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: i / 60 });
     check(!CK.gyroOk && near(CK.readings.roll, CKm.REST.roll, 0.05), 'cockpit: below 20 m/s the venturi gyro is dead and the ball lies at rest');

@@ -50844,3 +50844,45 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - Gates: UISMOKE, HANGAR (+rule 7 from G437), LIGHT (rule updated), VIEW, PARTS, BENCH, SAVE, GFX, BOOT,
   CAGEFIT, FIT, JOIN, CLIP, DESIGN, HINGE, COWL, SHOULDER, STARTER, GEAR, STRUT, SKIN, PANEL, CABIN green.
   Dev handles added to FLIGHT_PROBE for the rig: renderer, hangarScene, camGet.
+
+## G436.12 — THE NIGHT ON THE FLIGHT RAIL, THE MOOD'S CLOUD COUPLING RETIRED, THE LIGHTS THAT
+## COME ON WITH THE HOUR (2026-09-20, the user: "retire the mood select's cloud coupling too, do
+## the night in the flight rail then commit. Ensure that the night settings automatically
+## triggers appropriate lighting when swapped")
+
+- THE MOOD SELECT (app.js setMood): a hand on the tree's `time of day` select moves the HOUR
+  only (MOOD_PRESET) - it used to write cloudCover 0.9/st (OVERCAST) or 0.2/cu (every other
+  mood) over the day's own weather on every pick. OVERCAST has no preset any more: it is the
+  lamp row hangar.moodFor picks under nine tenths of cloud, and _cage_ui offers it greyed
+  ("— follows the clouds") rather than hidden. The C4 gate rule that held the coupling
+  ("the OVERCAST mood is a stratus deck") now holds moodFor's pick instead.
+- THE NIGHT ON THE FLIGHT RAIL (app.js FL_RAIL `night`, FL_BUILD.night): the same item the
+  shed has - the DAY PANEL (day_ui.js), then THE AEROPLANE (the cockpit's own switches as
+  pills: nav, beacon, landing, taxi, panel, cabin, pedal light - the write a click on the panel
+  makes, K.handSw claimed the same way, K.glow(0) so a paused sim shows it), then THE WORLD
+  (the shed's NIGHT strip: none / all / sun / hemi / env / sky / lamps through GARAGE_ENV's
+  world switchboard). The `day` brief slot keeps the day panel alone.
+- THE LIGHTS COME ON WITH THE HOUR - and by hand. The SKY chantier's rule (43_pilot.js
+  ap.lights: nav + beacon from sunset to sunrise) ran only inside ap.update, which a hand's
+  flight does not call, and cockpit.js applied it only while no hand was on the panel - so a
+  night swapped in from the rail under a hand lit nothing. The rule is the cockpit's now
+  (CK.lightsFor / CK.lightsRule, run from CK.frame with ctx.day every frame): nav, beacon and
+  the panel lights at night; the landing light low (< 150 m over the field) and moving (Veas
+  >= 15 m/s: the take-off roll, the approach, the landing); the taxi light low and slow. A
+  switch a hand set (the panel's click or knob, the rail's pill) is the hand's (CK.handSw)
+  until the next sunset or sunrise, when the rule takes every switch again. flRefreshDay runs
+  the rule at once, so a preset picked with the sim paused shows the new switches, not the
+  next frame's. The pilot's ap.lights is gone (one rule, one keeper); ap.status.night stays.
+- GATES: PANEL gained the rule's runtime tests on its live cockpit (by day off; at night by
+  hand nav + beacon + panel + taxi, not landing; low and moving the landing light; high
+  neither; the hand's switch kept; sunrise takes it back; lightsFor pure) - flipped one
+  expectation in a temp copy to prove they bite. CLOUD holds the retired coupling, the greyed
+  OVERCAST, the night item's three sections, the rule's shape, and that the pilot carries no
+  lights. CLOUD / PANEL / PILOT / VIEW / LIGHT / HANGAR / DAY / ELEC / UISMOKE green.
+- SEEN: screenshots/clouds-2026-09-20/ui/night_flight.png - the flight's NIGHT flyout by day
+  (every light off), at DUSK (nav, beacon, panel lit by the rule), TAXI pressed by hand, at
+  NOON again (the edge takes them all back); night_taxi_pool.png - the taxi light's pool on
+  the apron at night with no hand on any switch.
+- OWED: the shed's aeroplane keeps the design's switch positions (the snapshot's `lights`) - a
+  night in the shed lights the room's lamps, not the aeroplane's; runway edge lights (G417's
+  owed); the flight rail's NIGHT lists the world's sources by key - a player-facing wording.

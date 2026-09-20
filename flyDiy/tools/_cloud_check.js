@@ -147,7 +147,9 @@ console.log('6. the splice rules');
   yes(/H\.range\(host, 'cover', 0, 1, 0\.05, \(\) => day\(\)\.cloudCover/.test(src('viewer/clouds_ui.js')) && /cf\.TYPE_ORDER\.map\(t => \(\{ label: cf\.TYPES\[t\]\.label, value: t \}\)\)/.test(src('viewer/clouds_ui.js')), 'the clouds panel carries the low deck\'s cover and type');
   yes(!/flRange\(body, 'cloud cover'/.test(src('viewer/app.js')) && /ctx\.open\('clouds'\)/.test(src('viewer/day_ui.js')), 'the day slot no longer draws the cover itself; the day panel opens the clouds flyout');
   yes(/rows\.slider\(insp, 'cloud cover'/.test(src('viewer/premises_ui.js')) && /rows\.select\(insp, 'cloud type'/.test(src('viewer/premises_ui.js')), 'the WORLD editor carries the cover and the type');
-  yes(/cloudCover: 0\.9, cloudType: 'st'/.test(src('viewer/app.js')), 'the OVERCAST mood is a stratus deck');
+  // (C4 held "the OVERCAST mood is a stratus deck" here - the mood select wrote the cover; G436.12 retired
+  // that coupling: the OVERCAST row is what hangar.moodFor PICKS under nine tenths of cloud, held below)
+  yes(/if \(day\.cloudCover > 0\.8 && MOODS\.length > 5\) return 5;/.test(src('viewer/hangar.js')), 'the OVERCAST mood follows the day\'s cover (moodFor), it does not set it');
   yes(/glslVersion: THREE\.GLSL3/.test(cj) && /sampler3D/.test(cj), 'the march is GLSL3 (a sampler3D needs it)');
   yes(/#include <tonemapping_fragment>/.test(cj) && /#include <colorspace_fragment>/.test(cj), 'the composite is tone-mapped and encoded by three\'s own chunks (the target is display-space)');
   yes(/ATMO\.GLSL\.AP/.test(cj) && /ATMO\.GLSL\.MIST/.test(cj) && /ATMO\.apUniforms/.test(cj), 'the march takes the aerial perspective and the mist from ATMO (one splice, shared)');
@@ -219,6 +221,14 @@ console.log('7b. several decks + the look: the march (static)');
     yes(!/id="selTime"/.test(B) && !/flS\('Time'\)/.test(A), '#selTime is gone: the presets are pills, DAY_CLOCK the one state');
     yes(/k: 'time', state: 'DAY_CLOCK preset'/.test(E) && /CK\.preset\(P\[\(i \+ 1\) % P\.length\]\)/.test(E), 'the quick bar\'s time button presses the clock, not the mood');
     yes(/'day_ui\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'day_ui.js is in the build'); }
+  // G436.12: the mood select's cloud coupling retired, the NIGHT on the flight rail, the lights rule in the cockpit
+  { const E = src('viewer/editor.js'), CKS = src('viewer/cockpit.js'), PI = src('core/43_pilot.js'), CU = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
+    yes(!/cloudCover: 0\.9, cloudType: 'st'/.test(A) && /MOOD_PRESET = \{ AFTERNOON: 'afternoon', GOLDEN: 'golden', SUNSET: 'sunset', DUSK: 'dusk', NIGHT: 'night' \}/.test(A), 'a mood picked by hand moves the hour only - the weather stays the day\'s (no OVERCAST preset)');
+    yes(/\/\^OVERCAST\$\/i\.test\(String\(n\)\)\) \{ o\.disabled = true;/.test(CU), 'the tree\'s OVERCAST mood is offered greyed - it follows the clouds (hangar.moodFor)');
+    yes(/k: 'night', label: 'night', title: 'The day, and the lights'/.test(A) && /    night\(body\) \{/.test(A) && /window\.DAY_UI\.mount\(body, H,/.test(A) && /K\.handSw\[o\.value\] = true; K\.glow\(0\);/.test(A) && /GE\.setWorldLight\(o\.value, !GE\.worldLightOn\(o\.value\)\)/.test(A), 'the flight rail has NIGHT: the day panel, the aeroplane\'s switches, the world\'s sources');
+    yes(/CK\.lightsFor = \(day, ias, hAboveField\)/.test(CKS) && /land: night && low && !slow \? 1 : 0, taxi: night && low && slow \? 1 : 0/.test(CKS) && /instr: night \? 1 : 0/.test(CKS), 'the lights rule: nav, beacon and the panel at night, the landing light low and moving, the taxi light low and slow');
+    yes(/if \(ctx\.day\) CK\.lightsRule\(ctx\.day, sim, cg\);/.test(CKS) && !/!ctx\.byHand/.test(CKS) && /if \(CK\.lightsNight !== null && CK\.lightsNight !== night\) CK\.handSw = \{\};/.test(CKS) && /CK\.handSw\[drv\] = true; did = true;/.test(CKS), 'the rule runs by hand too; a switch the hand set is the hand\'s until the next sunset or sunrise');
+    yes(!/ap\.lights = \{/.test(PI) && !/ap\.lights\b/.test(CKS), 'the pilot no longer carries its own lights (one rule, the cockpit\'s)'); }
   yes(/rows\.slider\(insp, 'upper deck ' \+ \(di \+ 1\)/.test(P) && /rows\.slider\(insp, 'deck ' \+ \(di \+ 1\) \+ ' base'/.test(P), 'the WORLD editor carries the upper decks');
   yes(/slider\('upper deck ' \+ \(di \+ 1\)/.test(DP) && /slider\('erode'/.test(DP) && /select\('cover fit'/.test(DP), 'F8 carries the upper decks, erode and the cover fit');
   yes(fs.existsSync(path.join(__dirname, 'cloud_shot.js')), 'the rig that judges the sky (tools/cloud_shot.js) is there');

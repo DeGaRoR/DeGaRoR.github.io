@@ -158,6 +158,24 @@ function make(THREE) {
     }
   };
 
+  // ---- the lights a pilot flies with ------------------------------------------
+  CK.handSw = {};                 // the switches a hand set since the last sunset / sunrise
+  CK.lightsNight = null;          // the rule's last night state (the edge clears handSw)
+  CK.lightsFor = (day, ias, hAboveField) => {
+    const night = !day.sunUp, low = hAboveField < 150, slow = ias < 15;
+    return { nav: night ? 1 : 0, beacon: night ? 1 : 0, instr: night ? 1 : 0,
+             land: night && low && !slow ? 1 : 0, taxi: night && low && slow ? 1 : 0 };
+  };
+  CK.lightsRule = (day, sim, cg) => {
+    if (!day || !sim) return null;
+    const o = sim.out || {};
+    const r = CK.lightsFor(day, o.Veas != null ? o.Veas : (o.V || 0), (cg ? cg[1] : 0) - CK.qnh);
+    const night = !day.sunUp;
+    if (CK.lightsNight !== null && CK.lightsNight !== night) CK.handSw = {};   // the edge: the pilot's hand on every switch
+    CK.lightsNight = night;
+    for (const k in r) if (('sw_' + k) in CK.sw && !CK.handSw['sw_' + k]) CK.sw['sw_' + k] = r[k];
+    return r;
+  };
   // ---- the readings, once per frame ----------------------------------------
   // ctx: { ap (its clock), out (sim.out), fuel (sim.fuel), eng (sim.eng) }
   CK.frame = (dt, sim, ap, ctx) => {
@@ -167,9 +185,12 @@ function make(THREE) {
     const o = sim.out || {}, F = sim.fuel || {}, E = (sim.eng && sim.eng[0]) || { running: true, key: 'both', crank: 0 };
     const cg = sim.cgPos();
     const bus = CK.bus;
-    // THE PILOT'S LIGHTS (SKY chantier): nav and beacon from sunset to sunrise, the rule a pilot
-    // flies by (43_pilot.js ap.lights); applied only while no hand is on the panel
-    if (ap && ap.lights && !ctx.byHand) { for (const k in ap.lights) if (('sw_' + k) in CK.sw) CK.sw['sw_' + k] = ap.lights[k]; }
+    // THE PILOT'S LIGHTS (SKY chantier; G436.12 the rule moved here from 43_pilot.js so it runs
+    // under a hand too - the pilot's update does not, and a night swapped in from the rail lit
+    // nothing by hand): nav and beacon from sunset to sunrise, the panel with them, the landing
+    // light low and moving, the taxi light low and slow. A switch a hand set (the panel's click,
+    // the rail's pill) is the hand's until the next sunset or sunrise, when the rule takes all.
+    if (ctx.day) CK.lightsRule(ctx.day, sim, cg);
     // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
@@ -427,8 +448,8 @@ function make(THREE) {
       else if (g.pick === 'thr') did = true;               // G364: a click holds it; the drag moves it
       return did;
     }
-    if (c.law === 'switch') { CK.sw[drv] = +CK.sw[drv] > 0.5 ? 0 : 1; did = true; }
-    else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); did = true; }
+    if (c.law === 'switch') { CK.sw[drv] = +CK.sw[drv] > 0.5 ? 0 : 1; CK.handSw[drv] = true; did = true; }   // the hand's now (lightsRule)
+    else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); CK.handSw[drv] = true; did = true; }
     else if (c.law === 'key') {
       let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
       i = button === 2 ? Math.max(0, i - 1) : Math.min(4, i + 1);
