@@ -1538,6 +1538,12 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edFlyBody .r > .v { width:48px; flex:none; text-align:right; }
 
+/* 2026-09-20: a section head inside the flyout (the clouds panel's decks / veil / look / render) - the flight rail's .fsec */
+#edFlyBody .r.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+#edFlyBody .r.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#edFlyBody .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+
 #edFlyBody input[type=range] { flex:1; min-width:30px; }
 
 #edFlyBody select { flex:1; min-width:0; }
@@ -2182,6 +2188,14 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   -webkit-backdrop-filter:blur(16px) saturate(1.15); }
 
 #flFly[hidden] { display:none; }
+
+/* 2026-09-20: THE FLYOUT SCROLLS, VISIBLY. A tall panel (the clouds) was cut at the window's
+   edge with nothing to say so; the same thin bar editor.css gives the shed's flyout. */
+#flFly { scrollbar-width:thin; scrollbar-color:var(--ed-off) transparent; scrollbar-gutter:stable; }
+#flFly::-webkit-scrollbar { width:9px; }
+#flFly::-webkit-scrollbar-track { background:transparent; }
+#flFly::-webkit-scrollbar-thumb { background:var(--ed-off); border-radius:5px; border:2px solid transparent; background-clip:padding-box; }
+#flFly::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd); background-clip:padding-box; }
 
 #flFlyHead { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint);
@@ -35132,7 +35146,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='c70a5445e8f7';window.FLYDIY_BUILD='0f8bd328c1b1'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='c70a5445e8f7';window.FLYDIY_BUILD='4daf965738b7'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
@@ -92954,7 +92968,7 @@ var CLOUDS_UI = (function () {
   function mount(host, H, ctx) {
     const CK = ctx && ctx.day, cf = CF(), s = S();
     const refresh = () => { if (ctx && ctx.refresh) ctx.refresh(); };
-    const head = txt => { const r = H.row(host, txt); r.className = 'fr fsec'; return r; };
+    const head = txt => { const r = H.row(host, txt); r.classList.add('fsec'); return r; };   // the host's own row class kept (fr / r), a section head added
     if (!cf || !CK || !CK.day()) { H.note(host, 'This build has no cloud field.'); return; }
     const day = () => CK.day();
     const types = cf.TYPE_ORDER.map(t => ({ label: cf.TYPES[t].label, value: t }));
@@ -92981,18 +92995,18 @@ var CLOUDS_UI = (function () {
     // ---- the high veil ------------------------------------------------------------------
     if (s) {
       head('cirrus veil');
-      H.range(host, 'amount', 0, 2.5, 0.05, () => s.veil, v => { s.veil = v; save(); }, v => v > 0 ? v.toFixed(2) + ' x the cover’s share' : 'off');
+      H.range(host, 'amount', 0, 2.5, 0.05, () => s.veil, v => { s.veil = v; save(); }, v => v > 0 ? v.toFixed(2) + '×' : 'off');
       H.range(host, 'height', 5, 12, 0.5, () => s.veilKm, v => { s.veilKm = v; save(); }, v => v.toFixed(1) + ' km');
       // ---- the look -----------------------------------------------------------------------
       head('look');
       H.range(host, 'detail', 0, 0.8, 0.02, () => s.detail, v => { s.detail = v; save(); }, v => v.toFixed(2));
-      H.range(host, 'erosion', 0.4, 1.6, 0.05, () => s.erodeK, v => { s.erodeK = v; save(); }, v => v.toFixed(2) + ' x the type’s');
+      H.range(host, 'erosion', 0.4, 1.6, 0.05, () => s.erodeK, v => { s.erodeK = v; save(); }, v => v.toFixed(2) + '×');
       H.range(host, 'underside depth', 0, 0.4, 0.01, () => s.ambDepth, v => { s.ambDepth = v; save(); }, v => v.toFixed(2));
       H.range(host, 'shadow', 0, 1, 0.05, () => s.shadow, v => { s.shadow = v; save(); }, v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'off');
       H.range(host, 'shadow softness', 0.1, 1, 0.05, () => s.shadowSoft, v => { s.shadowSoft = v; save(); }, v => v.toFixed(2));
       // ---- the motion ---------------------------------------------------------------------
       head('motion');
-      H.range(host, 'drift', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + ' x the wind' : 'still');
+      H.range(host, 'drift × wind', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + '×' : 'still');
       H.pills(host, [{ label: 'another sky (seed ' + s.seed + ')', value: 'seed' }], () => false, () => { s.seed = 1 + Math.floor(Math.random() * 98); save(); });
       // ---- the cost -----------------------------------------------------------------------
       head('render');
@@ -116889,6 +116903,11 @@ function editorInit(api) {
     // G286: GRAPHICS - the same settings menu the flight rail opens (the
     // user: "in the editor and in flight"). LITERAL FIELDS ONLY (GATE VIEW
     // reads this table in a vm); openFly builds it by name. (GFX)
+    // 2026-09-20: THE CLOUDS - the same panel the flight rail opens (clouds_ui.js: the decks,
+    // the veil, the look, the cost; the user: "let's have the garage and the flight menu converge").
+    // LITERAL FIELDS ONLY (GATE VIEW reads this table in a vm); openFly builds it by name.
+    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
+      icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
@@ -117272,6 +117291,7 @@ function editorInit(api) {
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX
+    if (t.k === 'clouds') buildClouds(body);       // the clouds panel (2026-09-20)
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
@@ -117332,6 +117352,41 @@ function editorInit(api) {
       host.appendChild(n); return n;
     };
     window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
+  }
+  // 2026-09-20: THE CLOUDS - clouds_ui.js's panel in this rail's own rows, a range input on the
+  // flyout's own .r row (editor.css styles it), the pills as the GRAPHICS menu's; a pick rebuilds
+  // the flyout so the pills show the new state (openFly re-places it, measured full)
+  function buildClouds(body) {
+    if (!window.CLOUDS_UI) return;
+    const row = (host, label) => {
+      const r = document.createElement('div'); r.className = 'r';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = label;
+      r.appendChild(k); host.appendChild(r); return r;
+    };
+    const range = (host, label, lo, hi, step, get, set, fmt) => {
+      const r = row(host, label);
+      const i = document.createElement('input'); i.type = 'range'; i.min = lo; i.max = hi; i.step = step; i.value = get();
+      const v = document.createElement('span'); v.className = 'v'; v.textContent = fmt(+i.value);
+      i.oninput = () => { set(+i.value); v.textContent = fmt(+i.value); };
+      r.appendChild(i); r.appendChild(v); return r;
+    };
+    const pills = (host, list, isOn, pick) => {
+      const w = document.createElement('div'); w.className = 'edCam';
+      for (const o of list) {
+        const b = document.createElement('button');
+        b.className = 'pill' + (isOn(o) ? ' on' : '');
+        b.textContent = o.label; if (o.title) b.title = o.title;
+        if (o.why) b.disabled = true; else b.onclick = () => { pick(o); openFly('clouds'); };
+        w.appendChild(b);
+      }
+      host.appendChild(w); return w;
+    };
+    const note = (host, txt) => {
+      const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
+      host.appendChild(n); return n;
+    };
+    window.CLOUDS_UI.mount(body, { row, range, pills, note },
+      { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: () => { if (typeof syncNightLabel === 'function') syncNightLabel(); } });
   }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;
@@ -126046,9 +126101,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const rail = FL_RAIL.filter(x => x.k === k)[0];
     head.textContent = (rail || FL_SLOTS[k] || {}).title || k;
     (rail ? FL_BUILD[k] : FL_BUILD['slot_' + k])(body);
-    // ...and then it is measured and clamped to the free estate, exactly as
-    // the editor's is. The anchor is the button's own box; the layer is the
-    // whole window, because the flight view has no panels insetting it.
+    flPlaceFly(k);
+  }
+  // ...and then it is measured and clamped to the free estate, exactly as
+  // the editor's is. The anchor is the button's own box; the layer is the
+  // whole window, because the flight view has no panels insetting it.
+  // 2026-09-20: its own function, run again on every window resize (the
+  // editor's rule) - a flyout clamped to yesterday's window is the one the
+  // user could not reach; the body scrolls within it (flight.css).
+  function flPlaceFly(k) {
+    const fly = $('flFly');
+    if (!fly || fly.hidden || !k) return;
+    const rail = FL_RAIL.filter(x => x.k === k)[0];
     const btn = rail
       ? [...$('flRail').children].filter(b => b.dataset.f === k)[0]
       : document.querySelector('#flSlots .flSlot[data-s="' + k + '"]');
@@ -126077,6 +126141,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       fly.style.maxHeight = Math.round(H - dn - 96) + 'px';
     }
   }
+  window.addEventListener('resize', () => { if (flyOpen) flPlaceFly(flyOpen); });
 
   // ---- SCREENSHOT MODE (G255) ---------------------------------------------
   // The render alone: both interface layers off (`body.shot`, editor.css),
