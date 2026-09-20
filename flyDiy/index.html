@@ -35564,7 +35564,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='4e0c652fae6a';window.FLYDIY_BUILD='81427e2706e3'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='4e0c652fae6a';window.FLYDIY_BUILD='c4219918977e'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -78138,6 +78138,31 @@ function sites(scene, group, P) {
 
 // ---------------------------------------------------------------------------
 let group = null, board = null;
+// THE HOUR'S HAND ON THE LAMPS (G440, the user: "do the owed shed aeroplane lights at night too").
+// The design's rows (li_*) are the switch positions the aeroplane was DRAWN with, and by day
+// that is what the shed shows. At night the shed applies the pilot's rule over them - the
+// same CK.lightsFor the flight flies by (nav, beacon, the panel) - through this drive, and
+// takes it off again at sunrise. Nothing new emits: it is the drawn lenses, cups, the
+// beacon's dome and the dial faces at another level, restored to the design's own.
+// `lampMats` is rebuilt with the group; `driveLevels` outlives a rebuild (a slider dragged
+// at night rebuilds the lamps, and they must come back lit).
+let lampMats = [], driveLevels = null;
+const LENS_K = 2.4, CUP_K = 0.55;
+function applyDrive() {
+  const L = driveLevels;
+  for (const e of lampMats) {
+    const lv = (L && L[e.key] != null) ? Math.max(0, Math.min(1, +L[e.key])) : e.lv;
+    if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;
+    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K;
+  }
+  for (const R of rotors) R.base = ((L && L.beacon != null) ? Math.max(0, Math.min(1, +L.beacon)) : R.lv) * LENS_K;
+  // the dial faces are the panel layer's one emissive material (the instrument dimmer)
+  const PL = window.CAGE_PANEL, fm = PL && PL.material ? PL.material('faces') : null;
+  if (fm) {
+    if (fm.userData.liBase == null) fm.userData.liBase = fm.emissiveIntensity;
+    fm.emissiveIntensity = (L && L.instr != null) ? Math.max(0, Math.min(1, +L.instr)) * 1.6 : fm.userData.liBase;
+  }
+}
 const level = (P, k) => {
   if (!+P.lightOn) return 0;
   const v = +P['li_' + k];
@@ -78154,7 +78179,7 @@ PAGE.post = (ctx) => {
     group = null;
   }
   // the old rotors belong to a group that has just been thrown away
-  rotors.length = 0;
+  rotors.length = 0; lampMats = [];
   if (tickRAF) { cancelAnimationFrame(tickRAF); tickRAF = 0; }
   if (!+P.lightOn) return;
   bayFromP(P);            // the same resolution the wing layer did, one owner
@@ -78199,9 +78224,13 @@ PAGE.post = (ctx) => {
     // behind. So a recessed lamp is a REFLECTOR CUP with a bulb in it and a
     // RIM round the cut, and the glass belongs to the wing.
     const lodge = Bag(hwMat('lodge')), seal = Bag(hwMat('seal'));
-    const lens = Bag(lensMat(key, lv, col));
+    const lensM = lensMat(key, lv, col), cupM = cupMat(lv, col, reflectOn, key);
+    const lens = Bag(lensM);
     // the reflector: the lodge's alloy, lit by the bulb it surrounds
-    const cup = Bag(cupMat(lv, col, reflectOn, key));
+    const cup = Bag(cupM);
+    // for the hour's drive (applyDrive): the design's level, the factories' materials
+    if (!lampMats.some(e => e.mat === lensM)) lampMats.push({ key, kind: 'lens', mat: lensM, lv });
+    if (!lampMats.some(e => e.mat === cupM)) lampMats.push({ key, kind: 'cup', mat: cupM, lv, reflect: reflectOn });
     if (site.recess) {
       // THE REFLECTOR AND THE BULB ARE SOLIDS, and the bulb is the emitter —
       // it is drawn in the lens material because a bulb IS the light. The
@@ -78322,7 +78351,7 @@ PAGE.post = (ctx) => {
       mir.mesh(rot); fil.mesh(rot);
       group.add(rot);
       rotors.push({ rot, host: group, dome: o, mat: o.material,
-                    base: o.material.emissiveIntensity,
+                    base: lv * LENS_K, lv,      // the design's, not the material's (see applyDrive)
                     ax: nrm(site.ax), e1: side, e2: nrm(cross(site.ax, side)),
                     rpm: beaconRpm, p: seat.slice() });
     }
@@ -78411,7 +78440,12 @@ PAGE.post = (ctx) => {
                         lit: lit.map(x => x[0]),
                         // the panel arc (session 4): the flight rebuilds a
                         // lamp's lens and cup through the same factories
-                        lensMat, cupMat };
+                        lensMat, cupMat,
+                        // G440: the hour's hand - drive({nav, beacon, instr, ...}) lights the drawn
+                        // lamps at those levels over the design's; drive(null) is the design again
+                        drive: levels => { driveLevels = levels || null; applyDrive(); return driveLevels; },
+                        driven: () => driveLevels };
+  if (driveLevels) applyDrive();   // the night survives a rebuild
   if (stat) {
     const on = Object.keys(LIGHTS).filter(k => drawn[k] && level(P, k) > 0);
     stat.textContent += '  ·  lights: ' + Object.keys(drawn).length + ' fitted' +
@@ -121414,6 +121448,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     setExp(inRoom ? hangar.setMood(hangarMood).ex : WORLD_EXPOSURE);
     syncEnvBtn();
   }
+  // THE STANDING AEROPLANE'S LIGHTS FOLLOW THE HOUR (G440, the user: "do the owed shed aeroplane
+  // lights at night too"): by day the shed shows the design's switch positions (the li_* rows);
+  // when the sun goes, the pilot's rule (cockpit.js CK.lightsFor - the same one the flight
+  // flies by) is laid over them through the light layer's drive - nav, beacon and the panel
+  // lit; the landing and taxi lights left to the design, an aeroplane on a stand throws no
+  // beam. Sunrise takes the drive off. Re-applied when the layer rebuilds (a slider at night).
+  let shedLitNight = null, shedLitLayer = null;
+  function shedCraftLights(day) {
+    const CL = window.CAGE_LIGHT;
+    if (!CL || !CL.drive || !day) return;
+    const night = !day.sunUp;
+    if (night === shedLitNight && CL === shedLitLayer) return;
+    shedLitNight = night; shedLitLayer = CL;
+    if (!night) { CL.drive(null); return; }
+    const r = (typeof CK !== 'undefined' && CK && CK.lightsFor) ? CK.lightsFor(day, 0, 1e4) : { nav: 1, beacon: 1, instr: 1 };
+    CL.drive({ nav: r.nav, beacon: r.beacon, instr: r.instr });
+  }
   // ONE SKY (S5): the garage's `time of day` select is the CLOCK's hand now - a mood
   // names an hour (the alps afternoon 33 deg, golden 8, sunset, dusk, night), the day
   // drives the sky, and the row's lamps/panel/card follow through moodFor.
@@ -128819,6 +128870,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         const r = hangar.applyDay(world.day, renderer);
         if (r && r.rebake) { bakeHangarEnv(); r.markBaked(); }
         if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
+        shedCraftLights(world.day);
       }
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
