@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: aae401f281af0ee5
+// body-sha256: 6d98f43268894b74
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7103,12 +7103,30 @@ function makeSim(def, world) {
       cx += p[i*3] * mi; cy += p[i*3+1] * mi; cz += p[i*3+2] * mi; M += mi;
     }
     cx /= M; cy /= M; cz /= M;
+    // G435: THE REST OFFSETS RE-CENTRED BY THE MASSES OF THIS SUBSTEP.
+    // "Mass-weighted, so linear momentum is conserved exactly" (above) holds
+    // only while sum m_k q_k = 0 with the m the goal is built from. The rest
+    // is taken once (clusterRest) and the masses move after it: a tank
+    // billed on a ring pair inside the cluster drains, the occupants shift.
+    // A rod boom carrying the user's pusher lost 2.8 g a side to idle burn,
+    // the offsets drifted 15 um off centre, and the projection - applied at
+    // 1440 Hz with gain al/dt - pushed 730 kg.m/s into the parked aeroplane
+    // in ten seconds: it crept 0.8 m aft at rest and, with 985 N on the
+    // boom-mounted engine, was thrown onto its nose ("thrust is going
+    // nowhere"). Recentred here the injection is 0.0000 to the bit,
+    // whatever the masses do. One more pass over the cluster's ~20 nodes.
+    let qbx = 0, qby = 0, qbz = 0;
+    for (let k = 0; k < n2; k++) {
+      const mi = m[C.idx[k]];
+      qbx += mi * C.q[k*3]; qby += mi * C.q[k*3+1]; qbz += mi * C.q[k*3+2];
+    }
+    qbx /= M; qby /= M; qbz /= M;
     // A = sum m (x - c) q^T
     const A = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], mi = m[i];
       const dx = p[i*3] - cx, dy = p[i*3+1] - cy, dz = p[i*3+2] - cz;
-      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
       A[0] += mi*dx*qx; A[1] += mi*dx*qy; A[2] += mi*dx*qz;
       A[3] += mi*dy*qx; A[4] += mi*dy*qy; A[5] += mi*dy*qz;
       A[6] += mi*dz*qx; A[7] += mi*dz*qy; A[8] += mi*dz*qz;
@@ -7117,7 +7135,7 @@ function makeSim(def, world) {
     const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], i3 = i*3;
-      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
       const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
       const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
       const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
@@ -7208,6 +7226,12 @@ function makeSim(def, world) {
   const fuel = { kind: ENERGY.kind || 'fuel', kg0: fuelKg0, kg: fuelKg0,
                  litres0: fuelKg0 / kgL, litres: fuelKg0 / kgL, frac: 1,
                  kWh: ENERGY.kWh || 0, soc: 1, burnKgH: 0, drawKW: 0,
+                 // G435: THE ENERGY STATE, SAID. `starved` the moment the tanks or
+                 // the pack stop every engine (with the sim second it happened), and
+                 // the ENDURANCE at the draw of this substep (seconds; Infinity at
+                 // idle) - the user's 2 kWh trainer spiralled into the sea on the
+                 // downwind leg with the throttle at 1.00 and nothing that said why
+                 starved: false, starvedAt: null, enduranceS: Infinity,
                  // per vessel, in the order the spec lists them: litres now
                  vessels: (ENERGY.vessels || []).map(v => ({ bay: v.bay,
                    litres0: v.litres || 0, litres: v.litres || 0 })) };
@@ -7220,6 +7244,8 @@ function makeSim(def, world) {
     for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; }
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
+    fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
+    out.starved = false; out.energyFrac = 1; out.submerged = false;
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
@@ -7269,11 +7295,15 @@ function makeSim(def, world) {
       fuel.drawKW = THERMO.drawKW * tSum * pk;
       if (fuel.kWh > 0 && fuel.drawKW > 0) {
         fuel.soc = Math.max(0, fuel.soc - fuel.drawKW * dt / 3600 / fuel.kWh);
-        if (fuel.soc <= 0) for (const e of eng) e.running = false;
-      }
+        fuel.enduranceS = fuel.soc * fuel.kWh * 3600 / fuel.drawKW;
+        if (fuel.soc <= 0) { for (const e of eng) e.running = false; starve(); }
+      } else fuel.enduranceS = Infinity;
+      out.energyFrac = fuel.soc;
       return;
     }
     fuel.burnKgH = THERMO.burnKgH * tSum * pk;
+    out.energyFrac = fuel.frac;
+    fuel.enduranceS = (fuel.kg0 > 0 && fuel.burnKgH > 0) ? fuel.frac * fuel.kg0 * 3600 / fuel.burnKgH : Infinity;
     if (!(fuel.kg0 > 0) || !(fuel.burnKgH > 0)) return;
     const f2 = Math.max(0, fuel.frac - fuel.burnKgH * dt / 3600 / fuel.kg0);
     if (f2 === fuel.frac) return;
@@ -7282,7 +7312,11 @@ function makeSim(def, world) {
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
       setNodeMass(FUEL_IDX[k], DRY0[k] + FUEL0[k] * f2);
-    if (f2 <= 0) for (const e of eng) e.running = false;   // tanks dry
+    if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
+  }
+  function starve() {
+    if (fuel.starved) return;
+    fuel.starved = true; fuel.starvedAt = simT; out.starved = true;
   }
   // the readings that need a frame, not a substep: nz off the CG's own
   // acceleration against the body up, the yaw rate off the heading, the
@@ -7315,6 +7349,16 @@ function makeSim(def, world) {
     const ax = cv[0] - (out.windX || 0), ay = cv[1] - (out.windY || 0), az = cv[2] - (out.windZ || 0);
     const Vt = Math.hypot(ax, ay, az);
     out.beta = Vt > 1 ? Math.asin(Math.max(-1, Math.min(1, (ax * zRt[0] + ay * zRt[1] + az * zRt[2]) / Vt))) : 0;
+    // G435: UNDER THE WATER THE FLIGHT IS OVER. A wheeled build in the sea
+    // stands on the seabed as on any ground (the floats' hydro is the only
+    // water the solver pushes on) and the user "followed the plane to the
+    // bottom of the sea, and it was like it continued flying". A metre of
+    // water over the mass centre is the fact; the pilot and the game end it.
+    if (!HY && world && typeof world.waterH === 'function') {
+      const c = cgPos();
+      const wh = world.waterH(c[0], c[2]);
+      out.submerged = Number.isFinite(wh) && c[1] < wh - 1.0;
+    } else out.submerged = false;
   }
 
   // wingspan datum for ground effect: outermost wing-strip node |z| in def
@@ -12093,7 +12137,7 @@ const PILOT_PHASES = {
   ABORT: ['ABORT', 'ROLL'], LIFTOFF: ['LIFT-OFF', 'LIFTOFF'], PUTDOWN: ['PUT DOWN', 'LIFTOFF'],
   CLIMB: ['CLIMB', 'CLIMB'], CROSSWIND: ['CROSSWIND', 'CRUISE'], DOWNWIND: ['DOWNWIND', 'CRUISE'],
   BASE: ['BASE', 'TURNBACK'], ENROUTE: ['ENROUTE', 'ENROUTE'], INBOUND: ['INBOUND', 'INBOUND'],
-  FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
+  FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], GLIDE: ['GLIDE', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
   ROLLOUT: ['ROLLOUT', 'ROLLOUT'], STOPPED: ['STOPPED', 'STOPPED'],
   BOX: ['AP BOX', 'CRUISE'],
 };
@@ -12124,6 +12168,22 @@ function makePilot(sim, def, world, opts) {
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
     ? genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81) : { cap: 1 };
+  // G435: THE THRUST LINE'S HEIGHT OVER THE CG, a ground fact of the
+  // aeroplane as built (the rest nodes, mass-weighted). A pusher on its boom
+  // pulls the nose DOWN with the throttle: the user's birdman (0.59 m over
+  // the CG, 985 N) lifted off at 24 m/s and sank back at 28 with the stick
+  // at the servo's 0.20 - the same story G396.2 met on the water, where the
+  // integrator's 0.15 ceiling could not hold the attitude against the
+  // thrust line. A nose mount reads ~0 here and changes nothing.
+  const THRUST_ARM = (() => {
+    const N = def.nodes, E = def.refs && def.refs.engine;
+    if (!E || !E.length) return 0;
+    let M = 0, cy = 0;
+    for (const nd of N) { M += nd.m; cy += nd.m * nd.p[1]; }
+    const ey = E.reduce((s, i) => s + N[i].p[1], 0) / E.length;
+    return M > 0 ? ey - cy / M : 0;
+  })();
+  const highThrust = THRUST_ARM > (A.highThrustArm ?? 0.30);
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -12134,7 +12194,14 @@ function makePilot(sim, def, world, opts) {
     return { Lwb, steer: Math.abs(def.params.twSteer || 0.5) };
   })();
   const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
-  const threePoint = !trike && GP.cap < 1;
+  // G435: ...AND A HIGH THRUST LINE ROLLS THREE-POINT. The tail-up schedule
+  // eases the stick to lift the tail at 3 m/s; on the user's pusher the
+  // thrust line lifts it by itself and kept going - the nose reached -14 deg
+  // with the servo at 0.20 and the keel touched at 15 m/s (the birth spec
+  // rolled, the game's joined spec did not: a knife edge, 1320 N.m of thrust
+  // moment against 1330 of weight). Held three-point, the stick stays back
+  // until Vr and the tail rides where the thrust line puts it.
+  const threePoint = !trike && (GP.cap < 1 || highThrust);
   // every taildragger rotates at Vr (G193); every TRICYCLE rotates too (G202)
   const rotateTD = !trike && (A.rotate != null ? !!A.rotate : true);
   const taxiFF = (() => {
@@ -12283,6 +12350,7 @@ function makePilot(sim, def, world, opts) {
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
+  let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
@@ -13279,6 +13347,10 @@ function makePilot(sim, def, world, opts) {
         default: break;
       }
       if (AF.vert !== 'TECS') tOn = false;
+      // G435 GLIDE: TECS winds its throttle to the stop asking an engine that
+      // is dead (which is what puts the speed on the elevator); the lever the
+      // cockpit shows stays closed
+      if (SEL.deadThr) c.thr = 0;
       // lateral
       switch (AF.lat) {
         case 'HDG': ap.targetDir = [Math.cos(SEL.hdg), 0, Math.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
@@ -13479,8 +13551,71 @@ function makePilot(sim, def, world, opts) {
       if (AF.thr === 'SPD') conds.push(cond('airspeed', V, SEL.ias, Math.abs(V - SEL.ias) < 2, 'm/s'));
       setStatus('AP box: ' + AF.lat + ' ' + AF.vert + ' ' + AF.thr, conds);
     };
+    // G435: OUT OF ENERGY, SAID AND FLOWN. The user's 2 kWh trainer ran its
+    // pack down on the downwind leg and this pilot held the throttle at
+    // 1.00 into a spiral and the sea, its only word "no climb left". The
+    // solver now says `starved` (30_solver.js, the tanks or the pack
+    // stopping every engine); airborne, the pilot says it and glides for a
+    // FORCED LANDING - the nearest strip when it is inside the glide cone,
+    // straight ahead otherwise - through the flare it already knows. A
+    // starvation in the flare or on the wheels changes nothing but the note.
+    // The emergency's finer judgement (a field chosen, a turn back, the
+    // wind) is the pilot track's (PLAYTEST-TRIAGE A8); this is the floor.
+    if (sim.fuel && sim.fuel.starved && !starvedSaid) {
+      starvedSaid = true;
+      const what = sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
+      const landingPh = ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || ap.phase === 'STOPPED' || ap.phase === 'ABORT' || ap.phase === 'PUTDOWN';
+      if (onG === 0 && !landingPh && !BX.on) {
+        // the glide cone: the sheet's L/D when it has one, else a modest 8
+        const ld = (SH && SH.LDbest > 0) ? SH.LDbest : 8;
+        let best = null, bestD = Infinity;
+        for (const a of (world && world.aerodromes) || []) {
+          const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (d < bestD) { bestD = d; best = a; }
+        }
+        const reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        glideTo = reach ? best : null;
+        glideHdg = Math.atan2(nose[1], nose[0]);
+        say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — engines stopped; gliding ' +
+            (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' : 'straight ahead for a forced landing'));
+        ap.report.outcome = ap.report.outcome || 'forced-landing';
+        committed = true;
+        go('GLIDE');
+      } else say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s — engines stopped');
+    }
+    // ...and UNDER THE WATER the flight is over (30_solver.js out.submerged)
+    if (o_.submerged && ap.phase !== 'STOPPED') {
+      say('in-the-water', 'under the water at t=' + Math.round(ap.t) + ' s — the flight is over');
+      ap.report.outcome = ap.report.outcome || 'in-the-water';
+      go('STOPPED');
+    }
     if (BX.on) boxFly(); else
     switch (ap.phase) {
+      case 'GLIDE': {
+        // best glide toward the strip or the heading held, no power, flaps
+        // as for the landing once low; the hold-off flare from FINAL's height
+        // TECS, not FLC: FLC's pitch floor (+0.02 rad) is a climb's and held
+        // the nose up with no power - the first cut mushed on at 1.01 Vs and
+        // 6 m/s of sink. TECS asked for the sheet's idle sink at Vbg puts the
+        // speed on the elevator once the (dead) throttle saturates.
+        const vbg = Math.max(A.VAppr || 18, (SH && SH.Vbg > 0) ? SH.Vbg : 0) || 20;
+        const tec = { vs: -tSinkIdle, alt: null, gs: null, vsUp: null, vsDn: null, ias: vbg, deadThr: true };
+        if (glideTo) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk: [glideTo.x, glideTo.z], bank: 0.35 }));
+        else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg: glideHdg, bank: 0.25 }));
+        flapTgt = aglG < 60 ? fLDG : 0;
+        setStatus('gliding for a forced landing', [
+          cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
+          cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
+        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
+          go('FLARE'); thFlare0 = th; SEL.deadThr = false;
+          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
+          flCap = trike ? A.thMax
+                : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
+          flCap = Math.max(flCap, thFlare0 + 0.03);
+          flI = 0; flVsF = vcg[1];
+        }
+        break;
+      }
       case 'DEPART': {
         // the panel arc: the pilot runs the checklist — mags on, engine
         // running — writing exactly what the cockpit key writes, so a key
@@ -13685,6 +13820,15 @@ function makePilot(sim, def, world, opts) {
             reject = Math.round(runUsed) + ' m used (' + Math.round(ST.rejectFrac * 100) +
                      ' % of the run) still on the wheels at V=' + V.toFixed(1) + (V >= vr ? ' past Vr=' + vr.toFixed(1) : ' of Vr=' + vr.toFixed(1)) +
                      ' (the sheet says ' + Math.round(A.TORun ?? 0) + ' m) — dropping it';
+          // G435: A NOSE-OVER IS SAID AS ONE. The user's pusher (985 N on a
+          // boom-mounted engine) was thrown onto its nose in two seconds and
+          // the verdict read "thrust is going nowhere" - true and useless.
+          // Pitched past 12 deg nose-down on the wheels and not accelerating
+          // there is no run to judge; the keel is on the ground. (A tail-high
+          // roll on a high thrust line reads -8 deg at 9 m/s and is fine.)
+          if (!reject && phaseT > 1 && onG > 0 && th < -0.21 && accF < 0.5 && !sim.hydro)
+            reject = 'nose-over: ' + Math.round(-th * 180 / Math.PI) + ' deg nose-down on the wheels at V=' + V.toFixed(1) +
+                     ' — the thrust line is pushing the nose into the ground (a high pusher, the mains under the CG)';
           if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr && !atHump)
             reject = 'not accelerating (' + accF.toFixed(2) + ' m/s^2 at V=' + V.toFixed(1) + ') — thrust is going nowhere';
         } else if (V < vr) {
@@ -13790,7 +13934,8 @@ function makePilot(sim, def, world, opts) {
         // phase handed over to CLIMB with the floats wet (the card skimmed to
         // 135 km/h). The sea is the flat datum `agl` was built on.
         const aglL = sim.hydro ? agl : aglG;
-        if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        // G435: ...and a HIGH THRUST LINE on land asks the same stick (THRUST_ARM above)
+        if ((sim.hydro || highThrust) && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
         // G396.4: THE HOLD-OFF ON THE WATER. LIFTOFF eased the stick to the
         // servo's 0.22 the moment the hull let go, the floats touched again
         // and the card skimmed the step 2 s to 115 km/h where full stick
@@ -13834,7 +13979,7 @@ function makePilot(sim, def, world, opts) {
           // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
           // and its approach is tuned with it — reset there, the trike went
           // around "high on the slope" and never landed (GATE PILOT).
-          if (sim.hydro) { IthMaxT = 0.15; IthGain = null; }
+          if (sim.hydro || highThrust) { IthMaxT = 0.15; IthGain = null; }
         }
         break;
       }
@@ -26376,6 +26521,21 @@ function genShakedown(def, opts) {
       out.energyKg = E.contentsKg;
       out.energyL = E.installedL;
       out.energyPrice = E.price;
+      // G435: HOW LONG IT RUNS, AND HOW FAR. The sheet quoted the draw and
+      // told the player to "divide the pack into it"; the user's 2 kWh
+      // trainer went into the sea on its downwind leg. Full-throttle
+      // endurance from the thermo rated figure; cruise at two thirds of it
+      // (the burn row's own rule of thumb), the still-air range at VCruise.
+      // Hours; null when the sheet has no rated draw or no energy aboard.
+      {
+        const cap = E.battery ? (S.energy && S.energy.kWh) || 0 : E.contentsKg || 0;
+        const rate = E.battery ? THr.drawKW : THr.burnKgH;
+        const hFull = cap > 0 && rate > 0 ? cap / rate : null;
+        out.enduranceFullH = hFull;
+        out.enduranceCruiseH = hFull != null ? hFull / 0.67 : null;
+        const Vc = def.params.ap && def.params.ap.VCruise;
+        out.rangeKm = hFull != null && Vc > 0 ? out.enduranceCruiseH * Vc * 3.6 : null;
+      }
     }
     out.propName = S.prop.name;
     // WHICH PITCH, AND WHETHER THE AEROPLANE CHOSE IT (G159). The plaque said

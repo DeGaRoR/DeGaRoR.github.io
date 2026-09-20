@@ -1284,6 +1284,11 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   font-style:normal; letter-spacing:0; text-transform:none;
   color:var(--ed-faint); }
 
+/* ---- THE VERSION LINE (G437): the build id, quietly, at the foot ------ */
+#edInfo #edVersion { margin-top:22px; padding-top:8px; border-top:1px solid var(--ed-hair);
+  font:400 10px/1.4 'IBM Plex Mono', monospace; color:var(--ed-faint); letter-spacing:0.02em; }
+#edInfo #edVersion:empty { display:none; }
+
 #edInfo .lgR { display:flex; justify-content:space-between; gap:8px;
   align-items:baseline; padding:6px 0; border-bottom:1px solid var(--ed-hair); }
 
@@ -3337,6 +3342,13 @@ body.benchBusy #edInfo { opacity:.72; }
     B.set = set || 'garage'; B.keys = {}; B.failed = []; B.state = 'loading'; B._frame1 = false;
     for (const f of (B._shots || [])) if (f.classList) f.classList.remove('on');
     B._shotI = -1; B._shotT = 0;
+    // G437 (A2): the words are the SET's from the first frame. The roll-out
+    // screen opened over the garage's last line ("the last pieces landing")
+    // and the shed's ticker until its first step painted, several seconds
+    // into building the world - "the loading screens are confusing,
+    // mentioning the garage after roll out untested".
+    setPhase(B.set === 'rollout' ? 'rolling out to the strip' : 'opening the shed');
+    { const tk = $('bootTick'); if (tk) tk.textContent = ''; }
     note(''); const sk = $('bootSkip'); if (sk) sk.hidden = true;
     rec('show', { set: B.set });
     if (opt && opt.steps) run(opt.steps, opt);
@@ -3629,6 +3641,9 @@ body.benchBusy #edInfo { opacity:.72; }
       <div class="edH"><span>logbook</span><i></i><em id="lgMeta"></em></div>
       <div id="lgRows"></div>
     </section>
+    <!-- THE VERSION LINE (G437, A2): which build this is, on the shed's own
+         panel - storage.js writes it (FLYDIY_BUILD, version.json's date). -->
+    <footer id="edVersion"></footer>
     <!-- WHAT IS ON THE STAND was a section here, and `#shAc` took the game's
          own aircraft select on loan to fill it. G135 retired both with the
          menu they existed to show: the bench aircraft were already ruled
@@ -15251,12 +15266,30 @@ function makeSim(def, world) {
       cx += p[i*3] * mi; cy += p[i*3+1] * mi; cz += p[i*3+2] * mi; M += mi;
     }
     cx /= M; cy /= M; cz /= M;
+    // G435: THE REST OFFSETS RE-CENTRED BY THE MASSES OF THIS SUBSTEP.
+    // "Mass-weighted, so linear momentum is conserved exactly" (above) holds
+    // only while sum m_k q_k = 0 with the m the goal is built from. The rest
+    // is taken once (clusterRest) and the masses move after it: a tank
+    // billed on a ring pair inside the cluster drains, the occupants shift.
+    // A rod boom carrying the user's pusher lost 2.8 g a side to idle burn,
+    // the offsets drifted 15 um off centre, and the projection - applied at
+    // 1440 Hz with gain al/dt - pushed 730 kg.m/s into the parked aeroplane
+    // in ten seconds: it crept 0.8 m aft at rest and, with 985 N on the
+    // boom-mounted engine, was thrown onto its nose ("thrust is going
+    // nowhere"). Recentred here the injection is 0.0000 to the bit,
+    // whatever the masses do. One more pass over the cluster's ~20 nodes.
+    let qbx = 0, qby = 0, qbz = 0;
+    for (let k = 0; k < n2; k++) {
+      const mi = m[C.idx[k]];
+      qbx += mi * C.q[k*3]; qby += mi * C.q[k*3+1]; qbz += mi * C.q[k*3+2];
+    }
+    qbx /= M; qby /= M; qbz /= M;
     // A = sum m (x - c) q^T
     const A = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], mi = m[i];
       const dx = p[i*3] - cx, dy = p[i*3+1] - cy, dz = p[i*3+2] - cz;
-      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
       A[0] += mi*dx*qx; A[1] += mi*dx*qy; A[2] += mi*dx*qz;
       A[3] += mi*dy*qx; A[4] += mi*dy*qy; A[5] += mi*dy*qz;
       A[6] += mi*dz*qx; A[7] += mi*dz*qy; A[8] += mi*dz*qz;
@@ -15265,7 +15298,7 @@ function makeSim(def, world) {
     const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], i3 = i*3;
-      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
       const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
       const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
       const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
@@ -15356,6 +15389,12 @@ function makeSim(def, world) {
   const fuel = { kind: ENERGY.kind || 'fuel', kg0: fuelKg0, kg: fuelKg0,
                  litres0: fuelKg0 / kgL, litres: fuelKg0 / kgL, frac: 1,
                  kWh: ENERGY.kWh || 0, soc: 1, burnKgH: 0, drawKW: 0,
+                 // G435: THE ENERGY STATE, SAID. `starved` the moment the tanks or
+                 // the pack stop every engine (with the sim second it happened), and
+                 // the ENDURANCE at the draw of this substep (seconds; Infinity at
+                 // idle) - the user's 2 kWh trainer spiralled into the sea on the
+                 // downwind leg with the throttle at 1.00 and nothing that said why
+                 starved: false, starvedAt: null, enduranceS: Infinity,
                  // per vessel, in the order the spec lists them: litres now
                  vessels: (ENERGY.vessels || []).map(v => ({ bay: v.bay,
                    litres0: v.litres || 0, litres: v.litres || 0 })) };
@@ -15368,6 +15407,8 @@ function makeSim(def, world) {
     for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; }
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
+    fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
+    out.starved = false; out.energyFrac = 1; out.submerged = false;
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
@@ -15417,11 +15458,15 @@ function makeSim(def, world) {
       fuel.drawKW = THERMO.drawKW * tSum * pk;
       if (fuel.kWh > 0 && fuel.drawKW > 0) {
         fuel.soc = Math.max(0, fuel.soc - fuel.drawKW * dt / 3600 / fuel.kWh);
-        if (fuel.soc <= 0) for (const e of eng) e.running = false;
-      }
+        fuel.enduranceS = fuel.soc * fuel.kWh * 3600 / fuel.drawKW;
+        if (fuel.soc <= 0) { for (const e of eng) e.running = false; starve(); }
+      } else fuel.enduranceS = Infinity;
+      out.energyFrac = fuel.soc;
       return;
     }
     fuel.burnKgH = THERMO.burnKgH * tSum * pk;
+    out.energyFrac = fuel.frac;
+    fuel.enduranceS = (fuel.kg0 > 0 && fuel.burnKgH > 0) ? fuel.frac * fuel.kg0 * 3600 / fuel.burnKgH : Infinity;
     if (!(fuel.kg0 > 0) || !(fuel.burnKgH > 0)) return;
     const f2 = Math.max(0, fuel.frac - fuel.burnKgH * dt / 3600 / fuel.kg0);
     if (f2 === fuel.frac) return;
@@ -15430,7 +15475,11 @@ function makeSim(def, world) {
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
       setNodeMass(FUEL_IDX[k], DRY0[k] + FUEL0[k] * f2);
-    if (f2 <= 0) for (const e of eng) e.running = false;   // tanks dry
+    if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
+  }
+  function starve() {
+    if (fuel.starved) return;
+    fuel.starved = true; fuel.starvedAt = simT; out.starved = true;
   }
   // the readings that need a frame, not a substep: nz off the CG's own
   // acceleration against the body up, the yaw rate off the heading, the
@@ -15463,6 +15512,16 @@ function makeSim(def, world) {
     const ax = cv[0] - (out.windX || 0), ay = cv[1] - (out.windY || 0), az = cv[2] - (out.windZ || 0);
     const Vt = Math.hypot(ax, ay, az);
     out.beta = Vt > 1 ? Math.asin(Math.max(-1, Math.min(1, (ax * zRt[0] + ay * zRt[1] + az * zRt[2]) / Vt))) : 0;
+    // G435: UNDER THE WATER THE FLIGHT IS OVER. A wheeled build in the sea
+    // stands on the seabed as on any ground (the floats' hydro is the only
+    // water the solver pushes on) and the user "followed the plane to the
+    // bottom of the sea, and it was like it continued flying". A metre of
+    // water over the mass centre is the fact; the pilot and the game end it.
+    if (!HY && world && typeof world.waterH === 'function') {
+      const c = cgPos();
+      const wh = world.waterH(c[0], c[2]);
+      out.submerged = Number.isFinite(wh) && c[1] < wh - 1.0;
+    } else out.submerged = false;
   }
 
   // wingspan datum for ground effect: outermost wing-strip node |z| in def
@@ -20241,7 +20300,7 @@ const PILOT_PHASES = {
   ABORT: ['ABORT', 'ROLL'], LIFTOFF: ['LIFT-OFF', 'LIFTOFF'], PUTDOWN: ['PUT DOWN', 'LIFTOFF'],
   CLIMB: ['CLIMB', 'CLIMB'], CROSSWIND: ['CROSSWIND', 'CRUISE'], DOWNWIND: ['DOWNWIND', 'CRUISE'],
   BASE: ['BASE', 'TURNBACK'], ENROUTE: ['ENROUTE', 'ENROUTE'], INBOUND: ['INBOUND', 'INBOUND'],
-  FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
+  FINAL: ['FINAL', 'APPROACH'], GOAROUND: ['GO-AROUND', 'APPROACH'], GLIDE: ['GLIDE', 'APPROACH'], FLARE: ['FLARE', 'FLARE'],
   ROLLOUT: ['ROLLOUT', 'ROLLOUT'], STOPPED: ['STOPPED', 'STOPPED'],
   BOX: ['AP BOX', 'CRUISE'],
 };
@@ -20272,6 +20331,22 @@ function makePilot(sim, def, world, opts) {
   // ---- the aeroplane's ground facts (41_test_pilot.js, verbatim) ------------
   const GP = (typeof genGroundPowerCap === 'function')
     ? genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81) : { cap: 1 };
+  // G435: THE THRUST LINE'S HEIGHT OVER THE CG, a ground fact of the
+  // aeroplane as built (the rest nodes, mass-weighted). A pusher on its boom
+  // pulls the nose DOWN with the throttle: the user's birdman (0.59 m over
+  // the CG, 985 N) lifted off at 24 m/s and sank back at 28 with the stick
+  // at the servo's 0.20 - the same story G396.2 met on the water, where the
+  // integrator's 0.15 ceiling could not hold the attitude against the
+  // thrust line. A nose mount reads ~0 here and changes nothing.
+  const THRUST_ARM = (() => {
+    const N = def.nodes, E = def.refs && def.refs.engine;
+    if (!E || !E.length) return 0;
+    let M = 0, cy = 0;
+    for (const nd of N) { M += nd.m; cy += nd.m * nd.p[1]; }
+    const ey = E.reduce((s, i) => s + N[i].p[1], 0) / E.length;
+    return M > 0 ? ey - cy / M : 0;
+  })();
+  const highThrust = THRUST_ARM > (A.highThrustArm ?? 0.30);
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -20282,7 +20357,14 @@ function makePilot(sim, def, world, opts) {
     return { Lwb, steer: Math.abs(def.params.twSteer || 0.5) };
   })();
   const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
-  const threePoint = !trike && GP.cap < 1;
+  // G435: ...AND A HIGH THRUST LINE ROLLS THREE-POINT. The tail-up schedule
+  // eases the stick to lift the tail at 3 m/s; on the user's pusher the
+  // thrust line lifts it by itself and kept going - the nose reached -14 deg
+  // with the servo at 0.20 and the keel touched at 15 m/s (the birth spec
+  // rolled, the game's joined spec did not: a knife edge, 1320 N.m of thrust
+  // moment against 1330 of weight). Held three-point, the stick stays back
+  // until Vr and the tail rides where the thrust line puts it.
+  const threePoint = !trike && (GP.cap < 1 || highThrust);
   // every taildragger rotates at Vr (G193); every TRICYCLE rotates too (G202)
   const rotateTD = !trike && (A.rotate != null ? !!A.rotate : true);
   const taxiFF = (() => {
@@ -20431,6 +20513,7 @@ function makePilot(sim, def, world, opts) {
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
+  let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
@@ -21427,6 +21510,10 @@ function makePilot(sim, def, world, opts) {
         default: break;
       }
       if (AF.vert !== 'TECS') tOn = false;
+      // G435 GLIDE: TECS winds its throttle to the stop asking an engine that
+      // is dead (which is what puts the speed on the elevator); the lever the
+      // cockpit shows stays closed
+      if (SEL.deadThr) c.thr = 0;
       // lateral
       switch (AF.lat) {
         case 'HDG': ap.targetDir = [Math.cos(SEL.hdg), 0, Math.sin(SEL.hdg)]; airLateral(SEL.bank ?? bankLim); break;
@@ -21627,8 +21714,71 @@ function makePilot(sim, def, world, opts) {
       if (AF.thr === 'SPD') conds.push(cond('airspeed', V, SEL.ias, Math.abs(V - SEL.ias) < 2, 'm/s'));
       setStatus('AP box: ' + AF.lat + ' ' + AF.vert + ' ' + AF.thr, conds);
     };
+    // G435: OUT OF ENERGY, SAID AND FLOWN. The user's 2 kWh trainer ran its
+    // pack down on the downwind leg and this pilot held the throttle at
+    // 1.00 into a spiral and the sea, its only word "no climb left". The
+    // solver now says `starved` (30_solver.js, the tanks or the pack
+    // stopping every engine); airborne, the pilot says it and glides for a
+    // FORCED LANDING - the nearest strip when it is inside the glide cone,
+    // straight ahead otherwise - through the flare it already knows. A
+    // starvation in the flare or on the wheels changes nothing but the note.
+    // The emergency's finer judgement (a field chosen, a turn back, the
+    // wind) is the pilot track's (PLAYTEST-TRIAGE A8); this is the floor.
+    if (sim.fuel && sim.fuel.starved && !starvedSaid) {
+      starvedSaid = true;
+      const what = sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
+      const landingPh = ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || ap.phase === 'STOPPED' || ap.phase === 'ABORT' || ap.phase === 'PUTDOWN';
+      if (onG === 0 && !landingPh && !BX.on) {
+        // the glide cone: the sheet's L/D when it has one, else a modest 8
+        const ld = (SH && SH.LDbest > 0) ? SH.LDbest : 8;
+        let best = null, bestD = Infinity;
+        for (const a of (world && world.aerodromes) || []) {
+          const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
+          if (d < bestD) { bestD = d; best = a; }
+        }
+        const reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        glideTo = reach ? best : null;
+        glideHdg = Math.atan2(nose[1], nose[0]);
+        say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — engines stopped; gliding ' +
+            (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' : 'straight ahead for a forced landing'));
+        ap.report.outcome = ap.report.outcome || 'forced-landing';
+        committed = true;
+        go('GLIDE');
+      } else say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s — engines stopped');
+    }
+    // ...and UNDER THE WATER the flight is over (30_solver.js out.submerged)
+    if (o_.submerged && ap.phase !== 'STOPPED') {
+      say('in-the-water', 'under the water at t=' + Math.round(ap.t) + ' s — the flight is over');
+      ap.report.outcome = ap.report.outcome || 'in-the-water';
+      go('STOPPED');
+    }
     if (BX.on) boxFly(); else
     switch (ap.phase) {
+      case 'GLIDE': {
+        // best glide toward the strip or the heading held, no power, flaps
+        // as for the landing once low; the hold-off flare from FINAL's height
+        // TECS, not FLC: FLC's pitch floor (+0.02 rad) is a climb's and held
+        // the nose up with no power - the first cut mushed on at 1.01 Vs and
+        // 6 m/s of sink. TECS asked for the sheet's idle sink at Vbg puts the
+        // speed on the elevator once the (dead) throttle saturates.
+        const vbg = Math.max(A.VAppr || 18, (SH && SH.Vbg > 0) ? SH.Vbg : 0) || 20;
+        const tec = { vs: -tSinkIdle, alt: null, gs: null, vsUp: null, vsDn: null, ias: vbg, deadThr: true };
+        if (glideTo) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk: [glideTo.x, glideTo.z], bank: 0.35 }));
+        else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg: glideHdg, bank: 0.25 }));
+        flapTgt = aglG < 60 ? fLDG : 0;
+        setStatus('gliding for a forced landing', [
+          cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
+          cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
+        if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
+          go('FLARE'); thFlare0 = th; SEL.deadThr = false;
+          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
+          flCap = trike ? A.thMax
+                : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
+          flCap = Math.max(flCap, thFlare0 + 0.03);
+          flI = 0; flVsF = vcg[1];
+        }
+        break;
+      }
       case 'DEPART': {
         // the panel arc: the pilot runs the checklist — mags on, engine
         // running — writing exactly what the cockpit key writes, so a key
@@ -21833,6 +21983,15 @@ function makePilot(sim, def, world, opts) {
             reject = Math.round(runUsed) + ' m used (' + Math.round(ST.rejectFrac * 100) +
                      ' % of the run) still on the wheels at V=' + V.toFixed(1) + (V >= vr ? ' past Vr=' + vr.toFixed(1) : ' of Vr=' + vr.toFixed(1)) +
                      ' (the sheet says ' + Math.round(A.TORun ?? 0) + ' m) — dropping it';
+          // G435: A NOSE-OVER IS SAID AS ONE. The user's pusher (985 N on a
+          // boom-mounted engine) was thrown onto its nose in two seconds and
+          // the verdict read "thrust is going nowhere" - true and useless.
+          // Pitched past 12 deg nose-down on the wheels and not accelerating
+          // there is no run to judge; the keel is on the ground. (A tail-high
+          // roll on a high thrust line reads -8 deg at 9 m/s and is fine.)
+          if (!reject && phaseT > 1 && onG > 0 && th < -0.21 && accF < 0.5 && !sim.hydro)
+            reject = 'nose-over: ' + Math.round(-th * 180 / Math.PI) + ' deg nose-down on the wheels at V=' + V.toFixed(1) +
+                     ' — the thrust line is pushing the nose into the ground (a high pusher, the mains under the CG)';
           if (!reject && phaseT > 8 && accF < 0.08 && V < 0.8 * vr && !atHump)
             reject = 'not accelerating (' + accF.toFixed(2) + ' m/s^2 at V=' + V.toFixed(1) + ') — thrust is going nowhere';
         } else if (V < vr) {
@@ -21938,7 +22097,8 @@ function makePilot(sim, def, world, opts) {
         // phase handed over to CLIMB with the floats wet (the card skimmed to
         // 135 km/h). The sea is the flat datum `agl` was built on.
         const aglL = sim.hydro ? agl : aglG;
-        if (sim.hydro && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        // G435: ...and a HIGH THRUST LINE on land asks the same stick (THRUST_ARM above)
+        if ((sim.hydro || highThrust) && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
         // G396.4: THE HOLD-OFF ON THE WATER. LIFTOFF eased the stick to the
         // servo's 0.22 the moment the hull let go, the floats touched again
         // and the card skimmed the step 2 s to 115 km/h where full stick
@@ -21982,7 +22142,7 @@ function makePilot(sim, def, world, opts) {
           // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
           // and its approach is tuned with it — reset there, the trike went
           // around "high on the slope" and never landed (GATE PILOT).
-          if (sim.hydro) { IthMaxT = 0.15; IthGain = null; }
+          if (sim.hydro || highThrust) { IthMaxT = 0.15; IthGain = null; }
         }
         break;
       }
@@ -34524,6 +34684,21 @@ function genShakedown(def, opts) {
       out.energyKg = E.contentsKg;
       out.energyL = E.installedL;
       out.energyPrice = E.price;
+      // G435: HOW LONG IT RUNS, AND HOW FAR. The sheet quoted the draw and
+      // told the player to "divide the pack into it"; the user's 2 kWh
+      // trainer went into the sea on its downwind leg. Full-throttle
+      // endurance from the thermo rated figure; cruise at two thirds of it
+      // (the burn row's own rule of thumb), the still-air range at VCruise.
+      // Hours; null when the sheet has no rated draw or no energy aboard.
+      {
+        const cap = E.battery ? (S.energy && S.energy.kWh) || 0 : E.contentsKg || 0;
+        const rate = E.battery ? THr.drawKW : THr.burnKgH;
+        const hFull = cap > 0 && rate > 0 ? cap / rate : null;
+        out.enduranceFullH = hFull;
+        out.enduranceCruiseH = hFull != null ? hFull / 0.67 : null;
+        const Vc = def.params.ap && def.params.ap.VCruise;
+        out.rangeKm = hFull != null && Vc > 0 ? out.enduranceCruiseH * Vc * 3.6 : null;
+      }
     }
     out.propName = S.prop.name;
     // WHICH PITCH, AND WHETHER THE AEROPLANE CHOSE IT (G159). The plaque said
@@ -35395,7 +35570,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='aae401f281af';window.FLYDIY_BUILD='9f40e4201a14'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='6d98f4326889';window.FLYDIY_BUILD='32d5561fbc63'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -35719,7 +35894,7 @@ const CAGE_PARTS = [
       ['shape', ['wsRun', 'wsTopOff', 'wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
-                         'canLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
+                         'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                          'bubAt3', 'bubW3']],
       // the screen BASE ring pair (wsFront + wsAft): where the screen stands
       // on the shell, and how wide the shell is there
@@ -40621,6 +40796,9 @@ window.CAGE_PAGE = {
          { when: P => +P.canopy === 3 }],
         ['canLoops',  'canopy loops',   1, 3, 1,
          { when: P => +P.canopy === 3 }],
+        // G439: a VIEW row (opts.view) - draws the loops as guide arcs; off by default
+        ['_viewLoops', 'show loops',     0, 1, 1,
+         { when: P => +P.canopy === 3, view: 'loops' }],
         ['bubH2',     'loop2 height',   0, 1.4, 0.01,
          { when: P => +P.canopy === 3 && +P.canLoops >= 2 }],
         ['bubAt2',    'loop2 apex',     0.15, 0.85, 0.01,
@@ -51475,19 +51653,22 @@ function cageSheet(P, opts) {
   // translation as cutOff — the DISPLAY keeps the offsets, the contracts
   // must never move with a flying door (user: the undercarriage followed
   // `explode`)
+  // G439 (A5): THE SHEET IS THE SAME BUILD WITH THE EXPLODE OFF, not the
+  // exploded build with its cutOffs subtracted. The subtraction only knew
+  // the faces that carry a cutOff; everything drawn AFTER the explode on the
+  // exploded vertices - the joint strips (6 148 faces on the Cessna), the
+  // interior structure, the shoulder - has vertices of its own and no flag,
+  // and stayed where the explosion put it. Measured headless at explodeD
+  // 0.7: 16 926 vertices still off, the roof's joints 0.7 up, and the
+  // airframe contract read the cabin deck at 0.225 instead of 0.745 at the
+  // wing station - so the wing layer hung the wing half a metre low, and
+  // CAGE_JOIN.export() (every slider pause, no view neutraliser) wrote that
+  // height into the flown spec: the user's "using the explode option had
+  // moved the height of the wings". One more build while exploded, which
+  // is a viewing mode; the display keeps its offsets.
   let sheet = s;
-  if ((P.explodeD || 0) > 0) {
-    const V2 = s.V.map(p => p.slice());
-    const undone = new Set();
-    for (const f of s.F) if (f.cutOff)
-      for (const vi of f.v) {
-        if (undone.has(vi)) continue;
-        undone.add(vi);
-        V2[vi] = [V2[vi][0] - f.cutOff[0], V2[vi][1] - f.cutOff[1],
-                  V2[vi][2] - f.cutOff[2]];
-      }
-    sheet = Object.assign({}, s, { V: V2 });
-  }
+  if ((P.explodeD || 0) > 0)
+    sheet = cageSheet(Object.assign({}, P, { explodeD: 0 }), opts).mesh;
   return { spec, cage: m, mesh: s, sheet };
 }
 
@@ -85869,7 +86050,7 @@ const matCache = {};
 // of LOOKING and still wins when it asks for less; a default that always
 // asks for less was a cap wearing a preference's clothes.
 const VIEW = { glassA: 1, bodyA: 1, skinA: 1, structA: 1, cowlA: 1,
-               loops: 1, xray: 0 };
+               loops: 0, xray: 0 };   // G439: the canopy loops hidden by default
 // layers read viewer state (the cowl layer's alpha) through this — G29
 window.CAGE_VIEW = VIEW;
 // SEE INSIDE (the user: "maybe we should have a view where the interior is
@@ -87616,11 +87797,12 @@ fillPresetSel();
   };
   const dl = document.createElement('div'); dl.className = 'r';
   dl.innerHTML = `<span class="k">canopy loops</span>
-    <label style="flex:none"><input type="checkbox" id="canLoopsV"
-      checked></label>`;
+    <label style="flex:none"><input type="checkbox" id="canLoopsV"></label>`;
   det.appendChild(dl);
   dl.querySelector('#canLoopsV').onchange = e => {
-    VIEW.loops = e.target.checked ? 1 : 0; build();
+    VIEW.loops = e.target.checked ? 1 : 0;
+    syncSliders();   // G439: the section's own `show loops` row follows
+    build();
   };
   // THE GAME'S ROOM LIGHTS THE BUILD (G36). The G35.2-4 arc tried to
   // reproduce the stand view's pipeline inside the bench renderer —
@@ -88151,6 +88333,19 @@ const renderItems = (parent, items, path) => {
     if (G.CAGE_AFT_SUB && (!opts || !opts.copyFrom))
       for (const [ak, fk] of G.CAGE_AFT_SUB)
         if (ak === k) o2 = Object.assign({}, opts, { copyFrom: fk });
+    // G439 (A5): A VIEW ROW - `opts.view` names a VIEW flag; the row reads and
+    // writes that flag, never P, so it sits beside the settings it shows (the
+    // canopy loops, the user: "hidden by default, with an option next to their
+    // settings") and never lands in a save. The DISPLAY flyout's row of the
+    // same flag follows it.
+    if (opts && opts.view) {
+      mkRow(parent, k, label, lo, hi, st, VIEW[opts.view] ? 1 : 0, v => {
+        VIEW[opts.view] = +v >= 1 ? 1 : 0;
+        document.querySelectorAll('#canLoopsV').forEach(c => { c.checked = !!VIEW.loops; });
+        build();
+      }, names, o2);
+      continue;
+    }
     mkRow(parent, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); },
           names, o2);
   }
@@ -90247,7 +90442,23 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
     return 'build ' + b + ' · ' + sv + ' · ' + c + ' · worker ' + S.sw + (S.error ? ' (' + S.error + ')' : '');
   };
   register();
-  W.STORAGE = { state: S, line, refresh, measure, checkServer, CACHE };
+  // G437 (A2): THE VERSION LINE ON THE SHED'S PANEL (the user: "I need an
+  // indication of the version number somewhere"). The build id the page was
+  // built with, the date version.json carries for it, the page's name;
+  // "a newer build on the server" when the two disagree (a cached page).
+  function stamp() {
+    const el = W.document && W.document.getElementById('edVersion'); if (!el) return;
+    const b = S.build ? S.build.slice(0, 8) : 'unbuilt';
+    const page = isDev() ? 'dev.html' : 'index.html';
+    const d = S.serverAt ? ' · ' + S.serverAt.slice(0, 10) : '';
+    const newer = S.server && S.build && S.server !== S.build ? ' · a newer build on the server: reload' : '';
+    el.textContent = 'build ' + b + d + ' · ' + page + newer;
+  }
+  if (W.document) {
+    const go = () => { stamp(); checkServer().then(stamp, stamp); };
+    if (W.document.readyState === 'loading') W.document.addEventListener('DOMContentLoaded', go); else go();
+  }
+  W.STORAGE = { state: S, line, refresh, measure, checkServer, CACHE, stamp };
 })();
 </script>
 <script type="text/x-flydiy">
@@ -92175,12 +92386,20 @@ var SKY_GLARE = (function () {
   function rayClear(origin, dir) {
     const occ = occluders() || [];
     if (occ.length && _ray.o) {
+      // G439 (A5): A RAY THAT CANNOT BE JUDGED IS A BLOCKED ONE. The raycast over
+      // the whole shed threw "Cannot read properties of null (reading 'matrixWorld')"
+      // ~25 times on every mood change - every SPRITE in the scene (the CG/NP post
+      // labels: Sprite.raycast reads raycaster.camera, which this ray never had; it
+      // has it now, see update). One bad object must not cost the frame, and a
+      // throw must not open the ray: called open, the moon's glow washed the whole
+      // field shed white at night (measured, then unmeasured).
       _ray.o.set(origin, dir); _ray.o.far = 8000;
-      let hits = _ray.o.intersectObjects(occ, true);
+      let hits = null;
+      try { hits = _ray.o.intersectObjects(occ, true); } catch (e) { return false; }
       for (const h of hits) if (h.object.visible && h.distance > 0.3 && solidHit(h)) return false;
       _o2.copy(dir).multiplyScalar(60).add(origin); _d2.copy(dir).negate();
       _ray.o.set(_o2, _d2); _ray.o.far = 60 - 0.3;
-      hits = _ray.o.intersectObjects(occ, true);
+      try { hits = _ray.o.intersectObjects(occ, true); } catch (e) { return false; }
       for (const h of hits) if (h.object.visible && solidHit(h)) return false;
     }
     if (terrainH && dir.y < 0.35) {
@@ -92192,6 +92411,7 @@ var SKY_GLARE = (function () {
   // update(camera, dir (THREE.Vector3 world unit vector), o: { lum (the light's transmittance, 0..1), isMoon, phase, aspect })
   function update(camera, dir, o) {
     if (!init() || !camera) return;
+    if (_ray.o) _ray.o.camera = camera;   // G439: sprites (the CG/NP posts) raycast against the camera; without it they threw
     frame++;
     const lum = o.lum != null ? o.lum : 1;
     // the light's place on screen
@@ -107630,10 +107850,19 @@ function stoveCorner(x, z, ry) {
 
 
 // a drawing board with plans, under a lamp
+// G439 (A5): REBUILT ON THE BOARD (the user: "give these proper PBR
+// materials, have a little lip at the bottom of the drawing table, and ensure
+// the plan is well in contact with the table, and in a secure and stable
+// position"). The paper sat 2.5 cm ABOVE the tilted top - two boxes given the
+// same rotation from two different centres. Everything that lies on the board
+// is now a CHILD of the board, in its frame: the plan (the player's own
+// plan_wall prop, laid flat, its back on the varnish), the lip along the low
+// edge that holds it, the rolls in the trough. The wood is the room's mapped
+// wood, not a flat colour.
 function planTable(x, z, ry) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  const TILT = 0.22;
-  const top = box(1.5, 0.05, 1.0, M.woodPale, 0, 0.95, 0);
+  const TILT = 0.22, T = 0.05;
+  const top = box(1.5, T, 1.0, M.wood, 0, 0.95, 0);
   top.rotation.x = -TILT; g.add(top);
   // EACH LEG IS AS LONG AS THE BOARD IS HIGH ABOVE IT. The top is tilted, so
   // one height for all four left the raised side standing 18 cm clear of the
@@ -107642,13 +107871,20 @@ function planTable(x, z, ry) {
     const h = 0.95 + sz * 0.42 * Math.sin(TILT) - 0.026;
     g.add(box(0.07, h, 0.07, M.wood, sx * 0.65, h / 2, sz * 0.42));
   }
-  const paper = box(1.2, 0.006, 0.82,
-    new THREE.MeshStandardMaterial({ color: 0xe8e3d6, roughness: 0.95 }), 0, 1.0, 0.02);
-  paper.rotation.x = -0.22; g.add(paper);
+  // the lip: a batten along the LOW edge (-z, the side the legs are short on)
+  top.add(box(1.5, 0.035, 0.03, M.wood, 0, T / 2 + 0.0175, -0.485));
+  // the plan: the prop laid flat (its own frame hangs it in xy from its top
+  // edge; -90 deg about x lays it in xz with the sheet along +z), its back on
+  // the top's surface, scaled to the board, against the lip
+  const plan = PROPS_OK ? prop('plan_wall', 0, 0, 0, T / 2 + 0.002, top) : null;
+  if (plan) { plan.rotation.x = -Math.PI / 2; plan.position.z = -0.455; plan.scale.setScalar(0.85); }
+  else top.add(box(1.2, 0.006, 0.82,
+    new THREE.MeshStandardMaterial({ color: 0xe8e3d6, roughness: 0.95 }), 0, T / 2 + 0.003, 0.02));
+  // the rolls, in the trough above the lip, lying on the board
   for (let k = 0; k < 3; k++) {
     const r = cyl(0.035, 0.035, 0.9, new THREE.MeshStandardMaterial({ color: 0xded7c6, roughness: 0.95 }),
-                  0.4 + k * 0.09, 1.06, -0.3, 10);
-    r.rotation.z = Math.PI / 2; r.rotation.y = 0.1; g.add(r);
+                  0.4 + k * 0.09, T / 2 + 0.035, -0.30, 10);
+    r.rotation.z = Math.PI / 2; r.rotation.y = 0.1; top.add(r);
   }
   G.add(g); return g;
 }
@@ -108051,6 +108287,7 @@ const lamps = [];
 // 1.178097 rad. It was 0.62 (71 deg full), a tighter pool of light that put
 // the shed's floor in five discs with dark between them. Inside setLampRig's
 // own [0.10, 1.30] clamp and inside the slider's 20..140 range, both checked.
+const LAMP_HK = Math.max(0.1, Math.min(1.6, (EAVE / 7.0) * (EAVE / 7.0)));   // G439: the hang height's inverse square, club = 1
 const LAMP = { gain: 1, angle: 1.178097, kelvin: 4000,
                rgb: new THREE.Color(0xffd9a0) };
 const kelvinRGB = (K, out) => {
@@ -108222,7 +108459,12 @@ const faceShafts = cam => {
 // the count became a parameter of the depth — and a shed with no roof
 // lights (the timber field shed) gets no roof dust at all, because a cone
 // of lit dust under an unbroken deck is a picture of a leak.
-for (const s of [1, -1]) for (let k = 0; k < ROOFLIGHTS.n; k++) {
+// G439 (A5): RETIRED (the user: "we can retire the fake god rays of the
+// garage"). The cards are not drawn any more; the group, the switch and the
+// rows' `shaft` numbers stay inert so no caller changes, and a future volumetric
+// light has the hooks. The loop is kept as the record of where they stood.
+const DRAW_SHAFTS = false;
+if (DRAW_SHAFTS) for (const s of [1, -1]) for (let k = 0; k < ROOFLIGHTS.n; k++) {
   const x = ROOFLIGHTS.x(k);
   const dir = [0.14, -1, -s * 0.12];
   const len = (EAVE + 1.2) * 0.88 * Math.hypot(dir[0], dir[1], dir[2]);
@@ -108334,7 +108576,7 @@ const LIGHTS = [
   { key: 'stove',  name: 'stove fire',           kind: 'light' },
   { key: 'panels', name: 'roof panels',          kind: 'emissive' },
   { key: 'env',    name: 'environment (PMREM)',  kind: 'env' },
-  { key: 'shafts', name: 'dust shafts',          kind: 'unlit' },
+  // 'shafts' (dust shafts, unlit) retired G439: nothing is drawn, so no switch
   // THE THIRD KIND, and the one that has never had a switch. The backdrop is a
   // MeshBasicMaterial: it is lit by nothing, so it is at full brightness in a
   // room where every light is off, and no amount of muting can touch it.
@@ -108461,11 +108703,19 @@ function applyDay(day, renderer) {
   return { rebake, isMoon: SKY_LIGHT.isMoon, el: day.sunEl, exposure: r ? r.exposure : null, markBaked: () => { skyBakedSun = g.slice(); } };
 }
 // which of the moods' LAMP rows fits the hour: the lamps come on with the dusk
+// G437 (A2): THE BANDS ARE THE PRESETS' OWN. day_clock.js puts 'sunset' at
+// -0.833 deg and 'dusk' at -6 deg (civil twilight), and these thresholds
+// were exclusive at exactly those elevations: sunset read DUSK, dusk read
+// NIGHT (the user: "I select dusk and I get night, sunset and I get dusk").
+// The bands are centred on the presets (afternoon 33.4, golden 8, sunset
+// -0.833, dusk -6), each edge halfway to its neighbour, night under -9 -
+// so the row the clock picks is the row the hand chose and the select
+// stops flipping under the player (GATE HANGAR rule 7 holds the five).
 function moodFor(day) {
   if (!day) return 0;
   if (day.cloudCover > 0.8 && MOODS.length > 5) return 5;
   const el = day.sunEl;
-  return el > 25 ? 0 : el > 8 ? 1 : el > 0 ? 2 : el > -6 ? 3 : 4;
+  return el > 20.7 ? 0 : el > 3.6 ? 1 : el > -3.4 ? 2 : el > -9 ? 3 : 4;
 }
 const MOODS = SKY_ROWS || [
   { key: 'alps', name: 'AFTERNOON', keyI: 2.8, kc: 0xffdca8, hemi: 0.274,
@@ -108483,8 +108733,15 @@ const setMood = i => {
   if (j !== moodI) { moodI = j; if (!phys) { setSky(m); aimKey(m.sunUV, m.yaw); } }
   if (!phys) { key.intensity = m.keyI; key.color.setHex(m.kc); }
   // the mood sets the candela; the rig's three knobs ride on top of it
+  // G439 (A5): THE LAMPS LIGHT THE FLOOR THE SAME IN EVERY SHELL. The mood's
+  // candela were judged in the club, lamps at 0.74 x a 7.0 m eave; the field
+  // shed hangs the same five fittings at 2.66 m and the floor took 3.8x the
+  // light, the walls closer still - at night the field shed was lit like
+  // noon and the aeroplane blown white (the user's 003140, "even after
+  // reloading the page"). Inverse-square on the hang height, the club's own
+  // eave the identity, so every row's number still means what it measured.
   for (const L of lamps) {
-    L.intensity = m.lamp * LAMP.gain;
+    L.intensity = m.lamp * LAMP.gain * LAMP_HK;
     L.angle = LAMP.angle;
     L.color.copy(LAMP.rgb);
   }
@@ -111020,6 +111277,12 @@ const PLAQUE_WHY = {
       + 'throttle. Divide the pack into it for the full-power endurance.' },
   'full-throttle burn': { what: 'fuel the engine burns at full throttle, by '
       + 'mass and by volume. Cruise burns about two thirds of it.' },
+  'endurance': { what: 'how long the energy aboard runs the engine: at full '
+      + 'throttle, and at a cruise burning two thirds of it.',
+    fix: 'a bigger pack or tank, or a leg that fits; under half an hour is '
+      + 'a circuit, not a trip.' },
+  'still-air range': { what: 'the cruise endurance flown at the cruise speed '
+      + 'with no wind. A headwind eats it; keep a reserve.' },
   'cooling duty': { what: 'the heat the engine sheds at full power and what '
       + 'carries it away. A cowl has to swallow this.' },
   // balance
@@ -117646,9 +117909,12 @@ function editorInit(api) {
     { k: 'explode', label: 'explode', title: 'The build, taken apart',
       icon: 'M9 2.4v4.2|M9 11.4v4.2|M2.4 9h4.2|M11.4 9h4.2|M7.4 7.4h3.2v3.2H7.4z',
       rows: ['explode', 'cutaway'] },
-    { k: 'measure', label: 'measure', title: 'What the build measures',
-      icon: 'M2.6 6.4h12.8v5.2H2.6z|M5.4 6.4v2.2|M8.2 6.4v3|M11 6.4v2.2|M13.8 6.4v3',
-      rows: ['dims box'] },
+    // G439 (A5): `measure` RETIRED (the user: "the dim box only measures the
+    // fuselage, so it's pretty useless - retire this, and prefer a
+    // length/wingspan on the top of the plaque where it already says 403 kg
+    // all-up, also add empty weight"). The whole aeroplane's length, span and
+    // empty weight sit in #acSpec now (app.js); the dims pane and its box
+    // stay parked in the nursery, unrendered, like #edStat.
     // G200: THE CONTROLS — the mapping panel, from the shed too (the user's
     // ruling: "triggered from both environments"). LITERAL FIELDS ONLY: GATE
     // VIEW reads this table in an empty vm, and `controls` is not one of the
@@ -118246,6 +118512,18 @@ function editorInit(api) {
       wrap2.appendChild(b);
     }
     body.appendChild(wrap2);
+    // G439 (A5): THE FIELD OF VIEW, a slider - the user wants to try the
+    // garage narrower. app.js keeps the number (a preference), degrees.
+    if (api.garageFov && api.setGarageFov) {
+      const r = document.createElement('div'); r.className = 'r';
+      r.innerHTML = '<span class="k" title="the garage camera’s vertical field of view, degrees">field of view</span>' +
+        '<input type="range" min="28" max="70" step="1" style="flex:1">' +
+        '<b style="min-width:3ch;text-align:right"></b>';
+      const inp = r.querySelector('input'), out = r.querySelector('b');
+      inp.value = String(api.garageFov()); out.textContent = api.garageFov() + '°';
+      inp.oninput = () => { const v = api.setGarageFov(+inp.value); out.textContent = v + '°'; };
+      body.appendChild(r);
+    }
     // G255: SCREENSHOT MODE — every panel, rail and mark off the screen, the
     // render alone; one transparent way back (top right) and the Esc key.
     // app.js owns the switch (window.SHOT_MODE) because both screens use it.
@@ -120543,7 +120821,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       const m = camera.near + 0.25 + 0.06;      // near + clear air + half the sheet
       x = Math.max(-(d.HD - m), Math.min(d.HD - m, x));
       z = Math.max(-(d.HW - m), Math.min(d.HW - m, z));
-      y = Math.max(gy + 0.5, Math.min(gy + d.EAVE - 0.5, y));
+      y = Math.max(gy + 0.12, Math.min(gy + d.EAVE - 0.5, y));   // G439 (A5): the eye may lie on the floor (the user: "the camera should be able to go down to the floor level")
     }
     camera.position.set(x, y, z);
     camera.lookAt(target);
@@ -120787,7 +121065,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
-      cam.position.set(0, 3.2, 0);
+      // G439 (A5): THE PROBE STANDS UNDER THE LAMPS. 3.2 m is a club-hangar
+      // number (eave 7); in the field shed (eave 3.6, the pendants hung at
+      // 0.74 x eave with their shades above) the cube camera stood INSIDE the
+      // middle lamp's fitting, 0.2 m from its bulb, and the probe's down face
+      // read 9 (peak 695) against 0.9 - a whole room lit like noon at night,
+      // and by a few centimetres of floor guard either way (build-dependent).
+      // The club keeps its 3.2 exactly; a lower room takes 0.45 x its eave.
+      const probeY = (hangar.dims && hangar.dims.EAVE < 7) ? Math.min(3.2, 0.45 * hangar.dims.EAVE) : 3.2;
+      cam.position.set(0, probeY, 0);
       // THE AEROPLANE WAS IN ITS OWN REFLECTION PROBE (G62.3, found chasing
       // the user's "global pink glow in the whole hangar"). This camera sits
       // at 3.2 m in the middle of the floor - a metre above a wing that spans
@@ -121178,6 +121464,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
+      if (inGarage) garageCamera();          // G439: a new room, the eye re-framed to its height
       if (WF && WF.setShedDims)
         WF.setShedDims(Object.assign({ shell: shedHome().shell },
           playerShedDims(player, 'HOME',
@@ -123143,7 +123430,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         const ei = ud.engIdx || 0;
         const eng = sim.ctl.eng && sim.ctl.eng[ei];
         const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
-        const on = !eng || eng.on;
+        // G435: ...AND THE ENGINE MUST BE RUNNING. The lever said "on" while
+        // the pack was flat and the key off, so the blades turned at full
+        // rate at the bottom of the sea; sim.eng[i].running is the solver's
+        // own fact (the key, the tanks, the pack), the same one the tacho
+        // reads. Dead, the prop windmills with the airspeed and stops.
+        const se = sim.eng && sim.eng[ei];
+        const on = (!eng || eng.on) && (!se || se.running);
         const V = (sim.out && sim.out.V) || 0;
         const target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
         ud.spinRate = (ud.spinRate == null ? target : ud.spinRate) +
@@ -123985,7 +124278,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // says both, beside the aeroplane you are changing); the node count was a
     // debug number printed over a render. What the flight wants from it is the
     // one number that decides how the aeroplane behaves today: what it weighs.
-    $('acSpec').textContent = `${mass} all-up`;
+    // G439 (A5): ...AND THE THREE NUMBERS A BUILDER ASKS FIRST, in place of the
+    // retired measure flyout (which measured the fuselage cage alone): the
+    // empty weight (the ledger's own split, 64_gen_build), the length over the
+    // nodes, the span over the wing strips.
+    {
+      let empty = 0, L0 = Infinity, L1 = -Infinity;
+      const led = (def.parts && def.parts.ledger) || def.params.ledger;   // the frame's own split (61_gen_frame)
+      if (led) for (const k in led) if (!led[k].payload) empty += led[k].mass;
+      for (const nd of def.nodes) { L0 = Math.min(L0, nd.p[0]); L1 = Math.max(L1, nd.p[0]); }
+      const len = Number.isFinite(L1 - L0) ? (L1 - L0).toFixed(1) + ' m' : null;
+      const dims = [len, half > 0 ? (2 * half).toFixed(1) + ' m span' : null].filter(Boolean).join(' × ');
+      $('acSpec').textContent = `${mass} all-up` + (led ? ` · ${empty.toFixed(0)} kg empty` : '') + (dims ? ` · ${dims}` : '');
+    }
     // the plaque belongs to the build on the stand, so every aircraft
     // change re-asks: a rebuilt aeroplane must never wear the previous
     // build's numbers — it would be reading someone else's certificate.
@@ -124228,7 +124533,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       azT += (e.clientX - px) * 0.006; elT += (e.clientY - py) * 0.006;
       // inside, you can look at your own feet and straight up at the skylight
       elT = edEyeOn() ? Math.max(-1.45, Math.min(1.45, elT))
-                      : Math.max(-0.05, Math.min(1.4, elT));
+                      : Math.max(-0.35, Math.min(1.4, elT));   // G439: down to the floor (the room clamp is the stop)
       px = e.clientX; py = e.clientY;
     } else if (touches.size === 2) {
       const [a, b] = [...touches.values()];
@@ -124663,7 +124968,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                           cam: () => ({ az, el, dist, azT, elT, distT, reveal: flReveal }),
                           camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
                           // G326: ...and a capture rig that wants a given view says so
-                          camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; } };
+                          camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
+                          renderer: () => renderer, hangarScene: () => hangarScene, camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)
@@ -125197,6 +125503,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           n1(s.burnKgH / (s.energyKgL || 0.72), 0) + ' L/h)');
       R('cooling duty', n1(s.coolKW, 0) + ' kW · ' +
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
+      // G435: the endurance said in minutes, red under half an hour (the
+      // user's 2 kWh trainer: 2 min at full throttle, into the sea)
+      if (s.enduranceFullH != null) {
+        const mm = h => Math.round(h * 60) + ' min';
+        R('endurance', mm(s.enduranceFullH) + ' full throttle · ' + mm(s.enduranceCruiseH) + ' cruise',
+          s.enduranceCruiseH < 0.5 ? 'bad' : '');
+        if (s.rangeKm != null) R('still-air range', n1(s.rangeKm, 0) + ' km', s.rangeKm < 30 ? 'bad' : '');
+      }
     }
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');
@@ -125682,9 +125996,46 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (inGarage) enterGarage();                      // back on its wheels
   }
   let specPending = false, rolledOut = false;   // a spec that landed after the roll-out (G434): rebuilt on the next entry
+  // G437 (A2): THE CAMERA COMES HOME WITH THE AEROPLANE. "Log the flight" and
+  // "The shed" from the cockpit view left the garage looking at the sky:
+  // enterGarage reset the sim, the room and the plaque and never the camera -
+  // cam.mode stayed 'cockpit', HEADCAM_ACTIVE stayed true (flCamera returns
+  // early in the garage, and the cockpit branch is the only thing that ever
+  // cleared it), and placeCamera's `if (HEADCAM_ACTIVE) return` left the eye
+  // where the flight had it, out on the strip. The interior-then-any-view
+  // trick worked because exitInterior wrote the orbit. Done ONLY on the way
+  // in from a flight: every spec change also comes through enterGarage, and
+  // a camera that re-framed on every dashboard row was session 4g's bug.
+  // G439 (A5): THE GARAGE'S OWN FIELD OF VIEW (the user: "I think we should
+  // try and lower the garage's FOV; give me a slider in the options so I can
+  // play with it"). A preference, not a spec value; the flight keeps its own
+  // (cam.fov), and each screen applies its number on entry.
+  let garageFov = Math.max(25, Math.min(80, +prefGet('flydiy.garageFov', 46) || 46));
+  function garageCamera() {
+    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
+    if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+    if (edEye) exitInterior();
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    camera.up.set(0, 1, 0);
+    edPan.set(0, 0, 0);
+    az = azT = -2.5; el = elT = 0.22; dist = distT = 14;   // the boot's own framing (the rail's 'r')
+    // G439 (A5): A LOW SHED LOWERS THE EYE. At 14 m and 0.22 rad the eye
+    // stands 3 m over the aeroplane's centre; the field shed's eave is 3.6 m,
+    // and the room clamp pinned the camera to the ceiling, over the lamps,
+    // looking down on lit floor and walls a metre away - the "overexposed"
+    // field shed with the Cessna aboard. The elevation is bounded by the
+    // room's own height when there is a room to read.
+    if (hangar && hangar.dims && hangar.dims.EAVE < 5) {
+      const eyeY = hangar.dims.EAVE - 1.4, tY = (edSit && edSit.visible && edTarget) ? edTarget.y : ((sim && sim.cgPos) ? sim.cgPos()[1] : 1.2);
+      el = elT = Math.max(0.03, Math.min(0.22, Math.asin(Math.max(-1, Math.min(1, (eyeY - tY) / dist)))));
+    }
+    flReveal = 0;
+    camera.fov = garageFov; camera.updateProjectionMatrix();
+  }
   function enterGarage() {
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
+    if (!inGarage) garageCamera();
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -125721,6 +126072,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // less its radius, which is the same definition standOnWheels levelled on.
     const iM = def.parts.GAL;
     groundY = iM == null ? 0 : sim.p[iM * 3 + 1] - def.nodes[iM].r;
+    // G439 (A5): THE FLOOR NEVER STANDS INSIDE THE AEROPLANE. A keel, a pod or
+    // a float drawn lower than the wheels' contact plane had the slab through
+    // it (the user: "the floor pokes through the fuselage, it needs to be
+    // further guarded"). The lowest NON-WHEEL node, less the skin's own
+    // stand-off, bounds the floor from below; the wheels then hover by the
+    // deficit, which the plaque's "stands on" row already names - a floor in
+    // the cabin says nothing, a gap under a tyre says what is wrong.
+    {
+      let lo = Infinity;
+      for (let i = 0; i < sim.n; i++) if (!(def.nodes[i].r > 0)) lo = Math.min(lo, sim.p[i * 3 + 1]);
+      const skin = 0.06;
+      if (Number.isFinite(lo) && lo - skin < groundY) groundY = lo - skin;
+    }
     applyEnv();
     railPhase = ''; setRail('GARAGE');
     // the cage build comes back up if the editor has ever booted (G65), and
@@ -125781,6 +126145,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (!WF) return true;
     let cg = null; try { cg = sim.cgPos(); } catch (e) { return false; }
     return !worldCompiled || !(WF.ringReady && WF.ringReady(cg));
+  }
+  // G437 (A2): THE WAY BACK HAS A SCREEN TOO. "The shed" and "Log the flight"
+  // from a flight froze the page for seconds with no word: enterGarage
+  // rebuilds the room and settles the plaque, openEditor boots the cage
+  // editor - all on the main thread, under the last frame of the flight.
+  // The same overlay the roll-out uses, the garage's set, three steps, and
+  // the doors call this instead of the pair; the shim (no BOOT.show) runs
+  // the pair inline as before.
+  function rollInScreen(after) {
+    if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
+      enterGarage(); openEditor(); if (after) after(); return;
+    }
+    const steps = [
+      { id: 'shed', label: 'back into the shed', w: 6, fn: () => { enterGarage(); } },
+      { id: 'board', label: 'the drawing board', w: 4, fn: () => { openEditor(); } },
+      { id: 'frames', label: 'first light', w: 2, fn: () => framesRendered(2) },
+    ];
+    BOOT.show('garage', { steps, set: 'garage', require: [], landingLabel: 'the last pieces', done: () => { if (after) after(); }, idle: 20000, hard: 60000, quietFrames: 1 });
   }
   function rollOutScreen(done) {
     const steps = [];
@@ -125902,8 +126284,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // it takes you to the shed, where the logbook is, with the row already in it.
   if ($('bLog')) $('bLog').onclick = () => {
     $('arrCard').hidden = true; arrivalShown = false;
-    enterGarage();
-    openEditor();
+    rollInScreen();
   };
   // `What went wrong` opens the rest of the pilot's verdicts. The teaching
   // report the ROADMAP wants lands behind this button; until it does, this
@@ -125918,8 +126299,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if ($('bHangar2')) $('bHangar2').onclick = () => {
     $('arrCard').hidden = true; arrivalShown = false;
     flyOpenSet(null);
-    enterGarage();
-    openEditor();
+    rollInScreen();
   };
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
@@ -128221,6 +128601,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     shake: () => shakeOf(),
+    // G439: the garage's field of view, degrees (the camera flyout's slider)
+    garageFov: () => garageFov,
+    setGarageFov: v => {
+      garageFov = Math.max(25, Math.min(80, +v || 46));
+      prefSet('flydiy.garageFov', String(garageFov));
+      if (inGarage) { camera.fov = garageFov; camera.updateProjectionMatrix(); }
+      return garageFov;
+    },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
     rollOut: () => { rollOut(() => { started = true; }); },
