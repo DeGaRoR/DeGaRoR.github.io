@@ -423,7 +423,44 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
 // fills the whole bay then holds exactly what the plaque says the bay holds,
 // by construction, and the drawn box cannot disagree with the ledger. The
 // measured slice still gives the box its depth and its chord.
-function wingPlace(semi, bay, v, installedL, slice, rules, bayLitres) {
+// THE TANK IS THE SPAR BAY'S OWN SECTION (G445.2, 2026-09-20, the user: "the
+// wing mounted tanks should have a good geometry. Now they're just boxes
+// that do not fit. They should have the shape of the wing, and just fit").
+// `prof(x, z)`, when the caller hands one over, answers the drawn skin's
+// top and bottom height {yTop, yBot} at span x / chord z (the wing layer's
+// own ray probes, overAt/underAt) or null off the planform. With it each
+// side carries `ribs`: stations from the inboard end to the outboard one,
+// each a run of chord samples [z, yTop - wall, yBot + wall] between the
+// spar planes (inset `edge` from each), so the loft the mesh draws from
+// them sits inside the aerofoil everywhere - thinner aft, thinner outboard
+// - instead of the one-depth slab that used to poke out of both. The
+// corners (x0/x1, zF/zR, y, d) stay what they were: the fit test, the
+// crew test and GATE ENERGY read those, and a caller without a profile
+// (the gate's analytic slice) gets exactly the aeroplane it had.
+const TANK_WALL = 0.012, TANK_EDGE = 0.020, TANK_RIB_PITCH = 0.30, TANK_SAMPLES = 8;
+function wingRibs(sx, xIn, xOut, zF0, zR0, zF1, zR1, y, d, prof) {
+  const span = Math.abs(xOut - xIn);
+  const K = Math.max(2, Math.ceil(span / TANK_RIB_PITCH) + 1);
+  const ribs = [];
+  let missed = 0;
+  for (let k = 0; k < K; k++) {
+    const t = K > 1 ? k / (K - 1) : 0;
+    const x = xIn + (xOut - xIn) * t;
+    const zF = zF0 + (zF1 - zF0) * t - TANK_EDGE, zR = zR0 + (zR1 - zR0) * t + TANK_EDGE;
+    const pts = [];
+    for (let i = 0; i < TANK_SAMPLES; i++) {
+      const z = zF + (zR - zF) * i / (TANK_SAMPLES - 1);
+      const p = prof(sx * x, z);
+      let yT = p && isFinite(p.yTop) ? p.yTop - TANK_WALL : null;
+      let yB = p && isFinite(p.yBot) ? p.yBot + TANK_WALL : null;
+      if (yT == null || yB == null || yT - yB < 0.015) { yT = y + d / 2; yB = y - d / 2; missed++; }
+      pts.push([z, yT, yB]);
+    }
+    ribs.push({ x: sx * x, pts });
+  }
+  return { ribs, missed };
+}
+function wingPlace(semi, bay, v, installedL, slice, rules, bayLitres, prof) {
   const out = { on: 'wing', ok: false, why: [], sides: [] };
   const R = rules || {};
   const sparF = R.sparFront != null ? R.sparFront : 0.15;
@@ -464,14 +501,19 @@ function wingPlace(semi, bay, v, installedL, slice, rules, bayLitres) {
   const fOut = xOut / Math.max(1e-9, semi);
   const inBay = fOut <= hi + 1e-6;
   for (const sg of [1, -1]) {
-    out.sides.push({
+    const side = {
       sign: sg,
       x0: sg * xIn, x1: sg * xOut,
       // a tapered box: the four chordwise corners follow the local chord
       zF0: zLEin - sparF * cIn, zR0: zLEin - sparR * cIn,
       zF1: zLEout - sparF * cOut, zR1: zLEout - sparR * cOut,
       y: ymid, d: sec0.d,
-    });
+    };
+    if (typeof prof === 'function') {
+      const rb = wingRibs(sg, xIn, xOut, side.zF0, side.zR0, side.zF1, side.zR1, ymid, sec0.d, prof);
+      side.ribs = rb.ribs; side.ribsMissed = rb.missed;
+    }
+    out.sides.push(side);
   }
   out.along = f0; out.fOut = fOut; out.spanM = xOut - xIn; out.metL = acc * 2;
   out.ok = met && inBay && !thin;
@@ -561,7 +603,7 @@ function pointInBox(p, place, margin) {
 }
 
 const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, defaultSpot, settleLv, specFromCage,
-              firewallZ, bodyPlace, wingPlace, bayCache, analyticSlice, pointInBox,
+              firewallZ, bodyPlace, wingPlace, wingRibs, bayCache, analyticSlice, pointInBox,
               sLTable, sLOfZ };
 if (typeof window !== 'undefined') window.VESSEL_GEN = API;
 if (typeof module !== 'undefined') module.exports = API;

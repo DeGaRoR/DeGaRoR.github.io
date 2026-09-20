@@ -380,8 +380,18 @@ function placeAll(ctx, inv) {
     let pl;
     if (bay.on === 'wing') {
       const kp = bay.plane | 0, sl = sliceOf(kp), sm = semiOf(kp);
+      // G445.2: THE DRAWN SKIN, top and bottom, at any (span, chord) - the
+      // wing layer's own ray probes, the ones the gear and engine layers
+      // fit to - so the tank the generator ribs out sits inside the
+      // aerofoil that is on the screen, whatever the section, taper,
+      // dihedral or twist did to it. Null (no probe) keeps the box.
+      const Wk = (kp && W && W.planes && W.planes[kp]) ? W.planes[kp] : W;
+      const prof = (Wk && Wk.overAt && Wk.underAt)
+        ? (x, z) => { const t = Wk.overAt(x, z), u = Wk.underAt(x, z);
+                      return (t && u) ? { yTop: t.y, yBot: u.y } : null; }
+        : null;
       pl = (sl && sm > 0)
-        ? G.wingPlace(sm, bay, v, res.installedL, sl, C.RULES || {}, bay.litres)
+        ? G.wingPlace(sm, bay, v, res.installedL, sl, C.RULES || {}, bay.litres, prof)
         : { on: 'wing', ok: false, why: ['no wing to put it in'], sides: [] };
     } else {
       const cache = cacheOf(bay);
@@ -923,6 +933,21 @@ function drawResults(group, ctx, results) {
       // buried between the spars where nothing can see it, so it gets real
       // outward normals and metre-true uv and no hardware.
       for (const s of r.sides) {
+        // G445.2: THE SPAR BAY'S OWN SECTION where the wing could be measured
+        // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
+        // the fuel inside it cut flat at the slider's level. The box below
+        // is what a wing with no probe still gets.
+        if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
+          const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
+          if (!wet)
+            slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
+                     'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
+          if (EN.kind !== 'battery' && VIEW.fill > 0.02)
+            slotMesh(group, VM.wingLoft(s.ribs, 0.4, { fill: Math.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
+                     wet ? matWet(bad) : fuelMat(),
+                     'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
+          continue;
+        }
         const y0 = s.y - s.d / 2, y1 = s.y + s.d / 2;
         const p8 = [
           [s.x0, y0, s.zR0], [s.x0, y0, s.zF0], [s.x0, y1, s.zF0], [s.x0, y1, s.zR0],

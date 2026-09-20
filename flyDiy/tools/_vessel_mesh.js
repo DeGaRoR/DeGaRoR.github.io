@@ -757,7 +757,107 @@ function mount(sol, dy, tile, yAt) {
   return out;
 }
 
-const API = { build, contents, wingBox, mkShape, sectRR, widthAt, heightAt, Buf,
+// ---------------------------------------------------------------------------
+// THE WING TANK AS A LOFT (G445.2, 2026-09-20): the spar bay's own section,
+// station by station. `ribs` is what VESSEL_GEN.wingRibs returns - inboard
+// to outboard, each {x, pts: [[z, yTop, yBot], ...]} with the same sample
+// count, front to rear - and the solid is the ring (top front->rear, then
+// bottom rear->front) lofted along x with a flat rib at each end. Flat
+// per-face normals turned OUTWARD by the rib's own centre, whichever side
+// the layer mirrored it to (the box's lesson); metre-true uv (u along the
+// ring, v along the span). `opt.fill` (0..1) with `opt.inset` cuts the
+// same solid flat at the level for the fuel inside: every top sample is
+// capped at bottom + fill x depth, the outline stepped in by the inset.
+// ---------------------------------------------------------------------------
+function wingLoft(ribs, tile, opt) {
+  const buf = Buf();
+  if (!ribs || ribs.length < 2) return buf;
+  const T = Math.max(1e-4, tile || 0.5);
+  const o = opt || {};
+  const ins = o.inset || 0, fill = o.fill == null ? null : clamp(o.fill, 0, 1);
+  const M = ribs[0].pts.length;
+  // the rings
+  const rings = ribs.map(r => {
+    const ring = [];
+    const zs = r.pts.map(q => q[0]);
+    const zF = Math.max(...zs), zR = Math.min(...zs);
+    const zOf = z => clamp(z, zR + ins, zF - ins);
+    const top = [], bot = [];
+    for (let i = 0; i < M; i++) {
+      const [z, yT0, yB0] = r.pts[i];
+      const yB = yB0 + ins;
+      let yT = yT0 - ins;
+      if (fill != null) yT = yB + Math.max(0.003, (yT0 - yB0 - 2 * ins) * fill);
+      if (yT < yB + 0.002) yT = yB + 0.002;
+      top.push([r.x, yT, zOf(z)]); bot.push([r.x, yB, zOf(z)]);
+    }
+    for (let i = 0; i < M; i++) ring.push(top[i]);
+    for (let i = M - 1; i >= 0; i--) ring.push(bot[i]);
+    return ring;
+  });
+  const NR = 2 * M;
+  const ctrOf = ring => { const c = [0, 0, 0]; for (const p of ring) { c[0] += p[0] / NR; c[1] += p[1] / NR; c[2] += p[2] / NR; } return c; };
+  const arc = ring => { const a = [0]; for (let i = 1; i <= NR; i++) { const p = ring[i % NR], q = ring[i - 1]; a.push(a[i - 1] + Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])); } return a; };
+  const face = (A, B, C, D, ctr, uv) => {
+    let n = nrm(crs([B[0] - A[0], B[1] - A[1], B[2] - A[2]], [C[0] - A[0], C[1] - A[1], C[2] - A[2]]));
+    const out = [A[0] - ctr[0], A[1] - ctr[1], A[2] - ctr[2]];
+    const flip = n[0] * out[0] + n[1] * out[1] + n[2] * out[2] < 0;
+    if (flip) n = [-n[0], -n[1], -n[2]];
+    const q = [A, B, C, D].map((p, i) => buf.v(p, n, uv[i]));
+    if (flip) buf.quad(q[3], q[2], q[1], q[0]); else buf.quad(q[0], q[1], q[2], q[3]);
+  };
+  // the sides, ring to ring
+  for (let k = 0; k + 1 < rings.length; k++) {
+    const R0 = rings[k], R1 = rings[k + 1];
+    const a0 = arc(R0), a1 = arc(R1);
+    const c = ctrOf(R0), c1 = ctrOf(R1);
+    const ctr = [(c[0] + c1[0]) / 2, (c[1] + c1[1]) / 2, (c[2] + c1[2]) / 2];
+    const v0 = R0[0][0] / T, v1 = R1[0][0] / T;
+    for (let i = 0; i < NR; i++) {
+      const j = (i + 1) % NR;
+      face(R0[i], R0[j], R1[j], R1[i], ctr,
+           [[a0[i] / T, v0], [a0[i + 1] / T, v0], [a1[i + 1] / T, v1], [a1[i] / T, v1]]);
+    }
+  }
+  // the end ribs: a fan from the ring's centre, turned away from the loft
+  const mid = ctrOf(rings[Math.floor(rings.length / 2)]);
+  for (const k of [0, rings.length - 1]) {
+    const R = rings[k], c = ctrOf(R);
+    const away = [c[0] - mid[0], c[1] - mid[1], c[2] - mid[2]];
+    for (let i = 0; i < NR; i++) {
+      const j = (i + 1) % NR, A = R[i], B = R[j];
+      let n = nrm(crs([A[0] - c[0], A[1] - c[1], A[2] - c[2]], [B[0] - c[0], B[1] - c[1], B[2] - c[2]]));
+      const flip = n[0] * away[0] + n[1] * away[1] + n[2] * away[2] < 0;
+      if (flip) n = [-n[0], -n[1], -n[2]];
+      const uvOf = p => [(p[2] - c[2]) / T, (p[1] - c[1]) / T];
+      const ic = buf.v(c, n, [0, 0]), ia = buf.v(A, n, uvOf(A)), ib = buf.v(B, n, uvOf(B));
+      if (flip) buf.tri(ic, ib, ia); else buf.tri(ic, ia, ib);
+    }
+  }
+  return buf;
+}
+// the loft's volume, for the sheet: the section areas (shoelace on each
+// ring) by the conical rule between stations
+function wingLoftVolume(ribs, opt) {
+  if (!ribs || ribs.length < 2) return 0;
+  const ins = (opt && opt.inset) || 0;
+  const area = r => {
+    const M = r.pts.length; let a = 0;
+    for (let i = 0; i + 1 < M; i++) {
+      const [z0, t0, b0] = r.pts[i], [z1, t1, b1] = r.pts[i + 1];
+      a += Math.abs(z1 - z0) * 0.5 * ((t0 - b0 - 2 * ins) + (t1 - b1 - 2 * ins));
+    }
+    return Math.max(0, a);
+  };
+  let v = 0;
+  for (let k = 0; k + 1 < ribs.length; k++) {
+    const A0 = area(ribs[k]), A1 = area(ribs[k + 1]), L = Math.abs(ribs[k + 1].x - ribs[k].x);
+    v += L * (A0 + A1 + Math.sqrt(A0 * A1)) / 3;
+  }
+  return v;
+}
+
+const API = { build, contents, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
               mount,
               loftBuild, capBuild, bandBuild, tubeBuild };
 if (typeof window !== 'undefined') window.VESSEL_MESH = API;
