@@ -45,13 +45,16 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  const T0 = Date.now();
   await cmd('Page.navigate', { url: URL });
-  await sleep(20000);
+  await sleep(+opt('boot', 20000));   // --boot ms: the splat's ground program compiles for a while (2026-09-20)
   let flying = false;
-  for (let a = 0; a < 8 && !flying; a++) {
+  for (let a = 0; a < +opt('tries', 8) && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(6000);
     flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
+    // --timeline: the boot's phase at each try, with the clock (the splat's compile, 2026-09-20)
+    if (argv.includes('--timeline')) console.log(`t+${((Date.now() - T0) / 1000).toFixed(0)}s  ${flying ? 'FLYING' : (await ev("((document.querySelector('#boot')||{}).innerText||'') + ' || ' + document.body.innerText.replace(/\s+/g,' ').slice(0,200)").catch(() => '')).replace(/\s+/g, ' ').slice(0, 90)}`);
   }
   if (!flying) throw new Error('the roll-out never happened');
   await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());})()");
@@ -64,6 +67,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   const CAM = opt('cam', null);
   if (CAM) { const c = CAM.split(',').map(Number); await ev(`FLIGHT_PROBE.camSet(${c[0]}, ${c[1]}, ${c[2]}), 1`); }
   await sleep(WAIT);
+  // --eval "<expr>": the expression's value from the flying page, printed before the shot
+  const EV = opt('eval', null);
+  if (EV) console.log('eval: ' + await ev(EV).catch(e => 'ERR ' + e.message));
   const shot = await cmd('Page.captureScreenshot', { format: 'png' });
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, Buffer.from(shot.result.data, 'base64'));

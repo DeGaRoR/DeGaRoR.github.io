@@ -65,6 +65,16 @@ ISLANDS = {
 }
 CRS = "EPSG:3338"     # Alaska Albers. See the header. Do not make this a flag.
 COVER_NODATA = 0
+# the NDWI term of the lake mask (G435): water is dark and flat, snow is neither
+LAKE_TINT_MAX = 90     # of 255 in .tint.rgb = 0.08 reflectance through the tint's stretch
+LAKE_SLOPE_MAX = 4.0   # degrees, the median over a wet component the cover did not call water
+# THE SHORE (2026-09-20, the user: "a sand beach, a rocky beach, or a cliff -
+# grass touching the water is odd"): every coastline cell is one of the three
+SHORE_W = 15.0         # m inland of the waterline that is always shore
+SHORE_H = 2.0          # m above the sea: over flat ground the shore reaches this contour
+SHORE_HMAX = 8.0       # no shore band above this (a cliff foot is rock by its slope)
+SHORE_CLIFF = 30.0     # degrees: a shore cell steeper than this is the cliff, not a beach
+TIDAL_REACH = 60.0     # m: a wet component this close to the sea under 2.5 m is the sea (a lagoon behind a bar)
 
 
 def main():
@@ -421,15 +431,45 @@ def main():
         try:
             from scipy import ndimage
             lake = (cov == 80) & landmask
+            n_bright = n_sloped = 0
             if os.path.exists(out + ".ndwi.u8"):
                 nw = np.fromfile(out + ".ndwi.u8", dtype="uint8").reshape(H, W).astype("float32") / 127.0 - 1.0
                 wet = (nw > -0.2) & landmask       # -0.2: a 30 m pixel half over a 20 m pond (measured G406)
+                # SNOW IS NOT WATER (G435, the island bench 2026-09-20): snow's NDWI is as high as
+                # water's (green over near infrared, both), so the Tamgas snowfields came in as
+                # thirteen "lakes" between 773 and 1013 m and were FLATTENED in the DEM - vertical
+                # walls at their "shore" on the summit. The cover has no class-80 cell above 500 m;
+                # it was the NDWI term alone. Two refusals, both physical and neither an island's
+                # own height (Ursoy's real tarns sit where Jolene's snow does):
+                #   (1) water is DARK - under 0.08 reflectance in the visible - and snow, bare rock
+                #       and the built-up are not (measured: the lakes' tint 10..55 of 255, the
+                #       snowfields 100..213; 90 of 255 is 0.08 through the tint's stretch);
+                #   (2) a lake is FLAT - a wet component the class never named, whose ground slopes
+                #       more than LAKE_SLOPE_MAX at the median, is a wet slope and not a pond
+                #       (judged on the raw DEM, before the lakes are laid flat below).
+                # The class term stays as it is: the cover's water is the cover's business.
+                if os.path.exists(out + ".tint.rgb"):
+                    gray = np.fromfile(out + ".tint.rgb", dtype="uint8").reshape(H, W, 3).astype("float32").mean(axis=2)
+                    bright = wet & (gray >= LAKE_TINT_MAX)
+                    n_bright = int(bright.sum()); wet &= ~bright
                 # the imagery's water joins the class's; specks (< 5 cells) and one-cell fringes go
                 lake = lake | wet
                 lake = ndimage.binary_opening(lake, iterations=1)
                 lab0, n0 = ndimage.label(lake); sizes = ndimage.sum(lake, lab0, range(1, n0 + 1))
                 small = np.isin(lab0, [i + 1 for i, sz in enumerate(sizes) if sz < 5]); lake[small] = False
+                gz_, gx_ = np.gradient(dem, cell); slope_w = np.degrees(np.arctan(np.hypot(gx_, gz_)))
+                labw, nwc = ndimage.label(lake); sloped = []
+                for li, sl in enumerate(ndimage.find_objects(labw), start=1):
+                    if sl is None: continue
+                    comp = labw[sl] == li
+                    if (cov[sl][comp] == 80).any(): continue
+                    med = float(np.median(slope_w[sl][comp]))
+                    if med <= LAKE_SLOPE_MAX: continue
+                    sloped.append((float(np.median(dem[sl][comp])), int(comp.sum()), med)); lake[sl][comp] = False
+                n_sloped = len(sloped)
                 print(f"  water: class {int(((cov == 80) & landmask).sum())} cells, NDWI adds {int((wet & ~(cov == 80)).sum())}, union {int(lake.sum())}")
+                print(f"  water: NDWI refused on {n_bright} bright cells (tint >= {LAKE_TINT_MAX}) and {n_sloped} sloped components"
+                      f" (median > {LAKE_SLOPE_MAX:g} deg): " + ", ".join(f"{h:.0f} m/{c} cells/{sd:.1f} deg" for h, c, sd in sorted(sloped, reverse=True)[:6]))
             d_in = ndimage.distance_transform_edt(lake) * cell
             d_out = ndimage.distance_transform_edt(~lake) * cell
             lsd = np.where(lake, 128.0 + np.minimum(d_in, 508.0) / 4.0, 128.0 - np.minimum(d_out, 508.0) / 4.0)
@@ -442,7 +482,7 @@ def main():
             # above the water). Its cells join the sea: the DEM to 0, the land mask off (the shelf
             # and the coast field follow), the cover to water, and no lake at all.
             lab, nl = ndimage.label(lake)
-            sea_touch = ndimage.binary_dilation(~landmask, iterations=1)
+            sea_touch = ndimage.binary_dilation(~landmask, iterations=max(1, int(round(TIDAL_REACH / cell))))   # a lagoon behind a one-cell bar is the sea too
             tidal = np.zeros_like(lake)
             n_tidal = 0
             for li, sl in enumerate(ndimage.find_objects(lab), start=1):
@@ -463,7 +503,9 @@ def main():
                 lab, nl = ndimage.label(lake)
                 print(f"  tidal flats: {n_tidal} wet components touching the sea under 2.5 m joined it ({int(tidal.sum())*cell*cell/1e6:.2f} km2); coast rewritten")
             layers["lake"] = {"file": ".lake.u8", "unit": "signed m/4, 128 = the edge, + inside", "lakes": int(nl),
-                              "km2": float(lake.sum() * cell * cell / 1e6), "source": "class 80 | NDWI > 0, the tidal flats to the sea"}
+                              "km2": float(lake.sum() * cell * cell / 1e6),
+                              "source": f"class 80 | NDWI > -0.2 where dark (tint < {LAKE_TINT_MAX}) and flat (slope <= {LAKE_SLOPE_MAX:g} deg), the tidal flats to the sea",
+                              "ndwiRefused": {"brightCells": n_bright, "slopedComponents": n_sloped}}
             # the lake mask itself, and THE LAKES FLATTENED IN THE DEM (G407, the user:
             # "flatten within the outline, no need for additional geometry, impact
             # the terrain directly"): each component to one level - the 20th
@@ -487,7 +529,8 @@ def main():
             dem.tofile(out + ".f32")                       # the heights again, lakes flat
             json.dump(lakes, open(out + ".lakes.json", "w"))
             layers["lake"]["listed"] = len(lakes)
-            print(f"  lakes flattened in the DEM: {len(lakes)} levels; .lakes.json written")
+            layers["lake"]["highest"] = round(max((l["level"] for l in lakes), default=0.0), 1)
+            print(f"  lakes flattened in the DEM: {len(lakes)} levels, the highest at {layers['lake']['highest']:.0f} m; .lakes.json written")
             print(f"  lakes: {nl} from the cover's water class, {lake.sum()*cell*cell/1e6:.1f} km2")
         except ImportError:
             pass
@@ -532,7 +575,7 @@ def main():
     # clear tree-bush-stone-sand-grass for splatting and spawning"): ONE map
     # derived from class x NDVI x canopy x slope x coast. Codes:
     #   0 sea  1 lake  2 heath/grass  3 muskeg (bog)  4 sand/beach  5 scree
-    #   6 rock  7 scrub  8 forest  9 snow  10 built
+    #   6 rock  7 scrub  8 forest  9 snow  10 built  11 shingle (the rocky beach)
     if covers and "canopy" in layers and "ndvi" in layers and "coast" in layers:
         can = np.fromfile(out + ".canopy.u8", dtype="uint8").reshape(H, W).astype("float32")
         ndv = np.fromfile(out + ".ndvi.u8", dtype="uint8").reshape(H, W).astype("float32") / 127.0 - 1.0
@@ -545,15 +588,28 @@ def main():
         tt[(cov == 10) & (can >= 2.5)] = 8
         tt[(cov == 60) | (cov == 100)] = 5
         tt[(slope > 38) | (((cov == 60) | (cov == 100)) & (slope > 28))] = 6
-        tt[(csd > 0) & (csd < 25) & (ndv < 0.35)] = 4
         tt[cov == 50] = 10
         tt[(dem >= 900) & (slope < 35)] = 9
-        tt[(cov == 80) & landmask] = 1
+        # the cover's water off the lake components is a pond speck or the
+        # coastline's disagreement at 10 m - never a lake: muskeg inland, the
+        # shore rule below at the coast (it was 8500 lake cells in the first 20 m)
+        tt[(cov == 80) & landmask] = 3
+        # THE SHORE: the band along the waterline (SHORE_W, stretched over flat
+        # ground to the SHORE_H contour, never above SHORE_HMAX) is shingle by
+        # default, sand where the imagery is bare (the G405 rule), the cliff by slope
+        shore = landmask & (csd > 0) & ((csd < SHORE_W) | (dem < SHORE_H)) & (dem < SHORE_HMAX)
+        tt[shore] = 11
+        tt[shore & (ndv < 0.35)] = 4
+        tt[shore & (slope > SHORE_CLIFF)] = 6
+        # the forest stands to the tideline (the user, 2026-09-20: "forest can
+        # reach the water front too"): a tall canopy above 1 m keeps its code
+        # over the shingle; not over the sand or the cliff, not in the tide
+        tt[shore & (tt == 11) & (cov == 10) & (can >= 2.5) & (dem > 1.0)] = 8
         if os.path.exists(out + ".lakemask.u8"): tt[np.fromfile(out + ".lakemask.u8", dtype="uint8").reshape(H, W) > 0] = 1
         tt[~landmask] = 0
         tt.tofile(out + ".ttype.u8")
         vals, counts = np.unique(tt, return_counts=True)
-        names = {0: "sea", 1: "lake", 2: "heath", 3: "muskeg", 4: "sand", 5: "scree", 6: "rock", 7: "scrub", 8: "forest", 9: "snow", 10: "built"}
+        names = {0: "sea", 1: "lake", 2: "heath", 3: "muskeg", 4: "sand", 5: "scree", 6: "rock", 7: "scrub", 8: "forest", 9: "snow", 10: "built", 11: "shingle"}
         land = int(landmask.sum())
         layers["ttype"] = {"file": ".ttype.u8", "codes": names,
                            "shareOfLand": {names[int(v)]: round(100.0 * int(n) / land, 2) for v, n in zip(vals, counts) if int(v) not in (0,)}}

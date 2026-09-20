@@ -895,7 +895,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {};
-    let islandGroundHook = null;
+    let islandGroundHook = null, SPL = null;
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
@@ -930,9 +930,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
       });
       GROUND.on = true;
+      // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
+      // type from the library (src/viewer/splat_ground.js owns it): two
+      // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
+      // on the near ring / outer ring / premises patch (tools/sampler_census.js)
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU) : null;
       islandGroundHook = sh => {
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-        Object.assign(sh.uniforms, gU);
+        Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;')
           .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPi = (modelMatrix * vec4(position, 1.0)).xyz;');
@@ -980,7 +985,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  return s; }\n' +
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
-            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }')
+            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' +
+            (SPL ? SPL.glslCommon : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
@@ -1011,12 +1017,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '    else { s = vec3(0.85, 0.88, 0.95); a = snowA; }\n' +
             '    t = mix(t, gBlend(t, s, uLMode[i]), uLOp[i] * a);\n' +
             '  }\n' +
+            // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
+            // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
+            (SPL ? SPL.glslMap : '') +
             '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")
             '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
-            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore);\n' +
+            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SPL ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane
             '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
@@ -1039,9 +1048,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
             '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' +
             '  diffuseColor.rgb = t; }');
+        if (SPL) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal);
       };
     }
     groundApi = {
+      splat: () => (SPL ? SPL.api : null),
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),

@@ -61,6 +61,14 @@
     return row;
   };
   const note = t => $('div', { class: 'note', text: t });
+  const color = (label, get, set) => {
+    const inp = $('input', { type: 'color' }), out = $('output');
+    const row = $('div', { class: 'r' }, [$('label', { text: label }), inp, out]);
+    inp.oninput = () => { set(inp.value); out.textContent = inp.value; };
+    rows.push({ el: row, refresh: () => { try { inp.value = get(); out.textContent = inp.value; } catch (e) {} } });
+    return row;
+  };
+  const button = (label, fn) => { const b = $('button', { text: label }); b.onclick = () => { fn(); refresh(); }; return $('div', { class: 'r' }, [$('label', { text: '' }), b, $('output')]); };
   // A FOLD (2026-09-14, the user: "unify the world sliders with the F8 menu ...
   // the settings on individual species can be collapsed, grouped under an
   // overall tree section, but we need to surface the environment controls"):
@@ -114,6 +122,83 @@
       });
       Ms.appendChild(note('class (WorldCover palette) > tint (Landsat) > radar (IFSAR, level 1) > shade (canopy, normalised) > snow (its own mask). Remembered in this browser.'));
       M.appendChild(note('after the stack: the rocky shore off the coast field, then lightness and saturation; lit by the sun after'));
+      // ---- THE SPLAT (alpha splatting, 2026-09-20): the textures by terrain type ----
+      const SP = world().ground.splat && world().ground.splat();
+      if (SP) {
+        const Sf = fold(M, 'splat (the textures by terrain type)', true, true);
+        const ss = k => v => SP.set({ [k]: v });
+        const kn = k => () => SP.knobs()[k];
+        Sf.appendChild(select('splat', [['1', 'on'], ['0', 'off (the stack alone)']], () => String(SP.on() ? 1 : 0), v => SP.set({ on: +v })));
+        Sf.appendChild(note('the ground drawn by terrain type from the library (17 sets): up to three sets per type mixed by the shared cloud mask, height-blended, hex-tiled, triplanar on the steep; the detail gives way to the aerial sets, then to the stack above. The bench (tools/_island.html) has the same knobs; `export` prints this browser\u2019s table.'));
+        const LIB = [['', '- none -']].concat(SP.library().map(l => [l.key, `${l.key} (${l.metres} m)`]));
+        const NAMES = SP.names();
+        // THE TEXTURE PICKER: one surface at a time - its near and far triplets with their scales, the mask, the variation
+        const Sp = fold(Sf, 'surfaces (the texture picker)', true, true);
+        let cur = 2;
+        const codeOpts = Object.keys(NAMES).filter(k => +k >= 2).map(k => [k, `${k} ${NAMES[k]}`]);
+        Sp.appendChild(select('surface', codeOpts, () => String(cur), v => { cur = +v; }));
+        Sp.appendChild(note('12 cliff, 13 forest old and 14 scrub dense are derived in the shader from rock / forest / scrub by slope and canopy (the splits below)'));
+        const C = () => SP.code(cur) || { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] };
+        const setArr = (key, j, v) => { const c = C(); const a = (c[key] || [null, null, null]).slice(); a[j] = v; SP.setCode(cur, { [key]: a }); };
+        const metres = k => { const l = SP.library().find(x => x.key === k); return l ? l.metres : 1; };
+        ['A', 'B', 'C'].forEach((L, j) => {
+          Sp.appendChild(select(`near ${L}`, LIB, () => C().tex[j] || '', v => { setArr('tex', j, v || null); if (v) setArr('scale', j, metres(v)); }));
+          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => C().scale[j], v => setArr('scale', j, v), v => v + ' m'));
+        });
+        ['A', 'B', 'C'].forEach((L, j) => {
+          Sp.appendChild(select(`far ${L}`, LIB, () => (C().far || [])[j] || '', v => { setArr('far', j, v || null); if (v) setArr('farScale', j, metres(v)); }));
+          Sp.appendChild(slider(`  metres`, 0.5, 120, 0.5, () => (C().farScale || [0, 0, 0])[j], v => setArr('farScale', j, v), v => v + ' m'));
+        });
+        Sp.appendChild(note('an empty far slot keeps the near set at distance; picking a set takes its own scale, then adjust'));
+        Sp.appendChild(slider('mask cell', 2, 200, 1, () => C().mix[0], v => setArr('mix', 0, v), v => v + ' m'));
+        Sp.appendChild(slider('mask sharpness', 0.1, 6, 0.1, () => C().mix[1], v => setArr('mix', 1, v)));
+        Sp.appendChild(slider('bias A|B', -1, 1, 0.05, () => C().mix[2], v => setArr('mix', 2, v)));
+        Sp.appendChild(slider('bias C', -1, 1, 0.05, () => C().mix[3], v => setArr('mix', 3, v)));
+        Sp.appendChild(slider('hue swing', 0, 40, 1, () => (C().vary || [0, 0, 20])[0], v => setArr('vary', 0, v), v => v + '\u00b0'));
+        Sp.appendChild(slider('value swing', 0, 0.6, 0.01, () => (C().vary || [0, 0, 20])[1], v => setArr('vary', 1, v)));
+        Sp.appendChild(slider('vary cell', 2, 120, 1, () => (C().vary || [0, 0, 20])[2], v => setArr('vary', 2, v), v => v + ' m'));
+        Sp.appendChild(select('orient', [['', 'as is'], ['sea', 'face the sea (the beach)']], () => C().orient || '', v => SP.setCode(cur, { orient: v || undefined })));
+        // THE GRADE per set: a gain and a saturation - the sheet's numbers (tools/splat_sheet.py)
+        const Sg = fold(Sf, 'grade (per set)', false, true);
+        let gk = 'dry';
+        Sg.appendChild(select('set', LIB.slice(1), () => gk, v => { gk = v; }));
+        Sg.appendChild(color('gain', () => SP.grade(gk).gain, v => SP.setGrade(gk, { gain: v })));
+        Sg.appendChild(slider('saturation', 0, 2, 0.05, () => SP.grade(gk).sat, v => SP.setGrade(gk, { sat: v })));
+        const Sd = fold(Sf, 'distance \u00b7 macro', false, true);
+        Sd.appendChild(slider('detail fades from', 0, 2000, 25, kn('detailFrom'), ss('detailFrom'), v => v + ' m'));
+        Sd.appendChild(slider('detail gone by', 50, 4000, 25, kn('detailTo'), ss('detailTo'), v => v + ' m'));
+        Sd.appendChild(slider('macro from', 0, 10000, 100, kn('macroFrom'), ss('macroFrom'), v => v + ' m'));
+        Sd.appendChild(slider('macro full by', 100, 30000, 100, kn('macroTo'), ss('macroTo'), v => v + ' m'));
+        Sd.appendChild(slider('macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix')));
+        Sd.appendChild(slider('macro tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear')));
+        Sd.appendChild(note('the macro is the stack above (the Landsat albedo the game already ships); \u201ctint under\u201d gives the detail the place\u2019s colour, luminance kept'));
+        const Sb = fold(Sf, 'blend \u00b7 tiling', false, true);
+        Sb.appendChild(slider('blend radius', 0.5, 3, 0.1, kn('splatBlend'), ss('splatBlend'), v => v + ' cells'));
+        Sb.appendChild(slider('edge wobble', 0, 40, 1, kn('splatWobble'), ss('splatWobble'), v => v + ' m'));
+        Sb.appendChild(slider('zone seam depth', 0.02, 1, 0.02, kn('seamDepth'), ss('seamDepth')));
+        Sb.appendChild(slider('height depth', 0.02, 1, 0.02, kn('hDepth'), ss('hDepth')));
+        Sb.appendChild(select('hex tiling', [['1', 'on'], ['0', 'off']], () => String(SP.knobs().hexOn), v => SP.set({ hexOn: +v })));
+        Sb.appendChild(slider('hex cells', 0.5, 6, 0.5, kn('hexN'), ss('hexN'), v => v + ' /tile'));
+        Sb.appendChild(slider('hex rotation', 0, 180, 5, kn('hexRot'), ss('hexRot'), v => v + '\u00b0'));
+        Sb.appendChild(slider('triplanar', 0, 16, 1, kn('triK'), ss('triK'), v => v ? 'k ' + v : 'off'));
+        Sb.appendChild(slider('normal strength', 0, 3, 0.05, kn('nrmK'), ss('nrmK')));
+        const Ss = fold(Sf, 'splits (derived surfaces)', false, true);
+        Ss.appendChild(slider('cliff from', 10, 60, 1, kn('cliffLo'), ss('cliffLo'), v => v + '\u00b0'));
+        Ss.appendChild(slider('cliff full at', 10, 70, 1, kn('cliffHi'), ss('cliffHi'), v => v + '\u00b0'));
+        Ss.appendChild(slider('old growth from', 2, 30, 0.5, kn('oldLo'), ss('oldLo'), v => v + ' m'));
+        Ss.appendChild(slider('old growth full', 2, 35, 0.5, kn('oldHi'), ss('oldHi'), v => v + ' m'));
+        Ss.appendChild(slider('dense scrub from', 0, 5, 0.1, kn('denseLo'), ss('denseLo'), v => v + ' m'));
+        Ss.appendChild(slider('dense scrub full', 0, 6, 0.1, kn('denseHi'), ss('denseHi'), v => v + ' m'));
+        const Sm = fold(Sf, 'micro (puddles \u00b7 water\u2019s edge \u00b7 beach)', false, true);
+        Sm.appendChild(slider('puddle wet', 0, 0.8, 0.01, kn('pudCover'), ss('pudCover')));
+        Sm.appendChild(slider('puddle edge', 0.002, 0.05, 0.001, kn('pudEdge'), ss('pudEdge')));
+        Sm.appendChild(slider('puddle scale', 0.5, 8, 0.5, kn('pudSlope'), ss('pudSlope'), v => 'x' + v));
+        Sm.appendChild(slider('lake edge', 0.2, 8, 0.2, kn('lakeEdge'), ss('lakeEdge'), v => v + ' m'));
+        Sm.appendChild(slider('beach angle', -180, 180, 5, kn('beachRot'), ss('beachRot'), v => v + '\u00b0'));
+        Sf.appendChild(button('reset to the recipe', () => SP.reset()));
+        Sf.appendChild(button('export (console)', () => { const j = SP.export(); console.log('SPLAT RECIPE ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
+        Sf.appendChild(note('remembered in this browser; `export` prints the table to the console (and the clipboard) - paste it into 28b_ground_fields.js RECIPE to make it the default'));
+      }
     }
     // ---- TREES: everything about the forest, folded by concern ----------------
     const T = fold(root, 'trees', true);

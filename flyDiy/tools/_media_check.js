@@ -84,7 +84,7 @@ const DATA_BUDGET_KB = 400;
 function manifestFiles() {
   const v = ['hangar_walls.js', 'hangar_floor.js', 'site_tex.js',
              'wood_tex.js', 'skin_tex.js', 'vessel_tex.js', 'hangar_sky.js',
-             'house_tex.js', 'panel_tex.js', 'lot_tex.js', 'sign_tex.js',
+             'house_tex.js', 'panel_tex.js', 'lot_tex.js', 'splat_tex.js', 'sign_tex.js',
              'cabin_livery.js']   // the tram cabin's liveries (G343)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(

@@ -45,6 +45,7 @@
   .row input[type=color]{width:26px;height:18px;border:0;padding:0;background:none}
   .lay select{padding:1px 2px;font-size:10px;max-width:74px} .lay button{padding:0 4px;font-size:9px} .lay output{width:30px}
   .hint{color:var(--dim);font-size:10px;margin-top:8px;line-height:1.5}
+  #probe{white-space:pre-wrap;color:var(--fg)}
 </style>
 
 <header>
@@ -64,6 +65,8 @@
     <option value="snow">snow mask</option>
     <option value="normal">normal (radar bump)</option>
     <option value="bump">bump band (fine - coarse)</option>
+    <option value="ttype">terrain type (the combined map)</option>
+    <option value="splat">splat (the textures by terrain type)</option>
   </select></label>
   <button id="trees" class="on">trees</button>
   <button id="wire">wireframe</button>
@@ -78,6 +81,7 @@
 
 <script src="../vendor/three.min.js"></script>
 <script src="../src/core/19_terrain_codec.js"></script>
+<script src="../src/core/28b_ground_fields.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -106,6 +110,35 @@ const K = {
   treeD:      { label: 'stems per 100 m2 (tree cover)', min: 0.2, max: 8, step: 0.2, v: 3 },
   treeS:      { label: 'tree height x',            min: 0.5, max: 2, step: 0.05, v: 1.0 },
   treeMin:    { label: 'min canopy (m)',           min: 0, max: 10, step: 0.5, v: 1 },
+  cliffLo:    { label: 'cliff from slope (deg)',   min: 10, max: 60, step: 1, v: 32 },
+  cliffHi:    { label: 'cliff full at (deg)',      min: 10, max: 70, step: 1, v: 42 },
+  oldLo:      { label: 'old growth from canopy (m)', min: 2, max: 30, step: 0.5, v: 14 },
+  oldHi:      { label: 'old growth full at (m)',   min: 2, max: 35, step: 0.5, v: 20 },
+  denseLo:    { label: 'dense scrub from canopy (m)', min: 0, max: 5, step: 0.1, v: 1 },
+  denseHi:    { label: 'dense scrub full at (m)',  min: 0, max: 6, step: 0.1, v: 2.5 },
+  splatWobble:{ label: 'splat edge wobble (m)',    min: 0, max: 40, step: 1, v: 8 },
+  splatBlend: { label: 'splat blend radius (cells)', min: 0.5, max: 3, step: 0.1, v: 1.6 },
+  beachRot:   { label: 'beach pattern base angle (deg)', min: -180, max: 180, step: 5, v: 90 },   // 90: the pack's ripples run along its U axis; turned to lie along the shore (the user, 2026-09-20)
+  triK:       { label: 'triplanar sharpness (0 = off)', min: 0, max: 16, step: 1, v: 6 },
+  detailFrom: { label: 'detail fades from (m)',     min: 0, max: 2000, step: 25, v: 150 },
+  detailTo:   { label: 'detail gone by (m)',        min: 50, max: 4000, step: 25, v: 900 },
+  macroFrom:  { label: 'macro colour from (m)',     min: 0, max: 10000, step: 100, v: 800 },
+  macroTo:    { label: 'macro colour full by (m)',  min: 100, max: 30000, step: 100, v: 6000 },
+  macroMix:   { label: 'macro colour strength',     min: 0, max: 1, step: 0.05, v: 0.85 },
+  macroNear:  { label: 'macro tint under the detail', min: 0, max: 1, step: 0.05, v: 0.25 },
+  hDepth:     { label: 'height blend depth (1 = soft)', min: 0.02, max: 1, step: 0.02, v: 0.2 },
+  hexOn:      { label: 'hex tiling (0 off, 1 on)',    min: 0, max: 1, step: 1, v: 1 },
+  hexN:       { label: 'hex cells per tile',          min: 0.5, max: 6, step: 0.5, v: 2 },
+  hexRot:     { label: 'hex rotation range (deg)',    min: 0, max: 180, step: 5, v: 180 },
+  seamDepth:  { label: 'zone seam depth (1 = soft)',  min: 0.02, max: 1, step: 0.02, v: 0.45 },
+  macroExp:   { label: 'macro exposure (x)',          min: 0.5, max: 5, step: 0.1, v: 2.2 },
+  nrmK:       { label: 'normal map strength',         min: 0, max: 3, step: 0.05, v: 1 },
+  specK:      { label: 'specular strength',           min: 0, max: 2, step: 0.05, v: 0.6 },
+  pudCell:    { label: 'puddle field offset (m)',      min: 0, max: 400, step: 5, v: 0 },
+  pudCover:   { label: 'puddle wet (the field)',      min: 0, max: 0.8, step: 0.01, v: 0.32 },
+  pudEdge:    { label: 'puddle edge (noise units)',    min: 0.002, max: 0.05, step: 0.001, v: 0.01 },
+  pudSlope:   { label: 'puddle field scale (x)',       min: 0.5, max: 8, step: 0.5, v: 3 },   // CODES[3].poolScale: the pool field read at x this - smaller pools
+  lakeEdge:   { label: 'lake edge width (m)',          min: 0.2, max: 8, step: 0.2, v: 1 },
 };
 // the eight class GROUPS the smooth weight fields carry, and which palette
 // row colours each (40 cropland shares 50's colour; 70 snow is the snow layer)
@@ -113,7 +146,7 @@ const GROUPS = [10, 20, 30, 50, 60, 80, 90, 100];
 // THE STACK — Photoshop's model: layers bottom to top, each a SOURCE drawn
 // with a BLEND MODE at an OPACITY. The default stack is yesterday's composite.
 // The recipe is what W1 will be handed; `export` prints it.
-const SOURCES = ['class', 'tint', 'radar', 'canopy', 'shade', 'ndvi', 'height', 'snow', 'normal', 'bump'];
+const SOURCES = ['class', 'tint', 'radar', 'canopy', 'shade', 'ndvi', 'height', 'snow', 'normal', 'bump', 'ttype', 'splat'];
 const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'soft light', 'hard light',
                 'darken', 'lighten', 'add', 'colour', 'luminosity', 'hue'];
 // the user's recipe (2026-09-14, evening): the class is for the splat weights
@@ -137,6 +170,68 @@ const CLASSES = [
   [70, 'snow and ice', '#f2f4f8'], [80, 'water',       '#1f3b63'],
   [90, 'wetland',      '#6f8c6a'], [100,'moss/lichen', '#a3a06a'],
 ];
+
+// THE TERRAIN TYPE (G405, island_prep's .ttype.u8): ONE map combined from
+// class x NDVI x canopy x slope x coast - the splat weights and the spawning
+// read THIS, not WorldCover. Eleven codes, painted flat here (no shore band,
+// no sea override) so every cell shows its own code; `isolate` greys the rest.
+const TTYPES = [
+  [0, 'sea',    '#0e2a4a'], [1, 'lake',   '#2f6fb0'], [2, 'heath',  '#b9b45a'],
+  [3, 'muskeg', '#7a6a3a'], [4, 'sand',   '#e8d9a0'], [5, 'scree',  '#a09a90'],
+  [6, 'rock',   '#5e5a58'], [7, 'scrub',  '#7fa04c'], [8, 'forest', '#1f5a28'],
+  [9, 'snow',   '#f4f6fa'], [10,'built',  '#d24a8a'],
+  // DERIVED in the shader from the continuous fields, never in the map: the
+  // rock's harshest slopes are the cliff, the forest's tallest canopy is old
+  // growth, the scrub's tallest is dense. Smooth weights, on knobs (SPLITS).
+  [11,'shingle', '#9a8f80'],   // the rocky beach - a MAP code (the prep's shore band, 2026-09-20)
+  [12,'cliff',  '#3a3634'], [13,'forest old', '#0f3a18'], [14,'scrub dense', '#5a7c34'],
+];
+const NCODE = 15;
+
+// THE SPLAT: per effective code, up to THREE sets of the ground library mixed
+// by a noise mask (Photoshop again: a mask with a cell size, a sharpness and a
+// bias per pair), each set sampled in world metres over its own scale
+// (default: the pack's reference). `orient: 'sea'` turns the set's V axis to
+// face the sea (the beach's pattern), read off the coast SDF's gradient.
+// A code with no set draws its palette colour. The library is assets/splat/
+// (splat_tex_import.py) plus the lot's five (G290), all on the same contract.
+// THE DEFAULT IS THE MODULE'S (src/core/28b_ground_fields.js RECIPE): one
+// table for the bench and the game; the bench edits a copy and `export`
+// prints it - paste it back into RECIPE to make it the default.
+let SPLAT_DEFAULT = JSON.parse(JSON.stringify(GROUND_FIELDS.RECIPE.codes));
+for (const k in GROUND_FIELDS.RECIPE.knobs) if (K[k]) K[k].v = GROUND_FIELDS.RECIPE.knobs[k];
+let SPLAT = JSON.parse(JSON.stringify(SPLAT_DEFAULT));
+try { const saved = JSON.parse(localStorage.getItem('flydiy.island.splat.v5') || 'null'); if (saved) SPLAT = saved; } catch (e) {}
+// the library: filled by loadLibrary() - [{ key, metres, url, mean }] in layer order
+let LIB = [];
+// THE GRADE per set: { gain: '#rrggbb' (a multiplier), sat } - the sheet's
+// numbers (tools/splat_sheet.py) say how far each set sits from its tier
+// the first grades (the sheet, 2026-09-20 evening): dry paler than its
+// heath, snowAir a dark blue-grey under a white macro, rockyB brown among
+// greys, the marble cliff pink
+const GRADE_DEFAULT = JSON.parse(JSON.stringify(GROUND_FIELDS.RECIPE.grade));
+let GRADE = JSON.parse(JSON.stringify(GRADE_DEFAULT));
+try { const sv = JSON.parse(localStorage.getItem('flydiy.island.grade.v2') || 'null'); if (sv) GRADE = sv; } catch (e) {}
+function pushGrade() {
+  LIB.forEach((l, i) => { const g = GRADE[l.key] || {}; const c = new THREE.Color(g.gain || '#ffffff');
+    U.uGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat); });
+  try { localStorage.setItem('flydiy.island.grade.v2', JSON.stringify(GRADE)); } catch (e) {}
+}
+function libraryUi() {
+  const el = $('libGrade'); if (!el) return;
+  const hex = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  el.innerHTML = LIB.map((l, i) => { const g = GRADE[l.key] || {};
+    return `<div class="row"><span style="display:inline-block;width:18px;height:14px;background:${hex(l.mean || [128, 128, 128])};border:1px solid #000" title="mean ${(l.mean || []).map(Math.round).join(',')}"></span>` +
+      `<label style="flex:1.4">${l.key} <span style="color:var(--dim)">${l.metres} m</span></label>` +
+      `<input type="color" id="g_${i}" value="${g.gain || '#ffffff'}" title="gain (multiplier)">` +
+      `<input type="range" id="gs_${i}" min="0" max="2" step="0.05" value="${g.sat === undefined ? 1 : g.sat}" style="flex:1" title="saturation"><output id="go_${i}">${g.sat === undefined ? 1 : g.sat}</output></div>`; }).join('') +
+    `<div class="row"><button id="gReset">reset grades</button></div>`;
+  LIB.forEach((l, i) => {
+    $('g_' + i).oninput = e => { (GRADE[l.key] = GRADE[l.key] || {}).gain = e.target.value; pushGrade(); };
+    $('gs_' + i).oninput = e => { (GRADE[l.key] = GRADE[l.key] || {}).sat = +e.target.value; $('go_' + i).textContent = e.target.value; pushGrade(); };
+  });
+  $('gReset').onclick = () => { GRADE = JSON.parse(JSON.stringify(GRADE_DEFAULT)); pushGrade(); libraryUi(); };
+}
 
 // ---- scene ---------------------------------------------------------------
 const cv = $('c');
@@ -174,6 +269,34 @@ addEventListener('pointermove', e => {
          if (H) target.y = Math.max(0, H(target.x, target.z)); }
   place();
 });
+// THE PROBE: the pointer's ray marched against the height sampler (no mesh
+// raycast - the codec's H(x,z) IS the terrain), then the grid cell under the
+// hit read from the raw layers: the terrain type, the cover class, the canopy.
+let probeT = 0;
+cv.addEventListener('pointermove', e => {
+  if (drag || !H || !GRID) return;
+  const now = performance.now(); if (now - probeT < 60) return; probeT = now;
+  const r = cv.getBoundingClientRect();
+  const nd = new THREE.Vector3((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height * 2 - 1), 0.5).unproject(camera);
+  const d = nd.sub(camera.position).normalize(), o = camera.position;
+  const g = (x, z) => Math.max(0, H(x, z));
+  let hit = null, t0 = 0, step = Math.max(5, dist / 600);
+  for (let t = step; t < 120000; t += step) {
+    const x = o.x + d.x * t, z = o.z + d.z * t, y = o.y + d.y * t;
+    if (y < g(x, z)) { let a = t0, b = t;   // bisect the last step
+      for (let i = 0; i < 12; i++) { const m = (a + b) / 2; if (o.y + d.y * m < g(o.x + d.x * m, o.z + d.z * m)) b = m; else a = m; }
+      hit = { x: o.x + d.x * b, z: o.z + d.z * b }; break; }
+    t0 = t; if (y < -10 && d.y >= 0) break;
+  }
+  const el = $('probe'); if (!el) return;
+  if (!hit) { el.textContent = '-'; return; }
+  const i = Math.floor((hit.x - GRID.x0) / GRID.cell), j = Math.floor((hit.z - GRID.z0) / GRID.cell);
+  if (i < 0 || j < 0 || i >= GRID.w || j >= GRID.h) { el.textContent = 'off the grid'; return; }
+  const k = j * GRID.w + i, tt = L.ttype ? L.ttype[k] : -1, name = (TTYPES.find(c => c[0] === tt) || [])[1] || '?';
+  const cls = L.cover ? L.cover[k] : -1, cn = (CLASSES.find(c => c[0] === cls) || [])[1] || '?';
+  el.textContent = `x ${hit.x.toFixed(0)} z ${hit.z.toFixed(0)}  h ${g(hit.x, hit.z).toFixed(0)} m\n` +
+    `type ${tt} ${name}  |  cover ${cls} ${cn}  |  canopy ${L.canopy ? L.canopy[k] : '?'} m  |  ndvi ${L.ndvi ? ((L.ndvi[k] / 127) - 1).toFixed(2) : '?'}`;
+});
 cv.addEventListener('wheel', e => {
   e.preventDefault();
   dist = Math.max(20, Math.min(90000, dist * (e.deltaY > 0 ? 1.12 : 0.89)));
@@ -193,7 +316,32 @@ const VS = `
   void main(){ vW = position; vN = normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
 const FS = `
   precision highp float;
-  uniform sampler2D uCover, uCanopy, uOri, uNdvi, uTint, uW1, uW2, uOri1, uOri2, uOri3, uOri4, uCoast;
+  uniform sampler2D uCover, uCanopy, uOri, uNdvi, uTint, uW1, uW2, uOri1, uOri2, uOri3, uOri4, uCoast, uTtype, uLake;
+  uniform vec3 uTCol[15]; uniform int uTOnly;   // the terrain-type palette (12 mapped + 3 derived); isolate one code (-1 = all)
+  uniform highp sampler2DArray uSplat;           // the ground library, one layer per set (no default precision for arrays in ES3)
+  uniform vec4 uMatA[15];                        // per code: three layer indices (-1 = none), w = orient (1 = face the sea)
+  uniform vec4 uMatS[15];                        // per code: three scales (metres per repeat)
+  uniform vec4 uMatM[15];                        // per code: mask cell (m), sharpness, bias A|B, bias C
+  uniform vec4 uSplit;                           // cliff lo/hi (deg), old growth lo/hi (m)
+  uniform vec4 uSplit2;                          // dense scrub lo/hi (m), splat wobble (m), blend width (cells)
+  uniform float uBeachRot, uCodesOnly;
+  uniform vec4 uMatF[15];                        // per code: three FAR layer indices (-1 = keep the near set)
+  uniform vec4 uMatFS[15];                       // per code: three far scales
+  uniform vec4 uDist;                            // detail from/to (m), macro from/to (m)
+  uniform vec4 uDist2;                           // macro strength, macro under the detail, triplanar k, -
+  uniform vec4 uHex;                             // height-blend depth, hex on, hex cells per tile, rotation range (rad)
+  uniform vec2 uSeam;                            // zone seam depth (the code-level height blend), macro exposure
+  uniform vec4 uGrade[24];                       // per SET (layer): rgb gain, saturation - the mild grade toward its tier
+  uniform highp sampler2DArray uSplatN;          // the sets' normals (GL tangent, rgb) + roughness (a)
+  uniform vec2 uNrm;                             // normal strength, specular strength
+  uniform vec4 uVary[15];                        // per code: hue swing (rad), value swing, cell (m), -
+  uniform vec4 uPud;                             // puddles: cell (m), cover, edge, max slope (deg)
+  uniform vec2 uLakeE;                           // lake edge width (m), has lake field
+  float gSlope;                                  // the geometric slope, degrees (set in splat)
+  float gHexRot;                                 // the hex tiling's rotation range for the set being sampled (0 for an ORIENTED set)
+  uniform int uNCode, uNCand;                    // 14 and 8: LOOP BOUNDS AS UNIFORMS, so ANGLE's HLSL keeps the loops (a constant bound is unrolled, and the material chain inlined 14 times hung the GPU)
+  // (the world position's dFdx / dFdy travel as PARAMETERS down the chain: fxc miscompiles them as globals read inside the sampling functions)
+  out vec4 fragColor;                            // GLSL3: the output is declared by hand (three maps varying/texture2D, not gl_FragColor)
   uniform vec4 uBounds;            // x0, z0, w, h of the grid, world metres
   uniform float uCell;             // grid cell, metres
   uniform float uHas;              // bit 1 canopy, 2 ori, 4 tint, 8 ndvi
@@ -246,6 +394,249 @@ const FS = `
     float tot = A.r + A.g + A.b + A.a + B.r + B.g + B.b + B.a;
     return tot > 1e-3 ? c / tot : uCol[0];
   }
+  vec3 blend(vec3 b, vec3 s, int mode); float luma(vec3 c);   // defined below the stack's helpers
+  // THE SHARED FIELDS (src/core/28b_ground_fields.js): the vegetation reads
+  // the same functions per instance; spliced here as the module's GLSL
+  ` + GROUND_FIELDS.glsl + `
+  float fbm(vec2 p){ return (vnoise(p) * 0.55 + vnoise(p * 2.03 + 17.0) * 0.3 + vnoise(p * 4.07 + 43.0) * 0.15) - 0.5; }
+  // ONE SET of the library at a world position, over its scale, optionally
+  // turned to face the sea (a rotation of the sample point about the origin;
+  // the angle varies slowly along the coast so the pattern follows it)
+  // TRIPLANAR: the top projection (xz) plus the two side projections where
+  // the face turns away from the sky, weighted |n|^k. Flat ground pays for
+  // one sample: a side plane is fetched only when its weight is visible.
+  // HEIGHT BLEND (Mishkinis 2013): each candidate's height (the set's relief,
+  // in the array's alpha) plus its weight; only the top DEPTH of that
+  // stack shows. Sand settles in the crevices; the stones stay clean.
+  // The blend hands back WEIGHTS so the colour and the normal take the same
+  // ones - a normal is a vector, never a height-picked colour's stowaway.
+  vec3 hweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
+    float ma = max(max(ha + wa, hb + wb), hc + wc) - depth;
+    vec3 b = max(vec3(ha + wa, hb + wb, hc + wc) - ma, 0.0);
+    return b / (b.x + b.y + b.z);
+  }
+  vec2 hweights2(float ha, float wa, float hb, float wb, float depth){
+    float ma = max(ha + wa, hb + wb) - depth;
+    vec2 b = max(vec2(ha + wa, hb + wb) - ma, 0.0);
+    return b / (b.x + b.y);
+  }
+  vec2 hash2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+  // A SAMPLE: colour + height (c), normal perturbation + roughness (n). One
+  // struct through the whole chain - fxc (ANGLE's HLSL) miscompiles the same
+  // chain written with out-parameters ("unexpected input register type").
+  struct Smp { vec4 c; vec4 n; };
+  // one texel of a set: colour + height from the colour array, tangent normal
+  // + roughness from the normal array - through the same grade
+  Smp fetchSet(float layer, vec2 uv, vec2 dx, vec2 dy, vec2 cs){   // cs = (cos, sin) of the tile's rotation
+    Smp o;
+    // IMPLICIT derivatives, on purpose: textureGrad / textureLod on a
+    // sampler2DArray is an fxc INTERNAL ERROR on ANGLE/D3D ("unexpected input
+    // register type"; links only unoptimised on the third retry, which is what
+    // killed the pane's GPU process). At a hex edge the sample whose uv jumps is
+    // the one whose weight is zero, so the blurred mip it fetches never shows.
+    o.c = texture(uSplat, vec3(uv, layer));
+    vec4 nr = texture(uSplatN, vec3(uv, layer));
+    // the tangent normal turned back by the hex rotation (the tile was rotated, its normal with it)
+    vec2 t = (nr.xy * 2.0 - 1.0);
+    t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);   // R^T
+    o.n = vec4(t, nr.z * 2.0 - 1.0, nr.a);
+    vec4 g = uGrade[int(layer + 0.5)];
+    o.c.rgb *= g.rgb; float l = luma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
+    return o;
+  }
+  // HEX TILING (Heitz-Neyret 2018 / Mikkelsen 2022): the tile plane cut into
+  // a triangle grid; each vertex owns a random rotation + offset of the tile
+  // and a pixel blends its triangle's three vertices - no two hexes repeat.
+  // The three samples are height-blended with the barycentric weights, which
+  // keeps the contrast the plain average would wash out. Derivatives are
+  // (the derivatives ride along for the record; see fetchSet on why they are unused)
+  Smp tileSample(float layer, vec2 st, vec2 dstdx, vec2 dstdy){
+    if (uHex.y < 0.5 || gHexRot < 0.0) return fetchSet(layer, st, dstdx, dstdy, vec2(1.0, 0.0));   // gHexRot < 0: an oriented set tiles plainly (hex seams cut a directional pattern)
+    vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * uHex.z);
+    vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+    float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+    vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+    vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
+    vec2 r1 = hash2(v1), r2 = hash2(v2), r3 = hash2(v3);
+    float a1 = (r1.x - 0.5) * 2.0 * gHexRot, a2 = (r2.x - 0.5) * 2.0 * gHexRot, a3 = (r3.x - 0.5) * 2.0 * gHexRot;
+    mat2 R1 = mat2(cos(a1), sin(a1), -sin(a1), cos(a1)), R2 = mat2(cos(a2), sin(a2), -sin(a2), cos(a2)), R3 = mat2(cos(a3), sin(a3), -sin(a3), cos(a3));
+    Smp s1 = fetchSet(layer, R1 * st + r1 * 7.3, R1 * dstdx, R1 * dstdy, vec2(cos(a1), sin(a1)));
+    Smp s2v = fetchSet(layer, R2 * st + r2 * 7.3, R2 * dstdx, R2 * dstdy, vec2(cos(a2), sin(a2)));
+    Smp s3 = fetchSet(layer, R3 * st + r3 * 7.3, R3 * dstdx, R3 * dstdy, vec2(cos(a3), sin(a3)));
+    vec3 hw = hweights3(s1.c.a, w.x, s2v.c.a, w.y, s3.c.a, w.z, uHex.x);
+    Smp o; o.c = s1.c * hw.x + s2v.c * hw.y + s3.c * hw.z; o.n = s1.n * hw.x + s2v.n * hw.y + s3.n * hw.z;
+    return o;
+  }
+  // ONE SET at a world position over its scale: the top projection plus the
+  // triplanar sides where the face turns away from the sky. c = rgb + height;
+  // n = the world-space perturbation of the normal + roughness. Tangent
+  // (x, y, z-up) laid on each plane: top (u = x, v = z) -> (x, ., z); the
+  // side planes carry their tangent into the plane's own axes.
+  Smp splatTex(float layer, float scale, vec3 P, vec3 gDx, vec3 gDy, vec3 tw, float ang){
+    scale = max(scale, 0.01);
+    vec2 p = P.xz, dx = gDx.xz, dy = gDy.xz;
+    float ca = 1.0, sa = 0.0;
+    // an ORIENTED set (the beach facing the sea) keeps its direction: the hex
+    // tiles are offset, never turned - a random turn per tile scrambled the
+    // ripples and cut them along the tile edges
+    gHexRot = ang != 0.0 ? -1.0 : uHex.w;
+    if (ang != 0.0) { ca = cos(ang); sa = sin(ang); mat2 R = mat2(ca, sa, -sa, ca); p = R * p; dx = R * dx; dy = R * dy; }
+    Smp t = tileSample(layer, p / scale, dx / scale, dy / scale);
+    vec2 tt = vec2(ca * t.n.x + sa * t.n.y, -sa * t.n.x + ca * t.n.y);   // R^T
+    Smp o; o.c = t.c * tw.y; o.n = vec4(tt.x, 0.0, tt.y, t.n.a) * tw.y;
+    if (tw.x > 0.01) { Smp u = tileSample(layer, P.zy / scale, gDx.zy / scale, gDy.zy / scale); o.c += u.c * tw.x; o.n += vec4(0.0, u.n.y, u.n.x, u.n.a) * tw.x; }
+    if (tw.z > 0.01) { Smp u = tileSample(layer, P.xy / scale, gDx.xy / scale, gDy.xy / scale); o.c += u.c * tw.z; o.n += vec4(u.n.x, u.n.y, 0.0, u.n.a) * tw.z; }
+    return o;
+  }
+  // one TRIPLET (three sets, two mask weights), height-blended: near or far
+  Smp matTriplet(vec4 A, vec4 S, vec3 P, vec3 gDx, vec3 gDy, vec3 tw, float ang, float m1, float m2){
+    Smp a = splatTex(A.x, S.x, P, gDx, gDy, tw, ang);
+    if (A.y < 0.0) return a;
+    Smp b = splatTex(A.y, S.y, P, gDx, gDy, tw, ang);
+    Smp o;
+    if (A.z < 0.0) { vec2 w = hweights2(a.c.a, 1.0 - m1, b.c.a, m1, uHex.x); o.c = a.c * w.x + b.c * w.y; o.n = a.n * w.x + b.n * w.y; return o; }
+    Smp c = splatTex(A.z, S.z, P, gDx, gDy, tw, ang);
+    vec3 w = hweights3(a.c.a, (1.0 - m1) * (1.0 - m2), b.c.a, m1 * (1.0 - m2), c.c.a, m2, uHex.x);
+    o.c = a.c * w.x + b.c * w.y + c.c * w.z; o.n = a.n * w.x + b.n * w.y + c.n * w.z;
+    return o;
+  }
+  // a code's material: the near triplet, the far triplet (the aerial packs)
+  // replacing it over the detail-fade range; fw = the far weight
+  Smp matColor(int i, vec3 P, vec3 gDx, vec3 gDy, vec3 tw, float seaAng, float fw){
+    vec4 A = uMatA[i]; vec4 S = uMatS[i]; vec4 M = uMatM[i];
+    Smp o; o.c = vec4(uTCol[i], 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
+    if (A.x < 0.0 || uCodesOnly > 0.5) return o;
+    float ang = A.w > 0.5 ? seaAng : 0.0;
+    // the set masks are the module's cloud (the vegetation's floor mixes its
+    // two sets by the same field): period = 6 cells, the bias knob off 0.52
+    // the cloud's noise sits near 0.5 (four octaves, normalised): the ground
+    // cuts it 4x harder than the vegetation's floor (sharpness 3 -> 12) or every
+    // pixel is a half-and-half of its two sets - khaki grass, beige shingle
+    float period = max(M.x, 0.5) * 6.0, sharp = M.y * 4.0;
+    float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
+    float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
+    vec4 F = uMatF[i], FS = uMatFS[i];
+    // an empty far slot keeps the near set (and its scale)
+    if (F.x < 0.0) { F.x = A.x; FS.x = S.x; } if (F.y < 0.0) { F.y = A.y; FS.y = S.y; } if (F.z < 0.0) { F.z = A.z; FS.z = S.z; }
+    o.c = vec4(0.0); o.n = vec4(0.0);
+    if (fw < 0.999) { Smp t = matTriplet(A, S, P, gDx, gDy, tw, ang, m1, m2); o.c += (1.0 - fw) * t.c; o.n += (1.0 - fw) * t.n; }
+    if (fw > 0.001) { Smp t = matTriplet(F, FS, P, gDx, gDy, tw, ang, m1, m2); o.c += fw * t.c; o.n += fw * t.n; }
+    // THE MICRO VARIATION: one field (groundField) read by every code; each
+    // code takes its own swing of it - a hue turn about the grey axis and a
+    // value gain - so a patch of ground keeps its mood across a code seam
+    vec4 V = uVary[i];
+    if (V.y > 0.0 || V.x > 0.0) {
+      vec2 gf = gfShade(P.xz, V.z);
+      o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y);
+    }
+    // THE PUDDLES (muskeg): the wet field over its cover, a SHARP edge (water
+    // does not fade over metres), only on the flat; drawn as still water -
+    // dark, the sky in it, the normal flat, the roughness gone
+    if (i == 3 && uPud.y > 0.0) {
+      // the vegetation's pool field (period 400 m), its wet and the edge on
+      // knobs. No slope gate: the muskeg code IS the flat ground (the prep
+      // requires < 5 deg), and a face-normal gate cut the pools along the
+      // triangles of the coarse leaves a flat bog bakes to
+      float m = gfPoolAt((P.xz + vec2(uPud.x)) * uPud.w, uPud.y, uPud.z);   // uPud.w = poolScale (CODES[3])
+      o.c.rgb = mix(o.c.rgb, vec3(0.16, 0.19, 0.20), m);
+      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m);
+    }
+    return o;
+  }
+  int codeAt(vec2 cellIx){
+    vec2 uv = (cellIx + 0.5) * uCell / uBounds.zw;
+    return min(int(texture2D(uTtype, uv).r * 255.0 + 0.5), 11);
+  }
+  // THE SPLAT: the four cells around the (wobbled) point vote one-hot with
+  // bilinear weights - a smooth blend over one cell, never a hard texel edge;
+  // then the derived codes take their share of rock / forest / scrub by the
+  // continuous fields (slope, canopy); then every code with a weight draws.
+  // Leaves the shaded normal and the roughness in gN / gRough for main().
+  vec3 gN; float gRough;
+  vec3 splat(vec2 xz, vec3 nGeo, float canopy, vec2 uv, float ori, vec3 tint){
+    vec3 gDx = dFdx(vW), gDy = dFdy(vW);
+    gN = nGeo; gRough = 0.9;
+    gSlope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
+    vec2 p = xz;
+    if (uSplit2.z > 0.0) { vec2 q = xz / 23.0; p += (vec2(vnoise(q), vnoise(q + 77.0)) - 0.5) * 2.0 * uSplit2.z; }
+    float w[15]; for (int i = 0; i < uNCode; i++) w[i] = 0.0;
+    // THE VOTE: every cell within the blend RADIUS votes with a smooth
+    // falloff (a 4-cell bilinear made 10 m blobs - "pixel-y"); the radius is
+    // the seam's softness. 5x5 cells at most, a byte fetch each.
+    vec2 g = (p - uBounds.xy) / uCell - 0.5;
+    vec2 b = floor(g), f = g - b;
+    float R = max(uSplit2.w, 0.3), wsum = 0.0;
+    for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
+      vec2 o = vec2(float(i), float(j));
+      float d = length(o - f) / R;
+      if (d >= 1.0) continue;
+      float k = (1.0 - d) * (1.0 - d);
+      w[codeAt(b + o)] += k; wsum += k;
+    }
+    for (int i = 0; i < uNCode; i++) w[i] /= max(wsum, 1e-4);
+    // the map's SEA inside the drawn coast is the tidal flat (the DEM's zero
+    // line sits out on the shelf): it votes as the beach, not as navy
+    w[4] += w[0]; w[0] = 0.0;
+    // FRESH WATER IS A LINE, not a blend: the lake's own signed distance
+    // draws its edge (a metre wide) and the land codes blend among themselves
+    // up to it - the lake never votes in the seam
+    float lakeM = 0.0;
+    if (uLakeE.y > 0.5) { float lsd = (texture2D(uLake, uv).r * 255.0 - 128.0) * 4.0; lakeM = smoothstep(-uLakeE.x * 0.5, uLakeE.x * 0.5, lsd); }
+    w[1] = 0.0;
+    float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
+    float sCliff = smoothstep(uSplit.x, uSplit.y, slope);
+    float sOld   = smoothstep(uSplit.z, uSplit.w, canopy);
+    float sDense = smoothstep(uSplit2.x, uSplit2.y, canopy);
+    w[12] = w[6] * sCliff; w[6] *= 1.0 - sCliff;
+    w[13] = w[8] * sOld;   w[8] *= 1.0 - sOld;
+    w[14] = w[7] * sDense; w[7] *= 1.0 - sDense;
+    // the sea's direction, for the oriented sets: the coast SDF's gradient
+    // points inland; the pattern's V axis is turned to run along it
+    vec2 e = vec2(1.0 / uBounds.z, 1.0 / uBounds.w) * 1.5;
+    vec2 gr = vec2(texture2D(uCoast, uv + vec2(e.x, 0.0)).r - texture2D(uCoast, uv - vec2(e.x, 0.0)).r,
+                   texture2D(uCoast, uv + vec2(0.0, e.y)).r - texture2D(uCoast, uv - vec2(0.0, e.y)).r);
+    float seaAng = uBeachRot - atan(gr.x, gr.y);
+    // the distances: the detail gives way to the aerial sets, then the
+    // MACRO COLOUR (the baked albedo's recipe: tint x radar overlay x canopy
+    // shade - what the game ships) takes over; a 3 m floor cannot be read
+    // from 10 km and should not try
+    float d = distance(vW, uCam);
+    float fw = smoothstep(uDist.x, uDist.y, d);
+    float mw = uDist2.x * smoothstep(uDist.z, uDist.w, d);
+    vec3 tw = vec3(0.0, 1.0, 0.0);
+    if (uDist2.z > 0.5) { vec3 a = pow(abs(nGeo), vec3(uDist2.z)); tw = a / (a.x + a.y + a.z); }
+    // every code with a vote is a candidate; the height blend across them
+    // (each height + its vote, the top DEPTH shows) cuts the seams along
+    // the relief instead of fading the two textures into each other
+    vec4 C[8]; vec4 NN[8]; float Wt[8]; int n = 0; float ma = -10.0;
+    for (int i = 0; i < uNCode; i++) {
+      if (w[i] < 0.004 || n >= uNCand) continue;
+      Smp m = matColor(i, vW, gDx, gDy, tw, seaAng, fw);
+      C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; ma = max(ma, m.c.a + w[i]); n++;
+    }
+    ma -= uSeam.x;   // the seam between ZONES has its own depth (softer than a set's own mix)
+    vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0;
+    for (int j = 0; j < uNCand; j++) {
+      if (j >= n) break;
+      float b = max(C[j].a + Wt[j] - ma, 0.0);
+      col += C[j].rgb * b; nrm += NN[j] * b; tot += b;
+    }
+    col = tot > 1e-5 ? col / tot : vec3(1.0, 0.0, 1.0);
+    nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
+    // the shaded normal: the geometric normal bent by the sets' perturbation
+    // (its strength fades with the macro - a 3 m relief has no business at 5 km)
+    gN = normalize(nGeo + nrm.xyz * uNrm.x * (1.0 - mw));
+    gRough = clamp(nrm.a, 0.05, 1.0);
+    if (lakeM > 0.0) { gN = normalize(mix(gN, vec3(0.0, 1.0, 0.0), lakeM)); gRough = mix(gRough, 0.03, lakeM); }
+    if (uCodesOnly > 0.5) return mix(col, uTCol[1], lakeM);
+    vec3 macro = mix(tint, blend(tint, vec3(ori), 3), 0.75) * uSeam.y;   // the baked albedo is lit by a 2.8x sun in the game; here it needs its exposure
+    macro *= 1.0 + ((1.0 - uShadeK * clamp(canopy / uCanP90, 0.0, 1.2)) - 1.0) * 0.7;
+    // near: the macro's TINT under the detail (the detail keeps its texture,
+    // the macro gives it the place's colour) - colour blend, luminance kept
+    if (uDist2.y > 0.0) { float lc = luma(col); vec3 tinted = macro * (lc / max(luma(macro), 1e-3)); col = mix(col, tinted, uDist2.y); }
+    // the lake water over everything, at its own sharp edge (the game lays its quad there)
+    return mix(mix(col, macro, mw), vec3(0.12, 0.20, 0.26), lakeM);
+  }
   float oriLevel(int l, vec2 uv){
     if (l <= 0) return texture2D(uOri, uv).r;
     if (l == 1) return texture2D(uOri1, uv).r;
@@ -294,6 +685,15 @@ const FS = `
       alpha = smoothstep(snowH - 60.0, snowH + 60.0, vW.y) * (1.0 - smoothstep(0.436, 0.698, acos(clamp(n.y, 0.0, 1.0)))); return vec3(0.93, 0.95, 1.0); }
     if (id == 8) return n * 0.5 + 0.5;
     if (id == 9) return vec3(0.5 + band(uv) * 2.0);
+    if (id == 11) return splat(vW.xz, normalize(vN), canopy, uv, ori, tint);
+    if (id == 10) {
+      // NEAREST-sampled: a code is a code, never a blend of two neighbours
+      int t = int(texture2D(uTtype, uv).r * 255.0 + 0.5);
+      vec3 c = vec3(1.0, 0.0, 1.0);
+      for (int i = 0; i < 12; i++) if (i == t) c = uTCol[i];
+      if (uTOnly >= 0 && t != uTOnly) { c = vec3(luma(c) * 0.35 + 0.15); }
+      return c;
+    }
     return vec3(1.0, 0.0, 1.0);
   }
   void main(){
@@ -316,6 +716,7 @@ const FS = `
     float lambert = max(0.0, dot(n, uSun));
     float light = 0.45 + 0.7 * lambert;
     vec3 col; float alpha;
+    bool raw = uMode - 1 == 10;   // the terrain-type map: flat codes, the shore and the sea drawn as their codes
     if (uMode > 0) { col = source(uMode - 1, uv, n, canopy, ori, ndvi, tint, alpha); if (uMode - 1 == 8 || uMode - 1 == 9) light = 1.0; }
     else {
       col = vec3(0.5);
@@ -324,6 +725,17 @@ const FS = `
         vec3 s = source(uLSrc[i], uv, n, canopy, ori, ndvi, tint, alpha);
         col = mix(col, blend(col, s, uLMode[i]), uLOp[i] * alpha);
       }
+    }
+    if (raw) { light = 0.55 + 0.6 * lambert; }
+    else if (uMode - 1 == 11 && !sea) {
+      // the splat's own normal lights it, and its roughness gives it a sheen:
+      // wet mud and bare rock catch the sun, moss and leaves do not
+      float lam = max(0.0, dot(gN, uSun));
+      light = 0.45 + 0.7 * lam;
+      vec3 v = normalize(uCam - vW), h = normalize(v + uSun);
+      float gloss = 1.0 - gRough;
+      float spec = pow(max(dot(gN, h), 0.0), 8.0 + 120.0 * gloss * gloss) * gloss * uNrm.y * lam;
+      col += spec;
     }
     if (sea) {
       // no bathymetry: the shelf deepens with the distance from the shore. The
@@ -336,7 +748,7 @@ const FS = `
       col = mix(shallow, vec3(0.10, 0.21, 0.36), deep); light = 0.95;
       // the waterline: a thin pale lap where the sea meets the land
       col = mix(col, vec3(0.75, 0.8, 0.78), smoothstep(3.0, 0.0, -sd) * 0.35);
-    } else {
+    } else if (uMode - 1 != 11) {   // the splat draws its own shore (the beach sets)
       // the beach band: the first metres inland darken and dull toward the wet
       // a rocky shore is PALE: grey rock, the barnacle line, dry sand above the wet
       float shore = uHasCoast > 0.5 ? smoothstep(16.0, 0.0, sd) : 1.0 - smoothstep(0.0, 1.2, vW.y);
@@ -344,7 +756,7 @@ const FS = `
       col = mix(col, rock, shore * 0.8);
       col = mix(col, rock * 0.78, smoothstep(2.5, 0.0, sd) * 0.5);   // the wet metre
     }
-    gl_FragColor = vec4(col * light, 1.0);
+    fragColor = vec4(col * light, 1.0);
   }`;
 
 const U = {
@@ -356,6 +768,24 @@ const U = {
   uBump: { value: K.bump.v }, uBumpScale: { value: K.bumpScale.v }, uSun: { value: new THREE.Vector3() },
   uBumpNear: { value: K.bumpNear.v }, uBumpFar: { value: K.bumpFar.v }, uCanP90: { value: 15 }, uShadeK: { value: K.shadeK.v }, uSeaFade: { value: K.seaFade.v },
   uCam: { value: camera.position }, uCoast: { value: null }, uHasCoast: { value: 0 },
+  uTtype: { value: null }, uTCol: { value: TTYPES.map(c => new THREE.Color(c[2])) }, uTOnly: { value: -1 },
+  uSplat: { value: null }, uSplatN: { value: null }, uNrm: { value: new THREE.Vector2(1, 0.6) }, uNCode: { value: 15 }, uNCand: { value: 8 },
+  uVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
+  uPud: { value: new THREE.Vector4(K.pudCell.v, K.pudCover.v, K.pudEdge.v, K.pudSlope.v) },
+  uLake: { value: null }, uLakeE: { value: new THREE.Vector2(K.lakeEdge.v, 0) },
+  uMatA: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(-1, -1, -1, 0)) },
+  uMatS: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(1, 1, 1, 0)) },
+  uMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
+  uSplit: { value: new THREE.Vector4(K.cliffLo.v, K.cliffHi.v, K.oldLo.v, K.oldHi.v) },
+  uSplit2: { value: new THREE.Vector4(K.denseLo.v, K.denseHi.v, K.splatWobble.v, K.splatBlend.v) },
+  uBeachRot: { value: K.beachRot.v * Math.PI / 180 }, uCodesOnly: { value: 0 },
+  uMatF: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(-1, -1, -1, 0)) },
+  uMatFS: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(1, 1, 1, 0)) },
+  uDist: { value: new THREE.Vector4(K.detailFrom.v, K.detailTo.v, K.macroFrom.v, K.macroTo.v) },
+  uDist2: { value: new THREE.Vector4(K.macroMix.v, K.macroNear.v, K.triK.v, 0) },
+  uHex: { value: new THREE.Vector4(K.hDepth.v, K.hexOn.v, K.hexN.v, K.hexRot.v * Math.PI / 180) },
+  uSeam: { value: new THREE.Vector2(K.seamDepth.v, K.macroExp.v) },
+  uGrade: { value: Array.from({ length: 24 }, () => new THREE.Vector4(1, 1, 1, 1)) },
   uCol: { value: CLASSES.map(c => new THREE.Color(c[2])) }, uCls: { value: CLASSES.map(c => c[0]) },
   uLN: { value: 0 }, uLSrc: { value: new Array(MAXL).fill(0) }, uLMode: { value: new Array(MAXL).fill(0) }, uLOp: { value: new Float32Array(MAXL) },
 };
@@ -373,8 +803,71 @@ function setSun() {
 }
 pushStack(); setSun();
 const blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat); blank.needsUpdate = true;
-for (const k of ['uCover', 'uCanopy', 'uOri', 'uNdvi', 'uTint', 'uW1', 'uW2', 'uOri1', 'uOri2', 'uOri3', 'uOri4', 'uCoast']) U[k].value = blank;
-const MAT = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: THREE.DoubleSide });
+for (const k of ['uCover', 'uCanopy', 'uOri', 'uNdvi', 'uTint', 'uW1', 'uW2', 'uOri1', 'uOri2', 'uOri3', 'uOri4', 'uCoast', 'uTtype', 'uLake']) U[k].value = blank;
+// GLSL3 for the sampler2DArray (three maps varying/texture2D/gl_FragColor onto it)
+const MAT = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: THREE.DoubleSide, glslVersion: THREE.GLSL3 });
+// a 1x1x1 array so the sampler is bound before the library arrives
+{ const t = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); t.needsUpdate = true; U.uSplat.value = t;
+  const tn = new THREE.DataArrayTexture(new Uint8Array([128, 128, 255, 230]), 1, 1, 1); tn.needsUpdate = true; U.uSplatN.value = tn; }
+
+// ---- the ground library: every set as one layer of a texture array ----------
+// assets/splat/index.json (Poly Haven, scale from the pack) + the lot's five
+// (ambientCG, tile from lot_tex_prep.js). 1k by default; ?tex=512 for a laptop.
+const LOT_SETS = [['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8]];
+async function loadLibrary() {
+  const px = P.get('tex') === '512' ? 512 : 1024, sfx = px === 1024 ? '1k' : '512';
+  const idx = await fetch('../assets/splat/index.json').then(r => r.ok ? r.json() : []).catch(() => []);
+  const at = (lib, k) => ({ url: `../assets/${lib}/${k}/diff_${sfx}.jpg`, hurl: `../assets/${lib}/${k}/height_${sfx}.jpg`, nurl: `../assets/${lib}/${k}/nor_gl_${sfx}.jpg`, rurl: `../assets/${lib}/${k}/rough_${sfx}.jpg` });
+  LIB = idx.map(m => Object.assign({ key: m.key, metres: m.metres }, at('splat', m.key)))
+    .concat(LOT_SETS.map(([k, m]) => Object.assign({ key: k, metres: m }, at('lot', k))));
+  const N = LIB.length, data = new Uint8Array(px * px * 4 * N), dataN = new Uint8Array(px * px * 4 * N);
+  const cnv = document.createElement('canvas'); cnv.width = cnv.height = px;
+  const ctx = cnv.getContext('2d', { willReadFrequently: true });
+  let ok = 0;
+  await Promise.all(LIB.map(async (m, i) => {
+    try {
+      const opt = u => fetch(u).then(r => r.ok ? r.blob().then(createImageBitmap) : null).catch(() => null);
+      const [bmp, hb, nb, rb] = await Promise.all([createImageBitmap(await (await fetch(m.url)).blob()), opt(m.hurl), opt(m.nurl), opt(m.rurl)]);
+      ctx.drawImage(bmp, 0, 0, px, px);
+      const o = i * px * px * 4; data.set(ctx.getImageData(0, 0, px, px).data, o);
+      { let r = 0, g = 0, b = 0, n = 0; for (let k = 0; k < px * px; k += 97) { r += data[o + k * 4]; g += data[o + k * 4 + 1]; b += data[o + k * 4 + 2]; n++; } m.mean = [r / n, g / n, b / n]; }
+      // the set's HEIGHT rides in the alpha (the blend's relief); 0.5 flat if it has none
+      if (hb) { ctx.drawImage(hb, 0, 0, px, px); const h = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = h[k * 4]; }
+      else for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = 128;
+      // the NORMAL (GL tangent) in rgb, the ROUGHNESS in alpha; flat / 0.9 if a set has none
+      if (nb) { ctx.drawImage(nb, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
+      else for (let k = 0; k < px * px; k++) { dataN[o + k * 4] = 128; dataN[o + k * 4 + 1] = 128; dataN[o + k * 4 + 2] = 255; }
+      if (rb) { ctx.drawImage(rb, 0, 0, px, px); const r = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = r[k * 4]; }
+      else for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
+      ok++;
+    } catch (e) { console.warn('splat: no ' + m.url); }
+  }));
+  const mk = d => { const t = new THREE.DataArrayTexture(d, px, px, N);
+    t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = true; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.needsUpdate = true; return t; };
+  if (U.uSplat.value) U.uSplat.value.dispose(); if (U.uSplatN.value) U.uSplatN.value.dispose();
+  U.uSplat.value = mk(data); U.uSplatN.value = mk(dataN);
+  $('msg').textContent = `library: ${ok}/${N} sets at ${px}`;
+  pushSplat(); pushGrade(); libraryUi();
+}
+// the SPLAT table into the per-code uniforms
+function pushSplat() {
+  for (let i = 0; i < NCODE; i++) {
+    const m = SPLAT[i], A = U.uMatA.value[i], S = U.uMatS.value[i], M = U.uMatM.value[i], F = U.uMatF.value[i], FS = U.uMatFS.value[i];
+    if (!m) { A.set(-1, -1, -1, 0); continue; }
+    if (!m.far) { m.far = [null, null, null]; m.farScale = [0, 0, 0]; }
+    const li = k => k ? LIB.findIndex(l => l.key === k) : -1;
+    A.set(li(m.tex[0]), li(m.tex[1]), li(m.tex[2]), m.orient === 'sea' ? 1 : 0);
+    S.set(m.scale[0] || 1, m.scale[1] || 1, m.scale[2] || 1, 0);
+    F.set(li(m.far[0]), li(m.far[1]), li(m.far[2]), 0);
+    FS.set(m.farScale[0] || 1, m.farScale[1] || 1, m.farScale[2] || 1, 0);
+    M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
+    const v = m.vary || [0, 0, 20]; U.uVary.value[i].set(v[0] * Math.PI / 180, v[1], v[2], 0);
+  }
+  try { localStorage.setItem('flydiy.island.splat.v5', JSON.stringify(SPLAT)); } catch (e) {}
+}
 const MAT_WIRE = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x9ad0ff });
 
 // ---- the asset + the grid --------------------------------------------------
@@ -431,13 +924,16 @@ async function load(asset, grid) {
   GRID = await fetch('../../' + grid + '.json').then(r => r.json());
   const { w, h: gh } = GRID;
   U.uBounds.value.set(GRID.x0, GRID.z0, w * GRID.cell, gh * GRID.cell); U.uCell.value = GRID.cell;
-  const [cover, canopy, ori, ndvi, tint, o1, o2, o3, o4, coastU8] = await Promise.all([
+  const [cover, canopy, ori, ndvi, tint, o1, o2, o3, o4, coastU8, ttype, lake] = await Promise.all([
     fetchU8('../../' + grid + '.u8'), fetchU8('../../' + grid + '.canopy.u8'),
     fetchU8('../../' + grid + '.ori.u8'), fetchU8('../../' + grid + '.ndvi.u8'),
     fetchU8('../../' + grid + '.tint.rgb'),
     fetchU8('../../' + grid + '.ori1.u8'), fetchU8('../../' + grid + '.ori2.u8'),
-    fetchU8('../../' + grid + '.ori3.u8'), fetchU8('../../' + grid + '.ori4.u8'), fetchU8('../../' + grid + '.coast.u8')]);
-  L = { cover, canopy, ori, ndvi, tint };
+    fetchU8('../../' + grid + '.ori3.u8'), fetchU8('../../' + grid + '.ori4.u8'), fetchU8('../../' + grid + '.coast.u8'),
+    fetchU8('../../' + grid + '.ttype.u8'), fetchU8('../../' + grid + '.lake.u8')]);
+  L = { cover, canopy, ori, ndvi, tint, ttype, lake };
+  if (lake) { U.uLake.value = tex8(lake, w, gh, false); U.uLakeE.value.y = 1; }
+  if (ttype) U.uTtype.value = tex8(ttype, w, gh, true);
   let has = 0;
   if (canopy) { U.uCanopy.value = tex8(canopy, w, gh, false); has |= 1; }
   if (cover) {
@@ -626,6 +1122,23 @@ function ui() {
     `<h2>CLASSES</h2>` + CLASSES.map((c, i) =>
       `<div class="row"><input type="color" id="c_${i}" value="${c[2]}"><label>${c[0]} ${c[1]}</label>` +
       `<output id="p_${i}"></output></div>`).join('') +
+    `<h2>TERRAIN TYPE (the combined map)</h2>` +
+    `<div class="row"><label>isolate</label><select id="tOnly"><option value="-1">all codes</option>` +
+      TTYPES.map(c => `<option value="${c[0]}">${c[0]} ${c[1]}</option>`).join('') + `</select></div>` +
+    TTYPES.map((c, i) =>
+      `<div class="row"><input type="color" id="t_${i}" value="${c[2]}"><label>${c[0]} ${c[1]}</label>` +
+      `<output id="q_${i}"></output></div>`).join('') +
+    `<div id="probe" class="hint">hover the ground: the code under the pointer</div>` +
+    `<h2>SPLAT (the textures by code)</h2>` +
+    `<div class="row"><label>code</label><select id="spCode">` + TTYPES.filter(c => c[0] > 1).map(c => `<option value="${c[0]}">${c[0]} ${c[1]}</option>`).join('') + `</select>` +
+      `<label><input type="checkbox" id="spCodes"> codes only</label></div>` +
+    `<div id="spEdit"></div>` +
+    `<div class="row"><button id="spReset">default</button><button id="spExport">export</button></div>` +
+    `<h2>SPLAT DISTANCE &middot; PROJECTION</h2>` + ['detailFrom', 'detailTo', 'macroFrom', 'macroTo', 'macroMix', 'macroNear', 'macroExp', 'triK'].map(id => knob(id, K[id])).join('') +
+    `<h2>SPLAT BLEND &middot; TILING</h2>` + ['hDepth', 'seamDepth', 'hexOn', 'hexN', 'hexRot', 'nrmK', 'specK'].map(id => knob(id, K[id])).join('') +
+    `<h2>MICRO (puddles &middot; the water's edge)</h2>` + ['pudCell', 'pudCover', 'pudEdge', 'pudSlope', 'lakeEdge'].map(id => knob(id, K[id])).join('') +
+    `<h2>LIBRARY (grade per set: gain, saturation)</h2><div id="libGrade"></div>` +
+    `<h2>SPLITS (derived codes)</h2>` + ['cliffLo', 'cliffHi', 'oldLo', 'oldHi', 'denseLo', 'denseHi', 'splatWobble', 'splatBlend', 'beachRot'].map(id => knob(id, K[id])).join('') +
     `<h2>LAYERS</h2><table id="layers"></table>` +
     `<p class="hint">drag: orbit &middot; right-drag: pan (trees replant when you have moved) &middot; wheel: zoom.
      The stack is Photoshop's model: bottom layer first, each source blended over the result at its
@@ -651,24 +1164,75 @@ function ui() {
       if (id === 'radarLevel') U.uRadarLevel.value = K[id].v | 0;
       if (id === 'bumpNear') U.uBumpNear.value = K[id].v; if (id === 'bumpFar') U.uBumpFar.value = K[id].v;
       if (id === 'shadeK') U.uShadeK.value = K[id].v; if (id === 'seaFade') U.uSeaFade.value = K[id].v;
+      if (id === 'cliffLo' || id === 'cliffHi' || id === 'oldLo' || id === 'oldHi') U.uSplit.value.set(K.cliffLo.v, K.cliffHi.v, K.oldLo.v, K.oldHi.v);
+      if (id === 'denseLo' || id === 'denseHi' || id === 'splatWobble' || id === 'splatBlend') U.uSplit2.value.set(K.denseLo.v, K.denseHi.v, K.splatWobble.v, K.splatBlend.v);
+      if (id === 'beachRot') U.uBeachRot.value = K[id].v * Math.PI / 180;
+      if (id === 'detailFrom' || id === 'detailTo' || id === 'macroFrom' || id === 'macroTo') U.uDist.value.set(K.detailFrom.v, K.detailTo.v, K.macroFrom.v, K.macroTo.v);
+      if (id === 'macroMix' || id === 'macroNear' || id === 'triK') U.uDist2.value.set(K.macroMix.v, K.macroNear.v, K.triK.v, 0);
+      if (id === 'hDepth' || id === 'hexOn' || id === 'hexN' || id === 'hexRot') U.uHex.value.set(K.hDepth.v, K.hexOn.v, K.hexN.v, K.hexRot.v * Math.PI / 180);
+      if (id === 'seamDepth' || id === 'macroExp') U.uSeam.value.set(K.seamDepth.v, K.macroExp.v);
+      if (id === 'nrmK' || id === 'specK') U.uNrm.value.set(K.nrmK.v, K.specK.v);
+      if (id.startsWith('pud')) U.uPud.value.set(K.pudCell.v, K.pudCover.v, K.pudEdge.v, K.pudSlope.v);
+      if (id === 'lakeEdge') U.uLakeE.value.x = K.lakeEdge.v;
       if (id === 'bumpFine') { U.uBumpFine.value = K[id].v | 0; if (K.bumpCoarse.v <= K[id].v) { K.bumpCoarse.v = K[id].v + 1; U.uBumpCoarse.value = K.bumpCoarse.v; $('k_bumpCoarse').value = K.bumpCoarse.v; $('o_bumpCoarse').textContent = K.bumpCoarse.v; } }
       if (id === 'bumpCoarse') { U.uBumpCoarse.value = K[id].v | 0; if (K.bumpFine.v >= K[id].v) { K.bumpFine.v = K[id].v - 1; U.uBumpFine.value = K.bumpFine.v; $('k_bumpFine').value = K.bumpFine.v; $('o_bumpFine').textContent = K.bumpFine.v; } } };
     el.onchange = () => { if (id.startsWith('tree')) plant(); if (id === 'reclass' && GRID) { buildWeights(); plant(); } };
   }
   CLASSES.forEach((c, i) => { $('c_' + i).oninput = e => U.uCol.value[i].set(e.target.value); });
+  TTYPES.forEach((c, i) => { $('t_' + i).oninput = e => U.uTCol.value[i].set(e.target.value); });
+  $('spCode').onchange = splatEdit; $('spCodes').onchange = e => U.uCodesOnly.value = e.target.checked ? 1 : 0;
+  $('spReset').onclick = () => { localStorage.removeItem('flydiy.island.splat.v5'); SPLAT = JSON.parse(JSON.stringify(SPLAT_DEFAULT)); pushSplat(); splatEdit(); };
+  $('spExport').onclick = () => { const t = $('recipe'); t.style.display = 'block';
+    t.value = JSON.stringify({ splat: SPLAT, knobs: Object.fromEntries(['cliffLo', 'cliffHi', 'oldLo', 'oldHi', 'denseLo', 'denseHi', 'splatWobble', 'splatBlend', 'beachRot', 'detailFrom', 'detailTo', 'macroFrom', 'macroTo', 'macroMix', 'macroNear', 'macroExp', 'triK', 'hDepth', 'seamDepth', 'hexOn', 'hexN', 'hexRot', 'nrmK', 'specK', 'pudCell', 'pudCover', 'pudEdge', 'pudSlope', 'lakeEdge'].map(k => [k, K[k].v])), grade: GRADE }); t.select(); };
+  splatEdit();
+  $('tOnly').onchange = e => { U.uTOnly.value = +e.target.value; if ($('paint').value !== 'ttype') { $('paint').value = 'ttype'; $('paint').onchange(); } };
   $('replant').onclick = plant;
+}
+// the editor of ONE code's material: three sets (each a library key + its
+// scale in metres), the mask's four numbers, the orientation
+function splatEdit() {
+  const code = +$('spCode').value;
+  if (!SPLAT[code]) SPLAT[code] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 1, 0, 0] };
+  const m = SPLAT[code];
+  if (!m.far) { m.far = [null, null, null]; m.farScale = [0, 0, 0]; }
+  const opts = k => `<option value="">- none -</option>` + LIB.map(l => `<option value="${l.key}"${l.key === k ? ' selected' : ''}>${l.key} (${l.metres} m)</option>`).join('');
+  const MIX = [['cell (m)', 2, 200, 1], ['sharpness', 0.1, 6, 0.1], ['bias A|B', -1, 1, 0.05], ['bias C', -1, 1, 0.05]];
+  if (!m.vary) m.vary = [0, 0, 20];
+  const VAR = [['hue swing (deg)', 0, 40, 1], ['value swing', 0, 0.6, 0.01], ['vary cell (m)', 2, 120, 1]];
+  $('spEdit').innerHTML = [0, 1, 2].map(j =>
+    `<div class="row"><label>near ${'ABC'[j]}</label><select id="spT${j}" style="flex:2">${opts(m.tex[j])}</select>` +
+    `<input type="number" id="spS${j}" value="${m.scale[j] || ''}" step="0.5" min="0.1" style="width:52px" title="metres per repeat"></div>`).join('') +
+    [0, 1, 2].map(j =>
+    `<div class="row"><label>far ${'ABC'[j]}</label><select id="spF${j}" style="flex:2">${opts(m.far[j])}</select>` +
+    `<input type="number" id="spFS${j}" value="${m.farScale[j] || ''}" step="0.5" min="0.1" style="width:52px" title="metres per repeat"></div>`).join('') +
+    MIX.map(([l, lo, hi, st], j) => `<div class="row"><label>${l}</label><input type="range" id="spM${j}" min="${lo}" max="${hi}" step="${st}" value="${m.mix[j]}"><output id="spO${j}">${m.mix[j]}</output></div>`).join('') +
+    VAR.map(([l, lo, hi, st], j) => `<div class="row"><label>${l}</label><input type="range" id="spV${j}" min="${lo}" max="${hi}" step="${st}" value="${m.vary[j]}"><output id="spVO${j}">${m.vary[j]}</output></div>`).join('') +
+    `<div class="row"><label><input type="checkbox" id="spSea"${m.orient === 'sea' ? ' checked' : ''}> face the sea (V axis)</label></div>`;
+  for (const j of [0, 1, 2]) {
+    $('spT' + j).onchange = e => { m.tex[j] = e.target.value || null;
+      const l = LIB.find(x => x.key === m.tex[j]); if (l) { m.scale[j] = l.metres; $('spS' + j).value = l.metres; } pushSplat(); };
+    $('spS' + j).oninput = e => { m.scale[j] = +e.target.value || 1; pushSplat(); };
+    $('spF' + j).onchange = e => { m.far[j] = e.target.value || null;
+      const l = LIB.find(x => x.key === m.far[j]); if (l) { m.farScale[j] = l.metres; $('spFS' + j).value = l.metres; } pushSplat(); };
+    $('spFS' + j).oninput = e => { m.farScale[j] = +e.target.value || 1; pushSplat(); };
+  }
+  MIX.forEach((_, j) => { $('spM' + j).oninput = e => { m.mix[j] = +e.target.value; $('spO' + j).textContent = e.target.value; pushSplat(); }; });
+  VAR.forEach((_, j) => { $('spV' + j).oninput = e => { m.vary[j] = +e.target.value; $('spVO' + j).textContent = e.target.value; pushSplat(); }; });
+  $('spSea').onchange = e => { m.orient = e.target.checked ? 'sea' : undefined; pushSplat(); };
 }
 function layerTable() {
   if (!GRID) return;
   const land = Object.entries(GRID.coverClasses || {}).filter(([k]) => k !== '0' && k !== '80').reduce((a, [, n]) => a + n, 0);
   CLASSES.forEach((c, i) => { const n = (GRID.coverClasses || {})[c[0]]; $('p_' + i).textContent = n && c[0] !== 80 ? (100 * n / land).toFixed(1) + '%' : ''; });
+  const share = ((GRID.layers || {}).ttype || {}).shareOfLand || {};
+  TTYPES.forEach((c, i) => { const v = share[c[1]]; $('q_' + i).textContent = v !== undefined ? v.toFixed(1) + '%' : (c[0] > 11 ? 'derived' : ''); });
   const rows = Object.entries(GRID.layers || {}).map(([k, v]) =>
     `<tr><td>${k}</td><td class="n">${v.source && typeof v.source === 'string' ? v.source : ''}${v.meanOverTreeCover !== undefined ? ' mean ' + v.meanOverTreeCover.toFixed(1) + ' m / p90 ' + (v.p90OverTreeCover||0).toFixed(1) : ''}${v.cloudCells !== undefined ? ' cloud ' + v.cloudCells + ' cells' : ''}</td></tr>`).join('');
   $('layers').innerHTML = `<tr><td>grid</td><td class="n">${GRID.w}×${GRID.h} @ ${GRID.cell} m</td></tr>` +
     `<tr><td>cover</td><td class="n">${GRID.cover ? 'WorldCover 10 m' : '—'}</td></tr>` + rows;
 }
 $('paint').onchange = () => { const v = $('paint').value; U.uMode.value = v === 'stack' ? 0 : 1 + SOURCES.indexOf(v); };
-$('load').onclick = () => load($('asset').value, $('grid').value).then(layerTable).catch(e => {
+$('load').onclick = () => load($('asset').value, $('grid').value).then(layerTable).then(() => loadLibrary().then(splatEdit)).catch(e => {
   $('msg').textContent = 'failed: ' + e.message; console.error(e); });
 for (const id of ['wire', 'lod']) $(id).onclick = () => { $(id).classList.toggle('on'); ASSET && build(); };
 $('trees').onclick = () => { $('trees').classList.toggle('on'); plant(); };

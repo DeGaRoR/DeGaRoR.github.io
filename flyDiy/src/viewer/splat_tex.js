@@ -1,0 +1,86 @@
+// GENERATED FILE - DO NOT EDIT. Built by tools/splat_tex_prep.js from
+// assets/splat/ + assets/lot/ (CC0: Poly Haven, ambientCG; see CREDITS.md).
+// The files live under media/tex/splat/ (hash-in-filename); a map's Image is
+// made when a consumer first reads it (a getter). THE ORDER is the module's
+// RECIPE.library (src/core/28b_ground_fields.js): a set's index here is its
+// layer in the game's texture arrays.
+//
+// THE ISLAND'S GROUND LIBRARY (alpha splatting): seventeen sets the splat
+// draws by terrain type - colour + height, normal - at 512. `mean` is the
+// set's mean colour (linear rgb 0-1, measured at import): what a tuft takes
+// at its foot (GROUND_FIELDS.groundColor), never a pixel read at runtime.
+const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
+  const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
+  const IM = {};
+  const mk = src => IM[src] || (IM[src] = (() => { const i = new Image(); i.src = B + src; return i; })());
+  return [
+    { key: 'beach', metres: 29.98, px: 512, mean: [0.2826,0.2371,0.196],
+      get diff() { return mk('media/tex/splat/beach_diff_512.ea67fba6.jpg'); },
+      get nor() { return mk('media/tex/splat/beach_nor_gl_512.6bee5c90.jpg'); },
+      get height() { return mk('media/tex/splat/beach_height_512.6bea814d.jpg'); } },
+    { key: 'rocksA', metres: 78.93, px: 512, mean: [0.2155,0.1901,0.107],
+      get diff() { return mk('media/tex/splat/rocksA_diff_512.9c1bf1ef.jpg'); },
+      get nor() { return mk('media/tex/splat/rocksA_nor_gl_512.85631457.jpg'); },
+      get height() { return mk('media/tex/splat/rocksA_height_512.251b4884.jpg'); } },
+    { key: 'rocksB', metres: 50.18, px: 512, mean: [0.1648,0.1158,0.046],
+      get diff() { return mk('media/tex/splat/rocksB_diff_512.0b0af9e9.jpg'); },
+      get nor() { return mk('media/tex/splat/rocksB_nor_gl_512.4c42214e.jpg'); },
+      get height() { return mk('media/tex/splat/rocksB_height_512.fd54b346.jpg'); } },
+    { key: 'mud', metres: 1.25, px: 512, mean: [0.0897,0.0702,0.0458],
+      get diff() { return mk('media/tex/splat/mud_diff_512.636dd758.jpg'); },
+      get nor() { return mk('media/tex/splat/mud_nor_gl_512.3c1c6eca.jpg'); },
+      get height() { return mk('media/tex/splat/mud_height_512.dbd5e95c.jpg'); } },
+    { key: 'leaves', metres: 1.49, px: 512, mean: [0.2264,0.1177,0.0461],
+      get diff() { return mk('media/tex/splat/leaves_diff_512.c5814c38.jpg'); },
+      get nor() { return mk('media/tex/splat/leaves_nor_gl_512.fd8b9ff4.jpg'); },
+      get height() { return mk('media/tex/splat/leaves_height_512.2ea4040a.jpg'); } },
+    { key: 'cliff', metres: 6.86, px: 512, mean: [0.3136,0.1726,0.11],
+      get diff() { return mk('media/tex/splat/cliff_diff_512.76c57eb9.jpg'); },
+      get nor() { return mk('media/tex/splat/cliff_nor_gl_512.226afdcc.jpg'); },
+      get height() { return mk('media/tex/splat/cliff_height_512.b8482fc3.jpg'); } },
+    { key: 'rocksG', metres: 2.03, px: 512, mean: [0.2521,0.2134,0.1638],
+      get diff() { return mk('media/tex/splat/rocksG_diff_512.98760b2f.jpg'); },
+      get nor() { return mk('media/tex/splat/rocksG_nor_gl_512.1db280fd.jpg'); },
+      get height() { return mk('media/tex/splat/rocksG_height_512.449e6feb.jpg'); } },
+    { key: 'rockyA', metres: 89.94, px: 512, mean: [0.0807,0.0773,0.0122],
+      get diff() { return mk('media/tex/splat/rockyA_diff_512.76703799.jpg'); },
+      get nor() { return mk('media/tex/splat/rockyA_nor_gl_512.f90cabd9.jpg'); },
+      get height() { return mk('media/tex/splat/rockyA_height_512.5425c5e1.jpg'); } },
+    { key: 'rockyB', metres: 89.79, px: 512, mean: [0.0855,0.053,0.0176],
+      get diff() { return mk('media/tex/splat/rockyB_diff_512.89dbf1a1.jpg'); },
+      get nor() { return mk('media/tex/splat/rockyB_nor_gl_512.49ff538c.jpg'); },
+      get height() { return mk('media/tex/splat/rockyB_height_512.330377f8.jpg'); } },
+    { key: 'grassRock', metres: 15.04, px: 512, mean: [0.169,0.1211,0.0241],
+      get diff() { return mk('media/tex/splat/grassRock_diff_512.8198f8c5.jpg'); },
+      get nor() { return mk('media/tex/splat/grassRock_nor_gl_512.1e5e64b9.jpg'); },
+      get height() { return mk('media/tex/splat/grassRock_height_512.857d1079.jpg'); } },
+    { key: 'forestAir', metres: 80.81, px: 512, mean: [0.1259,0.083,0.026],
+      get diff() { return mk('media/tex/splat/forestAir_diff_512.c019a81f.jpg'); },
+      get nor() { return mk('media/tex/splat/forestAir_nor_gl_512.7d8881b5.jpg'); },
+      get height() { return mk('media/tex/splat/forestAir_height_512.0cce78f7.jpg'); } },
+    { key: 'snowAir', metres: 81.2, px: 512, mean: [0.2491,0.2483,0.3039],
+      get diff() { return mk('media/tex/splat/snowAir_diff_512.ea591acc.jpg'); },
+      get nor() { return mk('media/tex/splat/snowAir_nor_gl_512.d34a594e.jpg'); },
+      get height() { return mk('media/tex/splat/snowAir_height_512.de33c545.jpg'); } },
+    { key: 'lush', metres: 2.4, px: 512, mean: [0.0584,0.1065,0.0218],
+      get diff() { return mk('media/tex/splat/lush_diff_512.90a67ae0.jpg'); },
+      get nor() { return mk('media/tex/splat/lush_nor_gl_512.379ad06b.jpg'); },
+      get height() { return mk('media/tex/splat/lush_height_512.fcd11ebd.jpg'); } },
+    { key: 'grass', metres: 2.4, px: 512, mean: [0.119,0.1528,0.0305],
+      get diff() { return mk('media/tex/splat/grass_diff_512.7cc9f4c2.jpg'); },
+      get nor() { return mk('media/tex/splat/grass_nor_gl_512.151550a5.jpg'); },
+      get height() { return mk('media/tex/splat/grass_height_512.518d6118.jpg'); } },
+    { key: 'pebble', metres: 4.5, px: 512, mean: [0.2178,0.2034,0.1649],
+      get diff() { return mk('media/tex/splat/pebble_diff_512.00fbe38a.jpg'); },
+      get nor() { return mk('media/tex/splat/pebble_nor_gl_512.b29a459b.jpg'); },
+      get height() { return mk('media/tex/splat/pebble_height_512.a96462f6.jpg'); } },
+    { key: 'dry', metres: 2.2, px: 512, mean: [0.3005,0.2486,0.1239],
+      get diff() { return mk('media/tex/splat/dry_diff_512.9f177ab8.jpg'); },
+      get nor() { return mk('media/tex/splat/dry_nor_gl_512.89d1ffc2.jpg'); },
+      get height() { return mk('media/tex/splat/dry_height_512.0249b249.jpg'); } },
+    { key: 'dirt', metres: 1.8, px: 512, mean: [0.1326,0.1085,0.0826],
+      get diff() { return mk('media/tex/splat/dirt_diff_512.c5983cf7.jpg'); },
+      get nor() { return mk('media/tex/splat/dirt_nor_gl_512.27f8e9b2.jpg'); },
+      get height() { return mk('media/tex/splat/dirt_height_512.ecb3a4f1.jpg'); } },
+  ];
+})() : null;

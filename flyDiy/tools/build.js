@@ -63,6 +63,11 @@ const MANIFEST = {
     // quadtree as the ground, the cover grid as the classifier, the canopy
     // grid as the trees' height. makeWorld(seed, { island }) takes it; pure.
     '28_island.js',
+    // THE GROUND FIELDS (alpha splatting, 2026-09-20): the micro-variation
+    // inside one terrain type - the noise fields, the splat RECIPE, the per-
+    // code rows - read by the ground (per fragment) and the vegetation (per
+    // instance); JS + the same GLSL as a string; pure.
+    '28b_ground_fields.js',
     // THE OBSTACLES (G433): the solid things on the ground as column grids - the
     // world's registry (20_ makes it), the solver's push-out (30_), the viewer
     // stands and takes down the shapes; pure.
@@ -293,6 +298,7 @@ const MANIFEST = {
     // the version line reads FLYDIY_BUILD; nothing else depends on it
     scripts: ['storage.js', 'assets.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
+              'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--
+  GLSL PROBE - compiles a bench page's fragment shader on this machine's GPU
+  driver and prints the compiler's log, with named VARIANTS (string patches)
+  so a driver-internal error can be bisected without reloading the bench.
+  ANGLE's HLSL path (fxc) has internal errors GLSL never sees; the bench page
+  only shows "not linked". Open:
+    _glsl_probe.html?page=_island.html&variant=a,b   (variants listed in V below)
+  Prints one line per variant in #out and sets document.title to done.
+-->
+<meta charset="utf-8"><title>glsl probe</title>
+<pre id="out">probing…</pre>
+<script>
+const P = new URLSearchParams(location.search);
+const PAGE = P.get('page') || '_island.html';
+const WANT = (P.get('variant') || 'base').split(',');
+// the variants: name -> [[from, to], ...] applied to the fragment source
+const V = {
+  base: [],
+  nograd: [[/textureGrad\(uSplat, ([^;]*?), dx, dy\)/g, 'texture(uSplat, $1)'], [/textureGrad\(uSplatN, ([^;]*?), dx, dy\)/g, 'texture(uSplatN, $1)']],
+  nogradlocal: [['gDx = dFdx(vW); gDy = dFdy(vW);', 'gDx = vec3(0.01); gDy = vec3(0.0, 0.0, 0.01);']],
+  nograde: [['vec4 g = uGrade[int(layer + 0.5)];', 'vec4 g = vec4(1.0);']],
+  nohex: [['if (uHex.y < 0.5) return fetchSet', 'if (true) return fetchSet']],
+  notri: [['if (tw.x > 0.01) { Smp u', 'if (false) { Smp u'], ['if (tw.z > 0.01) { Smp u', 'if (false) { Smp u']],
+  nonormal: [['vec4 nr = textureGrad(uSplatN, vec3(uv, layer), dx, dy);', 'vec4 nr = vec4(0.5, 0.5, 1.0, 0.9);']],
+  nomat: [[/vec4 A = uMatA\[i\]; vec4 S = uMatS\[i\]; vec4 M = uMatM\[i\];/, 'vec4 A = vec4(0.0, 1.0, -1.0, 0.0); vec4 S = vec4(3.0); vec4 M = vec4(30.0, 3.0, 0.0, 0.0);'], [/vec4 F = uMatF\[i\], FS = uMatFS\[i\];/, 'vec4 F = vec4(-1.0), FS = vec4(1.0);']],
+  noloop: [['for (int i = 0; i < uNCode; i++) {\n      if (w[i] < 0.004 || n >= uNCand) continue;', 'for (int i = 0; i < 14; i++) {\n      if (w[i] < 0.004 || n >= 8) continue;'], ['for (int j = 0; j < uNCand; j++) {', 'for (int j = 0; j < 8; j++) {']],
+  helper: [['  Smp fetchSet(float layer, vec2 uv, vec2 dx, vec2 dy, vec2 cs){', '  vec4 gC(vec2 uv, float layer, vec2 dx, vec2 dy){ return textureGrad(uSplat, vec3(uv, layer), dx, dy); }\n  vec4 gNf(vec2 uv, float layer, vec2 dx, vec2 dy){ return textureGrad(uSplatN, vec3(uv, layer), dx, dy); }\n  Smp fetchSet(float layer, vec2 uv, vec2 dx, vec2 dy, vec2 cs){'],['o.c = textureGrad(uSplat, vec3(uv, layer), dx, dy);', 'o.c = gC(uv, layer, dx, dy);'], ['vec4 nr = textureGrad(uSplatN, vec3(uv, layer), dx, dy);', 'vec4 nr = gNf(uv, layer, dx, dy);']],
+  lod: [['o.c = textureGrad(uSplat, vec3(uv, layer), dx, dy);', 'float lod = 0.5 * log2(max(dot(dx, dx), dot(dy, dy)) * 1048576.0); o.c = textureLod(uSplat, vec3(uv, layer), lod);'], ['vec4 nr = textureGrad(uSplatN, vec3(uv, layer), dx, dy);', 'vec4 nr = textureLod(uSplatN, vec3(uv, layer), lod);']],
+  nostructarr: [['vec4 C[8]; vec4 NN[8]; float Wt[8];', 'vec4 C[8]; vec4 NN[8]; float Wt[8]; // same']],
+};
+const PREFIX = `#version 300 es
+#define varying in
+#define texture2D texture
+precision highp float; precision highp int; precision highp sampler2D; precision highp sampler2DArray;
+`;
+(async () => {
+  const html = await fetch(PAGE).then(r => r.text());
+  const m = html.match(/const FS = `([\s\S]*?)`;\n/);
+  if (!m) { document.getElementById('out').textContent = 'no FS'; document.title = 'done'; return; }
+  const vs = `#version 300 es\nin vec3 position; in vec3 normal; out vec3 vW; out vec3 vN; uniform mat4 projectionMatrix, modelViewMatrix;\nvoid main(){ vW = position; vN = normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+  const gl = document.createElement('canvas').getContext('webgl2');
+  const lines = [];
+  for (const name of WANT) {
+    let fs = m[1];
+    const patches = V[name] || [];
+    let applied = 0;
+    for (const [a, b] of patches) { const before = fs; fs = fs.replace(a, b); if (fs !== before) applied++; }
+    const t0 = performance.now();
+    const sh = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(sh, PREFIX + fs); gl.compileShader(sh);
+    const vsh = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vsh, vs); gl.compileShader(vsh);
+    const pr = gl.createProgram(); gl.attachShader(pr, vsh); gl.attachShader(pr, sh); gl.linkProgram(pr);
+    const ok = gl.getProgramParameter(pr, gl.LINK_STATUS);
+    const log = (gl.getShaderInfoLog(sh) || '') + (gl.getProgramInfoLog(pr) || '');
+    const internal = /internal error|skip optimization/.test(log);
+    lines.push(`${name.padEnd(12)} patches ${applied}/${patches.length}  linked ${ok}  fxcInternal ${internal}  ${Math.round(performance.now() - t0)} ms  ${log.replace(/\(\d+,\d+\): warning X4000[^\n]*\n?/g, '').replace(/\s+/g, ' ').slice(0, 160)}`);
+    document.getElementById('out').textContent = lines.join('\n');
+  }
+  document.title = 'done';
+})();
+</script>

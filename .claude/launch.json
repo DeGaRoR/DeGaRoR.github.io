@@ -627,6 +627,18 @@
         "8431"
       ],
       "port": 8431
+    },
+    {
+      "name": "flydiy-splat",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8460",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8460
     }
   ]
 }

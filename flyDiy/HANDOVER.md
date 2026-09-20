@@ -50533,3 +50533,96 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
 - OWED: the flight rail has no NIGHT (the day slot is it) and the shed no CAMERA framing pills of
   the flight's kind; the tree's mood select still couples the cloud cover (0.9 st / 0.2 cu) when
   pressed by hand - retire the coupling or the select.
+## G438 — ALPHA SPLATTING: THE GROUND DRAWN BY TERRAIN TYPE, IN THE GAME (2026-09-20, the user: "flydiy alpha splatting ... keep adding to the material library ... up to 3 textures mixed randomly ... a sand beach, a rocky beach, or a cliff ... it's time to port in game. You should add options to the F8 menu too, especially a texture picker")
+
+The island's ground was a 10 m Landsat tint; it is textured now, by the combined map's terrain
+type (`ttype`), from a library of seventeen ground sets, on the bench first (tools/_island.html,
+the user's eye on every code) and then in the game's island ground hook. One recipe for both.
+
+- THE LIBRARY: `tools/splat_tex_import.py` (py -3.11) normalises the user's twelve Poly Haven
+  packs (assets/alphaSplat/*.gltf.zip) to the repo's ground contract under assets/splat/ (1k +
+  512, rough from rough / arm.G / 1-spec) and writes index.json with THE REFERENCE SCALE read off
+  the pack itself (a Poly Haven gltf is a preview sphere whose DIAMETER is the texture's real size:
+  beach 30 m, rocks 50-90, mud 1.25) and each set's MEAN colour (linear). Heights: the packs ship
+  no displacement, so it is INTEGRATED from the normal map (Frankot-Chellappa in the Fourier domain,
+  high-passed at 1/8 tile); the lot's five (G290) get their real ambientCG displacement beside them.
+  `tools/splat_tex_prep.js` bakes colour / normal / height at 512 into media/tex/splat/ (51 files,
+  7.1 MB) and src/viewer/splat_tex.js is the manifest (lazily-made Images, `mean` per set); GATE
+  MEDIA lists it. The assets are found under this checkout's assets/ or the main checkout's - a
+  worktree carries NO LINK (below).
+- THE MAP: island_prep.py (on G435's base, taken from its branch) grew the SHORE: every coastline
+  cell is a sand beach, a rocky beach or a cliff - a band 15 m inland (over flat ground to the 2 m
+  contour, never above 8 m) is `11 shingle` (new code) by default, sand where the imagery is bare
+  (the G405 rule), rock (the cliff, by the shader's slope split) over 30 deg, the forest keeping its
+  code above 1 m (trees stand to the tideline); the lake code stamped only on lake components
+  (8500 water-class fringe cells had been "lakes" along the coast - the blue the user saw); a wet
+  component within 60 m of the sea under 2.5 m joins it (a lagoon behind a bar). The first 10 m
+  inland: shingle 55 % / rock 19 % / sand 15 % (was scrub / forest / lake). Jolene re-prepped at 10
+  and 5 m, jolene5_e2/e4 re-baked (THREE times: bench/ was wiped twice, below).
+- THE SHARED FIELDS: `src/core/28b_ground_fields.js` (core manifest) - the micro-variation inside
+  ONE terrain type, read by the ground per fragment and the vegetation per instance: the
+  vegetation session's own primitives verbatim (the integer hash, tileable value noise, the pool
+  field at 400 m, the cloud mask at 160 m with its rotated second read, the species blotch) plus
+  `shade` (hue/value swing), `hueTurn`, `groundColor` (the set means lerped by the mask),
+  `deriveCode` (the CPU twin of the shader's splits), in JS AND as a generated GLSL string
+  (`GROUND_FIELDS.glsl`, uint hash: a CPU sample and a fragment sample agree bit for bit). RECIPE
+  is the whole splat (codes, knobs, grades, the library order); CODES[ttype] is derived from it -
+  the row a tuft calls the fields with, never a constant. The vegetation session reads it
+  (G437.x on its branch): grass tufts take the ground's colour at their foot.
+- THE BENCH (tools/_island.html): paint `ttype` + a hover probe; paint `splat`: per code near A/B/C
+  + far A/B/C (the aerial packs over the detail-fade range) each at metres per repeat, the mask
+  (cell, sharpness, two biases), the variation (hue deg, value, cell), `orient: sea` (the beach's
+  ripples along the shore: the pack's run along its U axis, base angle 90); the vote of every cell
+  within a blend radius with a smooth falloff; height blend (Mishkinis) at three levels - a set's
+  mix, the hex samples, the ZONE SEAMS (its own depth); hex tiling (Heitz-Neyret / Mikkelsen) with
+  height-weighted contrast, OFF for an oriented set (a random turn per tile scrambled the ripples);
+  triplanar by |n|^k with the sides fetched only where visible; normals + roughness through the
+  same blends; the macro tiers (the detail gives way to the aerial sets, then to the stack; the
+  macro's TINT under the detail, luminance kept); a mild grade per set (gain + saturation, the
+  sheet's numbers); muskeg puddles = the pool field at CODES[3].poolScale, a SHARP edge (water is a
+  line), no slope gate (a face-normal gate cut them along a flat bog's coarse triangles); the lake's
+  own signed distance draws its edge - the lake never votes in a seam. `tools/splat_sheet.py`
+  measures the cascade per code (macro / aerial / detail means, dE) - the macro albedo is 2-3x
+  darker than every set (the game lights it with a 2.8x sun; the Landsat carries July's shading),
+  hence `macro exposure` on the bench (1 in the game: the lit stack IS the macro).
+- THE GAME: `src/viewer/splat_ground.js` (viewer scripts, before render_world) - the arrays
+  assembled from the manifest once the maps decode (colour + height, normal; uSplatOn until then),
+  the u S* uniforms, the GLSL spliced into the island ground hook after the stack (`t` is the macro
+  it fades to), the normal's perturbation after normal_fragment_maps (view space), the rocky shore
+  band yielding to the splat's own shingle; render_world.js gained six lines. `?splat=0` = the
+  ground without the splat's code (the A/B). F8 > map layers > splat: on/off, THE TEXTURE PICKER
+  (a surface, its near and far triplets with scales, mask, variation, orient), grade per set,
+  distance / macro, blend / tiling, splits, micro; reset; export (console + clipboard) - paste into
+  RECIPE to make it the default. Remembered in flydiy.ground.splat.v1.
+- SAMPLERS (tools/sampler_census.js, NEW: the units per program read off the GL program, the game
+  booted on Jolene): near ring 8 -> 10, outer ring 12 -> 14, premises patch 13 -> 15, of 16. Nothing
+  else joins the island's ground programs without a census. Boot time unchanged (84 vs 87 s
+  headless, tools/island_shot.js --timeline). The ring is a Lambert: roughness has nowhere to go yet.
+- THE SHADER'S RULES ON ANGLE/D3D (bisected with tools/_glsl_probe.html, a page that compiles the
+  bench's fragment shader under named variants): textureGrad / textureLod on a sampler2DArray is
+  an fxc INTERNAL ERROR ("unexpected input register type" - links unoptimised on the third retry,
+  and the compile marathon took the pane's GPU process down for the app's life) - implicit
+  texture() only (at a hex edge the sample whose uv jumps is the one whose weight is zero); loop
+  bounds as UNIFORMS (a constant-bound loop with the material chain inside is unrolled 14x); one
+  struct through the chain (no `out` params); `precision highp sampler2DArray` by hand; GLSL3 out
+  by hand on a ShaderMaterial; an SRGB8_ALPHA8 array texture upload is refused (GL 1281) - the
+  shader decodes; backticks in a GLSL comment close the JS template literal.
+- bench/ WAS WIPED TWICE (18:22, 20:06): another session's landing recipe junctioned flyDiy/bench
+  into a temporary build worktree and `git worktree remove --force` FOLLOWED THE JUNCTION into the
+  main checkout (G434.1 had recorded the trap). Every chantier's staged bakes under bench/ are gone
+  bar jolene's (regenerated). RULE: no junction, no symlink into a worktree, ever; `tools/_serve.js
+  <port> . --fallback D:/Dev/DeGaRoR.github.io` serves a worktree over the main checkout's
+  gitignored data instead (the flydiy-splat launch entry does). The offending recipe is fixed
+  (G436.8+ land link-free).
+- RIGS: tools/island_bench_shot.js (the bench headless with the compile status - the pane's WebGL
+  died); island_shot.js --boot / --tries / --timeline / --eval; sampler_census.js --eval.
+- SEEN: bench/series/*.png in the worktree (the zoom series: coast 120/40/18 m, muskeg, heath,
+  forest floor, lake edge, cliff, the beach rot 0 vs 90), bench/game_splat_60.png (the game, 60 m
+  over HOME: heath, scrub, mud, shingle round the lagoons, the runway), bench/game_f8.png.
+- GATES: BUILD / BOOT / UISMOKE / SITE / BIOME / GFX green; MEDIA red only on index.html's size in an
+  autocrlf=true worktree (the landing build is LF); WORLD's two reds (golden trees, default==seed0)
+  are HEAD's.
+- OWED: a rock-beach set (coast_land_rocks) for shingle - `pebble` is pale; the user's eye on every
+  code in the game (the grades, the biases, the macro tint); the ring as a Standard material for
+  the roughness; the rare aerials (muskeg, sand); a variation jitter per hex cell; real displacement
+  maps for the Poly Haven sets; GATE SPLAT (the recipe's shape, the manifest, the sampler count).
