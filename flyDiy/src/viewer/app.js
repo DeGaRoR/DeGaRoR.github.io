@@ -369,6 +369,15 @@
       const q = keepOutOfShed(x, y, z);
       if (q) { x = q[0]; y = q[1]; z = q[2]; }
     }
+    // G441 (A4): THE EYE MAY GO UNDER THE AEROPLANE (the user: "I can't see
+    // the belly because of rotation restrictions") - the orbit runs down to
+    // -1.2 rad in flight now, and the GROUND is the stop: the eye stays 0.6 m
+    // over the terrain (or the water) under it, sliding along the surface.
+    if (!inGarage && world && typeof world.terrainH === 'function') {
+      let g = world.terrainH(x, z);
+      if (typeof world.waterH === 'function') { const w = world.waterH(x, z); if (Number.isFinite(w) && w > g) g = w; }
+      if (y < g + 0.6) y = g + 0.6;
+    }
     const room = inGarage && garageIsHangar() && hangar && hangar.dims;
     if (room) {
       // THE MARGIN IS THE NEAR PLANE, not a number (G62.5, user: "I often see
@@ -4114,7 +4123,7 @@
       azT += (e.clientX - px) * 0.006; elT += (e.clientY - py) * 0.006;
       // inside, you can look at your own feet and straight up at the skylight
       elT = edEyeOn() ? Math.max(-1.45, Math.min(1.45, elT))
-                      : Math.max(-0.35, Math.min(1.4, elT));   // G439: down to the floor (the room clamp is the stop)
+                      : Math.max(inGarage ? -0.35 : -1.2, Math.min(1.4, elT));   // G439: down to the floor (the room clamp is the stop); G441: under the aeroplane in flight (the ground stops it in placeCamera)
       px = e.clientX; py = e.clientY;
     } else if (touches.size === 2) {
       const [a, b] = [...touches.values()];
@@ -6432,6 +6441,17 @@
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
+    // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
+    // "we need a framerate indicator, optional") - a half-second window of frames
+    if (flyOpen === 'graphics') {
+      const now = performance.now();
+      if (!flFps.t0) { flFps.t0 = now; flFps.n = 0; }
+      flFps.n++;
+      if (now - flFps.t0 >= 500) {
+        const el = $('flFps'); if (el) el.textContent = (flFps.n * 1000 / (now - flFps.t0)).toFixed(0) + ' fps';
+        flFps.t0 = now; flFps.n = 0;
+      }
+    } else flFps.t0 = 0;
     if (flyOpen === 'engines' && o.thrustPer)
       for (let i = 0; i < o.thrustPer.length; i++) {
         const el = $('flEngT' + i);
@@ -6731,6 +6751,8 @@
   };
 
   let flyOpen = null;
+  const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
+  window.flRefreshLook = () => { if (flyOpen === 'camera') flyOpenSet('camera'); };   // G441: the head-look pills follow the lock
   { const r = $('flRail');
     for (const t of FL_RAIL) {
       const b = document.createElement('button');
@@ -6996,6 +7018,13 @@
       flPills(body, FL_CAM.map(c => ({ label: c.k, value: c.k,
                                        why: c.k === 'cockpit' ? eyeWhy : null })),
               o => o.value === cam.mode, o => flCamMode(o.value));
+      // G441 (A4): the head look, as a switch (the L key presses it; Escape leaves it)
+      if (cam.mode === 'cockpit' && window.HEAD_CAM && window.HEAD_CAM.lock) {
+        flRow(body, 'head look');
+        flPills(body, [{ label: 'mouse free', value: false }, { label: 'mouse turns the head', value: true }],
+                o => o.value === window.HEAD_CAM.locked(), o => window.HEAD_CAM.lock(o.value));
+        flNote(body, 'L toggles it, Escape frees the mouse; a right-drag turns the head either way.');
+      }
       flRange(body, 'field of view', 28, 84, 1, () => cam.fov,
               v => { cam.fov = v; flSave('Cam', cam); flApplyFov(); },
               v => v.toFixed(0) + '°');
@@ -7146,6 +7175,7 @@
     // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
     graphics(body) {
       if (!window.GFX) { flNote(body, 'This build has no graphics settings.'); return; }
+      flLive(body, 'frame rate', 'flFps');   // G441: live while this flyout is open
       window.GFX.mount(body, {
         row: (h, label) => flRow(h, label),
         pills: (h, list, isOn, pick) => flPills(h, list, isOn, pick),
@@ -7165,8 +7195,10 @@
                            : 'engine';
         const r = flRow(body, name);
         r.style.fontWeight = '600';
-        flPills(body, [{ label: 'running', value: 1 }, { label: 'cut', value: 0 }],
-                o => o.value === E[i].on, o => { E[i].on = o.value; flRender(); });
+        // G441 (A4): the running/cut pills are gone - the KEY on the dash is the
+        // switch (the user: "the option for cutting engines is actually the key
+        // on the dashboard, so it can disappear from the left menu"); a cut
+        // engine still reads as such in the thrust line below
         const lv = flRange(body, 'lever', 0, 100, 5, () => E[i].thr * 100,
                 v => { E[i].thr = v / 100; }, v => v.toFixed(0) + ' %');
         // G200: a lever bound to a controller has ONE writer, and it is not
@@ -7766,17 +7798,29 @@
     if (!headCamOn() || e.button !== 2) return;         // the RIGHT button turns the head (4c)
     headCam.drag = { x: e.clientX, y: e.clientY, moved: 0 };
   });
-  // the lock is asked for at the END of a drag that turned the head (a
-  // pointerup is a user gesture) — never on a click, which is a switch's;
-  // once granted the mouse is free and Escape gives it back
-  window.addEventListener('pointerup', () => {
-    const d = headCam.drag; headCam.drag = null;
-    if (!d || d.moved < 8 || !headCamOn()) return;
-    if (!headCam.noLock && document.pointerLockElement !== $('c') && $('c').requestPointerLock) {
-      try { const p = $('c').requestPointerLock(); if (p && p.catch) p.catch(() => { headCam.noLock = true; }); }
-      catch (err) { headCam.noLock = true; }
-    }
-  });
+  // G441 (A4): THE LOOK IS A SWITCH, NOT A SIDE EFFECT. The lock used to be
+  // asked for at the end of any right-drag that turned the head, and once
+  // granted the mouse was gone: "once I enter, I cannot click anything on
+  // the UI anymore". A drag turns the head and leaves the mouse alone; the
+  // LOCK (mouse-as-head, no buttons) is entered and left on purpose - the L
+  // key, the CAMERA flyout's `head look` pills, or Escape (the browser's own
+  // way out) - and the rail's line says which state you are in.
+  window.addEventListener('pointerup', () => { headCam.drag = null; });
+  headCam.locked = () => document.pointerLockElement === $('c');
+  headCam.lock = on => {
+    if (!on) { if (headCam.locked() && document.exitPointerLock) document.exitPointerLock(); return; }
+    if (!headCamOn() || headCam.noLock || headCam.locked() || !$('c').requestPointerLock) return;
+    try { const p = $('c').requestPointerLock(); if (p && p.catch) p.catch(() => { headCam.noLock = true; }); }
+    catch (err) { headCam.noLock = true; }
+  };
+  headCam.toggleLock = () => headCam.lock(!headCam.locked());
+  window.addEventListener('keydown', e => {
+    if (e.code !== 'KeyL' || e.repeat || !headCamOn()) return;
+    const t = e.target, tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    headCam.toggleLock(); e.preventDefault();
+  }, true);
+  document.addEventListener('pointerlockchange', () => { if (window.flRefreshLook) window.flRefreshLook(); });
   document.addEventListener('pointerlockerror', () => { headCam.noLock = true; });
   const headTurn = (dx, dy) => {
     // dragging right looks right: about +y that is a NEGATIVE angle (the
@@ -7937,8 +7981,12 @@
     let dh = hdg - flHdg0;
     while (dh > Math.PI) dh -= 2 * Math.PI;
     while (dh < -Math.PI) dh += 2 * Math.PI;
-    flYawRate += (dh * 60 - flYawRate) * 0.1;
-    flHdg0 = hdg;
+    // G441 (A4): A PAUSE HOLDS THE LEAD. The chase and wing views lead the
+    // turn by the filtered yaw rate; with the sim held the heading stops
+    // moving and the filter unwound to zero in a second, so pressing Pause in
+    // a turn swung the eye back by the whole lead - "clicking on pause
+    // changes the camera angle". The rate is frozen while the sim is.
+    if (running) { flYawRate += (dh * 60 - flYawRate) * 0.1; flHdg0 = hdg; }
     // LEVEL HORIZON, off, rolls the camera with the aeroplane — which is what
     // the wing view and the cockpit are for, and what makes a turn read as a
     // turn instead of as the world sliding sideways.
@@ -8451,6 +8499,14 @@
         }
       }
     }
+    // G441 (A4): THE MODEL IS POSED BEFORE THE CAMERA READS IT. The cockpit
+    // eye is the pilot's rest eye carried by model.grp.matrixWorld, and that
+    // matrix was written by poseModel() at the END of the previous frame -
+    // so the eye sat where the aeroplane WAS a frame ago: 0.1 m aft at taxi
+    // speed, 0.58 m at 35 m/s (measured: headLocal.x -1.87 parked, -1.29 in
+    // the climb on the Cessna - "the eye drifts to the back seat as speed
+    // rises"). The sim has already stepped; the pose is this frame's.
+    poseModel();
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
@@ -8476,7 +8532,6 @@
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     if (floatMeshes.length) syncFloats();
     if (waterFx && !inGarage) syncWaterFx(running ? 1 / 60 : 0);
-    poseModel();
     if (++frame % 6 === 0) {
       hud();
       flLayout();
@@ -8668,11 +8723,83 @@
     const target = (WF.far && WF.far.rt) || (WF.cover && WF.cover.rt) || new THREE.WebGLRenderTarget(4, 4);
     return compilePass(helper, target).catch(e => console.warn('depth compile:', e && e.message));
   }
-  // one compile pass: every material of `sc`, keyed for `target` (null = the canvas)
-  function compilePass(sc, target) {
+  // one compile pass: every material of `sc`, keyed for `target` (null = the canvas);
+  // `lit` is the scene whose lights, fog and environment the programs are keyed
+  // for when `sc` is a helper that is not in it (three's targetScene)
+  function compilePass(sc, target, lit) {
     const prev = renderer.getRenderTarget();
-    try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(sc, camera); }
+    try { renderer.setRenderTarget(target, 0); return renderer.compileAsync(sc, camera, lit || null); }
     finally { renderer.setRenderTarget(prev); }
+  }
+  // THE SEE-THROUGH VARIANTS (G441, A4 - the user: "show interior takes
+  // seconds and freezes the UI; it was fast before"). Measured on the Cessna:
+  // the `see inside` flip spent 15.8 s inside getProgramInfoLog on its first
+  // frame - a shader LINK, waited for synchronously. Since r152 a program's
+  // key carries `opaque` (material.transparent false -> the OPAQUE define),
+  // so every AEROSKIN section that goes see-through is a NEW program of the
+  // whole skin shader (Standard and Physical, with and without the field),
+  // and none of them existed at boot. This warms them the way the depth
+  // variants are warmed: a twin of every opaque AEROSKIN material in the
+  // room, transparent, on a shallow clone of its mesh, compiled in parallel
+  // against the room's own lights and environment (the key is theirs) and
+  // never drawn. What it misses still links on the flip; what it catches is
+  // a cached program. It runs a moment after first light, off the boot.
+  // TWO SIDES, TWO PROGRAMS: a transparent DoubleSide material is drawn by
+  // three in two passes, BackSide then FrontSide (forceSinglePass false), so
+  // the programs the flip links are the single-sided ones - the key carries
+  // doubleSided/flipSided - and a DoubleSide twin would warm a program the
+  // flip never asks for (measured: the 9 new programs differed from the
+  // room's in exactly opaque, doubleSided and flipSided).
+  function compileXrayVariants() {
+    if (typeof renderer.compileAsync !== 'function' || !hangar) return Promise.resolve();
+    const helper = new THREE.Group(), seen = new Set();
+    let n = 0;
+    const twin = (m, side) => {
+      const t = new m.constructor();
+      t.copy(m);
+      // Standard's and Physical's copy() put the constructor's defines back
+      // ({STANDARD}, {STANDARD, PHYSICAL}) over AEROSKIN's own ({AEROSKIN_SURF},
+      // PHYSICAL by hand - G206); the key lists them in insertion order
+      t.defines = Object.assign({}, m.defines);
+      t.userData = m.userData;             // the hook reads aeroU/aeroD off it (copy() JSON-clones them)
+      // THE HOOK, UNWRAPPED: ATMO.inject (G432.2) made onBeforeCompile an
+      // accessor that serves the material's own hook wrapped, and the key is
+      // the wrapper's toString ('atmo.inject+' + the hook). Reading it off m
+      // and assigning it wraps the wrapper - a key no material ever asks for
+      // (measured: 8 programs warmed, the flip linked 9 all the same).
+      t.onBeforeCompile = (m._atmoHook !== undefined) ? m._atmoHook : m.onBeforeCompile;
+      if (Object.prototype.hasOwnProperty.call(m, 'customProgramCacheKey')) t.customProgramCacheKey = m.customProgramCacheKey;
+      t.transparent = true; t.opacity = 0.12; t.depthWrite = false; t.side = side;
+      n++;
+      return t;
+    };
+    hangarScene.traverse(o => {
+      if (!o.isMesh || !o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const twins = [];
+      for (const m of mats) {
+        if (!m || !m.userData || !m.userData.aeroskin || m.transparent) continue;
+        for (const side of (m.side === THREE.DoubleSide ? [THREE.BackSide, THREE.FrontSide] : [m.side])) {
+          // what the key reads: the type, the defines, the side, which maps
+          // are bound, and the object kind (a twin per distinct answer)
+          const sig = m.type + ':' + JSON.stringify(m.defines || {}) + ':' + side + ':'
+                    + ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'clearcoatNormalMap'].map(k => m[k] ? 1 : 0).join('')
+                    + (o.isSkinnedMesh ? ':s' : '') + (o.isInstancedMesh ? ':i' : '');
+          if (seen.has(sig)) continue;
+          seen.add(sig);
+          twins.push(twin(m, side));
+        }
+      }
+      if (!twins.length) return;
+      // one shallow clone per twin: the geometry (its attributes are in the
+      // key) is shared, the draw groups do not matter to compile()
+      for (const t of twins) { const c = o.clone(false); c.material = t; helper.add(c); }
+    });
+    if (!n) return Promise.resolve();
+    const t0 = performance.now();
+    return compilePass(helper, aa && aa.target ? aa.target() : null, hangarScene)
+      .then(() => { if (window.FLYDIY_LOG_COMPILE) console.log('xray variants: ' + n + ' programs, ' + Math.round(performance.now() - t0) + ' ms'); })
+      .catch(e => console.warn('xray compile:', e && e.message));
   }
   bootStep('compile', 'compiling the shaders', 14, () => {
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
@@ -8700,7 +8827,10 @@
   // here behind the splash; a reference plane fetches its own on pick.)
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
-  bootStep('firstFrame', 'first light', 10, () => { hud(); loop(); });
+  bootStep('firstFrame', 'first light', 10, () => {
+    hud(); loop();
+    setTimeout(() => { compileXrayVariants(); }, 1500);   // G441: the see-through programs, after the room is up
+  });
   BOOT.run(bootSteps, { set: 'garage', landingLabel: 'the last pieces landing',
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled

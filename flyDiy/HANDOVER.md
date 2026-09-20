@@ -50914,3 +50914,56 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   diagnostic div a shot's JS prepends.
 - OWED: runway edge lights (G417's owed); a player-facing wording for the world's source keys
   on the flight rail's NIGHT; the shed's flood / pedal dimmers stay the design's at night.
+
+## G441 — A4 OF THE PLAYTEST TRIAGE: THE FLIGHT CAMERA AND THE LEFT RAIL (2026-09-21, the user:
+## "the pilot's eye drifts aft with speed, ends behind the seat / on the back seat on the Cessna and
+## refuses to go forward"; "once in the interior view the mouse is captured and the UI cannot be
+## clicked"; "pause changes the camera angle"; "the orbit is limited to the upper dome"; "show
+## interior takes seconds and freezes the UI - it was fast before"; "cut engines = the key, drop it";
+## "a framerate indicator, optional")
+
+- THE EYE DRIFTED BY ONE FRAME OF FLIGHT. The cockpit eye is the pilot's rest eye carried through
+  model.grp.matrixWorld - and poseModel() wrote that matrix at the END of the frame loop, after
+  flCamera had read it: the eye sat where the aeroplane WAS a frame ago. Measured with a CDP rig
+  sampling HEAD_CAM.p in the posed grp's frame on the Cessna: headLocal.x -1.87 parked, -1.77 at
+  6 m/s, -1.46 at 25, -1.29 in the climb at 35 m/s - 0.58 m aft, one 60 Hz frame of ground speed,
+  the seat pitch. "On the back seat, will not go forward" was the same lag plus the head box. The
+  model is posed before the camera reads it now (the sim has stepped; the pose is this frame's):
+  headLocal.x -1.871 parked, -1.871 at 36 m/s. SEEN: scratch shots_a4b/cockpit_air.png.
+- MOUSE-AS-HEAD IS A SWITCH (app.js headCam.lock/locked/toggleLock): the pointer lock used to be
+  asked for at the end of every head drag, so the first look round took the mouse and the rail with
+  it. Now a right-drag turns the head either way, `L` locks the mouse to the head / frees it, Escape
+  frees it (the browser's own), and the camera flyout carries a `head look` row (mouse free / mouse
+  turns the head) that follows the lock (pointerlockchange -> flRefreshLook). Never from a click.
+- PAUSE HOLDS THE LEAD (flCamera): chase and wing lead the turn by the filtered yaw rate; with the
+  sim held the heading stopped and the filter unwound to zero in a second - pressing Pause in a turn
+  swung the eye back by the whole lead. flYawRate and flHdg0 are frozen while !running.
+- THE ORBIT GOES UNDER (placeCamera): the flight's elevation floor -1.2 rad (the shed keeps A5's
+  -0.35), and the ONLY stop is the surface - the eye is held 0.6 m over terrainH (or waterH when
+  higher), sliding along it. Verified: dragged to el -1.18 on the apron, eye y 0.60 over ground 0
+  (scratch shots_a4p/orbit_under.png - the Cessna's belly from the concrete).
+- "SHOW INTERIOR" WAS A SHADER LINK. Profiled (CDP Profiler) on the Cessna: the `see inside` flip
+  = 0.9 s of the cage's build() in the click handler, then 15.8-27 s inside getProgramInfoLog on
+  the next frame - programs linked synchronously. Since r152 a program's key carries `opaque`
+  (material.transparent false -> the OPAQUE define), and a transparent DoubleSide material is drawn
+  in two single-sided passes: every AEROSKIN section that goes see-through asks for programs
+  (Standard/Physical x with/without the field x BackSide/FrontSide) that never existed at boot -
+  nine of them, each the whole skin shader. compileXrayVariants (app.js, after first light, off the
+  boot): a twin of every opaque AEROSKIN material in the room - transparent, single-sided, the same
+  defines (Standard's and Physical's copy() put the constructor's back), the same userData (the
+  hook reads aeroU off it; copy() JSON-clones), the hook UNWRAPPED (ATMO.inject's accessor
+  wraps a wrapper otherwise - the key is the wrapper's toString) - on shallow clones of their meshes,
+  compileAsync'd against hangarScene as the lit scene (three's targetScene: the lights, the fog,
+  the environment are in the key). 21 programs linked in parallel in 0.6-5 s while the shed is
+  already up; the flip now: one frame gap of 1.3 s (the build) and one small program left (the
+  glass tint pass). Three false starts recorded in the code, each caught by diffing the flip's
+  new keys against the warmed ones (renderer.info.programs[].cacheKey).
+- THE RAIL: the ENGINES flyout's running/cut pills are gone (the key on the dash is the switch, A3);
+  the GRAPHICS flyout has a `frame rate` row, live every half second while the flyout is open
+  (nothing counted otherwise). The time-of-day row: the peer's G436.11 DAY panel is on both rails -
+  mine was dropped before landing. OWED: the "small options into fewer flyouts" regroup (the rail is
+  being reshaped by the CLOUDS/DAY/NIGHT panels - not touched here); the 0.9-1.3 s synchronous
+  build() on the x-ray flip (a view flag rebuilds the whole cage; a re-materialise would do).
+- GATES: UISMOKE, VIEW, GFX, BOOT, HANGAR, LIGHT, MEDIA, CLOUD, DAY, SAVE, STARTER, PARTS, DESIGN
+  green. Rigs: scratch a4_eye.js (the eye in the grp frame per phase), a4_interior.js (Profiler
+  around the flip + the program-key diff), a4_pause.js (pause, the orbit under).
