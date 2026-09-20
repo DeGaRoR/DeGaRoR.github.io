@@ -444,6 +444,21 @@ function runB(mutSrcH) {
           (err ? ' (' + err.message + ')' : ''))) return;
   ok(api.genHangarSupported(T),
      'the stub satisfies GEN_HANGAR_NEEDS — the checklist is the contract');
+  // rule 7 (G437): THE CLOCK'S MOOD IS THE PRESET'S ROW. day_clock.js puts
+  // each named hour at a sun elevation (afternoon 33.4, golden 8, sunset
+  // -0.833, dusk -6, night far below); moodFor(day) must hand each one its
+  // own row - the exclusive thresholds sent 'sunset' to DUSK and 'dusk' to
+  // NIGHT and the select flipped under the player's hand.
+  {
+    let room7 = null; try { room7 = api.genHangarBuild(T, CORE.SHELLS.club ? CORE.SHELLS.club.dims : { HW: 12, HD: 18, EAVE: 5 }, { shell: CORE.SHELLS.club ? 'club' : undefined }); } catch (e) {}
+    const moodFor = room7 && typeof room7.moodFor === 'function' ? room7.moodFor : null;
+    ok(!!moodFor, 'rule 7: the room publishes moodFor');
+    const rows = moodFor ? [['afternoon', 33.4, 0], ['golden', 8, 1], ['sunset', -0.833, 2], ['dusk', -6, 3], ['night', -40, 4]] : [];
+    for (const [name, el, want] of rows) {
+      const got = moodFor({ sunEl: el, cloudCover: 0.2 });
+      ok(got === want, 'rule 7: the ' + name + ' preset (sun ' + el + ' deg) lands on mood row ' + want + (got === want ? '' : ' (got ' + got + ')'));
+    }
+  }
 
   const corners = lims => {
     const out = [];

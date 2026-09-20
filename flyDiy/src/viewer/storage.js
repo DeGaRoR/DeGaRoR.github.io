@@ -58,5 +58,21 @@
     return 'build ' + b + ' · ' + sv + ' · ' + c + ' · worker ' + S.sw + (S.error ? ' (' + S.error + ')' : '');
   };
   register();
-  W.STORAGE = { state: S, line, refresh, measure, checkServer, CACHE };
+  // G437 (A2): THE VERSION LINE ON THE SHED'S PANEL (the user: "I need an
+  // indication of the version number somewhere"). The build id the page was
+  // built with, the date version.json carries for it, the page's name;
+  // "a newer build on the server" when the two disagree (a cached page).
+  function stamp() {
+    const el = W.document && W.document.getElementById('edVersion'); if (!el) return;
+    const b = S.build ? S.build.slice(0, 8) : 'unbuilt';
+    const page = isDev() ? 'dev.html' : 'index.html';
+    const d = S.serverAt ? ' · ' + S.serverAt.slice(0, 10) : '';
+    const newer = S.server && S.build && S.server !== S.build ? ' · a newer build on the server: reload' : '';
+    el.textContent = 'build ' + b + d + ' · ' + page + newer;
+  }
+  if (W.document) {
+    const go = () => { stamp(); checkServer().then(stamp, stamp); };
+    if (W.document.readyState === 'loading') W.document.addEventListener('DOMContentLoaded', go); else go();
+  }
+  W.STORAGE = { state: S, line, refresh, measure, checkServer, CACHE, stamp };
 })();

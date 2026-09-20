@@ -233,6 +233,13 @@
     B.set = set || 'garage'; B.keys = {}; B.failed = []; B.state = 'loading'; B._frame1 = false;
     for (const f of (B._shots || [])) if (f.classList) f.classList.remove('on');
     B._shotI = -1; B._shotT = 0;
+    // G437 (A2): the words are the SET's from the first frame. The roll-out
+    // screen opened over the garage's last line ("the last pieces landing")
+    // and the shed's ticker until its first step painted, several seconds
+    // into building the world - "the loading screens are confusing,
+    // mentioning the garage after roll out untested".
+    setPhase(B.set === 'rollout' ? 'rolling out to the strip' : 'opening the shed');
+    { const tk = $('bootTick'); if (tk) tk.textContent = ''; }
     note(''); const sk = $('bootSkip'); if (sk) sk.hidden = true;
     rec('show', { set: B.set });
     if (opt && opt.steps) run(opt.steps, opt);

@@ -1032,6 +1032,11 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   font-style:normal; letter-spacing:0; text-transform:none;
   color:var(--ed-faint); }
 
+/* ---- THE VERSION LINE (G437): the build id, quietly, at the foot ------ */
+#edInfo #edVersion { margin-top:22px; padding-top:8px; border-top:1px solid var(--ed-hair);
+  font:400 10px/1.4 'IBM Plex Mono', monospace; color:var(--ed-faint); letter-spacing:0.02em; }
+#edInfo #edVersion:empty { display:none; }
+
 #edInfo .lgR { display:flex; justify-content:space-between; gap:8px;
   align-items:baseline; padding:6px 0; border-bottom:1px solid var(--ed-hair); }
 

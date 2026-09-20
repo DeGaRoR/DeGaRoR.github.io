@@ -3228,11 +3228,19 @@ function applyDay(day, renderer) {
   return { rebake, isMoon: SKY_LIGHT.isMoon, el: day.sunEl, exposure: r ? r.exposure : null, markBaked: () => { skyBakedSun = g.slice(); } };
 }
 // which of the moods' LAMP rows fits the hour: the lamps come on with the dusk
+// G437 (A2): THE BANDS ARE THE PRESETS' OWN. day_clock.js puts 'sunset' at
+// -0.833 deg and 'dusk' at -6 deg (civil twilight), and these thresholds
+// were exclusive at exactly those elevations: sunset read DUSK, dusk read
+// NIGHT (the user: "I select dusk and I get night, sunset and I get dusk").
+// The bands are centred on the presets (afternoon 33.4, golden 8, sunset
+// -0.833, dusk -6), each edge halfway to its neighbour, night under -9 -
+// so the row the clock picks is the row the hand chose and the select
+// stops flipping under the player (GATE HANGAR rule 7 holds the five).
 function moodFor(day) {
   if (!day) return 0;
   if (day.cloudCover > 0.8 && MOODS.length > 5) return 5;
   const el = day.sunEl;
-  return el > 25 ? 0 : el > 8 ? 1 : el > 0 ? 2 : el > -6 ? 3 : 4;
+  return el > 20.7 ? 0 : el > 3.6 ? 1 : el > -3.4 ? 2 : el > -9 ? 3 : 4;
 }
 const MOODS = SKY_ROWS || [
   { key: 'alps', name: 'AFTERNOON', keyI: 2.8, kc: 0xffdca8, hemi: 0.274,

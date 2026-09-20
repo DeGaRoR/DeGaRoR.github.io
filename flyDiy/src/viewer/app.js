@@ -5535,9 +5535,30 @@
     if (inGarage) enterGarage();                      // back on its wheels
   }
   let specPending = false, rolledOut = false;   // a spec that landed after the roll-out (G434): rebuilt on the next entry
+  // G437 (A2): THE CAMERA COMES HOME WITH THE AEROPLANE. "Log the flight" and
+  // "The shed" from the cockpit view left the garage looking at the sky:
+  // enterGarage reset the sim, the room and the plaque and never the camera -
+  // cam.mode stayed 'cockpit', HEADCAM_ACTIVE stayed true (flCamera returns
+  // early in the garage, and the cockpit branch is the only thing that ever
+  // cleared it), and placeCamera's `if (HEADCAM_ACTIVE) return` left the eye
+  // where the flight had it, out on the strip. The interior-then-any-view
+  // trick worked because exitInterior wrote the orbit. Done ONLY on the way
+  // in from a flight: every spec change also comes through enterGarage, and
+  // a camera that re-framed on every dashboard row was session 4g's bug.
+  function garageCamera() {
+    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
+    if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+    if (edEye) exitInterior();
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    camera.up.set(0, 1, 0);
+    edPan.set(0, 0, 0);
+    az = azT = -2.5; el = elT = 0.22; dist = distT = 14;   // the boot's own framing (the rail's 'r')
+    flReveal = 0;
+  }
   function enterGarage() {
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
+    if (!inGarage) garageCamera();
     inGarage = true; started = false; running = true;
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -5634,6 +5655,24 @@
     if (!WF) return true;
     let cg = null; try { cg = sim.cgPos(); } catch (e) { return false; }
     return !worldCompiled || !(WF.ringReady && WF.ringReady(cg));
+  }
+  // G437 (A2): THE WAY BACK HAS A SCREEN TOO. "The shed" and "Log the flight"
+  // from a flight froze the page for seconds with no word: enterGarage
+  // rebuilds the room and settles the plaque, openEditor boots the cage
+  // editor - all on the main thread, under the last frame of the flight.
+  // The same overlay the roll-out uses, the garage's set, three steps, and
+  // the doors call this instead of the pair; the shim (no BOOT.show) runs
+  // the pair inline as before.
+  function rollInScreen(after) {
+    if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
+      enterGarage(); openEditor(); if (after) after(); return;
+    }
+    const steps = [
+      { id: 'shed', label: 'back into the shed', w: 6, fn: () => { enterGarage(); } },
+      { id: 'board', label: 'the drawing board', w: 4, fn: () => { openEditor(); } },
+      { id: 'frames', label: 'first light', w: 2, fn: () => framesRendered(2) },
+    ];
+    BOOT.show('garage', { steps, set: 'garage', require: [], landingLabel: 'the last pieces', done: () => { if (after) after(); }, idle: 20000, hard: 60000, quietFrames: 1 });
   }
   function rollOutScreen(done) {
     const steps = [];
@@ -5755,8 +5794,7 @@
   // it takes you to the shed, where the logbook is, with the row already in it.
   if ($('bLog')) $('bLog').onclick = () => {
     $('arrCard').hidden = true; arrivalShown = false;
-    enterGarage();
-    openEditor();
+    rollInScreen();
   };
   // `What went wrong` opens the rest of the pilot's verdicts. The teaching
   // report the ROADMAP wants lands behind this button; until it does, this
@@ -5771,8 +5809,7 @@
   if ($('bHangar2')) $('bHangar2').onclick = () => {
     $('arrCard').hidden = true; arrivalShown = false;
     flyOpenSet(null);
-    enterGarage();
-    openEditor();
+    rollInScreen();
   };
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand

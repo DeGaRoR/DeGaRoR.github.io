@@ -50723,3 +50723,55 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   SITE, PREMISES, ENERGY (the documented peers' reds). The rig that took the pictures: a scratch CDP
   script on island_shot.js's pattern - the build written into localStorage flydiy.wip, ?world=none,
   the roll-out clicked, FLIGHT_PROBE read every 3-10 s; the Browser pane itself had no WebGL that day.
+
+## G437 — A2 OF THE PLAYTEST TRIAGE: SCREENS & FLOW (2026-09-20, the user: "when clicking on 'log the
+## flight' I got back to the garage UI but the renderer area shows some sky ... same with 'the shed'";
+## "I select dusk and I get night, sunset and I get dusk"; "in the garage the clouds render on top of the
+## aircraft and the hangar"; "the loading screens are confusing, mentioning the garage after 'roll out
+## untested'"; "clicking from flight to 'the shed' freezes the interface without a proper loading screen";
+## "I need an indication of the version number somewhere"; "I thought Jolene was loading by default")
+
+- THE CAMERA COMES HOME (app.js garageCamera, from enterGarage on the way in from a flight only).
+  enterGarage reset the sim, the room and the plaque and never the camera: cam.mode stayed 'cockpit',
+  HEADCAM_ACTIVE stayed true (flCamera returns early in the garage and the cockpit branch was the only
+  thing that cleared it), and placeCamera's `if (HEADCAM_ACTIVE) return` left the eye where the flight
+  had it - out on the strip, looking at the sky through the door. The interior-then-any-view trick
+  worked because exitInterior wrote the orbit. Now: HEADCAM/DEVCAM off, the pointer lock released, the
+  near plane back, the boot's own framing (az -2.5, el 0.22, dist 14). ONLY when inGarage was false:
+  every spec change comes through enterGarage too, and a camera re-framing on every dashboard row was
+  session 4g's bug. Verified in the game (headless Chrome): cockpit view on the taxi, THE SHED, the shed
+  framed on the aeroplane.
+- THE DUSK PICKER (hangar.js moodFor): the thresholds were exclusive at exactly the presets' elevations -
+  day_clock puts 'sunset' at -0.833 and 'dusk' at -6, `el > 0` / `el > -6` sent them a row down, and
+  'golden' (8.0, sometimes 7.99) a row down too. The bands are centred on the presets now, each edge
+  halfway to its neighbour (20.7 / 3.6 / -3.4 / -9). GATE HANGAR rule 7 holds the five presets on their
+  rows through a built room's moodFor. Measured before/after in the game: sunset -> DUSK / SUNSET, dusk ->
+  NIGHT / DUSK, golden -> SUNSET / GOLDEN. (Solar midnight at 55 N in June is -11.6: night. At 60 N it
+  would be -6.6 and read dusk, which is what the sky is.)
+- THE CLOUDS OVER THE AEROPLANE IN THE SHED (hangar.js applyDay): the shed's cloud dome is CLOUDS.domeMesh's
+  transparent, depthTest:false material at renderOrder 1 - right for the world, where the layer is
+  composited over the resolved frame, but a transparent mesh draws after every opaque and with no depth
+  test painted over the walls and the fuselage. The shed's own copy is depth-tested now (domeMat makes a
+  material per call; the world's is untouched): at 598 m inside the 600 m sky it is behind the room and
+  in front of the sky exactly.
+- THE LOADING SCREEN'S FIRST WORDS ARE THE SET'S (boot.js show): the roll-out overlay opened over the
+  garage's last line ("the last pieces landing") and the shed's ticker until its first step painted,
+  seconds into the world build. show() writes 'rolling out to the strip' / 'opening the shed' and clears
+  the ticker at once.
+- THE WAY BACK HAS A SCREEN (app.js rollInScreen): "The shed" and "Log the flight" froze the page for
+  seconds under the flight's last frame (enterGarage's room rebuild + the plaque's settle + openEditor's
+  cage boot, all on the main thread). The same overlay as the roll-out, the garage's set, three steps
+  (back into the shed / the drawing board / first light); the shim without BOOT.show runs the pair
+  inline as before. Measured: 18.7 s from the click to the overlay gone, the shed picture under it.
+- THE VERSION LINE (body.html #edVersion, editor.css, storage.js stamp): "build b336c13d · 2026-09-20 ·
+  dev.html" at the foot of the shed's left panel - FLYDIY_BUILD, version.json's date, the page - and "a
+  newer build on the server: reload" when the two disagree.
+- JOLENE BY DEFAULT: verified, not changed. index.html with no pref boots Jolene (aerodromes w2, HOME,
+  w3, SEA) on the main tree; a worktree without bench/ falls back to Home Strip as designed (G434.3).
+  The WORLD row on GRAPHICS and the map pills on the flight rail's WORLD flyout are already labelled
+  rows with a note; W1 makes the screen.
+- Owed to A4 (the rail): the fps row. Seen and left: every mood change in the shed throws ~25
+  `Cannot read properties of null (reading 'matrixWorld')` from a raycast (three.min.js Raycaster over
+  a disposed mesh) - identical on the pre-A2 build, so not this landing's; A5 (the room) should find the
+  raycaster (the editor's hover? the glare's occluders?) that walks the scene during the re-bake.
+- Gates: UISMOKE, HANGAR (+rule 7), BOOT, CLOUD, LIGHT, GFX, MEDIA, BUILD, VIEW, SAVE, STARTER green.
