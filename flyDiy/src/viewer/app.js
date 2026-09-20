@@ -8316,6 +8316,7 @@
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
     if (holdRender) { BOOT.frame(); return; }
+    if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays

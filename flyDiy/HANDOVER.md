@@ -50364,3 +50364,20 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
 - OWED: the green tint on the dash (item 4); the 1-px sky line over a cloud (item 5); the club
   hangar's wall reads bright on the December night (its material, or the moon on concrete - not
   measured); the hangar's lit windows are fine.
+
+
+## G436.6 — THE GREEN TINT IN THE CABIN (2026-09-20, A6 item 4: "a green tint on the dash and all
+## light in interior view. Maybe the reflection of a skydome with a lot of grass?")
+
+- Yes: the world's reflection probe (S5) is the sky over an UPLAND-GREEN cap (0x6d7a45 x the ground
+  bounce - right for a belly over grass), and it is scene.environment for every Standard / Physical
+  material, the cabin's included: the dash and the panels took the cap as their ambient from below.
+  Measured on the dash in the cockpit view: G / mean(R, B) = 1.14, the left panel 1.62.
+- render_world.js: a SECOND probe (atmo.js makeProbe, capHex 0x3f3c38 - the cabin's own floor and
+  walls, a dark warm grey; the same dome and cloud sphere over it), baked on the world probe's
+  schedule (1.5 deg of sun, the day's dials), swapped in as scene.environment while the eye is in
+  the cockpit (app.js hands HEADCAM_ACTIVE over each frame through WORLD_RIG.interior). After:
+  0.70 / 0.80 - the dash the dark grey it is. The world outside reflects the neutral cap while the
+  eye is inside (the water, the skin's top - barely seen from the seat). No material list: the swap
+  is one pointer a frame; a per-material envMap for the cabin's set would spare the outside its
+  neutral cap if that ever shows.

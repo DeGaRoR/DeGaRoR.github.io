@@ -240,6 +240,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const gb = (typeof window !== 'undefined' && window.LIGHT_RIG)
     ? window.LIGHT_RIG.groundBounce() : 1;
   let envMap = null, probe = null;
+  let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
     // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
@@ -256,6 +257,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       dirty: typeof CLOUDS !== 'undefined' && CLOUDS.probeDirty ? () => CLOUDS.probeDirty() : null,
       baked: typeof CLOUDS !== 'undefined' && CLOUDS.probeBaked ? () => CLOUDS.probeBaked() : null });
     if (probe) probe.bake(world.day);
+    // THE CABIN'S PROBE (A6, 2026-09-20 - the playtest: "a green tint on the dash and all light in
+    // interior view. Maybe the reflection of a skydome with a lot of grass?"): yes - the world probe's
+    // lower hemisphere is the upland-green cap (right for a belly over grass), and every Standard
+    // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
+    // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
+    // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
+    probeIn = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
+      decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
+    if (probeIn) probeIn.bake(world.day);
   } else {
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
@@ -3990,7 +4000,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
-    if (probe && !rigCur.manual) probe.maybe(day, 1.5);                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
+    if (probe && !rigCur.manual) probe.maybe(day, 1.5);
+    if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -4125,7 +4136,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       u.uHaze.value.setHex(R.dome.haze); u.uSunCol.value.setHex(R.dome.sunCol);
       if (scene.fog) scene.fog.color.setHex(R.dome.haze);
     }
-    if (probe) scene.environment = envMap;          // S5: the physical probe is the environment, whatever the row's `env` says
+    if (probe) scene.environment = (interiorView && envIn) ? envIn : envMap;   // S5: the physical probe is the environment, whatever the row's `env` says (A6: the cabin's while the eye is inside)
     else if (R.env === 'alps') {
       if (alpsState === 'ready') scene.environment = alpsEnv;
       else if (alpsState === null) buildAlpsEnv(() => { if (rigCur.env === 'alps' && alpsEnv) scene.environment = alpsEnv; });
@@ -4137,6 +4148,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     row: name => { if (rigRows[name]) { Object.assign(rigCur, rigRows[name], { dome: Object.assign({}, rigRows[name].dome) }); rigApply(); } return worldRig.get(); },
     set: o => { for (const k in o) if (k === 'dome') Object.assign(rigCur.dome, o.dome); else if (k in rigCur) rigCur[k] = o[k]; rigApply(); return worldRig.get(); },
     envState: () => alpsState,
+    // A6: the eye is in the cockpit - the cabin's probe (a neutral cap) is the environment, else the world's
+    interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
   };
   if (typeof window !== 'undefined') window.WORLD_RIG = worldRig;
 
