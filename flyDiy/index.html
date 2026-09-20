@@ -35101,7 +35101,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='1b94345f6654';window.FLYDIY_BUILD='dbd8f2fef77d'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='1b94345f6654';window.FLYDIY_BUILD='dbba4f16de21'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
@@ -90264,7 +90264,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
       // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
       // march composites there, reading the scene's depth) - it asks for the target even at tier
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
-      overlay: null, post: null, needRT: false,
+      overlay: null, post: null, pre: null, needRT: false,
     };
 
     try {
@@ -90363,6 +90363,10 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
       // an encoded target, exactly as they do onto the canvas — so the hangar's
       // moods reach the frame without this pass knowing they exist.
       const prevTarget = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
+      // THE PRE HOOK (A6): the clouds march BEFORE the scene, off the previous frame's resolved depth
+      // (their integration's end - a frame stale at a ridge, invisible), and composite INSIDE the pass
+      // as a quad at their own depth (the silhouettes per MSAA sample) - see clouds.js COMP_FRAG
+      if (S.pre) S.pre(renderer, camera, S.rt);
       renderer.setRenderTarget(S.rt);
       renderer.render(scene, camera);
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
@@ -90404,7 +90408,7 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 
     return {
       render, setSize, setTier, dispose, setDither,
-      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; },
+      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target
@@ -91072,6 +91076,7 @@ var ATMO = (function () {
   const GLSL_LIB = `
     #define PI 3.14159265359
     uniform sampler2D uT, uMS;
+    uniform float uLutGain;   // THE NIGHT'S GAIN (A6): the sky-view and AP tables hold radiance x this (2^the exposure's stops) - see update()
     uniform vec4 uAtm[4];   // [0]=Rg,Rt,rayH,mieH  [1]=mieS,mieA,mieG,mieK  [2]=ozC,ozW,ozK,albedo  [3]=rayS
     uniform vec3 uOzA;
     float raySphere(float r, float mu, float R) {
@@ -91153,7 +91158,7 @@ var ATMO = (function () {
       vec3 Tp;
       vec3 L = skyRadiance(uR, d, uSun, 1.0, 32, Tp);
       if (uEMoon > 0.0) { vec3 Tm; L += skyRadiance(uR, d, uMoon, uEMoon, 12, Tm); }
-      gl_FragColor = vec4(L, Tp.g);
+      gl_FragColor = vec4(L * uLutGain, Tp.g);
     }`;
   const QUAD_VERT = `varying vec2 vUv2; void main(){ vUv2 = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
@@ -91204,7 +91209,7 @@ var ATMO = (function () {
           Tp *= exp(-e * dt);
         }
       }
-      gl_FragColor = vec4(L, Tp.g);
+      gl_FragColor = vec4(L * uLutGain, Tp.g);
     }`;
   // THE ONE SPLICE (RENDERER-DECISION §4k rule 3). three lays its fog on AFTER
   // the tone map, in display space (r186: opaque -> tonemapping -> colorspace ->
@@ -91259,7 +91264,7 @@ var ATMO = (function () {
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
   const AP_SAMPLE_GLSL = `
     uniform sampler2D uApAtlas;
-    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: unused
+    uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: the tables' gain (A6: the night's stops)
     vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
       float v = 0.5 + 0.5 * sign(el) * sqrt(abs(el) / 1.57079632679);
@@ -91271,7 +91276,8 @@ var ATMO = (function () {
       v = clamp(v * ${AP_H}.0, 0.5, ${AP_H}.0 - 0.5) / ${AP_ATLAS_H}.0;   // the AP rows of the shared atlas
       vec4 a = k0 < 0.0 ? vec4(0.0, 0.0, 0.0, 1.0) : texture2D(uApAtlas, vec2((k0 + uu) / ${AP_N}.0, v));
       vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
-      return mix(a, b, f);
+      vec4 r = mix(a, b, f); r.rgb /= max(1.0, uAtmoAP.w);   // the table's gain taken back out
+      return r;
     }`;
   const AP_PARS_FRAG = `
     varying vec3 vAtmoV;
@@ -91354,6 +91360,7 @@ var ATMO = (function () {
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
     if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
     if (typeof CLOUDS !== 'undefined' && CLOUDS.inject) CLOUDS.inject(sh);   // the clouds' shadow sampler rides the same two paths (C2)
+    if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.inject) SHADOW_NEAR.inject(sh);   // the craft's near map flag (A6)
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
 
@@ -91365,7 +91372,7 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
-    uniform float uGlare, uEyeY;                          // the corona's strength (S7); the eye's height for the mist
+    uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
     // uVeil.x (a threshold on the noise like the weather map's), drifted by uVeil.yz, optically thin:
     // L += (sun x T at the sheet x a forward phase + the sky's radiance there) x (1 - exp(-tau))
@@ -91438,7 +91445,7 @@ var ATMO = (function () {
       vec3 d = normalize(vD);
       { float c = cos(uFrame), s = sin(uFrame); d = vec3(d.x * c + d.z * s, d.y, -d.x * s + d.z * c); }   // into the world's frame
       vec4 sky = texture2D(uSky, skyUV2(d));
-      vec3 L = sky.rgb;
+      vec3 L = sky.rgb / uLutGain;                           // the table's gain taken back out (A6)
       float Tview = sky.a;                                   // the path's (green) transmittance, for the discs and stars
       // the sun: a limb-darkened disc of angular radius sunRad, through the transmittance along its own path
       float cs = dot(d, uSun), sr = uAtm2.z;
@@ -91500,6 +91507,7 @@ var ATMO = (function () {
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
     glare: { value: 1 }, eyeY: { value: 0 },
+    lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
   };
   function uploadTex(tex, lut, W, Hh) {
@@ -91517,6 +91525,7 @@ var ATMO = (function () {
       uAtm: { value: [new THREE.Vector4(P.Rg, P.Rt, P.rayH, P.mieH), new THREE.Vector4(P.mieS, P.mieA, P.mieG, P.mieK),
                       new THREE.Vector4(P.ozC, P.ozW, P.ozK, P.albedo), new THREE.Vector4(P.rayS[0], P.rayS[1], P.rayS[2], 0)] },
       uOzA: { value: new THREE.Vector3(P.ozA[0], P.ozA[1], P.ozA[2]) },
+      uLutGain: U.lutGain,
     };
   }
   function refreshAtmUniforms(u) {
@@ -91557,6 +91566,13 @@ var ATMO = (function () {
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
     U.eMoon.value = day ? (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.MOON_RATIO : 2.5e-6) * day.moonPhase : 0;
     U.r.value = P.Rg + Math.max(R_MIN, (camAltM || 0) / 1000);
+    // THE NIGHT'S GAIN (A6, the playtest: "white bands on the night horizon"): the tables are HalfFloat and a
+    // night sky is ~1e-6 of the sun - under 6e-5 a half float is subnormal and steps in 6e-8: at the night's
+    // x43 000 exposure those steps were the bands. The tables hold radiance x 2^(the exposure's stops) (the
+    // same schedule the exposure takes, light_rig), every reader divides (the dome, apSample - the fogged
+    // materials and the clouds through uAtmoAP.w); by day the gain is 1 and nothing moves
+    U.lutGain.value = (day && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.exposureStops) ? Math.pow(2, Math.max(0, Math.min(16, LIGHT_RIG.exposureStops(day.sunEl)))) : 1;
+    apScalars[3] = U.lutGain.value;
     const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
     renderer.autoClear = true;
     renderer.setRenderTarget(G.rtSky); renderer.render(G.scene, G.cam);
@@ -91593,7 +91609,7 @@ var ATMO = (function () {
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
-                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky },
+                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain },
       vertexShader: DOME_VERT,
       fragmentShader: `float raySphere2(float r, float mu, float R) { float b = r * mu, c = r * r - R * R, disc = b * b - c; if (disc < 0.0) return -1.0; float s = sqrt(disc), t0 = -b - s, t1 = -b + s; if (t1 < 0.0) return -1.0; return t0 >= 0.0 ? t0 : t1; }\n` + DOME_FRAG,
       side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra || {}));
@@ -91848,14 +91864,26 @@ var SKY_GLARE = (function () {
     return true;
   }
   const V3 = () => ((typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null);
-  const _v = V3(), _d = V3();
+  const _v = V3(), _d = V3(), _d2 = V3();
   // one ray: the aeroplane / the shed by raycast, the terrain by its profile along the ray
+  // A6 (2026-09-20, the playtest: "the sun shows through every material, including non transparent" -
+  // the cockpit view): a Raycaster honours material.side, and the skin is FrontSide - from INSIDE the
+  // cabin every hit was a back face and the ray came back clear, so the flare shone through the roof.
+  // A second ray is cast BACK from 60 m out along the sun toward the eye: it meets the skin's outside
+  // face first; a hit short of the eye is an occluder. Glass lets the light through (the windscreen:
+  // a transparent material under 0.8 opacity is not an occluder on either ray).
+  const _o2 = V3();
+  const solidHit = h => { const m = h.object.material; const mm = Array.isArray(m) ? m[0] : m; return !(mm && mm.transparent && mm.opacity < 0.8); };
   function rayClear(origin, dir) {
     const occ = occluders() || [];
     if (occ.length && _ray.o) {
-      _ray.o.set(origin, dir);
-      const hits = _ray.o.intersectObjects(occ, true);
-      for (const h of hits) if (h.object.visible && h.distance > 0.3) return false;
+      _ray.o.set(origin, dir); _ray.o.far = 8000;
+      let hits = _ray.o.intersectObjects(occ, true);
+      for (const h of hits) if (h.object.visible && h.distance > 0.3 && solidHit(h)) return false;
+      _o2.copy(dir).multiplyScalar(60).add(origin); _d2.copy(dir).negate();
+      _ray.o.set(_o2, _d2); _ray.o.far = 60 - 0.3;
+      hits = _ray.o.intersectObjects(occ, true);
+      for (const h of hits) if (h.object.visible && solidHit(h)) return false;
     }
     if (terrainH && dir.y < 0.35) {
       let t = 40;
@@ -91965,7 +91993,7 @@ var CLOUDS = (function () {
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
-  let map = null, mapKey = '', weatherTex = null, rt = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, frame = 0;
+  let map = null, mapKey = '', weatherTex = null, rt = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, compMesh = null, frame = 0;
   let maps = [], lays = [];                // the decks (A6): one weather map and one layer per deck; map / lay stay the first's
   let shadowRT = null, shadowMat = null, shadowDirty = true, shadowDrift = [1e9, 1e9];
   let lay = null, dayRef = null, lastCover = 0, stats = { ms: 0, gpuMs: 0, shadowMs: 0, slicesBaked: 0, cover: 0 };
@@ -92290,9 +92318,22 @@ var CLOUDS = (function () {
   // space, through a depth-aware upsample - the four half texels round the pixel weighted by the
   // bilinear weight x the nearness of the depth they saw to the pixel's own (both logarithmic depths
   // turned back into distances), so the ridge keeps its edge; where no texel agrees, plain bilinear
-  const COMP_FRAG = `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK;
+  // INSIDE THE SCENE PASS (A6, 2026-09-20 - the playtest: "a 1-px sky line round the plane over clouds"):
+  // the composite was a draw over the RESOLVED frame, and a resolved pixel on the aeroplane's silhouette
+  // is a blend of skin and sky whose ONE depth says "skin" - so no cloud was laid there and the sky half
+  // of the blend stayed blue over a grey cloud: the line. The composite is a fullscreen quad IN the world
+  // scene now, drawn last, depth-tested per MSAA sample against the scene at the cloud's own distance
+  // (gl_FragDepth from the march's key, in the renderer's logarithmic convention): the skin's samples
+  // reject it, the sky's take it, the resolve blends - the edge is anti-aliased like any other. One draw
+  // in the pass, no second resolve (the 7 ms of G425 was a draw into the target AFTER its resolve).
+  const COMP_FRAG = `varying vec2 vUv; uniform sampler2D uCloudTex, uKeyTex, uDepth; uniform vec2 uTexel; uniform float uUp, uLogFar, uDepthK; uniform mat4 uInvProj;
     float dist(float dz) { return exp2(dz * uLogFar); }
     void main() {
+      // the cloud's depth: the key (the transmittance-weighted mean distance along this pixel's ray) as the
+      // renderer's log depth - log2(1 + w) / log2(far + 1), w the view-axis distance
+      { vec2 ndc = vUv * 2.0 - 1.0; vec4 v = uInvProj * vec4(ndc, 1.0, 1.0); vec3 dv = normalize(v.xyz / v.w);
+        float w = max(0.0, texture2D(uKeyTex, vUv).r * 1000.0 * (-dv.z));
+        gl_FragDepth = log2(1.0 + w) / uLogFar; }
       vec4 c;
       if (uUp < 0.5) c = texture2D(uCloudTex, vUv);
       else {
@@ -92386,19 +92427,25 @@ var CLOUDS = (function () {
 
   // domeMat(frameYaw, steps): the dome march for a sphere round the eye (the probe, the shed)
   const domeMats = [];
-  function domeMat(frameYaw, steps) {
+  // domeMat(frameYaw, steps, opts): opts.depthTest - the SHED's sphere is depth-tested (A6, 2026-09-20, the
+  // playtest: "in the garage the clouds render on top of the aircraft and the hangar"): drawn after the opaques
+  // with no test it painted over the walls and the aeroplane; tested, the walls at 12 m hide it and it shows
+  // through the door and the windows, in front of the sky dome at 600 m (the same standard depth the sky
+  // writes - neither carries the log-depth chunk, so the two agree with each other and sit behind every
+  // opaque). The world's probe keeps no test (its sphere is 20 m round the eye).
+  function domeMat(frameYaw, steps, opts) {
     if (!ready) return null;
     const uni = Object.assign({}, U, { uSteps: { value: new THREE.Vector2(steps || 24, 3) }, uFrame: { value: frameYaw || 0 }, uEye: U.uEye });
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
     const m = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: DOME_VERT, fragmentShader: domeFrag(), glslVersion: THREE.GLSL3, side: THREE.BackSide,
-      transparent: true, blending: THREE.NormalBlending, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+      transparent: true, blending: THREE.NormalBlending, depthTest: !!(opts && opts.depthTest), depthWrite: false, toneMapped: false, fog: false });
     domeMats.push(m);
     return m;
   }
-  // domeMesh(frameYaw, radius, steps): the sphere itself, drawn after the dome (renderOrder 1)
-  function domeMesh(frameYaw, radius, steps) {
-    const m = domeMat(frameYaw, steps); if (!m) return null;
+  // domeMesh(frameYaw, radius, steps, opts): the sphere itself, drawn after the dome (renderOrder 1)
+  function domeMesh(frameYaw, radius, steps, opts) {
+    const m = domeMat(frameYaw, steps, opts); if (!m) return null;
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius || 20, 32, 20), m);
     mesh.renderOrder = 1; mesh.frustumCulled = false;
     return mesh;
@@ -92433,7 +92480,8 @@ var CLOUDS = (function () {
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
     else uni.uAtmoAP = { value: new Float32Array(4) };
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
-    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDepthK: U.uDepthK }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG, depthTest: false, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDepthK: U.uDepthK, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG, depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
     shadowMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     shadowRT = (typeof ATMO !== 'undefined' && ATMO.G && ATMO.G.rtAP) ? ATMO.G.rtAP : null;   // the tile lives in the atlas (the flag stays off without it)
     // the GPU timer
@@ -92712,6 +92760,7 @@ var CLOUDS = (function () {
   }
   // draw(renderer, camera, target): the aa overlay - the march at its resolution, then the composite over the target
   function draw(r, camera, target) {
+    if (compMesh) compMesh.visible = false;
     if (!active() || !target || !target.depthTexture) return;
     const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
     if (!bakeStep()) return;
@@ -92737,21 +92786,14 @@ var CLOUDS = (function () {
     q = tBegin('pass'); quad.material = marchMat; r.render(fsScene, fsCam); tEnd(q);
     r.setRenderTarget(target); r.setClearColor(_cc, prevCA);
     marched = true;
+    if (compMesh) compMesh.visible = true;
     if (t0) stats.ms = stats.ms * 0.9 + 0.1 * ((performance.now()) - t0);
   }
-  // composite(renderer): the aa post hook - the march's frame over the RESOLVED frame (the canvas, or
-  // whatever the resolve wrote): a second fullscreen draw into the multisampled target would cost a
-  // second resolve (7 ms measured); here it is a tenth of a millisecond
+  // compositeMesh(): the fullscreen quad the WORLD scene holds (render_world adds it), drawn last in the
+  // pass at the cloud's depth - see COMP_FRAG. composite(r) is kept as a no-op for the old post hook.
   let marched = false;
-  function composite(r) {
-    if (!marched || !rt) return;
-    marched = false;
-    const q = tBegin('comp');
-    const prevAC = r.autoClear; r.autoClear = false;
-    quad.material = compMat; r.render(fsScene, fsCam);
-    r.autoClear = prevAC;
-    tEnd(q);
-  }
+  function compositeMesh() { return compMesh; }
+  function composite() {}
   // sunT(x, y, z): the layer's transmittance toward the sun from a world point (the CPU column, the flare's dimmer)
   function sunT(x, y, z) {
     if (!active() || !lay || !map || sunEl < 0.04 || S.shadow <= 0) return 1;
@@ -92811,8 +92853,159 @@ var CLOUDS = (function () {
   // hemiUnder(T): the hemisphere's gain under a cloud of transmittance T at the eye - the diffuse light rises as the sun is lost
   // (an overcast day's diffuse is ~1.7x a clear day's), a dial
   const hemiUnder = T => 1 + S.hemiUnderCloud * (1 - Math.max(0, Math.min(1, T)));
-  const API = { S, init, install, inject, update, draw, composite, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  const API = { S, init, install, inject, update, draw, composite, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
+  return API;
+})();
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE CRAFT'S OWN SHADOW MAP (A6, 2026-09-20 - the playtest: "the shadows
+// refresh every so many metres" on the aeroplane and the ground under it).
+//
+// The world's sun has ONE 1024^2 map whose half-width grows with height
+// (render_world.js worldUpdate: 105..540 m -> 0.2..1 m texels, PCF hard,
+// texel-snapped). A wing's shadow on the fuselage lives on a handful of
+// those texels and re-quantises a whole texel at a time as the aeroplane
+// moves - that step is the "refresh". The far map cannot be finer (it has to
+// reach the ground shadow at 500 m AGL); the craft needs its own.
+//
+// A SECOND DirectionalLight, BLACK (it lights nothing), casts a 2048^2 map
+// over a 60 m box round the CG (3 cm a texel), its camera on its own LAYER
+// (NEAR_LAYER) so only what is tagged casts into it: the craft (app.js tags
+// the craft group when the model joins it) and the field's near casters
+// (the premises, the pier, the props - the far map keeps the trees). The
+// shader rule, one patch of lights_fragment_begin for the sun (light 0):
+//   a craft material (CRAFT_NEAR_ONLY, set on the craft's own materials):
+//     the near map alone - never the far map's 0.5 m stepping on its skin;
+//   everything else: inside the near box  min(near, far)  (the crisp craft
+//     shadow on the apron AND the trees' from the far map), outside  far.
+// The near light's own loop iteration is skipped (a black light adds a BRDF
+// evaluation for nothing). uNearP.x says the near map is live (the shed's
+// scene has no near light; the rule must not misread its lights).
+//
+// THE CRAFT AND THE FAR MAP: the far map's camera sees FAR_LAYER (2), which
+// render_world puts on every caster but the craft (a traversal every 30
+// frames; the near casters are tagged in the same pass). While the craft's
+// ground shadow lies inside the box (under 40 m AGL and a sun high enough
+// not to throw it past the box's edge) the craft is off FAR_LAYER - the far
+// map's coarse copy of the same shadow would bloat the crisp edges (min is a
+// union). Once the shadow leaves the box the craft joins FAR_LAYER too, so
+// its shadow on the ground far away exists, coarse, where coarse is all one
+// can see. Layer 0 is never touched: the main camera, the cockpit's pick and
+// the flare's occlusion rays all live there (the first cut moved the craft
+// off layer 0 and the flare shone through the roof - a Raycaster tests layer
+// 0 by default). The instanced trees stay out of the near map: a stand of
+// 20 k-triangle trees is no 2048^2 pass.
+// ============================================================
+var SHADOW_NEAR = (function () {
+  'use strict';
+  const NEAR_LAYER = 3, FAR_LAYER = 2;   // the near map's camera sees 3; the far map's sees 2 (everything but the craft, unless it is high)
+  const S = { on: true, half: 30, size: 1024, aglFar: 40, bias: -0.0004, normalBias: 0.02 };   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra)
+  const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0)
+  const nearUniforms = { uNearP: { value: nearScalars } };
+  let installed = false;
+  // ---- THE SHADER RULE (installed before any program compiles, like ATMO / CLOUDS) --------
+  const KEY = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
+  const RULE = `
+		#if ( UNROLLED_LOOP_INDEX == 0 ) && ( NUM_DIR_LIGHT_SHADOWS > 1 )
+		if ( uNearP.x > 0.5 ) {
+			float sFar = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ 0 ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ 0 ] ) : 1.0;
+			vec3 nc = vDirectionalShadowCoord[ 1 ].xyz / vDirectionalShadowCoord[ 1 ].w;
+			bool inNear = nc.x > 0.01 && nc.x < 0.99 && nc.y > 0.01 && nc.y < 0.99 && nc.z > 0.0 && nc.z < 1.0;
+			float sNear = ( inNear && receiveShadow ) ? getShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize, directionalLightShadows[ 1 ].shadowIntensity, directionalLightShadows[ 1 ].shadowBias, directionalLightShadows[ 1 ].shadowRadius, vDirectionalShadowCoord[ 1 ] ) : 1.0;
+			#ifdef CRAFT_NEAR_ONLY
+			directLight.color *= sNear;
+			#else
+			directLight.color *= inNear ? min( sNear, sFar ) : sFar;
+			#endif
+		} else {
+			${KEY}
+		}
+		#elif ( UNROLLED_LOOP_INDEX == 1 ) && ( NUM_DIR_LIGHT_SHADOWS > 1 )
+		if ( uNearP.x < 0.5 ) {
+			${KEY}
+		}
+		#else
+		${KEY}
+		#endif`;
+  function install() {
+    if (installed || typeof THREE === 'undefined' || !THREE.ShaderChunk) return false;
+    const SC = THREE.ShaderChunk;
+    if (!SC.lights_fragment_begin || SC.lights_fragment_begin.indexOf(KEY) < 0) return false;
+    SC.lights_fragment_begin = SC.lights_fragment_begin.replace(KEY, RULE);
+    // the black light's own iteration: no BRDF for it when the near map is live
+    const RE = 'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );';
+    const dir0 = SC.lights_fragment_begin.indexOf('#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )');
+    if (dir0 >= 0) {
+      const head = SC.lights_fragment_begin.slice(0, dir0), tail = SC.lights_fragment_begin.slice(dir0);
+      const k = tail.indexOf(RE);
+      if (k >= 0) SC.lights_fragment_begin = head + tail.slice(0, k) + `#if !( ( UNROLLED_LOOP_INDEX == 1 ) && ( NUM_DIR_LIGHT_SHADOWS > 1 ) )
+		${RE}
+		#else
+		if ( uNearP.x < 0.5 ) ${RE}
+		#endif` + tail.slice(k + RE.length);
+    }
+    SC.lights_pars_begin = (SC.lights_pars_begin || '') + '\n#if defined( USE_SHADOWMAP ) && ( NUM_DIR_LIGHT_SHADOWS > 1 )\nuniform vec4 uNearP;\n#endif\n';
+    for (const kk of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon']) {
+      const lib = THREE.ShaderLib[kk]; if (lib && lib.uniforms) lib.uniforms.uNearP = nearUniforms.uNearP;
+    }
+    installed = true;
+    return true;
+  }
+  // inject(shader): the scalar for a program built outside ShaderLib's copy (the prototype hook / ATMO.inject chain)
+  function inject(sh) { if (sh && sh.uniforms && !sh.uniforms.uNearP) sh.uniforms.uNearP = nearUniforms.uNearP; }
+  // ---- THE LIGHT --------------------------------------------------------------------------
+  // make(scene, sunTarget): the black light with its 2048^2 map over the near box; its shadow camera sees NEAR_LAYER only
+  function make(scene) {
+    if (typeof THREE === 'undefined') return null;
+    const L = new THREE.DirectionalLight(0x000000, 1);
+    L.castShadow = true;
+    L.shadow.mapSize.set(S.size, S.size);
+    L.shadow.bias = S.bias; L.shadow.normalBias = S.normalBias;
+    const c = L.shadow.camera;
+    c.left = -S.half; c.right = S.half; c.top = S.half; c.bottom = -S.half; c.near = 1; c.far = 4 * S.half + 10; c.updateProjectionMatrix();
+    c.layers.set(NEAR_LAYER);
+    scene.add(L); scene.add(L.target);
+    L.name = 'sunNear';
+    return L;
+  }
+  // tag(o): a caster into the near map (the craft's group, a house, the pier)
+  function tag(o) { if (o && o.traverse) o.traverse(m => { m.layers.enable(NEAR_LAYER); }); }
+  // tagCraft(group): the craft - a near caster, its materials near-only (the far map's stepping never on its skin)
+  let craftGroup = null, craftFar = null;
+  function tagCraft(group) {
+    craftGroup = group; craftFar = null;
+    if (!group) return;
+    group.traverse(m => {
+      m.layers.enable(NEAR_LAYER); m.userData.craft = true;   // render_world's near tagging leaves the craft's meshes alone
+      const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+      // the craft RECEIVES its own shadow now (a wing on the fuselage, a strut on the wing): it never did - three's
+      // default is off and the far map's half-metre texels would have been acne; the opaque casters only
+      if (m.isMesh && m.castShadow && mats.length && !mats.some(x => x.transparent || x.opacity < 1)) m.receiveShadow = true;
+      for (const mat of mats) { if (!mat.defines) mat.defines = {}; if (!mat.defines.CRAFT_NEAR_ONLY) { mat.defines.CRAFT_NEAR_ONLY = 1; mat.needsUpdate = true; } }
+    });
+  }
+  // follow(L, cg, sun, agl, snap, camera): the box round the CG each frame, snapped to its own texels (render_world's
+  // snapToTexels); the craft on FAR_LAYER (the far map) only once its ground shadow leaves the box
+  const _t = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
+  function follow(L, cg, sun, agl, snap, camera) {
+    if (!L) return;
+    const live = S.on ? 1 : 0;
+    nearScalars[0] = live; L.visible = !!live; L.castShadow = !!live;
+    if (!live) { if (craftGroup && craftFar !== true) { craftFar = true; craftGroup.traverse(m => m.layers.enable(FAR_LAYER)); } return; }   // off: the craft back on the far map
+    _t.set(cg[0], cg[1], cg[2]);
+    if (snap) snap(_t, S.half, S.size);
+    L.target.position.copy(_t);
+    L.position.set(_t.x + sun.x * 2 * S.half, _t.y + sun.y * 2 * S.half, _t.z + sun.z * 2 * S.half);
+    if (camera && !camera.layers.isEnabled(NEAR_LAYER)) camera.layers.enable(NEAR_LAYER);
+    // the craft joins the far map once its ground shadow leaves the box (high, or a low sun throwing it sideways)
+    const sy = Math.max(0.05, sun.y), throwM = agl * Math.sqrt(Math.max(0, 1 - sy * sy)) / sy;
+    const far = agl > S.aglFar || throwM > S.half * 0.7;
+    if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
+  }
+  const API = { S, NEAR_LAYER, FAR_LAYER, install, inject, make, tag, tagCraft, follow, get installed() { return installed; } };
+  if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); }
   return API;
 })();
 </script>
@@ -93781,6 +93974,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const gb = (typeof window !== 'undefined' && window.LIGHT_RIG)
     ? window.LIGHT_RIG.groundBounce() : 1;
   let envMap = null, probe = null;
+  let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
     // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
@@ -93797,6 +93991,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       dirty: typeof CLOUDS !== 'undefined' && CLOUDS.probeDirty ? () => CLOUDS.probeDirty() : null,
       baked: typeof CLOUDS !== 'undefined' && CLOUDS.probeBaked ? () => CLOUDS.probeBaked() : null });
     if (probe) probe.bake(world.day);
+    // THE CABIN'S PROBE (A6, 2026-09-20 - the playtest: "a green tint on the dash and all light in
+    // interior view. Maybe the reflection of a skydome with a lot of grass?"): yes - the world probe's
+    // lower hemisphere is the upland-green cap (right for a belly over grass), and every Standard
+    // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
+    // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
+    // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
+    probeIn = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
+      decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
+    if (probeIn) probeIn.bake(world.day);
   } else {
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
@@ -94079,6 +94282,35 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sc.left = -110; sc.right = 110; sc.top = 110; sc.bottom = -110;
     sc.near = 20; sc.far = 1500; sc.updateProjectionMatrix(); }
   scene.add(sun); scene.add(sun.target);
+  // THE CRAFT'S OWN SHADOW MAP (A6, shadow_near.js): a black second light with a 2048^2 map over a 60 m
+  // box round the CG - the far map above keeps its 0.2-1 m texels for the world; the craft reads only
+  // its own. The field's plain caster meshes are tagged into it as they appear (nearTag, below).
+  const sunNear = (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.make) ? SHADOW_NEAR.make(scene) : null;
+  if (sunNear) sun.shadow.camera.layers.set(SHADOW_NEAR.FAR_LAYER);   // the far map sees FAR_LAYER: every caster but the craft (nearTag puts it there)
+  // THE CLOUDS' COMPOSITE (A6, G436.7): a fullscreen quad drawn last in this scene at the cloud's depth
+  if (typeof CLOUDS !== 'undefined' && CLOUDS.compositeMesh && CLOUDS.compositeMesh()) scene.add(CLOUDS.compositeMesh());
+  // (every 30 frames: the plain caster meshes within 90 m of the CG join the near layer, the rest leave it -
+  // the far map already holds every shadow the world casts, the near map exists for the craft and for what
+  // shades the CRAFT (it reads the near map alone: the club hangar over a parked aeroplane); tagging all
+  // 3 600 casters drew 218 meshes / 300 k triangles a frame into the near map)
+  let nearTagTick = 0;
+  const _nS = THREE.Sphere ? new THREE.Sphere() : null;   // (the headless world test's THREE stub has no Sphere)
+  const nearTag = cg => {
+    if (!sunNear || !_nS || (nearTagTick++ % 30)) return;
+    const NL = SHADOW_NEAR.NEAR_LAYER, R = SHADOW_NEAR.S.half * 3;
+    const FL = SHADOW_NEAR.FAR_LAYER;
+    scene.traverse(o => {
+      if (!o.castShadow || o.userData.craft) return;
+      if (!o.layers.isEnabled(FL)) o.layers.enable(FL);              // every caster into the far map (the trees, the lot)
+      if (!o.isMesh || o.isInstancedMesh || !o.geometry) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      if (!o.geometry.boundingSphere) return;
+      _nS.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+      const dx = _nS.center.x - cg[0], dy = _nS.center.y - cg[1], dz = _nS.center.z - cg[2];
+      const near = Math.sqrt(dx * dx + dy * dy + dz * dz) - _nS.radius < R;
+      if (near !== o.layers.isEnabled(NL)) { if (near) o.layers.enable(NL); else o.layers.disable(NL); }
+    });
+  };
 
   // ---- THE WORLD'S SWITCHBOARD -------------------------------------------
   // The shed has had one since G62.3 and the world has never had anything: no
@@ -96803,10 +97035,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       base.renderOrder = 2;
       base.receiveShadow = true;
       scene.add(base);
+      // LIT, not Basic (A6, 2026-09-20): an unlit paint is a day-bright paint at night - at the night's
+      // exposure (x43 000) the threshold bars and the edge lines were white slabs on a moonlit field
       const strip = new THREE.Mesh(mkGeo(false),
-        new THREE.MeshBasicMaterial({ map: rtex, transparent: true, depthWrite: false }));
+        worldLambert({ map: rtex, transparent: true, depthWrite: false }));
       strip.position.set(R.cx, 0.025, R.cz);
       strip.renderOrder = 3;
+      strip.receiveShadow = true;
       scene.add(strip);
     }
 
@@ -97463,6 +97698,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sun.target.position.copy(_sT);
     sun.position.set(_sT.x + SUN.x * 700, _sT.y + SUN.y * 700, _sT.z + SUN.z * 700);
     uShadowR.value = half;
+    if (sunNear) { SHADOW_NEAR.follow(sunNear, cg, SUN, agl, snapToTexels, camera); nearTag(cg); }
     farRender(uCam.value);
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
       shadowHalf = half;
@@ -97500,7 +97736,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
-    if (probe && !rigCur.manual) probe.maybe(day, 1.5);                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
+    if (probe && !rigCur.manual) probe.maybe(day, 1.5);
+    if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -97622,13 +97859,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
     }
+    // the craft's near map follows the tier (A6): half the far map's side - 512 under `near`, 1024 under
+    // `full` (6 cm a texel over the 60 m box), 2048 under `ultra` (3 cm); the 2048 pass drew 218 meshes /
+    // 300 k triangles at 2.7 ms in the headless rig
+    if (sunNear && R.shadowMap && sunNear.shadow.mapSize.x !== Math.max(512, Math.min(2048, R.shadowMap / 2))) {
+      const n = Math.max(512, Math.min(2048, R.shadowMap / 2)); SHADOW_NEAR.S.size = n; sunNear.shadow.mapSize.set(n, n);
+      if (sunNear.shadow.map) { sunNear.shadow.map.dispose(); sunNear.shadow.map = null; }
+    }
     if (worldSky && R.dome && worldSky.material.uniforms && worldSky.material.uniforms.uTop) {
       const u = worldSky.material.uniforms;
       u.uTop.value.setHex(R.dome.top); u.uMid.value.setHex(R.dome.mid);
       u.uHaze.value.setHex(R.dome.haze); u.uSunCol.value.setHex(R.dome.sunCol);
       if (scene.fog) scene.fog.color.setHex(R.dome.haze);
     }
-    if (probe) scene.environment = envMap;          // S5: the physical probe is the environment, whatever the row's `env` says
+    if (probe) scene.environment = (interiorView && envIn) ? envIn : envMap;   // S5: the physical probe is the environment, whatever the row's `env` says (A6: the cabin's while the eye is inside)
     else if (R.env === 'alps') {
       if (alpsState === 'ready') scene.environment = alpsEnv;
       else if (alpsState === null) buildAlpsEnv(() => { if (rigCur.env === 'alps' && alpsEnv) scene.environment = alpsEnv; });
@@ -97640,6 +97884,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     row: name => { if (rigRows[name]) { Object.assign(rigCur, rigRows[name], { dome: Object.assign({}, rigRows[name].dome) }); rigApply(); } return worldRig.get(); },
     set: o => { for (const k in o) if (k === 'dome') Object.assign(rigCur.dome, o.dome); else if (k in rigCur) rigCur[k] = o[k]; rigApply(); return worldRig.get(); },
     envState: () => alpsState,
+    // A6: the eye is in the cockpit - the cabin's probe (a neutral cap) is the environment, else the world's
+    interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
   };
   if (typeof window !== 'undefined') window.WORLD_RIG = worldRig;
 
@@ -104089,7 +104335,7 @@ if (typeof module !== 'undefined')
 const GEN_HANGAR_NEEDS = ['Group', 'Color', 'Fog', 'Mesh', 'BoxGeometry',
   'CylinderGeometry', 'PlaneGeometry', 'ConeGeometry', 'TorusGeometry',
   'ShapeGeometry', 'Shape', 'BufferGeometry', 'Float32BufferAttribute',
-  'MeshStandardMaterial', 'MeshBasicMaterial', 'MeshPhysicalMaterial',
+  'MeshStandardMaterial', 'MeshBasicMaterial', 'MeshPhysicalMaterial', 'MeshLambertMaterial',
   'HemisphereLight', 'DirectionalLight', 'PointLight', 'SpotLight',
   'CanvasTexture',
   'Vector2', 'Vector3', 'Matrix4', 'Box3'];
@@ -105815,8 +106061,9 @@ if (!EXT) {
   let paintOrder = 40;
   const paint = (x0, z0, x1, z1, col, y, op) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0)),
-      new THREE.MeshBasicMaterial({ color: col, transparent: op !== undefined,
+      new THREE.MeshLambertMaterial({ color: col, transparent: op !== undefined,   // lit (A6): the apron's paint takes the night
         opacity: op === undefined ? 1 : op, depthWrite: false, fog: false }));
+    m.receiveShadow = true;
     m.rotation.x = -Math.PI / 2;
     m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
     m.renderOrder = paintOrder++;
@@ -105925,8 +106172,11 @@ if (!EXT) {
     stex.colorSpace = THREE.SRGBColorSpace;
     stex.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
     stex.wrapS = stex.wrapT = THREE.ClampToEdgeWrapping;
-    const marks = new THREE.Mesh(sMark, new THREE.MeshBasicMaterial({
+    // LIT (A6, 2026-09-20 - the playtest: "the hangar's runway material and the yellow lines lit at
+    // night"): an unlit paint keeps its day brightness under the night's exposure
+    const marks = new THREE.Mesh(sMark, new THREE.MeshLambertMaterial({
       map: stex, transparent: true, depthWrite: false, fog: false }));
+    marks.receiveShadow = true;
     marks.position.set(SCX, Y_STRIP + 0.01, SCZ);
     marks.renderOrder = 30;
     put(marks);
@@ -107262,7 +107512,8 @@ function applyDay(day, renderer) {
     const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);
     if (m) { skyMesh.material = m; skyMesh.scale.x = 1; skyMesh.rotation.y = 0; skyPhys = true; }
     // CLOUDS C3: the layer over the shed's backdrop - one sky - marched from the field (the eye at the origin)
-    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(SHED_FRAME_YAW, 598, 24); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
+    // A6 (2026-09-20): depth-tested, or it painted over the walls and the aeroplane (the playtest's garage clouds)
+    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(SHED_FRAME_YAW, 598, 24, { depthTest: true }); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
   }
   if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
   // the clouds' day (the shed frame is not the world's: the splice stays off, the key takes the layer's transmittance)
@@ -118600,33 +118851,48 @@ function make(THREE) {
     CK.glow(dt);
   };
   // each lamp's lens and cup, the faces' backlight
+  // THE NIGHT DIMMER (A6, 2026-09-20 - the playtest: "lights on at night -> the interior overexposed"):
+  // every lamp here was judged at the day's exposure (~0.92), and the night's schedule opens 15.5
+  // stops for the moonlit world (light_rig EV_KNOTS: a game night, readable) - x42 000 on a 0.9 cd
+  // flood is a white cabin. The tone mapper has no eye of its own, so the lamps take the dimmer a
+  // pilot turns at night: intensities x (0.92 / exposure)^p - p 0.92 for what is read up close (the
+  // faces, the flood, the pedal light: on screen ~2x the day's), 0.8 for what is seen from outside
+  // (the landing light, the lenses: ~5x, a presence in the dark). The shed caps its exposure instead
+  // (hangar.js LAMP_EX_CAP) - a room lit by its lamps; a cockpit flies over a world that must stay seen.
+  CK.nightK = (p) => {
+    const W = typeof window !== 'undefined' ? window : {};
+    const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null) ? W.GFX.exposureBase() : 0.92;
+    return Math.pow(0.92 / Math.max(0.92, ex), p);
+  };
   CK.glow = dt => {
     const busOk = CK.busOk !== false;
     const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * 0.75 * CK.t)), 10);
+    const kIn = CK.nightK(0.92), kOut = CK.nightK(0.8);
     for (const l of (CK.lamps || [])) {
       // the master / alternator buttons light with their own switch (4d),
       // the lamps with theirs when the lights are fitted
       const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt';
       const v = fitted && busOk ? clamp(+CK.sw['sw_' + l.key] || 0, 0, 1) : 0;
       const gain = l.key === 'beacon' ? beacon : 1;
+      const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
       if (l.mesh.material && l.mesh.material.emissive)
-        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55);
+        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (inside ? kIn : kOut);
     }
     if (CK.model && CK.model.spot) {
       const land = CK.lightOn && busOk ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;
       const taxi = CK.lightOn && busOk ? clamp(+CK.sw.sw_taxi || 0, 0, 1) : 0;
-      CK.model.spot.intensity = 4.0 * land + 1.6 * taxi;
+      CK.model.spot.intensity = (4.0 * land + 1.6 * taxi) * kOut;
       CK.model.spot.angle = land ? 0.30 : 0.62;
     }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
-      CK.model.floodLight.intensity = 0.9 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+      CK.model.floodLight.intensity = 0.9 * kIn * (CK.lightOn && busOk ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
     if (CK.model && CK.model.pedalLight)
-      CK.model.pedalLight.intensity = 0.35 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
+      CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
     const PLm = W.CAGE_PANEL && W.CAGE_PANEL.material ? W.CAGE_PANEL.material('faces') : null;
     CK.dimNow = CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0;   // the hands read it in pose (G305)
-    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6;
+    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6 * kIn;
   };
 
   // ---- the hands ---------------------------------------------------------------
@@ -119067,8 +119333,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // the resolve, reading its depth; the world only (the shed sees the dome; the layer in it is C3's)
   if (typeof CLOUDS !== 'undefined' && aa && aa.setOverlay) {
     CLOUDS.init(renderer);
-    aa.setOverlay((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
-    aa.setPost(r => { if (!inGarage) CLOUDS.composite(r); });   // C2: over the resolved frame (a draw into the 8x target = a second resolve)
+    // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
+    // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
+    aa.setPre((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
@@ -122640,6 +122907,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
       if (mm > 0 && typeof window !== 'undefined') window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; }
     if (model) craft.add(model.grp);
+    if (model && window.SHADOW_NEAR) SHADOW_NEAR.tagCraft(craft);   // A6: the craft casts into its own 3 cm shadow map and reads only that one
     // THE COCKPIT (the panel arc, session 4): the readings, the switches,
     // the bus and the lamps bind to this aeroplane; the altimeter's datum
     // is the field it stands on. Absent the module (the smoke gate) nothing
@@ -127205,6 +127473,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
     if (holdRender) { BOOT.frame(); return; }
+    if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
