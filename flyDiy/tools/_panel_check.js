@@ -216,13 +216,13 @@ function run() {
         for (const H of F.hands) {
           if (H.law === 'lin') {
             const lo = S.dead != null ? S.dead : S.min;
-            const aLo = G.angleOf(k, H, lo / S.k, units, facts), aHi = G.angleOf(k, H, S.max / S.k, units, facts);
+            const aLo = G.angleOf(k, H, G.dispToSI(S, lo), units, facts), aHi = G.angleOf(k, H, G.dispToSI(S, S.max), units, facts);
             check(Math.abs(aHi - (S.a0 + S.sweep)) < 1e-6, 'law ' + k + '.' + H.name + ': the max sits at the end of the sweep', units + ' ' + aHi);
             check(aHi > aLo, 'law ' + k + '.' + H.name + ': clockwise with the reading', units);
             let prev = -1e9, mono = true;
-            for (let i = 0; i <= 20; i++) { const a = G.angleOf(k, H, (S.min + (S.max - S.min) * i / 20) / S.k, units, facts); if (a < prev - 1e-9) mono = false; prev = a; }
+            for (let i = 0; i <= 20; i++) { const a = G.angleOf(k, H, G.dispToSI(S, S.min + (S.max - S.min) * i / 20), units, facts); if (a < prev - 1e-9) mono = false; prev = a; }
             check(mono, 'law ' + k + '.' + H.name + ': monotone', units);
-            check(G.angleOf(k, H, (S.max / S.k) * 1.5, units, facts) <= S.a0 + S.sweep * 1.02 + 1e-9, 'law ' + k + '.' + H.name + ': a reading past the scale stops at the peg', units);
+            check(G.angleOf(k, H, G.dispToSI(S, S.max) * 1.5, units, facts) <= S.a0 + S.sweep * 1.02 + 1e-9, 'law ' + k + '.' + H.name + ': a reading past the scale stops at the peg', units);
           }
           if (H.law === 'turn') {
             check(Math.abs(G.angleOf(k, H, 0, units, facts)) < 1e-9, 'law ' + k + '.' + H.name + ': zero at 12 o\'clock', units);
@@ -263,6 +263,14 @@ function run() {
       const pa = 62 * 6894.757;
       const fA = (G.angleOf('oilP', 'needle', pa, 'aviation', facts) - 225) / 270, fM = (G.angleOf('oilP', 'needle', pa, 'metric', facts) - 225) / 270;
       check(near(fA, 0.62, 0.005) && near(fM, 4.275 / 7, 0.005), 'oilP: pascals in, psi or bar on the face', fA + ' ' + fM);
+    }
+    // G442.3: oil temperature in Fahrenheit under aviation units - an affine face; 82 C reads 180 F on it and the same fraction of the sweep either way
+    {
+      const Sf = G.scaleOf('oilT', 'aviation', facts), Sc = G.scaleOf('oilT', 'metric', facts);
+      check(Sf.unit === '°F' && Sf.off === 32 && Sc.unit === '°C', 'oilT: F on the aviation face, C on the metric');
+      const fF = (G.angleOf('oilT', 'needle', 82, 'aviation', facts) - 225) / 270, fC = (G.angleOf('oilT', 'needle', 82, 'metric', facts) - 225) / 270;
+      check(near(fF, (82 * 1.8 + 32 - 100) / 150, 1e-6) && near(fC, (82 - 40) / 90, 1e-6), 'oilT: 82 C sits at 180 F', fF + ' ' + fC);
+      check(near(G.dispToSI(Sf, 180), 82.22, 0.01), 'dispToSI inverts the affine law');
     }
     // the tacho's red line is the rated speed
     const St = G.scaleOf('tacho', 'aviation', facts);
@@ -395,6 +403,17 @@ function run() {
     const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
     check(/const rpm = sim\.out && sim\.out\.rpm && sim\.out\.rpm\[ei\];[\s\S]{0,200}target = rpm \* \(2 \* Math\.PI \/ 60\)/.test(appSrc),
       'app.js: the prop spins from out.rpm[i] (a dead engine stops)');
+    // G442.3: a twin's double throttle - two levers on the wall quadrant, each on its engine's drive; the linkage carries thr0..thr3
+    const crewSrc = fs.readFileSync(path.join(__dirname, '_cage_crew.js'), 'utf8');
+    check(/\['edCtl_throttle', 'thr0', 0\], \['edCtl_throttle2', 'thr1', inb \* 0\.028\]/.test(crewSrc) && /const twinEngines = P => /.test(crewSrc),
+      'crew: a twin (wing nacelles) gets two throttle levers on thr0 / thr1');
+    {
+      const L = C.makeLinkage(0.001); let st = null;
+      for (let i = 0; i < 60; i++) st = L.step({ thr: 0.8, eng: [{ on: true, thr: 1 }, { on: true, thr: 0.5 }] }, 1 / 60);
+      check(near(st.thr0, 0.8, 0.01) && near(st.thr1, 0.4, 0.01) && near(st.thr, 0.8, 0.01), 'linkage: thr0 / thr1 are the throttle times each engine lever', st.thr0 + ' ' + st.thr1);
+      for (let i = 0; i < 60; i++) st = L.step({ thr: 0.6 }, 1 / 60);
+      check(near(st.thr1, 0.6, 0.01), 'linkage: ...and the throttle alone without a per-engine record');
+    }
     check(/lights\.on = !!\+Pl\.lightOn/.test(join) && /cageM, people, lights[,\s}]/.test(join), 'join: the snapshot carries the switch positions');
     const light = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
     check(/m\.userData\.lampKey = key; m\.userData\.lampCol = col;/.test(light) && /m\.userData\.lampCup = key;/.test(light) && /lensMat, cupMat,\s*\n\s*\/\/ G440/.test(light),
@@ -537,6 +556,36 @@ function run() {
       check(CKp.key === 'off' && !engP[0].running, 'power key: a click from ON goes to OFF and the motor stops', CKp.key);
       CKp.click(keyG, 0);
       check(CKp.key === 'both' && CKp.sw.key === 3 && engP[0].running && patches.some(p => p.swing), 'power key: ...and back ON over the BOTH mark, the motor running at once', CKp.key);
+    }
+    // G442.3: the cabin's flood and the feet come up with the panel at night (the rule's table, G436.12's lightsRule)
+    {
+      const CKn = CKm.make(THREE);
+      CKn.bind(model, model.data, sim, spec, { fieldElev: 100, pilotKey: 'ch1' });
+      CKn.frame(1 / 60, sim, null, { day: { sunUp: false }, byHand: true });
+      check(near(+CKn.sw.sw_flood, 0.5) && near(+CKn.sw.sw_pedal, 0.5) && +CKn.sw.sw_instr === 1, 'night: the flood and the feet come up with the panel', JSON.stringify([CKn.sw.sw_flood, CKn.sw.sw_pedal]));
+      CKn.frame(1 / 60, sim, null, { day: { sunUp: true }, byHand: true });
+      check(+CKn.sw.sw_flood === 0 && +CKn.sw.sw_pedal === 0, 'day: ...and go down with it');
+    }
+    // G442.3: the dash's bindable actions do what the clicks do
+    {
+      const CKa = CKm.make(THREE);
+      CKa.bind(model, model.data, sim, spec, { fieldElev: 100, pilotKey: 'ch1' });
+      check(CKa.dashAction('lightNav') && +CKa.sw.sw_nav === 1 && CKa.handSw.sw_nav === true, 'dash: lightNav throws the nav switch and marks it the hand');
+      CKa.frame(1 / 60, sim, null, { day: { sunUp: true }, byHand: true });
+      check(+CKa.sw.sw_nav === 1, 'dash: ...and the light rule (day: nav off) no longer overrides it');
+      CKa.dashAction('dimInstr'); CKa.dashAction('dimInstr');
+      check(near(+CKa.sw.sw_instr, 0.5) && CKa.handSw.sw_instr === true, 'dash: dimInstr steps a quarter at a time, the hand\'s from then on', CKa.sw.sw_instr);
+      check(CKa.dashAction('master') && +CKa.sw.sw_master === 0, 'dash: master toggles');
+      check(CKa.dashAction('park') && CKa.park === true && CKa.dashAction('park') && CKa.park === false, 'dash: the parking brake toggles');
+      check(CKa.dashAction('fuelSel') && +CKa.sw.fuel === 0 && CKa.dashAction('fuelSel') && +CKa.sw.fuel === 1, 'dash: the fuel selector steps round from BOTH to OFF to R');
+      CKa.dashAction('keyPrev'); check(CKa.key === 'r', 'dash: keyPrev turns the key back from BOTH to R', CKa.key);
+      check(!CKa.dashAction('nope'), 'dash: an unknown step does nothing');
+      const INP = require(path.join(__dirname, '..', 'src', 'viewer', 'input.js'));
+      const A = (INP.ACTIONS || (INP.make && INP.make({ win: {} }).ACTIONS) || []);
+      const dash = A.filter(a => a.group === 'dash');
+      check(dash.length === 11 && dash.every(a => a.kind === 'step' && a.keys && a.keys.key), 'input.js: eleven dash steps, each with a default key', dash.length);
+      const used = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF', 'KeyG', 'KeyB', 'KeyA', 'KeyC']);
+      check(dash.every(a => !used.has(a.keys.key)), 'input.js: no dash key collides with the head or the flying set');
     }
     // the cockpit view hides the pilot and gives it back
     CK.cockpitView(true, model); check(!body.visible, 'cockpit view: the pilot\'s body is hidden');

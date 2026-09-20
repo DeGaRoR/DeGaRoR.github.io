@@ -313,7 +313,8 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
   // canopy arch, coaming — and a seat with none gets NO lamp: the G94
   // fallback to the spec's roof line hung a dome in the middle of a
   // skylight, so a lamp position may never come from `A.roofY` again.
-  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, frameAt\], \[headerAt, frameAt\], \[coamingAt\], \[archAt, coamingAt\]\]/.test(lit),
+  // (G442.3: the bubble's flood mounts on the arch or not at all - no coaming fallback, the user's ruling)
+  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, frameAt\], \[headerAt, frameAt\], \[coamingAt\], \[archAt\]\]/.test(lit),
         'the cabin lamps no longer climb the mounting ladder per cabin top (closed / convertible / open / bubble)');
   check(/const mountAt = \(kind, s\) =>/.test(lit) && /mountAt\('flood', pilot\)/.test(lit) && /mountAt\('pax', s\)/.test(lit),
         'the flood or the passenger lamps stopped using the mounting ladder');

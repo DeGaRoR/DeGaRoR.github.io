@@ -84,6 +84,23 @@
       hint: 'hands the aeroplane over, either way', keys: { key: 'KeyA' } },
     { id: 'viewNext', kind: 'step', ctl: null, label: 'next view', group: 'flight',
       hint: 'chase · orbit · cockpit · wing · tower', keys: { key: 'KeyC' } },
+    // G442.3 (the user: "all possible dashboard controls should be able to be
+    // mapped to joysticks, and they should have default keyboard mappings"):
+    // THE DASH. Steps app.js hands to the cockpit (cockpit.js dashAction) -
+    // the same writes a click on the panel makes, so the hand on the key and
+    // the hand on the dash are one hand. Keys off the head's (Z W S Q D R F)
+    // and the flying set's.
+    { id: 'lightTaxi', kind: 'step', ctl: null, label: 'taxi light', group: 'dash', hint: 'toggle', keys: { key: 'KeyT' } },
+    { id: 'lightLand', kind: 'step', ctl: null, label: 'landing light', group: 'dash', hint: 'toggle', keys: { key: 'KeyL' } },
+    { id: 'lightNav', kind: 'step', ctl: null, label: 'nav lights', group: 'dash', hint: 'toggle', keys: { key: 'KeyN' } },
+    { id: 'lightBeacon', kind: 'step', ctl: null, label: 'beacon', group: 'dash', hint: 'toggle', keys: { key: 'KeyK' } },
+    { id: 'dimInstr', kind: 'step', ctl: null, label: 'instrument lights', group: 'dash', hint: 'a quarter up, round to off', keys: { key: 'KeyI' } },
+    { id: 'dimFlood', kind: 'step', ctl: null, label: 'cabin flood', group: 'dash', hint: 'a quarter up, round to off', keys: { key: 'KeyO' } },
+    { id: 'master', kind: 'step', ctl: null, label: 'master switch', group: 'dash', hint: 'toggle', keys: { key: 'KeyM' } },
+    { id: 'keyNext', kind: 'step', ctl: null, label: 'ignition key · turn', group: 'dash', hint: 'OFF · L · R · BOTH · START', keys: { key: 'KeyJ' } },
+    { id: 'keyPrev', kind: 'step', ctl: null, label: 'ignition key · back', group: 'dash', hint: '', keys: { key: 'KeyH' } },
+    { id: 'park', kind: 'step', ctl: null, label: 'parking brake', group: 'dash', hint: 'toggle', keys: { key: 'KeyP' } },
+    { id: 'fuelSel', kind: 'step', ctl: null, label: 'fuel selector', group: 'dash', hint: 'OFF · R · L · BOTH round', keys: { key: 'KeyU' } },
     { id: 'eng1', kind: 'axis', ctl: 'eng', idx: 0, lo: 0, hi: 1, scale: 1, shape: 'latch',
       label: 'lever · engine 1', hint: 'inert unless bound', group: 'engines', keys: null },
     { id: 'eng2', kind: 'axis', ctl: 'eng', idx: 1, lo: 0, hi: 1, scale: 1, shape: 'latch',

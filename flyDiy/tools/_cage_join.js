@@ -2422,7 +2422,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const H = PGn.FACES[c.gauge].hands.find(h => h.name === c.hand);
             const stops = [];
             for (let i = 0; i <= 24; i++) {
-              const v = (S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02)) / S.k;
+              const v = PGn.dispToSI ? PGn.dispToSI(S, S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02))
+                      : (S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02)) / S.k;   // G442.3: the affine face (Fahrenheit)
               stops.push([+v.toFixed(6), +PGn.angleOf(c.gauge, H, v, c.units, facts).toFixed(3)]);
             }
             out2.ctl.stops = stops;

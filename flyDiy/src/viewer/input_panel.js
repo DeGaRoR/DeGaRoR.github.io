@@ -117,7 +117,7 @@
   }
 
   // ---- rows ---------------------------------------------------------------
-  const GROUPS = [['flying', 'Flying'], ['flight', 'The flight'], ['engines', 'Engines'], ['head', 'Head (a tracker as a gamepad)']];
+  const GROUPS = [['flying', 'Flying'], ['flight', 'The flight'], ['dash', 'The dash'], ['engines', 'Engines'], ['head', 'Head (a tracker as a gamepad)']];
   function renderRows() {
     const body = $('ctlBody');
     if (!body || !inp) return;

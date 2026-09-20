@@ -8453,6 +8453,8 @@
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
+      // G442.3: the dash's bindable steps go to the cockpit, as a click would
+      if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
       if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames

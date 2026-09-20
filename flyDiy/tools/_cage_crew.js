@@ -1009,6 +1009,8 @@ function buildPedals(g, A, P, sx) {
   pl0.mesh(g, M.plated);
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
+// a twin: wing nacelles (engMount 3) with the engine on - two throttle levers
+const twinEngines = P => !!(P && +P.engOn && Math.round(+P.engMount || 0) === 3);
 function buildThrottleWall(g0, A, P, sx, onFace) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const zT = A.zBack + 0.40;
@@ -1060,16 +1062,28 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // THE THROTTLE ANSWERS TOO (live crew): the lever swings forward about
   // its lateral pivot, drawn at idle, THR_ARC at full — and the grip rides
   // inside the moving group, so the live pilot's hand goes with it
-  const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
-  const K = inG(gT, kn);
-  if (KW) {
-    // a flat steel lever from a plated pivot boss, a moulded knob on its end
-    const lev = KW.Bag(), boss = KW.Bag(), kb = KW.Bag();
-    KW.sweep(lev, [[0, 0, 0], K], () => [[-0.010, -0.004], [0.010, -0.004], [0.010, 0.004], [-0.010, 0.004]], true, [inb, 0, 0]);
-    KW.revolve(boss, [0, 0, 0], [inb, 0, 0], [[0.012, -0.006], [0.012, 0.007], [0, 0.007]], 16, true);
-    KW.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.026, 0.012), 36, true);
-    lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
-  } else { tube(gT, M.metal, [0, 0, 0], K, 0.009); ballAt(gT, M.knob, K, 0.026); }
+  // G442.3 (the user: "planes with 2 engines should have a double throttle"):
+  // a twin (wing nacelles) gets TWO levers on the same axle, 28 mm apart
+  // inboard, each on its own engine's drive (thr0 / thr1: the pilot's
+  // throttle times that engine's lever, from the linkage) - the pilot's hand
+  // holds the first; a single engine keeps the one lever on 'thr'
+  const twin = twinEngines(P);
+  const levers = twin ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.028]] : [['edCtl_throttle', 'thr', 0]];
+  let gT = null, K = null;
+  for (const [nm, drv, dx] of levers) {
+    const pv = [piv[0] + dx, piv[1], piv[2]];
+    const gL = movingAt(g, nm, pv, [1, 0, 0], drv, 1, THR_ARC);
+    const KL = inG(gL, [kn[0] + dx, kn[1], kn[2]]);
+    if (KW) {
+      // a flat steel lever from a plated pivot boss, a moulded knob on its end
+      const lev = KW.Bag(), boss = KW.Bag(), kb = KW.Bag();
+      KW.sweep(lev, [[0, 0, 0], KL], () => [[-0.010, -0.004], [0.010, -0.004], [0.010, 0.004], [-0.010, 0.004]], true, [inb, 0, 0]);
+      KW.revolve(boss, [0, 0, 0], [inb, 0, 0], [[0.012, -0.006], [0.012, 0.007], [0, 0.007]], 16, true);
+      KW.revolve(kb, KL, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.026, 0.012), 36, true);
+      lev.mesh(gL, M.frame); boss.mesh(gL, M.plated); kb.mesh(gL, M.ball);
+    } else { tube(gL, M.metal, [0, 0, 0], KL, 0.009); ballAt(gL, M.knob, KL, 0.026); }
+    if (!gT) { gT = gL; K = KL; }
+  }
   // THE HAND RESTS ON THE BALL (G279, the user: "the crooked position of
   // its wrist on the throttle"): the grip axis was the LEVER's, which laid
   // the hand's width along the lever and left its length to point down

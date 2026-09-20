@@ -173,7 +173,9 @@ function make(THREE) {
   CK.lightsNight = null;          // the rule's last night state (the edge clears handSw)
   CK.lightsFor = (day, ias, hAboveField) => {
     const night = !day.sunUp, low = hAboveField < 150, slow = ias < 15;
-    return { nav: night ? 1 : 0, beacon: night ? 1 : 0, instr: night ? 1 : 0,
+    // (G442.3: the cabin's flood and the feet come up with the panel - the user's "when starting
+    // at night, all lights should be on by default"; a hand's dimmer is the hand's, as any switch)
+    return { nav: night ? 1 : 0, beacon: night ? 1 : 0, instr: night ? 1 : 0, flood: night ? 0.5 : 0, pedal: night ? 0.5 : 0,
              land: night && low && !slow ? 1 : 0, taxi: night && low && slow ? 1 : 0 };
   };
   CK.lightsRule = (day, sim, cg) => {
@@ -200,8 +202,7 @@ function make(THREE) {
     // nothing by hand): nav and beacon from sunset to sunrise, the panel with them, the landing
     // light low and moving, the taxi light low and slow. A switch a hand set (the panel's click,
     // the rail's pill) is the hand's until the next sunset or sunrise, when the rule takes all.
-    if (ctx.day) CK.lightsRule(ctx.day, sim, cg);
-    // the switches reach the bus and the key reaches the engine
+    if (ctx.day) CK.lightsRule(ctx.day, sim, cg);    // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
       // G318: the avionics master gates the radios' loads
@@ -551,6 +552,28 @@ function make(THREE) {
     if (!G) return false;
     if (!G.moved) return CK.click(G.g, button);        // a press let go in place: a click
     return true;
+  };
+  // THE DASH'S BINDABLE ACTIONS (G442.3, the user: "all possible dashboard
+  // controls should be able to be mapped to joysticks, with default keyboard
+  // mappings"): input.js's steps land here, and each does what the click on
+  // that control does - the same writes, the same lamps answering at once.
+  const DASH_LIGHT = { lightTaxi: 'taxi', lightLand: 'land', lightNav: 'nav', lightBeacon: 'beacon' };
+  const DASH_DIM = { dimInstr: 'instr', dimFlood: 'flood' };
+  CK.dashAction = id => {
+    let did = false;
+    if (DASH_LIGHT[id]) { const k = DASH_LIGHT[id]; CK.sw['sw_' + k] = +CK.sw['sw_' + k] > 0.5 ? 0 : 1; CK.handSw['sw_' + k] = true; did = true; }   // the hand's now (lightsRule)
+    else if (DASH_DIM[id]) { const k = 'sw_' + DASH_DIM[id], v = +CK.sw[k] || 0; CK.sw[k] = v >= 1 ? 0 : Math.min(1, v + 0.25); CK.handSw[k] = true; did = true; }
+    else if (id === 'master') { CK.sw.sw_master = +CK.sw.sw_master > 0.5 ? 0 : 1; did = true; }
+    else if (id === 'keyNext' || id === 'keyPrev') {
+      let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);
+      if (CK.energy && CK.energy.kind === 'battery') i = i > 0 ? 0 : 3;
+      else i = id === 'keyPrev' ? Math.max(0, i - 1) : Math.min(4, i + 1);
+      CK.setKey(KEY_STEPS[i]); did = true;
+    }
+    else if (id === 'park') { CK.park = !CK.park; if (!CK.park && CK.sim && CK.sim.ctl) CK.sim.ctl.brake = 0; did = true; }
+    else if (id === 'fuelSel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
+    if (did) CK.glow(0);
+    return did;
   };
   CK.setKey = pos => {
     const i = KEY_STEPS.indexOf(pos); if (i < 0) return;

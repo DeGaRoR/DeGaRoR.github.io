@@ -262,14 +262,24 @@ function makeLinkage(tau) {
   // G318: the brake (a pull), the trim wheel and the fuel selector ride too —
   // `trim` and `fuel` are the cockpit's own numbers on ctl, which the solver
   // never reads; the linkage carries them to the parts like any drive
-  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel'];
+  // G442.3: `thr0`..`thr3` ride too - each engine's own lever (the pilot's
+  // throttle times ctl.eng[i]'s lever, G194's per-engine record; the pilot's
+  // throttle alone when there is no record), for a twin's double throttle
+  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel', 'thr0', 'thr1', 'thr2', 'thr3'];
   const s1 = {}, s2 = {};
   for (const k of KEYS) { s1[k] = 0; s2[k] = 0; }
+  const read = (ctl, k) => {
+    if (k.length === 4 && k.lastIndexOf('thr', 0) === 0) {
+      const i = +k[3], e = ctl.eng && ctl.eng[i];
+      return (ctl.thr || 0) * (e ? (e.on ? +e.thr : 0) : 1);
+    }
+    return ctl[k] || 0;
+  };
   return {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
       for (const k of KEYS) {
-        s1[k] += a * ((ctl[k] || 0) - s1[k]);
+        s1[k] += a * (read(ctl, k) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);
       }
       return s2;

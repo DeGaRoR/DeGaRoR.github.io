@@ -607,7 +607,10 @@ function paintReg() {
   g.font = `700 76px ${FONT_REG}`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.save(); g.translate(256, 84); g.rotate(-0.02);
-  g.fillText(regText || '', 0, 0);
+  // G442.3 (the playtest: build (4)'s EXPERIMENTAL ran off the tape): past
+  // eight characters the tape carries seven and a full stop
+  const rt = regText || '';
+  g.fillText(rt.length > 8 ? rt.slice(0, 7) + '.' : rt, 0, 0);
   g.restore();
   if (regTex) regTex.needsUpdate = true;
 }
@@ -1125,6 +1128,19 @@ function pushPullAt(parent, x, y, z, key, on) {
 }
 // a dimmer knob: a ridged, slightly conical plastic knob on a thin skirt,
 // with a pointer line, turning about the panel's normal — 0..1 → 270°
+// THE POINTER'S OWN LAMP (G442.3, the user: "light potentiometers should have
+// a little lit / glowing indication showing their current position in the
+// dark"): a 1.4 mm bead at the pointer's nose, in the light layer's `instr`
+// lens material - the join buckets it as a lamp and the flight's instrument
+// dimmer drives it, exactly as the posts' lenses; it rides the knob's own
+// group so it turns with the position it marks. `r` is the nose's radius
+// from the axis, `zTop` the knob's top face.
+function knobBead(g, r, zTop) {
+  const CL = window.CAGE_LIGHT, K = KIT();
+  const bead = K.Bag();
+  K.revolve(bead, [0, r, zTop], [0, 0, -1], [[0.0014, 0], [0.0014, 0.0006], [0.0008, 0.0012], [0, 0.0014]], 10, false);
+  bead.mesh(g, CL && CL.lensMat ? CL.lensMat('instr', 0, 0xffc47a) : matFor('needle'));
+}
 function knobAt(parent, x, y, z, key, v) {
   const K = KIT();
   // THE KIT'S POINTER KNOB when it is in, its nose turned to 12 o'clock at
@@ -1133,6 +1149,9 @@ function knobAt(parent, x, y, z, key, v) {
     const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0005], [0, 0, 1], 'sw_' + key, 'knob',
       { k: 270 * Math.PI / 180, sgn: 1 });
     hwStand(g, 'hw_knob', 0, 0, 0, -hwPointer('hw_knob'));
+    const bb = hwGet('hw_knob').bb;
+    // (hwStand turns the pack: its +z is the nose at 12 o'clock = the group's +y, its height +y = the group's -z)
+    knobBead(g, bb ? Math.max(0.004, bb[5] * 0.8) : 0.0075, bb ? -bb[4] : -0.012);
     g.rotation.z = clockRad(-135 + 270 * (v || 0));
     return g;
   }
@@ -1151,6 +1170,7 @@ function knobAt(parent, x, y, z, key, v) {
   K.boxIn(p, [0, 0.0045, -0.0122], [0.0007, 0.0035, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   K.boxIn(p, [0, 0.0084, -0.0062], [0.0007, 0.0004, 0.0055], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   p.mesh(g, matFor('needle'));
+  knobBead(g, 0.0065, -0.0122);                       // G442.3: the pointer's lamp
   g.rotation.z = clockRad(-135 + 270 * (v || 0));   // the editor's pose
   return g;
 }
@@ -1667,7 +1687,9 @@ function build(parent, A, P, pilotX) {
       lg.position.set(0, s.kind === 'flap' ? 0.029 : s.kind === 'key' ? 0.021 : 0.019, -0.0006);
       sg.add(lg);
       const lb = UVBag(labelMaterial());
-      const w = s.kind === 'key' ? 0.040 : 0.030, h = w * sheet.h / sheet.w;
+      // G442.3 (the user: "slightly increase the size of the tape on the light
+      // controls, until they start overlapping"): 2 mm under the row's pitch
+      const w = s.kind === 'key' ? 0.040 : Math.min(0.038, (s.pitch || 0.040) - 0.002), h = w * sheet.h / sheet.w;
       labelInto(lb, li, sheet.n, 0, 0, 0, w, h);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }

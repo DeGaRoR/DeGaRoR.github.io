@@ -107,6 +107,13 @@ function scaleOf(key, units, o) {
                       { from: 0, to: 0.2 * max, col: '#e8332a', w: 0.12 }] };
     }
     case 'oilT':
+      // G442.3 (the playtest: "the graduations follow the units convention"):
+      // a US instrument reads in FAHRENHEIT - an AFFINE law (display = SI x k
+      // + off), the one scale that needs an offset; 100-250 F, the green arc
+      // 140-230, the red from 245 (the same water the metric face shows)
+      if (units !== 'metric')
+        return { min: 100, max: 250, k: 1.8, off: 32, a0: 225, sweep: 270, unit: '°F', major: 50, minor: 10,
+                 arcs: [{ from: 140, to: 230, col: '#3dbb5e', w: 0.12 }, { from: 244, to: 250, col: '#e8332a', w: 0.12 }] };
       return { min: 40, max: 130, k: 1, a0: 225, sweep: 270, unit: U.temp.u, major: 30, minor: 10,
                arcs: [{ from: 60, to: 110, col: '#3dbb5e', w: 0.12 }, { from: 118, to: 130, col: '#e8332a', w: 0.12 }] };
     case 'fuel': {
@@ -197,7 +204,7 @@ function angleOf(key, hand, v, units, o) {
     return (((v * S.k) / per) % 1 + 1) % 1 * 360;
   }
   if (H.law === 'lin') {
-    let d = v * S.k;
+    let d = v * S.k + (S.off || 0);                // display = SI x k (+ the one affine offset, Fahrenheit)
     if (S.dead != null) {                       // the ASI's dead low end
       const lo = S.dead, span = S.max - S.min;
       const f0 = (lo - S.min) / span;           // the first mark's fraction
@@ -214,8 +221,11 @@ function angleOf(key, hand, v, units, o) {
 // arithmetic as angleOf, reached through it so they cannot drift
 function angleOfDisp(key, d, units, o) {
   const S = scaleOf(key, units, o);
-  return angleOf(key, FACES[key].hands[0] || { law: 'lin' }, d / S.k, units, o);
+  return angleOf(key, FACES[key].hands[0] || { law: 'lin' }, dispToSI(S, d), units, o);
 }
+// a DISPLAY value back to the SI the hand is driven with (the join's stops,
+// the gate): the inverse of the lin law's first line
+function dispToSI(S, d) { return (d - (S.off || 0)) / S.k; }
 
 // ---------------------------------------------------------------------------
 // THE LAYOUT — the standard T on the dash face.
@@ -456,7 +466,7 @@ function layout(A, o) {
   }
   const pitch = Math.min(0.040, (hi - lo) / Math.max(1, sw.length - 1 || 1));
   let x = Math.min(hi, Math.max(lo + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
-  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, lo, hi), y: ySw }, s)); x -= pitch; }
+  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, lo, hi), y: ySw, pitch }, s)); x -= pitch; }   // the pitch rides along: the tapes size to it
   // the extent, the way the crew always published it
   const onPanel = dials.filter(d => !d.coaming);
   const ext = onPanel.length ? {
@@ -766,7 +776,7 @@ const PAINT = {
   oilT(g, R, units, o) {
     const F = faceBase(g, R);
     ticks(g, F, 'oilT', units, o, { fontK: 0.17 });
-    unitText(g, F, 'OIL TEMP', -0.30, 0.11); unitText(g, F, '°C', 0.36, 0.12);
+    unitText(g, F, 'OIL TEMP', -0.30, 0.11); unitText(g, F, scaleOf('oilT', units, o).unit, 0.36, 0.12);
     hub(g, F, 0.10);
   },
   fuel(g, R, units, o) {
@@ -895,7 +905,7 @@ function paintAtlas(g, faces, units, o) {
 }
 
 const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
-              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep };
+              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep, dispToSI };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;
 })();

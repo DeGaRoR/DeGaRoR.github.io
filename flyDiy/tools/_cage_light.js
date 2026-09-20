@@ -1156,8 +1156,11 @@ function sites(scene, group, P) {
       const q = [s.x, yT, A.dashAftZ + 0.035], ax = aimAt(q, [s.x, A.waistY - 0.05, s.zBack + 0.35]);
       return { p: off(q, ax, sink(s.kind)), ax, onCeiling: false, rung: 'coaming' };
     };
+    // G442.3 (the user: "when bubble mode is activated, position the flood
+    // lighting in the aft bulkhead if available, and otherwise don't draw it
+    // at all"): the bubble's ladder is the arch alone - no coaming fallback
     const LADDER = {
-      flood: [[roofAt, frameAt], [headerAt, frameAt], [coamingAt], [archAt, coamingAt]],
+      flood: [[roofAt, frameAt], [headerAt, frameAt], [coamingAt], [archAt]],
       pax:   [[roofAt, frameAt], [frameAt], [], []],
     };
     const mountAt = (kind, s) => {

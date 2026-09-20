@@ -146,7 +146,7 @@ window.CAGE_PAGE = {
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
-    flapCtl: 0,                                  // G335: the flaps' control — a floor lever or a dash switch
+    flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,

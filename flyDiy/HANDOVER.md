@@ -51136,3 +51136,53 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - GATE PANEL green (no new checks: the bias and the hoods are looks, the hub is a number the
   existing hand checks ride). PANEL UISMOKE JOIN CABIN SKINMAT LIGHT green.
 
+
+## G442.3 — A3 PART 4: THE P2 LIST (2026-09-20) — units, tapes, the reg, the flap switch, the night
+## start, the knobs' beads, the bubble's flood, the twin throttle, the dash bindable
+
+- OIL TEMPERATURE IN FAHRENHEIT under aviation units (the user: "the graduations follow the
+  units convention") - the one AFFINE face: `off` on the scale (display = SI x k + off), 100-250 F,
+  green 140-230, red from 244; `dispToSI(S, d)` inverts it for the join's stops and the gate.
+  Metric stays 40-130 C. (The rest already followed: kt / km/h, ft / m, fpm / m/s, psi / bar,
+  US gal / litres.)
+- THE TAPES a touch larger: 2 mm under the row's pitch (the pitch rides the switch record now)
+  instead of a fixed 30 mm at a 40 mm pitch.
+- THE REGISTRATION TAPE: past eight characters, seven and a full stop (EXPERIMENTAL -> EXPERIM.).
+- FLAPS AS A DASH SWITCH BY DEFAULT (_cage_page5 flapCtl 1); a saved build keeps its own.
+- THE NIGHT START: folded onto G436.12's lightsRule / handSw (A6 moved the pilot's light rule into
+  cockpit.js while this branch was open - one keeper): the rule's table gains the cabin's flood
+  and the feet at night (0.5), so after sunset nav + beacon + panel + flood + feet come up and the
+  taxi light while low and slow; a switch or a dimmer a hand set (click or bound key) is the hand's
+  until the next sunset / sunrise. My once-only seeding and handLit are gone.
+- THE KNOBS' BEADS: a 1.4 mm lens at each dimmer's pointer nose in the light layer's `instr`
+  lamp material (the posts' idiom: the join buckets it, the instrument dimmer drives it), riding
+  the knob's group so it marks the position in the dark. On the kit knob and the drawn one.
+- THE BUBBLE'S FLOOD (the user's ruling): the ladder is `[archAt]` alone - on the aft bow or not
+  at all; GATE LIGHT's ladder assertion updated. (The light layer is A7b's; one line.)
+- THE TWIN THROTTLE: a twin (engMount 3, wing nacelles) gets two levers on the wall quadrant,
+  28 mm apart inboard on the same axle, `edCtl_throttle` on `thr0` and `edCtl_throttle2` on
+  `thr1`; makeLinkage carries `thr0..thr3` = the pilot's throttle x that engine's lever (G194's
+  ctl.eng record; the throttle alone without one). The hand holds the first. NOT twinned: the
+  dash push-pull and the console (owed).
+- THE DASH BINDABLE (input.js, the model; app.js dispatches; cockpit.js `dashAction` does what
+  the click does): eleven steps in a `dash` group with default keys - taxi T, landing L, nav N,
+  beacon K, instrument lights I and cabin flood O (a quarter up, round to off), master M, the
+  key J / H (a pack's power key toggles), parking brake P, fuel selector U. A light thrown by
+  the hand (click or key) is the hand's from then on (`handLit`: the pilot's sunset rule no
+  longer overrides it). The mapping panel lists the group between The flight and Engines.
+- PBR AUDIT (the user: "I don't think the controls have all been given proper PBR materials"):
+  every crew material name has a finish in AERO_HARD.crew (grip, boot, plated, cast, hide, ptt,
+  ball, tread, plateAl, seatAlu, frame, metal, knob, ctrl, trim...) and goes through
+  aeroHardMat in the game; the panel's own MAT table is MeshStandard; the kit hardware's packs
+  are MeshStandard. The Lambert set is the bench's fallback with no AEROSKIN. Nothing to change.
+- GATE PANEL: + Fahrenheit / dispToSI, the night start (lit once, a hand's dimmer stays, day
+  untouched), the dash actions (each), the input table (eleven, default keys, no collision with
+  the head's or the flying set's), the twin's levers and the linkage's thr0/thr1.
+  PANEL INPUT UISMOKE JOIN CABIN LIGHT DESIGN SAVE PLAYER green.
+- PROOF: screenshots/panel-2026-09-20/cub_night_start.png (the Cub at 00:48: faces post-lit, the
+  four knobs' beads, the oil temp in F).
+- OWED (A3): the fitter proper (central positions first - the holes rule and the keep-outs are
+  the interim), the push-pull / console twin, the key's bow (G442.1), "absent in the garage" for
+  the yoke, the 1024-px faces if the bias is not enough. Then T1.2's blurred prop disc rides
+  out.rpm.
+
