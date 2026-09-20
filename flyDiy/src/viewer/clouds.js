@@ -330,23 +330,48 @@ var CLOUDS = (function () {
     }`;
   let skyMat = null, skyRT = null;
   // skyFraction(r): the solid-angle-weighted share of the four hemispheres with alpha over a half
-  function skyFraction(r) {
-    if (!skyMat) {
-      const uni = Object.assign({}, U, { uSkyEye: { value: new THREE.Vector4(40000, 0, 0, 0) } });
-      if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
-      else uni.uAtmoAP = { value: new Float32Array(4) };
-      skyMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: skyFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
-      skyRT = new THREE.WebGLRenderTarget(SKY_W, SKY_H * SKY_EYES, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
-    }
+  function skyMats() {
+    if (skyMat) return;
+    const uni = Object.assign({}, U, { uSkyEye: { value: new THREE.Vector4(40000, 0, 0, 0) } });
+    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
+    else uni.uAtmoAP = { value: new Float32Array(4) };
+    skyMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: skyFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
+    skyRT = new THREE.WebGLRenderTarget(SKY_W, SKY_H * SKY_EYES, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
+  }
+  // the sky pass drawn once without a readback while the noise still bakes: its program compiles then (a
+  // 260 ms step measured when the first fit compiled it mid-flight), not on the first fit
+  function warmSky(r) {
+    skyMats();
+    const prev = r.getRenderTarget();
+    quad.material = skyMat; r.setRenderTarget(skyRT); r.render(fsScene, fsCam);
+    r.setRenderTarget(prev);
+  }
+  function skyRender(r) {
+    skyMats();
     skyMat.uniforms.uSkyEye.value.set(map ? map.span : 40000, 0, 0, 0);
     const prev = r.getRenderTarget();
     quad.material = skyMat; r.setRenderTarget(skyRT); r.render(fsScene, fsCam);
-    const px = new Float32Array(4 * SKY_W * SKY_H * SKY_EYES); r.readRenderTargetPixels(skyRT, 0, 0, SKY_W, SKY_H * SKY_EYES, px);
     r.setRenderTarget(prev);
+  }
+  function skyShare(px) {
     let s = 0, w = 0;
     for (let j = 0; j < SKY_H * SKY_EYES; j++) { const el = ((j % SKY_H) + 0.5) / SKY_H * Math.PI / 2, sa = Math.cos(el);   // the ring's solid angle
       for (let i = 0; i < SKY_W; i++) { w += sa; if (px[(j * SKY_W + i) * 4] > 0.5) s += sa; } }
     return w > 0 ? s / w : 0;
+  }
+  // the synchronous read (the rig's instrument: CLOUDS.skyFraction()) - it drains the GPU queue
+  function skyFraction(r) {
+    skyRender(r);
+    const px = new Float32Array(4 * SKY_W * SKY_H * SKY_EYES);
+    const prev = r.getRenderTarget(); r.setRenderTarget(skyRT); r.readRenderTargetPixels(skyRT, 0, 0, SKY_W, SKY_H * SKY_EYES, px); r.setRenderTarget(prev);
+    return skyShare(px);
+  }
+  // the fit's read: ASYNC (a PBO and a fence, r186's readRenderTargetPixelsAsync) - the frame never waits on the
+  // GPU; the share lands a frame or two later (the synchronous read cost 20-47 ms a step, the frame serialised)
+  function skyFractionAsync(r) {
+    skyRender(r);
+    const px = new Float32Array(4 * SKY_W * SKY_H * SKY_EYES);
+    return r.readRenderTargetPixelsAsync(skyRT, 0, 0, SKY_W, SKY_H * SKY_EYES, px).then(b => skyShare(b || px));
   }
   // ATMO's own GLSL: the AP atlas sample + the mist (the splice's functions, verbatim)
   const ATMO_GLSL = () => (typeof ATMO !== 'undefined' && ATMO.GLSL) ? ATMO.GLSL.AP + ATMO.GLSL.MIST : 'uniform vec4 uAtmoAP; vec4 apSample(vec3 d, float k) { return vec4(0.0, 0.0, 0.0, 1.0); } vec3 mistApply(vec3 c, vec3 d, float D, float y) { return c; }';
@@ -529,6 +554,7 @@ var CLOUDS = (function () {
       if (bakeAt < NB) { bakeMat.uniforms.uBake.value.set((bakeAt + 0.5) / NB, NB, 0); renderer.setRenderTarget(noiseRT, bakeAt); renderer.render(fsScene, fsCam); bakeAt++; }
       else { for (let z = 0; z < ND; z++) { bakeMat.uniforms.uBake.value.set((z + 0.5) / ND, ND, 1); renderer.setRenderTarget(detailRT, z); renderer.render(fsScene, fsCam); } bakeAt++; }
     }
+    if (bakeAt >= NB + 1 && !skyMat) { try { warmSky(renderer); } catch (e) { /* the fit compiles it then */ } }   // the sky pass's program, compiled among the bake's frames
     renderer.setRenderTarget(prev);
     stats.slicesBaked = bakeAt;
     shadowDirty = true;
@@ -537,15 +563,16 @@ var CLOUDS = (function () {
   // the weather maps as ONE 2D array texture (a slice a deck), rebuilt when any deck's (seed, cover, type) changes
   const N_MAP = 256;
   const inflate = [1, 1, 1];               // per deck: the map's cover over the day's (the cover fit below raises it when the noise carves too much)
+  const mapCache = [{}, {}, {}];           // per deck: the weather noise (08_cloud_field caches per seed / type; a re-threshold is a millisecond)
   function mapsFor(L) {
     const key = L.map(l => S.seed + l.index * 1000 + '|' + l.cover.toFixed(3) + '|' + l.type).join(';');
     if (key === mapKey && maps.length === L.length) return maps;
     if (typeof CLOUD_FIELD === 'undefined') return null;
     for (let i = 0; i < MAXL; i++) inflate[i] = 1;
-    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP }));
+    maps = L.map(l => CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: l.cover, type: l.type, N: N_MAP, cache: mapCache[l.index] }));
     map = maps[0]; mapKey = key;
     uploadMaps();
-    shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300;   // the fit waits for a slider to settle
+    shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300; fit = null;   // the fit waits for a slider to settle
     return maps;
   }
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);   // a debounce only - never the drift (GATE CLOUD: no wall clock)
@@ -566,12 +593,12 @@ var CLOUDS = (function () {
     if (!maps.length) return;
     for (let i = 0; i < MAXL; i++) inflate[i] = 1;
     for (let i = 0; i < maps.length; i++) remapDeck(i);
-    shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300;
+    shadowDirty = true; needCal = true; needColumnCal = true; calDueAt = now() + 300; fit = null;
   }
   // one deck's map regenerated at an inflated cover (the cover fit)
   function remapDeck(i) {
     const l = lays[i]; if (!l) return;
-    maps[i] = CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP });
+    maps[i] = CLOUD_FIELD.weatherMap({ seed: S.seed + l.index * 1000, cover: Math.min(1, l.cover * inflate[i]), type: l.type, N: N_MAP, cache: mapCache[l.index] });
     if (i === 0) map = maps[0];
     uploadMaps();
   }
@@ -684,7 +711,7 @@ var CLOUDS = (function () {
     const moved = Math.abs(drift[0] - shadowDrift[0]) + Math.abs(drift[1] - shadowDrift[1]) > 0.5;
     if (!shadowDirty && !(moved && (frame % Math.max(1, S.shadowEvery)) === 0)) return;
     if (!shadowRT) return;
-    if (needCal && now() >= calDueAt) { needCal = false; calibrateCover(r); }
+    if (needCal && now() >= calDueAt) { calibrateCover(r); if (needCal) return; }   // a fit step a frame; the tile once it is done
     const h = tBegin('shadow');
     bakeTile(r);
     tEnd(h);
@@ -713,28 +740,43 @@ var CLOUDS = (function () {
   // not a coverage gain: a gain saturates the columns and the noise stops carving - the slab comes back
   // (measured: gain 1.9 made a 45 % day a grey ceiling). The gain stays a dial (covGain, 1).
   const coverGain = [1, 1, 1];
+  // ONE STEP A FRAME (the user: "are we still safe on the performance side?"): the synchronous fit stalled the
+  // frame 200-860 ms (seven readbacks and six map regenerations in a row, each readback draining the GPU
+  // queue). It is a state machine now - one march + readback (and at most one 17 ms map) per frame, a dozen
+  // frames in all, the on-flags set for the measured deck and restored before the frame's own march.
+  let fit = null;
   function calibrateCover(r) {
-    const PA = U.uProfA.value;
-    for (let i = 0; i < MAXL; i++) { coverGain[i] = S.covGain; PA[i * 4 + 3] = S.covGain; }
-    if (!S.calCover) return;
-    const LA = U.uLayerA.value, on = [LA[2], LA[6], LA[10]];
-    const t0 = now(); let bakes = 0;
-    try {
-      for (let i = 0; i < lays.length && i < MAXL; i++) {
-        const want = lays[i].cover; if (!(want > 0.003)) continue;
-        for (let j = 0; j < MAXL; j++) LA[j * 4 + 2] = j === i ? 1 : 0;
-        let lo = 1, hi = Math.min(4, 1 / want), got = skyFraction(r); bakes++;
-        if (got < want) {
-          for (let it = 0; it < 6 && hi - lo > 0.02; it++) {
-            inflate[i] = 0.5 * (lo + hi); remapDeck(i); got = skyFraction(r); bakes++;
-            if (got < want) lo = inflate[i]; else hi = inflate[i];
-          }
-          inflate[i] = 0.5 * (lo + hi); remapDeck(i);
-        }
+    const PA = U.uProfA.value, LA = U.uLayerA.value;
+    if (!fit) {
+      for (let i = 0; i < MAXL; i++) { coverGain[i] = S.covGain; PA[i * 4 + 3] = S.covGain; }
+      if (!S.calCover) { needCal = false; return; }
+      fit = { i: -1, state: 'next', t0: now(), bakes: 0, pending: false };
+    }
+    if (fit.pending) return;                        // the read is in flight: the GPU answers in its own time
+    if (fit.state === 'next') {
+      fit.i++;
+      while (fit.i < lays.length && fit.i < MAXL && !(lays[fit.i].cover > 0.003)) fit.i++;
+      if (fit.i >= lays.length || fit.i >= MAXL) {   // every deck fitted: the tile next frame
+        stats.inflate = inflate.map(v => +v.toFixed(3)); stats.calMs = +(now() - fit.t0).toFixed(1); stats.calBakes = fit.bakes;
+        fit = null; needCal = false; needColumnCal = true; shadowDirty = true;
+        return;
       }
-    } catch (e) { /* a readback that fails leaves the map */ }
+      fit.state = 'probe'; fit.want = lays[fit.i].cover; fit.lo = 1; fit.hi = Math.min(4, 1 / fit.want); fit.it = 0;
+    }
+    const on = [LA[2], LA[6], LA[10]], ts = now(), me = fit;
+    for (let j = 0; j < MAXL; j++) LA[j * 4 + 2] = j === fit.i ? 1 : 0;
+    // the read lands later: the state moves on in its callback, only if this fit is still the live one
+    const ask = then => { me.pending = true; me.bakes++; skyFractionAsync(r).then(got => { if (fit !== me) return; me.pending = false; then(got); }, () => { if (fit === me) { me.pending = false; me.state = 'next'; } }); };
+    try {
+      if (fit.state === 'probe') ask(got => { me.state = got >= me.want ? 'next' : 'bisect'; });
+      else if (fit.state === 'bisect') {
+        if (fit.it > 0) { if (fit.got < fit.want) fit.lo = inflate[fit.i]; else fit.hi = inflate[fit.i]; }
+        if (fit.it >= 6 || fit.hi - fit.lo <= 0.02) { inflate[fit.i] = 0.5 * (fit.lo + fit.hi); remapDeck(fit.i); fit.state = 'next'; }
+        else { inflate[fit.i] = 0.5 * (fit.lo + fit.hi); remapDeck(fit.i); ask(got => { me.got = got; me.it++; }); }
+      }
+    } catch (e) { fit.state = 'next'; fit.pending = false; }   // a read that fails leaves the deck's map
     for (let j = 0; j < MAXL; j++) LA[j * 4 + 2] = on[j];
-    stats.inflate = inflate.map(v => +v.toFixed(3)); stats.calMs = +(now() - t0).toFixed(1); stats.calBakes = bakes;
+    (stats.fitSteps = stats.fitSteps || []).push(+(now() - ts).toFixed(1)); if (stats.fitSteps.length > 32) stats.fitSteps.shift();   // each step's ms (the frame's hitch)
   }
   // THE COLUMN CALIBRATED: the CPU column (coverage x the profile's fill x height x sigma) is the
   // field without its noise - it overstates the optical depth ~7x (the noise empties most of a

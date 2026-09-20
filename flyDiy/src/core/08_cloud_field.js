@@ -71,23 +71,32 @@ var CLOUD_FIELD = (function () {
   }
 
   // weatherMap({ seed, cover, type, N }) -> { N, span, data (Float32Array N*N*4), cover, type, seed, lo, hi }
+  // o.cache: an object the caller keeps - the three noise fields and the sorted copy live there per (seed,
+  // type, N), so a map at another COVER (the fit's six regenerations, A6) is a threshold pass, ~1 ms, not
+  // the 17 ms of the noise; the output is the same to the bit (GATE CLOUD's determinism)
   function weatherMap(o) {
     o = o || {};
     const N = o.N || N_DEFAULT, seed = (o.seed | 0) || 1, cover = clamp(o.cover != null ? o.cover : 0.2, 0, 1), type = typeOf(o.type), T = TYPES[type];
-    const data = new Float32Array(N * N * 4), n0 = new Float32Array(N * N);
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) n0[j * N + i] = fbm(i / N, j / N, T.freq, seed, 5);
+    const data = new Float32Array(N * N * 4), ckey = seed + '|' + type + '|' + N;
+    let C = o.cache && o.cache.key === ckey ? o.cache : null;
+    if (!C) {
+      C = { key: ckey, n0: new Float32Array(N * N), h2: new Float32Array(N * N), l2: new Float32Array(N * N) };
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const k = j * N + i;
+        C.n0[k] = fbm(i / N, j / N, T.freq, seed, 5); C.h2[k] = fbm(i / N, j / N, 3, seed + 101, 3); C.l2[k] = fbm(i / N, j / N, 8, seed + 202, 3); }
+      C.sorted = Float32Array.from(C.n0).sort();
+      if (o.cache) Object.assign(o.cache, C);
+    }
+    const n0 = C.n0, sorted = C.sorted;
     // the threshold: the (1 - cover) quantile of the noise - the covered fraction IS the cover
-    const sorted = Float32Array.from(n0).sort();
     const q = clamp(Math.round((1 - cover) * N * N), 0, N * N);
     const lo = cover <= 0 ? 2 : cover >= 1 ? -1 : sorted[Math.min(N * N - 1, q)];
     const hi = lo + T.width * (sorted[N * N - 1] - sorted[0]);
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const k = j * N + i, n = n0[k];
+    for (let k = 0; k < N * N; k++) {
+      const n = n0[k];
       const c = cover >= 1 ? 1 : cover <= 0 ? 0 : clamp((n - lo) / Math.max(1e-6, hi - lo), 0, 1);
-      const h2 = fbm(i / N, j / N, 3, seed + 101, 3), l2 = fbm(i / N, j / N, 8, seed + 202, 3);
       data[k * 4] = c;
-      data[k * 4 + 1] = T.hsMin + (1 - T.hsMin) * clamp(0.6 * Math.sqrt(c) + 0.4 * h2, 0, 1);   // bigger columns stand taller
-      data[k * 4 + 2] = l2;
+      data[k * 4 + 1] = T.hsMin + (1 - T.hsMin) * clamp(0.6 * Math.sqrt(c) + 0.4 * C.h2[k], 0, 1);   // bigger columns stand taller
+      data[k * 4 + 2] = C.l2[k];
       data[k * 4 + 3] = 0;
     }
     return { N, span: SPAN, data, cover, type, seed, lo, hi };
