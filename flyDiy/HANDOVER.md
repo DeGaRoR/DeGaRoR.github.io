@@ -51467,3 +51467,20 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - The Jodel's livery: ivory sections, a burgundy sweep under a gold line (marking kit
   pattern 2, m1 on the fuselage), burgundy spinner and registration.
 - The three stock rows and the three cards carry it (regenerated from the build files).
+
+## G445.6 — THE REGISTRATIONS PROPORTIONED AND CENTRED, THE CUB'S FLASH (2026-09-20,
+## approved on screenshots)
+
+- Both saved builds had `regLock 0, regW 1`: a fixed one-metre-wide page whatever the
+  height, six glyphs squashed. Locked now (width follows height at the font's aspect),
+  regH 0.30, regL at the boom's mid-station ((noseGap + cabin.len + tailArm) / 2: Cub
+  3.66, Jodel 2.50). The Cub: a thin black flash (marking kit 3, m1H 0.28 at m1C 0.30)
+  with F-BCUB below it (regC -0.18, black, no keyline). The Jodel: F-PJDL above the
+  sweep line (regC 0.30).
+- THE MARGIN, DIAGNOSED (JODEL-STUDY §4): not the ground attitude (the balance probe
+  runs on the level rest frame; CG from the nodes = sim.cgPos = the plaque), not the
+  neutral point (the textbook reconstruction from the model's own strips agrees; the
+  stab is where the d112 payload has it) — THE MASS MODEL: the empennage 25 kg (a
+  D.112's ~12) and the tail cone 35 kg (~11), the same on the Cub, 13 % of chord aft
+  on every aeroplane (empty CG 37 % on both; the books 24-26). With real masses the
+  Jodel reads CG 21 / margin 15 — the D.112's own. The MASS chantier follows.
