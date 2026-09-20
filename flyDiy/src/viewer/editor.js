@@ -1551,6 +1551,11 @@ function editorInit(api) {
     // G286: GRAPHICS - the same settings menu the flight rail opens (the
     // user: "in the editor and in flight"). LITERAL FIELDS ONLY (GATE VIEW
     // reads this table in a vm); openFly builds it by name. (GFX)
+    // 2026-09-20: THE CLOUDS - the same panel the flight rail opens (clouds_ui.js: the decks,
+    // the veil, the look, the cost; the user: "let's have the garage and the flight menu converge").
+    // LITERAL FIELDS ONLY (GATE VIEW reads this table in a vm); openFly builds it by name.
+    { k: 'clouds', label: 'clouds', title: 'The clouds: decks, veil, look',
+      icon: 'M5.4 13.6h7.4a2.7 2.7 0 0 0 .5-5.35 3.7 3.7 0 0 0-7.1-1 3 3 0 0 0-.8 5.9Z' },
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
@@ -1934,6 +1939,7 @@ function editorInit(api) {
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX
+    if (t.k === 'clouds') buildClouds(body);       // the clouds panel (2026-09-20)
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
@@ -1994,6 +2000,41 @@ function editorInit(api) {
       host.appendChild(n); return n;
     };
     window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
+  }
+  // 2026-09-20: THE CLOUDS - clouds_ui.js's panel in this rail's own rows, a range input on the
+  // flyout's own .r row (editor.css styles it), the pills as the GRAPHICS menu's; a pick rebuilds
+  // the flyout so the pills show the new state (openFly re-places it, measured full)
+  function buildClouds(body) {
+    if (!window.CLOUDS_UI) return;
+    const row = (host, label) => {
+      const r = document.createElement('div'); r.className = 'r';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = label;
+      r.appendChild(k); host.appendChild(r); return r;
+    };
+    const range = (host, label, lo, hi, step, get, set, fmt) => {
+      const r = row(host, label);
+      const i = document.createElement('input'); i.type = 'range'; i.min = lo; i.max = hi; i.step = step; i.value = get();
+      const v = document.createElement('span'); v.className = 'v'; v.textContent = fmt(+i.value);
+      i.oninput = () => { set(+i.value); v.textContent = fmt(+i.value); };
+      r.appendChild(i); r.appendChild(v); return r;
+    };
+    const pills = (host, list, isOn, pick) => {
+      const w = document.createElement('div'); w.className = 'edCam';
+      for (const o of list) {
+        const b = document.createElement('button');
+        b.className = 'pill' + (isOn(o) ? ' on' : '');
+        b.textContent = o.label; if (o.title) b.title = o.title;
+        if (o.why) b.disabled = true; else b.onclick = () => { pick(o); openFly('clouds'); };
+        w.appendChild(b);
+      }
+      host.appendChild(w); return w;
+    };
+    const note = (host, txt) => {
+      const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
+      host.appendChild(n); return n;
+    };
+    window.CLOUDS_UI.mount(body, { row, range, pills, note },
+      { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: () => { if (typeof syncNightLabel === 'function') syncNightLabel(); } });
   }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;

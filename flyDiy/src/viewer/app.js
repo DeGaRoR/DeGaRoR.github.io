@@ -6736,9 +6736,18 @@
     const rail = FL_RAIL.filter(x => x.k === k)[0];
     head.textContent = (rail || FL_SLOTS[k] || {}).title || k;
     (rail ? FL_BUILD[k] : FL_BUILD['slot_' + k])(body);
-    // ...and then it is measured and clamped to the free estate, exactly as
-    // the editor's is. The anchor is the button's own box; the layer is the
-    // whole window, because the flight view has no panels insetting it.
+    flPlaceFly(k);
+  }
+  // ...and then it is measured and clamped to the free estate, exactly as
+  // the editor's is. The anchor is the button's own box; the layer is the
+  // whole window, because the flight view has no panels insetting it.
+  // 2026-09-20: its own function, run again on every window resize (the
+  // editor's rule) - a flyout clamped to yesterday's window is the one the
+  // user could not reach; the body scrolls within it (flight.css).
+  function flPlaceFly(k) {
+    const fly = $('flFly');
+    if (!fly || fly.hidden || !k) return;
+    const rail = FL_RAIL.filter(x => x.k === k)[0];
     const btn = rail
       ? [...$('flRail').children].filter(b => b.dataset.f === k)[0]
       : document.querySelector('#flSlots .flSlot[data-s="' + k + '"]');
@@ -6767,6 +6776,7 @@
       fly.style.maxHeight = Math.round(H - dn - 96) + 'px';
     }
   }
+  window.addEventListener('resize', () => { if (flyOpen) flPlaceFly(flyOpen); });
 
   // ---- SCREENSHOT MODE (G255) ---------------------------------------------
   // The render alone: both interface layers off (`body.shot`, editor.css),

@@ -50469,3 +50469,30 @@ asked for, §2). This entry is V0: the inventory, honest, on the shelf.
   six sections, the two prefs, the build list). CLOUD / UISMOKE / DAY / ATMO green.
 - OWED: the same panel in the garage's rail (the shed shows the day's sky; its DUSK picker is the
   day's, the clouds are the flight rail's for now); the flyout is tall - it scrolls.
+
+
+## G436.10 — THE CLOUDS PANEL IN THE GARAGE TOO; THE FLYOUTS CLAMPED AND SCROLLED (2026-09-20, the
+## user: "let's have the garage and the flight menu converge as much as possible. Warning to the
+## css of your menus, everything should be accessible, scroll bar and screen edge detection needed")
+
+- editor.js: a `clouds` item on the garage rail (the same glyph and title as the flight rail's,
+  between NIGHT and GRAPHICS), buildClouds() mounting clouds_ui.js in the shed's own rows (.r), a
+  range input the flyout's CSS already styles, the GRAPHICS menu's pills and note; a pick rebuilds
+  the flyout (openFly re-places it measured full). One panel, two rails - the GRAPHICS and CONTROLS
+  rule. LITERAL FIELDS ONLY in RAIL (GATE VIEW reads it in a vm; no rows, like graphics).
+- clouds_ui.js: the section head keeps the host's own row class and adds .fsec (the first cut
+  overwrote it and the shed's heads came out as plain large text); the values shortened to fit
+  the 48 px column on both rails (1.00x, 1.0x, the drift's row says "x wind").
+- THE FLYOUTS: the flight flyout's placement is its own function (flPlaceFly) and runs again on
+  every window resize - the editor's rule since 2026-09-03; it was clamped once at open, and a
+  window made smaller left it past the edge. flight.css gives #flFly a visible thin scrollbar with
+  a stable gutter (the tall clouds panel scrolled with nothing to say so); editor.css gives the
+  shed's flyout the same .fsec head. Measured on a 1080 px window: the flight flyout 22..1058
+  (scrollHeight 1183 over 1034 shown), the shed's clamped by placeFly the same way.
+- SEEN: screenshots/clouds-2026-09-20/ui/sheet_both.jpg (the shed's flyout top and scrolled, the
+  flight's top and end), _fly_edge.png (the flight flyout at the window's edge).
+- GATES: CLOUD / VIEW / UISMOKE / DAY green.
+- OWED (the convergence beyond the clouds): the shed's NIGHT flyout borrows the tree's time-of-day
+  rows while the flight's `day` slot has its own clock rows (date, hour, rate, presets) - one day
+  panel for both rails is the next step of the same ruling; the flight rail has no NIGHT (the day
+  slot is it) and the shed no CAMERA framing pills of the flight's kind.

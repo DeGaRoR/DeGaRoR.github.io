@@ -1286,6 +1286,12 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edFlyBody .r > .v { width:48px; flex:none; text-align:right; }
 
+/* 2026-09-20: a section head inside the flyout (the clouds panel's decks / veil / look / render) - the flight rail's .fsec */
+#edFlyBody .r.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+#edFlyBody .r.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#edFlyBody .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+
 #edFlyBody input[type=range] { flex:1; min-width:30px; }
 
 #edFlyBody select { flex:1; min-width:0; }

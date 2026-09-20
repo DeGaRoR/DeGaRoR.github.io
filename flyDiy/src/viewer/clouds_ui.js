@@ -58,7 +58,7 @@ var CLOUDS_UI = (function () {
   function mount(host, H, ctx) {
     const CK = ctx && ctx.day, cf = CF(), s = S();
     const refresh = () => { if (ctx && ctx.refresh) ctx.refresh(); };
-    const head = txt => { const r = H.row(host, txt); r.className = 'fr fsec'; return r; };
+    const head = txt => { const r = H.row(host, txt); r.classList.add('fsec'); return r; };   // the host's own row class kept (fr / r), a section head added
     if (!cf || !CK || !CK.day()) { H.note(host, 'This build has no cloud field.'); return; }
     const day = () => CK.day();
     const types = cf.TYPE_ORDER.map(t => ({ label: cf.TYPES[t].label, value: t }));
@@ -85,18 +85,18 @@ var CLOUDS_UI = (function () {
     // ---- the high veil ------------------------------------------------------------------
     if (s) {
       head('cirrus veil');
-      H.range(host, 'amount', 0, 2.5, 0.05, () => s.veil, v => { s.veil = v; save(); }, v => v > 0 ? v.toFixed(2) + ' x the cover’s share' : 'off');
+      H.range(host, 'amount', 0, 2.5, 0.05, () => s.veil, v => { s.veil = v; save(); }, v => v > 0 ? v.toFixed(2) + '×' : 'off');
       H.range(host, 'height', 5, 12, 0.5, () => s.veilKm, v => { s.veilKm = v; save(); }, v => v.toFixed(1) + ' km');
       // ---- the look -----------------------------------------------------------------------
       head('look');
       H.range(host, 'detail', 0, 0.8, 0.02, () => s.detail, v => { s.detail = v; save(); }, v => v.toFixed(2));
-      H.range(host, 'erosion', 0.4, 1.6, 0.05, () => s.erodeK, v => { s.erodeK = v; save(); }, v => v.toFixed(2) + ' x the type’s');
+      H.range(host, 'erosion', 0.4, 1.6, 0.05, () => s.erodeK, v => { s.erodeK = v; save(); }, v => v.toFixed(2) + '×');
       H.range(host, 'underside depth', 0, 0.4, 0.01, () => s.ambDepth, v => { s.ambDepth = v; save(); }, v => v.toFixed(2));
       H.range(host, 'shadow', 0, 1, 0.05, () => s.shadow, v => { s.shadow = v; save(); }, v => v > 0 ? (v * 100).toFixed(0) + ' %' : 'off');
       H.range(host, 'shadow softness', 0.1, 1, 0.05, () => s.shadowSoft, v => { s.shadowSoft = v; save(); }, v => v.toFixed(2));
       // ---- the motion ---------------------------------------------------------------------
       head('motion');
-      H.range(host, 'drift', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + ' x the wind' : 'still');
+      H.range(host, 'drift × wind', 0, 4, 0.1, () => s.driftK, v => { s.driftK = v; save(); }, v => v > 0 ? v.toFixed(1) + '×' : 'still');
       H.pills(host, [{ label: 'another sky (seed ' + s.seed + ')', value: 'seed' }], () => false, () => { s.seed = 1 + Math.floor(Math.random() * 98); save(); });
       // ---- the cost -----------------------------------------------------------------------
       head('render');

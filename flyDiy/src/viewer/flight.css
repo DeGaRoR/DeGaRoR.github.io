@@ -321,6 +321,14 @@
 
 #flFly[hidden] { display:none; }
 
+/* 2026-09-20: THE FLYOUT SCROLLS, VISIBLY. A tall panel (the clouds) was cut at the window's
+   edge with nothing to say so; the same thin bar editor.css gives the shed's flyout. */
+#flFly { scrollbar-width:thin; scrollbar-color:var(--ed-off) transparent; scrollbar-gutter:stable; }
+#flFly::-webkit-scrollbar { width:9px; }
+#flFly::-webkit-scrollbar-track { background:transparent; }
+#flFly::-webkit-scrollbar-thumb { background:var(--ed-off); border-radius:5px; border:2px solid transparent; background-clip:padding-box; }
+#flFly::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd); background-clip:padding-box; }
+
 #flFlyHead { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint);
   padding-bottom:9px; margin-bottom:6px;
