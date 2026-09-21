@@ -419,11 +419,11 @@ try {
 // billing material follows. The 2026-09-01 audit's headline: an aluminium
 // aeroplane flew tube-and-fabric because nothing wrote this row.
 try {
-  const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'];   // G466: the fifth stop
   ok(P.intCons == null ? s.fuselage.material === undefined
-       : s.fuselage.material === CONS[Math.max(0, Math.min(3, Math.round(+P.intCons || 0)))],
+       : s.fuselage.material === CONS[Math.max(0, Math.min(4, Math.round(+P.intCons || 0)))],
      'a P without the tile writes no material; with it, the tile\'s (' + s.fuselage.material + ')');
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const sI = cageJoinSpec(Object.assign({}, P, { intCons: i }), M, T);
     ok(sI.fuselage.material === CONS[i], 'intCons ' + i + ' -> fuselage.material ' + CONS[i]);
     const RI = resolveSpec(JSON.parse(JSON.stringify(sI))).spec;
@@ -434,7 +434,7 @@ try {
   const mT = dT.parts.ledger.fuselage.mass, mA = dA.parts.ledger.fuselage.mass;
   ok(mA > mT + 5, 'an alloy fuselage is heavier than the tube one (' + mT.toFixed(1) + ' -> ' + mA.toFixed(1) + ' kg)');
   const sX = cageJoinSpec(Object.assign({}, P, { intCons: 7 }), M, T);
-  ok(sX.fuselage.material === 'alloy', 'an out-of-range tile clamps to the last row');
+  ok(sX.fuselage.material === 'aluTube', 'an out-of-range tile clamps to the last row (aluTube since G466)');
 } catch (e) {
   ok(false, 'construction join threw: ' + e.message);
 }

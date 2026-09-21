@@ -176,7 +176,7 @@ function cageJoinPlane2(P, T) {
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
     },
     ...(Math.round(P.w2Cons) > 0
-      ? { material: ['carbon', 'steel', 'fabric', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+      ? { material: ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
   };
 }
 
@@ -219,7 +219,7 @@ function cageJoinSpec(P, M, T) {
       // order — 'wood' and 'tubeFabric' never reach a wing again
       ...(Math.round(P.wgCons) > 0
         ? { material: ['carbon', 'steel', 'fabric',
-                       'alloy'][Math.round(P.wgCons) - 1] } : {}),
+                       'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] } : {}),   // G466: the fifth stop
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                // G185: the cabane's drawing style rides only when there is one
@@ -454,8 +454,8 @@ function cageJoinSpec(P, M, T) {
   // material it has; the cage default is 0 (composite) and would have
   // put every such build on carbon.
   if (P.intCons != null)
-    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy'][
-      Math.max(0, Math.min(3, Math.round(+P.intCons || 0)))];
+    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'][
+      Math.max(0, Math.min(4, Math.round(+P.intCons || 0)))];
   // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
   // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
   // lattice it flies is not the tube it draws. Written on every join: the
@@ -531,7 +531,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];   // G213
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G213; G466 the fifth stop
     if (Math.round(P.finCons) > 0)
       tl.finMaterial = CONS4[Math.round(P.finCons) - 1];
     if (Math.round(P.stCons) > 0)

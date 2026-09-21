@@ -156,8 +156,8 @@ const WING_ITEMS = [
   // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
   // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
   // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
-  ['wgCons', 'construction', 0, 4, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
+  ['wgCons', 'construction', 0, 5, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    on],
   ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
@@ -318,13 +318,13 @@ function wingMat(cl, plane) {
   // dresses every class
   // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
   // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G466: the fifth stop
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'];
   const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
-    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(4, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
@@ -525,7 +525,7 @@ PAGE.post = ctx => {
         aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
       },
       ...(Math.round(P.w2Cons) > 0
-        ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+        ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
     };
   };
   const gspec = {

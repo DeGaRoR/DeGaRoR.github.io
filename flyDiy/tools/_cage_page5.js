@@ -211,8 +211,8 @@ window.CAGE_PAGE = {
         // they were unreachable here — and the piper-cub preset sets
         // intOn 0, which then could not be undone (user 2026-08-19).
         ['intOn',     'interior',        0, 1, 1],
-        ['intCons',   'construction',    0, 3, 1, ['composite', 'steel tube',
-                                                  'plywood', 'aluminium']],
+        ['intCons',   'construction',    0, 4, 1, ['composite', 'steel tube',
+                                                  'plywood', 'aluminium', 'aluminium tube']],
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
@@ -1572,7 +1572,7 @@ window.CAGE_PAGE = {
       paneThick: 0.004, doorOn: 0, doorPax: 0, doorDeep: 1, doorSill: 0.06,
       doorSillPax: 0.06, doorDepth: 0.004, doorRim: 0.02, bulkZ: 0, doorGone: 0,
       skinOn: 1, glazeOn: 1, intOn: 1, intBulk: 1, intFire: 1, intPillars: 1,
-      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 1, intDash: 1,
+      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 4, intDash: 1,
       dashBack: 0.05, dashLip: 0.035, dashDepth: 0.12, dashCrease: 3,
       dashCrown: 0.175, shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135,
       shoulderT: 0.003, shoulderLip: 0.027, shoulderRun: 0, doorPanelOn: 0,
@@ -2555,7 +2555,7 @@ window.CAGE_PAGE = {
           z: 0,
           sense: 1 }],
       fuselage: {
-        material: "tubeFabric",
+        material: "aluTube",
         shape: "straight",
         covering: "open",
         tailArm: 4.596412174999999,

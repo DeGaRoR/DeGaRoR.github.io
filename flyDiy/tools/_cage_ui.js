@@ -140,8 +140,8 @@ const BASE_GROUPS = [
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
-    ['intCons',   'construction',  0, 3, 1, ['composite', 'steel tube',
-                                             'plywood', 'aluminium']],
+    ['intCons',   'construction',  0, 4, 1, ['composite', 'steel tube',
+                                             'plywood', 'aluminium', 'aluminium tube']],
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
     ['intPillars','pillar bodies', 0, 1, 1],
@@ -351,17 +351,17 @@ const fieldM = () => (G.CAGE_UNIT || 1) * (P.planeScale || 1);
 // 'metal' and is NOT renamed casually — G14's ruling — while the material the
 // player reads is 'aluminium')
 const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy',
-                   carbon: 'carbon' };
+                   carbon: 'carbon', alu: 'aluTube' };   // G466: the ultralight's bolted 6061 + Dacron
 // THE MEMBER SCREWS' NUMBERS (G214), metres, or null when hidden or when the
 // construction has none to show (fabric is stitched, not screwed)
 const memFOf = () => {
   if (!+P.memFast) return null;
   const c = consOf();
-  if (c === 'tubeFabric') return null;
+  if (c === 'tubeFabric' || c === 'aluTube') return null;   // a sail is sewn, not screwed
   return [+P.memPitch || 0.03, +P.memDia || 0.0025, +P.memRise || 0.0004];
 };
-const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal'][
-  Math.max(0, Math.min(3, Math.round(P.intCons || 0)))]] || 'tubeFabric';
+const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu'][
+  Math.max(0, Math.min(4, Math.round(P.intCons || 0)))]] || 'tubeFabric';
 // which section is on which shader branch — filled by meshFrom from the
 // mesh's own groups, so there is ONE description of the split (G66)
 const matSurf = {};

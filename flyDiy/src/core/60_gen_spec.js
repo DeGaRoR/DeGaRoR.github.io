@@ -257,6 +257,53 @@ const GEN_MATERIALS = {
     price: 165,                         // moulds, cloth, vacuum, and the hours
     cd0: 0.0004, clmaxK: 1.05,          // moulded: the best surface on the list
   },
+  // THE ULTRALIGHT'S ROW (G466, the user's Chinook: "do the aluminium tube
+  // material row then. It also needs to have appropriate mechanical
+  // characteristics ... there needs to be a trade-off in stiffness"). A
+  // Chinook, a Quicksilver, a Kolb: 6061-T6 tube, BOLTED and gusseted (no
+  // welded clusters, few diagonals — cables and tang brackets), Dacron
+  // sailcloth sewn over it, undoped. Weighed as 4130 + wood at the J-3's
+  // gauge the Chinook read 269 kg empty against its 209, and the excess sat
+  // aft (CHINOOK-STUDY §3).
+  //   phys    6061-T6: E 68.9 GPa (a third of steel's), yield 276 MPa (60 %)
+  //           — its elastic strain limit is 0.40 % where 4130's is 0.22, so
+  //           it bends further before it yields, and the load test reads
+  //           that off `phys` as it does every row's.
+  //   lin     kg per metre of member. A 1.75 x 0.058 in 6061 tube is 0.82
+  //           kg/m — HEAVIER than the 7/8 x 0.035 4130 tube's 0.58 — and the
+  //           aeroplane is lighter because there are half the members: a
+  //           bolted pod is four longerons, a keel and its struts. The
+  //           lattice's member count is the frame's, so the per-metre carries
+  //           that: fus 0.42 (a Chinook pod + boom ~22 kg), wing 0.40 (two
+  //           tube spars, formed ribs, cables: ~24 kg of structure on 14 m2),
+  //           gear 0.75 (a bungee or a spring rod, small wheels).
+  //   cover   0.20: 3.9 oz Dacron (132 g/m2) with its tapes and stitching,
+  //           no dope — the sail is the sail at any gross.
+  //   k, c    THE TRADE-OFF: E_alu x A_alu against E_steel x A_steel on the
+  //           tubes actually used comes out near 1 (the fat tube buys back
+  //           the soft metal), and the bolted joints, the tang brackets and
+  //           the missing diagonals give a third of that back: 0.6 x the
+  //           steel row per class, the damping by root(k m) at the lighter
+  //           mass (0.7 x). A Chinook's boom visibly flexes on a rough
+  //           strip; GATE FLEX's materials sweep and the load test measure
+  //           where that lands (wing k per its own surface row, aluFabric).
+  //   refMass the row IS an ultralight's: 400 kg loaded (a two-seater on a
+  //           582 at its 476 kg gross), refGross 476, cloth ungauged.
+  //   cdWet   sailcloth is smooth but sags between its ribs and tubes, and
+  //           the tubes stand proud of it: the doped-fabric figure.
+  aluTube: {
+    name: '6061 tube + Dacron',
+    phys: { E: 68.9e9, rho: 2700, sigY: 276e6 },
+    lin:   { fus: 0.42, wing: 0.40, gear: 0.75 },
+    cover: 0.20,
+    k:     { fus: 4.8e5, wing: 3.0e5, gear: 1.7e4 },
+    c:     { fus: 84,    wing: 315,   gear: 630 },
+    refMass: 400,
+    refGross: 476, coverGauged: false,
+    cdWet: 0.0125,
+    price: 30,                          // bolted tube and sewn sail: the cheapest way to fly
+    cd0: 0.0022, clmaxK: 1.00,
+  },
 };
 
 // ===========================================================================
@@ -314,6 +361,13 @@ const GEN_SURF_MATERIALS = {
             c: GEN_MATERIALS.tubeFabric.c,
             cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
             refGross: 550, coverGauged: false },
+  // G466: the ultralight's wing and tail — two 6061 tube spars, formed
+  // ribs, drag cables, Dacron sewn on (see GEN_MATERIALS.aluTube)
+  aluFabric: { name: '6061 tube + Dacron', phys: GEN_MATERIALS.aluTube.phys,
+            lin: GEN_MATERIALS.aluTube.lin, k: GEN_MATERIALS.aluTube.k,
+            c: GEN_MATERIALS.aluTube.c,
+            cover: 0.20, price: 30, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
+            refGross: 476, coverGauged: false },
   // A WING'S SKIN IS NOT A FUSELAGE'S (PERF STUDY chantier 1, 2026-09-15):
   // the fuselage rows' cover carries frames, doors, floors and windows in
   // its 4.5 kg/m2; a wing panel is skin, stringers and ribs — a GA alloy
@@ -349,9 +403,9 @@ const GEN_SURF_MATERIALS = {
 // stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
 // mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
 const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
-                           alloy: 'alloy', carbon: 'carbon' };
+                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
 const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
-                                alloy: 'alloy', carbon: 'carbon' };
+                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
 // the tokens a saved spec may still carry from before G213, read as what
 // they always meant on a flying surface: a "wood" wing was fabric over
 // wood, a "tubeFabric" wing was fabric over tube
@@ -532,6 +586,12 @@ GEN_BUILD_GRAMMAR.fabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                          { name: 'wood + fabric', alias: 'tubeFabric' });
 GEN_BUILD_GRAMMAR.steel  = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                          { name: 'steel tube + fabric', alias: 'tubeFabric' });
+// G466: the ultralight's sail over its bolted tube reads like doped fabric
+// over a truss — the same grammar, its own name
+GEN_BUILD_GRAMMAR.aluTube   = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                            { name: '6061 tube + Dacron', alias: 'tubeFabric' });
+GEN_BUILD_GRAMMAR.aluFabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                            { name: '6061 tube + Dacron', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -756,7 +816,7 @@ const GEN_ACCESS = {
     at: R => R.booms ? { sL: R.booms.len * 0.78, lv: 'flank' }
                      : { sL: R.tailArm * 0.62, lv: 'keel' },
     snap: 'bay', side: R => R.booms ? 'both' : 'centre',
-    form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
     size: { w: 0.130, h: 0.130 },
   },
   inspBelly: {
@@ -765,7 +825,7 @@ const GEN_ACCESS = {
     need: R => R.material === 'carbon' ? 0 : 1,
     at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
     snap: 'bay', side: 'centre',
-    form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
     size: { w: 0.200, h: 0.150 },
   },
   inspAileron: {
@@ -833,7 +893,7 @@ const GEN_ACCESS = {
     name: 'Venturi',
     serves: 'the vacuum for the turn indicator, on an aeroplane with no'
           + ' engine-driven pump',
-    need: R => (R.systems === 'basic' && R.material === 'tubeFabric') ? 1 : 0,
+    need: R => (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube')) ? 1 : 0,
     at: () => ({ sL: 0.34, lv: 1.45 }),
     snap: 'ring', side: 'port',
     form: 'venturi', size: { d: 0.058, len: 0.190, stand: 0.070 },
@@ -1485,7 +1545,7 @@ const GEN_SEATS = {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
-  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0 },
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6 },
   glassKgM2: 3.6,
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
@@ -2753,7 +2813,7 @@ const GEN_MIGRATORS = {
     if (!c || typeof c !== 'object') return r;
     if (c.intCons == null) {
       const m = r.fuselage && r.fuselage.material;
-      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3 }[m];
+      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4 }[m];
       if (c.intCons == null) c.intCons = 1;
     }
     return r;

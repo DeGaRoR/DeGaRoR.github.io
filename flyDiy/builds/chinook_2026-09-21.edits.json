@@ -8,7 +8,8 @@
   "cw_bladeN": 3,
   "s1Z": 1.85,
   "engBlockZ": 0.75,
-  "wgDx": -0.2
+  "wgDx": -0.2,
+  "intCons": 4
  },
  "prop": {
   "D": 1.73,

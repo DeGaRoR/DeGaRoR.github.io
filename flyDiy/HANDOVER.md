@@ -53704,3 +53704,25 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   saying so (landed as G461), and its two source comments (atmo.js, _atmo_check.js) with it; the
   G462 entry's references and the G463 status line follow. Commit messages are history and stay.
 - Doc + two comments, no behaviour; the built outputs carry the comments.
+
+## G466 — THE ALUMINIUM-TUBE ROW (2026-09-21, the user: "do the aluminium tube material row
+## then. it also needs to have appropriate mechanical characteristics ... there needs to be a
+## trade-off in stiffness I guess")
+
+- `GEN_MATERIALS.aluTube` ('6061 tube + Dacron') and `GEN_SURF_MATERIALS.aluFabric`: 6061-T6
+  (E 68.9 GPa, ρ 2700, σy 276 MPa — elastic strain limit 0.40 % where 4130's is 0.22), lin
+  fus/wing/gear 0.42/0.40/0.75 (a bolted pod has half the members of a welded truss and the
+  lattice's count is the frame's), cover 0.20 (undoped sailcloth), k and c 0.6 / 0.7 × the
+  steel row (E·A on the fat tubes actually used ≈ steel's; the bolted joints and the missing
+  diagonals give a third back), refMass 400 / refGross 476 (an ultralight's), the doped-fabric
+  drag. GEN_SURF_DEFAULT(_TAIL) aluTube → aluFabric; the build grammar, the cowl kg/m2, the
+  access rows (ring laces, the venturi) and the hangar's tube shop follow.
+- THE FIFTH STOP: `intCons` 0..4 (page5 / ui dials, the design tile "Aluminium tube", the
+  join's fus.material and the CONS_MAP), `wgCons` / `w2Cons` / `stCons` / `finCons` 0..5
+  (_cage_wing/_cage_fin/_cage_stab CONS4 + FUS4, the join's arrays, the card writer's),
+  _join_check's five stops, FLEX's banner.
+- THE CHINOOK ON IT (CHINOOK-STUDY §3-4): empty 269 → **218 kg** (the sheet's 209, +4 %),
+  wings 59 → 35, tail 19 → 13, gear 24 → 20; CG 38 %, margin 3 → 6 %; sandbags HELD at
+  33 % of yield with the tip at 2.4 % of semispan at limit load (the steel row's 0.7 — the
+  trade-off, visible); flies its circuit. The stock on the row: 276 kg against 333, 62
+  substeps against 76. The shelf's 'chinook' row and the card regenerated on it.

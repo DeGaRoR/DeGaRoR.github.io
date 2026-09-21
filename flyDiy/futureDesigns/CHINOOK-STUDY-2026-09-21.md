@@ -56,15 +56,16 @@ stay; the registration C-ICHK.
 
 ## 3. What is still off, and whose it is
 
-- **Empty +29 % (269 vs 209 kg).** Wings 59 kg (a Chinook's 6061-tube and
-  Dacron wing ~35), bracing 23 (~8), tail 19 (~9), gear 24 (~15): the
-  `tubeFabric` and `fabric` rows are 4130 steel tube and wood-spar wings
-  calibrated on the J-3 at 550 kg; there is no ALUMINIUM-TUBE row. The
-  honest fix is a material (GEN_MATERIALS + GEN_SURF_MATERIALS + the build
-  grammar + CAGE_MATS), the ultralight item — not this build's dials.
-- **The margin 3 %.** The model's excess aft mass (tail, boom, bracing)
-  dilutes the pilot's lever; with the real weights the same geometry reads
-  ~10 %. Same item.
+- **Empty — DONE (G466): the aluminium-tube row.** On the `tubeFabric` +
+  `fabric` rows (4130 steel tube and wood-spar wings at the J-3's gauge) the
+  Chinook weighed 269 kg: wings 59, bracing 23, tail 19, gear 24. On
+  `aluTube` / `aluFabric` (GEN_MATERIALS: 6061-T6, E 68.9 GPa, yield 276
+  MPa, bolted tube under undoped Dacron at 0.20 kg/m², k and c at 0.6 / 0.7
+  of the steel row — the trade-off, see §4) it weighs **218 kg (+4 %)**:
+  wings 35, fuselage 23, gear 20, bracing 15 (the lift struts stay 4130 —
+  every airframe's strut class does), tail 13. CG 38 %, **margin 6 %**;
+  sandbags HELD at 33 % of yield with the tip at 2.4 % of semispan at limit
+  load (the steel row's 0.7 — an ultralight's wing visibly bends).
 - **Take-off 337 vs 61 m, ROC 3.1 vs 6.1.** The sheet's 200 ft and 1200 fpm
   are a solo ultralight's at full power; at 476 kg with the model's weight
   and its 582 row (Tstatic 1168 N on a 1.68 m IVO where the real 68 in
@@ -79,3 +80,24 @@ stay; the registration C-ICHK.
 - The tank reads "runs out of the body / 14 corners past the bay" on the
   bench: the pod's aft end is narrow and the `cabin` bay ends at the pod's
   rear ring; the tank sits where a Chinook's does.
+
+## 4. The aluminium-tube row (G466, the user: "it also needs to have appropriate
+## mechanical characteristics ... there needs to be a trade-off in stiffness")
+
+`GEN_MATERIALS.aluTube` and the surface row `GEN_SURF_MATERIALS.aluFabric`,
+the fifth stop of every construction dial (`intCons` 4, `wgCons` / `stCons`
+/ `finCons` 5, the design flow's "Aluminium tube" tile, the join's
+vocabulary, the hangar's tube shop). What each number is:
+
+| | value | why |
+|---|---|---|
+| E, ρ, σy | 68.9 GPa, 2700, 276 MPa | 6061-T6; its elastic strain limit 0.40 % against 4130's 0.22 — the load test reads yield off `phys` |
+| lin fus / wing / gear | 0.42 / 0.40 / 0.75 kg/m | a 1.75 × 0.058 in tube is 0.82 kg/m, heavier than the ⅞ × 0.035 4130's 0.58, and the aeroplane is lighter because a bolted pod has half the members; the lattice's count is the frame's, so the per-metre carries it (a Chinook pod + boom ~22 kg, its wing structure ~24) |
+| cover | 0.20 kg/m² | 3.9 oz Dacron with tapes and stitching, undoped |
+| k / c | 0.6 / 0.7 × the steel row | E·A on the tubes actually used comes out near steel's (the fat tube buys the soft metal back), the bolted joints, tang brackets and missing diagonals give a third of it back; c by √(k m) at the lighter mass |
+| refMass / refGross | 400 / 476 | the row is an ultralight's — a two-seater on a 582 |
+| cdWet, cd0 | the doped-fabric figures | sailcloth sags between ribs and the tubes stand proud |
+
+Measured: the stock aeroplane on the row weighs 276 kg against the steel
+row's 333 and runs 62 integrator substeps against 76 (softer members,
+lighter nodes); GATE FLEX sweeps the row's cantilever with the others.

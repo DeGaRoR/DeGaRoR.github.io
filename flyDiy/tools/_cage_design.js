@@ -912,6 +912,10 @@ const DESIGN_ROWS = [
         writes: { cage: { intCons: 2 } } },
       { value: 3, label: 'Aluminium', icon: ICON.conAlu,
         writes: { cage: { intCons: 3 } } },
+      // G466: the ultralight's construction — bolted 6061 tube under a Dacron
+      // sail (GEN_MATERIALS.aluTube; the Chinook's)
+      { value: 4, label: 'Aluminium tube', icon: ICON.conTube,
+        writes: { cage: { intCons: 4 } } },
     ] },
 
   { key: 'boomStyle', label: 'Fuselage style', kind: 'discriminator',
@@ -2260,8 +2264,8 @@ function designBake(sel, over) {
   // The MW5-alike's sailcloth on tubes was billed as a ply D-box (0.80
   // kg/m2 against 0.42) until the card could say `steel`.
   if (Math.round(+full.wgCons || 0) > 0)
-    wing.material = ['carbon', 'steel', 'fabric', 'alloy'][
-      Math.min(3, Math.round(+full.wgCons) - 1)];
+    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][   // G466: the fifth stop
+      Math.min(4, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' };
   if (+full.w2On) {
@@ -2314,8 +2318,8 @@ function designBake(sel, over) {
   // fuselage's material at all. The mappings are the join's own, verbatim
   // (_cage_join.js fus.material / spec.gear.fairing..twLegFair); the join
   // rewrites them on the very next build in the app.
-  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][
-    Math.max(0, Math.min(3, Math.round(+full.intCons || 0)))] } });
+  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'][
+    Math.max(0, Math.min(4, Math.round(+full.intCons || 0)))] } });
   if (full.canopy != null)
     designMerge(out, { cabin: { canopy: { style: Math.round(+full.canopy) === 3 ? 'bubble' : 'screen' } } });
   designMerge(out, { gear: {

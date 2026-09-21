@@ -48,7 +48,7 @@ const REALITY = [
   '                                                      ~2-4 %  at 3.8 g limit load',
   '  glass sailplane (the bendiest certified thing)      ~4-6 %  at 1 g',
   '  GA wing torsional twist, root to tip, full aileron  ~1-2 deg',
-  '  elastic strain limits: 4130 0.22 %  2024-T3 0.47 %  spruce 0.36 %  carbon 1.1 %',
+  '  elastic strain limits: 4130 0.22 %  2024-T3 0.47 %  spruce 0.36 %  carbon 1.1 %  6061-T6 0.40 %',
 ];
 
 // ---------------------------------------------------------------------------

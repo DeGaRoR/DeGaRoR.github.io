@@ -66,8 +66,8 @@ const GROUP = ['8b · tail — stab & elevator', [
   // of the two off the section it is dressing. Mass/price follow since
   // G116, stiffness/damping since G117 (`tail.stabMaterial`; a V-tail
   // takes this one — it IS the stab).
-  ['stCons', 'construction',     0, 4, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
+  ['stCons', 'construction',     0, 5, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    { when: P => +P.stOn }],
   ['position', [
     ['stMount', 'root sits', 0, 3, 1,
