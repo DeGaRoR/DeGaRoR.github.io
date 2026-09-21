@@ -4,7 +4,7 @@ Playing on the legacy map, with flydiy-build (4).json (included in the bugreport
 - In interior view, there should be a way to access and exit mouse-as-haed rotation, because once I enter, I cannot click anything on the UI anymore
 - We may want to replace the spinning blade at high speed with a blurred flat image spinning, MSFS style
 - The airspeed needle crosses through the dial
-- the numbers and writings ar eqite blurred and difficult to read, does not feel HD
+- the numbers and writings of the instruments are qite blurred and difficult to read, does not feel HD
 - For a flight sim, we should be 98% looking at impostors. The full LOD levels should only kick in real close. I keep thinking than LOD0 straight to impostor may be the way to go, with lod0 at 20 meters or so. We need finer controls
 - The clouds look good, but we can see quite blocky shapes still. In particular, we can see clear bands in the sky. They just look not chopped off enough
 - The loading screens are confusing, mentioning the garage after "roll out untested"
@@ -89,8 +89,101 @@ Making the cessna 172
 - The cowl should be able to ease through its length, separately at the top and bottom
 - The last certification remains stuck on crosswinds. Don't really need that, it's a circuit it wants ot fly
 - The yoke renders too much into the panel, and does not show at all in the garage
-- Lots of hinges are egenrated in flight on the cessna
+- Lots of hinges are generated in flight on the cessna. Frankly more than required Screenshot 2026-09-18 191521.png some stick out Screenshot 2026-09-18 193659.png
 - We should run the comparison fiche against the reall 172 now that we have an ok model
 - We need to get rid of all the "rings" controls
 - The slider "Pillar window" seems to do nothing
 - The in-game livery mapping remains different than in garage
+- The painted gap on the cowl side is getting weird when deformed Its thickness becomes uneven, it looks bad Screenshot 2026-09-18 191443.png
+
+Giving the cessna some floats
+Frame rate with floats is dramatic
+Double floats are drawn in the garage on first swap
+The support structure is not frawn in game
+The cessna cannot go beyond 35 km/h, changin float size
+The floats are ot selectable in the garage
+We need macro controls length - height - width for the floats. And a global param (which I think beam is)
+We'll need a test for hydroplane, and some guidance in case of failure
+The plane starts right on top of a buoy, clipping into it. Not great
+Bigger floats, max 34 km/h. The plane does not sink at start anymore, which is good. The proportions seem to match what I have seen IRL though. 
+We need a framerate indicator, optional
+Trying much longer floats based on references - they get me to 40 kph - attaching the json of the cessna
+The nose cone is ot well perepndicular to the rotation direction
+It feels like our drag model is not really accurate. If the cessna 172 is accurate, then it should take off with floats from the basic configuration.
+The same plane in tricylce ocnfig gives much, much better framerate
+If going straight in the float menu and ticking floats, it adds to the wheel and seems like an invalid configuration
+Trying with an O-540 engine. The result is actually similar, 44 kph max, doe snot even seem to depend on engine power
+Issue with the balance between lift and drag?
+The new inspection traps at the bottom of the doors appears pixelated Screenshot 2026-09-18 191558.png
+We need more detailled floats modeling. The overall shape is OK, I notice real ones are also angled on top, presenting the largest face to water. Then all the panel, seams, bolts and screw details. It needs to be able receiving liveries too. We will base our floats our of the Wipaire product range Screenshot 2026-09-18 192032.png Screenshot 2026-09-18 192057.png Screenshot 2026-09-18 192259.png
+Bigger floats gove better results. Take off! - I attach the new successful build cessnaFloatsWOrks.json
+The pilot camera is set to the back passenger seat, and refuses to move further fore
+The water runway needs a pier and proper patterns, inclufing glideslope
+We need an automated advice on floats sizing
+The autopilot goes on abort for go around for seemingly no reason. It's also not using flaps. It ended up giving up on a nice glideslope at 30 m altitude. I think it just goes down too quick and lands too short.
+The autopilot also tries taking off too early, leading to a rebound. It needs to shoot for 1.2*Vs I think, on the water
+It could be cool to represent a slittle logistical cart with little wheel below the full seaplanes in the hangar, for immersion.
+Using the explode option had moved the height of the wings, strange
+Let's have the ability to draw windows on the taper section too
+Wuold it be possible to manipulmate each corner of the windows individually, so we can create triangular windows and lots of strange shapes?Can remain a base quad geometry, rounded corners for now.
+It would be good to be able to have several "layers" of custom windows, that can be individually controlled, in shape and placement
+Turning light on at night gives me severely overexposed interior Screenshot 2026-09-18 195801.png 
+There are white bands on the horizon at noght Screenshot 2026-09-18 200031.png
+When starting at night, all lights should be turned on by default
+When the plane renders on top of the clouds, there is a thin 1 pixel line that still shows the sky behing the cloud right around the plane's silhouette
+The lights should probably come with their socket mesh also being given an emmissive material, like we did for the hangar's hanging lamps. 
+Even when the plane is static, the framerate on water is dramatic
+
+switching back from floats to tricycle, the hands of my pilots are wrongly placed and the aft bulkehead is not drawn anymore, despite the option being on cessnaMetal (1).json
+
+For the hangar, the runway material does not seem to shade correctly. It is still visible at night without lighting. That is also the case for all yellow lines on the bground
+
+
+Doing a small pusher, birdman style
+There should be a way to angle the engine at its mount
+We should have strut-mounted ogival fuel tanks
+the individual settings of the parts should take precedence over the overal color
+The rod inclination impacts the position of everything related to tail wheel
+Fuel wing option clips everywhere - mesh should be fitted
+The crew should also have the seating options, how many passengers
+The wing loading test freezes the interface for much too long without feedback
+The nose joint should have a hide option, because it does not make sense with aero nose, collapsed at tip
+The nose collapse should be split between collapse horizontal and collapse vertical
+The pushers are giving thrust in the wrong direction. That's a major issue. Priority. birdman.json build in the bugreport folder
+The ability to angle the cabin'roof and passenger bays is also super important. Being able to set the height of the passenger pillar independently should suffice, then a linear profile up to the pilot pillar, and the ability to define the height of the window pillar and pilot pillar independently too, so the cabin and px sextions can have a real profile
+I woould also want to set waist width per pillar
+Maybe options for glass or polycarbonate glazing? Impacts th wright, possibly the graphics
+the birdman seems to have its stabilisers inclined at rest, so maybe we should have the incidence option for it too
+We need a full pillar chantier. Window pillar, pilot pillar (or cabin pillar, same thing), and passenger pillar should all have width and height options, separately for the keel, waist and top sections
+We'll need presets for the floats, and we could take it from the range of Wipaire
+We'll need to streamline the addition of a "bottom fin". Might be something seaplanes add? Screenshot 2026-09-19 125639.png Screenshot 2026-09-19 125912.png
+The test flight is too long, and not cinematic enough. I think we should do the 3 first ones, and award the global one after the first actual, successful flight
+During the wing loading test, the plane should be put further up, so the wings do not touch the ground when under deformation
+The crosswinf test should be separate and offer better feedback
+
+Switching to field shed from club hangar gives over exposure Screenshot 2026-09-19 003140.png. Even after reloading the page, same issue
+In the shed, big issues when clicking on lights. A lot of settings alternate, that seems quite broken and to re inspect
+
+Mapping issue on the center section, back and belly. Stretched rivets? Screenshot 2026-09-19 162154.png 
+the flight orbit camera should not be restricted to the "upper dome". I can't see the belly of the plane because of ratation restrictions
+The tail fin has never been mapped right. Maybe projection rather then relying on topology? Screenshot 2026-09-19 162359.png
+Loads of oscillation when braking and accelerating. The suspension seems to wiggle quite a bit
+
+Performance starts being a little bad, I'd need a performance profiling to identify the easy culprits, and recommendations on optimization options
+
+Decision on trees: the impostors need re-baking, and this process should be streamlined, possibly by productizing the bench. LOD 1 and LOD 2 are useless. Perception says laggy when a lot of HD trees are loaded. SO I think we use impostors everywhere, then transiotion straight to LOD0, the full model, at extremely close range, basically if the plane is about hitting the tree, or parked alongside it. We keep the forest variation though (crowne only). We don't delete LOD1 and 2, we just ignore them for now.
+
+We also need to decide on the grass. The bench has 3 models. I need to know the most perfromance friendly one at similarly visual densities. Try and find similar density profiles and grass sizes, screenshot, and I'll judge, but have all your metrics ready. And is this still the right approach?
+We'll apply the same stragetgy with the new bushes, and the swamp profiles. Full model extremely close, impostors everywhere otherwise.
+
+We need to start on alpha spaltting and finally gather all the resource intensive techniques so we can start optimising holistically.
+I need an exhaustive list of our terrain types to constitute the material library, as defined in the jolene bench
+
+We need a proper way to load Jolene or the procedural world, with proper UI
+
+Systems still to be tested:
+Turboprops
+double pusher (wait on simple pusher to work)
+rotary engines
+World editor
+
