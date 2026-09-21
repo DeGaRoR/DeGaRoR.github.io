@@ -16093,12 +16093,25 @@ function makeSim(def, world) {
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
+      // force is turned about the lateral axis, forward-and-down at the
+      // front of the engine, so a high pusher's line of action passes
+      // nearer the CG. Zero on every def that says nothing — to the bit.
+      const TL = P_.engTilt;
       for (let j = 0; j < def.refs.engine.length; j++) {
         const e = def.refs.engine[j], k = EO[j] < nE ? EO[j] : 0;
         const per = Ti[k] / Math.max(1, cnt[k]);
-        f[e*3]   -= per * xAft[0];
-        f[e*3+1] -= per * xAft[1];
-        f[e*3+2] -= per * xAft[2];
+        const tl = TL ? (TL[k] || 0) : 0;
+        if (tl) {
+          const cs = Math.cos(tl), sn = Math.sin(tl);
+          f[e*3]   -= per * (cs * xAft[0] + sn * yUp[0]);
+          f[e*3+1] -= per * (cs * xAft[1] + sn * yUp[1]);
+          f[e*3+2] -= per * (cs * xAft[2] + sn * yUp[2]);
+        } else {
+          f[e*3]   -= per * xAft[0];
+          f[e*3+1] -= per * xAft[1];
+          f[e*3+2] -= per * xAft[2];
+        }
       }
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
@@ -25462,6 +25475,21 @@ const GEN_SHAPES = {
 // drift away from the lift it belongs to.
 const GEN_FLAP_CREF = 0.20;   // chord fraction the dCl values are quoted at
 const GEN_FLAP_CM = -0.25;
+// THE TAKE-OFF SETTING (2026-09-21, the user: "for a game about STOL, our
+// rolling distances ... are always too high"). Every take-off flew and was
+// estimated flaps UP (`flaps.to` 0), against sheets whose short-field
+// figures are flown with the take-off notch: the 172R's POH ground roll is
+// at flaps 10 deg, an ultralight's at its flaperons' first stop. One fraction
+// of the travel for every row that has a flap - 10 deg of a 40 deg slotted
+// or plain flap, 9 of the Fowler's 35 - which is the setting the doctrine
+// gives (more lift than drag until ~15 deg; past it the drag wins the roll).
+// The pilot lowers it for the roll and raises it at 2 x hSafe (43_pilot);
+// genTORunAt integrates at it, so the plaque's roll is the roll the pilot
+// flies. Measured on the four validated builds at MTOW: 172 299 -> 264 m
+// (POH 288 at flaps 10), Jodel 198 -> 183, Chinook 142 -> 128; the Cub's
+// own roll is bound by its rotation floor, not its lift, so its notch costs
+// it 9 % in drag - a J-3 has no flap, and a build that gives it one pays.
+const GEN_FLAP_TO = 0.25;
 const GEN_FLAPS = {
   none:    { name: 'None',         dCl: 0,    cd: 0,     rate: 0.20 },
   plain:   { name: 'Plain flap',   dCl: 0.95, cd: 0.055, rate: 0.25 },
@@ -28109,6 +28137,13 @@ function clampSpec(spec) {
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
+    // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
+    // positive (the prop axis points down at the front). A high pusher's
+    // line of action runs above the CG and its thrust pitches the nose
+    // down; the Chinook's mount is inclined so the line passes nearer the
+    // CG. The solver turns each engine's thrust by it (62_gen_aero
+    // engTilt); the cage's `engTilt` dial draws the unit at the angle.
+    e.tilt = genClamp(+e.tilt || 0, -15, 15);
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
@@ -29823,6 +29858,18 @@ const GEN_BAYS = {
     serves: 'the second plane’s outboard spar bay',
     span: [0.55, 0.88], feed: 'pumped',
   },
+  // G477 (the Chinook's blueprint, the user: "it carries what I believe are
+  // reservoirs on its struts ... Strut-mounted tanks, ogival"): A POD ON EACH
+  // FRONT LIFT STRUT, one tank a side, the pair sharing the vessel's litres.
+  // `along` is the fraction up the strut from its foot on the body (0) to
+  // the wing (1); the pod is an ogive of revolution on the strut's own axis
+  // (form 'ogive', fineness 4). Billed on the strut's two end nodes by lever
+  // (61_gen_frame); needs a strutted wing — a cantilever offers nothing here.
+  strut: {
+    name: 'On the lift struts', on: 'strut',
+    serves: 'a pod on each front lift strut, the pair sharing the litres',
+    span: [0.25, 0.80], feed: 'pumped',
+  },
 };
 
 // THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
@@ -29837,6 +29884,16 @@ const GEN_BAY_WALL = 0.035;              // metres of structure and trim, per si
 function genBayResolve(S, key, ST) {
   const B = GEN_BAYS[key];
   if (!B) return null;
+  if (B.on === 'strut') {
+    // G477: only a strutted wing has a strut; the litres a pod pair can
+    // reasonably carry are a fraction of the wing's own (the strut is short
+    // and the pod must clear the ground and the wing)
+    const wk = S.wings && S.wings[0];
+    if (!wk || !(S.bracing && S.bracing.type === 'strut')) return null;
+    return { key, name: B.name, on: 'strut', feed: B.feed, free: !!B.free,
+             serves: B.serves, span: B.span.slice(), litres: 80,
+             zFrac: 0.5 * (B.span[0] + B.span[1]) };
+  }
   if (B.on === 'wing') {
     // G185: a bay on the second plane measures the second plane
     const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
@@ -32218,7 +32275,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
     let pair;
-    if (BAY.on === 'wing') {
+    if (BAY.on === 'strut') {
+      // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared
+      // by the pair, each pod's kilos on its strut's two end nodes by lever
+      // (`along` 0 at the foot on the body, 1 at the wing); a wing with no
+      // strut sends the pod to the strut station's spar pair instead
+      const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
+      const L2 = wf.L, R2 = wf.R;
+      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
+                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+    } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
       const frac = v.along != null ? v.along
@@ -33801,7 +33868,7 @@ function genParams(S, fr, strips) {
   if (FL.dCl > 0) {
     const kc = genFlapTau(FREF.chord) / genFlapTau(GEN_FLAP_CREF);
     const dCl0 = FL.dCl * kc;
-    flaps = { to: 0, ldg: 1, rate: FL.rate, dCl0,
+    flaps = { to: GEN_FLAP_TO, ldg: 1, rate: FL.rate, dCl0,
               dCd0: FL.cd * kc, dAStall: 0.02, dCm0: GEN_FLAP_CM * dCl0 };
   }
   const P0 = { polarWing, polarTail, elevTau, ailTau };
@@ -33825,6 +33892,7 @@ function genParams(S, fr, strips) {
     // is a real aeroplane in this spec and the day `engines` has two entries
     // this must already be right.
     nEngines: S.engines.length,
+    engTilt: S.engines.map(e => (+e.tilt || 0) * Math.PI / 180),   // G477: downthrust +, per engine
     // G194: per engine, the hand and the side (the viewer spins each prop by
     // its own lever and sense; the solver reads only the count)
     engines: (S.engAt || []).map(e => ({ sense: e.sense || 1, side: e.side || 0 })),
@@ -35586,6 +35654,11 @@ function genTORunAt(sim, def, W) {
   // copy here. Cleared at every exit below, so nothing else this sim measures
   // (Vs, the cruise trim, the climb gradient) sees it.
   if (sim.setGroundRef) sim.setGroundRef(0);
+  // ...AND WITH THE TAKE-OFF NOTCH DOWN (GEN_FLAP_TO): the roll is integrated
+  // in the configuration the pilot flies it in, and put back as it was found
+  // at every exit, like the ground reference.
+  const FS_ = def.params.flaps, flap0 = sim.ctl.flap;
+  if (FS_) sim.ctl.flap = FS_.to ?? 0;
   // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
   // twice over: less thrust to accelerate on, and further to accelerate to.
   let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
@@ -35635,6 +35708,7 @@ function genTORunAt(sim, def, W) {
   // moving the propeller moved one onto it (151 + 72 = 224). Round once, then
   // sum, so the row on the plaque is arithmetic the player can check.
   if (sim.setGroundRef) sim.setGroundRef(null);
+  sim.ctl.flap = flap0;
   const rollM = Math.round(sRoll), airM = Math.round(air);
   return { TORun: rollM + airM, Vun, sRoll: rollM, air: airM };
 }
@@ -36798,41 +36872,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a4e5cd7d720c';window.FLYDIY_BUILD='d9f1987e2ee6'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='455a312a5076';window.FLYDIY_BUILD='4e4c804f6278'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -37590,7 +37664,7 @@ const CAGE_PARTS = [
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
       ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
-                  'engBlockZ', 'engBlockY', 'engPower', 'engPreset', 'engY']],
+                  'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
       // and rides in the trunk; the rest of the mount follows it here, before any
@@ -43487,7 +43561,7 @@ window.CAGE_PAGE = {
     // join (futureDesigns/CHINOOK-STUDY-2026-09-21.md; builds/chinook_2026-09-21_
     // corrected.json is the file this row was imported from, verbatim).
     "chinook": {
-      _base: "template", planeScale: 0.745, paxCount: 1, paxLen: 0.8,
+      _base: "template", planeScale: 0.745, paxCount: 1, paxLen: 0.7,
       pilotLen: 0.42, boomLen: 3.3, tailLen: 0.169815, cabPillarW: 0.115,
       paxPillarW: 0.11, pillarW: 0.1, leanPaxDeg: 0, leanCabDeg: 0,
       leanPivot: "floor", halfW: 0.48, roofHalfW: 0.195, roofY: 0.815,
@@ -43505,8 +43579,8 @@ window.CAGE_PAGE = {
       cowlLoops: 2, cowlEase: 0.62, cowlBulge: 1.06, noseFinish: 1, aeroNose: 0,
       aeroWsLen: 0.9, aeroLen: 1.5, aeroDroop: 0.3, aeroTipW: 0.1,
       aeroTipH: 0.12, rearAperture: 0, boomMidOn: 1, boomMidT: 0.38,
-      boomMidPinch: 0.86, taperOn: 1, taperLen: 0.55, taperW: 0.78,
-      taperPanels: 1, boomStyle: 1, rodY: -0.415, rodD: 0.12, rodIncl: 0,
+      boomMidPinch: 0.86, taperOn: 1, taperLen: 0.25, taperW: 0.78,
+      taperPanels: 1, boomStyle: 1, rodY: -0.415, rodD: 0.12, rodIncl: 6,
       boomTwin: 0, boomX: 1.2, boomWf: 0.16, boomHf: 0.24, boomWa: 0.112,
       boomHa: 0.168, boomSquare: 0, boomIncl: 0, boomCollar: 0.5, boomDy: 0,
       boomDz: 0, boomNoseLen: 0.35, boomNoseK: 0.7, boomNoseCap: 2,
@@ -43602,7 +43676,7 @@ window.CAGE_PAGE = {
       bpInterZ: 0, bpWires: 1, bpWireD: 5, wingOn: 1, wgSpan: 9.75,
       wgChord: 1.47, wgChordTip: 1.47, wgTipX: 0, wgCrankChord: 1.47,
       wgCrankX: 0, wgDihedral: 3, wgIncidence: 1.5, wgWashout: 1.5, wgCamber: 2,
-      wgThick: 12, wgTip: 1, wgPos: 0, wgCentre: 2, wgCentreW: 0.35, wgBrace: 0,
+      wgThick: 12, wgTip: 1, wgPos: 0, wgCentre: 3, wgCentreW: 1.9, wgBrace: 0,
       wgCrankAt: 0, wgDihedralOut: 6, wgPanels: 3, wgDx: -0.2, wgDy: -0.06,
       wgParaH: 0.45, wgStrutZ: 0, wgStrutX: 0, wgFlapType: 3, wgFlapSpan: 0.5,
       wgFlapChord: 0.2, wgAilOn: 1, wgAilSpan: 0.38, wgAilChord: 0.22, wgCons: 0,
@@ -43613,16 +43687,16 @@ window.CAGE_PAGE = {
       w2Panels: 3, w2Cons: 0, w2FlapType: 0, w2FlapSpan: 0.5, w2FlapChord: 0.2,
       w2AilOn: 1, w2AilSpan: 0.38, w2AilChord: 0.22, engOn: 1, engPreset: 9,
       engPower: 0, engDetail: 0.8, eng_screws: 1, engY: 0.355, propOn: 1,
-      engMount: 1, engNacAt: 0.35, engPylonH: 0.3, engBlockZ: 0.75, engBlockY: 0,
-      engAim: 0, engRotate: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05,
-      eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0,
-      eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 6500,
-      eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1,
-      eng_liquid: 1, eng_geared: 1, eng_arch: 1, eng_cyl: 1, eng_radialRows: 1,
-      eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.076, eng_stroke: 0.064,
-      eng_stagger: 0.5, eng_twoStroke: 1, eng_blower: 0, eng_boost: 1,
-      eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8,
-      eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24,
+      engMount: 1, engNacAt: 0.35, engPylonH: 0.3, engBlockZ: 0.35,
+      engBlockY: 0.4, engAim: 0, engTilt: 0, engRotate: 0, eng_tStyle: 0,
+      eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26,
+      eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278,
+      eng_canL: 0.026, eng_rpm: 6500, eng_volts: 11.1, eng_eFins: 0,
+      eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 1, eng_geared: 1,
+      eng_arch: 1, eng_cyl: 1, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60,
+      eng_bore: 0.076, eng_stroke: 0.064, eng_stagger: 0.5, eng_twoStroke: 1,
+      eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34,
+      eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24,
       eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0,
       eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0,
       eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 3,
@@ -44476,11 +44550,11 @@ window.CAGE_PAGE = {
           crankX: null,
           tipX: 0,
           cuts: [1, 1.34],
-          centre: "open",
-          centreW: 0.35,
+          centre: "cutout",
+          centreW: 1.9,
           cabaneH: null,
           xLE: 0.9330999999999995,
-          yRoot: 1.0920262226563353,
+          yRoot: 1.0920513574197308,
           place: {
             dx: 0,
             dy: 0 } }],
@@ -44499,33 +44573,33 @@ window.CAGE_PAGE = {
           span: 0.38,
           chord: 0.22 },
         elevator: {
-          chord: 0.37488825701678713 },
+          chord: 0.3748882570167869 },
         rudder: {
-          chord: 0.43362965079693394 } },
+          chord: 0.42084992133587495 } },
       engines: [{
           type: "rotax582_ivo",
           mount: "pusher",
           place: {
             dx: 0,
             dy: 0 },
-          x: 1.7358078703703756,
-          y: 1.0039702430005506,
+          x: 2.0613078703703716,
+          y: 1.403995377763946,
           z: 0,
           sense: 1 }],
       fuselage: {
         material: "aluTube",
         shape: "straight",
         covering: "open",
-        tailArm: 4.596412174999999,
+        tailArm: 4.521912174999999,
         postGap: 0.67,
         tailBays: 4,
-        tailW: 0.1,
-        tailBot: 0.2,
-        tailTop: 0.38,
+        tailW: 0.04478801538872068,
+        tailBot: 0.4473359920651644,
+        tailTop: 0.5369267340123522,
         boom: "rod",
         profile: null,
         tailY: 0,
-        cowlDeck: 0.2801653211089666,
+        cowlDeck: 0.28018116354391487,
         windRun: 0.26,
         crownTop: 0.72,
         crownSide: 0.07 },
@@ -44558,9 +44632,9 @@ window.CAGE_PAGE = {
         glazing: "bubble",
         pilots: 1,
         pax: 0,
-        halfW: 0.27725543281030623,
-        h: 1.1420262226563354,
-        len: 0.7450000000000002,
+        halfW: 0.27725669248588014,
+        h: 1.1420513574197306,
+        len: 0.6705000000000002,
         noseGap: 1.2664999999999995,
         seatX: 0,
         seatY: 0.1,
@@ -44598,11 +44672,11 @@ window.CAGE_PAGE = {
         twFairTail: 1,
         fairMat: "glass",
         track: 1.6,
-        x: 1.058268305351846,
-        y: -0.2191284539741889,
+        x: 1.058268443143255,
+        y: -0.21910278880456324,
         wheelR: 0.2,
-        twX: 4.904412174999999,
-        twY: 0.0008808516827415458,
+        twX: 4.829912175,
+        twY: 0.2662849497125076,
         twR: 0.07,
         stiffness: 1,
         legDrop: null,
@@ -44649,16 +44723,13 @@ window.CAGE_PAGE = {
         hue: 0,
         tint: null,
         vessels: [{
-            bay: "cabin",
+            bay: "strut",
             capacity: 38,
-            along: 1.87,
-            lv: 0.3,
+            along: 0.5,
+            lv: null,
             rot: 0,
-            form: "box",
-            dims: {
-              L: 0.24,
-              W: 0.42,
-              H: 0.38 },
+            form: "ogive",
+            dims: null,
             finish: null,
             hue: null,
             tint: null }] },
@@ -44685,28 +44756,28 @@ window.CAGE_PAGE = {
       tail: {
         type: "conventional",
         vAngle: 33,
-        Sh: 2.855189490161934,
-        Sv: 1.4088773590407981,
+        Sh: 2.8551894901619317,
+        Sv: 1.451660000974531,
         Svt: null,
         hSpan: 3.124329469203949,
-        hChord: 0.9138567229561134,
-        hX: 4.345661985296173,
-        hTaper: 0.5014912895158304,
+        hChord: 0.9138567229561126,
+        hX: 4.271161945331258,
+        hTaper: 0.5014912895158303,
         tip: "rounded",
         tipV: null,
         tipH: null,
-        vSweep: null,
-        stabH: 0,
+        vSweep: 0,
+        stabH: 0.052796259541614876,
         dorsal: {
           len: 0.34,
           height: 0.16,
           width: 0.55,
           angle: null,
           area: 0 },
-        vHeight: null,
-        vChord: null,
-        vX: null,
-        vTaper: 0.542163020737832,
+        vHeight: 1.641148377411558,
+        vChord: 0.8845391562121332,
+        vX: 4.170660066026611,
+        vTaper: 0.5368937338480295,
         place: {
           dx: 0 },
         boomX: null,
@@ -74241,7 +74312,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // move together); and which way a wing engine faces —
                    // 0 the mount's own (over the wing pushes, a pair pulls),
                    // 1 puller, 2 pusher
-                   engBlockZ: 0, engBlockY: 0, engAim: 0,
+                   engBlockZ: 0, engBlockY: 0, engAim: 0, engTilt: 0,
                    // THE HAND OF A PAIR (G194): 0 same hand, 1 counter-rotating
                    // tops inward (the Seneca arrangement: down-going blades
                    // inboard, no critical engine), 2 tops outward. The solver
@@ -74710,6 +74781,12 @@ const ENG_ITEMS = [
   // fore-aft on a pod is `eng_mountGap`, on a block `engBlockZ`.
   ['engY',      'up / down (thrust line)', -0.5, 0.5, 0.005,
    { when: P => +P.engOn, dim: 'm' }],
+  // G477 (the Chinook, the user: "it probably needs the ability to tilt the
+  // engine with regards to the frame"): the thrust line's TILT, degrees,
+  // downthrust positive — the unit turns about its lateral axis on the
+  // mount, the join writes engines[].tilt, the solver turns the force
+  ['engTilt',   'thrust line tilt (downthrust +)', -15, 15, 0.5,
+   { when: P => +P.engOn, dim: 'deg' }],
   ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],
   ['nose cone', grpItems('g_spin').concat([
@@ -75188,6 +75265,11 @@ PAGE.post = ctx => {
     // ON THE THRUSTLINE, BOLTED TO THE FACE — plus the mount's own up/down
     // (G32). An aft unit's firewall plane lands on the face from behind.
     if (u.aft) ug.rotation.y = Math.PI;
+    // G477: the tilt — downthrust: the thrust line points down at the
+    // aeroplane's front. three.js composes the Euler as Rx·Ry, so the same
+    // +x rotation dips a nose unit's crank and raises an aft unit's (its y
+    // flip is applied first): one sign for both.
+    ug.rotation.x = (+P.engTilt || 0) * Math.PI / 180;
     ug.position.set((f.x || 0) + (u.aft ? -ax.x : ax.x),
                     f.yc + ax.y + (P.engY || 0),
                     u.aft ? f.z + zFw : f.z - zFw);
@@ -75225,14 +75307,82 @@ PAGE.post = ctx => {
         exhaustDir = [d.x, d.y, d.z];
       }
     }
+    // G477 (the Chinook, the user: "your engine clips a lot through the
+    // wing ... ensure your prop does not collide. Maybe even write a helper
+    // that colors the prop in case of detected collision, like the fuel
+    // tank"): THE PROPELLER'S CLEARANCE is measured by `propFitCheck` below,
+    // AFTER the whole layer chain (the wing's skin probes and the aft skin
+    // are built after this layer): the hub and the radius are kept here.
+    let propHub = null;
+    if (pg) { ug.updateMatrixWorld(true); const hv = new THREE.Vector3(); pg.getWorldPosition(hv); propHub = [hv.x, hv.y, hv.z]; }
     unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir,
-                   at: [ug.position.x, ug.position.y, ug.position.z] });
+                   at: [ug.position.x, ug.position.y, ug.position.z],
+                   prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
+                   propFit: null });
   });
   scene.add(group);
   const exhaustAt = unitOut[0].exhaustAt;
+  // G477: THE PROPELLER'S CLEARANCE, like the fuel tank's fit. The disc is
+  // sampled — four radii out to the tip, every 15 degrees, a blade's chord
+  // fore and aft — and each point asked of the wing's own skin probes
+  // (CAGE_WING.overAt / underAt, the tank layer's) and of the aft skin
+  // (CAGE_GEAR.AF: the pod and the rod are one surface). A point inside
+  // either is a hit: the blades go the tank's red, the unit carries
+  // `propFit`, the join says it (and the status line). Runs after the
+  // chain: the engine layer is built before the wing and the gear, so the
+  // post schedules it as a microtask and the join calls it outright.
+  const propFitCheck = () => {
+    const W = window.CAGE_WING, AF = window.CAGE_GEAR && window.CAGE_GEAR.AF;
+    const inWing = (x, y, z) => {
+      if (!W || !W.overAt || !W.underAt) return false;
+      const o = W.overAt(x, z), un = W.underAt(x, z);
+      return !!(o && un && o.y - un.y > 0.005 && y > un.y - 0.02 && y < o.y + 0.02);
+    };
+    const inBody = (x, y, z) => {
+      if (!AF || !AF.surf) return false;
+      let lo, hi;
+      try { lo = AF.surf(z, 0); hi = AF.surf(z, Math.PI); } catch (e) { return false; }
+      if (!lo || !hi || !isFinite(lo[1]) || !isFinite(hi[1]) || hi[1] <= lo[1] + 0.01) return false;
+      const yc = 0.5 * (lo[1] + hi[1]);
+      const ang = Math.atan2(y - yc, x);
+      let s; try { s = AF.surf(z, ang + Math.PI / 2); } catch (e) { return false; }
+      if (!s) return false;
+      const rP = Math.hypot(x, y - yc), rS = Math.hypot(s[0], s[1] - yc);
+      return rP < rS - 0.02;
+    };
+    for (const u of unitOut) {
+      if (!u.prop) { u.propFit = null; continue; }
+      const [hx, hy, hz] = u.prop.hub, R = u.prop.R;
+      let wingHits = 0, bodyHits = 0, n = 0;
+      for (const k of [0.35, 0.6, 0.8, 1.0]) for (let j = 0; j < 24; j++) for (const dz of [-0.06, 0, 0.06]) {
+        const th = j / 24 * Math.PI * 2;
+        const x = hx + R * k * Math.cos(th), y = hy + R * k * Math.sin(th), z = hz + dz;
+        n++;
+        if (inWing(x, y, z)) wingHits++;
+        // the body from 0.6 R out: the innermost ring sits inside the
+        // spinner and the cowl's nose on every tractor by construction (the
+        // stock Cub read 6 hits there, the 172 twelve, all at the hub)
+        else if (k >= 0.6 && inBody(x, y, z)) bodyHits++;
+      }
+      const why = [];
+      if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');
+      if (bodyHits) why.push('through the body (' + bodyHits + ' points)');
+      u.propFit = { ok: !why.length, why, R, hub: u.prop.hub, wingHits, bodyHits, n };
+      if (why.length) {
+        const bad = new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
+          emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.45 });
+        u.prop.group.traverse(o => { if (o.isMesh) o.material = bad; });
+      }
+      if (stat && why.length) stat.textContent += '  ·  PROP: ' + why.join(', ');
+    }
+    return unitOut.map(u => u.propFit);
+  };
+  if (typeof queueMicrotask === 'function') queueMicrotask(() => { try { propFitCheck(); } catch (e) {} });
 
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
+                      propFitCheck,                                // G477: the disc's clearance, per unit (the join calls it)
+                      get propFit() { return unitOut.map(u => u.propFit); },
                       mount: ['nose', 'pusher', 'wingTop', 'wing'][mountK] || 'nose',
                       units: unitOut,
                       spec, quads: M.stats && M.stats.quads };
@@ -77659,6 +77809,7 @@ PAGE.post = ctx => {
 
   let strutOn = false, strutNote = '';
   const SG = window.STRUT_GEN;
+  let STRUTS_OUT = [];             // G477
   if (SG && GG && AF && !WIRE && gs.liftstrut) {
     // the external wing beams, grouped BY THEIR ROOT — which is what
     // discovers that both struts of a side share one fuselage fitting
@@ -77705,6 +77856,7 @@ PAGE.post = ctx => {
       const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
       let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0, onFrame = 0;
       const strutMembers = [];         // G179.2: each member's pin and tip
+      STRUTS_OUT = strutMembers;       // G477: the tank layer's strut pods read them
       for (const [root, tips] of byRoot) {
         const rp = N2[root].p;
         const site = SG.strutSite(AF, nodeCageBody([rp[0] + sx, rp[1], rp[2]]),
@@ -78070,6 +78222,7 @@ PAGE.post = ctx => {
                  })() : null });
   }
   window.CAGE_WING = { surfs,
+                       struts: STRUTS_OUT,   // G477: the drawn lift struts, {pin, tip} in cage metres
                        def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
                        underAt, overAt, leAt, teAt, box: wbox,
@@ -84705,7 +84858,9 @@ const SHAPES = {
 //     V / (8 ex ey ez) = pi (2 zc + 4a/3) / (8 (zc + a)) = pi * 1.8 / 8 = 0.707
 // against the box row's declared 0.90: 0.707 / 0.90 = 0.785. The BOX factor is
 // exactly 1, so nothing that existed before this row changed by a gram.
-const FORM_FILL = { box: 1.00, cyl: 0.78 };
+// G477: the ogive pod (a spindle of revolution, r = R (1 - (2u - 1)^2)^0.65)
+// fills 0.55 of its L x D x D box — integrated, not guessed (0.70 of pi/4)
+const FORM_FILL = { box: 1.00, cyl: 0.78, ogive: 0.55 };
 const formFill = (sh, form) => sh.fill * (FORM_FILL[form] || 1);
 
 // the box a vessel of `installedL` litres needs, in metres — or the box the
@@ -84714,6 +84869,17 @@ const formFill = (sh, form) => sh.fill * (FORM_FILL[form] || 1);
 // capacity is calculated", so a drawn box wins and its litres follow it
 function vesselDims(vesselKey, installedL, dims, form) {
   const sh = SHAPES[vesselKey] || SHAPES.alu;
+  // G477: an OGIVE pod — its own dims from the litres at fineness 4 (L = 4 D),
+  // the drawn one's litres from its dims: V = 0.55 D^2 L (the player's D and
+  // L are the box's W/H and L)
+  if (form === 'ogive') {
+    const fill = formFill(sh, 'ogive');
+    if (dims && dims.L > 0 && dims.W > 0)
+      return { L: +dims.L, W: +dims.W, H: +dims.W, form: 'ogive', fill, own: true };
+    const V = Math.max(0.002, installedL / 1000);        // m3 the pod must hold
+    const D = Math.cbrt(V / (0.55 * 4)), L = 4 * D;
+    return { L, W: D, H: D, form: 'ogive', fill };
+  }
   const fill = formFill(sh, form);
   if (dims && dims.L > 0 && dims.W > 0 && dims.H > 0)
     return { L: +dims.L, W: +dims.W, H: +dims.H, form: sh.form, fill, own: true };
@@ -86197,7 +86363,7 @@ function fromSpec(energy) {
         along: v.along == null ? null : +v.along,
         lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
         // a round tank or a squared one — geometry, and the capacity follows
-        form: v.form === 'cyl' ? 'cyl' : 'box',
+        form: v.form === 'cyl' ? 'cyl' : v.form === 'ogive' ? 'ogive' : 'box',
         // the player's own box, when they drew one
         dims: (v.dims && v.dims.L > 0) ? { L: +v.dims.L, W: +v.dims.W, H: +v.dims.H } : null,
         // ...AND ITS OWN LOOK (2026-09-05). null at any of the three means
@@ -86260,7 +86426,7 @@ const vesselKey = () => EN.vessel || (EN.kind === 'battery' ? 'packCase' : 'alu'
 // rides into the two capacity functions in _vessel_gen.js, which apply the
 // catalogue's own fill and then the form's — the box case is 1.0, so every
 // build that existed before this row weighs exactly what it weighed.
-const formOf = v => (v && v.form === 'cyl' ? 'cyl' : 'box');
+const formOf = v => (v && v.form === 'cyl' ? 'cyl' : v && v.form === 'ogive' ? 'ogive' : 'box');
 // installed litres of a drawn box -> the capacity unit the spec stores
 function capacityFromDims(dims, form) {
   const G = VG(), C = core();
@@ -86301,6 +86467,8 @@ function measureBays(S, ctx) {
   for (const k in C.BAYS) {
     const B = C.BAYS[k];
     if (B.on === 'wing' && !(S.wing && window.CAGE_WING)) continue;
+    // G477: a strut bay only where the wing layer drew lift struts
+    if (B.on === 'strut' && !(window.CAGE_WING && window.CAGE_WING.struts && window.CAGE_WING.struts.length)) continue;
     // G185: a bay on the second plane needs the second plane DRAWN
     if (B.on === 'wing' && B.plane && !(window.CAGE_WING.planes &&
                                         window.CAGE_WING.planes[B.plane])) continue;
@@ -86502,7 +86670,41 @@ function placeAll(ctx, inv) {
                                 v.capacity, vesselKey(), medium());
     let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
     let pl;
-    if (bay.on === 'wing') {
+    if (bay.on === 'strut') {
+      // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared by
+      // the pair, an ogive on the strut's own axis at `along` of its length
+      // (0 the foot on the body, 1 the wing). The FRONT strut of each side
+      // is the forward-most pin; the pod must clear the wing at its top and
+      // the body at its foot by a hand, and the litres are the pair's.
+      v.form = 'ogive';
+      if (v.dims) v.capacity = capacityFromDims(v.dims, 'ogive') * 2;
+      const resH = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
+                                   v.capacity / 2, vesselKey(), medium());
+      dims = G.vesselDims(vesselKey(), resH.installedL, v.dims, 'ogive');
+      const t0 = v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]);
+      if (v.along == null) { v.along = t0; wroteBack = true; }
+      const S2 = (W && W.struts) || [];
+      const bySide = { L: null, R: null };
+      for (const s of S2) {
+        const k = s.tip[0] < 0 ? 'L' : 'R';
+        if (!bySide[k] || s.pin[2] > bySide[k].pin[2]) bySide[k] = s;
+      }
+      const pods = [], why = [];
+      for (const k of ['L', 'R']) {
+        const s = bySide[k]; if (!s) continue;
+        const ax = [s.tip[0] - s.pin[0], s.tip[1] - s.pin[1], s.tip[2] - s.pin[2]];
+        const len = Math.hypot(ax[0], ax[1], ax[2]) || 1e-6;
+        const u = ax.map(q => q / len);
+        const c = [s.pin[0] + ax[0] * t0, s.pin[1] + ax[1] * t0, s.pin[2] + ax[2] * t0];
+        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: u, L: dims.L, D: dims.W, len, t: t0 });
+      }
+      if (!pods.length) why.push('no lift strut to hang it on');
+      for (const pd of pods) {
+        if (pd.t * pd.len - pd.L / 2 < 0.05) { why.push('into the body at the foot'); break; }
+        if ((1 - pd.t) * pd.len - pd.L / 2 < 0.05) { why.push('into the wing at the top'); break; }
+      }
+      pl = { on: 'strut', ok: !why.length, why, pods, along: t0 };
+    } else if (bay.on === 'wing') {
       const kp = bay.plane | 0, sl = sliceOf(kp), sm = semiOf(kp);
       // G445.2: THE DRAWN SKIN, top and bottom, at any (span, chord) - the
       // wing layer's own ray probes, the ones the gear and engine layers
@@ -87079,6 +87281,22 @@ function drawResults(group, ctx, results) {
       if (EN.kind !== 'battery' && VIEW.fill > 0.02)
         slotMesh(group, VM.contents(sol, VIEW.fill, 0.008), fuelMat(),
                  'edFuel_' + i, r.c, yaw);
+    } else if (r.on === 'strut' && r.pods && window.THREE) {
+      // G477: the ogive pod, a lathe on the strut's axis — r = R (1 - (2u-1)^2)^0.65
+      const T3 = window.THREE;
+      for (const pd of r.pods) {
+        const NP = 18, pts = [];
+        for (let k = 0; k <= NP; k++) {
+          const u = k / NP, s = 1 - (2 * u - 1) * (2 * u - 1);
+          pts.push(new T3.Vector2(Math.max(0.002, 0.5 * pd.D * Math.pow(Math.max(0, s), 0.65)), (u - 0.5) * pd.L));
+        }
+        const geo = new T3.LatheGeometry(pts, 28);
+        const m = new T3.Mesh(geo, wet ? matWet(bad) : slotMat('shell', bad, i, r.v));
+        m.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L');
+        m.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.axis[0], pd.axis[1], pd.axis[2]));
+        m.position.set(pd.c[0], pd.c[1], pd.c[2]);
+        group.add(m);
+      }
     } else if (r.on === 'wing' && r.sides && VM) {
       // THE WING TANK IS THE SIMPLE ONE, by the user's own ruling: a box in
       // the panel just outboard of the centre section, and that is all. It is
@@ -87858,7 +88076,7 @@ function renderPanel() {
 
     // ROUND OR SQUARED, and the litres follow. A wing tank is neither: it is
     // the box between the spars and the row is not offered there.
-    if (bay && bay.on !== 'wing')
+    if (bay && bay.on !== 'wing' && bay.on !== 'strut')
       select(box, 'shape', 'a squared shell with radiused corners, or a ' +
         'cylinder with domed ends. The drawn box is the same either way; a ' +
         'cylinder simply holds less of it, and the capacity says so',
@@ -87884,7 +88102,19 @@ function renderPanel() {
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
-    if (bay && bay.on !== 'wing') {
+    if (bay && bay.on === 'strut') {
+      // G477: the pod's own length and diameter; the litres (the pair's) follow
+      const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) || { L: 0.8, W: 0.2, H: 0.2 };
+      const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commit(); });
+      podRow('length', 'L', 0.3, 2.0, 'along the strut');
+      podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
+      range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
+        bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,
+        x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
+    }
+    if (bay && bay.on !== 'wing' && bay.on !== 'strut') {
       const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) ||
         { L: 0.5, W: 0.35, H: 0.25 };
       const sizeRow = (label, key, hi, title) => range(box, label, title, 0.08, hi, 0.01,
@@ -87900,7 +88130,9 @@ function renderPanel() {
       sizeRow('height', 'H', 1.0, 'up');
     }
 
-    if (bay && bay.on === 'wing') {
+    if (bay && bay.on === 'strut') {
+      // (the pod's rows are above)
+    } else if (bay && bay.on === 'wing') {
       // LABELS ARE THE TRUNK'S WORDS (G191, HANDOVER "LABEL CONVENTIONS"):
       // a row that is a fore/aft or an up/down says so, the domain word in
       // brackets where the plain word would be ambiguous
@@ -88071,6 +88303,8 @@ function syncReadouts() {
       bits.push((r.clear * 1000).toFixed(0) + ' mm to the skin');
     if (r.on === 'wing' && r.spanM != null)
       bits.push(r.spanM.toFixed(2) + ' m of span each side');
+    if (r.on === 'strut' && r.pods && r.pods.length)
+      bits.push('a ' + r.pods[0].L.toFixed(2) + ' x ' + r.pods[0].D.toFixed(2) + ' m pod each side');
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');
@@ -89344,6 +89578,7 @@ function cageJoinSpec(P, M, T) {
       const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
       const one = i => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
+        ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         // G445.1 (the C172 study): THE NOSE ENGINE IS WEIGHED WHERE IT IS
@@ -89581,7 +89816,10 @@ function cageJoinSpec(P, M, T) {
   if (M.tailW > 0) fus.tailW = M.tailW;
   if (typeof M.tailBot === 'number' && isFinite(M.tailBot))
     fus.tailBot = M.tailBot;
-  if (M.tailTop > 0) fus.tailTop = M.tailTop;
+  // (G477: a rod's tip can sit BELOW the keel datum — rodY −0.4 on the
+  // Chinook — so the top is written whenever it was measured, not only
+  // when it is positive)
+  if (typeof M.tailTop === 'number' && isFinite(M.tailTop)) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
@@ -90194,6 +90432,34 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;
         M.tailTop = AF.surf(zPost, Math.PI)[1] - yD;
+      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0) && Math.abs(+P.rodIncl || 0) > 0.05) {
+        // G477 (the playtest's 130, the user: "the rod inclination impacts
+        // the position of everything related to the tail wheel"): A ROD
+        // BOOM HAS A TAIL END TOO. With no tail rings the datum stayed the
+        // rule's — tailBot 0.20 / tailTop 0.38, level — while the drawn rod
+        // climbs tan(rodIncl) per metre to its tip, the stab and the
+        // tailwheel are drawn on that tip, and the join handed the frame the
+        // tailwheel's measured height alone: 0.36 m above a post that had
+        // not moved. The tip of the rod is the aft skin extreme (the rod is
+        // in CAGE_MATS): its section a hand inside the tip is the tail
+        // datum, inclination and all, and the stab's seat and the
+        // tailwheel's leg are measured against it like any lofted tail's.
+        // AN INCLINED ROD ONLY (the same evening): a LEVEL rod keeps the
+        // rule's datum. The floatplane card draws its level boom 0.65 m
+        // above the keel; on the measured datum its tail stood that much
+        // higher, its fin's drawn station was written for the first time
+        // (0.85 m forward of the rule's), and its crosswind water take-off
+        // swung 180 deg and aborted (GATE SEAPLANE). The card is one of the
+        // unvalidated ones and the drawn tail is the honest one - that
+        // fixture is owed a look before the level rod follows the drawing.
+        const zTipIn = AF.z0 + Math.min(0.05, 0.25 * Math.max(0.02, AF.z1 - AF.z0));
+        const bot = AF.surf(zTipIn, 0), top = AF.surf(zTipIn, Math.PI);
+        if (bot && top && isFinite(bot[1]) && isFinite(top[1]) && top[1] > bot[1]) {
+          M.tailW = AF.halfWAt(zTipIn);
+          M.tailBot = bot[1] - yD;
+          M.tailTop = top[1] - yD;
+          M.rodTailDatum = true;
+        }
       }
       if (fwOk && M.cabH > 0.5) {
         // the deck just FORWARD of the windscreen base, as a fraction of
@@ -90257,9 +90523,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
       {
         const CE = window.CAGE_ENG;
-        if (CE && Array.isArray(CE.units) && CE.units.length)
+        if (CE && Array.isArray(CE.units) && CE.units.length) {
           M.engUnits = CE.units.map(u =>
             ({ x: zFw - u.at[2], y: u.at[1] - yD, z: u.at[0] }));
+          // G477: the propeller's clearance, said where every other fit is
+          // (measured now, after every layer: the wing's skin and the aft
+          // skin are final here)
+          if (CE.propFitCheck) { try { CE.propFitCheck(); } catch (e) {} }
+          for (const u of CE.units) if (u.propFit && !u.propFit.ok)
+            ERRS.push('prop: ' + u.propFit.why.join(', '));
+        }
       }
       // G52: the PILLAR PROPORTIONS and the wing's station (user: "the
       // visual fit remains very approximate"). The cabin's x-extent is
@@ -90411,7 +90684,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           NOTES.push('fin: the drawing stopped a slider short — ' + FNm.clamped.join(', '));
         if (stabM && SBm.clamped && SBm.clamped.length)
           NOTES.push('stab: the drawing stopped a slider short — ' + SBm.clamped.join(', '));
-        const tailDatum = zPost != null &&
+        const tailDatum = (zPost != null || M.rodTailDatum) &&
           typeof M.tailTop === 'number' && typeof M.tailBot === 'number';
         if (fwOk && (finM || stabM)) {
           const zAftB = zCabA != null ? zCabA - 0.8
@@ -129971,35 +130244,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=f5bc6864"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=dcd314a7"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {

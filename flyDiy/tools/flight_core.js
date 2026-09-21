@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a4e5cd7d720cd724
+// body-sha256: 455a312a5076c6ab
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7902,12 +7902,25 @@ function makeSim(def, world) {
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
+      // force is turned about the lateral axis, forward-and-down at the
+      // front of the engine, so a high pusher's line of action passes
+      // nearer the CG. Zero on every def that says nothing — to the bit.
+      const TL = P_.engTilt;
       for (let j = 0; j < def.refs.engine.length; j++) {
         const e = def.refs.engine[j], k = EO[j] < nE ? EO[j] : 0;
         const per = Ti[k] / Math.max(1, cnt[k]);
-        f[e*3]   -= per * xAft[0];
-        f[e*3+1] -= per * xAft[1];
-        f[e*3+2] -= per * xAft[2];
+        const tl = TL ? (TL[k] || 0) : 0;
+        if (tl) {
+          const cs = Math.cos(tl), sn = Math.sin(tl);
+          f[e*3]   -= per * (cs * xAft[0] + sn * yUp[0]);
+          f[e*3+1] -= per * (cs * xAft[1] + sn * yUp[1]);
+          f[e*3+2] -= per * (cs * xAft[2] + sn * yUp[2]);
+        } else {
+          f[e*3]   -= per * xAft[0];
+          f[e*3+1] -= per * xAft[1];
+          f[e*3+2] -= per * xAft[2];
+        }
       }
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
@@ -17271,6 +17284,21 @@ const GEN_SHAPES = {
 // drift away from the lift it belongs to.
 const GEN_FLAP_CREF = 0.20;   // chord fraction the dCl values are quoted at
 const GEN_FLAP_CM = -0.25;
+// THE TAKE-OFF SETTING (2026-09-21, the user: "for a game about STOL, our
+// rolling distances ... are always too high"). Every take-off flew and was
+// estimated flaps UP (`flaps.to` 0), against sheets whose short-field
+// figures are flown with the take-off notch: the 172R's POH ground roll is
+// at flaps 10 deg, an ultralight's at its flaperons' first stop. One fraction
+// of the travel for every row that has a flap - 10 deg of a 40 deg slotted
+// or plain flap, 9 of the Fowler's 35 - which is the setting the doctrine
+// gives (more lift than drag until ~15 deg; past it the drag wins the roll).
+// The pilot lowers it for the roll and raises it at 2 x hSafe (43_pilot);
+// genTORunAt integrates at it, so the plaque's roll is the roll the pilot
+// flies. Measured on the four validated builds at MTOW: 172 299 -> 264 m
+// (POH 288 at flaps 10), Jodel 198 -> 183, Chinook 142 -> 128; the Cub's
+// own roll is bound by its rotation floor, not its lift, so its notch costs
+// it 9 % in drag - a J-3 has no flap, and a build that gives it one pays.
+const GEN_FLAP_TO = 0.25;
 const GEN_FLAPS = {
   none:    { name: 'None',         dCl: 0,    cd: 0,     rate: 0.20 },
   plain:   { name: 'Plain flap',   dCl: 0.95, cd: 0.055, rate: 0.25 },
@@ -19918,6 +19946,13 @@ function clampSpec(spec) {
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
+    // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
+    // positive (the prop axis points down at the front). A high pusher's
+    // line of action runs above the CG and its thrust pitches the nose
+    // down; the Chinook's mount is inclined so the line passes nearer the
+    // CG. The solver turns each engine's thrust by it (62_gen_aero
+    // engTilt); the cage's `engTilt` dial draws the unit at the angle.
+    e.tilt = genClamp(+e.tilt || 0, -15, 15);
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
@@ -21632,6 +21667,18 @@ const GEN_BAYS = {
     serves: 'the second plane’s outboard spar bay',
     span: [0.55, 0.88], feed: 'pumped',
   },
+  // G477 (the Chinook's blueprint, the user: "it carries what I believe are
+  // reservoirs on its struts ... Strut-mounted tanks, ogival"): A POD ON EACH
+  // FRONT LIFT STRUT, one tank a side, the pair sharing the vessel's litres.
+  // `along` is the fraction up the strut from its foot on the body (0) to
+  // the wing (1); the pod is an ogive of revolution on the strut's own axis
+  // (form 'ogive', fineness 4). Billed on the strut's two end nodes by lever
+  // (61_gen_frame); needs a strutted wing — a cantilever offers nothing here.
+  strut: {
+    name: 'On the lift struts', on: 'strut',
+    serves: 'a pod on each front lift strut, the pair sharing the litres',
+    span: [0.25, 0.80], feed: 'pumped',
+  },
 };
 
 // THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
@@ -21646,6 +21693,16 @@ const GEN_BAY_WALL = 0.035;              // metres of structure and trim, per si
 function genBayResolve(S, key, ST) {
   const B = GEN_BAYS[key];
   if (!B) return null;
+  if (B.on === 'strut') {
+    // G477: only a strutted wing has a strut; the litres a pod pair can
+    // reasonably carry are a fraction of the wing's own (the strut is short
+    // and the pod must clear the ground and the wing)
+    const wk = S.wings && S.wings[0];
+    if (!wk || !(S.bracing && S.bracing.type === 'strut')) return null;
+    return { key, name: B.name, on: 'strut', feed: B.feed, free: !!B.free,
+             serves: B.serves, span: B.span.slice(), litres: 80,
+             zFrac: 0.5 * (B.span[0] + B.span[1]) };
+  }
   if (B.on === 'wing') {
     // G185: a bay on the second plane measures the second plane
     const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
@@ -24027,7 +24084,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
     let pair;
-    if (BAY.on === 'wing') {
+    if (BAY.on === 'strut') {
+      // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared
+      // by the pair, each pod's kilos on its strut's two end nodes by lever
+      // (`along` 0 at the foot on the body, 1 at the wing); a wing with no
+      // strut sends the pod to the strut station's spar pair instead
+      const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
+      const L2 = wf.L, R2 = wf.R;
+      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
+                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+    } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
       const frac = v.along != null ? v.along
@@ -25610,7 +25677,7 @@ function genParams(S, fr, strips) {
   if (FL.dCl > 0) {
     const kc = genFlapTau(FREF.chord) / genFlapTau(GEN_FLAP_CREF);
     const dCl0 = FL.dCl * kc;
-    flaps = { to: 0, ldg: 1, rate: FL.rate, dCl0,
+    flaps = { to: GEN_FLAP_TO, ldg: 1, rate: FL.rate, dCl0,
               dCd0: FL.cd * kc, dAStall: 0.02, dCm0: GEN_FLAP_CM * dCl0 };
   }
   const P0 = { polarWing, polarTail, elevTau, ailTau };
@@ -25634,6 +25701,7 @@ function genParams(S, fr, strips) {
     // is a real aeroplane in this spec and the day `engines` has two entries
     // this must already be right.
     nEngines: S.engines.length,
+    engTilt: S.engines.map(e => (+e.tilt || 0) * Math.PI / 180),   // G477: downthrust +, per engine
     // G194: per engine, the hand and the side (the viewer spins each prop by
     // its own lever and sense; the solver reads only the count)
     engines: (S.engAt || []).map(e => ({ sense: e.sense || 1, side: e.side || 0 })),
@@ -27395,6 +27463,11 @@ function genTORunAt(sim, def, W) {
   // copy here. Cleared at every exit below, so nothing else this sim measures
   // (Vs, the cruise trim, the climb gradient) sees it.
   if (sim.setGroundRef) sim.setGroundRef(0);
+  // ...AND WITH THE TAKE-OFF NOTCH DOWN (GEN_FLAP_TO): the roll is integrated
+  // in the configuration the pilot flies it in, and put back as it was found
+  // at every exit, like the ground reference.
+  const FS_ = def.params.flaps, flap0 = sim.ctl.flap;
+  if (FS_) sim.ctl.flap = FS_.to ?? 0;
   // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
   // twice over: less thrust to accelerate on, and further to accelerate to.
   let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
@@ -27444,6 +27517,7 @@ function genTORunAt(sim, def, W) {
   // moving the propeller moved one onto it (151 + 72 = 224). Round once, then
   // sum, so the row on the plaque is arithmetic the player can check.
   if (sim.setGroundRef) sim.setGroundRef(null);
+  sim.ctl.flap = flap0;
   const rollM = Math.round(sRoll), airM = Math.round(air);
   return { TORun: rollM + airM, Vun, sRoll: rollM, air: airM };
 }
