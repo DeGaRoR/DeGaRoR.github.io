@@ -148,7 +148,30 @@ function propBuild(THREE, key) {
   PROP_BUILT.set(key, built);
   const dust = PROP_DUST.get(key);
   if (dust) for (const m of mats) dustMaterial(m, dust);
+  const glow = PROP_GLOW.get(key);
+  if (glow != null) glowMaterials(mats, glow);
   return built;
+}
+
+// THE FIXTURE'S OWN GLOW (G456; G417's account named a propSetGlowOf that never existed). A lit
+// prop - the yard's wall lamp - carries the author's emissive on its glass, at intensity 1 the
+// day round; the day's hand sets it: propSetGlowOf(key, k) scales the emissive of every material
+// of the prop AND its levels of detail by k over the author's own intensity (kept in userData at
+// the first touch), and a prop not built yet takes the last k when it is. Registered per key like
+// the dust, so every placement of the fixture glows together (one material a part, shared).
+const PROP_GLOW = new Map();             // prop key -> k
+function glowMaterials(mats, k) {
+  for (const m of mats) {
+    if (!m.emissive || (m.emissive.r === 0 && m.emissive.g === 0 && m.emissive.b === 0)) continue;
+    if (m.userData.emis0 == null) m.userData.emis0 = m.emissiveIntensity;
+    m.emissiveIntensity = m.userData.emis0 * k;
+  }
+}
+function propSetGlowOf(key, k) {
+  PROP_GLOW.set(key, k);
+  const b = PROP_BUILT.get(key);
+  if (b) glowMaterials(b.mats, k);
+  for (const l of propLevels(key)) { PROP_GLOW.set(l.key, k); const bl = PROP_BUILT.get(l.key); if (bl) glowMaterials(bl.mats, k); }
 }
 
 // THE DUST GRADIENT (G283, the user: "Apply a hard layer of dust gradient to
@@ -307,4 +330,4 @@ function propDispose(key) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
                      propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
-                     propLevels };
+                     propLevels, propSetGlowOf };

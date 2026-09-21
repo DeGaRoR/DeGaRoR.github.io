@@ -69,7 +69,7 @@ function make(THREE, scene, world, rec0, opts) {
   // stops. The lit panes follow: each finish's glass uniform uLitK (its base the generator's
   // lightK) x on x the runway lenses' colour-keeping dimmer. The world switchboard declares it
   // as `lamps` (render_world) and the mute is honoured here. F8: `village lamps` reads .gain.
-  const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500 };
+  const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
     for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = false; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
@@ -83,6 +83,8 @@ function make(THREE, scene, world, rec0, opts) {
     // the panes: the generator's lightK (judged on the bench by DAY, 2.2) x 0.45 x the exposure's inverse - a lit window at night is warm, not white (at the lenses' 0.9 the mill's windows saturated)
     for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * (LAMPS.muted ? 0 : 1);
     // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
+    // the fixtures' own glass (G456): the author's emissive x on x the lenses' colour-keeping dimmer, every placement of a lit prop key together
+    if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9); for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
     const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35);   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
     for (const u of LAMPS.smoke) u.value = kSmoke;
     if (on <= 0 || LAMPS.muted) { for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } LAMPS.litNow = stats.litNow = 0; return; }
@@ -104,7 +106,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
     LAMPS.litNow = stats.litNow = near.length;
   };
-  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } for (const [u] of LAMPS.glass) u.value = 0; };
+  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } for (const [u] of LAMPS.glass) u.value = 0; if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, 0); };
   LAMPS.unmute = () => { LAMPS.muted = false; };
   // the bench's bounds are the world's window; the game's are the premises' extent in the world (+ a margin)
   const extentWorld = () => { const F = O.frame, e = O.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; return { x0: Math.min(...c.map(q => q[0])) - 40, z0: Math.min(...c.map(q => q[1])) - 40, x1: Math.max(...c.map(q => q[0])) + 40, z1: Math.max(...c.map(q => q[1])) + 40 }; };
@@ -856,7 +858,7 @@ function make(THREE, scene, world, rec0, opts) {
     parent.add(grp);
     // G449: the lamps this thing published, for the pool (world positions resolved when first assigned);
     // its finish's lit panes for the day's hand (the base is the generator's lightK, set at build)
-    if (st.lit && st.lit.lights) for (const L of st.lit.lights) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.85, 0.6], k: L.k == null ? 1 : L.k, range: L.range || 10, kind: L.kind });
+    if (st.lit && st.lit.lights) for (const L of st.lit.lights) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) { LAMPS.pub.push({ grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.85, 0.6], k: L.k == null ? 1 : L.k, range: L.range || 10, kind: L.kind }); if (L.prop) LAMPS.glowKeys.add(L.prop); }
     if (F && F.GLASS_U && F.GLASS_U.uLitK && !LAMPS.glass.has(F.GLASS_U.uLitK)) { LAMPS.glass.set(F.GLASS_U.uLitK, F.GLASS_U.uLitK.value); F.GLASS_U.uLitK.value = F.GLASS_U.uLitK.value * LAMPS.on; }
     if (F && F.SMOKE_U) { if (!F.SMOKE_U.uSmokeLit) F.SMOKE_U.uSmokeLit = { value: 1 }; LAMPS.smoke.add(F.SMOKE_U.uSmokeLit); }
     return grp;

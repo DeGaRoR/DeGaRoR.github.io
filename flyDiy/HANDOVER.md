@@ -52963,3 +52963,28 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
   new one it moves little.
 - Gates on this commit's core, run alone: AERO WORLD PREMISES ENERGY ENGINE HOTHIGH WINGSPLIT
   FLOATS TAKEOFF green; PILOTMATRIX red on purpose (above); ARCHETYPES needs a quiet --all.
+## G456 — THE FIXTURES' OWN GLOW (2026-09-21, the user: "do the fixtures' own glow too, then commit";
+## G449's owed)
+
+- props.js: `propSetGlowOf(key, k)` - the function G417's account named and never wrote. A lit
+  prop (the yard's `lamp_wall`, the porch lamp the house generator publishes with its light
+  record's `prop`) carries the author's emissive on its glass at intensity 1 the day round; the
+  day's hand scales it: every material of the prop AND its levels of detail (propLevels) with a
+  non-black emissive takes k over the author's own intensity (kept in userData.emis0 at the first
+  touch), and a prop not built yet takes the last k when propBuild stands it (PROP_GLOW, per key,
+  the dust's precedent). One material a part, shared - every placement of a key glows together,
+  which is what a village's porch lamps do.
+- render_premises.js LAMPS: placeBuilt gathers the published lights' prop keys (glowKeys); the
+  pool's update drives them at on x (0.92 / exposure)^0.9 (the runway lenses' colour-keeping law),
+  the mute takes them to 0. Dark by day now (the author's 1.0 glowed at noon), a lit lens at
+  night with the pool's point light washing the siding under it.
+- GATES: CLOUD holds propSetGlowOf's shape (the intensity kept, the levels, the late build, the
+  export) and the pool's drive + mute of the keys; the LAMPS-literal rule retargeted for the new
+  field; the propBuild rule tolerates CRLF (the worktree's props.js is CRLF, the blob LF).
+  PROPS / WORLDRENDER / LIGHT green; the battery at the landing.
+- SEEN: screenshots/clouds-2026-09-20/ui/fixture_glow.png - a porch at night (the wall lamp lit,
+  its pool on the wall, the stair-rail bulbs), the lamp by the door up close, the same by day
+  (unlit), muted.
+- OWED: only `lamp_wall` publishes a prop today; the drawn lanterns, pendants and floods are
+  bag geometry with the glass bag's glow (already the day's through uLitK). The sea's moon glint
+  (G449) stays the water session's.
