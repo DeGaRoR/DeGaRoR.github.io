@@ -3,6 +3,7 @@
 
 Usage:  python tools/tree_prep.py            (every species _trees_tuning.json names)
         python tools/tree_prep.py --report   (inventory only, writes nothing)
+        python tools/tree_prep.py --biomes   (the mixes + map table alone, over the baked pack)
 
 Reads  tools/_trees_index.json    the inspector's grouping: which nodes are which
                                   SUBJECT, and what kind each subject is
@@ -846,8 +847,31 @@ def bake_flower(sp, report):
     return urls
 
 
+def biomes_only():
+    """--biomes: the table alone (the mixes + the terrain-type map) re-read from the tuning
+    and written over the baked pack's `biomes` key, the species untouched - the F8 fold's
+    export lands here without the raw GLBs (a worktree has none)."""
+    tune = json.load(open(TUNE, encoding='utf-8'))
+    pack = json.load(open(OUT, encoding='utf-8'))
+    pack['biomes'] = {'mixes': tune.get('mixes', {}), 'map': tune.get('biomes', {})}
+    with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(pack, f, indent=1)
+        f.write('\n')
+    js = open(OUTJS, encoding='utf-8').read()
+    i = js.rfind(' "biomes": ')
+    j = js.find('};\n', i)
+    assert i > 0 and j > i, 'trees_pack.js: no biomes key to replace'
+    js = js[:i] + ' "biomes": ' + json.dumps(pack['biomes'], separators=(',', ':')) + js[j:]
+    with open(OUTJS, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(js)
+    print('wrote the biomes table: %d mixes, %d codes mapped' % (len(pack['biomes']['mixes']), len(pack['biomes']['map'])))
+    return 0
+
+
 def main():
     report = '--report' in sys.argv
+    if '--biomes' in sys.argv:
+        return biomes_only()
     index = json.load(open(IDX, encoding='utf-8'))
     tune = json.load(open(TUNE, encoding='utf-8'))
     view = tune.get('view', {}) or {}

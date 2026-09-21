@@ -30,7 +30,7 @@ function makeWindow(store) {
     },
     requestAnimationFrame: () => 1,
     FLYDIY_AA: { _tier: 'full', setTier(t) { this._tier = t; log.push(['aa', t]); }, tier() { return this._tier; } },
-    TREE_FILL: { _ng: 100, get() { return this._ng; }, set(ng) { this._ng = ng; log.push(['fill', ng]); return ng; } },
+    TREE_FILL: { _ng: 128, get() { return this._ng; }, set(ng) { this._ng = ng; log.push(['fill', ng]); return ng; } },
     TREE_LOD: { _b: [10, 30, 30], get() { return this._b.slice(); }, set(b) { this._b = b.slice(); log.push(['bands', b.join('/')]); } },
     WORLD_RIG: { get: () => Object.assign({}, rig),
                  set(o) { Object.assign(rig, o); log.push(['rig', JSON.stringify(o)]); },
@@ -65,7 +65,7 @@ console.log('GATE GFX');
   const w2 = boot({ 'flydiy.gfx': '{not json' });
   ok(w2.GFX.get().preset === 'medium', 'a corrupt pref boots on medium');
   const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'low', aa: 'nope', density: 5 }) });
-  ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 100, 'unknown steps in the pref fall back to medium’s');
+  ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 128, 'unknown steps in the pref fall back to medium’s');
 }
 // 3 + 4. applying, and custom
 {
@@ -78,27 +78,27 @@ console.log('GATE GFX');
   const nBefore = w.log.filter(e => e[0] === 'fill').length;
   ok(nBefore === 0, 'the boot did not re-grid a fill already at medium’s density (' + nBefore + ' re-grids)');
   G.set('preset', 'low');
-  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 80 && w.TREE_LOD.get().join('/') === '10/30/30' &&
+  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 100 && w.TREE_LOD.get().join('/') === '10/30/30' &&
      w.rig.shadowMap === 1024 && w.rig.farShadow === false && w.rig.floor === 1.0 && w.WORLD.sun.castShadow === true,
-     'low: off, 80, impostor-first bands (10/30), 1024 map, no cascade, floor off, sun still casts');
+     'low: off, 100, impostor-first bands (10/30), 1024 map, no cascade, floor off, sun still casts');
   G.set('shadows', 'off');
   ok(G.get().preset === 'custom', 'one option changed under a preset makes it custom');
   ok(w.WORLD.sun.castShadow === false && w.rig.farShadow === false, 'shadows off: the sun stops casting and the cascade is off');
   G.set('preset', 'ultra');
   const s = G.get();
-  ok(s.preset === 'ultra' && s.shadows === 'ultra' && s.aa === 'full' && s.density === 160,
+  ok(s.preset === 'ultra' && s.shadows === 'ultra' && s.aa === 'full' && s.density === 200,
      'picking a preset again rewrites every option');
-  ok(w.WORLD.sun.castShadow === true && w.rig.shadowMap === 4096 && w.TREE_FILL.get() === 160 && w.FLYDIY_AA.tier() === 'full',
-     'ultra: the sun casts again, 4096 map, 160, smoothest');
+  ok(w.WORLD.sun.castShadow === true && w.rig.shadowMap === 4096 && w.TREE_FILL.get() === 200 && w.FLYDIY_AA.tier() === 'full',
+     'ultra: the sun casts again, 4096 map, 200, smoothest');
   G.set('lighting', 'alps');
   ok(w.rig.row === 'alps' && w.rig.shadowMap === 4096, 'a lighting row change re-asserts the shadow choice over the row’s own');
   // 2. the pref round-trips
   const w2 = boot(store);
   const t = w2.GFX.get();
-  ok(t.preset === 'custom' && t.lighting === 'alps' && t.shadows === 'ultra' && t.density === 160,
+  ok(t.preset === 'custom' && t.lighting === 'alps' && t.shadows === 'ultra' && t.density === 200,
      'the saved choice is the choice at the next boot (' + JSON.stringify(t) + ')');
   w2.GFX.onWorld();
-  ok(w2.rig.row === 'alps' && w2.TREE_FILL.get() === 160 && w2.FLYDIY_AA.tier() === 'full', 'and it is applied to the handles at that boot');
+  ok(w2.rig.row === 'alps' && w2.TREE_FILL.get() === 200 && w2.FLYDIY_AA.tier() === 'full', 'and it is applied to the handles at that boot');
 }
 // 6. the restart contract is stated
 {

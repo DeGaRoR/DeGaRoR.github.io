@@ -1,5 +1,5 @@
 {
- "note": "flyDiy tree bench — per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
+ "note": "flyDiy tree bench \u2014 per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
  "generated": "2026-09-20T20:17:19.981Z",
  "reference": "ash",
  "master": {
@@ -90,7 +90,7 @@
    },
    "forest": {
     "ground": "plane",
-    "count": 1040,
+    "count": 2500,
     "radius": 220,
     "under": 2,
     "cover": 1,
@@ -410,6 +410,142 @@
     "coverNear": 50,
     "rocks": 2,
     "ttype": 11,
+    "coverSpread": 0.08
+   }
+  },
+  "conifer_young": {
+   "species": {
+    "cedar_tree.glb": {
+     "proportion": 0.6,
+     "dead": 0.06
+    },
+    "fir_tree_georgeous.glb": {
+     "proportion": 1,
+     "dead": 0.05
+    },
+    "larch_tree.glb": {
+     "proportion": 0.4,
+     "dead": 0.06
+    },
+    "realistic_fir_trees_pack_lods_gameready.glb": {
+     "proportion": 3,
+     "dead": 0.05
+    },
+    "spruce_tree.glb": {
+     "proportion": 2,
+     "dead": 0.05
+    },
+    "sapling_deciduous": {
+     "proportion": 1.5
+    },
+    "shrub_deciduous": {
+     "proportion": 0.5
+    },
+    "holly": {
+     "proportion": 0.2
+    },
+    "grass_dry": {
+     "proportion": 1,
+     "density": 0.25
+    },
+    "flower_foam": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "flower_bunchberry": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 10
+    }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 5000,
+    "radius": 220,
+    "under": 3,
+    "cover": 1,
+    "reach": 220,
+    "wet": 0,
+    "taper": 0.5,
+    "holes": 0.15,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 4,
+    "ttype": 8,
+    "coverSpread": 0.08
+   }
+  },
+  "conifer_steep": {
+   "species": {
+    "cedar_tree.glb": {
+     "proportion": 0.6,
+     "dead": 0.06
+    },
+    "fir_tree_georgeous.glb": {
+     "proportion": 1,
+     "dead": 0.05
+    },
+    "larch_tree.glb": {
+     "proportion": 0.4,
+     "dead": 0.06
+    },
+    "realistic_fir_trees_pack_lods_gameready.glb": {
+     "proportion": 3,
+     "dead": 0.05
+    },
+    "spruce_tree.glb": {
+     "proportion": 2,
+     "dead": 0.05
+    },
+    "sapling_deciduous": {
+     "proportion": 1.5
+    },
+    "shrub_deciduous": {
+     "proportion": 0.5
+    },
+    "holly": {
+     "proportion": 0.2
+    },
+    "grass_dry": {
+     "proportion": 1,
+     "density": 0.25
+    },
+    "flower_foam": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "flower_bunchberry": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 18
+    }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 2000,
+    "radius": 220,
+    "under": 1,
+    "cover": 1,
+    "reach": 220,
+    "wet": 0,
+    "taper": 0.5,
+    "holes": 0.4,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 20,
+    "ttype": 12,
     "coverSpread": 0.08
    }
   }
@@ -1132,11 +1268,11 @@
   "3": "muskeg",
   "4": "shore",
   "5": "scree",
-  "6": "scree",
+  "6": "conifer_steep",
   "7": "borders",
-  "8": "deciduous",
+  "8": "conifer_young",
   "11": "shore",
-  "12": "scree",
+  "12": "conifer_steep",
   "13": "conifer",
   "14": "borders"
  }

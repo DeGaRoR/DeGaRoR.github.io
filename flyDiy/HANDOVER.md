@@ -54172,3 +54172,32 @@ waits on the Poly Haven zips; 2 (the fine ring) is its own chantier; 5-7 as the 
 - OWED: the refusal's note in the inspector; the interior liners still ignore the holes
   (the note's item 5); the bench _win.html has not learned the quad rows; a glazing
   material per row was declined (one material for the whole aeroplane, the user's ruling).
+
+## G473 — THREE CONIFER BIOMES, THE MAP PUBLISHED, THE DENSITY PRESETS, THE REACH TRIED (2026-09-21, the user:
+## "have 2 biomes of conifers; the low and the high ... I would expect to see the mountains at the back
+## filled with trees ... the full island with impostors ... publish a map terrain type - biome")
+
+THE CENSUS (offline: island_node + 28c, one point per 100 m; the table is in
+futureDesigns/BIOMES-IN-GAME-2026-09-20.md "THE MAP AS IT STANDS"): half the island is
+code 8 forest at 8.7 m canopy and it named the DECIDUOUS mix (53 /ha); a tenth is cliff/rock
+with 7-8 m canopy (forested steep slopes - the bare mountains in every picture) and it named
+SCREE (0 trees); old forest (canopy > 17 m) is 3.3 %. THE MIXES NOW (tools/_trees_tuning.json,
+baked by the new `tree_prep.py --biomes` - the table alone over the pack, no raw GLBs needed):
+conifer_young (code 8: spruce 2 / fir pack 3 / fir 1 / cedar 0.6 / larch 0.4, saplings, 5 %
+dead, 5000 in r 220 = 329 /ha), conifer_steep (codes 6 + 12: the same at half, holes 0.4,
+rocks 20/1000 m2, 131 /ha), conifer (code 13, the old growth, 1040 -> 2500 = 164 /ha). The
+deciduous mix stays in the table for F8 to put back on a code. The canopy map sizes the trees,
+so the same species stand small on the young code and tall on the old one.
+THE PRESETS: forest density sparse 100 / normal 128 / dense 160 / very dense 200 (was
+80/100/128/160; the grid is the ceiling: 95 / 156 / 244 / 380 per ha); _gfx_check follows.
+THE REACH, TRIED AND BACKED OUT: FAR_FILL 12 km with the complement to 12 km at ng 160 died in
+the GPU process at 9.3 GB - the fill's instances are reach^2 x ng^2 x the mix's kind (every
+chunk's near mesh AND impostor mesh hold a matrix + a colour per tree: ~3.4 M). 9 km stays,
+uThin 3000/4200 -> 3000/4500. What the mountains get at 4.5-9 km is the base quarter. The
+step to "the whole island" is a coarser far tier - one card per several trees, or the canopy
+texture keyed to every treed code (it is keyed to FOREST_FLOOR) - not more instances.
+MEASURED (the card shared by other rigs at 4.5 GB - a ceiling, not a number): over the field
+at 150 m AGL, medium (ng 128, 9 km, 256 chunks): 79 ms median / 89 p90 headless, the page
+~3.4 GB of the card. Pictures: screenshots/density/new_forest (the old-forest spot, the
+young stand dense to the lake, the slopes across it filling), new_field (muskeg round the
+field at 18 /ha by its own mix; the mountains treed but thin - the base quarter).

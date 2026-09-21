@@ -230,3 +230,30 @@ normal) in the media step. Cast shadows only inside the near shadow box.
 3. Does a biome polygon in the editor move the GROUND too (proposal: yes, one record).
 4. The payload's size once shrubs + covers + rocks + flowers + deciduous are in
    (today's five conifers: 4.5 MB of geometry + 7.3 MB of maps).
+
+## THE MAP AS IT STANDS (2026-09-21, G473) - terrain type -> biome on Jolene
+
+Measured offline (tools/island_node + 28c, one point per 100 m over the 334 km2 of land; the
+derived codes at the split's midpoint). Bold = the three conifer biomes of 2026-09-21. The
+game plants min(1, mix trees/m2 x grid spacing^2 x biomeGain 3.5) of the grid, so the GRAPHICS
+density is the ceiling: sparse 95 /ha, normal 156, dense 244, very dense 380.
+
+| code | terrain type (island_prep) | share of the land | mean canopy | mix (biome)      | trees/ha (mix) | what stands there |
+|-----:|----------------------------|------------------:|------------:|------------------|---------------:|-------------------|
+| 8    | forest                     | 49.9 % (167 km2)  | 8.7 m       | **conifer_young**| 329            | spruce 2 / fir pack 3 / fir 1 / cedar 0.6 / larch 0.4, saplings under, few dead, rocks 4/1000 m2 |
+| 7    | scrub                      | 21.5 % (72 km2)   | 0.2 m       | borders          | 5              | deciduous shrubs, holly, raspberry, a birch/oak/maple here and there, plates + foam |
+| 12   | cliff (rock, slope > 32-42 deg) | 9.6 % (32 km2) | 8.1 m    | **conifer_steep**| 131            | the young stand at half, holes 0.4, rocks 20/1000 m2 (forested rock - Annette's slopes) |
+| 2    | heath                      | 6.8 % (23 km2)    | 0.3 m       | grassland        | 2              | grass_dry / reed / plates, fireweed, a bush, a birch, rocks |
+| 14   | scrub dense (scrub, canopy > 1-2.5 m) | 4.2 % (14 km2) | 2.0 m | borders      | 5              | as scrub |
+| 13   | forest old (forest, canopy > 14-20 m) | 3.3 % (11 km2) | 20.4 m | **conifer**  | 164            | the old growth: cedar / fir / larch / fir pack 2.85 / spruce, 8-12 % dead, rocks 10/1000 m2 |
+| 3    | muskeg                     | 3.2 % (11 km2)    | 0.1 m       | muskeg           | 18             | stunted pines (georgeous 1.6 / evolveduk 1.45), spruce, fir, dead conifers + sticks, reed beds |
+| 11   | shingle                    | 0.5 %             | 0.2 m       | shore            | 0              | rocks 2/1000 m2 |
+| 6    | rock (slope > 38 deg or bare > 28) | 0.4 %     | 7.2 m       | **conifer_steep**| 131            | as cliff |
+| 10   | built                      | 0.2 %             | -           | none             | 0              | nothing planted |
+| 4    | sand                       | 0.1 %             | -           | shore            | 0              | rocks |
+| 5    | scree                      | 0.1 % (547 m)     | -           | scree            | 0              | rocks 8/1000 m2 |
+| 9    | snow                       | 0.1 % (970 m)     | -           | none             | 0              | nothing planted |
+| 0, 1 | sea, lake                  | -                 | -           | none             | 0              | - |
+
+To change a row: F8 > trees > biomes > code -> mix (live), export, paste over tools/_trees_tuning.json's
+`biomes` + `mixes`, `python tools/tree_prep.py --biomes`.
