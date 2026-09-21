@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-15T21:53:11.673Z",
+ "generated": "2026-09-20T18:54:38.384Z",
  "raw": [
   "assets/treesRaw",
   "assets/vegetation"
@@ -124,6 +124,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 17.44,
@@ -338,6 +339,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 8.83,
@@ -618,6 +620,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 18.93,
@@ -750,6 +753,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 13.42,
@@ -882,6 +886,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 19.2,
@@ -1498,6 +1503,7 @@
      ]
     }
    ],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 53.79,
@@ -1712,6 +1718,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 11.49,
@@ -1992,6 +1999,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 20.37,
@@ -2388,6 +2396,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 9.29,
@@ -2520,6 +2529,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 17.43,
@@ -4259,6 +4269,7 @@
      ]
     }
    ],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 3,
    "tallest": 0,
@@ -4573,6 +4584,7 @@
    ],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": "cover",
    "weldedTrees": 0,
    "tallest": 0.95,
@@ -4753,6 +4765,7 @@
    ],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": "cover",
    "weldedTrees": 0,
    "tallest": 129.47,
@@ -5303,6 +5316,7 @@
      ]
     }
    ],
+   "rocks": [],
    "folderKind": "cover",
    "weldedTrees": 0,
    "tallest": 4.91,
@@ -5652,6 +5666,7 @@
    ],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": "cover",
    "weldedTrees": 0,
    "tallest": 0.75,
@@ -5798,6 +5813,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 5.32,
@@ -5930,6 +5946,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 14.3,
@@ -6086,6 +6103,7 @@
    "cover": [],
    "billboards": [],
    "terrain": [],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 10.94,
@@ -6097,6 +6115,661 @@
    "folder": "vegetation/pine",
    "fileMB": 9.32,
    "binMB": 9.32,
+   "renderable": true
+  },
+  {
+   "name": "free_rock_assets_pack.glb",
+   "tris": 5740,
+   "meshes": 17,
+   "materials": [
+    {
+     "name": "RocksCollection",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 1791,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 1222,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 2100,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 4.99,
+   "generator": "Sketchfab-13.83.0",
+   "credit": {
+    "author": "JonhGillessen (https://sketchfab.com/JonhGillessen)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/free-rock-assets-pack-227f976b7675401e978858ddcb7fc0b1",
+    "title": "Free Rock Assets Pack"
+   },
+   "licence": {
+    "text": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "ok": true,
+    "why": "CC-BY — attribution required, see CREDITS.md"
+   },
+   "rawMeshes": 17,
+   "rawNodes": 37,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "Pavementblock.021_4",
+     "kind": "rock",
+     "h": 0.19,
+     "tris": 436,
+     "parts": 1,
+     "sig": "ecbfd22cd14f",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      0.19,
+      -0.09,
+      -0.17
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 436
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 11,
+       "lod": null,
+       "tris": 436,
+       "name": "Pavementblock.021_4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.017_0",
+     "kind": "rock",
+     "h": 0.14,
+     "tris": 468,
+     "parts": 1,
+     "sig": "4e03a536aac4",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.2,
+      -0.07,
+      -0.64
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 468
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 3,
+       "lod": null,
+       "tris": 468,
+       "name": "Pavementblock.017_0",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.020_3",
+     "kind": "rock",
+     "h": 0.14,
+     "tris": 318,
+     "parts": 1,
+     "sig": "d28f58cc4ff8",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.61,
+      -0.07,
+      0.16
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 318
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 9,
+       "lod": null,
+       "tris": 318,
+       "name": "Pavementblock.020_3",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.031_14",
+     "kind": "rock",
+     "h": 0.13,
+     "tris": 372,
+     "parts": 1,
+     "sig": "dda0097e027d",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.56,
+      -0.06,
+      -0.48
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 372
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 31,
+       "lod": null,
+       "tris": 372,
+       "name": "Pavementblock.031_14",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.032_15",
+     "kind": "rock",
+     "h": 0.12,
+     "tris": 576,
+     "parts": 1,
+     "sig": "499dd50a8886",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      0.16,
+      -0.06,
+      -0.57
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 576
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 33,
+       "lod": null,
+       "tris": 576,
+       "name": "Pavementblock.032_15",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.026_9",
+     "kind": "rock",
+     "h": 0.11,
+     "tris": 650,
+     "parts": 1,
+     "sig": "be10f808d3a5",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.72,
+      0,
+      -0.17
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 650
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 21,
+       "lod": null,
+       "tris": 650,
+       "name": "Pavementblock.026_9",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.019_2",
+     "kind": "rock",
+     "h": 0.1,
+     "tris": 128,
+     "parts": 1,
+     "sig": "0d403b940c1b",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      0.07,
+      -0.04,
+      0.52
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 128
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 7,
+       "lod": null,
+       "tris": 128,
+       "name": "Pavementblock.019_2",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.025_8",
+     "kind": "rock",
+     "h": 0.1,
+     "tris": 482,
+     "parts": 1,
+     "sig": "7856473ed40c",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      0.13,
+      -0.05,
+      0.27
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 482
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 19,
+       "lod": null,
+       "tris": 482,
+       "name": "Pavementblock.025_8",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.030_13",
+     "kind": "rock",
+     "h": 0.1,
+     "tris": 274,
+     "parts": 1,
+     "sig": "184c25ad637e",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.35,
+      -0.05,
+      0.48
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 274
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 29,
+       "lod": null,
+       "tris": 274,
+       "name": "Pavementblock.030_13",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.033_16",
+     "kind": "rock",
+     "h": 0.1,
+     "tris": 658,
+     "parts": 1,
+     "sig": "8188f6353efe",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.25,
+      -0.05,
+      0.15
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 658
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 35,
+       "lod": null,
+       "tris": 658,
+       "name": "Pavementblock.033_16",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.018_1",
+     "kind": "rock",
+     "h": 0.09,
+     "tris": 446,
+     "parts": 1,
+     "sig": "e5a7eeab21de",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.13,
+      -0.04,
+      0.52
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 446
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 5,
+       "lod": null,
+       "tris": 446,
+       "name": "Pavementblock.018_1",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.027_10",
+     "kind": "rock",
+     "h": 0.06,
+     "tris": 270,
+     "parts": 1,
+     "sig": "01a3ccdc3af1",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.57,
+      -0.02,
+      0.56
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 270
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 23,
+       "lod": null,
+       "tris": 270,
+       "name": "Pavementblock.027_10",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.029_12",
+     "kind": "rock",
+     "h": 0.06,
+     "tris": 238,
+     "parts": 1,
+     "sig": "9ae5f514c1c0",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.06,
+      -0.03,
+      -0.04
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 238
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 27,
+       "lod": null,
+       "tris": 238,
+       "name": "Pavementblock.029_12",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.024_7",
+     "kind": "rock",
+     "h": 0.03,
+     "tris": 124,
+     "parts": 1,
+     "sig": "e977c3949511",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.23,
+      -0.01,
+      -0.22
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 124
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 17,
+       "lod": null,
+       "tris": 124,
+       "name": "Pavementblock.024_7",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.028_11",
+     "kind": "rock",
+     "h": 0.03,
+     "tris": 126,
+     "parts": 1,
+     "sig": "8860d5af04f6",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.14,
+      -0.01,
+      -0.19
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 126
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 25,
+       "lod": null,
+       "tris": 126,
+       "name": "Pavementblock.028_11",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.022_5",
+     "kind": "rock",
+     "h": 0.02,
+     "tris": 68,
+     "parts": 1,
+     "sig": "85a1380c63ca",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.21,
+      -0.01,
+      -0.01
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 68
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 13,
+       "lod": null,
+       "tris": 68,
+       "name": "Pavementblock.022_5",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "Pavementblock.023_6",
+     "kind": "rock",
+     "h": 0.02,
+     "tris": 106,
+     "parts": 1,
+     "sig": "680a16ebefe3",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.1,
+      -0.01,
+      0.09
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 106
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 15,
+       "lod": null,
+       "tris": 106,
+       "name": "Pavementblock.023_6",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "890db46b2a2c",
+   "kind": "glb",
+   "file": "vegetation/rocks/free_rock_assets_pack.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 5.24,
+   "binMB": 5.22,
    "renderable": true
   },
   {
@@ -7778,6 +8451,7 @@
      ]
     }
    ],
+   "rocks": [],
    "folderKind": null,
    "weldedTrees": 0,
    "tallest": 22.15,

@@ -26,6 +26,8 @@
 (() => {
   'use strict';
   const PACK = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
+  // a species' materials are its FILE's, held once in PACK.materials (G454.12): joined here
+  if (PACK && PACK.materials) for (const c of PACK.collections) if (!c.materials) c.materials = PACK.materials[c.file] || {};
 
   const BINS = new Map();          // collection name -> Uint8Array
   const TEX = new Map();           // url -> THREE.Texture
@@ -34,16 +36,25 @@
 
   const key = (c, s) => c.name + '|' + s.name;
 
-  function treeList() {
+  // THE KINDS (G454.12): the payload is per SPECIES since the biomes - tree, dead (a standing
+  // dead tree, L0 alone), shrub, cover, rock, and a flower (`maps`, no geometry). treeList()
+  // is THE TREES (tree + dead) as every caller before the biomes expects; treeList(kind) one
+  // kind; treeList('all') everything with geometry.
+  const isTree = c => !c.kind || c.kind === 'tree' || c.kind === 'dead';
+  function treeList(kind) {
     if (!PACK) return [];
     const out = [];
-    for (const c of PACK.collections)
+    for (const c of PACK.collections) {
+      if (!c.subjects || !c.subjects.length) continue;
+      if (kind === 'all' ? false : kind ? c.kind !== kind : !isTree(c)) continue;
       for (const s of c.subjects) out.push({ key: key(c, s), col: c, sub: s });
+    }
     return out;
   }
+  const withBin = () => PACK ? PACK.collections.filter(c => c.bin) : [];
 
   function treeReady() {
-    return !!PACK && PACK.collections.every(c => BINS.has(c.name));
+    return !!PACK && withBin().every(c => BINS.has(c.name));
   }
 
   // One fetch per collection, shared. A failure REJECTS and the world takes
@@ -54,7 +65,7 @@
     if (WARM) return WARM;
     if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
       return Promise.reject(new Error('trees: no ASSET_FETCH here'));
-    WARM = Promise.all(PACK.collections.map(c =>
+    WARM = Promise.all(withBin().map(c =>
       (window.BOOT && window.BOOT.expect('treeBin'),
        window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); if (window.BOOT) window.BOOT.landed('treeBin'); },
                                       e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; }))));
@@ -247,9 +258,14 @@
   // pack at 1.3 of its lightness in the bench was at 1.0 here, the spruce
   // at 0.54 was at 1.0, and the stand was a different colour from the one
   // that had been judged. MASTER rides over all of them at once.
-  const MASTER = { hue: -0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint
+  const MASTER = { hue: 0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint (hue negated with the dial's sign, 2026-09-20)
   const TINT_GLSL = [
-    'float _a = uHue * 6.2831853;',
+    // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
+    // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
+    // pushed a species further from the reference - the holly went teal, not yellow-green.
+    // Measured on one holly: uHue -0.097 rendered at hue 0.474, +0.097 at 0.253 (0.371 at 0).
+    // Negated here; the eye-tuned master hue and the shipped payload's hues negated with it.
+    'float _a = -uHue * 6.2831853;',
     'float _c = cos(_a), _s = sin(_a);',
     'mat3 _m = mat3(',
     '  0.299 + 0.701*_c + 0.168*_s, 0.587 - 0.587*_c + 0.330*_s, 0.114 - 0.114*_c - 0.497*_s,',
@@ -258,8 +274,41 @@
     'vec3 _rot = diffuseColor.rgb * _m;',
     // saturation toward luma, so pulling a stand back does not darken it
     'float _y = dot(_rot, vec3(0.2126, 0.7152, 0.0722));',
-    'diffuseColor.rgb = clamp(mix(vec3(_y), _rot, uSat) * uLight, 0.0, 1.0);',
+    // THE CONTRAST (G454.13, the bench's G454.9 calm field): the texel pulled toward the
+    // map's own mean lightness by uFlat - a grass card is a soft silhouette of the ground's
+    // colour, not a picture of straw. 1 on a tree (the texel as before); a cover's `contrast` dial (0.35).
+    'vec3 _f = mix(vec3(uFlatMean), mix(vec3(_y), _rot, uSat), uFlat);',
+    'diffuseColor.rgb = clamp(_f * uLight, 0.0, 1.0);',
   ].join('\n');
+  // THE FADE (G454.13): a cover instance keeps by its distance to the eye - full to uFadeNear,
+  // (1 - t)^(1 + 2 taper) to nothing at uFadeReach - and by the eye's height (uFadeAgl); the
+  // instance's own aRand is its threshold, so the ring is planted once at full density and
+  // thins in the vertex shader as the eye moves (the trees' uThin, the bench's taper)
+  const U_FADE_NEAR = { value: 1e9 }, U_FADE_REACH = { value: 2e9 }, U_FADE_TAPER = { value: 0.5 }, U_FADE_AGL = { value: 1 };
+  const FADE_VS = [
+    '#ifdef USE_INSTANCING',
+    '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
+    '#else',
+    '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
+    '#endif',
+    'float _fd = distance(_fp, cameraPosition);',
+    'float _ft = clamp((_fd - uFadeNear) / max(1.0, uFadeReach - uFadeNear), 0.0, 1.0);',
+    'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
+    'if (aRand > _fk) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);',
+  ].join('\n');
+  const fadeInject = sh => {
+    sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
+    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl;\n' +
+      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS);
+  };
+  // fadeHook(mat): a material of the ring's - a hooked leaf material takes it at its own
+  // compile (userData.fade), any other gets a hook of its own here
+  function fadeHook(mat) {
+    mat.userData.fade = true;
+    mat.customProgramCacheKey = () => 'fade';
+    if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh); }; }
+    return mat;
+  }
   // THE TINT IS A DRAW-TIME TERM ON BOTH TIERS (W0c.20). The impostor sheet
   // used to be baked with the tint in it, so a dial that moved a
   // collection's lightness reached the near tier at once and the far tier
@@ -292,6 +341,7 @@
     mat.userData.tint = tint || {};
     mat.userData.uHue = { value: 0 }; mat.userData.uSat = { value: 1 }; mat.userData.uLight = { value: 1 };
     mat.userData.uCut = { value: isLeaf ? (cut || 0.5) : 0 };
+    mat.userData.uFlat = { value: 1 }; mat.userData.uFlatMean = { value: 0.4 };   // uFlat 1 = the texel as it is (the bench's dial: contrast 1 = no flattening)
     retint(mat);
     HOOKED.push(mat);
     mat.onBeforeCompile = sh => {
@@ -303,9 +353,11 @@
       sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
       sh.uniforms.uLight = mat.userData.uLight;
       sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
+      sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
         sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvAoV = aoV;');
+      if (mat.userData.fade) fadeInject(sh);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
       // dense stand on the supersampled tier is the most fragments the frame
@@ -315,7 +367,7 @@
       // chunk that reads it, is the material's own choice.
       sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
         'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
-        'uniform float uHue, uSat, uLight, uCut, uSharp;\nvarying float vAoV;\n' +
+        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
             '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
@@ -336,10 +388,17 @@
     uniforms: { uWrap: U_WRAP, uSSS: U_SSS, uSSSP: U_SSSP, uAoBake: U_AO },
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
+    // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
+    fadeHook: fadeHook,
+    // what the loader holds (bytes): the decoded rungs and the coverage mip chains
+    memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
+      for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
+    fade: (near, reach, taper, agl) => { if (near !== undefined) U_FADE_NEAR.value = near; if (reach !== undefined) U_FADE_REACH.value = reach;
+      if (taper !== undefined) U_FADE_TAPER.value = taper; if (agl !== undefined) U_FADE_AGL.value = agl; return [U_FADE_NEAR.value, U_FADE_REACH.value, U_FADE_TAPER.value, U_FADE_AGL.value]; },
     // a collection's own row, live on every material that wears it (the
     // rows are shared by reference with the payload's `tint`) and on its
     // impostors through tintGlsl; TREE_LEAF.collections() lists them
-    collections: () => (PACK ? PACK.collections : []).map(c => ({ name: c.name, tint: c.tint || (c.tint = {}) })),
+    collections: () => (PACK ? PACK.collections : []).map(c => ({ name: c.name, kind: c.kind || 'tree', tint: c.tint || (c.tint = {}) })),
     tintOf: (name, o) => {
       const c = (PACK ? PACK.collections : []).find(x => x.name === name);
       if (!c) return null;
@@ -373,7 +432,7 @@
     const cacheKey = k + '#' + ser + '#' + (lod || 0);
     let built = BUILT.get(cacheKey);
     if (built) return built;
-    const found = treeList().find(e => e.key === k);
+    const found = treeList('all').find(e => e.key === k);
     if (!found) throw new Error('trees: unknown subject ' + k);
     const bin = BINS.get(found.col.name);
     if (!bin) throw new Error('trees: ' + found.col.name + ' not warmed');
@@ -410,7 +469,7 @@
               tris: rung.tris, col: found.col, sub: found.sub, series: ser, lod: rung.lod,
               // the stand series is drawn STRETCHED - a dial, not geometry; see
               // tree_prep.py's gen_rung on why it cannot be baked
-              scaleY: (ser === 'stand' && found.col.place && found.col.place.crownH) || 1 };
+              scaleY: (ser === 'stand' && isTree(found.col) && found.col.kind !== 'dead' && found.col.place && found.col.place.crownH) || 1 };
     BUILT.set(cacheKey, built);
     return built;
   }

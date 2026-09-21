@@ -21,18 +21,36 @@ const note = m => process.stdout.write('  ' + m + '\n');
 function check() {
   if (!fs.existsSync(PACK)) { fail.push('no trees_pack.json — run tools/tree_prep.py'); return; }
   const pack = JSON.parse(fs.readFileSync(PACK, 'utf8'));
+  if (pack.materials) for (const C of pack.collections) if (!C.materials) C.materials = pack.materials[C.file] || {};
   if (!pack.collections || !pack.collections.length) { fail.push('pack has no collections'); return; }
 
   let nSub = 0, nRung = 0, nPart = 0, nVert = 0, nTri = 0, bytes = 0;
+  // THE BIOMES (BIOMES-IN-GAME-2026-09-20.md): the mixes and the terrain-type map ride with the
+  // species; every code names a mix that exists, every species a mix names is in the payload
+  const names = new Set(pack.collections.map(C => C.name));
+  const B = pack.biomes || {};
+  if (!B.mixes || !Object.keys(B.mixes).length) fail.push('biomes: no mixes in the payload');
+  for (const [code, mix] of Object.entries(B.map || {})) if (!B.mixes || !B.mixes[mix]) fail.push('biomes: code ' + code + ' names a mix that is not in the payload (' + mix + ')');
+  for (const [mix, M] of Object.entries(B.mixes || {})) for (const k of Object.keys(M.species || {}))
+    if (!names.has(k) && k !== 'dead_stick') fail.push('biomes: mix ' + mix + ' names a species that is not in the payload (' + k + ')');
   for (const C of pack.collections) {
+    if (!C.licence) fail.push(C.name + ': no licence in the manifest');
+    // A FLOWER is pictures, no geometry: each picture a PNG with an alpha channel
+    if (C.maps) {
+      if (!C.maps.length) fail.push(C.name + ': a flower with no pictures');
+      for (const m of C.maps) {
+        const fp = path.join(ROOT, ...m.split('/'));
+        if (!fs.existsSync(fp)) { fail.push(C.name + ': missing ' + m); continue; }
+        const h = fs.readFileSync(fp);
+        if (h.slice(1, 4).toString() !== 'PNG' || ![4, 6].includes(h[25])) fail.push(C.name + ': ' + m + ' is not a PNG with alpha');
+      }
+      continue;
+    }
     const bp = path.join(ROOT, ...C.bin.split('/'));
     if (!fs.existsSync(bp)) { fail.push(C.name + ': missing ' + C.bin); continue; }
     const bin = new Uint8Array(fs.readFileSync(bp));
     bytes += bin.length;
     if (bin.length !== C.bytes) fail.push(C.name + ': bin is ' + bin.length + ', pack says ' + C.bytes);
-    // the licence must survive the bake — a payload whose provenance was lost
-    // is one nobody can ship
-    if (!C.licence) fail.push(C.name + ': no licence in the manifest');
 
     // ---- the maps ------------------------------------------------------
     // A CUTOUT MAP THAT LOST ITS ALPHA IS A SOLID GREEN BOX and nothing else
@@ -54,7 +72,7 @@ function check() {
         }
       }
       if (M.mode !== 'OPAQUE') {
-        if (!(M.cutoff > 0 && M.cutoff < 1))
+        if (M.mode === 'MASK' && !(M.cutoff > 0 && M.cutoff < 1))   // a BLEND's cut is the species' alpha dial
           fail.push(name + ': cutout with no usable alphaCutoff (' + M.cutoff + ')');
         // the renderer cannot know the threshold coverage must be preserved
         // against unless the material carries it
@@ -75,8 +93,11 @@ function check() {
       // and every one of them has to sit inside the subject's single bb.
       const centres = [];
       const series = [['rungs', S.rungs || []], ['stand', S.stand || []], ['snag', S.snag || []]];
-      if (!(S.stand && S.stand.length)) fail.push(S.name + ': no stand series');
-      if (!(S.snag && S.snag.length)) fail.push(S.name + ': no snag series');
+      // only a TREE gets the three series (a bush has no trunk for a stick, a tuft is one card)
+      if ((C.kind || 'tree') === 'tree') {
+        if (!(S.stand && S.stand.length)) fail.push(S.name + ': no stand series');
+        if (!(S.snag && S.snag.length)) fail.push(S.name + ': no snag series');
+      }
       // a generated ladder has to be a LADDER: each rung cheaper than the last
       for (const [sname, list] of series)
         for (let i = 1; i < list.length; i++)
@@ -133,29 +154,35 @@ function check() {
         // EXCEPT on a billboard rung. LOLIPOP's LOD3 is a 20-triangle card
         // with no interior to occlude, and a flat 1 there is the right answer,
         // not a missing bake.
-        if (aoN && R.tris > 200) {
+        if (aoN && R.tris > 200 && (C.kind || 'tree') !== 'cover') {   // a grass card's AO is flat by nature
           if (aoMax > 1.0001 || aoMin < -1e-6) fail.push(S.name + ': AO outside [0,1]');
           if (aoMax - aoMin < 0.05) fail.push(S.name + tag + ': AO is flat (' +
             aoMin.toFixed(3) + '..' + aoMax.toFixed(3) + ') — not baked');
           if (aoSum / aoN > 0.995) fail.push(S.name + tag + ': AO mean is 1 — not baked');
         }
-        centres.push([(lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2]);
+        centres.push([sname, (lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2]);
       }
-      // every rung shares the subject's frame, or the tree jumps sideways as
-      // the ladder switches
+      // every rung of a SERIES shares the subject's frame, or the tree jumps sideways as
+      // the ladder switches. Per series since the deciduous pack (G454.12): a leaning birch's
+      // stand series is its crown alone, whose centre sits a metre off the specimen's - the
+      // same frame, a different shape - and the rule is about the frame.
       for (let i = 1; i < centres.length; i++) {
-        const dx = centres[i][0] - centres[0][0], dz = centres[i][1] - centres[0][1];
+        const j = centres.findIndex(c => c[0] === centres[i][0]);
+        if (j === i) continue;
+        const dx = centres[i][1] - centres[j][1], dz = centres[i][2] - centres[j][2];
         if (Math.hypot(dx, dz) > Math.max(0.25, span[0] * 0.08))
-          fail.push(S.name + ': rung ' + i + ' is off-centre by ' + Math.hypot(dx, dz).toFixed(2) + ' m');
+          fail.push(S.name + ' ' + centres[i][0] + ': rung ' + i + ' is off-centre by ' + Math.hypot(dx, dz).toFixed(2) + ' m');
       }
     }
   }
   let nMat = 0, texBytes = 0;
+  const seen = new Set();   // the maps of a shared file ride on every species of it: counted once
   for (const C of pack.collections)
     for (const M of Object.values(C.materials || {})) {
       nMat++;
       for (const k of ['base', 'nor']) {
-        if (!M[k]) continue;
+        if (!M[k] || seen.has(M[k])) continue;
+        seen.add(M[k]);
         const fp = path.join(ROOT, ...M[k].split('/'));
         if (fs.existsSync(fp)) texBytes += fs.statSync(fp).size;
       }

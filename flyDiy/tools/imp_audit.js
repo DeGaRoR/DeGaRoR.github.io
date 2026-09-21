@@ -54,8 +54,9 @@ const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
 if (!CHROME) { console.error('imp_audit: no Chrome'); process.exit(2); }
 const udd = path.join(require('os').tmpdir(), 'cdp_imp_' + PORT + '_' + Date.now());
-const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1920,1080', '--hide-scrollbars',
-  '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', 'about:blank'], { stdio: 'ignore' });
+const ch = spawn(CHROME, ['--headless=new', '--js-flags=--expose-gc', '--remote-debugging-port=' + PORT, '--window-size=1920,1080', '--hide-scrollbars',
+  '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync'].concat(process.env.IMP_CHROME_LOG ? ['--enable-logging=stderr', '--v=0'] : [], ['about:blank']),
+  { stdio: process.env.IMP_CHROME_LOG ? ['ignore', 'ignore', fs.openSync(process.env.IMP_CHROME_LOG, 'w')] : 'ignore' });   // IMP_CHROME_LOG=<file>: Chrome's own log (a renderer crash's reason)
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej); });
 const putJSON = url => new Promise((res, rej) => { const q = http.request(url, { method: 'PUT' }, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }); q.on('error', rej); q.end(); });
@@ -138,10 +139,10 @@ const SHEETS = `(() => {
   const CUT = { rungs: 0.40, stand: 0.15, snag: 0.10 };
   const lin = v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
   for (const a of WORLD.treeAtlases()) {
-    if (!a.rt) continue;
-    const N = a.rt.width, G = 8, T = N / G;
+    if (!a.rt && !a.read) continue;
+    const N = a.N || a.rt.width, G = 8, T = N / G;
     const px = new Uint8Array(N * N * 4);
-    R.readRenderTargetPixels(a.rt, 0, 0, N, N, px);
+    if (a.read) a.read(px); else R.readRenderTargetPixels(a.rt, 0, 0, N, N, px);   // a.read: the sheet is a plain texture now (shared bake targets)
     const tiles = [], hist = new Array(8).fill(0);
     let cov = 0, rs = 0, gs = 0, bs = 0, ys = 0, nC = 0;
     for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
@@ -187,7 +188,7 @@ const SHEETS = `(() => {
     out.push({ key: a.key || '?', series: a.series || '?', N, cy: +a.cy.toFixed(2), diam: +a.diam.toFixed(2), check: a.check || null,
       coverage: +(cov / (N * N)).toFixed(4), tileMin: Math.min(...tiles), tileMax: Math.max(...tiles), tiles, mipCov,
       albedo: nC ? { r: +(rs / nC).toFixed(4), g: +(gs / nC).toFixed(4), b: +(bs / nC).toFixed(4), y: +(ys / nC).toFixed(4) } : null,
-      alphaHist: hist, colorSpace: a.rt.texture.colorSpace, mips: !!a.rt.texture.generateMipmaps, png: cv.toDataURL('image/png') });
+      alphaHist: hist, colorSpace: a.tex.colorSpace, mips: !!a.tex.generateMipmaps, png: cv.toDataURL('image/png') });
   }
   return JSON.stringify(out); })()`;
 // the bench's sheets: IMP_CACHE key -> { tex (DataTexture, level 0 in tex.image.data, bottom-up), nrm, cy, diam, tile }
@@ -249,12 +250,13 @@ const BENCH_SHEETS = `(() => {
     const ws = new WebSocket(t.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
     let id = 0; const waits = new Map();
     ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+      if (m.method === 'Inspector.targetCrashed') console.error('page CRASHED (the renderer died: memory, or the GPU)');
       if (m.method === 'Runtime.exceptionThrown') console.error('page exception: ' + (m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text).split(String.fromCharCode(10)).slice(0, 2).join(' | '));
       if (process.env.IMP_DEBUG && m.method === 'Runtime.consoleAPICalled' && /warn|error/.test(m.params.type)) console.error('page ' + m.params.type + ': ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ').slice(0, 600)); };
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
       if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && (r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description || r.result.exceptionDetails.text))); return r.result.result.value; };
-    await cmd('Page.enable'); await cmd('Runtime.enable');
+    await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Inspector.enable');
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     const shot = async name => { const r = await cmd('Page.captureScreenshot', { format: 'png' }); const buf = Buffer.from(r.result.data, 'base64');
       fs.writeFileSync(path.join(OUT, name + '.png'), buf); return readPNG(buf); };
@@ -293,7 +295,7 @@ const BENCH_SHEETS = `(() => {
   console.log(`imp_audit  ${gpu}\n  ${URL}\n  stand ${where.stand} · ${where.neighbours} neighbours · ${AGL} m AGL · settled ${settled}\n  ${rig}`);
   // --probe "<js>" / --probe-file f.js: an experiment run in the page at this point (tree_perf's idiom); --probe-only stops after it
   const PROBE = opt('probe-file', null) ? fs.readFileSync(opt('probe-file'), 'utf8') : opt('probe', null);
-  if (PROBE) { console.log('  probe ->' + String.fromCharCode(10) + await G.ev(PROBE)); if (has('probe-only')) { G.ws.close(); ch.kill(); return; } }
+  if (PROBE) { console.log('  probe ->' + String.fromCharCode(10) + await G.ev(PROBE)); if (has('probe-only')) { await G.shot('probe'); G.ws.close(); ch.kill(); return; } }   // --probe-only still leaves one picture
 
   // ---- 2. THE A/B: the same eye, three ladders ----------------------------
   const lod0 = await G.ev("JSON.stringify(TREE_LOD.get())");

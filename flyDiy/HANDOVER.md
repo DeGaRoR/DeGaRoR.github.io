@@ -52378,3 +52378,467 @@ the biomes chantier that sits on top of it stays on its branch.)
   shots_a7_tips2/cmp.png (the rounded and square tips close, the red lens).
 - FLIGHT_PROBE gets `pan(x, y, z)` (the editor's orbit pan, for a rig that frames a wingtip).
 - GATES: LIGHT, BEACON, BAY, CLIP, PARTS, UISMOKE, VIEW, STARTER, DESIGN, MEDIA green.
+
+## G454 — BIOMES IN THE GAME, THE CHANTIER LANDED (2026-09-21): the entries below were written as
+G437.1-G437.14 on the vegetation branch (2026-09-20/21) and land here as ONE squashed commit on top
+of G452 (the impostor fix, landed alone); renumbered G454.N, the code comments with them.
+
+## G454.1 — THE SHELF FITTED, THE MIXES CUT, THE GRASS COSTED PER COVERAGE (2026-09-20,
+## the user: "muskeg = pine_georgeous, pine_evolveduk, dead_conifer, dead_stick; birch
+## and ash the basis of the deciduous ecosystem; fit once and for all all the tints;
+## I did not succeed loading any shrub under the coniferous mix; benchmark the grass
+## types per effective coverage, and is there a candidate for a terrain tint; the
+## mounted bench lagged and crashed the interface, let's be careful")
+
+Everything headless (the pane closed - the user's word): three tools, all on the
+bench's own functions through CDP, the committed tuning as the starting state.
+
+- `node tools/tree_fit.js [--dry]` - the tint (suggestTuning: every tree + shrub's
+  cutout texels measured, hue to the reference's, saturation down to the set's
+  lower quartile, lightness to its median) and the implight (fitImplight, the 5x5
+  grove, bisected at `imp lit` 0.9) for the WHOLE canopy layer - 18 species - then
+  the bench's export written to `tools/_trees_tuning.json` (the `measured` block
+  holds the 18 HSLs now). The conifers MOVE (the set's targets are the shelf's, not
+  the six-conifer set of W0a): cedar light 0.59 -> 0.99, fir 0.43 -> 0.66, spruce
+  0.54 -> 0.74, the georgeous pine's hue -0.035 -> 0.097, evolveduk light 1 -> 0.64;
+  the deciduous pack comes in at sat 0.26-0.56 / light 1.0-1.6 (its textures are
+  dark and loud). implight 0.96-1.20 across the shelf (mountain trees and the
+  realistic fir the highest). The covers and the dead are measured, not tinted - a
+  straw sedge has no business at a fir's hue. The user's eye rules; the old rows
+  are one `git show` away.
+- THE MIXES (`mixes` in the tuning): muskeg = the user's four (pines 1.6/1.45,
+  dead_conifer 2, dead_stick 1.5) over the wet ground, the sedge covers kept, the
+  shrub dropped; `deciduous` NEW = birch 1 + ash 0.8 (dead 0.05 each),
+  dead_deciduous 0.08, shrub_deciduous 1 + sapling 0.5 under (4 per 1000 m2),
+  grass_plates 0.6; conifer gains an understory (under 2, shrub_deciduous 0.6 +
+  holly 0.3). WHY NO SHRUB EVER LOADED UNDER THE CONIFERS: the mix carried
+  `under: 0` - shrubs are planted at `under` per 1000 m2 and the tick changed
+  nothing on the ground. A ticked shrub now brings an understory (3) when there
+  is none. The bench's localStorage keeps a machine's own mixes over the file's
+  (Object.assign by name): a saved `conifer`/`muskeg` there still wins.
+- `node tools/tree_shot.js --mixes conifer,deciduous,muskeg,borders` - one PNG per
+  mix from the stand view (`screenshots/mixes/`). Seen: the holly draws TEAL in
+  conifer and borders before and after the fit (its texels measure hue 0.286, the
+  bluest on the shelf; the -0.034 rotation is not enough, and its shading may be
+  glossy) - the user judged borders "ok", so noted, not touched.
+- `node tools/grass_perf.js` - the ruling's instrument, canonical in
+  `futureDesigns/GRASS-RULING-2026-09-20.md`: four cover types alone on the plane,
+  coverage = covered / ground pixels from a FLIGHT eye (35 m, 40 deg down) and a LOW
+  eye (1.7 m), a GPU timer query around 20 frames (gl.finish on ANGLE timed the
+  submission alone: 0.03 ms for twelve million triangles), per-type k sweeps, the
+  cost interpolated to 30 % and 50 % coverage. Flight 30/50 %: plates 0.55/0.60 ms,
+  reed 0.82/2.12, dry tussocks 1.08/2.13, scan 3.63/6.12. The plates are MASK
+  (A2C-able); the other three ship as BLEND. THE TERRAIN-TINT CANDIDATE: the
+  plates (one 512x256 cutout, 6 tris, s 0.30 - and a luminance map would let the
+  terrain colour be the colour); the tussocks the palest texels but BLEND, seven
+  materials, 5-7x the instances. Is scattered geometry still right: half - the
+  splat carries the cover past ~80 m, terrain-tinted plates fill the near ring,
+  tussocks and reed are placed accents (the doc's section 4; B4 owes the game
+  side). `tools/perf/grass_perf.json`, `screenshots/grass_perf/`.
+
+
+## G454.2 — THE HUE DIAL TURNED THE WRONG WAY; THE BIOMES RECUT TO THE USER'S EYE (2026-09-20,
+## the user: "leave the colours of the deciduous intact, they're too dark and pale now;
+## the bushes should all run fit; our go-to grasses should be reed and dry, plates need x2-x3;
+## the coniferous should have a little undergrowth - small trees and small bushes, a few dead
+## herbs in the holes; the muskeg a couple of conifers with crown-only variants and small
+## bushes, high-density dry grass with patches of reed; borders: plates at a high
+## concentration, the ash as colour reference, the teal bush corrected; the ground should
+## have the colour of the grass, the grass could be coloured, more grass, a degressive density")
+
+- THE TEAL BUSH WAS THE DIAL'S SIGN. Measured on one holly (tools/bench_eval.js, a
+  probe over the rendered pixels): uHue -0.097 drew it at HSL hue 0.474, +0.097 at
+  0.253, 0 at 0.371 - the YIQ rotation in TINT_GLSL turns the OPPOSITE way to the hue
+  the colour pass measures, so every fitted hue (reference - mine) pushed a species
+  AWAY from the reference; the holly, the bluest texels on the shelf, went teal.
+  Fixed at the root in both copies of the shader (tools/_trees.html, src/viewer/
+  trees.js: `-uHue`), and everything eye-tuned under the old sign negated with it so
+  nothing judged changes: MASTER.hue -0.045 -> +0.045 (trees.js + the tuning), the
+  shipped payload's five collection hues (src/core/trees_pack.json), the conifers'
+  and pines' rows. GATE WORLDRENDER/TREE/TREES green; the game draws the same.
+- THE COLOURS: the five deciduous trees back to untinted (the user's word); the
+  conifers and pines back to their JUDGED rows (W0a/V1, hue negated) - the
+  whole-shelf fit of G454.1 had brightened cedar/fir/spruce by 1.4-1.7x and the
+  user's eye ruled on the deciduous half of it, so the same ruling is applied to
+  the conifers before they are seen; the four BUSHES fitted to the ASH
+  (`tree_fit.js --kinds shrub --ref ash --target-ref`: hue, sat AND light from the
+  reference's own texels - shrub/sapling hue -0.009 sat 0.86 light 1.53, holly
+  -0.097 / 1 / 0.88, raspberry -0.001 / 1 / 1.26). implight fits kept everywhere.
+- THE COVER'S THREE RULES (tools/_trees.html, the cover loop): TAPER - density
+  falls from the eye, keep = 1 - taper (r / reach), a dial (0.7 in every mix; a
+  120 m reach costs what a flat 80 m did); HOLES - a stand keeps `holes` of its
+  cover outside the glades and all of it inside (the conifers' dead herbs, 0.25);
+  PATCH - a cover species with `patch` (m) grows in seeded clumps (`patchShare` of
+  the reach): the reed at 7 m. Every tuft its own colour (`vary`, an instanceColor
+  jitter - the route the game will use to hand the cover the terrain's colour).
+  THE GROUND DRIVES THE GRASS (the user: "it's the grass that should get tinted by
+  the ground, but the ground should be initialized with the colour we expect the
+  grass to take"): `groundColor` is a dial of the mix (a colour input, "from the
+  grass" resets it), initialised once from the picked covers' measured texels; the
+  plane wears it and every tuft is multiplied by it (instanceColor, jittered by
+  `vary`), the cover's own map neutralised to a shape map (sat 0.15, light 0.7 /
+  its measured lightness). The game's route: the terrain albedo at the tuft's
+  foot in place of the dial. TRAP: a managed Color.set(hex) already lands linear -
+  a convertSRGBToLinear on top drew the plane black. THE EYE STAYS: a replant
+  keeps the camera (setMode frames once), so the cover grows around the eye the
+  user looks from; tree_shot --cam replants at the moved eye. A replant's
+  shrubs can draw BLACK for a few seconds (the maps/AO race of V1) - wait 8 s.
+- THE MIXES: conifer - sapling_deciduous 1 + shrub 0.5 + holly 0.2 under (2 per
+  1000 m2), grass_dry 0.4 in the holes; deciduous - birch/ash + dead + shrubs,
+  dry 1.2 + reed beds; muskeg - the four + spruce 0.4 + realistic fir 0.5 at
+  `mix` 0.25 (three of four interior trees crown-only on a stick), shrub 0.5 +
+  sapling 0.3, dry at density 2 + reed beds; borders - plates at density 6 (x2.4)
+  + dry 0.3; grassland - dry 2 + reed beds + plates 0.3. Reach 120 everywhere.
+  grass_dry's own density 2 (was 0.5). Pictures: `tree_shot.js --cam 0.5,0.28,150`
+  (the stand view at 250 m sits in the bench's fog band and every conifer reads
+  blue-grey - a bench artefact, not a tint).
+- tools/bench_eval.js: one expression in a bench page, headless, --shot.
+- OWED, THE USER'S DIRECTION: "the biomes are an important concept that we should
+  be able to take within the game, into the F8 menu, and ultimately the world
+  editor" - the mixes ARE the biomes as data (species, proportions, understory,
+  cover, ground, taper/holes/patch). B4 carries them into render_world's species-
+  by-place (terrain type -> mix), the F8 vegetation fold (the mix's dials live),
+  and the editor's zones (a zone names its mix). The fit is now a command
+  (tree_fit), the pictures are a command (tree_shot), the cost is a command
+  (grass_perf) - the bench can be closed while the game is judged.
+
+
+## G454.3 — THE GRASS BLENDS INTO A REAL GROUND (2026-09-20, the user: "the plates look good,
+## high density (maybe a tad too high); the other grass 3x bigger, twice denser; why patches
+## in the second biome; the ground colour should blend with the grass - the blades give dark
+## green and the terrain bright green, nothing is blended"; then: "a session is doing alpha
+## splatting in parallel and has mixes for muskeg and forest ground ... take some of these
+## ground covers for yourself, will be easier to check")
+
+- WHY THE PATCHES: the reed's `patch` (7 m beds) was a SPECIES dial, so the deciduous
+  stand grew reed beds the user never asked for. `patch` is a per-MIX override now
+  (applyMix/snapshotMix carry it): beds in the muskeg, a lawn elsewhere.
+- THE SIZES: dry / reed / scan x3 in size (3, 0.03, 3) and x2 in density (their own
+  and every mix's); the plates a tad less (borders 6 -> 5).
+- WHY NOTHING BLENDED, MEASURED (`tree_fit.js --kinds cover`: each cover alone on the
+  plane at the mix density, the flight eye, the frame rendered to a target, the
+  cover's pixels and the bare ground's told apart by two mask renders): with every
+  albedo dial at its stop the tufts read 36-80 % of the ground's luminance - the
+  SHADING, not the colour: a field of vertical cards shadows itself and the plane
+  under it into a dark carpet, and a texel clamps at 1. So (1) a cover CASTS NO
+  SHADOW (F.noCast; it still receives the trees'), and (2) `lift`, a scale on the
+  instance colour (a colour does not clamp), bisected until the tufts' mean
+  luminance is the ground's: dry 3.99, reed 3.99, plates 3.99 (77 % - its MASK
+  edges), scan 3.23. The fit is a command; refit after any change to the leaf
+  terms or the rig.
+- THE GROUND IS A REAL GROUND: `groundTex` names a set of the splat session's
+  library (assets/splat/<key>/diff|nor_gl|rough, its size in metres from
+  index.json: leaves 1.49, mud 1.25, grassRock 15, forestAir 81, rocksG 2) or the
+  lot's five (lush/grass/pebble/dry/dirt), tiled on the plane at its own scale;
+  its MEAN colour (the 512 diff on a canvas) is what `groundColor` initialises to,
+  so the tufts are tinted by the ground they stand on. By the splat session's own
+  codes: conifer = leaves (8 forest), deciduous = lush (14), borders = grass (7),
+  grassland = dry (2); the muskeg keeps its wet ground with groundColor #8a7a3a
+  (the mud's straw) - and the tufts take the colour on ANY ground now (the wet one
+  had been left grey). A mix without a set or colour starts clean (applyMix).
+  Served through `_serve.js`'s fallback CHAIN (';'-separated: the main checkout,
+  then the splat worktree `jolene-bench-mounting-766707` for its uncommitted
+  assets/splat) - launch `flydiy-veg`.
+- tree_shot waits for every map on the stage to be uploaded before the picture
+  (a fresh file's trees drew black at 8 s); a black shrub can still appear on a
+  replant - the pack's AO race (V1's trap), a bench flake, not a tint.
+- SEEN (low eye, screenshots/mixes/low): dry straw tufts on the dry ground, lush
+  grass under the birches, the muskeg's tufts the mud's straw with golden reed
+  beds - blended; the conifer's dead herbs on the leaves floor read big at x3
+  (density 0.25, holes 0.2 - the user's eye on the size).
+
+
+## G454.4 — THE FINAL SERIES: EVERY BIOME ON ITS SPLAT GROUND, THE GRASS AT 1.5 m, BEDS THAT
+## VARY, GRASSES THAT DRIFT (2026-09-20, the user: "the grass looks much, much better now ...
+## what height do we reach? wild grass can be up to 1.5 m; a final series with all biomes
+## taking the ground colour from the actual alpha splat textures; keep varying the density
+## of the spots in the muskeg; a slightly random mix of grasses in patches")
+
+- HEIGHTS, measured (bench_eval, the prototypes' boxes x size): at x3 the tussocks stood
+  1.3-2.8 m and the reed 3.6-3.9 m (x1.42 more at the spread's top) - twice a wild
+  meadow. Sizes set so each type's TALLEST prototype is 1.5 m before the spread jitter:
+  dry 1.6, reed 0.012, scan 2.6, plates 1 (0.87 m).
+- THE MUSKEG ON THE MUD: the pools are an OVERLAY now (wetMaterial also builds WET_OVER,
+  the pool colour where a pool is, transparent elsewhere, on a plane 3 cm up), so the
+  splat session's `mud` set lies under them and the tufts take the mud's mean - every
+  biome's ground colour comes from a real texture (leaves / lush / mud / grass / dry).
+- THE BEDS VARY: every reed bed draws its own density (0.35-1.3 of the species'), a thin
+  bed beside a thick one.
+- BLOTCH: each cover species reads its own low-frequency noise over the ground (`blotch`
+  0.6, cells `blotchM` 18 m, seeded by its name) and keeps 1 - blotch .. 1 of its tufts by
+  it - the mix drifts across the meadow, one area leaning dry, the next plates. Two dials
+  on the panel, in every mix.
+- screenshots/mixes/final_low.png and final_stand.png (tree_shot, both eyes). The conifer
+  stand still shows a black tree or two on a replant - the pack's AO race, not a tint.
+
+
+## G454.5 — TREES x4, A FLOOR OF TWO SETS UNDER A CLOUD, THE COVER THAT FADES TO NOTHING
+## (2026-09-20, the user: "increase the density of coniferous and deciduous trees by 4; inject
+## another alpha-splat texture (a rocky ground) mixed with the current one with a cloud-like
+## mask, it is far too homogeneous; a degressive grass - right now it stops in a clear line;
+## a minimum distance in full; increase the distance")
+
+- conifer 260 -> 1040 trees, deciduous 200 -> 800.
+- `groundTex2` (a second set of the library) under a CLOUD: GROUND_MASK is a tiled fbm
+  (6/12/24/48 cells over `groundMixM` metres, 160 in every mix), read TWICE in the
+  shader at unrelated scales (the second rotated) and mixed - one tile alone read as a
+  polka-dot grid at 45 m; thresholded softly about `groundMixBias` with `groundMixSharp`,
+  applied in the material's own map / normal / roughness reads (one program,
+  customProgramCacheKey 'groundMix'). Pairs: conifer leaves + rocksG, deciduous lush +
+  rocksG, muskeg mud + grassRock, borders grass + pebble, grassland dry + grassRock.
+  The tufts' colour is the two means weighed by the bias.
+- THE COVER FADES: full density to `coverNear` (50 m), then keep = (1 - t)^(1 + 2 taper)
+  to ZERO at the reach (220 m) - no edge whatever the taper; the count is the annulus
+  integral of the keep. Three dials: reach, full to, taper.
+- screenshots/mixes/final3_{low,stand}.png.
+
+
+## G454.6 — THE SHARED GROUND FIELDS WIRED, FLOWERS IN PACKS, GREEN IN THE MUSKEG (2026-09-20,
+## the user: "sprinkle some green in the muskeg - lush patches between the mud and the small
+## trees; muskeg trees x2; in the grassland sprinkle flowers - they form packs, they don't tint;
+## use the geometry of the existing grasses (not the plates) and these textures, a little taller
+## than the grass; the pink one in the grasslands; the white ones and the red fruit ones are
+## smaller and go with the border climate and the forest, both")
+
+- src/core/28b_ground_fields.js (the alpha-splat session's module, my numbers verbatim, copied
+  in - it lands with the splat chantier; the same file, the same content): pools, the floor's
+  cloud mix, the per-species drift, the colour swing (`shade`, `hueTurn`) and `groundColor`,
+  in JS and as ONE GLSL string. The bench reads it now: poolAt/blotch delegate (the dials
+  write C.blotch); the floor's material splices GF.glsl and samples gfMixK + gfShade on the
+  WORLD position (vGfPos, no canvas mask any more); EVERY TUFT IS THE COLOUR OF THE GROUND AT
+  ITS FOOT - F.colAt(x, z) = groundColor(the two set means through mixK) turned by the same
+  shade field, x lift, the max channel capped at 0.7 (the lift is a lighting ratio and pushed
+  a pale ground's tufts past white); a flower (`noTint`) keeps its own picture. Per-type swing
+  amplitudes on the mix (shadeHue / shadeVal / shadeCell: heath 10/0.18/25, muskeg 8/0.2/15,
+  forest 6/0.15/30).
+- FLOWERS: a cover species with `maps` borrows its file's subject (the scan clump
+  `rostlinka_07c`, whose cards span the whole texture - the dry_grass clumps use atlas
+  crops and would show a slice) and wears each picture as a prototype of its own on a PLAIN
+  MeshStandardMaterial (MASK 0.5, A2C; the donor's hooked clone drew NOTHING - measured by
+  swapping materials); `size` is its height (0.56 m a unit). flower_fireweed (3 pictures,
+  1.8 m) in the grassland; flower_foam (2, 0.5 m) and flower_bunchberry (flower + fruit,
+  0.35 m) in borders, conifer and deciduous; packs of 4-6 m, patchShare 0.2-0.25. THE
+  PICTURES ARE PLACEHOLDERS (drawn stalks, PIL) until the user's seven land at
+  assets/vegetation/flowers/{fireweed_a,b,c,foamflower_a,b,bunchberry_flower,bunchberry_fruit}.png
+  (the main checkout's assets/, served through the chain).
+- muskeg: count 280, groundTex2 `lush` at bias 0.58 (green patches between the mud and the
+  trees). tree_shot plants ONCE at the eye --cam asks for (a second plant right after the
+  first drew the pack's trees black - the AO race); screenshots/mixes/final5_low.png.
+
+
+## G454.7 — ROCKS, HALF BURIED, SIZED PER SETTING; THE MIXES ON THE SHARED TERRAIN ROWS
+## (2026-09-20, the user: "let's spawn rocks, half buried, rotated only on the z axis; lots in
+## the coniferous, a little in the deciduous, very few in the grasslands and muskegs, medium for
+## the borders; ensure the rocks go higher than the grass; probably rock size per setting")
+
+- THE PACK: assets/vegetation/rocks/free_rock_assets_pack.glb (JonhGillessen, CC-BY-4.0,
+  CREDITS row) - 17 boulders 0.02-0.19 units tall, one material, one 5 MB texture. A SIXTH
+  KIND in the inspector, `rock`, by folder (vegetation/rocks; the PROP regex would have
+  filed them as terrain-to-scatter-on); `TREE_ASSETS` overrides the inspector's root (a
+  worktree over the main checkout's assets/). The species `rocks` keeps the 13 rocks over
+  0.06 units - a smaller one buried to the waist never clears the grass.
+- THE PLANTING (showForest): the stand's `rocks` per 1000 m2, drawn by proportion, sunk to
+  `bury` of their own height (0.45; `sink` is metres and buildGroup's), turned about the
+  vertical only (the field's yaw), `size` x a log-jitter (`sizeVar` 0.35), off pools and
+  trunks, casting shadows, on a PLAIN copy of the pack's material - the leaf hook reads an
+  AO attribute the pack does not carry and drew every rock black (the unbound-attribute
+  trap, the same as a tree before its AO bake). Per mix: conifer 10/1000 m2 at size 14,
+  deciduous 2.5 at 24, borders 5 at 30, grassland 0.4 at 46, muskeg 0.4 at 40 - the size
+  per setting because the visible half must clear the grass (1.5 m in the meadows: the
+  smallest kept rock at 46 shows 1.7 m; the conifer's herbs are sparse, so 14). A mix
+  overrides a rock's `size` the way it overrides a cover's `density`.
+- THE TERRAIN ROW: a mix names its `ttype` and applyMix takes GROUND_FIELDS.CODES[ttype]
+  (the splat session's table, taken again with the CODES block) for the two sets, the
+  cloud's period / bias / sharpness and the colour swing - the row the island's ground
+  shader reads, parity by construction - unless the mix says otherwise for a key (the
+  muskeg's `lush` second set is the user's). conifer 13 (forest old: leaves + rocksG),
+  deciduous 14 (lush + grass), muskeg 3 (mud + lush by override), borders 7 (grass +
+  lush), grassland 2 (dry + grass). screenshots/mixes/final7_{low,stand}.png.
+
+
+## G454.8 — BUSHES FROM A KNEE TO A ROOF; THE MUSKEG ON THE SHARED ROW (2026-09-20, the user:
+## "bushes also need more variation, from 50 cm to 3 m high"; the splat session: CODES[3] =
+## mud + lush, wet 0.32, poolScale 3)
+
+- A shrub species with `hMin` / `hMax` (metres) draws each instance's height UNIFORMLY between
+  them and scales its prototype to it (the pack's shrubs are authored 1.8-5.9 m; the stand's
+  spread jitter, x0.82-1.22, had left them nearly one size): shrub_deciduous 0.5-3, holly
+  0.5-2.5, raspberry 0.5-1.8, sapling 0.8-3.5. A LOG-uniform draw was tried first and hid
+  most bushes under the 1.5 m grass (its median 1.2 m) - uniform in metres it is. A bush
+  under the grass is still there; the meadow reads sparser than before by that much.
+- The muskeg's override is gone: the shared row carries mud + lush now, `wet` 0.32 and
+  `poolScale` 3 (the pool field at a third of its period - puddles of 20-40 m, not ponds),
+  and the bench reads both from the row (applyMix: the row's wet unless the mix says,
+  FOREST.poolScale; poolAt scales x, z by it) so the sedge and the island's water agree.
+  TRAP: applyMix's "start clean" nulled groundTex/groundTex2 right after the row had set
+  them (the muskeg stood on the bare plane, no pools) - the clean-up skips row-supplied keys.
+- screenshots/mixes/final8_{low,stand}.png - the five biomes with rocks, flowers
+  (placeholders), varied bushes, puddles.
+
+
+## G454.9 — THE CALM FIELD (2026-09-20, the user: "very busy visually; I can barely see the
+## flowers, while they should shout out; a field of grass is relaxing to look at, quite
+## homogeneous - any technique?")
+
+The noise was at the TUFT scale - every tuft its own lightness (vary 0.18), a straw texture's
+own light/dark inside each card, a size jitter per tuft - and the eye reads ten thousand
+independent samples as noise where a meadow is one surface with slow drift. Three levers,
+measured on the grassland from the low eye (screenshots/mixes/calm/calm_ab.png):
+- `vary` 0.18 -> 0.03 on every cover: neighbours agree; the variation that stays is the
+  shade field's (25 m cells), which the ground shares.
+- `contrast` (NEW dial, covers): the texel pulled toward the map's own measured mean
+  luminance (uFlat / uFlatMean in the tint hook), 0.35 - the card is a soft silhouette of the
+  ground's colour, not a picture of straw.
+- `coverSpread` (NEW, per mix): the tufts' size jitter apart from the trees' `spread` -
+  0.08 in every mix (one height).
+Plus the accents: the fireweed in fewer, denser packs (9 m, patchShare 0.12, 0.12/m2) and the
+meadow's rocks 0.4 -> 0.15. Against a calm field the pink packs read from 60 m. Left for the
+game side: fade the tufts' CONTRAST (not only density) with distance, and A2C's shimmer.
+
+## G454.10 — THE CALM FIELD KEEPS ITS COLOUR; THE FLOWERS ON CARDS (2026-09-20, the user: "your
+## calm settings have affected the luminosity/colour too much; keep the overall luminosity/colour
+## the same, they work well with their terrain now" / "what are the crappy pink flowers?")
+
+1. The contrast dial pulls a texel toward its map's MEAN, and a straw map's mean sits well
+   above the dark blades the fitted `lift` had been balancing - the field jumped from
+   [95.7, 88.3, 64.0] to [164, 155, 128] (grassland, low eye, crop mean). The lift is refitted
+   with `tree_fit.js --kinds cover`: grass_dry 0.29, reed 0.29, plates 0.38, scan 0.23
+   (the dial's floor 0.3 -> 0.1: a flattened card sits far below 1). Field now
+   [101, 90, 72] - the calm dials stay, the colour is the ground's again
+   (screenshots/mixes/calm/after4/). Two fit traps fixed on the way: the first species
+   measured 0 px because its cover had grown around the SHELF's eye 42 m away (replanted at
+   the moved eye before the masks), and a flower (`noTint`) is skipped - no lift to fit.
+2. The user's seven pictures had landed in assets/vegetation/flowers/ and were drawn
+   shredded: the scan clump `rostlinka_07c` is a bundle of blade-shaped triangles, each
+   mapping a STRIP of its own atlas (uv extent 0.04-0.97 only as a union). A photo is a
+   rectangle. `flowerCards(H, aspect, seed)`: three quads crossed at 60 deg, the whole picture
+   on each (v-down like the loader's flipY false), `size` now the height in METRES, `aspect`
+   (NEW dial) the picture's width over height (fireweed 1086x1448 -> 0.75), each card tilted
+   5 deg, the foot buried 5 %. Fireweed 1.7 m (grass to ~1.4), foamflower 0.7, bunchberry
+   0.45 - the small ones show through the borders' plates from a walking eye (white spikes,
+   red fruit at the foot: screenshots/mixes/flowers/_foam_close.png) and NOT from 60 m; the
+   user asked for them smaller than the fireweed, so the flight eye sees the pink packs only.
+   Their pack rows in the wooded mixes: 0.5/m2 in 5 m beds (0.06 was invisible).
+   The pictures are 1-3 MB each at 1086-1254 px: the game's media step (B1 part 2) needs
+   512 px copies; the bench reads the originals.
+
+## G454.11 — THE BIOMES-IN-GAME STUDY + the `included` clobber (2026-09-20, the user:
+## "study how we will integrate these biomes in-game; exploit the same regions [as the
+## alpha splat]; then a biome editor, similar to the bench, minimized by default; no
+## integration yet")
+
+futureDesigns/BIOMES-IN-GAME-2026-09-20.md: the architecture as found (the ttype byte grid
+and its three consumers, the splat's derived codes 12/13/14 shader-side only, the fill
+streamer's island rule - the terrain type says how much stands, never what; the pool's
+SPECIES_PREF; the payload bakes trees only; clouds_ui as the panel pattern; the editor's
+zones), the mapping (a biome IS a terrain-type row: BIOMES[code] = a bench mix beside
+RECIPE; deciduous a wet/low PREFERENCE inside forest and scrub, not a code; deriveCode +
+codeAt on the CPU with the shader's knobs; the vegetation samples the code at the ground's
+own wobbled position), the six layers L0-L6 each shippable alone, the budgets, rocks need
+no geometry LOD (68-658 tris, the ring cuts them; the maps are the cost), four rulings owed.
+
+The clobber: tree_fit.js exported the bench after fitting ONE species, and the export writes
+`included` (the list tree_prep.py bakes into the game) from the current pick - eight commits
+since a86f0835 carried `included: ["grass_scan"]`; a tree_prep run would have baked nothing.
+The fit now keeps the committed list (only the bench's own export may change it); the five
+conifers restored.
+
+## G454.12 — BIOMES IN THE GAME, L0 + L1: the species payload and species by biome
+## (2026-09-20, the user: "deciduous an available biome mapped to a terrain type - the
+## sparse forest; import everything; an editor biome does not move the ground; sensible
+## defaults, F8 with a JSON export, then benchmark")
+
+L0 THE PAYLOAD IS PER SPECIES. tree_prep.py bakes every species _trees_tuning.json names
+(the bench's model: a species = file + subjects + kind), 27 of them - the five conifers
+(bins byte-identical), the pines, birch / birch_autumn / maple / oak / ash, four shrubs, two
+standing-dead kinds, four grasses, three flowers (pictures at 512 px in media/tex/flowers,
+no geometry: the game builds the cards), the rocks. A tree gets the three series; every
+other kind ships L0 alone. A file's maps are baked once (pack.materials[file], joined to
+its species at load). `ship: false` on a species keeps it out (mountain_trees: 15.7 MB no
+mix names). TREE_PACK.biomes = the mixes + the terrain-type map (`biomes` in the tuning:
+2 grassland, 3 muskeg, 4/11 shore, 5/6/12 scree, 7/14 borders, 8 deciduous, 13 conifer;
+scree and shore are two new rocks-only mixes). GATE TREES checks kinds, flowers, the
+biome table; GATE MEDIA's budget 7.4 -> 7.6 MiB (the manifest 17 -> 80 KB).
+Two traps: the deciduous pack is SPEC-GLOSS (KHR_materials_pbrSpecularGlossiness:
+diffuseTexture, not baseColorTexture) - every deciduous sheet baked WHITE until read; a
+BLEND leaf has no cutoff of its own (0 in the manifest: the species' `alpha` dial rules,
+the bench's 0.3).
+L1 SPECIES BY BIOME. src/core/28c_biomes.js (pure): BIOMES.make(TREE_PACK) -> codeOf(tt,
+slope, canopy, r) (the splat's derived 12/13/14 on the CPU, the shader's smoothstep as a
+draw on the point's hash - the same share, jittered), mixAt(code), density(mix) (the bench's
+`count` in its `radius`). render_world's walk: the terrain type at the ground's own wobbled
+position (8 m on a 23 m noise, `biomeWobble`) -> code -> mix; the kind = the mix's trees/m2
+over the grid's x `biomeGain` (3.5: the conifer at the grid's full density as G406 had it,
+deciduous 0.75, muskeg 0.26, borders 0.075, grassland 0.03); the species drawn from THE
+MIX'S pool (biomePool: the mix's proportions over the SHAPE list, x SPECIES_PREF as
+before). trees.js: treeList() = the trees (tree + dead), treeList(kind) / 'all'; a flower
+has no bin. TREE_FILL.biomes() / setBiome(code, mix) for F8 (the fold itself is L4).
+MEASURED (tree_perf, Jolene's densest stand, 110 m AGL, alps rig): master 59.5 ms median /
+walk 12.1 ms a chunk; this 53.1 / 14.1 - the biome draw costs ~2 ms a chunk in the walk and
+nothing at the frame. (The 60 ms frame itself is master's today at that stand - not this
+chantier's.) imp_audit: 81 sheets, geometry/impostor 1.03; screenshots/biomes/l1/.
+Owed: L2 understory, L3 the cover ring (next), L4 F8 fold + export, L6 the panel, L5 the
+editor polygon; the dead stick (a generated species) needs the bench's generator in the game.
+
+## G454.13 — BIOMES IN THE GAME, L2 + L3: THE COVER RING (2026-09-21)
+
+src/viewer/cover_ring.js: the grass, flowers, rocks and bushes of the biome in a ring of
+32 m cells around the EYE (the camera's ground point), each cell planted once on its own
+hash, kept within `reach` (220 m), dropped beyond, at most `budgetMs` (4) of builds a
+frame. Nothing is regenerated as the eye moves inside the ring: THE FADE IS IN THE VERTEX
+SHADER (trees.js fadeHook: an `aRand` per instance against keep = (1-t)^(1+2 taper) from
+`near` 50 m to nothing at the reach, x the AGL term - full under 60 m, gone at 150 m), so a
+cell is planted at full density and thins per frame. The rules are the bench's, read from
+the payload's numbers: the mix's rows (density per m2, patch beds = the top 0.25 x
+patchShare of a noise at density / that, size for a rock), the mix's forest (under,
+rocks, blotch through GF.blotch, coverSpread), the species' place (hMin/hMax, bury, vary,
+lift, contrast, noTint, aspect). A tuft's colour is THE GROUND'S AT ITS FOOT: the code's
+row (GF.CODES) with the sets' means (SPLAT_TEX_SETS[i].mean when the splat lands, the
+same numbers inlined until then) through groundColor + shade, x lift, capped at 0.7; the
+texel flattened by `contrast` (uFlat / uFlatMean now in trees.js's tint - 1 = as before;
+the map's mean lightness measured as the bench does). A cell samples the code, the mix,
+the land test and the colour on a 4 m lattice once (per point it was 50 ms a cell).
+Covers cast no shadow; bushes and rocks do. Culled per cell (the cell's sphere on the
+wrapper geometry). ?cover=0 turns it off; TREE_FILL.cover() is the handle (get/set/stat).
+THE TRAP THAT ATE THE NIGHT: the reed model is 288 units tall at `size` 0.012, and the
+ring had not applied a cover's size - each reed a 130 m screen-filling alpha card, the
+frame 450 ms, every rig "hanging" (imp_audit now reports a renderer crash, takes
+IMP_CHROME_LOG=<file> for Chrome's own log, --js-flags=--expose-gc, and --probe-only
+leaves a picture). The heap scare on the way was garbage: master and this both sit at
+2.8 GB live after gc() (the island), limit 4.2 GB.
+MEASURED (imp_audit --agl 60, Jolene's densest stand, 213 cells / 404 k instances:
+272 k dry, 107 k plates, 17 k reed, 14 k flowers, 700 bushes, 560 rocks): 52.8 ms with
+the ring, 50.0 without - ~3 ms. Pictures: screenshots/biomes/l3/, l3_low/.
+Owed: the splat is not on this branch yet, so the tufts' colours (the sets' means) stand
+on the analytic green - the match is judged when the ground lands; the rocks read pale
+(a plain Standard on the pack's map, no AO); the airfield's grass strips get grass (no
+aero-surface test); F8 fold + JSON export (L4), the panel (L6), the editor polygon (L5).
+
+## G454.14 — the woodland draws from the biome; one bake pair for every sheet; the merge (2026-09-21)
+
+MERGED master (G438 alpha splatting, G438.1, G443-G446) into the biomes branch: 28b is
+master's (the splat's newer recipe), _serve.js takes master's --fallback flag with
+several roots, build.js / _media_check.js / HANDOVER.md / _tree_check.js re-taken on LF
+(the branch had flipped them to CRLF - the Python-write trap), MEDIA budget 7.95.
+cover_ring.js reads SPLAT_TEX_SETS[i].mean now that the sets are there.
+THE PINE THE USER REJECTED ("the 3rd pine tree"): the woodland STANDS (world.trees, the
+island's 24 711 placed trees) drew their species from the WHOLE pool - every `tree`
+collection with a proportion - while only the fill walker read the biome; pine_lampi is
+in no mix (muskeg = georgeous + evolveduk) and stood in every stand anyway. The code
+lookup (FILL, ISLC, ttypeAt/codeAt/biomeAt) is hoisted above plantWoodland and groupOf
+draws from biomePool(mix, PROTO) first, the whole pool only where no mix names the
+ground; biomePools keyed per shapes list (the fill's SHAPE.list and the woodland's PROTO).
+ONE BAKE PAIR: 67 sheets (22 subjects x 3 series) each held a WebGLRenderTarget pair with
+its depth renderbuffers - 1.3 GB of the card. The bake draws into ONE shared pair and
+copyTextureToTexture (r186 blits a render-target source) into a DataTexture sheet of its
+own, mips regenerated on the copy: 10.6 MB a sheet. atlas.read(px) blits back for the
+audit (imp_audit reads through it); the WORLDRENDER stub gained DataTexture + the copy.
+NOT MEASURED ON SCREEN: four other sessions' headless rigs held 4-9 GB of the 10 GB
+card all morning (cdp_fp/shot/panel/a1 user-data-dirs); every rig run of mine AND of
+master's own page died as "GPU process exited unexpectedly" (0xC0000005) near 9-10 GB,
+and the Browser pane's own GPU went to "GL_VENDOR = Disabled" (Chrome disables it for
+the app's life after the crashes - a desktop-app restart brings it back). The alpha
+question (the user: hard, on/off transparency, no subsurface next to the bench) is OPEN:
+the game has the same pieces (a2c on an 8x MSAA target, the sharpen at 0.9 vs the bench's
+1.0, wrap/sss at 0.80/1.12 vs the bench's 0.5/0.55, the cut per material = the bench's
+rule) - the difference is to be found on a screen, not in the code read.

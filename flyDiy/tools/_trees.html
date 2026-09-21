@@ -178,6 +178,7 @@
 </main>
 
 <script src="../vendor/three.min.js"></script>
+<script src="../src/core/28b_ground_fields.js"></script>
 <script>window.FLYDIY_ASSET_BASE = '../';</script>
 <script src="../src/viewer/house_tex.js"></script>
 <script src="../src/viewer/hangar_sky.js"></script>
@@ -755,7 +756,12 @@ let REFNAME = 'realistic_fir_trees_pack_lods_gameready.glb';   // the colour oth
 const MASTER = { hue: 0, sat: 1, light: 1 };
 const tuneOf = n => Object.assign({}, TUNE_DEFAULT, TUNE[n] || {});
 const TINT_GLSL = [
-  'float _a = uHue * 6.2831853;',
+  // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
+  // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
+  // pushed a species further from the reference - the holly went teal, not yellow-green.
+  // Measured on one holly: uHue -0.097 rendered at hue 0.474, +0.097 at 0.253 (0.371 at 0).
+  // Negated here; the eye-tuned master hue and the shipped payload's hues negated with it.
+  'float _a = -uHue * 6.2831853;',
   'float _c = cos(_a), _s = sin(_a);',
   'mat3 _m = mat3(',
   '  0.299 + 0.701*_c + 0.168*_s, 0.587 - 0.587*_c + 0.330*_s, 0.114 - 0.114*_c - 0.497*_s,',
@@ -767,7 +773,12 @@ const TINT_GLSL = [
   // never saturate up — a texture that was never that colourful has no detail
   // to recover, and pushing it only amplifies its compression noise.
   'float _y = dot(_rot, vec3(0.2126, 0.7152, 0.0722));',
-  'diffuseColor.rgb = clamp(mix(vec3(_y), _rot, uSat) * uLight, 0.0, 1.0);',
+  // CONTRAST (2026-09-20, the user: "very busy visually ... a field of grass is relaxing,
+  // homogeneous"): the texel pulled toward the map's own mean luminance by uFlat (1 = as
+  // shipped, 0 = a flat card of the mean) - a straw texture's internal light/dark is what
+  // makes ten thousand tufts read as noise; flattened, they read as one surface
+  'vec3 _f = mix(vec3(uFlatMean), mix(vec3(_y), _rot, uSat), uFlat);',
+  'diffuseColor.rgb = clamp(_f * uLight, 0.0, 1.0);',
   // ---- and now the alpha ----
   // ALPHA-TO-COVERAGE MAKES COVERAGE EQUAL ALPHA, which is a trap for a
   // texture whose leaves are soft rather than binary. Larch measures a mean
@@ -1023,6 +1034,7 @@ function hookTint(mat) {
   mat.userData.uLeaf = { value: mat.userData.alphaMode === 'OPAQUE' ? 0 : 1 };
   mat.userData.uCut = { value: 0.4 };
   mat.userData.uLeafFill = { value: 1 };
+  mat.userData.uFlat = { value: 1 }; mat.userData.uFlatMean = { value: 0.4 };
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = sh => {
     if (prev) prev(sh);
@@ -1032,6 +1044,7 @@ function hookTint(mat) {
     sh.uniforms.uSharp = U_SHARP;
     sh.uniforms.uCut = mat.userData.uCut;
     sh.uniforms.uLeafFill = mat.userData.uLeafFill;
+    sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
     sh.uniforms.uWrap = U_WRAP;
     sh.uniforms.uSSS = U_SSS;
     sh.uniforms.uSSSP = U_SSSP;
@@ -1045,7 +1058,7 @@ function hookTint(mat) {
     sh.fragmentShader = ['uniform float uHue;', 'uniform float uSat;',
       'uniform float uLight;', 'uniform float uWrap;', 'uniform float uSSS;',
       'uniform float uSSSP;', 'uniform float uLeaf;', 'uniform float uSharp;',
-      'uniform float uCut;', 'uniform float uLeafFill;', 'uniform float uAoBake;', 'uniform float uBakeCut;',
+      'uniform float uCut;', 'uniform float uLeafFill;', 'uniform float uAoBake;', 'uniform float uBakeCut;', 'uniform float uFlat;', 'uniform float uFlatMean;',
       'uniform float uBakeAlb;', 'varying float vAoV;',
       ''].join(NL) +
       sh.fragmentShader
@@ -1107,6 +1120,8 @@ function applyTune(mat, t) {
   mat.userData.uLight.value = (leaf ? t.light : (t.bark === undefined ? 1 : t.bark))
                               * MASTER.light;
   if (mat.userData.uLeafFill) mat.userData.uLeafFill.value = leaf && t.leafFill !== undefined ? t.leafFill : 1;
+  if (mat.userData.uFlat) { mat.userData.uFlat.value = leaf && t.contrast !== undefined ? t.contrast : 1;
+    const mm = leaf && mat.map && mat.map.image ? measureMats([mat]) : null; if (mm && mm.px) mat.userData.uFlatMean.value = mm.l; }
 }
 
 
@@ -2982,7 +2997,7 @@ let SPECIES = [];   // [{ key, file, asset, kind, subjects: [G], snags: [{asset,
 let TUNE_KEY = null;               // the species whose dials buildGroup reads
 const spOf = key => SPECIES.find(s => s.key === key);
 const speciesOfFile = file => SPECIES.filter(s => s.file === file);
-const groupsAll = a => [].concat(a.trees || [], a.shrubs || [], a.cover || [], a.billboards || []);
+const groupsAll = a => [].concat(a.trees || [], a.shrubs || [], a.cover || [], a.billboards || [], a.rocks || []);
 function buildSpecies() {
   SPECIES = [];
   const byFile = n => INDEX.assets.find(a => a.name === n || a.file === n);
@@ -2993,7 +3008,8 @@ function buildSpecies() {
     if (!a || !a.renderable) continue;
     const kind = t.kind || 'tree';
     const pool = kind === 'cover' ? a.cover.concat(a.shrubs)
-               : kind === 'shrub' ? a.shrubs.concat(a.trees) : subjectsOf(a);
+               : kind === 'shrub' ? a.shrubs.concat(a.trees)
+               : kind === 'rock' ? (a.rocks || []) : subjectsOf(a);
     // a GENERATED species (`gen`) has no subject in the file: it borrows a
     // material from it (the stick wears the pack's dead bark)
     let subjects = t.gen ? []
@@ -3040,6 +3056,7 @@ function matsOfGroups(built, groups) {
 function retintSpecies(sp) {
   const built = cache[sp.file];
   if (!built) return;
+  if (tuneOf(sp.key).maps) return;   // a flower's materials are its own clones (speciesProtos); the donor's dials stay the donor's
   if (MIPFIX) mipFixAsset(sp.file);
   aoFixAsset(sp.file);
   const t = tuneOf(sp.key);
@@ -3278,6 +3295,29 @@ function speciesProtos(sp, built) {
   const split = pct < 1 && nv > 1;
   const subjects = gen ? [{ name: 'stick' }] : sp.subjects;
   const nS = Math.max(1, subjects.length);
+  // A FLOWER (2026-09-20, the user: "these textures; a little taller than the grass; they
+  // form packs, they don't tint"): a cover species with `maps` wears each picture as its own
+  // prototype. THE PICTURE IS A RECTANGLE: the first cut laid it on the scan clump's
+  // geometry, and that clump is a bundle of blade-shaped triangles, each mapping a STRIP of
+  // its own atlas (uv extent 0.04-0.97 as a union, a sliver each) - the user's fireweed came
+  // out shredded ("crappy pink flowers"). So a flower stands on cards of its own: three
+  // quads crossed at 60 deg, the whole picture on each (uv 0..1, glTF v-down like the
+  // loader's flipY false), `size` the height in METRES, `aspect` the picture's width over
+  // its height, each card tilted a touch (5 deg) and the foot buried 5 % so the cut edge
+  // hides in the grass. One plain Standard material per picture - MASK at 0.5, untinted
+  // (noTint keeps the ground's colour off it), the tint hook's edge sharpen drew a photo's
+  // soft alpha as NOTHING (measured by swapping materials).
+  if (t.maps && t.maps.length && !gen) {
+    t.maps.forEach((url, v) => {
+      const h = flowerCards(t.size || 1, t.aspect || 1, (hashStr(sp.key) + v * 977) >>> 0);
+      h.traverse(o => { if (!o.isMesh) return;
+        o.material = new THREE.MeshStandardMaterial({ map: flowerTexture(url), alphaTest: 0.5, alphaToCoverage: A2C, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+        o.material.userData.alphaMode = 'MASK'; o.material.userData.flower = true; });
+      h.userData.variant = v; h.userData.species = sp.key;
+      out.push({ sp: sp, G: { name: 'card' }, v: v, near: h, w: 1 / t.maps.length, bent: false });
+    });
+    return out;
+  }
   for (const G of subjects) for (let v = 0; v < nv; v++) {
     let h;
     if (gen) h = stickProto(sp, built, t, (hashStr(sp.key) + v * 977) >>> 0);
@@ -3306,6 +3346,32 @@ function speciesProtos(sp, built) {
 // materials, so the tint hooks, the AO attribute and the cutout all ride
 // along unchanged (r128 instances through <project_vertex>).
 // ==========================================================================
+const FLOWER_TEX = {};
+// three crossed cards, the whole picture on each; H metres tall, H x aspect wide
+function flowerCards(H, aspect, seed) {
+  const r = rng(seed), W = H * aspect, pos = [], uv = [], idx = [];
+  for (let c = 0; c < 3; c++) {
+    const a = c * Math.PI / 3 + (r() - 0.5) * 0.3, tilt = (r() - 0.5) * 0.17, dx = Math.cos(a), dz = Math.sin(a), ox = (r() - 0.5) * 0.15 * W, oz = (r() - 0.5) * 0.15 * W;
+    const y0 = -0.05 * H, y1 = 0.95 * H, lean = Math.sin(tilt) * H;   // the top leans across the card's normal
+    const b = pos.length / 3;
+    pos.push(ox - dx * W / 2, y0, oz - dz * W / 2,  ox + dx * W / 2, y0, oz + dz * W / 2,
+             ox + dx * W / 2 - dz * lean, y1, oz + dz * W / 2 + dx * lean,  ox - dx * W / 2 - dz * lean, y1, oz - dz * W / 2 + dx * lean);
+    uv.push(0, 1, 1, 1, 1, 0, 0, 0);   // v down: the picture's top at v = 0 (flipY false)
+    idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial()), holder = new THREE.Group(); holder.add(m);
+  holder.userData = { name: 'card', h: H, w: W, group: null, sink: 0 };
+  return holder;
+}
+function flowerTexture(url) {
+  if (FLOWER_TEX[url]) return FLOWER_TEX[url];
+  const t = new THREE.TextureLoader().load(url, () => render());
+  t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4;   // glTF uv origin, like the donor's map
+  FLOWER_TEX[url] = t;
+  return t;
+}
 function instanceField(proto) {
   proto.updateMatrixWorld(true);
   const parts = [];
@@ -3316,6 +3382,10 @@ function instanceField(proto) {
     const n = F.items.length / 5;
     if (!n || !F.parts.length) return null;
     const g = new THREE.Group(), M = new THREE.Matrix4(), T = new THREE.Matrix4(), S = new THREE.Vector3();
+    // A TUFT OF ITS OWN COLOUR (the user: "the grass could be coloured"): F.tint > 0 gives
+    // every instance a seeded hue/lightness jitter through instanceColor - the route the
+    // game will use to hand the cover the TERRAIN's colour at its foot (GRASS-RULING §3)
+    const tintK = F.tint || 0, base = F.base || null, colAt = F.colAt || null, cRand = (tintK || base || colAt) ? rng(1234 + n) : null, col = new THREE.Color();
     for (const p of F.parts) {
       const im = new THREE.InstancedMesh(p.geo, p.mat, n);
       for (let i = 0; i < n; i++) {
@@ -3324,9 +3394,21 @@ function instanceField(proto) {
         T.setPosition(F.items[o], F.items[o + 1], F.items[o + 2]);
         M.multiplyMatrices(T, p.m);
         im.setMatrixAt(i, M);
+        if (tintK || base || colAt) {
+          const l = 1 + (cRand() - 0.5) * 2 * tintK;                       // the jitter, about 1
+          if (colAt) { const c = colAt(F.items[o], F.items[o + 2]); col.setRGB(c[0] * l, c[1] * l, c[2] * l); }   // the ground at its foot
+          else if (base) col.copy(base).multiplyScalar(l);                  // the ground's colour, jittered
+          else col.setRGB(l, l, l);                                         // its own colours (a flower), jittered in lightness only
+          im.setColorAt(i, col);
+        }
       }
       im.instanceMatrix.needsUpdate = true;
-      im.castShadow = SHADOWS; im.receiveShadow = SHADOWS;
+      if ((tintK || base || colAt) && im.instanceColor) im.instanceColor.needsUpdate = true;
+      // A COVER CASTS NO SHADOW (2026-09-20): measured, the tufts read 36-80 % of the ground's
+      // luminance with every dial at its stop - the shading, not the albedo: a field of
+      // vertical cards shadows itself and the plane under it into a dark carpet. Grass at
+      // these scales shades nothing anyone sees; it receives the trees' shadows still.
+      im.castShadow = SHADOWS && (!F.noCast || F.rock); im.receiveShadow = SHADOWS;
       im.frustumCulled = false;
       g.add(im);
     }
@@ -3359,16 +3441,100 @@ function vnoiseT(u, w, N) {                     // u, w in [0,1); N cells, wrapp
   const top = a + (b - a) * sx, bot = c + (d - c) * sx;
   return top + (bot - top) * sz;
 }
+// THE FIELDS ARE SHARED (2026-09-20, the user, via the alpha-splat session: the ground and
+// the vegetation must read the SAME micro-variation so grass colour, ground colour and
+// puddles agree inside one terrain type): src/core/28b_ground_fields.js holds the pools,
+// the floor's cloud mix, the per-species drift and the colour swing, in JS and as the
+// same GLSL - the ground shader samples them per fragment, the bench per tuft.
+const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
 function poolAt(x, z) {                          // 0 = peat, 1 = open water
-  const u = (((x % WET_PERIOD) + WET_PERIOD) % WET_PERIOD) / WET_PERIOD;
-  const w = (((z % WET_PERIOD) + WET_PERIOD) % WET_PERIOD) / WET_PERIOD;
-  const n = 0.55 * vnoiseT(u, w, 5) + 0.30 * vnoiseT(u + 0.37, w + 0.11, 11) + 0.15 * vnoiseT(u + 0.71, w + 0.53, 23);
-  const thr = 0.66 - 0.30 * (FOREST.wet || 0);
-  const e = 0.035;
-  const s = Math.min(1, Math.max(0, (n - (thr - e)) / (2 * e)));
-  return s * s * (3 - 2 * s);
+  // `poolScale` (the terrain row's): the field at a fraction of its period - puddles of 20-40 m, not 150 m ponds
+  const ps = FOREST.poolScale || 1;
+  return GF.poolAt(x * ps, z * ps, FOREST.wet || 0, GF.C.pool.edgeVeg);
 }
 let WET_MAT = null, WET_KEY = '';
+// THE GROUND UNDER THE STAND IS A REAL GROUND (2026-09-20, the user: "a session is doing
+// alpha splatting in parallel and has mixes for muskeg and forest ground ... take some of
+// these ground covers for yourself, will be easier to check"). `groundTex` names a set of
+// the ground library - assets/splat/<key>/ (splat_tex_import.py: diff/nor_gl/rough, its
+// real size in metres in index.json) or the lot's five (assets/lot/<key>/, G290) - tiled
+// on the plane at its own scale. Its MEAN colour (the 512 diff read on a canvas) is what
+// `groundColor` initialises to, so the tufts are tinted by the ground they stand on.
+const GROUND_LIB = { leaves: 1.49, mud: 1.25, grassRock: 15.04, forestAir: 80.81, rocksG: 2.03,   // assets/splat
+                     lush: 2.4, grass: 2.4, pebble: 4.5, dry: 2.2, dirt: 1.8 };                 // assets/lot
+const GROUND_MATS = {};
+const GROUND_MEANS = {};   // set key -> mean hex, once measured
+function groundTexUrl(key, file) { return (key in { lush: 1, grass: 1, pebble: 1, dry: 1, dirt: 1 } ? '../assets/lot/' : '../assets/splat/') + key + '/' + file; }
+// THE FLOOR IS TWO SETS UNDER A CLOUD (2026-09-20, the user: "generate some variation in the
+// forest floor by injecting another alpha-splat texture (a rocky ground one) and mix it with
+// the current one with a cloud-texture like mask, because it is far too homogeneous now").
+// `groundTex2` names the second set; the mask is a tiled fbm cloud (GROUND_MASK, 256 texels
+// over `groundMixM` metres) thresholded softly about `groundMixBias` with `groundMixSharp`,
+// applied in the material's own map / normal / roughness reads - one material, both tiles at
+// their own scale. The mean colour the tufts take is the two means weighed by the mask's share.
+let GROUND_MASK = null;
+function groundMask() {
+  if (GROUND_MASK) return GROUND_MASK;
+  const N = 256, cv2 = document.createElement('canvas'); cv2.width = cv2.height = N;
+  const c = cv2.getContext('2d'), img = c.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const u = i / N, w = j / N;
+    const n = 0.5 * vnoiseT(u, w, 6) + 0.25 * vnoiseT(u + 0.3, w + 0.7, 12) + 0.125 * vnoiseT(u + 0.6, w + 0.2, 24) + 0.0625 * vnoiseT(u + 0.1, w + 0.9, 48);
+    const v = Math.round(255 * Math.min(1, Math.max(0, n / 0.9375)));
+    const o = (j * N + i) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = v; img.data[o + 3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  GROUND_MASK = new THREE.CanvasTexture(cv2); GROUND_MASK.wrapS = GROUND_MASK.wrapT = THREE.RepeatWrapping;
+  return GROUND_MASK;
+}
+const GROUND_MIX = { uMap2: { value: null }, uNor2: { value: null }, uRough2: { value: null }, uMask: { value: null },
+                     uRep: { value: new THREE.Vector4(1, 1, 1, 0) },   // rep1, rep2, repMask, on
+                     uMixBias: { value: 0.5 }, uMixSharp: { value: 6 } };
+function groundMaterial(key, key2) {
+  const mk = key + (key2 ? '+' + key2 : '');
+  if (GROUND_MATS[mk]) return GROUND_MATS[mk];
+  const rep = 8000 / (GROUND_LIB[key] || 2);
+  const tex = (k, file, srgb, rp) => { const t = new THREE.TextureLoader().load(groundTexUrl(k, file), () => render());
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rp, rp); t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const m = new THREE.MeshStandardMaterial({ map: tex(key, 'diff_1k.jpg', true, rep), normalMap: tex(key, 'nor_gl_1k.jpg', false, rep), roughnessMap: tex(key, 'rough_1k.jpg', false, rep), roughness: 1, metalness: 0 });
+  if (key2) {
+    const rep2 = 8000 / (GROUND_LIB[key2] || 2);
+    const U = { uMap2: { value: tex(key2, 'diff_1k.jpg', true, 1) }, uNor2: { value: tex(key2, 'nor_gl_1k.jpg', false, 1) }, uRough2: { value: tex(key2, 'rough_1k.jpg', false, 1) },
+                uRep: { value: new THREE.Vector4(rep, rep2, FOREST.groundMixM || 160, 1) },   // rep1, rep2, the mask period in METRES, on
+                uMixBias: { value: FOREST.groundMixBias === undefined ? 0.5 : FOREST.groundMixBias }, uMixSharp: { value: FOREST.groundMixSharp || 6 },
+                uShade: { value: new THREE.Vector3(0, 0, 25) } };   // hue amplitude (rad), value amplitude, cell (m) - the type's colour swing
+    m.userData.mix = U;
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, U);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vGfPos;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n{ vec4 wp = modelMatrix * vec4(transformed, 1.0); vGfPos = wp.xz; }');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform sampler2D uMap2, uNor2, uRough2; uniform vec4 uRep; uniform float uMixBias, uMixSharp; uniform vec3 uShade; varying vec2 vGfPos;\n' +
+          GF.glsl + '\nfloat groundK(vec2 uv) { return gfMixK(vGfPos, uRep.z, uMixBias, uMixSharp); }')
+        .replace('#include <map_fragment>', '#include <map_fragment>\n{ vec4 c2 = texture2D(uMap2, vMapUv / uRep.x * uRep.y); diffuseColor.rgb = mix(diffuseColor.rgb, c2.rgb, groundK(vMapUv));' +
+          ' vec2 sh = gfShade(vGfPos, uShade.z); diffuseColor.rgb = gfHueTurn(diffuseColor.rgb, sh.x * uShade.x) * (1.0 + sh.y * uShade.y); }')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n#ifdef USE_ROUGHNESSMAP\n{ float r2 = texture2D(uRough2, vRoughnessMapUv / uRep.x * uRep.y).g; roughnessFactor = mix(roughnessFactor, roughness * r2, groundK(vRoughnessMapUv)); }\n#endif')
+        .replace('vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;', 'vec3 mapN = mix(texture2D( normalMap, vNormalMapUv ).xyz, texture2D( uNor2, vNormalMapUv / uRep.x * uRep.y ).xyz, groundK(vNormalMapUv)) * 2.0 - 1.0;');
+    };
+    m.customProgramCacheKey = () => 'groundMix';
+  }
+  m.userData.mean = null;
+  const img = new Image(); img.onload = () => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); g.drawImage(img, 0, 0, 64, 64);
+    const d = g.getImageData(0, 0, 64, 64).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+    const n = d.length / 4; m.userData.mean = '#' + new THREE.Color(r / n / 255, gg / n / 255, b / n / 255).getHexString(); GROUND_MEANS[key] = m.userData.mean; };
+  img.src = groundTexUrl(key, 'diff_512.jpg');
+  GROUND_MATS[mk] = m;
+  return m;
+}
+function groundMean(key) { return new Promise(res => { const m = groundMaterial(key); const t = () => m.userData.mean ? res(m.userData.mean) : setTimeout(t, 50); t(); }); }
+// the blend's mean: the two sets' means weighed by the mask's share (the bias, roughly)
+async function groundMean2(key, key2) {
+  const a = new THREE.Color(await groundMean(key)); if (!key2) return '#' + a.getHexString();
+  const b = new THREE.Color(await groundMean(key2)), k = FOREST.groundMixBias === undefined ? 0.5 : (1 - FOREST.groundMixBias);
+  return '#' + a.lerp(b, k * 0.9).getHexString();
+}
+
 function wetMaterial() {
   const key = String(FOREST.wet || 0);
   if (WET_MAT && WET_KEY === key) return WET_MAT;
@@ -3388,6 +3554,20 @@ function wetMaterial() {
     const rough = 255 * (1 - 0.85 * p);
     rim.data[o] = rim.data[o + 1] = rim.data[o + 2] = rough; rim.data[o + 3] = 255;
   }
+  // THE POOLS ALONE (2026-09-20): the same field as an overlay - the pool's colour where a
+  // pool is, transparent elsewhere - so the muskeg's ground can be the splat session's mud
+  // set with the pools lying on it (the user: "all biomes taking the ground colour based
+  // on the actual alpha splat textures")
+  const ov = document.createElement('canvas'); ov.width = ov.height = N;
+  const oc = ov.getContext('2d'), oim = oc.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const pp = poolAt(i / N * WET_PERIOD, j / N * WET_PERIOD), o = (j * N + i) * 4;
+    oim.data[o] = 38; oim.data[o + 1] = 50; oim.data[o + 2] = 56; oim.data[o + 3] = Math.round(255 * Math.min(1, pp * 1.15));
+  }
+  oc.putImageData(oim, 0, 0);
+  const otex = new THREE.CanvasTexture(ov); otex.wrapS = otex.wrapT = THREE.RepeatWrapping; otex.repeat.set(8000 / WET_PERIOD, 8000 / WET_PERIOD); otex.colorSpace = THREE.SRGBColorSpace;
+  if (WET_OVER) { WET_OVER.map.dispose(); WET_OVER.dispose(); }
+  WET_OVER = new THREE.MeshStandardMaterial({ map: otex, transparent: true, depthWrite: false, roughness: 0.15, metalness: 0 });
   c.putImageData(img, 0, 0); r.putImageData(rim, 0, 0);
   const tex = new THREE.CanvasTexture(cv2), rt = new THREE.CanvasTexture(rv);
   for (const t of [tex, rt]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(8000 / WET_PERIOD, 8000 / WET_PERIOD); }
@@ -3398,6 +3578,10 @@ function wetMaterial() {
   return WET_MAT;
 }
 const PLAIN_GROUND_MAT = ground.material;
+const PLAIN_GROUND_COLOR = ground.material.color.clone();
+let WET_OVER = null;
+const pools = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.MeshBasicMaterial({ visible: false }));
+pools.rotation.x = -Math.PI / 2; pools.position.y = 0.03; pools.visible = false; pools.renderOrder = 1; scene.add(pools);
 
 // ==========================================================================
 // MIXES — the user's biomes, as presets (2026-09-15): conifer (W0a, as is),
@@ -3408,7 +3592,7 @@ const PLAIN_GROUND_MAT = ground.material;
 // ==========================================================================
 let MIXES = {};
 let MIX_NAME = 'conifer';
-const MIX_FOREST_KEYS = ['ground', 'count', 'radius', 'under', 'cover', 'reach', 'wet', 'mix', 'edge', 'glades', 'split', 'spread', 'scale'];
+const MIX_FOREST_KEYS = ['ground', 'count', 'radius', 'under', 'cover', 'reach', 'wet', 'mix', 'edge', 'glades', 'split', 'spread', 'scale', 'taper', 'holes', 'groundColor', 'groundTex', 'groundTex2', 'groundMixM', 'groundMixBias', 'groundMixSharp', 'coverNear', 'blotch', 'blotchM', 'shadeHue', 'shadeVal', 'shadeCell', 'rocks', 'ttype', 'poolScale', 'coverSpread'];
 function applyMix(name) {
   const M = MIXES[name];
   if (!M) return;
@@ -3422,9 +3606,28 @@ function applyMix(name) {
     if (o.proportion !== undefined) t.proportion = o.proportion;
     if (o.dead !== undefined) t.dead = o.dead;
     if (o.density !== undefined) t.density = o.density;
+    if (o.patch !== undefined) t.patch = o.patch;       // a cover in beds in one biome, a lawn in another (2026-09-20)
+    if (o.size !== undefined) t.size = o.size;          // a rock's size per setting (2026-09-20)
     TUNE[k] = t;
   }
+  // THE MIX NAMES ITS TERRAIN TYPE (2026-09-20, the splat session): the ground's two sets,
+  // the cloud's period / bias / sharpness and the colour swing come from the shared table
+  // GROUND_FIELDS.CODES[ttype] - the same row the island's ground shader reads - unless the
+  // mix says otherwise for a key (the muskeg's lush patches are the user's, not the table's)
+  if (M.forest && M.forest.ttype !== undefined && GF && GF.CODES && GF.CODES[M.forest.ttype]) {
+    const c = GF.CODES[M.forest.ttype], o = M.forest;
+    FOREST.groundTex = o.groundTex !== undefined ? o.groundTex : c.sets[0]; FOREST.groundTex2 = o.groundTex2 !== undefined ? o.groundTex2 : c.sets[1];
+    FOREST.groundMixM = o.groundMixM !== undefined ? o.groundMixM : c.period; FOREST.groundMixBias = o.groundMixBias !== undefined ? o.groundMixBias : c.bias;
+    FOREST.groundMixSharp = o.groundMixSharp !== undefined ? o.groundMixSharp : c.sharp;
+    FOREST.shadeHue = o.shadeHue !== undefined ? o.shadeHue : c.vary[0]; FOREST.shadeVal = o.shadeVal !== undefined ? o.shadeVal : c.vary[1]; FOREST.shadeCell = o.shadeCell !== undefined ? o.shadeCell : c.vary[2];
+    if (c.wet !== undefined && o.wet === undefined) FOREST.wet = c.wet;
+    FOREST.poolScale = o.poolScale !== undefined ? o.poolScale : (c.poolScale || 1);
+  }
   for (const k of MIX_FOREST_KEYS) if (M.forest && M.forest[k] !== undefined) FOREST[k] = M.forest[k];
+  // a mix without a ground set or colour starts clean (the last mix's must not leak in) - unless its terrain row gave one
+  const rowHas = M.forest && M.forest.ttype !== undefined && GF && GF.CODES && GF.CODES[M.forest.ttype];
+  for (const k of ['groundColor', 'groundTex', 'groundTex2']) if ((!M.forest || M.forest[k] === undefined) && !(rowHas && k !== 'groundColor')) FOREST[k] = null;
+  FOREST.groundColorFrom = null;
   saveTune(); savePick();
   try { localStorage.setItem('flydiy.trees.mix', name); } catch (e) {}
 }
@@ -3432,7 +3635,8 @@ function snapshotMix() {
   const species = {};
   for (const s of SPECIES) if (PICK[s.key]) {
     const t = tuneOf(s.key);
-    species[s.key] = s.kind === 'cover' ? { proportion: t.proportion, density: t.density }
+    species[s.key] = s.kind === 'cover' ? { proportion: t.proportion, density: t.density, patch: t.patch || 0 }
+                   : s.kind === 'rock' ? { proportion: t.proportion, size: t.size }
                                         : { proportion: t.proportion, dead: t.dead || 0 };
   }
   const forest = {};
@@ -3531,7 +3735,13 @@ async function fitImplight(key) {
   return result;
 }
 
-async function showForest() {
+// THE EYE STAYS WHERE IT WAS PUT (2026-09-20): the first plant of a stand frames it from
+// the bench's own view; a REPLANT (a dial, a tick, a mix) keeps the camera where the
+// user orbited it - and since the cover is planted around the eye, it is planted around
+// the eye the user is looking from, not a rim 200 m away. setMode('forest') asks for
+// the framing; tree_shot.js moves the camera and replants for a low picture.
+let FOREST_FRAMED = false;
+async function showForest(frame) {
   clearStage();
   man.visible = true;
   const picked = SPECIES.filter(s => PICK[s.key] && s.asset.renderable);
@@ -3552,9 +3762,16 @@ async function showForest() {
     }
   }
   const wet = FOREST.ground === 'wet';
-  ground.material = wet ? wetMaterial() : PLAIN_GROUND_MAT;
+  const gtex = (FOREST.groundTex && GROUND_LIB[FOREST.groundTex]) ? FOREST.groundTex : null;
+  const gtex2 = (gtex && FOREST.groundTex2 && GROUND_LIB[FOREST.groundTex2] && FOREST.groundTex2 !== gtex) ? FOREST.groundTex2 : null;
+  ground.material = gtex ? groundMaterial(gtex, gtex2) : (wet ? wetMaterial() : PLAIN_GROUND_MAT);
+  if (gtex2 && ground.material.userData.mix) { const U = ground.material.userData.mix; U.uRep.value.z = FOREST.groundMixM || 160;
+    U.uMixBias.value = FOREST.groundMixBias === undefined ? 0.5 : FOREST.groundMixBias; U.uMixSharp.value = FOREST.groundMixSharp || 6;
+    U.uShade.value.set((FOREST.shadeHue === undefined ? 8 : FOREST.shadeHue) * Math.PI / 180, FOREST.shadeVal === undefined ? 0.18 : FOREST.shadeVal, FOREST.shadeCell || 25); }
+  if (wet && gtex) { wetMaterial(); pools.material = WET_OVER; pools.visible = true; } else pools.visible = false;
+  if (gtex && FOREST.groundColorFrom !== gtex + '+' + gtex2) { FOREST.groundColor = await groundMean2(gtex, gtex2); FOREST.groundColorFrom = gtex + '+' + gtex2; }   // the ground's own mean, once per set
   ground.visible = !forestGround;
-  grid.visible = !forestGround && !wet;
+  grid.visible = !forestGround && !wet && !gtex;
 
   const ray = new THREE.Raycaster();
   const down = new THREE.Vector3(0, -1, 0);
@@ -3574,8 +3791,7 @@ async function showForest() {
   const my0 = groundY0();
   const base = my0 === null ? 0 : my0;
   man.position.set(0, base, 0);
-  target.set(0, base + 14, 0);
-  dist = FOREST.radius * 0.9; yaw = 0.5; pitch = 0.16; place();
+  if (frame || !FOREST_FRAMED) { target.set(0, base + 14, 0); dist = FOREST.radius * 0.9; yaw = 0.5; pitch = 0.16; place(); FOREST_FRAMED = true; }
   const eyeX = camera.position.x, eyeZ = camera.position.z;
 
   // ==========================================================================
@@ -3613,7 +3829,7 @@ async function showForest() {
   };
 
   // prototypes: the whole ladder, both series, per subject (x variants)
-  const protos = [], shrubs = [], covers = [];
+  const protos = [], shrubs = [], covers = [], rocks = [];
   for (const sp of picked) {
     const built = await ensureLoaded(sp.file);
     if (!built) continue;
@@ -3626,6 +3842,15 @@ async function showForest() {
       const near = pr.near, G = pr.G;
       const vkey = sp.key + '|' + G.name + (pr.v ? '|v' + pr.v : '');
       if (sp.kind === 'cover') { covers.push(pr); continue; }
+      if (sp.kind === 'rock') {
+        // a rock wears a PLAIN copy of the pack's material: the leaf hook reads an AO attribute
+        // the pack's geometry does not carry (the rocks drew black - the same unbound-attribute
+        // trap as a tree before its AO bake), and a boulder wants no wrap, no sharpen, no tint
+        pr.near.traverse(o => { if (!o.isMesh) return; const m = o.material; if (m.userData.plainRock) return;
+          const c = m.userData.plainRockMat || (m.userData.plainRockMat = new THREE.MeshStandardMaterial({ map: m.map || null, normalMap: m.normalMap || null, roughnessMap: m.roughnessMap || null, metalnessMap: m.metalnessMap || null,
+            color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1), roughness: m.roughness === undefined ? 1 : m.roughness, metalness: m.metalness || 0, side: THREE.FrontSide }));
+          c.userData.plainRock = true; o.material = c; });
+        rocks.push(pr); continue; }
       if (sp.kind === 'dead') {
         // a dead tree's ladder: the model, then its sheet - no stick rungs
         // (the user: "for the dead trees we go from billboard to model")
@@ -3681,7 +3906,7 @@ async function showForest() {
     } else sp._snags = [];
   }
 
-  if (!protos.length && !shrubs.length && !covers.length) { $('msg').textContent = 'nothing selected'; render(); return; }
+  if (!protos.length && !shrubs.length && !covers.length && !rocks.length) { $('msg').textContent = 'nothing selected'; render(); return; }
   const planted = {};
 
   IMP_FIELDS.length = 0;
@@ -3834,7 +4059,14 @@ async function showForest() {
       n++;
       const p = draw(shrubs, uRand());
       const t = tuneOf(p.sp.key);
-      const vary = Math.exp((uRand() * 2 - 1) * FOREST.spread) * FOREST.scale;
+      // A BUSH IS ANY SIZE FROM A KNEE TO A ROOF (2026-09-20, the user: "bushes also need more
+      // variation, from 50 cm to 3 m high"): a shrub species with hMin/hMax draws each instance's
+      // height uniformly between them and scales its prototype to it - the stand's spread
+      // jitter (x0.82-1.22) had left the pack's authored sizes nearly uniform
+      const h0 = p.near.userData.h || 1;
+      const vary = (t.hMin !== undefined && t.hMax !== undefined && h0 > 0)
+        ? (t.hMin + uRand() * (t.hMax - t.hMin)) / h0 * FOREST.scale                 // uniform in metres: a log draw hid most bushes under 1.5 m grass
+        : Math.exp((uRand() * 2 - 1) * FOREST.spread) * FOREST.scale;
       const dEye = Math.hypot(x - eyeX, z - eyeZ);
       planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
       if (dEye > b1 && p.field) { p.field.add(x, y - (t.sink || 0) * vary, z, vary); shrubFar++; continue; }
@@ -3845,25 +4077,102 @@ async function showForest() {
     }
     for (const F of fields.values()) { const g = F.build(); if (g) stage.add(g); }
   }
+  // ROCKS (2026-09-20, the user: "spawn rocks, half buried, rotated only on the z axis; lots in
+  // the coniferous, a little in the deciduous, very few in the grasslands and muskegs, medium
+  // for the borders; ensure the rocks go higher than the grass; rock size per setting"): the
+  // stand's `rocks` per 1000 m2, each rock a subject of the pack drawn by proportion, sunk to
+  // `bury` of its own height (0.5 = to the waist), turned about the vertical only (the
+  // instance field's yaw - a rock never rolls), its size the species' `size` x the stand's
+  // spread jitter - a mix overrides `size` (the same override a cover's `density` has), so
+  // the conifer's boulders and the meadow's stones are the same pack. They cast shadows.
+  const rockN = FOREST.rocks || 0;
+  let rocksPlanted = 0;
+  if (rocks.length && rockN > 0) {
+    const rRand = rng(FOREST.seed * 17 + 3);
+    const fields = new Map();
+    const want = Math.round(Math.PI * FOREST.radius * FOREST.radius / 1000 * rockN);
+    for (let tries = 0, n = 0; n < want && tries < want * 6; tries++) {
+      const ang = rRand() * Math.PI * 2, rr = Math.sqrt(rRand()) * FOREST.radius;
+      const x = Math.cos(ang) * rr, z = Math.sin(ang) * rr;
+      if (wetAt(x, z) > 0.5) continue;
+      if (nearTrunk(x, z)) continue;
+      const y = groundY([x, z]);
+      if (y === null) continue;
+      n++;
+      const p = draw(rocks, rRand());
+      const t = tuneOf(p.sp.key);
+      const vary = Math.exp((rRand() * 2 - 1) * (t.sizeVar === undefined ? 0.35 : t.sizeVar));
+      const h = (p.near.userData.h || 1) * vary;                      // the prototype carries `size` already
+      planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
+      let F = fields.get(p);
+      if (!F) { F = instanceField(p.near); F.rock = true; fields.set(p, F); }
+      F.add(x, y - h * (t.bury === undefined ? 0.5 : t.bury), z, vary, rRand() * Math.PI * 2);   // `bury` a fraction of its height (`sink` is metres, buildGroup's)
+      rocksPlanted++;
+    }
+    for (const F of fields.values()) { const g = F.build(); if (g) stage.add(g); }
+  }
   // DENSITY PER GRASS TYPE (the user): each cover species is planted on its
   // own, at its `density` per m2 times the stand's `cover` multiplier - a
   // reed patch is one thing per 6 m2, a blade plate is three per m2
   const cov = FOREST.cover === undefined ? 1 : FOREST.cover, reach = FOREST.reach || 80;
+  // THE COVER'S THREE RULES (2026-09-20, the user: "more grass shown, maybe even a
+  // degressive density; dead herbs especially in the holes; patches of reed"):
+  //   TAPER  - the density falls from the eye outward, keep = 1 - taper * (r / reach):
+  //            dense where it is looked at, thin at the reach, no edge - and a reach of
+  //            120 m costs what a flat 80 m did (the old rule faded the last third only)
+  //   HOLES  - a stand's cover keeps `holes` of its tufts OUTSIDE the glades and all of
+  //            them inside: the herbs a conifer wood grows where the canopy opens
+  //   PATCH  - a cover species with `patch` (metres) grows in clumps of that radius
+  //            about seeded centres, one centre per ~4 patch areas of the reach,
+  //            instead of everywhere at once: reed beds, not a reed lawn
+  // THE COVER FADES, IT DOES NOT STOP (2026-09-20, the user: "right now it stops in a clear
+  // line ... have this barrier fade over a distance, with grass becoming increasingly sparse;
+  // a minimum distance where grass is shown in full; increase the distance"): full density
+  // to `coverNear` metres from the eye, then keep = (1 - t)^(1 + 2 taper) over the rest of
+  // the reach, t from 0 at coverNear to 1 at the reach - ZERO at the reach, whatever the
+  // taper, so there is no edge to see; the taper sets how soon it thins (0 = linear).
+  const taper = FOREST.taper === undefined ? 0.7 : FOREST.taper, near = Math.min(FOREST.coverNear === undefined ? 40 : FOREST.coverNear, reach - 1);
+  const keepAt = r => r <= near ? 1 : Math.pow(Math.max(0, 1 - (r - near) / (reach - near)), 1 + 2 * taper);
+  let keepAvg = 0; for (let i = 0; i < 64; i++) { const r = (i + 0.5) / 64 * reach; keepAvg += keepAt(r) * 2 * r / reach / 64; }   // the annulus-weighted mean
+  const holes = (FOREST.count > 0 && FOREST.holes !== undefined) ? FOREST.holes : 1;
+  // BLOTCH (2026-09-20, the user: "a slightly random mix of grasses in patches"): every cover
+  // species reads its own low-frequency noise over the ground (cells of `blotchM` metres,
+  // seeded by its name), and keeps 1 - blotch .. 1 of its tufts by it - so one area leans
+  // to the dry tufts, the next to the plates, and the mix drifts across the meadow
+  const blotch = FOREST.blotch === undefined ? 0.6 : FOREST.blotch, blotchM = FOREST.blotchM || 18;
+  GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM;
+  const blotchAt = (x, z, seed) => GF.blotch(x, z, seed);
   if (covers.length && cov > 0) for (const sp of picked) {
     if (sp.kind !== 'cover') continue;
     const mine = covers.filter(p => p.sp === sp);
-    const dens = tuneOf(sp.key).density;
+    const T = tuneOf(sp.key), dens = T.density;
     if (!mine.length || !(dens > 0)) continue;
     const cRand = rng(FOREST.seed * 53 + 9 + hashStr(sp.key) % 1000);
     const fields = new Map();
-    const want = Math.round(Math.PI * reach * reach * dens * cov);
-    for (let tries = 0, n = 0; n < want && tries < want * 4; tries++) {
-      const ang = cRand() * Math.PI * 2, rr = Math.sqrt(cRand()) * reach;
-      const x = eyeX + Math.cos(ang) * rr, z = eyeZ + Math.sin(ang) * rr;
+    const want = Math.round(Math.PI * reach * reach * dens * cov * keepAvg);
+    // the patch centres: the species' share of the reach in clumps of radius `patch`
+    const patch = T.patch || 0, centres = [];
+    if (patch > 0) {
+      const nC = Math.max(1, Math.round(Math.PI * reach * reach / (Math.PI * patch * patch) * 0.25 * (T.patchShare || 0.4)));
+      // every bed its own density (0.35-1.3 of the species'): a thin bed beside a thick one
+      for (let i = 0; i < nC; i++) { const a = cRand() * Math.PI * 2, r = Math.sqrt(cRand()) * (reach - patch); centres.push([eyeX + Math.cos(a) * r, eyeZ + Math.sin(a) * r, 0.35 + 0.95 * cRand() * cRand() * 1.4]); }
+    }
+    for (let tries = 0, n = 0; n < want && tries < want * 6; tries++) {
+      let x, z, rr;
+      if (patch > 0) {
+        const c = centres[Math.floor(cRand() * centres.length)];
+        if (cRand() > Math.min(1, c[2])) continue;                        // the bed's own density
+        const a = cRand() * Math.PI * 2, r = Math.sqrt(cRand()) * patch;
+        x = c[0] + Math.cos(a) * r; z = c[1] + Math.sin(a) * r; rr = Math.hypot(x - eyeX, z - eyeZ);
+      } else {
+        const ang = cRand() * Math.PI * 2; rr = Math.sqrt(cRand()) * reach;
+        x = eyeX + Math.cos(ang) * rr; z = eyeZ + Math.sin(ang) * rr;
+      }
       const rd = Math.hypot(x, z);
-      if (rd > FOREST.radius) continue;
-      // thin over the last third of the reach, so the edge is a fade
-      if (rr > reach * 0.67 && cRand() < (rr - reach * 0.67) / (reach * 0.33)) continue;
+      if (rd > FOREST.radius || rr > reach) continue;
+      if (cRand() > keepAt(rr)) continue;                          // the fade
+      if (blotch > 0 && cRand() > blotchAt(x, z, hashStr(sp.key))) continue;   // the blotch
+      if (holes < 1 && !edgeOf(x, z, rd).inGlade && cRand() > holes) continue;
       const pw = wetAt(x, z);
       if (pw > 0.6) continue;
       // a sedge tuft likes the shore: twice as likely on a pool's edge
@@ -3873,14 +4182,63 @@ async function showForest() {
       if (y === null) continue;
       n++;
       const p = draw(mine, cRand());
-      const vary = Math.exp((cRand() * 2 - 1) * (FOREST.spread + 0.15));
+      const vary = Math.exp((cRand() * 2 - 1) * (FOREST.coverSpread === undefined ? FOREST.spread + 0.15 : FOREST.coverSpread));   // the cover's own size jitter (a calm field is one height)
       planted[p.sp.key] = (planted[p.sp.key] || 0) + 1;
       let F = fields.get(p);
-      if (!F) { F = instanceField(p.near); fields.set(p, F); }
+      if (!F) { F = instanceField(p.near); F.tint = T.vary === undefined ? 0.18 : T.vary;
+                F.noCast = true;
+                // A TUFT IS THE COLOUR OF THE GROUND AT ITS FOOT: the two set means through the
+                // same mixK the floor's fragment reads, turned by the same shade field - so the
+                // grass and the ground under it are one colour, varied together (the shared
+                // fields). A flower (`noTint`) keeps its own colours.
+                if (!T.noTint && FOREST.groundColor && gtex && GF) {
+                  const A = new THREE.Color(GROUND_MEANS[gtex] || FOREST.groundColor).toArray(), B = gtex2 ? new THREE.Color(GROUND_MEANS[gtex2] || FOREST.groundColor).toArray() : A;
+                  const per = FOREST.groundMixM || 160, bias = FOREST.groundMixBias === undefined ? 0.5 : FOREST.groundMixBias, sharp = FOREST.groundMixSharp || 6;
+                  const hA = (FOREST.shadeHue === undefined ? 8 : FOREST.shadeHue) * Math.PI / 180, vA = FOREST.shadeVal === undefined ? 0.18 : FOREST.shadeVal, cell = FOREST.shadeCell || 25;
+                  const lift = T.lift === undefined ? 1 : T.lift;
+                  F.colAt = (x, z) => { const c = GF.groundColor(x, z, per, bias, sharp, A, B), sh = GF.shade(x, z, cell), t = GF.hueTurn(c, sh.hue * hA), k = (1 + sh.value * vA) * lift;
+                    // capped: the lift is a lighting RATIO (a vertical card under a flat plane's sun) and on a pale ground
+                    // it would push the lit tuft past white - the display clips, the fit did not see that
+                    const mx = Math.max(t[0] * k, t[1] * k, t[2] * k), sc = mx > 0.7 ? 0.7 / mx : 1;   // the hue kept, the max channel at 0.7
+                    return [t[0] * k * sc, t[1] * k * sc, t[2] * k * sc]; };
+                } else if (T.noTint) { F.base = null; F.tint = T.vary === undefined ? 0.05 : T.vary; }
+                // `lift` (fitted by tree_fit --kinds cover): what the card's own shading takes off
+                // the ground's colour, given back on the instance colour so the two blend
+                if (!T.noTint) F.base = FOREST.groundColor ? new THREE.Color(FOREST.groundColor).multiplyScalar(T.lift === undefined ? 1 : T.lift) : null; fields.set(p, F); }
       F.add(x, y, z, vary, cRand() * Math.PI * 2);
       coverN++;
     }
     for (const F of fields.values()) { const g = F.build(); if (g) stage.add(g); }
+  }
+  // THE GROUND WEARS THE GRASS'S COLOUR (the user: "the ground should have the colour of
+  // the grass"): the plane under a stand with cover takes the picked covers' measured
+  // texel colour (proportion-weighted, through each one's own light dial), darkened to
+  // what ground under grass is - so a thinning cover fades into ground of its own
+  // colour instead of the bench's slate. Only the flat plane; a terrain keeps its own.
+  // THE GROUND DRIVES THE GRASS, NOT THE OTHER WAY (the user, 2026-09-20: "it's the
+  // grass that should get tinted by the ground, but the ground should be initialized
+  // with the colour we expect the grass to take"). `groundColor` is a dial of the mix;
+  // when unset it is INITIALISED once from the picked covers' measured texels (what the
+  // grass would be on its own), and from then on the plane wears it and every tuft is
+  // multiplied by it (instanceColor, in the field's build) - the cover's own texture
+  // is neutralised to a shape map by its `sat` (low) and `light` (1 / its measured
+  // lightness) dials, so the ground's colour IS the grass's colour. The game's route:
+  // the terrain albedo at the tuft's foot in place of this one dial.
+  if (!forestGround && (!wet || gtex)) {
+    if (!FOREST.groundColor) {
+      let r = 0, g = 0, b = 0, wsum = 0;
+      for (const sp of picked) {
+        if (sp.kind !== 'cover') continue;
+        const built = cache[sp.file]; const m = built ? measureMats(matsOfGroups(built, sp.subjects)) : null;
+        if (!m || !m.rgb) continue;
+        const T = tuneOf(sp.key), w = (T.proportion || 0) * (T.density || 0) || 1e-3;
+        r += m.rgb[0] * w; g += m.rgb[1] * w; b += m.rgb[2] * w; wsum += w;
+      }
+      if (wsum > 0) FOREST.groundColor = '#' + new THREE.Color(r / wsum / 255, g / wsum / 255, b / wsum / 255).getHexString();
+    }
+    if (gtex) ground.material.color.set(0xffffff);                       // the map is the colour
+    else if (FOREST.groundColor) ground.material.color.set(FOREST.groundColor);
+    else ground.material.color.copy(PLAIN_GROUND_COLOR);
   }
 
   // the fields are filled by now: turn each into its one mesh
@@ -3896,7 +4254,7 @@ async function showForest() {
                   far: placedFar, protos: protos.length + shrubs.length + covers.length,
                   planted: planted, dead: deadN,
                   lod: lodN, series: serN, glades: glades.length, rejected: rejected,
-                  shrubs: shrubN, shrubFar: shrubFar, cover: coverN };
+                  shrubs: shrubN, shrubFar: shrubFar, cover: coverN, rocks: rocksPlanted };
   paintForestPanel(stats);
   render();
   // Textures decode asynchronously, so the first measurement of a freshly
@@ -4416,9 +4774,30 @@ function paintForestPanel(stats) {
   h += row('furnished', 'fMix', 0, 1, 0.05, FOREST.mix, Math.round(FOREST.mix * 100) + '% of the interior');
   h += row('radius', 'fRad', 60, 600, 20, FOREST.radius, FOREST.radius + ' m');
   h += row('shrubs', 'fUnder', 0, 40, 0.5, FOREST.under || 0, (FOREST.under || 0) + ' per 1000 m²');
+  h += row('rocks', 'fRocks', 0, 40, 0.5, FOREST.rocks || 0, (FOREST.rocks || 0) + ' per 1000 m²');
   h += row('cover', 'fCover', 0, 3, 0.05, FOREST.cover === undefined ? 1 : FOREST.cover,
            'x' + (FOREST.cover === undefined ? 1 : FOREST.cover).toFixed(2) + ' of each type\'s density');
-  h += row('reach', 'fReach', 20, 200, 5, FOREST.reach || 80, (FOREST.reach || 80) + ' m of cover');
+  h += row('reach', 'fReach', 20, 400, 5, FOREST.reach || 80, (FOREST.reach || 80) + ' m of cover');
+  h += row('full to', 'fNear', 0, 200, 5, FOREST.coverNear === undefined ? 40 : FOREST.coverNear, (FOREST.coverNear === undefined ? 40 : FOREST.coverNear) + ' m at full density');
+  h += '<tr><td class="k">ground set</td><td><select id="fGroundTex"><option value="">flat colour</option>' +
+       Object.keys(GROUND_LIB).map(k => '<option value="' + k + '"' + (FOREST.groundTex === k ? ' selected' : '') + '>' + k + ' (' + GROUND_LIB[k] + ' m)</option>').join('') +
+       '</select> <i style="color:var(--dim)">the splat library; the colour below follows its mean</i></td></tr>';
+  h += '<tr><td class="k">second set</td><td><select id="fGroundTex2"><option value="">none</option>' +
+       Object.keys(GROUND_LIB).map(k => '<option value="' + k + '"' + (FOREST.groundTex2 === k ? ' selected' : '') + '>' + k + ' (' + GROUND_LIB[k] + ' m)</option>').join('') +
+       '</select> <i style="color:var(--dim)">under a cloud mask</i></td></tr>';
+  h += row('cloud size', 'fMixM', 10, 200, 5, FOREST.groundMixM || 45, (FOREST.groundMixM || 45) + ' m');
+  h += row('cloud bias', 'fMixBias', 0.1, 0.9, 0.02, FOREST.groundMixBias === undefined ? 0.5 : FOREST.groundMixBias, 'more of the first set above');
+  h += row('cloud edge', 'fMixSharp', 1, 20, 0.5, FOREST.groundMixSharp || 6, 'x');
+  h += row('swing hue', 'fShadeHue', 0, 30, 1, FOREST.shadeHue === undefined ? 8 : FOREST.shadeHue, (FOREST.shadeHue === undefined ? 8 : FOREST.shadeHue) + ' deg');
+  h += row('swing value', 'fShadeVal', 0, 0.5, 0.01, FOREST.shadeVal === undefined ? 0.18 : FOREST.shadeVal, (FOREST.shadeVal === undefined ? 0.18 : FOREST.shadeVal));
+  h += row('swing cell', 'fShadeCell', 5, 80, 1, FOREST.shadeCell || 25, (FOREST.shadeCell || 25) + ' m');
+  h += '<tr><td class="k">ground colour</td><td><input type="color" id="fGroundCol" value="' + (FOREST.groundColor || '#2a3327') + '"> ' +
+       '<button id="fGroundAuto" title="back to what the picked grass would be on its own">from the grass</button> <i style="color:var(--dim)">the grass takes it</i></td></tr>';
+  h += row('cover spread', 'fCoverSpread', 0, 0.6, 0.02, FOREST.coverSpread === undefined ? FOREST.spread + 0.15 : FOREST.coverSpread, 'size jitter of the tufts');
+  h += row('taper', 'fTaper', 0, 1, 0.05, FOREST.taper === undefined ? 0.7 : FOREST.taper, 'thins ' + ((FOREST.taper === undefined ? 0.7 : FOREST.taper) < 0.2 ? 'linearly' : (FOREST.taper === undefined ? 0.7 : FOREST.taper) < 0.6 ? 'gently first' : 'early'));
+  h += row('holes', 'fHoles', 0, 1, 0.05, FOREST.holes === undefined ? 1 : FOREST.holes, Math.round((FOREST.holes === undefined ? 1 : FOREST.holes) * 100) + '% of cover kept outside the glades');
+  h += row('blotch', 'fBlotch', 0, 1, 0.05, FOREST.blotch === undefined ? 0.6 : FOREST.blotch, Math.round((FOREST.blotch === undefined ? 0.6 : FOREST.blotch) * 100) + '% the grasses drift by area');
+  h += row('blotch size', 'fBlotchM', 5, 60, 1, FOREST.blotchM || 18, (FOREST.blotchM || 18) + ' m');
   if (FOREST.ground === 'wet') h += row('pools', 'fWet', 0, 1, 0.05, FOREST.wet || 0, Math.round((FOREST.wet || 0) * 100) + '% wet');
   h += '<tr><td class="k">far tier</td><td><button id="fImp"' + (FOREST.impostor ? ' class="on"' : '') +
        '>' + (FOREST.impostor ? 'baked impostors' : 'shipped LOD / same mesh') + '</button>' +
@@ -4451,15 +4830,17 @@ function paintForestPanel(stats) {
            ['bend', 0, 4, 0.05], ['bendFreq', 0.3, 4, 0.1], ['lean', 0, 35, 1], ['bendPct', 0, 1, 0.05],
            ['variants', 1, 4, 1], ['branches', 0, 6, 1], ['taper', 0.02, 0.6, 0.02]],
     shrub: [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01], ['light', 0.4, 1.8, 0.01], ['bark', 0.3, 2, 0.02],
-            ['alpha', 0, 0.9, 0.05], ['size', 0.05, 3, 0.01], ['sink', 0, 2, 0.05], ['proportion', 0, 3, 0.05],
+            ['alpha', 0, 0.9, 0.05], ['size', 0.05, 3, 0.01], ['hMin', 0.2, 4, 0.1], ['hMax', 0.3, 6, 0.1], ['sink', 0, 2, 0.05], ['proportion', 0, 3, 0.05],
             ['impa', 1, 20, 0.5], ['implight', 0.4, 2, 0.01], ['leafScale', 0.5, 2.5, 0.05], ['leafFill', 0.3, 1.5, 0.05],
             ['sparse', 0.1, 1, 0.02], ['variants', 1, 4, 1]],
-    cover: [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01], ['light', 0.4, 1.8, 0.01],
+    rock: [['size', 0.1, 40, 0.1], ['sizeVar', 0, 1, 0.05], ['bury', 0, 1, 0.05], ['proportion', 0, 3, 0.05]],
+    cover: [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01], ['light', 0.4, 3, 0.01],
             ['alpha', 0, 0.9, 0.05], ['size', 0.005, 3, 0.005], ['sink', 0, 1, 0.02],
-            ['density', 0, 4, 0.02], ['proportion', 0, 3, 0.05]],
+            ['density', 0, 8, 0.02], ['proportion', 0, 3, 0.05],
+            ['patch', 0, 30, 1], ['patchShare', 0.05, 1, 0.05], ['vary', 0, 0.5, 0.02], ['lift', 0.1, 4, 0.02], ['contrast', 0, 1, 0.05], ['noTint', 0, 1, 1], ['aspect', 0.3, 2, 0.05]],
   };
   const OPS_DEF = { bend: 0, bendFreq: 1.2, lean: 0, flatTop: 0, sparse: 1, prune: 1, variants: 1, bendPct: 1,
-                    leafScale: 1, leafFill: 1, branches: 3, taper: 0.12, density: 0.5 };
+                    leafScale: 1, leafFill: 1, branches: 3, taper: 0.12, density: 0.5, patch: 0, patchShare: 0.4, vary: 0.18, lift: 1 };
   h += '<table class="fRows">';
   for (const kind of ['tree', 'dead', 'shrub', 'cover']) {
     const list = SPECIES.filter(s => s.kind === kind);
@@ -4524,8 +4905,22 @@ function paintForestPanel(stats) {
   live('fMix', 'mix', v => Math.round(v * 100) + '% of the interior');
   live('fRad', 'radius', v => v + ' m');
   live('fUnder', 'under', v => v + ' per 1000 m²');
+  live('fRocks', 'rocks', v => v + ' per 1000 m²');
   live('fCover', 'cover', v => 'x' + v.toFixed(2) + ' of each type\'s density');
   live('fReach', 'reach', v => v + ' m of cover');
+  live('fNear', 'coverNear', v => v + ' m at full density');
+  live('fCoverSpread', 'coverSpread', v => 'size jitter of the tufts');
+  live('fTaper', 'taper', v => 'thins ' + (v < 0.2 ? 'linearly' : v < 0.6 ? 'gently first' : 'early'));
+  $('fGroundCol').oninput = e => { FOREST.groundColor = e.target.value; ground.material.color.set(FOREST.groundColor); render(); };
+  $('fGroundCol').onchange = () => showForest();
+  $('fGroundAuto').onclick = () => { FOREST.groundColor = null; FOREST.groundColorFrom = null; showForest(); };
+  $('fGroundTex').onchange = e => { FOREST.groundTex = e.target.value || null; FOREST.groundColor = null; FOREST.groundColorFrom = null; showForest(); };
+  $('fGroundTex2').onchange = e => { FOREST.groundTex2 = e.target.value || null; FOREST.groundColor = null; FOREST.groundColorFrom = null; showForest(); };
+  live('fMixM', 'groundMixM', v => v + ' m'); live('fMixBias', 'groundMixBias', v => 'more of the first set above'); live('fMixSharp', 'groundMixSharp', v => 'x' + v);
+  live('fShadeHue', 'shadeHue', v => v + ' deg'); live('fShadeVal', 'shadeVal', v => v); live('fShadeCell', 'shadeCell', v => v + ' m');
+  live('fHoles', 'holes', v => Math.round(v * 100) + '% of cover kept outside the glades');
+  live('fBlotch', 'blotch', v => Math.round(v * 100) + '% the grasses drift by area');
+  live('fBlotchM', 'blotchM', v => v + ' m');
   live('fWet', 'wet', v => Math.round(v * 100) + '% wet');
   live('fSeed', 'seed', v => v);
 
@@ -4554,7 +4949,17 @@ function paintForestPanel(stats) {
   };
 
   for (const el of ui.querySelectorAll('.fPick'))
-    el.onchange = () => { PICK[el.dataset.n] = el.checked; savePick(); showForest(); };
+    el.onchange = () => {
+      PICK[el.dataset.n] = el.checked; savePick();
+      // A TICKED SHRUB MUST APPEAR (2026-09-20, the user: "I did not succeed loading any of
+      // the shrubs under the coniferous mix"): the shrubs are planted at `under` per 1000 m2,
+      // and the conifer mix carried under = 0 - the tick changed nothing on the ground. A
+      // shrub ticked into a stand with no understory brings one (3 per 1000 m2, the
+      // grassland's); the slider is the dial from there.
+      const sp = spOf(el.dataset.n);
+      if (el.checked && sp && sp.kind === 'shrub' && !(FOREST.under > 0)) FOREST.under = 3;
+      showForest();
+    };
   for (const el of ui.querySelectorAll('.fFit'))
     el.onclick = async () => {
       $('msg').textContent = 'fitting ' + el.dataset.n + '...';
@@ -4606,7 +5011,7 @@ function setMode(m) {
   if (m === 'forest') {
     scene.fog.near = 220; scene.fog.far = 1400;
     paintForestPanel(null);
-    showForest();
+    showForest(true);
     return;
   }
   scene.fog.near = m === 'ladder' ? 900 : 400;

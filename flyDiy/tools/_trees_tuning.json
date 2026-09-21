@@ -1,9 +1,9 @@
 {
  "note": "flyDiy tree bench — per-SPECIES tuning (W0a per file; 2026-09-15 a species names its file, subjects, snags, kind) + the mixes. Save as flyDiy/tools/_trees_tuning.json.",
- "generated": "2026-09-09T19:43:05.440Z",
- "reference": "realistic_fir_trees_pack_lods_gameready.glb",
+ "generated": "2026-09-20T20:17:19.981Z",
+ "reference": "ash",
  "master": {
-  "hue": -0.045,
+  "hue": 0.045,
   "sat": 1.58,
   "light": 1.12
  },
@@ -20,14 +20,14 @@
   "aoR": 2.6,
   "aoI": 0.95,
   "trueScale": true,
-  "aobake": 4.0,
+  "aobake": 4,
   "trunkao": 0.55,
-  "isolid": 1.0,
+  "isolid": 1,
+  "crownH": 1.3,
+  "crownW": 1,
   "icut": 0.4,
   "isph": 0,
-  "ilit": 0.9,
-  "crownH": 1.3,
-  "crownW": 1.0
+  "ilit": 0.9
  },
  "included": [
   "cedar_tree.glb",
@@ -36,447 +36,7 @@
   "realistic_fir_trees_pack_lods_gameready.glb",
   "spruce_tree.glb"
  ],
- "measured": {},
- "tuning": {
-  "cedar_tree.glb": {
-   "hue": 0.03,
-   "sat": 1,
-   "light": 0.59,
-   "alpha": 0.4,
-   "sink": 2,
-   "size": 1,
-   "proportion": 1,
-   "bark": 0.34,
-   "dead": 0.12,
-   "stick": 0.0225,
-   "impa": 6,
-   "implight": 1
-  },
-  "fir_tree_georgeous.glb": {
-   "hue": 0.06,
-   "sat": 1,
-   "light": 0.43,
-   "alpha": 0.1,
-   "sink": 1.5,
-   "size": 1,
-   "proportion": 1,
-   "bark": 0.42,
-   "dead": 0.08,
-   "stick": 0.0225,
-   "impa": 6,
-   "implight": 1
-  },
-  "larch_tree.glb": {
-   "hue": 0.03,
-   "sat": 0.48,
-   "light": 0.68,
-   "alpha": 0,
-   "sink": 2,
-   "size": 1,
-   "proportion": 1,
-   "bark": 0.84,
-   "dead": 0.09,
-   "stick": 0.0225,
-   "impa": 6.5,
-   "implight": 1
-  },
-  "mountain_trees.glb": {
-   "hue": -0.13,
-   "sat": 0.68,
-   "light": 1.1,
-   "alpha": 0.1,
-   "sink": 0,
-   "size": 0.5,
-   "proportion": 0.05,
-   "bark": 0.38,
-   "dead": 0.08,
-   "keepTop": 3,
-   "stick": 0.0225,
-   "impa": 6,
-   "implight": 1
-  },
-  "realistic_fir_trees_pack_lods_gameready.glb": {
-   "hue": 0.08,
-   "sat": 0.47,
-   "light": 1.3,
-   "alpha": 0.1,
-   "sink": 0,
-   "size": 2.1,
-   "proportion": 2.85,
-   "bark": 0.64,
-   "dead": 0.08,
-   "stick": 0.0225,
-   "impa": 6,
-   "implight": 1
-  },
-  "spruce_tree.glb": {
-   "hue": -0.01,
-   "sat": 1.1,
-   "light": 0.54,
-   "alpha": 0.2,
-   "sink": 0.5,
-   "size": 1.08,
-   "proportion": 1,
-   "bark": 0.42,
-   "dead": 0.08,
-   "stick": 0.0225,
-   "impa": 6,
-   "implight": 1
-  },
-  "low_poly_forest_tree_pack.glb": {
-   "hue": 0.076,
-   "sat": 0.804,
-   "light": 1.343,
-   "alpha": 0.1,
-   "sink": 0,
-   "size": 1,
-   "proportion": 0,
-   "bark": 1,
-   "dead": 0
-  },
-  "pine_trees_pack_lowpoly_game_ready_lods.glb": {
-   "hue": 0.044,
-   "sat": 0.519,
-   "light": 0.87,
-   "alpha": 0.1,
-   "sink": 0,
-   "size": 1,
-   "proportion": 0,
-   "bark": 1,
-   "dead": 0
-  },
-  "pine_georgeous.glb": {
-   "kind": "tree",
-   "hue": -0.035,
-   "sat": 0.66,
-   "light": 1.22,
-   "alpha": 0,
-   "sink": 1.0,
-   "size": 0.71,
-   "proportion": 1.6,
-   "bark": 1,
-   "dead": 0.53,
-   "bend": 0.65,
-   "bendFreq": 2.5,
-   "lean": 3,
-   "flatTop": 0,
-   "sparse": 0.75,
-   "variants": 3,
-   "stick": 0.055,
-   "impa": 6,
-   "implight": 1,
-   "prune": 1,
-   "bendPct": 1,
-   "leafScale": 1.3,
-   "leafFill": 0.7
-  },
-  "pine_evolveduk.glb": {
-   "kind": "tree",
-   "hue": 0.14,
-   "sat": 0.61,
-   "light": 1.0,
-   "alpha": 0.1,
-   "sink": 0,
-   "size": 1.53,
-   "proportion": 1.45,
-   "bark": 1,
-   "dead": 0,
-   "stick": 0.055,
-   "bend": 1.4,
-   "bendFreq": 1.4,
-   "lean": 10,
-   "flatTop": 0.3,
-   "sparse": 0.75,
-   "variants": 3,
-   "impa": 6,
-   "implight": 1,
-   "prune": 1,
-   "bendPct": 1,
-   "leafScale": 1.3,
-   "leafFill": 0.7
-  },
-  "birch": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "tree",
-   "subjects": [
-    "Birch1_20",
-    "Birch2_21",
-    "Birch3_26"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0,
-   "stick": 0.0225
-  },
-  "birch_autumn": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "tree",
-   "subjects": [
-    "BirchOrange1_22",
-    "BirchOrange2_23"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 1,
-   "proportion": 0.3,
-   "bark": 1,
-   "dead": 0,
-   "stick": 0.0225
-  },
-  "maple": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "tree",
-   "subjects": [
-    "Maple_24"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.7,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0,
-   "stick": 0.022,
-   "impa": 6,
-   "implight": 1
-  },
-  "oak": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "tree",
-   "subjects": [
-    "Oak_25"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.7,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0,
-   "stick": 0.022,
-   "impa": 6,
-   "implight": 1
-  },
-  "ash": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "tree",
-   "subjects": [
-    "AshTree_1"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0,
-   "stick": 0.0225
-  },
-  "shrub_deciduous": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "shrub",
-   "subjects": [
-    "DeciduousShrub_27",
-    "DeciduousShrub2_31"
-   ],
-   "sizes": {
-    "DeciduousShrub2_31": 0.4,
-    "DeciduousShrub_27": 0.6
-   },
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0
-  },
-  "holly": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "shrub",
-   "subjects": [
-    "HollyShrub_4"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 0.6,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0
-  },
-  "raspberry": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "shrub",
-   "subjects": [
-    "RaspberryShrub_5"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 0.4,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0
-  },
-  "sapling_deciduous": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "shrub",
-   "subjects": [
-    "DeciduousSapling_32",
-    "DeciduousSapling2_33"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.4,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "bark": 1,
-   "dead": 0
-  },
-  "grass_dry": {
-   "file": "dry_grass.glb",
-   "kind": "cover",
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.3,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "density": 0.5
-  },
-  "grass_reed": {
-   "file": "grass_patches.glb",
-   "kind": "cover",
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.3,
-   "sink": 0,
-   "size": 0.01,
-   "proportion": 1,
-   "density": 0.12
-  },
-  "grass_plates": {
-   "file": "realtime_grass.glb",
-   "kind": "cover",
-   "subjects": [
-    "Plate1_Plate1_0",
-    "Plate2_Plate2_0",
-    "Plate3_Plate3_0",
-    "Plate1.001_Plate1_0",
-    "Plate2.001_Plate2_0",
-    "Plate3.001_Plate3_0"
-   ],
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.3,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "density": 2.5
-  },
-  "grass_scan": {
-   "file": "simple_grass_chunks.glb",
-   "kind": "cover",
-   "hue": 0,
-   "sat": 1,
-   "light": 1,
-   "alpha": 0.3,
-   "sink": 0,
-   "size": 1,
-   "proportion": 1,
-   "subjects": [
-    "rostlinka_07c"
-   ],
-   "parts": [
-    "rostlinka_07c"
-   ],
-   "density": 1.0
-  },
-  "dead_conifer": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "dead",
-   "subjects": [
-    "Coniferous Dead Tree_13",
-    "Coniferous Dead Tree 2_14"
-   ],
-   "bark": 1.6,
-   "size": 0.8,
-   "sink": 0,
-   "proportion": 1,
-   "impa": 6,
-   "implight": 1,
-   "bend": 0.2,
-   "bendFreq": 1.0,
-   "lean": 4,
-   "bendPct": 0.5,
-   "variants": 2
-  },
-  "dead_deciduous": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "dead",
-   "subjects": [
-    "DeciduousDead1_29",
-    "DeciduousDead2_28"
-   ],
-   "bark": 1.6,
-   "size": 0.8,
-   "sink": 0,
-   "proportion": 0.6,
-   "impa": 6,
-   "implight": 1,
-   "bend": 0.2,
-   "bendFreq": 1.0,
-   "lean": 4,
-   "bendPct": 0.5,
-   "variants": 2
-  },
-  "dead_stick": {
-   "file": "various_forest_assets_pack.glb",
-   "kind": "dead",
-   "gen": "stick",
-   "material": "BarkMat.003",
-   "bark": 1.6,
-   "size": 1,
-   "sink": 0,
-   "proportion": 1,
-   "impa": 6,
-   "implight": 1,
-   "bend": 0.3,
-   "bendFreq": 1.0,
-   "lean": 3,
-   "bendPct": 0.6,
-   "variants": 3,
-   "branches": 3,
-   "taper": 0.12
-  }
- },
+ "mix": "conifer",
  "mixes": {
   "conifer": {
    "species": {
@@ -499,16 +59,115 @@
     "spruce_tree.glb": {
      "proportion": 1,
      "dead": 0.08
+    },
+    "sapling_deciduous": {
+     "proportion": 1
+    },
+    "shrub_deciduous": {
+     "proportion": 0.5
+    },
+    "holly": {
+     "proportion": 0.2
+    },
+    "grass_dry": {
+     "proportion": 1,
+     "density": 0.25
+    },
+    "flower_foam": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "flower_bunchberry": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 14
     }
    },
    "forest": {
     "ground": "plane",
-    "count": 260,
+    "count": 1040,
     "radius": 220,
-    "under": 0,
+    "under": 2,
     "cover": 1,
-    "reach": 80,
-    "wet": 0
+    "reach": 220,
+    "wet": 0,
+    "taper": 0.5,
+    "holes": 0.2,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 10,
+    "ttype": 13,
+    "coverSpread": 0.08
+   }
+  },
+  "deciduous": {
+   "species": {
+    "birch": {
+     "proportion": 1,
+     "dead": 0.05
+    },
+    "ash": {
+     "proportion": 0.8,
+     "dead": 0.05
+    },
+    "dead_deciduous": {
+     "proportion": 0.08
+    },
+    "shrub_deciduous": {
+     "proportion": 1
+    },
+    "sapling_deciduous": {
+     "proportion": 0.5
+    },
+    "grass_dry": {
+     "proportion": 1,
+     "density": 2.4
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.24,
+     "patch": 0
+    },
+    "flower_foam": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "flower_bunchberry": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 24
+    }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 800,
+    "radius": 220,
+    "under": 4,
+    "cover": 1,
+    "reach": 220,
+    "wet": 0,
+    "mix": 1,
+    "edge": 12,
+    "glades": 6,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 2.5,
+    "ttype": 14,
+    "coverSpread": 0.08
    }
   },
   "muskeg": {
@@ -521,46 +180,61 @@
      "proportion": 1.45,
      "dead": 0
     },
+    "spruce_tree.glb": {
+     "proportion": 0.4,
+     "dead": 0.1
+    },
+    "realistic_fir_trees_pack_lods_gameready.glb": {
+     "proportion": 0.5,
+     "dead": 0.1
+    },
     "dead_conifer": {
-     "proportion": 2.0
+     "proportion": 2
     },
     "dead_stick": {
      "proportion": 1.5
     },
+    "shrub_deciduous": {
+     "proportion": 0.5
+    },
+    "sapling_deciduous": {
+     "proportion": 0.3
+    },
     "grass_dry": {
      "proportion": 1,
-     "density": 0.6
+     "density": 4
     },
     "grass_reed": {
-     "proportion": 0.4,
-     "density": 0.12
+     "proportion": 0.5,
+     "density": 0.24,
+     "patch": 7
     },
-    "shrub_deciduous": {
-     "proportion": 0.3
+    "rocks": {
+     "proportion": 1,
+     "size": 40
     }
    },
    "forest": {
     "ground": "wet",
-    "count": 140,
+    "count": 280,
     "radius": 220,
     "under": 2,
     "cover": 1,
-    "reach": 90,
-    "wet": 0.45,
-    "mix": 1.0,
-    "edge": 40
+    "reach": 220,
+    "mix": 0.25,
+    "edge": 40,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 0.4,
+    "ttype": 3,
+    "coverSpread": 0.08
    }
   },
   "grassland": {
    "species": {
-    "grass_plates": {
-     "proportion": 1,
-     "density": 2.5
-    },
-    "grass_dry": {
-     "proportion": 0.5,
-     "density": 0.5
-    },
     "shrub_deciduous": {
      "proportion": 1
     },
@@ -576,6 +250,28 @@
     },
     "dead_deciduous": {
      "proportion": 0.08
+    },
+    "grass_dry": {
+     "proportion": 1,
+     "density": 4
+    },
+    "grass_reed": {
+     "proportion": 0.4,
+     "density": 0.24,
+     "patch": 0
+    },
+    "grass_plates": {
+     "proportion": 0.3,
+     "density": 2.5
+    },
+    "flower_fireweed": {
+     "proportion": 1,
+     "density": 0.12,
+     "patch": 9
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 46
     }
    },
    "forest": {
@@ -584,9 +280,18 @@
     "radius": 220,
     "under": 3,
     "cover": 1,
-    "reach": 90,
+    "reach": 220,
     "wet": 0,
-    "mix": 1.0
+    "mix": 1,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 0.15,
+    "ttype": 2,
+    "spread": 0.2,
+    "coverSpread": 0.08
    }
   },
   "borders": {
@@ -613,12 +318,30 @@
     "maple": {
      "proportion": 0.3
     },
-    "grass_plates": {
-     "proportion": 0.6,
-     "density": 2.5
-    },
     "dead_deciduous": {
      "proportion": 0.1
+    },
+    "grass_plates": {
+     "proportion": 1,
+     "density": 5
+    },
+    "grass_dry": {
+     "proportion": 0.3,
+     "density": 4
+    },
+    "flower_foam": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "flower_bunchberry": {
+     "proportion": 1,
+     "density": 0.5,
+     "patch": 5
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 30
     }
    },
    "forest": {
@@ -627,11 +350,794 @@
     "radius": 220,
     "under": 12,
     "cover": 1,
-    "reach": 80,
+    "reach": 220,
     "wet": 0,
-    "mix": 1.0
+    "mix": 1,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 5,
+    "ttype": 7,
+    "coverSpread": 0.08
+   }
+  },
+  "scree": {
+   "species": {
+    "rocks": {
+     "proportion": 1,
+     "size": 22
+    }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 0,
+    "radius": 220,
+    "under": 0,
+    "cover": 0,
+    "reach": 220,
+    "wet": 0,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 8,
+    "ttype": 6,
+    "coverSpread": 0.08
+   }
+  },
+  "shore": {
+   "species": {
+    "rocks": {
+     "proportion": 1,
+     "size": 12
+    }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 0,
+    "radius": 220,
+    "under": 0,
+    "cover": 0,
+    "reach": 220,
+    "wet": 0,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 2,
+    "ttype": 11,
+    "coverSpread": 0.08
    }
   }
  },
- "mix": "conifer"
+ "measured": {
+  "grass_dry": {
+   "h": 0.11739833596383542,
+   "s": 0.2686442940372808,
+   "l": 0.46764338694279217,
+   "px": 1869,
+   "mats": 7,
+   "rgb": [
+    151,
+    132,
+    87
+   ]
+  },
+  "grass_reed": {
+   "h": 0.09811399251144086,
+   "s": 0.39475557015382934,
+   "l": 0.30098863074641624,
+   "px": 357,
+   "mats": 3,
+   "rgb": [
+    107,
+    82,
+    46
+   ]
+  },
+  "grass_plates": {
+   "h": 0.1728773026689904,
+   "s": 0.29681867573922066,
+   "l": 0.2632761888290781,
+   "px": 5442,
+   "mats": 6,
+   "rgb": [
+    86,
+    87,
+    47
+   ]
+  },
+  "grass_scan": {
+   "h": 0.1293207482113611,
+   "s": 0.30807839388145314,
+   "l": 0.40680602819640255,
+   "px": 121,
+   "mats": 1,
+   "rgb": [
+    136,
+    121,
+    72
+   ]
+  },
+  "flower_fireweed": {
+   "h": 0.1169201442809369,
+   "s": 0.042412102749170726,
+   "l": 0.47458869175200447,
+   "px": 3952,
+   "mats": 2,
+   "rgb": [
+    126,
+    123,
+    116
+   ]
+  },
+  "flower_foam": {
+   "h": 0.1169201442809369,
+   "s": 0.042412102749170726,
+   "l": 0.47458869175200447,
+   "px": 3952,
+   "mats": 2,
+   "rgb": [
+    126,
+    123,
+    116
+   ]
+  },
+  "flower_bunchberry": {
+   "h": 0.1169201442809369,
+   "s": 0.042412102749170726,
+   "l": 0.47458869175200447,
+   "px": 3952,
+   "mats": 2,
+   "rgb": [
+    126,
+    123,
+    116
+   ]
+  }
+ },
+ "tuning": {
+  "cedar_tree.glb": {
+   "hue": -0.03,
+   "sat": 1,
+   "light": 0.59,
+   "bark": 0.34,
+   "alpha": 0.4,
+   "sink": 2,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0.12,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.028
+  },
+  "fir_tree_georgeous.glb": {
+   "hue": -0.06,
+   "sat": 1,
+   "light": 0.43,
+   "bark": 0.42,
+   "alpha": 0.1,
+   "sink": 1.5,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0.08,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.066
+  },
+  "larch_tree.glb": {
+   "hue": -0.03,
+   "sat": 0.48,
+   "light": 0.68,
+   "bark": 0.84,
+   "alpha": 0,
+   "sink": 2,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0.09,
+   "stick": 0.0225,
+   "impa": 6.5,
+   "implight": 1.091
+  },
+  "mountain_trees.glb": {
+   "hue": 0.13,
+   "sat": 0.68,
+   "light": 1.1,
+   "bark": 0.38,
+   "alpha": 0.1,
+   "sink": 0,
+   "size": 0.5,
+   "proportion": 0.05,
+   "dead": 0.08,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.203,
+   "keepTop": 3,
+   "ship": false
+  },
+  "realistic_fir_trees_pack_lods_gameready.glb": {
+   "hue": -0.08,
+   "sat": 0.47,
+   "light": 1.3,
+   "bark": 0.64,
+   "alpha": 0.1,
+   "sink": 0,
+   "size": 2.1,
+   "proportion": 2.85,
+   "dead": 0.08,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.191
+  },
+  "spruce_tree.glb": {
+   "hue": 0.01,
+   "sat": 1.1,
+   "light": 0.54,
+   "bark": 0.42,
+   "alpha": 0.2,
+   "sink": 0.5,
+   "size": 1.08,
+   "proportion": 1,
+   "dead": 0.08,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.159
+  },
+  "low_poly_forest_tree_pack.glb": {
+   "hue": 0.076,
+   "sat": 0.804,
+   "light": 1.343,
+   "alpha": 0.1,
+   "sink": 0,
+   "size": 1,
+   "proportion": 0,
+   "bark": 1,
+   "dead": 0
+  },
+  "pine_trees_pack_lowpoly_game_ready_lods.glb": {
+   "hue": 0.044,
+   "sat": 0.519,
+   "light": 0.87,
+   "alpha": 0.1,
+   "sink": 0,
+   "size": 1,
+   "proportion": 0,
+   "bark": 1,
+   "dead": 0
+  },
+  "pine_georgeous.glb": {
+   "hue": 0.035,
+   "sat": 0.66,
+   "light": 1.22,
+   "bark": 1,
+   "alpha": 0,
+   "sink": 1,
+   "size": 0.71,
+   "proportion": 1.6,
+   "dead": 0.53,
+   "stick": 0.055,
+   "impa": 6,
+   "implight": 1.016,
+   "kind": "tree",
+   "bend": 0.65,
+   "bendFreq": 2.5,
+   "lean": 3,
+   "flatTop": 0,
+   "sparse": 0.75,
+   "variants": 3,
+   "prune": 1,
+   "bendPct": 1,
+   "leafScale": 1.3,
+   "leafFill": 0.7
+  },
+  "pine_evolveduk.glb": {
+   "hue": -0.14,
+   "sat": 0.61,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.1,
+   "sink": 0,
+   "size": 1.53,
+   "proportion": 1.45,
+   "dead": 0,
+   "stick": 0.055,
+   "impa": 6,
+   "implight": 1.084,
+   "kind": "tree",
+   "bend": 1.4,
+   "bendFreq": 1.4,
+   "lean": 10,
+   "flatTop": 0.3,
+   "sparse": 0.75,
+   "variants": 3,
+   "prune": 1,
+   "bendPct": 1,
+   "leafScale": 1.3,
+   "leafFill": 0.7
+  },
+  "birch": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.028,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "subjects": [
+    "Birch1_20",
+    "Birch2_21",
+    "Birch3_26"
+   ]
+  },
+  "birch_autumn": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 1,
+   "proportion": 0.3,
+   "dead": 0,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.066,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "subjects": [
+    "BirchOrange1_22",
+    "BirchOrange2_23"
+   ]
+  },
+  "maple": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.7,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.022,
+   "impa": 6,
+   "implight": 1.028,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "subjects": [
+    "Maple_24"
+   ]
+  },
+  "oak": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.7,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.022,
+   "impa": 6,
+   "implight": 0.997,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "subjects": [
+    "Oak_25"
+   ]
+  },
+  "ash": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.0225,
+   "impa": 6,
+   "implight": 1.041,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "subjects": [
+    "AshTree_1"
+   ]
+  },
+  "shrub_deciduous": {
+   "hue": -0.009,
+   "sat": 0.857,
+   "light": 1.535,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 1,
+   "proportion": 0.5,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1.091,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "subjects": [
+    "DeciduousShrub_27",
+    "DeciduousShrub2_31"
+   ],
+   "sizes": {
+    "DeciduousShrub2_31": 0.4,
+    "DeciduousShrub_27": 0.6
+   },
+   "hMin": 0.5,
+   "hMax": 3
+  },
+  "holly": {
+   "hue": -0.097,
+   "sat": 1,
+   "light": 0.877,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 0.6,
+   "proportion": 0.2,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1.053,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "subjects": [
+    "HollyShrub_4"
+   ],
+   "hMin": 0.5,
+   "hMax": 2.5
+  },
+  "raspberry": {
+   "hue": -0.001,
+   "sat": 1,
+   "light": 1.26,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 0.4,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 0.959,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "subjects": [
+    "RaspberryShrub_5"
+   ],
+   "hMin": 0.5,
+   "hMax": 1.8
+  },
+  "sapling_deciduous": {
+   "hue": -0.009,
+   "sat": 0.857,
+   "light": 1.535,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1.066,
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "subjects": [
+    "DeciduousSapling_32",
+    "DeciduousSapling2_33"
+   ],
+   "hMin": 0.8,
+   "hMax": 3.5
+  },
+  "grass_dry": {
+   "hue": 0,
+   "sat": 0.15,
+   "light": 2.14,
+   "bark": 1,
+   "alpha": 0.3,
+   "sink": 0,
+   "size": 1.6,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "dry_grass.glb",
+   "kind": "cover",
+   "density": 0.25,
+   "vary": 0.03,
+   "lift": 0.29,
+   "contrast": 0.35
+  },
+  "grass_reed": {
+   "hue": 0,
+   "sat": 0.15,
+   "light": 3,
+   "bark": 1,
+   "alpha": 0.3,
+   "sink": 0,
+   "size": 0.012,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "grass_patches.glb",
+   "kind": "cover",
+   "density": 0.24,
+   "patch": 7,
+   "patchShare": 0.35,
+   "vary": 0.03,
+   "lift": 0.29,
+   "contrast": 0.35
+  },
+  "grass_plates": {
+   "hue": 0,
+   "sat": 0.15,
+   "light": 3,
+   "bark": 1,
+   "alpha": 0.3,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "realtime_grass.glb",
+   "kind": "cover",
+   "subjects": [
+    "Plate1_Plate1_0",
+    "Plate2_Plate2_0",
+    "Plate3_Plate3_0",
+    "Plate1.001_Plate1_0",
+    "Plate2.001_Plate2_0",
+    "Plate3.001_Plate3_0"
+   ],
+   "density": 2.5,
+   "vary": 0.03,
+   "lift": 0.382,
+   "contrast": 0.35
+  },
+  "grass_scan": {
+   "hue": 0,
+   "sat": 0.15,
+   "light": 2.46,
+   "bark": 1,
+   "alpha": 0.3,
+   "sink": 0,
+   "size": 2.6,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "subjects": [
+    "rostlinka_07c"
+   ],
+   "parts": [
+    "rostlinka_07c"
+   ],
+   "density": 2,
+   "vary": 0.03,
+   "lift": 0.229,
+   "contrast": 0.35
+  },
+  "dead_conifer": {
+   "file": "various_forest_assets_pack.glb",
+   "kind": "dead",
+   "subjects": [
+    "Coniferous Dead Tree_13",
+    "Coniferous Dead Tree 2_14"
+   ],
+   "bark": 1.6,
+   "size": 0.8,
+   "sink": 0,
+   "proportion": 1,
+   "impa": 6,
+   "implight": 1,
+   "bend": 0.2,
+   "bendFreq": 1,
+   "lean": 4,
+   "bendPct": 0.5,
+   "variants": 2
+  },
+  "dead_deciduous": {
+   "file": "various_forest_assets_pack.glb",
+   "kind": "dead",
+   "subjects": [
+    "DeciduousDead1_29",
+    "DeciduousDead2_28"
+   ],
+   "bark": 1.6,
+   "size": 0.8,
+   "sink": 0,
+   "proportion": 0.6,
+   "impa": 6,
+   "implight": 1,
+   "bend": 0.2,
+   "bendFreq": 1,
+   "lean": 4,
+   "bendPct": 0.5,
+   "variants": 2
+  },
+  "dead_stick": {
+   "file": "various_forest_assets_pack.glb",
+   "kind": "dead",
+   "gen": "stick",
+   "material": "BarkMat.003",
+   "bark": 1.6,
+   "size": 1,
+   "sink": 0,
+   "proportion": 1,
+   "impa": 6,
+   "implight": 1,
+   "bend": 0.3,
+   "bendFreq": 1,
+   "lean": 3,
+   "bendPct": 0.6,
+   "variants": 3,
+   "branches": 3,
+   "taper": 0.12
+  },
+  "pine_lampi.glb": {
+   "hue": 0.04,
+   "sat": 0.615,
+   "light": 0.76,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 1,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1.072
+  },
+  "flower_fireweed": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.5,
+   "sink": 0,
+   "size": 1.7,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "maps": [
+    "../assets/vegetation/flowers/fireweed_a.png",
+    "../assets/vegetation/flowers/fireweed_b.png",
+    "../assets/vegetation/flowers/fireweed_c.png"
+   ],
+   "noTint": 1,
+   "density": 0.06,
+   "patch": 9,
+   "patchShare": 0.12,
+   "vary": 0.05,
+   "aspect": 0.75
+  },
+  "flower_foam": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.5,
+   "sink": 0,
+   "size": 0.7,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "maps": [
+    "../assets/vegetation/flowers/foamflower_a.png",
+    "../assets/vegetation/flowers/foamflower_b.png"
+   ],
+   "noTint": 1,
+   "density": 0.4,
+   "patch": 4,
+   "patchShare": 0.25,
+   "vary": 0.05,
+   "aspect": 1
+  },
+  "flower_bunchberry": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.5,
+   "sink": 0,
+   "size": 0.45,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "maps": [
+    "../assets/vegetation/flowers/bunchberry_flower.png",
+    "../assets/vegetation/flowers/bunchberry_fruit.png"
+   ],
+   "noTint": 1,
+   "density": 0.4,
+   "patch": 4,
+   "patchShare": 0.25,
+   "vary": 0.05,
+   "aspect": 1
+  },
+  "rocks": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.4,
+   "sink": 0,
+   "size": 14,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "free_rock_assets_pack.glb",
+   "kind": "rock",
+   "subjects": [
+    "Pavementblock.021_4",
+    "Pavementblock.017_0",
+    "Pavementblock.020_3",
+    "Pavementblock.031_14",
+    "Pavementblock.032_15",
+    "Pavementblock.026_9",
+    "Pavementblock.019_2",
+    "Pavementblock.025_8",
+    "Pavementblock.030_13",
+    "Pavementblock.033_16",
+    "Pavementblock.018_1",
+    "Pavementblock.027_10",
+    "Pavementblock.029_12"
+   ],
+   "sizeVar": 0.35,
+   "bury": 0.45
+  }
+ },
+ "biomes": {
+  "2": "grassland",
+  "3": "muskeg",
+  "4": "shore",
+  "5": "scree",
+  "6": "scree",
+  "7": "borders",
+  "8": "deciduous",
+  "11": "shore",
+  "12": "scree",
+  "13": "conifer",
+  "14": "borders"
+ }
 }

@@ -51,7 +51,8 @@ const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto
 // under assets/vegetation/<kind>/. Walked recursively; every asset records
 // the path the bench and tree_prep.py fetch it by (`file`, relative to
 // assets/) and the folder it came from (`folder`) so the shelf can rail by it.
-const ASSETS = path.join(__dirname, '..', 'assets');
+// TREE_ASSETS overrides the root (a worktree served over the main checkout's gitignored assets/)
+const ASSETS = process.env.TREE_ASSETS ? path.resolve(process.env.TREE_ASSETS) : path.join(__dirname, '..', 'assets');
 const RAW_DIRS = ['treesRaw', 'vegetation'];
 const OUT = path.join(__dirname, '_trees_index.json');
 // --trace=<substring> prints every group of the matching asset, with its box
@@ -704,6 +705,7 @@ function group(g, bin, folderKind) {
     // two will coexist in the world. It keeps its own kind so the ladder can
     // tell which rung an asset already is, not because it is not a tree.
     if (forced) G.kind = forced;
+    else if (folderKind === 'rock') G.kind = 'rock';
     else if ((CARD_MAT.test(matNames) || CARD_MAT.test(G.key)) && !multiLevel(G)) G.kind = 'billboard';
     // A card is TALL and thin. Requiring height as well as a low triangle
     // count keeps a 63-triangle rock 0.85 m high out of the billboard rail.
@@ -747,7 +749,10 @@ function readGLB(file) {
 }
 
 // the folder's own word on what a pack holds, see the FIVE KINDS note
-const FOLDER_KIND = { 'vegetation/grass': 'cover', 'vegetation/shrubs': 'shrub' };
+// A SIXTH KIND (2026-09-20, the user: "let's spawn rocks, half buried, rotated only on the z
+// axis"): ROCK - a folder's word again (vegetation/rocks), so a boulder pack is not filed as
+// terrain-to-scatter-on; the bench plants it like an understory that sinks to its waist
+const FOLDER_KIND = { 'vegetation/grass': 'cover', 'vegetation/shrubs': 'shrub', 'vegetation/rocks': 'rock' };
 
 function analyse(name, g, ctx) {
   const folderKind = FOLDER_KIND[ctx.folder] || null;
@@ -817,6 +822,7 @@ function analyse(name, g, ctx) {
   const cover = kinds('cover').sort((a, b) => b.h - a.h);
   const billboards = kinds('billboard').sort((a, b) => b.h - a.h);
   const terrain = kinds('terrain').sort((a, b) => b.tris - a.tris);
+  const rocks = kinds('rock').sort((a, b) => b.h - a.h);
 
   // a stand of conifers is 15-60 m; far outside that is a unit problem in the
   // export, and it is the reason to MEASURE rather than trust
@@ -850,7 +856,7 @@ function analyse(name, g, ctx) {
     rawNodes: (g.nodes || []).length,
     extensions: [].concat(g.extensionsUsed || [], g.extensionsRequired || [])
       .filter((v, i, a) => a.indexOf(v) === i),
-    trees, shrubs, cover, billboards, terrain,
+    trees, shrubs, cover, billboards, terrain, rocks,
     folderKind,
     weldedTrees: groups.filter(G => G.els.some(e => e.clips)).length,
     tallest: +tallest.toFixed(2),
@@ -959,7 +965,7 @@ for (const r of report) {
   if (r.duplicateOf) notes.push('DUPLICATE of ' + r.duplicateOf + ' (' + r.duplicateHow + ')');
   if (r.licence && r.licence.ok === false) notes.push('LICENCE ' + r.licence.text.split(' (')[0]);
   if (r.terrain && r.terrain.length) notes.push('terrain');
-  const cop = [].concat(r.trees, r.shrubs, r.cover, r.billboards, r.terrain).reduce((m, x) => Math.max(m, x.copies || 1), 1);
+  const cop = [].concat(r.trees, r.shrubs, r.cover, r.billboards, r.terrain, r.rocks || []).reduce((m, x) => Math.max(m, x.copies || 1), 1);
   if (cop > 1) notes.push(r.rawMeshes + ' meshes -> ' +
     (r.trees.length + r.shrubs.length + r.cover.length + r.billboards.length + r.terrain.length) + ' unique');
   if (r.cannotCut) notes.push(r.cannotCut + ' cutout w/o alpha');

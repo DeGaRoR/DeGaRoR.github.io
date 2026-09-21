@@ -1,10 +1,10 @@
 {
- "note": "baked by tools/tree_prep.py \u2014 see docs/TREE-IMPORT.md",
+ "note": "baked by tools/tree_prep.py - see docs/TREE-IMPORT.md",
  "collections": [
   {
    "name": "cedar_tree.glb",
-   "bin": "media/geo/trees/cedar_tree.b6bfe359.bin",
-   "bytes": 1508548,
+   "file": "cedar_tree.glb",
+   "kind": "tree",
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -14,43 +14,23 @@
    "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
    "licenceOk": true,
    "place": {
+    "sink": 2,
     "size": 1,
     "proportion": 1,
-    "sink": 2,
     "dead": 0.12,
     "impa": 6,
-    "implight": 1,
+    "implight": 1.028,
     "crownH": 1.3
    },
    "tint": {
-    "hue": 0.03,
+    "hue": -0.03,
     "sat": 1,
     "light": 0.59,
     "bark": 0.34,
     "alpha": 0.4
    },
-   "materials": {
-    "M_Bark.009": {
-     "mode": "OPAQUE",
-     "base": "media/tex/trees/cedar_tree_m_bark_009_base.6d478c25.jpg",
-     "baseSize": [
-      256,
-      1024
-     ],
-     "nor": "media/tex/trees/cedar_tree_m_bark_009_nor.42e2e9bf.jpg"
-    },
-    "M_Branch.009": {
-     "mode": "MASK",
-     "cutoff": 0.6263,
-     "coverageMips": true,
-     "base": "media/tex/trees/cedar_tree_m_branch_009_base.af7f7481.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "media/tex/trees/cedar_tree_m_branch_009_nor.89a16f71.jpg"
-    }
-   },
+   "bin": "media/geo/trees/cedar_tree.b6bfe359.bin",
+   "bytes": 1508548,
    "subjects": [
     {
      "name": "Cedar_LOD0",
@@ -313,8 +293,8 @@
   },
   {
    "name": "fir_tree_georgeous.glb",
-   "bin": "media/geo/trees/fir_tree_georgeous.5f4d8053.bin",
-   "bytes": 457952,
+   "file": "fir_tree_georgeous.glb",
+   "kind": "tree",
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -324,43 +304,23 @@
    "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
    "licenceOk": true,
    "place": {
+    "sink": 1.5,
     "size": 1,
     "proportion": 1,
-    "sink": 1.5,
     "dead": 0.08,
     "impa": 6,
-    "implight": 1,
+    "implight": 1.066,
     "crownH": 1.3
    },
    "tint": {
-    "hue": 0.06,
+    "hue": -0.06,
     "sat": 1,
     "light": 0.43,
     "bark": 0.42,
     "alpha": 0.1
    },
-   "materials": {
-    "M_Branch.007": {
-     "mode": "MASK",
-     "cutoff": 0.608,
-     "coverageMips": true,
-     "base": "media/tex/trees/fir_tree_georgeous_m_branch_007_base.4742577f.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "media/tex/trees/fir_tree_georgeous_m_branch_007_nor.e8688e34.jpg"
-    },
-    "M_Bark.007": {
-     "mode": "OPAQUE",
-     "base": "media/tex/trees/fir_tree_georgeous_m_bark_007_base.4dc7a894.jpg",
-     "baseSize": [
-      256,
-      1024
-     ],
-     "nor": "media/tex/trees/fir_tree_georgeous_m_bark_007_nor.beac0ead.jpg"
-    }
-   },
+   "bin": "media/geo/trees/fir_tree_georgeous.5f4d8053.bin",
+   "bytes": 457952,
    "subjects": [
     {
      "name": "Fir01_LOD0",
@@ -623,8 +583,8 @@
   },
   {
    "name": "larch_tree.glb",
-   "bin": "media/geo/trees/larch_tree.edb35369.bin",
-   "bytes": 761868,
+   "file": "larch_tree.glb",
+   "kind": "tree",
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -634,43 +594,23 @@
    "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
    "licenceOk": true,
    "place": {
+    "sink": 2,
     "size": 1,
     "proportion": 1,
-    "sink": 2,
     "dead": 0.09,
     "impa": 6.5,
-    "implight": 1,
+    "implight": 1.091,
     "crownH": 1.3
    },
    "tint": {
-    "hue": 0.03,
+    "hue": -0.03,
     "sat": 0.48,
     "light": 0.68,
     "bark": 0.84,
     "alpha": 0
    },
-   "materials": {
-    "M_Bark": {
-     "mode": "OPAQUE",
-     "base": "media/tex/trees/larch_tree_m_bark_base.3057dd84.jpg",
-     "baseSize": [
-      256,
-      1024
-     ],
-     "nor": "media/tex/trees/larch_tree_m_bark_nor.24e88780.jpg"
-    },
-    "M_Branch": {
-     "mode": "MASK",
-     "cutoff": 0.0777,
-     "coverageMips": true,
-     "base": "media/tex/trees/larch_tree_m_branch_base.8e0f34a9.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "media/tex/trees/larch_tree_m_branch_nor.de257583.jpg"
-    }
-   },
+   "bin": "media/geo/trees/larch_tree.edb35369.bin",
+   "bytes": 761868,
    "subjects": [
     {
      "name": "Larch_LOD0",
@@ -933,8 +873,8 @@
   },
   {
    "name": "realistic_fir_trees_pack_lods_gameready.glb",
-   "bin": "media/geo/trees/realistic_fir_trees_pack_lods_gameready.35a94bf6.bin",
-   "bytes": 1157756,
+   "file": "realistic_fir_trees_pack_lods_gameready.glb",
+   "kind": "tree",
    "credit": {
     "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -944,43 +884,23 @@
    "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
    "licenceOk": true,
    "place": {
+    "sink": 0,
     "size": 2.1,
     "proportion": 2.85,
-    "sink": 0,
     "dead": 0.08,
     "impa": 6,
-    "implight": 1,
+    "implight": 1.191,
     "crownH": 1.3
    },
    "tint": {
-    "hue": 0.08,
+    "hue": -0.08,
     "sat": 0.47,
     "light": 1.3,
     "bark": 0.64,
     "alpha": 0.1
    },
-   "materials": {
-    "Bark_Mat": {
-     "mode": "OPAQUE",
-     "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg",
-     "baseSize": [
-      512,
-      1024
-     ],
-     "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_nor.c153a8b2.jpg"
-    },
-    "Brunches_Mat": {
-     "mode": "MASK",
-     "cutoff": 0.3764,
-     "coverageMips": true,
-     "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_base.96c367ea.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"
-    }
-   },
+   "bin": "media/geo/trees/realistic_fir_trees_pack_lods_gameready.35a94bf6.bin",
+   "bytes": 1157756,
    "subjects": [
     {
      "name": "Christmas tree",
@@ -1500,8 +1420,8 @@
   },
   {
    "name": "spruce_tree.glb",
-   "bin": "media/geo/trees/spruce_tree.03b48def.bin",
-   "bytes": 582900,
+   "file": "spruce_tree.glb",
+   "kind": "tree",
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -1511,43 +1431,23 @@
    "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
    "licenceOk": true,
    "place": {
+    "sink": 0.5,
     "size": 1.08,
     "proportion": 1,
-    "sink": 0.5,
     "dead": 0.08,
     "impa": 6,
-    "implight": 1,
+    "implight": 1.159,
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.01,
+    "hue": 0.01,
     "sat": 1.1,
     "light": 0.54,
     "bark": 0.42,
     "alpha": 0.2
    },
-   "materials": {
-    "M_Bark.001": {
-     "mode": "OPAQUE",
-     "base": "media/tex/trees/spruce_tree_m_bark_001_base.b686d5b2.jpg",
-     "baseSize": [
-      256,
-      1024
-     ],
-     "nor": "media/tex/trees/spruce_tree_m_bark_001_nor.26e3e887.jpg"
-    },
-    "M_Branch.001": {
-     "mode": "MASK",
-     "cutoff": 0.2971,
-     "coverageMips": true,
-     "base": "media/tex/trees/spruce_tree_m_branch_001_base.f76f96b7.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "media/tex/trees/spruce_tree_m_branch_001_nor.d03d0d8d.jpg"
-    }
-   },
+   "bin": "media/geo/trees/spruce_tree.03b48def.bin",
+   "bytes": 582900,
    "subjects": [
     {
      "name": "Spruce_LOD0",
@@ -1807,6 +1707,6171 @@
      ]
     }
    ]
+  },
+  {
+   "name": "pine_georgeous.glb",
+   "file": "pine_georgeous.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Georgeous (https://sketchfab.com/intice184)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pine-tree-6c0ca146235e49529828136cd0cee63a",
+    "title": "Pine tree"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 1,
+    "size": 0.71,
+    "proportion": 1.6,
+    "dead": 0.53,
+    "impa": 6,
+    "implight": 1.016,
+    "bend": 0.65,
+    "bendFreq": 2.5,
+    "lean": 3,
+    "flatTop": 0,
+    "sparse": 0.75,
+    "variants": 3,
+    "prune": 1,
+    "bendPct": 1,
+    "leafScale": 1.3,
+    "leafFill": 0.7,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0.035,
+    "sat": 0.66,
+    "light": 1.22,
+    "bark": 1,
+    "alpha": 0
+   },
+   "bin": "media/geo/trees/pine_georgeous.e5a37d5b.bin",
+   "bytes": 2050850,
+   "subjects": [
+    {
+     "name": "Pine01_LOD0",
+     "h": 14.3,
+     "tris": 20517,
+     "bb": [
+      -2.258,
+      0.0,
+      -2.4705,
+      2.258,
+      14.2984,
+      2.4705
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 20517,
+       "parts": [
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.106229,
+          -1.03021
+         ],
+         "uvScl": [
+          3.778939,
+          18.263662
+         ],
+         "off": 0,
+         "len": 110242
+        },
+        {
+         "mat": "M_Branch.003",
+         "mode": "MASK",
+         "cutoff": 0.224,
+         "uvMin": [
+          0.0,
+          0.112862
+         ],
+         "uvScl": [
+          0.99984,
+          0.887138
+         ],
+         "off": 110242,
+         "len": 313352
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 13875,
+       "parts": [
+        {
+         "mat": "M_Branch.003",
+         "mode": "MASK",
+         "cutoff": 0.224,
+         "uvMin": [
+          0.0,
+          0.112862
+         ],
+         "uvScl": [
+          0.99984,
+          0.887138
+         ],
+         "off": 423594,
+         "len": 313352
+        },
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 736946,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 11248,
+       "parts": [
+        {
+         "mat": "M_Branch.003",
+         "mode": "MASK",
+         "cutoff": 0.224,
+         "uvMin": [
+          0.0,
+          0.112862
+         ],
+         "uvScl": [
+          0.99984,
+          0.887138
+         ],
+         "off": 737266,
+         "len": 253812
+        },
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 991078,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 19841,
+       "parts": [
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.106229,
+          -1.03021
+         ],
+         "uvScl": [
+          3.778939,
+          18.263662
+         ],
+         "off": 991398,
+         "len": 110242
+        },
+        {
+         "mat": "M_Branch.003",
+         "mode": "MASK",
+         "cutoff": 0.224,
+         "uvMin": [
+          0.0,
+          0.112862
+         ],
+         "uvScl": [
+          0.99984,
+          0.887138
+         ],
+         "off": 1101640,
+         "len": 298068
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 13199,
+       "parts": [
+        {
+         "mat": "M_Branch.003",
+         "mode": "MASK",
+         "cutoff": 0.224,
+         "uvMin": [
+          0.0,
+          0.112862
+         ],
+         "uvScl": [
+          0.99984,
+          0.887138
+         ],
+         "off": 1399708,
+         "len": 298068
+        },
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 1697776,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 10730,
+       "parts": [
+        {
+         "mat": "M_Branch.003",
+         "mode": "MASK",
+         "cutoff": 0.224,
+         "uvMin": [
+          0.0,
+          0.112862
+         ],
+         "uvScl": [
+          0.99984,
+          0.887138
+         ],
+         "off": 1698096,
+         "len": 242192
+        },
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 1940288,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 6656,
+       "parts": [
+        {
+         "mat": "M_Bark.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.106229,
+          -1.03021
+         ],
+         "uvScl": [
+          3.778939,
+          18.263662
+         ],
+         "off": 1940608,
+         "len": 110242
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pine_evolveduk.glb",
+   "file": "pine_evolveduk.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "evolveduk (https://sketchfab.com/evolveduk)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9",
+    "title": "Pine Tree"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1.53,
+    "proportion": 1.45,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.084,
+    "bend": 1.4,
+    "bendFreq": 1.4,
+    "lean": 10,
+    "flatTop": 0.3,
+    "sparse": 0.75,
+    "variants": 3,
+    "prune": 1,
+    "bendPct": 1,
+    "leafScale": 1.3,
+    "leafFill": 0.7,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": -0.14,
+    "sat": 0.61,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.1
+   },
+   "bin": "media/geo/trees/pine_evolveduk.e693ba46.bin",
+   "bytes": 288998,
+   "subjects": [
+    {
+     "name": "Tree_0",
+     "h": 5.32,
+     "tris": 5627,
+     "bb": [
+      -1.0915,
+      0.0,
+      -1.0833,
+      1.0915,
+      5.3152,
+      1.0833
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 5627,
+       "parts": [
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.00039,
+          1.0
+         ],
+         "uvScl": [
+          0.99815,
+          7.56889
+         ],
+         "off": 0,
+         "len": 68042
+        },
+        {
+         "mat": "Tree_1Mat",
+         "mode": "MASK",
+         "cutoff": 0.208,
+         "uvMin": [
+          0.00159,
+          0.00149
+         ],
+         "uvScl": [
+          0.99702,
+          0.99702
+         ],
+         "off": 68042,
+         "len": 21772
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 1102,
+       "parts": [
+        {
+         "mat": "Tree_1Mat",
+         "mode": "MASK",
+         "cutoff": 0.208,
+         "uvMin": [
+          0.00159,
+          0.00149
+         ],
+         "uvScl": [
+          0.99702,
+          0.99702
+         ],
+         "off": 89814,
+         "len": 21772
+        },
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 111586,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 662,
+       "parts": [
+        {
+         "mat": "Tree_1Mat",
+         "mode": "MASK",
+         "cutoff": 0.208,
+         "uvMin": [
+          0.00159,
+          0.00149
+         ],
+         "uvScl": [
+          0.99702,
+          0.99702
+         ],
+         "off": 111906,
+         "len": 12972
+        },
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 124878,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 5043,
+       "parts": [
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.00039,
+          1.0
+         ],
+         "uvScl": [
+          0.99815,
+          7.56889
+         ],
+         "off": 125198,
+         "len": 68042
+        },
+        {
+         "mat": "Tree_1Mat",
+         "mode": "MASK",
+         "cutoff": 0.208,
+         "uvMin": [
+          0.00159,
+          0.00149
+         ],
+         "uvScl": [
+          0.99702,
+          0.99702
+         ],
+         "off": 193240,
+         "len": 10092
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 518,
+       "parts": [
+        {
+         "mat": "Tree_1Mat",
+         "mode": "MASK",
+         "cutoff": 0.208,
+         "uvMin": [
+          0.00159,
+          0.00149
+         ],
+         "uvScl": [
+          0.99702,
+          0.99702
+         ],
+         "off": 203332,
+         "len": 10092
+        },
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 213424,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 358,
+       "parts": [
+        {
+         "mat": "Tree_1Mat",
+         "mode": "MASK",
+         "cutoff": 0.208,
+         "uvMin": [
+          0.00159,
+          0.00149
+         ],
+         "uvScl": [
+          0.99702,
+          0.99702
+         ],
+         "off": 213744,
+         "len": 6892
+        },
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 220636,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 4539,
+       "parts": [
+        {
+         "mat": "Tree_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.00039,
+          1.0
+         ],
+         "uvScl": [
+          0.99815,
+          7.56889
+         ],
+         "off": 220956,
+         "len": 68042
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "birch",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.028,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/birch.e9b48ec1.bin",
+   "bytes": 529812,
+   "subjects": [
+    {
+     "name": "Birch1_20",
+     "h": 17.18,
+     "tris": 2800,
+     "bb": [
+      -4.5704,
+      0.0,
+      -4.8549,
+      4.5704,
+      17.1844,
+      4.8549
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2800,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 0,
+         "len": 18340
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -2.323611,
+          -11.788908
+         ],
+         "uvScl": [
+          4.202759,
+          18.361732
+         ],
+         "off": 18340,
+         "len": 37642
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 488,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 55982,
+         "len": 18340
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 74322,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 293,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 74642,
+         "len": 10772
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 85414,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 2529,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 85734,
+         "len": 7936
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -2.323611,
+          -11.788908
+         ],
+         "uvScl": [
+          4.202759,
+          18.361732
+         ],
+         "off": 93670,
+         "len": 37642
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 217,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 131312,
+         "len": 7936
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 139248,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 154,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 139568,
+         "len": 5472
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 145040,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 2326,
+       "parts": [
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -2.323611,
+          -11.788908
+         ],
+         "uvScl": [
+          4.202759,
+          18.361732
+         ],
+         "off": 145360,
+         "len": 37642
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Birch2_21",
+     "h": 22.15,
+     "tris": 2466,
+     "bb": [
+      -4.8997,
+      0.0,
+      -5.0723,
+      4.8997,
+      22.1511,
+      5.0723
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2466,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 183002,
+         "len": 25996
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.328886,
+          -8.609361
+         ],
+         "uvScl": [
+          5.325459,
+          18.218721
+         ],
+         "off": 208998,
+         "len": 28990
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 686,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 237988,
+         "len": 25996
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 263984,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 430,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 264304,
+         "len": 16116
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 280420,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 2158,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 280740,
+         "len": 14152
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.328886,
+          -8.609361
+         ],
+         "uvScl": [
+          5.325459,
+          18.218721
+         ],
+         "off": 294892,
+         "len": 28990
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 378,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 323882,
+         "len": 14152
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 338034,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 274,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 338354,
+         "len": 10140
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 348494,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 1794,
+       "parts": [
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.328886,
+          -8.609361
+         ],
+         "uvScl": [
+          5.325459,
+          18.218721
+         ],
+         "off": 348814,
+         "len": 28990
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Birch3_26",
+     "h": 21.62,
+     "tris": 2131,
+     "bb": [
+      -6.3912,
+      0.0,
+      -6.0048,
+      6.3912,
+      21.6243,
+      6.0048
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2131,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 377804,
+         "len": 18920
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.4375,
+          -0.15625
+         ],
+         "uvScl": [
+          7.875,
+          1.3125
+         ],
+         "off": 396724,
+         "len": 26832
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 503,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 423556,
+         "len": 18920
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 442476,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 304,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 442796,
+         "len": 11188
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 453984,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 1845,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 454304,
+         "len": 7880
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.4375,
+          -0.15625
+         ],
+         "uvScl": [
+          7.875,
+          1.3125
+         ],
+         "off": 462184,
+         "len": 26832
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 217,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 489016,
+         "len": 7880
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 496896,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 154,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 497216,
+         "len": 5444
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 502660,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 1642,
+       "parts": [
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.4375,
+          -0.15625
+         ],
+         "uvScl": [
+          7.875,
+          1.3125
+         ],
+         "off": 502980,
+         "len": 26832
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "birch_autumn",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 0.3,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.066,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/birch_autumn.fc8f08be.bin",
+   "bytes": 377804,
+   "subjects": [
+    {
+     "name": "BirchOrange1_22",
+     "h": 18.95,
+     "tris": 2466,
+     "bb": [
+      -4.4758,
+      0.0,
+      -4.1929,
+      4.4758,
+      18.9533,
+      4.1929
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2466,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 0,
+         "len": 25996
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.328886,
+          -8.609361
+         ],
+         "uvScl": [
+          5.325459,
+          18.218721
+         ],
+         "off": 25996,
+         "len": 28990
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 686,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 54986,
+         "len": 25996
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 80982,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 430,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 81302,
+         "len": 16116
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 97418,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 2158,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 97738,
+         "len": 14152
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.328886,
+          -8.609361
+         ],
+         "uvScl": [
+          5.325459,
+          18.218721
+         ],
+         "off": 111890,
+         "len": 28990
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 378,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 140880,
+         "len": 14152
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 155032,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 274,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 155352,
+         "len": 10140
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 165492,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 1794,
+       "parts": [
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.328886,
+          -8.609361
+         ],
+         "uvScl": [
+          5.325459,
+          18.218721
+         ],
+         "off": 165812,
+         "len": 28990
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "BirchOrange2_23",
+     "h": 16.2,
+     "tris": 2800,
+     "bb": [
+      -4.7257,
+      0.0,
+      -4.5484,
+      4.7257,
+      16.202,
+      4.5484
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2800,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 194802,
+         "len": 18340
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -2.323611,
+          -11.788908
+         ],
+         "uvScl": [
+          4.202759,
+          18.361732
+         ],
+         "off": 213142,
+         "len": 37642
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 488,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 250784,
+         "len": 18340
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 269124,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 293,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 269444,
+         "len": 10772
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 280216,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 2529,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 280536,
+         "len": 7936
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -2.323611,
+          -11.788908
+         ],
+         "uvScl": [
+          4.202759,
+          18.361732
+         ],
+         "off": 288472,
+         "len": 37642
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 217,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 326114,
+         "len": 7936
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 334050,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 154,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlasAlt",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 334370,
+         "len": 5472
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 339842,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 2326,
+       "parts": [
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -2.323611,
+          -11.788908
+         ],
+         "uvScl": [
+          4.202759,
+          18.361732
+         ],
+         "off": 340162,
+         "len": 37642
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "maple",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.028,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.7
+   },
+   "bin": "media/geo/trees/maple.5cb7ab83.bin",
+   "bytes": 289652,
+   "subjects": [
+    {
+     "name": "Maple_24",
+     "h": 19.69,
+     "tris": 3805,
+     "bb": [
+      -8.8294,
+      0.0,
+      -8.6376,
+      8.8294,
+      19.6898,
+      8.6376
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 3805,
+       "parts": [
+        {
+         "mat": "MapleBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.022932,
+          -0.313803
+         ],
+         "uvScl": [
+          1.257107,
+          1.63343
+         ],
+         "off": 0,
+         "len": 33304
+        },
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.38874,
+          0.006265
+         ],
+         "uvScl": [
+          3.262342,
+          0.987471
+         ],
+         "off": 33304,
+         "len": 52816
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 833,
+       "parts": [
+        {
+         "mat": "MapleBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.022932,
+          -0.313803
+         ],
+         "uvScl": [
+          1.257107,
+          1.63343
+         ],
+         "off": 86120,
+         "len": 33304
+        },
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 119424,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 503,
+       "parts": [
+        {
+         "mat": "MapleBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.022932,
+          -0.313803
+         ],
+         "uvScl": [
+          1.257107,
+          1.63343
+         ],
+         "off": 119744,
+         "len": 19928
+        },
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 139672,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 3388,
+       "parts": [
+        {
+         "mat": "MapleBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.022932,
+          -0.313803
+         ],
+         "uvScl": [
+          1.257107,
+          1.63343
+         ],
+         "off": 139992,
+         "len": 16144
+        },
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.38874,
+          0.006265
+         ],
+         "uvScl": [
+          3.262342,
+          0.987471
+         ],
+         "off": 156136,
+         "len": 52816
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 416,
+       "parts": [
+        {
+         "mat": "MapleBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.022932,
+          -0.313803
+         ],
+         "uvScl": [
+          1.257107,
+          1.63343
+         ],
+         "off": 208952,
+         "len": 16144
+        },
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 225096,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 287,
+       "parts": [
+        {
+         "mat": "MapleBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.022932,
+          -0.313803
+         ],
+         "uvScl": [
+          1.257107,
+          1.63343
+         ],
+         "off": 225416,
+         "len": 11100
+        },
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 236516,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 2986,
+       "parts": [
+        {
+         "mat": "MapleBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.38874,
+          0.006265
+         ],
+         "uvScl": [
+          3.262342,
+          0.987471
+         ],
+         "off": 236836,
+         "len": 52816
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "oak",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 0.997,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.7
+   },
+   "bin": "media/geo/trees/oak.bce4730a.bin",
+   "bytes": 223324,
+   "subjects": [
+    {
+     "name": "Oak_25",
+     "h": 18.93,
+     "tris": 2997,
+     "bb": [
+      -9.3694,
+      0.0,
+      -9.6569,
+      9.3694,
+      18.9288,
+      9.6569
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2997,
+       "parts": [
+        {
+         "mat": "OakBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.068226,
+          -0.417832
+         ],
+         "uvScl": [
+          1.231434,
+          1.518325
+         ],
+         "off": 0,
+         "len": 26112
+        },
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.850003,
+          -0.115955
+         ],
+         "uvScl": [
+          2.350003,
+          1.159545
+         ],
+         "off": 26112,
+         "len": 38248
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 689,
+       "parts": [
+        {
+         "mat": "OakBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.068226,
+          -0.417832
+         ],
+         "uvScl": [
+          1.231434,
+          1.518325
+         ],
+         "off": 64360,
+         "len": 26112
+        },
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 90472,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 403,
+       "parts": [
+        {
+         "mat": "OakBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.068226,
+          -0.417832
+         ],
+         "uvScl": [
+          1.231434,
+          1.518325
+         ],
+         "off": 90792,
+         "len": 15044
+        },
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 105836,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 2709,
+       "parts": [
+        {
+         "mat": "OakBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.068226,
+          -0.417832
+         ],
+         "uvScl": [
+          1.231434,
+          1.518325
+         ],
+         "off": 106156,
+         "len": 15116
+        },
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.850003,
+          -0.115955
+         ],
+         "uvScl": [
+          2.350003,
+          1.159545
+         ],
+         "off": 121272,
+         "len": 38248
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 401,
+       "parts": [
+        {
+         "mat": "OakBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.068226,
+          -0.417832
+         ],
+         "uvScl": [
+          1.231434,
+          1.518325
+         ],
+         "off": 159520,
+         "len": 15116
+        },
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 174636,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 264,
+       "parts": [
+        {
+         "mat": "OakBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.068226,
+          -0.417832
+         ],
+         "uvScl": [
+          1.231434,
+          1.518325
+         ],
+         "off": 174956,
+         "len": 9800
+        },
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 184756,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 2322,
+       "parts": [
+        {
+         "mat": "OakBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.850003,
+          -0.115955
+         ],
+         "uvScl": [
+          2.350003,
+          1.159545
+         ],
+         "off": 185076,
+         "len": 38248
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ash",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.041,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/ash.8d0f2cd6.bin",
+   "bytes": 170300,
+   "subjects": [
+    {
+     "name": "AshTree_1",
+     "h": 14.16,
+     "tris": 2272,
+     "bb": [
+      -4.2593,
+      0.0,
+      -4.2726,
+      4.2593,
+      14.1562,
+      4.2726
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2272,
+       "parts": [
+        {
+         "mat": "AshBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.021582,
+          -0.23658
+         ],
+         "uvScl": [
+          1.075702,
+          1.379699
+         ],
+         "off": 0,
+         "len": 15092
+        },
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.5,
+          0.0
+         ],
+         "uvScl": [
+          8.0,
+          1.0
+         ],
+         "off": 15092,
+         "len": 35664
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 404,
+       "parts": [
+        {
+         "mat": "AshBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.021582,
+          -0.23658
+         ],
+         "uvScl": [
+          1.075702,
+          1.379699
+         ],
+         "off": 50756,
+         "len": 15092
+        },
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 65848,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 244,
+       "parts": [
+        {
+         "mat": "AshBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.021582,
+          -0.23658
+         ],
+         "uvScl": [
+          1.075702,
+          1.379699
+         ],
+         "off": 66168,
+         "len": 8868
+        },
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 75036,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 2108,
+       "parts": [
+        {
+         "mat": "AshBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.021582,
+          -0.23658
+         ],
+         "uvScl": [
+          1.075702,
+          1.379699
+         ],
+         "off": 75356,
+         "len": 8732
+        },
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.5,
+          0.0
+         ],
+         "uvScl": [
+          8.0,
+          1.0
+         ],
+         "off": 84088,
+         "len": 35664
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 240,
+       "parts": [
+        {
+         "mat": "AshBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.021582,
+          -0.23658
+         ],
+         "uvScl": [
+          1.075702,
+          1.379699
+         ],
+         "off": 119752,
+         "len": 8732
+        },
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 128484,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 156,
+       "parts": [
+        {
+         "mat": "AshBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.021582,
+          -0.23658
+         ],
+         "uvScl": [
+          1.075702,
+          1.379699
+         ],
+         "off": 128804,
+         "len": 5512
+        },
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 134316,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 1882,
+       "parts": [
+        {
+         "mat": "AshBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.5,
+          0.0
+         ],
+         "uvScl": [
+          8.0,
+          1.0
+         ],
+         "off": 134636,
+         "len": 35664
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "shrub_deciduous",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 0.5,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.091,
+    "sizes": {
+     "DeciduousShrub2_31": 0.4,
+     "DeciduousShrub_27": 0.6
+    },
+    "hMin": 0.5,
+    "hMax": 3,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": -0.009,
+    "sat": 0.857,
+    "light": 1.535,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/shrub_deciduous.7cab430b.bin",
+   "bytes": 133910,
+   "subjects": [
+    {
+     "name": "DeciduousShrub_27",
+     "h": 6.44,
+     "tris": 4193,
+     "bb": [
+      -4.0156,
+      0.0,
+      -4.265,
+      4.0156,
+      6.4387,
+      4.265
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 4193,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 0,
+         "len": 52544
+        },
+        {
+         "mat": "CommonBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 52544,
+         "len": 51094
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "DeciduousShrub2_31",
+     "h": 14.81,
+     "tris": 1420,
+     "bb": [
+      -5.4333,
+      0.0,
+      -4.5726,
+      5.4333,
+      14.8079,
+      4.5726
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1420,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 103638,
+         "len": 11872
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.75,
+          -0.15625
+         ],
+         "uvScl": [
+          6.1875,
+          1.3125
+         ],
+         "off": 115510,
+         "len": 18400
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "holly",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 0.6,
+    "proportion": 0.2,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.053,
+    "hMin": 0.5,
+    "hMax": 2.5,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": -0.097,
+    "sat": 1,
+    "light": 0.877,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/holly.01566cb7.bin",
+   "bytes": 141184,
+   "subjects": [
+    {
+     "name": "HollyShrub_4",
+     "h": 5.25,
+     "tris": 6484,
+     "bb": [
+      -3.8504,
+      0.0,
+      -3.7357,
+      3.8504,
+      5.2477,
+      3.7357
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6484,
+       "parts": [
+        {
+         "mat": "HollyBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.168193,
+          -0.435006
+         ],
+         "uvScl": [
+          1.282753,
+          1.430634
+         ],
+         "off": 0,
+         "len": 33228
+        },
+        {
+         "mat": "HollyBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 33228,
+         "len": 107956
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "raspberry",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 0.4,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 0.959,
+    "hMin": 0.5,
+    "hMax": 1.8,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": -0.001,
+    "sat": 1,
+    "light": 1.26,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/raspberry.61546274.bin",
+   "bytes": 272404,
+   "subjects": [
+    {
+     "name": "RaspberryShrub_5",
+     "h": 4.54,
+     "tris": 11792,
+     "bb": [
+      -2.722,
+      0.0,
+      -2.5797,
+      2.722,
+      4.5399,
+      2.5797
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 11792,
+       "parts": [
+        {
+         "mat": "RaspberryBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.283427,
+          -0.11048
+         ],
+         "uvScl": [
+          1.421996,
+          1.203309
+         ],
+         "off": 0,
+         "len": 89044
+        },
+        {
+         "mat": "RaspberryBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 89044,
+         "len": 183360
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "sapling_deciduous",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "shrub",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.066,
+    "hMin": 0.8,
+    "hMax": 3.5,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": -0.009,
+    "sat": 0.857,
+    "light": 1.535,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/sapling_deciduous.a137063e.bin",
+   "bytes": 5522,
+   "subjects": [
+    {
+     "name": "DeciduousSapling_32",
+     "h": 3.4,
+     "tris": 104,
+     "bb": [
+      -1.7624,
+      0.0,
+      -1.7482,
+      1.7624,
+      3.3952,
+      1.7482
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 104,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 0,
+         "len": 1200
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.399042,
+          -1.014668
+         ],
+         "uvScl": [
+          1.271734,
+          3.154365
+         ],
+         "off": 1200,
+         "len": 1282
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "DeciduousSapling2_33",
+     "h": 4.61,
+     "tris": 134,
+     "bb": [
+      -1.8749,
+      0.0,
+      -2.4106,
+      1.8749,
+      4.6114,
+      2.4106
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 134,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 2482,
+         "len": 1404
+        },
+        {
+         "mat": "BirchBark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.399042,
+          -1.014668
+         ],
+         "uvScl": [
+          1.271734,
+          3.154365
+         ],
+         "off": 3886,
+         "len": 1636
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "dead_conifer",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "dead",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 0.8,
+    "sink": 0,
+    "proportion": 1,
+    "impa": 6,
+    "implight": 1,
+    "bend": 0.2,
+    "bendFreq": 1,
+    "lean": 4,
+    "bendPct": 0.5,
+    "variants": 2,
+    "crownH": 1.3
+   },
+   "tint": {
+    "bark": 1.6
+   },
+   "bin": "media/geo/trees/dead_conifer.b97a48ba.bin",
+   "bytes": 38080,
+   "subjects": [
+    {
+     "name": "Coniferous Dead Tree_13",
+     "h": 16.18,
+     "tris": 1492,
+     "bb": [
+      -3.9633,
+      0.0,
+      -4.0815,
+      3.9633,
+      16.1846,
+      4.0815
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1492,
+       "parts": [
+        {
+         "mat": "BarkMat.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.327611,
+          -0.752616
+         ],
+         "uvScl": [
+          7.655222,
+          2.508719
+         ],
+         "off": 0,
+         "len": 27122
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Coniferous Dead Tree 2_14",
+     "h": 9.77,
+     "tris": 604,
+     "bb": [
+      -2.0812,
+      0.0,
+      -1.4979,
+      2.0812,
+      9.7734,
+      1.4979
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 604,
+       "parts": [
+        {
+         "mat": "BarkMat.003",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.327611,
+          -0.752616
+         ],
+         "uvScl": [
+          7.655222,
+          2.5
+         ],
+         "off": 27122,
+         "len": 10958
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "dead_deciduous",
+   "file": "various_forest_assets_pack.glb",
+   "kind": "dead",
+   "credit": {
+    "author": "Dari (https://sketchfab.com/dariiiii)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c",
+    "title": "Various Forest Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 0.8,
+    "sink": 0,
+    "proportion": 0.6,
+    "impa": 6,
+    "implight": 1,
+    "bend": 0.2,
+    "bendFreq": 1,
+    "lean": 4,
+    "bendPct": 0.5,
+    "variants": 2,
+    "crownH": 1.3
+   },
+   "tint": {
+    "bark": 1.6
+   },
+   "bin": "media/geo/trees/dead_deciduous.a24d213a.bin",
+   "bytes": 31370,
+   "subjects": [
+    {
+     "name": "DeciduousDead1_29",
+     "h": 14.32,
+     "tris": 1278,
+     "bb": [
+      -4.6087,
+      0.0,
+      -3.9811,
+      4.6087,
+      14.3197,
+      3.9811
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1278,
+       "parts": [
+        {
+         "mat": "BirchBranchAtlas",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.160367,
+          -0.242494
+         ],
+         "uvScl": [
+          1.214309,
+          1.51963
+         ],
+         "off": 0,
+         "len": 3424
+        },
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -4.256921,
+          -8.609361
+         ],
+         "uvScl": [
+          5.253493,
+          16.396849
+         ],
+         "off": 3424,
+         "len": 19332
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "DeciduousDead2_28",
+     "h": 13.51,
+     "tris": 498,
+     "bb": [
+      -0.7103,
+      0.0,
+      -0.6674,
+      0.7103,
+      13.5072,
+      0.6674
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 498,
+       "parts": [
+        {
+         "mat": "CommonBark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -3.241703,
+          -0.25
+         ],
+         "uvScl": [
+          7.483407,
+          1.5
+         ],
+         "off": 22756,
+         "len": 8614
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "grass_dry",
+   "file": "dry_grass.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "Pixel-bit (https://sketchfab.com/Pixel-bit)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/dry-grass-d1484537470441b999d37077aeb9b47a",
+    "title": "Dry grass"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1.6,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "density": 0.25,
+    "vary": 0.03,
+    "lift": 0.29,
+    "contrast": 0.35,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 0.15,
+    "light": 2.14,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "bin": "media/geo/trees/grass_dry.41af29d9.bin",
+   "bytes": 3108,
+   "subjects": [
+    {
+     "name": "clump_dry_grass_10",
+     "h": 0.95,
+     "tris": 8,
+     "bb": [
+      -0.1769,
+      0.0,
+      -0.2311,
+      0.1769,
+      0.9476,
+      0.2311
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 8,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.400521
+         ],
+         "uvScl": [
+          0.35892,
+          0.44248
+         ],
+         "off": 0,
+         "len": 228
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "clump_dry_grass_8",
+     "h": 0.87,
+     "tris": 20,
+     "bb": [
+      -0.3894,
+      0.0,
+      -0.4019,
+      0.3894,
+      0.8683,
+      0.4019
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 20,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          0.795762
+         ],
+         "off": 228,
+         "len": 552
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "clump_dry_grass_7",
+     "h": 0.72,
+     "tris": 20,
+     "bb": [
+      -0.2749,
+      0.0,
+      -0.2832,
+      0.2749,
+      0.7234,
+      0.2832
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 20,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.340445,
+          0.0
+         ],
+         "uvScl": [
+          0.659555,
+          0.795762
+         ],
+         "off": 780,
+         "len": 552
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "clump_dry_grass_11",
+     "h": 0.72,
+     "tris": 20,
+     "bb": [
+      -0.3242,
+      0.0,
+      -0.3325,
+      0.3242,
+      0.7234,
+      0.3325
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 20,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.340445,
+          0.0
+         ],
+         "uvScl": [
+          0.659555,
+          0.795762
+         ],
+         "off": 1332,
+         "len": 552
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "clump_dry_grass_6",
+     "h": 0.66,
+     "tris": 16,
+     "bb": [
+      -0.3271,
+      0.0,
+      -0.3418,
+      0.3271,
+      0.6571,
+      0.3418
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 16,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.400521
+         ],
+         "uvScl": [
+          0.78005,
+          0.44248
+         ],
+         "off": 1884,
+         "len": 444
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "clump_dry_grass_5",
+     "h": 0.65,
+     "tris": 8,
+     "bb": [
+      -0.1218,
+      0.0,
+      -0.1592,
+      0.1218,
+      0.6528,
+      0.1592
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 8,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.400521
+         ],
+         "uvScl": [
+          0.35892,
+          0.44248
+         ],
+         "off": 2328,
+         "len": 228
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "clump_dry_grass_9",
+     "h": 0.45,
+     "tris": 20,
+     "bb": [
+      -0.1956,
+      0.0,
+      -0.1789,
+      0.1956,
+      0.447,
+      0.1789
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 20,
+       "parts": [
+        {
+         "mat": "M_dry_grass",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.340445,
+          0.0
+         ],
+         "uvScl": [
+          0.659555,
+          0.795762
+         ],
+         "off": 2556,
+         "len": 552
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "grass_reed",
+   "file": "grass_patches.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "DJMaesen (https://sketchfab.com/bumstrum)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/grass-patches-6952780b80594a31aab2dedf7249a47a",
+    "title": "Grass patches"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 0.012,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "density": 0.24,
+    "patch": 7,
+    "patchShare": 0.35,
+    "vary": 0.03,
+    "lift": 0.29,
+    "contrast": 0.35,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 0.15,
+    "light": 3,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "bin": "media/geo/trees/grass_reed.6a745c82.bin",
+   "bytes": 38306,
+   "subjects": [
+    {
+     "name": "grasspatch3",
+     "h": 129.47,
+     "tris": 1157,
+     "bb": [
+      -144.1339,
+      0.0,
+      -162.8869,
+      144.1339,
+      129.468,
+      162.8869
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1157,
+       "parts": [
+        {
+         "mat": "grass1",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.08276,
+          0.030484
+         ],
+         "uvScl": [
+          0.90021,
+          0.964164
+         ],
+         "off": 0,
+         "len": 23110
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "grasspatch1",
+     "h": 126.18,
+     "tris": 517,
+     "bb": [
+      -117.8429,
+      0.0,
+      -119.4362,
+      117.8429,
+      126.1753,
+      119.4362
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 517,
+       "parts": [
+        {
+         "mat": "grass1",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.08276,
+          0.030484
+         ],
+         "uvScl": [
+          0.90021,
+          0.964164
+         ],
+         "off": 23110,
+         "len": 10478
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "grasspatch2",
+     "h": 120.36,
+     "tris": 236,
+     "bb": [
+      -80.5259,
+      0.0,
+      -85.0337,
+      80.5259,
+      120.3554,
+      85.0337
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 236,
+       "parts": [
+        {
+         "mat": "grass1",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.08276,
+          0.030484
+         ],
+         "uvScl": [
+          0.90021,
+          0.964164
+         ],
+         "off": 33588,
+         "len": 4718
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "grass_plates",
+   "file": "realtime_grass.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "mfhscoobydoo (https://sketchfab.com/mfhscoobydoo)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/realtime-grass-07d38555cae844f7abdeace9d19c4777",
+    "title": "Realtime Grass"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "density": 2.5,
+    "vary": 0.03,
+    "lift": 0.382,
+    "contrast": 0.35,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 0.15,
+    "light": 3,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "bin": "media/geo/trees/grass_plates.7ba183a5.bin",
+   "bytes": 1296,
+   "subjects": [
+    {
+     "name": "Plate1_Plate1_0",
+     "h": 0.87,
+     "tris": 6,
+     "bb": [
+      -0.1323,
+      0.0,
+      -1.1166,
+      0.1323,
+      0.87,
+      1.1166
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6,
+       "parts": [
+        {
+         "mat": "Plate1",
+         "mode": "MASK",
+         "cutoff": 0.5,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 0,
+         "len": 216
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Plate2_Plate2_0",
+     "h": 0.87,
+     "tris": 6,
+     "bb": [
+      -0.132,
+      0.0,
+      -1.1166,
+      0.132,
+      0.87,
+      1.1166
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6,
+       "parts": [
+        {
+         "mat": "Plate2",
+         "mode": "MASK",
+         "cutoff": 0.5,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 216,
+         "len": 216
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Plate3_Plate3_0",
+     "h": 0.87,
+     "tris": 6,
+     "bb": [
+      -0.1296,
+      0.0,
+      -1.1166,
+      0.1296,
+      0.87,
+      1.1166
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6,
+       "parts": [
+        {
+         "mat": "Plate3",
+         "mode": "MASK",
+         "cutoff": 0.5,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 432,
+         "len": 216
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Plate1.001_Plate1_0",
+     "h": 0.72,
+     "tris": 6,
+     "bb": [
+      -0.3518,
+      0.0,
+      -1.1166,
+      0.3518,
+      0.5348,
+      1.1166
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6,
+       "parts": [
+        {
+         "mat": "Plate1",
+         "mode": "MASK",
+         "cutoff": 0.5,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 648,
+         "len": 216
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Plate2.001_Plate2_0",
+     "h": 0.74,
+     "tris": 6,
+     "bb": [
+      -0.3619,
+      0.0,
+      -1.1206,
+      0.3619,
+      0.5541,
+      1.1206
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6,
+       "parts": [
+        {
+         "mat": "Plate2",
+         "mode": "MASK",
+         "cutoff": 0.5,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 864,
+         "len": 216
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Plate3.001_Plate3_0",
+     "h": 0.71,
+     "tris": 6,
+     "bb": [
+      -0.3703,
+      0.0,
+      -1.1272,
+      0.3703,
+      0.5106,
+      1.1272
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6,
+       "parts": [
+        {
+         "mat": "Plate3",
+         "mode": "MASK",
+         "cutoff": 0.5,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 1080,
+         "len": 216
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "flower_fireweed",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1.7,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "density": 0.06,
+    "patch": 9,
+    "patchShare": 0.12,
+    "vary": 0.05,
+    "aspect": 0.75,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.5
+   },
+   "maps": [
+    "media/tex/flowers/fireweed_a.133cfd50.png",
+    "media/tex/flowers/fireweed_b.2e60dc5e.png",
+    "media/tex/flowers/fireweed_c.066a6219.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "flower_foam",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 0.7,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "density": 0.4,
+    "patch": 4,
+    "patchShare": 0.25,
+    "vary": 0.05,
+    "aspect": 1,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.5
+   },
+   "maps": [
+    "media/tex/flowers/foamflower_a.168e4d9d.png",
+    "media/tex/flowers/foamflower_b.95404a47.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "flower_bunchberry",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 0.45,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "density": 0.4,
+    "patch": 4,
+    "patchShare": 0.25,
+    "vary": 0.05,
+    "aspect": 1,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.5
+   },
+   "maps": [
+    "media/tex/flowers/bunchberry_flower.106dbc21.png",
+    "media/tex/flowers/bunchberry_fruit.4277dfcc.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "grass_scan",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 2.6,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "density": 2,
+    "vary": 0.03,
+    "lift": 0.229,
+    "contrast": 0.35,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 0.15,
+    "light": 2.46,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "bin": "media/geo/trees/grass_scan.77547fdb.bin",
+   "bytes": 850,
+   "subjects": [
+    {
+     "name": "rostlinka_07c",
+     "h": 0.56,
+     "tris": 52225,
+     "bb": [
+      -0.1398,
+      0.0,
+      -0.17,
+      0.1398,
+      0.5639,
+      0.17
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 37,
+       "parts": [
+        {
+         "mat": "rostlinka_07c",
+         "mode": "BLEND",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.040169,
+          -0.071716
+         ],
+         "uvScl": [
+          0.930629,
+          1.047806
+         ],
+         "off": 0,
+         "len": 850
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "pine_lampi.glb",
+   "file": "pine_lampi.glb",
+   "kind": "tree",
+   "credit": {
+    "author": "Lampi (https://sketchfab.com/lampilamp)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pine-0289b4ff919448c195cd4b8309ac6f34",
+    "title": "Pine"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 1,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1.072,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0.04,
+    "sat": 0.615,
+    "light": 0.76,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/pine_lampi.5311eee2.bin",
+   "bytes": 781650,
+   "subjects": [
+    {
+     "name": "bark04_0",
+     "h": 10.94,
+     "tris": 12197,
+     "bb": [
+      -2.1424,
+      0.0,
+      -2.1287,
+      2.1424,
+      10.9409,
+      2.1287
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 12197,
+       "parts": [
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          38.082909
+         ],
+         "off": 0,
+         "len": 129974
+        },
+        {
+         "mat": "branch08_2Mat",
+         "mode": "MASK",
+         "cutoff": 0.4251,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 129974,
+         "len": 69644
+        },
+        {
+         "mat": "stump01_1Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.02447
+         ],
+         "uvScl": [
+          1.0,
+          0.95106
+         ],
+         "off": 199618,
+         "len": 27264
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 2062,
+       "parts": [
+        {
+         "mat": "branch08_2Mat",
+         "mode": "MASK",
+         "cutoff": 0.4251,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 226882,
+         "len": 69644
+        },
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 296526,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 1372,
+       "parts": [
+        {
+         "mat": "branch08_2Mat",
+         "mode": "MASK",
+         "cutoff": 0.4251,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 296846,
+         "len": 46184
+        },
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 343030,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 11461,
+       "parts": [
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          38.082909
+         ],
+         "off": 343350,
+         "len": 129974
+        },
+        {
+         "mat": "branch08_2Mat",
+         "mode": "MASK",
+         "cutoff": 0.4251,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 473324,
+         "len": 44620
+        },
+        {
+         "mat": "stump01_1Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.02447
+         ],
+         "uvScl": [
+          1.0,
+          0.95106
+         ],
+         "off": 517944,
+         "len": 27264
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 1326,
+       "parts": [
+        {
+         "mat": "branch08_2Mat",
+         "mode": "MASK",
+         "cutoff": 0.4251,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 545208,
+         "len": 44620
+        },
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 589828,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 1012,
+       "parts": [
+        {
+         "mat": "branch08_2Mat",
+         "mode": "MASK",
+         "cutoff": 0.4251,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          1.0
+         ],
+         "off": 590148,
+         "len": 33944
+        },
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 624092,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 10149,
+       "parts": [
+        {
+         "mat": "bark04_0Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.0
+         ],
+         "uvScl": [
+          1.0,
+          38.082909
+         ],
+         "off": 624412,
+         "len": 129974
+        },
+        {
+         "mat": "stump01_1Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0.02447
+         ],
+         "uvScl": [
+          1.0,
+          0.95106
+         ],
+         "off": 754386,
+         "len": 27264
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rocks",
+   "file": "free_rock_assets_pack.glb",
+   "kind": "rock",
+   "credit": {
+    "author": "JonhGillessen (https://sketchfab.com/JonhGillessen)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/free-rock-assets-pack-227f976b7675401e978858ddcb7fc0b1",
+    "title": "Free Rock Assets Pack"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "size": 14,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "sizeVar": 0.35,
+    "bury": 0.45,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "bin": "media/geo/trees/rocks.4c24a02b.bin",
+   "bytes": 76936,
+   "subjects": [
+    {
+     "name": "Pavementblock.021_4",
+     "h": 0.19,
+     "tris": 436,
+     "bb": [
+      -0.1576,
+      0.0,
+      -0.1614,
+      0.1576,
+      0.1897,
+      0.1614
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 436,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.002378,
+          0.002378
+         ],
+         "uvScl": [
+          0.898321,
+          0.490412
+         ],
+         "off": 0,
+         "len": 6212
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.017_0",
+     "h": 0.14,
+     "tris": 468,
+     "bb": [
+      -0.1311,
+      0.0,
+      -0.1574,
+      0.1311,
+      0.136,
+      0.1574
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 468,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.51026,
+          0.002378
+         ],
+         "uvScl": [
+          0.379175,
+          0.505361
+         ],
+         "off": 6212,
+         "len": 6544
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.020_3",
+     "h": 0.14,
+     "tris": 318,
+     "bb": [
+      -0.1405,
+      0.0,
+      -0.1604,
+      0.1405,
+      0.1369,
+      0.1604
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 318,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.534877,
+          0.002378
+         ],
+         "uvScl": [
+          0.39473,
+          0.901077
+         ],
+         "off": 12756,
+         "len": 4720
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.031_14",
+     "h": 0.13,
+     "tris": 372,
+     "bb": [
+      -0.1538,
+      0.0,
+      -0.0918,
+      0.1538,
+      0.1314,
+      0.0918
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 372,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.134732,
+          0.512494
+         ],
+         "uvScl": [
+          0.612438,
+          0.460279
+         ],
+         "off": 17476,
+         "len": 5338
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.032_15",
+     "h": 0.12,
+     "tris": 576,
+     "bb": [
+      -0.1793,
+      0.0,
+      -0.1477,
+      0.1793,
+      0.1204,
+      0.1477
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 576,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.002378,
+          0.286813
+         ],
+         "uvScl": [
+          0.503126,
+          0.492132
+         ],
+         "off": 22814,
+         "len": 8186
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.026_9",
+     "h": 0.11,
+     "tris": 650,
+     "bb": [
+      -0.1889,
+      0.0,
+      -0.1633,
+      0.1889,
+      0.1072,
+      0.1633
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 650,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.283705,
+          0.002378
+         ],
+         "uvScl": [
+          0.60641,
+          0.73056
+         ],
+         "off": 31000,
+         "len": 9148
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.019_2",
+     "h": 0.1,
+     "tris": 128,
+     "bb": [
+      -0.1388,
+      0.0,
+      -0.0615,
+      0.1388,
+      0.0975,
+      0.0615
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 128,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.002378,
+          0.707045
+         ],
+         "uvScl": [
+          0.723616,
+          0.290577
+         ],
+         "off": 40148,
+         "len": 2026
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.025_8",
+     "h": 0.1,
+     "tris": 482,
+     "bb": [
+      -0.1492,
+      0.0,
+      -0.0856,
+      0.1492,
+      0.1005,
+      0.0856
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 482,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.196605,
+          0.302764
+         ],
+         "uvScl": [
+          0.458269,
+          0.608568
+         ],
+         "off": 42174,
+         "len": 7174
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.030_13",
+     "h": 0.1,
+     "tris": 274,
+     "bb": [
+      -0.071,
+      0.0,
+      -0.0617,
+      0.071,
+      0.0961,
+      0.0617
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 274,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.283705,
+          0.002378
+         ],
+         "uvScl": [
+          0.688231,
+          0.923477
+         ],
+         "off": 49348,
+         "len": 3966
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.033_16",
+     "h": 0.1,
+     "tris": 658,
+     "bb": [
+      -0.1787,
+      0.0,
+      -0.1457,
+      0.1787,
+      0.1007,
+      0.1457
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 658,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.002378,
+          0.302764
+         ],
+         "uvScl": [
+          0.443973,
+          0.489838
+         ],
+         "off": 53314,
+         "len": 9280
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.018_1",
+     "h": 0.09,
+     "tris": 446,
+     "bb": [
+      -0.0667,
+      0.0,
+      -0.0755,
+      0.0667,
+      0.0947,
+      0.0755
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 446,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.534877,
+          0.102613
+         ],
+         "uvScl": [
+          0.417279,
+          0.858999
+         ],
+         "off": 62594,
+         "len": 6846
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.027_10",
+     "h": 0.06,
+     "tris": 270,
+     "bb": [
+      -0.1018,
+      0.0,
+      -0.045,
+      0.1018,
+      0.0577,
+      0.045
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 270,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.400378,
+          0.568613
+         ],
+         "uvScl": [
+          0.101796,
+          0.359573
+         ],
+         "off": 69440,
+         "len": 3914
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "Pavementblock.029_12",
+     "h": 0.06,
+     "tris": 238,
+     "bb": [
+      -0.0607,
+      0.0,
+      -0.0397,
+      0.0607,
+      0.0602,
+      0.0397
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 238,
+       "parts": [
+        {
+         "mat": "RocksCollection",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.188692,
+          0.683005
+         ],
+         "uvScl": [
+          0.316808,
+          0.088759
+         ],
+         "off": 73354,
+         "len": 3582
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
   }
- ]
+ ],
+ "materials": {
+  "cedar_tree.glb": {
+   "M_Bark.009": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/cedar_tree_m_bark_009_base.6d478c25.jpg",
+    "baseSize": [
+     256,
+     1024
+    ],
+    "nor": "media/tex/trees/cedar_tree_m_bark_009_nor.42e2e9bf.jpg"
+   },
+   "M_Branch.009": {
+    "mode": "MASK",
+    "cutoff": 0.6263,
+    "coverageMips": true,
+    "base": "media/tex/trees/cedar_tree_m_branch_009_base.af7f7481.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/cedar_tree_m_branch_009_nor.89a16f71.jpg"
+   }
+  },
+  "fir_tree_georgeous.glb": {
+   "M_Branch.007": {
+    "mode": "MASK",
+    "cutoff": 0.608,
+    "coverageMips": true,
+    "base": "media/tex/trees/fir_tree_georgeous_m_branch_007_base.4742577f.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/fir_tree_georgeous_m_branch_007_nor.e8688e34.jpg"
+   },
+   "M_Bark.007": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/fir_tree_georgeous_m_bark_007_base.4dc7a894.jpg",
+    "baseSize": [
+     256,
+     1024
+    ],
+    "nor": "media/tex/trees/fir_tree_georgeous_m_bark_007_nor.beac0ead.jpg"
+   }
+  },
+  "larch_tree.glb": {
+   "M_Bark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/larch_tree_m_bark_base.3057dd84.jpg",
+    "baseSize": [
+     256,
+     1024
+    ],
+    "nor": "media/tex/trees/larch_tree_m_bark_nor.24e88780.jpg"
+   },
+   "M_Branch": {
+    "mode": "MASK",
+    "cutoff": 0.0777,
+    "coverageMips": true,
+    "base": "media/tex/trees/larch_tree_m_branch_base.8e0f34a9.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/larch_tree_m_branch_nor.de257583.jpg"
+   }
+  },
+  "realistic_fir_trees_pack_lods_gameready.glb": {
+   "Bark_Mat": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg",
+    "baseSize": [
+     512,
+     1024
+    ],
+    "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_nor.c153a8b2.jpg"
+   },
+   "Brunches_Mat": {
+    "mode": "MASK",
+    "cutoff": 0.3764,
+    "coverageMips": true,
+    "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_base.96c367ea.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"
+   }
+  },
+  "spruce_tree.glb": {
+   "M_Bark.001": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/spruce_tree_m_bark_001_base.b686d5b2.jpg",
+    "baseSize": [
+     256,
+     1024
+    ],
+    "nor": "media/tex/trees/spruce_tree_m_bark_001_nor.26e3e887.jpg"
+   },
+   "M_Branch.001": {
+    "mode": "MASK",
+    "cutoff": 0.2971,
+    "coverageMips": true,
+    "base": "media/tex/trees/spruce_tree_m_branch_001_base.f76f96b7.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/spruce_tree_m_branch_001_nor.d03d0d8d.jpg"
+   }
+  },
+  "pine_georgeous.glb": {
+   "M_Bark.003": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/pine_georgeous_m_bark_003_base.1946cf09.jpg",
+    "baseSize": [
+     256,
+     1024
+    ],
+    "nor": "media/tex/trees/pine_georgeous_m_bark_003_nor.4d6fe611.jpg"
+   },
+   "M_Branch.003": {
+    "mode": "MASK",
+    "cutoff": 0.224,
+    "coverageMips": true,
+    "base": "media/tex/trees/pine_georgeous_m_branch_003_base.6d87b28b.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/pine_georgeous_m_branch_003_nor.50ea8090.jpg"
+   }
+  },
+  "pine_evolveduk.glb": {
+   "Tree_0Mat": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/pine_evolveduk_tree_0mat_base.6a58c21d.jpg",
+    "baseSize": [
+     512,
+     1024
+    ],
+    "nor": "media/tex/trees/pine_evolveduk_tree_0mat_nor.79b4b89b.jpg"
+   },
+   "Tree_1Mat": {
+    "mode": "MASK",
+    "cutoff": 0.208,
+    "coverageMips": true,
+    "base": "media/tex/trees/pine_evolveduk_tree_1mat_base.58ec41cf.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/pine_evolveduk_tree_1mat_nor.4e7be072.jpg"
+   }
+  },
+  "various_forest_assets_pack.glb": {
+   "AshBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_ashbark_base.b4bd9b0d.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_ashbark_nor.64340522.jpg"
+   },
+   "AshBranchAtlas": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_ashbranchatlas_base.33f00c3f.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_ashbranchatlas_nor.bcbcce0e.jpg"
+   },
+   "HollyBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_hollybark_base.b4bd9b0d.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_hollybark_nor.64340522.jpg"
+   },
+   "HollyBranchAtlas": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_hollybranchatlas_base.08a06aeb.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_hollybranchatlas_nor.8b510ad7.jpg"
+   },
+   "RaspberryBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_raspberrybark_base.b4bd9b0d.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_raspberrybark_nor.64340522.jpg"
+   },
+   "RaspberryBranchAtlas": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_raspberrybranchatlas_base.dd0105ce.png",
+    "baseSize": [
+     1024,
+     1024
+    ]
+   },
+   "BarkMat.003": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_barkmat_003_base.3b3a62e2.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_barkmat_003_nor.db9415a3.jpg"
+   },
+   "BirchBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_birchbark_base.479fe08a.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ]
+   },
+   "BirchBranchAtlas": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_birchbranchatlas_base.69f8ee80.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_birchbranchatlas_nor.163f2c93.jpg"
+   },
+   "BirchBranchAtlasAlt": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_birchbranchatlasalt_base.93ee041f.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_birchbranchatlasalt_nor.163f2c93.jpg"
+   },
+   "MapleBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_maplebark_base.e7406280.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_maplebark_nor.f9305fcc.jpg"
+   },
+   "MapleBranchAtlas": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_maplebranchatlas_base.be540298.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_maplebranchatlas_nor.a76ec980.jpg"
+   },
+   "OakBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_oakbark_base.d2b269dc.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_oakbark_nor.8cf898b3.jpg"
+   },
+   "OakBranchAtlas": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/various_forest_assets_pack_oakbranchatlas_base.b50b0d3c.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_oakbranchatlas_nor.6a455a78.jpg"
+   },
+   "CommonBark.001": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_commonbark_001_base.a216d4a0.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_commonbark_001_nor.f9305fcc.jpg"
+   },
+   "CommonBark": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/various_forest_assets_pack_commonbark_base.a216d4a0.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/various_forest_assets_pack_commonbark_nor.f9305fcc.jpg"
+   }
+  },
+  "dry_grass.glb": {
+   "M_dry_grass": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/dry_grass_m_dry_grass_base.fd9cfc60.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/dry_grass_m_dry_grass_nor.83bc7331.jpg"
+   }
+  },
+  "grass_patches.glb": {
+   "grass1": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/grass_patches_grass1_base.11a17e1a.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/grass_patches_grass1_nor.fbdc1290.jpg"
+   }
+  },
+  "realtime_grass.glb": {
+   "Plate1": {
+    "mode": "MASK",
+    "cutoff": 0.5,
+    "coverageMips": true,
+    "base": "media/tex/trees/realtime_grass_plate1_base.f93a2da1.png",
+    "baseSize": [
+     512,
+     256
+    ]
+   },
+   "Plate2": {
+    "mode": "MASK",
+    "cutoff": 0.5,
+    "coverageMips": true,
+    "base": "media/tex/trees/realtime_grass_plate2_base.959efc17.png",
+    "baseSize": [
+     512,
+     256
+    ]
+   },
+   "Plate3": {
+    "mode": "MASK",
+    "cutoff": 0.5,
+    "coverageMips": true,
+    "base": "media/tex/trees/realtime_grass_plate3_base.7effdb2e.png",
+    "baseSize": [
+     512,
+     256
+    ]
+   }
+  },
+  "simple_grass_chunks.glb": {
+   "rostlinka_07c": {
+    "mode": "BLEND",
+    "cutoff": 0.0,
+    "coverageMips": true,
+    "base": "media/tex/trees/simple_grass_chunks_rostlinka_07c_base.7f39a58c.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/simple_grass_chunks_rostlinka_07c_nor.0af80a13.jpg"
+   }
+  },
+  "pine_lampi.glb": {
+   "bark04_0Mat": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/pine_lampi_bark04_0mat_base.e9951997.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/pine_lampi_bark04_0mat_nor.50b6ffa6.jpg"
+   },
+   "stump01_1Mat": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/pine_lampi_stump01_1mat_base.0f628ec7.jpg",
+    "baseSize": [
+     512,
+     512
+    ],
+    "nor": "media/tex/trees/pine_lampi_stump01_1mat_nor.de9e1686.jpg"
+   },
+   "branch08_2Mat": {
+    "mode": "MASK",
+    "cutoff": 0.4251,
+    "coverageMips": true,
+    "base": "media/tex/trees/pine_lampi_branch08_2mat_base.06f06da1.png",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/pine_lampi_branch08_2mat_nor.1c5106fc.jpg"
+   }
+  },
+  "free_rock_assets_pack.glb": {
+   "RocksCollection": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/free_rock_assets_pack_rockscollection_base.4b4a777d.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/free_rock_assets_pack_rockscollection_nor.fe383d3c.jpg"
+   }
+  }
+ },
+ "biomes": {
+  "mixes": {
+   "conifer": {
+    "species": {
+     "cedar_tree.glb": {
+      "proportion": 1,
+      "dead": 0.12
+     },
+     "fir_tree_georgeous.glb": {
+      "proportion": 1,
+      "dead": 0.08
+     },
+     "larch_tree.glb": {
+      "proportion": 1,
+      "dead": 0.09
+     },
+     "realistic_fir_trees_pack_lods_gameready.glb": {
+      "proportion": 2.85,
+      "dead": 0.08
+     },
+     "spruce_tree.glb": {
+      "proportion": 1,
+      "dead": 0.08
+     },
+     "sapling_deciduous": {
+      "proportion": 1
+     },
+     "shrub_deciduous": {
+      "proportion": 0.5
+     },
+     "holly": {
+      "proportion": 0.2
+     },
+     "grass_dry": {
+      "proportion": 1,
+      "density": 0.25
+     },
+     "flower_foam": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 5
+     },
+     "flower_bunchberry": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 5
+     },
+     "rocks": {
+      "proportion": 1,
+      "size": 14
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 1040,
+     "radius": 220,
+     "under": 2,
+     "cover": 1,
+     "reach": 220,
+     "wet": 0,
+     "taper": 0.5,
+     "holes": 0.2,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 10,
+     "ttype": 13,
+     "coverSpread": 0.08
+    }
+   },
+   "deciduous": {
+    "species": {
+     "birch": {
+      "proportion": 1,
+      "dead": 0.05
+     },
+     "ash": {
+      "proportion": 0.8,
+      "dead": 0.05
+     },
+     "dead_deciduous": {
+      "proportion": 0.08
+     },
+     "shrub_deciduous": {
+      "proportion": 1
+     },
+     "sapling_deciduous": {
+      "proportion": 0.5
+     },
+     "grass_dry": {
+      "proportion": 1,
+      "density": 2.4
+     },
+     "grass_reed": {
+      "proportion": 0.4,
+      "density": 0.24,
+      "patch": 0
+     },
+     "flower_foam": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 5
+     },
+     "flower_bunchberry": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 5
+     },
+     "rocks": {
+      "proportion": 1,
+      "size": 24
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 800,
+     "radius": 220,
+     "under": 4,
+     "cover": 1,
+     "reach": 220,
+     "wet": 0,
+     "mix": 1,
+     "edge": 12,
+     "glades": 6,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 2.5,
+     "ttype": 14,
+     "coverSpread": 0.08
+    }
+   },
+   "muskeg": {
+    "species": {
+     "pine_georgeous.glb": {
+      "proportion": 1.6,
+      "dead": 0
+     },
+     "pine_evolveduk.glb": {
+      "proportion": 1.45,
+      "dead": 0
+     },
+     "spruce_tree.glb": {
+      "proportion": 0.4,
+      "dead": 0.1
+     },
+     "realistic_fir_trees_pack_lods_gameready.glb": {
+      "proportion": 0.5,
+      "dead": 0.1
+     },
+     "dead_conifer": {
+      "proportion": 2
+     },
+     "dead_stick": {
+      "proportion": 1.5
+     },
+     "shrub_deciduous": {
+      "proportion": 0.5
+     },
+     "sapling_deciduous": {
+      "proportion": 0.3
+     },
+     "grass_dry": {
+      "proportion": 1,
+      "density": 4
+     },
+     "grass_reed": {
+      "proportion": 0.5,
+      "density": 0.24,
+      "patch": 7
+     },
+     "rocks": {
+      "proportion": 1,
+      "size": 40
+     }
+    },
+    "forest": {
+     "ground": "wet",
+     "count": 280,
+     "radius": 220,
+     "under": 2,
+     "cover": 1,
+     "reach": 220,
+     "mix": 0.25,
+     "edge": 40,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 0.4,
+     "ttype": 3,
+     "coverSpread": 0.08
+    }
+   },
+   "grassland": {
+    "species": {
+     "shrub_deciduous": {
+      "proportion": 1
+     },
+     "raspberry": {
+      "proportion": 0.5
+     },
+     "birch": {
+      "proportion": 1,
+      "dead": 0.05
+     },
+     "oak": {
+      "proportion": 0.4
+     },
+     "dead_deciduous": {
+      "proportion": 0.08
+     },
+     "grass_dry": {
+      "proportion": 1,
+      "density": 4
+     },
+     "grass_reed": {
+      "proportion": 0.4,
+      "density": 0.24,
+      "patch": 0
+     },
+     "grass_plates": {
+      "proportion": 0.3,
+      "density": 2.5
+     },
+     "flower_fireweed": {
+      "proportion": 1,
+      "density": 0.12,
+      "patch": 9
+     },
+     "rocks": {
+      "proportion": 1,
+      "size": 46
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 30,
+     "radius": 220,
+     "under": 3,
+     "cover": 1,
+     "reach": 220,
+     "wet": 0,
+     "mix": 1,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 0.15,
+     "ttype": 2,
+     "spread": 0.2,
+     "coverSpread": 0.08
+    }
+   },
+   "borders": {
+    "species": {
+     "shrub_deciduous": {
+      "proportion": 1
+     },
+     "holly": {
+      "proportion": 0.5
+     },
+     "sapling_deciduous": {
+      "proportion": 1
+     },
+     "raspberry": {
+      "proportion": 0.6
+     },
+     "birch": {
+      "proportion": 0.6,
+      "dead": 0.05
+     },
+     "oak": {
+      "proportion": 0.3
+     },
+     "maple": {
+      "proportion": 0.3
+     },
+     "dead_deciduous": {
+      "proportion": 0.1
+     },
+     "grass_plates": {
+      "proportion": 1,
+      "density": 5
+     },
+     "grass_dry": {
+      "proportion": 0.3,
+      "density": 4
+     },
+     "flower_foam": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 5
+     },
+     "flower_bunchberry": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 5
+     },
+     "rocks": {
+      "proportion": 1,
+      "size": 30
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 80,
+     "radius": 220,
+     "under": 12,
+     "cover": 1,
+     "reach": 220,
+     "wet": 0,
+     "mix": 1,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 5,
+     "ttype": 7,
+     "coverSpread": 0.08
+    }
+   },
+   "scree": {
+    "species": {
+     "rocks": {
+      "proportion": 1,
+      "size": 22
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 0,
+     "radius": 220,
+     "under": 0,
+     "cover": 0,
+     "reach": 220,
+     "wet": 0,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 8,
+     "ttype": 6,
+     "coverSpread": 0.08
+    }
+   },
+   "shore": {
+    "species": {
+     "rocks": {
+      "proportion": 1,
+      "size": 12
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 0,
+     "radius": 220,
+     "under": 0,
+     "cover": 0,
+     "reach": 220,
+     "wet": 0,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 2,
+     "ttype": 11,
+     "coverSpread": 0.08
+    }
+   }
+  },
+  "map": {
+   "2": "grassland",
+   "3": "muskeg",
+   "4": "shore",
+   "5": "scree",
+   "6": "scree",
+   "7": "borders",
+   "8": "deciduous",
+   "11": "shore",
+   "12": "scree",
+   "13": "conifer",
+   "14": "borders"
+  }
+ }
 }

@@ -68,6 +68,9 @@ const MANIFEST = {
     // code rows - read by the ground (per fragment) and the vegetation (per
     // instance); JS + the same GLSL as a string; pure.
     '28b_ground_fields.js',
+    // THE BIOMES (G454.12): a terrain-type code names a bench mix; the fill walker
+    // reads the table the payload ships (TREE_PACK.biomes); pure.
+    '28c_biomes.js',
     // THE OBSTACLES (G433): the solid things on the ground as column grids - the
     // world's registry (20_ makes it), the solver's push-out (30_), the viewer
     // stands and takes down the shapes; pure.
@@ -302,7 +305,7 @@ const MANIFEST = {
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js', 'site_tex.js', 'site_ground.js',
               'splat_tex.js', 'splat_ground.js',   // the island's ground library (17 sets, lazily-made Images) + the splat: the arrays, the GLSL, F8's handle
-              'trees_pack.js', 'trees.js', 'render_world.js',
+              'trees_pack.js', 'trees.js', 'cover_ring.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
               'vessel_tex.js', 'panel_tex.js',

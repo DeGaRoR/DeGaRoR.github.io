@@ -56,6 +56,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
+  let coverRing = null;               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -1865,6 +1866,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     function bakeImpostorAtlasNow(src, tag) {
       const parts = Array.isArray(src) ? src : null;
       const srcGeo = parts ? parts[0].geo : src;
@@ -1891,11 +1893,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
       const N = IMP_G * IMP_TILE;
-      const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
-        minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
-        format: THREE.RGBAFormat, generateMipmaps: true });
-      const rt = mkRT(), rtN = mkRT();
-      rt.texture.colorSpace = THREE.SRGBColorSpace;
+      // ONE PAIR OF BAKE TARGETS FOR EVERY SHEET (2026-09-21): a target is its colour
+      // plus a depth renderbuffer and its own framebuffer, ~19 MB the pair at 1024 -
+      // and 67 sheets (the biomes' 22 subjects x 3 series) held 1.3 GB of the card
+      // in targets whose depth nothing read again. The bake draws into the shared
+      // pair and BLITS the colour into a plain texture of its own (the mips
+      // regenerated on the copy): 10.6 MB a sheet, the depth once.
+      if (!BAKE_RT) {
+        const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
+          minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, generateMipmaps: false });
+        BAKE_RT = { rt: mkRT(), rtN: mkRT() };
+        BAKE_RT.rt.texture.colorSpace = THREE.SRGBColorSpace;
+      }
+      const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      const sheetOf = (srgb) => {     // the sheet's own texture: allocated empty, filled by the blit
+        const t = new THREE.DataTexture(null, N, N, THREE.RGBAFormat, THREE.UnsignedByteType);
+        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
+        t.flipY = false; t.needsUpdate = true;
+        return t;
+      };
       const sc = new THREE.Scene();
       const meshes = [];
       if (parts) {
@@ -1978,9 +1995,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       renderer.setRenderTarget(pRT);
       renderer.autoClear = pAC;
       renderer.setClearColor(pCol, pA);
-      atlas.tex = rt.texture;
-      atlas.nrm = rtN.texture;
-      atlas.rt = rt; atlas.rtN = rtN;        // readable by the inspector
+      atlas.tex = sheetOf(true); renderer.copyTextureToTexture(rt.texture, atlas.tex);
+      atlas.nrm = sheetOf(false); renderer.copyTextureToTexture(rtN.texture, atlas.nrm);
+      // readable by the inspector and the audit: the sheet blitted back into the shared
+      // target and read (readRenderTargetPixels needs a framebuffer; the sheet has none)
+      atlas.N = N;
+      atlas.read = (px, which) => { const T = which === 'nrm' ? atlas.nrm : atlas.tex, R = which === 'nrm' ? rtN : rt;
+        renderer.copyTextureToTexture(T, R.texture); renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
       return atlas;
     }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
@@ -2120,6 +2141,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uLeaf = { value: 1 };
         sh.uniforms.uHue = tintU ? tintU.uHue : { value: 0 };
         sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
+        sh.uniforms.uFlat = { value: 1 }; sh.uniforms.uFlatMean = { value: 0.4 };   // the tint's contrast term: a cover's, never an impostor's
         sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
@@ -2167,7 +2189,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uIGainK, uISolid, uICut, uTile;\n' +
-            'uniform float uHue, uSat, uLight;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
+            'uniform float uHue, uSat, uLight, uFlat, uFlatMean;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -2529,6 +2551,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // big fir) and the larch, the spruce and the small fir sat in the
     // payload undrawn. A tree's prototype is a weighted draw on one hash of
     // its own position, the same for both layers.
+    // THE BIOMES (G454.12, BIOMES-IN-GAME-2026-09-20.md): the terrain-type code names a bench
+    // mix; the fill draws its species from THAT mix's pool. BIO.map / BIO.mixes are the
+    // payload's (tree_prep.py bakes the bench's tuning); F8 edits BIO.map and exports it.
+    const BIO = (typeof BIOMES !== 'undefined' && typeof TREE_PACK !== 'undefined') ? BIOMES.make(TREE_PACK) : null;
     const treePool = () => {
       const pool = [];
       for (const e of treeList()) {
@@ -2601,6 +2627,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (let i = 0; i < pool.length; i++) { acc -= poolW[i]; if (acc <= 0) return i; }
       return pool.length - 1;
     };
+    // a biome's pool over the SHAPE list: the mix's species (trees and the standing dead),
+    // each species' proportion split over its subjects; an entry is { key, w, gi }
+    const biomePools = new Map();   // shapes list -> mix name -> pool (the fill's SHAPE.list and the woodland's PROTO are two lists)
+    const biomePool = (mixName, shapes) => {
+      let byMix = biomePools.get(shapes); if (!byMix) biomePools.set(shapes, byMix = new Map());
+      let P = byMix.get(mixName);
+      if (P) return P;
+      P = [];
+      const M = BIO && BIO.mixOf(mixName);
+      if (M && M.species) for (const [sp, o] of Object.entries(M.species)) {
+        const subs = []; shapes.forEach((H, gi) => { if (H.key && H.key.split('|')[0] === sp) subs.push(gi); });
+        const w = ((o && o.proportion !== undefined) ? o.proportion : 1) / Math.max(1, subs.length);
+        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi });
+      }
+      byMix.set(mixName, P);
+      return P;
+    };
     // AND THE MAPS MUST HAVE LANDED BEFORE ANYTHING BAKES. treeWarm resolves on
     // the bytes; the leaf textures load after, on their own timers, and an
     // impostor atlas baked in between renders every card solid - the round
@@ -2634,6 +2677,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     };
     treeSettle().then(() => { treeMapsLanded = true; }).catch(() => {});   // registered FIRST: every replant below reads it true
 
+    // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
+    // species from the WHOLE pool - a pine no mix names stood in every stand)
+    const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
+      // the island's knobs (F8 > trees > from the map): coverage ramps from
+      // `from` to `full` metres of canopy; a tree is canopy x gain over the
+      // model's own height, clamped
+      island: { from: 0.5, full: 6.0, gain: 1.0, min: 0.3, max: 2.2,
+                // THE BIOME'S DENSITY (G454.12): a mix's trees per m2 (its bench `count` in its
+                // `radius`) over the grid's, x biomeGain - 3.5 puts the conifer at the grid's full
+                // density (as the G406 rule had it) and the other biomes in the bench's proportion
+                biomeGain: 3.5, biomeWobble: 8 } };
+    const ISLC = world.island && world.island.canopyAt ? world.island : null;
+    // THE CODE AT A POINT (G454.12/13): the terrain type at the ground's own wobbled position
+    // (the splat wobbles its cells `biomeWobble` m on a 23 m noise), the derived 12/13/14 by
+    // slope and canopy on the point's own draw r - one function for the walk and the cover ring
+    const ttypeAt = (x, z) => {
+      if (!ISLC || !ISLC.ttype) return -1;
+      const wob = FILL.island.biomeWobble || 0;
+      const wx = wob ? x + (vnoise(x, z, 23, 5) - 0.5) * 2 * wob : x, wz = wob ? z + (vnoise(x + 77, z - 77, 23, 6) - 0.5) * 2 * wob : z;
+      return ISLC.ttype[ISLC.cellAt ? ISLC.cellAt(wx, wz) : -1];
+    };
+    const codeAt = (x, z, r) => {
+      const tt = ttypeAt(x, z); if (tt < 0 || !BIO) return -1;
+      const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+      return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
+    };
+    const biomeAt = (x, z, r) => { const c = codeAt(x, z, r); return c < 0 ? null : BIO.mixAt(c); };
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they
@@ -2727,9 +2797,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
          { P: null, imp: impMatsFor(null, blobGeo), geo: blobGeo }];
     // a placed tree with a key goes to that subject's group; anything else
     // is the pool's weighted draw on its position
+    // THE BIOME'S POOL FIRST (2026-09-21, the user: "some trees that I thought I rejected"):
+    // a stand on a biome draws from that mix's species like the fill; only where no mix
+    // names the ground (or the pack has no biomes) does the whole pool stand
+    const drawOf = T => {
+      const r = hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3));
+      const mix = biomeAt(T.x, T.z, hsh(Math.round(T.x * 2.1), Math.round(T.z * 4.3)));
+      if (mix) { const P = biomePool(mix, PROTO); if (P.length) return P[poolPick(P, r, T.x, T.z, T.h)].gi; }
+      return poolPick(PROTO, r, T.x, T.z, T.h);
+    };
     const groupOf = T => PROTO
-      ? ((T.key && PROTO.findIndex(Q => Q.key === T.key) >= 0) ? PROTO.findIndex(Q => Q.key === T.key)
-                                                                : poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3)), T.x, T.z, T.h))
+      ? ((T.key && PROTO.findIndex(Q => Q.key === T.key) >= 0) ? PROTO.findIndex(Q => Q.key === T.key) : drawOf(T))
       : (T.sp < 2 ? 0 : 1);
     plantedKit.push(trunkMat, canopyMat);
     for (const cell of cells.values()) {
@@ -2937,12 +3015,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
-        // the island's knobs (F8 > trees > from the map): coverage ramps from
-        // `from` to `full` metres of canopy; a tree is canopy x gain over the
-        // model's own height, clamped
-        island: { from: 0.5, full: 6.0, gain: 1.0, min: 0.3, max: 2.2 } };
-      const ISLC = world.island && world.island.canopyAt ? world.island : null;
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
       // shared with the terrain's colour bake and the far canopy mask
@@ -3008,6 +3080,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
         SHAPE.list = [];
         SHAPE.real = !!real;
+        biomePools.clear();
         if (real) {
           for (const H of real) {
             H.series.forEach((S, si) => {
@@ -3066,7 +3139,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0;
+          let can = 0, mixHere = null;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
@@ -3076,8 +3149,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // (the ramp) and how tall; NDVI is the vigour (a weak stand thins); a slope
             // over 35 deg thins to a third. Species stay the pool's (altitude, wet, steep).
             let kind = 1.0;
-            if (ISLC.ttype) { const tt = ISLC.ttype[ISLC.cellAt ? ISLC.cellAt(x, z) : -1];
-              kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
+            if (ISLC.ttype) {
+              // THE BIOME (G454.12): the code at the ground's own wobbled position, derived as
+              // the shader derives it, names the mix; the mix's density over the grid's is the
+              // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
+              const tt = ttypeAt(x, z);
+              if (BIO) {
+                mixHere = BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));
+                kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
+              } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
               if (kind <= 0.0) continue; }
             let p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
@@ -3091,7 +3171,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const h = world.terrainH(x, z);
           const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
                                                              : (hsh(ix + 9, iz + 1) * 5) | 0;
-          const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
+          let gi;
+          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); gi = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)].gi : -1; if (gi < 0) continue; }
+          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
         }
       }
@@ -3236,11 +3318,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // before it grows the ring, or it would grow cones and evict them
       const TREE_STATE = { v: treesSettled() ? 'ready' : 'pending' };
       treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
+      // THE COVER RING (G454.13): the grass, flowers, rocks and bushes of the biome around the
+      // eye, once the payload is in (its materials are the trees' loader's)
+      if (ISLC && BIO && typeof COVER_RING !== 'undefined' && !/[?&]cover=0/.test(location.search))   // ?cover=0: the ring off (an A/B, and the rigs' control)
+        treeSettle().then(() => {
+          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
+            const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
+            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt });
+        }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
           setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
+          // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
+          biomes: () => BIO,
+          cover: () => coverRing,
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
@@ -4093,6 +4188,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     dayApply();
     fillUpdate(cg);
     lodUpdate(cg);
+    if (coverRing) coverRing.update();
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / Math.max(SUN.y, SUN_MIN_Y), 520);

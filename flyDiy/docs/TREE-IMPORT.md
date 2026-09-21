@@ -175,6 +175,23 @@ row at `imp lit` 0.6: cedar 0.60, spruce 0.67, birch 0.61, holly 0.63,
 deciduous shrub 0.65 — no per-family spread, so it is the tier's offset (the
 doc's own smell test), and the bench's `imp lit` is where it belongs.
 
+### 4.5 The fits and the pictures, headless (2026-09-20)
+
+**The hue dial's sign is the measurement's (G454.2).** The YIQ rotation in
+TINT_GLSL turned the opposite way to the HSL hue `measureMats` reports, so every
+fitted hue pushed a species away from its reference (the holly went teal). The
+shader negates the dial now, in the bench and in `trees.js`; the payload's and
+the master's hues were negated with it. A fitted hue is `ref.h − mine.h` and
+means what it says.
+
+`node tools/tree_fit.js [--dry]` runs §4's colour pass (`suggest`) and §4.4's
+implight fit over the whole canopy layer (trees + shrubs) in headless Chrome and
+writes the bench's export to `tools/_trees_tuning.json` — the one command behind
+"fit once and for all". `node tools/tree_shot.js --mixes a,b` plants each mix and
+saves a PNG (`screenshots/mixes/`); `node tools/grass_perf.js` is the cover
+types' cost per effective coverage (`futureDesigns/GRASS-RULING-2026-09-20.md`).
+The Browser pane lags and crashes under a stand: judge from the pictures.
+
 ## 5. The ladder every collection gets
 
 Generated, not authored. The woody decomposition measured it: branch structure
@@ -256,7 +273,7 @@ as "the impostor is missing / wrong" and none of them looks like its cause.
    where a fresh bake of the same tree gave 255 over 215 184.
 2. **Wait for texture decode.** `imageTex` sets `tex.image` in `onload`; a bake
    that runs first writes a tree-shaped RGB with no alpha at all.
-   **Met a THIRD time in the game (G437, 2026-09-20)**, and it wore a different
+   **Met a THIRD time in the game (G452, 2026-09-20)**, and it wore a different
    face: r186 samples a texture with no image as (0,0,0,0), so every leaf card
    failed its cut and the bark came out black with the albedo pass forcing alpha
    to 1 — eighteen black skeletons, 3–5 % of a tile drawn where the same tree
@@ -279,7 +296,7 @@ as "the impostor is missing / wrong" and none of them looks like its cause.
 5. **Coverage-preserving mipmaps for the sheet**, per tile — the 64 views are
    not equally dense. Without them the larch held 32 % of its canopy at a
    16-texel tile where the preserved chain held 111 %.
-   Measured again in G437 against the game's plain GPU chain of the BINARY
+   Measured again in G452 against the game's plain GPU chain of the BINARY
    sheet: at the rungs' cut of 0.40 the box chain holds 1.05–1.30× of level 0's
    coverage down to L5, the same shape as this CPU chain's 1.02–1.36× — for a
    binary mask tested at 0.4, a box average is coverage-neutral, and the game
@@ -291,7 +308,7 @@ as "the impostor is missing / wrong" and none of them looks like its cause.
    this bench, whose `mkTex` re-uploads the bytes into a DataTexture that
    carried no colour space: sampled ~2× too bright, and the V1 `fit` hid it as
    implight 0.47–0.61 (the sRGB curve as a gamma — the smell test at the end of
-   this section, missed). Fixed G437; refit at `imp lit` 0.9 the conifers come
+   this section, missed). Fixed G452; refit at `imp lit` 0.9 the conifers come
    back to 1.03–1.12.
 
 Then: the silhouette is the **union** of the three blended views, not their
@@ -299,7 +316,7 @@ average (three binary masks averaged put a texel carried by one view at a third,
 which the alpha test throws away); and the light trim is a **gamma**, not a
 multiply, so lifting dark foliage does not blow a pale trunk white.
 
-**The audit (G437): `node tools/imp_audit.js --url <dev.html> [--bench]`.**
+**The audit (G452): `node tools/imp_audit.js --url <dev.html> [--bench]`.**
 Headless Chrome on the GPU, the game rolled out and held at the densest stand:
 every atlas the game baked (`WORLD.treeAtlases()`, named by subject and series)
 read back — coverage per tile at the series' cut, mean linear albedo of the drawn

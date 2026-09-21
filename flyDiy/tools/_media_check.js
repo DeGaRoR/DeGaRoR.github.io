@@ -85,7 +85,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //   7.75 holds (G448 post-FX, 2026-09-21): post_fx.js (28 KB: six shaders and their passes,
 //              every one off by default) plus the six GRAPHICS rows (2 KB) - measured under
 //              the line on the LF build. No data: the passes own no texture, no LUT.
-const BUDGET_MIB = 7.75;
+//   7.75 -> 7.95 (G454.12, 2026-09-20): THE BIOMES - the vegetation payload is per
+//              SPECIES now, 27 of them (deciduous, pines, shrubs, grasses, dead, rocks,
+//              flowers) against five conifers: the MANIFEST (trees_pack.js 17 -> 80 KB:
+//              every rung's part records, the file's materials once, the biome
+//              table) plus 28c_biomes.js (4 KB) + cover_ring.js - measured +0.19 MiB.
+//              Nothing heavy: 9.9 MB of geometry and 29 MB of maps are refs in media/.
+const BUDGET_MIB = 7.95;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

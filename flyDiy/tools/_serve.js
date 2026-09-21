@@ -3,7 +3,7 @@
 // _cage_gen.js) under load. No caching: the browser's aggressive _cage*.js
 // cache cost a session once (stale page code vs new node code).
 // Usage: node flyDiy/tools/_serve.js [port] [root] [--fallback <dir>]
-// --fallback: a second root tried when a path is missing under the first -
+// --fallback (several with ';'): the next roots tried in order when a path is missing under the first -
 // a WORKTREE served over the main checkout's gitignored data (bench/,
 // assets/, node_modules/) WITHOUT a junction. Junctions in a worktree are
 // followed by `git worktree remove` and the app's cleanup and have emptied
@@ -19,7 +19,8 @@ const fbi = process.argv.indexOf('--fallback');
 const PORT = Number(args[0]) || 8125;
 // an optional second argument names the root (G348: a worktree served from another cwd)
 const ROOT = args[1] ? path.resolve(args[1]) : process.cwd();
-const FALLBACK = fbi > 0 ? path.resolve(process.argv[fbi + 1]) : null;
+// several fallbacks, ';'-separated, searched in order (a peer worktree's uncommitted assets/ after the main checkout's)
+const FALLBACKS = fbi > 0 ? process.argv[fbi + 1].split(';').filter(Boolean).map(p => path.resolve(p)) : [];
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.obj': 'text/plain',
@@ -32,7 +33,10 @@ http.createServer((req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
   let fp = path.join(ROOT, url);
   if (!fp.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
-  if (FALLBACK && !fs.existsSync(fp)) { const fb = path.join(FALLBACK, url); if (fb.startsWith(FALLBACK) && fs.existsSync(fb)) fp = fb; }
+  if (!fs.existsSync(fp)) for (const F of FALLBACKS) {
+    const fb = path.join(F, url);
+    if (fb.startsWith(F) && fs.existsSync(fb)) { fp = fb; break; }
+  }
   try {
     let st = fs.statSync(fp);
     if (st.isDirectory()) { fp = path.join(fp, 'index.html'); st = fs.statSync(fp); }
@@ -46,4 +50,4 @@ http.createServer((req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('not found: ' + url);
   }
-}).listen(PORT, () => console.log(`_serve.js on http://localhost:${PORT}/ root=${ROOT}` + (FALLBACK ? ` fallback=${FALLBACK}` : '')));
+}).listen(PORT, () => console.log(`_serve.js on http://localhost:${PORT}/ root=${ROOT}` + (FALLBACKS.length ? ` fallback=${FALLBACKS.join(';')}` : '')));

@@ -189,6 +189,8 @@ const THREE = {
   ShaderMaterial: class { constructor(o) { Object.assign(this, o); } dispose() {} },
   CanvasTexture: class { constructor() { this.wrapS = this.wrapT = 0; } dispose() {} },
   Texture: class { constructor() { this.mapping = 0; } dispose() {} },
+  // the impostor sheets (2026-09-21): a plain texture the bake blits into
+  DataTexture: class { constructor(d, w, h) { this.image = { data: d, width: w, height: h }; } dispose() {} },
   DirectionalLight: class extends Obj3 { constructor() { super();
     this.shadow = { mapSize: { set() {} }, camera: { left:0, right:0, top:0, bottom:0, near:0, far:0,
       updateProjectionMatrix() {} }, bias: 0, normalBias: 0 }; this.target = new Obj3(); } },
@@ -226,7 +228,7 @@ const GLCALLS = { render: 0, viewport: 0, clearDepth: 0 };
 const renderer = {
   capabilities: { getMaxAnisotropy: () => 4 },
   autoClear: true,
-  getRenderTarget: () => null, setRenderTarget() {},
+  getRenderTarget: () => null, setRenderTarget() {}, copyTextureToTexture() {},
   getClearAlpha: () => 1, getClearColor: () => null, setClearColor() {},
   clear() {}, clearDepth() { GLCALLS.clearDepth++; },
   // a TILE viewport is four numbers; the restore at the end of a bake hands

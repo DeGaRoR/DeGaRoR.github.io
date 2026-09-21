@@ -907,6 +907,11 @@ geometry belongs to evolveduk.
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
   - source: https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c
   - 24 trees, 3 shrubs, 7 terrain pieces · 130,487 tris · tallest 22.1 m
+- **Free Rock Assets Pack** — `vegetation/rocks/free_rock_assets_pack.glb`
+  - author: JonhGillessen (https://sketchfab.com/JonhGillessen)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/free-rock-assets-pack-227f976b7675401e978858ddcb7fc0b1
+  - use: the biomes' rocks (the tree bench, 2026-09-20) - half-buried boulders sized per biome
 
 ### Poly Haven — CC0 (may ship, no attribution required)
 

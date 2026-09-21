@@ -47,7 +47,7 @@
 //                                   pair, the vary amplitudes - call the fields
 //                                   with the code's row, never with a constant
 //
-// Values are the vegetation session's (tools/_trees.html, G437.x): the
+// Values are the vegetation session's (tools/_trees.html, G454.x): the
 // vegetation OWNS them; the ground samples them. Change a constant here and
 // both sides move together - that is the point of the file.
 'use strict';

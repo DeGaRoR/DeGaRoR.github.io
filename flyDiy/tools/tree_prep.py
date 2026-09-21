@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """tree_prep.py — bake the curated tree collections into a game payload.
 
-Usage:  python tools/tree_prep.py            (the collections _trees_tuning.json includes)
+Usage:  python tools/tree_prep.py            (every species _trees_tuning.json names)
         python tools/tree_prep.py --report   (inventory only, writes nothing)
-        python tools/tree_prep.py --all      (every renderable collection)
 
 Reads  tools/_trees_index.json    the inspector's grouping: which nodes are which
                                   SUBJECT, and what kind each subject is
@@ -70,7 +69,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # two roots since 2026-09-15 (treesRaw + vegetation/<kind>/): the index
 # carries each asset's path relative to assets/ (`file`); RAW is the fallback
 # for an index written before it did
-ASSETS = os.path.join(ROOT, 'assets')
+# TREE_ASSETS overrides the root (a worktree baking over the main checkout's gitignored assets/)
+ASSETS = os.path.abspath(os.environ['TREE_ASSETS']) if os.environ.get('TREE_ASSETS') else os.path.join(ROOT, 'assets')
 RAW = os.path.join(ASSETS, 'treesRaw')
 IDX = os.path.join(ROOT, 'tools', '_trees_index.json')
 TUNE = os.path.join(ROOT, 'tools', '_trees_tuning.json')
@@ -651,13 +651,19 @@ def bake_textures(g, bin_, used, stem):
         mode = m.get('alphaMode', 'OPAQUE')
         rec = {'mode': mode}
         if mode != 'OPAQUE':
-            rec['cutoff'] = round(m.get('alphaCutoff', 0.5), 4)
+            # a BLEND material has no cutoff of its own: 0 here, so the species' `alpha` dial (the
+            # bench's 0.3 on the deciduous leaves) is the cut, not a 0.5 it never had (G454.12)
+            rec['cutoff'] = round(m.get('alphaCutoff', 0.5), 4) if mode == 'MASK' else 0.0
             # the renderer must build COVERAGE-PRESERVING mips for this map, or
             # the canopy thins with every level and the stand dissolves at
             # distance. Flagged here because only the material knows the cutoff
             # the coverage has to be preserved AGAINST.
             rec['coverageMips'] = True
         bc = pbr.get('baseColorTexture', {}).get('index')
+        # a SPEC-GLOSS pack (various_forest_assets_pack, the deciduous: KHR_materials_pbrSpecularGlossiness)
+        # keeps its colour in diffuseTexture - without this every deciduous sheet baked WHITE (G454.12)
+        if bc is None:
+            bc = ((m.get('extensions') or {}).get('KHR_materials_pbrSpecularGlossiness') or {}).get('diffuseTexture', {}).get('index')
         if bc is not None:
             img = load_image(g, bin_, g['textures'][bc]['source'])
             if img.mode in ('P', '1', 'L', 'LA'):
@@ -688,195 +694,256 @@ def bake_textures(g, bin_, used, stem):
     return out, wrote
 
 
-def main():
-    report = '--report' in sys.argv
-    every = '--all' in sys.argv
-    index = json.load(open(IDX, encoding='utf-8'))
-    tune = json.load(open(TUNE, encoding='utf-8'))
-    inc = set(tune.get('included', []))
-    tuning = tune.get('tuning', {})
-    # the crown dials are the BENCH's, committed in its view block - the stand
-    # series has to be generated at the numbers the mix was judged at
-    view = tune.get('view', {}) or {}
-    view_crown_w = view.get('crownW', 1.0)
-    view_crown_h = view.get('crownH', 1.3)
+# ---- THE SPECIES (2026-09-20, the user: "import everything even if not mapped to a
+# terrain type right now") ----------------------------------------------------
+# The bench's model since 2026-09-15: a SPECIES names its file, its subjects (or
+# takes the kind's pool), its kind (tree / shrub / cover / dead / rock), and the
+# payload is baked PER SPECIES - one bin each, the file's maps baked ONCE and
+# shared. A tree gets the three series; every other kind ships L0 alone (a bush
+# has no trunk to put a stick under, a tuft is one card, a rock is a rock). A
+# flower (`maps`) has no geometry: its pictures travel at 512 px and the game
+# builds its cards. A generated species (`gen`, the dead stick) is skipped - it
+# needs the bench's generator at runtime (owed).
+FLOWERS = os.path.join(ASSETS, 'vegetation', 'flowers')
+PLACE_SKIP = {'file', 'subjects', 'parts', 'snags', 'kind', 'maps', 'gen', 'material', 'keepTop', 'ship',
+              'hue', 'sat', 'light', 'bark', 'alpha', 'stick'}
+GROUP_KEYS = ('trees', 'shrubs', 'cover', 'billboards', 'rocks')
 
-    picked = [a for a in index['assets']
-              if a.get('renderable') and a.get('trees')
-              and (every or a['name'] in inc)]
-    if not picked:
-        print('nothing to bake — _trees_tuning.json includes nothing renderable')
-        return 1
 
-    pack = {'note': 'baked by tools/tree_prep.py — see docs/TREE-IMPORT.md',
-            'collections': []}
-    stems, total, texAll = [], 0, []
-    for a in picked:
-        path = os.path.join(ASSETS, *a['file'].split('/')) if a.get('file')             else os.path.join(RAW, a['name'])
-        if not os.path.exists(path):
-            print('  MISSING %s' % a.get('file', a['name'])); continue
-        g, bin_ = read_glb(path)
-        t = tuning.get(a['name'], {})
-        stem = a['name'].replace('.glb', '').replace('.', '_')
-        blob, subjects, used = bytearray(), [], set()
-        for S in a['trees']:
-            if S.get('merged'):
-                continue
-            # THE FINEST SHIPPED RUNG IS L0, AND ONLY THAT. A pack's own chain
-            # is not used: the bench's forest (the thing that was judged)
-            # builds its own ladder for every pack, and LOLIPOP's shipped
-            # chain ends in a 20-triangle crossed billboard that the game
-            # then drew by the ten thousand as its fill. The import rule -
-            # never decimate, never re-encode - still holds for L0.
-            by_lod = {}
-            for el in S.get('els', []):
-                by_lod.setdefault(el.get('lod') if el.get('lod') is not None else 0,
-                                  []).append(el)
-            lods = sorted(by_lod)
-            finest = build_subject(g, bin_, by_lod[lods[0]])
-            if not finest:
-                continue
-            # Every rung of a subject quantises over ONE box, so they load into
-            # one frame and the codec needs a single bb — and that box is the
-            # UNION, because a coarser rung is not a subset: LOLIPOP's LOD1
-            # stands a few centimetres wider than its LOD0 and overflowed the
-            # int16 when the finest rung's box was used alone.
-            made = [(lods[0], finest[0], finest[1])]
-            # ---- the generated rungs, and the two other series -----------
-            # The specimen ladder, the STAND and the SNAG are all generated
-            # from L0: no pack ships the tree-inside-a-wood or the standing
-            # dead one, and both are shapes the world plants by the thousand.
+def groups_all(a):
+    out = []
+    for k in GROUP_KEYS:
+        out.extend(a.get(k) or [])
+    return out
+
+
+def species_list(index, tune):
+    by = {}
+    for a in index['assets']:
+        by[a['name']] = a
+        if a.get('file'):
+            by[a['file']] = a
+    out, claimed = [], set()
+    for key, t in tune.get('tuning', {}).items():
+        a = by.get(t.get('file') or key)
+        if not a or not a.get('renderable'):
+            continue
+        kind = t.get('kind', 'tree')
+        if t.get('ship') is False:
+            print('  skip %-22s ship: false (%s)' % (key, a['name']))
+            continue
+        if t.get('gen'):
+            print('  skip %-22s generated species (needs the bench generator at runtime)' % key)
+            continue
+        if t.get('maps'):
+            out.append({'key': key, 'a': a, 'kind': kind, 't': t, 'subjects': [], 'maps': t['maps']})
+            claimed.add(a['name']); continue
+        pool = (a.get('cover') or []) + (a.get('shrubs') or []) if kind == 'cover' \
+            else (a.get('shrubs') or []) + (a.get('trees') or []) if kind == 'shrub' \
+            else (a.get('rocks') or []) if kind == 'rock' else (a.get('trees') or [])
+        if t.get('subjects'):
+            subs = [G for n in t['subjects'] for G in groups_all(a) if G['name'] == n]
+        else:
+            subs = [G for G in pool if not G.get('merged')]
+        if t.get('parts'):
+            subs = [dict(G, els=[e for e in G['els'] if e.get('name') in t['parts']]) for G in subs]
+            subs = [G for G in subs if G['els']]
+        if not subs:
+            continue
+        out.append({'key': key, 'a': a, 'kind': kind, 't': t, 'subjects': subs})
+        claimed.add(a['name'])
+    return out
+
+
+def bake_species(sp, g, bin_, view_crown_w, view_crown_h, blob, used):
+    """Every subject of one species into `blob`; returns the manifest's subjects."""
+    t, kind, subjects = sp['t'], sp['kind'], []
+    for S in sp['subjects']:
+        if S.get('merged'):
+            continue
+        by_lod = {}
+        for el in S.get('els', []):
+            by_lod.setdefault(el.get('lod') if el.get('lod') is not None else 0, []).append(el)
+        lods = sorted(by_lod)
+        finest = build_subject(g, bin_, by_lod[lods[0]])
+        if not finest:
+            continue
+        made = [(lods[0], finest[0], finest[1])]
+        gen, stand, snag = [], [], []
+        if kind == 'tree':
             stick = t.get('stick', 0.045)
             cw, cs = view_crown_w, view_crown_h
-            gen = []
-            for lodN, kind in ((1, 'foliage'), (2, 'halfFoliage')):
-                q = gen_rung(finest[0], kind, stick, cw, cs)
+            for lodN, k2 in ((1, 'foliage'), (2, 'halfFoliage')):
+                q = gen_rung(finest[0], k2, stick, cw, cs)
                 if q:
                     gen.append((lodN, q, None))
-            made_all = made + gen
-            stand, snag = [], []
             fstand = gen_rung(finest[0], 'fFull', stick, cw, cs)
             if fstand:
                 stand.append((0, fstand, None))
-                for lodN, kind in ((1, 'crownStick'), (2, 'crownHalf')):
-                    q = gen_rung(finest[0], kind, stick, cw, cs)
+                for lodN, k2 in ((1, 'crownStick'), (2, 'crownHalf')):
+                    q = gen_rung(finest[0], k2, stick, cw, cs)
                     if q:
                         stand.append((lodN, q, None))
             sn = strip_foliage(parts_clone(finest[0]))
             if sn:
                 snag.append((0, sn, None))
+        made_all = made + gen
+        bb = list(finest[1])
+        for _, parts, b in made:
+            if not b:
+                continue
+            for k in range(3):
+                bb[k] = min(bb[k], b[k]); bb[k + 3] = max(bb[k + 3], b[k + 3])
+        for _, parts, _b in gen + stand + snag:
+            lo, hi = bbox_of(parts)
+            if lo is None:
+                continue
+            for k in range(3):
+                bb[k] = min(bb[k], lo[k]); bb[k + 3] = max(bb[k + 3], hi[k])
 
-            # ONE BOX FOR EVERY SERIES OF A SUBJECT. The codec carries a single
-            # bb per subject and the quantiser has to fit inside it, so the
-            # union has to include the stand series - whose crown is stretched
-            # 1.3x and widened, and which therefore stands TALLER than the tree
-            # it came from. Fitting the box to L0 alone is how LOD1 overflowed
-            # the int16 the first time.
-            bb = list(finest[1])
-            for _, parts, b in made:
-                if not b:
-                    continue
-                for k in range(3):
-                    bb[k] = min(bb[k], b[k])
-                    bb[k + 3] = max(bb[k + 3], b[k + 3])
-            for _, parts, _b in gen + stand + snag:
-                lo, hi = bbox_of(parts)
-                if lo is None:
-                    continue
-                for k in range(3):
-                    bb[k] = min(bb[k], lo[k])
-                    bb[k + 3] = max(bb[k + 3], hi[k])
+        def bake_series(series):
+            out, tags = [], []
+            for L, parts, _b in series:
+                bake_ao(parts, bb)
+                recs = []
+                for P in parts:
+                    used.add(P['mi'])
+                    raw, meta = pack_part(P, bb)
+                    meta['off'] = len(blob); meta['len'] = len(raw)
+                    blob.extend(raw)
+                    recs.append(meta)
+                out.append({'lod': L, 'tris': sum(len(P['idx']) // 3 for P in parts), 'parts': recs})
+                tags.append('%d:%d' % (L, out[-1]['tris']))
+            return out, tags
 
-            def bake_series(series):
-                out, tags = [], []
-                for L, parts, _b in series:
-                    bake_ao(parts, bb)
-                    recs = []
-                    for P in parts:
-                        used.add(P['mi'])
-                        raw, meta = pack_part(P, bb)
-                        meta['off'] = len(blob); meta['len'] = len(raw)
-                        blob.extend(raw)
-                        recs.append(meta)
-                    out.append({'lod': L,
-                                'tris': sum(len(P['idx']) // 3 for P in parts),
-                                'parts': recs})
-                    tags.append('%d:%d' % (L, out[-1]['tris']))
-                return out, tags
+        rungs, shown = bake_series(made_all)
+        standR, shownS = bake_series(stand)
+        snagR, shownD = bake_series(snag)
+        subjects.append({'name': S['name'], 'h': S.get('h'), 'tris': S.get('tris'),
+                         'bb': [round(v, 4) for v in bb], 'shipped': len(lods) > 1,
+                         'rungs': rungs, 'stand': standR, 'snag': snagR})
+        print('    %-22s %6d tris  rungs %s | stand %s | snag %s'
+              % (S['name'], S.get('tris', 0), ' '.join(shown), ' '.join(shownS) or '-', ' '.join(shownD) or '-'))
+    return subjects
 
-            rungs, shown = bake_series(made_all)
-            standR, shownS = bake_series(stand)
-            snagR, shownD = bake_series(snag)
-            subjects.append({'name': S['name'], 'h': S.get('h'),
-                             'tris': S.get('tris'), 'bb': [round(v, 4) for v in bb],
-                             'shipped': len(lods) > 1, 'rungs': rungs,
-                             'stand': standR, 'snag': snagR})
-            print('    %-22s %6d tris  rungs %s | stand %s | snag %s'
-                  % (S['name'], S.get('tris', 0), ' '.join(shown),
-                     ' '.join(shownS) or '-', ' '.join(shownD) or '-'))
-        if not subjects:
-            continue
-        rel = 'media/geo/trees/%s.bin' % stem if report else \
-            write_media('geo/trees', stem, 'bin', bytes(blob))
-        mats, texRel = ({}, []) if report else bake_textures(g, bin_, used, stem)
-        texAll.extend(texRel)
-        stems.append(stem); total += len(blob)
-        pack['collections'].append({
-            'name': a['name'], 'bin': rel, 'bytes': len(blob),
-            'credit': a.get('credit'),
-            # the licence travels with the payload: a baked asset whose
-            # provenance was lost is one nobody can ship
-            'licence': (a.get('licence') or {}).get('text'),
-            'licenceOk': (a.get('licence') or {}).get('ok'),
-            # placement dials stay DATA: the world moves them without a re-bake
-            'place': dict({k: t.get(k) for k in ('size', 'proportion', 'sink', 'dead', 'impa', 'implight')
-                           if k in t},
-                          # the stand series is drawn with its crown stretched;
-                          # see gen_rung on why that is a dial and not geometry
-                          crownH=view_crown_h),
-            'tint': {k: t.get(k) for k in ('hue', 'sat', 'light', 'bark', 'alpha')
-                     if k in t},
-            'materials': mats,
-            'subjects': subjects,
-        })
-        print('  %-46s %8.2f MB  %d subjects' % (a['name'], len(blob) / 1e6, len(subjects)))
+
+def bake_flower(sp, report):
+    """The pictures at 512 px on the long side, PNG (the alpha is the flower)."""
+    urls = []
+    for m in sp['maps']:
+        name = m.split('/')[-1]
+        path = os.path.join(FLOWERS, name)
+        if not os.path.exists(path):
+            print('    MISSING picture %s' % path); continue
+        if report:
+            urls.append('media/tex/flowers/' + name); continue
+        img = Image.open(path).convert('RGBA')
+        k = 512.0 / max(img.size)
+        if k < 1:
+            img = img.resize((max(1, int(round(img.width * k))), max(1, int(round(img.height * k)))), Image.LANCZOS)
+        buf = _io.BytesIO(); img.save(buf, 'PNG', optimize=True)
+        urls.append(write_media('tex/flowers', safe(name.rsplit('.', 1)[0]), 'png', buf.getvalue()))
+    return urls
+
+
+def main():
+    report = '--report' in sys.argv
+    index = json.load(open(IDX, encoding='utf-8'))
+    tune = json.load(open(TUNE, encoding='utf-8'))
+    view = tune.get('view', {}) or {}
+    view_crown_w = view.get('crownW', 1.0)
+    view_crown_h = view.get('crownH', 1.3)
+    species = species_list(index, tune)
+    if not species:
+        print('nothing to bake - _trees_tuning.json names no renderable species')
+        return 1
+
+    pack = {'note': 'baked by tools/tree_prep.py - see docs/TREE-IMPORT.md', 'collections': []}
+    stems, fstems, total, texAll, flowerRel = [], [], 0, [], []
+    # grouped by file: the file is read once, its maps baked once for every species on it
+    by_file = {}
+    for sp in species:
+        by_file.setdefault(sp['a']['name'], []).append(sp)
+    for fname, sps in by_file.items():
+        a = sps[0]['a']
+        entries = []
+        if all(sp.get('maps') for sp in sps):
+            g = bin_ = None
+        else:
+            path = os.path.join(ASSETS, *a['file'].split('/')) if a.get('file') else os.path.join(RAW, a['name'])
+            if not os.path.exists(path):
+                print('  MISSING %s' % a.get('file', a['name'])); continue
+            g, bin_ = read_glb(path)
+        fstem = a['name'].replace('.glb', '').replace('.', '_')
+        used = set()
+        for sp in sps:
+            t, key = sp['t'], sp['key']
+            stem = safe(key) if key != a['name'] else fstem
+            place = {k: v for k, v in t.items() if k not in PLACE_SKIP}
+            place['crownH'] = view_crown_h
+            entry = {'name': key, 'file': a['name'], 'kind': sp['kind'],
+                     'credit': a.get('credit'),
+                     'licence': (a.get('licence') or {}).get('text'),
+                     'licenceOk': (a.get('licence') or {}).get('ok'),
+                     'place': place,
+                     'tint': {k: t.get(k) for k in ('hue', 'sat', 'light', 'bark', 'alpha') if k in t}}
+            if sp.get('maps'):
+                entry['maps'] = bake_flower(sp, report)
+                flowerRel.extend(entry['maps'])
+                entry['bin'] = None; entry['bytes'] = 0; entry['subjects'] = []; entry['materials'] = {}
+                pack['collections'].append(entry)
+                print('  %-46s flower  %d pictures' % (key, len(entry['maps'])))
+                continue
+            blob = bytearray()
+            subjects = bake_species(sp, g, bin_, view_crown_w, view_crown_h, blob, used)
+            if not subjects:
+                continue
+            entry['bin'] = 'media/geo/trees/%s.bin' % stem if report else write_media('geo/trees', stem, 'bin', bytes(blob))
+            entry['bytes'] = len(blob)
+            entry['subjects'] = subjects
+            stems.append(stem); total += len(blob)
+            entries.append(entry)
+            print('  %-46s %8.2f MB  %d subjects  (%s, %s)' % (key, len(blob) / 1e6, len(subjects), sp['kind'], a['name']))
+        if entries:
+            mats, texRel = ({}, []) if report else bake_textures(g, bin_, used, fstem)
+            texAll.extend(texRel); fstems.append(fstem)
+            # the file's materials ONCE, in pack['materials'][file]; a species points at its
+            # file (thirteen species on one pack repeated its sixteen materials thirteen times
+            # inside index.html - GATE MEDIA's budget)
+            pack.setdefault('materials', {})[a['name']] = mats
+            for e in entries:
+                pack['collections'].append(e)
+
+    # THE BIOMES (BIOMES-IN-GAME-2026-09-20.md): the bench's mixes and the terrain-type map,
+    # as data beside the species - the game reads the same table the bench judged
+    pack['biomes'] = {'mixes': tune.get('mixes', {}), 'map': tune.get('biomes', {})}
 
     if report:
-        print('\n--report: %d collections, %.2f MB of geometry, nothing written'
-              % (len(pack['collections']), total / 1e6))
+        print('\n--report: %d species, %.2f MB of geometry, nothing written' % (len(pack['collections']), total / 1e6))
         return 0
-    prune_media_stems('geo/trees', stems, [c['bin'] for c in pack['collections']])
-    # the textures are `<stem>_<material>_<kind>.<h8>.<ext>`: the stem is
-    # followed by '_' here, not '.', or the prune owns nothing and a dropped
-    # material's maps stay on disk as orphans (W0c.13 dropped the shipped
-    # billboards; their maps stood until W0c.29)
-    prune_media_stems('tex/trees', stems, texAll, sep='_')
+    prune_media_stems('geo/trees', stems, [c['bin'] for c in pack['collections'] if c.get('bin')])
+    prune_media_stems('tex/trees', fstems, texAll, sep='_')
+    prune_media_stems('tex/flowers', [r.split('/')[-1].split('.')[0] for r in flowerRel], flowerRel)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(pack, f, indent=1)
         f.write('\n')
-    # the page's copy is compact (one collection per line): the manifest
-    # rides inside index.html, and pretty-printed it was 34 KB of the
-    # artifact's 6 MiB budget for whitespace; the .json above stays
-    # indented for the diff
     NL = chr(10)
     body = ('{"note": ' + json.dumps(pack['note']) + ',' + NL + ' "collections": [' + NL + '  ' +
             (',' + NL + '  ').join(json.dumps(c, separators=(',', ':')) for c in pack['collections']) +
-            NL + ' ]}')
-    # every 'media/...' literal becomes B + 'media/...' so the built page
-    # resolves it against FLYDIY_ASSET_BASE
+            NL + ' ],' + NL + ' "materials": ' + json.dumps(pack.get('materials', {}), separators=(',', ':')) +
+            ',' + NL + ' "biomes": ' + json.dumps(pack['biomes'], separators=(',', ':')) + '}')
     body = body.replace('"media/', '"" + B + "media/')
     with open(OUTJS, 'w', encoding='utf-8', newline='\n') as f:
         f.write('// trees_pack.js - BAKED by tools/tree_prep.py, do not edit.\n')
-        f.write('// The tree payload manifest: one collection per curated pack,\n')
-        f.write('// its subjects, their rungs, and the maps their materials wear.\n')
+        f.write('// The vegetation payload manifest: one entry per SPECIES (trees, shrubs,\n')
+        f.write('// covers, dead, rocks, flowers), its subjects, their rungs, the maps their\n')
+        f.write('// materials wear, and the biomes (the mixes + the terrain-type map).\n')
         f.write(BASE_DECL + '\n')
         f.write('const TREE_PACK = ' + body + ';\n')
-        f.write("if (typeof module !== 'undefined' && module.exports) "
-                'module.exports = TREE_PACK;\n')
-    print('\nwrote %s + %s  (%d collections, %.2f MB)' % (
-        os.path.relpath(OUT, ROOT), os.path.relpath(OUTJS, ROOT),
-        len(pack['collections']), total / 1e6))
+        f.write("if (typeof module !== 'undefined' && module.exports) " 'module.exports = TREE_PACK;\n')
+    print('\nwrote %s + %s  (%d species, %.2f MB)' % (
+        os.path.relpath(OUT, ROOT), os.path.relpath(OUTJS, ROOT), len(pack['collections']), total / 1e6))
     return 0
 
 

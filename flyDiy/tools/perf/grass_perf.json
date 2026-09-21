@@ -1,0 +1,688 @@
+{
+ "date": "2026-09-20T16:41:23.489Z",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "url": "http://localhost:8463/flyDiy/tools/_trees.html",
+ "reach": 80,
+ "types": {
+  "grass_dry": {
+   "colour": {
+    "hsl": {
+     "h": 0.117,
+     "s": 0.269,
+     "l": 0.468,
+     "rgb": [
+      151,
+      132,
+      87
+     ]
+    },
+    "mats": [
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     }
+    ],
+    "trisPerInstance": 8,
+    "density": 0.5,
+    "size": 1,
+    "file": "dry_grass.glb"
+   },
+   "runs": [
+    {
+     "k": 2,
+     "inst": 20106,
+     "meshes": 7,
+     "flight": {
+      "ground": 1,
+      "covered": 0.1354,
+      "coverage": 0.1354,
+      "ms": 0.9,
+      "wall": 0.97,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 645398
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.3115,
+      "coverage": 0.5289,
+      "ms": 0.62,
+      "wall": 0.8,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 645398
+     }
+    },
+    {
+     "k": 4,
+     "inst": 40212,
+     "meshes": 7,
+     "flight": {
+      "ground": 1,
+      "covered": 0.2424,
+      "coverage": 0.2424,
+      "ms": 0.85,
+      "wall": 0.92,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 1289014
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.443,
+      "coverage": 0.7522,
+      "ms": 1.17,
+      "wall": 1.23,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 1289014
+     }
+    },
+    {
+     "k": 8,
+     "inst": 80425,
+     "meshes": 7,
+     "flight": {
+      "ground": 1,
+      "covered": 0.4005,
+      "coverage": 0.4005,
+      "ms": 1.51,
+      "wall": 1.58,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 2577094
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.527,
+      "coverage": 0.895,
+      "ms": 1.75,
+      "wall": 2.23,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 2577094
+     }
+    },
+    {
+     "k": 16,
+     "inst": 160850,
+     "meshes": 7,
+     "flight": {
+      "ground": 1,
+      "covered": 0.5784,
+      "coverage": 0.5784,
+      "ms": 2.67,
+      "wall": 3.05,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 5150886
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.5558,
+      "coverage": 0.9438,
+      "ms": 3.02,
+      "wall": 3.21,
+      "gpuTimer": true,
+      "calls": 17,
+      "tris": 5150886
+     }
+    }
+   ]
+  },
+  "grass_reed": {
+   "colour": {
+    "hsl": {
+     "h": 0.098,
+     "s": 0.395,
+     "l": 0.301,
+     "rgb": [
+      107,
+      82,
+      46
+     ]
+    },
+    "mats": [
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     }
+    ],
+    "trisPerInstance": 1157,
+    "density": 0.12,
+    "size": 0.01,
+    "file": "grass_patches.glb"
+   },
+   "runs": [
+    {
+     "k": 0.5,
+     "inst": 1206,
+     "meshes": 3,
+     "flight": {
+      "ground": 1,
+      "covered": 0.1746,
+      "coverage": 0.1746,
+      "ms": 0.63,
+      "wall": 0.69,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 1607492
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.2713,
+      "coverage": 0.4607,
+      "ms": 0.8,
+      "wall": 0.86,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 1607492
+     }
+    },
+    {
+     "k": 1,
+     "inst": 2413,
+     "meshes": 3,
+     "flight": {
+      "ground": 1,
+      "covered": 0.3037,
+      "coverage": 0.3037,
+      "ms": 0.83,
+      "wall": 1.05,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 3116412
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.3382,
+      "coverage": 0.5743,
+      "ms": 0.93,
+      "wall": 1.38,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 3116412
+     }
+    },
+    {
+     "k": 2,
+     "inst": 4825,
+     "meshes": 3,
+     "flight": {
+      "ground": 1,
+      "covered": 0.4721,
+      "coverage": 0.4721,
+      "ms": 1.87,
+      "wall": 1.92,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 6102524
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.4871,
+      "coverage": 0.8271,
+      "ms": 1.72,
+      "wall": 2.06,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 6102524
+     }
+    },
+    {
+     "k": 4,
+     "inst": 9651,
+     "meshes": 3,
+     "flight": {
+      "ground": 1,
+      "covered": 0.6407,
+      "coverage": 0.6407,
+      "ms": 3.69,
+      "wall": 3.39,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 12327012
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.5443,
+      "coverage": 0.9242,
+      "ms": 2.99,
+      "wall": 3.94,
+      "gpuTimer": true,
+      "calls": 9,
+      "tris": 12327012
+     }
+    }
+   ]
+  },
+  "grass_plates": {
+   "colour": {
+    "hsl": {
+     "h": 0.173,
+     "s": 0.297,
+     "l": 0.263,
+     "rgb": [
+      86,
+      87,
+      47
+     ]
+    },
+    "mats": [
+     {
+      "name": "",
+      "mode": "MASK",
+      "map": "512x256",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "MASK",
+      "map": "512x256",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "MASK",
+      "map": "512x256",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "MASK",
+      "map": "512x256",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "MASK",
+      "map": "512x256",
+      "vcol": false
+     },
+     {
+      "name": "",
+      "mode": "MASK",
+      "map": "512x256",
+      "vcol": false
+     }
+    ],
+    "trisPerInstance": 6,
+    "density": 2.5,
+    "size": 1,
+    "file": "realtime_grass.glb"
+   },
+   "runs": [
+    {
+     "k": 0.1,
+     "inst": 5027,
+     "meshes": 6,
+     "flight": {
+      "ground": 1,
+      "covered": 0.2047,
+      "coverage": 0.2047,
+      "ms": 0.44,
+      "wall": 0.63,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 60338
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.2796,
+      "coverage": 0.4749,
+      "ms": 0.42,
+      "wall": 0.61,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 60338
+     }
+    },
+    {
+     "k": 0.2,
+     "inst": 10053,
+     "meshes": 6,
+     "flight": {
+      "ground": 1,
+      "covered": 0.3499,
+      "coverage": 0.3499,
+      "ms": 0.6,
+      "wall": 0.78,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 120650
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.4107,
+      "coverage": 0.6973,
+      "ms": 0.75,
+      "wall": 0.91,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 120650
+     }
+    },
+    {
+     "k": 0.4,
+     "inst": 20106,
+     "meshes": 6,
+     "flight": {
+      "ground": 1,
+      "covered": 0.5334,
+      "coverage": 0.5334,
+      "ms": 0.6,
+      "wall": 0.78,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 241286
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.5167,
+      "coverage": 0.8774,
+      "ms": 0.89,
+      "wall": 1.44,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 241286
+     }
+    },
+    {
+     "k": 1,
+     "inst": 50265,
+     "meshes": 6,
+     "flight": {
+      "ground": 1,
+      "covered": 0.7003,
+      "coverage": 0.7003,
+      "ms": 2,
+      "wall": 2.57,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 603194
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.5711,
+      "coverage": 0.9699,
+      "ms": 2.79,
+      "wall": 2.85,
+      "gpuTimer": true,
+      "calls": 15,
+      "tris": 603194
+     }
+    }
+   ]
+  },
+  "grass_scan": {
+   "colour": {
+    "hsl": {
+     "h": 0.129,
+     "s": 0.308,
+     "l": 0.407,
+     "rgb": [
+      136,
+      121,
+      72
+     ]
+    },
+    "mats": [
+     {
+      "name": "",
+      "mode": "BLEND",
+      "map": "1024x1024",
+      "vcol": false
+     }
+    ],
+    "trisPerInstance": 37,
+    "density": 1,
+    "size": 1,
+    "file": "simple_grass_chunks.glb"
+   },
+   "runs": [
+    {
+     "k": 2,
+     "inst": 40212,
+     "meshes": 1,
+     "flight": {
+      "ground": 1,
+      "covered": 0.1454,
+      "coverage": 0.1454,
+      "ms": 2,
+      "wall": 2.13,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 2975702
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.3122,
+      "coverage": 0.5302,
+      "ms": 2.13,
+      "wall": 2.55,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 2975702
+     }
+    },
+    {
+     "k": 4,
+     "inst": 80425,
+     "meshes": 1,
+     "flight": {
+      "ground": 1,
+      "covered": 0.264,
+      "coverage": 0.264,
+      "ms": 3.61,
+      "wall": 3.63,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 5951464
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.4104,
+      "coverage": 0.6969,
+      "ms": 3.29,
+      "wall": 3.76,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 5951464
+     }
+    },
+    {
+     "k": 8,
+     "inst": 160850,
+     "meshes": 1,
+     "flight": {
+      "ground": 1,
+      "covered": 0.4282,
+      "coverage": 0.4282,
+      "ms": 3.7,
+      "wall": 3.77,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 11902914
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.5084,
+      "coverage": 0.8633,
+      "ms": 4.16,
+      "wall": 4.82,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 11902914
+     }
+    },
+    {
+     "k": 16,
+     "inst": 321699,
+     "meshes": 1,
+     "flight": {
+      "ground": 1,
+      "covered": 0.5982,
+      "coverage": 0.5982,
+      "ms": 10.95,
+      "wall": 16.18,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 23805740
+     },
+     "low": {
+      "ground": 0.5889,
+      "covered": 0.5522,
+      "coverage": 0.9378,
+      "ms": 12.55,
+      "wall": 14.14,
+      "gpuTimer": true,
+      "calls": 5,
+      "tris": 23805740
+     }
+    }
+   ]
+  }
+ },
+ "matched": {
+  "grass_dry": {
+   "flight0.3": {
+    "ms": 1.08,
+    "inst": 53972,
+    "extrap": false
+   },
+   "flight0.5": {
+    "ms": 2.13,
+    "inst": 122215,
+    "extrap": false
+   },
+   "low0.3": {
+    "ms": 0.13,
+    "inst": 2625,
+    "extrap": true
+   },
+   "low0.5": {
+    "ms": 0.53,
+    "inst": 16432,
+    "extrap": true
+   }
+  },
+  "grass_reed": {
+   "flight0.3": {
+    "ms": 0.82,
+    "inst": 2376,
+    "extrap": false
+   },
+   "flight0.5": {
+    "ms": 2.12,
+    "inst": 5497,
+    "extrap": false
+   },
+   "low0.3": {
+    "ms": 0.36,
+    "inst": 335,
+    "extrap": true
+   },
+   "low0.5": {
+    "ms": 0.85,
+    "inst": 1560,
+    "extrap": false
+   }
+  },
+  "grass_plates": {
+   "flight0.3": {
+    "ms": 0.55,
+    "inst": 8240,
+    "extrap": false
+   },
+   "flight0.5": {
+    "ms": 0.6,
+    "inst": 18078,
+    "extrap": false
+   },
+   "low0.3": {
+    "ms": 0.12,
+    "inst": 1143,
+    "extrap": true
+   },
+   "low0.5": {
+    "ms": 0.45,
+    "inst": 5517,
+    "extrap": false
+   }
+  },
+  "grass_scan": {
+   "flight0.3": {
+    "ms": 3.63,
+    "inst": 96596,
+    "extrap": false
+   },
+   "flight0.5": {
+    "ms": 6.12,
+    "inst": 221818,
+    "extrap": false
+   },
+   "low0.3": {
+    "ms": 0.36,
+    "inst": 5041,
+    "extrap": true
+   },
+   "low0.5": {
+    "ms": 1.77,
+    "inst": 32470,
+    "extrap": true
+   }
+  }
+ }
+}
