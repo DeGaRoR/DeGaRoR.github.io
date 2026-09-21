@@ -36447,7 +36447,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='2ba19d73148a';window.FLYDIY_BUILD='504a0e8f3a71'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='2ba19d73148a';window.FLYDIY_BUILD='033920a62162'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -74963,7 +74963,41 @@ PAGE.post = ctx => {
     bayAt = use.reduce((t, r) => t + r, 0) / use.length;
     return new Set(use.map(r => Math.round(r * 1e4)));
   })();
+  // THE RIB CAPS ARE THEIR OWN CLASSES (A7, 2026-09-21, the user: "the flat
+  // face at the end of the wing with the cut parameter, and the central
+  // portion with the cut central section ... strange mapping or no mapping"
+  // - "a full longeron or at least a bolted metal plate" at the root, "what
+  // is proper on the wing far end"). genCapLoft closes the loft's first and
+  // last rows with a fan in the SKIN mesh: the face's vertices are the
+  // row's, so its field has one span coordinate across the whole face and
+  // the grammar smears; and welded to the skin, computeVertexNormals rolled
+  // the edge - the face read as a soft bevel. A cap is a primitive whose
+  // vertices all sit at one span station: root (the cut centre's face) or
+  // tip (a square or clipped tip's end rib). Each takes its own bucket -
+  // its own vertices, a hard edge - and its own dressing below.
+  const zTipEnd = (() => { let m = 0; for (let i = 0; i < gs.skin.nv; i++) {
+    const az = Math.abs(toBody([gs.skin.pos[i*3], gs.skin.pos[i*3+1], gs.skin.pos[i*3+2]])[2]); if (az > m) m = az; } return m; })();
+  // ...and only where the face SHOWS: a cut-away centre's root faces, a
+  // square or clipped tip's end rib. Every other cap stays in its skin
+  // class (GATE CLIP measures fittings against closed skins; a lone fan
+  // inside a solid centre section is not a surface anything sits on).
+  const capsRoot = (['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre) || 0]) === 'removed';
+  const capsTip = ['square', 'clipped'].includes(TIP_KEYS[Math.round(P.wgTip) || 0]);
+  const capOf = vs => {
+    if (!vs || vs.length < 3 || (!capsRoot && !capsTip)) return null;
+    let lo = 1e9, hi = -1e9;
+    for (const i of vs) {
+      const az = Math.abs(toBody([gs.skin.pos[i*3], gs.skin.pos[i*3+1], gs.skin.pos[i*3+2]])[2]);
+      if (az < lo) lo = az; if (az > hi) hi = az;
+    }
+    if (hi - lo > 2e-4) return null;              // a skin face spans stations
+    if (capsRoot && Math.abs(lo - zRoot) < 2e-3) return 'capRoot';
+    if (capsTip && Math.abs(hi - zTipEnd) < 2e-3) return 'capTip';
+    return null;
+  };
   const skinClass = (cen, vs) => {
+    const cap = capOf(vs);
+    if (cap) return cap;
     const az = Math.abs(toBody(cen)[2]);
     // the bay first: it is a hole in whatever class it falls in
     // ONE BAY PER SIDE, not one spanning both (G98). The class used to be a
@@ -75385,6 +75419,65 @@ PAGE.post = ctx => {
     for (const cl of ['main', 'centre', 'tip']) {
       const pr = add(parts, cl, wingMat(cl));
       if (pr) { faces += pr.geo.index.count / 3; skinProbe.push(pr.geo); }
+    }
+    // THE CAPS (A7): the root face of a cut centre is a BOLTED PLATE - the
+    // wing skin's own finish on a triplanar material (no field to smear), a
+    // ring of bolt heads 22 mm inside its outline at ~55 mm - and a square
+    // or clipped tip's end rib takes the same plate with the skin's rivets
+    // at ~40 mm, the tip rib's own flange. A rounded tip's last row is a
+    // point and gets no fan worth dressing. Only a cut centre shows its
+    // root face; every other centre kind covers it.
+    {
+      const CTRK = ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre) || 0];
+      const K = window.GEAR_KIT;
+      const plateMat = (window.CAGE_SECMAT && window.CAGE_SECMAT('wingSkin', { surf: 0, fieldM: 1, struct: 0, side: THREE.DoubleSide })) || wingMat('main');
+      for (const [cl, pitch, rB, lB] of [['capRoot', 0.055, 0.0045, 0.006], ['capTip', 0.040, 0.0022, 0.003]]) {
+        const pr = parts[cl];
+        if (!pr) continue;
+        if (cl === 'capRoot' && CTRK !== 'removed') { add(parts, cl, wingMat('main')); continue; }
+        // the root's plate is BARE ALLOY (the fitting the wing bolts to, not
+        // paintwork); the tip's end rib is painted with the wing
+        const o = add(parts, cl, cl === 'capRoot' && GG && GG.gearMat ? GG.gearMat('alloy') : plateMat);
+        if (!o || !K) continue;
+        // the rim: the face's vertices less its fan centre, ordered round the
+        // centroid in the face's own plane; one cap per side
+        const P3 = pr.geo.attributes.position, nv = P3.count;
+        // (the parts are in CAGE space: x is the span, port positive)
+        const byZ = new Map();
+        for (let i = 0; i < nv; i++) {
+          const p = [P3.getX(i), P3.getY(i), P3.getZ(i)];
+          const k = Math.round(p[0] * 1e3);
+          if (!byZ.has(k)) byZ.set(k, []);
+          byZ.get(k).push(p);
+        }
+        const bag = K.Bag();
+        for (const pts of byZ.values()) {
+          if (pts.length < 6) continue;
+          const c = [0, 0, 0];
+          for (const p of pts) { c[0] += p[0] / pts.length; c[1] += p[1] / pts.length; c[2] += p[2] / pts.length; }
+          // the face normal: along the span - outward at a tip, toward the
+          // centreline at a cut root (the face looks into the cut)
+          const nrm0 = [cl === 'capTip' ? Math.sign(c[0] || 1) : -Math.sign(c[0] || 1), 0, 0];
+          // the rim polygon by angle in the plane; drop the centre (nearest the centroid)
+          const u = K.nrm(K.sub(pts[0], c)), w = K.nrm(K.crs(nrm0, u));
+          const rim = pts.map(p => { const d = K.sub(p, c); return { p, r: Math.hypot(K.dot(d, u), K.dot(d, w)), a: Math.atan2(K.dot(d, w), K.dot(d, u)) }; })
+            .filter(q => q.r > 0.01).sort((p, q) => p.a - q.a);
+          if (rim.length < 6) continue;
+          // walk the rim at the pitch, each fastener 22 mm inside
+          let acc = 0, last = rim[rim.length - 1].p;
+          for (const q of rim) {
+            acc += K.len(K.sub(q.p, last)); last = q.p;
+            if (acc < pitch) continue;
+            acc = 0;
+            const inward = K.nrm(K.sub(c, q.p));
+            const at = K.add(q.p, K.mul(inward, cl === 'capRoot' ? 0.022 : 0.012));
+            K.bolt(bag, K.add(at, K.mul(nrm0, 0.0005)), nrm0, rB, lB);
+          }
+        }
+        const hm = (GG && GG.gearMat) ? GG.gearMat('steel') : plateMat;
+        const bm = bag.mesh(group, hm);
+        if (bm) bm.name = 'edCap_' + cl;
+      }
     }
     // THE LENS, over the hole the classifier just made. Same faces, same
     // frame, glass instead of covering — and named so the light layer can
