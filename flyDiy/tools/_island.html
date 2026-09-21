@@ -139,6 +139,8 @@ const K = {
   pudEdge:    { label: 'puddle edge (noise units)',    min: 0.002, max: 0.05, step: 0.001, v: 0.01 },
   pudSlope:   { label: 'puddle field scale (x)',       min: 0.5, max: 8, step: 0.5, v: 3 },   // CODES[3].poolScale: the pool field read at x this - smaller pools
   lakeEdge:   { label: 'lake edge width (m)',          min: 0.2, max: 8, step: 0.2, v: 1 },
+  para:       { label: 'parallax (m, x the code)',     min: 0, max: 1.5, step: 0.05, v: 0 },
+  paraSteps:  { label: 'parallax steps',               min: 2, max: 24, step: 1, v: 10 },
 };
 // the eight class GROUPS the smooth weight fields carry, and which palette
 // row colours each (40 cropland shares 50's colour; 70 snow is the snow layer)
@@ -331,6 +333,7 @@ const FS = `
   uniform vec4 uDist2;                           // macro strength, macro under the detail, triplanar k, -
   uniform vec4 uHex;                             // height-blend depth, hex on, hex cells per tile, rotation range (rad)
   uniform vec2 uSeam;                            // zone seam depth (the code-level height blend), macro exposure
+  uniform vec4 uPara;                            // parallax: amplitude (m), steps, -, -
   uniform vec4 uGrade[24];                       // per SET (layer): rgb gain, saturation - the mild grade toward its tier
   uniform highp sampler2DArray uSplatN;          // the sets' normals (GL tangent, rgb) + roughness (a)
   uniform vec2 uNrm;                             // normal strength, specular strength
@@ -512,7 +515,7 @@ const FS = `
     // the cloud's noise sits near 0.5 (four octaves, normalised): the ground
     // cuts it 4x harder than the vegetation's floor (sharpness 3 -> 12) or every
     // pixel is a half-and-half of its two sets - khaki grass, beige shingle
-    float period = max(M.x, 0.5) * 6.0, sharp = M.y * 4.0;
+    float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;
     float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
     vec4 F = uMatF[i], FS = uMatFS[i];
@@ -582,7 +585,7 @@ const FS = `
     // up to it - the lake never votes in the seam
     float lakeM = 0.0;
     if (uLakeE.y > 0.5) { float lsd = (texture2D(uLake, uv).r * 255.0 - 128.0) * 4.0; lakeM = smoothstep(-uLakeE.x * 0.5, uLakeE.x * 0.5, lsd); }
-    w[1] = 0.0;
+    w[3] += w[1] * (1.0 - lakeM); w[1] = 0.0;   // a lake cell's dry part votes as its shore (muskeg)
     float slope = degrees(acos(clamp(nGeo.y, 0.0, 1.0)));
     float sCliff = smoothstep(uSplit.x, uSplit.y, slope);
     float sOld   = smoothstep(uSplit.z, uSplit.w, canopy);
@@ -605,13 +608,46 @@ const FS = `
     float mw = uDist2.x * smoothstep(uDist.z, uDist.w, d);
     vec3 tw = vec3(0.0, 1.0, 0.0);
     if (uDist2.z > 0.5) { vec3 a = pow(abs(nGeo), vec3(uDist2.z)); tw = a / (a.x + a.y + a.z); }
+    // THE PARALLAX (2026-09-20): the sets' own relief marched against the view
+    // on the DOMINANT plane (the cliff's side plane on a wall, the top plane on
+    // the flat), through the dominant code's first set at its scale - the whole
+    // chain then samples at the displaced point. A fixed count of steps (the
+    // loop stays uniform: implicit texture() inside it is well defined), the
+    // amplitude in metres x the code's factor, fading with the detail.
+    vec3 Pp = vW;
+    { int di = 2; float wm = 0.0; for (int i = 0; i < uNCode; i++) if (w[i] > wm) { wm = w[i]; di = i; }
+      float amp = uPara.x * uVary[di].w * (1.0 - fw);
+      vec4 A = uMatA[di]; vec4 S = uMatS[di];
+      if (amp > 0.005 && A.x >= 0.0) {
+        vec3 v = normalize(uCam - vW);
+        // the plane: 0 top (xz), 1 side x (zy), 2 side z (xy)
+        int pl = (tw.y >= tw.x && tw.y >= tw.z) ? 0 : (tw.x >= tw.z ? 1 : 2);
+        vec2 p0 = pl == 0 ? vW.xz : (pl == 1 ? vW.zy : vW.xy);
+        float vn = pl == 0 ? v.y : (pl == 1 ? v.x : v.z);
+        vec2 vt = pl == 0 ? v.xz : (pl == 1 ? v.zy : v.xy);
+        vn = sign(vn) * max(abs(vn), 0.2);
+        float scale = max(S.x, 0.01);
+        gHexRot = A.w > 0.5 ? -1.0 : uHex.w;
+        int N = int(uPara.y + 0.5); float step = 1.0 / float(N);
+        vec2 dp = -vt / vn * amp * step;         // metres in the plane per layer step, toward the eye's foot
+        float layer = 1.0, hPrev = 0.0, lPrev = 1.0; vec2 pc = p0; vec2 pPrev = p0; bool hit = false;
+        for (int k = 0; k < 24; k++) {
+          if (k >= N) break;
+          float h = tileSample(A.x, pc / scale, gDx.xz / scale, gDy.xz / scale).c.a;
+          if (h >= layer) { float t = (lPrev - hPrev) / max((lPrev - hPrev) + (h - layer), 1e-4); pc = mix(pPrev, pc, t); hit = true; break; }
+          pPrev = pc; hPrev = h; lPrev = layer; pc += dp; layer -= step;
+        }
+        vec2 off = pc - p0;
+        if (pl == 0) Pp.xz += off; else if (pl == 1) Pp.zy += off; else Pp.xy += off;
+      }
+    }
     // every code with a vote is a candidate; the height blend across them
     // (each height + its vote, the top DEPTH shows) cuts the seams along
     // the relief instead of fading the two textures into each other
     vec4 C[8]; vec4 NN[8]; float Wt[8]; int n = 0; float ma = -10.0;
     for (int i = 0; i < uNCode; i++) {
       if (w[i] < 0.004 || n >= uNCand) continue;
-      Smp m = matColor(i, vW, gDx, gDy, tw, seaAng, fw);
+      Smp m = matColor(i, Pp, gDx, gDy, tw, seaAng, fw);
       C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; ma = max(ma, m.c.a + w[i]); n++;
     }
     ma -= uSeam.x;   // the seam between ZONES has its own depth (softer than a set's own mix)
@@ -785,6 +821,7 @@ const U = {
   uDist2: { value: new THREE.Vector4(K.macroMix.v, K.macroNear.v, K.triK.v, 0) },
   uHex: { value: new THREE.Vector4(K.hDepth.v, K.hexOn.v, K.hexN.v, K.hexRot.v * Math.PI / 180) },
   uSeam: { value: new THREE.Vector2(K.seamDepth.v, K.macroExp.v) },
+  uPara: { value: new THREE.Vector4(K.para.v, K.paraSteps.v, 0, 0) },
   uGrade: { value: Array.from({ length: 24 }, () => new THREE.Vector4(1, 1, 1, 1)) },
   uCol: { value: CLASSES.map(c => new THREE.Color(c[2])) }, uCls: { value: CLASSES.map(c => c[0]) },
   uLN: { value: 0 }, uLSrc: { value: new Array(MAXL).fill(0) }, uLMode: { value: new Array(MAXL).fill(0) }, uLOp: { value: new Float32Array(MAXL) },
@@ -864,7 +901,7 @@ function pushSplat() {
     F.set(li(m.far[0]), li(m.far[1]), li(m.far[2]), 0);
     FS.set(m.farScale[0] || 1, m.farScale[1] || 1, m.farScale[2] || 1, 0);
     M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
-    const v = m.vary || [0, 0, 20]; U.uVary.value[i].set(v[0] * Math.PI / 180, v[1], v[2], 0);
+    const v = m.vary || [0, 0, 20]; U.uVary.value[i].set(v[0] * Math.PI / 180, v[1], v[2], m.para === undefined ? 0.2 : m.para);
   }
   try { localStorage.setItem('flydiy.island.splat.v5', JSON.stringify(SPLAT)); } catch (e) {}
 }
@@ -1136,7 +1173,7 @@ function ui() {
     `<div class="row"><button id="spReset">default</button><button id="spExport">export</button></div>` +
     `<h2>SPLAT DISTANCE &middot; PROJECTION</h2>` + ['detailFrom', 'detailTo', 'macroFrom', 'macroTo', 'macroMix', 'macroNear', 'macroExp', 'triK'].map(id => knob(id, K[id])).join('') +
     `<h2>SPLAT BLEND &middot; TILING</h2>` + ['hDepth', 'seamDepth', 'hexOn', 'hexN', 'hexRot', 'nrmK', 'specK'].map(id => knob(id, K[id])).join('') +
-    `<h2>MICRO (puddles &middot; the water's edge)</h2>` + ['pudCell', 'pudCover', 'pudEdge', 'pudSlope', 'lakeEdge'].map(id => knob(id, K[id])).join('') +
+    `<h2>MICRO (puddles &middot; the water's edge)</h2>` + ['pudCell', 'pudCover', 'pudEdge', 'pudSlope', 'lakeEdge', 'para', 'paraSteps'].map(id => knob(id, K[id])).join('') +
     `<h2>LIBRARY (grade per set: gain, saturation)</h2><div id="libGrade"></div>` +
     `<h2>SPLITS (derived codes)</h2>` + ['cliffLo', 'cliffHi', 'oldLo', 'oldHi', 'denseLo', 'denseHi', 'splatWobble', 'splatBlend', 'beachRot'].map(id => knob(id, K[id])).join('') +
     `<h2>LAYERS</h2><table id="layers"></table>` +
@@ -1171,6 +1208,7 @@ function ui() {
       if (id === 'macroMix' || id === 'macroNear' || id === 'triK') U.uDist2.value.set(K.macroMix.v, K.macroNear.v, K.triK.v, 0);
       if (id === 'hDepth' || id === 'hexOn' || id === 'hexN' || id === 'hexRot') U.uHex.value.set(K.hDepth.v, K.hexOn.v, K.hexN.v, K.hexRot.v * Math.PI / 180);
       if (id === 'seamDepth' || id === 'macroExp') U.uSeam.value.set(K.seamDepth.v, K.macroExp.v);
+      if (id === 'para' || id === 'paraSteps') U.uPara.value.set(K.para.v, K.paraSteps.v, 0, 0);
       if (id === 'nrmK' || id === 'specK') U.uNrm.value.set(K.nrmK.v, K.specK.v);
       if (id.startsWith('pud')) U.uPud.value.set(K.pudCell.v, K.pudCover.v, K.pudEdge.v, K.pudSlope.v);
       if (id === 'lakeEdge') U.uLakeE.value.x = K.lakeEdge.v;

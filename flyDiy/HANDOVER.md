@@ -51564,3 +51564,35 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   but master's own six — WINGSPLIT, ENGINE, PREMISES, ENERGY, WORLD, AERO fail the same
   way in a clean master checkout (verified one by one) — and PILOT, green once the
   fixture above was re-armed.
+
+## G438.1 — THE SPLAT JUDGED IN THE GAME: THE LAKES' TWO BLUES, THE FAR COLOUR, THE BUSH (2026-09-21, the user: "you still have super harsh transitions light blue-dark blue ... I have already flagged this 3 to 5 times ... lakes should have a single colour"; "the far colour does not match our close colors ... the bush texture in particular is much too grassy, they look like golf tracks")
+
+- THE LAKES' TWO BLUES, THE CAUSE AT LAST: a lake is drawn twice - the ground under it painted the bed
+  colour (dark) where the lake field says water, and one surface quad at the DEM's flattened level
+  (pale, fading in over the edge's 4 m). The near ring is a 512x512 plane over the inner disc - 17.6 m
+  CHORDS - and along every concave lake edge that mesh runs ABOVE the flattened water plane: the
+  bed-painted ground poked up THROUGH the surface as a stair-stepped rim, which is why no paint fix
+  (G413's fade band, G434.1's tidal flats, the bench's sharp edge) ever removed it. The ground is
+  DISCARDED more than 1 m inside the line now (the island hook, one line); inside the water there is
+  the surface only. The bank still shows through the -3..+1 m shallows. A/B at one eye:
+  bench/alt/lake_AB_250.png.
+- THE FAR COLOUR, MEASURED: the map's albedo (the far tier) is ~0.035 linear over land where the sets
+  sit at ~0.105 - three times darker (a shaded July image). `macroExp` is measured at boot now
+  (splat_ground.js autoExposure: the sets' mean luminance weighted by the codes' land shares over the
+  map's; 2.69 on Jolene; a saved knob overrides). Near/far luminance over HOME: 800 m 1.14x, 250 m
+  1.08x, 60 m 1.07x (tools: the scratch measure.py on island_shot frames). The saturation gap was
+  the BUSH: scrub was the lot's lawn grasses (grass + lush, sat 0.80 against the map's 0.63) - it
+  is grassRock + rocky terrain + mud now; the lawn grasses at 0.7 saturation where heath and dense
+  scrub still use them; the macro's tint under the detail 0.45. Series: bench/alt/before_* / after_*.
+- The mask cut 4x -> 2x on the ground (4x made hard pale blotches once lit; CODES rows follow); a
+  lake cell votes as its shore (muskeg) so the ground round the water is ground; the forest floor
+  is aerial rock 04 (the user) with a little mud, near and far.
+- THE PARALLAX, TRIED AND OFF: a fixed-count occlusion march on the dominant plane through the
+  dominant set's height (bench, `parallax` knob, a `para` factor per code in RECIPE). On the aerial
+  sets it smears (their "height" is the integrated normal of a 50-90 m photo), on the detail sets it
+  is invisible at 25 m. The knob stays at 0; real displacement maps for the detail sets would make
+  it worth turning on. bench/para/*_AB.png.
+- The game shots (bench/game/, bench/alt/) are the chantier's first in-game record: HOME 60/250/
+  800/2000 m, the shore, Tamgas, the muskeg flats (the shared field's pools, the lush on the mud).
+- OWED (unchanged): a rock-beach set; the ring as a Standard material (the pools read as slate
+  without a reflection); the rare aerials; GATE SPLAT.

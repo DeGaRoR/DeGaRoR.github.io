@@ -39,11 +39,12 @@ const SPLAT_GROUND = (() => {
   // ---- the state: the recipe (the module's default under the browser's copy) --
   const load = () => {
     const R = JSON.parse(JSON.stringify(G.RECIPE));
-    try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.splat.v1') || 'null');
+    let sv0 = null;
+    try { const sv = JSON.parse(localStorage.getItem('flydiy.ground.splat.v1') || 'null'); sv0 = sv;
       if (sv) { if (sv.codes) for (const k in sv.codes) R.codes[k] = Object.assign(R.codes[k] || {}, sv.codes[k]);
         if (sv.knobs) Object.assign(R.knobs, sv.knobs); if (sv.grade) R.grade = sv.grade; if (sv.on !== undefined) R.on = sv.on; } } catch (e) {}
     if (R.on === undefined) R.on = 1;
-    R.knobs.macroExp = 1;   // the game's macro is the LIT stack; the bench's exposure was its own light's
+    R.macroExpSaved = !!(sv0 && sv0.knobs && sv0.knobs.macroExp);   // an override sticks; else the auto value (make)
     return R;
   };
   const save = R => { try { localStorage.setItem('flydiy.ground.splat.v1', JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })); } catch (e) {} };
@@ -132,7 +133,7 @@ const SPLAT_GROUND = (() => {
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) return o;
     float ang = A.w > 0.5 ? seaAng : 0.0;
-    float period = max(M.x, 0.5) * 6.0, sharp = M.y * 4.0;
+    float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;   // 2x (4x cut the sets into hard blotches once lit in the game)
     float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
     vec4 F = uSMatF[i], FS = uSMatFS[i];
@@ -174,7 +175,10 @@ const SPLAT_GROUND = (() => {
     w[4] += w[0]; w[0] = 0.0;
     float lakeM = 0.0;
     if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
-    w[1] = 0.0;
+    // a LAKE cell votes as its shore (muskeg, a muddy margin): the ground under and round the water is ground;
+    // the bed paint and the surface quad do the water (a voteless cell fell back to the stack's pale blue - the
+    // stair-step band round every lake)
+    w[3] += w[1]; w[1] = 0.0;
     float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope);
     float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
     float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
@@ -249,11 +253,34 @@ const SPLAT_GROUND = (() => {
     });
   }
 
-  function make(gU) {
+  // THE MACRO'S EXPOSURE, MEASURED (2026-09-21, the user: "the far colour does not match our close
+  // colours ... we should stay within the same luminosity"): the map's albedo is a shaded July
+  // image, ~0.035 linear over land where the sets sit at ~0.105 - three times darker. The far
+  // tier (the stack) is lifted by the ratio of the sets' mean luminance (weighted by the codes'
+  // shares of the land) to the map's, so the far and the near are one luminance by construction.
+  function autoExposure(isla, R) {
+    try {
+      const T = isla.ttype, A = isla.albedo, n = T.length; if (!T || !A) return 1;
+      const cnt = new Float64Array(16); let lm = 0, nm = 0;
+      const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      for (let i = 0; i < n; i += 37) { const t = T[i]; if (t < 2) continue; cnt[t]++;
+        lm += 0.2126 * lin(A[i * 3]) + 0.7152 * lin(A[i * 3 + 1]) + 0.0722 * lin(A[i * 3 + 2]); nm++; }
+      const mean = {}; for (const s of SPLAT_TEX_SETS) mean[s.key] = s.mean;
+      let ls = 0, ns = 0;
+      for (let c = 2; c < 16; c++) { const row = R.codes[c]; if (!row || !cnt[c]) continue;
+        const keys = row.tex.filter(k => k && mean[k]); if (!keys.length) continue;
+        const L = keys.reduce((a, k) => a + 0.2126 * mean[k][0] + 0.7152 * mean[k][1] + 0.0722 * mean[k][2], 0) / keys.length;
+        ls += L * cnt[c]; ns += cnt[c]; }
+      if (!nm || !ns) return 1;
+      return Math.min(6, Math.max(1, (ls / ns) / (lm / nm)));
+    } catch (e) { return 1; }
+  }
+  function make(gU, isla) {
     if (!G || typeof SPLAT_TEX_SETS === 'undefined' || !SPLAT_TEX_SETS) return null;
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
+    if (!R.macroExpSaved && isla) R.knobs.macroExp = +autoExposure(isla, R).toFixed(2);
     const LIB = SPLAT_TEX_SETS.map(s => s.key);
     const V4 = () => new THREE.Vector4();
     const blank = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); blank.needsUpdate = true;

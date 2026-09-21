@@ -994,7 +994,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
       // on the near ring / outer ring / premises patch (tools/sampler_census.js)
-      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU) : null;
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA) : null;
       islandGroundHook = sh => {
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
@@ -1051,6 +1051,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
             '  float lsd = (gLake(guv) * 255.0 - 128.0) * 4.0;\n' +
+            // NO GROUND INSIDE THE WATER (2026-09-21, the user, the fifth time: "super harsh transitions
+            // light blue - dark blue ... lakes should have a single colour"): the ring's 17.6 m chords run
+            // ABOVE the lake plane in a band along every outline (the edge is concave), and that ground,
+            // painted with the bed colour, was the pale stair-stepped rim round the darker water. Past a
+            // metre inside the line the surface quad is opaque and covers everything: the ground is not
+            // drawn there at all. The fade band (-3..+1 m) keeps its bank showing through the shallows.
+            '  if (uGWaterMap > 0.5 && lsd > 1.0) discard;\n' +
             // THE SHORE IS A MIXED PIXEL (G406): a 30 m Landsat texel over a 20 m pond is half
             // water, dark; within 45 m of a lake edge the tint is taken from 45 m further out
             // (the field's own gradient says which way out is)
