@@ -52337,3 +52337,44 @@ the page (the ones below).
 (Written as G437 on the vegetation branch on 2026-09-20; LANDED ALONE on master as G452 on
 2026-09-21, the user: "I keep seeing other sessions with the old dark and slim impostors" -
 the biomes chantier that sits on top of it stays on its branch.)
+
+## G453 — THE WINGTIP LIGHT IS A FITMENT ON THE TIP'S OUTLINE (2026-09-21, the user: "on the wingtip
+## lights, try fitments, because we have many wingtip types, and I fear a cutout would be too much
+## work. Do something that fits well, and with accurate positioning rules")
+
+- ONE RULE FOR SIX TIPS (_cage_light.js sites(), tipFit): read off the built wing through the wing
+  layer's own probes (overAt / underAt, G133 - the skin's top and bottom at a plan position, null
+  off the planform), not off the tip table, so square, clipped, rounded, elliptical, Hoerner and
+  winglet all take the same fitting the same way:
+    1. THE LAST FULL STATION - walking inboard from the extreme in 2 cm slices until the chord
+       stops growing (within 4 % of the slice 10 cm further in): the tip itself on a square tip,
+       the bow's start on a rounded one (measured on the Cessna: square 5.40, clipped 5.42,
+       Hoerner 5.26, rounded 5.14, elliptical 5.06 of a 5.50 semispan).
+    2. THE SEAT STATION - 30 % of that chord aft of its leading edge (never under 50 mm), plus
+       the builder's `aft along the tip` nudge: forward of the spar, on the outboard face rather
+       than at a bowed tip's apex.
+    3. THE SEAT POINT - the outline of the tip in plan at that station (the outermost x still on
+       the planform, bisected), `inboard from the tip` moved in along the outline's normal; the
+       height the local mid-thickness a centimetre inside the outline, `up / down in the section`
+       moving it within that thickness.
+    4. THE FITTING'S FRAME - its height axis the outline's OUTWARD NORMAL there (pure outboard on
+       a square tip; swung forward on a rounded one - (0.99, 0, -0.14) rounded, (0.97, 0, -0.23)
+       elliptical, so the fairing lies ON the tip's face whatever the bow), its length the
+       outline's tangent, the nose forward.
+    5. SEATED a third of its height into the skin (site.sink 0.34) so the fairing meets the
+       surface instead of floating off it; the pod is the catalogue part as before (G179.5:
+       14 cm teardrop, 55 wide, 48 high, the lens its nose).
+  The probes answer in the wing group's frame (its origin at the wing's anchor, (0, 1.328, 0) on
+  the Cessna) and the light layer works in its own: the seat goes through the wing's matrix and
+  back through the layer's inverse. A winglet's plan outline is the winglet's own foot, and the
+  fitting sits at its leading corner.
+- THE ROWS ARE NUDGES NOW: `inboard from the tip` and `aft along the tip` default 0 (the rule
+  places the light; the three archetype starters in _cage_page5.js that carried the old 0.02 /
+  0.10 carry 0 / 0). GATE LIGHT's literal check reads the new expressions.
+- THE LENS IS COLOURED PLASTIC BY DAY (lensMat): unlit it was 0x14161a - a black bead on the tip
+  whichever side - a nav lens is a red or green dome you can tell apart across the apron; the
+  tint is the lens colour at a third, the emissive term the lamp's as before.
+- SEEN: scratch shots_a7_tips/zoom2.png (the six tips, from ahead-outboard and from above),
+  shots_a7_tips2/cmp.png (the rounded and square tips close, the red lens).
+- FLIGHT_PROBE gets `pan(x, y, z)` (the editor's orbit pan, for a rig that frames a wingtip).
+- GATES: LIGHT, BEACON, BAY, CLIP, PARTS, UISMOKE, VIEW, STARTER, DESIGN, MEDIA green.

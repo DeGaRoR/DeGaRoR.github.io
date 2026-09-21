@@ -371,7 +371,7 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
     check(lit.indexOf("'" + k + "'") >= 0 && lit.indexOf(k + ':') >= 0,
           k + ' is not both declared and offered — a default with no row is ' +
           'unreachable, and a row with no default reads NaN');
-  check(/wb\.max\.x - navSpan/.test(lit) && /tipR\.zLE - navChord/.test(lit),
+  check(/x0 - nx \* navSpan/.test(lit) && /cFull \* 0\.30\) - navChord/.test(lit),
         'the wingtip nav is back to inline literals for its own position');
   check(/Number\.isFinite\(v\) \? Math\.max\(lo, Math\.min\(hi, v\)\) : d/.test(lit),
         'the placement rows are not clamped: a stale save reaches the ' +

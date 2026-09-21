@@ -4649,7 +4649,7 @@
                           camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
-                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
+                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)

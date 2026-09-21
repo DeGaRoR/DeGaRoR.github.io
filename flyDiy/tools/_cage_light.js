@@ -137,7 +137,7 @@ const defaults = { lightOn: 1, lightSw: 1,
   // should, but inside it"): the fairing's foot seats on the edge, no more.
   li_beaconSink: 0.04,
   // THE WINGTIP NAV, which was five inline literals and no rows at all.
-  li_navSpan: 0.02, li_navChord: 0.10, li_navRise: 0.0,
+  li_navSpan: 0.00, li_navChord: 0.00, li_navRise: 0.0,   // A7: the tip fitment's own rule places it; these are nudges
   // G185: on a biplane, which plane carries the bay and the tip lights
   li_plane: 0,
   // the reflector inside a lit fitting glows (user: "it feels strange to have
@@ -181,7 +181,7 @@ const items = [
   ], { when: P => +P.lightOn }],
   ['the navigation lights', [
     ['li_navSpan',  'inboard from the tip', 0.00, 0.30, 0.005, { dim: 'm' }],
-    ['li_navChord', 'aft of the leading edge', 0.00, 0.40, 0.005, { dim: 'm' }],
+    ['li_navChord', 'aft along the tip', -0.10, 0.40, 0.005, { dim: 'm' }],
     ['li_navRise',  'up / down in the section', -1, 1, 0.05],
   ], { when: P => +P.lightOn && +P.li_nav }],
   ['the beacon', [
@@ -221,8 +221,12 @@ function lensMat(key, level, colOver) {
   const col = colOver != null ? colOver : L.col;
   const id = key + '|' + level.toFixed(2) + '|' + col;
   if (emMats[id]) return emMats[id];
+  // THE LENS IS COLOURED PLASTIC BY DAY (A7, 2026-09-21): unlit it was
+  // 0x14161a, a black bead on the tip whatever the side - a nav lens is a
+  // red or green dome you can tell apart from across the apron; the tint
+  // is the lens colour darkened, the emissive term the lamp's as before
   const m = new THREE.MeshStandardMaterial({
-    color: 0x14161a, emissive: new THREE.Color(col),
+    color: new THREE.Color(col).multiplyScalar(0.32), emissive: new THREE.Color(col),
     emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,
     side: THREE.DoubleSide });
   // the G38 understudy replaces every lit material with flat grey unless it is
@@ -672,8 +676,8 @@ function sites(scene, group, P) {
     return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d;
   };
   const beaconSink = num('li_beaconSink', 0.04, 0, 0.5);
-  const navSpan = num('li_navSpan', 0.02, 0, 0.30);
-  const navChord = num('li_navChord', 0.10, 0, 0.40);
+  const navSpan = num('li_navSpan', 0, 0, 0.30);
+  const navChord = num('li_navChord', 0, -0.10, 0.40);
   const navRise = num('li_navRise', 0, -1, 1);
   group.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
@@ -812,31 +816,111 @@ function sites(scene, group, P) {
     // `li_navSpan` replaces the 0.03 literal: how far INBOARD of the tip the
     // section is sampled. The 0.04 tolerance stays a tolerance — it is the
     // width of the sampling band, not a placement.
-    const tipR = slice(wb.max.x - navSpan - 0.01, 0.04),
-          tipL = slice(wb.min.x + navSpan + 0.01, 0.04);
-    // THE LIGHT SITS AT THE TIP'S LEADING EDGE — forward, because being seen
-    // from ahead is the entire purpose of a navigation light.
-    // and each one carries the SIZE OF THE SURFACE IT SITS ON, so the fitting
-    // can be shaped to a tip rather than stuck on it as a disc (G100)
-    const tipLen = t => t ? Math.max(0.12, (t.zLE - t.zTE) * 0.45) : 0.20;
-    // `li_navRise` moves the lamp within the section's OWN thickness rather
-    // than by an absolute distance, so it means the same thing on a 52 mm tip
-    // and a 126 mm one: -1 the lower surface, 0 the mid-thickness, +1 the upper.
-    const tipY = t => t ? (t.y0 + t.y1) / 2 + navRise * (t.y1 - t.y0) * 0.5 : 0;
+    // THE WINGTIP LIGHT IS A FITMENT ON THE TIP'S OWN OUTLINE (A7, 2026-09-21,
+    // the user: "try fitments, because we have many wingtip types ... with
+    // accurate positioning rules"). Six tip treatments (GEN_TIPS: square,
+    // clipped, rounded, elliptical, Hoerner, winglet) and one rule for all of
+    // them, read off the built wing rather than the table:
+    //   1. THE LAST FULL STATION - the outermost span station whose chord is
+    //      still the tip chord (the bow starts there: on a square tip it is
+    //      the tip itself; on a rounded one the chord closes outboard of it).
+    //      Found by walking inboard from the extreme in 2 cm slices until the
+    //      chord stops growing (within 4 %).
+    //   2. THE SEAT STATION - 30 % of that chord aft of its leading edge, plus
+    //      the builder's `aft of the leading edge` nudge: forward of the spar,
+    //      where every wingtip light sits, and on a bowed tip still on the
+    //      outboard face rather than at the apex.
+    //   3. THE SEAT POINT - the outermost skin vertex at that station (the
+    //      outline of the tip in plan), `inboard from the tip` moved in along
+    //      the outline's normal; the height is the local mid-thickness,
+    //      `up / down in the section` moving it within the local thickness.
+    //   4. THE FITTING'S FRAME - its height axis is the outline's OUTWARD
+    //      NORMAL there (pure outboard on a square tip, swung forward on a
+    //      round one, so the fairing lies ON the tip's face whatever the
+    //      bow), its length the outline's tangent, nose forward.
+    //   5. SEATED: a third of the fairing's height buried in the skin, so it
+    //      meets the surface instead of floating off it (site.sink).
+    // A winglet's plan outline is the winglet's own edge, which is the right
+    // face for it too (the rule walks the outline of whatever is outermost).
+    const tipFit = (sgn) => {
+      // the wing's own probes (G133): the skin's top and bottom at a plan
+      // position, null off the planform - the outline is where they stop
+      const over = W.overAt, under = W.underAt;
+      if (typeof over !== 'function' || typeof under !== 'function') return null;
+      // THE PROBES ANSWER IN THE WING GROUP'S OWN FRAME (its origin sits at
+      // the wing's anchor height: measured (0, 1.328, 0) on the Cessna) and
+      // everything below is in the light layer's, so the extreme and the
+      // seat go through the wing's matrix and back through `inv`
+      W.group.updateMatrixWorld(true);
+      const wl = new THREE.Matrix4().copy(W.group.matrixWorld).premultiply(inv);   // wing local -> light local
+      const toL = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(wl).toArray();
+      const wlInv = new THREE.Matrix4().copy(wl).invert();
+      const ext = new THREE.Vector3(sgn > 0 ? wb.max.x : wb.min.x, 0, 0).applyMatrix4(wlInv);
+      const xExt = ext.x;
+      const N = 48;
+      const zb0 = (W.box && W.box.min) ? W.box.min[2] : wb.min.z, zb1 = (W.box && W.box.max) ? W.box.max[2] : wb.max.z;
+      const edge = (x, fromFront) => {           // the LE (or TE) z at station x, wing frame
+        for (let k = 0; k <= N; k++) {
+          const z = fromFront ? zb1 - (zb1 - zb0) * k / N
+                              : zb0 + (zb1 - zb0) * k / N;
+          if (over(x, z) && under(x, z)) return z;
+        }
+        return null;
+      };
+      const chordAt = x => { const l = edge(x, true), t = edge(x, false); return (l != null && t != null) ? l - t : 0; };
+      // 1. the last full station: the chord stops growing (within 4 %)
+      let xFull = xExt - sgn * 0.02, cFull = 0;
+      for (let d = 0.02; d < Math.min(1.5, span * 0.45); d += 0.02) {
+        const x = xExt - sgn * d, c1 = chordAt(x);
+        if (!(c1 > 0.02)) continue;
+        const c2 = chordAt(xExt - sgn * (d + 0.10)) || c1;
+        xFull = x; cFull = c1;
+        if (c1 >= c2 * 0.96) break;
+      }
+      if (!(cFull > 0.05)) return null;
+      // 2. the seat station
+      const zLE = edge(xFull, true);
+      if (zLE == null) return null;
+      const zSeat = zLE - Math.max(0.05, cFull * 0.30) - navChord;
+      // 3. the outline at a station: the outermost x still on the planform,
+      // bisected between the last full station and the extreme
+      const outline = z => {
+        let xi = xFull, xo = xExt + sgn * 0.02;
+        if (!(over(xi, z) && under(xi, z))) return null;
+        for (let i = 0; i < 18; i++) {
+          const xm = (xi + xo) / 2;
+          if (over(xm, z) && under(xm, z)) xi = xm; else xo = xm;
+        }
+        return xi;
+      };
+      const x0 = outline(zSeat), xF = outline(zSeat + 0.04), xA = outline(zSeat - 0.04);
+      if (x0 == null) return null;
+      // 4. the frame: the outline's tangent (aft) and its outward normal
+      let tx = 0, tz = -1;
+      if (xF != null && xA != null) { tx = xA - xF; tz = -0.08; }
+      const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+      let nx = -tz, nz = tx;
+      if (sgn * nx < 0) { nx = -nx; nz = -nz; }
+      // the local thickness, a centimetre inside the outline
+      const xs = x0 - sgn * 0.012;
+      const t = over(xs, zSeat), u = under(xs, zSeat);
+      const thick = (t && u) ? Math.max(0.02, t.y - u.y) : 0.04;
+      const yMid = (t && u) ? (t.y + u.y) / 2 + navRise * thick * 0.5 : 0;
+      // 3. (cont.) the builder's inboard nudge, along the normal - and into
+      // the light layer's frame
+      const p = toL(x0 - nx * navSpan, yMid, zSeat - nz * navSpan);
+      return { p, ax: [nx, 0, nz], chord: [tx, 0, tz], thick,   // chord runs AFT: the pod's lens is at the seat, its body behind
+               len: Math.max(0.12, cFull * 0.12), xFull, chordFull: cFull };
+    };
+    const fitR = tipFit(1), fitL = tipFit(-1);
+    // THE LIGHT SITS AT THE TIP'S LEADING QUARTER - forward, because being
+    // seen from ahead is the entire purpose of a navigation light.
     // G209: cage +x is the PORT wing (model +z; the crew layer's "pilot's
     // right = -x"), so the lamp at max.x wears the port RED and the one at
     // min.x the starboard GREEN. They were the other way round: a green
     // lens on the left wing of every build since G96.
-    if (tipR) out.navR = { p: [wb.max.x - navSpan, tipY(tipR),
-                               tipR.zLE - navChord],
-                           ax: [1, 0, 0], col: 0xff2a1e, chord: [0, 0, -1],
-                           len: tipLen(tipR), thick: tipR.y1 - tipR.y0,
-                           pod: true, noseLens: true };
-    if (tipL) out.navL = { p: [wb.min.x + navSpan, tipY(tipL),
-                               tipL.zLE - navChord],
-                           ax: [-1, 0, 0], col: 0x18e04a, chord: [0, 0, -1],
-                           len: tipLen(tipL), thick: tipL.y1 - tipL.y0,
-                           pod: true, noseLens: true };
+    if (fitR) out.navR = Object.assign({ col: 0xff2a1e, pod: true, noseLens: true, sink: 0.34 }, fitR);
+    if (fitL) out.navL = Object.assign({ col: 0x18e04a, pod: true, noseLens: true, sink: 0.34 }, fitL);
     // THE LANDING AND TAXI LAMPS LIVE IN THE LEADING EDGE, inboard, where the
     // spar is deep enough to carry them and the prop wash is not.
     //
