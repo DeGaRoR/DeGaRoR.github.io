@@ -205,12 +205,21 @@ console.log('--- 3. electric against piston, in the same thin air ---');
       const massOf = d => d.nodes.reduce((q, nd) => q + nd.m, 0);
       const dm = massOf(tur.def) - massOf(pis.def);
       const dFuel = GEN_DEFAULT.fuel.litres * (GEN_FUELS.jetA.kgL - GEN_FUELS.avgas100LL.kgL);
+      // G455: ...AND THE INSTALLATION (G445.8). resolveSpec bills mount,
+      // baffles, oil and controls at engInstallK[family] x the dry mass; a
+      // turbine installs at 0.10, the piston at 0.13, so the "same aeroplane"
+      // is ~2 kg lighter on the turbine before its fuel is poured (measured
+      // -2.04 with the 58 kg row: +2.63 read against a +4.00 fuel). The
+      // installation delta is read off the two resolved specs, not assumed.
+      const dInst = (tur.def.spec && tur.def.spec.engInstallM || 0) -
+                    (pis.def.spec && pis.def.spec.engInstallM || 0);
+      const dExp = dFuel + dInst;
       // PERF STUDY chantier 1 (2026-09-15): ...and the gauge's answer to it —
       // 4 kg more design gross builds a slightly heavier tube (genDesignGross,
-      // GEN_GAUGE), measured +0.67 kg on the 50 L: never less than the fuel,
-      // never more than a quarter of it again
-      yes(dm >= dFuel - 0.05 && dm - dFuel < 0.25 * dFuel,
-          `at sea level the difference is the kerosene and the gauge's response to it: +${dm.toFixed(2)} kg for ${GEN_DEFAULT.fuel.litres} L (the fuel +${dFuel.toFixed(2)})`);
+      // GEN_GAUGE), measured +0.67 kg on the 50 L: never less than the fuel
+      // (and the installation), never more than a quarter of the fuel again
+      yes(dm >= dExp - 0.05 && dm - dExp < 0.25 * dFuel,
+          `at sea level the difference is the kerosene, the installation and the gauge's response: +${dm.toFixed(2)} kg for ${GEN_DEFAULT.fuel.litres} L (the fuel +${dFuel.toFixed(2)}, the install ${dInst >= 0 ? '+' : ''}${dInst.toFixed(2)})`);
       yes(tur.isa.TORun >= pis.isa.TORun && tur.isa.TORun - pis.isa.TORun <= 8,
           `and the heavier fuel costs a few metres of sea-level run, no more (${pis.isa.TORun} -> ${tur.isa.TORun} m)`);
       // above the flat band the core's own lapse takes over: a probe at

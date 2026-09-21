@@ -6,7 +6,12 @@ const { makeWorld } = require('./flight_core.js');
 
 const W = makeWorld();
 const S = W.SURFACE;
-const strips = W.aerodromes.filter(a => a.kind !== 'meadow' && a.id !== 'HOME');
+// G455: the SEA lane (kind 'water', G393) is an aerodrome the registry
+// carries and a strip this gate cannot judge — its centreline is 96 m of
+// sea over the bed, every sample "wet", no road reaches it. Every one of
+// the five reds since G393 was that lane alone (A0–A7 clean); the water
+// lane is GATE SEAPLANE's, the graded ground here is the land strips'.
+const strips = W.aerodromes.filter(a => a.kind !== 'meadow' && a.kind !== 'water' && a.id !== 'HOME');
 const checks = {};
 
 const fields = strips.filter(a => a.kind === 'main');

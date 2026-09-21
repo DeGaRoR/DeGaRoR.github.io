@@ -532,12 +532,26 @@ for (const fx of fixtures) {
     const W = fc.makeWorld(0, { premises: txt });
     check(!!W.premises && !!W.premises.overlay && W.premises.overlay.n > 0, '5b the world carries the composed premises');
     const F = PG.frameOf(rec, W), ex = W.premises.overlay.extent;
-    let differs = 0, same = 0, outside = true;
+    // G455: THE BARE WORLD IS THE SAME BAKE WITH THE LAYER UNSET. Since G413
+    // makeWorld reads the premises' strips BEFORE the hydrology bake and
+    // domes the drainage over them (20_world.js pmStrips) so no river
+    // crosses a strip; the fixture's strip re-routes one, and its carved
+    // bed differs from a bare makeWorld() by up to 3.1 m along a thin line
+    // 0.8–1.8 km away (measured, a 20 m grid). That is the bake's, on
+    // purpose. What this rule protects is the LAYER: outside its extent the
+    // composed height must be the height with no layer — so the reference
+    // is the same world after `premises.set(null)`, which drops PM and the
+    // height memo and leaves the bake alone. Byte-identical on 4000 random
+    // samples and the dense grid before this line was written.
+    const W0 = fc.makeWorld(0, { premises: txt }); W0.premises.set(null);
+    check(!W0.premises.overlay, '5b the layer comes off (premises.set(null))');
+    let differs = 0, same = 0, outside = true, differsBare = 0;
     const r2 = PG.mulberry32(3);
-    for (let k = 0; k < 400; k++) { const lx = ex.x0 + r2() * (ex.x1 - ex.x0), lz = ex.z0 + r2() * (ex.z1 - ex.z0); const w = F.toWorld(lx, lz); if (W.terrainH(w[0], w[1]) !== FLIGHT.terrainH(w[0], w[1])) differs++; else same++; }
-    for (let k = 0; k < 400; k++) { const x = (r2() - 0.5) * 20000, z = (r2() - 0.5) * 20000; if (W.premises.overlay.inExtent(x, z)) continue; if (W.terrainH(x, z) !== FLIGHT.terrainH(x, z)) outside = false; }
+    for (let k = 0; k < 400; k++) { const lx = ex.x0 + r2() * (ex.x1 - ex.x0), lz = ex.z0 + r2() * (ex.z1 - ex.z0); const w = F.toWorld(lx, lz); if (W.terrainH(w[0], w[1]) !== W0.terrainH(w[0], w[1])) differs++; else same++; }
+    for (let k = 0; k < 400; k++) { const x = (r2() - 0.5) * 20000, z = (r2() - 0.5) * 20000; if (W.premises.overlay.inExtent(x, z)) continue; if (W.terrainH(x, z) !== W0.terrainH(x, z)) outside = false; if (W.terrainH(x, z) !== FLIGHT.terrainH(x, z)) differsBare++; }
     check(differs > 0, '5b inside the extent the ground is the composed one', differs + ' of ' + (differs + same) + ' samples differ');
-    check(outside, '5b outside the extent every height is the bare world\'s');
+    check(outside, '5b outside the extent every height is the bare world\'s (the same bake, the layer unset)');
+    console.log('     5b the strips\' drainage domes (G413) move the bare bake at ' + differsBare + ' of 400 outside samples — the bake\'s, not the layer\'s');
     const A = W.aerodromes.find(a => a.premises);
     check(!!A && A.kind === 'strip', '5b the strip is in W.aerodromes');
     check(!!A && fc.siteOf(A.id) === (W.premises.overlay.runways[0].site || null), '5b the strip\'s site (its stand, its way out) is registered for the pilot');

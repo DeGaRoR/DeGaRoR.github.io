@@ -168,7 +168,17 @@ function makePilot(sim, def, world, opts) {
     const ey = E.reduce((s, i) => s + N[i].p[1], 0) / E.length;
     return M > 0 ? ey - cy / M : 0;
   })();
-  const highThrust = THRUST_ARM > (A.highThrustArm ?? 0.30);
+  // G455: ...AND NOT ON THE WATER. The float card's wing-pod engines sit
+  // 0.548 m over the CG, so this rule held the stick back from t = 0 on
+  // GATE SEAPLANE's crosswind run and the aeroplane WATER-LOOPED at 4 s
+  // (hdg -20 deg at 3.0 s, -176 at 4.0, V 7.2 -> 2.5 m/s, water rudder on
+  // its stop). Bisected on the built cores: 38.7 deg through the G438
+  // build, the loop from the G439 build (G435 the only core change);
+  // reverting these three uses on that core restores 38.7 exactly, the
+  // shapeMatch re-centring changes nothing. On the water the hydro rules
+  // (G396.4: neutral through the hump, the 0.15 ceiling) already say what
+  // the stick does; the thrust line is theirs to hold, not this rule's.
+  const highThrust = !sim.hydro && THRUST_ARM > (A.highThrustArm ?? 0.30);
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;

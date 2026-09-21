@@ -52884,3 +52884,82 @@ rule) - the difference is to be found on a screen, not in the code read.
   are dark and glossy. Not done here.
 - Gates: AA (29), POSTFX (22), GFX, SKINMAT, LIGHT, HANGAR, BUILD, MEDIA, UISMOKE, WORLDRENDER, PROPS
   green; the core bundle untouched.
+
+## G455 — THE RED GATES: SEVEN RECALIBRATIONS, THE SEAPLANE'S WATER LOOP, HALF TANKS FOR THE
+## ARCHETYPES (2026-09-21, the user: "flydiy red gates ... they've grown with the updates ... let's
+## first do a study ... then: go ahead, land the recalibrations and the seaplane fix")
+
+Study: futureDesigns/RED-GATES-2026-09-21.md. Method: the full battery in a clean worktree at
+7439fef2 (--all --jobs=6, 6633 s wall on a machine at 100 % from four sessions), then every red run
+alone and its cause BISECTED against older built cores (`git show <sha>:flyDiy/tools/flight_core.js`
+beside the fixtures) — not read off this file. 9 red of 84: WINGSPLIT, ENGINE, PREMISES, ENERGY,
+WORLD, AERO, HOTHIGH (new), ARCHETYPES, PILOTMATRIX, SEAPLANE. SITE, UISMOKE, LIGHT, MEDIA, STARTER,
+BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
+
+- AERO (5 of 11): every red was the SEA lane alone (`kind:'water'`, G393: centreline 96 m of sea,
+  wet 13/13, road ∞; A0–A7 clean). The filter excludes `water` with `meadow` and HOME.
+- WORLD (trees hash, default==seed0): 24816 -> 24711 trees. Bisected to the G422 build (P1.A
+  approach fans, 350 m past each strip's ends, read by the tree placement): the 105 missing trees
+  all lie 0–350 m past the ends of the eight strips, none elsewhere; grid, meadows, anchors held.
+  GOLDEN_TREES '75835e6e' / 24711, the note dated.
+- PREMISES 5b ("outside the extent every height is the bare world's"): G413 domes the drainage bake
+  over the premises' strips (20_world pmStrips) so no river crosses one; the fixture's strip
+  re-routes a river and its carved bed differs from a bare makeWorld() by up to 3.1 m along a thin
+  line 0.8–1.8 km away. The bake's, on purpose; the LAYER is innocent. The reference is now the same
+  world with the layer unset (`premises.set(null)`): byte-identical on 4000 samples + a 20 m grid.
+  The gate prints how many outside samples the domes move (1 of 400).
+- ENERGY ("no require/window/document"): a regex `\brequire\(` tripped on 19_terrain_codec's
+  `typeof require === 'function' ? require('zlib')` guard (G391) — the guard that makes the bundle
+  importable by a worker. The check is the claim now: vm-load the bundle in a context with no
+  require/window/document/module and ask for buildGen/genShakedown/genSpecAtFuel. A bare `require(`
+  appended throws there (negative proof run by hand).
+- WINGSPLIT (POSITIONS moved, every case + hinge): G445.1/.8 moved the CG. The emitted wing against
+  the pre-G445 core (acfcab1e): a RIGID translation (98.74, 0.01, 0.00) mm, max deviation from rigid
+  0.0001 mm on 2430 skin vertices — the gate's own header's --bless case. Blessed on this core.
+- ENGINE (three): G445.8 engInstallK — the CGE node carries m x 1.13 (60 -> 67.800 exactly; the swap
+  -18 x 1.13 = -20.34 exactly on CGE), the other -2.8 kg is G429's gauge following the design gross
+  (S1 rings, spars, axles). The gate reads engInstallM off the resolved spec: the engine's node judged
+  exactly, the frame within a quarter of the installed delta again, the arm on the installed mass.
+- HOTHIGH (kerosene +2.63 vs +4.00): the same rule — the turbine row installs at 0.10, the piston at
+  0.13 (-1.74 kg on the 58 kg row); the expectation adds the two specs' engInstallM difference.
+- SEAPLANE: NOT a swing of 35.8 deg any more — a WATER LOOP (hdg -20 at 3.0 s, -176 at 4.0, V 7.2
+  -> 2.5 m/s, water rudder on its stop), and the runner's 30-min spawn timeout cut the case.
+  Bisected on built cores: 38.7 deg through the G438 build, the loop from the G439 build (G435 the
+  only core change). On that core, reverting the three `|| highThrust` uses of G435 ("a high thrust
+  line rolls three-point and asks the water stick") restores 38.7 exactly; reverting the shapeMatch
+  re-centring changes nothing. The float fixture's wing-pod engines sit THRUST_ARM 0.548 m over the
+  CG. FIX: `highThrust` is false on the water (43_pilot.js) — the hydro rules (G396.4) own the stick
+  there. STILL RED: on the current core the same run loops even with the rule off — G445's mass
+  moved the CG and the floats 7 cm forward against the wing and fin (M 478.4 -> 476.8) and a run that
+  was 8.7 deg over the bound became a loop. The water-rudder loop's re-tune stays owed to the water
+  arc (the G431 hand-off's item); measured, not blessed.
+- ARCHETYPES: the verdict at HEAD was INCOMPLETE — shards 0 and 1 hit the 3600 s timeout after 3–4
+  cards (the G416 contention false-red); six gave up (aerobatic biplane FINAL, Caravan-alike
+  CROSSWIND, Air Camper-alike BASE, Tiger Moth-alike FINAL, Motorglider FINAL, Twin bush hauler
+  CROSSWIND). THE USER'S RULING: the circuit is flown at HALF TANKS — genSpecAtFuel(spec, litres/2)
+  keeps `designL`, so the frame stays the full-tank frame and only the load changes; a battery
+  card is untouched.
+- PILOTMATRIX (3 regressed vs pilot_baseline.json, last moved G422): sinks mostly IMPROVED (cub
+  1.21 -> 0.74, dn4 1.76 -> 0.51); `cub:HOME:x2` roll-out swing 2.9 -> 7.6 (warn); `c172:HOME:x2`
+  completed -> GAVE UP and the new `c172:HOME:calm:rh` gives up. That is the corrected 172 — the
+  stock design — and THE PILOT cannot bring it round in a 2 m/s crosswind: a real bad, NOT blessed
+  (a re-bless would record the stock aeroplane as known-bad). To the pilot track (A8/P2: the trike
+  steer hunt above 21 m/s the C172 study measured). The gate stays red on purpose.
+- HALF TANKS, MEASURED (the two worst cards flown alone with --only): the aerobatic biplane still
+  goes around twice "off the centreline by 67 m on short final" and gives up in BASE; the
+  Caravan-alike reports "no climb left (-0.07 m/s) — accepting 181 m" at 83 s (full tanks too,
+  pilot_trace --drawn-tail: Vx 34 m/s, the shakedown's TORun 169 m), then goes around for terrain
+  and gives up. Neither is a load problem: a lateral capture on the fast short-span biplane and a
+  climb the pilot cannot find on the turboprop card — the pilot track's (A8/P2), recorded here.
+- LANDED ON G454's tip (master moved four times during the work: G451/G451.1 floats, G452/G453
+  vegetation + wingtip light, G448.3 post-FX). Re-measured on the rebased core: the seven green
+  again (ENGINE -20.34 / 67.800 exact; HOTHIGH install -1.74; WINGSPLIT re-blessed on the final
+  core, still a rigid 98.74 mm against the pre-G445 core). GATE SEAPLANE on G451.1's hydro: the
+  crosswind run is a DIFFERENT failure now — the pilot calls LIFTOFF at 6.1 s still wet, the
+  aeroplane is dry at 6.5 s at 15.8 m/s, back on the water at 8.0 s at 12.5 m/s and loops to -113
+  deg by 11 s; the gate reads green because its crosswind block stops accumulating maxHdgRun at the
+  FIRST dry frame (R.lift) — an instrument gap, told to the floats session (its chantier), not
+  changed here. The highThrust line stays: bisected on the old hydro it was the whole loop; on the
+  new one it moves little.
+- Gates on this commit's core, run alone: AERO WORLD PREMISES ENERGY ENGINE HOTHIGH WINGSPLIT
+  FLOATS TAKEOFF green; PILOTMATRIX red on purpose (above); ARCHETYPES needs a quiet --all.

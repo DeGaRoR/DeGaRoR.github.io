@@ -775,9 +775,27 @@ if (SHOW) for (const s of seen)
   check(fs.existsSync(path.join(__dirname, 'flight_core.js')) &&
         fs.existsSync(path.join(__dirname, '..', 'src', 'viewer', 'balance.js')),
     'lag: tools/flight_core.js and src/viewer/balance.js are on disk for the worker to import');
+  // G455: THE CLAIM IS TESTED, NOT GREPPED. The regex `\brequire\(` this
+  // stood on went red the day 19_terrain_codec.js took zlib behind a
+  // `typeof require === 'function'` guard (G391) — a guard that is exactly
+  // what makes the bundle importable by a worker, where `require` is
+  // undefined. So: load the bundle in a context that has no require, no
+  // window, no document and no module, the way importScripts sees it, and
+  // ask for a top-level export the readouts need. A bare `require(` at load
+  // throws here; a `window.` at load throws here; a guarded one does not.
   const fc = fs.readFileSync(path.join(__dirname, 'flight_core.js'), 'utf8');
-  check(!/\brequire\(/.test(fc) && !/^\s*(window|document)\./m.test(fc),
-    'lag: the core bundle has no require/window/document at load, so a worker can import it');
+  const workerLoads = (() => {
+    try {
+      const vm = require('vm');
+      const ctx = vm.createContext({ console: { log() {}, warn() {}, error() {} }, Math, JSON, Date, performance,
+        Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array,
+        ArrayBuffer, DataView, Map, Set, Promise, Symbol, Error, Object, Array, Number, String, Boolean, self: {} });
+      vm.runInContext(fc, ctx, { filename: 'flight_core.js' });
+      return typeof ctx.buildGen === 'function' && typeof ctx.genShakedown === 'function' && typeof ctx.genSpecAtFuel === 'function';
+    } catch (e) { return false; }
+  })();
+  check(workerLoads,
+    'lag: the core bundle loads with no require/window/document/module in scope (a worker can import it) and exports buildGen/genShakedown/genSpecAtFuel');
   // THE FIELD INDEX is what makes a fuselage row cheap again (GATE FIT proves
   // it exact); this is the line that turns it on for every caller of fieldHits
   const fsrc = fs.readFileSync(path.join(__dirname, '_fit_site.js'), 'utf8');

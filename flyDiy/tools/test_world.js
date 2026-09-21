@@ -17,9 +17,16 @@ const { makeWorld } = require('./flight_core.js');
 // re-laid with strip exclusion; meadow hash + anchors held)
 // (W12 stage-5 cliffs: mountain terracing is a terrain change above
 // hm=120; meadow hash + anchors held — the home lowlands are untouched)
+// (G455, 2026-09-21: TREES re-captured for G422's APPROACH FANS — the
+// pilot track's runway model clears 350 m past each strip's ends
+// (25_airfield inBox, read by the tree placement). Bisected on the built
+// cores: 24816 at the G422 build, 24711 from the G428 build on; the 105
+// missing trees all lie 0–350 m past the ends of the eight strips, none
+// elsewhere. Grid, meadows and anchors held: the ground did not move.
+// History: TREES a6b54c58 (24816) through W12.)
 const GOLDEN_GRID = '69dd5914';
-const GOLDEN_TREES = 'a6b54c58';
-const GOLDEN_TREE_COUNT = 24816;
+const GOLDEN_TREES = '75835e6e';
+const GOLDEN_TREE_COUNT = 24711;
 const GOLDEN_MEADOWS = '85de271f';
 const GOLDEN_ANCHORS = ['0', '0.21004043626020646', '29.022467498732595', '32.70294769782758'];
 

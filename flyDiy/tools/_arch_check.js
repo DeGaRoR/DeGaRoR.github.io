@@ -74,7 +74,7 @@ const D = require(path.join(T, '_cage_design.js'));
 const TH = require(path.join(T, '_tail_headless.js'));   // P5: the drawn tail, headless
 const CORE = require(path.join(T, 'flight_core.js'));
 const { makeSim, makePilot, makeWorld, buildGen,
-        clampSpec, genShakedown } = CORE;
+        clampSpec, genShakedown, genSpecAtFuel } = CORE;
 
 const fails = [];
 const check = (ok, label, extra) => {
@@ -227,7 +227,17 @@ if (!process.argv.includes('--selftest')) {
     // exactly as designed ran out of clock and read as a failure to fly.
     // The bound is still a bound: a card that cannot get down says so.
     const maxS = role && role.value === 'glider' ? 900 : 700;
-    const r = fly(spec, maxS);
+    // G455 (the user's ruling, 2026-09-21: "tank half full is a good
+    // compromise"): THE CIRCUIT IS FLOWN AT HALF TANKS. A card's tankage is
+    // its DESIGN — the gauge sizes the frame for it (genDesignGross) — but a
+    // circuit is not flown with every litre aboard, and the perf study's
+    // heavier, cleaner cards (G428-G431) went around for terrain or gave up
+    // on final with their full tanks (the Caravan-alike completes at 400 L,
+    // goes low at 1000; six cards gave up on 2026-09-21). genSpecAtFuel keeps
+    // `designL`, so the frame is still the full-tank frame and only the
+    // load changes; a battery card is untouched (no litres to halve).
+    const half = spec.fuel && spec.fuel.litres > 0 ? genSpecAtFuel(spec, spec.fuel.litres / 2) : spec;
+    const r = fly(half, maxS);
     checkFlight(a.name, r, maxS);
     if (only) for (const v of r.report.verdicts) console.log('           ' + v.t + ' s  ' + v.code + '  ' + v.note);
     flown++;

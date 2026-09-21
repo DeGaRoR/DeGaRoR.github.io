@@ -122,8 +122,22 @@ console.log('resolveSpec + genFrame: the custom engine flies');
      'Tstatic follows the custom watts on the P^(2/3) curve');
   const f0 = genFrame(r0), fC = genFrame(rC);
   const dM = fC.cg0[3] - f0.cg0[3];
-  ok(Math.abs(dM - (62 - 80)) < 1.0,
-     `frame mass moves by the engine delta (${dM.toFixed(1)} kg ~ -18)`);
+  // G455: THE ENGINE COMES WITH ITS INSTALLATION (G445.8). resolveSpec bills
+  // mount, baffles, oil and controls as engInstallM = engInstallK[family] x
+  // the dry mass, on the engine's own node — so a swap of -18 kg dry is
+  // -18 x 1.13 = -20.34 on the CGE node, exactly. The frame moves by MORE
+  // than that: since G429 the gauge follows the design gross (S1 rings,
+  // spars, axles lighten with a lighter engine — measured -2.8 kg here),
+  // so the whole-frame delta is judged against the installed delta with a
+  // quarter of it again for the gauge's follow, and the engine's own node
+  // is judged exactly.
+  const dInst = (62 - 80) + ((rC.engInstallM || 0) - (r0.engInstallM || 0));
+  const engM = f => f.nodes.filter(nd => nd.tag === 'CGE').reduce((q, nd) => q + nd.m, 0);
+  const dEng = engM(fC) - engM(f0);
+  ok(rC.engInstallM > 0 && Math.abs(dEng - dInst) < 1e-6,
+     `the engine's node moves by the installed delta (${dEng.toFixed(2)} kg = ${dInst.toFixed(2)}: dry -18 + install ${((rC.engInstallM || 0) - (r0.engInstallM || 0)).toFixed(2)})`);
+  ok(dM <= dInst + 0.05 && dM >= 1.25 * dInst,
+     `frame mass moves by the installed delta and the gauge's follow (${dM.toFixed(1)} kg in [${(1.25 * dInst).toFixed(1)}, ${dInst.toFixed(1)}])`);
   ok(fC.cg0[0] > f0.cg0[0] - 1e-9,
      'a lighter nose moves the CG aft, never forward');
   const d = buildGen(sC);
@@ -240,18 +254,24 @@ console.log('resolveSpec + genFrame: the custom engine flies');
   // (It only broke the 5 mm tolerance when TAIL CHANTIER 2's tail truss put
   // real mass behind the wheels — the arithmetic was always approximate.)
   const pin = s => { const r = resolveSpec(clampSpec(s)).spec; r.gear.x = 0.55; return r; };
-  const fA = genFrame(pin(mk(0.2))), fB = genFrame(pin(mk(0.7)));
-  const dx = fB.cg0[0] - fA.cg0[0], want = 60 * 0.5 / fA.cg0[3];
+  const rPA = pin(mk(0.2));
+  const fA = genFrame(rPA), fB = genFrame(pin(mk(0.7)));
+  // G455: the mass on the arm is the INSTALLED engine (G445.8: dry 60 kg +
+  // engInstallM, 0.13 x 60 = 7.8 for a four-stroke) — the installation
+  // rides on the same node, so it moves with the same arm
+  const mInst = 60 + (rPA.engInstallM || 0);
+  const dx = fB.cg0[0] - fA.cg0[0], want = mInst * 0.5 / fA.cg0[3];
   ok(Math.abs(dx - want) < 0.005,
-     `0.5 m more engine arm moves the CG aft by ${(dx * 100).toFixed(1)} cm (m_e·0.5/M = ${(want * 100).toFixed(1)})`);
+     `0.5 m more engine arm moves the CG aft by ${(dx * 100).toFixed(1)} cm (m_inst·0.5/M = ${(want * 100).toFixed(1)}, m_inst ${mInst.toFixed(1)})`);
   ok(fA.nodes.some(nd => nd.tag === 'CGE'),
      'the engine hangs on a CGE node when the row knows its CG');
-  // the node carries the engine and NOTHING ELSE: the members that locate it
-  // are weightless (opt.noMass) — the first cut read 60.80, six tubes of
-  // bearer that are not there
+  // the node carries the engine AND ITS INSTALLATION and nothing else: the
+  // members that locate it are weightless (opt.noMass) — the first cut read
+  // 60.80, six tubes of bearer that are not there. Since G445.8 the
+  // installation (mount, baffles, oil, controls) is billed with the engine.
   const mCG = fA.nodes.filter(nd => nd.tag === 'CGE').reduce((q, nd) => q + nd.m, 0);
-  ok(Math.abs(mCG - 60) < 1e-9,
-     `and exactly the engine mass is on it (${mCG.toFixed(3)} kg; the blades stay on the flange, the locating members weigh nothing)`);
+  ok(Math.abs(mCG - mInst) < 1e-9,
+     `and exactly the installed engine mass is on it (${mCG.toFixed(3)} kg = 60 dry + ${(rPA.engInstallM || 0).toFixed(3)} install; the blades stay on the flange, the locating members weigh nothing)`);
 }
 
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
