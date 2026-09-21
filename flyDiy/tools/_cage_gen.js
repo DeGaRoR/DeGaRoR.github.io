@@ -277,10 +277,14 @@ function cageResolve(S) {
     // it. Inactive wherever the global line already fits inside the ring
     // — the template and the jodel default are bit-identical (FIT + the
     // displayed-mesh hash both checked).
+    // T2.1: a FRAME may carry its own waist height (d.waistY) — the band
+    // rides it at the global band height; absent = the global line
     const eps = 0.03 * Math.max(1e-6, d.roofY - d.keelY);
-    const yW = Math.min(Math.max(S.waistY, d.keelY + 2 * eps),
+    const wY0 = d.waistY != null ? d.waistY : S.waistY;
+    const bY0 = d.waistY != null ? S.bandY + (d.waistY - S.waistY) : S.bandY;
+    const yW = Math.min(Math.max(wY0, d.keelY + 2 * eps),
                         d.ceilY - 2 * eps);
-    const yB = Math.min(Math.max(S.bandY, yW + eps), d.ceilY - eps);
+    const yB = Math.min(Math.max(bY0, yW + eps), d.ceilY - eps);
     const yF = Math.min(d.floorY, yW - eps);
     const wallT = (yF - d.keelY) / (yW - d.keelY);
     const lv = {
@@ -353,22 +357,25 @@ function cageResolve(S) {
                   floorY: S.aft.floorYB, keelY: S.aft.keelYB };
   const cabD  = { Ww: W, Wr, roofY: c.roofY, ceilY: c.ceilY,
                   floorY: c.floorY, keelY: c.keelY };
-  // ring editor: the window ring may carry its own roof height and
-  // flank width; the cabin PILLAR pair gets its own dim set when
-  // offsets are present (identity alias otherwise — the fit path)
-  const RO = S.ringOff || {};
-  const ringD = { Ww: S.ring.waistHalfW + (RO.winW || 0),
-                  Wk: W + (RO.winW || 0), Wr,
-                  roofY: S.ring.roofY != null ? S.ring.roofY : c.roofY,
-                  ceilY: S.ring.ceilY, floorY: S.ring.floorY, keelY: S.ring.keelY };
-  const cabPilD = (RO.cabT || RO.cabB || RO.cabW) ? {
-    ...cabD,
-    Ww: cabD.Ww + (RO.cabW || 0),
-    roofY: cabD.roofY + (RO.cabT || 0),
-    ceilY: cabD.ceilY + (RO.cabT || 0),
-    floorY: cabD.floorY + (RO.cabB || 0),
-    keelY: cabD.keelY + (RO.cabB || 0),
-  } : cabD;
+  // THE FRAMES (T2.1): a frame's deviation (S.frames[k].d, all 0 = follow)
+  // rides onto the dim set its rings are built from — top moves roof+ceil,
+  // bottom keel+floor, the waist its own line, widths per level. dimF(d)
+  // with a zero deviation is the same dims (fit identity).
+  const FR = S.frames || {};
+  const fdev = k => FR[k] ? FR[k].d : null;
+  const dimF = (d, k, dd) => {
+    const f = dd || fdev(k);
+    if (!f) return d;
+    const Wk0 = d.Wk != null ? d.Wk : d.Ww;
+    return { ...d, roofY: d.roofY + f.topY, ceilY: d.ceilY + f.topY,
+             keelY: d.keelY + f.botY, floorY: d.floorY + f.botY,
+             Wr: d.Wr + f.topW, Ww: d.Ww + f.waistW, Wk: Wk0 + f.botW,
+             waistY: (d.waistY != null ? d.waistY : S.waistY) + f.waistY };
+  };
+  const ringD0 = { Ww: S.ring.waistHalfW, Wk: W, Wr,
+                   roofY: S.ring.roofY != null ? S.ring.roofY : c.roofY,
+                   ceilY: S.ring.ceilY, floorY: S.ring.floorY, keelY: S.ring.keelY };
+  const cabPilD = dimF(cabD, 'cab');
 
   const CFG = S.config || {};
   // MIRRORED POD (G18 S2): the table stops at pilCabB — buildCage2
@@ -406,19 +413,23 @@ function cageResolve(S) {
   // the pillar pair (their historic seat), plus an own width factor.
   // Both rings of the taper pillar take it (a pillar is a prism band).
   const tWw = TAP ? W * (TAP.w || 1) : W;
-  const taperD = TAP ? { Ww: tWw, Wr: Wr * (tWw / W), roofY: S.aft.roofY,
-                         ceilY: S.aft.ceilY, floorY: S.aft.floorYA,
-                         keelY: S.aft.keelYA } : aftDA;
+  const taperD0 = TAP ? { Ww: tWw, Wr: Wr * (tWw / W), roofY: S.aft.roofY,
+                          ceilY: S.aft.ceilY, floorY: S.aft.floorYA,
+                          keelY: S.aft.keelYA } : aftDA;
+  // the BOOM FRAME is the boom-root ring: the tightening's aft pair with a
+  // taper, the aft ring of the passenger band (pilPaxA) without (T2.1)
+  const taperD = dimF(taperD0, 'boom');
+  const tailDF = dimF(tailD, 'tail');
   if (!MIR && !ROD) {
-  add(fullRing('tailCap', zCap, tailD), { mat: CAGE_MAT.plain });
+  add(fullRing('tailCap', zCap, tailDF), { mat: CAGE_MAT.plain });
   // the tail pillar band is tailMid -> tailPost: with the unified pillar
   // width set, tailMid sits pillarW forward of the post (template midT
   // placement otherwise — fit identity path)
   add(fullRing('tailMid', S.pillarW > 0
       ? Math.max(zCap + 0.05 * S.tail.len, zPost - S.pillarW)
-      : zCap + S.tail.midT * S.tail.len, tailD),
+      : zCap + S.tail.midT * S.tail.len, tailDF),
       { mat: CAGE_PILLAR('pillarTail') });
-  add(fullRing('tailPost', zPost, tailD),
+  add(fullRing('tailPost', zPost, tailDF),
       { mat: CAGE_MAT.plain,
         guards: CFG.boomMid ? null : [S.boom.guardTA, S.boom.guardTB] });
   // optional mid-boom control ring: the sailplane pod-to-boom pinch. The
@@ -427,12 +438,18 @@ function cageResolve(S) {
     const t = CFG.boomMid.t, p = CFG.boomMid.pinch;
     const lp = (a, b) => a + (b - a) * (1 - t);      // 1-t: from aft toward tail
     const sq = y => S.waistY + (y - S.waistY) * p;
+    const tWk = taperD.Wk != null ? taperD.Wk : taperD.Ww;
+    const lWk = tailDF.Wk != null ? tailDF.Wk : tailDF.Ww;
     add(fullRing('boomMid', zPost + t * S.boom.len, {
-      Ww: lp(taperD.Ww, tailD.Ww) * p, Wr: lp(taperD.Wr, tailD.Wr) * p,
-      roofY: sq(lp(taperD.roofY, tailD.roofY)),
-      ceilY: sq(lp(taperD.ceilY, tailD.ceilY)),
-      floorY: sq(lp(taperD.floorY, tailD.floorY)),
-      keelY: sq(lp(taperD.keelY, tailD.keelY)),
+      Ww: lp(taperD.Ww, tailDF.Ww) * p, Wr: lp(taperD.Wr, tailDF.Wr) * p,
+      Wk: lp(tWk, lWk) * p,
+      roofY: sq(lp(taperD.roofY, tailDF.roofY)),
+      ceilY: sq(lp(taperD.ceilY, tailDF.ceilY)),
+      floorY: sq(lp(taperD.floorY, tailDF.floorY)),
+      keelY: sq(lp(taperD.keelY, tailDF.keelY)),
+      waistY: taperD.waistY != null || tailDF.waistY != null
+        ? lp(taperD.waistY != null ? taperD.waistY : S.waistY,
+             tailDF.waistY != null ? tailDF.waistY : S.waistY) : undefined,
     }), { mat: CAGE_MAT.plain });
   }
   // the taper section, gated aft by ITS OWN PILLAR (user: all sections
@@ -452,9 +469,12 @@ function cageResolve(S) {
   // droop, and a tip that runs from a dome (tip 0) to a teardrop point
   // (tip 1). Ordinary rings: skinned, zoned, lined and painted as fuselage,
   // and the cap at the tip is the tail cap, domed by its crease.
+  // T2.1: the pax pillar's aft ring — the passenger frame with a taper (the
+  // pair is a cabin-section prism), the BOOM frame without
+  const pilPaxAD = TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom');
   const AA = ROD && S.config && S.config.aeroAft;
   if (!MIR && AA) {
-    const baseD = TAP ? cabD : aftDA;
+    const baseD = pilPaxAD;
     const zTipA = zPaxA - AA.len;
     // G339 (the user: "a shape morphing into a fin, or something squished
     // along a vertical axis ... ensure the current settings keep working
@@ -483,6 +503,8 @@ function cageResolve(S) {
       const up = v => mid + (v - mid) * (v >= mid ? sUp : sDn);
       const Rg = fullRing(name, zz, {
         Ww: baseD.Ww * sW, Wr: baseD.Wr * sW,
+        Wk: (baseD.Wk != null ? baseD.Wk : baseD.Ww) * sW,
+        waistY: baseD.waistY,
         roofY: up(baseD.roofY),
         ceilY: up(baseD.ceilY),
         floorY: up(baseD.floorY),
@@ -501,7 +523,7 @@ function cageResolve(S) {
   }
   // with the taper on, the pillar pair reverts to the full cabin section
   // — a pillar is a pillar again, the contraction is the taper's
-  if (!MIR) add(fullRing('pilPaxA', zPaxA, TAP ? cabD : aftDA),
+  if (!MIR) add(fullRing('pilPaxA', zPaxA, pilPaxAD),
                 { mat: CAGE_PILLAR('pillarPassenger') });
   let z = zPaxB;
   // THE PASSENGER RUN HAS A PROFILE (2026-09-04, the user: "the passenger
@@ -515,20 +537,55 @@ function cageResolve(S) {
   // ends are the cabin section and the blend is a no-op.
   const zPaxEnd = zPaxB + S.pax.count * S.pax.len
                 + Math.max(0, S.pax.count - 1) * S.paxPillarW;
-  const paxAftD = TAP ? cabD : aftDB;
+  // T2.1: the run goes from the PASSENGER FRAME to the CABIN FRAME (each
+  // with its deviation, so a moved frame is reached without a step)
+  const paxAftD = dimF(TAP ? cabD : aftDB, 'pax');
   const lerpD = (a, b, t) => {
     const o = {};
     for (const k in a) o[k] = typeof a[k] === 'number' && typeof b[k] === 'number'
       ? a[k] + (b[k] - a[k]) * t : a[k];
     return o;
   };
+  // THE PROFILE (T2.1, the user: "straight by default, then something
+  // flexible allowing for a parametrized curve"): 0 = the G176 linear lerp
+  // verbatim; 1 = the run's station is remapped (bias holds one end, ease
+  // rounds the S) and the section between the frames bulges about the
+  // waist (heights) and outward (widths) on a sine that is zero at both
+  // frames — negative pinches, positive fills.
+  const PF = S.paxProfile && S.paxProfile.on ? S.paxProfile : null;
   const paxD = zz => {
-    const t = Math.max(0, Math.min(1, (zz - zPaxB) / Math.max(1e-6, zPaxEnd - zPaxB)));
-    return lerpD(paxAftD, cabD, t);
+    const u = Math.max(0, Math.min(1, (zz - zPaxB) / Math.max(1e-6, zPaxEnd - zPaxB)));
+    if (!PF) return lerpD(paxAftD, cabPilD, u);
+    let t = Math.pow(u, Math.pow(4, PF.bias));
+    const sm = t * t * (3 - 2 * t);
+    t = t + PF.ease * (sm - t);
+    const d = lerpD(paxAftD, cabPilD, t);
+    const b = Math.sin(Math.PI * u);
+    if (PF.bulgeH) {
+      const wy = d.waistY != null ? d.waistY : S.waistY;
+      const kH = 1 + PF.bulgeH * b;
+      for (const k of ['roofY', 'ceilY', 'floorY', 'keelY'])
+        d[k] = wy + (d[k] - wy) * kH;
+    }
+    if (PF.bulgeW) {
+      const kW = 1 + PF.bulgeW * b;
+      d.Ww *= kW; d.Wr *= kW;
+      if (d.Wk != null) d.Wk *= kW;
+    }
+    return d;
   };
+  const paxLoops = PF ? Math.max(0, Math.min(2, Math.round(PF.loops || 0))) : 0;
   if (!MIR) for (let i = 0; i < S.pax.count; i++) {
     add(fullRing('pilPaxB' + (i || ''), z, i === 0 ? paxAftD : paxD(z)),
         { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
+    // former loops (the crest idiom): non-structural samples of the profile
+    // inside the bay, so a curve reads on a single bay; the sub-bays carry
+    // no guards (full-bay ts), the bay's own material
+    if (paxLoops) for (let s = 1; s <= paxLoops; s++) {
+      const zl = z + S.pax.len * s / (paxLoops + 1);
+      add(fullRing('paxLoop' + i + '_' + s, zl, paxD(zl)), { mat: matPax(i) });
+    }
+    if (paxLoops) bays[bays.length - 1 - paxLoops] = { mat: matPax(i) };
     z += S.pax.len;
     if (i < S.pax.count - 1) {
       add(fullRing('pilPaxM' + i, z, paxD(z)),
@@ -536,11 +593,19 @@ function cageResolve(S) {
       z += S.paxPillarW;
     }
   }
-  if (!MIR) add(fullRing('pilCabA', z, cabPilD),
+  // with NO passenger bay the passenger frame's station is pilCabA itself
+  // (the aft shoulder runs pilPaxA -> pilCabA): the ring belongs to both
+  // frames and takes both deviations (T2.1)
+  if (!MIR) add(fullRing('pilCabA', z, S.pax.count ? cabPilD : dimF(cabPilD, 'pax')),
                 { mat: CAGE_PILLAR('pillarCabin') });
   add(fullRing('pilCabB', z + S.cabinPillarW, cabPilD),
       { mat: matPilot, guards: [S.pilot.guardT] });
   const mirrorZ = z + S.cabinPillarW / 2;
+  // THE DOOR-POST FRAME (T2.1): the quarter-bay post keeps the template's
+  // own derivation off the reference section (it never followed the ring
+  // editor's cabin or screen offsets, and every past build relies on that);
+  // its expert rows deviate from it like any frame's
+  const ringD = dimF(ringD0, 'post');
 
   // ---- AERO NOSE (bizjet / sailplane / pusher front) ----------------------
   // No fold at the windshield: the full rings continue through the screen
@@ -596,25 +661,33 @@ function cageResolve(S) {
   const wa = S.ws.aft, wf = S.ws.front;
   const BL = S.ws.baseLift || 0;
   const slopeRing = (name, roofZ, ceil, bandZ, waist, floorY, keel,
-                     keelPlanar, lift) => {
-    // ring editor: the screen pair's keel width rides ringOff.scrW
-    // (the waist x offset is applied to the ws data in cageSpec)
-    const kW = W + ((S.ringOff && S.ringOff.scrW) || 0);
-    const kl = keelPlanar
-      ? { x: kW, y: keel.y, z: waist.z, yC: keel.y, zC: waist.z }
-      : { x: kW, y: keel.y, z: keel.z, yC: keel.y, zC: keel.z };
-    const wl = { x: waist.x, y: S.waistY + (lift || 0), z: waist.z };
+                     keelPlanar, lift, ex) => {
+    // T2.1: the WINDSCREEN FRAME's per-ring fields (cageFrameTable writes
+    // them on S.ws.front / S.ws.aft): its own roof height and width, keel
+    // width, waist lift, keel station. Absent = the shared cabin values.
+    const ex_ = ex || {};
+    const rY = ex_.roofY != null ? ex_.roofY : c.roofY;
+    const rW = ex_.Wr != null ? ex_.Wr : Wr;
+    const kW = ex_.keelX != null ? ex_.keelX : W;
+    const wDy = (lift || 0) + (ex_.waistDy || 0);
+    const kz = keelPlanar ? (ex_.keelZ != null ? ex_.keelZ : waist.z) : keel.z;
+    const kl = { x: kW, y: keel.y, z: kz, yC: keel.y, zC: kz };
+    const wl = { x: waist.x, y: S.waistY + wDy, z: waist.z };
     const t = (floorY - kl.y) / (wl.y - kl.y);
     const lv = {
-      roof:  { x: Wr, y: c.roofY, z: roofZ },
-      ceil:  { x: ceilX(waist.x, Wr), y: ceil.y, z: ceil.z },
-      band:  { x: bandX(waist.x, Wr), y: S.bandY + (lift || 0), z: bandZ },
+      roof:  { x: rW, y: rY, z: roofZ },
+      ceil:  { x: ceilX(waist.x, rW), y: ceil.y, z: ceil.z },
+      band:  { x: bandX(waist.x, rW), y: S.bandY + wDy, z: bandZ },
       waist: wl,
       floor: { x: kl.x + (wl.x - kl.x) * t, y: floorY,
                z: kl.z + (wl.z - kl.z) * t },
       keel:  kl,
     };
-    return { name, kind: 'full', lv: roundTop(lv, waist.x, c.roofY, W, kl.y) };
+    // the arcs ride the frame's waist (not the base lift: the template's
+    // arcs were drawn about the global line under a lifted base)
+    const fDy = ex_.waistDy || 0;
+    return { name, kind: 'full',
+             lv: roundTop(lv, waist.x, rY, kW, kl.y, S.waistY + fDy, S.bandY + fDy) };
   };
   // the base lift ramps LINEARLY in z from the window ring (lift 0) to
   // the windshield base (full BL) — the old hand constant 0.85 made the
@@ -630,10 +703,10 @@ function cageResolve(S) {
   // continuous, evenly spaced loop for the canopy to interpolate.
   if (!(CFG.canopy && CFG.canopy.mode === 'bubble'))
     add(slopeRing('wsAft', wa.roofZ, wa.ceil, wa.bandZ, wa.waist, wa.floorY,
-                  wa.keel, false, BL * liftT),
+                  wa.keel, false, BL * liftT, wa),
         { mat: CAGE_PILLAR('pillarWindow') });
   add(slopeRing('wsFront', wf.roofZ, wf.ceil, wf.bandZ, wf.waist, wf.floorY,
-                { y: wf.keelY }, true, BL), null);
+                { y: wf.keelY }, true, BL, wf), null);
 
   const chain = {
     ceil:  { x: 0, y: S.ws.chain.ceil.y, z: S.ws.chain.ceil.z },
@@ -731,41 +804,101 @@ function cageResolve(S) {
     }
   }
 
-  // THE LEAN (study 2026-09-01, futureDesigns/LEAN-PILLAR-STUDY): the aft
-  // cabin pillar (and optionally the cabin pillar) tilts top-aft as a
-  // SHEAR — z slides with height, x/y stay put, so the rails stay straight
-  // and the bays on either side simply re-slope: the surface is generated
-  // FROM the rings, and the guard rings are lerps of these, so everything
-  // downstream follows. CLAMPED ON SHIFT, NOT ANGLE (measured: 30° into a
-  // 0.8 m taper = 0.83 m of roof travel folds the taper roof): roof-level
-  // travel is held to half the shorter neighbouring bay. Skipped on the
-  // pod (mirrorZ lives mid-pillar) and, via the neighbour guards, in rod
-  // mode (the aft cap's own lean is an open question in the study doc).
-  const LN = S.lean;
-  if (LN && (LN.pax || LN.cab) && !MIR) {
-    const lean = (name, deg) => {
-      const i = rings.findIndex(r => r.name === name);
-      if (!deg || i < 1 || i + 2 >= rings.length) return;
-      const rA = rings[i], rB = rings[i + 1];
-      const pv = LN.pivot === 'mid'
-        ? (rA.lv.roof.y + rA.lv.keel.y) / 2
-        : (rA.lv[LN.pivot] || rA.lv.floor).y;
-      let k = Math.tan(deg * Math.PI / 180);
-      const span = Math.min(
-        Math.abs(rings[i - 1].lv.waist.z - rA.lv.waist.z),
-        Math.abs(rB.lv.waist.z - rings[i + 2].lv.waist.z));
-      const shift = Math.abs(k * (rA.lv.roof.y - pv));
-      if (shift > 0.5 * span) k *= 0.5 * span / shift;
-      for (const r of [rA, rB])
-        for (const nm in r.lv) {
-          const l = r.lv[nm];
-          l.z -= k * (l.y - pv);
-          if (l.zC != null)
-            l.zC -= k * ((l.yC != null ? l.yC : l.y) - pv);
+  // THE FRAMES' FORE/AFT (T2.1; the LEAN study's shear generalised): each
+  // frame carries a z profile through its three levels — (keel, botZ),
+  // (waist, waistZ), (roof, topZ), piecewise-linear in y, extrapolated
+  // linearly past the ends (a shear is the collinear case, so a converted
+  // lean is reproduced exactly). x/y stay put, the rails stay straight and
+  // the bays on either side re-slope. A ring between two frames takes the
+  // lerp of their profiles by station (the mid frames, the door post, the
+  // pod ring, the crest and former loops); the guard rings are lerps of
+  // the emitted rings and follow. CLAMPED ON DISPLACEMENT, NOT ANGLE (the
+  // study's measurement): the largest of a frame's three rows is held to
+  // half the shorter NON-PILLAR bay beside its rings. The windscreen frame's
+  // profile is already on its rings (cageSpec); it is listed for the lerp.
+  if (S.frames && !MIR) {
+    // (with no passenger bay, pilCabA stands at the passenger frame's
+    // station and takes its profile ON TOP of the cabin frame's)
+    const paxB = S.pax.count ? 'pilPaxB' : 'pilCabA';
+    const NAMES = TAP
+      ? { tail: ['tailCap', 'tailMid', 'tailPost'], boom: ['pilTaperA', 'pilTaperB'],
+          pax: ['pilPaxA', paxB], cab: ['pilCabA', 'pilCabB'], post: ['ring'],
+          win: ['wsAft', 'wsFront'] }
+      : { tail: ['tailCap', 'tailMid', 'tailPost'], boom: ['pilPaxA'],
+          pax: [paxB], cab: ['pilCabA', 'pilCabB'], post: ['ring'],
+          win: ['wsAft', 'wsFront'] };
+    const prof = (r, f) => {
+      const yK = r.lv.keel.y, yW = r.lv.waist.y, yR = r.lv.roof.y;
+      return y => {
+        if (y <= yW) {
+          const dy = yW - yK;
+          return dy > 1e-9 ? f.waistZ + (f.botZ - f.waistZ) * (yW - y) / dy : f.waistZ;
         }
+        const dy = yR - yW;
+        return dy > 1e-9 ? f.waistZ + (f.topZ - f.waistZ) * (y - yW) / dy : f.waistZ;
+      };
     };
-    lean('pilPaxA', LN.pax);
-    lean('pilCabA', LN.cab);
+    const idx = {};
+    rings.forEach((r, i) => { idx[r.name] = i; });
+    const anchor = new Array(rings.length).fill(null);
+    const applied = new Array(rings.length).fill(false);
+    for (const fk in NAMES) {
+      const F = S.frames[fk];
+      if (!F) continue;
+      let f = { topZ: F.d.topZ || 0, waistZ: F.d.waistZ || 0, botZ: F.d.botZ || 0 };
+      const ids = NAMES[fk].map(n => idx[n]).filter(i => i != null).sort((a, b) => a - b);
+      if (!ids.length) continue;
+      const mag = Math.max(Math.abs(f.topZ), Math.abs(f.waistZ), Math.abs(f.botZ));
+      if (mag > 1e-12 && fk !== 'win') {
+        // the shorter non-pillar bay beside the group
+        const zOf = i => rings[i].lv.waist.z;
+        let i0 = ids[0], i1 = ids[ids.length - 1];
+        while (i0 > 0 && bays[i0 - 1] && isPillarMat(bays[i0 - 1].mat)) i0--;
+        while (i1 + 1 < rings.length && bays[i1] && isPillarMat(bays[i1].mat)) i1++;
+        const spans = [];
+        if (i0 > 0) spans.push(Math.abs(zOf(i0 - 1) - zOf(i0)));
+        if (i1 + 1 < rings.length) spans.push(Math.abs(zOf(i1 + 1) - zOf(i1)));
+        const span = spans.length ? Math.min(...spans) : Infinity;
+        if (mag > 0.5 * span * (1 + 1e-9)) {
+          const k = 0.5 * span / mag;
+          f = { topZ: f.topZ * k, waistZ: f.waistZ * k, botZ: f.botZ * k };
+        }
+      }
+      for (const i of ids) {
+        const a = anchor[i];
+        anchor[i] = a ? { topZ: a.topZ + f.topZ, waistZ: a.waistZ + f.waistZ,
+                          botZ: a.botZ + f.botZ } : f;
+        if (fk === 'win') applied[i] = true;
+      }
+    }
+    // rings between two anchors lerp them by station
+    const zero = { topZ: 0, waistZ: 0, botZ: 0 };
+    let prev = -1;
+    for (let i = 0; i < rings.length; i++) {
+      if (anchor[i]) { prev = i; continue; }
+      let next = -1;
+      for (let j = i + 1; j < rings.length; j++) if (anchor[j]) { next = j; break; }
+      if (prev < 0 || next < 0) continue;
+      const a = anchor[prev], b = anchor[next];
+      if (a === zero && b === zero) continue;
+      const za = rings[prev].lv.waist.z, zb = rings[next].lv.waist.z;
+      const t = Math.max(0, Math.min(1, (rings[i].lv.waist.z - za) / ((zb - za) || 1e-9)));
+      anchor[i] = { topZ: a.topZ + (b.topZ - a.topZ) * t,
+                    waistZ: a.waistZ + (b.waistZ - a.waistZ) * t,
+                    botZ: a.botZ + (b.botZ - a.botZ) * t };
+      applied[i] = false;
+    }
+    rings.forEach((r, i) => {
+      const f = anchor[i];
+      if (!f || applied[i]) return;
+      if (!(f.topZ || f.waistZ || f.botZ)) return;
+      const pz = prof(r, f);
+      for (const nm in r.lv) {
+        const l = r.lv[nm];
+        l.z += pz(l.y);
+        if (l.zC != null) l.zC += pz(l.yC != null ? l.yC : l.y);
+      }
+    });
   }
 
   // (the G16 bubble-canopy repositioning experiment lived here — DELETED
@@ -3178,6 +3311,45 @@ function cageBodyZones(S) {
 
 // which zone a station is in. Forward of every zone (a cowl loop ahead of the
 // firewall) is the nose's; the table is ordered fwd -> aft.
+// THE FRAME ZONES (T2.1): each frame's station range in cage units — the
+// span of its rings' z over every level — for the editor's row-hover
+// highlight (a ring of faces around the fuselage = the frame). Read off
+// the resolved rings, so a sheared frame's range covers its lean.
+function cageFrameZones(S) {
+  const R = cageResolve(S);
+  const TAP = S.taper && S.taper.len > 0;
+  const paxB = S.pax && S.pax.count ? 'pilPaxB' : 'pilCabA';
+  const NAMES = TAP
+    ? { tail: ['tailCap', 'tailMid', 'tailPost'], boom: ['pilTaperA', 'pilTaperB'],
+        pax: ['pilPaxA', paxB], cab: ['pilCabA', 'pilCabB'], post: ['ring'],
+        win: ['wsAft', 'wsFront'] }
+    : { tail: ['tailCap', 'tailMid', 'tailPost'], boom: ['pilPaxA'],
+        pax: [paxB], cab: ['pilCabA', 'pilCabB'], post: ['ring'],
+        win: ['wsAft', 'wsFront'] };
+  const byName = {};
+  for (const r of R.rings) byName[r.name] = r;
+  const out = {};
+  const span = rings => {
+    let z0 = Infinity, z1 = -Infinity;
+    for (const r of rings) {
+      if (!r) continue;
+      for (const k in r.lv) {
+        const l = r.lv[k];
+        if (l.z != null) { z0 = Math.min(z0, l.z); z1 = Math.max(z1, l.z); }
+        if (l.zC != null) { z0 = Math.min(z0, l.zC); z1 = Math.max(z1, l.zC); }
+      }
+    }
+    return z0 <= z1 ? [z0, z1] : null;
+  };
+  for (const fk in NAMES) {
+    const sp = span(NAMES[fk].map(n => byName[n]));
+    if (sp) out[fk] = sp;
+  }
+  const nose = span([R.noseTwin, R.noseRing]);
+  if (nose) out.nose = nose;
+  return out;
+}
+
 function cageZoneAt(zones, z) {
   if (!zones || !zones.length) return null;
   for (const q of zones) if (z >= q.z0) return q.key;
@@ -6548,13 +6720,10 @@ const CAGE_PARAMS = {
   // (user: pillars start equal; the template's 0.100 vs 0.075 was a hand
   // edit). 0 = off, per-pillar values above apply (the fit identity path).
   pillarW: 0,
-  // THE LEAN (study 2026-09-01, futureDesigns/LEAN-PILLAR-STUDY): the aft
-  // cabin pillar (and optionally the cabin pillar) tilts top-aft as a
-  // SHEAR about leanPivot ('floor'|'waist'|'keel'|'mid') — x/y untouched,
-  // z slides with height, so the rails stay straight and every section
-  // keeps its drawn shape. 0/0 = identity (the fit path). Applied in
-  // cageResolve so interior/zones/frames all read the tilted rings.
-  leanPaxDeg: 0, leanCabDeg: 0, leanPivot: 'floor',
+  // (THE LEAN — leanPaxDeg/leanCabDeg/leanPivot, the 2026-09-01 shear study —
+  // RETIRED by THE FRAME CHANTIER (T2.1): a frame's three fore/aft rows
+  // contain the shear exactly (a shear is the collinear case of the
+  // piecewise-linear z profile). cageLiftLegacy converts a saved lean.)
   halfW: 0.554104, roofHalfW: 0.431009, roofY: 1.0, keelY: -0.921275,
   floorY: -0.497590, ceilInset: 1.0, waistY: 0.091103, bandH: 0.062549,
   aftRoofY: 0.677945, aftKeelY: -0.656475,
@@ -6615,7 +6784,9 @@ const CAGE_PARAMS = {
   // path). All defaults inert = the historic table.
   // taperPanels (rod mode): flat cover sheets laid on the tightening
   // truss's longerons — the landing gear's V-panel idiom. 0 = bare.
-  taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
+  // (taperW RETIRED by T2.1: the boom frame's waist/top width rows are the
+  // tightening's aft section; cageLiftLegacy lifts a saved factor.)
+  taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
@@ -6669,7 +6840,11 @@ const CAGE_PARAMS = {
   // metres (waist + keel; the roof width stays with roofHalfW). Cabin
   // pillar = the arceau on the pod (shared, no aft twin); window /
   // screen / cowl loops get aft twins for the pod's mirrored stations.
-  ringCabW: 0, ringWinW: 0, ringScrW: 0, ringCowl1W: 0, ringCowl2W: 0,
+  // (ringCabW / ringWinW / ringScrW RETIRED by T2.1 — the cabin, door-post
+  // and windscreen FRAMES carry absolute widths now; cageLiftLegacy converts
+  // a saved offset. The cowl loops are not frames and keep their rows; the
+  // pod's aft twins stay as OFFSETS on the aft half, lifted for it alone.)
+  ringCowl1W: 0, ringCowl2W: 0,
   aftRingWinW: -1, aftRingScrW: -1, aftRingCowl1W: -1,
   aftRingCowl2W: -1,
   // MIRRORED POD (G18 S2, user design): the aft body = the front half
@@ -6697,14 +6872,66 @@ const CAGE_PARAMS = {
   // The aft/tail rings already carry absolute height params (aftRoofY/
   // aftKeelY/tailRoofY/tailKeelY); the waist and band lines are
   // longerons and never move with a ring.
-  ringNoseBot: 0, ringScrBot: 0, ringWinTop: 0, ringWinBot: 0,
-  ringCabTop: 0, ringCabBot: 0,
-  // nose-ring TOP = the deck at the nose/aperture pair (twin+ring):
-  // lifts waist + crown there only — orthogonal to droop (whole end)
-  // and to ringNoseBot (keel/floor). On the pod the AFT twin raises
-  // the "passenger pillar" so the deck curve runs continuously to the
-  // tail (user ask); the boom inherits the lifted aperture.
-  ringNoseTop: 0, aftRingNoseTop: -1, aftRingNoseBot: -1,
+  // (ringNoseTop/Bot, ringScrBot, ringWinTop/Bot, ringCabTop/Bot RETIRED by
+  // T2.1 — see THE FRAMES below. The aft twins stay for the pod.)
+  aftRingNoseTop: -1, aftRingNoseBot: -1,
+  // =========================================================================
+  // THE FRAMES (T2.1, 2026-09-21, the user's spec: "for every pillar we
+  // should be able to independently set the top height, the bottom height,
+  // the waist height, and the top width, the bottom width and the waist
+  // width, and finally the top aft/fore, the bottom aft/fore and the waist
+  // aft/fore"). The transverse rings of the fuselage are its FRAMES (the
+  // stressed-skin word; formers on a wood/fabric build, bulkheads where
+  // solid) — nose (the firewall), windscreen (the A-pillar pair), door post
+  // (the quarter-bay post, expert), cabin, passenger, boom (the boom-root
+  // ring: the tightening's aft pair with a taper, the AFT ring of the
+  // passenger band without), tail. Every frame has nine rows, ABSOLUTE
+  // METRES in cage units: height / width / fore-aft x top / waist / bottom.
+  //   null  = FOLLOW: the frame takes exactly what the reference section
+  //           and the template fractions derive for it (every build before
+  //           this chantier, bit-identical — GATE FRAMES' corpus)
+  //   number = the frame's own value; the resolver applies the DEVIATION
+  //           from the derived default, rigidly (top moves roof+ceil, bottom
+  //           keel+floor, waist its own waist+band — the per-station
+  //           longeron G139.2 said was a cage change), widths to the level's
+  //           half-width, fore/aft as a piecewise-linear z profile through
+  //           the three levels, clamped on DISPLACEMENT (half the shorter
+  //           neighbouring bay, the LEAN study's rule).
+  // The fore/aft rows are OFFSETS from the frame's station (0 = as drawn;
+  // stations are the section lengths' business). Rows a frame already had
+  // keep their key and home: the boom's aftRoofY/aftKeelY, the tail's
+  // tailRoofY/tailKeelY/tailHalfW, the windscreen's wsTopOff (top fore/aft)
+  // and wsRun (waist fore/aft), the nose's noseLen (deck fore/aft). The
+  // nose frame has three levels (deck, floor, keel), so its "top" is the
+  // deck and there is no waist row.
+  frNoseTopY: null, frNoseBotY: null, frNoseTopW: null, frNoseBotW: null,
+  frNoseBotZ: 0,
+  frWinTopY: null, frWinWaistY: null, frWinBotY: null,
+  frWinTopW: null, frWinWaistW: null, frWinBotW: null, frWinBotZ: 0,
+  frPostTopY: null, frPostWaistY: null, frPostBotY: null,
+  frPostTopW: null, frPostWaistW: null, frPostBotW: null,
+  frPostTopZ: 0, frPostWaistZ: 0, frPostBotZ: 0,
+  frCabTopY: null, frCabWaistY: null, frCabBotY: null,
+  frCabTopW: null, frCabWaistW: null, frCabBotW: null,
+  frCabTopZ: 0, frCabWaistZ: 0, frCabBotZ: 0,
+  frPaxTopY: null, frPaxWaistY: null, frPaxBotY: null,
+  frPaxTopW: null, frPaxWaistW: null, frPaxBotW: null,
+  frPaxTopZ: 0, frPaxWaistZ: 0, frPaxBotZ: 0,
+  frBoomWaistY: null, frBoomTopW: null, frBoomWaistW: null, frBoomBotW: null,
+  frBoomTopZ: 0, frBoomWaistZ: 0, frBoomBotZ: 0,
+  frTailWaistY: null, frTailTopW: null, frTailBotW: null,
+  frTailTopZ: 0, frTailWaistZ: 0, frTailBotZ: 0,
+  // THE PASSENGER RUN'S PROFILE: the rings between the passenger frame and
+  // the cabin frame (second and later bays, the mid frames) interpolate the
+  // two. 0 = straight (the G176 linear lerp, bit-identical); 1 = a curve —
+  // ease 0..1 (0 linear, 1 a smooth S tangent at both frames, the lofted
+  // look), bias -1..1 (+1 holds the passenger section and turns in the last
+  // bay, -1 holds the cabin section — the "held" look), bulges -0.3..0.3
+  // (a sin term on heights about the waist / on widths: negative pinches,
+  // positive fills). With one bay there is no ring to bend: loops 0..2 add
+  // non-structural former loops per bay (the crest idiom) so the curve reads.
+  frPaxProfile: 0, frPaxEase: 0, frPaxBias: 0, frPaxBulgeH: 0, frPaxBulgeW: 0,
+  frPaxLoops: 0,
   // THE REVEAL STAYS OFF BY DEFAULT, and this is a measured decision rather
   // than the old silence. The user asked for the real recess (2026-08-31) and
   // it is REACHABLE now — `winFrameW` and `winDepth` are rows, `doorDepth` is
@@ -6845,6 +7072,239 @@ const CAGE_PARAMS = {
   cutParts: 1, explodeD: 0,
 };
 
+// ===========================================================================
+// THE FRAMES (T2.1, 2026-09-21). See CAGE_PARAMS "THE FRAMES" for the model.
+// ===========================================================================
+// (ringPullIn STAYS a row: the sill pull-in narrows the window ring AND the
+// windscreen base off it — a longeron-side fact, not one frame's.)
+
+// frame -> the nine rows. A key without the fr prefix is a row the frame
+// ALREADY HAD (kept its key and its machinery): the table reads it for the
+// readout and applies no deviation for it.
+const CAGE_FRAME_KEYS = {
+  nose: { topY: 'frNoseTopY', botY: 'frNoseBotY',
+          topW: 'frNoseTopW', botW: 'frNoseBotW',
+          topZ: 'noseLen', botZ: 'frNoseBotZ' },
+  win:  { topY: 'frWinTopY', waistY: 'frWinWaistY', botY: 'frWinBotY',
+          topW: 'frWinTopW', waistW: 'frWinWaistW', botW: 'frWinBotW',
+          topZ: 'wsTopOff', waistZ: 'wsRun', botZ: 'frWinBotZ' },
+  post: { topY: 'frPostTopY', waistY: 'frPostWaistY', botY: 'frPostBotY',
+          topW: 'frPostTopW', waistW: 'frPostWaistW', botW: 'frPostBotW',
+          topZ: 'frPostTopZ', waistZ: 'frPostWaistZ', botZ: 'frPostBotZ' },
+  cab:  { topY: 'frCabTopY', waistY: 'frCabWaistY', botY: 'frCabBotY',
+          topW: 'frCabTopW', waistW: 'frCabWaistW', botW: 'frCabBotW',
+          topZ: 'frCabTopZ', waistZ: 'frCabWaistZ', botZ: 'frCabBotZ' },
+  pax:  { topY: 'frPaxTopY', waistY: 'frPaxWaistY', botY: 'frPaxBotY',
+          topW: 'frPaxTopW', waistW: 'frPaxWaistW', botW: 'frPaxBotW',
+          topZ: 'frPaxTopZ', waistZ: 'frPaxWaistZ', botZ: 'frPaxBotZ' },
+  boom: { topY: 'aftRoofY', waistY: 'frBoomWaistY', botY: 'aftKeelY',
+          topW: 'frBoomTopW', waistW: 'frBoomWaistW', botW: 'frBoomBotW',
+          topZ: 'frBoomTopZ', waistZ: 'frBoomWaistZ', botZ: 'frBoomBotZ' },
+  tail: { topY: 'tailRoofY', waistY: 'frTailWaistY', botY: 'tailKeelY',
+          topW: 'frTailTopW', waistW: 'tailHalfW', botW: 'frTailBotW',
+          topZ: 'frTailTopZ', waistZ: 'frTailWaistZ', botZ: 'frTailBotZ' },
+};
+const CAGE_FRAME_ORDER = ['nose', 'win', 'post', 'cab', 'pax', 'boom', 'tail'];
+const CAGE_FRAME_NAMES = { nose: 'nose frame', win: 'windscreen frame',
+  post: 'door-post frame', cab: 'cabin frame', pax: 'passenger frame',
+  boom: 'boom frame', tail: 'tail frame' };
+
+// the retired rows -> the frame rows a saved value lands on
+const CAGE_LEGACY_FRAME = {
+  ringNoseTop: ['frNoseTopY'], ringNoseBot: ['frNoseBotY'],
+  ringScrBot: ['frWinBotY'], ringScrW: ['frWinWaistW', 'frWinBotW'],
+  ringWinTop: ['frPostTopY'], ringWinBot: ['frPostBotY'],
+  ringWinW: ['frPostWaistW', 'frPostBotW'],
+  ringCabTop: ['frCabTopY'], ringCabBot: ['frCabBotY'],
+  ringCabW: ['frCabWaistW', 'frCabBotW'],
+  taperW: ['frBoomTopW', 'frBoomWaistW', 'frBoomBotW'],
+  leanPaxDeg: ['frPaxTopZ', 'frPaxWaistZ', 'frPaxBotZ',
+               'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'],
+  leanCabDeg: ['frCabTopZ', 'frCabWaistZ', 'frCabBotZ'],
+  leanPivot: [],
+};
+const CAGE_LEGACY_KEYS = Object.keys(CAGE_LEGACY_FRAME);
+function cageHasLegacy(P) {
+  if (!P) return false;
+  for (const k of CAGE_LEGACY_KEYS) if (P[k] != null) return true;
+  return false;
+}
+
+// THE FRAME TABLE: S.frames[frame] = { def, val, d, own } — def is what the
+// derivation gives the frame's rings TODAY (read off the same S values
+// cageResolve reads), val the row or def, d = val - def the deviation the
+// resolver applies, own which rows are set. The nose and windscreen frames
+// are applied right here on S.nose / S.ws.front|aft; the full-ring frames
+// (post, cab, pax, boom, tail) are applied in cageResolve by name.
+function cageFrameTable(P, S, F, A) {
+  const c = S.cabin, W = c.halfW, Wr = c.roofHalfW, wY = S.waistY;
+  const TAP = S.taper && S.taper.len > 0 ? S.taper : null;
+  const nr = S.nose.ring;
+  const D = {
+    nose: { topY: wY - (S.nose.droop || 0), botY: nr.keel.y,
+            topW: nr.deck.x, botW: nr.keel.x, topZ: P.noseLen, botZ: 0 },
+    win:  { topY: c.roofY, waistY: wY + (S.ws.baseLift || 0), botY: F.keelY,
+            topW: Wr, waistW: F.waist.x, botW: W,
+            topZ: P.wsTopOff, waistZ: P.wsRun, botZ: 0 },
+    post: { topY: S.ring.roofY != null ? S.ring.roofY : c.roofY, waistY: wY,
+            botY: S.ring.keelY, topW: Wr, waistW: S.ring.waistHalfW, botW: W,
+            topZ: 0, waistZ: 0, botZ: 0 },
+    cab:  { topY: c.roofY, waistY: wY, botY: c.keelY,
+            topW: Wr, waistW: W, botW: W, topZ: 0, waistZ: 0, botZ: 0 },
+    pax:  { topY: TAP ? c.roofY : S.aft.roofY, waistY: wY,
+            botY: TAP ? c.keelY : S.aft.keelYB,
+            topW: Wr, waistW: W, botW: W, topZ: 0, waistZ: 0, botZ: 0 },
+    boom: { topY: +P.aftRoofY, waistY: wY, botY: +P.aftKeelY,
+            topW: Wr, waistW: W, botW: W, topZ: 0, waistZ: 0, botZ: 0 },
+    tail: { topY: +P.tailRoofY, waistY: wY, botY: +P.tailKeelY,
+            topW: S.tail.halfW, waistW: +P.tailHalfW, botW: S.tail.halfW,
+            topZ: 0, waistZ: 0, botZ: 0 },
+  };
+  S.frames = {};
+  for (const fk of CAGE_FRAME_ORDER) {
+    const keys = CAGE_FRAME_KEYS[fk], def = D[fk], val = {}, d = {}, own = {};
+    for (const q in keys) {
+      const pk = keys[q], v = P[pk];
+      const isOwn = !/^fr/.test(pk);
+      const set = !isOwn && v != null && isFinite(+v);
+      val[q] = set ? +v : def[q];
+      own[q] = set;
+      d[q] = set ? +v - def[q] : 0;
+    }
+    S.frames[fk] = { def, val, d, own };
+  }
+  // ---- the nose frame, on the ring + twin pair (rigid, as the ring editor
+  // moved them; the deck lift rides S.nose.lift into noseLv) ----
+  const dn = S.frames.nose.d;
+  S.nose.lift = dn.topY;
+  if (dn.topW || dn.botY || dn.botW || dn.botZ)
+    for (const n of [S.nose.ring, S.nose.twin]) {
+      n.deck.x += dn.topW;
+      for (const k of ['keel', 'floor']) {
+        n[k].y += dn.botY;
+        if (n[k].yC != null) n[k].yC += dn.botY;
+        n[k].x += dn.botW;
+      }
+      if (dn.botZ) {
+        // a lean of the ring's lower half: the deck stays, the keel moves
+        // by the row, the floor by its height between the two
+        const yD = wY - (S.nose.droop || 0) + dn.topY;
+        const tz = y => dn.botZ * Math.max(0, Math.min(1.5,
+          (yD - y) / Math.max(1e-6, yD - n.keel.y)));
+        for (const k of ['keel', 'floor']) {
+          n[k].z += tz(n[k].y);
+          if (n[k].zC != null) n[k].zC += tz(n[k].yC != null ? n[k].yC : n[k].y);
+        }
+      }
+    }
+  // ---- the windscreen frame, on the A-pillar pair (slopeRing reads the
+  // per-ring fields; both rings take the same deviation, the band stays a
+  // prism). Top and waist fore/aft ARE wsTopOff / wsRun, so only the bottom
+  // fore/aft is a deviation here; the floor interpolates in slopeRing. ----
+  const dw = S.frames.win.d;
+  for (const R of [F, A]) {
+    R.roofY = c.roofY + dw.topY;
+    R.ceil.y += dw.topY;
+    R.Wr = Wr + dw.topW;
+    R.waistDy = dw.waistY;
+    R.waist.x += dw.waistW;
+    R.floorY += dw.botY;
+    R.keelX = W + dw.botW;
+  }
+  F.keelY += dw.botY;
+  A.keel.y += dw.botY;
+  F.keelZ = F.waist.z + dw.botZ;                      // wsFront's keel was planar with its waist
+  A.keel.z += dw.botZ;
+}
+
+// THE LIFT: a P that carries retired rows (a save from before T2.1, a preset
+// written against the ring editor, the pod's aft twins substituted onto the
+// aft half) is converted to the frame rows — the offset lands as an ABSOLUTE
+// value against the same P's own derivation, so the aeroplane is the one it
+// was (GATE FRAMES' corpus is the proof), and the retired keys are dropped
+// so a file never carries two homes. A lean is converted at the resolved
+// rings exactly as the shear applied it, clamp included.
+function cageLiftLegacy(P0) {
+  const P = { ...P0 };
+  const L = {};
+  for (const k of CAGE_LEGACY_KEYS) { if (P[k] != null) L[k] = P[k]; delete P[k]; }
+  const has = k => L[k] != null && isFinite(+L[k]);
+  const nz = k => has(k) && Math.abs(+L[k]) > 1e-12;
+  const S = cageSpec(P);                              // the clean derivation
+  const FR = S.frames;
+  const setAbs = (fk, q, off) => {
+    const pk = CAGE_FRAME_KEYS[fk][q];
+    if (P[pk] != null && isFinite(+P[pk])) return;    // the row already speaks
+    P[pk] = FR[fk].def[q] + off;
+  };
+  if (nz('ringNoseTop')) setAbs('nose', 'topY', +L.ringNoseTop);
+  if (nz('ringNoseBot')) setAbs('nose', 'botY', +L.ringNoseBot);
+  if (nz('ringScrBot')) setAbs('win', 'botY', +L.ringScrBot);
+  if (nz('ringScrW')) { setAbs('win', 'waistW', +L.ringScrW); setAbs('win', 'botW', +L.ringScrW); }
+  if (nz('ringWinTop')) setAbs('post', 'topY', +L.ringWinTop);
+  if (nz('ringWinBot')) setAbs('post', 'botY', +L.ringWinBot);
+  if (nz('ringWinW')) { setAbs('post', 'waistW', +L.ringWinW); setAbs('post', 'botW', +L.ringWinW); }
+  if (nz('ringCabTop')) setAbs('cab', 'topY', +L.ringCabTop);
+  if (nz('ringCabBot')) setAbs('cab', 'botY', +L.ringCabBot);
+  if (nz('ringCabW')) { setAbs('cab', 'waistW', +L.ringCabW); setAbs('cab', 'botW', +L.ringCabW); }
+  if (has('taperW') && S.taper && !S.rod && Math.abs(+L.taperW - 1) > 1e-12) {
+    // the tightening's aft ring was W x taperW wide (roof width scaled alike)
+    const w = Math.max(0.1, Math.min(1, +L.taperW));
+    setAbs('boom', 'waistW', FR.boom.def.waistW * (w - 1));
+    setAbs('boom', 'botW', FR.boom.def.botW * (w - 1));
+    setAbs('boom', 'topW', FR.boom.def.topW * (w - 1));
+  }
+  // THE LEAN: z -= k (y - pivot) on the pair's rings, k clamped so the roof
+  // travels at most half the shorter neighbouring bay (the study's rule)
+  if ((nz('leanPaxDeg') || nz('leanCabDeg')) && !P.mirror) {
+    // the shear acted on the rings WITH the ring offsets above already in
+    // them: resolve the lifted P, not the bare one
+    const R = cageResolve(cageSpec(P));
+    const rings = R.rings;
+    const pivot = L.leanPivot || 'floor';
+    const lean = (name, deg, frames) => {
+      const i = rings.findIndex(r => r.name === name);
+      if (!deg || i < 1 || i + 2 >= rings.length) return;
+      const rA = rings[i], rB = rings[i + 1];
+      const pv = pivot === 'mid' ? (rA.lv.roof.y + rA.lv.keel.y) / 2
+               : (rA.lv[pivot] || rA.lv.floor).y;
+      let k = Math.tan(deg * Math.PI / 180);
+      const span = Math.min(
+        Math.abs(rings[i - 1].lv.waist.z - rA.lv.waist.z),
+        Math.abs(rB.lv.waist.z - rings[i + 2].lv.waist.z));
+      const shift = Math.abs(k * (rA.lv.roof.y - pv));
+      if (shift > 0.5 * span) k *= 0.5 * span / shift;
+      // each frame of the pair takes the profile at its OWN ring's levels
+      for (const [fk, r] of frames) {
+        const pk = CAGE_FRAME_KEYS[fk];
+        if (!P[pk.topZ]) P[pk.topZ] = -k * (r.lv.roof.y - pv);
+        if (!P[pk.waistZ]) P[pk.waistZ] = -k * (r.lv.waist.y - pv);
+        if (!P[pk.botZ]) P[pk.botZ] = -k * (r.lv.keel.y - pv);
+      }
+    };
+    if (nz('leanPaxDeg')) {
+      const i = rings.findIndex(r => r.name === 'pilPaxA');
+      if (i >= 0)
+        lean('pilPaxA', +L.leanPaxDeg, S.taper && S.taper.len > 0
+          ? [['pax', rings[i]]]                          // both rings are the pax frame
+          : [['boom', rings[i]], ['pax', rings[i + 1]]]); // A = boom frame, B = pax frame
+        // (with no pax bay rings[i+1] is pilCabA, which IS the passenger
+        // frame's station then — the resolver applies the pax profile to it)
+    }
+    if (nz('leanCabDeg')) {
+      const i = rings.findIndex(r => r.name === 'pilCabA');
+      if (i >= 0) lean('pilCabA', +L.leanCabDeg, [['cab', rings[i]]]);
+    }
+  }
+  // a zero fore/aft row is the default; keep the file slim
+  for (const fk of CAGE_FRAME_ORDER)
+    for (const q of ['topZ', 'waistZ', 'botZ']) {
+      const pk = CAGE_FRAME_KEYS[fk][q];
+      if (/^fr/.test(pk) && P[pk] != null && Math.abs(+P[pk]) < 1e-12) P[pk] = 0;
+    }
+  return P;
+}
+
 // aft-param table: [aftKey, frontKey, sentinel-threshold] — used by
 // cageSpec (substitution into the aft half's spec) and by the pages'
 // FOREVER-SPLIT (user ruling): the moment the pod is on, aft sliders
@@ -6928,6 +7388,7 @@ function cageLayerDefaults() {
   const out = {};
   if (d) for (const k in d) {
     if (k in CAGE_PARAMS || k in CAGE_VIEW_KEYS) continue;
+    if (k in CAGE_LEGACY_FRAME) continue;       // T2.1: an offset seed, never a layer default
     if (typeof d[k] === 'function') continue;
     out[k] = d[k];
   }
@@ -6973,6 +7434,11 @@ function cageFromSpec(spec) {
   }
   delete P.dum2On;
   delete P.seatPitch;                            // the bays are the pitch now
+  // (4) THE FRAMES (T2.1): a file from before the frame chantier carries the
+  // ring editor's offsets, the lean and the taper width — lifted here into
+  // the frames' absolute rows, and the retired keys dropped, so a save
+  // never carries two homes (cageSpec lifts too, for any other door)
+  if (cageHasLegacy(P)) return cageLiftLegacy(P);
   return P;
 }
 
@@ -7004,6 +7470,7 @@ function cageToSpec(P) {
 }
 
 function cageSpec(P) {
+  if (cageHasLegacy(P)) P = cageLiftLegacy(P);     // T2.1: a retired row still reads
   const T = CAGE_DEFAULT, S = JSON.parse(JSON.stringify(T));
   const fr = (v, a, b) => (v - a) / (b - a);          // fraction of v in [a,b]
   const ap = (f, a, b) => a + f * (b - a);
@@ -7111,7 +7578,7 @@ function cageSpec(P) {
   // away from degenerate.
   S.taper = P.taperOn
     ? { len: Math.max(0.08, P.taperLen || 0.6),
-        w: Math.max(0.1, Math.min(1, P.taperW == null ? 1 : P.taperW)),
+        w: 1,                                        // T2.1: the boom frame's width rows replace taperW
         panels: P.taperPanels ? 1 : 0 }
     : 0;
   // boomStyle 2 (twin booms) is the ROD's table — the pod ends at the
@@ -7248,43 +7715,28 @@ function cageSpec(P) {
   S.nose.twin = mkN(nt, nz - (P.pillarW > 0
     ? P.pillarW * P.pfW : P.pfW * (nr.deck.z - nt.deck.z)));
   S.nose.droop = P.noseDroop;
-  // RING EDITOR (user design): direct manipulation of the main rings'
-  // top/bottom points — the plane's shape is rings + longerons, so
-  // the cross-sections get hand controls. RIGID shifts: top moves
-  // roof+ceil, bottom moves keel+floor (+ their centre columns); the
-  // waist/band lines are longerons and stay put. All 0 = fit
-  // identity. The aft/tail rings are already absolute params
-  // (aftRoofY/aftKeelY/tailRoofY/tailKeelY) — this covers the front
-  // rings: nose (ring+twin pair), screen base (wsFront+wsAft pair),
-  // window ring, cabin pillar (pair, via ringOff -> cageResolve).
+  // (the G18 RING EDITOR's offset block stood here — ringWinTop/Bot,
+  // ringCabTop/Bot/W, ringWinW, ringScrBot/W, ringNoseTop/Bot — retired by
+  // THE FRAME CHANTIER; the frame table is its successor, and
+  // cageLiftLegacy turns a saved offset into the frame's absolute row.)
+  // The nose and windscreen frames are applied HERE, on S.nose / S.ws
+  // (their rings are built from those), before the tip collapse: the nose
+  // frame's bottom is the drawn keel, which noseTip then pulls to the deck.
+  cageFrameTable(P, S, F, A);
+  // the cowl loops' own widths (G18 S8; the loops are not frames)
   {
-    const dWT = P.ringWinTop || 0, dWB = P.ringWinBot || 0;
-    if (dWT) { S.ring.roofY = P.roofY + dWT; S.ring.ceilY += dWT; }
-    if (dWB) { S.ring.keelY += dWB; S.ring.floorY += dWB; }
-    const dCT = P.ringCabTop || 0, dCB = P.ringCabBot || 0;
-    const dCW = P.ringCabW || 0, dWW = P.ringWinW || 0;
-    const dSW = P.ringScrW || 0;
-    const cw1 = P.ringCowl1W || 0, cw2 = P.ringCowl2W || 0;
-    if (dCT || dCB || dCW || dWW || dSW || cw1 || cw2)
-      S.ringOff = { cabT: dCT, cabB: dCB, cabW: dCW, winW: dWW,
-                    scrW: dSW, cowl: [cw1, cw2] };
-    const dS2 = P.ringScrBot || 0;
-    if (dS2) {
-      F.keelY += dS2; F.floorY += dS2;
-      A.keel.y += dS2; A.floorY += dS2;
-    }
-    if (dSW) { F.waist.x += dSW; A.waist.x += dSW; }
-    const dN = P.ringNoseBot || 0;
-    if (dN) for (const n of [S.nose.ring, S.nose.twin])
-      for (const k of ['keel', 'floor']) {
-        n[k].y += dN;
-        if (n[k].yC != null) n[k].yC += dN;
-      }
-    // nose-ring TOP: the deck y lives in cageResolve's noseLv (built
-    // from waistY/crown/droop), so the lift rides the spec as
-    // S.nose.lift and noseLv adds it to the deck levels only
-    S.nose.lift = P.ringNoseTop || 0;
+    const cw1 = +P.ringCowl1W || 0, cw2 = +P.ringCowl2W || 0;
+    if (cw1 || cw2) S.ringOff = { cowl: [cw1, cw2] };
   }
+  // THE PASSENGER RUN'S PROFILE (T2.1): off = the linear lerp verbatim
+  S.paxProfile = Math.round(+P.frPaxProfile || 0) ? {
+    on: 1,
+    ease: Math.max(0, Math.min(1, +P.frPaxEase || 0)),
+    bias: Math.max(-1, Math.min(1, +P.frPaxBias || 0)),
+    bulgeH: Math.max(-0.5, Math.min(0.5, +P.frPaxBulgeH || 0)),
+    bulgeW: Math.max(-0.5, Math.min(0.5, +P.frPaxBulgeW || 0)),
+    loops: Math.max(0, Math.min(2, Math.round(+P.frPaxLoops || 0))),
+  } : 0;
   // AERO NOSE TO A TRUE POINT (user: it kept a flat engine-sized
   // face). noseTip collapses the aero-finish ring toward the deck
   // point: x scales out, keel/floor converge on the deck line, the
@@ -7322,9 +7774,6 @@ function cageSpec(P) {
   S.cut = { on: 1, doors: 1, wins: 1,
             doorGone: P.doorGone ? 1 : 0,
             explode: Math.max(0, P.explodeD || 0) };
-  if (P.leanPaxDeg || P.leanCabDeg)
-    S.lean = { pax: P.leanPaxDeg || 0, cab: P.leanCabDeg || 0,
-               pivot: P.leanPivot || 'floor' };
   // MIRRORED POD (G18 S2): v1 constraints — no pax bays, canopy closed
   // (S3 brings the bubble to the pod), doors off (the canopy IS the
   // door on a pod), interior off (S5 adapts it), cowl nose only. Each
@@ -7355,6 +7804,13 @@ function cageSpec(P) {
     let nSub = 0;
     for (const [ak, fk, thr] of CAGE_AFT_SUB)
       if (P[ak] != null && P[ak] >= thr) { P2[fk] = P[ak]; nSub++; }
+    // T2.1: the twins of the RETIRED ring offsets (aftRingNoseTop/Bot,
+    // aftRingWinW, aftRingScrW) land on P2 as legacy keys; the aft half's
+    // frame rows that they touch go back to "follow" and the lift converts
+    // the offset against the aft half's own derivation
+    if (nSub) for (const [ak, fk] of CAGE_AFT_SUB)
+      if (P[ak] != null && P[ak] >= -0.5 && CAGE_LEGACY_FRAME[fk])
+        for (const rk of CAGE_LEGACY_FRAME[fk]) P2[rk] = null;
     // the aft band IS the PASSENGER PILLAR (user: it responded to the
     // nose pillar's pfW — wrong station): its width follows
     // paxPillarW, "where the tightening for rod booms happens"; the
@@ -8103,17 +8559,21 @@ function cageSheet(P, opts) {
 
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
+                     CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
+                     cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
-                     cageCanopy, cageShoulder, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
+                     cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+                   CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
+                   cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
-                   cageCanopy, cageShoulder, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
+                   cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

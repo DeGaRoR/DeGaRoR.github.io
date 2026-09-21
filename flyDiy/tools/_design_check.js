@@ -116,7 +116,10 @@ function panelKeys(groups) {
 const RENDERED = new Set(panelKeys(W.CAGE_PAGE.groupsOverride));
 const PAGE_BASE = Object.assign({}, G.CAGE_PARAMS,
                                 (W.CAGE_PAGE && W.CAGE_PAGE.defaults) || {});
-const KNOWN_KEY = k => RENDERED.has(k) || (k in PAGE_BASE);
+// T2.1: a retired row (the ring editor's offsets, the lean, taperW) is a
+// legal seed/override input — cageLiftLegacy converts it at every door
+const LEGACY = new Set((G.CAGE_LEGACY_FRAME && Object.keys(G.CAGE_LEGACY_FRAME)) || []);
+const KNOWN_KEY = k => RENDERED.has(k) || (k in PAGE_BASE) || LEGACY.has(k);
 
 // one real shakedown, for the target key names (ledger on, so the split's
 // two keys are present the way §5.1 declares targets against them)

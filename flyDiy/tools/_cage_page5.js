@@ -43,7 +43,13 @@ window.CAGE_PAGE = {
     noseW: 0.97, pfW: 0.3, topRound: 1, topAngRoof: 81, topComp: 1.03,
     bubble: 1, skylight: 0, crSill: 0, crBand: 3, crCap: 3, crNoseCap: 3,
     noseCrown: 0.16, noseH: 1.07, wsBaseLift: 0.05, cowlEase: 0.29,
-    cowlBulge: 0.99, noseTip: 0.25, ringCowl2W: -0.02, ringScrBot: -0.015,
+    cowlBulge: 0.99, noseTip: 0.25, ringCowl2W: -0.02,
+    // T2.1: ringScrBot is a RETIRED row kept here as an OFFSET SEED — the
+    // windscreen frame's bottom 15 mm under its derived line on every
+    // aeroplane born from these defaults, whatever keel the class gives it.
+    // The first build lifts it (cageLiftLegacy) into the frame's absolute
+    // row against that aeroplane's own derivation; a save never carries it.
+    ringScrBot: -0.015,
     // G214: the door gap is DRAWN by default (the user asked for it twice)
     // rimDoor 0 (2026-09-11, the user: "disable draw gap by default"). G214
     // turned it on because the door was invisible without it; the door has a
@@ -168,9 +174,145 @@ window.CAGE_PAGE = {
   // Numbering matches the target layout; 6 wings / 8 tail / 9 wheels
   // live game-side. "don't touch" = frozen values, constants-to-be.
   groupsOverride: [
+    // =====================================================================
+    // THE FRAMES (T2.1, 2026-09-21). The fuselage's transverse rings, nose
+    // to tail, each with nine rows: height / half-width / fore-aft at the
+    // top, the waist and the bottom. Heights and widths FOLLOW the reference
+    // section (the "follows" tick; untick or drag to set your own, metres);
+    // fore/aft rows are offsets from the frame's station. The rows a frame
+    // already had keep their keys (the boom's aft roof/keel, the tail's
+    // cone rows, the windscreen's run and top offset, the nose length).
+    // =====================================================================
+    ['0 · frames', [
+      ['reference section', [
+        ['roofY',     'roof height',    0.40, 1.60, 0.005, { dim: 'len' }],
+        ['keelY',     'keel height',   -1.60, -0.30, 0.005, { dim: 'len' }],
+        ['waistY',    'waist height',   -0.40, 0.50, 0.005, { dim: 'len' }],
+        ['halfW',     'half width',     0.20, 1.00, 0.005, { dim: 'len' }],
+        ['roofHalfW', 'roof half-width', 0.15, 0.90, 0.005, { dim: 'len' }],
+      ], 'open'],
+      ['nose frame', [
+        ['frNoseTopY', 'deck height',     -1.60, 1.80, 0.005, { dim: 'len', follow: 'nose.topY' }],
+        ['frNoseBotY', 'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'nose.botY' }],
+        ['frNoseTopW', 'deck half-width',  0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.topW' }],
+        ['frNoseBotW', 'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'nose.botW' }],
+        ['noseLen',    'deck fore/aft (nose length)', 0.20, 2.50, 0.01, { dim: 'len' }],
+        ['frNoseBotZ', 'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+      ], 'open'],
+      ['windscreen frame', [
+        ['frWinTopY',   'top height',      -1.60, 1.80, 0.005, { dim: 'len', follow: 'win.topY' }],
+        ['frWinWaistY', 'waist height',    -1.60, 1.80, 0.005, { dim: 'len', follow: 'win.waistY' }],
+        ['frWinBotY',   'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'win.botY' }],
+        ['frWinTopW',   'top half-width',   0.00, 1.20, 0.005, { dim: 'len', follow: 'win.topW',
+                                                                  when: P => !(+P.topRound >= 1) }],
+        ['frWinWaistW', 'waist half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'win.waistW' }],
+        ['frWinBotW',   'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'win.botW' }],
+        ['wsTopOff',    'top fore/aft (offset)', 0.00, 0.50, 0.005, { dim: 'len' }],
+        ['wsRun',       'waist fore/aft (windscreen run)', 0.20, 2.00, 0.01, { dim: 'len' }],
+        ['frWinBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+      ], 'open'],
+      // the quarter-bay post between the windscreen and cabin frames: it
+      // owns the door's forward edge; expert, since it follows the reference
+      // section by the template's own fractions and rarely wants a hand
+      ['door-post frame', [
+        ['frPostTopY',   'top height',      -1.60, 1.80, 0.005, { dim: 'len', follow: 'post.topY' }],
+        ['frPostWaistY', 'waist height',    -1.60, 1.80, 0.005, { dim: 'len', follow: 'post.waistY' }],
+        ['frPostBotY',   'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'post.botY' }],
+        ['frPostTopW',   'top half-width',   0.00, 1.20, 0.005, { dim: 'len', follow: 'post.topW',
+                                                                   when: P => !(+P.topRound >= 1) }],
+        ['frPostWaistW', 'waist half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'post.waistW' }],
+        ['frPostBotW',   'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'post.botW' }],
+        ['frPostTopZ',   'top fore/aft',    -0.60, 0.60, 0.005, { dim: 'len' }],
+        ['frPostWaistZ', 'waist fore/aft',  -0.60, 0.60, 0.005, { dim: 'len' }],
+        ['frPostBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+      ], { level: 'expert' }],
+      ['cabin frame', [
+        ['frCabTopY',   'top height',      -1.60, 1.80, 0.005, { dim: 'len', follow: 'cab.topY' }],
+        ['frCabWaistY', 'waist height',    -1.60, 1.80, 0.005, { dim: 'len', follow: 'cab.waistY' }],
+        ['frCabBotY',   'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'cab.botY' }],
+        ['frCabTopW',   'top half-width',   0.00, 1.20, 0.005, { dim: 'len', follow: 'cab.topW',
+                                                                  when: P => !(+P.topRound >= 1) }],
+        ['frCabWaistW', 'waist half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'cab.waistW' }],
+        ['frCabBotW',   'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'cab.botW' }],
+        ['frCabTopZ',   'top fore/aft',    -0.60, 0.60, 0.005, { dim: 'len' }],
+        ['frCabWaistZ', 'waist fore/aft',  -0.60, 0.60, 0.005, { dim: 'len' }],
+        ['frCabBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+      ], 'open'],
+      // (with no passenger bay the frame stands at the cabin's aft ring: the
+      // aft shoulder still runs from it to the boom frame)
+      ['passenger frame', [
+        ['frPaxTopY',   'top height',      -1.60, 1.80, 0.005, { dim: 'len', follow: 'pax.topY' }],
+        ['frPaxWaistY', 'waist height',    -1.60, 1.80, 0.005, { dim: 'len', follow: 'pax.waistY' }],
+        ['frPaxBotY',   'bottom height',   -1.60, 1.80, 0.005, { dim: 'len', follow: 'pax.botY' }],
+        ['frPaxTopW',   'top half-width',   0.00, 1.20, 0.005, { dim: 'len', follow: 'pax.topW',
+                                                                  when: P => !(+P.topRound >= 1) }],
+        ['frPaxWaistW', 'waist half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'pax.waistW' }],
+        ['frPaxBotW',   'bottom half-width', 0.00, 1.20, 0.005, { dim: 'len', follow: 'pax.botW' }],
+        ['frPaxTopZ',   'top fore/aft',    -0.60, 0.60, 0.005, { dim: 'len' }],
+        ['frPaxWaistZ', 'waist fore/aft',  -0.60, 0.60, 0.005, { dim: 'len' }],
+        ['frPaxBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+        // THE RUN'S PROFILE: how the rings between this frame and the cabin
+        // frame interpolate (second and later bays, the mid frames)
+        ['frPaxProfile', 'run profile',    0, 1, 1, ['straight', 'curve']],
+        ['frPaxEase',    'run ease (0 linear, 1 smooth S)', 0.00, 1.00, 0.01,
+         { when: P => +P.frPaxProfile }],
+        ['frPaxBias',    'run bias (-1 hold cabin, +1 hold aft)', -1.00, 1.00, 0.01,
+         { when: P => +P.frPaxProfile }],
+        ['frPaxBulgeH',  'run bulge, heights', -0.30, 0.30, 0.005,
+         { when: P => +P.frPaxProfile }],
+        ['frPaxBulgeW',  'run bulge, widths', -0.30, 0.30, 0.005,
+         { when: P => +P.frPaxProfile }],
+        ['frPaxLoops',   'former loops per bay', 0, 2, 1,
+         { when: P => +P.frPaxProfile }],
+      ], 'open'],
+      // the boom-root ring: the tightening's aft pair with a taper, the aft
+      // ring of the passenger band without. On a rod boom with a taper the
+      // truss replaces the section and the rows go inert (measured, G26)
+      ['boom frame', [
+        ['aftRoofY',     'top height',      -0.60, 1.40, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+        ['frBoomWaistY', 'waist height',    -1.60, 1.80, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len', follow: 'boom.waistY' }],
+        ['aftKeelY',     'bottom height',   -1.40, 0.60, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+        ['frBoomTopW',   'top half-width',   0.00, 1.20, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn) && !(+P.topRound >= 1), dim: 'len', follow: 'boom.topW' }],
+        ['frBoomWaistW', 'waist half-width', 0.00, 1.20, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len', follow: 'boom.waistW' }],
+        ['frBoomBotW',   'bottom half-width', 0.00, 1.20, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len', follow: 'boom.botW' }],
+        ['frBoomTopZ',   'top fore/aft',    -0.60, 0.60, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+        ['frBoomWaistZ', 'waist fore/aft',  -0.60, 0.60, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+        ['frBoomBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+      ], 'open'],
+      // the tail frame: the cone's roof and keel may go NEGATIVE now (the
+      // playtest's 172: a tail cone below the datum)
+      ['tail frame', [
+        ['tailRoofY',    'top height',      -0.60, 1.20, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len' }],
+        ['frTailWaistY', 'waist height',    -1.60, 1.80, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len', follow: 'tail.waistY' }],
+        ['tailKeelY',    'bottom height',   -1.00, 0.60, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len' }],
+        ['frTailTopW',   'top half-width',   0.00, 1.20, 0.005,
+         { when: P => !+P.boomStyle && !(+P.topRound >= 1), dim: 'len', follow: 'tail.topW' }],
+        ['tailHalfW',    'waist half-width', 0.02, 0.40, 0.002,
+         { when: P => !+P.boomStyle, dim: 'len' }],
+        ['frTailBotW',   'bottom half-width', 0.00, 1.20, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len', follow: 'tail.botW' }],
+        ['frTailTopZ',   'top fore/aft',    -0.60, 0.60, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len' }],
+        ['frTailWaistZ', 'waist fore/aft',  -0.60, 0.60, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len' }],
+        ['frTailBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005,
+         { when: P => !+P.boomStyle, dim: 'len' }],
+      ], 'open'],
+    ]],
     ['1 · global', [
       ['longerons', [
-        ['waistY',    'waist height',   -0.40, 0.50, 0.005, { dim: 'len' }],
         ['bandH',     'waistband height', 0.01, 0.30, 0.002, { dim: 'len' }],
         ['crSill',    'sill crease',     0, 3, 0.05],
         ['crKeel',    'keel crease',     0, 3, 0.05],
@@ -178,11 +320,9 @@ window.CAGE_PAGE = {
         ['ceilInset', 'ceiling inset ×', 0.20, 3.00, 0.01],
         ['ringPullIn','sill pull-in',    0.00, 0.15, 0.002],
       ], 'open'],
-      // THE RING EDITOR (user design): the plane's shape = rings +
-      // longerons. Global roundness shapes every section; the per-ring
-      // rows move one main ring's top/bottom points bodily. Aft + tail
-      // ring heights live in "7 · boom" (aft roof/keel y, cone roof/
-      // keel y).
+      // (THE RING EDITOR's per-ring offsets stood here until T2.1 — the
+      // frames group above is their successor. Global roundness shapes
+      // every section; the cowl loops keep their own widths.)
       ['rings', [
         ['topRound',  'top roundness',   0.00, 1.00, 0.01],
         ['botRound',  'bottom roundness',0.00, 1.00, 0.01],
@@ -192,18 +332,8 @@ window.CAGE_PAGE = {
          { when: P => +P.topRound > 0 || +P.botRound > 0 }],
         ['topAngRoof','roof angle',      55, 88, 1,
          { when: P => +P.topRound > 0 || +P.botRound > 0 }],
-        ['ringNoseTop','nose deck lift', -0.35, 0.60, 0.005],
-        ['ringNoseBot','nose bottom',    -0.35, 0.35, 0.005],
-        ['ringScrBot', 'screen bottom',  -0.35, 0.35, 0.005],
-        ['ringWinTop', 'window top',     -0.35, 0.35, 0.005],
-        ['ringWinBot', 'window bottom',  -0.35, 0.35, 0.005],
-        ['ringCabTop', 'cabin top',      -0.35, 0.35, 0.005],
-        ['ringCabBot', 'cabin bottom',   -0.35, 0.35, 0.005],
-        ['ringCabW',   'cabin width',    -0.25, 0.25, 0.005],
-        ['ringWinW',   'window width',   -0.25, 0.25, 0.005],
-        ['ringScrW',   'screen width',   -0.25, 0.25, 0.005],
-        ['ringCowl1W', 'cowl 1 width',   -0.25, 0.25, 0.005],
-        ['ringCowl2W', 'cowl 2 width',   -0.25, 0.25, 0.005],
+        ['ringCowl1W', 'cowl loop 1 width', -0.25, 0.25, 0.005],
+        ['ringCowl2W', 'cowl loop 2 width', -0.25, 0.25, 0.005],
       ], 'open'],
       ['conception', [
         // THE INTERIOR MASTER + its element flags. They live in the
@@ -254,7 +384,6 @@ window.CAGE_PAGE = {
       // the top of this group went with them.
     ]],
     ['3 · nose', [
-      ['noseLen',   'length',          0.20, 2.50, 0.01, { dim: 'len' }],
       ['noseW',     'width ×',         0.50, 1.50, 0.01],
       ['noseH',     'height ×',         0.05, 1.20, 0.01],
       ['noseDroop', 'droop',          -0.20, 0.60, 0.005],
@@ -295,22 +424,12 @@ window.CAGE_PAGE = {
       ['dimensions', [
         // seating starter select injected below
         ['pilotLen',  'length',         0.30, 2.00, 0.01, { dim: 'len' }],
-        ['halfW',     'half width',     0.20, 1.00, 0.005, { dim: 'len' }],
-        ['roofHalfW', 'roof half-width', 0.15, 0.90, 0.005, { dim: 'len' }],
-        ['roofY',     'roof height',    0.40, 1.60, 0.005, { dim: 'len' }],
-        ['keelY',     'keel height',   -1.60, -0.30, 0.005, { dim: 'len' }],
+        // (halfW / roofHalfW / roofY / keelY are the frames' REFERENCE
+        // SECTION since T2.1; the lean rows became the frames' fore/aft)
         ['floorY',    'floor height',  -1.20, 0.00, 0.005, { dim: 'len' }],
-        // THE LEAN (study 2026-09-01, futureDesigns/LEAN-PILLAR-STUDY):
-        // the aft bulkhead (passenger pillar; pilot pillar on a 0-bay
-        // cabin) and the cabin pillar tilt top-aft as a SHEAR, in
-        // degrees — the generator clamps on roof travel, not angle, so
-        // a short neighbouring bay quietly limits the effective tilt.
-        ['leanPaxDeg', 'aft bulkhead lean', -25, 30, 0.5],
-        ['leanCabDeg', 'cabin pillar lean', -25, 30, 0.5],
       ], 'open'],
       ['windows', [
-        ['wsRun',     'windscreen run', 0.20, 2.00, 0.01, { dim: 'len' }],
-        ['wsTopOff',  'windscreen top offset', 0.00, 0.50, 0.005],
+        // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
         ['bubble',    'bubble glass',   0, 1, 1],
@@ -727,8 +846,6 @@ window.CAGE_PAGE = {
       // bay; panels exist only on that truss.
       ['taperLen',  'taper length',    0.08, 1.6, 0.01,
        { when: P => +P.taperOn, dim: 'len' }],
-      ['taperW',    'taper width ×',   0.15, 1.0, 0.005,
-       { when: P => +P.taperOn && !+P.boomStyle }],
       ['taperPanels','taper panels',   0, 1, 1,
        { when: P => +P.taperOn && +P.boomStyle === 1 }],
       // THE AERO AFT (2026-09-04, TWIN-BOOM spec §1.2, cut 1): the pod's tail
@@ -762,17 +879,9 @@ window.CAGE_PAGE = {
       ['rodIncl',   'rod inclination (tail up)', -12, 12, 0.1,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
-      ['aftRoofY',  'aft roof height', 0.20, 1.20, 0.005,
-       { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
-      ['aftKeelY',  'aft keel height',-1.20, -0.10, 0.005,
-       { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+      // (aft roof/keel = the boom frame; the cone's section = the tail
+      // frame, both in 0 · frames since T2.1)
       ['tailLen',   'cone length',     0.05, 0.6, 0.005, { dim: 'len' }],
-      ['tailHalfW', 'cone half-width', 0.02, 0.40, 0.002,
-       { when: P => !+P.boomStyle, dim: 'len' }],
-      ['tailRoofY', 'cone roof height', 0.10, 1.00, 0.005,
-       { when: P => !+P.boomStyle, dim: 'len' }],
-      ['tailKeelY', 'cone keel height', -0.50, 0.30, 0.005,
-       { when: P => !+P.boomStyle, dim: 'len' }],
       ['boomMidOn', 'pod ring',        0, 1, 1,
        { when: P => !+P.boomStyle }],
       ['boomMidT',  'pod ring station', 0.1, 0.9, 0.01,

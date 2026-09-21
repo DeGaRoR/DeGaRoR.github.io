@@ -692,6 +692,18 @@
         "D:/Dev/DeGaRoR.github.io"
       ],
       "port": 8480
+    },
+    {
+      "name": "flydiy-frames",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8471",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8471
     }
   ]
 }

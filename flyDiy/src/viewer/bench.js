@@ -491,15 +491,81 @@ function benchStripCosmetic(spec, defaults) {
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};
+    const fr = benchFrameRows(c.cage, D);
     for (const k in c.cage) {
       if (BENCH_STATE_ROWS.test(k)) continue;
+      if (fr && (k in fr.skip)) continue;              // a frame row: see below
       const v = c.cage[k];
       if (D && (k in D) && benchSame(v, D[k])) continue;
       out[k] = v;
     }
+    if (fr) Object.assign(out, fr.rows);
     c.cage = out;
   }
   return c;
+}
+// THE FRAMES HASH AS DEVIATIONS (T2.1, 2026-09-21). A frame's height/width
+// row is an ABSOLUTE metre value with null = follow (cageSpec derives it),
+// and the ring editor's offsets it replaced (ringCabTop 0.005 ...) were
+// lifted into those rows against each aeroplane's own derivation. Hashing
+// the absolute value would withdraw every certificate once (the page's
+// ringScrBot -0.015 seed lifts to a different number on every keel), and
+// would count a row as a deviation for standing at what the reference
+// section derives for it. So each frame row hashes as its DEVIATION from
+// the derived default (S.frames[frame].d, published as CAGE_UI.frames)
+// against the default aeroplane's own deviation — and under the RETIRED
+// KEY where one row maps to one, with the value a file printed (9
+// decimals), so an f2 certificate taken before this chantier still
+// matches. The fore/aft rows (a lifted lean) hash under their own keys.
+// Without the generator in scope (a core-only build) the rows hash as
+// they are, as before.
+const BENCH_FRAME_LEGACY = {
+  frNoseTopY: 'ringNoseTop', frNoseBotY: 'ringNoseBot', frWinBotY: 'ringScrBot',
+  frPostTopY: 'ringWinTop', frPostBotY: 'ringWinBot',
+  frCabTopY: 'ringCabTop', frCabBotY: 'ringCabBot',
+  frCabWaistW: 'ringCabW', frPostWaistW: 'ringWinW', frWinWaistW: 'ringScrW',
+};
+const BENCH_FRAME_TWIN = { frCabBotW: 'frCabWaistW', frPostBotW: 'frPostWaistW', frWinBotW: 'frWinWaistW' };
+let benchFrameDefD = null;                       // the default aeroplane's table, once per defaults object
+function benchFrameRows(cage, D) {
+  const W = typeof window !== 'undefined' ? window : null;
+  const C2 = W && W.CAGE2, UI = W && W.CAGE_UI;
+  const FK = C2 && C2.CAGE_FRAME_KEYS;
+  const FR = UI && UI.frames;
+  if (!FK || !FR) return null;
+  let FD = null;
+  if (D) {
+    if (!benchFrameDefD || benchFrameDefD.D !== D) {
+      let t = null;
+      try { t = C2.cageSpec(Object.assign({}, D)).frames; } catch (e) { t = null; }
+      benchFrameDefD = { D, t };
+    }
+    FD = benchFrameDefD.t;
+  }
+  const r9 = v => +(+v).toFixed(9) + 0;
+  const skip = {}, rows = {};
+  const devOf = (T, fk, q) => (T && T[fk] && T[fk].d) ? +T[fk].d[q] || 0 : 0;
+  for (const fk in FK)
+    for (const q in FK[fk]) {
+      const k = FK[fk][q];
+      if (!/^fr/.test(k) || /Z$/.test(k)) continue;   // the frame's own rows and fore/aft hash as they are
+      skip[k] = 1;
+      if (k in BENCH_FRAME_TWIN) continue;             // the keel width rode the waist offset: one row
+      let dev = devOf(FR, fk, q), dev0 = devOf(FD, fk, q);
+      // the taper's width factor: the boom frame's three widths at one factor
+      if (fk === 'boom' && q === 'waistW') {
+        const def = FR.boom && FR.boom.def ? +FR.boom.def.waistW : 0;
+        const w = def > 1e-9 ? r9(1 + dev / def) : 1;
+        const def0 = FD && FD.boom && FD.boom.def ? +FD.boom.def.waistW : 0;
+        const w0 = def0 > 1e-9 ? r9(1 + dev0 / def0) : 1;
+        if (Math.abs(w - w0) > 1e-9) rows.taperW = w;
+        continue;
+      }
+      if (fk === 'boom' && (q === 'topW' || q === 'botW')) continue;   // the factor above
+      if (Math.abs(dev - dev0) <= 1e-9) continue;
+      rows[BENCH_FRAME_LEGACY[k] || k] = r9(dev);
+    }
+  return { skip, rows };
 }
 // a row equals its default: numbers to 1e-9 (a slider's value is a number a
 // file may have printed), else by value

@@ -94,7 +94,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //   7.95 -> 8.0 (G460, 2026-09-21): THE WATER SHADER is code - src/viewer/water.js
 //              (45 KB: the GLSL of the three bands, the presets, the tile bake, the JS
 //              mirror of the felt band). No media: the detail tile is baked at boot.
-const BUDGET_MIB = 8.0;
+//   8.0 -> 8.1 (G470, 2026-09-21): THE FRAMES are code - the frame table, the lift and
+//              the pax profile in tools/_cage_gen.js (+30 KB), the 52 rows and their
+//              claims (_cage_page5.js, _cage_parts.js), the follow widget (_cage_ui.js),
+//              the hover cut (editor.js), the certificate's deviation hash (bench.js):
+//              46 KB, measured 7.957 -> 8.002 MiB on the LF build, 1.5 KB over the
+//              line. No data: the corpus fixtures live in tools/fixtures/, never inlined.
+const BUDGET_MIB = 8.1;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

@@ -2213,7 +2213,10 @@ function designFull(sel, over) {
 
 function designBake(sel, over) {
   const C2 = W.CAGE2 || ((typeof CAGE2 !== 'undefined') ? CAGE2 : null);
-  const { full, spec } = designFull(sel, over);
+  const { full: full0, spec } = designFull(sel, over);
+  // T2.1: the shape seed's taperW is lifted into the boom frame's widths
+  // against this very aeroplane, so the birth spec carries frame rows
+  const full = C2.cageHasLegacy && C2.cageHasLegacy(full0) ? C2.cageLiftLegacy(full0) : full0;
   const out = { cage: C2.cageToSpec(full) };
   // THE BIRTH SPEC STATES WHAT IT CHOSE. spec.cage carries the wing and the
   // engine as PANEL values, and in the app the join measures them back into

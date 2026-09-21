@@ -2915,6 +2915,87 @@ function editorInit(api) {
       }
     pinObjs = out;
   }
+  // THE FRAMES LIGHT UP UNDER THEIR ROWS (T2.1, the user: "they should be
+  // highlighted when we hover over the controls from the slider panel, like
+  // the fin and the cowl"). A frame is a ring of faces around the fuselage
+  // at its station — no material of its own, so the highlight is a CUT of
+  // every cage draw group to the frame's z range (`userData.frameZones`,
+  // published by the build with the mesh, in the mesh's own units; the
+  // range is read off the RESOLVED rings, so a sheared frame's lean is in
+  // it). The cut is the body-zone cut's idiom: triangle centroids, typed
+  // subarrays over the shared position buffer, the current highlight style.
+  // The row -> frame map is the generator's own table (CAGE_FRAME_KEYS),
+  // plus the run-profile rows, which belong to the passenger frame.
+  let hiFrame = [], frameKey = null;
+  const FRAME_ROW = (() => {
+    const out = {};
+    const C2 = window.CAGE2;
+    const FK = C2 && C2.CAGE_FRAME_KEYS;
+    if (FK) for (const fk in FK) for (const q in FK[fk]) out[FK[fk][q]] = fk;
+    for (const k of ['frPaxProfile', 'frPaxEase', 'frPaxBias', 'frPaxBulgeH',
+                     'frPaxBulgeW', 'frPaxLoops']) out[k] = 'pax';
+    return out;
+  })();
+  function frameClear() {
+    for (const o of hiFrame) { if (o.parent) o.parent.remove(o); }
+    hiFrame = []; frameKey = null;
+  }
+  function frameBuild(fk) {
+    frameClear();
+    const root = window.CAGE_UI_SCENE;
+    if (!fk || !root || typeof THREE === 'undefined') return;
+    if (!hiMats) hiMats = { sel: hiMat(0.34), hov: hiMat(0.16),
+                            selL: hiLine('sel'), hovL: hiLine('hov'),
+                            selM: hiSilMask('sel'), hovM: hiSilMask('hov'),
+                            selS: hiSilShell('sel'), hovS: hiSilShell('hov') };
+    const which = 'hov', mat = hiMats[which];
+    const wantFill = HI.mode === 'fill' || HI.mode === 'both';
+    const wantLine = HI.mode === 'outline' || HI.mode === 'both';
+    const wantSil = HI.mode === 'silhouette';
+    const out = [];
+    for (const child of root.children) {
+      const nm = child.userData && child.userData.matNames;
+      const FZ = child.userData && child.userData.frameZones;
+      if (!nm || !FZ || !FZ[fk]) continue;
+      const src = child.geometry, idx = src.getIndex();
+      const pos = src.getAttribute('position');
+      if (!idx || !pos) continue;
+      // a single-ring frame has no width of its own: give it a band's worth
+      let [z0, z1] = FZ[fk];
+      const m = z1 - z0 < 0.02 ? 0.045 : 0.012;
+      z0 -= m; z1 += m;
+      const ia = idx.array, pa = pos.array;
+      const cut = new ia.constructor(ia.length);
+      let k = 0;
+      for (const g of src.groups) {
+        for (let i = g.start, e = g.start + g.count; i + 2 < e; i += 3) {
+          const a = ia[i], b = ia[i + 1], c = ia[i + 2];
+          const zc = (pa[a * 3 + 2] + pa[b * 3 + 2] + pa[c * 3 + 2]) / 3;
+          if (zc < z0 || zc > z1) continue;
+          cut[k++] = a; cut[k++] = b; cut[k++] = c;
+        }
+      }
+      if (!k) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', src.getAttribute('position'));
+      if (src.getAttribute('normal')) geo.setAttribute('normal', src.getAttribute('normal'));
+      geo.setIndex(new THREE.BufferAttribute(cut.subarray(0, k), 1));
+      if (wantFill) {
+        const mm = new THREE.Mesh(geo, mat);
+        mm.scale.copy(child.scale); mm.renderOrder = 6; mm.userData.edHi = 1;
+        child.parent.add(mm); out.push(mm);
+      }
+      if (wantLine) {
+        const l = hiEdges(geo, which);
+        l.scale.copy(child.scale); child.parent.add(l); out.push(l);
+      }
+      if (wantSil) out.push(...hiSilPair(geo, which, child.parent, child.scale));
+    }
+    hiFrame = out; frameKey = fk;
+  }
+  window.EDITOR_FRAME_HILITE = frameBuild;      // the screenshot rig's handle
+  window.EDITOR_SELECT = select;                // (tools/frames_shot.js)
+
   // THE ROW SAYS WHICH POINT. Delegated, because the rows are _cage_ui's own
   // elements moved in and out of this column on every selection — a listener
   // per row would be a listener per row per lifetime.
@@ -2923,8 +3004,10 @@ function editorInit(api) {
       const r = e.target && e.target.closest ? e.target.closest('.r') : null;
       const k = r && r.dataset ? r.dataset.k : null;
       if (k !== pinKey) pinBuild(k);
+      const fk = k ? (FRAME_ROW[k] || null) : null;
+      if (fk !== frameKey) frameBuild(fk);
     });
-    rowsEl.addEventListener('pointerleave', () => pinBuild(null));
+    rowsEl.addEventListener('pointerleave', () => { pinBuild(null); frameClear(); });
   }
 
   // the switch, live: no rebuild of the editor, just of the highlight

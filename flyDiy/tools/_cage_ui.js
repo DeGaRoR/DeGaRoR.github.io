@@ -1302,6 +1302,13 @@ function updateDims(box, FS) {
 
 // ---- build ----------------------------------------------------------------
 function build() {
+  // T2.1: a retired row (a preset written against the ring editor, a class
+  // seed's taperW) is lifted into the frames' rows the moment it lands in P
+  if (G.cageHasLegacy && G.cageHasLegacy(P)) {
+    const L = G.cageLiftLegacy(P);
+    for (const k of G.CAGE_LEGACY_KEYS || Object.keys(G.CAGE_LEGACY_FRAME || {})) delete P[k];
+    Object.assign(P, L);
+  }
   // FOREVER-SPLIT (user ruling): with the pod on, any aft param still
   // at its sentinel takes a ONE-SHOT copy of the front's current value
   // — from then on the halves are independent, and moving a nose
@@ -1362,6 +1369,10 @@ function build() {
   // coordinates its positions are in (cage units, before FS), so a reader
   // needs the mesh and nothing else.
   meshObj.userData.bodyZones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
+  // THE FRAMES (T2.1): the resolved table for the rows' readout, and each
+  // frame's station range (cage units) for the row-hover highlight
+  meshObj.userData.frameZones = G.cageFrameZones ? G.cageFrameZones(spec) : null;
+  if (window.CAGE_UI) window.CAGE_UI.frames = spec.frames || null;
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
@@ -1485,6 +1496,7 @@ function build() {
   try { applyWeather(); } catch (e) { console.error('weather:', e); }
   // `when` rows follow their discriminators live (P just changed)
   applyRowVis();
+  syncFollow();                          // T2.1: the follow rows read the new derivation
   draw();
 }
 
@@ -1618,11 +1630,25 @@ const ui = $('cgUi') || $('ui');
 //   link:     {sentinel, from, test?} — live "follows" checkbox: checked
 //             writes the sentinel (the layer keeps resolving it live),
 //             unchecked writes the currently-effective value back
+//   follow:   'cab.topY' (T2.1, THE FRAMES) — a "follows" checkbox like
+//             link, but the sentinel is null and the widget STAYS VISIBLE,
+//             disabled, at the value the generator derived (read off
+//             CAGE_UI.frames after every build); unticking writes that
+//             value as the row's own; double-click on the label = follow
 const ROWMETA = [];
 const GROUPMETA = [];
 const EXPERT = { on: false };
 try { EXPERT.on = localStorage.getItem('cageExpert') === '1'; } catch (e) {}
 const fmtV = v => (+v).toFixed(3);
+// THE FRAMES' RESOLVED VALUES (T2.1): cageSpec publishes S.frames = { def,
+// val, d, own } per frame; the build copies it onto CAGE_UI.frames, and a
+// follow row reads its number from there
+const frameVal = path => {
+  const F = window.CAGE_UI && window.CAGE_UI.frames;
+  if (!F || !path) return null;
+  const [fk, q] = path.split('.');
+  return F[fk] && F[fk].val ? F[fk].val[q] : null;
+};
 const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   opts = opts || {};
   const d = document.createElement('div'); d.className = 'r';
@@ -1634,6 +1660,10 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   d.appendChild(kSpan);
   parent.appendChild(d);
   const rel = k === 'planeScale';
+  if (opts.follow && val == null) {
+    const fv = frameVal(opts.follow);
+    val = fv != null ? fv : lo;
+  }
   const isTwoNames = !!names && names.length === 2;
   const isCheck = isTwoNames ||
     (!names && lo === 0 && hi === 1 && st === 1);
@@ -1753,10 +1783,27 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     kSpan.title = label + ' — double-click: reset to the loaded design';
     kSpan.style.cursor = 'default';
     kSpan.ondblclick = () => {
+      if (opts.follow) { oninput(null); syncSliders(); return; }   // back to follow
       if (widget.disabled) return;
       const bv = BASELINE[k] != null ? BASELINE[k] : DEFAULTS[k];
       if (bv == null) return;
       oninput(rel ? bv : bv);
+      syncSliders();
+    };
+    if (opts.follow) kSpan.title = label + ' — double-click: follow the derived value again';
+  }
+  if (opts.follow) {                     // THE FRAMES' "follows" checkbox
+    const fc = document.createElement('input');
+    fc.type = 'checkbox'; fc.id = 'f_' + k; fc.style.flex = 'none';
+    fc.title = 'follows — the frame takes the derived value; untick to set your own';
+    d.insertBefore(fc, kSpan.nextSibling);
+    meta.followEl = fc;
+    fc.onchange = () => {
+      if (fc.checked) oninput(null);
+      else {
+        const fv = frameVal(opts.follow);
+        oninput(fv != null ? Math.max(lo, Math.min(hi, fv)) : +widget.value);
+      }
       syncSliders();
     };
   }
@@ -2619,10 +2666,13 @@ function applyRowVis() {
           op.hidden = !!hide[i]; op.disabled = !!hide[i];
         });
     }
-    if (meta.mu)
-      meta.mu.textContent = P[meta.k] == null ? '' :
-        '≈ ' + (P[meta.k] * (meta.opts.dim === 'm' ? 1 : FS)).toFixed(2) +
+    if (meta.mu) {
+      // a follow row reads the value the generator derived (T2.1)
+      const pv = P[meta.k] == null && meta.opts.follow ? frameVal(meta.opts.follow) : P[meta.k];
+      meta.mu.textContent = pv == null ? '' :
+        '≈ ' + (pv * (meta.opts.dim === 'm' ? 1 : FS)).toFixed(2) +
         ' m';
+    }
   }
   // ...AND THEN THE PANEL THAT OWNS THE ROWS (G77). In the game the rows do
   // not live in the accordion above: the editor moves them into its own
@@ -4267,7 +4317,13 @@ function buildMatPanel() {
   // cage's own words; these two are the ones a builder looks for by what
   // they see, so they wear a label — and their finish select opens on what
   // a dash is made of (DASH_HEAD, as optgroups), the rest under "other".
-  const SEC_LABEL = { dashFace: 'instrument facia', dash: 'glareshield & shell' };
+  // (T2.1: the pillar sections are the FRAMES' bands — named as such; the
+  // raw 'pillarWindow' row was the playtest's "pillar window slider that
+  // does nothing": it is a finish row, not a control)
+  const SEC_LABEL = { dashFace: 'instrument facia', dash: 'glareshield & shell',
+    pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
+    pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
+    pillarTaper: 'boom frame band', pillarTail: 'tail frame band' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],
@@ -4450,12 +4506,39 @@ function buildMatPanel() {
     console.error('finish view:', e); }
 }
 
+// THE FOLLOW ROWS AFTER A BUILD (T2.1): their number is the generator's, so
+// it moves whenever the reference section or a neighbour does — refreshed
+// from CAGE_UI.frames after every build, the rest of the rows untouched
+function syncFollow() {
+  for (const meta of ROWMETA) {
+    if (!meta.followEl || !meta.el) continue;
+    const on = P[meta.k] == null;
+    meta.followEl.checked = on;
+    meta.el.disabled = on;
+    if (meta.vf) meta.vf.disabled = on;
+    meta.row.classList.toggle('follows', on);
+    if (!on) continue;
+    const v = frameVal(meta.opts.follow);
+    if (v == null) continue;
+    meta.el.value = v;
+    if (meta.vf) meta.vf.value = fmtV(+v);
+  }
+}
 function syncSliders() {
   for (const meta of ROWMETA) {
     const { k, kind, names, opts } = meta;
     const el = meta.el;
     if (!el) continue;
-    const v = k === 'planeScale' ? relSize() : P[k];
+    let v = k === 'planeScale' ? relSize() : P[k];
+    if (meta.followEl) {
+      const on = v == null;
+      meta.followEl.checked = on;
+      if (on) v = frameVal(opts.follow);
+      el.disabled = on;
+      if (meta.vf) meta.vf.disabled = on;
+      meta.row.classList.toggle('follows', on);
+      if (v == null) continue;
+    }
     if (v == null) continue;
     if (kind === 'check') {
       el.checked = +v >= 1;
@@ -4480,6 +4563,7 @@ function syncSliders() {
     }
   }
   applyRowVis();
+  syncFollow();                          // T2.1: the follow rows read the new derivation
 }
 function applyPreset(name) {
   if (name.startsWith('* ')) {

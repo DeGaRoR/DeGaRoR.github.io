@@ -207,11 +207,47 @@ const CAGE_PARTS = [
   // cannot be filed under a bay without inventing per-station longeron
   // parameters, which is a change to the cage and not to this table.
   // =========================================================================
+  // THE FRAMES (T2.1, 2026-09-21, the user: "for every pillar we should be
+  // able to independently set the top height, the bottom height, the waist
+  // height, and the top width, the bottom width and the waist width, and
+  // finally the top aft/fore, the bottom aft/fore and the waist aft/fore
+  // ... under the fuselage section, very high, very clear"). The fuselage's
+  // transverse rings ARE this assembly's shape, so the assembly owns them
+  // — nose to tail, one group per frame, ahead of everything else — and
+  // a row hover lights the frame's band in the view (editor.js, the
+  // frameZones the build publishes). The reference section (roofY, keelY,
+  // waistY, halfW, roofHalfW) moved here from the cabin: it is what every
+  // frame FOLLOWS, not the cabin's own. The boom's aft roof/keel and the
+  // tail cone's section rows came here too — they were those frames' rows
+  // already, filed under their bays.
   { key: 'fuselage', name: 'Fuselage', parent: null, layer: 'cage',
     sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
     place: { up: 'waistY', at: 'the whole shell' },
     groups: [
-      ['longerons', ['waistY', 'bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
+      ['reference section', ['roofY', 'keelY', 'waistY', 'halfW', 'roofHalfW']],
+      ['nose frame', ['frNoseTopY', 'frNoseBotY', 'frNoseTopW', 'frNoseBotW',
+                      'noseLen', 'frNoseBotZ']],
+      ['windscreen frame', ['frWinTopY', 'frWinWaistY', 'frWinBotY',
+                            'frWinTopW', 'frWinWaistW', 'frWinBotW',
+                            'wsTopOff', 'wsRun', 'frWinBotZ']],
+      ['door-post frame', ['frPostTopY', 'frPostWaistY', 'frPostBotY',
+                           'frPostTopW', 'frPostWaistW', 'frPostBotW',
+                           'frPostTopZ', 'frPostWaistZ', 'frPostBotZ'], EXPERT],
+      ['cabin frame', ['frCabTopY', 'frCabWaistY', 'frCabBotY',
+                       'frCabTopW', 'frCabWaistW', 'frCabBotW',
+                       'frCabTopZ', 'frCabWaistZ', 'frCabBotZ']],
+      ['passenger frame', ['frPaxTopY', 'frPaxWaistY', 'frPaxBotY',
+                           'frPaxTopW', 'frPaxWaistW', 'frPaxBotW',
+                           'frPaxTopZ', 'frPaxWaistZ', 'frPaxBotZ',
+                           'frPaxProfile', 'frPaxEase', 'frPaxBias',
+                           'frPaxBulgeH', 'frPaxBulgeW', 'frPaxLoops']],
+      ['boom frame', ['aftRoofY', 'frBoomWaistY', 'aftKeelY',
+                      'frBoomTopW', 'frBoomWaistW', 'frBoomBotW',
+                      'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ']],
+      ['tail frame', ['tailRoofY', 'frTailWaistY', 'tailKeelY',
+                      'frTailTopW', 'tailHalfW', 'frTailBotW',
+                      'frTailTopZ', 'frTailWaistZ', 'frTailBotZ']],
+      ['longerons', ['bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
                      'ringPullIn']],
       ['section', ['topRound', 'botRound', 'topAngCeil', 'topAngRoof']],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
@@ -221,10 +257,11 @@ const CAGE_PARTS = [
   { key: 'nose', name: 'Nose · deck', parent: 'fuselage', layer: 'cage',
     sections: ['pillarFront'],
     zone: 'nose',
-    place: { up: 'noseDroop', len: 'noseLen', wide: 'noseW', high: 'noseH',
+    place: { up: 'noseDroop', wide: 'noseW', high: 'noseH',
              at: 'forward of the windscreen' },
     groups: [
-      ['shape', ['noseLen', 'noseW', 'noseH', 'noseDroop', 'noseCrown',
+      // (noseLen is the nose FRAME's deck fore/aft since T2.1)
+      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'crNoseCap', 'crFrontCap']],
       // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice
@@ -237,36 +274,27 @@ const CAGE_PARTS = [
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
       ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlBulge']],
-      // THE NOSE'S OWN RINGS. `ringNoseTop` lifts the deck at the nose/
-      // aperture pair, `ringNoseBot` drops its keel and floor, and the two
-      // cowl widths pull that pair in or out — every one of them moves a ring
-      // THIS PART IS, which is why they are here and not in a table of twelve
-      // offsets under the whole shell.
-      ['rings', ['ringNoseTop', 'ringNoseBot', 'ringCowl1W', 'ringCowl2W']],
+      // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
+      // became the nose FRAME's rows, T2.1; the loops are not frames)
+      ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
       ['pillar', ['pfW'], EXPERT],
     ] },
 
   { key: 'cabin', name: 'Cabin', parent: 'fuselage', layer: 'cage',
     sections: ['pillarCabin'],
     zone: 'cabin',
-    place: { len: 'pilotLen', wide: 'halfW', high: 'roofY',
-             at: 'aft of the windscreen' },
+    place: { len: 'pilotLen', at: 'aft of the windscreen' },
     groups: [
-      ['dimensions', ['pilotLen', 'halfW', 'roofHalfW', 'roofY', 'keelY',
-                      'floorY']],
+      // (halfW / roofHalfW / roofY / keelY = the frames' REFERENCE SECTION
+      // since T2.1; the cabin pillar pair is the CABIN FRAME there)
+      ['dimensions', ['pilotLen', 'floorY']],
       // mirror + canopy -> `design`: they decide whether there IS a pod and
       // what kind, which is a configuration question. What is left here is
       // the SHAPE of the one you chose.
       // (the bubble's rows are the WINDSCREEN's since 2026-09-04 — the user:
       // "the bubble sliders should be part of the windshield selection")
-      // THE CABIN'S TWO RINGS: the window ring at its forward end (Win) and
-      // the cabin pillar pair at its aft (Cab). Both are the bay's own
-      // cross-sections, moved bodily in metres — the ring editor G18 built,
-      // filed where the ring is.
-      ['rings', ['ringWinTop', 'ringWinBot', 'ringWinW', 'ringCabTop',
-                 'ringCabBot', 'ringCabW']],
-      // the cabin pillar (this part's pillarCabin section) leans too
-      ['aft pillar', ['leanCabDeg']],
+      // (the window ring and cabin pillar offsets, and the cabin pillar's
+      // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
       ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
     ] },
 
@@ -280,16 +308,15 @@ const CAGE_PARTS = [
 
   { key: 'windscreen', name: 'windscreen', parent: 'glazing', layer: 'cage',
     sections: ['windshield'],
-    place: { up: 'wsTopOff', len: 'wsRun', at: 'on the cabin front ring' },
+    place: { at: 'on the cabin front ring' },
     groups: [
-      ['shape', ['wsRun', 'wsTopOff', 'wsBaseBow', 'wsCeilBow']],
+      // (wsRun / wsTopOff = the windscreen FRAME's waist / top fore-aft, T2.1)
+      ['shape', ['wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
                          'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                          'bubAt3', 'bubW3']],
-      // the screen BASE ring pair (wsFront + wsAft): where the screen stands
-      // on the shell, and how wide the shell is there
-      ['rings', ['ringScrBot', 'ringScrW']],
+      // (the screen base pair's bottom and width = the windscreen FRAME's)
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
     ] },
 
@@ -365,7 +392,7 @@ const CAGE_PARTS = [
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
-      ['aft bulkhead', ['leanPaxDeg']],
+      // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // G245: the drawn windows — the band's replacement, same group
       ['drawn windows', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch',
@@ -380,13 +407,13 @@ const CAGE_PARTS = [
     sections: ['taper', 'pillarTaper', 'taperPanel'],
     zone: 'taper',
     place: { on: 'taperOn', type: 'taperPanels', len: 'taperLen',
-             wide: 'taperW',
              // G189: on a rod the truss is the boom's first stretch, not a
              // section added behind the bay (the anchor is one string: the
              // trunk renderer and GATE PARTS read it as a name, not a rule)
              at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
-      ['tightening', ['taperOn', 'taperLen', 'taperW', 'taperPanels']],
+      // (taperW = the boom FRAME's widths since T2.1)
+      ['tightening', ['taperOn', 'taperLen', 'taperPanels']],
     ] },
 
   // G267 (the user: "the tail cone options appear under boom, while it has
@@ -418,17 +445,18 @@ const CAGE_PARTS = [
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
       ['tail end', ['boomTailLen', 'boomTailK', 'boomTailCap']],
-      ['length & aft section', ['boomLen', 'aftRoofY', 'aftKeelY']],
+      // (aft roof / keel = the BOOM FRAME under Fuselage, T2.1)
+      ['length', ['boomLen']],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },
 
   { key: 'tailcone', name: 'Tail cone', parent: 'fuselage', layer: 'cage',
     sections: ['pillarTail'],
     zone: 'tail',
-    place: { len: 'tailLen', wide: 'tailHalfW', high: 'tailRoofY',
-             at: 'the aft extremity' },
+    place: { len: 'tailLen', at: 'the aft extremity' },
     groups: [
-      ['cone', ['tailLen', 'tailHalfW', 'tailRoofY', 'tailKeelY']],
+      // (the cone's half-width / roof / keel = the TAIL FRAME, T2.1)
+      ['cone', ['tailLen']],
       // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
       // twin booms) — moved here from the Boom (G267)
       ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',

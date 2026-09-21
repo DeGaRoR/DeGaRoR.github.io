@@ -155,9 +155,13 @@ function nullPaths(o, pre, out) {
   full.gyTrack = 1.771;                       // a gear-layer key
   full.wgSpan = 12.34;                        // a wing-layer key
   full.seatRake = 31.5;                       // a crew-layer key
+  // T2.1: the identity holds on the CANONICAL P — a retired row (the page
+  // defaults' ringScrBot seed) is lifted into its frame row at every door,
+  // so the round trip is judged against the lifted set
+  const canon = CAGE2.cageLiftLegacy ? CAGE2.cageLiftLegacy(full) : full;
   const back = CAGE2.cageFromSpec({ cage: CAGE2.cageToSpec(full) });
-  const lost = Object.keys(full).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
-                                             back[k] !== full[k]);
+  const lost = Object.keys(canon).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
+                                              back[k] !== canon[k]);
   ok(lost.length === 0, 'P -> cageToSpec -> cageFromSpec is identity' +
      (lost.length ? ' (lost ' + lost.slice(0, 6).join(', ') + ')' : ''));
   ok(back.gyTrack === 1.771 && back.wgSpan === 12.34 && back.seatRake === 31.5,
@@ -185,9 +189,12 @@ function nullPaths(o, pre, out) {
     // and so must the reference computed here, or this gate would assert
     // the leak rather than catch it.
     const tplBase = pre._base === 'template';
-    const viaPreset = Object.assign(
+    let viaPreset = Object.assign(
       tplBase ? clone(CAGE2.CAGE_PARAMS) : clone(DEFAULTS), pre);
     delete viaPreset._base;
+    // T2.1: the editor lifts a preset's retired rows on its first build;
+    // the shelf's load lifts them at the door — the same canonical P
+    if (CAGE2.cageLiftLegacy) viaPreset = CAGE2.cageLiftLegacy(viaPreset);
     // the shelf's bake, then the shelf's load
     const preFull = Object.assign(
       tplBase ? CAGE2.cageDefaults()

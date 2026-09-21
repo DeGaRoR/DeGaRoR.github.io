@@ -53896,3 +53896,129 @@ hillsides read bare where the map says scrub/heath - the borders / grassland mix
 5 and 2 /ha). TO DO for "dense": (1) 8 -> conifer on Jolene, (2) conifer count 1040 -> ~4000
 (263 /ha) in _trees_tuning.json and the payload rebaked, (3) 'dense' presets at ng 200-240,
 (4) then the frame measured on a quiet card - 549 /ha of impostors is 2-3x today's cards.
+## G470 — THE FRAME CHANTIER (T2.1, 2026-09-21, the user: "for every pillar we should be
+## able to independently set the top height, the bottom height, the waist height, and the
+## top width, the bottom width and the waist width, and finally the top aft/fore, the bottom
+## aft/fore and the waist aft/fore ... under the fuselage section, very high, very clear ...
+## highlighted when we hover over the controls ... ensure not to screw up all past builds ...
+## pillar is not the right term"; the playtest's 81/82/89/90/137/138/141)
+
+- THE WORD IS FRAME. The fuselage's transverse rings are its frames (the stressed-skin word;
+  formers on a wood/fabric build — the crest's loops stay formers — bulkheads where solid: the
+  firewall, the aft cabin wall); the longerons are the rails; a station is a position. Seven
+  frames, nose to tail: NOSE (noseTwin + noseRing, the firewall; three levels, so "top" is
+  the DECK and there is no waist row), WINDSCREEN (wsAft + wsFront, the A-pillar pair — along
+  the screen's edge, then straight in front of the doors), DOOR-POST (the window ring at
+  S.ring.z, the quarter-bay post that owns the door's forward edge — expert), CABIN
+  (pilCabA/B), PASSENGER (pilPaxB; with a taper both rings of the pax band), BOOM (the
+  boom-root ring: pilTaperA/B with a taper, the AFT ring of the passenger band without —
+  the user's ruling: "the taper does not have its own pillars, it interpolates between the
+  passenger pillar and the boom pillar"), TAIL (tailMid + tailPost, tailCap following).
+  With no passenger bay pilCabA stands at the passenger frame's station and takes both
+  frames' deviations (the aft shoulder runs pilPaxA -> pilCabA there; the old lean on a 0-bay
+  jodel sheared exactly those two rings).
+- NINE ROWS PER FRAME, ABSOLUTE METRES, "FOLLOW" BY DEFAULT (the user's choice over offsets):
+  height / half-width / fore-aft x top / waist / bottom. `null` = follow: the frame takes what
+  the reference section (roofY/keelY/waistY/halfW/roofHalfW — moved out of Cabin into
+  Fuselage's first group; it is what every frame derives from, not the cabin's own) and the
+  template fractions derive for it, so every build before this chantier is bit-identical;
+  a number is the frame's own, and the resolver applies the DEVIATION from the derived
+  default — rigidly (top = roof+ceil, bottom = keel+floor, the waist its OWN waist+band:
+  fullRing takes d.waistY, the per-station longeron G139.2 called a cage change), widths per
+  level (Wr/Ww/Wk), fore/aft as a piecewise-linear z profile through the three levels,
+  extrapolated past the ends (a shear is the collinear case, so a converted lean is
+  reproduced to the digit), CLAMPED ON DISPLACEMENT (the LEAN study's measurement: the
+  largest of the three rows <= half the shorter NON-pillar bay beside the frame's rings —
+  a pillar band is skipped, or the cabin band's 0.1 m would have clamped the pax frame to
+  5 cm as the old lean did on the jodel). The waist fore/aft ("dangerous, but let's try")
+  is in, under the same clamp; GATE FRAMES proves the cage closed at the clamp. Rows a
+  frame already had keep their keys and home: aftRoofY/aftKeelY (boom), tailRoofY/
+  tailKeelY/tailHalfW (tail), wsTopOff/wsRun (the windscreen's top and waist fore/aft),
+  noseLen (the deck's); ranges opened so the tail cone's roof and keel go NEGATIVE (82).
+  The follow rows READ their number: `opts.follow` in _cage_ui (a "follows" tick like
+  `link`, but the slider stays visible, disabled, at the value the generator derived —
+  CAGE_UI.frames, published by every build and re-synced after it; untick or drag to own
+  it, double-click the label to follow again). A full-round top's crown is the arc off the
+  waist, so the top-width rows are hidden there (`when`), as roofHalfW is inert there.
+- INTERMEDIATE RINGS FOLLOW: the pax run lerps from the passenger FRAME to the cabin
+  FRAME (each with its deviation — the old lerp went to the bare cabin section and stepped
+  at a moved pillar pair), the door post keeps the template's own derivation off the
+  reference section (it never followed the ring editor's cabin/screen offsets, and every
+  archetype relies on that — an inheritance was tried and withdrawn by the corpus), tailCap
+  and boomMid ride their frames' dims, the aero aft cone scales the framed pilPaxA, cowl
+  loops and guard rings lerp the emitted rings. THE PAX RUN'S PROFILE (137/81, the user:
+  "straight by default, then something flexible allowing for a parametrized curve"):
+  frPaxProfile 0 = the G176 linear lerp verbatim; 1 = a curve — ease (0 linear .. 1
+  smoothstep, the lofted look), bias (-1 holds the cabin section .. +1 holds the aft one:
+  u^(4^bias)), bulge on heights about the waist and on widths (sin pi u, negative pinches,
+  positive fills), and 0-2 FORMER LOOPS per bay (the crest's lerpRing idiom, the bay's own
+  material, no guards) so the curve reads on a single bay. Measured in screenshots/frames/
+  pax_profiles_*.png (lofted / held / pinched on a 3-bay page aeroplane).
+- RETIRED, LIFTED, NEVER TWO HOMES: ringNoseTop/Bot, ringScrBot/W, ringWinTop/Bot/W,
+  ringCabTop/Bot/W (the G18 ring editor), leanPaxDeg/leanCabDeg/leanPivot (the shear),
+  taperW (the boom frame's three widths at one factor). `cageLiftLegacy(P)` converts a P
+  that carries any of them: the offset lands as an ABSOLUTE frame row against that P's own
+  derivation (a clean cageSpec first; the lean against the rings WITH the offsets in, k
+  clamped by the old rule, one profile per frame of the pair at its own ring's levels), the
+  retired keys dropped. It runs at every door — cageFromSpec (the save), cageSpec's own
+  entry (any P), the editor's build (a preset or a class seed that still writes one),
+  designBake (the birth spec carries frame rows) — and CAGE_AFT_SUB's twins of the retired
+  keys (aftRingNoseTop/Bot, aftRingWinW/ScrW, the pod's) land on the aft half's P2 as
+  legacy keys with the aft frame rows nulled, so the lift converts them against the aft
+  half alone; no twins for the 52 new keys (OWED). ringPullIn STAYS a row: it narrows the
+  window ring AND the windscreen base off it (the birdman proved it), a longeron-side
+  fact. ringCowl1W/2W stay (cowl loops are not frames), relabelled. THE PAGE DEFAULTS keep
+  `ringScrBot: -0.015` as an OFFSET SEED (an absolute number there lifted to a different
+  keel on every class — Cub/Jodel/C172-alike went red) and cageLayerDefaults skips legacy
+  keys so a lifted save never gets it back; the design gate accepts a retired key in a
+  seed (SHAPE_SEED's taperW 0.78) because the lift converts it at birth.
+- THE CERTIFICATES SURVIVE (G458's f2): benchStripCosmetic hashes a frame's height/width
+  rows as their DEVIATION from the derived default against the default aeroplane's own
+  deviation (CAGE_UI.frames vs cageSpec(cageDefaults()).frames), under the RETIRED key
+  where one row maps to one (ringCabTop, ringWinBot, ringScrW ..., taperW recovered as the
+  factor, 9 decimals), the fore/aft rows under their own keys. Measured old bench + old
+  generator vs new on the page, the 172, the cub and a synthetic with five offsets: the
+  same hash; only a LEANED build (the jodel study, leanPaxDeg 30) re-certifies once.
+- THE ROWS: `0 · frames` first in _cage_page5's groupsOverride, claimed by the Fuselage
+  assembly ahead of everything (reference section, then one group per frame nose -> tail;
+  the door post EXPERT), `when`s carried over (boom frame hidden on a rod with a taper,
+  tail frame on a rod), the trunk slots that named moved rows dropped (GATE PARTS' rule:
+  a placement names a row the part owns). The finish tab's raw `pillarWindow` row — the
+  playtest's "pillar window slider that does nothing" (90) — was a finish row named by
+  its section; the six pillar sections read "windscreen frame band" etc. now (SEC_LABEL).
+- THE HIGHLIGHT (the user: "like the fin and the cowl"): `cageFrameZones(S)` = each
+  frame's station range off the RESOLVED rings (a sheared frame's lean is in it), on the
+  mesh as userData.frameZones; editor.js maps a row key to its frame (CAGE_FRAME_KEYS +
+  the profile rows -> pax) on the same delegated pointerover the PIN dots use, and cuts
+  EVERY cage draw group to the range by triangle centroid (the body-zone cut's idiom) in
+  the current highlight style — a ring of faces around the fuselage. A single-ring frame
+  gets 45 mm of band. EDITOR_FRAME_HILITE / EDITOR_SELECT for the rig.
+- GATE FRAMES (tools/_frames_check.js, core; --record rewrites the corpus, --selftest reds
+  it): IDENTITY — 50 corpus items (defaults, page, 26 archetype cards through designBake,
+  builds/*.json, bugReports/*.json, tools/fixtures/build_v*.json) resolve to the rings AND
+  the crease control mesh recorded at 1f07bfcc (tools/fixtures/frames_corpus.json) —
+  the corpus caught five deviations on the way (the slope ring's arcs riding the base lift,
+  the door-post inheritance, the lean lifted against bare rings, the cowl widths dropped
+  with S.ringOff, ringPullIn's screen-base share); LOCALITY — 104 row settings on the page
+  aeroplane, a 3-bay taper build and a box build each move their own frame's rings only
+  (+ the rings that interpolate to it), cage closed, the fore/aft clamp held (a 2 m row
+  travels 0.21 m on the cabin frame); FOLLOW — every row written at its resolved value =
+  identical, null then at its default = identical (35 rows); MIGRATION — the lift drops
+  the keys, writes 13/16 rows for 14 retired values, is a fixed point, and matches the
+  pre-chantier resolver's rings (tools/fixtures/frames_legacy_rings.json, the run may
+  re-lerp); PROFILE — straight is the old lerp, six curves bend the run rings only, one
+  bay inert without loops and a former with them.
+- THE RIG: tools/frames_shot.js (headless Chrome; --build, --set k=v, --hover key,
+  --views q,s,f,t,c, --panel, --info, --js) -> screenshots/frames/: c172_base_q (the
+  panel, the follows ticks and readouts on the 172), c172_cabtop_c (cabin frame top +15
+  cm, the frame lit), c172_hover_trio (windscreen / passenger / tail frames lit),
+  pax_profiles_top/side. The Browser pane has no WebGL on this machine.
+- GATES: the core battery green on the branch (89 jobs; two reds on the first run, both
+  the chantier's: GATE BUILD's two round-trip identities are judged on the CANONICAL P now
+  — a P that carries a retired row is never a fixed point by design, the lifted one is —
+  and benchFrameRows read `window` in node: guarded). GATE FRAMES 48 checks, --selftest
+  red-capable. Reds at HEAD not mine: none.
+- OWED: aft-pod twins for the frame rows (the pod's aft half follows the front frames or
+  its retired twins); the reference section's `waistY` sits in the trunk's POSITION slot
+  above the group; the silhouette highlight style serrates on a pinched run (the overlay's
+  shell, not the skin); the pax frame rows show with no bay (they act on pilCabA then).

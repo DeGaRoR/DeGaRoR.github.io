@@ -187,6 +187,7 @@ const GATES = [
   //
   // All five are under 3 s: they measure generators, not flights.
   { id: 'CAGEFIT', file: '_cage_fit.js', tier: 'core' },      // the cage vs its 3 reference OBJs
+  { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
