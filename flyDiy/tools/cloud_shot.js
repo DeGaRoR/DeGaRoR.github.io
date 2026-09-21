@@ -78,7 +78,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   for (let a = 0; a < 14 && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(5000);
-    flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
+    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText)");   // (a floatplane rolls out afloat, its first phase TAKEOFF)
   }
   if (!flying) throw new Error('the roll-out never happened');
   // the fresh profile's chooser (NEW AEROPLANE / keep the current build) can appear after the roll-out: poll it away
@@ -99,6 +99,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   await ev("(()=>{const r=document.querySelector('#flRail [data-f=camera]');if(r)r.click();return 1;})()");
   if (UI) await ev(`(()=>{const s=document.querySelector('#flSlots .flSlot[data-s="${UI}"]')||document.querySelector('#flRail [data-f="${UI}"]');if(s)s.click();return 1;})()`);   // a brief slot or a rail item
   else await ev("(()=>{if(window.SHOT_MODE)SHOT_MODE.enter();return 1;})()");
+  // the roll-out overlay's "compiling the world" step never completes under this rig (a floatplane's
+  // roll-out showed it over every shot, h7o): CONTINUE ANYWAY, as water_shot.js does
+  await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/continue anyway/i.test(b.textContent)).forEach(b=>b.click());return 1;})()");
   await sleep(500);
   fs.mkdirSync(OUT, { recursive: true });
   for (let i = 0; i < 60 && !(await ev("!!(window.CLOUDS && CLOUDS.baked)")); i++) await sleep(250);   // the noise bakes a few slices a frame

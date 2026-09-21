@@ -3737,19 +3737,10 @@
     pts2.frustumCulled = false; pts2.renderOrder = 4;
     craft.add(pts2);
     const drops = { p: new Float32Array(SPRAY_N * nF * 3), v: new Float32Array(SPRAY_N * nF * 3), age: new Float32Array(SPRAY_N * nF).fill(9), next: 0 };
-    const ribbons = HY.floats.map(() => {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(WAKE_N * 2 * 3), 3));
-      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(WAKE_N * 2 * 3), 3));
-      const idx = [];
-      for (let i = 0; i + 1 < WAKE_N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-      g.setIndex(idx);
-      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
-      m.frustumCulled = false; m.renderOrder = 3;
-      craft.add(m);
-      return Object.assign(m, { trail: [], lastT: 0 });
-    });
-    waterFx = { pts: pts2, drops, ribbons, t: 0 };
+    // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
+    // as foam and ripples in the surface itself; the ribbon's list stays empty so its readers hold
+    const ribbons = [];
+    waterFx = { pts: pts2, drops, ribbons, t: 0, wasWet: HY.floats.map(() => false), vyPrev: HY.floats.map(() => 0) };
   }
   function syncWaterFx(dt) {
     if (!waterFx || !sim || !sim.hydro) return;
@@ -3757,11 +3748,39 @@
     waterFx.t += dt;
     for (let k = 0; k < HY.floats.length; k++) {
       const fx = HY.floats[k], F = fx.F, out = fx.out;
-      if (!fx.wet) { const rb = waterFx.ribbons[k]; if (rb.trail.length && waterFx.t - rb.lastT > 4) rb.trail.length = 0; continue; }
+      const WT = window.WATER && WATER.field && WATER.field.on ? WATER : null;
+      if (!fx.wet) { waterFx.wasWet[k] = false; continue; }
       // the hull's own velocity at the step keel, for the spray's throw
       const eK = out.W[F.edge.K];
       const vK = fx.ctx.velAt(eK, [0, 0, 0]);
       const V = Math.hypot(vK[0], vK[2]);
+      // THE FIELD'S EMITTERS (H7, G460.8) - the hydro's own numbers, never authored:
+      if (WT) {
+        const beam = F.P ? F.P.B : 0.8, wetK = Math.min(1, fx.wet / Math.max(0.5, 2 * beam * (F.P ? F.P.L : 4)));
+        // (1) the wet hull PRESSES the surface toward its draft under the keel - a depression the sheet
+        //     radiates from as the hull moves: the wake; the depth follows the wet fraction (a planing hull
+        //     on the step wets a third of its bottom and presses less than one at rest)
+        const kc = [(out.W[F.edge.K][0] + out.W[F.stern.K][0]) / 2, 0, (out.W[F.edge.K][2] + out.W[F.stern.K][2]) / 2];
+        WT.stamp(kc[0], kc[2], beam * 0.9, -0.06 - 0.10 * wetK, V > 3 ? 0.35 * Math.min(1, V / 10) : 0, 'press');
+        // (2) TOUCHDOWN / A CRASH: the float went wet this frame with a vertical speed - a crater with a rim,
+        //     its depth the impact's (0.3 m at 1 m/s, 1 m at 4), foam on the ring, and a burst of the spray
+        if (!waterFx.wasWet[k]) {
+          const vy = -Math.min(0, vK[1]);
+          if (vy > 0.4) {
+            const amp = Math.min(1.2, 0.3 * vy), r = beam * (1.2 + 0.4 * Math.min(3, vy));
+            WT.stamp(eK[0], eK[2], r, -amp, Math.min(1, 0.4 + 0.2 * vy), 'ring');
+            const burst = Math.min(120, Math.round(25 * vy));
+            for (let j = 0; j < burst; j++) {
+              const q = D.next; D.next = (D.next + 1) % D.age.length;
+              const a = Math.random() * 6.2832, rr = r * (0.3 + 0.7 * Math.random());
+              D.p[q * 3] = eK[0] + Math.cos(a) * rr; D.p[q * 3 + 1] = fx.h + 0.05; D.p[q * 3 + 2] = eK[2] + Math.sin(a) * rr;
+              D.v[q * 3] = Math.cos(a) * (1 + 2 * Math.random()) * Math.min(2, vy) + vK[0] * 0.3; D.v[q * 3 + 1] = (1.5 + 2.5 * Math.random()) * Math.min(2, vy * 0.8); D.v[q * 3 + 2] = Math.sin(a) * (1 + 2 * Math.random()) * Math.min(2, vy) + vK[2] * 0.3;
+              D.age[q] = 0;
+            }
+          }
+        }
+        waterFx.wasWet[k] = true;
+      }
       // SPRAY from the wet chine-side bottom panels under dynamic pressure
       if (V > 2.5) {
         for (let i = 0; i < F.panels.length; i++) {
@@ -3773,6 +3792,7 @@
           // bottom faces down and out; the heading is whatever it is)
           const hn = Math.hypot(o.n[0], o.n[2]) || 1, ox = o.n[0] / hn, oz = o.n[2] / hn;
           const rate = Math.min(6, pd / 2500) * dt * 60;
+          if (WT && Math.random() < 0.5) WT.stamp(o.c[0], o.c[2], 0.5, 0, Math.min(1, pd / 4000), 'foam');   // (3) the chine's white water in the sheet
           let n = Math.floor(rate); if (Math.random() < rate - n) n++;
           for (let j = 0; j < n; j++) {
             const q = D.next; D.next = (D.next + 1) % D.age.length;
@@ -3785,13 +3805,6 @@
           }
         }
       }
-      // WAKE: the step keel's trail while wet and moving
-      const rb = waterFx.ribbons[k];
-      if (V > 1.0 && waterFx.t - rb.lastT > 0.08) {
-        rb.trail.push([eK[0], fx.h + 0.01, eK[2], waterFx.t, Math.min(1, V / 8)]);
-        if (rb.trail.length > WAKE_N) rb.trail.shift();
-        rb.lastT = waterFx.t;
-      }
     }
     // integrate the droplets
     const life = 0.9, sp = waterFx.pts.geometry.attributes.position.array;
@@ -3803,28 +3816,6 @@
       sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2];
     }
     waterFx.pts.geometry.attributes.position.needsUpdate = true;
-    // the ribbons
-    for (const rb of waterFx.ribbons) {
-      const pa = rb.geometry.attributes.position.array, ca = rb.geometry.attributes.color.array, T = rb.trail;
-      for (let i = 0; i < WAKE_N; i++) {
-        const j = T.length - 1 - i;      // newest first
-        const t = j >= 0 ? T[j] : null;
-        let x = 0, y = -1e4, z = 0, w = 0, c = 0;
-        if (t) {
-          const age = waterFx.t - t[3];
-          const fade = Math.max(0, 1 - age / 6);
-          w = (0.25 + 0.35 * age) * t[4]; c = fade * 0.9;
-          // the ribbon's width across the direction of travel
-          const nxt = T[Math.max(0, j - 1)], dx = t[0] - nxt[0], dz = t[2] - nxt[2], L = Math.hypot(dx, dz) || 1;
-          x = t[0]; y = t[1]; z = t[2];
-          const px = -dz / L * w, pz = dx / L * w;
-          pa[i * 6] = x + px; pa[i * 6 + 1] = y; pa[i * 6 + 2] = z + pz;
-          pa[i * 6 + 3] = x - px; pa[i * 6 + 4] = y; pa[i * 6 + 5] = z - pz;
-        } else { pa[i * 6] = pa[i * 6 + 3] = 0; pa[i * 6 + 1] = pa[i * 6 + 4] = -1e4; pa[i * 6 + 2] = pa[i * 6 + 5] = 0; }
-        for (let m2 = 0; m2 < 2; m2++) { ca[(i * 2 + m2) * 3] = c; ca[(i * 2 + m2) * 3 + 1] = c; ca[(i * 2 + m2) * 3 + 2] = c; }
-      }
-      rb.geometry.attributes.position.needsUpdate = true; rb.geometry.attributes.color.needsUpdate = true;
-    }
   }
   function syncFloats() {
     for (const m of floatMeshes) {
@@ -9089,6 +9080,14 @@
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     if (floatMeshes.length) syncFloats();
     if (waterFx && !inGarage) syncWaterFx(running ? 1 / 60 : 0);
+    // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
+    // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
+    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force)) {   // (no floats: the field runs only when the dev panel forces it)
+      const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
+      const want = Number.isFinite(wl) && cgF[1] - wl < 60;
+      if (want !== WATER.field.on) WATER.fieldOn(want);
+      if (want) WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? 1 / 60 : 0);
+    }
     if (++frame % 6 === 0) {
       hud();
       flLayout();

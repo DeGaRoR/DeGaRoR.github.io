@@ -167,8 +167,12 @@ for (const body of ['sea', 'lake']) {
 }
 P.appendChild(h3('the views'));
 P.appendChild(select('debug view', [['0', 'the water'], ['1', 'normal'], ['2', 'roughness'], ['3', 'slope variance'], ['4', 'depth'], ['5', 'foam'], ['6', 'alpha'], ['7', 'body'], ['8', 'height']], () => String(WATER.S.dbg), v => WATER.set({ dbg: +v })));
-P.appendChild(select('interaction slot', [['0', 'empty'], ['1', 'the test V at the origin']], () => WATER.uniforms.uWInterBox.value.w > 0.5 ? '1' : '0', v => { if (v === '1') WATER.setInteraction(WATER.paintTestV(THREE, 128, 80), -40, -40, 80); else WATER.setInteraction(null); }));
-P.appendChild(note('the test V: a painted Kelvin wake (RG slope, B foam) in the world-locked box H7 will write live'));
+P.appendChild(select('interaction slot', [['0', 'empty'], ['1', 'the test V at the origin'], ['2', 'the live field (H7)']], () => FIELD.on ? '2' : WATER.uniforms.uWInterBox.value.w > 0.5 ? '1' : '0', v => { FIELD.on = v === '2'; WATER.fieldOn(FIELD.on); if (v === '1') WATER.setInteraction(WATER.paintTestV(THREE, 128, 80), -40, -40, 80); else if (v === '0') WATER.setInteraction(null); }));
+P.appendChild(note('the test V: a painted Kelvin wake (RG slope, B foam) in the world-locked box; the live field (H7): the wave equation on a 256^2 sheet over 128 m about the eye\'s target, stamped by the buttons'));
+{ const row = $('div', { class: 'row' }), b1 = $('button', { text: 'a splash' }), b2 = $('button', { text: 'a hull\'s run' }), out = note('');
+  b1.onclick = () => { if (!FIELD.on) return; WATER.stamp(EYE.tx, EYE.tz, 1.6, -0.6, 0.9, 'ring'); FIELD.probeAt = FIELD.t + 1.0; };
+  b2.onclick = () => { if (!FIELD.on) return; FIELD.run = FIELD.t; };
+  FIELD.report = s => { out.textContent = s; }; row.append(b1, b2); P.appendChild(row); P.appendChild(out); }
 P.appendChild(h3('parity'));
 { const b = $('button', { text: 'the GPU\'s height against waterH' }), out = note('');
   b.onclick = () => { const r = parity(); out.textContent = `max |GPU - gerstnerJS| = ${(r.max * 1000).toFixed(2)} mm over ${r.n} points at t = ${r.t.toFixed(1)} s (a float target)`; };
@@ -200,6 +204,16 @@ function parity() {
 }
 
 // ---- the frame ------------------------------------------------------------------------------------
+// THE LIVE FIELD (H7): stepped here as app.js steps it in the game (centre = the eye's target); a splash
+// is a ring stamp, a hull's run a press moving at 8 m/s for 6 s (the wake's V behind it), the probe reads
+// the state back a second after the splash (max |h|, the centre row) as the gate's numbers
+const FIELD = { on: false, t: 0, run: 0, probeAt: 0, report: () => {} };
+function fieldTick(dt) {
+  if (!FIELD.on) return; FIELD.t += dt;
+  if (FIELD.run > 0) { const s = FIELD.t - FIELD.run; if (s < 6) WATER.stamp(EYE.tx - 24 + 8 * s, EYE.tz + 6, 0.8, -0.15, 0.4, 'press'); else FIELD.run = 0; }
+  WATER.fieldStep(THREE, renderer, EYE.tx, EYE.tz, dt);
+  if (FIELD.probeAt && FIELD.t >= FIELD.probeAt) { FIELD.probeAt = 0; const p = WATER.fieldProbe(renderer, THREE); if (p) FIELD.report(`1 s after the splash: max |h| ${(p.maxH * 100).toFixed(1)} cm, foam mean ${p.foamMean.toFixed(4)}, the centre row ${p.row.slice(12, 20).map(v => (v * 100).toFixed(1)).join(' ')} cm`); }
+}
 WATER.set({ timer: true });
 let last = performance.now(), fr = [];
 function frame() {
@@ -207,7 +221,7 @@ function frame() {
   fr.push(now); while (fr.length > 60) fr.shift();
   const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   // the clock is the bench's own (no solver here): frame() free-runs
-  WATER.frame(dt);
+  WATER.frame(dt); fieldTick(dt);
   // the near patch follows the eye's target, snapped to its grid; the far plane is cut out of its box
   const step = SEAW / SEAN, ox = Math.round(EYE.tx / step) * step, oz = Math.round(EYE.tz / step) * step;
   const wavy = world.sea.A > 0 && WATER.S.displace;

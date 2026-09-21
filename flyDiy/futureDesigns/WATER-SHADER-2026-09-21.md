@@ -1,4 +1,4 @@
-# THE WATER SHADER — as built (H6, G460 … G460.7), and how it grows
+# THE WATER SHADER — as built (H6, G460 … G460.8), and how it grows
 
 The design's H6 (`WATER-2026-09-13.md` §3), built 2026-09-21 after the r186 migration. This
 is the as-built record and the evolution map; the G entries in HANDOVER carry the day's
@@ -77,6 +77,49 @@ every step, the buoys and the patch read `WATER.time()` — ruling (ap) honoured
 first time (render_world's own 1/60 accumulator drew the hull a frame away from the wave
 that pushed it, pause or not).
 
+## 2b. The interaction field (H7, G460.8) — wakes, ripples, splashes
+
+The slot §2 opened (`setInteraction`) is written live now by a field inside water.js:
+a world-locked heightfield of 256² half-float texels over 128 m (0.5 m a texel) following
+the CG, stepped every frame by the wave equation with damping —
+`h' = (2h − h_prev)·d + (c·dt/dx)²·lap(h)`, c = 1.6 m/s (a metre-and-a-half ripple's phase
+speed; non-dispersive, so a hull faster than c leaves a V of half-angle asin(c/V) — narrower
+than Kelvin's 19.5° at speed, and the foam trail along the track carries the wake's read
+from altitude), d = 0.996 a frame (a ripple's e-fold 4 s), an absorbing rim over the last
+12 texels (a box edge would ring). The box moves with the CG snapped to whole texels and the
+step reads the previous state through the move's offset, so the water stands still in the
+world while the box slides over it. The state is (h, h_prev, foam): a third channel of its
+own, decaying 0.985 a frame. A DERIVE pass writes the slot's texture — RG the slope over
+[−2, 2] (the shader adds it to the normal, the same encode the painted V used), B the foam
+(added to the mask). Two 256² passes: ~0.1 ms.
+
+**Stamps** (`WATER.stamp(x, z, r, amp, foam, kind)`, up to 16 a frame, folded into the step
+— never a readback): a `press` pulls the surface toward a target height under a gaussian
+(a wet hull's draft), a `ring` is a crater with a rim (a splash's first instant), a `foam`
+stamp is foam alone. **A stamp displaces h and h_prev together** — the first build changed
+h alone and the leapfrog read the change as a velocity: the crater deepened instead of
+rebounding (the bench's readback found it).
+
+**The emitters** (app.js `syncWaterFx`, the hydro's own numbers, never authored):
+(1) the wet hull presses the surface under its keel (the centre of the step keel and the
+stern, r = 0.9 beam, the depth −0.06 − 0.10 × the wet fraction; foam 0.35·min(1, V/10) when
+moving) — the wake radiates from the moving depression; (2) TOUCHDOWN or a crash: a float
+that goes wet this frame with a vertical speed above 0.4 m/s drops a ring (depth 0.3 m at
+1 m/s, 1.2 at 4; r = beam × (1.2 + 0.4 vy)) with foam and a burst of the spray (25 droplets
+per m/s, up to 120); (3) the planing chine's white water: a foam stamp wherever the spray
+fires. The wake RIBBONS (G370's vertex strips) are retired — the field carries the wake.
+The field runs while a floatplane's CG is within 60 m over water (the slot cleared
+otherwise); a wheeled build has no hydro and the dev panel's `interaction field (H7)` row
+forces it on under any aeroplane, with `a test splash under the CG`. The bench
+(`tools/_water.html`) has the same slot option (`the live field`), a splash button, a hull's
+run (a press moving at 8 m/s for 6 s) and a readback a second after the splash. The physics
+does not feel the field: a ripple is not a wave the floats ride, and the near patch is not
+displaced by it (a slope-only band, like the wind sea).
+
+Proof: screenshots/water-g440/h7*/ (the ring from 30 m, the wake's V from 40 m and from
+a low eye); GATE WATER §5 (the CFL, the damping, the displaced pair, the encode/decode
+pair, the emitters in app.js, the ribbons gone).
+
 ## 3. What the pictures say (screenshots/water-g440/, by round)
 
 - g9/g10/g11 (the last round): 7 m/s at 300 m — dark blue, wave groups, the sun's glitter,
@@ -98,13 +141,12 @@ that pushed it, pause or not).
    1–2 cascades at 128²/256², ping-pong `WebGLRenderTarget`s (spectrum once, `h(k,t)` per
    frame, row/column butterflies, a normal pass; ≈ 0.1–0.4 ms) writing `uWDetail` and
    `uWDetailK.x`. `detailNormal(xz)` reads it unchanged. The physics does not feel it.
-3. **H7 — the interaction field**: a world-locked ping-pong heightfield (256², ~160 m)
-   following the aeroplane, the wave equation with damping, `WATER.stamp(x, z, r, amp)`
-   driven by the hydro panels (vertical motion → a ring, horizontal → a wake; the energy
-   the displaced volume), copied with an offset when its box moves; an analytic Kelvin V
-   (19.47°) for the far trail. It writes the slot this chantier proved with the painted V
-   (`WATER.paintTestV`). Spray and the rooster tail stay particles (app.js's), reading
-   the same surface.
+3. **H7 — the interaction field** — DONE as G460.8 (§2b). What remains of it: the
+   analytic Kelvin V (19.47°) for the far trail beyond the 128 m box (the field's V is
+   the non-dispersive asin(c/V)); a dispersive step (two speeds: the capillary ring and
+   the gravity wake) if a low eye on a taxiing hull asks for it; the energy budget from
+   the displaced volume (the press depth is a fit today, −0.06..−0.16 m); a lake's rim
+   reflecting the ripples (the rim absorbs everywhere, a shore should reflect).
 4. **A near-ring clipmap** with displacement, if the dock and float views ask for more
    than the 360 m patch; the shader is displacement-ready (band 1 in the vertex path).
 5. **The depth buffer** as a refinement for hulls and docks (a waterline fade; a frame

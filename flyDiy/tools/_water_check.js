@@ -19,6 +19,9 @@
 //      the roughness inside [three's floor, 1].
 //   4. THE TILE — periodic to the byte (the bake is a sum of integer waves),
 //      a zero-mean slope, deterministic, no NaN.
+//   5. THE FIELD (H7) — the interaction field's step is stable (CFL), damped,
+//      rimmed; a stamp displaces h and h_prev together; the derive/decode pair
+//      agree; app.js emits press/ring/foam from the hydro and steps the field.
 //
 // node tools/_water_check.js [--verbose]
 'use strict';
@@ -153,6 +156,31 @@ console.log('\n4. THE TILE');
   let mx = 0, mz = 0; for (let p = 0; p < N * N; p++) { mx += a.data[p * 4] / 255 * 2 - 1; mz += a.data[p * 4 + 1] / 255 * 2 - 1; }
   mx /= N * N; mz /= N * N;
   verdict(Math.abs(mx) < 0.02 && Math.abs(mz) < 0.02, `zero-mean slope (${f(mx, 3)}, ${f(mz, 3)})`);
+}
+
+// ---- 5. THE FIELD (H7, G460.8) ----------------------------------------------
+console.log('\n5. THE FIELD');
+{
+  const w = src('src/viewer/water.js'), app = src('src/viewer/app.js');
+  verdict(typeof W.stamp === 'function' && typeof W.fieldStep === 'function' && typeof W.fieldOn === 'function' && W.field && W.FIELD_N === 256 && W.FIELD_M === 128, `the field's API (stamp / fieldStep / fieldOn), ${W.FIELD_N}^2 texels over ${W.FIELD_M} m`);
+  const dx = W.FIELD_M / W.FIELD_N, cfl = W.field.c / 60 / dx;
+  verdict(cfl < 0.5 && /Math\.min\(0\.45, F\.c \* Math\.max\(dt, 1e-3\) \/ dx\)/.test(w), `the step is stable: c dt/dx = ${f(cfl, 3)} at 60 Hz (< 0.5), clamped at 0.45 for a long frame`);
+  verdict(W.field.damp > 0.98 && W.field.damp < 1 && W.field.foamDecay > 0.9 && W.field.foamDecay < 1, `damping per frame ${W.field.damp} (a ripple's e-fold ${f(-1 / Math.log(W.field.damp) / 60, 1)} s), foam ${W.field.foamDecay}`);
+  // a stamp must displace h AND h_prev (a change of h alone is read by the leapfrog as a velocity: the crater deepens)
+  verdict(/gl_FragColor = vec4\(hn \+ ds, h \+ ds, clamp\(fn, 0\.0, 1\.0\), 1\.0\);/.test(w), 'a stamp displaces h and h_prev together (never a velocity)');
+  verdict(/float rim = smoothstep\(0\.0, uK\.w, e\);/.test(w) && W.field.rim >= 8, `the absorbing rim (${W.field.rim} texels)`);
+  verdict(/gl_FragColor = vec4\(clamp\(sl \/ 4\.0 \+ 0\.5, 0\.0, 1\.0\), foam, 1\.0\);/.test(w) && /\(t\.rg \* 2\.0 - 1\.0\) \* 2\.0/.test(W.GLSL.frag), 'the derive pass writes the slot\'s encode (slope over [-2, 2]) and the shader decodes the same');
+  verdict(/renderer\.setClearColor\(0x000000, 0\)/.test(w), 'the state is cleared to 0 on first use (not the scene\'s sky colour)');
+  // the caller's render target is read BEFORE the first-use clears and restored after the passes (read after
+  // them, the first step handed app.js the state target and the canvas froze: h7l/h7m)
+  { const fs = w.slice(w.indexOf('function fieldStep('), w.indexOf('function fieldOn('));
+    const iP = fs.indexOf('const prevT = renderer.getRenderTarget()'), iC = fs.indexOf('if (!F.ready)'), iR = fs.indexOf('renderer.setRenderTarget(prevT)');
+    verdict(iP > 0 && iC > iP && iR > iC, 'fieldStep reads the caller\'s target before its clears and restores it after its passes'); }
+  // the emitters in app.js: the press under a wet hull, the ring on touchdown, the foam on the chine; the ribbons retired
+  verdict(/WT\.stamp\([^\n]*'press'\)/.test(app) && /WT\.stamp\([^\n]*'ring'\)/.test(app) && /WT\.stamp\([^\n]*'foam'\)/.test(app), 'app.js stamps press / ring / foam from the hydro\'s own numbers');
+  verdict(/const ribbons = \[\];/.test(app) && !/rb\.trail\.push/.test(app), 'the wake ribbons are retired (the field carries the wake)');
+  verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\]/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG every frame while a floatplane is over water');
+  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force\)/.test(app), 'without hydro the field runs only when the dev panel forces it');
 }
 
 console.log('\nGATE WATER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));

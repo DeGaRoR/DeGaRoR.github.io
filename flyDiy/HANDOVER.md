@@ -166,7 +166,12 @@ before every battery so stale hand-edits get overwritten, loudly.
   interaction slot. The body is a vertex attribute (aWater), the presets are
   uniform rows. `gerstnerFromGLSL` transpiles the shipped Gerstner string into
   the JS the buoys, the bench and GATE WATER read. `_water_check.js` is its
-  gate; `tools/cloud_shot.js` with a sea-state JS is its camera.
+  gate; `tools/cloud_shot.js` with a sea-state JS is its camera. THE
+  INTERACTION FIELD (H7, G460.8) lives in the same file: a 256^2 heightfield
+  over 128 m following the CG, the wave equation stepped every frame, stamped
+  by app.js's emitters (a wet hull's press, a touchdown's ring, the chine's
+  foam), written into the slot; `tools/_h7_drive.js` / `_h7_follow.js` are its
+  rig drivers (a field under any aeroplane, a following eye).
 - `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
   GL draw counters, before/after against the previous commit's viewer, and
   handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
@@ -54639,3 +54644,61 @@ treeEx is a STRIP now: the runway's length + 150 m each end, its width + 60 m ea
 a record without hdg/wid keeps the circle). Pictures: screenshots/map/field200e (200 m over the
 field: the muskeg full of small conifers to the mountains), field60e (60 m). WORLD green (the
 gate's golden hash reads the woodland, not the fill).
+## G460.8 — H7: THE INTERACTION FIELD — WAKES, RIPPLES, SPLASHES (2026-09-21/22, the user: "now
+## the H7 interaction field, wakes and splashes")
+
+- THE FIELD (water.js): a world-locked heightfield of 256^2 half-float texels over 128 m (0.5 m a
+  texel) following the CG, stepped every frame by the wave equation with damping -
+  h' = (2h - h_prev) d + (c dt/dx)^2 lap(h), c = 1.6 m/s, d = 0.996 a frame (a ripple's e-fold 4 s),
+  CFL 0.053 at 60 Hz (clamped at 0.45 for a long frame), an absorbing rim over the last 12 texels (a
+  box edge would ring). The box moves with the CG snapped to whole texels and the step reads the
+  previous state through the move's offset, so the water stands still in the world while the box
+  slides. The state is (h, h_prev, foam) - foam a channel of its own, decaying with a 2 s e-fold. A
+  DERIVE pass writes the slot's texture (RG the slope over [-2, 2], B the foam - the encode the
+  painted V used, G460.4), and setInteraction takes it: the shader adds the slope to its normal and
+  the foam to its mask; the near patch is NOT displaced by it (a slope-only band, like the wind sea)
+  and the physics does not feel it (a ripple is not a wave the floats ride). Cost: two 256^2 passes.
+- THE STAMPS (WATER.stamp(x, z, r, amp, foam, kind), up to 16 a frame, folded into the step - never a
+  readback): `press` pulls the surface toward a target height under a gaussian, `ring` is a crater
+  with a rim, `foam` foam alone. A STAMP DISPLACES h AND h_prev TOGETHER: the first build changed h
+  alone and the leapfrog read the change as a velocity - the crater deepened instead of rebounding
+  (the bench's readback found it: max |h| growing). The state is cleared to ZERO on first use
+  (renderer.clear() alone wrote the sky's clear colour: a field 0.67 m high everywhere).
+- THE EMITTERS (app.js syncWaterFx, the hydro's own numbers, never authored): (1) the wet hull
+  presses under its keel (the centre of the step keel and the stern, r 0.9 beam, depth
+  -0.06 - 0.10 x the wet fraction, foam 0.35 min(1, V/10) when moving) - the wake radiates from the
+  moving depression; (2) TOUCHDOWN / A CRASH: a float that goes wet this frame with a vertical speed
+  over 0.4 m/s drops a ring (depth 0.3 m at 1 m/s, 1.2 at 4; r = beam (1.2 + 0.4 vy)) with foam and a
+  burst of the spray (25 droplets per m/s, up to 120); (3) the planing chine's white water: a foam
+  stamp wherever the spray fires. THE WAKE RIBBONS (G370's vertex strips) ARE RETIRED - the field
+  carries the wake; `ribbons` stays an empty list so its readers hold. The field runs while a
+  floatplane's CG is within 60 m over water and clears its slot otherwise; a wheeled build has no
+  hydro, so the dev panel's `interaction field (H7)` row forces it on under any aeroplane, with
+  `a test splash under the CG`; the bench has `the live field` slot option, `a splash`, `a hull's run`
+  (a press at 8 m/s for 6 s) and a readback a second after the splash.
+- THE FIELD'S FOAM IS A COVERAGE, NOT A PAINT: the first write was a solid white bar 17 m long behind
+  the hull (h7n/wake2.png - a foam of 0.15 over a dark sea reads white); it is torn by the tile's
+  noise at 2.3 m so a trail is a scatter of patches thinning as it decays, solid only where fresh.
+- THE RIG TRAPS, three, each a run: (a) the canvas FROZE after the first field step (six shots byte-
+  equal, h7h/h7j/h7k) - fieldStep read the caller's render target AFTER its first-use clears and
+  handed app.js the state target back: every frame after drew the world into 256^2. The read is the
+  step's first line now and GATE WATER holds the order (read < clears < restore). (b) a floatplane
+  rolls out AFLOAT and its first phase is TAKEOFF - cloud_shot / water_shot waited for
+  TAXI|DOWNWIND|FINAL and threw 'the roll-out never happened'; both know TAKEOFF|CLIMB now. (c) the
+  roll-out overlay's "compiling the world" (the known trap) sat over every floatplane shot - cloud_shot
+  clicks CONTINUE ANYWAY as water_shot does. To seed a build into the rig: --pre with
+  localStorage flydiy.wip = atob(<the envelope, base64>) (a quoted JSON through the Windows argv
+  loses its backslashes; tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json is the floats
+  build). WORLD.renderer does not exist - the renderer is window.FLYDIY_RENDERER.
+- PROOF (screenshots/water-g440/): h7n/ the bench-style field under a wheeled aeroplane (ring1 the
+  splash's foam from 30 m, wakeG the ring's ripples from a low eye 10 s on + the pressed track);
+  h7p/ the C172 on Wiplines dropped on the sea (drop: the torn foam patch + spray from 30 m, t5 the
+  ring around the floats from a low eye); h7q/ the take-off run at 80 % (runTop: the wake's foam
+  trail curving behind the turning hull from 90 m, runLow2: the chine's foam and spray). GATE WATER
+  §5 (12 rules: the API, the CFL, the damping, the displaced pair, the rim, the encode/decode pair,
+  the zero clear, the target order, the three emitters, the ribbons gone, the app's step and its
+  hydro gate). GATE WATER, WORLDRENDER, HYDRO, FLOATS, GFX, MEDIA, UISMOKE green.
+- OWED: the analytic Kelvin V beyond the box (the field's V is asin(c/V), non-dispersive); a
+  dispersive step (a capillary ring and a gravity wake at their own speeds) if a low eye on a
+  taxiing hull asks; the press depth from the displaced volume (a fit today); a lake's rim
+  reflecting (the rim absorbs everywhere); the crosswind card and the shelf, from G460.7.

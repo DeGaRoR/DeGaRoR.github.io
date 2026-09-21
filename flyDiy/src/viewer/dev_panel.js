@@ -477,6 +477,10 @@
       const cg = (W.FLIGHT_PROBE && W.FLIGHT_PROBE.sim) ? W.FLIGHT_PROBE.sim().cgPos() : [0, 0, 0];
       w.setInteraction(t, Math.round(cg[0]) - size / 2, Math.round(cg[2]) - size / 2, size);
     }));
+    // THE LIVE FIELD (H7, G460.8): the game steps it while a floatplane is over water; this row drives it
+    // under any aeroplane (a wheeled build has no hydro) and the button drops a splash under the CG
+    Ewt.appendChild(select('interaction field (H7)', [['0', 'the game\'s (floats over water)'], ['1', 'forced on under the aeroplane']], () => (WT() && WT().field && WT().field.force) ? '1' : '0', v => { const w = WT(); if (!w || !w.field) return; w.field.force = v === '1'; if (!w.field.force) w.fieldOn(false); }));
+    Ewt.appendChild(button('a test splash under the CG', () => { const w = WT(); if (!w || !w.field || !w.field.on) return; const cg = (W.FLIGHT_PROBE && W.FLIGHT_PROBE.sim) ? W.FLIGHT_PROBE.sim().cgPos() : [0, 0, 0]; w.stamp(cg[0], cg[2], 1.6, -0.6, 0.9, 'ring'); }));
     Ewt.appendChild(note('one material for every water (water.js): SEA.W in GLSL (the parity is GATE WATER’s), a ripple tile on the wind, the sub-pixel slope variance as roughness; ?water=0 for the stock A/B'));
     // ---- FRAME, CAMERA -------------------------------------------------------
     const F = fold(root, 'frame', false);

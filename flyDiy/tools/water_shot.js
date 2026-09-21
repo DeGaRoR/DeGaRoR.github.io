@@ -126,7 +126,7 @@ function ramp(P) {     // along the middle rows, over the WATER's pixels (the al
   for (let a = 0; a < 14 && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(5000);
-    flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
+    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText)");   // (a floatplane rolls out afloat, its first phase TAKEOFF)
   }
   if (!flying) throw new Error('the roll-out never happened');
   const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
