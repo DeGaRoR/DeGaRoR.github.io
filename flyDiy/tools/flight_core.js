@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 455a312a5076c6ab
+// body-sha256: 5c9889707e2a6802
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6506,7 +6506,7 @@ const GROUND_FIELDS = (() => {
       8:  { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
       9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40], para: 0.2 },
       10: { tex: ['dirt', null, null],         scale: [2, 0, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [20, 1, 0, 0],       vary: [2, 0.06, 10], para: 0.2 },
-      11: { tex: ['pebble', 'rocksG', null],   scale: [4.5, 2, 0],  far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [12, 3, 0, 0],       vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (a coast_land_rocks set is owed)
+      11: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): the dark foreshore aerial (coast_land_rocks_01) with pale rock chunks (rocksG) in it and the green-tufted upper shore (coast_sand_rocks_02) a third of the band - four recipes judged straight down at -4414,-4936 (bench/coast/try_4.png); `pebble` (Gravel022, pale) left the code. A NEGATIVE bias A|B favours A
       12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
       13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['lush', 'grass', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', null, 'rockyA'],       farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },
@@ -6535,6 +6535,7 @@ const GROUND_FIELDS = (() => {
       ['beach', 29.98], ['rocksA', 78.93], ['rocksB', 50.18], ['mud', 1.25], ['leaves', 1.49], ['cliff', 6.86], ['rocksG', 2.03], ['rockyA', 89.94], ['rockyB', 89.79],
       ['grassRock', 15.04], ['forestAir', 80.81], ['snowAir', 81.2],
       ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
+      ['coastA', 19.94], ['coastSand', 15.2],   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): appended, never inserted - a set's index is its layer
     ],
   };
   // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------

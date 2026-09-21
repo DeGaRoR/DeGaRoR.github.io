@@ -14697,7 +14697,7 @@ const GROUND_FIELDS = (() => {
       8:  { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
       9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40], para: 0.2 },
       10: { tex: ['dirt', null, null],         scale: [2, 0, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [20, 1, 0, 0],       vary: [2, 0.06, 10], para: 0.2 },
-      11: { tex: ['pebble', 'rocksG', null],   scale: [4.5, 2, 0],  far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [12, 3, 0, 0],       vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (a coast_land_rocks set is owed)
+      11: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): the dark foreshore aerial (coast_land_rocks_01) with pale rock chunks (rocksG) in it and the green-tufted upper shore (coast_sand_rocks_02) a third of the band - four recipes judged straight down at -4414,-4936 (bench/coast/try_4.png); `pebble` (Gravel022, pale) left the code. A NEGATIVE bias A|B favours A
       12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
       13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['lush', 'grass', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', null, 'rockyA'],       farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },
@@ -14726,6 +14726,7 @@ const GROUND_FIELDS = (() => {
       ['beach', 29.98], ['rocksA', 78.93], ['rocksB', 50.18], ['mud', 1.25], ['leaves', 1.49], ['cliff', 6.86], ['rocksG', 2.03], ['rockyA', 89.94], ['rockyB', 89.79],
       ['grassRock', 15.04], ['forestAir', 80.81], ['snowAir', 81.2],
       ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
+      ['coastA', 19.94], ['coastSand', 15.2],   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): appended, never inserted - a set's index is its layer
     ],
   };
   // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------
@@ -36872,41 +36873,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='455a312a5076';window.FLYDIY_BUILD='4e4c804f6278'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5c9889707e2a';window.FLYDIY_BUILD='9e9fe7279c05'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -101226,6 +101227,16 @@ const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       get nor() { return mk('media/tex/splat/dirt_nor_gl_512.27f8e9b2.jpg'); },
       get height() { return mk('media/tex/splat/dirt_height_512.ecb3a4f1.jpg'); },
       get rough() { return mk('media/tex/splat/dirt_rough_512.a924c560.jpg'); } },
+    { key: 'coastA', metres: 19.94, px: 512, mean: [0.0885,0.0593,0.0297],
+      get diff() { return mk('media/tex/splat/coastA_diff_512.d3bf0462.jpg'); },
+      get nor() { return mk('media/tex/splat/coastA_nor_gl_512.97e2058e.jpg'); },
+      get height() { return mk('media/tex/splat/coastA_height_512.5948d41b.jpg'); },
+      get rough() { return mk('media/tex/splat/coastA_rough_512.88cd29a5.jpg'); } },
+    { key: 'coastSand', metres: 15.2, px: 512, mean: [0.0728,0.0598,0.0284],
+      get diff() { return mk('media/tex/splat/coastSand_diff_512.262f733c.jpg'); },
+      get nor() { return mk('media/tex/splat/coastSand_nor_gl_512.b2f0b5a8.jpg'); },
+      get height() { return mk('media/tex/splat/coastSand_height_512.ef67ae07.jpg'); },
+      get rough() { return mk('media/tex/splat/coastSand_rough_512.6cf3034a.jpg'); } },
   ];
 })() : null;
 </script>
@@ -130244,35 +130255,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=f5bc6864"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=dcd314a7"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {
