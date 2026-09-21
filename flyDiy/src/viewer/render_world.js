@@ -715,7 +715,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     return best;
   };
-  const treeEx = world.aerodromes.map(a => ({ x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 }));
+  // THE AERODROME'S CLEARING (2026-09-22, the user's reference picture of the airport: the trees
+  // stand dense right beside the runway): a STRIP along the runway - the length + 150 m each
+  // end for the approach, the width + 60 m each side - where it was a CIRCLE of len/2 + 70
+  // (a kilometre round a 2 km runway, the whole airport bare). A record without a heading keeps
+  // the circle.
+  const treeEx = world.aerodromes.map(a => (typeof a.hdg === 'number' && a.wid)
+    ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
+    : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
+  const inEx = (e, x, z) => {
+    if (!e.strip) return (x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2;
+    const dx = x - e.x, dz = z - e.z, al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
+    return Math.abs(al) < e.hl && Math.abs(ac) < e.hw;
+  };
   // ORDERED BY COST (W0c.30): the corridor and the aerodromes are a compare,
   // the woodland bins a few distances, the classifier 2.4 us - and it was
   // first, so the fill's walk paid it on every one of a chunk's 12 544 grid
@@ -723,9 +735,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // reach it now. Same conjunction, same answer.
   // `sc`: the caller's own classification of (x, z) when it has one (the
   // colour bake, LOADING S2) - the classifier is 2.7 us and was asked twice
+  // THE OPEN GROUND (2026-09-22, the user's reference picture of the airport: "this whole area is
+  // populated with quite dense yet small vegetation"): on an island the fill stood only on the cover
+  // map's TREE cells (FOREST_FLOOR) - the muskeg, the heath and the scrub (a third of the land) got
+  // nothing whatever their biome said. A point on plain GRASS ground, off the corridor, the
+  // exclusions and the water, is the BIOME's to plant (the mix's count decides); the terrain's colour
+  // bake and the far canopy mask keep forestHere's rule.
+  const openHere = (x, z) => {
+    if (!world.island) return false;
+    if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
+    for (const e of treeEx) if (inEx(e, x, z)) return false;
+    if (world.surface(x, z) !== world.SURFACE.GRASS) return false;
+    const h = world.terrainH(x, z);
+    return !(h < 1.5 || world.waterH(x, z) > h);
+  };
   const forestHere = (x, z, sc) => {
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
-    for (const e of treeEx) if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) return false;
+    for (const e of treeEx) if (inEx(e, x, z)) return false;
     // THE WOODLAND GATE IS THE ANALYTIC WORLD'S (G400): on an island the map
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
@@ -3230,11 +3256,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
-          if (!forestHere(x, z)) continue;  // ONE rule, the bake's too
+          if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0, mixHere = null;
+          let can = 0, mixHere = null, floored = false;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
@@ -3254,9 +3280,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
+              // THE MIX'S OWN FLOOR (2026-09-22, the user's reference picture of the airport: the whole muskeg is
+              // dense small conifers the canopy map does not see - it reads 0.1-0.2 m there, under the ramp's 0.5):
+              // a mix may say how tall its ground is at least (forest.canopyFloor, m) - the ramp and the size read it
+              if (mixHere) { const MF = BIO.mixOf(mixHere).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; } }
               if (kind <= 0.0) continue; }
-            let p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
-            if (ISLC.ndvi) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
+            // a floored mix is at its count: the map's ramp and vigour said "nothing here" and the mix overrules them
+            let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
+            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
             { const d = 8, gx2 = ISLC.terrainH ? 0 : 0; const s2 = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
               if (s2 > 0.7) p *= 0.33; }
             p *= kind;

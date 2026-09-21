@@ -54618,3 +54618,24 @@ bunchberry, rocks. `borders` names no code now (it stays in the table for F8). T
   beam on/off, the incidence).
 - OWED (T2.3, the game side): 18 the flap lever's 2-axis placement, 51 the hinge finish,
   132 crew seating / passengers; 48's fitments.
+
+## G481 — THE AIRPORT IS NOT BARE: THE OPEN GROUND PLANTED, THE MIX'S CANOPY FLOOR, THE CLEARING A STRIP
+## (2026-09-22, the user's reference picture of Annette's airport: "this whole area is populated with quite
+## dense yet small vegetation, plus the dense high trees next to the runway. Ours looks really bare")
+
+Three gates stood between the biome and the ground, found one after the other on the same view:
+(1) THE FILL STOOD ON TREE CELLS ONLY: forestHere is FOREST_FLOOR = the cover map's TREE class, so
+the muskeg, the heath and the scrub (a third of the land, cover SHRUB/GRASS/WETLAND) got nothing
+whatever their mix said. openHere (render_world): on an island a point on plain GRASS ground, off
+the corridor, the exclusions and the water, is the biome's to plant; forestHere keeps its rule for
+the terrain's colour bake and the far canopy mask. (2) THE CANOPY MAP READS 0.1-0.2 m THERE: the
+ramp (from 0.5 m) and the NDVI vigour said "nothing"; a mix may now carry forest.canopyFloor (m):
+a floored point is at the mix's count (p = 1, the ramp and the vigour overruled) and the floor
+sizes the tree (muskeg 3.5 m -> the models at their 0.3 minimum, 4-5 m; conifer_scrub 4.5 m).
+The muskeg mix: 5000 in r 220 = 329 /ha of fir pack / spruce / the two stunted pines, dead
+conifers and sticks, shrubs 4/1000 m2. (3) THE AERODROME'S CLEARING WAS A CIRCLE of len/2 + 70 m
+round every aerodrome - a kilometre round Jolene's runway, the whole airport bare by design.
+treeEx is a STRIP now: the runway's length + 150 m each end, its width + 60 m each side (inEx;
+a record without hdg/wid keeps the circle). Pictures: screenshots/map/field200e (200 m over the
+field: the muskeg full of small conifers to the mountains), field60e (60 m). WORLD green (the
+gate's golden hash reads the woodland, not the fill).

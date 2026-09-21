@@ -7627,18 +7627,18 @@
       "dead": 0
      },
      "spruce_tree.glb": {
-      "proportion": 0.4,
-      "dead": 0.1
+      "proportion": 1,
+      "dead": 0.08
      },
      "realistic_fir_trees_pack_lods_gameready.glb": {
-      "proportion": 0.5,
-      "dead": 0.1
+      "proportion": 1.5,
+      "dead": 0.08
      },
      "dead_conifer": {
-      "proportion": 2
+      "proportion": 1
      },
      "dead_stick": {
-      "proportion": 1.5
+      "proportion": 0.8
      },
      "shrub_deciduous": {
       "proportion": 0.5
@@ -7662,9 +7662,9 @@
     },
     "forest": {
      "ground": "wet",
-     "count": 1520,
+     "count": 5000,
      "radius": 220,
-     "under": 2,
+     "under": 4,
      "cover": 1,
      "reach": 220,
      "mix": 0.25,
@@ -7676,7 +7676,8 @@
      "coverNear": 50,
      "rocks": 0.4,
      "ttype": 7,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "canopyFloor": 3.5
     }
    },
    "grassland": {
@@ -7737,7 +7738,8 @@
      "rocks": 0.15,
      "ttype": 2,
      "spread": 0.2,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "canopyFloor": 0
     }
    },
    "borders": {
@@ -8059,7 +8061,8 @@
      "coverNear": 50,
      "rocks": 4,
      "ttype": 14,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "canopyFloor": 4.5
     }
    }
   },
