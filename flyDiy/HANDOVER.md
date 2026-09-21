@@ -51596,3 +51596,27 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   800/2000 m, the shore, Tamgas, the muskeg flats (the shared field's pools, the lush on the mud).
 - OWED (unchanged): a rock-beach set; the ring as a Standard material (the pools read as slate
   without a reflection); the rare aerials; GATE SPLAT.
+
+## G446 — A3 PART 6: THE TWIN THROTTLE ON EVERY KIND (2026-09-21, the user: "let's finish the small items")
+
+- G442.3 twinned the wall / shoulder lever only. Now the DASH PUSH-PULL (ctlThr 1) draws two rods
+  56 mm apart inboard (two 52 mm knobs side by side, `edCtl_throttle` on thr0, `edCtl_throttle2`
+  on thr1, each with its collar, nut and shadow disc; the hand on the first) - buildThrottleDash is
+  one rod-builder run once or twice, and returns `twinDx` so the crew's keep-out (A.keepOut) spans
+  both rods; the CONSOLE QUADRANT (ctlThr 2) draws two levers 24 mm apart between the cheeks
+  (narrower blades, smaller balls, one boss across). A single engine is bit-identical.
+- Proof (DA62-alike baked into bench/panel/twin_dash.json / twin_console.json, ctlThr forced):
+  screenshots/panel-2026-09-20/09_twin_pushpull.png - two rods, the switch row clear of them; the
+  console's two balls at the frame's foot. Both report `[edCtl_throttle thr0] [edCtl_throttle2 thr1]`.
+  (The PFD there reads "44.9 L FUEL · 82 MIN": A1's enduranceS is on master, the cell's label
+  carries it as designed.)
+- NOT done, looked at: the kit key's bow at BOTH. The key is a symmetric flat blade stood on the
+  lock's axis, so its drawn angle is a LINE (mod 180): OFF at 45 deg and BOTH at 135 deg are the two
+  mirror diagonals and read alike from the seat; a real key reads by its asymmetric bow. A ruling:
+  either an asymmetric bow on the pack (a ring hole to one side) or the lock's markings doing the
+  telling. The yoke "absent in the garage": nothing in the shed hides `edCtl` (cockpitView hides the
+  pilot only); not reproduced, needs the user's view.
+- A twin still carries ONE tacho (the fit is per aeroplane, not per engine) - a P2 for the panel's
+  next pass if the user wants engine instruments per engine.
+- GATE PANEL: the three twin kinds asserted on the crew's source (rods + keep-out span, quadrant
+  levers). PANEL CABIN JOIN UISMOKE DESIGN green.

@@ -418,6 +418,10 @@ function run() {
     const crewSrc = fs.readFileSync(path.join(__dirname, '_cage_crew.js'), 'utf8');
     check(/\['edCtl_throttle', 'thr0', 0\], \['edCtl_throttle2', 'thr1', inb \* 0\.028\]/.test(crewSrc) && /const twinEngines = P => /.test(crewSrc),
       'crew: a twin (wing nacelles) gets two throttle levers on thr0 / thr1');
+    // G446: ...and two push-pull rods on the dash, two levers in the console's quadrant - every throttle kind
+    check(/['edCtl_throttle2', 'thr1', inb * 0.056]/.test(crewSrc) && /twinDx: rods.length > 1/.test(crewSrc) && /const dx2 = thr.twinDx || 0;/.test(crewSrc),
+      'crew: a twin gets two push-pull rods, and the keep-out spans both');
+    check(/['edCtl_throttle2', 'thr1', 0.012]/.test(crewSrc), 'crew: a twin gets two quadrant levers in the console');
     {
       const L = C.makeLinkage(0.001); let st = null;
       for (let i = 0; i < 60; i++) st = L.step({ thr: 0.8, eng: [{ on: true, thr: 1 }, { on: true, thr: 0.5 }] }, 1 / 60);
