@@ -36269,7 +36269,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b246cda5bb1e';window.FLYDIY_BUILD='749d84b67da2'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b246cda5bb1e';window.FLYDIY_BUILD='74bee66f9400'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -104250,7 +104250,30 @@ function propBuild(THREE, key) {
   PROP_BUILT.set(key, built);
   const dust = PROP_DUST.get(key);
   if (dust) for (const m of mats) dustMaterial(m, dust);
+  const glow = PROP_GLOW.get(key);
+  if (glow != null) glowMaterials(mats, glow);
   return built;
+}
+
+// THE FIXTURE'S OWN GLOW (G456; G417's account named a propSetGlowOf that never existed). A lit
+// prop - the yard's wall lamp - carries the author's emissive on its glass, at intensity 1 the
+// day round; the day's hand sets it: propSetGlowOf(key, k) scales the emissive of every material
+// of the prop AND its levels of detail by k over the author's own intensity (kept in userData at
+// the first touch), and a prop not built yet takes the last k when it is. Registered per key like
+// the dust, so every placement of the fixture glows together (one material a part, shared).
+const PROP_GLOW = new Map();             // prop key -> k
+function glowMaterials(mats, k) {
+  for (const m of mats) {
+    if (!m.emissive || (m.emissive.r === 0 && m.emissive.g === 0 && m.emissive.b === 0)) continue;
+    if (m.userData.emis0 == null) m.userData.emis0 = m.emissiveIntensity;
+    m.emissiveIntensity = m.userData.emis0 * k;
+  }
+}
+function propSetGlowOf(key, k) {
+  PROP_GLOW.set(key, k);
+  const b = PROP_BUILT.get(key);
+  if (b) glowMaterials(b.mats, k);
+  for (const l of propLevels(key)) { PROP_GLOW.set(l.key, k); const bl = PROP_BUILT.get(l.key); if (bl) glowMaterials(bl.mats, k); }
 }
 
 // THE DUST GRADIENT (G283, the user: "Apply a hard layer of dust gradient to
@@ -104409,7 +104432,7 @@ function propDispose(key) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
                      propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
-                     propLevels };
+                     propLevels, propSetGlowOf };
 </script>
 <script type="text/x-flydiy">
 // GENERATED FILE - DO NOT EDIT. Built by tools/wood_tex_prep.js from
@@ -125601,7 +125624,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=021657f8"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=88cad745"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
