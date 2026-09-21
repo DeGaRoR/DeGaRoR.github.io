@@ -602,7 +602,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['finOn', 'finProject', 'finFillet', 'finRootGuard', 'finDorsal',
                   'finKeel']],
-      ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC']],
+      ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`
@@ -899,12 +899,14 @@ const CAGE_PARTS = [
     when: P => (+P.gearFloats) * (+P.gearOn) > 0,
     gate: 'gearFloats',        // a switched-off part collapses to its switch
     place: { on: 'gearFloats', fore: 'fltZ', out: 'fltTrack', up: 'fltDrop', at: 'the step' },
-    sections: ['float'],
+    sections: ['float', 'floatDeck'],
     groups: [
-      ['hull', ['gearFloats', 'fltL', 'fltStep', 'fltB', 'fltBeta', 'fltBetaA', 'fltHs', 'fltAft',
-                'fltFlat', 'fltBow', 'fltBowB', 'fltStern', 'fltSide']],
+      // G451: the Wipline preset (a starter), the details, and the family's rows
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltDetail', 'fltRudder', 'fltPaddle']],
+      ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
+                'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
-      ['struts', ['fltStrutR', 'fltStrutAng', 'fltSpread', 'fltWires']],
+      ['struts', ['fltStrutR', 'fltStrutAng', 'fltSpread', 'fltSpreadAft', 'fltWires']],
     ] },
 
   { key: 'third', name: 'Third wheel', parent: 'gear', layer: 'gear',

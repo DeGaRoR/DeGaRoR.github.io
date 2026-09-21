@@ -52,7 +52,7 @@ function loadPanel() {
   global.window = { THREE: global.THREE };
   for (const f of ['_cage_parts.js', '_cage_page5.js', '_cage_gen.js',
     '_cage_crew.js', '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
-    '_cage_gear.js', '_cage_float.js', '_fit_site.js', '_fit_gen.js',
+    '_cage_gear.js', '_float_gen.js', '_cage_float.js', '_fit_site.js', '_fit_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
     '_strut_gen.js', '_boom_gen.js', '_cage_wing.js', '_cage_brace.js', '_fin_gen.js', '_cage_fin.js',
@@ -127,9 +127,15 @@ function drive(name, S, set, load) {
 }
 const setPreset = (P, s) => { P.engPreset = s ? 1 : 0; };
 const setArch = (P, s) => { P.eng_arch = ARCHES[s ? 1 : 0].i; };
+// G451: the Wipline preset row (tools/_cage_float.js) is a third starter on
+// the same contract — two catalogue rows to switch between
+const FLT = W.CAGE_FLOAT_STARTER;
+const setFloat = (P, s) => { P.fltPreset = s ? 2 : 1; };
 function driveAll(load) {
   let ok = drive('engine preset', ENG, setPreset, load);
   if (ARCHES.length >= 2) ok = drive('cowl for architecture', COWL, setArch, load) && ok;
+  if (FLT) ok = drive('Wipline float preset', FLT, setFloat, load) && ok;
+  else ok = check(false, 'the float preset starter is not published (CAGE_FLOAT_STARTER)') && ok;
   return ok;
 }
 driveAll(true);
@@ -180,7 +186,7 @@ if (process.argv.includes('--selftest')) {
 }
 
 // ---------------------------------------------------------------------------
-console.log(`  2 starters, ${ARCHES.length} architectures, ${DOORS.length} doors`);
+console.log(`  ${FLT ? 3 : 2} starters, ${ARCHES.length} architectures, ${DOORS.length} doors`);
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE STARTER: FAIL');

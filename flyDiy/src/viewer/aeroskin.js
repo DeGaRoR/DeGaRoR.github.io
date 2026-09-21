@@ -898,6 +898,11 @@ const AERO_SEC = {
   // with it — the body's own finish and colour unless the builder says so
   float:    { parent: 'body', role: 'skin', label: 'the floats',
               layer: 'gear', wears: 'parent' },
+  // G451: the non-skid coating on a Wipline's flat deck — a grip rubber
+  // over the paint, its own colour (the catalogue's decks are dark grey
+  // or black); the painted margin at the gunwale is the float's
+  floatDeck: { parent: 'float', fin: 'rubberGrip', label: 'the float decks (non-skid)',
+              layer: 'gear', noDec: true, tintOwn: true },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',
@@ -998,7 +1003,10 @@ function aeroSecResolve(sec, over, ctx) {
   const byCons = AERO_BY_CONS[ctx && ctx.cons] || AERO_BY_CONS.tubeFabric;
   const fin = f.v != null ? f.v
     : (ctx && ctx.fin) || row.fin || byCons[row.role || 'skin'] || byCons.skin;
-  let tint = walk(over && over.tint, chain).v;
+  // G451: a row may keep its OWN colour as well (`tintOwn`): a float's
+  // non-skid deck is a coating whose colour is not the hull's paint, so a
+  // tint set on the floats must not reach it — only its own row's does
+  let tint = walk(over && over.tint, row.tintOwn ? [sec] : chain).v;
   // WEARS THE PARENT'S COLOUR (G207): no override anywhere up the chain, and
   // the row says it is painted with its parent — so the colour is the base
   // of the finish the PARENT resolves to (its own override having been the

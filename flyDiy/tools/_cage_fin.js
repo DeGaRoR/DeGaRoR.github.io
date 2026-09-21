@@ -30,7 +30,7 @@ if (!FIN) { console.error('cage fin layer: _fin_gen.js not loaded'); return; }
 // flat - so how round their edges are is one property of the tail, not two
 // that can disagree. _cage_stab.js reads this same key.
 const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
-  finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6,
+  finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finVentralZ: 0.08, finVentralTip: 0.35,
   finCutGap: 0.012,
   finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
   finFillet: 0.035,
@@ -63,12 +63,22 @@ const GROUP = ['8 · tail — fin (2D)', [
   // G267.1 (the user: "the bottom fins should be optional, and their length
   // and height controllable"): a switch, a height and a root chord (cage
   // units, like every fin row)
+  // G451 (the user: "the ventral fin should become a default option for
+  // seaplanes, with their own sliders"): on a single-fin tail the ventral is
+  // THE SEAPLANE KIT's — the Wipline installation bolts a long shallow fin
+  // under the tail cone ahead of the tail tie-down (2350 parts manual p. 97,
+  // "VENTRAL FIN (172)", 24 screws) — so it draws with the floats, on by
+  // default, with its own station (ahead of the tail cap) and tip taper
   ['finVentralOn', 'ventral fin', 0, 1, 1, ['off', 'on'],
-   { when: P => +P.finOn && +P.boomTwin }],
+   { when: P => +P.finOn && (+P.boomTwin || +P.gearFloats) }],
   ['finVentralH', 'ventral height', 0.05, 1.2, 0.01,
-   { when: P => +P.finOn && +P.boomTwin && +P.finVentralOn }],
-  ['finVentralC', 'ventral chord', 0.1, 2.0, 0.01,
-   { when: P => +P.finOn && +P.boomTwin && +P.finVentralOn }],
+   { when: P => +P.finOn && (+P.boomTwin || +P.gearFloats) && +P.finVentralOn }],
+  ['finVentralC', 'ventral chord', 0.1, 2.5, 0.01,
+   { when: P => +P.finOn && (+P.boomTwin || +P.gearFloats) && +P.finVentralOn }],
+  ['finVentralZ', 'ventral station (ahead of the tail cap)', 0, 1.5, 0.01,
+   { when: P => +P.finOn && !+P.boomTwin && +P.gearFloats && +P.finVentralOn }],
+  ['finVentralTip', 'ventral tip chord (x root)', 0.05, 1.0, 0.01,
+   { when: P => +P.finOn && (+P.boomTwin || +P.gearFloats) && +P.finVentralOn }],
   // THE FIN'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what the tail is built from — grammar, the livery's auto-finish
   // bottom-out, and the STRUCTURE itself (`tail.finMaterial` through the
@@ -639,10 +649,14 @@ PAGE.post = ctx => {
   // ventral) and sat a metre forward of the tail. Drawn, not measured: the
   // fin layer's measure is the sheet above the boom, and the physics fin is
   // that sheet (TWIN-BOOM-2 §1.4 says what is owed).
-  const vOn = !!(TB && +P.finVentralOn);
+  // G451: the seaplane's ventral under a single-fin tail — the same sheet
+  // on the fuselage's own belly line (finCentreline's `bot`), its trailing
+  // edge `finVentralZ` ahead of the tail cap (the tie-down ring's station)
+  const vOn = !!(+P.finVentralOn && (TB || +P.gearFloats)) && !!deck;
   if (vOn && !wire) {
     let zAftAll = Infinity;
-    for (const v of disp.V) if (v[2] < zAftAll) zAftAll = v[2];
+    if (TB) { for (const v of disp.V) if (v[2] < zAftAll) zAftAll = v[2]; }
+    else zAftAll = deck.z0 + Math.max(0, +P.finVentralZ || 0);
     if (isFinite(zAftAll)) {
       // G271 (the user: "the bottom fin is too rough for now. Give it some
       // trailing edge thinning, a proper thin line bevel, and get it higher
@@ -658,7 +672,8 @@ PAGE.post = ctx => {
       // value, and the rounded rim (the fin's rim rows) all round. Its own
       // section, `finVentral` (AERO_SEC, follows the fin's paint until
       // repainted).
-      const h = Math.max(0.05, +P.finVentralH || 0.4), cR = Math.max(0.1, +P.finVentralC || 0.6), cT = 0.35 * cR;
+      const h = Math.max(0.05, +P.finVentralH || 0.4), cR = Math.max(0.1, +P.finVentralC || 0.6);
+      const cT = Math.max(0.05, Math.min(1, +P.finVentralTip || 0.35)) * cR;
       const t = 0.7 * (+P.finThick || 0.06);
       const tTE = Math.min(t, 0.7 * (+P.finThickTE || 0.012));
       const zc = z => Math.max(deck.z0, Math.min(deck.z1, z));   // the deck's own domain

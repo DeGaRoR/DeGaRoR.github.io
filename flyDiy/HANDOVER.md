@@ -51932,3 +51932,201 @@ prompts). Findings that matter beyond it:
   three an aileron, two on the fin's rudder - shots_a7_b4/zoom.png). GATE HINGE's family check
   reads bracket now.
 - GATES: HINGE, CLIP, PARTS, JOIN, FIT, DESIGN, GEN, UISMOKE, MEDIA.
+
+## G451 — THE WIPLINE FLOATS: THE WIPAIRE RANGE AS PRESETS, THE DRAWN FLOAT, THE PADDLE, THE WATER RUDDER (2026-09-20, the user: "floats accurate modeling. We'll model our procedural floats according to the Wipaire range of floats. Like the engines, we'll have presets corresponding to the wipaire's line ... proper profile and sections / list of presets covering almost all the Wipaire range / the paddle properly placed / physics model following the geometry / accurate overall dimensions / modeling of the protrusions / a handful of details / the livery / high quality bevels on hard edges / continuous geometry")
+
+- THE FAMILY (src/core/32_hydro.js, `DEF`): one parametric Wipline hull —
+  the 2350's lines — replaces the H0 V-bottom: a warped-deadrise V (22 deg
+  at the step, 30 at the stem, the warp in the forward third as t^2.5 —
+  with t^1.6 the planing region a metre ahead of the step read 25 deg, the
+  172 lost its lift at the hump and sat at 11 m/s with its chine 4 cm too
+  deep for the step to ventilate; at 46 deg the bow buried and the
+  ultralight PITCH-POLED in a 5 m/s crosswind — a full, flat-bottomed bow
+  is what keeps a seaplane's nose up), a 4 in step (hs 0.075 at 4.6 m, the
+  family's; the step must vent under a 172's 12 cm chine depth at the
+  hump), a keel flat over half the forebody then a cubic rocker arriving
+  tangent to a raked (12 deg) SHORT stem (the keel foot at 0.74 H) under a
+  nose round, a flat deck with a SHEER rising 10 % of H to the bow (a
+  level deck went under at 8 deg nose-down and was pressed down — the
+  catalogue's "height - hull" is read as the OVERALL height, the bow's),
+  a plan of (1 - t^4)^0.5 (full, a rounded point), sides
+  flared 4 deg (the deck is the hull's widest line: the catalogue's
+  "width - hull"), one vertical step, an afterbody keel rising 6.5 deg plus a
+  curve to a small transom (0.42 of the step beam). `keelOf` tabulates the
+  rocker (512 points; sectionOf is the hot path), `deckAt` the nose round,
+  `secPoly` the physics section (K, C, E, D), `secAreaTo` the section's area
+  under a waterline from that polygon (levelVolume's arbiter shares nothing
+  with the 3D clipper). The physics loft crowds its stations at the bow
+  (sin spacing) and closes across the flared step with side/deck slivers -
+  without them the hull leaked (closure -0.0009 m2 along x).
+- THE CATALOGUE (`FLOAT_PRESETS`, 15 rows: 1450, 2100, 2350, 3000, 3450,
+  3730, 3900, 4000, 6000, 6100, 7000, 8000, 8750, 10000, 13000): the
+  seaplane length, hull width, hull height, displacement, maximum flotation,
+  the pair's system weight and the aircraft, off wipaire.com's sheets;
+  rows the catalogue no longer lists carry `est: true` and dimensions scaled
+  from their displacement (L ~ 0.55 D^1/3). `presetParams(name)` scales the
+  family to the row's length, sets its width and height, and SOLVES ONE
+  FINENESS scalar in [-0.7, 1] (positive: a deeper V — up to 35 deg at
+  the step —, a finer plan, a narrower transom, a longer keel rocker under
+  a shorter stem; negative: fuller, a shallower V, a wider transom — the
+  small rows, whose overall height leaves little freeboard over the sheer;
+  NOT the afterbody's rise: a keel climbing through the deck line at the
+  stern leaked the loft, so the afterbody chine is capped at 0.88 H and
+  the transom keeps its height) so the hull's volume to the deck is the
+  row's maximum flotation: every row lands inside 0.1 % with the scalar
+  between -0.24 (the 2350: 17 deg at the step) and 0.64 (the 8750: 35).
+  The 2350 fills its box (L x W x overall H) to 55 %, the 3000 to 50 %
+  and the 8750 to 48 %, which is what the fineness buys (the 3000's extra
+  14 cm of height over the 2350 is freeboard over a deep V, not volume).
+  `mFloat` is 0.40 of the pair's system weight; `wrArea` / `wrDepth`
+  size the water rudder and `waterRudder()` READS THEM (WR_AREA / WR_DEPTH
+  were constants; the blade the water feels is the blade that is drawn).
+  THE BLADE REACHES THE KEEL LINE (wrDepth 0.32 at 4.6 m: a Wipline's
+  transom keel rides 0.4 m over the step keel) and the rudder is gated on
+  ITS OWN IMMERSION, not on the stern keel's depth or the afterbody being
+  wet — with the old gate the blade "retracted" at 2.6 m/s at the first
+  nose-down of the roll, and the ultralight weathercocked 35 deg in a
+  5 m/s crosswind; and it stays down through the plough (up under take-off
+  power only past 0.6 WR_UP_V): the crosswind run now swings 18 deg.
+- THE DRAWN FLOAT (tools/_float_gen.js, FLOAT_GEN, pure geometry, node +
+  browser): the hull as ONE welded indexed mesh (~90 rings of 34 shared
+  vertices, 5.9k tris) from the same sectionOf, the bow closing on a point,
+  the transom a filleted cap. Every hard edge is a FILLET LOOP with a
+  SUPPORT LOOP each side (keel round, chine, gunwale, the step's lip, the
+  transom edge), so the area-weighted normals keep the flats flat and the
+  highlight inside the radius; a radius that does not fit its edge shrinks
+  to fit. The protrusions ride the skin as closed strips (keel bar, sister
+  keelsons at half the chine beam on the warped bottom, chine spray straps
+  on the forebody, the rubber nose bumper as the stem's own rings offset
+  along their normals). The details, from the 2350 parts manual (P/N
+  1002168): inspection covers large/small alternating per bay with their
+  screws, the baggage hatch ahead of the step (hinge outboard, two latch
+  rings), a pump-out cup per bay on the outboard deck, tie-down cleats bow
+  and stern, the spreader-bar deck blocks and strut fitting plates at the
+  two rigging stations, the non-skid deck as a 1.5 mm coating overlay with
+  a painted margin at the gunwale. THE PADDLE (the manual's "BRACKET
+  (PADDLE), PADDLE STOP, CLIP (HOLDS PADDLE), PADDLES" on the step-to-bow
+  side skin): a real-size canoe paddle clipped along the INBOARD flank of
+  the forebody under the gunwale, blade forward - on the left float, or
+  both (`fltPaddle`). THE WATER RUDDER: post in two bearing brackets on the
+  transom, bellcrank with its two cables to a pulley bracket, two arms on a
+  horizontal pivot at the post's foot, the blade (span from wrArea, foot
+  exactly wrDepth under the stern keel, lower-aft corner rounded) - its own
+  part with its pivots. `meshStats` measures closure, winding and volume:
+  the drawn hull's volume is the physics loft's within 0.5 %.
+- THE LAYER (tools/_cage_float.js): `fltPreset` is a STARTER on the
+  engine-preset pattern (the row writes the 18 hull rows once; PAGE.load
+  forgets; GATE STARTER drives it as its third starter), the rows are the
+  family's (length, step, width, height, the three deadrises, step depth,
+  afterbody keel + curve, keel flat, stem, rake, nose round, plan fullness,
+  stern beam, flare, mass) plus fltDetail / fltRudder / fltPaddle and the
+  aft spreader station. The port float is the starboard build MIRRORED (so
+  its cups land outboard and its paddle inboard); the model->cage map
+  (-mz, my, -mx) is a REFLECTION, so it is the unmirrored float whose
+  winding is swapped back. Struts are streamlined (chord 2.6 t along the
+  flight direction) with lug plates at the roots, the spreader bars airfoil
+  section right across both decks flush with them, the wires carry
+  turnbuckles. Sections: `float` (the paint, takes the livery and the
+  markings as before) and the new `floatDeck` (AERO_SEC, grip rubber,
+  noDec). The status line names the preset and quotes the catalogue.
+- THE FRAME (61_gen_frame.js): FIVE stations a float (bow at 0.93 xs - the
+  Wipline's bow closes to a point and three coincident nodes made a
+  zero-length beam -, the flat's end, the step, the AFT SPREADER BAR
+  (`xAft`, where a Wipline's aft struts actually sit), the stern); the
+  hull's own `mFloat` when the record carries one. THE SLAB EXTRAPOLATES
+  (32_hydro tetraCtx.distribute): a force ahead of the bow station kept
+  losing its lever (t clamped to 0, and a negative weight was dropped) and
+  the ultralight ploughed into a pitch-pole at 3.5 s; with t in
+  [-0.35, 1.35] and every weight landing the distribution is affine-exact
+  again (forces equal to the panel sum to 0.1 N, the moment to 1.4 %). THE
+  PRICE: the ultralight's substeps went 107 -> 131 (the fifth station's
+  shorter beams, the hull's mass over 15 nodes instead of 12); the hydro
+  pass itself is no slower (388 panels a float, 157 ms per 300 passes
+  against the H0 float's 352 / 175). FLOATS and SEAPLANE run ~25 % longer
+  on a quiet machine; the 1300-1800 s SEAPLANE walls measured today were
+  peers' processes on the box (pilot_trace, island_bench_shot), not the
+  hull.
+- THE GAME (app.js): the blade part rides its float's tetra like the hull
+  and is POSED before the barycentric rebuild - steered about the post by
+  ctl.dr x WR_TRAVEL, retracted about the arm pivot when the physics has it
+  up (fx.wrDown, eased) - with its two senses PROBED at bind (the floats
+  are mirror builds, their hinges point opposite ways; the model frame is
+  x aft, y up, z LEFT: nose-left must swing the trailing edge to +z).
+  `FLYDIY_FLOAT_RIG[kind].rigs` exposes the live rigs. The join carries
+  `rud` (post, axis, pivot, hinge) and the whole family through
+  `HYDRO.FLOAT_SPEC_KEYS` plus `preset`; genMigrateSpec clamps the new keys
+  and lets a 13000 keep its 9.53 m (L was capped at 8).
+- THE TRUSS AS THE MANUAL RIGS IT (the user, mid-session: "the manual also
+  details the truss system"): a side carries three struts on the spreader
+  bars' inboard deck fittings — the FRONT (front bar to the forward
+  fuselage fitting), the CENTRE (aft bar forward-and-up to the same
+  fitting), the REAR (aft bar to the main fitting) — the fore-aft DRAG
+  WIRE opposing the centre strut, and at each bar the "wire pulls" crossed
+  in the transverse plane, each float's fitting to the fuselage fitting on
+  the OTHER side (2350 parts manual section 9 and the p. 97 installation
+  profile). The outboard V-legs of G389 are gone; the frame's own truss
+  (61_gen_frame) is unchanged, so what flies is what flew.
+- THE VENTRAL FIN IS THE SEAPLANE'S (the user: "the ventral fin should
+  become a default option for seaplanes, with their own sliders"): the
+  twin-boom ventral (G267/G271) now also draws under a single-fin tail
+  whenever the floats are on — the Wipline kit's "VENTRAL FIN (172)", a
+  long shallow plate screwed under the tail cone ahead of the tail
+  tie-down (p. 97) — on the fuselage's own belly line (finCentreline's
+  `bot`), its trailing edge `finVentralZ` ahead of the tail cap, with the
+  rows finVentralH / finVentralC / finVentralZ (seaplane only) /
+  finVentralTip (the taper, was a 0.35 constant), on by default
+  (finVentralOn 1). The join counts it in Sv (a trapezoid): the 172
+  fixture's fin area 1.458 -> 1.548 m2, so the physics has it.
+- THE WATER RUDDERS MOVE WITH THE PEDALS (the user: "animate the little
+  water rudders, probably together with the actual rudder ... and have the
+  physics account for it"): they do — the blade part is steered by ctl.dr
+  (the same input the air rudder takes) through WR_TRAVEL and retracted
+  when the physics raises it (app.js, above), and the physics has read the
+  water rudder since H4 (32_hydro waterRudder, the pedals' dr); what G451
+  adds is that the force uses the DRAWN blade's area and depth.
+- THE BENCH (tools/_float.html, launch flydiy-float, 8437): every preset,
+  paint / normals / wire / sections views, nine cameras, the light from
+  below for the underside, the rudder steered and retracted by sliders, the
+  stat line with the catalogue numbers; `BENCH.shot()`.
+- GATE WIPLINE (tools/_wipline_check.js, core, ~2 min): the 15 rows on
+  their four numbers each with the fineness inside [0, 1]; five presets
+  drawn closed, wound outward, volume = physics within 1 %, protrusions
+  closed, the blade the hull's area with its foot wrDepth under the keel,
+  the paddle inboard over the forebody; the user's Cessna 172 on 2350s
+  (tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json, the joined
+  spec: preset, L 5.97, 55.2 kg a hull) settled on the sea: L/W 1.005,
+  draft 0.35 m, trim 1.45 deg, level; traced headless at full throttle it
+  ploughs to 11 m/s, vents at 20 s, is on the step at 22 s (trim 9 deg) and
+  passes 34 m/s at 40 s — the O-540's 3.0 kN (T/W 0.31, the prop model's
+  known shortfall) is what makes the hump marginal, not the hull: the old
+  family at the same size sat at the same hump. GATE HYDRODYN's Archimedes arbiter
+  now compares the Monte-Carlo volume with the clipper's hydrostatic force
+  AT THE SAME INSTANT (the family bobs a little longer than the H0 float and
+  5 mm of residual heave read as 1.5 % of nothing to do with the clipper);
+  its freeboard bound reads the deck off the section. GATE FLOATS wants 15
+  nodes a cluster and a touch floor of 0.35 m/s (from 0.5: the family's
+  transom keel sits 0.8 H over the step keel, so the trimmed approach
+  descends further into the ground effect before the step touches —
+  0.42-0.55 m/s where the H0 float touched at 0.92); measured on the
+  ultralight: settle 0.291 m / 3.4 deg, hump R/W 0.278 at 10.7 m/s,
+  airborne 11.0 s. GATE SEAPLANE's crosswind check measures the heading
+  swing FROM THE ROLL'S OWN HEADING (a pure crosswind ties the lane's two
+  directions and the pilot's tie fell the other way once the water rudder
+  grew: a taxi U-turn read as a 180 deg "swing"); `--only=circuit,crosswind,
+  taxi` runs a subset.
+- Gates: WIPLINE new; HYDRODYN, FLOATS, SEAPLANE, STARTER (+selftest),
+  PARTS, BUILD, JOIN, UISMOKE, SKINMAT, SAVE, DESIGN, ENGID, MASS, HONEST,
+  CLIP green in the worktree (SEAPLANE ran to the runner's 1800 s timeout
+  once under four parallel jobs and two traces — a timeout, not a verdict;
+  green alone).
+- Owed: an amphibian (retractable gear in the hull: the catalogue's
+  amphibious rows carry their own length and displacement, read but not
+  built - "keep in the back of your mind that we'll eventually go
+  amphibious"); the step's foam scallops (the side vents) and the rivet
+  lines; the paddle's own material (it wears the gear's rubber and alloy);
+  the fixture's 172 is at planeScale 0.745 (a 172-alike, not measured);
+  the 7000 / 10000 rows' dimensions are estimates (their boxes trimmed
+  until the family reaches their flotation); the big rows fit at 32-35
+  deg of deadrise and the 2100 / 2350 at 17-19 — the honest consequence
+  of the catalogue's boxes under one family, and the user's eye on the
+  2350 (a shallow V) and the 8750 (a deep one) is owed.

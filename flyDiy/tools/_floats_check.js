@@ -52,7 +52,7 @@ console.log('BUILD');
   const disp = F0 ? 2 * F0.volDeck * fl[0].P.rho : 0;
   console.log(`   ${def.nodes.length} nodes, ${def.beams.length} beams, gross ${f(M, 1)} kg; floats: L ${f(fl[0].P.L, 2)} m, beam ${f(fl[0].P.B, 2)} m, scale ${f(fl[0].P.scale, 3)}, ${f(fl[0].P.mFloat, 1)} kg each, ` +
               `the pair displaces ${f(disp, 0)} kg to the deck (${f(disp / M, 2)} x gross); step at x ${f(fl[0].pos[0], 2)}, keel y ${f(fl[0].pos[1], 2)}, track ${f(2 * Math.abs(fl[0].pos[2]), 2)} m; substeps ${def.params.substeps}`);
-  verdict(fl && fl.length === 2 && cl.length === 2 && cl.every(c => c.nodes.length === 12), `two floats, two rigid clusters of 12 nodes`);
+  verdict(fl && fl.length === 2 && cl.length === 2 && cl.every(c => c.nodes.length === 15), `two floats, two rigid clusters of 15 nodes (five stations, G451)`);
   verdict(def.refs.tw === -1 && def.refs.mains.length === 2 && def.refs.mains.every(i => def.nodes[i].tag === 'FLK'), `the step keels are the mains' refs, no third wheel`);
   verdict(disp >= 1.5 * M, `the pair displaces ${f(disp / M, 2)} x the gross (bound 1.5; the rule is 1.8)`);
   verdict(h === 0 && world.terrainH(X0, Z0) < -10, `the sea at (${X0}, ${Z0}): level ${h}, bed ${f(world.terrainH(X0, Z0), 1)} m`);
@@ -168,7 +168,13 @@ console.log('\nLANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down
   console.log(`   touch at ${f(touched, 2)} s, sinking ${f(sinkTouch, 2)} m/s; the water's lift frame by frame: ${frames.slice(0, 10).map(v => f(v, 2)).join(' ')} ... first peak ${f(frames[iPk])} W after ${iPk + 1} frames; ` +
               `largest one-frame change ${f(maxJump)} W; peak ${f(peak)} W; 20 s on: V ${f(endV, 1)} m/s`);
   verdict(ok, `the landing stays finite`);
-  verdict(touched != null && sinkTouch > 0.5 && sinkTouch < 1.6, `the touch at ${f(sinkTouch, 2)} m/s down (bound 0.5-1.6)`);
+  // G451: the bound's floor is 0.35, from 0.5. The Wipline family's transom
+  // keel sits 0.8 H over the step keel (the H0 float's sat at 0.6 H), so the
+  // aeroplane trimmed to 1 m/s down descends further into the ground effect
+  // before its STEP touches, and arrives at 0.42-0.55 m/s where the H0 float
+  // touched at 0.92; the touch is still a descent, which is what the floor
+  // is for (a skim would read ~0)
+  verdict(touched != null && sinkTouch > 0.35 && sinkTouch < 1.6, `the touch at ${f(sinkTouch, 2)} m/s down (bound 0.35-1.6)`);
   verdict(iPk >= 2, `the water's lift climbs over ${iPk + 1} frames to its first peak (bound 3)`);
   verdict(maxJump < 0.35, `no frame adds more than ${f(maxJump)} W (bound 0.35)`);
   verdict(peak < 2, `the touchdown peaks at ${f(peak)} W (bound 2)`);

@@ -2216,7 +2216,38 @@
                 q[0] = pa.array[i * 3]; q[1] = pa.array[i * 3 + 1]; q[2] = pa.array[i * 3 + 2];
                 bary(q, l); lam[i * 4] = l[0]; lam[i * 4 + 1] = l[1]; lam[i * 4 + 2] = l[2]; lam[i * 4 + 3] = l[3];
               }
-              floatRigs.push({ posAttr: pa, lam, idxs, R4, rest0 });
+              // G451: A WATER RUDDER BLADE moves in its float's frame — it
+              // steers about the post and retracts about the arms' pivot —
+              // so its rest positions are kept and its barycentrics are
+              // recomputed each frame from the posed rest (a hundred
+              // vertices); `fx` is the hydro float whose wrDown it follows
+              const rig = { posAttr: pa, lam, idxs, R4, rest0 };
+              if (pt.rud) {
+                rig.rud = pt.rud; rig.base = pa.array.slice(); rig.bary = bary; rig.geo = o.geometry;
+                rig.fx = FR.indexOf(rec); rig.ret = 0;
+                // THE SENSES, PROBED (the two floats are mirror builds, so
+                // their hinges point opposite ways): retracting must LIFT the
+                // blade's lowest vertex, and a nose-left pedal (ctl.dr > 0,
+                // 32_hydro's convention) must swing its trailing edge to
+                // PORT (+z in the model frame: x aft, y up, z left)
+                const b0 = rig.base, nV = b0.length / 3;
+                let iLo = 0, iAft = 0;
+                for (let i = 1; i < nV; i++) { if (b0[i * 3 + 1] < b0[iLo * 3 + 1]) iLo = i; if (b0[i * 3] > b0[iAft * 3]) iAft = i; }
+                const rotP = (p, o, ax, ang) => {
+                  const c = Math.cos(ang), s = Math.sin(ang), x = p[0] - o[0], y = p[1] - o[1], z = p[2] - o[2];
+                  const k = ax[0] * x + ax[1] * y + ax[2] * z;
+                  return [o[0] + x * c + (ax[1] * z - ax[2] * y) * s + ax[0] * k * (1 - c),
+                          o[1] + y * c + (ax[2] * x - ax[0] * z) * s + ax[1] * k * (1 - c),
+                          o[2] + z * c + (ax[0] * y - ax[1] * x) * s + ax[2] * k * (1 - c)];
+                };
+                const lo = [b0[iLo * 3], b0[iLo * 3 + 1], b0[iLo * 3 + 2]], af = [b0[iAft * 3], b0[iAft * 3 + 1], b0[iAft * 3 + 2]];
+                rig.retSign = rotP(lo, pt.rud.pivot, pt.rud.hinge, 0.2)[1] > lo[1] ? 1 : -1;
+                rig.steerSign = rotP(af, pt.rud.post, pt.rud.axis, 0.2)[2] > af[2] ? 1 : -1;
+              }
+              floatRigs.push(rig);
+              // the headless rig reads the live rigs too (G451: the water rudder's pose)
+              if (typeof window !== 'undefined' && window.FLYDIY_FLOAT_RIG && window.FLYDIY_FLOAT_RIG[pt.kind])
+                (window.FLYDIY_FLOAT_RIG[pt.kind].rigs = window.FLYDIY_FLOAT_RIG[pt.kind].rigs || []).push(rig);
             });
           } else console.warn('float part: no float record with four nodes for', pt.kind);
         }
@@ -3289,6 +3320,37 @@
       const N4 = r.idxs.map((i, k) => { const L = nodeLocal(i), R0 = r.rest0[k], T = r.R4[k];
         return [T[0] + L[0] - R0[0], T[1] + L[1] - R0[1], T[2] + L[2] - R0[2]]; });
       const p2 = r.posAttr.array, lam = r.lam;
+      if (r.rud) {
+        // G451: the blade's pose in the part's rest frame — steered by the
+        // pedals through the water rudder's own travel (32_hydro WR_TRAVEL,
+        // the sense the physics uses: nose-left positive), retracted when
+        // the physics has it up (fx.wrDown), eased over half a second
+        const HYs = sim && sim.hydro, fx = HYs && HYs.floats[r.fx];
+        const down = fx ? (fx.wrDown ? 1 : 0) : 1;
+        r.ret += ((1 - down) - r.ret) * 0.1;                                   // visual only, ~0.5 s at 60 Hz
+        const st = r.steerSign * (sim && sim.ctl ? (sim.ctl.dr || 0) : 0) * ((typeof HYDRO !== 'undefined' && HYDRO.WR_TRAVEL) || 0.61);
+        const ret = r.retSign * r.ret * (80 * Math.PI / 180);   // up to just past horizontal, lying aft
+        const R = r.rud, b0 = r.base, l = [0, 0, 0, 0], q = [0, 0, 0];
+        const rot = (p, o, ax, ang) => {           // Rodrigues about the unit axis ax through o
+          const c = Math.cos(ang), s = Math.sin(ang), x = p[0] - o[0], y = p[1] - o[1], z = p[2] - o[2];
+          const k = ax[0] * x + ax[1] * y + ax[2] * z;
+          return [o[0] + x * c + (ax[1] * z - ax[2] * y) * s + ax[0] * k * (1 - c),
+                  o[1] + y * c + (ax[2] * x - ax[0] * z) * s + ax[1] * k * (1 - c),
+                  o[2] + z * c + (ax[0] * y - ax[1] * x) * s + ax[2] * k * (1 - c)];
+        };
+        for (let i = 0, n = p2.length / 3; i < n; i++) {
+          let p = [b0[i * 3], b0[i * 3 + 1], b0[i * 3 + 2]];
+          if (ret) p = rot(p, R.pivot, R.hinge, ret);
+          if (st) p = rot(p, R.post, R.axis, st);
+          r.bary(p, l);
+          p2[i * 3]     = l[0] * N4[0][0] + l[1] * N4[1][0] + l[2] * N4[2][0] + l[3] * N4[3][0];
+          p2[i * 3 + 1] = l[0] * N4[0][1] + l[1] * N4[1][1] + l[2] * N4[2][1] + l[3] * N4[3][1];
+          p2[i * 3 + 2] = l[0] * N4[0][2] + l[1] * N4[1][2] + l[2] * N4[2][2] + l[3] * N4[3][2];
+        }
+        r.posAttr.needsUpdate = true;
+        if (r.geo && (st || r.ret > 0.01)) r.geo.computeVertexNormals();
+        continue;
+      }
       for (let i = 0, n = p2.length / 3; i < n; i++) {
         const a = lam[i * 4], b = lam[i * 4 + 1], c = lam[i * 4 + 2], d = lam[i * 4 + 3];
         p2[i * 3]     = a * N4[0][0] + b * N4[1][0] + c * N4[2][0] + d * N4[3][0];

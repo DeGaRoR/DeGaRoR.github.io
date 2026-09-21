@@ -113,24 +113,64 @@ var HYDRO;
 const G = 9.81, NU = 1.0e-6, D2R = Math.PI / 180;
 
 // ---- the float, declared ---------------------------------------------------
-// A light-aircraft float carrying half a Cub: EDO-2000 class proportions
-// (4.6 m, 0.72 m beam, 20 deg deadrise, the step at 54 % of the length),
-// 45 kg of float and 255 kg of aeroplane on top of it.
+// THE WIPLINE FAMILY (G451, 2026-09-20; the user: "we'll model our
+// procedural floats according to the Wipaire range"). One parametric hull
+// whose proportions are the Wipline 2350's (the Cessna 172's float: 5.97 m,
+// 0.74 m wide, 0.58 m high, 1166 kg to the deck), drawn and flown from the
+// same numbers. What a Wipline actually is, read off the 2350 parts manual
+// (P/N 1002168) and the catalogue sheets:
+//   - a V bottom whose deadrise WARPS from the step forward ("higher
+//     deadrise angle on forward bottoms"), a straight keel flat ahead of
+//     the step, then a rocker sweeping up into a near-vertical blunt STEM
+//     wearing a rubber nose bumper; the deck is FLAT and level ("the
+//     traditional Wipline flat top deck"), its plan a rounded point at the
+//     bow and a narrow transom at the stern;
+//   - one transverse step, its face vertical; the afterbody keel rising
+//     aft in a shallow curve to a small pentagonal transom that carries
+//     the water rudder post;
+//   - extrusions at every hard edge: the keel bar, the chine with its
+//     spray strap on the forebody, the gunwale angle at the deck edge, and
+//     a SISTER KEELSON a side on the forebody bottom (the extra-thick skin
+//     between keel and sister keel is the rock guard);
+//   - sides with a few degrees of outward flare, so the deck is the hull's
+//     widest line (the catalogue's "width - hull").
+// The default below is that family at the H0 spike's SIZE (a 4.6 m float
+// carrying half a Cub), so the H0 check keeps measuring the same loading;
+// the catalogue itself is FLOAT_PRESETS, metres and kilograms, and a
+// preset's hull is `presetParams(name)`.
+//
+// x aft of the step, y up from the step keel, z across (the hull is
+// symmetric; in the solver's right-handed frame, x aft and y up, +z is the
+// PORT side — G451 measured it on the rudder rig). The deck's top at
+// the step is y = H.
 const DEF = {
   L: 4.6,          // overall length, m
-  xs: 2.5,         // the step, m aft of the bow
-  B: 0.72,         // chine beam at the step, m
-  beta: 20,        // forebody deadrise, deg
-  betaA: 20,       // afterbody deadrise, deg
-  hs: 0.045,       // step depth, m
+  xs: 2.55,        // the step, m aft of the bow (0.553 L on the 2350)
+  B: 0.57,         // HULL WIDTH: the deck at the step, m (the catalogue's number)
+  H: 0.447,        // hull height at the step, step keel to deck, m
+  beta: 22,        // deadrise at the step, deg
+  betaBow: 30,     // deadrise as the bottom warps into the stem, deg (46 buried the bow: the ultralight pitch-poled in a 5 m/s crosswind; the warp is what a Wipline shows, the bow's planing lift is what keeps its nose up)
+  betaA: 18,       // afterbody deadrise, deg
+  hs: 0.075,       // step depth, m (a 2350's is ~4 in; the step must VENTILATE with a 172's chine 12 cm deep at the hump)
   aftAngle: 6.5,   // the afterbody keel's rise aft, deg (the NACA float families: 5.5-8.5)
-  xFlat: 1.4,      // forebody keel flat this far ahead of the step, m
-  yBow: 0.38,      // keel height at the bow, m (the rocker)
-  bBow: 0.10,      // half-beam at the bow, m
-  bStern: 0.75,    // stern half-beam, as a fraction of B/2
-  hSide: 0.24,     // chine to deck, m (at the forebody; the deck is level)
-  bevel: 0.05,     // the deck edge's chamfer, m (G393, the user: "beveled edges"); the chine stays HARD
-  nSta: 24,        // stations over the length
+  aftCurve: 0.02,  // the afterbody keel's added rise at the stern, as a fraction of its length (a 2350's transom keel sits ~0.45 m over the step keel)
+  flatK: 0.50,     // the keel flat ahead of the step, as a fraction of xs (the rocker lives in the forward half: with 0.32 the bow rode high and buried under a crosswind roll — the ultralight pitch-poled at 2.5 s)
+  stemK: 0.16,     // the straight stem's height, as a fraction of H (a SHORT stem: the keel foot at 0.74 H — with 0.30 the bow went under at 0.4 m of draft and 6 deg nose-down and the ultralight pitch-poled in a crosswind; the old H0 bow's keel reached the deck)
+  rake: 12,        // the stem's rake, deg from the vertical (top forward)
+  noseR: 0.10,     // the deck-to-stem round at the bow, as a fraction of H (the deck stays high to the tip: Wipaire's "high bow buoyancy")
+  sheerK: 0.10,    // the deck's SHEER: it rises toward the bow as H sheerK t^2 (a flat deck that goes under at 8 deg nose-down is pressed down and the seaplane pitch-poles — measured on the ultralight in a 5 m/s crosswind)
+  planK: 4.0,      // plan fullness: the forebody chine holds its beam then narrows as (1 - t^planK)^0.5 (a full bow: see betaBow)
+  bStern: 0.42,    // the stern's chine half-beam, as a fraction of the step's
+  flare: 4,        // the sides' outward flare, deg
+  bevel: 0.022,    // the gunwale's chamfer in the PHYSICS loft (the drawn float rounds it), m
+  nSta: 26,        // stations over the length
+  // the details the drawing reads (metres, at THIS size; a preset scales them)
+  rChine: 0.010, rGun: 0.026, rLip: 0.007, rTransom: 0.012,
+  railW: 0.030, railT: 0.004,          // the chine spray strap (forebody)
+  keelW: 0.036, keelH: 0.006,          // the keel extrusion
+  skZ: 0.50, skW: 0.026, skH: 0.010,   // the sister keelsons: at skZ of the chine half-beam
+  wrArea: 0.055,   // the water rudder blade, m^2 (the physics reads it: WR_AREA was a constant; a 2350's is ~0.09)
+  wrDepth: 0.32,   // ...and how far its foot hangs under the stern keel, m: to the keel LINE (the transom keel rides ~0.4 m over the step keel; a shallower blade left the water at the first nose-down of the roll)
   // G396.4: 27 kg, from 45. A composite float for a 500 kg aeroplane is
   // 22-27 kg (Aerocet 1100: 22 kg each, for 500 kg; Full Lotus 1450: 27 kg,
   // for 650; Clamar 1400: 27 kg) — 45 was an EDO 1400 aluminium float's
@@ -192,28 +232,103 @@ const rotPitch = th => { const c = Math.cos(th), s = Math.sin(th); return [c, s,
 const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 
 // ---- the hull --------------------------------------------------------------
+// THE KEEL LINE, tabulated once per hull. Forebody: flat over flatK xs
+// ahead of the step, then a cubic Bezier rocker that leaves the flat
+// tangent and arrives TANGENT TO THE STEM (a straight line raked `rake`
+// deg from the vertical), which runs up to the nose round; the bow tip is
+// x = -xs on the deck's line. The Bezier is monotonic in x, so a station's
+// keel height is read off a 512-point table by linear interpolation (this
+// is the hot path: halfBeamAt runs per wet vertex per substep).
+function keelTable(P) {
+  const xs = P.xs, H = P.H;
+  const rN = P.noseR * H, sLen = P.stemK * H, rk = P.rake * D2R;
+  const Ht = H * (1 + (P.sheerK || 0));        // the deck at the tip, with the sheer
+  const yFoot = Ht - rN - sLen;                // the stem's foot (the rocker's end)
+  const xFoot = -xs + sLen * Math.tan(rk);     // ...raked aft of the tip
+  const xF = -P.flatK * xs;                    // the flat's forward end
+  const d = xF - xFoot;
+  // P0 flat end, P1 along the flat, P2 back down the stem's line, P3 the foot
+  const P0 = [xF, 0], P1 = [xF - 0.5 * d, 0];
+  const kk = 0.48 * yFoot;
+  const P2 = [xFoot + kk * Math.sin(rk), yFoot - kk * Math.cos(rk)], P3 = [xFoot, yFoot];
+  const N = 512, X = new Float64Array(N + 1), Y = new Float64Array(N + 1);
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, m = 1 - t;
+    X[i] = m * m * m * P0[0] + 3 * m * m * t * P1[0] + 3 * m * t * t * P2[0] + t * t * t * P3[0];
+    Y[i] = m * m * m * P0[1] + 3 * m * m * t * P1[1] + 3 * m * t * t * P2[1] + t * t * t * P3[1];
+  }
+  const at = x => {
+    if (x >= xF) return 0;
+    if (x <= xFoot) return yFoot + (xFoot - x) / Math.max(1e-6, Math.tan(rk));   // the stem
+    // X runs from xF down to xFoot: bisect
+    let lo = 0, hi = N;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (X[mid] >= x) lo = mid; else hi = mid; }
+    const f = (X[lo] - x) / Math.max(1e-12, X[lo] - X[hi]);
+    return Y[lo] + (Y[hi] - Y[lo]) * f;
+  };
+  return { at, xFoot, yFoot, xF, rN };
+}
+const keelOf = P => (P._keel && P._keel.P === P) ? P._keel.T : (P._keel = { P, T: keelTable(P) }).T;
+// the deck's line: level at H aft of the step, a sheer rising toward the
+// bow over the forebody (H sheerK t^2), rounding down into the stem over
+// the last noseR
+function deckAt(P, x) {
+  const rN = P.noseR * P.H, s = x + P.xs;
+  const t = x < 0 ? Math.min(1, -x / P.xs) : 0;
+  const Hd = P.H * (1 + (P.sheerK || 0) * t * t);
+  if (s >= rN) return Hd;
+  const q = rN - Math.max(0, s);
+  return Hd - rN + Math.sqrt(Math.max(0, rN * rN - q * q));
+}
+// the chine's plan: holds its beam near the step, narrows to a rounded point
+const planF = (P, t) => Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, t), P.planK)), 0.5);
+// the chine half-beam at the step from the HULL WIDTH (deck at the step)
+function chineHalfStep(P) {
+  const tf = Math.tan(P.flare * D2R), tb = Math.tan(P.beta * D2R);
+  return (P.B / 2 - P.H * tf) / Math.max(0.2, 1 - tb * tf);
+}
 function sectionOf(P, x) {
-  const xs = P.xs, LA = P.L - P.xs;
+  const xs = P.xs, LA = P.L - P.xs, K = keelOf(P);
+  const bS = chineHalfStep(P);
   let yk, b, beta, body;
   if (x <= 0) {
     body = 'F';
-    const ahead = -x;
-    if (ahead <= P.xFlat) yk = 0;
-    else { const t = (ahead - P.xFlat) / Math.max(1e-6, xs - P.xFlat); yk = P.yBow * t * t; }
-    const tb = Math.min(1, ahead / xs);
-    b = P.bBow + (P.B / 2 - P.bBow) * (1 - tb * tb * tb);
-    beta = P.beta;
+    const t = Math.min(1, -x / xs);
+    yk = K.at(x);
+    b = bS * planF(P, t);
+    // the warp lives in the forward third (t^2.5): the planing region aft
+    // of the flat keeps the step's deadrise, or the hull loses its lift at
+    // the hump (measured: t^1.6 read 25 deg a metre ahead of the step and
+    // the 172 sat at 11 m/s with its step 4 cm too deep to ventilate)
+    beta = P.beta + (P.betaBow - P.beta) * Math.pow(t, 2.5);
   } else {
     body = 'A';
-    yk = P.hs + x * Math.tan(P.aftAngle * D2R);
-    b = (P.B / 2) * (1 - (1 - P.bStern) * Math.min(1, x / LA));
+    const u = Math.min(1, x / LA);
+    b = bS * (1 - (1 - P.bStern) * Math.pow(u, 1.15));
     beta = P.betaA;
+    // the transom keeps a height: the afterbody's chine never climbs past
+    // 0.88 H (a keel rising through the deck line leaked the physics loft:
+    // the last slice read 0.008 m2 of upward area with nothing under it)
+    yk = Math.min(P.hs + x * Math.tan(P.aftAngle * D2R) + P.aftCurve * LA * u * u,
+                  0.88 * P.H - b * Math.tan(beta * D2R));
   }
   const hc = b * Math.tan(beta * D2R);
-  // the deck is LEVEL across the step (the afterbody's sides are hs shorter)
-  // and follows the sheer where the bow's chine climbs above it
-  const yDeck = (P.B / 2) * Math.tan(P.beta * D2R) + P.hSide;
-  return { x, yk, b, beta, hc, body, yc: yk + hc, yd: Math.max(yk + hc + 0.03, yDeck) };
+  const yc = yk + hc;
+  // (the bow tip is a POINT: the 4 mm the deck keeps over the chine dies with the beam)
+  const yd = Math.max(yc + 0.004 * Math.min(1, b / 0.01), deckAt(P, x));
+  // the deck edge: the side flares outward by a CONSTANT offset (the flare
+  // angle over the side's height at the step — a chine that rises aft of
+  // the step must not kink the gunwale line), dying with the beam so the
+  // bow's plan closes to its point
+  const bd = b + (P.H - bS * Math.tan(P.beta * D2R)) * Math.tan(P.flare * D2R) * Math.min(1, b / (0.08 * P.B));
+  return { x, yk, b, bd, beta, hc, body, yc, yd };
+}
+// the section as a closed polygon in (y, z), keel to deck, starboard side
+// listed z >= 0 then mirrored: K, C, E (the gunwale's chamfer foot), D (the
+// deck edge). The PHYSICS loft and levelVolume both read exactly this.
+function secPoly(P, s) {
+  const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.bd);
+  return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv };
 }
 
 function makeFloat(over = {}) {
@@ -224,17 +339,20 @@ function makeFloat(over = {}) {
   const nF = Math.max(3, Math.round(P.nSta * P.xs / P.L)), nA = Math.max(3, P.nSta - nF);
   // stations: forebody bow..step (x=0-), afterbody step (x=0+)..stern
   const sta = [];
-  for (let i = 0; i <= nF; i++) sta.push(sectionOf(P, -P.xs + (P.xs * i) / nF));
+  // forebody stations crowd toward the bow (the rocker and the stem live in
+  // the last fifth): a half-cosine from the step. The first station is the
+  // bow tip itself, a point (its cap has no area and the clipper skips it)
+  for (let i = 0; i <= nF; i++) { const u = 1 - i / nF; sta.push(sectionOf(P, -P.xs * Math.sin(0.5 * Math.PI * u))); }
   for (let i = 0; i <= nA; i++) sta.push(sectionOf(P, 1e-9 + (LA * i) / nA));
   // each station's vertices: K, C-, C+, D-, D+   (- = port z<0, + = starboard)
   for (const s of sta) {
-    s.K = push([s.x, s.yk, 0]);
-    s.Cm = push([s.x, s.yc, -s.b]); s.Cp = push([s.x, s.yc, s.b]);
+    const q = secPoly(P, s);
+    s.K = push([s.x, q.K[0], 0]);
+    s.Cm = push([s.x, q.C[0], -q.C[1]]); s.Cp = push([s.x, q.C[0], q.C[1]]);
     // the deck edge is a CHAMFER (bevel): the side rises to E, the deck runs
-    // in from D — a rounded gunwale on a real float, one 45-degree facet here
-    const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.b);
-    s.Em = push([s.x, s.yd - bv, -s.b]); s.Ep = push([s.x, s.yd - bv, s.b]);
-    s.Dm = push([s.x, s.yd, -(s.b - bv)]); s.Dp = push([s.x, s.yd, s.b - bv]);
+    // in from D — the drawn float rounds it (rGun); one facet in the physics
+    s.Em = push([s.x, q.E[0], -q.E[1]]); s.Ep = push([s.x, q.E[0], q.E[1]]);
+    s.Dm = push([s.x, q.D[0], -q.D[1]]); s.Dp = push([s.x, q.D[0], q.D[1]]);
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
@@ -259,6 +377,15 @@ function makeFloat(over = {}) {
       quad('step', s0.K, s1.K, s1.Cp, s0.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
       tri('step', s0.Cm, s1.Cm, s0.Em, { side: -1, body: 'A', beta: 0, ref: rs });
       tri('step', s0.Cp, s1.Cp, s0.Ep, { side: 1, body: 'A', beta: 0, ref: rs });
+      // G451: the flared side's chamfer foot and deck edge sit at different
+      // heights over the two chines (the afterbody's is hs higher), so the
+      // side and the deck need their own slivers across the step or the
+      // hull leaks (closure read -0.0009 m2 along x)
+      quad('side', s0.Em, s1.Em, s1.Dm, s0.Dm, { side: -1, body: 'A', beta: 0, ref: rs });
+      quad('side', s0.Ep, s1.Ep, s1.Dp, s0.Dp, { side: 1, body: 'A', beta: 0, ref: rs });
+      tri('side', s0.Em, s1.Em, s1.Cm, { side: -1, body: 'A', beta: 0, ref: rs });
+      tri('side', s0.Ep, s1.Ep, s1.Cp, { side: 1, body: 'A', beta: 0, ref: rs });
+      quad('deck', s0.Dm, s1.Dm, s1.Dp, s0.Dp, { side: 0, body: 'A', beta: 0, ref: rs });
       continue;
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
@@ -318,11 +445,31 @@ function makeFloat(over = {}) {
   // the hull's displacement to the deck, for the freeboard line
   let volDeck = 0;
   for (let i = 0; i + 1 < sta.length; i++) if (sta[i].body === sta[i + 1].body)
-    volDeck += 0.5 * (secArea(sta[i]) + secArea(sta[i + 1])) * (sta[i + 1].x - sta[i].x);
+    volDeck += 0.5 * (secArea(sta[i], P) + secArea(sta[i + 1], P)) * (sta[i + 1].x - sta[i].x);
   return { P, V, panels, sta, m, cg, I, edge, stern, volDeck, nF, nA,
            xBow: -P.xs, xStern: LA, b: P.B / 2 };
 }
-const secArea = s => s.b * s.hc + 2 * s.b * (s.yd - s.yc);
+// the section's area below a water height (float frame), from its polygon:
+// the V to the chine, the flared side, the chamfer — a clip of the (y, z)
+// polygon at y = hw, sharing nothing with the 3D clipper
+function secAreaTo(P, s, hw) {
+  const q = secPoly(P, s);
+  const top = Math.min(hw, s.yd);
+  if (top <= s.yk) return 0;
+  // the starboard half-polygon keel -> C -> E -> D, then the centreline back
+  const pts = [q.K, q.C, q.E, q.D, [s.yd, 0]];
+  const cut = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const ina = a[0] <= top, inb = b[0] <= top;
+    if (ina) cut.push(a);
+    if (ina !== inb) { const f = (top - a[0]) / (b[0] - a[0]); cut.push([top, a[1] + (b[1] - a[1]) * f]); }
+  }
+  let A2 = 0;
+  for (let i = 0; i < cut.length; i++) { const a = cut[i], b = cut[(i + 1) % cut.length]; A2 += a[1] * b[0] - b[1] * a[0]; }
+  return Math.abs(A2);          // both halves: 2 x (half-area = |A2| / 2)
+}
+const secArea = (s, P) => secAreaTo(P || DEF, s, Infinity);
 
 function polyNormal(pts) {
   const n = v3();
@@ -934,11 +1081,7 @@ function levelVolume(F, hw, N = 2000) {
   for (let i = 0; i < N; i++) {
     const x = x0 + (x1 - x0) * (i + 0.5) / N, dx = (x1 - x0) / N;
     const s = sectionOf(P, x === 0 ? -1e-9 : x);
-    const d = Math.min(hw, s.yd) - s.yk;
-    if (d <= 0) continue;
-    const tb = Math.tan(s.beta * D2R);
-    const A = d <= s.hc ? d * d / tb : s.hc * s.hc / tb + 2 * s.b * (d - s.hc);
-    vol += A * dx;
+    vol += secAreaTo(P, s, hw) * dx;
   }
   return vol;
 }
@@ -1002,9 +1145,16 @@ function tetraCtx(F, T, Q, p, v, slab) {
     const S = ctx.slab, q = ctx.toLocal(pt, v3());
     const xs = S.x, n = xs.length;
     let i = 0; while (i + 2 < n && q[0] > xs[i + 1]) i++;
-    const t = Math.max(0, Math.min(1, (q[0] - xs[i]) / Math.max(1e-6, xs[i + 1] - xs[i])));
+    // G451: the end slabs EXTRAPOLATE (t a little outside [0, 1]) so a
+    // force ahead of the bow station or behind the stern one keeps its
+    // lever — the Wipline's bow closes to a point, so its first station
+    // sits 7 % of the forebody aft of the tip, and with t clamped the bow's
+    // lift landed 0.16 m aft of where it acts: the ultralight ploughed and
+    // pitch-poled at 3.5 s (trim -58 deg) where the same hull with its node
+    // on the tip rose onto the step. Weights stay inside [-0.35, 1.35].
+    const t = Math.max(-0.35, Math.min(1.35, (q[0] - xs[i]) / Math.max(1e-6, xs[i + 1] - xs[i])));
     for (const [k, w] of [[i, 1 - t], [i + 1, t]]) {
-      if (w <= 0) continue;
+      if (w === 0) continue;                 // (a NEGATIVE weight is the extrapolation's, and it must land)
       // the station's triangle in its own (y, z) plane: K, DL, DR rest coords
       const st = S.st[k];
       const [ky, kz] = st.K, [ly, lz] = st.DL, [ry, rz] = st.DR;
@@ -1063,9 +1213,20 @@ function hydroBuild(def, p, v) {
 const WR_AREA = 0.06, WR_DEPTH = 0.25, WR_TRAVEL = 35 * Math.PI / 180, WR_UP_V = 12;
 function waterRudder(fx, ctl, water, simT, f) {
   const F = fx.F, ctx = fx.ctx, out = fx.out;
+  // G451: the blade is the float's own (the drawn one): area and depth off
+  // its parameters, the constants the fallback for a hull without them
+  const WR_A = F.P.wrArea || WR_AREA, WR_D = F.P.wrDepth || WR_DEPTH;
   const sK = out.W[F.stern.K];
   const h = water.h(sK[0], sK[2], simT), dS = h - sK[1];
-  if (!(dS > -WR_DEPTH * 0.2)) { fx.wrDown = 0; return; }
+  // G451: THE BLADE'S OWN IMMERSION. The blade hangs WR_D under the stern
+  // keel; what matters is how much of it is in the water, not whether the
+  // afterbody bottom is wet — a Wipline's transom keel rides 0.4 m over the
+  // step keel and lifts clear of the surface at the first nose-down of the
+  // roll while the blade is still half in the water (the old gate on the
+  // stern keel's depth and on wetA raised the rudders at 2.6 m/s and the
+  // ultralight weathercocked 35 deg in a 5 m/s crosswind)
+  const sub = Math.max(0, Math.min(1, (dS + WR_D) / WR_D));
+  if (sub < 0.15) { fx.wrDown = 0; return; }
   const vS = ctx.velAt(sK, v3());
   const xhat = ctx.xhat, up = [0, 1, 0];
   const zR = cross(up, xhat); nrm(zR);                          // right = up x aft
@@ -1074,24 +1235,26 @@ function waterRudder(fx, ctl, water, simT, f) {
   // before opening the throttle (the checklist item) — down, the pair cost
   // 0.02 W of drag at the hump (q A Cd at 8 m/s), a fifth of the single
   // 582's margin over it. Up above take-off power; down again at idle.
-  const takeoffPower = ctl && ctl.thr > 0.6;
-  const down = Vf < WR_UP_V && out.wetA > 0.05 && !takeoffPower ? 1 : 0;
+  // G451: ...but not before the plough is over — a crosswind seaplane keeps
+  // its water rudders down until it is nearly on the step (the ultralight
+  // weathercocked 35 deg in a 5 m/s crosswind with them raised at the
+  // first push of the throttle; the drag they cost at 7 m/s is nothing)
+  const takeoffPower = ctl && ctl.thr > 0.6 && Vf > 0.6 * WR_UP_V;
+  const down = Vf < WR_UP_V && !takeoffPower ? 1 : 0;
   fx.wrDown = down;
   if (!down) return;
-  const sub = Math.max(0, Math.min(1, (dS + WR_DEPTH * 0.2) / WR_DEPTH));
-  if (sub <= 0) return;
   const delta = (ctl ? (ctl.dr || 0) : 0) * WR_TRAVEL;
   const beta = Math.atan2(vy, Math.max(0.3, Vf));
   const al = delta - beta;
   const Cl = Math.max(-1.2, Math.min(1.2, 3.0 * al));
   const q = 0.5 * F.P.rho * (Vf * Vf + vy * vy);
-  const Fy = q * WR_AREA * sub * Cl;
+  const Fy = q * WR_A * sub * Cl;
   const Fv = [zR[0] * Fy, zR[1] * Fy, zR[2] * Fy];
   // and its drag, along the flow
   const Vt = Math.hypot(Vf, vy) || 1e-6, Cd = 0.02 + 0.6 * al * al;
-  const D = q * WR_AREA * sub * Cd;
+  const D = q * WR_A * sub * Cd;
   Fv[0] -= vS[0] / Vt * D; Fv[1] -= vS[1] / Vt * D; Fv[2] -= vS[2] / Vt * D;
-  const at = [sK[0], sK[1] - 0.5 * WR_DEPTH * sub, sK[2]];
+  const at = [sK[0], sK[1] - 0.5 * WR_D * sub, sK[2]];
   ctx.distribute(at, f, Fv);
   out.wrForce = Fy; out.wrAlpha = al;
 }
@@ -1136,26 +1299,146 @@ function zeroTerms(out) {
   out.wetF = out.wetA = out.wetOther = 0; out.vent = 0;
   for (const o of out.per) o.wet = 0;
 }
-// the float's SIZE for an aeroplane: the H0 float (626 kg to the deck for
-// a 300 kg half-load) scaled so a pair displaces FLOAT_DISP x the gross —
-// the seaplane rule of 180 % (EDO's 1.8). Linear dimensions by the cube
-// root, the shell's mass by the square.
+// the hull's METRIC keys: everything a preset scales with its size (the
+// fractions — flatK, stemK, noseR, planK, bStern, the angles — do not)
+const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
+                      'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
+function scaleParams(base, k, over) {
+  const P = Object.assign({}, base);
+  for (const key of FLOAT_METRIC) if (typeof base[key] === 'number') P[key] = base[key] * k;
+  P.wrArea = base.wrArea * k * k;
+  P.mFloat = base.mFloat * k * k;
+  delete P._keel;
+  return Object.assign(P, { mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }, over || {});
+}
+// the float's SIZE for an aeroplane: the default hull scaled so a pair
+// displaces FLOAT_DISP x the gross — the seaplane rule of 180 % (EDO's 1.8;
+// the Wipline catalogue reads 1.8-2.2). Linear dimensions by the cube root,
+// the shell's mass by the square. DEF_VOL is the default hull's own
+// displacement to the deck, measured once from its sections.
 const FLOAT_DISP = 1.8;
+let DEF_VOL = 0;
 function floatParamsFor(grossKg, over) {
-  const k = Math.cbrt((FLOAT_DISP * 0.5 * Math.max(60, grossKg)) / 626);
-  const P = Object.assign({}, DEF, {
-    L: DEF.L * k, xs: DEF.xs * k, B: DEF.B * k, hs: DEF.hs * k, xFlat: DEF.xFlat * k,
-    yBow: DEF.yBow * k, bBow: DEF.bBow * k, hSide: DEF.hSide * k, mFloat: DEF.mFloat * k * k,
-    mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0],
-  }, over || {});
+  if (!DEF_VOL) DEF_VOL = makeFloat(DEF).volDeck * DEF.rho;
+  const k = Math.cbrt((FLOAT_DISP * 0.5 * Math.max(60, grossKg)) / DEF_VOL);
+  const P = scaleParams(DEF, k, over);
   P.scale = k;
   return P;
+}
+// ---- THE WIPLINE CATALOGUE ------------------------------------------------
+// The Wipaire line, one row per model: the seaplane float's length, the
+// hull's width and height, its displacement in fresh water and the
+// seaplane system's weight for a pair (floats + rigging), all off the
+// catalogue sheets (wipaire.com, 2026); the aircraft the row is sold for
+// and the gross it carries. `est: true` rows are models the catalogue no
+// longer lists (or lists without dimensions): their length, width and
+// height are SCALED from their displacement along the fitted line of the
+// measured rows (L ~ 0.55 D^1/3, B ~ 0.070 D^1/3, H ~ 0.061 D^1/3) and
+// their mass interpolated between neighbours — stated as estimates, not
+// facts. Displacement is per FLOAT; mSys per PAIR with rigging. The
+// model number is roughly the float's buoyancy in pounds.
+// `disp` is the catalogue's "displacement in fresh water", `flot` its
+// "maximum flotation" (the whole watertight hull, ~10 % more): the hull is
+// CALIBRATED so its volume to the deck is `flot`, and `disp` is the number
+// the plaque quotes.
+const FLOAT_PRESETS = {
+  'Wipline 1450':  { L: 4.60, B: 0.64, H: 0.50, disp: 658,  flot: 724,  mSys: 68,  gross: 650,  est: true,
+                     for: 'light sport (Carbon Cub SS, Legend Cub)' },
+  'Wipline 2100':  { L: 5.36, B: 0.74, H: 0.58, disp: 1054, flot: 1171, mSys: 125, gross: 1089,
+                     for: 'Piper PA-12 / PA-18, Cessna 170 / 172, Husky, Scout, CubCrafters' },
+  'Wipline 2350':  { L: 5.97, B: 0.74, H: 0.58, disp: 1166, flot: 1295, mSys: 138, gross: 1157,
+                     for: 'Cessna 172 / 175, Maule M6 / MX7' },
+  'Wipline 3000':  { L: 6.12, B: 0.81, H: 0.74, disp: 1497, flot: 1664, mSys: 196, gross: 1519,
+                     for: 'Cessna 180 / 182 / 185' },
+  'Wipline 3450':  { L: 6.96, B: 0.81, H: 0.74, disp: 1713, flot: 1903, mSys: 223, gross: 1720,
+                     for: 'Cessna 206 (all), T206H' },
+  'Wipline 3730':  { L: 6.55, B: 0.83, H: 0.73, disp: 1692, flot: 1861, mSys: 215, gross: 1640, est: true,
+                     for: 'Cessna 185 / 206 (the 3450 replaced it)' },
+  'Wipline 3900':  { L: 6.70, B: 0.85, H: 0.75, disp: 1769, flot: 1946, mSys: 226, gross: 1720, est: true,
+                     for: 'Cessna 206 (the 3450 replaced it)' },
+  'Wipline 4000':  { L: 6.75, B: 0.86, H: 0.75, disp: 1814, flot: 1995, mSys: 236, gross: 1750, est: true,
+                     for: 'utility singles to ~1,800 kg' },
+  'Wipline 6000':  { L: 7.40, B: 0.99, H: 0.86, disp: 2722, flot: 2994, mSys: 295, gross: 2313, est: true,
+                     for: 'de Havilland DHC-2 Beaver (the 6100 replaced it)' },
+  'Wipline 6100':  { L: 7.49, B: 0.99, H: 0.86, disp: 2569, flot: 2854, mSys: 308, gross: 2540,
+                     for: 'de Havilland DHC-2 Beaver Mk I / III, Pilatus PC-6' },
+  'Wipline 7000':  { L: 7.20, B: 1.07, H: 0.95, disp: 3088, flot: 3397, mSys: 454, gross: 3291, est: true,
+                     for: 'Quest / Daher Kodiak 100 (amphibian only in the catalogue)' },
+  'Wipline 8000':  { L: 8.90, B: 1.05, H: 0.96, disp: 3629, flot: 3992, mSys: 540, gross: 3856, est: true,
+                     for: 'Cessna 208 Caravan (the 8750 replaced it)' },
+  'Wipline 8750':  { L: 9.50, B: 1.07, H: 0.99, disp: 3965, flot: 4405, mSys: 587, gross: 4110,
+                     for: 'Cessna 208 / 208B Caravan' },
+  'Wipline 10000': { L: 9.80, B: 1.14, H: 1.00, disp: 4536, flot: 4990, mSys: 700, gross: 7257, est: true,
+                     for: 'Air Tractor AT-802 Fire Boss (amphibian only)' },
+  'Wipline 13000': { L: 9.53, B: 1.30, H: 1.14, disp: 5826, flot: 6473, mSys: 674, gross: 5670,
+                     for: 'de Havilland DHC-6 Twin Otter' },
+};
+const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
+// what the join carries into spec.gear.floats: every number the hull, its
+// details and its rudder are built from (rho and the model's constants stay
+// the model's; `preset` rides as a string beside them)
+const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 'aftAngle', 'aftCurve', 'flatK', 'stemK',
+                         'rake', 'noseR', 'planK', 'bStern', 'flare', 'bevel', 'rChine', 'rGun', 'rLip', 'rTransom',
+                         'railW', 'railT', 'keelW', 'keelH', 'skZ', 'skW', 'skH', 'wrArea', 'wrDepth', 'mFloat',
+                         'fineK', 'scale', 'xAft', 'sheerK'];
+// THE FINENESS. The catalogue's three dimensions and its flotation are
+// four facts; the family at the 2350's proportions fills its box to 49 %
+// and the 2350 needs 49 % — but the taller hulls (H/B 0.9 against the
+// 2350's 0.78) need 42-44 %, so a Caravan float in the 2350's lines would
+// carry 15 % too much. One scalar, f in [0, 1], moves the family from the
+// 2350's lines toward a finer hull the way the big Wiplines actually
+// differ from the small ones (the 7000 "modeled after the 13000, improved
+// rough water handling"): deeper V at the step and aft, a finer plan
+// forward, more afterbody rise, a narrower transom, a longer rocker.
+// presetParams solves f so the hull's volume to the deck is the row's
+// `flot`; a hull the range cannot reach keeps f at its end and says so.
+// Two branches: FINER (f > 0) is mostly a deeper V; FULLER (f < 0) is
+// mostly a fuller plan, a wider transom and a longer keel flat, the V
+// shallowing only a little (6 deg per unit) — a shallow V at the step is a
+// chine that sits low, and a low chine is a step that cannot ventilate: at
+// 17 deg the 172 on 2350s sat at the hump (chine 14 cm under, hs 10 cm)
+// where at 21 deg it planes.
+function fineParams(P, f) {
+  const n = f < 0;
+  return Object.assign({}, P, {
+    beta: Math.max(8, P.beta + (n ? 6 : 20) * f), betaA: Math.max(8, P.betaA + (n ? 4 : 10) * f), betaBow: P.betaBow + 8 * f,
+    planK: P.planK - (n ? 4 : 1.5) * f, aftAngle: P.aftAngle + 0.5 * f, aftCurve: P.aftCurve + 0.01 * f,
+    bStern: Math.min(0.9, P.bStern - (n ? 0.45 : 0.20) * f), flatK: Math.min(0.85, P.flatK - (n ? 0.30 : 0.16) * f), stemK: Math.max(0.06, P.stemK - 0.08 * f), fineK: f });
+}
+// a preset's hull: the family scaled to the row's LENGTH (the details, the
+// step, the radii follow), the width and height set to the row's own, the
+// fineness solved for the row's flotation — the catalogue's four numbers
+// are honoured, the family supplies everything between them. The hull's
+// mass is 0.40 of the pair's system weight (the struts, spreaders and
+// wires are billed by the frame).
+function presetParams(name, over) {
+  const R = FLOAT_PRESETS[name];
+  if (!R) return null;
+  const k = R.L / DEF.L;
+  // the catalogue's "height - hull" is the hull's OVERALL height — the bow,
+  // where the sheer tops out — so the family's H (at the step) is that over
+  // (1 + sheerK)
+  const P0 = scaleParams(DEF, k, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp });
+  const volOf = f => { const Q = fineParams(P0, f); delete Q._keel; return makeFloat(Q).volDeck * P0.rho; };
+  // f runs from -0.7 (a FULLER hull than the family: a shallower V, a
+  // wider transom — the small Wiplines, whose overall height leaves little
+  // freeboard over the sheer) to 1 (the finest)
+  let lo = -0.7, hi = 1, vLo = volOf(lo), vHi = volOf(1);
+  let f;
+  if (R.flot >= vLo) f = lo; else if (R.flot <= vHi) f = 1;
+  else { for (let i = 0; i < 18; i++) { const m = 0.5 * (lo + hi); if (volOf(m) > R.flot) lo = m; else hi = m; } f = 0.5 * (lo + hi); }
+  const P = fineParams(P0, f);
+  delete P._keel;
+  P.scale = k;
+  P.volRes = volOf(f) / R.flot - 1;      // the residual the range left (0 inside it)
+  return Object.assign(P, over || {});
 }
 
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP,
+              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;

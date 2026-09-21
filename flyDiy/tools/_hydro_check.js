@@ -60,6 +60,13 @@ while (!drop.done) drop.step();
   const trim = tail.reduce((s, r) => s + r.trim, 0) / tail.length;
   const mc = H.submergedVolumeMC(F, drop.S, H.stillWater, 200000);
   const Wmc = mc.vol * F.P.rho * G;
+  // G451: the arbiter is compared with the clipper's hydrostatic force AT
+  // THE SAME INSTANT — the Wipline hull bobs a little longer than the old
+  // one (its heave damping is the same kRad over a narrower waterplane),
+  // and a residual 5 mm of heave at 10 s is 1.5 % of volume that has
+  // nothing to do with whether the clipper integrates Archimedes right
+  const outEnd = H.makeScratch(F); H.hydroForces(F, drop.S, H.stillWater, outEnd);
+  const FsEnd = outEnd.terms.static[1];
   // the settle's decay: peak |vy| in 1-2 s against 6-7 s
   const pk = (a, b) => Math.max(...L.filter(r => r.t > a && r.t < b).map(r => Math.abs(r.vy)));
   const v12 = pk(1, 2), v67 = pk(6, 7);
@@ -68,8 +75,8 @@ while (!drop.done) drop.step();
   console.log(`   drop from 5 cm: peak force ${f(peakFy / W, 2)} W (slam ${f(peakFm / W, 2)} W), settled draft at the step ${f(draft, 3)} m, trim ${f(trim, 2)} deg nose-up, ` +
               `|vy| peak 1-2 s ${f(v12, 3)} -> 6-7 s ${f(v67, 3)} m/s (zeta ~ ${f(zeta, 3)})`);
   verdict(Math.abs(Fy / W - 1) < 0.01, `settled: mean hydro force ${f(Fy, 1)} N over 8.5-10 s vs weight ${f(W, 1)} N (${f(Fy / W, 4)})`);
-  verdict(Math.abs(Wmc / W - 1) < 0.03, `settled pose: Monte-Carlo submerged volume ${f(mc.vol, 4)} m3 = ${f(Wmc, 1)} N vs weight (${f(Wmc / W, 4)}, ${mc.wet} wet of ${mc.n})`);
-  verdict(draft < F.P.hSide + F.P.B / 2 * Math.tan(F.P.beta * Math.PI / 180), `freeboard: the deck stays dry (draft ${f(draft, 3)} m at the step)`);
+  verdict(Math.abs(Wmc / FsEnd - 1) < 0.03, `settled pose: Monte-Carlo submerged volume ${f(mc.vol, 4)} m3 = ${f(Wmc, 1)} N vs the clipper's hydrostatic ${f(FsEnd, 1)} N at that instant (${f(Wmc / FsEnd, 4)}; vs weight ${f(Wmc / W, 4)}, ${mc.wet} wet of ${mc.n})`);
+  verdict(draft < H.sectionOf(F.P, -1e-9).yd, `freeboard: the deck stays dry (draft ${f(draft, 3)} m at the step, deck at ${f(H.sectionOf(F.P, -1e-9).yd, 3)})`);
   verdict(v67 < 0.5 * v12, `the settle decays (the bob at 6-7 s is under half of 1-2 s)`);
   if (TRACE) for (const r of L.filter((r, i) => i % 6 === 0 && r.t < 3)) console.log(`     t ${f(r.t, 2)} draft ${f(r.draft, 4)} trim ${f(r.trim, 2)} vy ${f(r.vy, 3)} Fy ${f(r.Fy, 0)} Fs ${f(r.Fs, 0)} Fm ${f(r.Fm, 0)} Fp ${f(r.Fp, 0)}`);
 }

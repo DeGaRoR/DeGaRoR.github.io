@@ -299,6 +299,11 @@ const GATES = [
   // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
   // taken off and landed on the sea, headless (~95 s)
   { id: 'FLOATS', file: '_floats_check.js', tier: 'core', wall: 140 },
+  // THE WIPLINE FLOATS (G451): the catalogue's fifteen rows on their four
+  // numbers each, the drawn hull closed and equal to the flown one, the
+  // rudder blade and the paddle where they belong, the user's 172 on 2350s
+  // settled on the sea (~2 min)
+  { id: 'WIPLINE', file: '_wipline_check.js', tier: 'core', wall: 200 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },

@@ -1985,11 +1985,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // H2 (G389): the DRAWN float when the join measured one (its own hull
     // parameters, its keel height over the keel datum — the same datum
     // gear.y reads — and its track); the sizing rule otherwise
+    // G451: a drawn Wipline carries its own hull mass (the catalogue's
+    // system weight, 0.40 a hull) and every family key; the family scaled to
+    // its length supplies what an older record lacks
     const FM = S.gear.floats;
-    const FP = FM ? Object.assign({}, HYDRO.DEF, FM, { mFloat: HYDRO.DEF.mFloat * Math.pow(FM.L / HYDRO.DEF.L, 2), mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
+    const FP = FM ? Object.assign(HYDRO.scaleParams(HYDRO.DEF, (FM.L || HYDRO.DEF.L) / HYDRO.DEF.L), FM,
+                                  { mFloat: FM.mFloat != null ? FM.mFloat : HYDRO.DEF.mFloat * Math.pow(FM.L / HYDRO.DEF.L, 2),
+                                    mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
                   : HYDRO.floatParamsFor(gross || 400);
+    delete FP._keel;
     const yK = FM && FM.y != null ? FM.y : gy - S.gear.contactR - 0.10;
-    const stas = [-FP.xs, -FP.xFlat, 0, FP.L - FP.xs];
+    // FIVE STATIONS (G451): bow, the flat's forward end (the front spreader
+    // bar and the forward struts), the step (the tetra, the mains' ref),
+    // the aft spreader bar (the aft struts: a Wipline's sit just aft of the
+    // step, not on it), the stern
+    const xAft = Math.min(FP.L - FP.xs - 0.2, FP.xAft != null ? FP.xAft : 0.28 * (FP.scale || 1));
+    // the bow station sits where the hull still has a beam: the Wipline's
+    // bow closes to a POINT at -xs, and three coincident nodes made a
+    // zero-length beam (strain Infinity in GATE FLOATS)
+    const stas = [-0.93 * FP.xs, -FP.flatK * FP.xs, 0, xAft, FP.L - FP.xs];
     // THE RIGGING (G396.3): the keel incidence, bow down positive, about the
     // step keel — the layer draws the hull through the same rotation. The
     // tetra and the slab stay float-local (the pose is read off the nodes).
@@ -2029,12 +2043,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // an angular damper the soft struts had been hiding) and with the
       // Newton step the struts go rigid, as a real installation is.
       const NM = { noMass: true, kMul: 8 }, KM = { kMul: 8 };
-      for (let i = 0; i + 1 < 4; i++) {
+      const NS = stas.length;
+      for (let i = 0; i + 1 < NS; i++) {
         B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NM); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
         B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NM);
         B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NM);
       }
-      for (let i = 0; i < 4; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
+      for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
@@ -2043,9 +2058,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // member — the suspension spring, KS x SUS — so the whole float pair
       // rode on two bungees; every member here is BRACING (KS x ARCH.k),
       // a streamlined steel tube like the rest of the truss.
-      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[2], aB, 'gear', true, undefined, undefined, KM);
-      B(Dout[2], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
-      B(Din[2], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
+      // (G451: the aft attachments on the aft spreader bar's station, 3)
+      B(Din[1], fB, 'gear', true, undefined, undefined, KM); B(Din[3], aB, 'gear', true, undefined, undefined, KM);
+      B(Dout[3], fT, 'gear', false, 'inner', undefined, KM); B(Dout[1], fB, 'gear', true, 'wire', undefined, KM);
+      B(Din[3], fB, 'gear', true, 'wire', undefined, KM); B(Din[1], aB, 'gear', true, 'wire', undefined, KM);
       // THE TRUSS MUST BE TALL (H2, G389): with the deck a hand under the
       // belly nodes the four points of the side truss are nearly collinear
       // and its pitch stiffness goes as the square of nothing — measured, a
@@ -2054,7 +2070,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // at 1 deg. The loads go up to the top longerons as well: two
       // diagonals to the frames' top corners, inside the covering
       const aT = sd < 0 ? AA.TL : AA.TR;
-      B(Din[1], aT, 'gear', false, 'inner', undefined, KM); B(Din[2], fT, 'gear', false, 'inner', undefined, KM);
+      B(Din[1], aT, 'gear', false, 'inner', undefined, KM); B(Din[3], fT, 'gear', false, 'inner', undefined, KM);
       // the slab table for 32_hydro's force distribution: every station's
       // keel and deck edges, float-frame rest coordinates (x aft of the step)
       const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
@@ -2063,7 +2079,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                     tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: FP, pos: [gx, yK, zc] });
     }
     const [FL, FR] = FLOATS;
-    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
+    for (const i of [1, 3]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 3 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
   }
 

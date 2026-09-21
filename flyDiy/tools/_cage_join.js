@@ -329,9 +329,14 @@ function cageJoinSpec(P, M, T) {
     // them in place of its own sizing rule
     if (M.floats) {
       spec.gear.floats = {};
-      for (const k of ['L', 'xs', 'B', 'beta', 'betaA', 'hs', 'aftAngle', 'xFlat', 'yBow', 'bBow', 'bStern', 'hSide', 'y', 'track', 'volDeck', 'inc'])
+      // G451: the whole Wipline family (HYDRO.FLOAT_SPEC_KEYS: the hull's
+      // numbers, the details, the water rudder, the mass) plus the placement
+      const HYj = window.HYDRO_GEN || (typeof HYDRO !== 'undefined' ? HYDRO : null);
+      const keys = (HYj && HYj.FLOAT_SPEC_KEYS) || ['L', 'xs', 'B', 'H', 'beta', 'betaA', 'hs', 'aftAngle', 'bStern'];
+      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc']))
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
+      if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
     }
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
@@ -747,7 +752,8 @@ function cagePartMatch(name, ud, twin) {
   // G179.2: the struts and the engine units (the prop and spinner under a
   // unit were matched above, deeper in the walk); G267.2: the boom and tail
   // skins, on twin booms
-  if (name === 'edFloatL' || name === 'edFloatR')            // H2 (G389): the hulls
+  if (name === 'edFloatL' || name === 'edFloatR' ||          // H2 (G389): the hulls
+      name === 'edFloatRudL' || name === 'edFloatRudR')      // G451: the water rudder blades
     return { src: name, ctl: true };
   if (name === 'edFit_liftstrut' || name === 'edFit_cabane' || name === 'edFit_interplane' ||
       name === 'edFit_wire' || name === 'edFloatStruts' || name.lastIndexOf('edEng', 0) === 0 ||
@@ -1329,10 +1335,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // G268 (the user's ruling): the VENTRAL fins count as fin area —
             // the swept plate under each boom tail, root chord x 0.675 (a
             // 0.35 taper) x height, cage units squared into metres
-            if (TBj && +P.finVentralOn) {
+            // G451: the seaplane's single ventral under a conventional tail
+            // counts too (a trapezoid: root chord, tip chord x tip, height)
+            if (+P.finVentralOn && (TBj || +P.gearFloats)) {
               const FSv = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * (+P.planeScale || 1);
               const hV = Math.max(0.05, +P.finVentralH || 0.4), cV = Math.max(0.1, +P.finVentralC || 0.6);
-              M.Sv += 2 * 0.675 * cV * hV * FSv * FSv;
+              const tip = Math.max(0.05, Math.min(1, +P.finVentralTip || 0.35));
+              M.Sv += (TBj ? 2 : 1) * 0.5 * (1 + tip) * cV * hV * FSv * FSv;
             }
             M.dorsalArea = finM.areaDorsal;
             M.vTaper = taperOf(finM);
@@ -1733,9 +1742,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       {
         const CF = window.CAGE_FLOAT;
         if (CF && CF.tetraC) {
-          for (const sd of ['L', 'R'])
+          for (const sd of ['L', 'R']) {
             PARTS.others.push({ src: 'edFloat' + sd, kind: 'float' + sd,
               stretch: true, tetraC: CF.tetraC[sd], groups: {} });
+            // G451: THE WATER RUDDER BLADE rides the same four nodes and
+            // carries its pivots (the post it steers about, the arms' pivot
+            // it retracts about), cage frame here, model frame on the way out
+            if (CF.rud && CF.rud[sd])
+              PARTS.others.push({ src: 'edFloatRud' + sd, kind: 'floatRud' + sd,
+                stretch: true, tetraC: CF.tetraC[sd], rudC: CF.rud[sd], groups: {} });
+          }
           PARTS.others.push({ src: 'edFloatStruts', kind: 'floatStrut',
             stretch: true, groups: {} });
         }
@@ -2374,6 +2390,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // anchor its TIP end takes instead of its member's own tip node
       if (pt.anchorsC) out2.anchors = pt.anchorsC.map(a => rotP(-a[2], a[1], a[0]));
       if (pt.tetraC) out2.tetra = pt.tetraC.map(a => rotP(-a[2], a[1], a[0]));   // H2: the float's four nodes
+      if (pt.rudC) {                       // G451: the water rudder's pivots, model axes
+        const dirM = d => rotP(-d[2], d[1], d[0]);
+        out2.rud = { post: rotP(-pt.rudC.post[2], pt.rudC.post[1], pt.rudC.post[0]), axis: dirM(pt.rudC.axis),
+                     pivot: rotP(-pt.rudC.pivot[2], pt.rudC.pivot[1], pt.rudC.pivot[0]), hinge: dirM(pt.rudC.hinge) };
+      }
       if (pt.tipAnchorsC) out2.tipAnchors = pt.tipAnchorsC.map(a => rotP(-a[2], a[1], a[0]));
       if (pt.surf) {                       // G59: what drives it, and how
         out2.surf = pt.surf;
