@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 97c0e4d84f64bc77
+// body-sha256: b3815c334cdbf26c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6433,31 +6433,33 @@ const GROUND_FIELDS = (() => {
   // reads this and its own localStorage copy (F8 > map layers > splat).
   const RECIPE = {
     codes: {
-      2:  { tex: ['dry', 'grass', 'rockyA'],   scale: [4, 4, 90],   far: ['grassRock', 'grassRock', 'rockyA'], farScale: [15, 15, 90], mix: [40, 3, 0, -0.1],    vary: [10, 0.18, 25] },
-      3:  { tex: ['mud', 'lush', null],        scale: [3, 4, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [25, 3, 0.08, 0],    vary: [8, 0.2, 15], wet: 0.32, poolScale: 3 },
-      4:  { tex: ['beach', null, null],        scale: [30, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [2, 0.06, 20], orient: 'sea' },
-      5:  { tex: ['rocksG', 'rockyB', null],   scale: [4, 90, 0],   far: ['rockyB', null, null],              farScale: [90, 0, 0],   mix: [30, 3, 0, 0],       vary: [3, 0.1, 20] },
-      6:  { tex: ['rocksB', 'rocksA', null],   scale: [50, 79, 0],  far: ['rocksA', 'rockyA', null],          farScale: [79, 90, 0],  mix: [60, 3, 0, 0],       vary: [3, 0.1, 40] },
-      7:  { tex: ['grass', 'lush', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', 'grassRock', 'rockyA'], farScale: [15, 15, 90], mix: [35, 3, 0, -0.1],    vary: [10, 0.18, 25] },
-      8:  { tex: ['leaves', 'mud', 'rocksG'],  scale: [3, 3, 2],    far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.1, -0.15], vary: [6, 0.15, 30] },
-      9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40] },
-      10: { tex: ['dirt', null, null],         scale: [2, 0, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [20, 1, 0, 0],       vary: [2, 0.06, 10] },
-      11: { tex: ['pebble', 'rocksG', null],   scale: [4.5, 2, 0],  far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [12, 3, 0, 0],       vary: [3, 0.08, 15] },   // the rocky beach (a coast_land_rocks set is owed)
-      12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40] },
-      13: { tex: ['leaves', 'rocksG', null],   scale: [3, 2, 0],    far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.2, 0],    vary: [5, 0.12, 30] },
-      14: { tex: ['lush', 'grass', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', null, 'rockyA'],       farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25] },
+      2:  { tex: ['dry', 'grass', 'rockyA'],   scale: [4, 4, 90],   far: ['grassRock', 'grassRock', 'rockyA'], farScale: [15, 15, 90], mix: [40, 3, 0, -0.1],    vary: [10, 0.18, 25], para: 0.2 },
+      3:  { tex: ['mud', 'lush', null],        scale: [3, 4, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [25, 3, 0.08, 0],    vary: [8, 0.2, 15], para: 0.2, wet: 0.32, poolScale: 3 },
+      4:  { tex: ['beach', null, null],        scale: [30, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [2, 0.06, 20], para: 0.3, orient: 'sea' },
+      5:  { tex: ['rocksG', 'rockyB', null],   scale: [4, 90, 0],   far: ['rockyB', null, null],              farScale: [90, 0, 0],   mix: [30, 3, 0, 0],       vary: [3, 0.1, 20], para: 1 },
+      6:  { tex: ['rocksB', 'rocksA', null],   scale: [50, 79, 0],  far: ['rocksA', 'rockyA', null],          farScale: [79, 90, 0],  mix: [60, 3, 0, 0],       vary: [3, 0.1, 40], para: 1 },
+      7:  { tex: ['grassRock', 'rockyA', 'mud'], scale: [15, 90, 3], far: ['grassRock', 'rockyA', null],     farScale: [15, 90, 0],  mix: [35, 3, 0, -0.25],   vary: [10, 0.18, 25], para: 0.2 },   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
+      8:  { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
+      9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40], para: 0.2 },
+      10: { tex: ['dirt', null, null],         scale: [2, 0, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [20, 1, 0, 0],       vary: [2, 0.06, 10], para: 0.2 },
+      11: { tex: ['pebble', 'rocksG', null],   scale: [4.5, 2, 0],  far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [12, 3, 0, 0],       vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (a coast_land_rocks set is owed)
+      12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
+      13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
+      14: { tex: ['lush', 'grass', 'rockyA'],  scale: [4, 4, 90],   far: ['grassRock', null, 'rockyA'],       farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
     names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
-      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.25, macroExp: 2.2,   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
+      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.45, macroExp: 2.2,   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
+      para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour
-    grade: { dry: { gain: '#b3b3a6', sat: 1 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 } },
+    grade: { dry: { gain: '#b3b3a6', sat: 1 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+             grass: { gain: '#ffffff', sat: 0.7 }, lush: { gain: '#ffffff', sat: 0.7 } },   // the lawn grasses toned down where heath and dense scrub still use them
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [
@@ -6472,7 +6474,7 @@ const GROUND_FIELDS = (() => {
   // the vary amplitudes; muskeg's wet + poolScale). Never with a constant.
   const CODES = {};
   for (const k in RECIPE.codes) { const c = RECIPE.codes[k];
-    CODES[k] = { name: RECIPE.names[k], period: Math.round(c.mix[0] * 6), bias: +(0.52 - c.mix[2]).toFixed(3), sharp: c.mix[1] * 4, sets: [c.tex[0], c.tex[1]], vary: c.vary.slice() };
+    CODES[k] = { name: RECIPE.names[k], period: Math.round(c.mix[0] * 6), bias: +(0.52 - c.mix[2]).toFixed(3), sharp: c.mix[1] * 2, sets: [c.tex[0], c.tex[1]], vary: c.vary.slice() };
     if (c.wet !== undefined) CODES[k].wet = c.wet;
     if (c.poolScale !== undefined) CODES[k].poolScale = c.poolScale; }
 
