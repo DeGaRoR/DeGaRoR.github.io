@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: ae4130c859d43901
+// body-sha256: a4e5cd7d720cd724
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -19615,6 +19615,24 @@ function clampControls(ct) {
   ct.flap.chord = genClamp(ct.flap.chord == null ? 0.20 : ct.flap.chord, 0.10, 0.40);
 }
 
+// THE PAIR'S RULE (biplane audit, 2026-09-21): a biplane's two planes stand
+// in DIFFERENT BANDS of the fuselage — the upper on the roof or a cabane
+// (high, parasol), the lower on the belly or through the waist (low, mid).
+// G185's rank test (|rank0 - rank1| < 0.5, ranks 0 / 0.5 / 1 / 1.5) let two
+// same-band pairs through: a 'parasol' second plane over a 'high' first
+// (35 cm apart — the "extra wing" the playtest saw when the second wing was
+// switched on), and 'mid' over 'low' (36 cm apart, both through the cabin).
+// The first plane keeps what it says; the second is coerced to the far
+// side of the other band. One function, so the spec clamp, the editor's
+// row and the design tile's seed cannot disagree about which pairs exist.
+const GEN_UPPER_BAND = { high: 1, parasol: 1, low: 0, mid: 0 };
+function genPlanePair(pos0, pos1) {
+  const b0 = GEN_UPPER_BAND[pos0], b1 = GEN_UPPER_BAND[pos1];
+  if (b0 == null) return pos1;
+  if (b1 != null && b1 !== b0) return pos1;
+  return b0 ? 'low' : 'parasol';
+}
+
 // G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
 // plane is clamped by the same lines as the first (every wing key lives on
 // each entry of wings[]); the text is the old block verbatim.
@@ -20075,8 +20093,8 @@ function clampSpec(spec) {
       // the second is coerced to the other band.
       const rank = { low: 0, mid: 0.5, high: 1, parasol: 1.5 };
       const [w0, w1] = S.wings;
-      if (Math.abs(rank[w0.position] - rank[w1.position]) < 0.5)
-        w1.position = rank[w0.position] >= 1 ? 'low' : 'parasol';
+      // (the band rule — genPlanePair — replaced G185's rank test here)
+      w1.position = genPlanePair(w0.position, w1.position);
       // wires need the interplane station to land on
       if (br.wires !== 'none' && br.interplane === 'none') br.interplane = 'N';
       // a sesquiplane's small plane is at least 0.45 of the big one
@@ -22547,8 +22565,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // outboard. Without a crank both halves use the same angle and this is the
   // straight line it always was.
   const dihOut = Math.tan((w.dihedralOut == null ? w.dihedral : w.dihedralOut) * D);
+  // THE SECOND PLANE'S OWN NUDGE (biplane audit, 2026-09-21). S.place.wingDy
+  // is wings[0].place.dy under its flat name, and every plane read it — so
+  // wings[1].place.dy (the editor's `up / down` on the second plane, written
+  // by the join since G185) moved nothing. Plane 0 keeps the flat name (to
+  // the bit); a later plane reads its own record.
+  const planeDy = k === 0 ? S.place.wingDy : ((w.place && w.place.dy) || 0);
   const yF = z => {
-    const base = wingY0 + S.place.wingDy;
+    const base = wingY0 + planeDy;
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };
@@ -24499,6 +24523,18 @@ function genTailPolar(AR, matCd0) {
 // panel; one fin. Attach weights put the quarter chord where it belongs
 // between the two spars, exactly as the hand fiches do.
 // ---------------------------------------------------------------------------
+// the flap the solver's one record is written from: plane 0's when it has
+// one (every monoplane, to the bit), else the first later plane's that has
+// (a biplane flapped on the lower plane only); null when no plane has flaps
+function genFlapRef(S) {
+  const CT0 = S.controls;
+  if (CT0 && CT0.flap && GEN_FLAPS[CT0.flap.type] && GEN_FLAPS[CT0.flap.type].dCl > 0) return CT0.flap;
+  for (let k = 1; k < (S.wings || []).length; k++) {
+    const c = S.wings[k] && S.wings[k].controls;
+    if (c && c.flap && GEN_FLAPS[c.flap.type] && GEN_FLAPS[c.flap.type].dCl > 0) return c.flap;
+  }
+  return null;
+}
 function genStrips(S, fr) {
   const P = fr.parts, R = GEN_RULES, strips = [];
   // G134: the resolved row (custom dials outrank the preset), and the wash
@@ -24536,6 +24572,7 @@ function genStrips(S, fr) {
   // stations, spar record, controls and propwash.
   const PLANES = P.planes || [P];
   const NONE_CT = { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } };
+  const flapRef = genFlapRef(S);
   // the thrustline, for the second plane's share of the wash (see below)
   const yProp = S.engY != null ? S.engY : 0;
   for (let k = 0; k < PLANES.length; k++) {
@@ -24547,6 +24584,22 @@ function genStrips(S, fr) {
   const CT = k === 0 ? S.controls : (wk.controls || NONE_CT);
   const aStart = (1 - CT.aileron.span) * semi;
   const fEnd = GEN_FLAPS[CT.flap.type].dCl > 0 ? CT.flap.span * semi : -1;
+  // THE SECOND PLANE'S SURFACES AT THEIR OWN CHORD (biplane audit,
+  // 2026-09-21). The solver flies ONE ailTau and ONE flap record (the
+  // aeroplane's, from S.controls = plane 0's), so the second plane's
+  // aileron chord and flap type/chord rows drew surfaces that flew as plane
+  // 0's — and a biplane with flaps on the lower plane only flew none. The
+  // strip's `ail` and `flap` are fractions the solver multiplies the
+  // aeroplane-wide effectiveness by, so a later plane's are scaled by ITS
+  // surfaces' effectiveness over the reference's: the aileron by the chord
+  // law (genTauAt), the flap by its type's dCl at its chord over the flap
+  // record's (`flapRef` below — plane 0's flap, else the first plane with
+  // one). Plane 0 reads 1 and 1: every monoplane's strips are what they were.
+  const kAil = k === 0 ? 1
+             : genTauAt(CT.aileron.chord, 0.22, 0.35) / genTauAt(S.controls.aileron.chord, 0.22, 0.35);
+  const kFlap = (k === 0 || !flapRef || fEnd < 0) ? 1
+              : (GEN_FLAPS[CT.flap.type].dCl * genFlapTau(CT.flap.chord))
+                / (GEN_FLAPS[flapRef.type].dCl * genFlapTau(flapRef.chord));
   // PROPWASH ON THE SECOND PLANE (G185): washAt is fitted to the Cub with the
   // Cub's wing at its own height, so plane 0 keeps that law untouched; plane
   // k pays only the EXTRA radial distance from the thrustline beyond plane
@@ -24578,7 +24631,7 @@ function genStrips(S, fr) {
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
           wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
-          ail: zc > aStart ? 1 : 0, flap: fFrac,
+          ail: zc > aStart ? kAil : 0, flap: fFrac * kFlap,
           // G185: the plane this strip belongs to, its plane's spar spacing
           // (the Cm0 couple arm) and the quarter-chord weight — the solver
           // reads the strip's own numbers, never a single aeroplane-wide one
@@ -25547,10 +25600,15 @@ function genParams(S, fr, strips) {
   // High lift. dCl scales off the reference chord the table is quoted at; the
   // pitching moment is DERIVED from the lift increment, not chosen separately
   // (see GEN_FLAP_CM — both flapped fiches agree on the ratio).
-  const FL = GEN_FLAPS[CT.flap.type];
+  // (biplane audit, 2026-09-21: the record is the REFERENCE plane's flap —
+  // plane 0's when it has one, else the first plane's that does, so a
+  // biplane flapped on its lower plane only has a record; genStrips scales
+  // every other plane's flap fraction to it)
+  const FREF = genFlapRef(S) || CT.flap;
+  const FL = GEN_FLAPS[FREF.type];
   let flaps;
   if (FL.dCl > 0) {
-    const kc = genFlapTau(CT.flap.chord) / genFlapTau(GEN_FLAP_CREF);
+    const kc = genFlapTau(FREF.chord) / genFlapTau(GEN_FLAP_CREF);
     const dCl0 = FL.dCl * kc;
     flaps = { to: 0, ldg: 1, rate: FL.rate, dCl0,
               dCd0: FL.cd * kc, dAStall: 0.02, dCm0: GEN_FLAP_CM * dCl0 };
@@ -28547,4 +28605,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
