@@ -99,5 +99,15 @@ const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       get nor() { return mk('media/tex/splat/dirt_nor_gl_512.27f8e9b2.jpg'); },
       get height() { return mk('media/tex/splat/dirt_height_512.ecb3a4f1.jpg'); },
       get rough() { return mk('media/tex/splat/dirt_rough_512.a924c560.jpg'); } },
+    { key: 'coastA', metres: 19.94, px: 512, mean: [0.0885,0.0593,0.0297],
+      get diff() { return mk('media/tex/splat/coastA_diff_512.d3bf0462.jpg'); },
+      get nor() { return mk('media/tex/splat/coastA_nor_gl_512.97e2058e.jpg'); },
+      get height() { return mk('media/tex/splat/coastA_height_512.5948d41b.jpg'); },
+      get rough() { return mk('media/tex/splat/coastA_rough_512.88cd29a5.jpg'); } },
+    { key: 'coastSand', metres: 15.2, px: 512, mean: [0.0728,0.0598,0.0284],
+      get diff() { return mk('media/tex/splat/coastSand_diff_512.262f733c.jpg'); },
+      get nor() { return mk('media/tex/splat/coastSand_nor_gl_512.b2f0b5a8.jpg'); },
+      get height() { return mk('media/tex/splat/coastSand_height_512.ef67ae07.jpg'); },
+      get rough() { return mk('media/tex/splat/coastSand_rough_512.6cf3034a.jpg'); } },
   ];
 })() : null;

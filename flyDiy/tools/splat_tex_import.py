@@ -51,6 +51,11 @@ SETS = [
     ('grassRock','aerial_grass_rock_1k.gltf.zip', 'aerial grass + rock - anything grassy, not so rocky'),
     ('forestAir','aerial_rocks_04_1k.gltf.zip',   'aerial rocks 4 - the forest floor from above'),
     ('snowAir',  'snow_field_aerial_1k.gltf.zip', 'the snow field from above'),
+    # the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): Poly Haven's smugglers_cove aerials, fetched from the API's
+    # file list (the site's zip is built on the fly). coast_land_rocks_02 was looked at and dropped: it is a MODEL
+    # (a 10.5 x 4.9 m scanned strip, its diff an atlas), not a tileable texture.
+    ('coastA',   'coast_land_rocks_01_1k.gltf.zip', 'the rocky foreshore from above - the shingle band (20 m)'),
+    ('coastSand','coast_sand_rocks_02_1k.gltf.zip', 'rock and sand with green tufts - the upper shore (15 m)'),
 ]
 SIZES = (1024, 512)
 LOT_SRC = os.path.join(ROOT, 'assets', 'groundTextures')

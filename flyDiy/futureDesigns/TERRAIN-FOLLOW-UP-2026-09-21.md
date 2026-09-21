@@ -7,8 +7,8 @@ seventeen sets, on the bench (`tools/_island.html`) and in the game
 splat). This lists what it left owed, in the order the user's eye will meet
 them, with what is known about each. Nothing here is started.
 
-**Status (2026-09-21, G471):** items 1 and 3 LANDED (the Standard ring with the
-sets' roughness, GATE SPLAT); 4 waits on the zips; 2, 5, 6, 7 as written.
+**Status (2026-09-21, G471 + G477):** items 1, 3 and 4 LANDED (the Standard ring
+with the sets' roughness, GATE SPLAT, the rocky beach); 2, 5, 6, 7 as written.
 
 ## Where things are (read first)
 
@@ -107,7 +107,12 @@ the bench's fragment shader through `_glsl_probe.html` and asserts no fxc
 internal error (the trap that killed the pane's GPU process). (c) and (d) need
 Chrome; the runner has precedent (UISMOKE).
 
-## 4. A rock-beach set
+## 4. A rock-beach set — DONE G477
+
+Two sets in the library (`coastA` = coast_land_rocks_01 20 m, `coastSand` =
+coast_sand_rocks_02 15 m; coast_land_rocks_02 is a MODEL, dropped); `11
+shingle` draws them with rocksG chunks. The sand-vs-rock choice stays the
+map's. Owed: the user's eye on coastA's gain. The original text follows.
 
 (2026-09-21: the zips are NOT under assets/alphaSplat — the download is the
 first step; the importer's SETS table and RECIPE.library then take the row,

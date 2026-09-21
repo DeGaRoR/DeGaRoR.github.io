@@ -54492,3 +54492,31 @@ truss drag, lift split, downwash) was found clean and is unchanged.
   aeroplane to rotate), the Cub's predates it (3.08 on that core against the G422
   baseline's 1.49). Both are the pilot session's second item: the 172's flare on the
   G461 tail is this session's debt.
+
+## G477 — TERRAIN FOLLOW-UP 4: THE ROCKY BEACH (2026-09-21, the user: "ok now do item 4 with the coast zips")
+
+- THE ZIPS: Poly Haven's site builds its gltf zips on the fly (every guessed URL 404), so the packs were
+  assembled from the API's file list (api.polyhaven.com/files/<name> -> the 1k gltf + bin + the three
+  textures, zipped in the site's layout) into the main checkout's assets/alphaSplat/. The importer read
+  them unchanged. coast_land_rocks_02 was looked at and DROPPED: the API's type is 2 = a MODEL (a 10.5 x
+  4.9 x 1.4 m scanned strip whose diff is an atlas), not a tileable texture; the sphere-diameter scale
+  rule would have read its plane's 4.89 m.
+- TWO SETS in the library (appended - a set's index is its layer): `coastA` = coast_land_rocks_01, the
+  rocky foreshore from above (sphere 19.94 m; the site says 20 x 20; rough 0.81, mean 0.089 - dark wet
+  rock and weed) and `coastSand` = coast_sand_rocks_02, rock and sand with green tufts (15.2 m; rough
+  0.84). splat_tex_import.py SETS 12 -> 14; media/tex/splat 68 -> 76 files (9.2 MB); NLIB 24 holds 19.
+- `11 shingle` = ['coastA', 'rocksG', 'coastSand'] at [19.94, 2, 15.2], far coastA / coastSand, mix
+  [14, 3, -0.2, -0.3]: the dark foreshore with pale rock chunks in it, the green-tufted upper shore a third
+  of the band. `pebble` (the lot's Gravel022, pale) left the code. Judged straight down at -4414, -4936
+  (the densest open-coast shingle within 7 km of HOME, 96 cells) from ONE boot with island_shot --step:
+  the first cut had the bias sign backwards (+0.15 = mostly rocksG, a pale speckle with dark blobs -
+  a NEGATIVE bias A|B favours A), then four recipes side by side (bench/coast/try_4.png: A + rocksG
+  accents, A + coastSand, A alone, coastSand alone). SEEN: bench/coast/sea_shore_250.png - at 250 m the
+  two spits are a dark rocky foreshore beside the pale sand beaches: both kinds on Jolene, as asked.
+  The sand-vs-rock choice stays the map's (the shore band's NDVI rule); no knob.
+- island_shot.js: the roll-out test needs the SIM and the boot overlay gone (the overlay's page text
+  matched /TAXI/ on a slow boot and the teleport threw "Uncaught" - three shots wasted); --cam is
+  RADIANS (el 1.25 = looking down at 72 deg; 80 "degrees" looked up from under the aeroplane).
+- OWED: the user's eye on coastA's gain (dark; the imagery's foreshore is paler - a grade, not a
+  recolour) and on the shingle band's width (15 m inland is the map's); the rest of the doc as before.
+- GATES: SPLAT (the manifest's 19 sets, four files each) / MEDIA / BUILD / UISMOKE / WORLDRENDER green.

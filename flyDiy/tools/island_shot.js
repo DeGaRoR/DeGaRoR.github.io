@@ -52,7 +52,8 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   for (let a = 0; a < +opt('tries', 8) && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(6000);
-    flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
+    // the phase word AND the sim (the loading overlay carries the page's text underneath it: a slow boot read as flying, 2026-09-21)
+    flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText) && typeof FLIGHT_PROBE !== 'undefined' && !!FLIGHT_PROBE.sim() && (()=>{const b=document.getElementById('boot');return !b || b.hidden || b.classList.contains('gone');})()");
     // --timeline: the boot's phase at each try, with the clock (the splat's compile, 2026-09-20)
     if (argv.includes('--timeline')) console.log(`t+${((Date.now() - T0) / 1000).toFixed(0)}s  ${flying ? 'FLYING' : (await ev("((document.querySelector('#boot')||{}).innerText||'') + ' || ' + document.body.innerText.replace(/\s+/g,' ').slice(0,200)").catch(() => '')).replace(/\s+/g, ' ').slice(0, 90)}`);
   }
@@ -63,7 +64,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const dx=${AT[0]}-cg[0],dy=(gy+${AT[1]})-cg[1],dz=${AT[2]}-cg[2];
     for(let i=0;i<s.n;i++){s.p[i*3]+=dx;s.p[i*3+1]+=dy;s.p[i*3+2]+=dz;s.v[i*3]=s.v[i*3+1]=s.v[i*3+2]=0;}
     const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return 1;})()`);
-  // --cam az,el,dist: the orbit camera set where a picture wants it (G413: the whole island from above)
+  // --cam az,el,dist: the orbit camera set where a picture wants it (G413: the whole island from above) - RADIANS, dist in m (el 1.3 = looking down at 75 deg)
   const CAM = opt('cam', null);
   if (CAM) { const c = CAM.split(',').map(Number); await ev(`FLIGHT_PROBE.camSet(${c[0]}, ${c[1]}, ${c[2]}), 1`); }
   await sleep(WAIT);
