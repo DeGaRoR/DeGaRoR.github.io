@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5047a912b4299081
+// body-sha256: 97c0e4d84f64bc77
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -17658,6 +17658,35 @@ const GEN_RULES = {
   // the rear fuselage, the rod boom, the tail post. Stiffness is untouched
   // (the tubes' clusters hold the aft structure now, not the member gauge).
   fusAftGauge: 0.6,
+  // G445.7: ...times the local section's perimeter over the cabin box's
+  // (61_gen_frame perimK), floored here. A tube fuselage's longerons step
+  // down a gauge or two toward the post and its diagonals shorten; a
+  // plywood cone is its skin. THE FLOOR IS THE SUBSTEP BUDGET'S (2026-09-20):
+  // at 0.3 the post's nodes went light enough against the tail members' k
+  // to cost the stock aeroplane 5 substeps and the Cub 8 (GATE MOUNT's 80
+  // for the wing pair); 0.5 costs none on the Cub and 5 on the stock, and
+  // the mass it keeps at the post is 1 % of chord on the Jodel's CG.
+  fusAftPerimMin: 0.5,
+  // ...from a bay behind the box: the first ring aft of the cabin is the
+  // wing's rear-spar frame on a high wing (61_gen_frame, the GATE MOUNT lesson)
+  fusAftStart: 0.5,
+  // ...and never within this of a spar station (the wing's attach frames)
+  fusAftSparReach: 0.75,   // the ring a spar root braces to sits a bay behind it (stock: 0.63 m)
+  // ...and the same factor on the body COVER aft of the box (the row's
+  // kg/m2 carries the cabin's doors, floor and windows), floored higher: a
+  // bare skin with its stringers is about half the cabin panel's weight —
+  // 0.7 for the same substep reason as fusAftPerimMin
+  fusAftCoverMin: 0.7,
+  // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
+  // mount, the baffles, the oil, the hoses and the engine controls
+  // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
+  // row bills those from their own geometry and power (61_gen_frame cowlM,
+  // exhM, on the firewall frame) — 0.20 had counted them twice. A 172R's
+  // IO-360 (133 kg dry): mount 5 + baffles 3 + oil 7 + hoses/controls 3 =
+  // 18 kg, 0.13; a Cub's A-65 (77): 3 + 1.5 + 3.5 + 1.5 = 9.5, 0.12. A
+  // two-stroke has no sump and a light mount; a turbine's oil and mount
+  // weigh less against its core; an electric motor's controller cabling.
+  engInstallK: { four: 0.13, two: 0.08, turbine: 0.10, electric: 0.06 },
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -17717,7 +17746,7 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
-  tailSection: 0.25,
+  tailSection: 0.20,   // G445.7: 16-20 kg read against the J-3's 14-16; 0.20 lands there
   // the prism's depth (the third chord under the stab, the pair either side
   // of the fin) as a fraction of the local chord — the WING's own box depth
   // (sparBoxDepth), because a lattice of constant-k members is stiff out of
@@ -19925,6 +19954,23 @@ function resolveSpec(spec) {
   // written into the registry row (a registry dict is shared by every build).
   S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
     ? genEngineCgAft(S.engine, PP.engine) : null;
+  // G445.8 (the MASS chantier, the forward item): THE INSTALLATION. A
+  // registry row's `mass` is the DRY engine — the number a Lycoming sheet
+  // prints. The outfit row bills the cowl and the exhaust (61_gen_frame
+  // cowlM, exhM); nothing billed the mount, the baffles, the oil (8 qt on
+  // an IO-360), the hoses and the controls that hang on it: ~18 kg on a
+  // 172R's IO-360, ~10 on a Cub's A-65. Measured: the 172 read 630 kg empty
+  // against 736 and its empty CG 43 % of chord against 24 — the missing
+  // mass is forward. A fraction of the dry mass by family
+  // (GEN_RULES.engInstallK), billed where the engine is (61_gen_frame,
+  // every mount).
+  {
+    const K = (typeof GEN_RULES !== 'undefined' && GEN_RULES.engInstallK) || {};
+    const en = PP && PP.engine;
+    const fam = !en ? 'four' : en.aspiration === 'electric' ? 'electric'
+              : en.family === 'turbine' ? 'turbine' : en.family === 'two' ? 'two' : 'four';
+    S.engInstallM = en ? (K[fam] == null ? 0 : K[fam]) * (en.mass || 0) : 0;
+  }
   // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
   // prop is the DEFAULT diameter and nothing more; every number below is derived,
   // so a bigger disc really does pull harder and blow harder over the tail.
@@ -19957,6 +20003,18 @@ function resolveSpec(spec) {
   S.engX = -Math.max(0.18 + 0.32 * propR,
                      (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
            + pl.engineDx;
+  // G445.1 (the C172 study): A MEASURED NOSE FLANGE OUTRANKS THE RULE. The
+  // join writes `engines[0].x` for a nose mount now (the station the engine
+  // layer drew, metres aft of the datum ring, negative ahead of it), as it
+  // always did for the other mounts; the rule stays for a bake with no
+  // drawn engine. Measured on the user's 172: the rule put the flange at
+  // -0.49 m, the drawn one is at -1.16, and the 144 kg that hang on it moved
+  // the CG 7 % MAC aft of the aeroplane on the screen.
+  {
+    const e0 = S.engines[0];
+    if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0)
+      S.engX = e0.x + pl.engineDx;
+  }
 
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is
@@ -21167,6 +21225,32 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
     // float truss: gear-class tube that is NOT a spring), c by its root
     const kMul = (opt && opt.kMul) || 1;
+    // G445.7/8: THE AFT FUSELAGE'S GAUGE, computed once here for the mass
+    // block below. THE STIFFNESS STAYS (G351: "the clusters hold the aft
+    // structure") — tried the other way on 2026-09-20: k scaled with the
+    // perimeter factor cleared GATE FLEX's substep budget and put the stock
+    // aeroplane's elevator at 51 deg/s in gusts (GATE GEN's cruise-quiet
+    // bound is 3): the body attitude is read off the nose frame and the
+    // tail-mid nodes (genRestFrame), and a soft tail cone makes the pitch
+    // reading wobble for the pilot to chase. The mass floors
+    // (fusAftPerimMin / fusAftCoverMin) are what keep the post's nodes
+    // heavy enough for the substep budgets instead.
+    // ...and the PERIMETER factor starts a bay behind the box (fusAftStart):
+    // the first ring aft of the cabin carries the wing's rear spar on the
+    // stock aeroplane (WR -> S3, k 5.7e6), and lightening it to 1.5 kg put the
+    // wing-pair fixture at 84 substeps against GATE MOUNT's 80 — a wing
+    // attach frame is a heavy frame on any aeroplane. G351's flat 0.6 still
+    // applies from boxRear as it always did.
+    const aftX0 = S.fuse ? S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart) : 0;
+    // ...and never the WING'S ATTACH FRAMES: the rings the spars land on are
+    // the heaviest frames of the fuselage wherever they fall (the stock's
+    // rear spar lands on S3, 0.9 m behind the box). A member with an end
+    // within fusAftSparReach of a spar station keeps the flat gauge.
+    const nearSpar = x => sparX.some(sx => Math.abs(x - sx) < (R.fusAftSparReach == null ? 0.75 : R.fusAftSparReach));
+    const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
+                  P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
+                          ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
     const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
@@ -21186,9 +21270,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (!(opt && opt.noMass)) {
       // G351: the rear fuselage's gauge (GEN_RULES.fusAftGauge) on a
       // fuselage member aft of the cabin box
-      const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
-                    P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
-        ? R.fusAftGauge : 1;
+      // G445.7 (the MASS chantier): ...AND IT FOLLOWS THE SECTION. A flat
+      // 0.6 aft of the box left 35 kg on the Jodel's tail cone (S3 to the
+      // post) where a plywood or tube cone weighs 11-15, and 31 on the Cub's:
+      // the lattice's members are as long per bay at the post as at the
+      // cabin, while a real cone's skin and frames shrink with its
+      // perimeter. The member's gauge is the local section's perimeter over
+      // the cabin box's (the joined profile where the build has one, the
+      // box-to-post taper where it has not), floored at fusAftPerimMin.
+      // Measured: the empty CG was 37 % of chord on the Cub AND the Jodel
+      // where the books say 24 and 26; the same 13 % on two constructions.
+      // (aftG: computed above with the member's k — one factor, mass and stiffness)
       // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
       // aeroplane's design gross. Pass 1 bills at 1 and records what would
       // follow the gauge; pass 2 bills at the solved factor.
@@ -21203,6 +21295,45 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
     }
   };
+  // G445.7: the aft fuselage's perimeter, relative to the cabin box's, at a
+  // station — an ellipse through the section's half-width and height (the
+  // joined `fuse.profile` rows: w, yb, yt over t from the box's rear to the
+  // tail post; a bake without one tapers the box linearly to the post's
+  // tailW / tailBot / tailTop). A fuselage-class member aft of the box bills
+  // its length at fusAftGauge x this, floored at GEN_RULES.fusAftPerimMin.
+  // the wing's spar stations (every plane), for the attach-frame exemption above
+  const sparX = (() => {
+    const out = [];
+    const ws = Array.isArray(S.wings) && S.wings.length ? S.wings : (S.wing ? [S.wing] : []);
+    for (const w of ws) {
+      if (!w || typeof w.xLE !== 'number') continue;
+      const c = w.chord || 1;
+      out.push(w.xLE + (R.sparFront != null ? R.sparFront : 0.15) * c, w.xLE + (R.sparRear != null ? R.sparRear : 0.65) * c);
+    }
+    return out;
+  })();
+  const perimK = (() => {
+    const fu = S.fuse || {}, cb = S.cab || {};
+    const hw0 = Math.max(0.05, cb.halfW || 0.5), h0 = Math.max(0.1, cb.h || 1.0);
+    const p0 = Math.PI * (hw0 + 0.5 * h0);
+    const x0 = fu.boxRear || 0, x1 = Math.max(x0 + 0.1, fu.tailArm || (x0 + 3));
+    const prof = Array.isArray(fu.profile) && fu.profile.length >= 2 ? fu.profile : null;
+    const floor = R.fusAftPerimMin == null ? 0.3 : R.fusAftPerimMin;
+    return x => {
+      const t = Math.max(0, Math.min(1, (x - x0) / (x1 - x0)));
+      let hw, h;
+      if (prof) {
+        let i = 1; while (i < prof.length - 1 && prof[i].t < t) i++;
+        const A = prof[i - 1], B = prof[i], u = Math.max(0, Math.min(1, (t - A.t) / Math.max(1e-6, B.t - A.t)));
+        hw = A.w + (B.w - A.w) * u; h = (A.yt - A.yb) + ((B.yt - B.yb) - (A.yt - A.yb)) * u;
+      } else {
+        const hw1 = fu.tailW != null ? fu.tailW : 0.05, h1 = (fu.tailTop != null && fu.tailBot != null) ? (fu.tailTop - fu.tailBot) : 0.4;
+        hw = hw0 + (hw1 - hw0) * t; h = h0 + (h1 - h0) * t;
+      }
+      const p = Math.PI * (Math.max(0, hw) + 0.5 * Math.max(0, h));
+      return Math.max(floor, Math.min(1, p / p0));
+    };
+  })();
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
   // file is already written component by component; tagging every call site
@@ -21244,7 +21375,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
     const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
-    const m0 = area * MB.cover, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
+    // G445.7: THE SKIN AFT OF THE CABIN IS SKIN. The fuselage row's cover
+    // (4.5 kg/m2 on alloy) "carries frames, doors, floors and windows" —
+    // the cabin's things — and was billed on the bare tail cone at the same
+    // rate: 36 kg of cone skin on the 172, its empty CG at 49 % of chord
+    // where a 172R's is 24. A body panel whose centroid is aft of the box
+    // takes the section's perimeter factor (perimK, floored at
+    // fusAftCoverMin): stringers and a thinner sheet, no doors.
+    let kA = 1;
+    if (SEC === 'fuselage' && S.fuse && S.fuse.boxRear != null && ids.length) {
+      let cx = 0; for (const i of ids) cx += P[i][0] / ids.length;
+      if (cx > S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart)) kA = Math.max(R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin, perimK(cx));
+    }
+    const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
     if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
       for (const i of ids) { G.x += p0 * P[i][0]; G.y += p0 * P[i][1]; G.z += p0 * P[i][2]; }
@@ -21409,6 +21552,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // G134: the resolved spec's own powerplant row — custom dials outrank the
   // registry preset; same shape either way (see resolveSpec's S.pplant).
   const PP = S.pplant || POWERPLANTS[S.engine];
+  // G445.8: the engine's INSTALLED mass — the row's dry engine plus its
+  // installation (resolveSpec's S.engInstallM: cowl, exhaust, mount, oil...)
+  const engDryM = PP.engine.mass + (S.engInstallM || 0);
   // THE MOUNT (2026-09-04): a nose engine is the firewall pair below, byte for
   // byte; every other mount needs the wing's spar nodes and is built in 2b,
   // after the wing — so the default aeroplane's node order never moves.
@@ -21445,12 +21591,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                         P[a][2] - P[b][2]) > 0.05;
       for (const q of [EL, ER, F[0].TL, F[0].TR, F[0].BL, F[0].BR])
         if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
-      pt(CG, PP.engine.mass);
+      pt(CG, engDryM);
       pt(EL, 0.5 * S.prop.mass);
       pt(ER, 0.5 * S.prop.mass);
     } else {
-      pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
-      pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+      pt(EL, 0.5 * (engDryM + S.prop.mass));
+      pt(ER, 0.5 * (engDryM + S.prop.mass));
     }
   }
   spend((PP.price || 0) * S.engines.length);
@@ -21989,7 +22135,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ST.forEach((s, i) => { const dd = Math.abs(s.x - x); if (dd < d) { d = dd; b = i; } });
       return b;
     };
-    const engM = PP.engine.mass + S.prop.mass;
+    const engM = engDryM + S.prop.mass;
     // the engine's mass at its CG, behind the flange (ahead of it on a
     // pusher, whose flange faces aft) — the nose block's rule, per mount
     // (2026-09-05, the cfFwd half-session). Anchors: the mount pair and the
@@ -22018,7 +22164,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
-                   PP.engine.mass, S.prop.mass);
+                   engDryM, S.prop.mass);
         engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
@@ -22031,7 +22177,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
         hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
-                   PP.engine.mass, S.prop.mass);
+                   engDryM, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
@@ -22080,7 +22226,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // a whole engine a side — at its CG when the row knows one, on the
           // nacelle node otherwise (the mirror's z is the node's own)
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
-                     P[n][2], PP.engine.mass, S.prop.mass);
+                     P[n][2], engDryM, S.prop.mass);
         }
         engNodes.push(NL, NR); engIdx.push(0, 1);
       }
@@ -26450,6 +26596,27 @@ function genShakedown(def, opts) {
     xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
     braceDCdA: g.braceDCdA || 0,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar, cBar,
+    // G445.7 (the MASS chantier): THE EMPTY CG beside the loaded one — the
+    // number a weight-and-balance sheet starts from, and the one that showed
+    // the model's bias (37 % of chord on the Cub AND the Jodel where the
+    // books say 24-26). The same spec with no one aboard, no fuel and no
+    // freight, built once; null on a fiche without the doors.
+    cgEmptyX: (() => {
+      try {
+        if (!S || !S.fuel) return null;
+        const cs = genSpecAtFuel(S, 0);
+        if (cs.cabin) {
+          if (Array.isArray(cs.cabin.occupied)) cs.cabin.occupied = cs.cabin.occupied.map(() => 0);
+          else cs.cabin.occupied = new Array(Math.max(1, cs.cabin.seats || 1)).fill(0);
+          cs.cabin.baggage = 0;
+        }
+        if (cs.cargo) cs.cargo.kg = 0;
+        cs.baggage = 0; cs.cargoKg = 0;
+        const dE = buildGen(cs);
+        const sE = makeSim(dE, null); sE.reset(0);
+        return sE.cgPos()[0];
+      } catch (e) { return null; }
+    })(),
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),

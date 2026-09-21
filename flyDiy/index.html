@@ -25826,6 +25826,35 @@ const GEN_RULES = {
   // the rear fuselage, the rod boom, the tail post. Stiffness is untouched
   // (the tubes' clusters hold the aft structure now, not the member gauge).
   fusAftGauge: 0.6,
+  // G445.7: ...times the local section's perimeter over the cabin box's
+  // (61_gen_frame perimK), floored here. A tube fuselage's longerons step
+  // down a gauge or two toward the post and its diagonals shorten; a
+  // plywood cone is its skin. THE FLOOR IS THE SUBSTEP BUDGET'S (2026-09-20):
+  // at 0.3 the post's nodes went light enough against the tail members' k
+  // to cost the stock aeroplane 5 substeps and the Cub 8 (GATE MOUNT's 80
+  // for the wing pair); 0.5 costs none on the Cub and 5 on the stock, and
+  // the mass it keeps at the post is 1 % of chord on the Jodel's CG.
+  fusAftPerimMin: 0.5,
+  // ...from a bay behind the box: the first ring aft of the cabin is the
+  // wing's rear-spar frame on a high wing (61_gen_frame, the GATE MOUNT lesson)
+  fusAftStart: 0.5,
+  // ...and never within this of a spar station (the wing's attach frames)
+  fusAftSparReach: 0.75,   // the ring a spar root braces to sits a bay behind it (stock: 0.63 m)
+  // ...and the same factor on the body COVER aft of the box (the row's
+  // kg/m2 carries the cabin's doors, floor and windows), floored higher: a
+  // bare skin with its stringers is about half the cabin panel's weight —
+  // 0.7 for the same substep reason as fusAftPerimMin
+  fusAftCoverMin: 0.7,
+  // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
+  // mount, the baffles, the oil, the hoses and the engine controls
+  // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
+  // row bills those from their own geometry and power (61_gen_frame cowlM,
+  // exhM, on the firewall frame) — 0.20 had counted them twice. A 172R's
+  // IO-360 (133 kg dry): mount 5 + baffles 3 + oil 7 + hoses/controls 3 =
+  // 18 kg, 0.13; a Cub's A-65 (77): 3 + 1.5 + 3.5 + 1.5 = 9.5, 0.12. A
+  // two-stroke has no sump and a light mount; a turbine's oil and mount
+  // weigh less against its core; an electric motor's controller cabling.
+  engInstallK: { four: 0.13, two: 0.08, turbine: 0.10, electric: 0.06 },
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -25885,7 +25914,7 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
-  tailSection: 0.25,
+  tailSection: 0.20,   // G445.7: 16-20 kg read against the J-3's 14-16; 0.20 lands there
   // the prism's depth (the third chord under the stab, the pair either side
   // of the fin) as a fraction of the local chord — the WING's own box depth
   // (sparBoxDepth), because a lattice of constant-k members is stiff out of
@@ -28093,6 +28122,23 @@ function resolveSpec(spec) {
   // written into the registry row (a registry dict is shared by every build).
   S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
     ? genEngineCgAft(S.engine, PP.engine) : null;
+  // G445.8 (the MASS chantier, the forward item): THE INSTALLATION. A
+  // registry row's `mass` is the DRY engine — the number a Lycoming sheet
+  // prints. The outfit row bills the cowl and the exhaust (61_gen_frame
+  // cowlM, exhM); nothing billed the mount, the baffles, the oil (8 qt on
+  // an IO-360), the hoses and the controls that hang on it: ~18 kg on a
+  // 172R's IO-360, ~10 on a Cub's A-65. Measured: the 172 read 630 kg empty
+  // against 736 and its empty CG 43 % of chord against 24 — the missing
+  // mass is forward. A fraction of the dry mass by family
+  // (GEN_RULES.engInstallK), billed where the engine is (61_gen_frame,
+  // every mount).
+  {
+    const K = (typeof GEN_RULES !== 'undefined' && GEN_RULES.engInstallK) || {};
+    const en = PP && PP.engine;
+    const fam = !en ? 'four' : en.aspiration === 'electric' ? 'electric'
+              : en.family === 'turbine' ? 'turbine' : en.family === 'two' ? 'two' : 'four';
+    S.engInstallM = en ? (K[fam] == null ? 0 : K[fam]) * (en.mass || 0) : 0;
+  }
   // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
   // prop is the DEFAULT diameter and nothing more; every number below is derived,
   // so a bigger disc really does pull harder and blow harder over the tail.
@@ -28125,6 +28171,18 @@ function resolveSpec(spec) {
   S.engX = -Math.max(0.18 + 0.32 * propR,
                      (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
            + pl.engineDx;
+  // G445.1 (the C172 study): A MEASURED NOSE FLANGE OUTRANKS THE RULE. The
+  // join writes `engines[0].x` for a nose mount now (the station the engine
+  // layer drew, metres aft of the datum ring, negative ahead of it), as it
+  // always did for the other mounts; the rule stays for a bake with no
+  // drawn engine. Measured on the user's 172: the rule put the flange at
+  // -0.49 m, the drawn one is at -1.16, and the 144 kg that hang on it moved
+  // the CG 7 % MAC aft of the aeroplane on the screen.
+  {
+    const e0 = S.engines[0];
+    if (e0 && (e0.mount || 'nose') === 'nose' && typeof e0.x === 'number' && isFinite(e0.x) && e0.x < 0)
+      S.engX = e0.x + pl.engineDx;
+  }
 
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is
@@ -29335,6 +29393,32 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
     // float truss: gear-class tube that is NOT a spring), c by its root
     const kMul = (opt && opt.kMul) || 1;
+    // G445.7/8: THE AFT FUSELAGE'S GAUGE, computed once here for the mass
+    // block below. THE STIFFNESS STAYS (G351: "the clusters hold the aft
+    // structure") — tried the other way on 2026-09-20: k scaled with the
+    // perimeter factor cleared GATE FLEX's substep budget and put the stock
+    // aeroplane's elevator at 51 deg/s in gusts (GATE GEN's cruise-quiet
+    // bound is 3): the body attitude is read off the nose frame and the
+    // tail-mid nodes (genRestFrame), and a soft tail cone makes the pitch
+    // reading wobble for the pilot to chase. The mass floors
+    // (fusAftPerimMin / fusAftCoverMin) are what keep the post's nodes
+    // heavy enough for the substep budgets instead.
+    // ...and the PERIMETER factor starts a bay behind the box (fusAftStart):
+    // the first ring aft of the cabin carries the wing's rear spar on the
+    // stock aeroplane (WR -> S3, k 5.7e6), and lightening it to 1.5 kg put the
+    // wing-pair fixture at 84 substeps against GATE MOUNT's 80 — a wing
+    // attach frame is a heavy frame on any aeroplane. G351's flat 0.6 still
+    // applies from boxRear as it always did.
+    const aftX0 = S.fuse ? S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart) : 0;
+    // ...and never the WING'S ATTACH FRAMES: the rings the spars land on are
+    // the heaviest frames of the fuselage wherever they fall (the stock's
+    // rear spar lands on S3, 0.9 m behind the box). A member with an end
+    // within fusAftSparReach of a spar station keeps the flat gauge.
+    const nearSpar = x => sparX.some(sx => Math.abs(x - sx) < (R.fusAftSparReach == null ? 0.75 : R.fusAftSparReach));
+    const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
+                  P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
+                          ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
     const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
@@ -29354,9 +29438,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (!(opt && opt.noMass)) {
       // G351: the rear fuselage's gauge (GEN_RULES.fusAftGauge) on a
       // fuselage member aft of the cabin box
-      const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
-                    P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
-        ? R.fusAftGauge : 1;
+      // G445.7 (the MASS chantier): ...AND IT FOLLOWS THE SECTION. A flat
+      // 0.6 aft of the box left 35 kg on the Jodel's tail cone (S3 to the
+      // post) where a plywood or tube cone weighs 11-15, and 31 on the Cub's:
+      // the lattice's members are as long per bay at the post as at the
+      // cabin, while a real cone's skin and frames shrink with its
+      // perimeter. The member's gauge is the local section's perimeter over
+      // the cabin box's (the joined profile where the build has one, the
+      // box-to-post taper where it has not), floored at fusAftPerimMin.
+      // Measured: the empty CG was 37 % of chord on the Cub AND the Jodel
+      // where the books say 24 and 26; the same 13 % on two constructions.
+      // (aftG: computed above with the member's k — one factor, mass and stiffness)
       // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
       // aeroplane's design gross. Pass 1 bills at 1 and records what would
       // follow the gauge; pass 2 bills at the solved factor.
@@ -29371,6 +29463,45 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
     }
   };
+  // G445.7: the aft fuselage's perimeter, relative to the cabin box's, at a
+  // station — an ellipse through the section's half-width and height (the
+  // joined `fuse.profile` rows: w, yb, yt over t from the box's rear to the
+  // tail post; a bake without one tapers the box linearly to the post's
+  // tailW / tailBot / tailTop). A fuselage-class member aft of the box bills
+  // its length at fusAftGauge x this, floored at GEN_RULES.fusAftPerimMin.
+  // the wing's spar stations (every plane), for the attach-frame exemption above
+  const sparX = (() => {
+    const out = [];
+    const ws = Array.isArray(S.wings) && S.wings.length ? S.wings : (S.wing ? [S.wing] : []);
+    for (const w of ws) {
+      if (!w || typeof w.xLE !== 'number') continue;
+      const c = w.chord || 1;
+      out.push(w.xLE + (R.sparFront != null ? R.sparFront : 0.15) * c, w.xLE + (R.sparRear != null ? R.sparRear : 0.65) * c);
+    }
+    return out;
+  })();
+  const perimK = (() => {
+    const fu = S.fuse || {}, cb = S.cab || {};
+    const hw0 = Math.max(0.05, cb.halfW || 0.5), h0 = Math.max(0.1, cb.h || 1.0);
+    const p0 = Math.PI * (hw0 + 0.5 * h0);
+    const x0 = fu.boxRear || 0, x1 = Math.max(x0 + 0.1, fu.tailArm || (x0 + 3));
+    const prof = Array.isArray(fu.profile) && fu.profile.length >= 2 ? fu.profile : null;
+    const floor = R.fusAftPerimMin == null ? 0.3 : R.fusAftPerimMin;
+    return x => {
+      const t = Math.max(0, Math.min(1, (x - x0) / (x1 - x0)));
+      let hw, h;
+      if (prof) {
+        let i = 1; while (i < prof.length - 1 && prof[i].t < t) i++;
+        const A = prof[i - 1], B = prof[i], u = Math.max(0, Math.min(1, (t - A.t) / Math.max(1e-6, B.t - A.t)));
+        hw = A.w + (B.w - A.w) * u; h = (A.yt - A.yb) + ((B.yt - B.yb) - (A.yt - A.yb)) * u;
+      } else {
+        const hw1 = fu.tailW != null ? fu.tailW : 0.05, h1 = (fu.tailTop != null && fu.tailBot != null) ? (fu.tailTop - fu.tailBot) : 0.4;
+        hw = hw0 + (hw1 - hw0) * t; h = h0 + (h1 - h0) * t;
+      }
+      const p = Math.PI * (Math.max(0, hw) + 0.5 * Math.max(0, h));
+      return Math.max(floor, Math.min(1, p / p0));
+    };
+  })();
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
   // file is already written component by component; tagging every call site
@@ -29412,7 +29543,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
     const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
-    const m0 = area * MB.cover, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
+    // G445.7: THE SKIN AFT OF THE CABIN IS SKIN. The fuselage row's cover
+    // (4.5 kg/m2 on alloy) "carries frames, doors, floors and windows" —
+    // the cabin's things — and was billed on the bare tail cone at the same
+    // rate: 36 kg of cone skin on the 172, its empty CG at 49 % of chord
+    // where a 172R's is 24. A body panel whose centroid is aft of the box
+    // takes the section's perimeter factor (perimK, floored at
+    // fusAftCoverMin): stringers and a thinner sheet, no doors.
+    let kA = 1;
+    if (SEC === 'fuselage' && S.fuse && S.fuse.boxRear != null && ids.length) {
+      let cx = 0; for (const i of ids) cx += P[i][0] / ids.length;
+      if (cx > S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart)) kA = Math.max(R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin, perimK(cx));
+    }
+    const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
     if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
       for (const i of ids) { G.x += p0 * P[i][0]; G.y += p0 * P[i][1]; G.z += p0 * P[i][2]; }
@@ -29577,6 +29720,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // G134: the resolved spec's own powerplant row — custom dials outrank the
   // registry preset; same shape either way (see resolveSpec's S.pplant).
   const PP = S.pplant || POWERPLANTS[S.engine];
+  // G445.8: the engine's INSTALLED mass — the row's dry engine plus its
+  // installation (resolveSpec's S.engInstallM: cowl, exhaust, mount, oil...)
+  const engDryM = PP.engine.mass + (S.engInstallM || 0);
   // THE MOUNT (2026-09-04): a nose engine is the firewall pair below, byte for
   // byte; every other mount needs the wing's spar nodes and is built in 2b,
   // after the wing — so the default aeroplane's node order never moves.
@@ -29613,12 +29759,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                         P[a][2] - P[b][2]) > 0.05;
       for (const q of [EL, ER, F[0].TL, F[0].TR, F[0].BL, F[0].BR])
         if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
-      pt(CG, PP.engine.mass);
+      pt(CG, engDryM);
       pt(EL, 0.5 * S.prop.mass);
       pt(ER, 0.5 * S.prop.mass);
     } else {
-      pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
-      pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+      pt(EL, 0.5 * (engDryM + S.prop.mass));
+      pt(ER, 0.5 * (engDryM + S.prop.mass));
     }
   }
   spend((PP.price || 0) * S.engines.length);
@@ -30157,7 +30303,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ST.forEach((s, i) => { const dd = Math.abs(s.x - x); if (dd < d) { d = dd; b = i; } });
       return b;
     };
-    const engM = PP.engine.mass + S.prop.mass;
+    const engM = engDryM + S.prop.mass;
     // the engine's mass at its CG, behind the flange (ahead of it on a
     // pusher, whose flange faces aft) — the nose block's rule, per mount
     // (2026-09-05, the cfFwd half-session). Anchors: the mount pair and the
@@ -30186,7 +30332,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
-                   PP.engine.mass, S.prop.mass);
+                   engDryM, S.prop.mass);
         engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
@@ -30199,7 +30345,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
         hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
-                   PP.engine.mass, S.prop.mass);
+                   engDryM, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
@@ -30248,7 +30394,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // a whole engine a side — at its CG when the row knows one, on the
           // nacelle node otherwise (the mirror's z is the node's own)
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
-                     P[n][2], PP.engine.mass, S.prop.mass);
+                     P[n][2], engDryM, S.prop.mass);
         }
         engNodes.push(NL, NR); engIdx.push(0, 1);
       }
@@ -34618,6 +34764,27 @@ function genShakedown(def, opts) {
     xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
     braceDCdA: g.braceDCdA || 0,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar, cBar,
+    // G445.7 (the MASS chantier): THE EMPTY CG beside the loaded one — the
+    // number a weight-and-balance sheet starts from, and the one that showed
+    // the model's bias (37 % of chord on the Cub AND the Jodel where the
+    // books say 24-26). The same spec with no one aboard, no fuel and no
+    // freight, built once; null on a fiche without the doors.
+    cgEmptyX: (() => {
+      try {
+        if (!S || !S.fuel) return null;
+        const cs = genSpecAtFuel(S, 0);
+        if (cs.cabin) {
+          if (Array.isArray(cs.cabin.occupied)) cs.cabin.occupied = cs.cabin.occupied.map(() => 0);
+          else cs.cabin.occupied = new Array(Math.max(1, cs.cabin.seats || 1)).fill(0);
+          cs.cabin.baggage = 0;
+        }
+        if (cs.cargo) cs.cargo.kg = 0;
+        cs.baggage = 0; cs.cargoKg = 0;
+        const dE = buildGen(cs);
+        const sE = makeSim(dE, null); sE.reset(0);
+        return sE.cgPos()[0];
+      } catch (e) { return null; }
+    })(),
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),
@@ -35603,41 +35770,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5047a912b429';window.FLYDIY_BUILD='573957ccf68f'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='97c0e4d84f64';window.FLYDIY_BUILD='dafa92dbbb50'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -36602,7 +36769,7 @@ const CAGE_PARTS = [
              at: 'on the cabin floor' },
     groups: [
       ['seating', ['seatType', 'seatLayout', 'seatZ', 'seatH', 'seatRake',
-                   'seatTilt', 'seatGap', 'seatBelt']],
+                   'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
       ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
@@ -39011,11 +39178,11 @@ const DESIGN_ROWS = [
     read: P => Math.round(P.seatType),
     options: [
       { value: 0, label: 'Tube frame', icon: ICON.seatTube,
-        writes: { cage: { seatType: 0, seatBelt: 1 } } },
+        writes: { cage: { seatType: 0 } } },
       { value: 1, label: 'Composite shell', icon: ICON.seatShell,
-        writes: { cage: { seatType: 1, seatBelt: 1 } } },
+        writes: { cage: { seatType: 1 } } },
       { value: 2, label: 'Airliner', icon: ICON.seatAirliner,
-        writes: { cage: { seatType: 2, seatBelt: 1 } } },
+        writes: { cage: { seatType: 2 } } },
     ] },
 
   // ---- structure ----------------------------------------------------------
@@ -39668,11 +39835,11 @@ const ARCHETYPES = [
     // and the tanks full — so a recreation card states the type's tankage
     // (and its bays: a bay seats a row as wide as the cockpit's). The J-3
     // carries 12 US gal (45 L) in the nose.
-    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 10.7, wgChord: 1.6,
-                                                  wgCamber: 4, wgIncidence: 3 }),
-            spec: { fuel: { litres: 45 },
-                    finish: { decals: { m1On: 1, m1Pat: 3, m1A: 0x1b3a5c,
-                                        m1B: 0xffffff, m1D: 0x1b3a5c } } } } },
+    // G445.4: THE CARD IS THE STOCK DESIGN — the user's Cub traced off the
+    // PA-18 payload, measured within 7 % of the J-3 POH on every column
+    // (futureDesigns/CUB-STUDY-2026-09-20.md); the tile-baked plan above
+    // (10.7 x 1.6, a 4412 at 3 deg, the lightning flash) was the card until then
+    over: { stock: 'piper cub' } },
   // G185: the parasol — the wing on a cabane, lift struts to the lower
   // longeron, wood, two open cockpits. The Air Camper is the type.
   { key: 'pietenpol', kind: 'recreation', name: 'Air Camper-alike', note: 'parasol wing ' +
@@ -39759,30 +39926,32 @@ const ARCHETYPES = [
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 2, wgBrace: 1, wgTip: 2, wgFlapType: 1,
-           engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
+           engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
-    // a cheat line along the Jodel's waist
-    over: { cage: PLAN_TAPER,
-            spec: { fuel: { litres: 65 },
-                    finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x7c3327,
-                                        m1B: 0xefe6cf, m1D: 0x7c3327 } } } } },
+    // G445.4: THE CARD IS THE STOCK DESIGN 'jodel D112' — the user's Jodel,
+    // taken back from its DR.1050 mix to the D.112's two seats, A-65 and 45 L
+    // (futureDesigns/JODEL-STUDY-2026-09-20.md); the page's own aeroplane
+    // (PLAN_TAPER, the cheat line along the waist) was the card until then
+    over: { stock: 'jodel D112' } },
   { key: 'c172', kind: 'recreation', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
-      'slotted flaps',
+      'slotted flaps — the shed’s own 172, measured against the 172R (G445)',
     // PERF STUDY chantier 1: ONE bay — a bay seats a row as wide as the
     // cockpit, so a 2+2 is one; three bays had given the card eight seats
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
            wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
-           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           // G445.3: the picker's CUSTOM ENGINE — the build's IO-360 dials at
+           // 2450 rpm (159 hp, the L2A's 160), the identity rule's own answer
+           engFamily: 'flat', engModel: 'custom engine', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            finArch: 'swept', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
-    // the twin stripe every 172 of the seventies wore
-    // PERF STUDY chantier 2: the 172's spring legs wear their fairings
-    over: { cage: Object.assign({}, PLAN_C172, { s1LegFair: 1 }),
-            spec: { fuel: { litres: 200, tank: 'wing' },            // 56 US gal usable in the wings
-                    finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x2c4a31,
-                                        m1B: 0xc96f2a, m1D: 0xefe6cf } } } } },
+    // G445.3: THE CARD IS THE STOCK DESIGN — the user's 172 corrected to
+    // the 172R type sheet (futureDesigns/C172-STUDY-2026-09-20.md), the
+    // shelf's 'cessna 172' row, verbatim; the tile-baked C172 plan
+    // (PLAN_C172, the seventies' twin stripe, 200 L in the wings) was the
+    // card until then and stays in the file for the other cards that read it
+    over: { stock: 'cessna 172' } },
   // THE TURBOPROP SINGLE (2026-09-05, TURBOPROP §9 — the reason the arc
   // exists): a PT6A-114A on a strutted high-wing tricycle with the most
   // bays the class allows. On `n23` by the user's ruling (`util` stays
@@ -40264,6 +40433,26 @@ function designOverwriteCount(P, cageWrites, defaults) {
 // engine preset — as one object, so the headless tail (_tail_headless.js
 // tailBuild) and the sweep build the drawn tail from exactly what the page
 // would draw. designBake is this plus the spec composition.
+// G445.3 (2026-09-20, the user: "make the C172-alike card this build too"):
+// A CARD THAT IS A STOCK DESIGN. `over.stock` names a row of the page's
+// stock designs (tools/_cage_page5.js presets + builds — the shelf's rows,
+// imported verbatim from a finished build) and the card bakes THAT
+// aeroplane: the stock cage over the tiles' cage (every key, as the shelf
+// bakes it), the stock build's sections over the composed spec, no tail
+// seed and no preset re-apply (the drawing is already the truth — the
+// join measured it when the build was saved). The tiles (`sel`) remain
+// the card's stated intent: the chooser shows them, archInactive walks
+// them, and a rule that reads the selection still reads the type's. One
+// keeper: the shelf row; three doors: the shelf, the chooser, the gates.
+function designStock(nm) {
+  const PG = W.CAGE_PAGE || ((typeof CAGE_PAGE !== 'undefined') ? CAGE_PAGE : null);
+  const pre = PG && PG.presets && PG.presets[nm];
+  if (!pre) throw new Error('no stock design ' + nm);
+  const cage = Object.assign({}, pre); delete cage._base;
+  const B = PG.builds && PG.builds[nm];
+  return { cage, spec: B ? JSON.parse(JSON.stringify(B)) : {} };
+}
+
 function designFull(sel, over) {
   const C2 = W.CAGE2 || ((typeof CAGE2 !== 'undefined') ? CAGE2 : null);
   const PG = W.CAGE_PAGE || ((typeof CAGE_PAGE !== 'undefined') ? CAGE_PAGE : null);
@@ -40271,6 +40460,8 @@ function designFull(sel, over) {
   const base = Object.assign(C2.cageDefaults(), (PG && PG.defaults) || {});
   const { cage, spec, missing } = designApply(base, sel);
   if (missing.length) throw new Error('unresolved: ' + missing.join(', '));
+  const stock = over && over.stock ? designStock(over.stock) : null;
+  if (stock) Object.assign(cage, stock.cage);
   // G140: the archetype's own cage patch — the retired planform tiles'
   // writes live here now. Function values resolve against the selection's
   // result, so "tip = 0.72 of the chord" reads the class's chord.
@@ -40283,7 +40474,7 @@ function designFull(sel, over) {
     }
   }
   const full = Object.assign(base, cage);
-  if ('engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
+  if (!stock && 'engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
   }
@@ -40416,7 +40607,8 @@ function designBake(sel, over) {
     designMerge(out, { tail: { type: 'twinBoom', boomX: +full.boomX || 1.2,
                                boomLen: +full.boomLen || 3.0 } });
   designMerge(out, spec);
-  if (over) designMerge(out, over.spec || over);
+  if (over && over.stock) designMerge(out, designStock(over.stock).spec);
+  else if (over) designMerge(out, over.spec || over);
   // THE SEED (TAIL CHANTIER 2 P5; RULED 2026-09-07: lands with the vortex
   // flip, one fleet move). At birth the RULE sizes the DRAWN tail once: the
   // volume coefficients' Sh and Sv — what this pre-join spec would fly — over
@@ -40428,7 +40620,7 @@ function designBake(sel, over) {
   // tail on twenty-five cards (the sweep, P0) becomes a tail sized to each
   // card's own wing. A twin-boom card keeps its drawn size (the headless
   // build cannot root its fin on the booms and says so).
-  const seed = designTailSeed(full, out);
+  const seed = (over && over.stock) ? null : designTailSeed(full, out);
   if (seed) {
     Object.assign(full, seed);
     out.cage = C2.cageToSpec(full);
@@ -40969,7 +41161,6 @@ window.CAGE_PAGE = {
         ['seatTilt',  'squab recline',  0, 30, 0.5],
         ['seatGap',   'sbs seat gap',   0.18, 0.45, 0.005,
          { when: P => +P.seatLayout === 1 }],
-        ['seatBelt',  'lap belts',      0, 1, 1],
       ], 'open'],
       // the second seat's own set — the sentinel (-1 = follows the front
       // seat, resolved live by the crew layer) is now a visible LINK
@@ -41304,73 +41495,6 @@ window.CAGE_PAGE = {
   // set is empty; the other two carry the user's own builds verbatim.
   presets: {
     'jodel': {},
-    // THE PIPER CUB — the user's own finished aeroplane, imported verbatim
-    // from their export (My_finished_Cub.json, 2026-09-02; supersedes
-    // piper.json 2026-08-19, which was a bare cage). The CAGE is here; the
-    // rest of the aeroplane — wing, tail, gear, powerplant, paint and
-    // finish — is in `builds` below, because a stock design is a whole
-    // build now and not a shape.
-    //
-    // _base: 'template' — READ THIS BEFORE COPYING THE PATTERN. A saved
-    // build's `spec.cage` is DEVIATIONS FROM THE TEMPLATE (CAGE_PARAMS),
-    // not from this page's defaults, so applying one over `defaults` leaks
-    // every jodel key the export happens not to mention: measured, 32 of
-    // them landed on this aeroplane and 267 more on its layers. The old row
-    // dealt with that by restating each one by hand, which is what the
-    // sailplane row below still does and what goes stale the next time
-    // `defaults` moves. This flag says where the row starts from instead,
-    // and both consumers honour it — applyPreset here, and the shelf's
-    // stock bake in garage.js.
-    'piper cub': {
-      _base: 'template', planeScale: 0.68, noseTip: 0.25,
-      ringCowl2W: -0.02, ringScrBot: -0.015, intOn: 1, intCons: 1,
-      dashBack: 0.115, dashDepth: 0.39, stY: 0.475, stZ: 0, stTipZ: -0.24,
-      stTipY: -0.025, stAftZ: -0.2, stAftY: -0.27, stBaseZ: -0.24,
-      stBaseY: 0.395, stMidY: -0.565, stUY: -0.385, stRootFwd: 0.04,
-      stLEZ: -0.305, stLEY: 0.22, stShoulderZ: 0.5, stShoulderY: 0.045,
-      stTopY: 0.16, stTERoot: 0.4, stTEU: 0.2, stTEMid: -0.345,
-      stSharpTip: 0, stSharpAft: 0, stSharpBase: 0, stSharpShoulder: 0,
-      stSharpLE: 0, finCut: 2, finDorsal: 0, finTipZ: -0.415,
-      finTipY: -0.715, finAftZ: -0.03, finAftY: -0.8, finBaseZ: -0.33,
-      finBaseY: 0.14, finMidY: -0.515, finUY: -0.26, finLEZ: -0.49,
-      finShoulderZ: 0.17, finTopY: 0.09, finTERoot: -0.245, finTEU: -0.31,
-      finTEMid: -0.18, finSharpTip: 0, finSharpAft: 0, finSharpBase: 0,
-      finSharpLE: 0.15, seatLayout: 0, seatTilt: 13, seatZ: 0.215,
-      seatH: 0.22, seatRake: 25.5, seatGap: 0.27,
-      seat2H: -0.145, seat2Rake: 34.5, seat2Tilt: 2, pedalZ: 0.945,
-      pedalH: 0.09, pedalAngle: 47, dumElbows: 0.01,
-      cw_aftW: 0.358535049145553, cw_aftH: 0.3356979479364783,
-      cw_waist: 0.34022534837088103, cw_sqAftTop: 0.5484943331479463,
-      cw_sqAftBot: 0.5542005982733779, waistY: 0.095, noseLen: 0.48,
-      skylight: 0, noseCrown: 0.28, crSillNose: 0.9, doorSill: 0,
-      doorRim: 0.023, finRootFwd: 0.04, finLEY: -0.01, finShoulderY: 0.035,
-      s1Z: 1.6, s1X: 0.89, s1R: 0.22, s1Drop: 0.46, s2Z: 0.12, s2R: 0.08,
-      s2Drop: 0.27, whTread: 1, s1_linkAng: 26, s1_linkSwing: 33,
-      s1_linkSpread: 0.55, s1_linkPanel: 1, s1_shockAt: 0.95,
-      s1_shockZ: 0.29, s1_shockAng: 24, s2_twSpringLen: 0.4,
-      s2_twSpringDrop: 0.05, s2_twTrail: 0.08, s2_twLegDrop: 0.105,
-      wgSpan: 10.7, wgChord: 1.7, wgChordTip: 1.75, wgDihedral: 1,
-      wgIncidence: 2.4, wgWashout: 0, wgCamber: 5, wgCentre: 2, wgDy: -0.1,
-      wgFlapType: 3, wgFlapSpan: 0.38, wgFlapChord: 0.29, wgAilSpan: 0.55,
-      wgAilChord: 0.29, engY: 0.085, eng_exStyle: 2, eng_exDrop: 1.74,
-      eng_mountGap: 0.98, eng_mountR: 1.56, eng_fwSpread: 2.07,
-      cw_cowlLen: 0.54, cw_taperW: 1.09, cw_taperH: 0.77, cw_lidRise: 0.038,
-      cw_faceRise: 0.014, cw_lidShoulder: 0.42, cw_keelSweep: 0,
-      cw_lidRound: 0.58, cw_lidR: 0.191, cw_seamDepth: 0.0026, cw_apMode: 2,
-      cw_apW: 0.344, cw_apH: 0.17, cw_apSq: 0.73, cw_pairX: 0.295,
-      cw_pairW: 0.124, cw_pairH: 0.082, cw_apOffY: 0.028, cw_pairY: 0.104,
-      cw_pairSq: 0.86, cw_lipThick: 0.007, cw_lipDepth: 0.078,
-      cw_ductLen: 0.22, cw_lipProtrude: 0.46, cw_lipInset: 0.046,
-      cw_lipRound: 0.6, cw_noseOff: 0.06, cw_lobeSig: 53, cw_scoopLen: 0.34,
-      cw_scoopH: 0.088,
-    },
-    // THE SAILPLANE — the user's own build, verbatim from their export
-    // (sailPlane.json, 2026-08-19): mirrored pod, bubble canopy, aero
-    // nose both ends, razorback aft deck, TANDEM seating with the
-    // reclined seats and console quadrant they tuned. Every key their
-    // export omits but this page's defaults change is restored to its
-    // CAGE_PARAMS value, so the preset reproduces the export exactly
-    // instead of inheriting a jodel default (intCons, explodeD).
     'sailplane': {
       aftCowlBulge: 0.985, aftCowlEase: 0.03, aftCowlLoops: 2,
       aftDroop: -0.005, aftKeelY: -0.765, aftNoseCrown: 0.585,
@@ -41402,6 +41526,679 @@ window.CAGE_PAGE = {
       waistY: -0.05, wsBaseBow: 0.45, wsBaseLift: 0.05, wsCeilBow: 0.3,
       wsRun: 0.95,
     },
+    // THE CESSNA 172 (G445.1, 2026-09-20): the user's own 172, corrected to
+    // the 172R type sheet through the headless join and measured against it
+    // (futureDesigns/C172-STUDY-2026-09-20.md; builds/cessna172_2026-09-20_
+    // corrected.json is the file this row was imported from, verbatim).
+    // The cage here; the whole aeroplane in `builds` below, like the cub.
+    'cessna 172': {
+      _base: "template", planeScale: 0.745, paxCount: 1, paxLen: 1,
+      pilotLen: 0.57, boomLen: 4.15, tailLen: 0.169815, cabPillarW: 0.095,
+      paxPillarW: 0.085, pillarW: 0.1, leanPaxDeg: 0, leanCabDeg: 0,
+      leanPivot: "floor", halfW: 0.67, roofHalfW: 0.64, roofY: 1,
+      keelY: -0.995, floorY: -0.54, ceilInset: 1, waistY: 0.125, bandH: 0.032,
+      aftRoofY: 0.295, aftKeelY: -0.92, tailHalfW: 0.122, tailRoofY: 0.1,
+      tailKeelY: -0.5, ringPullIn: 0.023043, wsRun: 0.71, wsTopOff: 0.081824,
+      wsBaseBow: 0.35, wsCeilBow: 0.545, apilW: 0.92, apilPerp: 1,
+      noseLen: 0.45, noseW: 1, pfW: 0.3, topRound: 0.17, topAngCeil: 41,
+      topAngRoof: 78, topComp: 1.15, bubble: 1, skylight: 0, skyExt: 1,
+      winSillPilot: 0, winSillPax: 0, paxWinN: 2, paxWinShape: 0,
+      paxWinZ: 0.75, paxWinPitch: 0.75, paxWinY: 0.5, paxWinW: 0.52,
+      paxWinH: 0.4, paxWinR: 0.08, paxWinDepth: 0.006, crPillar: 3, crSill: 3,
+      crBand: 0, crCeil: 0, crFrame: 3, crCap: 0, crFrontCap: 0.3,
+      crNoseCap: 3, crKeel: 0, botRound: 0.16, noseCrown: 0.475, noseH: 1.1,
+      noseDroop: 0, wsBaseLift: 0.01, cowlLoops: 0, cowlEase: 0.29,
+      cowlBulge: 0.99, noseFinish: 0, aeroNose: 0, aeroWsLen: 0.9,
+      aeroLen: 1.5, aeroDroop: 0.3, aeroTipW: 0.1, aeroTipH: 0.12,
+      rearAperture: 0, boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
+      taperOn: 1, taperLen: 0.99, taperW: 0.84, taperPanels: 0, boomStyle: 0,
+      rodY: 0, rodD: 0.12, rodIncl: 0, boomTwin: 0, boomX: 1.2, boomWf: 0.16,
+      boomHf: 0.24, boomWa: 0.112, boomHa: 0.168, boomSquare: 0, boomIncl: 0,
+      boomCollar: 0.5, boomDy: 0, boomDz: 0, boomNoseLen: 0.35,
+      boomNoseK: 0.7, boomNoseCap: 2, boomTailLen: 0.45, boomTailK: 0.7,
+      boomTailCap: 2, aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0,
+      aeroAftTip: 0.5, aeroAftShape: 0, aeroAftEdge: 0.6, crestH: 0,
+      crestAt: 0.55, crestLoops: 1, canopy: 0, bubH: 0.79, bubAt: 0.45,
+      bubW: 1, canLoops: 1, bubH2: 0.7, bubAt2: 0.25, bubW2: 1, bubH3: 0.6,
+      bubAt3: 0.7, bubW3: 1, arcFit: 1, noseTip: 0.25, aftNoseTip: -1,
+      crSillNose: -1, aftCrSillNose: -1, ringCabW: 0, ringWinW: 0,
+      ringScrW: 0, ringCowl1W: 0, ringCowl2W: -0.02, aftRingWinW: -1,
+      aftRingScrW: -1, aftRingCowl1W: -1, aftRingCowl2W: -1, mirror: 0,
+      aftPilotLen: -1, aftWsRun: -1, aftNoseLen: -1, aftNoseW: -1,
+      aftNoseH: -1, aftDroop: -1, aftNoseCrown: -1, aftCowlEase: -1,
+      aftCowlBulge: -1, aftWsBaseLift: -1, aftWsTopOff: -1, aftWsBaseBow: -1,
+      aftWsCeilBow: -1, aftCowlLoops: -1, ringNoseBot: 0, ringScrBot: 0,
+      ringWinTop: 0, ringWinBot: 0.04, ringCabTop: 0, ringCabBot: 0,
+      ringNoseTop: 0, aftRingNoseTop: -1, aftRingNoseBot: -1, winFrameW: 0,
+      winDepth: 0.015, winBlow: 0, crGlass: 3, rimW: 0.012, rimWin: 1,
+      rimWs: 1, rimDoor: 0, rimSides: 8, rimArc: 3, rimRise: 0.22,
+      paneInset: 0.0025, rimRivet: 0.04, memFast: 1, memPitch: 0.03,
+      memDia: 0.0025, memRise: 0.0004, paneThick: 0.004, doorOn: 1,
+      doorPax: 0, doorDeep: 1, doorSill: 0.146, doorSillPax: 0.088,
+      doorDepth: 0.004, doorRim: 0.02, bulkZ: 0, doorGone: 0, skinOn: 1,
+      glazeOn: 1, intOn: 1, intBulk: 1, intFire: 1, intPillars: 1,
+      shellT: 0.035, fireSealW: 0.018, skinT: 0.015, intCons: 3, intDash: 1,
+      dashBack: 0.115, dashLip: 0.035, dashDepth: 0.35, dashCrease: 3,
+      dashCrown: 0.03, shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135,
+      shoulderT: 0.003, shoulderLip: 0.027, shoulderRun: 0, doorPanelOn: 1,
+      doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
+      doorPanelPocket: 1, cutParts: 1, hgOn: 1, hgFamily: 0, hgCount: 0,
+      hgOut: 0.06, hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
+      hgFair: 0, hgLink: 1, hgDetail: 1, hgDoor: 1, hgDoorEdge: 0, lightOn: 1,
+      lightSw: 1, li_bayFrac: 0.24, li_bayHalf: 0.17, li_bayChord: 0.13,
+      li_bayDepth: 0.06, li_lampSize: 1, li_beaconRpm: 45, li_podLen: 1,
+      li_podGirth: 1, li_beaconSink: 0.04, li_navSpan: 0.02, li_navChord: 0.1,
+      li_navRise: 0, li_plane: 0, li_reflect: 1, li_taxi: 0, li_beacon: 0,
+      li_land: 0, li_nav: 0, li_flood: 0, li_instr: 0, li_pedal: 0, li_pax: 0,
+      accOn: 1, accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1,
+      accHandling: 1, accDetail: 1, stOn: 1, stCut: 1, stCutGap: 0.012,
+      stSolid: 1, stThick: 0.05, stThickTE: 0.012, stX: 0.05, stY: 0.408,
+      stZ: 0.21, stCons: 0, stOver: 0, stMount: 0, stCant: 0, stRootGuard: 1,
+      stTipZ: 0.6, stTipY: -0.3, stAftZ: 0, stAftY: -0.3, stBaseZ: -0.2,
+      stBaseY: 0.19, stMidY: -0.2, stUY: 0, stRootFwd: 0, stLEZ: -0.1,
+      stLEY: 0, stShoulderZ: 0.035, stShoulderY: 0, stTopY: 0, stTERoot: 0,
+      stTEU: 0, stTEMid: 0, stSharpTip: 3, stSharpAft: 3, stSharpBase: 3,
+      stSharpShoulder: 0, stSharpLE: 3, stSpan: 1.19, stChord: 0.95,
+      stChordTip: 0.62, stSweep: 3, stHinge: 0.4, finOn: 1, finProject: 1,
+      finCut: 2, finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6,
+      finCutGap: 0.01, finSolid: 1, finThick: 0.06, finThickTE: 0.015,
+      tailRimN: 4, finFillet: 0.035, finCons: 0, finDorsal: 1,
+      finRootGuard: 1, finKeel: 1, finCrA: 0, finCrB: 0, finTipZ: -0.135,
+      finTipY: -0.3, finAftZ: 0, finAftY: -0.3, finBaseZ: 0, finBaseY: 0,
+      finMidY: -0.02, finUY: 0, finRootFwd: 0, finLEZ: -0.1, finLEY: 0,
+      finShoulderZ: 0.17, finShoulderY: 0.04, finTopY: 0, finTERoot: 0,
+      finTEU: 0, finTEMid: 0, finSharpTip: 3, finSharpAft: 3, finSharpBase: 3,
+      finSharpShoulder: 0, finSharpLE: 1.25, finHeight: 0.87, finChord: 1.02,
+      finChordTip: 1.09, finSweep: 19.5, finHinge: 0.345, mass: 620,
+      cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96, s1On: 1, s1Z: 1.15,
+      s1X: 1.27, s1Leg: 0, s1R: 0.185, s1Drop: 0.33, s1Brake: 1, s1Steer: 0,
+      s1Fair: 1, s1FairSkirt: 0, s1FairTail: 1, s1FairRake: 0, s1FairW: 1,
+      s1LegFair: 1, s2On: 1, s2Z: 2.6, s2X: 0, s2Leg: 2, s2R: 0.14,
+      s2Drop: 0.37, s2Brake: 0, s2Steer: 1, s2Fair: 1, s2FairSkirt: 0,
+      s2FairTail: 1, s2FairRake: 0, s2FairW: 1, s2LegFair: 1, s1AxZ: 0,
+      s2AxZ: 0.24, fairCons: 0, whProfile: 0, whTread: 0, whRibs: 3, whRim: 0,
+      whBolts: 6, whCap: 1, whValve: 1, whBrake: 0, whBulge: 1, beamAng: 62,
+      beamW: 0.075, beamT: 0.02, beamTaper: 0.72, beamBow: 1.06,
+      beamRake: 0.1, linkAng: 58, linkArmW: 0.042, linkSwing: -42, linkVee: 1,
+      linkSpread: 0.46, linkX: 0, linkPanel: 1, linkPanelT: 0.004,
+      shockKind: 1, shockAt: 0.72, shockZ: 0.34, shockAng: 30,
+      bungeeSpan: 0.26, oleoAng: 40, oleoDia: 0.058, oleoCyl: 0.55,
+      oleoScissor: 0.052, oleoBrace: 1, oleoBraceZ: 0.42, twR: 0.1,
+      twSpringLen: 0.52, twSpringDrop: 0.3, twSpringW: 0.052,
+      twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
+      twLegDrop: 0.1, twSteer: 0, twSteerVis: 1, s1_beamAng: 38,
+      s1_beamW: 0.075, s1_beamT: 0.02, s1_beamTaper: 0.72, s1_beamBow: 0.6,
+      s1_beamRake: 0.1, s1_linkAng: 25, s1_linkSwing: 17, s1_linkArmW: 0.042,
+      s1_linkVee: 1, s1_linkSpread: 0.49, s1_linkX: 1, s1_linkPanel: 0,
+      s1_shockKind: 0, s1_shockAt: 0.72, s1_shockZ: 0.17, s1_shockAng: 30,
+      s1_bungeeSpan: 0.26, s1_oleoAng: 40, s1_oleoDia: 0.058,
+      s1_oleoCyl: 0.55, s1_oleoScissor: 0.052, s1_oleoBrace: 1,
+      s1_oleoBraceZ: 0.42, s1_twSpringLen: 0.55, s1_twSpringDrop: 0.3,
+      s1_twSpringW: 0.052, s1_twSpringT: 0.009, s1_twLeaves: 3, s1_twRake: 18,
+      s1_twTrail: 0.052, s1_twLegDrop: 0.1, s1_twSteer: 0, s1_twSteerVis: 1,
+      s2_beamAng: 62, s2_beamW: 0.075, s2_beamT: 0.02, s2_beamTaper: 0.72,
+      s2_beamBow: 1.06, s2_beamRake: 0.1, s2_linkAng: 58, s2_linkSwing: -42,
+      s2_linkArmW: 0.042, s2_linkVee: 1, s2_linkSpread: 0.46, s2_linkX: 0,
+      s2_linkPanel: 1, s2_shockKind: 1, s2_shockAt: 0.72, s2_shockZ: 0.34,
+      s2_shockAng: 30, s2_bungeeSpan: 0.26, s2_oleoAng: 32, s2_oleoDia: 0.058,
+      s2_oleoCyl: 0.55, s2_oleoScissor: 0.056, s2_oleoBrace: 1,
+      s2_oleoBraceZ: 0.14, s2_twSpringLen: 0.32, s2_twSpringDrop: 0.09,
+      s2_twSpringW: 0.072, s2_twSpringT: 0.008, s2_twLeaves: 1, s2_twRake: 0,
+      s2_twTrail: 0.048, s2_twLegDrop: 0.09, s2_twSteer: 0, s2_twSteerVis: 1,
+      gearOn: 1, gearSit: 1, gearFloats: 0, bpCabane: 0, bpStrutZ: 0,
+      bpStrutX: 0, bpInter: 0, bpInterAt: 0.62, bpInterZ: 0, bpWires: 1,
+      bpWireD: 5, wingOn: 1, wgSpan: 11, wgChord: 1.63, wgChordTip: 1.12,
+      wgTipX: 0.15, wgCrankChord: 1.63, wgCrankX: 0, wgDihedral: 1.7,
+      wgIncidence: 1.5, wgWashout: 3, wgCamber: 2, wgThick: 14, wgTip: 0,
+      wgPos: 0, wgCentre: 2, wgCentreW: 1.05, wgBrace: 0, wgCrankAt: 0.45,
+      wgDihedralOut: 1.7, wgPanels: 3, wgDx: 0.13, wgDy: -0.1, wgParaH: 0.45,
+      wgStrutZ: 0.2, wgStrutX: -0.06, wgFlapType: 2, wgFlapSpan: 0.55,
+      wgFlapChord: 0.2, wgAilOn: 1, wgAilSpan: 0.35, wgAilChord: 0.22,
+      wgCons: 0, w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
+      w2Span: 10, w2Chord: 1.6, w2ChordTip: 1.6, w2TipX: 0, w2CrankAt: 0,
+      w2CrankChord: 1.6, w2CrankX: 0, w2DihedralOut: 6, w2Dihedral: 3,
+      w2Incidence: 1.5, w2Washout: 1.5, w2Camber: 2, w2Thick: 12, w2Tip: 2,
+      w2Centre: 0, w2Panels: 3, w2Cons: 0, w2FlapType: 0, w2FlapSpan: 0.5,
+      w2FlapChord: 0.2, w2AilOn: 1, w2AilSpan: 0.38, w2AilChord: 0.22,
+      engOn: 1, engPreset: 41, engPower: 0, engDetail: 0.8, eng_screws: 1,
+      engY: 0, propOn: 1, engMount: 0, engNacAt: 0.35, engPylonH: 0.3,
+      engBlockZ: 0, engBlockY: 0, engAim: 0, engRotate: 0, eng_tStyle: 0,
+      eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26,
+      eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278,
+      eng_canL: 0.026, eng_rpm: 2450, eng_volts: 11.1, eng_eFins: 0,
+      eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0,
+      eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1,
+      eng_vee: 60, eng_bore: 0.13017499999999999, eng_stroke: 0.111125,
+      eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1,
+      eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8,
+      eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24,
+      eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 1,
+      eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 1,
+      eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 2,
+      eng_exDrop: 1.5, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0,
+      eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1,
+      eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55,
+      eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42,
+      eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0,
+      eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1,
+      eng_mountX: 1, eng_mountGap: 1.76, eng_mountR: 1.88, eng_fwSpread: 2.4,
+      spinMat: 0, cowlOn: 1, fitNose: 0, cowlGap: 0, cw_fwLipOn: 1,
+      cw_fwLipR: 0.004, cw_fwLipRise: 0, cw_fwLipIn: 0.025, cw_cowlLen: 0.9,
+      cw_aftW: 0.5706504994905939, cw_aftH: 0.445, cw_taperW: 0.76,
+      cw_taperH: 0.69, cw_lidRise: 0.22, cw_lidLen: 0.095,
+      cw_lidShoulder: 0.13, cw_lidRound: 0.06, cw_faceRise: -0.026,
+      cw_deckSweep: 0.95, cw_keelSweep: 0.3, cw_waistSweep: 0.95,
+      cw_lidMode: 1, cw_lidR: 0.17, cw_lidGap: 0.013, cw_deckH: 1.09,
+      cw_keelH: 1.13, cw_waist: 0.54, cw_sqAftTop: 0.42, cw_sqAftBot: 0.57,
+      cw_sqFrontTop: 0.71, cw_sqFrontBot: 0.69, cw_lidSqTop: 0.74,
+      cw_lidSqBot: 0.28, cw_detail: 1, cw_lobeN: 2, cw_lobeAmp: 0.024,
+      cw_lobeT: 0.56, cw_lobeAz: 0, cw_lobeSig: 34, cw_lobeTSig: 0.31,
+      cw_cutSpan: 0, cw_cutAz: 270, cw_apMode: 1, cw_apW: 0.35, cw_apH: 0.12,
+      cw_apSq: 0.48, cw_apOffX: 0, cw_apOffY: 0, cw_pairX: 0.2,
+      cw_pairW: 0.08, cw_pairH: 0.048, cw_pairY: 0.012, cw_pairSq: 0.625,
+      cw_lipMode: 0, cw_lipThick: 0.009, cw_lipDepth: 0.055,
+      cw_lipRound: 0.55, cw_lipProtrude: 0.5, cw_lipInset: 0.028,
+      cw_ductLen: 0.12, cw_ductFlare: 0, cw_scoopOn: 1, cw_scoopZ: 0,
+      cw_scoopLen: 0.22, cw_scoopW: 0.065, cw_scoopH: 0.055, cw_scoopSq: 0.5,
+      cw_scoopDrop: 0.7, cw_scoopRake: 0.18, cw_scoopAp: 0.68,
+      cw_scoopLipH: 0.011, cw_scoopLipDepth: 0.032, cw_scoopDuct: 0.125,
+      cw_seamOn: 1, cw_seamType: 1, cw_seamPos: 0.745, cw_seamWidth: 0.005,
+      cw_seamDepth: 0.0024, cw_partOn: 1, cw_partY: 0, cw_partW: 0.0022,
+      cw_fastOn: 1, cw_fastPitch: 0.11, cw_fastD: 0.016, cw_oilOn: 1,
+      cw_oilZ: 0.42, cw_oilW: 0.13, cw_oilL: 0.16, cw_oilSq: 1,
+      cw_noseOff: 0.07, cw_spinR: 0.101, cw_spinLen: 0.44, cw_spinRound: 1,
+      cw_bladeStation: 0.42, cw_shaftR: 0.045, cw_shaftLen: 0.3, cw_bladeN: 2,
+      cw_propD: 1.905, cw_material: 2, cw_rpm: 2400, cw_tas: 205,
+      cw_power: 160, cw_rootChord: 0.165, cw_tipChord: 0.105,
+      cw_chordBulge: 0.04, cw_sweep: 0, cw_thickRoot: 0.2, cw_thickTip: 0.09,
+      cw_camb: 0.044, cw_tipRound: 0.1, cw_cuff: 0.22, cw_shankR: 0.045,
+      cw_slip: 12, cw_aftMode: 0, cw_tailLen: 1.5, cw_tailDrop: 0.02,
+      crewOn: 1, seatLayout: 1, seatTilt: 3, seatType: 0, seatZ: 0.205,
+      seatH: 0.15, seatRake: 13, seatGap: 0.18, seat2H: -1, seat2Rake: -1,
+      seat2Tilt: -1, ctlStick: 1, ctlThr: 1, ctlPed: 1, consoleOn: 0,
+      stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0, trimX: 0,
+      trimY: 0, trimZ: 0, flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0,
+      thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18,
+      pedalSpread: 0.1, pedalAngle: 25, dumOn: 1, dumSize: 1, dumElbows: 0.08,
+      dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 2, copWho: 5,
+      dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0, swAvionics: 0,
+      paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
+      dumHandGrip: 0.075, cabOcc: 1, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
+      paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 6.95,
+      fltStep: 0.53, fltB: 0.68, fltBeta: 29, fltBetaA: 12.5, fltHs: 0.115,
+      fltAft: 8.5, fltFlat: 0.59, fltBow: 0.43, fltBowB: 0.39, fltStern: 0.73,
+      fltSide: 0.5, fltZ: -0.22, fltDrop: 1.08, fltInc: -0.5, fltTrack: 0.8,
+      fltStrutR: 0.018, fltWires: 1, fltStrutAng: 55, fltSpread: 1,
+      acc_fuelCap_sL: 0, acc_fuelCap_lv: 0, acc_fuelCapWing_sL: 0,
+      acc_fuelCapWing_lv: 0, acc_fuelDrain_sL: 0, acc_fuelDrain_lv: 0,
+      acc_oilDoor_sL: 0, acc_oilDoor_lv: 0, acc_staticDrain_sL: 0,
+      acc_staticDrain_lv: 0, acc_inspTail_sL: 0, acc_inspTail_lv: 0,
+      acc_inspBelly_sL: 0, acc_inspBelly_lv: 0, acc_inspAileron_sL: 0,
+      acc_inspAileron_lv: 0, acc_fuelCapWing2_sL: 0, acc_fuelCapWing2_lv: 0,
+      acc_inspAileron2_sL: 0, acc_inspAileron2_lv: 0, acc_baggageDoor_sL: 0,
+      acc_baggageDoor_lv: 0, acc_staticPort_sL: 0, acc_staticPort_lv: 0,
+      acc_venturi_sL: 0, acc_venturi_lv: 0, acc_oatProbe_sL: 0,
+      acc_oatProbe_lv: 0, acc_commAerial_sL: 0, acc_commAerial_lv: 0,
+      acc_navAerial_sL: 0, acc_navAerial_lv: 0, acc_xpdrAerial_sL: 0,
+      acc_xpdrAerial_lv: 0, acc_beacon_sL: 0, acc_beacon_lv: 0,
+      acc_step_sL: 0, acc_step_lv: 0, acc_doorHandle_sL: 0,
+      acc_doorHandle_lv: 0, acc_grabHandle_sL: 0, acc_grabHandle_lv: 0,
+      acc_tieDownTail_sL: 0, acc_tieDownTail_lv: 0, cw_stubDeckH: 1.27,
+      cw_stubWaist: -0.07, cw_stubKeelH: 0.83, cw_stubSqTop: 0.53,
+      cw_stubSqBot: 0.35,
+    },
+    // THE PIPER CUB (G445.4, 2026-09-20): the user's NewCub.json — the airframe
+    // traced off the PA-18 reference payload — measured against the J-3C-65
+    // (futureDesigns/CUB-STUDY-2026-09-20.md) and corrected on three rows:
+    // the stab span to the payload's own 2.88 m (stSpan 1.41; the sketch had
+    // 2.04), the tank to the type's 12 US gal, the prop to the registry's
+    // 1.83 m at standard pitch. Every column within 7 % of the POH. Imported
+    // verbatim from builds/cub_2026-09-20_corrected.json (supersedes
+    // My_finished_Cub.json of 2026-09-02). _base: 'template' — see the note
+    // that used to sit here: a saved cage is DEVIATIONS FROM THE TEMPLATE, and
+    // both consumers (applyPreset, the shelf's stock bake) start it there.
+    'piper cub': {
+      _base: "template", planeScale: 0.68, paxCount: 1, paxLen: 1.75667,
+      pilotLen: 0.662567, boomLen: 3.983966, tailLen: 0.169815,
+      cabPillarW: 0.1, paxPillarW: 0.075041, pillarW: 0, leanPaxDeg: 0,
+      leanCabDeg: 0, leanPivot: "floor", halfW: 0.554104, roofHalfW: 0.431009,
+      roofY: 1, keelY: -0.921275, floorY: -0.49759, ceilInset: 1,
+      waistY: 0.095, bandH: 0.062549, aftRoofY: 0.677945, aftKeelY: -0.656475,
+      tailHalfW: 0.053446, tailRoofY: 0.5, tailKeelY: -0.07775,
+      ringPullIn: 0.023043, wsRun: 0.793755, wsTopOff: 0.081824,
+      wsBaseBow: 0.55888, wsCeilBow: 0.129299, apilW: 1, apilPerp: 0,
+      noseLen: 0.48, noseW: 1, pfW: 1, topRound: 0, topAngCeil: 52,
+      topAngRoof: 76, topComp: 1.045, bubble: 0, skylight: 0, skyExt: 5,
+      winSillPilot: 0, winSillPax: 0, paxWinN: 0, paxWinShape: 0,
+      paxWinZ: 0.45, paxWinPitch: 0.75, paxWinY: 0.5, paxWinW: 0.52,
+      paxWinH: 0.4, paxWinR: 0.08, paxWinDepth: 0.006, crPillar: 3, crSill: 2,
+      crBand: 1, crCeil: 0, crFrame: 3, crCap: 2, crFrontCap: 0.3,
+      crNoseCap: 2, crKeel: 0, botRound: 0, noseCrown: 0.28, noseH: 1,
+      noseDroop: 0, wsBaseLift: 0, cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05,
+      noseFinish: 0, aeroNose: 0, aeroWsLen: 0.9, aeroLen: 1.5,
+      aeroDroop: 0.3, aeroTipW: 0.1, aeroTipH: 0.12, rearAperture: 0,
+      boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6, taperOn: 0,
+      taperLen: 0.6, taperW: 1, taperPanels: 0, boomStyle: 0, rodY: 0,
+      rodD: 0.12, rodIncl: 0, boomTwin: 0, boomX: 1.2, boomWf: 0.16,
+      boomHf: 0.24, boomWa: 0.112, boomHa: 0.168, boomSquare: 0, boomIncl: 0,
+      boomCollar: 0.5, boomDy: 0, boomDz: 0, boomNoseLen: 0.35,
+      boomNoseK: 0.7, boomNoseCap: 2, boomTailLen: 0.45, boomTailK: 0.7,
+      boomTailCap: 2, aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0,
+      aeroAftTip: 0.5, aeroAftShape: 0, aeroAftEdge: 0.6, crestH: 0,
+      crestAt: 0.55, crestLoops: 1, canopy: 0, bubH: 0.79, bubAt: 0.45,
+      bubW: 1, canLoops: 1, bubH2: 0.7, bubAt2: 0.25, bubW2: 1, bubH3: 0.6,
+      bubAt3: 0.7, bubW3: 1, arcFit: 1, noseTip: 0.25, aftNoseTip: -1,
+      crSillNose: 0.9, aftCrSillNose: -1, ringCabW: 0, ringWinW: 0,
+      ringScrW: 0, ringCowl1W: 0, ringCowl2W: -0.02, aftRingWinW: -1,
+      aftRingScrW: -1, aftRingCowl1W: -1, aftRingCowl2W: -1, mirror: 0,
+      aftPilotLen: -1, aftWsRun: -1, aftNoseLen: -1, aftNoseW: -1,
+      aftNoseH: -1, aftDroop: -1, aftNoseCrown: -1, aftCowlEase: -1,
+      aftCowlBulge: -1, aftWsBaseLift: -1, aftWsTopOff: -1, aftWsBaseBow: -1,
+      aftWsCeilBow: -1, aftCowlLoops: -1, ringNoseBot: 0, ringScrBot: -0.015,
+      ringWinTop: 0, ringWinBot: 0, ringCabTop: 0, ringCabBot: 0,
+      ringNoseTop: 0, aftRingNoseTop: -1, aftRingNoseBot: -1, winFrameW: 0,
+      winDepth: 0.015, winBlow: 0, crGlass: 3, rimW: 0.012, rimWin: 1,
+      rimWs: 1, rimDoor: 0, rimSides: 8, rimArc: 3, rimRise: 0.22,
+      paneInset: 0.0025, rimRivet: 0.04, memFast: 1, memPitch: 0.03,
+      memDia: 0.0025, memRise: 0.0004, paneThick: 0.004, doorOn: 1,
+      doorPax: 0, doorDeep: 1, doorSill: 0, doorSillPax: 0.06,
+      doorDepth: 0.004, doorRim: 0.006, bulkZ: 0, doorGone: 0, skinOn: 1,
+      glazeOn: 1, intOn: 1, intBulk: 1, intFire: 1, intPillars: 1,
+      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 1, intDash: 1,
+      dashBack: 0.115, dashLip: 0.035, dashDepth: 0.39, dashCrease: 1.5,
+      dashCrown: 0, shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135,
+      shoulderT: 0.003, shoulderLip: 0.027, shoulderRun: 0, doorPanelOn: 0,
+      doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
+      doorPanelPocket: 1, cutParts: 1, hgOn: 1, hgFamily: 0, hgCount: 0,
+      hgOut: 0.06, hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
+      hgFair: 0, hgLink: 1, hgDetail: 1, hgDoor: 1, hgDoorEdge: 0, lightOn: 1,
+      lightSw: 1, li_bayFrac: 0.24, li_bayHalf: 0.17, li_bayChord: 0.13,
+      li_bayDepth: 0.06, li_lampSize: 1, li_beaconRpm: 45, li_podLen: 1,
+      li_podGirth: 1, li_beaconSink: 0.04, li_navSpan: 0.02, li_navChord: 0.1,
+      li_navRise: 0, li_plane: 0, li_reflect: 1, li_taxi: 0, li_beacon: 0,
+      li_land: 0, li_nav: 0, li_flood: 0, li_instr: 0, li_pedal: 0, li_pax: 0,
+      accOn: 1, accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1,
+      accHandling: 1, accDetail: 1, stOn: 1, stCut: 1, stCutGap: 0.012,
+      stSolid: 1, stThick: 0.05, stThickTE: 0.012, stX: 0.05, stY: 0.25,
+      stZ: 0, stCons: 0, stOver: 0, stMount: 0, stCant: 0, stRootGuard: 1,
+      stTipZ: -0.371031, stTipY: -0.601326, stAftZ: 0.072501,
+      stAftY: -0.780444, stBaseZ: -0.358237, stBaseY: 0.140736,
+      stMidY: -0.455461, stUY: -0.191163, stRootFwd: 0, stLEZ: -0.349707,
+      stLEY: 0, stShoulderZ: 0.284833, stShoulderY: 0, stTopY: 0.082651,
+      stTERoot: -0.146812, stTEU: -0.177424, stTEMid: -0.153038,
+      stSharpTip: 0, stSharpAft: 0, stSharpBase: 0, stSharpShoulder: 0,
+      stSharpLE: 0, stSpan: 1.41, stChord: 1, stChordTip: 1, stSweep: 0,
+      stHinge: 0.20742366048889416, finOn: 1, finProject: 1, finCut: 2,
+      finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finCutGap: 0.012,
+      finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
+      finFillet: 0.035, finCons: 0, finDorsal: 0, finRootGuard: 1, finKeel: 1,
+      finCrA: 0, finCrB: 0, finTipZ: -0.371031, finTipY: -0.601326,
+      finAftZ: 0.072501, finAftY: -0.780444, finBaseZ: -0.358237,
+      finBaseY: 0.140736, finMidY: -0.455461, finUY: -0.191163, finRootFwd: 0,
+      finLEZ: -0.349707, finLEY: 0, finShoulderZ: 0.284833, finShoulderY: 0,
+      finTopY: 0.082651, finTERoot: -0.146812, finTEU: -0.177424,
+      finTEMid: -0.153038, finSharpTip: 0, finSharpAft: 0, finSharpBase: 0,
+      finSharpShoulder: 0, finSharpLE: 0, finHeight: 1, finChord: 1,
+      finChordTip: 1, finSweep: 0, finHinge: 0.20742366048889416, mass: 620,
+      cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96, s1On: 1, s1Z: 1.6,
+      s1X: 0.89, s1Leg: 1, s1R: 0.22, s1Drop: 0.46, s1Brake: 1, s1Steer: 0,
+      s1Fair: 0, s1FairSkirt: 0, s1FairTail: 1, s1FairRake: 0, s1FairW: 1,
+      s1LegFair: 0, s2On: 1, s2Z: 0.12, s2X: 0, s2Leg: 3, s2R: 0.08,
+      s2Drop: 0.27, s2Brake: 0, s2Steer: 1, s2Fair: 0, s2FairSkirt: 0,
+      s2FairTail: 1, s2FairRake: 0, s2FairW: 1, s2LegFair: 0, s1AxZ: 0,
+      s2AxZ: 0, fairCons: 0, whProfile: 0, whTread: 1, whRibs: 3, whRim: 0,
+      whBolts: 6, whCap: 1, whValve: 1, whBrake: 0, whBulge: 1, beamAng: 62,
+      beamW: 0.075, beamT: 0.02, beamTaper: 0.72, beamBow: 1.06,
+      beamRake: 0.1, linkAng: 58, linkArmW: 0.042, linkSwing: -42, linkVee: 1,
+      linkSpread: 0.46, linkX: 0, linkPanel: 1, linkPanelT: 0.004,
+      shockKind: 1, shockAt: 0.72, shockZ: 0.34, shockAng: 30,
+      bungeeSpan: 0.26, oleoAng: 40, oleoDia: 0.058, oleoCyl: 0.55,
+      oleoScissor: 0.052, oleoBrace: 1, oleoBraceZ: 0.42, twR: 0.1,
+      twSpringLen: 0.52, twSpringDrop: 0.3, twSpringW: 0.052,
+      twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
+      twLegDrop: 0.1, twSteer: 0, twSteerVis: 1, s1_beamAng: 62,
+      s1_beamW: 0.075, s1_beamT: 0.02, s1_beamTaper: 0.72, s1_beamBow: 1.06,
+      s1_beamRake: 0.1, s1_linkAng: 26, s1_linkSwing: 33, s1_linkArmW: 0.042,
+      s1_linkVee: 1, s1_linkSpread: 0.55, s1_linkX: 1, s1_linkPanel: 1,
+      s1_shockKind: 1, s1_shockAt: 0.95, s1_shockZ: 0.29, s1_shockAng: 24,
+      s1_bungeeSpan: 0.26, s1_oleoAng: 40, s1_oleoDia: 0.058,
+      s1_oleoCyl: 0.55, s1_oleoScissor: 0.052, s1_oleoBrace: 1,
+      s1_oleoBraceZ: 0.42, s1_twSpringLen: 0.55, s1_twSpringDrop: 0.3,
+      s1_twSpringW: 0.052, s1_twSpringT: 0.009, s1_twLeaves: 3, s1_twRake: 18,
+      s1_twTrail: 0.052, s1_twLegDrop: 0.1, s1_twSteer: 0, s1_twSteerVis: 1,
+      s2_beamAng: 62, s2_beamW: 0.075, s2_beamT: 0.02, s2_beamTaper: 0.72,
+      s2_beamBow: 1.06, s2_beamRake: 0.1, s2_linkAng: 58, s2_linkSwing: -42,
+      s2_linkArmW: 0.042, s2_linkVee: 1, s2_linkSpread: 0.46, s2_linkX: 0,
+      s2_linkPanel: 1, s2_shockKind: 1, s2_shockAt: 0.72, s2_shockZ: 0.34,
+      s2_shockAng: 30, s2_bungeeSpan: 0.26, s2_oleoAng: 40, s2_oleoDia: 0.058,
+      s2_oleoCyl: 0.55, s2_oleoScissor: 0.052, s2_oleoBrace: 1,
+      s2_oleoBraceZ: 0.42, s2_twSpringLen: 0.4, s2_twSpringDrop: 0.05,
+      s2_twSpringW: 0.072, s2_twSpringT: 0.008, s2_twLeaves: 1, s2_twRake: 0,
+      s2_twTrail: 0.08, s2_twLegDrop: 0.105, s2_twSteer: 0, s2_twSteerVis: 1,
+      gearOn: 1, gearSit: 1, gearFloats: 0, bpCabane: 0, bpStrutZ: 0,
+      bpStrutX: 0, bpInter: 0, bpInterAt: 0.62, bpInterZ: 0, bpWires: 1,
+      bpWireD: 5, wingOn: 1, wgSpan: 10.7, wgChord: 1.7, wgChordTip: 1.75,
+      wgTipX: 0, wgCrankChord: 1.6, wgCrankX: 0, wgDihedral: 1,
+      wgIncidence: 2.4, wgWashout: 0, wgCamber: 5, wgThick: 12, wgTip: 2,
+      wgPos: 0, wgCentre: 2, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0,
+      wgDihedralOut: 6, wgPanels: 3, wgDx: 0, wgDy: -0.1, wgParaH: 0.45,
+      wgStrutZ: 0, wgStrutX: 0, wgFlapType: 3, wgFlapSpan: 0.38,
+      wgFlapChord: 0.29, wgAilOn: 1, wgAilSpan: 0.55, wgAilChord: 0.29,
+      wgCons: 0, w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
+      w2Span: 10, w2Chord: 1.6, w2ChordTip: 1.6, w2TipX: 0, w2CrankAt: 0,
+      w2CrankChord: 1.6, w2CrankX: 0, w2DihedralOut: 6, w2Dihedral: 3,
+      w2Incidence: 1.5, w2Washout: 1.5, w2Camber: 2, w2Thick: 12, w2Tip: 2,
+      w2Centre: 0, w2Panels: 3, w2Cons: 0, w2FlapType: 0, w2FlapSpan: 0.5,
+      w2FlapChord: 0.2, w2AilOn: 1, w2AilSpan: 0.38, w2AilChord: 0.22,
+      engOn: 1, engPreset: 0, engPower: 0, engDetail: 0.8, eng_screws: 1,
+      engY: 0.035, propOn: 1, engMount: 0, engNacAt: 0.35, engPylonH: 0.3,
+      engBlockZ: 0, engBlockY: 0, engAim: 0, engRotate: 0, eng_tStyle: 0,
+      eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26,
+      eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278,
+      eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0,
+      eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0,
+      eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1,
+      eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5,
+      eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0,
+      eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95,
+      eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05,
+      eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0,
+      eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0,
+      eng_airbox: 1, eng_intake: 1, eng_exStyle: 2, eng_exDrop: 2.36,
+      eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: -2,
+      eng_exOutZ: -1.3, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1,
+      eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55,
+      eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1,
+      eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0,
+      eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1,
+      eng_mountGap: 0.98, eng_mountR: 1.56, eng_fwSpread: 2.07, spinMat: 0,
+      cowlOn: 1, fitNose: 0, cowlGap: 0, cw_fwLipOn: 1, cw_fwLipR: 0.004,
+      cw_fwLipRise: 0, cw_fwLipIn: 0.025, cw_cowlLen: 0.54, cw_aftW: 0.395,
+      cw_aftH: 0.34, cw_taperW: 0.99, cw_taperH: 0.77, cw_lidRise: 0.042,
+      cw_lidLen: 0.125, cw_lidShoulder: 0.42, cw_lidRound: 0.58,
+      cw_faceRise: 0.006, cw_deckSweep: 0.1, cw_keelSweep: 0.85,
+      cw_waistSweep: 0, cw_lidMode: 1, cw_lidR: 0.191, cw_lidGap: 0.014,
+      cw_deckH: 1, cw_keelH: 1.23, cw_waist: 0.37,
+      cw_sqAftTop: 0.3527385134304043, cw_sqAftBot: 0.5470688563755504,
+      cw_sqFrontTop: 0.54, cw_sqFrontBot: 0.48, cw_lidSqTop: 0.62,
+      cw_lidSqBot: 0.6, cw_detail: 1, cw_lobeN: 2, cw_lobeAmp: 0.022,
+      cw_lobeT: 0.45, cw_lobeAz: 0, cw_lobeSig: 53, cw_lobeTSig: 0.3,
+      cw_cutSpan: 0, cw_cutAz: 270, cw_apMode: 2, cw_apW: 0.344, cw_apH: 0.17,
+      cw_apSq: 0.73, cw_apOffX: 0, cw_apOffY: 0.028, cw_pairX: 0.295,
+      cw_pairW: 0.124, cw_pairH: 0.082, cw_pairY: 0.056, cw_pairSq: 0.86,
+      cw_lipMode: 0, cw_lipThick: 0.007, cw_lipDepth: 0.078, cw_lipRound: 0.6,
+      cw_lipProtrude: 0.46, cw_lipInset: 0.046, cw_ductLen: 0.22,
+      cw_ductFlare: 0, cw_scoopOn: 1, cw_scoopZ: 0, cw_scoopLen: 0.34,
+      cw_scoopW: 0.065, cw_scoopH: 0.088, cw_scoopSq: 0.5, cw_scoopDrop: 0.7,
+      cw_scoopRake: 0.18, cw_scoopAp: 0.68, cw_scoopLipH: 0.011,
+      cw_scoopLipDepth: 0.032, cw_scoopDuct: 0.125, cw_seamOn: 1,
+      cw_seamType: 1, cw_seamPos: 0.745, cw_seamWidth: 0.005,
+      cw_seamDepth: 0.0026, cw_partOn: 1, cw_partY: 0, cw_partW: 0.0022,
+      cw_fastOn: 1, cw_fastPitch: 0.11, cw_fastD: 0.016, cw_oilOn: 1,
+      cw_oilZ: 0.42, cw_oilW: 0.13, cw_oilL: 0.16, cw_oilSq: 1,
+      cw_noseOff: 0.06, cw_spinR: 0.101, cw_spinLen: 0.25, cw_spinRound: 0.6,
+      cw_bladeStation: 0.42, cw_shaftR: 0.045, cw_shaftLen: 0.3, cw_bladeN: 2,
+      cw_propD: 1.91, cw_material: 0, cw_rpm: 2400, cw_tas: 205,
+      cw_power: 160, cw_rootChord: 0.165, cw_tipChord: 0.05,
+      cw_chordBulge: 0.18, cw_sweep: 0, cw_thickRoot: 0.2, cw_thickTip: 0.09,
+      cw_camb: 0.04, cw_tipRound: 0.1, cw_cuff: 0.22, cw_shankR: 0.045,
+      cw_slip: 12, cw_aftMode: 0, cw_tailLen: 1.5, cw_tailDrop: 0.02,
+      crewOn: 1, seatLayout: 0, seatTilt: 13, seatType: 0, seatZ: 0.12,
+      seatH: 0.21, seatRake: 25.5, seatGap: 0.27, seat2H: -0.145,
+      seat2Rake: 34.5, seat2Tilt: 2, ctlStick: 0, ctlThr: 0, ctlPed: 1,
+      consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0,
+      trimX: 0, trimY: 0, trimZ: 0, flapCtl: 0, stickLen: 0.44, stickCrank: 0,
+      thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.88, pedalH: 0.17,
+      pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1, dumElbows: 0.01,
+      dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0, copWho: 0,
+      dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0, swAvionics: 0,
+      paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
+      dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
+      paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 4.3,
+      fltStep: 0.54, fltB: 0.67, fltBeta: 20, fltBetaA: 20, fltHs: 0.045,
+      fltAft: 6.5, fltFlat: 0.3, fltBow: 0.36, fltBowB: 0.15, fltStern: 0.75,
+      fltSide: 0.22, fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.8,
+      fltStrutR: 0.018, fltWires: 1, fltStrutAng: 55, fltSpread: 1,
+      acc_fuelCap_sL: 0, acc_fuelCap_lv: 0, acc_fuelCapWing_sL: 0,
+      acc_fuelCapWing_lv: 0, acc_fuelDrain_sL: 0, acc_fuelDrain_lv: 0,
+      acc_oilDoor_sL: 0, acc_oilDoor_lv: 0, acc_staticDrain_sL: 0,
+      acc_staticDrain_lv: 0, acc_inspTail_sL: 0, acc_inspTail_lv: 0,
+      acc_inspBelly_sL: 0, acc_inspBelly_lv: 0, acc_inspAileron_sL: 0,
+      acc_inspAileron_lv: 0, acc_fuelCapWing2_sL: 0, acc_fuelCapWing2_lv: 0,
+      acc_inspAileron2_sL: 0, acc_inspAileron2_lv: 0, acc_baggageDoor_sL: 0,
+      acc_baggageDoor_lv: 0, acc_staticPort_sL: 0, acc_staticPort_lv: 0,
+      acc_venturi_sL: 0, acc_venturi_lv: 0, acc_oatProbe_sL: 0,
+      acc_oatProbe_lv: 0, acc_commAerial_sL: 0, acc_commAerial_lv: 0,
+      acc_navAerial_sL: 0, acc_navAerial_lv: 0, acc_xpdrAerial_sL: 0,
+      acc_xpdrAerial_lv: 0, acc_beacon_sL: 0, acc_beacon_lv: 0,
+      acc_step_sL: 0, acc_step_lv: 0, acc_doorHandle_sL: 0,
+      acc_doorHandle_lv: 0, acc_grabHandle_sL: 0, acc_grabHandle_lv: 0,
+      acc_tieDownTail_sL: 0, acc_tieDownTail_lv: 0, cw_stubDeckH: 1.27,
+      cw_stubWaist: -0.07, cw_stubKeelH: 0.83, cw_stubSqTop: 0.53,
+      cw_stubSqBot: 0.35,
+    },
+    // THE JODEL D.112 (G445.4, 2026-09-20): the user's Jodel1050v1.json —
+    // "should be a D112, even though I sometimes mixed it a bit with a
+    // DR1050" — with the DR's rear bench, O-200 and 98 L taken back to the
+    // D.112's two seats, A-65 and 45 L (futureDesigns/JODEL-STUDY-2026-09-20.md).
+    // The page's own 'jodel' row above stays the template.
+    'jodel D112': {
+      _base: "template", planeScale: 0.745, paxCount: 0, paxLen: 0.46,
+      pilotLen: 0.3, boomLen: 3.983966, tailLen: 0.169815, cabPillarW: 0.115,
+      paxPillarW: 0.11, pillarW: 0.1, leanPaxDeg: 30, leanCabDeg: 0,
+      leanPivot: "floor", halfW: 0.72, roofHalfW: 0.565, roofY: 0.755,
+      keelY: -0.75, floorY: -0.49759, ceilInset: 1, waistY: 0.04,
+      bandH: 0.062549, aftRoofY: 0.76, aftKeelY: -0.65, tailHalfW: 0.1,
+      tailRoofY: 0.485, tailKeelY: -0.065, ringPullIn: 0.023043, wsRun: 0.95,
+      wsTopOff: 0.5, wsBaseBow: 0.45, wsCeilBow: 0.3, apilW: 0.92,
+      apilPerp: 1, noseLen: 0.58, noseW: 0.97, pfW: 0.3, topRound: 0.4,
+      topAngCeil: 35, topAngRoof: 65, topComp: 1.03, bubble: 1, skylight: 0,
+      skyExt: 5, winSillPilot: 0, winSillPax: 0, paxWinN: 0, paxWinShape: 0,
+      paxWinZ: 0.45, paxWinPitch: 0.75, paxWinY: 0.5, paxWinW: 0.52,
+      paxWinH: 0.4, paxWinR: 0.08, paxWinDepth: 0.006, crPillar: 3, crSill: 0,
+      crBand: 3, crCeil: 0, crFrame: 3, crCap: 3, crFrontCap: 0.3,
+      crNoseCap: 3, crKeel: 0, botRound: 0, noseCrown: 0.245, noseH: 1.07,
+      noseDroop: 0.045, wsBaseLift: 0.05, cowlLoops: 0, cowlEase: 0.29,
+      cowlBulge: 0.99, noseFinish: 0, aeroNose: 0, aeroWsLen: 0.9,
+      aeroLen: 1.5, aeroDroop: 0.3, aeroTipW: 0.1, aeroTipH: 0.12,
+      rearAperture: 0, boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
+      taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0, boomStyle: 0,
+      rodY: 0, rodD: 0.12, rodIncl: 0, boomTwin: 0, boomX: 1.2, boomWf: 0.16,
+      boomHf: 0.24, boomWa: 0.112, boomHa: 0.168, boomSquare: 0, boomIncl: 0,
+      boomCollar: 0.5, boomDy: 0, boomDz: 0, boomNoseLen: 0.35,
+      boomNoseK: 0.7, boomNoseCap: 2, boomTailLen: 0.45, boomTailK: 0.7,
+      boomTailCap: 2, aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0,
+      aeroAftTip: 0.5, aeroAftShape: 0, aeroAftEdge: 0.6, crestH: 0,
+      crestAt: 0.55, crestLoops: 1, canopy: 0, bubH: 0.79, bubAt: 0.45,
+      bubW: 1, canLoops: 1, bubH2: 0.7, bubAt2: 0.25, bubW2: 1, bubH3: 0.6,
+      bubAt3: 0.7, bubW3: 1, arcFit: 1, noseTip: 0.27, aftNoseTip: 0.25,
+      crSillNose: 0.9, aftCrSillNose: -1, ringCabW: 0.005, ringWinW: 0,
+      ringScrW: 0, ringCowl1W: 0, ringCowl2W: -0.02, aftRingWinW: 0,
+      aftRingScrW: 0, aftRingCowl1W: 0, aftRingCowl2W: -0.02, mirror: 0,
+      aftPilotLen: 0.42, aftWsRun: 0.95, aftNoseLen: 0.44, aftNoseW: 0.97,
+      aftNoseH: 1.07, aftDroop: 0, aftNoseCrown: 0.16, aftCowlEase: 0.29,
+      aftCowlBulge: 0.99, aftWsBaseLift: 0.05, aftWsTopOff: 0.081824,
+      aftWsBaseBow: 0.45, aftWsCeilBow: 0.3, aftCowlLoops: 0, ringNoseBot: 0,
+      ringScrBot: -0.015, ringWinTop: 0, ringWinBot: 0, ringCabTop: 0.005,
+      ringCabBot: 0.005, ringNoseTop: 0.105, aftRingNoseTop: 0,
+      aftRingNoseBot: 0, winFrameW: 0, winDepth: 0.015, winBlow: 0,
+      crGlass: 3, rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 0, rimSides: 8,
+      rimArc: 3, rimRise: 0.22, paneInset: 0.0025, rimRivet: 0.04, memFast: 1,
+      memPitch: 0.03, memDia: 0.0025, memRise: 0.0004, paneThick: 0.004,
+      doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0, doorSillPax: 0.06,
+      doorDepth: 0.004, doorRim: 0.023, bulkZ: 0, doorGone: 0, skinOn: 1,
+      glazeOn: 1, intOn: 1, intBulk: 1, intFire: 1, intPillars: 1,
+      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 2, intDash: 1,
+      dashBack: 0.065, dashLip: 0.035, dashDepth: 0.14, dashCrease: 3,
+      dashCrown: 0.05, shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135,
+      shoulderT: 0.003, shoulderLip: 0.027, shoulderRun: 0, doorPanelOn: 0,
+      doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
+      doorPanelPocket: 1, cutParts: 1, hgOn: 1, hgFamily: 0, hgCount: 0,
+      hgOut: 0.06, hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
+      hgFair: 0, hgLink: 1, hgDetail: 1, hgDoor: 1, hgDoorEdge: 0, lightOn: 1,
+      lightSw: 1, li_bayFrac: 0.34, li_bayHalf: 0.17, li_bayChord: 0.13,
+      li_bayDepth: 0.06, li_lampSize: 1, li_beaconRpm: 45, li_podLen: 1,
+      li_podGirth: 1, li_beaconSink: 0.04, li_navSpan: 0.02, li_navChord: 0.1,
+      li_navRise: 0, li_plane: 0, li_reflect: 1, li_taxi: 0, li_beacon: 0,
+      li_land: 0, li_nav: 0, li_flood: 0, li_instr: 0, li_pedal: 0, li_pax: 0,
+      accOn: 1, accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1,
+      accHandling: 1, accDetail: 1, stOn: 1, stCut: 1, stCutGap: 0.012,
+      stSolid: 1, stThick: 0.05, stThickTE: 0.012, stX: 0.05, stY: 0.595,
+      stZ: 0.145, stCons: 0, stOver: 0, stMount: 0, stCant: 0, stRootGuard: 1,
+      stTipZ: 0.145, stTipY: -0.295, stAftZ: -0.17, stAftY: -0.28,
+      stBaseZ: -0.19, stBaseY: 0.285, stMidY: -0.565, stUY: -0.385,
+      stRootFwd: -0.745, stLEZ: -0.005, stLEY: 0.22, stShoulderZ: 0.035,
+      stShoulderY: 0.12, stTopY: -0.005, stTERoot: 0.4, stTEU: 0.005,
+      stTEMid: 0.005, stSharpTip: 1.45, stSharpAft: 1.15, stSharpBase: 0,
+      stSharpShoulder: 0.45, stSharpLE: 1.05, stSpan: 1, stChord: 1,
+      stChordTip: 1, stSweep: 0, stHinge: 0.20742366048889416, finOn: 1,
+      finProject: 1, finCut: 1, finVentralOn: 1, finVentralH: 0.4,
+      finVentralC: 0.6, finCutGap: 0.009, finSolid: 1, finThick: 0.058,
+      finThickTE: 0.015, tailRimN: 4, finFillet: 0.035, finCons: 0,
+      finDorsal: 0, finRootGuard: 1, finKeel: 1, finCrA: 0, finCrB: 0,
+      finTipZ: -0.42, finTipY: -0.8, finAftZ: -0.16, finAftY: -0.665,
+      finBaseZ: 0.1, finBaseY: 0.035, finMidY: -0.315, finUY: -0.26,
+      finRootFwd: -0.035, finLEZ: -0.53, finLEY: 0.27, finShoulderZ: 0.17,
+      finShoulderY: -0.065, finTopY: -0.005, finTERoot: -0.315, finTEU: -0.31,
+      finTEMid: -0.07, finSharpTip: 0, finSharpAft: 3, finSharpBase: 3,
+      finSharpShoulder: 3, finSharpLE: 3, finHeight: 1, finChord: 1,
+      finChordTip: 1, finSweep: 0, finHinge: 0.20742366048889416, mass: 620,
+      cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96, s1On: 1, s1Z: 2.43,
+      s1X: 0.98, s1Leg: 2, s1R: 0.2, s1Drop: 0.55, s1Brake: 1, s1Steer: 0,
+      s1Fair: 0, s1FairSkirt: 0, s1FairTail: 1, s1FairRake: 0, s1FairW: 1,
+      s1LegFair: 0, s2On: 1, s2Z: 0.06, s2X: 0, s2Leg: 3, s2R: 0.07,
+      s2Drop: 0.22, s2Brake: 0, s2Steer: 1, s2Fair: 0, s2FairSkirt: 0,
+      s2FairTail: 1, s2FairRake: 0, s2FairW: 1, s2LegFair: 0, s1AxZ: 0,
+      s2AxZ: 0, fairCons: 0, whProfile: 0, whTread: 1, whRibs: 3, whRim: 0,
+      whBolts: 6, whCap: 1, whValve: 1, whBrake: 0, whBulge: 1, beamAng: 62,
+      beamW: 0.075, beamT: 0.02, beamTaper: 0.72, beamBow: 1.06,
+      beamRake: 0.1, linkAng: 58, linkArmW: 0.042, linkSwing: -42, linkVee: 1,
+      linkSpread: 0.46, linkX: 0, linkPanel: 1, linkPanelT: 0.004,
+      shockKind: 1, shockAt: 0.72, shockZ: 0.34, shockAng: 30,
+      bungeeSpan: 0.26, oleoAng: 40, oleoDia: 0.058, oleoCyl: 0.55,
+      oleoScissor: 0.052, oleoBrace: 1, oleoBraceZ: 0.42, twR: 0.1,
+      twSpringLen: 0.52, twSpringDrop: 0.3, twSpringW: 0.052,
+      twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
+      twLegDrop: 0.1, twSteer: 0, twSteerVis: 1, s1_beamAng: 62,
+      s1_beamW: 0.075, s1_beamT: 0.02, s1_beamTaper: 0.72, s1_beamBow: 1.06,
+      s1_beamRake: 0.1, s1_linkAng: 26, s1_linkSwing: 33, s1_linkArmW: 0.042,
+      s1_linkVee: 1, s1_linkSpread: 0.55, s1_linkX: 1, s1_linkPanel: 1,
+      s1_shockKind: 1, s1_shockAt: 0.95, s1_shockZ: 0.29, s1_shockAng: 24,
+      s1_bungeeSpan: 0.26, s1_oleoAng: 40, s1_oleoDia: 0.058,
+      s1_oleoCyl: 0.55, s1_oleoScissor: 0.052, s1_oleoBrace: 1,
+      s1_oleoBraceZ: 0.42, s1_twSpringLen: 0.55, s1_twSpringDrop: 0.3,
+      s1_twSpringW: 0.052, s1_twSpringT: 0.009, s1_twLeaves: 3, s1_twRake: 18,
+      s1_twTrail: 0.052, s1_twLegDrop: 0.1, s1_twSteer: 0, s1_twSteerVis: 1,
+      s2_beamAng: 62, s2_beamW: 0.075, s2_beamT: 0.02, s2_beamTaper: 0.72,
+      s2_beamBow: 1.06, s2_beamRake: 0.1, s2_linkAng: 58, s2_linkSwing: -42,
+      s2_linkArmW: 0.042, s2_linkVee: 1, s2_linkSpread: 0.46, s2_linkX: 0,
+      s2_linkPanel: 1, s2_shockKind: 1, s2_shockAt: 0.72, s2_shockZ: 0.34,
+      s2_shockAng: 30, s2_bungeeSpan: 0.26, s2_oleoAng: 40, s2_oleoDia: 0.058,
+      s2_oleoCyl: 0.55, s2_oleoScissor: 0.052, s2_oleoBrace: 1,
+      s2_oleoBraceZ: 0.42, s2_twSpringLen: 0.25, s2_twSpringDrop: 0.05,
+      s2_twSpringW: 0.072, s2_twSpringT: 0.008, s2_twLeaves: 1, s2_twRake: 0,
+      s2_twTrail: 0.056, s2_twLegDrop: 0.145, s2_twSteer: 0, s2_twSteerVis: 1,
+      gearOn: 1, gearSit: 1, gearFloats: 0, bpCabane: 0, bpStrutZ: 0,
+      bpStrutX: 0, bpInter: 0, bpInterAt: 0.62, bpInterZ: 0, bpWires: 1,
+      bpWireD: 5, wingOn: 1, wgSpan: 8.3, wgChord: 1.8, wgChordTip: 1.1,
+      wgTipX: 0, wgCrankChord: 1.8, wgCrankX: 0, wgDihedral: 0,
+      wgIncidence: -1, wgWashout: 1.5, wgCamber: 2, wgThick: 14, wgTip: 0,
+      wgPos: 2, wgCentre: 0, wgCentreW: 0, wgBrace: 1, wgCrankAt: 0.55,
+      wgDihedralOut: 17.5, wgPanels: 3, wgDx: 0.45, wgDy: -0.16,
+      wgParaH: 0.45, wgStrutZ: 0, wgStrutX: 0, wgFlapType: 3, wgFlapSpan: 0.5,
+      wgFlapChord: 0.2, wgAilOn: 1, wgAilSpan: 0.38, wgAilChord: 0.22,
+      wgCons: 0, w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
+      w2Span: 10, w2Chord: 1.6, w2ChordTip: 1.6, w2TipX: 0, w2CrankAt: 0,
+      w2CrankChord: 1.6, w2CrankX: 0, w2DihedralOut: 6, w2Dihedral: 3,
+      w2Incidence: 1.5, w2Washout: 1.5, w2Camber: 2, w2Thick: 12, w2Tip: 2,
+      w2Centre: 0, w2Panels: 3, w2Cons: 0, w2FlapType: 0, w2FlapSpan: 0.5,
+      w2FlapChord: 0.2, w2AilOn: 1, w2AilSpan: 0.38, w2AilChord: 0.22,
+      engOn: 1, engPreset: 0, engPower: 0, engDetail: 0.8, eng_screws: 1,
+      engY: -0.015, propOn: 1, engMount: 0, engNacAt: 0.35, engPylonH: 0.3,
+      engBlockZ: 0, engBlockY: 0, engAim: 0, engRotate: 0, eng_tStyle: 0,
+      eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26,
+      eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278,
+      eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0,
+      eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0,
+      eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1,
+      eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5,
+      eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0,
+      eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95,
+      eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05,
+      eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0,
+      eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0,
+      eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5,
+      eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0,
+      eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1,
+      eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2,
+      eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1,
+      eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0,
+      eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85,
+      eng_mountR: 1, eng_fwSpread: 1.5, spinMat: 0, cowlOn: 1, fitNose: 0,
+      cowlGap: 0, cw_fwLipOn: 1, cw_fwLipR: 0.004, cw_fwLipRise: 0,
+      cw_fwLipIn: 0.025, cw_cowlLen: 0.525, cw_aftW: 0.485, cw_aftH: 0.345,
+      cw_taperW: 0.84, cw_taperH: 0.66, cw_lidRise: 0.018, cw_lidLen: 0.125,
+      cw_lidShoulder: 0.92, cw_lidRound: 0.56, cw_faceRise: 0.014,
+      cw_deckSweep: 0.05, cw_keelSweep: 0.19, cw_waistSweep: 0.79,
+      cw_lidMode: 1, cw_lidR: 0.191, cw_lidGap: 0.009, cw_deckH: 1.05,
+      cw_keelH: 1.27, cw_waist: 0.31, cw_sqAftTop: 0.41, cw_sqAftBot: 0.6,
+      cw_sqFrontTop: 0.51, cw_sqFrontBot: 0.5, cw_lidSqTop: 0.5,
+      cw_lidSqBot: 0.6, cw_detail: 1, cw_lobeN: 2, cw_lobeAmp: 0.022,
+      cw_lobeT: 0.45, cw_lobeAz: 0, cw_lobeSig: 53, cw_lobeTSig: 0.3,
+      cw_cutSpan: 0, cw_cutAz: 270, cw_apMode: 1, cw_apW: 0.366,
+      cw_apH: 0.202, cw_apSq: 0.42, cw_apOffX: 0, cw_apOffY: -0.024,
+      cw_pairX: 0.3, cw_pairW: 0.124, cw_pairH: 0.082, cw_pairY: 0.104,
+      cw_pairSq: 0.86, cw_lipMode: 0, cw_lipThick: 0.007, cw_lipDepth: 0.078,
+      cw_lipRound: 0.6, cw_lipProtrude: 0.46, cw_lipInset: 0.046,
+      cw_ductLen: 0.22, cw_ductFlare: 0, cw_scoopOn: 1, cw_scoopZ: 0,
+      cw_scoopLen: 0.72, cw_scoopW: 0.12, cw_scoopH: 0.056, cw_scoopSq: 1,
+      cw_scoopDrop: 0.88, cw_scoopRake: 0, cw_scoopAp: 0.94,
+      cw_scoopLipH: 0.007, cw_scoopLipDepth: 0.024, cw_scoopDuct: 0,
+      cw_seamOn: 1, cw_seamType: 1, cw_seamPos: 0.745, cw_seamWidth: 0.005,
+      cw_seamDepth: 0.0026, cw_partOn: 1, cw_partY: 0, cw_partW: 0.0022,
+      cw_fastOn: 1, cw_fastPitch: 0.11, cw_fastD: 0.016, cw_oilOn: 1,
+      cw_oilZ: 0.42, cw_oilW: 0.13, cw_oilL: 0.16, cw_oilSq: 1,
+      cw_noseOff: 0.06, cw_spinR: 0.101, cw_spinLen: 0.25, cw_spinRound: 0.6,
+      cw_bladeStation: 0.42, cw_shaftR: 0.045, cw_shaftLen: 0.3, cw_bladeN: 2,
+      cw_propD: 1.83, cw_material: 0, cw_rpm: 2400, cw_tas: 205,
+      cw_power: 160, cw_rootChord: 0.165, cw_tipChord: 0.05,
+      cw_chordBulge: 0.18, cw_sweep: 0, cw_thickRoot: 0.2, cw_thickTip: 0.09,
+      cw_camb: 0.04, cw_tipRound: 0.1, cw_cuff: 0.22, cw_shankR: 0.045,
+      cw_slip: 12, cw_aftMode: 0, cw_tailLen: 1.5, cw_tailDrop: 0.02,
+      crewOn: 1, seatLayout: 1, seatTilt: 13, seatType: 0, seatZ: 0.215,
+      seatH: 0.13, seatRake: 27, seatGap: 0.215, seat2H: 0.13,
+      seat2Rake: 34.5, seat2Tilt: 2, ctlStick: 0, ctlThr: 1, ctlPed: 1,
+      consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0,
+      trimX: 0, trimY: 0, trimZ: 0, flapCtl: 0, stickLen: 0.44, stickCrank: 0,
+      thrX: 0.04, thrY: 0.14, thrZ: 0, thrLen: 0.16, pedalZ: 0.945,
+      pedalH: 0.165, pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1,
+      dumElbows: 0.01, dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0,
+      copWho: 0, dumFist: 0.5, dumIdle: 0.5, swMaster: 0, swAlt: 0,
+      swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0,
+      paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0,
+      paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.045, paxSize: 1,
+      paxRecline: 0, fltL: 4.3, fltStep: 0.54, fltB: 0.67, fltBeta: 20,
+      fltBetaA: 20, fltHs: 0.045, fltAft: 6.5, fltFlat: 0.3, fltBow: 0.36,
+      fltBowB: 0.15, fltStern: 0.75, fltSide: 0.22, fltZ: 0, fltDrop: 0.55,
+      fltInc: 0, fltTrack: 0.8, fltStrutR: 0.018, fltWires: 1,
+      fltStrutAng: 55, fltSpread: 1, acc_fuelCap_sL: 0, acc_fuelCap_lv: 0,
+      acc_fuelCapWing_sL: 0, acc_fuelCapWing_lv: 0, acc_fuelDrain_sL: 0,
+      acc_fuelDrain_lv: 0, acc_oilDoor_sL: 0, acc_oilDoor_lv: 0,
+      acc_staticDrain_sL: 0, acc_staticDrain_lv: 0, acc_inspTail_sL: 0,
+      acc_inspTail_lv: 0, acc_inspBelly_sL: 0, acc_inspBelly_lv: 0,
+      acc_inspAileron_sL: 0, acc_inspAileron_lv: 0, acc_fuelCapWing2_sL: 0,
+      acc_fuelCapWing2_lv: 0, acc_inspAileron2_sL: 0, acc_inspAileron2_lv: 0,
+      acc_baggageDoor_sL: 0, acc_baggageDoor_lv: 0, acc_staticPort_sL: 0,
+      acc_staticPort_lv: 0, acc_venturi_sL: 0, acc_venturi_lv: 0,
+      acc_oatProbe_sL: 0, acc_oatProbe_lv: 0, acc_commAerial_sL: 0,
+      acc_commAerial_lv: 0, acc_navAerial_sL: 0, acc_navAerial_lv: 0,
+      acc_xpdrAerial_sL: 0, acc_xpdrAerial_lv: 0, acc_beacon_sL: 0,
+      acc_beacon_lv: 0, acc_step_sL: 0, acc_step_lv: 0, acc_doorHandle_sL: 0,
+      acc_doorHandle_lv: 0, acc_grabHandle_sL: 0, acc_grabHandle_lv: 0,
+      acc_tieDownTail_sL: 0, acc_tieDownTail_lv: 0, s2_twHornY: 0.11,
+      cw_stubDeckH: 1.27, cw_stubWaist: -0.07, cw_stubKeelH: 0.83,
+      cw_stubSqTop: 0.53, cw_stubSqBot: 0.35,
+    },
   },
 
   // THE WHOLE AEROPLANE, for the stock rows that are a BUILD and not just a
@@ -41419,106 +42216,745 @@ window.CAGE_PAGE = {
   // what it was derived from (garage.js, "WHAT IS SAVED IS THE SPEC, NULLS
   // AND ALL").
   builds: {
-    'piper cub': {
-      meta: { name: "Piper Cub", reg: "F-PGAR", role: null, class: null },
-      cabin:
-        { seating: "tandem2", pilots: 2, pax: 0, baggage: 10,
-        halfW: 0.37191165556805206, h: 1.3048818182739685,
-        len: 1.31356348, noseGap: 0.9902989600000001, seatX: 0,
-        seatY: 0.1, seatPitch: 0.86, glazing: "bubble",
+    'cessna 172': {
+      wings: [{
+          span: 11,
+          chord: 1.63,
+          taper: 0.687116564417178,
+          sweep: null,
+          dihedral: 1.7,
+          position: "high",
+          tip: "square",
+          incidence: 1.5,
+          washout: 3,
+          naca: 2414,
+          panels: 3,
+          crankAt: 0.45,
+          dihedralOut: 1.7,
+          crankChord: 1.63,
+          crankX: 0,
+          tipX: 0.15,
+          cuts: [1.15, 1.49],
+          centre: "open",
+          cabaneH: null,
+          xLE: 0.15444999999999984,
+          place: { dx: 0, dy: 0 },
+          centreW: 1.05,
+          yRoot: 1.4203374513171196 }],
+      bracing: { type: "strut", interplane: "none", interplaneAt: 0.62, wires: "both", cabane: "N" },
+      controls: {
+        flap: { type: "slotted", span: 0.55, chord: 0.2 },
+        aileron: { span: 0.35, chord: 0.22 },
+        elevator: { chord: 0.43955146126067945 },
+        rudder: { chord: 0.5546841611226784 } },
+      engines: [{
+          type: "a65_sensenich74",
+          mount: "nose",
+          place: { dx: 0, dy: 0 },
+          x: -1.1015481419851607,
+          custom: {
+            mass: 144.1447732668502,
+            powerW: 118366.20763871097,
+            rpm: 2450,
+            gear: 1,
+            torque: 461.3526622222656,
+            aspiration: "na",
+            family: "four",
+            cooling: "air",
+            cgAft: 0.243,
+            name: "custom Flat (boxer) 4-cyl 5.9 L" },
+          sense: 1 }],
+      meta: { class: "n23", role: "touring", name: "cessna172", reg: "F-GCES" },
+      fuel: { litres: 212, tank: "wing" },
+      systems: {
+        fit: "custom",
+        units: "aviation",
+        items: ["asi", "alt", "vsi", "ai", "aiE", "dg", "turn", "tacho", "gmeter", "oilP", "oilT", "fuel", "fuelSight", "volts", "clock", "hobbs", "compass"],
+        elec: { battery: "lead", alternator: "alt60", starter: "yes", vac: "pump" },
+        avionics: { com: "compact", xpdr: "modeS", nav: "vor", gps: "none" },
+        side: "pilot",
+        look: { bezel: "plastic", sw: "toggle" } },
+      cabin: {
+        baggage: 40,
+        seating: "side2",
+        glazing: "bubble",
+        pilots: 2,
+        pax: 0,
+        halfW: 0.4923159414290095,
+        h: 1.5103374513171195,
+        len: 0.894,
+        noseGap: 0.9535999999999998,
+        seatX: 0,
+        seatY: 0.1,
+        seatPitch: 0.86,
+        seatsX: [0.49859999999999965, 0.49859999999999965, 1.5231, 1.5231],
+        seats: 4,
+        occupied: [1, 1, 0, 0],
         panel: { on: true, depth: 0.27, inset: 0.06, wrap: 0.5 },
-        pilot: { show: true, stature: 1.75, lean: 17, thigh: -9,
-        shank: 10, armDown: 40, fore: 6, head: -11, armIn: 26,
-        ankle: 40, toeOut: 7, hipOut: 0, kneeOut: 3 },
-        canopy: { height: 0, sill: 0.3, skew: 0.42, bubble: 0.7,
-        lid: 1, width: 1, x0: null, x1: null, reach: null,
-        joint: "square", jointRun: 3, facet: false, sun: 0,
-        sunStart: 0.38, sides: false, sideTop: 0.34, sideDepth: 0.5,
-        sideReach: 1, sideGap: 0.1, wsAngle: null, wsCurve: 1 } },
+        pilot: {
+          show: true,
+          stature: 1.75,
+          lean: 17,
+          thigh: -9,
+          shank: 10,
+          armDown: 40,
+          fore: 6,
+          head: -11,
+          armIn: 26,
+          ankle: 40,
+          toeOut: 7,
+          hipOut: 0,
+          kneeOut: 3 },
+        canopy: {
+          height: 0,
+          sill: 0.3,
+          skew: 0.42,
+          bubble: 0.7,
+          lid: 1,
+          width: 1,
+          x0: null,
+          x1: null,
+          reach: null,
+          joint: "square",
+          jointRun: 3,
+          facet: false,
+          sun: 0,
+          sunStart: 0.38,
+          sides: false,
+          sideTop: 0.34,
+          sideDepth: 0.5,
+          sideReach: 1,
+          sideGap: 0.1,
+          wsAngle: null,
+          wsCurve: 1,
+          style: "screen" } },
+      gear: {
+        type: "tricycle",
+        suspension: "spring",
+        fairing: "spat",
+        twFairing: "spat",
+        legFair: "fair",
+        twLegFair: "fair",
+        fairTail: 1,
+        twFairTail: 1,
+        fairMat: "glass",
+        track: 2.54,
+        x: 1.272364295,
+        y: -0.3404224458240612,
+        wheelR: 0.185,
+        twX: -0.33663570499999995,
+        twY: -0.36318158922768484,
+        twR: 0.14,
+        stiffness: 1,
+        legDrop: null,
+        twLeg: null,
+        camber: 0,
+        place: { dx: 0, dtrack: 0 },
+        floats: {
+          L: 6.95,
+          xs: 3.6835000000000004,
+          B: 0.68,
+          beta: 29,
+          betaA: 12.5,
+          hs: 0.115,
+          aftAngle: 8.5,
+          xFlat: 2.1732650000000002,
+          yBow: 0.43,
+          bBow: 0.26520000000000005,
+          bStern: 0.73,
+          hSide: 0.5,
+          y: -1.0904224458240612,
+          track: 0.8,
+          volDeck: 1.887071424779946,
+          inc: -0.5,
+          x: 1.6374914473618898 } },
+      paint: { job: "full", sweep: 0.65, base: 15722191, trim: 2902577, gloss: 0.42, regX: 0.3 },
+      finish: {
+        sections: {
+          float: { fin: "composite", tint: 14870507 },
+          spat: { tint: 13734731 },
+          wingSkin: { rough: 0.65, metal: 1 },
+          body: { metal: 1 },
+          ceilingLoop: { metal: 1 },
+          floorLoop: { metal: 1 },
+          pillarCabin: { metal: 1 },
+          pillarFront: { metal: 1 },
+          pillarPassenger: { metal: 1 },
+          pillarTail: { metal: 1 },
+          pillarTaper: { metal: 1 },
+          pillarWindow: { metal: 1 },
+          taper: { metal: 1 },
+          waistband: { metal: 1 } },
+        decals: {
+          regH: 0.28,
+          regL: 3.6,
+          regC: -0.27,
+          regCol: 0,
+          regMetal: 1,
+          regW: 1.5972171683933425,
+          m1On: 1,
+          m1Pat: 1,
+          m1A: 2902577,
+          m1B: 13201194,
+          m1D: 15722191,
+          m1Metal: 1,
+          m1L: -1.65,
+          m1C: 0.02,
+          m1W: 11.4,
+          m1H: 0.99,
+          m1Rot: 0.04,
+          m1Tgt: 2,
+          m1Mode: 1 },
+        wear: 0 },
       cargo: { len: 0, kg: 0 },
-      fuel: { litres: 50, tank: "nose" },
-      systems: { fit: "basic" },
-      controls:
-        { flap: { type: "fowler", span: 0.38, chord: 0.29 },
-        aileron: { span: 0.55, chord: 0.29 }, elevator: { chord: 0.4 },
-        rudder: { chord: 0.42 } },
-      fuselage:
-        { material: "tubeFabric", shape: "straight",
-        tailArm: 5.01295932, postGap: 0.11537419999999976, tailBays: 4,
-        tailW: 0.03653992300985376, tailBot: 0.5717755395722337,
-        tailTop: 0.964955688448873, profile: [{ t: 0,
-        w: 0.3752804623131992, yb: 0.18516342924926094,
-        yt: 1.085347639067249 }, { t: 0.125, w: 0.33423479000000006,
-        yb: 0.23335626327396836, yt: 1.0707590932739686 }, { t: 0.25,
-        w: 0.29167886, yb: 0.2817356282739685,
-        yt: 1.0556337682739685 }, { t: 0.375, w: 0.24912293000000008,
-        yb: 0.3301149932739684, yt: 1.0405084432739686 }, { t: 0.5,
-        w: 0.2055661869686438, yb: 0.3784943582739684,
-        yt: 1.0253831182739686 }, { t: 0.625, w: 0.16225743794287772,
-        yb: 0.42687372327396844, yt: 1.0102577932739685 }, { t: 0.75,
-        w: 0.11930762519927884, yb: 0.47525308827396845,
-        yt: 0.9951324682739686 }, { t: 0.875, w: 0.07721732340563646,
-        yb: 0.5236324532739685, yt: 0.9800071432739685 }, { t: 1,
-        w: 0.03653992300985376, yb: 0.5717755395722337,
-        yt: 0.964955688448873 }], tailY: 0,
-        cowlDeck: 0.707739400386603, windRun: 0.26, crownTop: 0.72,
+      energy: {
+        kind: "fuel",
+        fuel: "avgas100LL",
+        cell: "lifepo4",
+        kWh: 0,
+        vessel: null,
+        finish: null,
+        hue: 0,
+        tint: null,
+        vessels: [{
+            bay: "wingRoot",
+            capacity: 212,
+            along: 0.28,
+            lv: null,
+            rot: 0,
+            form: "box",
+            finish: null,
+            hue: null,
+            tint: null }] },
+      outfit: { seats: "sling" },
+      fuselage: {
+        material: "alloy",
+        shape: "straight",
+        covering: "skin",
+        tailArm: 5.7514,
+        postGap: 0.12641217500000002,
+        tailBays: 4,
+        tailW: 0.0894607724513216,
+        tailBot: 0.3679362687224861,
+        tailTop: 0.8255364705444412,
+        boom: "loft",
+        profile: [{ t: 0, w: 0.495234508044387, yb: -0.009343480978522556, yt: 1.501328981758137 }, { t: 0.125, w: 0.43817835932765725, yb: 0.032196769670364, yt: 1.1545020346241868 }, { t: 0.25, w: 0.3895401514315414, yb: 0.07065278666412778, yt: 0.9647111634219824 }, { t: 0.375, w: 0.33978229966227325, yb: 0.12024939548359592, yt: 0.9414922723069288 }, { t: 0.5, w: 0.28993247194995575, yb: 0.16984600430306407, yt: 0.9182733811918751 }, { t: 0.625, w: 0.23997202602227002, yb: 0.21944261312253233, yt: 0.8950544900768215 }, { t: 0.75, w: 0.18987842249487194, yb: 0.2690392219420005, yt: 0.8718355989617678 }, { t: 0.875, w: 0.13962023792697975, yb: 0.3186358307614686, yt: 0.8486167078467141 }, { t: 1, w: 0.0894607724513216, yb: 0.3679362687224861, yt: 0.8255364705444412 }],
+        tailY: 0,
+        cowlDeck: 0.7691804744677179,
+        windRun: 0.26,
+        crownTop: 0.72,
         crownSide: 0.07 },
-      cowl:
-        { fillet: 0.1, taper: 0.94, halfW: null, top: null, bot: null,
-        intake: "chin" },
-      engines:
-        [{ type: "a65_sensenich74", mount: "nose", place: { dx: 0,
-        dy: 0 } }],
-      prop:
-        { D: 1.91, blades: 2, material: "wood", pitch: "cruise",
-        chord: 0.1, root: 0.16, spinner: { shape: "ogive", len: 2.2,
-        dia: 0.17 } },
-      wings:
-        [{ span: 10.7, chord: 1.7, taper: 1, dihedral: 1,
-        incidence: 2.4, washout: 0, naca: 5412, panels: 3,
-        position: "high", sweep: 0, tip: "rounded", crankAt: 0,
-        dihedralOut: null, crankChord: null, crankX: null, tipX: 0,
-        centre: "open", xLE: 0.28475339999999993, place: { dx: 0,
-        dy: 0 } }],
-      bracing: { type: "strut" },
-      // the tail rows below are G54.3's BOUNDING-BOX readouts (hChord and
-      // vChord are box extents, not chords) and carry no areas; since TAIL
-      // CHANTIER 2 P1 the join re-measures every one of them on load
-      // (BUILD_SYNC) off the drawn sheets — mean chords, Sh, Sv — so what
-      // is frozen here never flies. Kept as the file's own history.
-      tail:
-        { type: "conventional", vAngle: 33, hSpan: 2.906604804992676,
-        hChord: 1.2756185054779055, hX: 5.0341699094937145, hTaper: 1,
-        tip: "rounded", tipV: null, tipH: null, vSweep: 0,
-        stabH: 0.09169749444333175, dorsal: { len: 0.34, height: 0.16,
-        width: 0.55, angle: null }, vHeight: 1.2070848610429987,
-        vChord: 1.4608036899566659, vX: 5.087938892380981,
-        place: { dx: 0 } },
-      gear:
-        { type: "taildragger", fairing: "none", twFairing: "none",
-        legFair: "none", twLegFair: "none", fairTail: 1, twFairTail: 1,
-        fairMat: "glass", suspension: "bungee", track: 1.78,
-        x: 0.3736674562787443, y: -0.4570995196467612, wheelR: 0.22,
-        twX: 5.488333519999999, twY: 0.4161345006233944, twR: 0.08,
-        stiffness: 1, legDrop: null, twLeg: null, camber: 0,
+      cowl: { fillet: 0.1, taper: 0.94, halfW: null, top: null, bot: null, intake: "chin" },
+      prop: {
+        D: 1.905,
+        blades: 2,
+        material: "alu",
+        pitch: "standard",
+        chord: 0.1,
+        root: 0.16,
+        spinner: { shape: "ogive", len: 2.2, dia: 0.17 } },
+      tail: {
+        type: "conventional",
+        vAngle: 33,
+        Sh: 3.11198165656872,
+        Sv: 1.4579166647690527,
+        Svt: null,
+        hSpan: 3.4092135429382324,
+        hChord: 0.9128151162648078,
+        hX: 5.443862079137726,
+        hTaper: 0.733686780215239,
+        tip: "rounded",
+        tipV: null,
+        tipH: null,
+        vSweep: 0,
+        stabH: 0.04673885555395872,
+        dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null, area: 0.11896522017949966 },
+        vHeight: 1.4041700990346622,
+        vChord: 1.0382763924195082,
+        vX: 5.821198721879883,
+        vTaper: 0.6733361264080304,
+        place: { dx: 0 },
+        boomX: null,
+        boomLen: null,
+        boomR: null,
+        boomX0: null,
+        boomTaper: null,
+        boomOval: null,
+        boomIncl: 0,
+        boomDy: 0,
+        stabY: null },
+    },
+    'piper cub': {
+      meta: { name: "Piper Cub", reg: "F-BCUB", role: null, class: null },
+      cabin: {
+        seating: "tandem2",
+        pilots: 1,
+        pax: 0,
+        baggage: 10,
+        halfW: 0.371911655568052,
+        h: 1.3048818182739685,
+        len: 1.31356348,
+        noseGap: 0.9902989600000001,
+        seatX: 0,
+        seatY: 0.1,
+        seatPitch: 0.86,
+        glazing: "bubble",
+        panel: { on: true, depth: 0.27, inset: 0.06, wrap: 0.5 },
+        pilot: {
+          show: true,
+          stature: 1.75,
+          lean: 17,
+          thigh: -9,
+          shank: 10,
+          armDown: 40,
+          fore: 6,
+          head: -11,
+          armIn: 26,
+          ankle: 40,
+          toeOut: 7,
+          hipOut: 0,
+          kneeOut: 3 },
+        canopy: {
+          height: 0,
+          sill: 0.3,
+          skew: 0.42,
+          bubble: 0.7,
+          lid: 1,
+          width: 1,
+          x0: null,
+          x1: null,
+          reach: null,
+          joint: "square",
+          jointRun: 3,
+          facet: false,
+          sun: 0,
+          sunStart: 0.38,
+          sides: false,
+          sideTop: 0.34,
+          sideDepth: 0.5,
+          sideReach: 1,
+          sideGap: 0.1,
+          wsAngle: null,
+          wsCurve: 1,
+          style: "screen" },
+        seatsX: [0.6202989600000002, 2.00283456],
+        seats: 2,
+        occupied: [1, 0] },
+      cargo: { len: 0, kg: 0 },
+      fuel: { litres: 45, tank: "nose" },
+      systems: { fit: "basic" },
+      controls: {
+        flap: { type: "fowler", span: 0.38, chord: 0.29 },
+        aileron: { span: 0.55, chord: 0.29 },
+        elevator: { chord: 0.41824692581388634 },
+        rudder: { chord: 0.6071718956766589 } },
+      fuselage: {
+        material: "tubeFabric",
+        shape: "straight",
+        tailArm: 5.01295932,
+        postGap: 0.11537419999999976,
+        tailBays: 4,
+        tailW: 0.03653992300985376,
+        tailBot: 0.5717755395722337,
+        tailTop: 0.964955688448873,
+        profile: [{ t: 0, w: 0.3752804623131992, yb: 0.18516342924926094, yt: 1.085347639067249 }, { t: 0.125, w: 0.33423479000000006, yb: 0.23335626327396836, yt: 1.0707590932739686 }, { t: 0.25, w: 0.29167886, yb: 0.2817356282739685, yt: 1.0556337682739685 }, { t: 0.375, w: 0.24912293000000008, yb: 0.3301149932739684, yt: 1.0405084432739686 }, { t: 0.5, w: 0.2055661869686438, yb: 0.3784943582739684, yt: 1.0253831182739686 }, { t: 0.625, w: 0.16225743794287772, yb: 0.42687372327396844, yt: 1.0102577932739685 }, { t: 0.75, w: 0.11930762519927884, yb: 0.47525308827396845, yt: 0.9951324682739686 }, { t: 0.875, w: 0.07721732340563646, yb: 0.5236324532739685, yt: 0.9800071432739685 }, { t: 1, w: 0.03653992300985376, yb: 0.5717755395722337, yt: 0.964955688448873 }],
+        tailY: 0,
+        cowlDeck: 0.707739400386603,
+        windRun: 0.26,
+        crownTop: 0.72,
+        crownSide: 0.07,
+        covering: "skin",
+        boom: "loft" },
+      cowl: { fillet: 0.1, taper: 0.94, halfW: null, top: null, bot: null, intake: "chin" },
+      engines: [{
+          type: "a65_sensenich74",
+          mount: "nose",
+          place: { dx: 0, dy: 0 },
+          x: -0.8919589349855195,
+          sense: 1 }],
+      prop: {
+        D: 1.91,
+        blades: 2,
+        material: "wood",
+        pitch: "standard",
+        chord: 0.1,
+        root: 0.16,
+        spinner: { shape: "ogive", len: 2.2, dia: 0.17 } },
+      wings: [{
+          span: 10.7,
+          chord: 1.7,
+          taper: 1,
+          dihedral: 1,
+          incidence: 2.4,
+          washout: 0,
+          naca: 5412,
+          panels: 3,
+          position: "high",
+          sweep: 0,
+          tip: "rounded",
+          crankAt: 0,
+          dihedralOut: null,
+          crankChord: null,
+          crankX: null,
+          tipX: 0,
+          centre: "open",
+          xLE: 0.28475339999999993,
+          place: { dx: 0, dy: 0 },
+          cuts: [1.114, 1.454],
+          cabaneH: null,
+          centreW: null,
+          yRoot: 1.2148818182739687 }],
+      bracing: { type: "strut", interplane: "none", interplaneAt: 0.62, wires: "both", cabane: "N" },
+      tail: {
+        type: "conventional",
+        vAngle: 33,
+        hSpan: 2.8391359901428226,
+        hChord: 0.866395108782037,
+        hX: 5.0700244207547005,
+        hTaper: 0.5564609794929307,
+        tip: "rounded",
+        tipV: null,
+        tipH: null,
+        vSweep: 0,
+        stabH: 0,
+        dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null, area: 0 },
+        vHeight: 1.2084655255893142,
+        vChord: 0.8133108435080637,
+        vX: 5.068657629029541,
+        place: { dx: 0 },
+        Sh: 2.459813535026787,
+        Sv: 0.9828581159674606,
+        Svt: null,
+        vTaper: 0.5881591308812331,
+        boomX: null,
+        boomLen: null,
+        boomR: null },
+      gear: {
+        type: "taildragger",
+        fairing: "none",
+        twFairing: "none",
+        legFair: "none",
+        twLegFair: "none",
+        fairTail: 1,
+        twFairTail: 1,
+        fairMat: "glass",
+        suspension: "bungee",
+        track: 1.78,
+        x: 0.3750670186633971,
+        y: -0.4570995196467612,
+        wheelR: 0.22,
+        twX: 5.488333519999999,
+        twY: 0.4161345006233944,
+        twR: 0.08,
+        stiffness: 1,
+        legDrop: null,
+        twLeg: null,
+        camber: 0,
         place: { dx: 0, dtrack: 0 } },
-      paint:
-        { job: "full", base: 15909943, trim: 1784412, sweep: 0.55,
-        gloss: 0.42, regX: 0.3 },
-      finish:
-        { sections: { strut: { fin: "castAlu", tint: 16777215 },
-        body: { tint: 16764160 }, waistband: { tint: 2500134 },
-        ceilingLoop: { tint: 16764160 },
-        pillarFront: { tint: 16764160 },
-        pillarCabin: { tint: 16764160 }, floorLoop: { tint: 16764160 },
-        gearLeg: { tint: 16764160 }, pillarWindow: { tint: 16764160 },
-        dummy2: { tint: 6083612 }, pillarPassenger: { tint: 16764160 },
-        pillarTail: { tint: 16764160 }, joint: { tint: 7368816 },
-        wingTip: { tint: 0 }, finRud: { tint: 16764160 },
-        spinner: { tint: 3684408 } }, wear: 1, decals: { regH: 0.6,
-        regL: 3.15, regC: 0.14, regW: 1, regLock: 0, imgW: 0.15,
-        imgH: 0.15, wimL: 0.65 }, glass: { opacity: 0.35,
-        rainbow: 0.5 } },
+      paint: { job: "full", base: 15909943, trim: 1784412, sweep: 0.55, gloss: 0.42, regX: 0.3 },
+      finish: {
+        sections: {
+          strut: { fin: "castAlu", tint: 16777215 },
+          body: { tint: 16764160 },
+          waistband: { tint: 2500134 },
+          ceilingLoop: { tint: 16764160 },
+          pillarFront: { tint: 16764160 },
+          pillarCabin: { tint: 16764160 },
+          floorLoop: { tint: 16764160 },
+          gearLeg: { tint: 16764160 },
+          pillarWindow: { tint: 16764160 },
+          dummy2: { tint: 6083612 },
+          pillarPassenger: { tint: 16764160 },
+          pillarTail: { tint: 16764160 },
+          joint: { tint: 7368816 },
+          wingTip: { tint: 0 },
+          finRud: { tint: 16764160 },
+          spinner: { tint: 3684408 } },
+        wear: 0.15,
+        decals: {
+          regH: 0.3,
+          regL: 3.66,
+          regC: -0.18,
+          regW: 1,
+          regLock: 1,
+          imgW: 0.15,
+          imgH: 0.15,
+          wimL: 0.65,
+          regCol: 1315860,
+          regOutOn: 0,
+          m1On: 1,
+          m1Pat: 3,
+          m1A: 1315860,
+          m1B: 16765568,
+          m1D: 16765568,
+          m1L: -1.3,
+          m1C: 0.3,
+          m1W: 8.6,
+          m1H: 0.28,
+          m1Rot: 0.02,
+          m1Tgt: 0,
+          m1Mode: 1 },
+        glass: { opacity: 0.35, rainbow: 0.5 } },
+      energy: {
+        kind: "fuel",
+        fuel: "avgas100LL",
+        cell: "lifepo4",
+        kWh: 0,
+        vessel: null,
+        finish: null,
+        hue: 0,
+        tint: null,
+        vessels: [{
+            bay: "nose",
+            capacity: 45,
+            along: null,
+            lv: 0.9,
+            rot: 0,
+            form: "box",
+            finish: null,
+            hue: null,
+            tint: null }] },
+      outfit: { seats: "sling" },
+    },
+    'jodel D112': {
+      meta: { name: "Jodel D112", reg: "F-PJDL", role: null, class: null },
+      cabin: {
+        seating: "single",
+        pilots: 1,
+        pax: 0,
+        baggage: 10,
+        halfW: 0.5334078811410423,
+        h: 1.04683717817479,
+        len: 0.1625545524645866,
+        noseGap: 0.8567499999999995,
+        seatX: 0,
+        seatY: 0.1,
+        seatPitch: 0.86,
+        glazing: "bubble",
+        panel: { on: true, depth: 0.27, inset: 0.06, wrap: 0.5 },
+        pilot: {
+          show: true,
+          stature: 1.75,
+          lean: 17,
+          thigh: -9,
+          shank: 10,
+          armDown: 40,
+          fore: 6,
+          head: -11,
+          armIn: 26,
+          ankle: 40,
+          toeOut: 7,
+          hipOut: 0,
+          kneeOut: 3 },
+        canopy: {
+          height: 0,
+          sill: 0.3,
+          skew: 0.42,
+          bubble: 0.7,
+          lid: 1,
+          width: 1,
+          x0: null,
+          x1: null,
+          reach: null,
+          joint: "square",
+          jointRun: 3,
+          facet: false,
+          sun: 0,
+          sunStart: 0.38,
+          sides: false,
+          sideTop: 0.34,
+          sideDepth: 0.5,
+          sideReach: 1,
+          sideGap: 0.1,
+          wsAngle: null,
+          wsCurve: 1,
+          style: "screen" },
+        seatsX: [0.46624999999999955, 0.46624999999999955, 1.1158009413370966, 1.1158009413370966],
+        seats: 2,
+        occupied: [1, 0] },
+      cargo: { len: 0, kg: 0 },
+      fuel: { litres: 45, tank: "nose" },
+      systems: { fit: "basic" },
+      controls: {
+        flap: { type: "fowler", span: 0.5, chord: 0.2 },
+        aileron: { span: 0.38, chord: 0.22 },
+        elevator: { chord: 0.4487992316570134 },
+        rudder: { chord: 0.5327483060766903 } },
+      fuselage: {
+        material: "wood",
+        shape: "straight",
+        tailArm: 3.97380467,
+        postGap: 0.12641217500000002,
+        tailBays: 4,
+        tailW: 0.07375654346035021,
+        tailBot: 0.43092896310652107,
+        tailTop: 0.842762501027201,
+        profile: [{ t: 0, w: 0.5324780631423192, yb: 0.004396546862195871, yt: 1.04683717817479 }, { t: 0.125, w: 0.4749410561771378, yb: 0.06020049996515253, yt: 1.0227272934454201 }, { t: 0.25, w: 0.4164519032628088, yb: 0.11337424388663647, yt: 0.9969148653792204 }, { t: 0.375, w: 0.3570764409820404, yb: 0.1665479878081204, yt: 0.9711024373130204 }, { t: 0.5, w: 0.2981272595012579, yb: 0.21972173172960446, yt: 0.9452900092468206 }, { t: 0.625, w: 0.23997263335217286, yb: 0.2728954756510884, yt: 0.9194775811806206 }, { t: 0.75, w: 0.1827985765706644, yb: 0.3260692195725724, yt: 0.8936651531144207 }, { t: 0.875, w: 0.12676537615682723, yb: 0.3792429634940564, yt: 0.8678527250482209 }, { t: 1, w: 0.07375654346035021, yb: 0.43092896310652107, yt: 0.842762501027201 }],
+        tailY: 0,
+        cowlDeck: 0.7324025851107449,
+        windRun: 0.26,
+        crownTop: 0.72,
+        crownSide: 0.07,
+        covering: "skin",
+        boom: "loft" },
+      cowl: { fillet: 0.1, taper: 0.94, halfW: null, top: null, bot: null, intake: "chin" },
+      engines: [{
+          type: "a65_sensenich74",
+          mount: "nose",
+          place: { dx: 0, dy: 0 },
+          x: -0.9855131445824625,
+          sense: 1 }],
+      prop: {
+        D: 1.83,
+        blades: 2,
+        material: "wood",
+        pitch: "cruise",
+        chord: 0.1,
+        root: 0.16,
+        spinner: { shape: "ogive", len: 2.2, dia: 0.17 } },
+      wings: [{
+          span: 8.3,
+          chord: 1.8,
+          taper: 0.6111111111111112,
+          dihedral: 0,
+          incidence: -1,
+          washout: 1.5,
+          naca: 2414,
+          panels: 3,
+          position: "low",
+          sweep: 0,
+          tip: "square",
+          crankAt: 0.55,
+          dihedralOut: 17.5,
+          crankChord: 1.8,
+          crankX: 0,
+          tipX: 0,
+          centre: "solid",
+          xLE: -0.012250000000000372,
+          place: { dx: 0, dy: 0 },
+          cuts: [1.241, 1.581],
+          cabaneH: null,
+          y: 0.08639259204344141,
+          centreW: null,
+          yRoot: 0.07030417919845383 }],
+      bracing: {
+        type: "cantilever",
+        interplane: "none",
+        interplaneAt: 0.62,
+        wires: "both",
+        cabane: "N" },
+      tail: {
+        type: "conventional",
+        vAngle: 33,
+        hSpan: 2.7136949479579924,
+        hChord: 0.8329211702360629,
+        hX: 3.940170714062614,
+        hTaper: 0.9754593174589672,
+        tip: "rounded",
+        tipV: null,
+        tipH: null,
+        vSweep: 0,
+        stabH: 0.17861247896892268,
+        dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null, area: 0 },
+        vHeight: 1.254351533090614,
+        vChord: 0.8178907980434644,
+        vX: 4.4933750937403865,
+        place: { dx: 0 },
+        boomX: null,
+        boomLen: null,
+        boomR: null,
+        Sh: 2.260293971716863,
+        Sv: 1.0259225764265254,
+        vTaper: 0.6861910821140647 },
+      gear: {
+        type: "taildragger",
+        fairing: "none",
+        twFairing: "none",
+        legFair: "none",
+        twLegFair: "none",
+        fairTail: 1,
+        twFairTail: 1,
+        fairMat: "glass",
+        suspension: "oleo",
+        track: 1.96,
+        x: 0.20416429499999955,
+        y: -0.5969199395618683,
+        wheelR: 0.2,
+        twX: 4.346216845,
+        twY: 0.23741670741554044,
+        twR: 0.07,
+        stiffness: 1,
+        legDrop: null,
+        twLeg: null,
+        camber: 0,
+        place: { dx: 0, dtrack: 0 } },
+      paint: { job: "full", base: 15854296, trim: 8134444, sweep: 0.55, gloss: 0.42, regX: 0.3 },
+      finish: {
+        sections: {
+          strut: { fin: "castAlu", tint: 15854296 },
+          body: { tint: 15854296 },
+          waistband: { tint: 15854296 },
+          ceilingLoop: { tint: 15854296 },
+          pillarFront: { tint: 15854296 },
+          pillarCabin: { tint: 15854296 },
+          floorLoop: { tint: 15854296 },
+          gearLeg: { tint: 15854296 },
+          pillarWindow: { tint: 15854296 },
+          dummy2: { tint: 14065948 },
+          pillarPassenger: { tint: 15854296 },
+          pillarTail: { tint: 15854296 },
+          joint: { tint: 7368816 },
+          wingTip: { tint: 15854296 },
+          finRud: { tint: 15854296 },
+          spinner: { tint: 8134444 },
+          pillarTaper: { tint: 15854296 },
+          taper: { tint: 15854296 },
+          wingSkin: { tint: 15854296 } },
+        wear: 0.1,
+        decals: {
+          regH: 0.28,
+          regL: 2.5,
+          regC: 0.3,
+          regW: 1,
+          regLock: 1,
+          imgW: 0.15,
+          imgH: 0.15,
+          wimL: 0.65,
+          wimH: 2,
+          regCol: 8134444,
+          m1On: 1,
+          m1Pat: 2,
+          m1A: 8134444,
+          m1B: 14263361,
+          m1D: 15854296,
+          m1L: -1.3,
+          m1C: 0,
+          m1W: 7.6,
+          m1H: 0.8,
+          m1Rot: 0.03,
+          m1Tgt: 2,
+          m1Mode: 1,
+          regOutOn: 0 } },
+      energy: {
+        kind: "fuel",
+        fuel: "avgas100LL",
+        cell: "lifepo4",
+        kWh: 0,
+        vessel: null,
+        finish: null,
+        hue: 0,
+        tint: null,
+        vessels: [{
+            bay: "nose",
+            capacity: 45,
+            along: null,
+            lv: 0.9,
+            rot: 0,
+            form: "box",
+            finish: null,
+            hue: null,
+            tint: null }] },
+      outfit: { seats: "sling" },
     },
   },
 };
@@ -52859,27 +54295,11 @@ function buildSeat(parent, A, P, sx, zBack, sbs, SP) {
   if (type === 1) seatShell(parent, A, P, g);
   else if (type === 2) seatAirline(parent, A, P, g);
   else seatTube(parent, A, P, g);
-  // lap belts, hanging over the squab rim (webbing is flat — a ribbon).
-  // Off by default (user 2026-08-19: removed for now).
-  if (P.seatBelt) {
-    const szc = g.szc, panY = g.panY, hw = g.hw;
-    const bag = Bag(M.belt);
-    for (const s3 of [-1, 1]) {
-      ribbon(bag, [
-        [sx + s3 * (hw + 0.010), panY - 0.045, szc - 0.19],
-        [sx + s3 * hw * 0.96, panY + 0.015, szc - 0.10],
-        [sx + s3 * hw * 0.88, panY + 0.020, szc + 0.06],
-        [sx + s3 * hw * 0.80, panY - 0.055, szc + 0.17],
-        [sx + s3 * hw * 0.74, panY - 0.155, szc + 0.19],
-        [sx + s3 * hw * 0.72, panY - 0.235, szc + 0.17],
-      ], 0.048, 0.5);
-      const bx = sx + s3 * hw * 0.72, by = panY - 0.255, bz = szc + 0.17;
-      boxAt(parent, s3 > 0 ? M.metal : M.dark,
-            [bx, by - 0.012, bz + 0.004],
-            s3 > 0 ? [0.055, 0.045, 0.010] : [0.045, 0.060, 0.006]);
-    }
-    bag.mesh(parent);
-  }
+  // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172: "delete the
+  // option for the hanging safety belts (they got through the fuselage)").
+  // They were off by default since 2026-08-19 and hung through the sides
+  // of any cabin narrower than the stock one; a saved `seatBelt` is read
+  // and ignored.
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw,
            backH: g.backH, rake: g.rake };
 }
@@ -75234,9 +76654,12 @@ const GROUP = ['8 · tail — fin (2D)', [
 // it so the preset is SELF-CONTAINED: the page's defaults now carry the
 // angular jodel fin, and a preset key left unset would inherit it (the
 // sailplane-preset lesson, G19).
-if (PAGE.presets && PAGE.presets['piper cub'])
-  Object.assign(PAGE.presets['piper cub'],
-    FIN.FIN_PARAMS, FIN.FIN_CUB, { finCut: 2 });
+// G445.4: fill, never overwrite (see _cage_stab.js): the row carries its
+// own fin; a key it does not state takes the Cub's
+if (PAGE.presets && PAGE.presets['piper cub']) {
+  const own = Object.assign({}, FIN.FIN_PARAMS, FIN.FIN_CUB, { finCut: 2 });
+  for (const k in own) if (!(k in PAGE.presets['piper cub'])) PAGE.presets['piper cub'][k] = own[k];
+}
 
 // ---- the skin filter ------------------------------------------------------
 // the gear module's own set when it is loaded (one description of "skin");
@@ -75952,8 +77375,14 @@ const stOwn = Object.assign({}, stDef);
 PAGE.defaults = Object.assign(stDef, PAGE.defaults || {});
 // the piper cub keeps ITS tailplane (the Cub-mapped values) even though
 // the page defaults now carry the jodel one — presets stay self-contained
+// G445.4: FILL, NEVER OVERWRITE. The row is a whole saved cage now
+// (builds/cub_2026-09-20_corrected.json) and carries its own stab, stSpan
+// 1.41 included — the PA-18 payload's 2.88 m; Object.assign put FIN_PARAMS'
+// finHeight 1 over it on every load and the stock Cub kept the sketch's
+// 2.04 m tail whatever the row said. A key the row does not state still
+// takes the Cub's value, which is all the note above ever asked for.
 if (PAGE.presets && PAGE.presets['piper cub'])
-  Object.assign(PAGE.presets['piper cub'], stOwn);
+  for (const k in stOwn) if (!(k in PAGE.presets['piper cub'])) PAGE.presets['piper cub'][k] = stOwn[k];
 
 const GROUP = ['8b · tail — stab & elevator', [
   ['stOn',    'stab layer',      0, 1, 1, ['off', 'on']],
@@ -79630,7 +81059,44 @@ function bodyPlace(mesh, FS, bay, v, dims, wall, zFw, cache) {
 // fills the whole bay then holds exactly what the plaque says the bay holds,
 // by construction, and the drawn box cannot disagree with the ledger. The
 // measured slice still gives the box its depth and its chord.
-function wingPlace(semi, bay, v, installedL, slice, rules, bayLitres) {
+// THE TANK IS THE SPAR BAY'S OWN SECTION (G445.2, 2026-09-20, the user: "the
+// wing mounted tanks should have a good geometry. Now they're just boxes
+// that do not fit. They should have the shape of the wing, and just fit").
+// `prof(x, z)`, when the caller hands one over, answers the drawn skin's
+// top and bottom height {yTop, yBot} at span x / chord z (the wing layer's
+// own ray probes, overAt/underAt) or null off the planform. With it each
+// side carries `ribs`: stations from the inboard end to the outboard one,
+// each a run of chord samples [z, yTop - wall, yBot + wall] between the
+// spar planes (inset `edge` from each), so the loft the mesh draws from
+// them sits inside the aerofoil everywhere - thinner aft, thinner outboard
+// - instead of the one-depth slab that used to poke out of both. The
+// corners (x0/x1, zF/zR, y, d) stay what they were: the fit test, the
+// crew test and GATE ENERGY read those, and a caller without a profile
+// (the gate's analytic slice) gets exactly the aeroplane it had.
+const TANK_WALL = 0.012, TANK_EDGE = 0.020, TANK_RIB_PITCH = 0.30, TANK_SAMPLES = 8;
+function wingRibs(sx, xIn, xOut, zF0, zR0, zF1, zR1, y, d, prof) {
+  const span = Math.abs(xOut - xIn);
+  const K = Math.max(2, Math.ceil(span / TANK_RIB_PITCH) + 1);
+  const ribs = [];
+  let missed = 0;
+  for (let k = 0; k < K; k++) {
+    const t = K > 1 ? k / (K - 1) : 0;
+    const x = xIn + (xOut - xIn) * t;
+    const zF = zF0 + (zF1 - zF0) * t - TANK_EDGE, zR = zR0 + (zR1 - zR0) * t + TANK_EDGE;
+    const pts = [];
+    for (let i = 0; i < TANK_SAMPLES; i++) {
+      const z = zF + (zR - zF) * i / (TANK_SAMPLES - 1);
+      const p = prof(sx * x, z);
+      let yT = p && isFinite(p.yTop) ? p.yTop - TANK_WALL : null;
+      let yB = p && isFinite(p.yBot) ? p.yBot + TANK_WALL : null;
+      if (yT == null || yB == null || yT - yB < 0.015) { yT = y + d / 2; yB = y - d / 2; missed++; }
+      pts.push([z, yT, yB]);
+    }
+    ribs.push({ x: sx * x, pts });
+  }
+  return { ribs, missed };
+}
+function wingPlace(semi, bay, v, installedL, slice, rules, bayLitres, prof) {
   const out = { on: 'wing', ok: false, why: [], sides: [] };
   const R = rules || {};
   const sparF = R.sparFront != null ? R.sparFront : 0.15;
@@ -79671,14 +81137,19 @@ function wingPlace(semi, bay, v, installedL, slice, rules, bayLitres) {
   const fOut = xOut / Math.max(1e-9, semi);
   const inBay = fOut <= hi + 1e-6;
   for (const sg of [1, -1]) {
-    out.sides.push({
+    const side = {
       sign: sg,
       x0: sg * xIn, x1: sg * xOut,
       // a tapered box: the four chordwise corners follow the local chord
       zF0: zLEin - sparF * cIn, zR0: zLEin - sparR * cIn,
       zF1: zLEout - sparF * cOut, zR1: zLEout - sparR * cOut,
       y: ymid, d: sec0.d,
-    });
+    };
+    if (typeof prof === 'function') {
+      const rb = wingRibs(sg, xIn, xOut, side.zF0, side.zR0, side.zF1, side.zR1, ymid, sec0.d, prof);
+      side.ribs = rb.ribs; side.ribsMissed = rb.missed;
+    }
+    out.sides.push(side);
   }
   out.along = f0; out.fOut = fOut; out.spanM = xOut - xIn; out.metL = acc * 2;
   out.ok = met && inBay && !thin;
@@ -79768,7 +81239,7 @@ function pointInBox(p, place, margin) {
 }
 
 const API = { SHAPES, vesselDims, installedFromDims, bayFitDims, bayExtAt, defaultSpot, settleLv, specFromCage,
-              firewallZ, bodyPlace, wingPlace, bayCache, analyticSlice, pointInBox,
+              firewallZ, bodyPlace, wingPlace, wingRibs, bayCache, analyticSlice, pointInBox,
               sLTable, sLOfZ };
 if (typeof window !== 'undefined') window.VESSEL_GEN = API;
 if (typeof module !== 'undefined') module.exports = API;
@@ -80533,7 +82004,107 @@ function mount(sol, dy, tile, yAt) {
   return out;
 }
 
-const API = { build, contents, wingBox, mkShape, sectRR, widthAt, heightAt, Buf,
+// ---------------------------------------------------------------------------
+// THE WING TANK AS A LOFT (G445.2, 2026-09-20): the spar bay's own section,
+// station by station. `ribs` is what VESSEL_GEN.wingRibs returns - inboard
+// to outboard, each {x, pts: [[z, yTop, yBot], ...]} with the same sample
+// count, front to rear - and the solid is the ring (top front->rear, then
+// bottom rear->front) lofted along x with a flat rib at each end. Flat
+// per-face normals turned OUTWARD by the rib's own centre, whichever side
+// the layer mirrored it to (the box's lesson); metre-true uv (u along the
+// ring, v along the span). `opt.fill` (0..1) with `opt.inset` cuts the
+// same solid flat at the level for the fuel inside: every top sample is
+// capped at bottom + fill x depth, the outline stepped in by the inset.
+// ---------------------------------------------------------------------------
+function wingLoft(ribs, tile, opt) {
+  const buf = Buf();
+  if (!ribs || ribs.length < 2) return buf;
+  const T = Math.max(1e-4, tile || 0.5);
+  const o = opt || {};
+  const ins = o.inset || 0, fill = o.fill == null ? null : clamp(o.fill, 0, 1);
+  const M = ribs[0].pts.length;
+  // the rings
+  const rings = ribs.map(r => {
+    const ring = [];
+    const zs = r.pts.map(q => q[0]);
+    const zF = Math.max(...zs), zR = Math.min(...zs);
+    const zOf = z => clamp(z, zR + ins, zF - ins);
+    const top = [], bot = [];
+    for (let i = 0; i < M; i++) {
+      const [z, yT0, yB0] = r.pts[i];
+      const yB = yB0 + ins;
+      let yT = yT0 - ins;
+      if (fill != null) yT = yB + Math.max(0.003, (yT0 - yB0 - 2 * ins) * fill);
+      if (yT < yB + 0.002) yT = yB + 0.002;
+      top.push([r.x, yT, zOf(z)]); bot.push([r.x, yB, zOf(z)]);
+    }
+    for (let i = 0; i < M; i++) ring.push(top[i]);
+    for (let i = M - 1; i >= 0; i--) ring.push(bot[i]);
+    return ring;
+  });
+  const NR = 2 * M;
+  const ctrOf = ring => { const c = [0, 0, 0]; for (const p of ring) { c[0] += p[0] / NR; c[1] += p[1] / NR; c[2] += p[2] / NR; } return c; };
+  const arc = ring => { const a = [0]; for (let i = 1; i <= NR; i++) { const p = ring[i % NR], q = ring[i - 1]; a.push(a[i - 1] + Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])); } return a; };
+  const face = (A, B, C, D, ctr, uv) => {
+    let n = nrm(crs([B[0] - A[0], B[1] - A[1], B[2] - A[2]], [C[0] - A[0], C[1] - A[1], C[2] - A[2]]));
+    const out = [A[0] - ctr[0], A[1] - ctr[1], A[2] - ctr[2]];
+    const flip = n[0] * out[0] + n[1] * out[1] + n[2] * out[2] < 0;
+    if (flip) n = [-n[0], -n[1], -n[2]];
+    const q = [A, B, C, D].map((p, i) => buf.v(p, n, uv[i]));
+    if (flip) buf.quad(q[3], q[2], q[1], q[0]); else buf.quad(q[0], q[1], q[2], q[3]);
+  };
+  // the sides, ring to ring
+  for (let k = 0; k + 1 < rings.length; k++) {
+    const R0 = rings[k], R1 = rings[k + 1];
+    const a0 = arc(R0), a1 = arc(R1);
+    const c = ctrOf(R0), c1 = ctrOf(R1);
+    const ctr = [(c[0] + c1[0]) / 2, (c[1] + c1[1]) / 2, (c[2] + c1[2]) / 2];
+    const v0 = R0[0][0] / T, v1 = R1[0][0] / T;
+    for (let i = 0; i < NR; i++) {
+      const j = (i + 1) % NR;
+      face(R0[i], R0[j], R1[j], R1[i], ctr,
+           [[a0[i] / T, v0], [a0[i + 1] / T, v0], [a1[i + 1] / T, v1], [a1[i] / T, v1]]);
+    }
+  }
+  // the end ribs: a fan from the ring's centre, turned away from the loft
+  const mid = ctrOf(rings[Math.floor(rings.length / 2)]);
+  for (const k of [0, rings.length - 1]) {
+    const R = rings[k], c = ctrOf(R);
+    const away = [c[0] - mid[0], c[1] - mid[1], c[2] - mid[2]];
+    for (let i = 0; i < NR; i++) {
+      const j = (i + 1) % NR, A = R[i], B = R[j];
+      let n = nrm(crs([A[0] - c[0], A[1] - c[1], A[2] - c[2]], [B[0] - c[0], B[1] - c[1], B[2] - c[2]]));
+      const flip = n[0] * away[0] + n[1] * away[1] + n[2] * away[2] < 0;
+      if (flip) n = [-n[0], -n[1], -n[2]];
+      const uvOf = p => [(p[2] - c[2]) / T, (p[1] - c[1]) / T];
+      const ic = buf.v(c, n, [0, 0]), ia = buf.v(A, n, uvOf(A)), ib = buf.v(B, n, uvOf(B));
+      if (flip) buf.tri(ic, ib, ia); else buf.tri(ic, ia, ib);
+    }
+  }
+  return buf;
+}
+// the loft's volume, for the sheet: the section areas (shoelace on each
+// ring) by the conical rule between stations
+function wingLoftVolume(ribs, opt) {
+  if (!ribs || ribs.length < 2) return 0;
+  const ins = (opt && opt.inset) || 0;
+  const area = r => {
+    const M = r.pts.length; let a = 0;
+    for (let i = 0; i + 1 < M; i++) {
+      const [z0, t0, b0] = r.pts[i], [z1, t1, b1] = r.pts[i + 1];
+      a += Math.abs(z1 - z0) * 0.5 * ((t0 - b0 - 2 * ins) + (t1 - b1 - 2 * ins));
+    }
+    return Math.max(0, a);
+  };
+  let v = 0;
+  for (let k = 0; k + 1 < ribs.length; k++) {
+    const A0 = area(ribs[k]), A1 = area(ribs[k + 1]), L = Math.abs(ribs[k + 1].x - ribs[k].x);
+    v += L * (A0 + A1 + Math.sqrt(A0 * A1)) / 3;
+  }
+  return v;
+}
+
+const API = { build, contents, wingBox, wingLoft, wingLoftVolume, mkShape, sectRR, widthAt, heightAt, Buf,
               mount,
               loftBuild, capBuild, bandBuild, tubeBuild };
 if (typeof window !== 'undefined') window.VESSEL_MESH = API;
@@ -80923,8 +82494,46 @@ function placeAll(ctx, inv) {
     let pl;
     if (bay.on === 'wing') {
       const kp = bay.plane | 0, sl = sliceOf(kp), sm = semiOf(kp);
+      // G445.2: THE DRAWN SKIN, top and bottom, at any (span, chord) - the
+      // wing layer's own ray probes, the ones the gear and engine layers
+      // fit to - so the tank the generator ribs out sits inside the
+      // aerofoil that is on the screen, whatever the section, taper,
+      // dihedral or twist did to it. Null (no probe) keeps the box.
+      const Wk = (kp && W && W.planes && W.planes[kp]) ? W.planes[kp] : W;
+      const prof = (Wk && Wk.overAt && Wk.underAt)
+        ? (x, z) => { const t = Wk.overAt(x, z), u = Wk.underAt(x, z);
+                      return (t && u) ? { yTop: t.y, yBot: u.y } : null; }
+        : null;
+      // ...AND THE SLICE THE PROBES GIVE WHERE THE VERTEX SLICER FINDS NOTHING
+      // (G445.2): wingSlicer wants six vertices within 12 cm of a station,
+      // and a loft whose rows sit 37 cm apart (the 172's three panels) has
+      // none between them - the root tank stopped after 6 cm, "runs out of
+      // wing". Cast instead: the leading and trailing edges the wing layer
+      // walks, the thickest of eleven chord samples between them. Cached per
+      // station like the slicer's own answers; the slicer still answers first.
+      const slPr = (sl && prof && Wk.leAt && Wk.teAt) ? (() => {
+        const cache = new Map();
+        return xAt => {
+          const r0 = sl(xAt);
+          if (r0) return r0;
+          const key = Math.round(xAt * 200);
+          if (cache.has(key)) return cache.get(key);
+          let r = null;
+          const le = Wk.leAt(xAt), te = Wk.teAt(xAt);
+          if (le && te) {
+            let y0 = 1e9, y1 = -1e9;
+            for (let i = 0; i <= 10; i++) {
+              const p = prof(xAt, te.z + (le.z - te.z) * i / 10);
+              if (p) { y0 = Math.min(y0, p.yBot); y1 = Math.max(y1, p.yTop); }
+            }
+            if (y1 > y0) r = { y0, y1, zLE: le.z, zTE: te.z, n: 0, cast: true };
+          }
+          cache.set(key, r);
+          return r;
+        };
+      })() : sl;
       pl = (sl && sm > 0)
-        ? G.wingPlace(sm, bay, v, res.installedL, sl, C.RULES || {}, bay.litres)
+        ? G.wingPlace(sm, bay, v, res.installedL, slPr, C.RULES || {}, bay.litres, prof)
         : { on: 'wing', ok: false, why: ['no wing to put it in'], sides: [] };
     } else {
       const cache = cacheOf(bay);
@@ -81466,6 +83075,21 @@ function drawResults(group, ctx, results) {
       // buried between the spars where nothing can see it, so it gets real
       // outward normals and metre-true uv and no hardware.
       for (const s of r.sides) {
+        // G445.2: THE SPAR BAY'S OWN SECTION where the wing could be measured
+        // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
+        // the fuel inside it cut flat at the slider's level. The box below
+        // is what a wing with no probe still gets.
+        if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
+          const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
+          if (!wet)
+            slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
+                     'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
+          if (EN.kind !== 'battery' && VIEW.fill > 0.02)
+            slotMesh(group, VM.wingLoft(s.ribs, 0.4, { fill: Math.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
+                     wet ? matWet(bad) : fuelMat(),
+                     'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
+          continue;
+        }
         const y0 = s.y - s.d / 2, y1 = s.y + s.d / 2;
         const p8 = [
           [s.x0, y0, s.zR0], [s.x0, y0, s.zF0], [s.x0, y1, s.zF0], [s.x0, y1, s.zR0],
@@ -83681,6 +85305,17 @@ function cageJoinSpec(P, M, T) {
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
+        // G445.1 (the C172 study): THE NOSE ENGINE IS WEIGHED WHERE IT IS
+        // DRAWN. The frame placed a nose engine by the prop rule
+        // (60_gen_spec: engX = -(0.18 + 0.32 propR)) - 0.49 m ahead of the
+        // windscreen-base ring on the user's 172, the block inside the cowl
+        // deck - while the engine layer draws its flange 1.17 m ahead, where
+        // a 172's is. Measured: 144 kg weighed 0.67 m aft of the drawn
+        // engine, the CG 7 % MAC aft of the aeroplane on the screen. The
+        // flange the layer drew (M.engUnits, kind 'nose') rides out as `x`
+        // like every other mount's; y stays the spec's thrustline rule (the
+        // cowl and the nose gear read engY).
+        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x) ? { x: EU[0].x } : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -111830,6 +113465,11 @@ const PLAQUE_WHY = {
   'CG as loaded': { what: 'the CG as a fraction of the mean chord behind the '
       + 'leading edge — the way a real weight-and-balance sheet quotes it. '
       + 'Light aeroplanes publish ranges like 17 to 36 % MAC.' },
+  // G445.7: the empty CG beside the loaded one — the number a weight-and-
+  // balance sheet starts from
+  'CG empty': { what: 'the same fraction of the chord with nobody aboard, the '
+      + 'tanks dry and no freight — the figure a weight-and-balance sheet '
+      + 'starts from. A J-3 reads 24 % MAC empty, a Jodel D.112 26.' },
   'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
       + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
     fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '
@@ -121031,35 +122671,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=9e8ae296"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=7bb8bf6c"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=705b955e"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=b97f1530"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {
@@ -126187,8 +127827,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // twitchy; negative is unflyable.
     const smCls = v => judge('static margin', v || 0);
     R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
-    if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
+    if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac)) {
       R('CG as loaded', n1((s.cgX - s.xLEmac) / s.cBar * 100, 0) + '% MAC');
+      // G445.7: the empty CG beside it — no one aboard, tanks dry, no freight
+      if (typeof s.cgEmptyX === 'number' && isFinite(s.cgEmptyX))
+        R('CG empty', n1((s.cgEmptyX - s.xLEmac) / s.cBar * 100, 0) + '% MAC');
+    }
     // G115: the directional half, at last — the fin was the one surface with
     // no readout. Measured Cn_beta (weathervane stiffness): the stock build
     // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative
