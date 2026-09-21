@@ -54346,3 +54346,43 @@ truss drag, lift split, downwash) was found clean and is unchanged.
   mine: none seen. ARCHETYPES (full tier) not re-run on the branch: the five biplane cards
   are parasol-over-low with plane 0's aileron chord and no flaps, and run headless (no join),
   so nothing here reaches them.
+
+## G476 — A7 OF THE PLAYTEST TRIAGE, FIFTH PASS: THE NOSE CONE SPINS TRUE, THE FIELD RE-MEASURED
+## ON THE SMOOTH SKIN, TWO FRONT RINGS AT BIRTH (2026-09-22, the user: "keep going on A7,
+## screenshots as proof")
+- THE NOSE CONE'S JIGGLE (item 15, "nose cones tend to jiggle and not be perfectly aligned
+  perpendicular to their rotation direction"): measured in the flight on build (4), the
+  cone's apex circled on a 1 cm radius (11.5 mm of excursion in the model's frame over 24
+  frames) and its geometric axis stood 1.9 deg off the spin axis. The join mapped the prop's
+  shaft axis through the POSITIONS map (BK = B^-1, a shear on an oblique up pair) while the
+  flight turns a rigid part in the TRUE frame (poseRigid, G357: B^-1 R B on vertices stored
+  as B^-1 v, so the world sees R on the true geometry) - a true-frame rotation wants the
+  true-frame axis, the raw editor direction. Stored raw now: 0.2 mm of excursion on build
+  (4), 3 mm on the 172 (the engine node's own motion under the running engine).
+- THE FIELD RE-MEASURED ON THE SMOOTH SKIN (item 149, "mapping issue on the centre section,
+  back and belly - stretched rivets"): sC is the arc round the CONTROL ring's polyline,
+  carried through the subdivision as an attribute, and the smooth skin is inside its control
+  polygon - round the crown and the keel the real arc between two vertices is shorter than
+  the field they span. Census on the 172 (a7_field5.js: field-metres per metre on every skin
+  edge): 914 edges under 0.7, nearly all on the centreline. `cageRefitArc` (_cage_gen.js,
+  after the subdivision, before the knife and the cut) walks every subdivided ring - the
+  vertices sharing a station, each flank from the waist datum - and re-integrates sC from the
+  REAL distances, adding nothing where the field did not advance (the nose rings' crown
+  traverse belongs to sL by arcOf's split) and keeping the field's own difference across a
+  jump in the order (a windscreen chain, the tail post's twin columns): 138 under 0.7 after,
+  none on the centreline; the over-1.4 tail stays at the windscreen's corners where it was.
+- TWO FRONT RINGS AT BIRTH (item 73, the "front rings" default owed by G468): the nose-engine
+  tile (Nose mount, _cage_design.js) writes `cowlLoops` max(2, the builder's own) the way
+  NOSE_AERO's four come with a pusher's cone. Every archetype card born with a nose engine
+  bakes with 2 now (a7_birth.js: pietenpol, tigermoth, stearman, ... beaver); the three
+  stock designs (cub, jodel, c172) are the user's saved cages and keep their 0 - the row is
+  theirs to move. GATE FRAMES' corpus re-recorded (the 15 born cards carry two more rings;
+  every saved build and fixture hashes as before).
+- GATES: SURF, SKIN, CAGEFIT, JOIN, DESIGN, CLIP, FIT, SAVE, UISMOKE, WEATHER, PARTS, VIEW,
+  BUILD, MEDIA, GEAR, STRUT, LIGHT, CABIN, HINGE, ENGMESH, COWL, FIN, SHOULDER, FRAMES green.
+  SKINMAT is RED ON MASTER before this pass ("role rows for sections no build emits -
+  taperPanel, drawnPane, reveal, shoulder, doorPanel", the windows chantier's) - not
+  touched here; SEAPLANE red on master as noted at G474.
+- STILL OWED (A7): 23/32 wing normals and grazing maps, 92 the cowl gap under deformation,
+  151 the fin's mapping (a study: the fin's field vs a planar projection), 52's flight-view
+  check.

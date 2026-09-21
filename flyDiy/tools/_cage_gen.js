@@ -8537,6 +8537,62 @@ function cageShoulder(m, S) {
   return withPanel(out);
 }
 
+// THE FIELD RE-MEASURED ON THE SMOOTH SKIN (G476, playtest item 149, the
+// user's Screenshot 2026-09-19 162154: "mapping issue on the centre section,
+// back and belly - stretched rivets"). sC is the arc round the CONTROL ring's
+// polyline (arcOf), carried through the subdivision as an attribute. The
+// smooth skin is inside its control polygon, so round the crown and the keel
+// - where the control polyline turns hardest - the real arc between two
+// vertices is shorter than the field they span: measured, a tenth of the
+// centreline edges at 0.6 field-metre per metre, and the rivet rows the
+// shader lays at a metric pitch in sC came out spread apart there. This
+// walks every subdivided ring (the vertices sharing a station, each flank
+// its own walk from the waist datum) and re-integrates sC from the REAL
+// distances, keeping the direction and the datum - and adding nothing
+// where the field did not advance (the nose rings' crown traverse belongs
+// to sL by the split in arcOf, and stays there).
+function cageRefitArc(s) {
+  if (!s || !s.A || !s.V) return s;
+  const V = s.V, A = s.A, n = V.length;
+  const rows = new Map();
+  for (let i = 0; i < n; i++) {
+    const a = A[i];
+    if (!a || (a[0] === 0 && a[1] === 0 && a[2] === 0 && a[3] === 0)) continue;
+    const x = V[i][0];
+    const st = Math.round(a[2] * 1000);
+    for (const side of (Math.abs(x) < 1e-6 ? [1, -1] : [x > 0 ? 1 : -1])) {
+      const k = st + ':' + side;
+      if (!rows.has(k)) rows.set(k, []);
+      rows.get(k).push(i);
+    }
+  }
+  const A2 = A.map(a => a ? a.slice() : a);
+  for (const ids of rows.values()) {
+    if (ids.length < 3) continue;
+    ids.sort((i, j) => A[i][1] - A[j][1]);
+    // the datum: the vertex nearest sC 0 (the waist rail) keeps its value
+    let d0 = 0;
+    for (let k = 1; k < ids.length; k++) if (Math.abs(A[ids[k]][1]) < Math.abs(A[ids[d0]][1])) d0 = k;
+    const base = A[ids[d0]][1];
+    const dist = (i, j) => Math.hypot(V[i][0] - V[j][0], V[i][1] - V[j][1], V[i][2] - V[j][2]);
+    // consecutive-in-sC vertices are neighbours on a plain ring; where the
+    // order jumps (a windscreen chain, a pane strip, the tail post's twin
+    // columns sharing a station) the 3D gap is several edges long, and there
+    // the field's own difference is kept - the walk re-measures edges, it
+    // does not re-draw the ring
+    const gaps = []; for (let k = 1; k < ids.length; k++) gaps.push(dist(ids[k], ids[k - 1]));
+    const med = gaps.slice().sort((a, b) => a - b)[gaps.length >> 1] || 0;
+    const step = (k, j) => { const df = A[ids[k]][1] - A[ids[j]][1]; const d = dist(ids[k], ids[j]);
+      return df <= 1e-9 ? 0 : (med > 0 && d > 3 * med) ? df : d; };
+    let acc = base;
+    A2[ids[d0]][1] = base;
+    for (let k = d0 + 1; k < ids.length; k++) { acc += step(k, k - 1); A2[ids[k]][1] = acc; }
+    acc = base;
+    for (let k = d0 - 1; k >= 0; k--) { acc -= step(k + 1, k); A2[ids[k]][1] = acc; }
+  }
+  return Object.assign({}, s, { A: A2 });
+}
+
 function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
@@ -8544,6 +8600,7 @@ function cageSheet(P, opts) {
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
+  if (L > 0) s = cageRefitArc(s);
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
   // window that no longer exists. The knife itself runs after cageCut: a

@@ -2279,7 +2279,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           try {
             const d = new THREE.Vector3(0, 0, 1)
               .transformDirection(o.matrixWorld).transformDirection(inv);
-            const a2 = rotP(-d.z, d.y, d.x);
+            // G476 (playtest item 15, "nose cones tend to jiggle and not be
+            // perfectly aligned perpendicular to their rotation direction"):
+            // the axis went through the POSITIONS map (BK = B^-1, a shear on
+            // an oblique pair) and the flight turns a rigid part in the TRUE
+            // frame (poseRigid, G357: B^-1 R B on vertices stored as B^-1 v,
+            // so the world sees R on the true geometry). A true-frame
+            // rotation wants the true-frame axis, which is the raw direction
+            // - mapping it made the disc spin about an axis 1.9 deg off the
+            // cone's own on build (4), the apex circling on a 2 cm radius.
+            const a2 = [-d.z, d.y, d.x];
             const L2 = Math.hypot(a2[0], a2[1], a2[2]) || 1;
             pp.axis = [a2[0] / L2, a2[1] / L2, a2[2] / L2];
           } catch (e2) {}

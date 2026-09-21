@@ -1144,8 +1144,18 @@ const DESIGN_ROWS = [
       // "increase the length, increase the cowl count, max the tip collapse,
       // adjust the droop so the tip is in line with the fuselage, play with
       // bulge and ease". `NOSE_AERO` is that, once.
+      // G476 (playtest item 73, the user from the cockpit: "the polygonality
+      // of the nose is very visible ... the top part of the nose feels
+      // blocky"): with `front rings` 0 the deck from the windscreen base to
+      // the twin band is ONE control quad, 0.45 m of the surface nearest
+      // the eye on four subdivided segments. Two rings smooth it; a loft
+      // rule was tried and GATE CAGEFIT refused it (the template's nose is
+      // 0.6 m on no rings), so the rings come with the CHOICE of a nose
+      // engine, the way NOSE_AERO's four come with a pusher's cone. A
+      // builder's own count stands: the write keeps a higher one.
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
-        writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1 } } },
+        writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1,
+                          cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher

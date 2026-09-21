@@ -22,8 +22,8 @@ starter prompt carries what its agent needs to reproduce.
 Written by the triage session after reading every landing since the baseline
 (`30cbf395`) and asking each live session for its own account. One line per
 session below; the item-by-item map is §3 (each line there now carries its
-landing). The playtest's 159 remarks: **119 landed, 6 partly, 34 open** — of the
-open ones 11 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G474), 8 are A7's tail,
+landing). The playtest's 159 remarks: **123 landed, 6 partly, 30 open** — of the
+open ones 11 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G474), 4 are A7's tail,
 6 the pilot (A8), the rest T1.2/T1.3, S2, B2, D1, W and G.
 
 ### Phase A — stable release: DONE except A7's tail and A8
@@ -36,7 +36,7 @@ open ones 11 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G474), 8 
 | **A4** | DONE | G441 | "small options into fewer flyouts" |
 | **A5** | DONE | G439 | — |
 | **A6** | DONE | G436-G436.12, G440, G443, G449, G456, G464 (the glint = the sky table's ground half; also the 1-px line; landed as a second G461, renumbered by G465); G462 (the world switchboard re-runs the day before the mutes) | — |
-| **A7** | IN PROGRESS (this session) | G444, G447/G450, G453, G459, G468 (part colour over the base, socket glow, seat ends, soles on pedals, blended winglet, pitot), G474 (the 'control under the cowl' = cable fairlead + drag brace + painted pads; the rod's rise and the tailwheel; wing tank verified; hands after floats unreproduced) | A7a: 15 nose-cone jiggle, 23/32 wing normals + grazing maps, 73 (`front rings` birth default), 92 cowl gap deformed (flight repro), 149 spine/keel rivet stretch (measured: a tenth of the centreline edges at 0.6 of metric), 151 fin mapping. A7b: 52 (flight repro from below). 91 (livery ≠ garage) measured identical on three builds — closed unless a repro comes |
+| **A7** | IN PROGRESS (this session) | G444, G447/G450, G453, G459, G468, G474, G476 (the nose cone spins true, the field re-measured on the smooth skin, two front rings at birth) | A7a: 23/32 wing normals + grazing maps, 92 cowl gap deformed (flight repro), 151 fin mapping (a study). A7b: 52 (flight repro from below). 91 (livery ≠ garage) measured identical on three builds — closed unless a repro comes |
 | **A8** | OPEN (nobody has it) | touched from the side: G435 GLIDE (67) + 'in-the-water' (74); G451.2 the water pull at 1.12 Vr (113); G455 highThrust off on the water, PILOTMATRIX/ARCHETYPES reds recorded as pilot-track items | 30/80 rudder oscillation on downwind (saturation, §1.3), 112 water go-around aborts / no flaps / lands short, 152 taxi oscillation vs the oleo, 69 RPM in the trace, the birdman flare, the c172 crosswind card (red on purpose), the water-rudder loop re-tune |
 | **A9** | DONE | G458 (certificates saved by a fingerprint of the physics only; load test in a Worker, raised; three tests + the flown test flight with a director; crosswind advisory card; AIRWORTHY master) | trestle boxes under the inverted fuselage |
 | **S1** | DONE | G451 (Wipline range as presets, drawn float, paddle, water rudder), G451.1 (hydro 14x→1.5x, the hump, the advisor, hydroplane certificate), G451.2 (crosswind run judged to the end) | the hump trim; the crosswind run on a short-crested sea (SEA_FELT 0.45) |
@@ -327,7 +327,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 12. Floor pokes through the fuselage → **A5** · P2 · `groundY` from the main wheel; guard on the keel's lowest skin vertex · **LANDED** G439
 13. Camera down to floor level → **A5** · P3 · **LANDED** G439
 14. Tanks auto-fit by downsizing capacity → **T2.3** · P3 · **OPEN** T2.3 not started
-15. Nose cones jiggle / not perpendicular to the rotation → **A7a** · P2 · (also in the floats section) — the spinner's axis vs `spinAxis`, and `poseRigid` per frame · **OPEN** A7a owed
+15. Nose cones jiggle / not perpendicular to the rotation → **A7a** · P2 · (also in the floats section) — the spinner's axis vs `spinAxis`, and `poseRigid` per frame · **LANDED** G476 (the shaft axis stored in the true frame; apex excursion 11.5 mm → 0.2 mm)
 16. Retire the fake god rays → **A5** · P3 · **LANDED** G439
 17. Flaps initialised as a dash switch → **A3** · P3 · **LANDED** G442-G442.4
 18. Flap floor lever: 2-axis placement on the floor → **T2.3** · P3 · **OPEN** T2.3 not started
@@ -385,7 +385,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 70. Gauge graduations follow the units convention → **A3** · P2 · **LANDED** G442.3
 71. Fuel gauge urgently → **A3** · P0 (dup 56) · **LANDED** G442
 72. Is a few km on that charge realistic? → **answered §1.2**: yes for 2 kWh; the pack is 1/12 of a Velis · **LANDED** answered §1.2
-73. Nose extra subdivision seen from the cockpit → **A7a** · P2 · **OPEN** G468 found the cause (the nose run is one control quad; `front rings` 2-3 smooths it) — an automatic ring collides with GATE CAGEFIT's template contract, so it is a birth default to add (design flow), owed
+73. Nose extra subdivision seen from the cockpit → **A7a** · P2 · **LANDED** G476 (two `front rings` come with the nose-engine choice at birth; the stock cub/jodel/c172 keep their own 0)
 74. Submerged physics → **A8** · P1 · define the crashed-in-water end state · **LANDED** G435 (GLIDE, in-the-water)
 75. Twin-boom tips low-poly → **A7a** · P2 · **LANDED** G444
 76. Blade spins forever at 0 RPM → **A3** · P1 · inv. §1.10 · **LANDED** G435 (the visual prop gated on the engine)
@@ -418,7 +418,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 99. Hydroplane test + guidance → **S1** · P1 · **LANDED** G451.1
 100. Spawn on top of a buoy → **S1** · P2 · **LANDED** G451.1
 101. Framerate indicator, optional → **A4** · P3 (F8 has counters; a rail row) · **LANDED** G441
-102. Nose cone not perpendicular → dup 15 · **OPEN** dup 15
+102. Nose cone not perpendicular → dup 15 · **LANDED** dup 15 (G476)
 103. Drag model accuracy — should the 172 lift off on stock floats? → **S1** · inv. §1.5 · **LANDED** G451.1
 104. Tricycle much better frame rate → dup 93 · **LANDED** dup 93 → G451.1
 105. Floats ticked with wheels = invalid config → **S1** · P2 · **LANDED** G451
@@ -467,7 +467,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 146. Crosswind test separate, better feedback → **A9** · **LANDED** G458
 147. Club hangar → field shed: overexposure (003140), survives reload → **A5** · P1 · `LAMP_EX_CAP` / `applyDay exposureCap` on a shed with no lamps · **LANDED** G439
 148. Shed lights: settings alternate, broken → **A5** · P1 · **LANDED** G439
-149. Centre-section back/belly mapping stretched rivets (162154) → **A7a** · P2 · **OPEN** A7a owed, measured in G447 (a tenth of the centreline edges at 0.6 of metric)
+149. Centre-section back/belly mapping stretched rivets (162154) → **A7a** · P2 · **LANDED** G476 (sC re-measured on the smooth skin: 914 → 138 edges under 0.7 field-m/m, none on the centreline)
 150. Flight orbit camera restricted to the upper dome → **A4** · P2 · **LANDED** G441
 151. Fin never mapped right — projection instead of topology (162359) → **A7a** · P2 · **OPEN** A7a owed
 152. Oscillation braking/accelerating, suspension wiggles → **A8/A1** · P2 · the taxi governor vs the oleo/spring rates · **OPEN** A8 not started
