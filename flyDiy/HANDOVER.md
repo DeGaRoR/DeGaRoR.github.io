@@ -53726,3 +53726,21 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   33 % of yield with the tip at 2.4 % of semispan at limit load (the steel row's 0.7 — the
   trade-off, visible); flies its circuit. The stock on the row: 276 kg against 333, 62
   substeps against 76. The shelf's 'chinook' row and the card regenerated on it.
+
+## G467 — L4: THE F8 `biomes` FOLD + THE EXPORT (2026-09-21, BIOMES-IN-GAME-2026-09-20.md L4)
+
+Under trees > biomes in the developer panel: a live readout (the mix under the eye, the
+ring's cells / instances / last build / AGL), `biome gain` and `wobble` (FILL.island), the
+CODE -> MIX map as one select per terrain code 2-14 (none = nothing planted; 12/13/14 named
+as the splat's derived surfaces), THE MIXES each as a fold - the forest's trees (with the
+/ha readout from BIOMES.density), shrubs and rocks per 1000 m2, blotch / blotch m / cover
+spread - and every species row under it (proportion; dead for a tree; density / patch /
+patch share for a cover; size for a rock), THE COVER RING's dials (reach, full to, taper,
+AGL full / off, density, shrubs, rocks, build ms), and `export (console)`: BIO.export() =
+{ biomes, mixes } to the console and the clipboard - paste over the two keys of
+tools/_trees_tuning.json and `python tools/tree_prep.py` bakes the payload; the bench reads
+the same file. TREE_FILL.setMix(name, path, value) is the handle: one number of one mix moved,
+the fill re-pools and replants, the ring replants. Two ring stat bugs met on the way:
+STAT.by ran up for the page's life (a cell's tally is kept and subtracted on drop now) and
+stat() shared the tally object (copied). Verified in the game by the rig: 125 rows / 13
+selects, grass_dry density x3 -> 404 k to 563 k instances and back, forest -> muskeg -> back.

@@ -3388,6 +3388,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           biomes: () => BIO,
           cover: () => coverRing,
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
+          // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
+          // proportion / dead / density / patch / size, or the forest's count / under / rocks /
+          // blotch - the fill re-pools and replants, the ring replants; the export carries it
+          setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
+            let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
+            o[path[path.length - 1]] = value; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); return value; },
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1

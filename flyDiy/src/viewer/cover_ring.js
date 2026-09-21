@@ -180,7 +180,7 @@ var COVER_RING = (() => {
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       const group = new THREE.Group(); group.position.set(0, 0, 0);
-      const cell = { group, n: 0, meshes: [] };
+      const cell = { group, n: 0, meshes: [], by: {} };   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cx + ',' + cz, cell);
       if (!centreMix) { root.add(group); STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix), F = (M && M.forest) || {};
@@ -225,7 +225,7 @@ var COVER_RING = (() => {
             col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
             if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
           } else if (noTint && !isRock && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
-          push(p, x, yy, z, s, yaw, col); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1;
+          push(p, x, yy, z, s, yaw, col); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
         }
       }
       // the meshes: one InstancedMesh per prototype part
@@ -265,6 +265,7 @@ var COVER_RING = (() => {
       const cell = cells.get(key); if (!cell) return;
       root.remove(cell.group);
       for (const m of cell.meshes) { m.geometry.dispose(); }   // the wrapper only: buffers are the prototype's
+      for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
       cells.delete(key);
     }
 
@@ -301,7 +302,7 @@ var COVER_RING = (() => {
       set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); },
-      stat: () => Object.assign({}, STAT),
+      stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); scene.remove(root); },
     };
     return api;

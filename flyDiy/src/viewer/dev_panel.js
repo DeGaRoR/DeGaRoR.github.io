@@ -212,6 +212,67 @@
       Ti.appendChild(slider('size min', 0.1, 1, 0.05, () => W.TREE_FILL.island().min, isl('min')));
       Ti.appendChild(slider('size max', 1, 4, 0.1, () => W.TREE_FILL.island().max, isl('max')));
     }
+    // ---- THE BIOMES (L4, 2026-09-21; BIOMES-IN-GAME-2026-09-20.md): the code -> mix map, the mixes'
+    // own numbers, the cover ring, and the export back to tools/_trees_tuning.json ----
+    if (W.TREE_FILL.biomes && W.TREE_FILL.biomes()) {
+      const BIO = W.TREE_FILL.biomes(), TF = W.TREE_FILL;
+      const B = fold(T, 'biomes', true, true);
+      B.appendChild(note('a terrain-type code names a bench mix; the fill and the woodland draw their species from it, the cover ring plants its grass, flowers, rocks and bushes. Every number here is the bench’s (tools/_trees_tuning.json mixes) moved live; `export` prints the map + the mixes for that file, then `python tools/tree_prep.py` bakes the payload.'));
+      { const n = note(''); const R = { el: n, refresh: () => { const c = TF.cover && TF.cover(); const st = c && c.stat(); n.textContent = st ? ('under the eye: ' + (st.mixAt || 'no biome') + ' · ring ' + st.live + ' cells / ' + st.instances + ' instances, ' + st.lastMs.toFixed(1) + ' ms last build · ' + st.agl.toFixed(0) + ' m AGL') : 'no cover ring'; } };
+        B.appendChild(n); rows.push(R); live.push(R); }
+      const mixNames = Object.keys(BIO.mixes);
+      const isl = k => v => TF.setIsland({ [k]: v });
+      B.appendChild(slider('biome gain', 0.5, 8, 0.1, () => TF.island().biomeGain, isl('biomeGain')));
+      B.appendChild(slider('wobble', 0, 30, 1, () => TF.island().biomeWobble, isl('biomeWobble'), v => v + ' m'));
+      B.appendChild(note('gain: a mix’s trees per m² over the grid’s (3.5 puts the conifer at the grid’s full density); wobble: the code read this far off the point on a 23 m noise, so a biome edge is not the map’s cell edge'));
+      const Bm = fold(B, 'code → mix (the map)', true, true);
+      for (const code of Object.keys(BIO.names).map(Number).filter(c => c >= 2)) {
+        Bm.appendChild(select(code + ' ' + BIO.names[code], [['', '— none']].concat(mixNames.map(m => [m, m])),
+          () => BIO.map[code] || '', v => TF.setBiome(code, v || null)));
+      }
+      Bm.appendChild(note('12 cliff, 13 old forest, 14 dense scrub are derived from rock / forest / scrub by slope and canopy (the splat’s knobs); none = nothing planted (sea, lake, snow, built)'));
+      // the mixes: each one a fold of its forest knobs and its species rows
+      const Bx = fold(B, 'the mixes', false, true);
+      const spKind = name => { const P = W.TREE_PACK, c = P && P.collections.find(q => q.name === name); return c ? (c.kind || 'tree') : '?'; };
+      for (const name of mixNames) {
+        const M = BIO.mixOf(name), Fm = fold(Bx, name, false, true), F = () => (BIO.mixOf(name).forest || (BIO.mixOf(name).forest = {}));
+        const fs = k => v => TF.setMix(name, ['forest', k], v);
+        Fm.appendChild(slider('trees', 0, 1500, 10, () => F().count || 0, fs('count'), v => v + ' (' + (BIO.density(name) * 10000).toFixed(1) + '/ha)'));
+        Fm.appendChild(slider('shrubs', 0, 20, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²'));
+        Fm.appendChild(slider('rocks', 0, 30, 0.5, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²'));
+        Fm.appendChild(slider('blotch', 0, 1, 0.05, () => F().blotch || 0, fs('blotch')));
+        Fm.appendChild(slider('blotch m', 4, 60, 1, () => F().blotchM || 18, fs('blotchM'), v => v + ' m'));
+        Fm.appendChild(slider('cover spread', 0, 0.5, 0.01, () => F().coverSpread || 0, fs('coverSpread')));
+        for (const sp of Object.keys(M.species || {})) {
+          const row = () => BIO.mixOf(name).species[sp], kind = spKind(sp), Fs = fold(Fm, sp + ' (' + kind + ')', false, true);
+          const ss = k => v => TF.setMix(name, ['species', sp, k], v);
+          Fs.appendChild(slider('proportion', 0, 4, 0.05, () => row().proportion === undefined ? 1 : row().proportion, ss('proportion')));
+          if (kind === 'tree') Fs.appendChild(slider('dead', 0, 0.5, 0.01, () => row().dead || 0, ss('dead')));
+          if (kind === 'cover') {
+            Fs.appendChild(slider('density', 0, 6, 0.05, () => row().density || 0, ss('density'), v => v + ' /m²'));
+            Fs.appendChild(slider('patch', 0, 20, 0.5, () => row().patch || 0, ss('patch'), v => v ? v + ' m' : 'even'));
+            Fs.appendChild(slider('patch share', 0, 1, 0.05, () => row().patchShare === undefined ? 0.25 : row().patchShare, ss('patchShare')));
+          }
+          if (kind === 'rock') Fs.appendChild(slider('size', 1, 40, 1, () => row().size || 1, ss('size')));
+        }
+      }
+      // the cover ring's own dials
+      if (TF.cover && TF.cover()) {
+        const Bc = fold(B, 'the cover ring', false, true), C = () => TF.cover(), cs = k => v => C().set({ [k]: v });
+        Bc.appendChild(slider('reach', 60, 400, 10, () => C().get().reach, cs('reach'), v => v + ' m'));
+        Bc.appendChild(slider('full to', 10, 200, 5, () => C().get().near, cs('near'), v => v + ' m'));
+        Bc.appendChild(slider('taper', 0, 1, 0.05, () => C().get().taper, cs('taper')));
+        Bc.appendChild(slider('AGL full', 10, 200, 5, () => C().get().aglFull, cs('aglFull'), v => v + ' m'));
+        Bc.appendChild(slider('AGL off', 30, 400, 5, () => C().get().aglOff, cs('aglOff'), v => v + ' m'));
+        Bc.appendChild(slider('density', 0, 2, 0.05, () => C().get().density, cs('density')));
+        Bc.appendChild(slider('shrubs', 0, 2, 0.05, () => C().get().shrubs, cs('shrubs')));
+        Bc.appendChild(slider('rocks', 0, 2, 0.05, () => C().get().rocks, cs('rocks')));
+        Bc.appendChild(slider('build ms', 0.5, 12, 0.5, () => C().get().budgetMs, cs('budgetMs'), v => v + ' ms'));
+        Bc.appendChild(note('the ring fades in the vertex shader: full to `full to`, gone at `reach` (taper shapes the thinning), full under `AGL full`, gone above `AGL off`; density / shrubs / rocks scale the mix’s numbers and replant'));
+      }
+      B.appendChild(button('export (console)', () => { const j = BIO.export(); console.log('BIOMES ' + j); try { navigator.clipboard && navigator.clipboard.writeText(j); } catch (e) {} }));
+      B.appendChild(note('export prints { biomes, mixes } to the console (and the clipboard): paste them over the two keys of tools/_trees_tuning.json, then `python tools/tree_prep.py` bakes the payload (TREE_PACK.biomes) - the bench reads the same file'));
+    }
     T.appendChild(slider('fill density', 16, 400, 8, () => W.TREE_FILL.get(), v => W.TREE_FILL.set(v),
       v => v + ' (' + (1024 / v).toFixed(1) + ' m)'));
     // THE THINNING (G420, the row owed there): the complement's impostors keep
