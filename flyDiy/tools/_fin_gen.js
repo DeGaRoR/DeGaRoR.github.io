@@ -932,21 +932,41 @@ function finToStab(m, opts) {
   const rootX = opts.rootX || 0, stabY = opts.stabY || 0;
   const sRef = opts.sRef || 0, zOff = opts.zOff || 0;
   const cant = opts.cant || 0, cC = Math.cos(cant), sC = Math.sin(cant);
-  const V = m.V.map(p => cant
+  // T2.3 (140): THE INCIDENCE — a pitch about the root's leading edge
+  // (opts.incZ, in the mesh's own frame), leading edge UP for a positive
+  // angle, applied BEFORE the lay so the cant and the side rule are
+  // untouched; 0 (every stab before) is the identity map exactly
+  const inc = opts.inc || 0, cI = Math.cos(inc), sI = Math.sin(inc);
+  const zP = opts.incZ || 0;
+  const pitch = p => inc
+    ? [p[0] * cI + (p[2] - zP) * sI, p[1], zP + (p[2] - zP) * cI - p[0] * sI]
+    : p;
+  const V = m.V.map(p0 => { const p = pitch(p0); return cant
     ? [side * (rootX + (p[1] - sRef) * cC - p[0] * sC),
        stabY + (p[1] - sRef) * sC + p[0] * cC, p[2] + zOff]
-    : [side * (rootX + (p[1] - sRef)), stabY + p[0], p[2] + zOff]);
+    : [side * (rootX + (p[1] - sRef)), stabY + p[0], p[2] + zOff]; });
   // G317: a face's built normals ride the lay — the same map as the
   // positions', less the translation, and reversed with the winding
-  const nMap = n => cant
+  const nPitch = n => inc ? [n[0] * cI + n[2] * sI, n[1], n[2] * cI - n[0] * sI] : n;
+  const nMap = n0 => { const n = nPitch(n0); return cant
     ? [side * (n[1] * cC - n[0] * sC), n[1] * sC + n[0] * cC, n[2]]
-    : [side * n[1], n[0], n[2]];
+    : [side * n[1], n[0], n[2]]; };
   const F = m.F.map(f => {
     const o = { v: side > 0 ? f.v.slice().reverse() : f.v.slice(), m: f.m, part: f.part };
     if (f.n) o.n = (side > 0 ? f.n.slice().reverse() : f.n.slice()).map(nMap);
     return o;
   });
   return { V, F };
+}
+
+// T2.3 (140): the root chord's LEADING EDGE in the fin mesh's own frame —
+// the most forward vertex on the root line (p[1] within 5 mm of it) — the
+// point the incidence pitches about, so the seat and the stab's height row
+// keep their meaning at the leading edge
+function stabIncZ(m, rootLine) {
+  let z = -Infinity;
+  for (const p of (m && m.V) || []) if (Math.abs(p[1] - rootLine) < 0.005 && p[2] > z) z = p[2];
+  return isFinite(z) ? z : 0;
 }
 
 // the fuselage centreline polylines from a built cage mesh: top is the deck
@@ -1286,7 +1306,7 @@ function rootKeys(m) {
 const API = { FIN_DEFAULT, FIN_PARAMS, FIN_CUB, FIN_STRAIGHT, FIN_MATS, FIN_BOUNDARY_W,
               ST2FIN,
               buildFin2, finSpec, finProjectRoot, finCentreline,
-              finCutMesh, finThicken, finToStab, finMeasure,
+              finCutMesh, finThicken, finToStab, stabIncZ, finMeasure,
               deckOnFitting, rootKeys };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIN_GEN = API;

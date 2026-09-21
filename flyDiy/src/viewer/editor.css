@@ -482,6 +482,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    depends on the rhythm reads it from here. */
 #edRows .r { display:flex; align-items:center; gap:var(--ed-gap);
   height:30px; margin:0; min-width:0; }
+/* T2.2: a row carrying a NOTE (the drawn windows' refusal) grows a second
+   line under its widgets; the note spans the row */
+#edRows .r.noted { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
+#edRows .r > .rn { flex:none; width:100%; font-size:10px; color:#e0a23a; padding-left:6px; line-height:12px; }
 
 /* THE GROUP'S ROWS HANG OFF ITS TITLE rather than sharing its left edge (the
    user: "everything in the menu needs indentation"). One step, the same step

@@ -127,6 +127,10 @@ function buildStab(P, mesh, L, fin, approx) {
   const mount = Math.round(P.stMount || 0);
   const cantDeg = Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
+  // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
+  // the root chord's leading edge (the most forward root-line vertex)
+  const incDeg = Math.max(-10, Math.min(10, +P.stInc || 0));
+  const inc = incDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(D().zH1 + dzS);
   // G307: on a single bare rod a stab asked for below the saddle's plate is
@@ -171,8 +175,9 @@ function buildStab(P, mesh, L, fin, approx) {
     sheet = FIN.finCutMesh(s, { mode: cutMode, zCut: m0.cutZ, gap: P.stCutGap || 0 });
   const FS = scaleOf(P);
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
-                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant };
-  return { spec: S, cage: m0, mesh: s, sheet, lay, cant: cantDeg, mount, clamped: m0.clamped || [],
+                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
+                inc, incZ: FIN.stabIncZ ? FIN.stabIncZ(m0, rootLine) : 0 };
+  return { spec: S, cage: m0, mesh: s, sheet, lay, cant: cantDeg, mount, inc: incDeg, clamped: m0.clamped || [],
            measure: Object.assign(
              FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
              { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }) };

@@ -1591,12 +1591,14 @@ function buildCage2(S, step) {
       const target = (aeroFin ? R.noseRing : R.noseTwin).lv;
       for (let i = 1; i <= cowl.loops; i++) {
         const t = i / (cowl.loops + 1);
-        const e = t * (1 - cowl.ease)
-                + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * cowl.ease;
+        // T2.3: the deck (waist + crown) eases by cowl.ease, the keel and
+        // the floor by cowl.easeBot — one number when the row follows
+        const eAt = ez => t * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * ez;
+        const e = eAt(cowl.ease), eB = eAt(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const bg = 1 + (cowl.bulge - 1) * Math.sin(Math.PI * t);
         const lv = {};
         for (const k of ['waist', 'floor', 'keel']) {
-          lv[k] = lerpLv(wsLow[k], target[k], e);
+          lv[k] = lerpLv(wsLow[k], target[k], k === 'waist' ? e : eB);
           // dims follow the eased blend, z stays linear — that lag IS the
           // convexity
           lv[k].z = wsLow[k].z + (target[k].z - wsLow[k].z) * t;
@@ -1637,11 +1639,11 @@ function buildCage2(S, step) {
         const zw2 = wsLow.waist.z, zr2 = R.noseRing.lv.waist.z;
         const t2 = Math.max(0, Math.min(1,
           (R.noseTwin.lv.waist.z - zw2) / ((zr2 - zw2) || 1e-9)));
-        const e2 = t2 * (1 - cowl.ease)
-                 + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * cowl.ease;
+        const e2At = ez => t2 * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * ez;
+        const e2 = e2At(cowl.ease), e2B = e2At(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const lv3 = {};
         for (const k of ['waist', 'floor', 'keel']) {
-          lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], e2);
+          lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], k === 'waist' ? e2 : e2B);
           lv3[k].z = wsLow[k].z
                    + (R.noseRing.lv[k].z - wsLow[k].z) * t2;
           if (lv3[k].zC != null) {
@@ -1705,7 +1707,8 @@ function buildCage2(S, step) {
                    b: nIds[0], mat: CAGE_MAT.plain, deck: 'body' });
     for (let i = 0; i + 1 < nIds.length; i++) {
       const pf = noseSeq[i].name === 'noseTwin'
-              && noseSeq[i + 1].name === 'noseRing';
+              && noseSeq[i + 1].name === 'noseRing'
+              && !(S.config && S.config.noseJoint === 0);   // T2.3: the band hidden = skin
       lowSets.push({ a: nIds[i], b: nIds[i + 1],
                      mat: pf ? CAGE_PILLAR('pillarFront') : CAGE_MAT.plain,
                      deck: pf ? 'pillarFront' : 'body' });
@@ -1760,7 +1763,7 @@ function buildCage2(S, step) {
     // (own family so a round nose can dome while the tail cap stays crisp);
     // an intermediate cowl loop stays smooth
     if (E) noseSeq.forEach((r, i) => {
-      if (r.name === 'noseTwin') tagLoop(nIds[i], r, CW.pillar);
+      if (r.name === 'noseTwin' && !(S.config && S.config.noseJoint === 0)) tagLoop(nIds[i], r, CW.pillar);
       if (r.name === 'noseRing')
         tagLoop(nIds[i], r, CW.noseCap != null ? CW.noseCap : CW.cap);
     });
@@ -6855,6 +6858,19 @@ const CAGE_PARAMS = {
   // 0 = template ring, 0.98 max keeps the cap grid non-degenerate —
   // visually a point, CC rounds it. Aft twin for the pod's tail cone.
   noseTip: 0, aftNoseTip: -1,
+  // T2.3 (135, 2026-09-22): THE TIP COLLAPSE SPLIT — noseTip stays the
+  // HORIZONTAL collapse (the ring's widths toward the deck point); noseTipV
+  // is the VERTICAL one (keel and floor rising to the deck line, the crown
+  // fading); -1 = follow noseTip, the one dial every build had. Aft twin.
+  noseTipV: -1, aftNoseTipV: -1,
+  // T2.3 (84): THE COWL EASE, BOTTOM — cowlEase eases the deck (the waist
+  // level and its crown) along the loft; cowlEaseBot eases the keel and the
+  // floor; -1 = follow cowlEase (every build before: one ease). Aft twin.
+  cowlEaseBot: -1, aftCowlEaseBot: -1,
+  // T2.3 (134): THE NOSE JOINT BAND — the frame band between the twin and
+  // the nose ring (`pillarFront`, its own crease and livery section). 0
+  // paints it as skin, no crease: the cowl meets the deck without a seam.
+  noseJointOn: 1,
   // DECK-EDGE CREASE split from the cabin sill (user: the deck would
   // not smooth out — the cowl deck edge carried the global crSill):
   // -1 = follow crSill (fit identity); explicit 0..3 creases the nose
@@ -7350,6 +7366,8 @@ const CAGE_AFT_SUB = [
   ['aftRingNoseTop', 'ringNoseTop', -0.5],
   ['aftRingNoseBot', 'ringNoseBot', -0.5],
   ['aftNoseTip', 'noseTip', -0.01],
+  ['aftNoseTipV', 'noseTipV', -0.5],          // T2.3: -1 = follow the front (which may itself follow noseTip)
+  ['aftCowlEaseBot', 'cowlEaseBot', -0.5],
   ['aftCrSillNose', 'crSillNose', -0.5],
   ['aftRingWinW', 'ringWinW', -0.5],
   ['aftRingScrW', 'ringScrW', -0.5],
@@ -7603,7 +7621,10 @@ function cageSpec(P) {
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
-            ease: P.cowlEase, bulge: P.cowlBulge },
+            ease: P.cowlEase, bulge: P.cowlBulge,
+            // T2.3: the bottom's own ease, the deck's by default
+            easeBot: (P.cowlEaseBot != null && +P.cowlEaseBot >= 0) ? +P.cowlEaseBot : P.cowlEase },
+    noseJoint: P.noseJointOn == null || +P.noseJointOn ? 1 : 0,
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,
             tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05 },
     boomMid: P.boomMidOn ? { t: P.boomMidT, pinch: P.boomMidPinch } : 0,
@@ -7814,16 +7835,20 @@ function cageSpec(P) {
   // point: x scales out, keel/floor converge on the deck line, the
   // ring's crown fades (a crest spike otherwise). The twin band now
   // STAYS in aero finish (the user's pillar): cowl -> band -> point.
-  if (P.noseFinish && P.noseTip > 0) {
+  // T2.3 (135): split H/V — noseTip scales the widths (horizontal),
+  // noseTipV lifts keel and floor to the deck line and fades the crown
+  // (vertical); -1 = the horizontal one, which is the old single dial
+  if (P.noseFinish && (P.noseTip > 0 || P.noseTipV > 0)) {
     const t = Math.min(0.98, Math.max(0, P.noseTip));
+    const tv = (P.noseTipV != null && +P.noseTipV >= 0) ? Math.min(0.98, Math.max(0, +P.noseTipV)) : t;
     const n = S.nose.ring;
     const yD = P.waistY - (S.nose.droop || 0) + (S.nose.lift || 0);
-    n.crownF = 1 - t;
+    n.crownF = 1 - tv;
     n.deck.x *= 1 - t;
     for (const k of ['floor', 'keel']) {
       n[k].x *= 1 - t;
-      n[k].y += (yD - n[k].y) * t;
-      if (n[k].yC != null) n[k].yC += (yD - n[k].yC) * t;
+      n[k].y += (yD - n[k].y) * tv;
+      if (n[k].yC != null) n[k].yC += (yD - n[k].yC) * tv;
     }
   }
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,

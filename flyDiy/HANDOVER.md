@@ -54560,3 +54560,61 @@ small), shrubs 8 per 1000 m2 (shrub_deciduous 1, sapling 0.5, holly 0.3), dry gr
 bunchberry, rocks. `borders` names no code now (it stays in the table for F8). The map: 2 grassland,
 3 none (mud), 4/11 shore, 5 scree, 6/12 conifer_steep, 7 muskeg, 8 conifer_young, 13 conifer,
 14 conifer_scrub.
+## G480 — T2.3, THE CAGE-SIDE BATCH + THE T2 OWED (2026-09-22, the user: "Finish the T2
+## small items, then start T2.3, cage-side batch first ... polycarbonate should be less
+## clear, and more scratched/weathered by default"; the playtest's 48/83/84/134/135/140)
+
+- STATUS FIRST (the user's word): 14 (tanks auto-fit) closed by G445.2 — the wing tank is
+  the spar bay's own section; 40 (the outside lights' section) by G453/G456; 51 stays open
+  for the hinge FINISH only (the hinges themselves are G447/G450). The triage doc says so.
+- THE T2 OWED: the drawn windows' REFUSAL says so in the inspector — `opts.note` in
+  _cage_ui's row grammar (P => a line under the row, re-read after every build; a `.noted`
+  row grows a second line, editor.css), the count row of each window row reads "1
+  overlaps an earlier window — not cut until moved" off CAGE_UI.windowsRefused; the
+  waist row sits back in the reference section (the Fuselage's trunk slot no longer
+  takes it); the _win.html bench learned the quad rows (topK, skew, r1-r4).
+  POLYCARBONATE, the user's ruling: less clear and weathered from the start — GLASS_MATS
+  polycarbonate = opacity 0.34, rough 0.32, ccR 0.36, touch 0.8, grime 0.3, refl 0.8, a
+  warmer cast (0xd6c9a4); and the editor now applies the material UNDER the dials the
+  builder MOVED (a dial at its default is the material's to set; the flight side already
+  merged the material under finish.glass's deviations), so the two routes agree.
+- (84) THE COWL EASE, TOP AND BOTTOM: `cowlEaseBot` (-1 = follow cowlEase) eases the keel
+  and the floor along the nose loft while cowlEase keeps the deck (the waist level and its
+  crown) — the cowl loops, the aero-finish twin band and the deck crown (waist-only, the
+  deck's ease) all read it; one number when the row follows, bit-identical. Aft twin
+  aftCowlEaseBot (CAGE_AFT_SUB, the pod's aft deck rows).
+- (135) THE TIP COLLAPSE SPLIT: `noseTipV` (-1 = follow noseTip) is the VERTICAL collapse
+  — keel and floor rising to the deck line, the crown fading — while noseTip stays the
+  horizontal one (the ring's widths toward the deck point). Aft twin aftNoseTipV.
+- (134) THE NOSE JOINT BAND: `noseJointOn` (default 1). Off paints the frame band between
+  the twin and the nose ring (`pillarFront`) as skin with no crease — the cowl meets the
+  deck without a seam. (The cowl layer's own seams — the firewall lip, the panel joint,
+  the split line, the camlocs — had their switches already.)
+- (83) THE SINGLE LIFT STRUT: `wgStruts` 2|1 -> bracing.struts. The frame draws the front
+  member only (61_gen_frame: the rear strut member loses its `ext` flag and stays a hidden
+  fan member), so THE TRUSS THE PHYSICS FLIES IS THE SAME (measured: 389 beams before and
+  after, the same (a, b, cls, k) list; ext wing beams 4 -> 2); _strut_gen seats a single
+  strut on the fitting's centre instead of a lug of the missing pair. Dropped from the
+  second plane's rows (its struts are the fuselage fan's).
+- (48) THE CARRY-THROUGH BEAM: `wgBeam` (default on; shown for the cut / fore-cut / removed
+  centre sections) -> wings[].beam 'on'|'off' (60_gen_spec clamps it; the second plane
+  too); the beam's finish is `alclad` now — bare alloy, no longer painted with the struts
+  (the finish tab repaints); the section was already a real box (4-seg, 85 % of the
+  aerofoil's depth at the spar) or a round tube on a steel wing. OWED: the fitments
+  (brackets at the rib ends) the remark asked for.
+- (140) THE STABILISER'S INCIDENCE: `stInc` (degrees, leading edge up +, -10..10) in the
+  stab layer's position group. DRAWN: finToStab pitches the mesh about the root chord's
+  leading edge (`stabIncZ`: the most forward root-line vertex) before the lay, normals
+  with it; the headless twin (_tail_headless) computes the same lay (GATE FIN pins the
+  two). FLOWN: the join reads CAGE_STAB.inc -> spec.tail.hInc (clamped -10..10);
+  61_gen_frame drops the REAR spar (and the tail box's chord) by the spar spacing x
+  tan(hInc) on the conventional tail and the twin boom's (measured: 16 / 10 nodes move,
+  1.9 cm at 3 deg); 62_gen_aero reads the stab's chord off those nodes, so the tail flies
+  its setting with no aero edit. 0 = every build before.
+- GATES (the branch, no rebuild between): FIN, COWL, PARTS, DESIGN, SAVE, JOIN, FRAMES,
+  KNIFE, BUILD, STARTER, WINGSPLIT, STRUT, FLEX, MASS, CAGEFIT, FIT green.
+- THE RIG: frames_shot.js presets n (the nose) and tl; screenshots/frames/t23_*.png (the
+  cowl ease bottom, the vertical collapse, the joint band off, the single strut, the
+  beam on/off, the incidence).
+- OWED (T2.3, the game side): 18 the flap lever's 2-axis placement, 51 the hinge finish,
+  132 crew seating / passengers; 48's fitments.

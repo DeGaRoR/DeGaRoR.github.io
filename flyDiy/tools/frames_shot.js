@@ -101,7 +101,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (!PANEL) await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='hidden';}return 1})()");
   else await ev("(()=>{for(const b of document.querySelectorAll('button')){if(/^‹Parts$/.test(b.textContent.trim()))b.click();}return 1})()").catch(() => 0);
   await sleep(800);
-  const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], t: [0.6, 1.25, 12], c: [1.1, 0.18, 7.5] };
+  const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], t: [0.6, 1.25, 12], c: [1.1, 0.18, 7.5], w: [0.45, 0.28, 4.2], v: [0.32, 0.14, 4.6], n: [Math.PI - 0.3, 0.1, 9.0], tl: [Math.PI / 2, 0.1, 6] };
   const cam = async (a, e, d) => { await ev("FLIGHT_PROBE.camSet(" + a + "," + e + "," + d + "), 1"); await sleep(1200); };
   if (HOVER) {
     // the row-hover path itself, on the row's element (the editor's delegated

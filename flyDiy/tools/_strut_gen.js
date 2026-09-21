@@ -502,7 +502,9 @@ function strutBuild(bags, AF, site, ends, opt) {
   const out = [];
   for (let i = 0; i < Math.min(2, ends.length); i++) {
     const sgn = i === 0 ? 1 : -1;
-    const ft = footAt(sgn * FIT.lugGap);
+    // T2.3 (83): a single strut stands on the fitting's centre, not on a
+    // lug of a pair that is not there
+    const ft = footAt(ends.length === 1 ? 0 : sgn * FIT.lugGap);
     const foot = clevis(ft.p, ft.n, ft.fore, FIT.standoff);
 
     // THE WING END IS A FITTING TOO (user: "the struts are also well anchored

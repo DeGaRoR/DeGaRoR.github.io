@@ -859,7 +859,9 @@ const AERO_SEC = {
               layer: 'wing', wears: 'parent' },
   // G274: the carry-through drawn in a cut or removed centre section — a
   // spar, painted with the struts until repainted
-  wingLongeron: { parent: 'strut', fin: 'trim', label: 'the carry-through',
+  // T2.3 (48, the user: "proper tube/square section, raw metal"): a bare
+  // alloy member, no longer painted with the struts; the finish tab repaints
+  wingLongeron: { parent: 'strut', fin: 'alclad', label: 'the carry-through',
               layer: 'wing', wears: 'parent' },
   // G185: the truss follows the lift struts (paint, the fuselage's colour)
   cabane:   { parent: 'strut', fin: 'trim',     label: 'the cabane struts',
@@ -3442,12 +3444,18 @@ const GLASS_DEF = {
 // owns (opacity, touch, grime, refl, rainbow) and the per-pane tint wells
 // stay theirs on top:
 //   acrylic        GLASS_DEF itself — the 3 mm sheet every light aeroplane flies
-//   polycarbonate  a warm cast (it yellows), the bulk hazier and the clear
-//                  layer rougher (it scratches and never polishes out)
+//   polycarbonate  a warm cast (it yellows), LESS CLEAR (the user: "less
+//                  clear, and more scratched/weathered by default") — the
+//                  bulk hazier, the clear layer rougher, more of the light
+//                  stopped, the handling smear and the frame grime well up
+//                  from the start (it scratches and never polishes out)
 //   glass          the clearest bulk, a faint green edge, a harder limb
+// The dials a builder MOVES still win (the editor applies the material under
+// the dials that differ from their defaults; the flight side under
+// finish.glass's deviations) — the material is the starting point.
 const GLASS_MATS = {
   acrylic: {},
-  polycarbonate: { tint: 0xd9d0b4, rough: 0.24, ccR: 0.28 },
+  polycarbonate: { tint: 0xd6c9a4, opacity: 0.34, rough: 0.32, ccR: 0.36, touch: 0.8, grime: 0.3, refl: 0.8 },
   glass: { tint: 0xa9cfc4, rough: 0.05, ccR: 0.06, fresnel: 1.26 },
 };
 const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;

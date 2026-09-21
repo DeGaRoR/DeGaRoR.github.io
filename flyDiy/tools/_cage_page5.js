@@ -396,6 +396,11 @@ window.CAGE_PAGE = {
       // the cap edge is a CREASE — a fully-sharp cap edge on a
       // collapsed ring is the spike.
       ['noseTip',   'tip collapse',   0.00, 0.98, 0.01],
+      // T2.3 (135): the collapse split — noseTip is the horizontal one
+      ['noseTipV',  'tip collapse · vertical (-1 = same)', -1, 0.98, 0.01],
+      // T2.3 (134): the nose joint band — the frame band between the twin
+      // and the nose ring; off paints it as skin with no crease
+      ['noseJointOn', 'nose joint band', 0, 1, 1],
       ['crNoseCap', 'tip sharpness',  0, 3, 0.05],
       ['crFrontCap','front cap crease', 0, 3, 0.05],
       // WHAT THE FRONT OF THE NOSE IS (2026-09-11, the user: "it should be
@@ -418,6 +423,8 @@ window.CAGE_PAGE = {
       // SEVERAL rings and two was not several.
       ['cowlLoops', 'front rings',    0, 5, 1],
       ['cowlEase',  'ring ease',      0.00, 1.00, 0.01],
+      // T2.3 (84): the bottom's own ease (-1 = the deck's)
+      ['cowlEaseBot', 'ring ease · bottom (-1 = same)', -1, 1.00, 0.01],
       ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
     ]],
     ['4 · cabin', [
@@ -570,11 +577,13 @@ window.CAGE_PAGE = {
       ['aftRingNoseTop','deck end lift',-1, 0.6, 0.005],
       ['aftRingNoseBot','deck end bottom',-1, 0.35, 0.005],
       ['aftNoseTip', 'tip point',      -1, 0.98, 0.01],
+      ['aftNoseTipV', 'tip point · vertical', -1, 0.98, 0.01],
       ['aftCrSillNose','deck crease',  -1, 3, 0.05],
       ['aftRingCowl1W','cowl 1 width', -1, 0.25, 0.005],
       ['aftRingCowl2W','cowl 2 width', -1, 0.25, 0.005],
       ['aftCowlLoops','cowl loops',    -1, 2, 1],
       ['aftCowlEase', 'cowl ease',     -1, 1.0, 0.01],
+      ['aftCowlEaseBot', 'cowl ease · bottom', -1, 1.0, 0.01],
       ['aftCowlBulge','cowl bulge',    -1, 1.3, 0.005],
     ], { when: P => +P.mirror }],
     ['4b · aft cabin', [
@@ -746,7 +755,10 @@ window.CAGE_PAGE = {
     // =====================================================================
     ['4b · drawn windows', [
       ['row 1', [
-        ['paxWinN',     'windows',         0, 4, 1],
+        ['paxWinN',     'windows',         0, 4, 1,
+         { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const k = R.filter(w => w.row === 1).length;
+                        return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
         ['paxWinShape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.paxWinN > 0 }],
         ['paxWinZ',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
         ['paxWinPitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.paxWinN > 1, dim: 'len' }],
@@ -767,7 +779,10 @@ window.CAGE_PAGE = {
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
       ], 'open'],
       ['row 2', [
-        ['win2N',     'windows',         0, 4, 1],
+        ['win2N',     'windows',         0, 4, 1,
+         { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const k = R.filter(w => w.row === 2).length;
+                        return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
         ['win2Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win2N > 0 }],
         ['win2Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
         ['win2Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win2N > 1, dim: 'len' }],
@@ -788,7 +803,10 @@ window.CAGE_PAGE = {
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
       ], {}],
       ['row 3', [
-        ['win3N',     'windows',         0, 4, 1],
+        ['win3N',     'windows',         0, 4, 1,
+         { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const k = R.filter(w => w.row === 3).length;
+                        return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
         ['win3Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win3N > 0 }],
         ['win3Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
         ['win3Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win3N > 1, dim: 'len' }],

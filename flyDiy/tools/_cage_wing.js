@@ -70,6 +70,8 @@ PAGE.defaults = Object.assign({
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
   wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
+  wgStruts: 2,                     // T2.3 (83): lift struts per side (2 = the V pair, 1 = a single front strut)
+  wgBeam: 1,                       // T2.3 (48): the carry-through beam drawn in a cut centre section
   wgPanels: 3, wgDx: 0, wgDy: 0,
   // G185: a PARASOL wing's cabane height above the deck (wgPos 3)
   wgParaH: 0.45,
@@ -144,6 +146,10 @@ const WING_ITEMS = [
    { when: P => +P.wingOn }],
   ['wgCentreW', 'centre section width (0 = cabin)', 0, 3.0, 0.05,
    { ...on, dim: 'm' }],
+  // T2.3 (48): the carry-through BEAM in a cut centre section — optional
+  // (default on), a real box or tube in bare metal (the finish tab repaints)
+  ['wgBeam', 'carry-through beam', 0, 1, 1,
+   { when: P => +P.wingOn && [3, 4, 7].includes(Math.round(P.wgCentre)) }],
   ['wgPanels', 'spar stations',  2, 5, 1, on],
   // THE WING'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what THIS surface is built from — the structure grammar and the
@@ -181,6 +187,9 @@ const WING_ITEMS = [
     //             says so in the status line.
     //   lateral   moves only the foot, as ARC LENGTH around the section
     //             (never an angle: see _strut_gen.js).
+    // T2.3 (83): the V pair or a single front strut (the truss is unchanged)
+    ['wgStruts', 'struts per side', 1, 2, 1,
+     { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
     ['wgStrutZ', 'fore / aft', -0.20, 0.20, 0.01,
      { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
     ['wgStrutX', 'in / out (foot)',   -0.25, 0.35, 0.01,
@@ -207,7 +216,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStrutZ', 'wgStrutX',
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH']);
 const w2Key = k => 'w2' + k.slice(2);
 const w2On = P => +P.wingOn && +P.w2On;
@@ -544,6 +553,7 @@ PAGE.post = ctx => {
       dihedralOut: P.w2CrankAt > 0 ? P.w2DihedralOut : null,
       centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.w2Centre)] || 'solid',
       centreW: +P.w2CentreW > 0 ? +P.w2CentreW : null,              // G274
+      beam: P.w2Beam == null || +P.w2Beam ? 'on' : 'off',              // T2.3 (48)
       controls: {
         flap: { type: FLAP_KEYS[Math.round(P.w2FlapType)] || 'none',
                 span: P.w2FlapSpan, chord: P.w2FlapChord },
@@ -576,11 +586,13 @@ PAGE.post = ctx => {
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre)] || 'solid',
       centreW: +P.wgCentreW > 0 ? +P.wgCentreW : null,              // G274
+      beam: P.wgBeam == null || +P.wgBeam ? 'on' : 'off',              // T2.3 (48)
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
+               struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
                cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N',
                // G185: the biplane's truss, from the brace layer's rows
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',

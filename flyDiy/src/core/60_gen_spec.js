@@ -3324,6 +3324,9 @@ const GEN_DEFAULT = {
             // at all — two half-wings on the carry-through, which the frame
             // still builds and the cut draws as a longeron.
             centreW: null,
+            // T2.3 (48): the carry-through BEAM drawn in a cut centre section
+            // ('on', every build before; 'off' leaves the cut bare)
+            beam: 'on',
             // G185: THE CABANE. A 'parasol' plane stands this far above the
             // cabin roof on four drawn cabane struts (null = the default
             // 0.55 m). Ignored on every other position. It is the ONE knob
@@ -3758,6 +3761,7 @@ function clampWing(w, S, k) {
   // the cockpit, the classic view from a biplane's seat
   if (!GEN_CENTRE_KEYS.includes(w.centre)) w.centre = 'solid';
   w.centreW = genClampN(w.centreW, 0.2, 3.0);                    // G274
+  if (w.beam !== 'off') w.beam = 'on';                              // T2.3 (48)
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
@@ -4030,6 +4034,9 @@ function clampSpec(spec) {
     } else if ('custom' in e) delete e.custom;
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
+  // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
+  // before) or a single front strut (1); the truss is the same either way
+  S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -4178,6 +4185,10 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
+  // (a stab is usually set a degree or two nose-down; the birdman's sits
+  // inclined at rest). 0 = every build before: the spars level
+  S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
   if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)

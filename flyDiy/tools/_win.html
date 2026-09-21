@@ -89,6 +89,7 @@ const D2R = Math.PI / 180;
 const P = {
   count: 2, z0: 0.45, pitch: 0.75, y: 0.50, w: 0.52, h: 0.40, r: 0.08,
   shape: 'rect', depth: 0.006, bead: 0.010, step: 0.010, sides: 'both',
+  topK: 1, skew: 0, r1: -1, r2: -1, r3: -1, r4: -1,     // T2.2: the quad by construction (-1 = the row's r)
   lightAz: 35, lightEl: 22,
 };
 const ROWS = [
@@ -99,6 +100,12 @@ const ROWS = [
   ['w', 'width', 0.05, 1.2, 0.01],
   ['h', 'height', 0.05, 0.9, 0.01],
   ['r', 'corner r', 0, 0.45, 0.005],
+  ['topK', 'top width x', 0, 2, 0.01],
+  ['skew', 'top shift', -0.6, 0.6, 0.005],
+  ['r1', 'r fwd top (-1 = r)', -0.01, 0.45, 0.005],
+  ['r2', 'r aft top', -0.01, 0.45, 0.005],
+  ['r3', 'r aft bottom', -0.01, 0.45, 0.005],
+  ['r4', 'r fwd bottom', -0.01, 0.45, 0.005],
   ['depth', 'reveal depth', 0, 0.03, 0.001],
   ['bead', 'bead r', 0, 0.02, 0.001],
   ['step', 'outline step', 0.004, 0.04, 0.001],
@@ -293,7 +300,8 @@ function windows() {
   const out = [];
   for (let i = 0; i < P.count; i++)
     out.push({ shape: P.shape, z: P.z0 + i * P.pitch, y: P.y, w: P.w, h: P.h,
-               r: P.r, step: P.step });
+               r: P.r, step: P.step, topK: P.topK, skew: P.skew,
+               rr: [P.r1, P.r2, P.r3, P.r4].map(v => v < 0 ? P.r : v) });
   return out;
 }
 function build() {

@@ -40,7 +40,7 @@ const stDef = { stOn: 1, stCut: 1, stCutGap: 0.012,
   // T-tail rides the fin, whatever its height); stY stays the offset from
   // that seat. stCant tips each panel up about its root line — 0 is a flat
   // tailplane, 30-40 a V-tail; the join reads >= 20 as tail.type 'v'.
-  stMount: 0, stCant: 0 };
+  stMount: 0, stCant: 0, stInc: 0 };
 for (const [sk, fk] of Object.entries(ST2FIN))
   stDef[sk] = FIN.FIN_CUB[fk] !== undefined ? FIN.FIN_CUB[fk]
                                             : FIN.FIN_PARAMS[fk];
@@ -70,6 +70,9 @@ const GROUP = ['8b · tail — stab & elevator', [
    ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    { when: P => +P.stOn }],
   ['position', [
+      // T2.3 (140): the incidence — leading edge up +; drawn here, flown by
+    // the frame (spec.tail.hInc through the join)
+    ['stInc', 'incidence ° (LE up +)', -10, 10, 0.25],
     ['stMount', 'root sits', 0, 3, 1,
      ['on the boom keel', 'on the boom deck', 'on the fin tip',
       'between the booms']],
@@ -214,6 +217,10 @@ PAGE.post = ctx => {
   const mount = Math.round(P.stMount || 0);
   const cantDeg = Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
+  // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
+  // the root chord's leading edge (the most forward root-line vertex)
+  const incDeg = Math.max(-10, Math.min(10, +P.stInc || 0));
+  const inc = incDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(FIN.FIN_DEFAULT.zH1 + dzS);
   // THE STAB MEETS A FITTING, NOT THE TUBE (G307, the fitment study P3): on
@@ -309,7 +316,8 @@ PAGE.post = ctx => {
   group.name = 'cageLayer:stab';
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
-                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant };
+                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
+                inc, incZ: FIN.stabIncZ(m0, rootLine) };
   for (const side of [1, -1]) {
     const half = FIN.finToStab(disp, Object.assign({ side }, lay));
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
@@ -366,7 +374,7 @@ PAGE.post = ctx => {
   // cant/mount the join keys on. _tail_headless.js computes the same
   // object with no page; GATE FIN pins the two.
   window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay,
-    cant: cantDeg, mount,
+    cant: cantDeg, mount, inc: incDeg,
     measure: Object.assign(
       FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
       { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }),

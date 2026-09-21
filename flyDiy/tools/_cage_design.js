@@ -2283,7 +2283,8 @@ function designBake(sel, over) {
     wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][   // G466: the fifth stop
       Math.min(4, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
-  const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' };
+  const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
+                    struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)
   if (+full.w2On) {
     const w2 = {
       span: +full.w2Span, chord: +full.w2Chord,

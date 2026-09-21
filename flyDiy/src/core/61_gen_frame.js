@@ -993,8 +993,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // The two members to the strut station are the REAL lift struts and are
       // the only ones drawn; the rest of the fan is the lumped stand-in for a
       // spar box this planar wing does not have, so it lives under the fabric.
+      // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
+      // the rear one stays as a hidden fan member, so the truss the physics
+      // flies is the same aeroplane — the drawing is what changes
       B(strutRoot, WF[iStrut], 'wing', true);
-      B(strutRoot, WR[iStrut], 'wing', true);
+      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's
@@ -1607,13 +1610,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // stab station — what the tail-arm rig loads, the gauge reads and the
     // game's tail assembly anchors on
     HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    // T2.3 (140): the incidence on the twin boom's stab too (LE up +)
+    const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
+    const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
     const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
-    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yStab, 0, 'HR'),
-                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0), 0, 'HB') };
+    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yR(0), 0, 'HR'),
+                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0) - 0.5 * (xRH(0) - xFH(0)) * tanI, 0, 'HB') };
     for (const [sd, sg] of [['L', -1], ['R', 1]]) {
       HF[sd] = zsH.map((z, i) => i === 0 ? C0.F : N(xFH(z), yStab, sg * z, 'HF'));
-      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yStab, sg * z, 'HR'));
-      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z), sg * z, 'HB'));
+      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yR(z), sg * z, 'HR'));
+      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
       // the station ON THE BOOM is a PYRAMID on the boom's tail triangle:
       // its three spar nodes and the tagged node each tie to T, I, O and to
       // the bay before (out of the triangle's plane) — the boom is the post
@@ -1756,11 +1762,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // own depth (GEN_RULES.tailBoxDepth × chord), and a pair (VX) either side
   // of the fin — the twin boom's own three-chord idiom.
   const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+  // T2.3 (140): THE INCIDENCE — the front spar stays at stabY, the rear one
+  // drops by the spar spacing x tan(hInc) (LE up +, x aft +); the aero
+  // reads the stab's chord off these nodes, so the tail flies its setting
+  const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
-    HR[sd] = zsH.map(z => N(xRH(z), stabY, sg * z, 'HR'));
-    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z), sg * z, 'HB'));
+    HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
+    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
     for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');

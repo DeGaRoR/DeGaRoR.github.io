@@ -1146,7 +1146,8 @@ function genWingInto(def, out) {
     // the aerofoil at the spar's chord station (85 % of it, inside the
     // skin) and a third as wide, in the section's own frame; a round tube
     // of that depth when the wing is built of steel tube.
-    if (out.longeron && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
+    // T2.3 (48): optional — wings[].beam 'off' leaves the cut section bare
+    if (out.longeron && W.beam !== 'off' && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
       const E = genAfEval(W.naca);
       const tube = W.material === 'steel';
       const which = CTR === 'cutout' ? ['R'] : CTR === 'foreCut' ? ['F'] : ['F', 'R'];

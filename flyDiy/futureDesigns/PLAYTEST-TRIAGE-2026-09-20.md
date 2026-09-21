@@ -22,8 +22,8 @@ starter prompt carries what its agent needs to reproduce.
 Written by the triage session after reading every landing since the baseline
 (`30cbf395`) and asking each live session for its own account. One line per
 session below; the item-by-item map is §3 (each line there now carries its
-landing). The playtest's 159 remarks: **123 landed, 6 partly, 30 open** — of the
-open ones 11 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G474), 4 are A7's tail,
+landing). The playtest's 159 remarks: **131 landed, 6 partly, 22 open** — of the
+open ones 3 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G472, T2.3's cage side as G480; 18/51/132 left), 4 are A7's tail,
 6 the pilot (A8), the rest T1.2/T1.3, S2, B2, D1, W and G.
 
 ### Phase A — stable release: DONE except A7's tail and A8
@@ -63,7 +63,7 @@ open ones 11 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G474), 4 
 | **T1.3** | PARTLY | the birdman flies as the Chinook (G461), the pusher mount weighed where drawn (G445.1), the nose-over (G435) | 127 the thrust-line TILT dial (the block already moves: engBlockZ/Y, G461), 128 strut-mounted ogival tanks, the birdman as a GATE ARCHETYPES fixture (G435 rule 11 covers GEN) |
 | **T2.1** | DONE — G470 (2026-09-21; its own session, "Pillar chantier fuselage controls": seven FRAMES with absolute + follow rows under Fuselage, ring/lean/taperW retired, GATE FRAMES over 50 saved/born aeroplanes, row-hover highlight, pax run profile) | landed G470 | 81, 82, 89, 90, 137, 138, 141 |
 | **T2.2** | DONE — G472 (2026-09-22; three window rows anywhere on the shell, the quad by construction, overlaps refused, the glazing material + measured glazed area, GATE KNIFE) | landed G472 | 116, 117, 118, 139 |
-| **T2.3** | OPEN | — | 14, 18, 40, 48, 51, 83, 84, 132, 134, 135, 140 |
+| **T2.3** | PARTLY — G480 (2026-09-22: the cage-side batch 48/83/84/134/135/140; 14 by G445.2, 40 by G453/G456) | landed G480 | open: 18, 51 (the finish only), 132 |
 | **S2** | PARTLY | G451: the Wipaire range as presets (142), the drawn float takes the livery (108 in part) | 108 panels/seams/bolts, 143 bottom fin, 114 the cart, 68 the splash (G460 opened the interaction slot — `setInteraction`, the field that writes wakes/splashes is H7), 110 pier/patterns/glideslope (buoys as G396.2 left them) |
 | **W1-W3** | OPEN | G460 the water shader (H6) is the sea every strip now sees | 159 the loader UI, the AP over the matrix, new airports |
 | **G1-G4** | OPEN | — | 54, 79 and the career |
@@ -292,7 +292,7 @@ tagged P1 — if B1 cannot start immediately, A6 takes the bisect.
 ### T2 — THE GARAGE, EASIER TO OPERATE (parallel)
 | **T2.1** | DONE G470 (2026-09-21, THE FRAME CHANTIER: seven frames, nine absolute+follow rows each under Fuselage; rings/lean/taperW retired and lifted; GATE FRAMES) — THE PILLAR CHANTIER (the user's own spec): window / cabin(pilot) / passenger pillars each with width AND height, separately for keel, waist and top; the cabin roof and passenger bay angled (a linear profile pillar to pillar); waist width per pillar; tail-cone roof/keel allowed negative; the cabin section no longer straight-only; "Pillar window" slider that does nothing; retire the "rings" controls | `tools/_cage_gen.js`, `_cage_ui.js`, `60_gen_spec.js` (cage schema), GATE DESIGN | XL |
 | **T2.2** | DONE G472 (2026-09-22) — WINDOWS: on the taper section too; per-corner manipulation (quad base, rounded corners); several independent window layers; glazing material (glass vs polycarbonate: weight + look) | `tools/_knife_gen.js`, `_cage_ui.js`, `_win.html` | L |
-| **T2.3** | OPEN — SMALL CONTROLS BATCH: tanks auto-fit by downsizing, flap floor lever 2-axis placement, outside lights as their own section (+ wing-bay light click opens it), wing beams optional + proper tube/square section, hinge finish option (parent colour / bare / own), nose joint hide, nose collapse split H/V, single wing truss, cowl ease top/bottom separately, stab incidence for pushers, crew seating (pax count), cockpit-side options | `_cage_ui.js`, the relevant `_cage_*.js` | L — split as needed |
+| **T2.3** | PARTLY (G480: the cage side; open 18, 51, 132) — SMALL CONTROLS BATCH: tanks auto-fit by downsizing, flap floor lever 2-axis placement, outside lights as their own section (+ wing-bay light click opens it), wing beams optional + proper tube/square section, hinge finish option (parent colour / bare / own), nose joint hide, nose collapse split H/V, single wing truss, cowl ease top/bottom separately, stab incidence for pushers, crew seating (pax count), cockpit-side options | `_cage_ui.js`, the relevant `_cage_*.js` | L — split as needed |
 | **S2** | PARTLY (G451 presets + livery; G460 the water shader underneath) — FLOATS — THE MODELLING: Wipaire-based hull (angled deck faces, panels, seams, rivets, bolts), liveries on floats, presets from the Wipaire range, the water lane's pier/patterns/glideslope (with W), the splash on a water crash (the seaplane's spray system), the bottom fin streamlined, the hangar cart under a seaplane | `tools/_cage_float.js`, `_hydro_gen.js`, `vessel_tex.js`, `app.js` (spray) | L |
 
 ### W — THE WORLD (later)
@@ -326,7 +326,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 11. Clouds over the aircraft in the garage → **A2** · P1 · inv. §1.7 · **LANDED** G437 / G436.2
 12. Floor pokes through the fuselage → **A5** · P2 · `groundY` from the main wheel; guard on the keel's lowest skin vertex · **LANDED** G439
 13. Camera down to floor level → **A5** · P3 · **LANDED** G439
-14. Tanks auto-fit by downsizing capacity → **T2.3** · P3 · **OPEN** T2.3 not started
+14. Tanks auto-fit by downsizing capacity → **T2.3** · P3 · **LANDED** by G445.2 (the wing tank is the spar bay's own section — the user, 2026-09-22: "tanks are now fitted to wings")
 15. Nose cones jiggle / not perpendicular to the rotation → **A7a** · P2 · (also in the floats section) — the spinner's axis vs `spinAxis`, and `poseRigid` per frame · **LANDED** G476 (the shaft axis stored in the true frame; apex excursion 11.5 mm → 0.2 mm)
 16. Retire the fake god rays → **A5** · P3 · **LANDED** G439
 17. Flaps initialised as a dash switch → **A3** · P3 · **LANDED** G442-G442.4
@@ -352,7 +352,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 37. Shadow refresh/jitter → **A6** · P1 · inv. §1.10 · **LANDED** G436.3
 38. Bubble UI arcs hidden by default → **A5** · P3 · **LANDED** G439
 39. Drawing table: PBR, lip, plan in contact → **A5** · P3 · **LANDED** G439
-40. Outside lights own section; wing-bay light click opens it → **T2.3** · P3 · **OPEN** T2.3 not started
+40. Outside lights own section; wing-bay light click opens it → **T2.3** · P3 · **DONE** by G453/G456 (the wingtip light a fitment, the fixtures' own glow — the user, 2026-09-22: "outside lights have been revamped")
 41. Proper winglet → **A7a** · P2 · **LANDED** G468 (a blended winglet: 0.30 c radius, 75° cant, 35° sweep, taper 0.35, 0.75 c high; nav light on its top corner)
 42. Green tint on dash/interior → **A6** · P2 · the cabin probe / hemisphere ground colour · **LANDED** G436.5
 43. Registration > 8 chars → 7 + "." → **A3** · P3 · (build 4 is "EXPERIMENTAL") · **LANDED** G442-G442.4
@@ -360,10 +360,10 @@ Legend: session · severity · note. "inv." = investigated in §1.
 45. Pause changes the camera → **A4** · P2 · `running=false` path in flCamera/placeCamera · **LANDED** G441
 46. Floor shading issues → **A5** · P3 · **LANDED** G439
 47. Carbon seat interior edges → **A7b** · P2 · **LANDED** G468 (the lip rolls down, the top rolls aft, half-round rims)
-48. Wing beams optional ("transversal beam"), proper tube/square, raw metal → **T2.3** · P3 · **OPEN** T2.3 not started
+48. Wing beams optional ("transversal beam"), proper tube/square, raw metal → **T2.3** · P3 · **DONE** G480 (the carry-through beam optional, bare alloy (fitments owed))
 49. Light-control tape bigger until they touch → **A3** · P3 · **LANDED** G442-G442.4
 50. Bubble mode: flood light in the aft bulkhead or none → **A3** · P3 · **LANDED** G442.3
-51. Hinge finish option → **T2.3** · P3 · **OPEN** T2.3 not started
+51. Hinge finish option → **T2.3** · P3 · **OPEN** (the hinges themselves revamped by G447/G450; the FINISH option is what remains)
 52. Aileron/flap actuator rendering (195236) → **A7b** · P2 · **PARTLY** G447 (flap rod inside) + G450 (hinge parts) + G468 (the pitot mast at real proportions — the white L in the shot); a flight repro from below still owed
 53. Time-of-day row in flight; regroup small options → **A4** · P2 · **LANDED** G441
 54. Welcome screen + career → **G1/G2** · **OPEN** G not started
@@ -397,8 +397,8 @@ Legend: session · severity · note. "inv." = investigated in §1.
 **Making the Cessna 172**
 81. Cabin section straight only; passenger pillar adjustable → **T2.1** · **LANDED** G470 (the FRAME chantier)
 82. Tail cone roof/keel must go negative → **T2.1** · **LANDED** G470 (the FRAME chantier)
-83. Single wing truss option → **T2.3** · **OPEN** T2.3 not started
-84. Cowl ease along its length, top/bottom separately → **T2.3** · **OPEN** T2.3 not started
+83. Single wing truss option → **T2.3** · **LANDED** G480 (wgStruts: a single front strut, the truss unchanged)
+84. Cowl ease along its length, top/bottom separately → **T2.3** · **LANDED** G480 (cowlEaseBot: the keel/floor ease apart from the deck's)
 85. Certification stuck on crosswinds → **A8/A9** · P1 · **LANDED** G458 (the crosswind card is advisory)
 86. Yoke renders into the panel; absent in the garage → **A3** · P2 · **LANDED** G446.2
 87. Too many hinges in flight; some stick out (191521/193659) → **A7b** · P2 · **LANDED** G447 / G450
@@ -452,13 +452,13 @@ Legend: session · severity · note. "inv." = investigated in §1.
 131. Fuel-wing option clips everywhere → **A7b** · P2 · **LANDED** G445.2 (the spar bay's own section), verified G474 on the birdman and the pusherLight: 0 vertices outside
 132. Crew seating options / passengers → **T2.3** · **OPEN** T2.3 not started
 133. Wing loading test freezes the UI, no feedback → **A9** · P1 · **LANDED** G458
-134. Nose joint hide option → **T2.3** · **OPEN** T2.3 not started
-135. Nose collapse split H/V → **T2.3** · **OPEN** T2.3 not started
+134. Nose joint hide option → **T2.3** · **DONE** G480 (noseJointOn: the nose frame band hidden)
+135. Nose collapse split H/V → **T2.3** · **DONE** G480 (noseTipV: the vertical collapse apart from the horizontal)
 136. Pushers thrust "wrong direction" → **A1** · P0 · inv. §1.1 · **LANDED** G435
 137. Angled roof/passenger bays, pillar heights independent → **T2.1** · **LANDED** G470 (the FRAME chantier)
 138. Waist width per pillar → **T2.1** · **LANDED** G470 (the FRAME chantier)
 139. Glass vs polycarbonate glazing → **T2.2** · **LANDED** G474 (the windows chantier)
-140. Stabiliser incidence option (birdman inclined at rest) → **T2.3** · **OPEN** T2.3 not started
+140. Stabiliser incidence option (birdman inclined at rest) → **T2.3** · **LANDED** G480 (stInc: drawn and flown, tail.hInc)
 141. The full pillar chantier → **T2.1** · **LANDED** G470 (the FRAME chantier)
 142. Float presets from Wipaire → **S2** · **LANDED** G451
 143. Streamlined "bottom fin" (125639/125912) → **S2** · **OPEN** S2 not started

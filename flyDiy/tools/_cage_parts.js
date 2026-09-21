@@ -222,7 +222,7 @@ const CAGE_PARTS = [
   // already, filed under their bays.
   { key: 'fuselage', name: 'Fuselage', parent: null, layer: 'cage',
     sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
-    place: { up: 'waistY', at: 'the whole shell' },
+    place: { at: 'the whole shell' },          // (waistY sits in the reference section since T2.2)
     groups: [
       ['reference section', ['roofY', 'keelY', 'waistY', 'halfW', 'roofHalfW']],
       ['nose frame', ['frNoseTopY', 'frNoseBotY', 'frNoseTopW', 'frNoseBotW',
@@ -263,7 +263,7 @@ const CAGE_PARTS = [
       // (noseLen is the nose FRAME's deck fore/aft since T2.1)
       ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
-      ['tip', ['noseTip', 'crNoseCap', 'crFrontCap']],
+      ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
       // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice
       // "should be associated to the nose section"). `noseFinish` was reached
       // by one derived selector under the ENGINE group and by nothing else;
@@ -273,10 +273,12 @@ const CAGE_PARTS = [
       // the cowl LAYER is fitted, and it lofts THIS part. Filed under Cowl until
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
-      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlBulge']],
+      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
       // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
       // became the nose FRAME's rows, T2.1; the loops are not frames)
       ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
+      // T2.3 (134): the nose joint band (the nose frame's band) can be hidden
+      ['joint', ['noseJointOn']],
       ['pillar', ['pfW'], EXPERT],
     ] },
 
@@ -385,9 +387,9 @@ const CAGE_PARTS = [
     groups: [
       ['shape', ['aftNoseLen', 'aftNoseW', 'aftNoseH', 'aftDroop',
                  'aftNoseCrown', 'aftWsBaseLift', 'aftCrSillNose']],
-      ['end rings', ['aftRingNoseTop', 'aftRingNoseBot', 'aftNoseTip',
+      ['end rings', ['aftRingNoseTop', 'aftRingNoseBot', 'aftNoseTip', 'aftNoseTipV',
                      'aftRingCowl1W', 'aftRingCowl2W']],
-      ['cowl curve', ['aftCowlLoops', 'aftCowlEase', 'aftCowlBulge']],
+      ['cowl curve', ['aftCowlLoops', 'aftCowlEase', 'aftCowlEaseBot', 'aftCowlBulge']],
     ] },
 
   { key: 'aftCabin', name: 'Aft cabin', parent: 'fuselage', layer: 'cage',
@@ -535,6 +537,7 @@ const CAGE_PARTS = [
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
     sections: ['wingSkin', 'wingTip', 'wingLongeron'],
+    // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
                     'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX']],
@@ -542,7 +545,7 @@ const CAGE_PARTS = [
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
       ['aerofoil', ['wgCamber', 'wgThick']],
-      ['structure', ['wgCentre', 'wgCentreW', 'wgPanels', 'wgCons']],
+      ['structure', ['wgCentre', 'wgCentreW', 'wgBeam', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
     ] },
 
@@ -557,7 +560,7 @@ const CAGE_PARTS = [
     place: { fore: 'wgStrutZ', out: 'wgStrutX',
              at: 'the foot, on the fuselage side' },
     groups: [
-      ['foot', ['wgStrutZ', 'wgStrutX']],
+      ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
     ] },
 
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
@@ -597,7 +600,7 @@ const CAGE_PARTS = [
                     'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
       ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
       ['aerofoil', ['w2Camber', 'w2Thick']],
-      ['structure', ['w2Centre', 'w2CentreW', 'w2Panels', 'w2Cons']],
+      ['structure', ['w2Centre', 'w2CentreW', 'w2Beam', 'w2Panels', 'w2Cons']],
       ['placement', ['w2Pos', 'w2Stagger', 'w2Dy', 'w2ParaH']],
     ] },
 
@@ -686,7 +689,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['stOn', 'stRootGuard']],
       ['construction', ['stCons']],
-      ['position', ['stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      ['position', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stSolid', 'stThick', 'stThickTE']],
       // the fin's outline laid flat — same corners, same order, "in / out"

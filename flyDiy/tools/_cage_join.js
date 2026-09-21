@@ -177,6 +177,7 @@ function cageJoinPlane2(P, T) {
     // 'removed' or narrowed flew solid at the cabin's width)
     centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.w2Centre)] || 'solid',
     centreW: +P.w2CentreW > 0 ? +P.w2CentreW : null,
+    beam: P.w2Beam == null || +P.w2Beam ? 'on' : 'off',              // T2.3 (48)
     controls: {
       flap: { type: flap, span: P.w2FlapSpan, chord: P.w2FlapChord },
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
@@ -215,6 +216,7 @@ function cageJoinSpec(P, M, T) {
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre)] || 'solid',
       centreW: +P.wgCentreW > 0 ? +P.wgCentreW : null,              // G274
+      beam: P.wgBeam == null || +P.wgBeam ? 'on' : 'off',              // T2.3 (48)
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
       cuts: cageWingCuts(P),
@@ -228,6 +230,7 @@ function cageJoinSpec(P, M, T) {
                        'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] } : {}),   // G466: the fifth stop
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
+               struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
                // G185: the cabane's drawing style rides only when there is one
                ...(Math.round(P.wgPos) === 3 || +P.w2On
                    ? { cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N' } : {}),
@@ -541,6 +544,8 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
   }
+  // T2.3 (140): the stab's incidence — the frame pitches its spars by it
+  if (typeof M.hInc === 'number' && isFinite(M.hInc)) tl.hInc = M.hInc;
   // twin booms (2026-09-04): the type, the half-track and the length — the
   // two fins are one Sv (the spec doubles the measured fin)
   if (M.boomX > 0) {
@@ -1383,6 +1388,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
           const SBv = SBm, TBj = window.CAGE_BOOMS;
           const isV = !!(SBv && SBv.cant >= 20);
+          // T2.3 (140): the stab's incidence, as drawn (degrees, LE up +)
+          if (SBv && typeof SBv.inc === 'number' && isFinite(SBv.inc)) M.hInc = SBv.inc;
           // THE AREAS AND THE CONTROL FRACTIONS, off the sheets
           // THE TAPER (P4): tip chord over root chord, read as the 75 %
           // slice over the 25 % — the trapezoid the frame's truss stands on
