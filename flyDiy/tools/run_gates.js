@@ -131,6 +131,9 @@ const GATES = [
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
+  // THE SPLAT (TERRAIN FOLLOW-UP 3, 2026-09-21): RECIPE's shape, the manifest against the
+  // store, the shader's ANGLE rules in node; --gpu (by hand) adds the sampler census and the fxc probe
+  { id: 'SPLAT', file: '_splat_check.js', tier: 'core' },
   // THE BUILD FILE (G63): save -> load -> editor -> join -> resolved spec.
   // ruling 4 promised this battery a loading gate and it never had one.
   { id: 'BUILD', file: 'test_build.js', tier: 'core' },

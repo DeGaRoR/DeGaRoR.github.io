@@ -54,13 +54,13 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       const p = R.properties.get(m).currentProgram; if (!p || !p.program || seen.has(p.program)) continue;
       const n = gl.getProgramParameter(p.program, gl.ACTIVE_UNIFORMS); const samp = [];
       for (let i = 0; i < n; i++) { const u = gl.getActiveUniform(p.program, i); if (u && (u.type === gl.SAMPLER_2D || u.type === gl.SAMPLER_CUBE || u.type === 0x8DC1 || u.type === 0x8B62 || u.type === 0x8DC5)) samp.push(u.name.replace('[0]', '') + (u.size > 1 ? 'x' + u.size : '')); }
-      seen.set(p.program, { name: m.name || m.type, mesh: o.name || o.type, samplers: samp.length, list: samp }); } });
+      seen.set(p.program, { name: m.name || m.type, mesh: o.name || o.type, samplers: samp.length, list: samp, linked: !!gl.getProgramParameter(p.program, gl.LINK_STATUS) }); } });
     const rows = [...seen.values()].sort((a, b) => b.samplers - a.samplers);
     return JSON.stringify({ MAXU, rows });
   })()`);
   const r = JSON.parse(out);
   console.log('MAX_TEXTURE_IMAGE_UNITS', r.MAXU);
-  for (const row of r.rows) if (ALL || row.samplers >= 8 || /ground|ring|patch|lake|water|Ground|Ring/.test(row.mesh + row.name)) console.log(`${String(row.samplers).padStart(2)}  ${row.mesh.padEnd(28)} ${row.name.padEnd(22)} ${row.list.join(' ')}`);
+  for (const row of r.rows) if (ALL || row.samplers >= 8 || /ground|ring|patch|lake|water|Ground|Ring/.test(row.mesh + row.name)) console.log(`${String(row.samplers).padStart(2)}  ${row.linked ? '' : '!LINK '}${row.mesh.padEnd(28)} ${row.name.padEnd(22)} ${row.list.join(' ')}`);   // !LINK: the program failed to link (GATE SPLAT --gpu reads it)
   ws.close(); ch.kill(); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
   process.exit(0);
 })().catch(e => { console.error('sampler_census: ' + e.message); ch.kill(); process.exit(1); });

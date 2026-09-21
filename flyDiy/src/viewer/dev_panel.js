@@ -164,6 +164,8 @@
         Sg.appendChild(select('set', LIB.slice(1), () => gk, v => { gk = v; }));
         Sg.appendChild(color('gain', () => SP.grade(gk).gain, v => SP.setGrade(gk, { gain: v })));
         Sg.appendChild(slider('saturation', 0, 2, 0.05, () => SP.grade(gk).sat, v => SP.setGrade(gk, { sat: v })));
+        Sg.appendChild(slider('gloss', 0, 1, 0.05, () => SP.grade(gk).gloss, v => SP.setGrade(gk, { gloss: v })));
+        Sg.appendChild(note('gloss: the set’s roughness map as shipped at 1, matte at 0 (the near ring is a Standard material: wet sand, shingle and the pools catch the sun)'));
         const Sd = fold(Sf, 'distance \u00b7 macro', false, true);
         Sd.appendChild(slider('detail fades from', 0, 2000, 25, kn('detailFrom'), ss('detailFrom'), v => v + ' m'));
         Sd.appendChild(slider('detail gone by', 50, 4000, 25, kn('detailTo'), ss('detailTo'), v => v + ' m'));
@@ -182,6 +184,8 @@
         Sb.appendChild(slider('hex rotation', 0, 180, 5, kn('hexRot'), ss('hexRot'), v => v + '\u00b0'));
         Sb.appendChild(slider('triplanar', 0, 16, 1, kn('triK'), ss('triK'), v => v ? 'k ' + v : 'off'));
         Sb.appendChild(slider('normal strength', 0, 3, 0.05, kn('nrmK'), ss('nrmK')));
+        Sb.appendChild(slider('sheen', 0, 1, 0.05, kn('sheen'), ss('sheen')));
+        Sb.appendChild(note('sheen: the sets’ roughness on the near ring (the muskeg pools, wet mud and bare rock catch the sun and the sky’s reflection); 0 is matte, the old look'));
         const Ss = fold(Sf, 'splits (derived surfaces)', false, true);
         Ss.appendChild(slider('cliff from', 10, 60, 1, kn('cliffLo'), ss('cliffLo'), v => v + '\u00b0'));
         Ss.appendChild(slider('cliff full at', 10, 70, 1, kn('cliffHi'), ss('cliffHi'), v => v + '\u00b0'));

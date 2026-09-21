@@ -2,7 +2,7 @@
 // island_shot.js - ONE PICTURE OF THE ISLAND FROM A DECLARED SPOT (G407)
 //
 //   node tools/island_shot.js --url "http://localhost:8430/flyDiy/dev.html?world=jolene" \
-//        --at -100,450,100 --out bench/jolene/shot_map.png [--wait 12000]
+//        --at -100,450,100 --out bench/jolene/shot_map.png [--wait 12000] [--eval "<js>"] [--step "<js>" ...]
 //
 // Headless Chrome on this machine's GPU (tree_perf.js's rig), the game rolled
 // out, the fresh profile's chooser dismissed, the aeroplane teleported to
@@ -75,6 +75,16 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   fs.writeFileSync(OUT, Buffer.from(shot.result.data, 'base64'));
   const info = await ev("JSON.stringify({aero: FLIGHT_PROBE.world().aerodromes.map(a=>a.id), lakes: FLIGHT_PROBE.world().hydro.lakeCount, rivers: FLIGHT_PROBE.world().hydro.rivers.length, bakeMs: FLIGHT_PROBE.world().hydro.bakeMs, hydro: FLIGHT_PROBE.world().island && FLIGHT_PROBE.world().island.hydro})");
   console.log('island_shot: wrote ' + OUT + '  ' + info);
+  // --step "<js>" (repeatable): after the shot, each expression is run in the SAME page and shot again as
+  // <out>_s<i>.png - an A/B of N states from one eye, one boot (2026-09-21: the Standard ring judged
+  // against a Lambert swapped in, the sun off, the hemisphere off, the probe off - five states, 3 min)
+  const STEPS = argv.filter((x, i) => argv[i - 1] === '--step');
+  for (let si = 0; si < STEPS.length; si++) {
+    console.log('step ' + si + ': ' + await ev(STEPS[si]).catch(e => 'ERR ' + e.message));
+    await sleep(4000);
+    const sh2 = await cmd('Page.captureScreenshot', { format: 'png' });
+    const o2 = OUT.replace(/.png$/, '_s' + si + '.png'); fs.writeFileSync(o2, Buffer.from(sh2.result.data, 'base64')); console.log('island_shot: wrote ' + o2);
+  }
   ws.close(); ch.kill();
   try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
 })().catch(e => { console.error('island_shot: ' + e.message); ch.kill(); process.exit(1); });

@@ -5,12 +5,14 @@
 // and the lot's five (assets/lot/, G290) - land as real files under
 // media/tex/splat/ and src/viewer/splat_tex.js becomes the manifest of
 // lazily-made Images, like lot_tex.js. The game assembles them into TWO
-// texture arrays at boot (render_world.js): colour + height, normal.
+// texture arrays at boot (render_world.js): colour + height, normal + rough.
 //
 // THE ORDER IS THE MODULE'S: src/core/28b_ground_fields.js RECIPE.library
 // names the sets and their layer index; a code's set is its index there. Add
-// a set: import it, append it to RECIPE.library, re-bake. Three maps each at
-// 512 (the rough map is imported but not shipped: the ring is a Lambert).
+// a set: import it, append it to RECIPE.library, re-bake. Four maps each at
+// 512: colour, normal, height and - since 2026-09-21 - the ROUGH map (the near
+// ring is a MeshStandardMaterial; the game packs it into the normal array's
+// alpha, which was a constant 0.9 while the ring was a Lambert).
 //
 // The assets are looked for under this checkout's assets/ first, then the
 // main checkout's (a worktree carries no link to it - see the junction rule).
@@ -60,11 +62,11 @@ const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
 const report = [], emitted = [];
 const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
 for (const [k, metres] of G.RECIPE.library) {
-  const d = bake(k, 'diff'), n = bake(k, 'nor_gl'), h = bake(k, 'height');
-  emitted.push(d, n, h);
+  const d = bake(k, 'diff'), n = bake(k, 'nor_gl'), h = bake(k, 'height'), r = bake(k, 'rough');
+  emitted.push(d, n, h, r);
   body += `    { key: '${k}', metres: ${metres}, px: ${PX}, mean: ${meanOf(k)},\n` +
-    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n      get height() { return mk('${h}'); } },\n`;
-  report.push(`${k} ${((sz(d) + sz(n) + sz(h)) / 1048576).toFixed(2)} MB`);
+    `      get diff() { return mk('${d}'); },\n      get nor() { return mk('${n}'); },\n      get height() { return mk('${h}'); },\n      get rough() { return mk('${r}'); } },\n`;
+  report.push(`${k} ${((sz(d) + sz(n) + sz(h) + sz(r)) / 1048576).toFixed(2)} MB`);
 }
 body += `  ];
 })() : null;

@@ -7,6 +7,9 @@ seventeen sets, on the bench (`tools/_island.html`) and in the game
 splat). This lists what it left owed, in the order the user's eye will meet
 them, with what is known about each. Nothing here is started.
 
+**Status (2026-09-21, G471):** items 1 and 3 LANDED (the Standard ring with the
+sets' roughness, GATE SPLAT); 4 waits on the zips; 2, 5, 6, 7 as written.
+
 ## Where things are (read first)
 
 - **The recipe is ONE table**: `src/core/28b_ground_fields.js` `RECIPE`
@@ -38,7 +41,19 @@ them, with what is known about each. Nothing here is started.
   D:/Dev/DeGaRoR.github.io`. NEVER a junction into a worktree (bench/ was wiped
   twice on 2026-09-20 by a landing that removed one).
 
-## 1. The ring as a Standard material (the pools, the roughness)
+## 1. The ring as a Standard material (the pools, the roughness) — DONE G471
+
+Landed 2026-09-21 (HANDOVER G471). What the item did not know: the game's
+normal-array alpha was a CONSTANT 0.9, not the sets' roughness — the rough
+maps were never shipped. They are the fourth map now (media/tex/splat, +17
+files); the near ring is a `MeshStandardMaterial`, the premises patch a
+Lambert twin (15 units), the outer ring a Lambert. The IBL's irradiance is cut
+in the hook and BOTH specular lobes fade out from roughness 0.6 to 0.9: GGX at
+roughness 1 on a ground of linear albedo 0.1 is +40 % of the diffuse and hazed
+the whole island white — dry ground is the Lambert it was, the pools, wet sand
+and shingle take the sun and the sky. `gloss` per set (grade) and `sheen`
+(knob) are the levers; the lawn grasses ship a roughness of 0.26 and are graded
+to 0.3. Census 12 / 14 / 15. The original text follows for the record.
 
 The near and outer rings are `MeshLambertMaterial`. The splat carries a
 roughness per set (the normal array's alpha) and the muskeg pools set it to
@@ -73,7 +88,13 @@ relationship, the streamer's budget (`tree_perf.js` is the instrument).
 Displacement from the sets' heights (vertex or parallax) is only worth
 anything once this exists - see 6.
 
-## 3. GATE SPLAT
+## 3. GATE SPLAT — DONE G471
+
+`tools/_splat_check.js` (core; `--selftest`; `--gpu` by hand for (c) and (d),
+~5 min: fxc takes 100-160 s on the bench's shader). The shader rules are
+checked on the GLSL the module actually splices (run against a stub THREE),
+not on a regex over the file; the Standard ring's hook rules ride in it. The
+original text follows.
 
 Nothing gates the splat today. A gate that (a) checks `RECIPE`'s shape - every
 code's sets exist in the library, scales positive, the far slots either a set
@@ -88,7 +109,10 @@ Chrome; the runner has precedent (UISMOKE).
 
 ## 4. A rock-beach set
 
-`11 shingle` draws `pebble` (the lot's Gravel022, pale) + `rocksG`. The user
+(2026-09-21: the zips are NOT under assets/alphaSplat — the download is the
+first step; the importer's SETS table and RECIPE.library then take the row,
+GATE SPLAT holds the manifest.) `11 shingle` draws `pebble` (the lot's
+Gravel022, pale) + `rocksG`. The user
 asked for a rocky beach; Poly Haven's `coast_land_rocks_01/02` and
 `coast_sand_rocks_02` are the candidates (any of them imports through
 `splat_tex_import.py` unchanged - the `_col_` naming is handled). Then the

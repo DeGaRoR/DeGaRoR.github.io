@@ -54022,3 +54022,74 @@ hillsides read bare where the map says scrub/heath - the borders / grassland mix
   its retired twins); the reference section's `waistY` sits in the trunk's POSITION slot
   above the group; the silhouette highlight style serrates on a pinched run (the overlay's
   shell, not the skin); the pax frame rows show with no bay (they act on pilCabA then).
+
+## G471 — TERRAIN FOLLOW-UP 1 + 3: THE NEAR RING IS A STANDARD MATERIAL (the pools reflect the sky), GATE SPLAT (2026-09-21, the user: "take the doc futureDesigns/TERRAIN-FOLLOW-UP-2026-09-21.md and let's start on the items")
+
+The pick-up doc's first and third items, in the order the user's eye meets them. Item 4 (a rock-beach set)
+waits on the Poly Haven zips; 2 (the fine ring) is its own chantier; 5-7 as the doc says.
+
+- THE ROUGHNESS HAD NOWHERE TO GO, AND WAS NOT EVEN THERE: the doc believed the normal array's alpha
+  carried the sets' roughness; the game wrote a CONSTANT 230 (0.9) into it - splat_tex_prep shipped
+  three maps per set ("the rough map is imported but not shipped: the ring is a Lambert") and the muskeg
+  pools' 0.03 was the one roughness in the whole ground. Now: the importer's rough_512.jpg is the
+  FOURTH map (splat_tex_prep.js; media/tex/splat 51 -> 68 files, 7.1 -> 8.3 MB; the manifest's
+  `get rough()`), buildArrays packs it into the normal array's alpha (230 when a manifest lacks one).
+  The re-import (py -3.11 splat_tex_import.py, assets/splat had been wiped with bench/) re-baked the
+  other 51 files byte-identical - the pipeline is deterministic.
+- THE NEAR RING IS A MeshStandardMaterial ON THE ISLAND (render_world.js): roughness 1, metalness 0,
+  the sets' roughness spliced after roughnessmap_fragment (splat_ground.js glslRough: `roughnessFactor
+  = 1 - (1 - gSRough) * sheen`), gSRough faded to 1 over the macro range (no sheen on the far tier).
+  The reflection is scene.environment (the world's probe). The OUTER ring stays a Lambert (4.5 km out,
+  past the detail, 14 of 16 units) and so does THE PREMISES PATCH: it clones the ring's material and
+  adds five of its own - a Standard clone asks 17 units and fails to link (G424's trap), so
+  innerPatchShared hands it a Lambert TWIN under the same hook (a Lambert has no
+  roughnessmap_fragment; the splice is a no-op there). The analytic world's ring is untouched.
+- THE HOOK CUTS THE IBL'S IRRADIANCE (r186 hands scene.environment to every lit material as diffuse
+  AND specular; the hemisphere is the world's one ambient - THE HEMISPHERE STAYS OUT HERE) by
+  expanding lights_fragment_maps from THREE.ShaderChunk with that line removed.
+- THE HAZE, MEASURED AND CUT: the first build lifted EVERY ground pixel +20 sRGB (+45 % linear), a
+  blue-white cast over the muskeg and the far heath alike. Not the IBL (scene.environmentIntensity 0
+  left it), not the roughness (sheen 0 left it): a one-page A/B (island_shot --step: a Lambert swapped
+  onto the same mesh under the same hook, the sun off, the hemisphere off) put it on the SUN'S DIRECT
+  GGX LOBE - at roughness 1 on a ground whose linear albedo is 0.1, the 4 % Fresnel lobe is 40 % of the
+  diffuse, and the world had been judged for a month as a Lambert without it. Both lobes (the probe's
+  iblRadiance in lights_fragment_maps, the sun's directSpecular in lights_physical_pars_fragment) are
+  multiplied by smoothstep(0.9, 0.6, roughness): dry ground is the Lambert it was to within 1-3 sRGB
+  (measured: near ground 111/119/76 -> 112/119/79, the far heath 111/122/104 -> 110/121/105), the
+  pools (0.03) take the sky (82/90/71 -> 91/104/101 - water, not slate), wet sand (0.61) and shingle
+  (0.46) take the sun. SEEN: bench/standard/muskeg60_AB.png (60 m over the muskeg at -1744, 1204:
+  master's slate pools beside the sky in them), the A/B series bench/standard/ab*.png.
+- THE LAWN GRASSES' ROUGHNESS IS 0.26 (ambientCG's number for a blade; from 60 m a lawn is matte) -
+  the whole heath took the sky. GLOSS is a third grade per set (RECIPE.grade[k].gloss, 1 = the map's,
+  0 = matte; uSGloss[NLIB] in sFetch): grass 0.3, lush 0.35, dry / dirt 0.5; the beach and the
+  pebbles keep theirs (wet sand and shingle catching the sun is what the roughness was asked for).
+  F8 > splat > grade: `gloss`; F8 > blend/tiling: `sheen` (RECIPE.knobs.sheen, the whole ring's lever,
+  0 = the old look; specK stays the bench's Blinn strength, unused in the game).
+- SAMPLERS: near ring 10 -> 12 (envMap + dfgLUT), outer 14, patch 15 (the twin) - tools/sampler_census.js
+  prints `!LINK` on a program that failed to link now. COST: none measurable - tree_perf on Jolene, the
+  same build, the Lambert swapped onto the ring by --probe: 97.1 ms median (Lambert) vs 93.6 (Standard)
+  at the full tier over the densest stand (the frame is the trees'). NOT the way to measure it: the main
+  checkout served as "before" read 17 ms with render 0 - another session's uncommitted pipeline, not
+  master; a before/after across two checkouts is not an A/B (the --probe swap on one build is).
+- GATE SPLAT (core, tools/_splat_check.js, --selftest 17/17): (1) RECIPE's shape - every code 2..14, its
+  sets in the library, scales positive under a named set, the far slots a set or null, mask / vary /
+  para / wet in range, the knobs in range and the split pairs ordered, the parallax OFF, grades a hex
+  gain + sat 0..2 + gloss 0..1, CODES derived cleanly, NCODE / NLIB hold them; (2) the manifest vs the
+  store - splat_tex.js IS RECIPE.library in order, its metres, four files per set on disk, a mean in
+  0..1 (GATE MEDIA's reverse); (3) the shader's ANGLE rules on the GLSL splat_ground.js ACTUALLY
+  splices (the module run against a stub THREE): no textureGrad / textureLod, highp arrays, uniform
+  loop bounds, the colour decoded, no `out` on the chain, no backtick, GROUND_FIELDS.glsl verbatim
+  with the JS table's constants, and the Standard ring's hook (the irradiance cut, both lobes faded,
+  the Lambert twin); (4) --gpu, by hand (~5 min): the census on Jolene - every program carrying
+  uSplat LINKED and under THE RATCHET (near 12 / outer 14 / patch 15), the near ring the Standard one
+  - and the bench's fragment shader through _glsl_probe.html (linked, no fxc internal error; fxc
+  takes 100-160 s on it). The probe page EVALUATES the bench's FS now (it is a JS expression since
+  G438; the raw template failed on its backtick); the census's default 40 s wait left the ground
+  uncompiled twice on a busy machine - the gate passes 90 s and retries an empty census once.
+- island_shot.js --step "<js>" (repeatable): after the shot, each expression runs in the same page and
+  is shot again as <out>_s<i>.png - N states from one eye, one boot; the instrument that found the lobe.
+- GATES: SPLAT (node + --gpu), BUILD / BOOT / WORLDRENDER / UISMOKE / LIGHT / MEDIA / GFX / WORLD / SITE /
+  BIOME / TREES green; the battery at the landing.
+- OWED (the doc, unchanged): the rock-beach set (coast_land_rocks_01/02, coast_sand_rocks_02 - the zips
+  are not in assets/alphaSplat), the fine ring (2), the user's eye on the gloss per set and the
+  grades (5), the rare aerials, the hex-cell jitter, displacement (6), the macro pass (7).

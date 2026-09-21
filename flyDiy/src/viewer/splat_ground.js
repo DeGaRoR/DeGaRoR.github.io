@@ -8,20 +8,26 @@
 // stack the game already ships (the lit Landsat albedo IS the macro here).
 // ===========================================================================
 // WHAT THIS FILE OWNS
-//   SPLAT_GROUND.make(gU, isla)  -> { uniforms, glslCommon, glslMap, glslNormal, api }
+//   SPLAT_GROUND.make(gU, isla)  -> { uniforms, glslCommon, glslMap, glslNormal, glslRough, api }
 //     uniforms    the u S* uniforms (two arrays, the per-code tables, the knobs)
 //     glslCommon  the functions, spliced after the hook's own helpers
 //     glslMap     the call, spliced into the map_fragment block after the
 //                 stack's `t` (the stack is the macro it fades to)
 //     glslNormal  the normal's perturbation, spliced after normal_fragment_maps
+//     glslRough   the sets' roughness, spliced after roughnessmap_fragment (the
+//                 near ring is a MeshStandardMaterial since 2026-09-21 - the
+//                 muskeg pools 0.03, wet mud, bare rock catch the sun and the
+//                 probe; a Lambert ring has no such include and ignores it)
 //     api         F8's handle: get/set knobs, code rows, grades, the library
 //   The arrays are assembled from SPLAT_TEX_SETS (lazily-made Images) once the
 //   maps have decoded; the ground draws the stack alone until then (uSplatOn).
 //
 // SAMPLERS (measured, tools/sampler_census.js, 2026-09-20): the near ring
 // spent 8 units, the outer ring 12, the premises patch 13, of 16; the two
-// arrays make that 10 / 14 / 15. Nothing else may be added to the island's
-// ground programs without a census.
+// arrays make that 10 / 14 / 15; the Standard near ring (envMap + dfgLUT,
+// 2026-09-21) 12 / 14 / 15 - the patch clones a Lambert twin. Nothing else
+// may be added to the island's ground programs without a census (GATE SPLAT
+// --gpu holds these numbers as the ratchet).
 //
 // THE SHADER'S RULES (learned on the bench, ANGLE/D3D):
 //   - implicit texture() on the arrays: textureGrad/textureLod on a
@@ -58,6 +64,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSplatOn;
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
   uniform vec4 uSGrade[${NLIB}];
+  uniform float uSGloss[${NLIB}];
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform float uSBeachRot;
@@ -83,7 +90,7 @@ const SPLAT_GROUND = (() => {
     vec4 nr = texture(uSplatN, vec3(uv, layer));
     vec2 t = nr.xy * 2.0 - 1.0;
     t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);
-    o.n = vec4(t, nr.z * 2.0 - 1.0, nr.a);
+    o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
     vec4 g = uSGrade[int(layer + 0.5)];
     o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
     return o;
@@ -210,7 +217,7 @@ const SPLAT_GROUND = (() => {
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
     gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM);
-    gSRough = clamp(nrm.a, 0.05, 1.0);
+    gSRough = mix(clamp(nrm.a, 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
     vec3 mac = macro * uSSeam.y;
     if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * (lc / max(gLuma(mac), 1e-3)); col = mix(col, tinted, uSDist2.y); }
     return mix(col, mac, mw);
@@ -224,8 +231,14 @@ const SPLAT_GROUND = (() => {
   const glslNormal = () => `
   if (uSplatOn > 0.5) { vec3 pw = (viewMatrix * vec4(gSN, 0.0)).xyz; normal = normalize(normal + pw); }
 `;
+  // after roughnessmap_fragment (a Standard ring): the sets' roughness, the `sheen` knob its lever
+  // (1 = the sets' own, 0 = matte everywhere - the old Lambert look)
+  const glslRough = () => `
+  if (uSplatOn > 0.5) roughnessFactor = 1.0 - (1.0 - gSRough) * uSNrm.y;
+`;
 
   // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
+  // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
   function buildArrays(sets, U, done) {
     const N = sets.length, px = sets[0].px, S = px * px * 4;
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
@@ -233,15 +246,18 @@ const SPLAT_GROUND = (() => {
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
     const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
     Promise.all(sets.map(async (m, i) => {
-      const [d, n, h] = [m.diff, m.nor, m.height];
-      await Promise.all([dec(d), dec(n), dec(h)]);
+      const [d, n, h, r] = [m.diff, m.nor, m.height, m.rough || null];
+      await Promise.all([dec(d), dec(n), dec(h), r ? dec(r) : Promise.resolve()]);
       const o = i * S;
       if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
       if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = hd[k * 4]; }
       else for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = 128;
       if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
       else for (let k = 0; k < px * px; k++) { dataN[o + k * 4] = 128; dataN[o + k * 4 + 1] = 128; dataN[o + k * 4 + 2] = 255; }
-      for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
+      // the ROUGH map in the normal array's alpha (2026-09-21: the near ring is a Standard material and
+      // reads it at roughnessmap_fragment); a manifest without one - or a map that failed - is 0.9 flat
+      if (r && r.naturalWidth) { ctx.drawImage(r, 0, 0, px, px); const rd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = rd[k * 4]; }
+      else for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
     })).then(() => {
       const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -294,6 +310,7 @@ const SPLAT_GROUND = (() => {
       uSMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
+      uSGloss: { value: new Float32Array(NLIB).fill(1) },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
@@ -312,14 +329,15 @@ const SPLAT_GROUND = (() => {
         M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
         const v = m.vary || [0, 0, 20]; Vv.set(v[0] * Math.PI / 180, v[1], v[2], 0);
       }
-      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat); });
+      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
+        U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss; });
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
       U.uSDist.value.set(K.detailFrom, K.detailTo, K.macroFrom, K.macroTo);
       U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, 0);
       U.uSHex.value.set(K.hDepth, K.hexOn, K.hexN, K.hexRot * Math.PI / 180);
       U.uSSeam.value.set(K.seamDepth, K.macroExp);
-      U.uSNrm.value.set(K.nrmK, K.specK);
+      U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
@@ -337,12 +355,12 @@ const SPLAT_GROUND = (() => {
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
-      grade: k => Object.assign({ gain: '#ffffff', sat: 1 }, R.grade[k] || {}),
+      grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1 }, R.grade[k] || {}),
       setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
       reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
     };
-    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), api };
+    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
   return { make };
 })();

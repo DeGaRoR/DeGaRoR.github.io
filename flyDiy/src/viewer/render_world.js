@@ -1139,7 +1139,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
             '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' +
             '  diffuseColor.rgb = t; }');
-        if (SPL) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal);
+        if (SPL) sh.fragmentShader = sh.fragmentShader
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal)
+          // the sets' roughness (a Standard ring only: a Lambert has no roughnessmap_fragment and the line is a no-op)
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + SPL.glslRough);
+        // THE IBL'S DIFFUSE STAYS OUT (the near ring is a Standard, above): r186 hands scene.environment
+        // to every lit material as irradiance AND radiance; the world's ambient is the hemisphere,
+        // so the irradiance line is cut and the probe reaches the ground as its reflection only
+        // AND THE SPECULAR IS THE WET GROUND'S ONLY: GGX at roughness 1 on a dark dielectric is no
+        // small term - the sun's 4 % Fresnel lobe measured +40 % (linear) over the muskeg's mud, a
+        // white haze over a ground the world had judged as a Lambert (2026-09-21, island_shot.js
+        // --step A/B: the sun alone, the hemisphere alone, the probe alone - the direct lobe
+        // was the lift, the probe the pools). Both lobes fade out from roughness 0.6 to 0.9: dry
+        // ground is the Lambert it was to the bit, pools (0.03), wet sand and shingle take the sun
+        // and the sky. GATE SPLAT holds the two patched lines.
+        const SC = THREE.ShaderChunk, GLOSS = ' * smoothstep( 0.9, 0.6, material.roughness )';
+        if (SC && SC.lights_fragment_maps) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>',
+          SC.lights_fragment_maps.replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/* the hemisphere is the ambient (render_world.js: THE HEMISPHERE STAYS OUT HERE) */')
+             .replace('vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness );',
+                      'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'));
+        if (SC && SC.lights_physical_pars_fragment) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>',
+          SC.lights_physical_pars_fragment.replace('reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;',
+                                                   'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'));
       };
     }
     groundApi = {
@@ -1319,10 +1340,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'vec3 dC2 = texture2D(uDetail, vDUv * 6.31).rgb;\n' +
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     }; };
-    const gMat = worldLambert({ map: tex });
-    innerPatchShared = { mat: gMat, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
+    // THE NEAR RING IS A STANDARD MATERIAL ON THE ISLAND (TERRAIN FOLLOW-UP 1, 2026-09-21): the splat
+    // carries a roughness per set (the normal array's alpha - the muskeg pools 0.03, wet mud, bare
+    // rock) and a Lambert had nowhere to put it: the pools read as dark slate, nothing ever caught
+    // the sun. A MeshStandardMaterial takes it at roughnessmap_fragment (the hook below), metalness
+    // 0, the reflection off scene.environment (the world's probe); its IBL IRRADIANCE is stripped
+    // in the hook so the hemisphere stays the world's one ambient (THE HEMISPHERE STAYS OUT HERE:
+    // the diffuse response is the Lambert's to the bit, the sheen is what is added). Samplers: the
+    // near ring 10 -> 12 (envMap + dfgLUT; tools/sampler_census.js). The OUTER ring stays a Lambert
+    // (it starts 4.5 km out, past the detail; 14 of 16 units, no room) and so does THE PREMISES
+    // PATCH: it clones the ring's material and adds five of its own (15 of 16 as a Lambert; a
+    // Standard clone would ask 17 and fail to link, drawing nothing - G424) - innerPatchShared
+    // hands it a Lambert TWIN under the same hook. The analytic world's ring is untouched.
+    const gMat = islandGroundHook ? new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }) : worldLambert({ map: tex });
+    const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
+    innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) gMat.onBeforeCompile = islandGroundHook;
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; gMatTwin.onBeforeCompile = islandGroundHook; }
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
