@@ -153,7 +153,7 @@
     <label>trunk ao <input type="range" id="trunkao" min="0" max="1" step="0.05" value="0.55"><i id="trunkaoV">0.55</i></label>
     <label>imp solid <input type="range" id="isolid" min="0" max="1" step="0.05" value="1"><i id="isolidV">1.00</i></label>
     <label>imp round <input type="range" id="isph" min="0" max="1" step="0.05" value="0"><i id="isphV">0.00</i></label>
-    <label>imp lit <input type="range" id="ilit" min="0.2" max="3" step="0.05" value="0.6"><i id="ilitV">0.60</i></label>
+    <label>imp lit <input type="range" id="ilit" min="0.2" max="3" step="0.05" value="0.9"><i id="ilitV">0.90</i></label>
     <label>sharp <input type="range" id="sharp" min="0" max="3" step="0.05" value="1"><i id="sharpV">1.00</i></label>
   </span>
   <span class="tune">ao:
@@ -2330,7 +2330,17 @@ function bakeImpostor(proto, tile, plainMips) {
   // The cutoff is U_ICUT, the point the impostor's alpha curve is centred on -
   // a coverage target only means anything against the threshold it will be
   // tested at.
-  const mkTex = ms => {
+  // THE BYTES READ BACK ARE sRGB, AND THE TEXTURE THEY GO INTO MUST SAY SO
+  // (B1, 2026-09-20). W0.5a dropped the hand decode from the impostor
+  // material - "the sRGB8 sheet is decoded by the sampler" - which is true of
+  // the GAME's sheet (it samples the SRGB8 target itself) and was never true
+  // here: this DataTexture carried no colour space, so the encoded bytes were
+  // sampled as linear albedo, ~2x too bright, and the V1 `fit` then hid it
+  // in implight 0.47-0.61 (a gamma that is the sRGB curve in all but name -
+  // TREE-IMPORT.md section 6's own smell test, missed). Measured by
+  // tools/imp_audit.js --bench against the game's sheets of the same trees.
+  // The normal sheet stays linear (`srgb` false).
+  const mkTex = (ms, srgb) => {
     const t = new THREE.DataTexture(ms[0].data, N, N, THREE.RGBAFormat);
     t.mipmaps = ms;
     t.generateMipmaps = false;
@@ -2338,6 +2348,7 @@ function bakeImpostor(proto, tile, plainMips) {
     t.magFilter = THREE.LinearFilter;
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
     t.flipY = false;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
     return t;
   };
@@ -2352,7 +2363,7 @@ function bakeImpostor(proto, tile, plainMips) {
   // normal has no silhouette to keep, and rescaling its alpha would only make
   // the two sheets disagree about where the tree is.
   const mipsN = buildAtlasMips(rtN, N, IMP_G, TILE, Math.round(255 * U_ICUT.value), true);
-  const tex = mkTex(mips), nrm = mkTex(mipsN);
+  const tex = mkTex(mips, true), nrm = mkTex(mipsN, false);
   rt.dispose(); rtN.dispose();
   return { tex: tex, nrm: nrm, cy: cy, diam: 2 * M, tile: TILE, mips: mips.length };
 }
@@ -2441,7 +2452,10 @@ const U_ISPH = { value: 0 };   // MEASURED: 0 keeps the most relief, see below
 // tree's dark and light parts, this changes how much of the stand's light the
 // billboards keep. When the far band reads dark against the geometry, this is
 // the dial to reach for first.
-const U_ILIT = { value: 0.6 };
+// 0.9 since B1 (2026-09-20): with the sheet DECODED (mkTex) the conifers refit
+// to implight 1.03-1.12 at 0.9 - the game's own measured tier gain (W0c.18) -
+// where 0.6 had asked them for 1.23-1.33. One number for both pipelines.
+const U_ILIT = { value: 0.9 };
 // WHERE EACH SERIES' ALPHA CURVE IS CENTRED, instead of the crown's 0.40.
 //
 // MEASURED by isolating the three series against black: the pale, speckled

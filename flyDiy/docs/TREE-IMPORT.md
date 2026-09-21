@@ -256,6 +256,19 @@ as "the impostor is missing / wrong" and none of them looks like its cause.
    where a fresh bake of the same tree gave 255 over 215 184.
 2. **Wait for texture decode.** `imageTex` sets `tex.image` in `onload`; a bake
    that runs first writes a tree-shaped RGB with no alpha at all.
+   **Met a THIRD time in the game (G437, 2026-09-20)**, and it wore a different
+   face: r186 samples a texture with no image as (0,0,0,0), so every leaf card
+   failed its cut and the bark came out black with the albedo pass forcing alpha
+   to 1 — eighteen black skeletons, 3–5 % of a tile drawn where the same tree
+   bakes to 15–24 %, cached for the page's life. The bake had been gated on
+   `treeReady()`, which is the BYTES; the loading chantier's prefetch made the
+   bytes land before the world is built, and the maps decode 200 ms after. The
+   rule now has teeth: one predicate, `treesSettled()` (bytes AND maps), is the
+   only state a plant or a bake may read; `bakeImpostorAtlasNow` REFUSES a
+   source whose map has no image and does not cache the refusal; and every
+   sheet is READ BACK after the albedo pass (`atlas.check`: drawn fraction and
+   mean byte, a console.error when empty or black). `tools/imp_audit.js` reads
+   every sheet, the A/B and the bench (below).
 3. **The tile rect lives on the RENDER TARGET.** `renderer.setViewport` is
    overwritten by any pass that re-binds a target — the shadow map does, once —
    and every tile after it draws at 8× magnification, clipped to its tile.
@@ -266,11 +279,37 @@ as "the impostor is missing / wrong" and none of them looks like its cause.
 5. **Coverage-preserving mipmaps for the sheet**, per tile — the 64 views are
    not equally dense. Without them the larch held 32 % of its canopy at a
    16-texel tile where the preserved chain held 111 %.
+   Measured again in G437 against the game's plain GPU chain of the BINARY
+   sheet: at the rungs' cut of 0.40 the box chain holds 1.05–1.30× of level 0's
+   coverage down to L5, the same shape as this CPU chain's 1.02–1.36× — for a
+   binary mask tested at 0.4, a box average is coverage-neutral, and the game
+   does not need the CPU chain (the bench keeps it for the low-cut series and
+   the leaf maps, where the 32 % above was measured).
+6. **The read-back bytes are sRGB, and the texture they go into must say so.**
+   W0.5a dropped the impostor's hand decode because "the sRGB8 sheet is decoded
+   by the sampler" — true of the game, which samples its SRGB8 target, false of
+   this bench, whose `mkTex` re-uploads the bytes into a DataTexture that
+   carried no colour space: sampled ~2× too bright, and the V1 `fit` hid it as
+   implight 0.47–0.61 (the sRGB curve as a gamma — the smell test at the end of
+   this section, missed). Fixed G437; refit at `imp lit` 0.9 the conifers come
+   back to 1.03–1.12.
 
 Then: the silhouette is the **union** of the three blended views, not their
 average (three binary masks averaged put a texel carried by one view at a third,
 which the alpha test throws away); and the light trim is a **gamma**, not a
 multiply, so lifting dark foliage does not blow a pale trunk white.
+
+**The audit (G437): `node tools/imp_audit.js --url <dev.html> [--bench]`.**
+Headless Chrome on the GPU, the game rolled out and held at the densest stand:
+every atlas the game baked (`WORLD.treeAtlases()`, named by subject and series)
+read back — coverage per tile at the series' cut, mean linear albedo of the drawn
+texels, alpha histogram, the mip chain's coverage per level, a contact-sheet PNG
+each; the same eye drawn with the default ladder / all geometry / all impostors,
+a screenshot each and the impostor-over-geometry luminance ratio (what `imp lit`
+is meant to hold at 1 — 1.025 at 0.9 after the fix); and with `--bench` the
+bench's own sheets for the same trees. Pictures in `screenshots/imp_audit/`, the
+record in `tools/perf/imp_audit.json`. Run it after ANY change to the bake, the
+leaf terms or the rig, and read its table before touching a shader.
 
 Fit `implight` by measuring the impostor against its own geometry at the same
 camera and **bisecting** — the Newton step oscillates. All six land within 2 %.

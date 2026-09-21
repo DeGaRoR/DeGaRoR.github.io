@@ -135,6 +135,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
   const uILit = { value: 0.9 };
+  // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
+  let treeAtlases = () => [];
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
   // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
@@ -1836,14 +1838,34 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       m.side = src.side;
       return m;
     }
-    function bakeImpostorAtlas(src) {
+    // `tag` = { key, series }: the atlas is named after the subject it was
+    // baked from, so the audit (tools/imp_audit.js, WORLD.treeAtlases) can
+    // read a sheet back and say WHICH tree it is - the cache key alone is a
+    // parts array nothing else can name
+    function bakeImpostorAtlas(src, tag) {
       const hit = ATLAS.get(src);
       if (hit) return hit;
-      const atlas = bakeImpostorAtlasNow(src);
-      if (atlas.tex) ATLAS.set(src, atlas);
+      const atlas = bakeImpostorAtlasNow(src, tag);
+      if (tag) { atlas.key = tag.key; atlas.series = tag.series; }
+      // a refused bake (a map not yet decoded) is NOT cached: the next call,
+      // after the maps land, bakes for real (TREE-IMPORT.md section 6 trap 1)
+      if (atlas.tex && !atlas.refused) ATLAS.set(src, atlas);
       return atlas;
     }
-    function bakeImpostorAtlasNow(src) {
+    // the drawn fraction and the mean byte of the drawn texels of a sheet
+    function sheetCheck(rt, N) {
+      const px = new Uint8Array(N * N * 4);
+      renderer.readRenderTargetPixels(rt, 0, 0, N, N, px);
+      let n = 0, sum = 0;
+      for (let i = 0; i < N * N; i++) if (px[i * 4 + 3] >= 128) { n++; sum += px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2]; }
+      return { cover: n / (N * N), mean: n ? sum / n / 3 : 0 };
+    }
+    // THE AUDIT'S DOOR: every atlas baked so far, named. The bake is a render
+    // nobody sees, and the only way to know what it wrote is to read the
+    // targets back (TREE-IMPORT.md §6: every one of its six faults presented
+    // as "the impostor is wrong" and none looked like its cause).
+    treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    function bakeImpostorAtlasNow(src, tag) {
       const parts = Array.isArray(src) ? src : null;
       const srcGeo = parts ? parts[0].geo : src;
       const bs = srcGeo.userData.shape;     // stashed by chunkBounds, see above
@@ -1851,6 +1873,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // bleed across tile borders, and the gutter is what keeps that off the tree
       const M = bs.r * 1.12, cy = bs.cy, atlas = { cy, diam: 2 * M, tex: null, nrm: null };
       if (!canBake) return atlas;
+      // A BAKE WITH AN UNDECODED MAP IS REFUSED, not attempted. TREE-IMPORT.md
+      // section 6 trap 2, met a third time (B1, 2026-09-20): the fill's shapes
+      // were set at construction the moment the BYTES were in (treeReady),
+      // which since the loading chantier (G420/G421 prefetch the payload) is
+      // before the maps have decoded - and r186 samples a texture with no
+      // image as (0,0,0,0): every leaf card discarded, the bark black, alpha
+      // forced to 1 by the albedo pass. Eighteen black skeletons, cached for
+      // the life of the page. The callers now wait for treesSettled(); this
+      // is the guard that makes the next such regression a console line.
+      if (parts) {
+        const late = parts.filter(q => q.mat && q.mat.map && !q.mat.map.image).map(q => q.mat.name || '?');
+        if (late.length) {
+          console.error('impostor bake refused: ' + (tag ? tag.key + ' ' + tag.series : '?') + ' - map not decoded on ' + late.join(', '));
+          atlas.refused = true;
+          return atlas;
+        }
+      }
       const N = IMP_G * IMP_TILE;
       const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
         minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
@@ -1915,6 +1954,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       BAKE.value = 1;                        // pass 1: albedo + coverage
       drawAll(rt);
       BAKE.value = 0;
+      // THE SHEET IS READ BACK BEFORE IT IS TRUSTED (B1, 2026-09-20). Every
+      // fault of this bake has presented as "the impostor is wrong" with
+      // nothing on the screen to say which (TREE-IMPORT.md section 6), and
+      // the last one - a bake run before its maps had decoded - shipped black
+      // skeletons for five days because nothing read the target. One
+      // readback per sheet, at boot, under the roll-out screen: the drawn
+      // fraction and the mean byte of the drawn texels, kept on the atlas
+      // (`check`, WORLD.treeAtlases / tools/imp_audit.js) and shouted when
+      // the sheet is empty (< 0.5 % drawn) or black (mean byte < 8).
+      atlas.check = (typeof renderer.readRenderTargetPixels === 'function') ? sheetCheck(rt, N) : null;   // the headless stub (GATE WORLDRENDER) has no readback
+      if (atlas.check && (atlas.check.cover < 0.005 || atlas.check.mean < 8))
+        console.error('impostor bake: ' + (tag ? tag.key + ' ' + tag.series : 'cone') + ' sheet ' +
+          (atlas.check.cover < 0.005 ? 'EMPTY' : 'BLACK') + ' (drawn ' + (atlas.check.cover * 100).toFixed(2) + ' %, mean byte ' + atlas.check.mean.toFixed(1) + ')');
       const swap = [];                       // pass 2: the tree's own normals
       for (const mm of meshes) { swap.push([mm, mm.material]); mm.material = normalMatFor(mm.material); }
       drawAll(rtN);
@@ -2047,7 +2099,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const m = new THREE.MeshStandardMaterial({ map: atlas.tex,
         alphaTest: 0.01, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       (m.userData = m.userData || {}).atlas = atlas;
-      if (!atlas.tex) return m;              // headless: no GL, no atlas, no shader
+      if (!atlas.tex) { if (atlas.refused) m.visible = false; return m; }   // headless: no GL, no atlas, no shader; a refused bake draws nothing
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
@@ -2556,6 +2608,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // So: warm, BUILD the subjects (which is what requests the maps), wait for
     // the maps, and only then plant. Both layers go through this one promise.
     let treeSettled = null;
+    // THE ONE PREDICATE A PLANT OR A BAKE MAY READ: bytes AND maps in.
+    // treeReady() is the bytes alone, and a plant taken on it bakes from
+    // maps still in flight (B1, 2026-09-20 - see bakeImpostorAtlasNow).
+    let treeMapsLanded = false;
+    const treesSettled = () => treeMapsLanded;
     treeSettleOf = () => treeSettle();
     const treeSettle = () => {
       if (treeSettled) return treeSettled;
@@ -2575,6 +2632,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       });
       return treeSettled;
     };
+    treeSettle().then(() => { treeMapsLanded = true; }).catch(() => {});   // registered FIRST: every replant below reads it true
 
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
@@ -2591,7 +2649,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (let i = ladderChunks.length - 1; i >= 0; i--) if (ladderChunks[i].own) ladderChunks.splice(i, 1);
 
       PROTO = null;
-      if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
+      if (treesSettled() && typeof treeBuild === 'function') {
         try {
           // `parts` is L0 (what the impostor bakes from); `ladder` is every
           // rung of the series, dressed with its band - see ladderFor
@@ -2650,7 +2708,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const srcs = P ? P.series.map(S => S.parts) : [fallbackGeo];
       return srcs.map((src, si) => {
         const gain = P ? impaOf(P.key) : 6;
-        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null, gain);
+        const at = bakeImpostorAtlas(src, P ? { key: P.key, series: SERIES[si] } : null),
+              m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null, gain);
         m.userData.depth = impostorDepth(at, si, false, gain);
         m.userData.farDepth = impostorDepth(at, si, true, gain);
         if (m.userData.farDepth)   // null under the W0.5b flag (no custom depth)
@@ -2835,7 +2894,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // Nothing fetched the bytes, so treeReady() was false at every boot and the
     // world drew the 14-triangle cone it has drawn since W17. A rejection is
     // the asset-absent path and already handled — the cone stays.
-    if (typeof treeReady === 'function' && !treeReady())
+    if (!treesSettled())
       treeSettle().then(() => { plantWoodland(); }).catch(() => {});
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
@@ -2927,7 +2986,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (const k of SHAPE.kit) if (k && k.dispose) k.dispose();
         SHAPE.kit = [];
         let real = null;
-        if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
+        if (treesSettled() && typeof treeBuild === 'function') {
           try {
             // THE FILL CLIMBS THE SAME LADDER AS THE WOODLAND. It used to
             // draw one rung - the cheapest the series had - across the whole
@@ -2953,7 +3012,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           for (const H of real) {
             H.series.forEach((S, si) => {
               for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
-              const at = bakeImpostorAtlas(S.parts);
+              const at = bakeImpostorAtlas(S.parts, { key: H.key, series: SERIES[si] });
               const gain = impaOf(H.key);
               S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts), gain);
               S.imp.userData.depth = impostorDepth(at, si, false, gain);
@@ -3170,12 +3229,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (const [k, c2] of chunks) { dropPart(c2.base); dropPart(c2.fill); chunks.delete(k); }
         queue.length = 0;
       };
-      if (typeof treeReady === 'function' && !treeReady())
+      if (!treesSettled())
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
       FILL.budgetMs = 4;
       // THE TREE STATE (S3): the roll-out screen asks whether the payload is in
       // before it grows the ring, or it would grow cones and evict them
-      const TREE_STATE = { v: (typeof treeReady === 'function' && treeReady()) ? 'ready' : 'pending' };
+      const TREE_STATE = { v: treesSettled() ? 'ready' : 'pending' };
       treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
@@ -4265,6 +4324,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return premisesR; },
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
+           treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)
            // the world's own light panel — the same shape the shed exposes, so
            // one piece of UI can drive either room
            lightSwitches: worldSwitch ? worldSwitch.list() : [],

@@ -25,7 +25,7 @@
   "isolid": 1.0,
   "icut": 0.4,
   "isph": 0,
-  "ilit": 0.6,
+  "ilit": 0.9,
   "crownH": 1.3,
   "crownW": 1.0
  },
@@ -164,7 +164,7 @@
    "variants": 3,
    "stick": 0.055,
    "impa": 6,
-   "implight": 0.52,
+   "implight": 1,
    "prune": 1,
    "bendPct": 1,
    "leafScale": 1.3,
@@ -189,7 +189,7 @@
    "sparse": 0.75,
    "variants": 3,
    "impa": 6,
-   "implight": 0.47,
+   "implight": 1,
    "prune": 1,
    "bendPct": 1,
    "leafScale": 1.3,
@@ -249,7 +249,7 @@
    "dead": 0,
    "stick": 0.022,
    "impa": 6,
-   "implight": 0.61
+   "implight": 1
   },
   "oak": {
    "file": "various_forest_assets_pack.glb",
@@ -268,7 +268,7 @@
    "dead": 0,
    "stick": 0.022,
    "impa": 6,
-   "implight": 0.58
+   "implight": 1
   },
   "ash": {
    "file": "various_forest_assets_pack.glb",

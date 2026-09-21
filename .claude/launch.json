@@ -611,6 +611,18 @@
       "port": 8440
     },
     {
+      "name": "flydiy-veg",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8463",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8463
+    },
+    {
       "name": "flydiy-perf",
       "runtimeExecutable": "node",
       "runtimeArgs": [

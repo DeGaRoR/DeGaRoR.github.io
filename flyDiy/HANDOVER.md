@@ -52265,3 +52265,75 @@ prompts). Findings that matter beyond it:
   fully dry (a real 172 humps at 8-10: the wake behind the step recovers
   faster than kWake lets it, H3's calibration); the A9 card idiom for the
   hydroplane row's live panel (it reuses the flight's).
+
+## G452 — THE IMPOSTORS WERE BLACK SKELETONS: A BAKE BEFORE ITS MAPS, CACHED FOR THE
+## PAGE'S LIFE (2026-09-20, playtest triage B1 part 1, the user: "understand why the
+## current impostors look dark and thin while we had good results ... have the
+## impostor generation robust and auditable")
+
+MEASURED, not bisected: the triage's four candidates (light unit, cloud shadow,
+uThin, the V1 payload) were all wrong, and the instrument that said so is now a
+tool. `node tools/imp_audit.js --url <dev.html> --bench` (headless Chrome on the
+GPU, tree_perf's rig): the game rolled out, teleported to the densest stand,
+paused, settled; (1) EVERY ATLAS READ BACK (`WORLD.treeAtlases()`, the sheets
+named by subject + series since this commit) - per-tile coverage at the series'
+cut, the mean linear albedo of the drawn texels, the alpha histogram, the mip
+chain's coverage level by level, a contact-sheet PNG each; (2) THE A/B - the same
+eye with the ladder default / ALL geometry (near band 1.2 km) / ALL impostors
+(10 m), a screenshot each and the mean luminance over the forest box, the
+impostor/geometry ratio being what `imp lit` is meant to hold at 1; (3) the bench
+(`tools/_trees.html`) in a second page on the conifer mix, its own sheets read the
+same way. Pictures to `screenshots/imp_audit/` (ignored), the record to
+`tools/perf/imp_audit.json`. `--probe`/`--probe-file`/`--pre` run experiments in
+the page (the ones below).
+
+- THE FAULT. At HEAD every one of the 18 game sheets was BLACK (mean linear
+  albedo 0.000 over the drawn texels) and THIN (3-5 % of a tile drawn where a
+  fresh bake of the same tree gives 15-24 %): the trace showed all 18 bakes at
+  t = 20.2 s with `map.image = false, version 0` on every material. The fill's
+  `setShapes()` ran at construction on `treeReady()` - the BYTES - and since the
+  loading chantier prefetches the payload (G420/G421) the bytes are in before the
+  world is built, so the bake ran before the maps decoded; r186 samples a texture
+  with no image as (0,0,0,0): every leaf card failed its cut (thin), the bark
+  came out black with the albedo pass forcing alpha to 1 (dark); the atlas cache
+  is keyed on the parts array, so the sheet outlived the maps landing 200 ms
+  later; the woodland took the same cached sheet. The replant-on-arrival only
+  fired `if (!treeReady())` - never, now. TREE-IMPORT.md §6 trap 2, met a THIRD
+  time, and it regressed the day after the impostors were last judged (W0c.31).
+- THE FIX: ONE predicate `treesSettled()` (bytes AND maps - a flag set by the
+  first `.then` on treeSettle) in place of every `treeReady()` a plant or a bake
+  read (plantWoodland, setShapes, the replant-on-arrival guards, TREE_STATE);
+  `bakeImpostorAtlasNow` REFUSES a source whose map has no image (console.error,
+  not cached, the impostor material invisible); after the albedo pass the target
+  is READ BACK (`atlas.check` = drawn fraction + mean byte; console.error when
+  EMPTY < 0.5 % or BLACK < 8; skipped where the headless stub has no readback).
+  After: rungs coverage 15-24 %, albedo Y 0.03-0.10 (the bench's 12-22 % /
+  0.03-0.06 once its tint-in-the-bake is allowed for), impostor/geometry over the
+  forest box 1.025 at `imp lit` 0.9 (W0c.18's 0.93). The pane and the
+  screenshots agree: pale full crowns at 300-800 m where black sticks stood.
+- NOT A CAUSE, MEASURED: the GPU box mips of the binary sheet at cut 0.40 hold
+  1.05-1.30x of level 0's coverage down to L5 - the same shape as the bench's
+  CPU coverage-preserving chain (1.02-1.36x); G420's "owed atlas coverage mips"
+  buys nothing for the rungs series and is closed. (Stand and snag at their low
+  cuts fatten 2-5x at L4-L5 in BOTH pipelines - the stick promotion by design.)
+- THE BENCH HAD ITS OWN BUG, the other way: W0.5a dropped the impostor's hand
+  decode ("the sRGB8 sheet is decoded by the sampler"), true of the game, false
+  of the bench whose DataTexture re-upload of the read-back bytes carried no
+  colour space - sampled ~2x too bright, and the V1 `fit` hid it as implight
+  0.47-0.61 (the sRGB curve as a gamma; the doc's own smell test). mkTex now
+  marks the albedo sheet sRGB; refit at `imp lit` 0.9 (the game's) the conifers
+  come back to implight 1.03-1.12, so the bench's default `imp lit` is 0.9 and
+  the four V1 implights are reset to 1 in the tuning (localStorage overrides the
+  file per collection - `clear all` or refit on a machine that fitted them).
+- ALSO: `tools/_serve.js [port] [root] [fallbackRoot]` serves a worktree with
+  the main checkout's gitignored bench/ + assets/ behind it (no junction - the
+  G434.1 trap); launch entry `flydiy-veg` (8463). GATE WORLD is red at pristine
+  HEAD (golden trees hash, default==seed0 - no jolene files under bench/ in a
+  worktree) - not this chantier's.
+- OWED (B1 part 2): the bake as ONE COMMAND that re-emits every pack's sheets
+  from the bench's dials and ships them through media/ (today the game bakes at
+  boot, ~1.6 ms a sheet plus the readback); imp_audit in the battery behind a
+  GPU flag; B2 (impostor-first ladder) reads `imp_audit.json` before and after.
+(Written as G437 on the vegetation branch on 2026-09-20; LANDED ALONE on master as G452 on
+2026-09-21, the user: "I keep seeing other sessions with the old dark and slim impostors" -
+the biomes chantier that sits on top of it stays on its branch.)
