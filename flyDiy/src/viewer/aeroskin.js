@@ -4062,14 +4062,26 @@ function aeroGlass(THREE, o) {
     reflectivity: 0.5,
     clearcoat: 1.0,
     clearcoatRoughness: G('ccR'),
-    // THE ADD PASS (G206): ONE, ONE. The output block writes
-    // diffuse * (1 - T) + specular and alpha 1; nothing here reads alpha.
-    // `opacity` still carries the slab — the shader reads it as diffuseColor.a
-    // — it just no longer scales the reflection.
+    // THE SCREEN PASS (G206, blend changed G448.2): ONE, ONE-MINUS-SRC-COLOUR.
+    // The output block writes diffuse * (1 - T) + specular and alpha 1;
+    // nothing here reads alpha. `opacity` still carries the slab — the shader
+    // reads it as diffuseColor.a — it just no longer scales the reflection.
+    // WHY NOT ONE, ONE ANY MORE: the pane draws into a DISPLAY-SPACE target
+    // (aa_resolve.js), so its reflection is tone-mapped on its own and then
+    // summed with the already tone-mapped picture behind it - two curves
+    // added, and toneMap(a) + toneMap(b) overshoots toneMap(a + b) wherever
+    // both are mid-high: the sun's lobe over a lit cabin clipped to a hard
+    // white band across the whole canopy and the interior "glowed" (the
+    // user, 2026-09-21: "lights up like crazy ... burnt"). Ablated: the
+    // specular, not the diffuse (10 %) and not the tint companion. SCREEN -
+    // out = src + dst * (1 - src) - is the additive blend that cannot clip:
+    // equal to ONE, ONE for a faint reflection, compressed where the picture
+    // behind is already bright. The proper answer (one tone map over
+    // background + reflection) needs the linear split (POST-FX study P2).
     blending: THREE.CustomBlending,
     blendEquation: THREE.AddEquation,
     blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcColorFactor,
     // THE MOOD STILL SCALES IT. aeroSetEnv multiplies every material by the
     // room's own factor off `userData.env0`, so the builder's dial has to be
     // folded into the BASE rather than written on top of it, or the two fight

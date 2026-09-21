@@ -51854,3 +51854,23 @@ prompts). Findings that matter beyond it:
   the far PAPI reading red, the field from the approach - the funnel and the green bar).
 - OWED: the fixtures' own glow (props are one baked material; G417's propSetGlowOf never
   existed either) - a per-prop emissive would need the prop pipeline; the sea's glint above.
+
+## G448.2 — THE CANOPY BURNT WHITE: THE PANE IS A SCREEN PASS, NOT AN ADD (2026-09-21, the user on the
+## post-FX sheet: "shading issue with the glass material ... the glass of the prop plane lights up like
+## crazy, and it's like it would itself light the interior using its reflection ... burnt")
+
+- DIAGNOSED BY ABLATION (tools/postfx_shot.js from an eye ahead-left of the own canopy, the clock frozen;
+  screenshots/postfx-2026-09-21/glass): the pane hidden -> the interior, dark and legible; the tint
+  companion hidden -> no change; the pane's diffuse term (uGlassB.y) zeroed -> -10 %; the sun off and the
+  environment at 0 -> the band goes. So it was the SPECULAR (the sun's lobe on the clearcoat + the sky
+  probe), and the way it was composited: the pane draws into the DISPLAY-SPACE resolve target
+  (aa_resolve.js), so its reflection is tone-mapped on its own and then ADDED (ONE, ONE - G206's add
+  pass) to the already tone-mapped picture behind it. toneMap(a) + toneMap(b) overshoots toneMap(a + b)
+  wherever both are mid-high: over a lit cabin the sun's lobe clipped to a hard white band across the
+  whole canopy (3502 pixels at 255 in the crop), which reads as the pane lighting the interior.
+- THE FIX, ONE LINE (aeroskin.js, the pane material): blendDst ONE -> ONE-MINUS-SRC-COLOUR, i.e. SCREEN
+  (out = src + dst x (1 - src)) - identical to add for a faint reflection, compressed where the picture
+  behind is already bright, and it cannot clip. Same crop after: 3 pixels at 255, mean 107 -> 98, the
+  reflection still on the canopy, the pilot readable through it. Not the proper answer - that is ONE tone
+  map over background + reflection, which needs the linear split (POST-FX study §2 b, P2) - but the
+  honest one under the display-space rule. Gates SKINMAT, AA, POSTFX, LIGHT, BUILD, UISMOKE green.
