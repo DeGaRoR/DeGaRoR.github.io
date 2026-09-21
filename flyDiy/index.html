@@ -24873,6 +24873,13 @@ const GEN_HINGE = {
   strapW: 0.030,         // m, strap width across the hinge
   strapT: 0.0022,        // m, strap gauge
   strapReach: 0.090,     // m, how far the strap runs onto each skin
+  // the metal surface's BRACKET (A7): the exposed fitting of a Cessna-type
+  // hinge - 25 mm wide, 35 mm of tail each side, the same barrel
+  bracketW: 0.025,       // m
+  bracketReach: 0.035,   // m
+  // the piano hinge, as extruded (MS20257-type): the leaf each side, the barrel
+  pianoLeaf: 0.022,      // m, per side
+  pianoBarrelR: 0.0042,  // m
   pinR: 0.0045,          // m, the hinge pin
   hornT: 0.0032,         // m, the horn plate
   hornReach: 0.085,      // m, eye centre from the hinge axis
@@ -24944,13 +24951,21 @@ const GEN_HINGE_KIT = {
           horn: 'none', link: 'none', faces: 1, family: 'piano' },
 };
 
-// A FABRIC SURFACE HANGS ON STRAPS, A METAL ONE ON A PIANO HINGE. The surface
+// A FABRIC SURFACE HANGS ON STRAPS, A METAL ONE ON HINGE BRACKETS. The surface
 // material vocabulary is GEN_SURF_MATERIALS' (G213), and a surface can be
 // made of something the aeroplane is not — so this reads the SURFACE's own
 // construction and never the fuselage's.
+// THE METAL SURFACE'S HINGE IS A BRACKET, NOT A PIANO (A7, 2026-09-21, the
+// user: "they need to remain quite small, and not too numerous ... determine
+// real world size and counts"). A Cessna 172 hangs each aileron on THREE
+// hinge brackets, the elevator and rudder likewise: a fitting the size of a
+// hand's two fingers, mostly inside the gap, a barrel and a bolt showing.
+// The piano hinge (MS20257-type extrusion: 20-25 mm of leaf each side, an
+// 8 mm barrel, continuous along the whole hinge line) is the homebuilt's
+// answer and is still there as the builder's explicit choice (hgFamily 2).
 function genHingeFamily(surfMat) {
   const m = String(surfMat || 'fabric');
-  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'piano' : 'strap';
+  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'bracket' : 'strap';
 }
 
 // HOW MANY, from the span it has to hold: one bay every pitchMax, never
@@ -35772,7 +35787,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='bd7de28122d5'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='00096548151f';window.FLYDIY_BUILD='67f76586c8dc'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -63947,35 +63962,21 @@ function strapHinge(bF, bM, F, S) {
 // run of `n` knuckle pairs over `len` about F.p; the pin is one tube.
 // ---------------------------------------------------------------------------
 function pianoHinge(bF, bM, F, S, len) {
-  // pitch: a real piano hinge's knuckles are ~25 mm, which over a 4 m flap
-  // would be 160 of them and 40 000 triangles for a part 3 mm proud. The
-  // knuckle is drawn at the strap's own width instead — the same READ at any
-  // distance a player looks from, at a tenth of the cost — and `detail`
-  // scales it for anyone who wants the real pitch.
-  const kn = Math.max(2, Math.round(len / Math.max(0.02, S.w * 2.6 / Math.max(0.35, S.detail || 1))));
-  const pitch = len / kn;
-  const r = S.r, t = S.t * 1.6;
+  // AT THE EXTRUSION'S OWN SIZE (A7, 2026-09-21, the user: "not sure about the
+  // huge hinges ... they need to remain quite small"). A piano hinge is an
+  // MS20257-type extrusion: a leaf of 20-25 mm each side of an 8 mm barrel,
+  // knuckles every 25 mm, the whole thing continuous down the hinge line and
+  // near-flush - at two metres it is a thin bright line with a bead on it.
+  // The first cut drew the leaves at the STRAP's reach (r 0.9 + 0.7 reach, up
+  // to 110 mm a side) and, worse, a square leaf per knuckle alternating
+  // sides; the second drew those leaves continuous - 220 mm plates. This is
+  // the real part: two 22 mm strips of the gauge on the measured skin and
+  // one barrel, the knuckles only as shallow grooves in it (a barrel per
+  // knuckle over 4 m of flap is 40 000 triangles for nothing the eye keeps).
+  const leaf = S.leaf || 0.022, rB = S.barrelR || S.pinR * 1.9, t = S.t;
+  const r = S.r;
   const lie = r + t * 0.5 + 0.0008;
-  for (let i = 0; i < kn; i++) {
-    const zc = -len * 0.5 + pitch * (i + 0.5);
-    const fixed = (i % 2) === 0;
-    const bag = fixed ? bF : bM;
-    // the knuckle: a short barrel on the pin
-    revolve(bag, at(F, 0, 0, zc - pitch * 0.40), F.z,
-      [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.80],
-       [S.pinR * 1.02, pitch * 0.80]], 8, false);
-  }
-  // THE LEAVES ARE TWO STRIPS, THE LENGTH OF THE RUN (A7, 2026-09-21, the
-  // user of Screenshots 2026-09-18 191521 and 2026-09-19 162359: "lots of
-  // hinges ... more than required" on the wing, and the fin "never mapped
-  // right" - a column of alternating squares up the rudder line). Each
-  // knuckle used to carry its own leaf, one side or the other, so a run
-  // read as a row of separate plates staggered across the hinge line - a
-  // chequer, not a hinge. A piano hinge's leaves are continuous: one strip
-  // on the fixed skin, one on the moving, the knuckles alternating between
-  // them on the pin. Each strip lies on the MEASURED skin where the layer
-  // offers it (G304; see strapHalf), sampled along the run.
-  const NS = Math.min(9, Math.max(3, kn | 1));
+  const NS = 7;
   for (const dir of [-1, 1]) {
     const bag = dir < 0 ? bF : bM;
     const hAt = (a, fb) => {
@@ -63987,17 +63988,37 @@ function pianoHinge(bF, bM, F, S, len) {
       }
       return h == null ? fb : h + t * 0.5 + 0.0008;
     };
-    const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
-    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
-    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
-    if (S.skin) for (const f of [0.2, 0.4, 0.6, 0.8]) {
-      const a = a1 + (a2 - a1) * f;
-      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
-    }
+    // the leaf lies from the barrel's edge outward by its own width
+    const a1 = dir * (rB * 1.1), a2 = dir * (rB * 1.1 + leaf);
+    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.92 : 1));
+    const path = [at(F, dir * rB * 0.4, Math.max(h1, rB) * 0.98, 0), at(F, a1, h1, 0)];
+    for (const f of [0.5]) path.push(at(F, (a1 + a2) * 0.5, hAt((a1 + a2) * 0.5, (h1 + h2) * 0.5), 0));
     path.push(at(F, a2, h2, 0));
-    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
+    sweep(bag, path, () => secBlade(len * 0.98, t, 2), true, F.z);
   }
-  tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
+  // the barrel, on the skin line, the knuckles as grooves every 25 mm
+  const hB = Math.max(lie, rB);
+  const c0 = at(F, 0, hB, -len * 0.5), c1 = at(F, 0, hB, len * 0.5);
+  tube(bF, c0, c1, rB, 10);
+  const kn = Math.max(2, Math.round(len / 0.025));
+  for (let i = 1; i < kn; i++) {
+    const z = -len * 0.5 + len * i / kn;
+    revolve(i % 2 ? bM : bF, at(F, 0, hB, z - 0.0008), F.z,
+      [[rB * 0.85, 0], [rB * 1.06, 0], [rB * 1.06, 0.0016], [rB * 0.85, 0.0016]], 8, false);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// THE BRACKET HINGE - the metal surface's (A7, 2026-09-21). A Cessna hangs an
+// aileron on three of these: a short fitting either side of the gap, riveted
+// to the skins, a barrel between; the strap's drawing at a fitting's reach
+// and width (GEN_HINGE.bracketW / bracketReach), so the knee, the eye and
+// the rivets are the strap's - which already follow the measured skin and
+// go round the cove's lip (G304).
+// ---------------------------------------------------------------------------
+function bracketHinge(bF, bM, F, S) {
+  const S2 = Object.assign({}, S, { w: S.bracketW || 0.025, reach: S.bracketReach || 0.035 });
+  strapHinge(bF, bM, F, S2);
 }
 
 // ---------------------------------------------------------------------------
@@ -64217,7 +64238,7 @@ function fairlead(bag, p, n, u, S) {
   return g.mouth;
 }
 
-const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge, buttHinge,
+const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge, buttHinge, bracketHinge,
               controlHorn, linkRod, bellcrank, hingeFair, fairlead, fairleadMouth,
               fowlerTrack, fowlerCarriage,
               HINGE_BAGS: ['metal', 'fair'] };
@@ -84249,13 +84270,13 @@ const hgDef = {
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges, on the A-pillar edge
 };
-const FAM = ['as built', 'strap', 'piano'];
+const FAM = ['as built', 'strap', 'piano', 'bracket'];
 PAGE.defaults = Object.assign(hgDef, PAGE.defaults || {});
 
 const GROUP = ['13 · control hardware', [
   ['hgOn', 'hinges & horns', 0, 1, 1, ['off', 'on']],
   ['type', [
-    ['hgFamily', 'hinge type', 0, 2, 1, FAM],
+    ['hgFamily', 'hinge type', 0, 3, 1, FAM],
     ['hgCount', 'hinges per surface', 0, 6, 1],
   ], { when: P => +P.hgOn }],
   ['position', [
@@ -84817,6 +84838,9 @@ PAGE.post = ctx => {
     hornT: HC.hornT * sz, hornReach: Math.max(0.02, +P.hgHornLen || HC.hornReach),
     linkR: HC.linkR * sz, cableR: HC.cableR * sz, fairT: HC.fairT,
     detail,
+    // A7: the bracket's and the piano's own sizes (GEN_HINGE), through the same knob
+    bracketW: (HC.bracketW || 0.025) * sz, bracketReach: (HC.bracketReach || 0.035) * sz,
+    leaf: (HC.pianoLeaf || 0.022) * sz, barrelR: (HC.pianoBarrelR || 0.0042) * sz,
   };
 
   // `inner` is the hardware that lives INSIDE the wing by design — the
@@ -84856,6 +84880,7 @@ PAGE.post = ctx => {
     const fam = s.kind === 'door' ? 'piano'
               : Math.round(+P.hgFamily || 0) === 1 ? 'strap'
               : Math.round(+P.hgFamily || 0) === 2 ? 'piano'
+              : Math.round(+P.hgFamily || 0) === 3 ? 'bracket'
               : (familyOf ? familyOf(consOf(s.kind)) : 'strap');
     // a door's stations keep clear of its corners (the belly and roof
     // curves the edge turns into): a deeper inset than a surface's
@@ -84918,9 +84943,11 @@ PAGE.post = ctx => {
           HG.buttHinge(bagsF.metal, bm.metal, F, S,
                        Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length)));
         else if (fam === 'piano')
-          // a surface's piano runs join into one continuous knuckle
+          // a surface's piano runs join into one continuous hinge
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
                         span * (1 - 2 * inset) / Math.max(1, ts.length));
+        else if (fam === 'bracket' && HG.bracketHinge)
+          HG.bracketHinge(bagsF.metal, bm.metal, F, S);   // A7: the metal surface's fitting, three a surface
         else HG.strapHinge(bagsF.metal, bm.metal, F, S);
       }
     }

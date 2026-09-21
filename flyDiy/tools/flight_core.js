@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b3815c334cdbf26c
+// body-sha256: 00096548151fd2f6
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -16705,6 +16705,13 @@ const GEN_HINGE = {
   strapW: 0.030,         // m, strap width across the hinge
   strapT: 0.0022,        // m, strap gauge
   strapReach: 0.090,     // m, how far the strap runs onto each skin
+  // the metal surface's BRACKET (A7): the exposed fitting of a Cessna-type
+  // hinge - 25 mm wide, 35 mm of tail each side, the same barrel
+  bracketW: 0.025,       // m
+  bracketReach: 0.035,   // m
+  // the piano hinge, as extruded (MS20257-type): the leaf each side, the barrel
+  pianoLeaf: 0.022,      // m, per side
+  pianoBarrelR: 0.0042,  // m
   pinR: 0.0045,          // m, the hinge pin
   hornT: 0.0032,         // m, the horn plate
   hornReach: 0.085,      // m, eye centre from the hinge axis
@@ -16776,13 +16783,21 @@ const GEN_HINGE_KIT = {
           horn: 'none', link: 'none', faces: 1, family: 'piano' },
 };
 
-// A FABRIC SURFACE HANGS ON STRAPS, A METAL ONE ON A PIANO HINGE. The surface
+// A FABRIC SURFACE HANGS ON STRAPS, A METAL ONE ON HINGE BRACKETS. The surface
 // material vocabulary is GEN_SURF_MATERIALS' (G213), and a surface can be
 // made of something the aeroplane is not — so this reads the SURFACE's own
 // construction and never the fuselage's.
+// THE METAL SURFACE'S HINGE IS A BRACKET, NOT A PIANO (A7, 2026-09-21, the
+// user: "they need to remain quite small, and not too numerous ... determine
+// real world size and counts"). A Cessna 172 hangs each aileron on THREE
+// hinge brackets, the elevator and rudder likewise: a fitting the size of a
+// hand's two fingers, mostly inside the gap, a barrel and a bolt showing.
+// The piano hinge (MS20257-type extrusion: 20-25 mm of leaf each side, an
+// 8 mm barrel, continuous along the whole hinge line) is the homebuilt's
+// answer and is still there as the builder's explicit choice (hgFamily 2).
 function genHingeFamily(surfMat) {
   const m = String(surfMat || 'fabric');
-  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'piano' : 'strap';
+  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'bracket' : 'strap';
 }
 
 // HOW MANY, from the span it has to hold: one bay every pitchMax, never
