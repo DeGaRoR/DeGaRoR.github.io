@@ -52842,3 +52842,45 @@ question (the user: hard, on/off transparency, no subsurface next to the bench) 
 the game has the same pieces (a2c on an 8x MSAA target, the sharpen at 0.9 vs the bench's
 1.0, wrap/sss at 0.80/1.12 vs the bench's 0.5/0.55, the cut per material = the bench's
 rule) - the difference is to be found on a screen, not in the code read.
+
+## G448.3 — THE LINEAR SPLIT: RADIANCE IN THE FRAME, ONE TONE MAP IN THE BLIT (2026-09-21, the user
+## on G448.2's canopy: "Let's do the honest fix" - and on the sheet: "the cub at the back has more
+## issues even. Its interior is not darkened, and the presence of glazing ... still acts like a light
+## source to the interior")
+
+- WHAT IT IS. A GRAPHICS row `compositing`: `linear` (the default in every preset) or `display`
+  (the frame as it was, the fallback). Under linear the resolve target is an ordinary LINEAR target
+  (aa_resolve.js: no isXRRenderTarget, a LinearSRGB texture) so every material writes radiance and
+  the blend unit sums in linear light; the resolve blit then runs the renderer's OWN two chunks -
+  tonemapping_fragment and colorspace_fragment - once, under an AA_LINEAR guard, before the dither.
+  Nothing of the pass's own: GATE AA's rule became "the chunks only under the guard, the display
+  branch keeps both XR lines, no curve / transfer / exposure of this file's" (29 checks). The glass
+  pane's blend follows the row (aeroskin.js aeroGlassLinear at build, aeroSetGlassBlend live - the
+  pool's panes AND the parked copies in the world scene): ONE, ONE in linear (the reflection SUMS
+  with the cabin before the curve - the honest glass), the G448.2 screen in display. The post
+  passes read radiance in linear mode: the bloom's threshold is a RADIANCE (1.6 / 0.9 - the HDR
+  bloom S7 refused now exists: it glows off the highlights, not off the sky), and every pass that
+  puts picture values on the canvas curves them with the same two chunks first (PFX_LINEAR; the
+  eye's mean and the rays' mask live in XR targets so the chunks run into them); GATE POSTFX 22.
+  app.js reads the saved row before the shed's first frame (the menu applies at world build).
+- WHAT S7 FEARED AND WHAT THE PICTURES SAY (tools/postfx_shot.js, the clock frozen, dither 0; the
+  frames in screenshots/postfx-2026-09-21/linear): display vs linear over the stand, the wide frame
+  and the parked C172 differ by 0.5-0.8 codes mean; the shed by 1.5 - and the differences are
+  exactly where a sum before the curve should differ: the canopies (the C172's windscreen shows its
+  cabin instead of a white band; the flown pane the same), the roof panels (a translucent panel
+  over the sky), the bulbs behind their shades. The "29 transparent materials judged in gamma" did
+  not bite: in flight they are the glazing (wanted), the clouds (own chunks, correct either way)
+  and the flare (on the canvas, untouched); in the shed the editor's overlays sit under the DOM.
+  Owed a look by the user: pattern_vis.js's overlays (toneMapped:false since G449 - in a linear
+  target that flag has no meaning and the blit curves them; the honest home for "instruments on the
+  picture" is a draw after the blit, a small change in app.js when wanted) and the editor's dot.
+  The MSAA resolve now averages radiance (the AA is better for it); the Catmull-Rom's negative
+  lobes can ring round the sun's disc (max 0 only in linear mode, the top is the curve's).
+- THE PARKED CUB'S "INTERIOR NOT DARKENED" IS THE LADDER, NOT THE GLASS: parked.js's L1 (30 m)
+  drops the interior buckets by design (G411), so through a parked canopy past 30 m you see the far
+  windows and the sky, with the pane's reflection added on both sides - at L0 the cabin is there
+  and darkened (uCabin 0.81 measured on both). Owed: at L1+ a dark opaque pane (the L3 class-2
+  material, 0x1a2430 rough 0.15) in place of the see-through one - an aircraft's windows from 30 m
+  are dark and glossy. Not done here.
+- Gates: AA (29), POSTFX (22), GFX, SKINMAT, LIGHT, HANGAR, BUILD, MEDIA, UISMOKE, WORLDRENDER, PROPS
+  green; the core bundle untouched.

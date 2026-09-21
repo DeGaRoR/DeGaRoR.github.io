@@ -78,9 +78,15 @@ const checks = {
   // --- what the passes may not do --------------------------------------------
   'no pass draws into the resolve target it is handed (G425)':
     !/setRenderTarget\(\s*rt\s*\)/.test(code) && !/draw\([^)]*,\s*rt\s*\)/.test(code),
-  'the module owns no colour: no tone mapping, no exposure, no colour space':
-    !/tonemapping_fragment|colorspace_fragment|toneMappingExposure|outputColorSpace|ACES|NeutralToneMapping|CineonToneMapping/.test(code),
-  'every material of the module is toneMapped: false': /toneMapped: false/.test(code),
+  // G448.3 (the linear split): in linear compositing the passes read RADIANCE and put picture values
+  // back with the renderer's OWN two chunks, guarded by PFX_LINEAR - nothing of the module's own
+  'the module owns no colour of its own: no exposure, no output space, no curve constant':
+    !/toneMappingExposure|outputColorSpace|ACES|NeutralToneMapping|CineonToneMapping|0\.41666|0\.0031308/.test(code),
+  "the renderer's chunks appear only inside the PFX_LINEAR guard":
+    (() => { const m = /#ifdef PFX_LINEAR([\s\S]*?)#else/.exec(code); const inside = m ? m[1] : '';
+             const outside = code.replace(/#ifdef PFX_LINEAR[\s\S]*?#endif/g, '');
+             return /tonemapping_fragment/.test(inside) && /colorspace_fragment/.test(inside) && !/tonemapping_fragment|colorspace_fragment/.test(outside); })(),
+  'a material is toneMapped only in linear mode (the chunks compiled in)': /toneMapped: linear/.test(code),
   'the eye reads back asynchronously, never a blocking readPixels': /readRenderTargetPixelsAsync/.test(code) && !/\breadPixels\(/.test(code),
   'the eye is bounded to a stop and a half round the schedule': /EYE_STOPS = 1\.5/.test(src),
 

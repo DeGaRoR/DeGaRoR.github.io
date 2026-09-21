@@ -205,9 +205,19 @@
   // ONE TAP, for the tiers that do not supersample. At ss = 1 the output grid
   // and the source grid are the same grid, so any kernel wider than a tap is
   // just a blur — and a 5x5 loop with 24 zero weights is 24 fetches wasted.
+  // THE ONE TONE MAP (G448.3, the linear split): with the target LINEAR the
+  // renderer's own two chunks run here, once, over background + reflection +
+  // cloud summed in radiance - nothing of this file's own (GATE AA reads the
+  // includes and no other colour math). In display mode the chunks are absent.
+  const AA_OUT = `
+    #ifdef AA_LINEAR
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    #endif
+      gl_FragColor.rgb = aaDither(gl_FragColor.rgb);`;
   const AA_FS_BLIT = AA_COMMON + `
     void main() {
-      gl_FragColor = vec4(aaDither(texture2D(tSrc, vUv).rgb), 1.0);
+      gl_FragColor = vec4(texture2D(tSrc, vUv).rgb, 1.0);` + AA_OUT + `
     }`;
 
   // CATMULL-ROM, NOT A TENT. The first kernel here was a tent of radius `uR`,
@@ -242,8 +252,11 @@
           wsum += w;
         }
       }
-      vec3 col = clamp(acc.rgb / wsum, 0.0, 1.0);
-      gl_FragColor = vec4(aaDither(col), 1.0);
+      vec3 col = max(acc.rgb / wsum, 0.0);   // the negative lobes clamp at 0; the top is the tone map's in linear mode, 1.0 in display mode
+      #ifndef AA_LINEAR
+        col = min(col, 1.0);
+      #endif
+      gl_FragColor = vec4(col, 1.0);` + AA_OUT + `
     }`;
 
   // -------------------------------------------------------------------------
@@ -259,6 +272,7 @@
       // march composites there, reading the scene's depth) - it asks for the target even at tier
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
       overlay: null, post: null, pre: null, needRT: false,
+      linear: false,       // G448.3: the linear split (radiance in the target, ONE tone map in the blit)
     };
 
     try {
@@ -308,8 +322,18 @@
       // as it does on the canvas. Without them every transparent material in
       // the scene re-composites in linear light and the sky is tone-mapped
       // twice.
-      S.rt.isXRRenderTarget = true;
-      S.rt.texture.colorSpace = THREE.SRGBColorSpace;
+      // THE LINEAR SPLIT (G448.3): with S.linear the target is an ordinary
+      // linear target - materials write radiance, the blend unit composites in
+      // linear light (a canopy's reflection SUMS with the cabin behind it
+      // before the one tone map in the blit) - and the two lines below are not
+      // taken. The display-space rule stays the default and the fallback.
+      if (!S.linear) {
+        S.rt.isXRRenderTarget = true;
+        S.rt.texture.colorSpace = THREE.SRGBColorSpace;
+      } else {
+        S.rt.isXRRenderTarget = false;
+        S.rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
+      }
       if (!S.fsScene) {
         S.fsScene = new THREE.Scene();
         S.fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -327,7 +351,9 @@
         },
         vertexShader: AA_VS,
         fragmentShader: S.ss > 1.001 ? AA_FS_TENT : AA_FS_BLIT,
+        defines: S.linear ? { AA_LINEAR: 1 } : {},
         depthTest: false, depthWrite: false,
+        toneMapped: true,     // the blit carries the renderer's tone map in linear mode (a no-op define otherwise)
       });
       S.quad.material = S.mat;
     }
@@ -394,6 +420,8 @@
     // at a mean, so anything measuring this pass has to be able to turn it off.
     // That is how the +1.5 code mean shift in G144's own bring-up was shown to
     // be the grain and not a broken tone curve.
+    // setLinear(on): the target linear and the tone map in the blit (rebuilds the target)
+    function setLinear(on) { on = !!on; if (on === S.linear) return S.linear; S.linear = on; buildRT(); return S.linear; }
     function setDither(x) {
       S.dither = Math.max(0, Math.min(4, +x || 0));
       if (S.mat) S.mat.uniforms.uDither.value = S.dither;
@@ -401,7 +429,7 @@
     }
 
     return {
-      render, setSize, setTier, dispose, setDither,
+      render, setSize, setTier, dispose, setDither, setLinear, linear: () => S.linear,
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the

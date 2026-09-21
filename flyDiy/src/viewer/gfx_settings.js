@@ -98,6 +98,15 @@
     // The tone curve and the exposure are live on the renderer; colour
     // management is decided when a colour is MADE, so that row stores the
     // choice and reloads the page.
+    // THE COMPOSITING (G448.3, the linear split): where the ONE tone map runs.
+    // `linear` - the scene is drawn as radiance and the resolve pass curves the
+    // sum once (a canopy's reflection adds to the cabin behind it before the
+    // curve; a bulb behind its shade, a roof panel, likewise). `display` - the
+    // frame as it was before G448.3: every material curves itself on the way
+    // in and the blend unit works on the curved picture (the G144 rule).
+    { k: 'compositing', label: 'compositing', steps: [
+        { v: 'linear',  label: 'linear', why: 'radiance in the frame, one tone map at the end - glass, lamps and panels sum before the curve (the honest picture)' },
+        { v: 'display', label: 'display', why: 'the frame before 2026-09-21: every surface curved on its own, then blended - the fallback' } ] },
     { k: 'tone', label: 'tone curve', steps: [
         { v: 'aces',     label: 'ACES', why: 'the filmic curve the game used until 2026-09-13' },
         { v: 'agx',      label: 'AgX', why: 'Blender 4’s default view transform - gentler highlights, less hue shift' },
@@ -123,10 +132,10 @@
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -183,6 +192,14 @@
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
     if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) { W.ATMO.MIST.on = S.mist !== 'off'; applied.mist = S.mist; }
     if (W.CLOUDS && applied.clouds !== S.clouds) { W.CLOUDS.S.mode = S.clouds; if (AA && AA.needRT) AA.needRT(S.clouds !== 'off'); applied.clouds = S.clouds; }
+    // the compositing (G448.3): the resolve target's space, the panes' blend, the post passes' input
+    if (AA && AA.setLinear && applied.compositing !== S.compositing) {
+      const lin = S.compositing !== 'display';
+      AA.setLinear(lin);
+      if (W.AEROSKIN && W.AEROSKIN.aeroSetGlassBlend && W.THREE) W.AEROSKIN.aeroSetGlassBlend(W.THREE, lin);
+      if (W.POST_FX && W.POST_FX.setLinear) W.POST_FX.setLinear(lin);
+      applied.compositing = S.compositing;
+    }
     // the tone curve, live: r186 re-keys the program on renderer.toneMapping
     const R = W.FLYDIY_RENDERER, T = W.THREE;
     if (R && T && applied.tone !== S.tone && T[TONE[S.tone]] !== undefined) { R.toneMapping = T[TONE[S.tone]]; applied.tone = S.tone; }
@@ -306,6 +323,7 @@
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
                       glare: 'live', mist: 'live', clouds: 'live',
-                      bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live', anything: 'no restart' }),
+                      bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
+                      compositing: 'live (reallocates the frame)', anything: 'no restart' }),
   };
 })();

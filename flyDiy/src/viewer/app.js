@@ -173,6 +173,9 @@
     : (typeof window !== 'undefined' && window.AA_RESOLVE)
       ? window.AA_RESOLVE.make(THREE, renderer) : null;
   if (typeof window !== 'undefined') window.FLYDIY_AA = aa;
+  // THE COMPOSITING AT BOOT (G448.3): the menu applies its rows when the world exists; the shed renders
+  // before that, so the resolve's mode is read from the saved menu here (linear unless 'display')
+  if (aa && aa.setLinear && typeof window !== 'undefined' && window.GFX && window.GFX.get) aa.setLinear(window.GFX.get().compositing !== 'display');
   // ONE KEEPER FOR THE TARGET'S ASK (POST-FX, 2026-09-21): two things may want the resolve
   // target and its depth even at tier `off` - the clouds (gfx_settings.js, dev_panel.js call
   // needRT(bool), the 'clouds' key) and the post passes ('post'). The pass's needRT is a

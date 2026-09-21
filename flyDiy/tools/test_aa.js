@@ -119,8 +119,23 @@ const checks = {
   'the target is display-space: sRGB texture AND the XR-target rule that makes r186 honour it':
     /texture\.colorSpace\s*=\s*THREE\.SRGBColorSpace/.test(src) &&
     /isXRRenderTarget\s*=\s*true/.test(src),
-  'the resolve shader includes no tone-mapping or colour-space chunk of its own':
-    !/tonemapping_fragment|colorspace_fragment/.test(src.replace(/^\s*\/\/.*$/gm, '')),
+  // G448.3, THE LINEAR SPLIT: the pass has a second mode (the GRAPHICS row
+  // `compositing`, linear by default) in which the target is an ordinary
+  // linear target and the blit runs the renderer's OWN two chunks once -
+  // tonemapping_fragment and colorspace_fragment, nothing of this file's.
+  // The rule "one implementation of each, in the renderer" still holds: the
+  // chunks are the renderer's; what stays forbidden is a curve, a transfer or
+  // an exposure read written here. The includes may appear ONLY inside the
+  // AA_LINEAR guard, and the display mode keeps both XR lines.
+  'the resolve shader includes the renderer two chunks only under the AA_LINEAR guard':
+    (() => { const code = src.replace(/^\s*\/\/.*$/gm, '');
+             const m = /#ifdef AA_LINEAR([\s\S]*?)#endif/.exec(code);
+             const inside = m ? m[1] : '';
+             const outside = code.replace(/#ifdef AA_LINEAR[\s\S]*?#endif/g, '');
+             return /tonemapping_fragment/.test(inside) && /colorspace_fragment/.test(inside) &&
+                    !/tonemapping_fragment|colorspace_fragment/.test(outside); })(),
+  'the linear mode drops the XR rule and names a linear texture':
+    /isXRRenderTarget\s*=\s*false/.test(src) && /LinearSRGBColorSpace/.test(src) && /setLinear/.test(src),
   'and the vendor still carries the rule this leans on (WebGLPrograms: isXRRenderTarget)':
     /isXRRenderTarget/.test(R('vendor/three.min.js')),
   'the pass carries no ACES of its own': !/ACESInput|RRTAndODTFit|aaACES/.test(src.replace(/^\/\/.*$/gm, '')),

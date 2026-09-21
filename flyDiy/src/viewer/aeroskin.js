@@ -4070,26 +4070,25 @@ function aeroGlass(THREE, o) {
     reflectivity: 0.5,
     clearcoat: 1.0,
     clearcoatRoughness: G('ccR'),
-    // THE SCREEN PASS (G206, blend changed G448.2): ONE, ONE-MINUS-SRC-COLOUR.
-    // The output block writes diffuse * (1 - T) + specular and alpha 1;
-    // nothing here reads alpha. `opacity` still carries the slab — the shader
-    // reads it as diffuseColor.a — it just no longer scales the reflection.
-    // WHY NOT ONE, ONE ANY MORE: the pane draws into a DISPLAY-SPACE target
-    // (aa_resolve.js), so its reflection is tone-mapped on its own and then
-    // summed with the already tone-mapped picture behind it - two curves
-    // added, and toneMap(a) + toneMap(b) overshoots toneMap(a + b) wherever
-    // both are mid-high: the sun's lobe over a lit cabin clipped to a hard
-    // white band across the whole canopy and the interior "glowed" (the
-    // user, 2026-09-21: "lights up like crazy ... burnt"). Ablated: the
-    // specular, not the diffuse (10 %) and not the tint companion. SCREEN -
-    // out = src + dst * (1 - src) - is the additive blend that cannot clip:
-    // equal to ONE, ONE for a faint reflection, compressed where the picture
-    // behind is already bright. The proper answer (one tone map over
-    // background + reflection) needs the linear split (POST-FX study P2).
+    // THE ADD PASS (G206): the output block writes diffuse * (1 - T) +
+    // specular and alpha 1; nothing here reads alpha. `opacity` still carries
+    // the slab — the shader reads it as diffuseColor.a — it just no longer
+    // scales the reflection. THE BLEND FOLLOWS THE COMPOSITING (G448.2/.3):
+    //   linear (the default since G448.3): ONE, ONE. The target is radiance,
+    //   the reflection SUMS with the cabin behind it and the blit's one tone
+    //   map curves the sum - the honest glass.
+    //   display (the GRAPHICS row's fallback, today's frame before G448.3):
+    //   ONE, ONE-MINUS-SRC-COLOUR (screen). In a display-space target the
+    //   reflection is tone-mapped on its own and then added to the already
+    //   tone-mapped picture; toneMap(a) + toneMap(b) overshoots toneMap(a + b)
+    //   wherever both are mid-high, and the sun's lobe over a lit cabin
+    //   clipped to a hard white band (the user: "lights up like crazy ...
+    //   burnt"). Screen - out = src + dst * (1 - src) - cannot clip.
+    // aeroSetGlassBlend flips every pane when the row changes.
     blending: THREE.CustomBlending,
     blendEquation: THREE.AddEquation,
     blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneMinusSrcColorFactor,
+    blendDst: aeroGlassLinear() ? THREE.OneFactor : THREE.OneMinusSrcColorFactor,
     // THE MOOD STILL SCALES IT. aeroSetEnv multiplies every material by the
     // room's own factor off `userData.env0`, so the builder's dial has to be
     // folded into the BASE rather than written on top of it, or the two fight
@@ -4438,6 +4437,27 @@ aeroLabLoad();
 // 0.155, six times the ambient every other material got, and a dark walnut
 // blade rendered washed-out tan. The factory stamps new materials with the
 // CURRENT factor instead (the posture props.js always had).
+// THE COMPOSITING THE PANE IS BUILT FOR (G448.3): linear unless the GRAPHICS
+// row says display; read at build (the menu's state is loaded at script eval,
+// before any material is made) and re-applied live by aeroSetGlassBlend.
+let AERO_GLASS_LINEAR = null;
+function aeroGlassLinear() {
+  if (AERO_GLASS_LINEAR != null) return AERO_GLASS_LINEAR;
+  const G = (typeof window !== 'undefined') ? window.GFX : null;
+  return !(G && G.get && G.get().compositing === 'display');
+}
+// aeroSetGlassBlend(linear): every pane built so far (the pool's, and the
+// parked copies in the world scene, which are not in the pool) takes the blend
+// of the compositing named; the panes built after take it at birth
+function aeroSetGlassBlend(THREE, linear) {
+  AERO_GLASS_LINEAR = !!linear;
+  const dst = linear ? THREE.OneFactor : THREE.OneMinusSrcColorFactor;
+  const fix = m => { if (m && m.userData && m.userData.aeroFinish === 'glass' && m.blendDst !== dst) { m.blendDst = dst; m.needsUpdate = true; } };
+  for (const m of AERO_BUILT) fix(m);
+  const W = (typeof window !== 'undefined') ? window.WORLD : null;
+  if (W && W.scene && W.scene.traverse) W.scene.traverse(o => { if (o.isMesh) fix(o.material); });
+  return AERO_GLASS_LINEAR;
+}
 function aeroSetEnv(f) {
   AERO_ENV_F = f;
   for (const m of AERO_BUILT)
@@ -4460,7 +4480,7 @@ if (typeof window !== 'undefined')
                       aeroGlassSpec,
                       aeroIsInside, aeroCabinHook, aeroSetCabin, aeroSetFootwell, aeroSetHoles,
                       AERO_CABIN_DEF, aeroDecOk,
-                      aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
+                      aeroSetEnv, aeroSetGlassBlend, aeroGlassLinear, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
                       aeroDecalText, aeroDecalImage,

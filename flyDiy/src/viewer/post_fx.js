@@ -36,6 +36,15 @@
 // the schedule light_rig.js declares, so the shed's lamp cap and the night
 // keep their meaning. eyeK is 1 whenever the row is off.
 //
+// THE COMPOSITING (G448.3): under the GRAPHICS row `compositing: linear` the
+// resolve target holds RADIANCE and the blit runs the one tone map, so what
+// this file reads from rt.texture is linear HDR - the bloom's threshold is a
+// radiance (the HDR bloom S7 asked for), and every pass that puts picture
+// values back on the canvas curves them first with the renderer's own two
+// chunks (PFX_LINEAR; the small targets that must hold display values - the
+// eye's mean, the rays' mask - are XR targets like the resolve's used to be).
+// Under `display` nothing of that is compiled in and the passes are as landed.
+//
 // Costs: each pass carries a GPU timer (the clouds' pattern) into
 // POST_FX.stats; tools/frame_perf.js --probes reads them per configuration.
 'use strict';
@@ -67,6 +76,19 @@ const POST_FX = (() => {
 
   // ---- the shaders -------------------------------------------------------------------------
   const VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+  // CURVE(c): in linear mode the renderer's tone map + encode over a sampled radiance, so the pass
+  // works on the picture the viewer sees; a no-op in display mode (the sample is the picture)
+  const CURVE = `
+    vec3 pfxCurve(vec3 c) {
+    #ifdef PFX_LINEAR
+      gl_FragColor = vec4(c, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+      return gl_FragColor.rgb;
+    #else
+      return c;
+    #endif
+    }`;
   const LUMA = `float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }`;
   // the log depth, back to a view-axis distance (clouds.js's convention)
   const DEPTH = `
@@ -93,17 +115,19 @@ const POST_FX = (() => {
       vec3 l = texture2D(tSrc, vUv + t * vec2(-1.0, 1.0)).rgb,  m = texture2D(tSrc, vUv + t * vec2(1.0, 1.0)).rgb;
       vec3 o = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
       gl_FragColor = vec4(o, 1.0); }`;
-  const BLOOM_UP = `uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uGain; varying vec2 vUv;
+  const BLOOM_UP = `${CURVE} uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uGain, uFinal; varying vec2 vUv;
     void main() {
       vec2 t = uTexel;
       vec3 o = texture2D(tSrc, vUv).rgb * 4.0
              + (texture2D(tSrc, vUv + t * vec2(-1.0, 0.0)).rgb + texture2D(tSrc, vUv + t * vec2(1.0, 0.0)).rgb + texture2D(tSrc, vUv + t * vec2(0.0, -1.0)).rgb + texture2D(tSrc, vUv + t * vec2(0.0, 1.0)).rgb) * 2.0
              + texture2D(tSrc, vUv + t * vec2(-1.0, -1.0)).rgb + texture2D(tSrc, vUv + t * vec2(1.0, -1.0)).rgb + texture2D(tSrc, vUv + t * vec2(-1.0, 1.0)).rgb + texture2D(tSrc, vUv + t * vec2(1.0, 1.0)).rgb;
-      gl_FragColor = vec4(o * (uGain / 16.0), 1.0); }`;
+      o *= uGain / 16.0;
+      if (uFinal > 0.5) o = pfxCurve(o);   // the draw onto the canvas: the glow curved like the picture (linear mode)
+      gl_FragColor = vec4(o, 1.0); }`;
 
   // LOOK + LENS: one pass over the frame - lift / gain / contrast round mid grey / saturation, a
   // vignette and a three-tap chromatic aberration (the taps offset with the radius squared)
-  const LOOK = `${LUMA} uniform sampler2D tSrc; uniform vec2 uTexel; uniform vec3 uLift, uGain; uniform float uContrast, uSat, uVig, uCA; varying vec2 vUv;
+  const LOOK = `${LUMA} ${CURVE} uniform sampler2D tSrc; uniform vec2 uTexel; uniform vec3 uLift, uGain; uniform float uContrast, uSat, uVig, uCA; varying vec2 vUv;
     void main() {
       vec2 r = vUv - 0.5; float r2 = dot(r, r);
       vec3 c;
@@ -111,6 +135,7 @@ const POST_FX = (() => {
         vec2 off = r * r2 * uCA * 4.0;
         c = vec3(texture2D(tSrc, vUv + off).r, texture2D(tSrc, vUv).g, texture2D(tSrc, vUv - off).b);
       } else c = texture2D(tSrc, vUv).rgb;
+      c = pfxCurve(c);
       c = c * uGain + uLift;
       c = (c - 0.5) * uContrast + 0.5;
       float l = luma(c); c = mix(vec3(l), c, uSat);
@@ -119,11 +144,11 @@ const POST_FX = (() => {
 
   // RAYS: a half-resolution mask of the bright far pixels round the sun (depth at the far plane =
   // the sky), a 32-tap radial blur toward the sun, additive onto the canvas, dimmed like the flare
-  const RAYS_MASK = `${LUMA} ${DEPTH} uniform sampler2D tSrc; uniform vec2 uSun; uniform float uRadius; varying vec2 vUv;
+  const RAYS_MASK = `${LUMA} ${DEPTH} ${CURVE} uniform sampler2D tSrc; uniform vec2 uSun; uniform float uRadius; varying vec2 vUv;
     void main() {
       float d = texture2D(tDepth, vUv).r;
       float sky = step(0.9995, d);
-      vec3 c = texture2D(tSrc, vUv).rgb;
+      vec3 c = pfxCurve(texture2D(tSrc, vUv).rgb);
       float near = 1.0 - smoothstep(0.0, uRadius, distance(vUv, uSun));
       float l = max(luma(c) - 0.55, 0.0) * 2.2;
       gl_FragColor = vec4(c * sky * l * near, 1.0); }`;
@@ -199,14 +224,17 @@ const POST_FX = (() => {
 
   // EYE: the frame averaged down to 16x16 (linear taps over a 4x4 block each; the mean of the
   // display-space picture is what the eye of a viewer sees), read back asynchronously
-  const EYE = `uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
+  const EYE = `${CURVE} uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
     void main() {
       vec3 c = vec3(0.0);
       for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) c += texture2D(tSrc, vUv + uTexel * (vec2(float(x), float(y)) - 1.5)).rgb;
-      gl_FragColor = vec4(c / 16.0, 1.0); }`;
+      gl_FragColor = vec4(pfxCurve(c / 16.0), 1.0); }`;
 
   // ---- presets ------------------------------------------------------------------------------
-  const BLOOM = { soft: { thr: 0.82, knee: 0.15, gain: 0.32 }, strong: { thr: 0.66, knee: 0.25, gain: 0.7 } };
+  // the bloom's numbers per compositing: display thresholds sit on the curve (0..1), linear ones are
+  // radiances (white is ~1 / exposure; the sun's disc and a lamp's filament are far above it)
+  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.32 }, strong: { thr: 0.66, knee: 0.25, gain: 0.7 } },
+                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.35 }, strong: { thr: 0.9, knee: 0.6, gain: 0.6 } } };
   const LOOKS = {
     punchy: { lift: [0, 0, 0], gain: [1, 1, 1], contrast: 1.14, sat: 1.15 },
     soft:   { lift: [0.015, 0.012, 0.01], gain: [0.985, 0.985, 0.985], contrast: 0.93, sat: 0.96 },
@@ -216,13 +244,22 @@ const POST_FX = (() => {
   const EYE_TARGET = 0.40, EYE_STOPS = 1.5, EYE_TAU_UP = 0.6, EYE_TAU_DOWN = 1.6;
 
   // ---- the setup --------------------------------------------------------------------------
+  let linear = false;    // the compositing (G448.3), set by GFX through setLinear before any material is made
   function mat(frag, uniforms, extra) {
-    return new THREE.ShaderMaterial(Object.assign({ uniforms, vertexShader: VERT, fragmentShader: frag, depthTest: false, depthWrite: false, toneMapped: false }, extra || {}));
+    // toneMapped only matters in linear mode, where the renderer's chunks are compiled in (PFX_LINEAR)
+    // and run on a draw to the canvas or to a display (XR) target; the sky-glare rule (no curve of our
+    // own) holds either way - the chunks ARE the renderer's
+    return new THREE.ShaderMaterial(Object.assign({ uniforms, vertexShader: VERT, fragmentShader: frag, depthTest: false, depthWrite: false,
+      toneMapped: linear, defines: linear ? { PFX_LINEAR: 1 } : {} }, extra || {}));
   }
-  function target(w, h, half) {
-    return new THREE.WebGLRenderTarget(Math.max(1, w | 0), Math.max(1, h | 0), {
+  function target(w, h, half, display) {
+    const t = new THREE.WebGLRenderTarget(Math.max(1, w | 0), Math.max(1, h | 0), {
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false,
       type: half ? THREE.HalfFloatType : THREE.UnsignedByteType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false });
+    // a target that must hold DISPLAY values in linear mode (the eye's mean, the rays' mask): the XR
+    // rule makes the renderer run the chunks into it, as the resolve target did before G448.3
+    if (display && linear) { t.isXRRenderTarget = true; t.texture.colorSpace = THREE.SRGBColorSpace; }
+    return t;
   }
   function init(T3, R, AA) {
     THREE = T3; renderer = R; aa = AA;
@@ -242,7 +279,9 @@ const POST_FX = (() => {
     const V2 = () => new THREE.Vector2(1, 1);
     M.thr = mat(BLOOM_THR, { tSrc: { value: null }, uTexel: { value: V2() }, uThr: { value: 0.8 }, uKnee: { value: 0.2 } });
     M.down = mat(BLOOM_DOWN, { tSrc: { value: null }, uTexel: { value: V2() } });
-    M.up = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 } }, { blending: THREE.AdditiveBlending, transparent: true });
+    M.up = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 }, uFinal: { value: 0 } }, { blending: THREE.AdditiveBlending, transparent: true });
+    // the glow onto the canvas: SCREEN, the add that cannot clip (the canopy's lesson, G448.2)
+    M.upOut = mat(BLOOM_UP, { tSrc: { value: null }, uTexel: { value: V2() }, uGain: { value: 1 }, uFinal: { value: 1 } }, { blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcColorFactor, transparent: true });
     M.add = mat(ADD, { tSrc: { value: null }, uGain: { value: 1 }, uTint: { value: new THREE.Color(1, 1, 1) } }, { blending: THREE.AdditiveBlending, transparent: true });
     M.look = mat(LOOK, { tSrc: { value: null }, uTexel: { value: V2() }, uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) }, uContrast: { value: 1 }, uSat: { value: 1 }, uVig: { value: 0 }, uCA: { value: 0 } });
     M.raysMask = mat(RAYS_MASK, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uSun: { value: V2() }, uRadius: { value: 0.55 } });
@@ -251,7 +290,7 @@ const POST_FX = (() => {
     M.aoBlur = mat(AO_BLUR, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uTexel: { value: V2() }, uDir: { value: V2() } });
     M.aoApply = mat(AO_APPLY, { tSrc: { value: null }, uPow: { value: 1.0 } }, { blending: THREE.CustomBlending, blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendEquation: THREE.AddEquation, transparent: true });
     M.eye = mat(EYE, { tSrc: { value: null }, uTexel: { value: V2() } });
-    T.eye = target(16, 16, false);
+    T.eye = target(16, 16, false, true);
     installed = true;
   }
   let sized = { w: 0, h: 0 };
@@ -263,7 +302,7 @@ const POST_FX = (() => {
     // the bloom pyramid: 1/2 .. 1/32
     let bw = w >> 1, bh = h >> 1;
     for (let i = 0; i < 5; i++) { T['b' + i] = target(bw, bh, true); T['u' + i] = target(bw, bh, true); bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1); }
-    T.rays0 = target(w >> 1, h >> 1, true); T.rays1 = target(w >> 1, h >> 1, true);
+    T.rays0 = target(w >> 1, h >> 1, true, true); T.rays1 = target(w >> 1, h >> 1, true, true);
     T.ao0 = target(w >> 1, h >> 1, false); T.ao1 = target(w >> 1, h >> 1, false);
   }
   function draw(m, to) {
@@ -274,7 +313,7 @@ const POST_FX = (() => {
 
   // ---- the passes ---------------------------------------------------------------------------
   function bloom(rt) {
-    const P = BLOOM[S.bloom]; if (!P) return;
+    const P = BLOOM[linear ? 'linear' : 'display'][S.bloom]; if (!P) return;
     const h = tBegin('bloom');
     M.thr.uniforms.tSrc.value = rt.texture; M.thr.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
     M.thr.uniforms.uThr.value = P.thr; M.thr.uniforms.uKnee.value = P.knee;
@@ -287,8 +326,8 @@ const POST_FX = (() => {
       M.up.uniforms.tSrc.value = src.texture; M.up.uniforms.uTexel.value.set(1 / src.width, 1 / src.height); M.up.uniforms.uGain.value = 1;
       draw(M.up, T['b' + i]);
     }
-    M.up.uniforms.tSrc.value = T.b0.texture; M.up.uniforms.uTexel.value.set(1 / T.b0.width, 1 / T.b0.height); M.up.uniforms.uGain.value = P.gain;
-    draw(M.up, null);
+    M.upOut.uniforms.tSrc.value = T.b0.texture; M.upOut.uniforms.uTexel.value.set(1 / T.b0.width, 1 / T.b0.height); M.upOut.uniforms.uGain.value = P.gain;
+    draw(M.upOut, null);
     tEnd(h);
   }
   function look(rt) {
@@ -402,12 +441,14 @@ const POST_FX = (() => {
     return on;
   }
   function set(k, v) { if (!(k in S)) return false; S[k] = v; return apply(); }
+  // setLinear(on): the compositing changed (G448.3) - every material and target is rebuilt for it
+  function setLinear(on) { on = !!on; if (on === linear) return linear; linear = on; dispose(); return linear; }
   function dispose() {
     for (const k in T) { T[k].dispose(); delete T[k]; }
     for (const k in M) { M[k].dispose(); delete M[k]; }
     installed = false; sized = { w: 0, h: 0 };
   }
-  const API = { S, KEYS, stats, init, apply, set, render, active, dispose, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, stats, init, apply, set, render, active, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
