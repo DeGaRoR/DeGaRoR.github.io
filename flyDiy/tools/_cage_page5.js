@@ -1062,6 +1062,10 @@ window.CAGE_PAGE = {
       paxPillarW: 0.085, pillarW: 0.1, leanPaxDeg: 0, leanCabDeg: 0,
       leanPivot: "floor", halfW: 0.67, roofHalfW: 0.64, roofY: 1,
       keelY: -0.995, floorY: -0.54, ceilInset: 1, waistY: 0.125, bandH: 0.032,
+      // 2026-09-22 (the user): the passenger frame's roof steps down behind
+      // the wing (0.85 vs the cabin's 1.0) so it no longer pokes through the
+      // wing root at the trailing edge; the cabin frame keeps the wing seat
+      frPaxTopY: 0.85,
       aftRoofY: 0.295, aftKeelY: -0.92, tailHalfW: 0.122, tailRoofY: 0.1,
       tailKeelY: -0.5, ringPullIn: 0.023043, wsRun: 0.71, wsTopOff: 0.081824,
       wsBaseBow: 0.35, wsCeilBow: 0.545, apilW: 0.92, apilPerp: 1,

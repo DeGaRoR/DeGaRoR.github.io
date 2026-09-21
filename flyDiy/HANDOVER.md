@@ -54730,3 +54730,16 @@ gate's golden hash reads the woodland, not the fill).
 - THE RIG: screenshots/frames/t23g_*.png (the lever moved, the bench of three, the
   hinge finish states).
 - OWED: 48's fitments (the carry-through's brackets); the aft-pod twins for the frame rows.
+
+## G482.1 — THE 172'S ROOF STEPS DOWN BEHIND THE WING (2026-09-22, the user: "lower the
+## roof of the passenger section of the cessna, so it does not poke through the wing")
+
+- The stock 'cessna 172' (the page5 preset, and builds/cessna172_2026-09-20.json) carries
+  `frPaxTopY: 0.85` — the passenger FRAME's roof 15 cm (cage) under the cabin's 1.0, so
+  the roof behind the cabin frame slopes down under the wing root instead of rising
+  through its trailing edge (the louvre stood proud of the wing skin). The cabin frame
+  keeps the wing seat; the boom frame is unchanged, so the taper meets the same tail.
+  The frames chantier's own row (T2.1) did it: no generator edit.
+- GATE FRAMES / KNIFE corpora re-recorded for the two items that changed (arch:C172-alike,
+  file:builds/cessna172_2026-09-20.json; every other item identical); DESIGN, BUILD,
+  STARTER, SAVE green. screenshots/frames/c172_roof_before_cam / c172_roof_0.85_*.png.
