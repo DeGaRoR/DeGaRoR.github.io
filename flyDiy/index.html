@@ -14581,7 +14581,7 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 //                                   pair, the vary amplitudes - call the fields
 //                                   with the code's row, never with a constant
 //
-// Values are the vegetation session's (tools/_trees.html, G437.x): the
+// Values are the vegetation session's (tools/_trees.html, G454.x): the
 // vegetation OWNS them; the ground samples them. Change a constant here and
 // both sides move together - that is the point of the file.
 'use strict';
@@ -14783,6 +14783,68 @@ const GROUND_FIELDS = (() => {
   return { C, RECIPE, CODES, hash2, vnoiseT, poolAt, mixK, blotch, shade, hueTurn, deriveCode, groundColor, glsl, selfCheck };
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = GROUND_FIELDS;
+// ===========================================================================
+// 28c_biomes.js — THE BIOMES: a terrain-type code names a bench mix (2026-09-20,
+// futureDesigns/BIOMES-IN-GAME-2026-09-20.md). Pure, no three.js.
+//
+// The island's ground is drawn per TERRAIN TYPE (island_prep's ttype byte,
+// codes 0-11, plus three the splat derives from slope and canopy: 12 cliff,
+// 13 forest old, 14 scrub dense). The vegetation reads the SAME code and
+// draws the biome that code names — the table is the bench's `mixes` and its
+// `biomes` map, shipped in the payload (TREE_PACK.biomes, baked by
+// tools/tree_prep.py from tools/_trees_tuning.json), so what the bench judged
+// is what the game plants, and the user's F8 edits export back to that file.
+//
+//   BIOMES.make(pack, opts) -> B
+//     B.map           { code: mixName }          (a copy; F8 edits it)
+//     B.mixes         { mixName: { species, forest } }
+//     B.codeOf(tt, slopeDeg, canopyM, r)   the code, the splat's derivation on the
+//                     CPU: rock -> cliff by slope, forest -> old and scrub -> dense
+//                     by canopy; the shader's smoothstep becomes a draw on r in
+//                     [0,1) so the split is the same share, jittered per point
+//     B.mixAt(code)   the mix name or null (no biome here: sea, snow, built...)
+//     B.mixOf(name)   the mix record
+//     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
+//     B.set(code, mixName) / B.export()   F8's handle
+//   The derivation's thresholds are the splat's knobs (GROUND_FIELDS.RECIPE
+//   .knobs when that module is present, its defaults otherwise): ONE knob set,
+//   two readers (the shader may not take a texture for it — the sampler census).
+// ===========================================================================
+'use strict';
+const BIOMES = (() => {
+  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5 };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' };
+  const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
+  function make(pack, opts) {
+    const src = (pack && pack.biomes) || {};
+    const B = {
+      map: Object.assign({}, src.map || {}),
+      mixes: src.mixes || {},
+      names: NAMES,
+      knobs: () => {
+        const R = (typeof GROUND_FIELDS !== 'undefined' && GROUND_FIELDS && GROUND_FIELDS.RECIPE) ? GROUND_FIELDS.RECIPE.knobs : null;
+        return Object.assign({}, KNOBS, R || {}, (opts && opts.knobs) || {});
+      },
+    };
+    B.codeOf = (tt, slopeDeg, canopyM, r) => {
+      const K = B.knobs();
+      if (tt === 6 && r < smooth(K.cliffLo, K.cliffHi, slopeDeg)) return 12;
+      if (tt === 8 && r < smooth(K.oldLo, K.oldHi, canopyM)) return 13;
+      if (tt === 7 && r < smooth(K.denseLo, K.denseHi, canopyM)) return 14;
+      return tt;
+    };
+    B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
+    B.mixOf = name => B.mixes[name] || null;
+    // trees per m2: the bench's `count` in its stand of `radius` (220 m by default)
+    B.density = name => { const M = B.mixes[name]; if (!M || !M.forest) return 0; const r = M.forest.radius || 220; return (M.forest.count || 0) / (Math.PI * r * r); };
+    B.set = (code, name) => { if (name === null || name === '' || name === undefined) delete B.map[code]; else B.map[code] = name; return B.map[code] || null; };
+    B.export = () => JSON.stringify({ biomes: B.map, mixes: B.mixes }, null, 1);
+    return B;
+  }
+  return { make, NAMES, KNOBS };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = BIOMES;
+if (typeof window !== 'undefined') window.BIOMES = BIOMES;
 // 29_obstacles.js — THE SOLID THINGS ON THE GROUND (G433, the user: "hitbox for
 // static car props ... audit hitboxes for everything ... No more than 1 meter
 // discrepancy with the visual mesh").
@@ -36197,7 +36259,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='7f73a3cf4d40';window.FLYDIY_BUILD='bdf27cc88ded'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='13c8550aea17';window.FLYDIY_BUILD='5c1813d7a1df'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -98544,17 +98606,42 @@ if (typeof window !== 'undefined') window.SPLAT_GROUND = SPLAT_GROUND;
 </script>
 <script type="text/x-flydiy">
 // trees_pack.js - BAKED by tools/tree_prep.py, do not edit.
-// The tree payload manifest: one collection per curated pack,
-// its subjects, their rungs, and the maps their materials wear.
+// The vegetation payload manifest: one entry per SPECIES (trees, shrubs,
+// covers, dead, rocks, flowers), its subjects, their rungs, the maps their
+// materials wear, and the biomes (the mixes + the terrain-type map).
 const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
-const TREE_PACK = {"note": "baked by tools/tree_prep.py \u2014 see docs/TREE-IMPORT.md",
+const TREE_PACK = {"note": "baked by tools/tree_prep.py - see docs/TREE-IMPORT.md",
  "collections": [
-  {"name":"cedar_tree.glb","bin":"" + B + "media/geo/trees/cedar_tree.b6bfe359.bin","bytes":1508548,"credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/cedar-tree-adf5bdebd05340659dae92219a63f62d","title":"Cedar tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":1,"proportion":1,"sink":2,"dead":0.12,"impa":6,"implight":1,"crownH":1.3},"tint":{"hue":0.03,"sat":1,"light":0.59,"bark":0.34,"alpha":0.4},"materials":{"M_Bark.009":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/cedar_tree_m_bark_009_base.6d478c25.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/cedar_tree_m_bark_009_nor.42e2e9bf.jpg"},"M_Branch.009":{"mode":"MASK","cutoff":0.6263,"coverageMips":true,"base":"" + B + "media/tex/trees/cedar_tree_m_branch_009_base.af7f7481.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/cedar_tree_m_branch_009_nor.89a16f71.jpg"}},"subjects":[{"name":"Cedar_LOD0","h":17.44,"tris":20695,"bb":[-5.5168,0.0,-5.2306,5.5168,17.4408,5.2306],"shipped":false,"rungs":[{"lod":0,"tris":20695,"parts":[{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.035333,-0.995948],"uvScl":[3.880029,7.2616],"off":0,"len":84940},{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":84940,"len":336124}]},{"lod":1,"tris":15449,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":421064,"len":336124},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":757188,"len":320}]},{"lod":2,"tris":8951,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":757508,"len":194628},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":952136,"len":320}]}],"stand":[{"lod":0,"tris":11899,"parts":[{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.035333,-0.995948],"uvScl":[3.880029,7.2616],"off":952456,"len":84940},{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":1037396,"len":144580}]},{"lod":1,"tris":6653,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":1181976,"len":144580},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1326556,"len":320}]},{"lod":2,"tris":4442,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":1326876,"len":96412},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1423288,"len":320}]}],"snag":[{"lod":0,"tris":5260,"parts":[{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.035333,-0.995948],"uvScl":[3.880029,7.2616],"off":1423608,"len":84940}]}]}]},
-  {"name":"fir_tree_georgeous.glb","bin":"" + B + "media/geo/trees/fir_tree_georgeous.5f4d8053.bin","bytes":457952,"credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/fir-tree-0965de5def1342cd8b8b1a0fa5643e27","title":"Fir tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":1,"proportion":1,"sink":1.5,"dead":0.08,"impa":6,"implight":1,"crownH":1.3},"tint":{"hue":0.06,"sat":1,"light":0.43,"bark":0.42,"alpha":0.1},"materials":{"M_Branch.007":{"mode":"MASK","cutoff":0.608,"coverageMips":true,"base":"" + B + "media/tex/trees/fir_tree_georgeous_m_branch_007_base.4742577f.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/fir_tree_georgeous_m_branch_007_nor.e8688e34.jpg"},"M_Bark.007":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/fir_tree_georgeous_m_bark_007_base.4dc7a894.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/fir_tree_georgeous_m_bark_007_nor.beac0ead.jpg"}},"subjects":[{"name":"Fir01_LOD0","h":13.42,"tris":7784,"bb":[-4.3414,0.0,-4.0741,4.3414,13.4179,4.0741],"shipped":false,"rungs":[{"lod":0,"tris":7784,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":0,"len":79724},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.999265,-0.985275],"uvScl":[3.843961,6.180435],"off":79724,"len":72676}]},{"lod":1,"tris":3406,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":152400,"len":79724},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":232124,"len":320}]},{"lod":2,"tris":1798,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":232444,"len":41936},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":274380,"len":320}]}],"stand":[{"lod":0,"tris":4992,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":274700,"len":14112},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.999265,-0.985275],"uvScl":[3.843961,6.180435],"off":288812,"len":72676}]},{"lod":1,"tris":614,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":361488,"len":14112},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":375600,"len":320}]},{"lod":2,"tris":398,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":375920,"len":9036},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":384956,"len":320}]}],"snag":[{"lod":0,"tris":4392,"parts":[{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.999265,-0.985275],"uvScl":[3.843961,6.180435],"off":385276,"len":72676}]}]}]},
-  {"name":"larch_tree.glb","bin":"" + B + "media/geo/trees/larch_tree.edb35369.bin","bytes":761868,"credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/larch-tree-d027dae8c92544d79b946edcea98deca","title":"Larch tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":1,"proportion":1,"sink":2,"dead":0.09,"impa":6.5,"implight":1,"crownH":1.3},"tint":{"hue":0.03,"sat":0.48,"light":0.68,"bark":0.84,"alpha":0},"materials":{"M_Bark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/larch_tree_m_bark_base.3057dd84.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/larch_tree_m_bark_nor.24e88780.jpg"},"M_Branch":{"mode":"MASK","cutoff":0.0777,"coverageMips":true,"base":"" + B + "media/tex/trees/larch_tree_m_branch_base.8e0f34a9.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/larch_tree_m_branch_nor.de257583.jpg"}},"subjects":[{"name":"Larch_LOD0","h":19.2,"tris":12201,"bb":[-5.2387,0.0,-5.3227,5.2387,19.1929,5.3227],"shipped":false,"rungs":[{"lod":0,"tris":12201,"parts":[{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.991051,-1.0157],"uvScl":[3.835747,8.146577],"off":0,"len":82204},{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":82204,"len":146580}]},{"lod":1,"tris":6725,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":228784,"len":146580},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":375364,"len":320}]},{"lod":2,"tris":3613,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":375684,"len":78656},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":454340,"len":320}]}],"stand":[{"lod":0,"tris":7964,"parts":[{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.991051,-1.0157],"uvScl":[3.835747,8.146577],"off":454660,"len":82204},{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":536864,"len":54000}]},{"lod":1,"tris":2488,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":590864,"len":54000},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":644864,"len":320}]},{"lod":2,"tris":1580,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":645184,"len":34160},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":679344,"len":320}]}],"snag":[{"lod":0,"tris":5490,"parts":[{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.991051,-1.0157],"uvScl":[3.835747,8.146577],"off":679664,"len":82204}]}]}]},
-  {"name":"realistic_fir_trees_pack_lods_gameready.glb","bin":"" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.35a94bf6.bin","bytes":1157756,"credit":{"author":"LOLIPOP (https://sketchfab.com/lolipop_1707)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/realistic-fir-trees-pack-lods-gameready-f58e8b6d733e4b0586e5b7db847b89e7","title":"Realistic Fir Trees Pack (LODS, gameready)"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":2.1,"proportion":2.85,"sink":0,"dead":0.08,"impa":6,"implight":1,"crownH":1.3},"tint":{"hue":0.08,"sat":0.47,"light":1.3,"bark":0.64,"alpha":0.1},"materials":{"Bark_Mat":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg","baseSize":[512,1024],"nor":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_nor.c153a8b2.jpg"},"Brunches_Mat":{"mode":"MASK","cutoff":0.3764,"coverageMips":true,"base":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_base.96c367ea.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"}},"subjects":[{"name":"Christmas tree","h":9.29,"tris":22890,"bb":[-2.6433,0.0,-2.5178,2.6433,9.293,2.5178],"shipped":true,"rungs":[{"lod":0,"tris":12969,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":0,"len":121988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.962198,-0.997988],"uvScl":[4.235118,28.290287],"off":121988,"len":120686}]},{"lod":1,"tris":6110,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":242674,"len":121988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":364662,"len":320}]},{"lod":2,"tris":3190,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":364982,"len":63588},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":428570,"len":320}]}],"stand":[{"lod":0,"tris":8389,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":428890,"len":30388},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.962198,-0.997988],"uvScl":[4.235118,28.290287],"off":459278,"len":120686}]},{"lod":1,"tris":1530,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":579964,"len":30388},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":610352,"len":320}]},{"lod":2,"tris":980,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":610672,"len":19388},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":630060,"len":320}]}],"snag":[{"lod":0,"tris":6873,"parts":[{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.962198,-0.997988],"uvScl":[4.235118,28.290287],"off":630380,"len":120686}]}]},{"name":"Christmas tree_2","h":4.16,"tris":12709,"bb":[-1.3584,0.0,-1.3636,1.3584,4.1583,1.3636],"shipped":true,"rungs":[{"lod":0,"tris":6813,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":751066,"len":66788},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.968788,-0.984434],"uvScl":[4.222178,41.036432],"off":817854,"len":63294}]},{"lod":1,"tris":3350,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":881148,"len":66788},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":947936,"len":320}]},{"lod":2,"tris":1770,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":948256,"len":35188},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":983444,"len":320}]}],"stand":[{"lod":0,"tris":4373,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":983764,"len":17988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.968788,-0.984434],"uvScl":[4.222178,41.036432],"off":1001752,"len":63294}]},{"lod":1,"tris":910,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":1065046,"len":17988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1083034,"len":320}]},{"lod":2,"tris":550,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":1083354,"len":10788},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1094142,"len":320}]}],"snag":[{"lod":0,"tris":3477,"parts":[{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.968788,-0.984434],"uvScl":[4.222178,41.036432],"off":1094462,"len":63294}]}]}]},
-  {"name":"spruce_tree.glb","bin":"" + B + "media/geo/trees/spruce_tree.03b48def.bin","bytes":582900,"credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/spruce-tree-7a5db417827244d98827459bce0cc944","title":"Spruce tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":1.08,"proportion":1,"sink":0.5,"dead":0.08,"impa":6,"implight":1,"crownH":1.3},"tint":{"hue":-0.01,"sat":1.1,"light":0.54,"bark":0.42,"alpha":0.2},"materials":{"M_Bark.001":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/spruce_tree_m_bark_001_base.b686d5b2.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/spruce_tree_m_bark_001_nor.26e3e887.jpg"},"M_Branch.001":{"mode":"MASK","cutoff":0.2971,"coverageMips":true,"base":"" + B + "media/tex/trees/spruce_tree_m_branch_001_base.f76f96b7.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/spruce_tree_m_branch_001_nor.d03d0d8d.jpg"}},"subjects":[{"name":"Spruce_LOD0","h":17.43,"tris":10387,"bb":[-4.0477,0.0,-4.2117,4.0477,17.4215,4.2117],"shipped":false,"rungs":[{"lod":0,"tris":10387,"parts":[{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.938993,-0.991626],"uvScl":[2.873005,9.755025],"off":0,"len":76056},{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":76056,"len":120060}]},{"lod":1,"tris":5616,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":196116,"len":120060},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":316176,"len":320}]},{"lod":2,"tris":3004,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":316496,"len":64068},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":380564,"len":320}]}],"stand":[{"lod":0,"tris":5618,"parts":[{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.938993,-0.991626],"uvScl":[2.873005,9.755025],"off":380884,"len":76056},{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":456940,"len":17848}]},{"lod":1,"tris":847,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":474788,"len":17848},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":492636,"len":320}]},{"lod":2,"tris":647,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":492956,"len":13568},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":506524,"len":320}]}],"snag":[{"lod":0,"tris":4785,"parts":[{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.938993,-0.991626],"uvScl":[2.873005,9.755025],"off":506844,"len":76056}]}]}]}
- ]};
+  {"name":"cedar_tree.glb","file":"cedar_tree.glb","kind":"tree","credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/cedar-tree-adf5bdebd05340659dae92219a63f62d","title":"Cedar tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":2,"size":1,"proportion":1,"dead":0.12,"impa":6,"implight":1.028,"crownH":1.3},"tint":{"hue":-0.03,"sat":1,"light":0.59,"bark":0.34,"alpha":0.4},"bin":"" + B + "media/geo/trees/cedar_tree.b6bfe359.bin","bytes":1508548,"subjects":[{"name":"Cedar_LOD0","h":17.44,"tris":20695,"bb":[-5.5168,0.0,-5.2306,5.5168,17.4408,5.2306],"shipped":false,"rungs":[{"lod":0,"tris":20695,"parts":[{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.035333,-0.995948],"uvScl":[3.880029,7.2616],"off":0,"len":84940},{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":84940,"len":336124}]},{"lod":1,"tris":15449,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":421064,"len":336124},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":757188,"len":320}]},{"lod":2,"tris":8951,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":757508,"len":194628},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":952136,"len":320}]}],"stand":[{"lod":0,"tris":11899,"parts":[{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.035333,-0.995948],"uvScl":[3.880029,7.2616],"off":952456,"len":84940},{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":1037396,"len":144580}]},{"lod":1,"tris":6653,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":1181976,"len":144580},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1326556,"len":320}]},{"lod":2,"tris":4442,"parts":[{"mat":"M_Branch.009","mode":"MASK","cutoff":0.6263,"uvMin":[0.075373,0.0],"uvScl":[0.819688,1.0],"off":1326876,"len":96412},{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1423288,"len":320}]}],"snag":[{"lod":0,"tris":5260,"parts":[{"mat":"M_Bark.009","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.035333,-0.995948],"uvScl":[3.880029,7.2616],"off":1423608,"len":84940}]}]}]},
+  {"name":"fir_tree_georgeous.glb","file":"fir_tree_georgeous.glb","kind":"tree","credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/fir-tree-0965de5def1342cd8b8b1a0fa5643e27","title":"Fir tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":1.5,"size":1,"proportion":1,"dead":0.08,"impa":6,"implight":1.066,"crownH":1.3},"tint":{"hue":-0.06,"sat":1,"light":0.43,"bark":0.42,"alpha":0.1},"bin":"" + B + "media/geo/trees/fir_tree_georgeous.5f4d8053.bin","bytes":457952,"subjects":[{"name":"Fir01_LOD0","h":13.42,"tris":7784,"bb":[-4.3414,0.0,-4.0741,4.3414,13.4179,4.0741],"shipped":false,"rungs":[{"lod":0,"tris":7784,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":0,"len":79724},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.999265,-0.985275],"uvScl":[3.843961,6.180435],"off":79724,"len":72676}]},{"lod":1,"tris":3406,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":152400,"len":79724},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":232124,"len":320}]},{"lod":2,"tris":1798,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":232444,"len":41936},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":274380,"len":320}]}],"stand":[{"lod":0,"tris":4992,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":274700,"len":14112},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.999265,-0.985275],"uvScl":[3.843961,6.180435],"off":288812,"len":72676}]},{"lod":1,"tris":614,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":361488,"len":14112},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":375600,"len":320}]},{"lod":2,"tris":398,"parts":[{"mat":"M_Branch.007","mode":"MASK","cutoff":0.608,"uvMin":[0.045048,0.0],"uvScl":[0.926313,1.0],"off":375920,"len":9036},{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":384956,"len":320}]}],"snag":[{"lod":0,"tris":4392,"parts":[{"mat":"M_Bark.007","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.999265,-0.985275],"uvScl":[3.843961,6.180435],"off":385276,"len":72676}]}]}]},
+  {"name":"larch_tree.glb","file":"larch_tree.glb","kind":"tree","credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/larch-tree-d027dae8c92544d79b946edcea98deca","title":"Larch tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":2,"size":1,"proportion":1,"dead":0.09,"impa":6.5,"implight":1.091,"crownH":1.3},"tint":{"hue":-0.03,"sat":0.48,"light":0.68,"bark":0.84,"alpha":0},"bin":"" + B + "media/geo/trees/larch_tree.edb35369.bin","bytes":761868,"subjects":[{"name":"Larch_LOD0","h":19.2,"tris":12201,"bb":[-5.2387,0.0,-5.3227,5.2387,19.1929,5.3227],"shipped":false,"rungs":[{"lod":0,"tris":12201,"parts":[{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.991051,-1.0157],"uvScl":[3.835747,8.146577],"off":0,"len":82204},{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":82204,"len":146580}]},{"lod":1,"tris":6725,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":228784,"len":146580},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":375364,"len":320}]},{"lod":2,"tris":3613,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":375684,"len":78656},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":454340,"len":320}]}],"stand":[{"lod":0,"tris":7964,"parts":[{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.991051,-1.0157],"uvScl":[3.835747,8.146577],"off":454660,"len":82204},{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":536864,"len":54000}]},{"lod":1,"tris":2488,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":590864,"len":54000},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":644864,"len":320}]},{"lod":2,"tris":1580,"parts":[{"mat":"M_Branch","mode":"MASK","cutoff":0.0777,"uvMin":[0.073034,0.0],"uvScl":[0.853422,1.0],"off":645184,"len":34160},{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":679344,"len":320}]}],"snag":[{"lod":0,"tris":5490,"parts":[{"mat":"M_Bark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.991051,-1.0157],"uvScl":[3.835747,8.146577],"off":679664,"len":82204}]}]}]},
+  {"name":"realistic_fir_trees_pack_lods_gameready.glb","file":"realistic_fir_trees_pack_lods_gameready.glb","kind":"tree","credit":{"author":"LOLIPOP (https://sketchfab.com/lolipop_1707)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/realistic-fir-trees-pack-lods-gameready-f58e8b6d733e4b0586e5b7db847b89e7","title":"Realistic Fir Trees Pack (LODS, gameready)"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":2.1,"proportion":2.85,"dead":0.08,"impa":6,"implight":1.191,"crownH":1.3},"tint":{"hue":-0.08,"sat":0.47,"light":1.3,"bark":0.64,"alpha":0.1},"bin":"" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.35a94bf6.bin","bytes":1157756,"subjects":[{"name":"Christmas tree","h":9.29,"tris":22890,"bb":[-2.6433,0.0,-2.5178,2.6433,9.293,2.5178],"shipped":true,"rungs":[{"lod":0,"tris":12969,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":0,"len":121988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.962198,-0.997988],"uvScl":[4.235118,28.290287],"off":121988,"len":120686}]},{"lod":1,"tris":6110,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":242674,"len":121988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":364662,"len":320}]},{"lod":2,"tris":3190,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":364982,"len":63588},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":428570,"len":320}]}],"stand":[{"lod":0,"tris":8389,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":428890,"len":30388},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.962198,-0.997988],"uvScl":[4.235118,28.290287],"off":459278,"len":120686}]},{"lod":1,"tris":1530,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":579964,"len":30388},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":610352,"len":320}]},{"lod":2,"tris":980,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":610672,"len":19388},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":630060,"len":320}]}],"snag":[{"lod":0,"tris":6873,"parts":[{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.962198,-0.997988],"uvScl":[4.235118,28.290287],"off":630380,"len":120686}]}]},{"name":"Christmas tree_2","h":4.16,"tris":12709,"bb":[-1.3584,0.0,-1.3636,1.3584,4.1583,1.3636],"shipped":true,"rungs":[{"lod":0,"tris":6813,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":751066,"len":66788},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.968788,-0.984434],"uvScl":[4.222178,41.036432],"off":817854,"len":63294}]},{"lod":1,"tris":3350,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":881148,"len":66788},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":947936,"len":320}]},{"lod":2,"tris":1770,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":948256,"len":35188},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":983444,"len":320}]}],"stand":[{"lod":0,"tris":4373,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":983764,"len":17988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.968788,-0.984434],"uvScl":[4.222178,41.036432],"off":1001752,"len":63294}]},{"lod":1,"tris":910,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":1065046,"len":17988},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1083034,"len":320}]},{"lod":2,"tris":550,"parts":[{"mat":"Brunches_Mat","mode":"MASK","cutoff":0.3764,"uvMin":[0.017154,0.0],"uvScl":[0.97667,0.991093],"off":1083354,"len":10788},{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1094142,"len":320}]}],"snag":[{"lod":0,"tris":3477,"parts":[{"mat":"Bark_Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.968788,-0.984434],"uvScl":[4.222178,41.036432],"off":1094462,"len":63294}]}]}]},
+  {"name":"spruce_tree.glb","file":"spruce_tree.glb","kind":"tree","credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/spruce-tree-7a5db417827244d98827459bce0cc944","title":"Spruce tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0.5,"size":1.08,"proportion":1,"dead":0.08,"impa":6,"implight":1.159,"crownH":1.3},"tint":{"hue":0.01,"sat":1.1,"light":0.54,"bark":0.42,"alpha":0.2},"bin":"" + B + "media/geo/trees/spruce_tree.03b48def.bin","bytes":582900,"subjects":[{"name":"Spruce_LOD0","h":17.43,"tris":10387,"bb":[-4.0477,0.0,-4.2117,4.0477,17.4215,4.2117],"shipped":false,"rungs":[{"lod":0,"tris":10387,"parts":[{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.938993,-0.991626],"uvScl":[2.873005,9.755025],"off":0,"len":76056},{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":76056,"len":120060}]},{"lod":1,"tris":5616,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":196116,"len":120060},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":316176,"len":320}]},{"lod":2,"tris":3004,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":316496,"len":64068},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":380564,"len":320}]}],"stand":[{"lod":0,"tris":5618,"parts":[{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.938993,-0.991626],"uvScl":[2.873005,9.755025],"off":380884,"len":76056},{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":456940,"len":17848}]},{"lod":1,"tris":847,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":474788,"len":17848},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":492636,"len":320}]},{"lod":2,"tris":647,"parts":[{"mat":"M_Branch.001","mode":"MASK","cutoff":0.2971,"uvMin":[0.060496,0.0],"uvScl":[0.840352,1.0],"off":492956,"len":13568},{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":506524,"len":320}]}],"snag":[{"lod":0,"tris":4785,"parts":[{"mat":"M_Bark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.938993,-0.991626],"uvScl":[2.873005,9.755025],"off":506844,"len":76056}]}]}]},
+  {"name":"pine_georgeous.glb","file":"pine_georgeous.glb","kind":"tree","credit":{"author":"Georgeous (https://sketchfab.com/intice184)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/pine-tree-6c0ca146235e49529828136cd0cee63a","title":"Pine tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":1,"size":0.71,"proportion":1.6,"dead":0.53,"impa":6,"implight":1.016,"bend":0.65,"bendFreq":2.5,"lean":3,"flatTop":0,"sparse":0.75,"variants":3,"prune":1,"bendPct":1,"leafScale":1.3,"leafFill":0.7,"crownH":1.3},"tint":{"hue":0.035,"sat":0.66,"light":1.22,"bark":1,"alpha":0},"bin":"" + B + "media/geo/trees/pine_georgeous.e5a37d5b.bin","bytes":2050850,"subjects":[{"name":"Pine01_LOD0","h":14.3,"tris":20517,"bb":[-2.258,0.0,-2.4705,2.258,14.2984,2.4705],"shipped":false,"rungs":[{"lod":0,"tris":20517,"parts":[{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.106229,-1.03021],"uvScl":[3.778939,18.263662],"off":0,"len":110242},{"mat":"M_Branch.003","mode":"MASK","cutoff":0.224,"uvMin":[0.0,0.112862],"uvScl":[0.99984,0.887138],"off":110242,"len":313352}]},{"lod":1,"tris":13875,"parts":[{"mat":"M_Branch.003","mode":"MASK","cutoff":0.224,"uvMin":[0.0,0.112862],"uvScl":[0.99984,0.887138],"off":423594,"len":313352},{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":736946,"len":320}]},{"lod":2,"tris":11248,"parts":[{"mat":"M_Branch.003","mode":"MASK","cutoff":0.224,"uvMin":[0.0,0.112862],"uvScl":[0.99984,0.887138],"off":737266,"len":253812},{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":991078,"len":320}]}],"stand":[{"lod":0,"tris":19841,"parts":[{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.106229,-1.03021],"uvScl":[3.778939,18.263662],"off":991398,"len":110242},{"mat":"M_Branch.003","mode":"MASK","cutoff":0.224,"uvMin":[0.0,0.112862],"uvScl":[0.99984,0.887138],"off":1101640,"len":298068}]},{"lod":1,"tris":13199,"parts":[{"mat":"M_Branch.003","mode":"MASK","cutoff":0.224,"uvMin":[0.0,0.112862],"uvScl":[0.99984,0.887138],"off":1399708,"len":298068},{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1697776,"len":320}]},{"lod":2,"tris":10730,"parts":[{"mat":"M_Branch.003","mode":"MASK","cutoff":0.224,"uvMin":[0.0,0.112862],"uvScl":[0.99984,0.887138],"off":1698096,"len":242192},{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":1940288,"len":320}]}],"snag":[{"lod":0,"tris":6656,"parts":[{"mat":"M_Bark.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.106229,-1.03021],"uvScl":[3.778939,18.263662],"off":1940608,"len":110242}]}]}]},
+  {"name":"pine_evolveduk.glb","file":"pine_evolveduk.glb","kind":"tree","credit":{"author":"evolveduk (https://sketchfab.com/evolveduk)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9","title":"Pine Tree"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1.53,"proportion":1.45,"dead":0,"impa":6,"implight":1.084,"bend":1.4,"bendFreq":1.4,"lean":10,"flatTop":0.3,"sparse":0.75,"variants":3,"prune":1,"bendPct":1,"leafScale":1.3,"leafFill":0.7,"crownH":1.3},"tint":{"hue":-0.14,"sat":0.61,"light":1,"bark":1,"alpha":0.1},"bin":"" + B + "media/geo/trees/pine_evolveduk.e693ba46.bin","bytes":288998,"subjects":[{"name":"Tree_0","h":5.32,"tris":5627,"bb":[-1.0915,0.0,-1.0833,1.0915,5.3152,1.0833],"shipped":false,"rungs":[{"lod":0,"tris":5627,"parts":[{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.00039,1.0],"uvScl":[0.99815,7.56889],"off":0,"len":68042},{"mat":"Tree_1Mat","mode":"MASK","cutoff":0.208,"uvMin":[0.00159,0.00149],"uvScl":[0.99702,0.99702],"off":68042,"len":21772}]},{"lod":1,"tris":1102,"parts":[{"mat":"Tree_1Mat","mode":"MASK","cutoff":0.208,"uvMin":[0.00159,0.00149],"uvScl":[0.99702,0.99702],"off":89814,"len":21772},{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":111586,"len":320}]},{"lod":2,"tris":662,"parts":[{"mat":"Tree_1Mat","mode":"MASK","cutoff":0.208,"uvMin":[0.00159,0.00149],"uvScl":[0.99702,0.99702],"off":111906,"len":12972},{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":124878,"len":320}]}],"stand":[{"lod":0,"tris":5043,"parts":[{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.00039,1.0],"uvScl":[0.99815,7.56889],"off":125198,"len":68042},{"mat":"Tree_1Mat","mode":"MASK","cutoff":0.208,"uvMin":[0.00159,0.00149],"uvScl":[0.99702,0.99702],"off":193240,"len":10092}]},{"lod":1,"tris":518,"parts":[{"mat":"Tree_1Mat","mode":"MASK","cutoff":0.208,"uvMin":[0.00159,0.00149],"uvScl":[0.99702,0.99702],"off":203332,"len":10092},{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":213424,"len":320}]},{"lod":2,"tris":358,"parts":[{"mat":"Tree_1Mat","mode":"MASK","cutoff":0.208,"uvMin":[0.00159,0.00149],"uvScl":[0.99702,0.99702],"off":213744,"len":6892},{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":220636,"len":320}]}],"snag":[{"lod":0,"tris":4539,"parts":[{"mat":"Tree_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.00039,1.0],"uvScl":[0.99815,7.56889],"off":220956,"len":68042}]}]}]},
+  {"name":"birch","file":"various_forest_assets_pack.glb","kind":"tree","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":1.028,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/birch.e9b48ec1.bin","bytes":529812,"subjects":[{"name":"Birch1_20","h":17.18,"tris":2800,"bb":[-4.5704,0.0,-4.8549,4.5704,17.1844,4.8549],"shipped":false,"rungs":[{"lod":0,"tris":2800,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":0,"len":18340},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-2.323611,-11.788908],"uvScl":[4.202759,18.361732],"off":18340,"len":37642}]},{"lod":1,"tris":488,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":55982,"len":18340},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":74322,"len":320}]},{"lod":2,"tris":293,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":74642,"len":10772},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":85414,"len":320}]}],"stand":[{"lod":0,"tris":2529,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":85734,"len":7936},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-2.323611,-11.788908],"uvScl":[4.202759,18.361732],"off":93670,"len":37642}]},{"lod":1,"tris":217,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":131312,"len":7936},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":139248,"len":320}]},{"lod":2,"tris":154,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":139568,"len":5472},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":145040,"len":320}]}],"snag":[{"lod":0,"tris":2326,"parts":[{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-2.323611,-11.788908],"uvScl":[4.202759,18.361732],"off":145360,"len":37642}]}]},{"name":"Birch2_21","h":22.15,"tris":2466,"bb":[-4.8997,0.0,-5.0723,4.8997,22.1511,5.0723],"shipped":false,"rungs":[{"lod":0,"tris":2466,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":183002,"len":25996},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.328886,-8.609361],"uvScl":[5.325459,18.218721],"off":208998,"len":28990}]},{"lod":1,"tris":686,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":237988,"len":25996},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":263984,"len":320}]},{"lod":2,"tris":430,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":264304,"len":16116},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":280420,"len":320}]}],"stand":[{"lod":0,"tris":2158,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":280740,"len":14152},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.328886,-8.609361],"uvScl":[5.325459,18.218721],"off":294892,"len":28990}]},{"lod":1,"tris":378,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":323882,"len":14152},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":338034,"len":320}]},{"lod":2,"tris":274,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":338354,"len":10140},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":348494,"len":320}]}],"snag":[{"lod":0,"tris":1794,"parts":[{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.328886,-8.609361],"uvScl":[5.325459,18.218721],"off":348814,"len":28990}]}]},{"name":"Birch3_26","h":21.62,"tris":2131,"bb":[-6.3912,0.0,-6.0048,6.3912,21.6243,6.0048],"shipped":false,"rungs":[{"lod":0,"tris":2131,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":377804,"len":18920},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.4375,-0.15625],"uvScl":[7.875,1.3125],"off":396724,"len":26832}]},{"lod":1,"tris":503,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":423556,"len":18920},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":442476,"len":320}]},{"lod":2,"tris":304,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":442796,"len":11188},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":453984,"len":320}]}],"stand":[{"lod":0,"tris":1845,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":454304,"len":7880},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.4375,-0.15625],"uvScl":[7.875,1.3125],"off":462184,"len":26832}]},{"lod":1,"tris":217,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":489016,"len":7880},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":496896,"len":320}]},{"lod":2,"tris":154,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":497216,"len":5444},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":502660,"len":320}]}],"snag":[{"lod":0,"tris":1642,"parts":[{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.4375,-0.15625],"uvScl":[7.875,1.3125],"off":502980,"len":26832}]}]}]},
+  {"name":"birch_autumn","file":"various_forest_assets_pack.glb","kind":"tree","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":0.3,"dead":0,"impa":6,"implight":1.066,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/birch_autumn.fc8f08be.bin","bytes":377804,"subjects":[{"name":"BirchOrange1_22","h":18.95,"tris":2466,"bb":[-4.4758,0.0,-4.1929,4.4758,18.9533,4.1929],"shipped":false,"rungs":[{"lod":0,"tris":2466,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":0,"len":25996},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.328886,-8.609361],"uvScl":[5.325459,18.218721],"off":25996,"len":28990}]},{"lod":1,"tris":686,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":54986,"len":25996},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":80982,"len":320}]},{"lod":2,"tris":430,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":81302,"len":16116},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":97418,"len":320}]}],"stand":[{"lod":0,"tris":2158,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":97738,"len":14152},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.328886,-8.609361],"uvScl":[5.325459,18.218721],"off":111890,"len":28990}]},{"lod":1,"tris":378,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":140880,"len":14152},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":155032,"len":320}]},{"lod":2,"tris":274,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":155352,"len":10140},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":165492,"len":320}]}],"snag":[{"lod":0,"tris":1794,"parts":[{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.328886,-8.609361],"uvScl":[5.325459,18.218721],"off":165812,"len":28990}]}]},{"name":"BirchOrange2_23","h":16.2,"tris":2800,"bb":[-4.7257,0.0,-4.5484,4.7257,16.202,4.5484],"shipped":false,"rungs":[{"lod":0,"tris":2800,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":194802,"len":18340},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-2.323611,-11.788908],"uvScl":[4.202759,18.361732],"off":213142,"len":37642}]},{"lod":1,"tris":488,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":250784,"len":18340},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":269124,"len":320}]},{"lod":2,"tris":293,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":269444,"len":10772},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":280216,"len":320}]}],"stand":[{"lod":0,"tris":2529,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":280536,"len":7936},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-2.323611,-11.788908],"uvScl":[4.202759,18.361732],"off":288472,"len":37642}]},{"lod":1,"tris":217,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":326114,"len":7936},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":334050,"len":320}]},{"lod":2,"tris":154,"parts":[{"mat":"BirchBranchAtlasAlt","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":334370,"len":5472},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":339842,"len":320}]}],"snag":[{"lod":0,"tris":2326,"parts":[{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-2.323611,-11.788908],"uvScl":[4.202759,18.361732],"off":340162,"len":37642}]}]}]},
+  {"name":"maple","file":"various_forest_assets_pack.glb","kind":"tree","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":1.028,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.7},"bin":"" + B + "media/geo/trees/maple.5cb7ab83.bin","bytes":289652,"subjects":[{"name":"Maple_24","h":19.69,"tris":3805,"bb":[-8.8294,0.0,-8.6376,8.8294,19.6898,8.6376],"shipped":false,"rungs":[{"lod":0,"tris":3805,"parts":[{"mat":"MapleBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.022932,-0.313803],"uvScl":[1.257107,1.63343],"off":0,"len":33304},{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.38874,0.006265],"uvScl":[3.262342,0.987471],"off":33304,"len":52816}]},{"lod":1,"tris":833,"parts":[{"mat":"MapleBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.022932,-0.313803],"uvScl":[1.257107,1.63343],"off":86120,"len":33304},{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":119424,"len":320}]},{"lod":2,"tris":503,"parts":[{"mat":"MapleBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.022932,-0.313803],"uvScl":[1.257107,1.63343],"off":119744,"len":19928},{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":139672,"len":320}]}],"stand":[{"lod":0,"tris":3388,"parts":[{"mat":"MapleBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.022932,-0.313803],"uvScl":[1.257107,1.63343],"off":139992,"len":16144},{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.38874,0.006265],"uvScl":[3.262342,0.987471],"off":156136,"len":52816}]},{"lod":1,"tris":416,"parts":[{"mat":"MapleBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.022932,-0.313803],"uvScl":[1.257107,1.63343],"off":208952,"len":16144},{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":225096,"len":320}]},{"lod":2,"tris":287,"parts":[{"mat":"MapleBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.022932,-0.313803],"uvScl":[1.257107,1.63343],"off":225416,"len":11100},{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":236516,"len":320}]}],"snag":[{"lod":0,"tris":2986,"parts":[{"mat":"MapleBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.38874,0.006265],"uvScl":[3.262342,0.987471],"off":236836,"len":52816}]}]}]},
+  {"name":"oak","file":"various_forest_assets_pack.glb","kind":"tree","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":0.997,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.7},"bin":"" + B + "media/geo/trees/oak.bce4730a.bin","bytes":223324,"subjects":[{"name":"Oak_25","h":18.93,"tris":2997,"bb":[-9.3694,0.0,-9.6569,9.3694,18.9288,9.6569],"shipped":false,"rungs":[{"lod":0,"tris":2997,"parts":[{"mat":"OakBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.068226,-0.417832],"uvScl":[1.231434,1.518325],"off":0,"len":26112},{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.850003,-0.115955],"uvScl":[2.350003,1.159545],"off":26112,"len":38248}]},{"lod":1,"tris":689,"parts":[{"mat":"OakBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.068226,-0.417832],"uvScl":[1.231434,1.518325],"off":64360,"len":26112},{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":90472,"len":320}]},{"lod":2,"tris":403,"parts":[{"mat":"OakBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.068226,-0.417832],"uvScl":[1.231434,1.518325],"off":90792,"len":15044},{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":105836,"len":320}]}],"stand":[{"lod":0,"tris":2709,"parts":[{"mat":"OakBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.068226,-0.417832],"uvScl":[1.231434,1.518325],"off":106156,"len":15116},{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.850003,-0.115955],"uvScl":[2.350003,1.159545],"off":121272,"len":38248}]},{"lod":1,"tris":401,"parts":[{"mat":"OakBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.068226,-0.417832],"uvScl":[1.231434,1.518325],"off":159520,"len":15116},{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":174636,"len":320}]},{"lod":2,"tris":264,"parts":[{"mat":"OakBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.068226,-0.417832],"uvScl":[1.231434,1.518325],"off":174956,"len":9800},{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":184756,"len":320}]}],"snag":[{"lod":0,"tris":2322,"parts":[{"mat":"OakBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.850003,-0.115955],"uvScl":[2.350003,1.159545],"off":185076,"len":38248}]}]}]},
+  {"name":"ash","file":"various_forest_assets_pack.glb","kind":"tree","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":1.041,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/ash.8d0f2cd6.bin","bytes":170300,"subjects":[{"name":"AshTree_1","h":14.16,"tris":2272,"bb":[-4.2593,0.0,-4.2726,4.2593,14.1562,4.2726],"shipped":false,"rungs":[{"lod":0,"tris":2272,"parts":[{"mat":"AshBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.021582,-0.23658],"uvScl":[1.075702,1.379699],"off":0,"len":15092},{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.5,0.0],"uvScl":[8.0,1.0],"off":15092,"len":35664}]},{"lod":1,"tris":404,"parts":[{"mat":"AshBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.021582,-0.23658],"uvScl":[1.075702,1.379699],"off":50756,"len":15092},{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":65848,"len":320}]},{"lod":2,"tris":244,"parts":[{"mat":"AshBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.021582,-0.23658],"uvScl":[1.075702,1.379699],"off":66168,"len":8868},{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":75036,"len":320}]}],"stand":[{"lod":0,"tris":2108,"parts":[{"mat":"AshBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.021582,-0.23658],"uvScl":[1.075702,1.379699],"off":75356,"len":8732},{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.5,0.0],"uvScl":[8.0,1.0],"off":84088,"len":35664}]},{"lod":1,"tris":240,"parts":[{"mat":"AshBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.021582,-0.23658],"uvScl":[1.075702,1.379699],"off":119752,"len":8732},{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":128484,"len":320}]},{"lod":2,"tris":156,"parts":[{"mat":"AshBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.021582,-0.23658],"uvScl":[1.075702,1.379699],"off":128804,"len":5512},{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":134316,"len":320}]}],"snag":[{"lod":0,"tris":1882,"parts":[{"mat":"AshBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.5,0.0],"uvScl":[8.0,1.0],"off":134636,"len":35664}]}]}]},
+  {"name":"shrub_deciduous","file":"various_forest_assets_pack.glb","kind":"shrub","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":0.5,"dead":0,"impa":6,"implight":1.091,"sizes":{"DeciduousShrub2_31":0.4,"DeciduousShrub_27":0.6},"hMin":0.5,"hMax":3,"crownH":1.3},"tint":{"hue":-0.009,"sat":0.857,"light":1.535,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/shrub_deciduous.7cab430b.bin","bytes":133910,"subjects":[{"name":"DeciduousShrub_27","h":6.44,"tris":4193,"bb":[-4.0156,0.0,-4.265,4.0156,6.4387,4.265],"shipped":false,"rungs":[{"lod":0,"tris":4193,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":0,"len":52544},{"mat":"CommonBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":52544,"len":51094}]}],"stand":[],"snag":[]},{"name":"DeciduousShrub2_31","h":14.81,"tris":1420,"bb":[-5.4333,0.0,-4.5726,5.4333,14.8079,4.5726],"shipped":false,"rungs":[{"lod":0,"tris":1420,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":103638,"len":11872},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-1.75,-0.15625],"uvScl":[6.1875,1.3125],"off":115510,"len":18400}]}],"stand":[],"snag":[]}]},
+  {"name":"holly","file":"various_forest_assets_pack.glb","kind":"shrub","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":0.6,"proportion":0.2,"dead":0,"impa":6,"implight":1.053,"hMin":0.5,"hMax":2.5,"crownH":1.3},"tint":{"hue":-0.097,"sat":1,"light":0.877,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/holly.01566cb7.bin","bytes":141184,"subjects":[{"name":"HollyShrub_4","h":5.25,"tris":6484,"bb":[-3.8504,0.0,-3.7357,3.8504,5.2477,3.7357],"shipped":false,"rungs":[{"lod":0,"tris":6484,"parts":[{"mat":"HollyBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.168193,-0.435006],"uvScl":[1.282753,1.430634],"off":0,"len":33228},{"mat":"HollyBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":33228,"len":107956}]}],"stand":[],"snag":[]}]},
+  {"name":"raspberry","file":"various_forest_assets_pack.glb","kind":"shrub","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":0.4,"proportion":1,"dead":0,"impa":6,"implight":0.959,"hMin":0.5,"hMax":1.8,"crownH":1.3},"tint":{"hue":-0.001,"sat":1,"light":1.26,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/raspberry.61546274.bin","bytes":272404,"subjects":[{"name":"RaspberryShrub_5","h":4.54,"tris":11792,"bb":[-2.722,0.0,-2.5797,2.722,4.5399,2.5797],"shipped":false,"rungs":[{"lod":0,"tris":11792,"parts":[{"mat":"RaspberryBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.283427,-0.11048],"uvScl":[1.421996,1.203309],"off":0,"len":89044},{"mat":"RaspberryBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":89044,"len":183360}]}],"stand":[],"snag":[]}]},
+  {"name":"sapling_deciduous","file":"various_forest_assets_pack.glb","kind":"shrub","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":1.066,"hMin":0.8,"hMax":3.5,"crownH":1.3},"tint":{"hue":-0.009,"sat":0.857,"light":1.535,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/sapling_deciduous.a137063e.bin","bytes":5522,"subjects":[{"name":"DeciduousSapling_32","h":3.4,"tris":104,"bb":[-1.7624,0.0,-1.7482,1.7624,3.3952,1.7482],"shipped":false,"rungs":[{"lod":0,"tris":104,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":0,"len":1200},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.399042,-1.014668],"uvScl":[1.271734,3.154365],"off":1200,"len":1282}]}],"stand":[],"snag":[]},{"name":"DeciduousSapling2_33","h":4.61,"tris":134,"bb":[-1.8749,0.0,-2.4106,1.8749,4.6114,2.4106],"shipped":false,"rungs":[{"lod":0,"tris":134,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":2482,"len":1404},{"mat":"BirchBark","mode":"OPAQUE","cutoff":0.0,"uvMin":[-0.399042,-1.014668],"uvScl":[1.271734,3.154365],"off":3886,"len":1636}]}],"stand":[],"snag":[]}]},
+  {"name":"dead_conifer","file":"various_forest_assets_pack.glb","kind":"dead","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":0.8,"sink":0,"proportion":1,"impa":6,"implight":1,"bend":0.2,"bendFreq":1,"lean":4,"bendPct":0.5,"variants":2,"crownH":1.3},"tint":{"bark":1.6},"bin":"" + B + "media/geo/trees/dead_conifer.b97a48ba.bin","bytes":38080,"subjects":[{"name":"Coniferous Dead Tree_13","h":16.18,"tris":1492,"bb":[-3.9633,0.0,-4.0815,3.9633,16.1846,4.0815],"shipped":false,"rungs":[{"lod":0,"tris":1492,"parts":[{"mat":"BarkMat.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.327611,-0.752616],"uvScl":[7.655222,2.508719],"off":0,"len":27122}]}],"stand":[],"snag":[]},{"name":"Coniferous Dead Tree 2_14","h":9.77,"tris":604,"bb":[-2.0812,0.0,-1.4979,2.0812,9.7734,1.4979],"shipped":false,"rungs":[{"lod":0,"tris":604,"parts":[{"mat":"BarkMat.003","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.327611,-0.752616],"uvScl":[7.655222,2.5],"off":27122,"len":10958}]}],"stand":[],"snag":[]}]},
+  {"name":"dead_deciduous","file":"various_forest_assets_pack.glb","kind":"dead","credit":{"author":"Dari (https://sketchfab.com/dariiiii)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/various-forest-assets-pack-cf138b8eb2d340cda643ed59f824989c","title":"Various Forest Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"size":0.8,"sink":0,"proportion":0.6,"impa":6,"implight":1,"bend":0.2,"bendFreq":1,"lean":4,"bendPct":0.5,"variants":2,"crownH":1.3},"tint":{"bark":1.6},"bin":"" + B + "media/geo/trees/dead_deciduous.a24d213a.bin","bytes":31370,"subjects":[{"name":"DeciduousDead1_29","h":14.32,"tris":1278,"bb":[-4.6087,0.0,-3.9811,4.6087,14.3197,3.9811],"shipped":false,"rungs":[{"lod":0,"tris":1278,"parts":[{"mat":"BirchBranchAtlas","mode":"BLEND","cutoff":0.0,"uvMin":[-0.160367,-0.242494],"uvScl":[1.214309,1.51963],"off":0,"len":3424},{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-4.256921,-8.609361],"uvScl":[5.253493,16.396849],"off":3424,"len":19332}]}],"stand":[],"snag":[]},{"name":"DeciduousDead2_28","h":13.51,"tris":498,"bb":[-0.7103,0.0,-0.6674,0.7103,13.5072,0.6674],"shipped":false,"rungs":[{"lod":0,"tris":498,"parts":[{"mat":"CommonBark.001","mode":"OPAQUE","cutoff":0.0,"uvMin":[-3.241703,-0.25],"uvScl":[7.483407,1.5],"off":22756,"len":8614}]}],"stand":[],"snag":[]}]},
+  {"name":"grass_dry","file":"dry_grass.glb","kind":"cover","credit":{"author":"Pixel-bit (https://sketchfab.com/Pixel-bit)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/dry-grass-d1484537470441b999d37077aeb9b47a","title":"Dry grass"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1.6,"proportion":1,"dead":0,"impa":6,"implight":1,"density":0.25,"vary":0.03,"lift":0.29,"contrast":0.35,"crownH":1.3},"tint":{"hue":0,"sat":0.15,"light":2.14,"bark":1,"alpha":0.3},"bin":"" + B + "media/geo/trees/grass_dry.41af29d9.bin","bytes":3108,"subjects":[{"name":"clump_dry_grass_10","h":0.95,"tris":8,"bb":[-0.1769,0.0,-0.2311,0.1769,0.9476,0.2311],"shipped":false,"rungs":[{"lod":0,"tris":8,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[0.0,0.400521],"uvScl":[0.35892,0.44248],"off":0,"len":228}]}],"stand":[],"snag":[]},{"name":"clump_dry_grass_8","h":0.87,"tris":20,"bb":[-0.3894,0.0,-0.4019,0.3894,0.8683,0.4019],"shipped":false,"rungs":[{"lod":0,"tris":20,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[-0.0,0.0],"uvScl":[1.0,0.795762],"off":228,"len":552}]}],"stand":[],"snag":[]},{"name":"clump_dry_grass_7","h":0.72,"tris":20,"bb":[-0.2749,0.0,-0.2832,0.2749,0.7234,0.2832],"shipped":false,"rungs":[{"lod":0,"tris":20,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[0.340445,0.0],"uvScl":[0.659555,0.795762],"off":780,"len":552}]}],"stand":[],"snag":[]},{"name":"clump_dry_grass_11","h":0.72,"tris":20,"bb":[-0.3242,0.0,-0.3325,0.3242,0.7234,0.3325],"shipped":false,"rungs":[{"lod":0,"tris":20,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[0.340445,0.0],"uvScl":[0.659555,0.795762],"off":1332,"len":552}]}],"stand":[],"snag":[]},{"name":"clump_dry_grass_6","h":0.66,"tris":16,"bb":[-0.3271,0.0,-0.3418,0.3271,0.6571,0.3418],"shipped":false,"rungs":[{"lod":0,"tris":16,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[0.0,0.400521],"uvScl":[0.78005,0.44248],"off":1884,"len":444}]}],"stand":[],"snag":[]},{"name":"clump_dry_grass_5","h":0.65,"tris":8,"bb":[-0.1218,0.0,-0.1592,0.1218,0.6528,0.1592],"shipped":false,"rungs":[{"lod":0,"tris":8,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[0.0,0.400521],"uvScl":[0.35892,0.44248],"off":2328,"len":228}]}],"stand":[],"snag":[]},{"name":"clump_dry_grass_9","h":0.45,"tris":20,"bb":[-0.1956,0.0,-0.1789,0.1956,0.447,0.1789],"shipped":false,"rungs":[{"lod":0,"tris":20,"parts":[{"mat":"M_dry_grass","mode":"BLEND","cutoff":0.0,"uvMin":[0.340445,0.0],"uvScl":[0.659555,0.795762],"off":2556,"len":552}]}],"stand":[],"snag":[]}]},
+  {"name":"grass_reed","file":"grass_patches.glb","kind":"cover","credit":{"author":"DJMaesen (https://sketchfab.com/bumstrum)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/grass-patches-6952780b80594a31aab2dedf7249a47a","title":"Grass patches"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":0.012,"proportion":1,"dead":0,"impa":6,"implight":1,"density":0.24,"patch":7,"patchShare":0.35,"vary":0.03,"lift":0.29,"contrast":0.35,"crownH":1.3},"tint":{"hue":0,"sat":0.15,"light":3,"bark":1,"alpha":0.3},"bin":"" + B + "media/geo/trees/grass_reed.6a745c82.bin","bytes":38306,"subjects":[{"name":"grasspatch3","h":129.47,"tris":1157,"bb":[-144.1339,0.0,-162.8869,144.1339,129.468,162.8869],"shipped":false,"rungs":[{"lod":0,"tris":1157,"parts":[{"mat":"grass1","mode":"BLEND","cutoff":0.0,"uvMin":[0.08276,0.030484],"uvScl":[0.90021,0.964164],"off":0,"len":23110}]}],"stand":[],"snag":[]},{"name":"grasspatch1","h":126.18,"tris":517,"bb":[-117.8429,0.0,-119.4362,117.8429,126.1753,119.4362],"shipped":false,"rungs":[{"lod":0,"tris":517,"parts":[{"mat":"grass1","mode":"BLEND","cutoff":0.0,"uvMin":[0.08276,0.030484],"uvScl":[0.90021,0.964164],"off":23110,"len":10478}]}],"stand":[],"snag":[]},{"name":"grasspatch2","h":120.36,"tris":236,"bb":[-80.5259,0.0,-85.0337,80.5259,120.3554,85.0337],"shipped":false,"rungs":[{"lod":0,"tris":236,"parts":[{"mat":"grass1","mode":"BLEND","cutoff":0.0,"uvMin":[0.08276,0.030484],"uvScl":[0.90021,0.964164],"off":33588,"len":4718}]}],"stand":[],"snag":[]}]},
+  {"name":"grass_plates","file":"realtime_grass.glb","kind":"cover","credit":{"author":"mfhscoobydoo (https://sketchfab.com/mfhscoobydoo)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/realtime-grass-07d38555cae844f7abdeace9d19c4777","title":"Realtime Grass"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":1,"density":2.5,"vary":0.03,"lift":0.382,"contrast":0.35,"crownH":1.3},"tint":{"hue":0,"sat":0.15,"light":3,"bark":1,"alpha":0.3},"bin":"" + B + "media/geo/trees/grass_plates.7ba183a5.bin","bytes":1296,"subjects":[{"name":"Plate1_Plate1_0","h":0.87,"tris":6,"bb":[-0.1323,0.0,-1.1166,0.1323,0.87,1.1166],"shipped":false,"rungs":[{"lod":0,"tris":6,"parts":[{"mat":"Plate1","mode":"MASK","cutoff":0.5,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":0,"len":216}]}],"stand":[],"snag":[]},{"name":"Plate2_Plate2_0","h":0.87,"tris":6,"bb":[-0.132,0.0,-1.1166,0.132,0.87,1.1166],"shipped":false,"rungs":[{"lod":0,"tris":6,"parts":[{"mat":"Plate2","mode":"MASK","cutoff":0.5,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":216,"len":216}]}],"stand":[],"snag":[]},{"name":"Plate3_Plate3_0","h":0.87,"tris":6,"bb":[-0.1296,0.0,-1.1166,0.1296,0.87,1.1166],"shipped":false,"rungs":[{"lod":0,"tris":6,"parts":[{"mat":"Plate3","mode":"MASK","cutoff":0.5,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":432,"len":216}]}],"stand":[],"snag":[]},{"name":"Plate1.001_Plate1_0","h":0.72,"tris":6,"bb":[-0.3518,0.0,-1.1166,0.3518,0.5348,1.1166],"shipped":false,"rungs":[{"lod":0,"tris":6,"parts":[{"mat":"Plate1","mode":"MASK","cutoff":0.5,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":648,"len":216}]}],"stand":[],"snag":[]},{"name":"Plate2.001_Plate2_0","h":0.74,"tris":6,"bb":[-0.3619,0.0,-1.1206,0.3619,0.5541,1.1206],"shipped":false,"rungs":[{"lod":0,"tris":6,"parts":[{"mat":"Plate2","mode":"MASK","cutoff":0.5,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":864,"len":216}]}],"stand":[],"snag":[]},{"name":"Plate3.001_Plate3_0","h":0.71,"tris":6,"bb":[-0.3703,0.0,-1.1272,0.3703,0.5106,1.1272],"shipped":false,"rungs":[{"lod":0,"tris":6,"parts":[{"mat":"Plate3","mode":"MASK","cutoff":0.5,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":1080,"len":216}]}],"stand":[],"snag":[]}]},
+  {"name":"flower_fireweed","file":"simple_grass_chunks.glb","kind":"cover","credit":{"author":"3dhdscan (https://sketchfab.com/3dhdscan)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60","title":"Simple grass chunks"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1.7,"proportion":1,"dead":0,"impa":6,"implight":1,"noTint":1,"density":0.06,"patch":9,"patchShare":0.12,"vary":0.05,"aspect":0.75,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.5},"maps":["" + B + "media/tex/flowers/fireweed_a.133cfd50.png","" + B + "media/tex/flowers/fireweed_b.2e60dc5e.png","" + B + "media/tex/flowers/fireweed_c.066a6219.png"],"bin":null,"bytes":0,"subjects":[],"materials":{}},
+  {"name":"flower_foam","file":"simple_grass_chunks.glb","kind":"cover","credit":{"author":"3dhdscan (https://sketchfab.com/3dhdscan)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60","title":"Simple grass chunks"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":0.7,"proportion":1,"dead":0,"impa":6,"implight":1,"noTint":1,"density":0.4,"patch":4,"patchShare":0.25,"vary":0.05,"aspect":1,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.5},"maps":["" + B + "media/tex/flowers/foamflower_a.168e4d9d.png","" + B + "media/tex/flowers/foamflower_b.95404a47.png"],"bin":null,"bytes":0,"subjects":[],"materials":{}},
+  {"name":"flower_bunchberry","file":"simple_grass_chunks.glb","kind":"cover","credit":{"author":"3dhdscan (https://sketchfab.com/3dhdscan)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60","title":"Simple grass chunks"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":0.45,"proportion":1,"dead":0,"impa":6,"implight":1,"noTint":1,"density":0.4,"patch":4,"patchShare":0.25,"vary":0.05,"aspect":1,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.5},"maps":["" + B + "media/tex/flowers/bunchberry_flower.106dbc21.png","" + B + "media/tex/flowers/bunchberry_fruit.4277dfcc.png"],"bin":null,"bytes":0,"subjects":[],"materials":{}},
+  {"name":"grass_scan","file":"simple_grass_chunks.glb","kind":"cover","credit":{"author":"3dhdscan (https://sketchfab.com/3dhdscan)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60","title":"Simple grass chunks"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":2.6,"proportion":1,"dead":0,"impa":6,"implight":1,"density":2,"vary":0.03,"lift":0.229,"contrast":0.35,"crownH":1.3},"tint":{"hue":0,"sat":0.15,"light":2.46,"bark":1,"alpha":0.3},"bin":"" + B + "media/geo/trees/grass_scan.77547fdb.bin","bytes":850,"subjects":[{"name":"rostlinka_07c","h":0.56,"tris":52225,"bb":[-0.1398,0.0,-0.17,0.1398,0.5639,0.17],"shipped":false,"rungs":[{"lod":0,"tris":37,"parts":[{"mat":"rostlinka_07c","mode":"BLEND","cutoff":0.0,"uvMin":[0.040169,-0.071716],"uvScl":[0.930629,1.047806],"off":0,"len":850}]}],"stand":[],"snag":[]}]},
+  {"name":"pine_lampi.glb","file":"pine_lampi.glb","kind":"tree","credit":{"author":"Lampi (https://sketchfab.com/lampilamp)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/pine-0289b4ff919448c195cd4b8309ac6f34","title":"Pine"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":1,"proportion":1,"dead":0,"impa":6,"implight":1.072,"crownH":1.3},"tint":{"hue":0.04,"sat":0.615,"light":0.76,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/pine_lampi.5311eee2.bin","bytes":781650,"subjects":[{"name":"bark04_0","h":10.94,"tris":12197,"bb":[-2.1424,0.0,-2.1287,2.1424,10.9409,2.1287],"shipped":false,"rungs":[{"lod":0,"tris":12197,"parts":[{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.0],"uvScl":[1.0,38.082909],"off":0,"len":129974},{"mat":"branch08_2Mat","mode":"MASK","cutoff":0.4251,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":129974,"len":69644},{"mat":"stump01_1Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.02447],"uvScl":[1.0,0.95106],"off":199618,"len":27264}]},{"lod":1,"tris":2062,"parts":[{"mat":"branch08_2Mat","mode":"MASK","cutoff":0.4251,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":226882,"len":69644},{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":296526,"len":320}]},{"lod":2,"tris":1372,"parts":[{"mat":"branch08_2Mat","mode":"MASK","cutoff":0.4251,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":296846,"len":46184},{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":343030,"len":320}]}],"stand":[{"lod":0,"tris":11461,"parts":[{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.0],"uvScl":[1.0,38.082909],"off":343350,"len":129974},{"mat":"branch08_2Mat","mode":"MASK","cutoff":0.4251,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":473324,"len":44620},{"mat":"stump01_1Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.02447],"uvScl":[1.0,0.95106],"off":517944,"len":27264}]},{"lod":1,"tris":1326,"parts":[{"mat":"branch08_2Mat","mode":"MASK","cutoff":0.4251,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":545208,"len":44620},{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":589828,"len":320}]},{"lod":2,"tris":1012,"parts":[{"mat":"branch08_2Mat","mode":"MASK","cutoff":0.4251,"uvMin":[0.0,0.0],"uvScl":[1.0,1.0],"off":590148,"len":33944},{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0],"uvScl":[1.0,1],"off":624092,"len":320}]}],"snag":[{"lod":0,"tris":10149,"parts":[{"mat":"bark04_0Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.0],"uvScl":[1.0,38.082909],"off":624412,"len":129974},{"mat":"stump01_1Mat","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.0,0.02447],"uvScl":[1.0,0.95106],"off":754386,"len":27264}]}]}]},
+  {"name":"rocks","file":"free_rock_assets_pack.glb","kind":"rock","credit":{"author":"JonhGillessen (https://sketchfab.com/JonhGillessen)","license":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","source":"https://sketchfab.com/3d-models/free-rock-assets-pack-227f976b7675401e978858ddcb7fc0b1","title":"Free Rock Assets Pack"},"licence":"CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)","licenceOk":true,"place":{"sink":0,"size":14,"proportion":1,"dead":0,"impa":6,"implight":1,"sizeVar":0.35,"bury":0.45,"crownH":1.3},"tint":{"hue":0,"sat":1,"light":1,"bark":1,"alpha":0.4},"bin":"" + B + "media/geo/trees/rocks.4c24a02b.bin","bytes":76936,"subjects":[{"name":"Pavementblock.021_4","h":0.19,"tris":436,"bb":[-0.1576,0.0,-0.1614,0.1576,0.1897,0.1614],"shipped":false,"rungs":[{"lod":0,"tris":436,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.002378,0.002378],"uvScl":[0.898321,0.490412],"off":0,"len":6212}]}],"stand":[],"snag":[]},{"name":"Pavementblock.017_0","h":0.14,"tris":468,"bb":[-0.1311,0.0,-0.1574,0.1311,0.136,0.1574],"shipped":false,"rungs":[{"lod":0,"tris":468,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.51026,0.002378],"uvScl":[0.379175,0.505361],"off":6212,"len":6544}]}],"stand":[],"snag":[]},{"name":"Pavementblock.020_3","h":0.14,"tris":318,"bb":[-0.1405,0.0,-0.1604,0.1405,0.1369,0.1604],"shipped":false,"rungs":[{"lod":0,"tris":318,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.534877,0.002378],"uvScl":[0.39473,0.901077],"off":12756,"len":4720}]}],"stand":[],"snag":[]},{"name":"Pavementblock.031_14","h":0.13,"tris":372,"bb":[-0.1538,0.0,-0.0918,0.1538,0.1314,0.0918],"shipped":false,"rungs":[{"lod":0,"tris":372,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.134732,0.512494],"uvScl":[0.612438,0.460279],"off":17476,"len":5338}]}],"stand":[],"snag":[]},{"name":"Pavementblock.032_15","h":0.12,"tris":576,"bb":[-0.1793,0.0,-0.1477,0.1793,0.1204,0.1477],"shipped":false,"rungs":[{"lod":0,"tris":576,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.002378,0.286813],"uvScl":[0.503126,0.492132],"off":22814,"len":8186}]}],"stand":[],"snag":[]},{"name":"Pavementblock.026_9","h":0.11,"tris":650,"bb":[-0.1889,0.0,-0.1633,0.1889,0.1072,0.1633],"shipped":false,"rungs":[{"lod":0,"tris":650,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.283705,0.002378],"uvScl":[0.60641,0.73056],"off":31000,"len":9148}]}],"stand":[],"snag":[]},{"name":"Pavementblock.019_2","h":0.1,"tris":128,"bb":[-0.1388,0.0,-0.0615,0.1388,0.0975,0.0615],"shipped":false,"rungs":[{"lod":0,"tris":128,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.002378,0.707045],"uvScl":[0.723616,0.290577],"off":40148,"len":2026}]}],"stand":[],"snag":[]},{"name":"Pavementblock.025_8","h":0.1,"tris":482,"bb":[-0.1492,0.0,-0.0856,0.1492,0.1005,0.0856],"shipped":false,"rungs":[{"lod":0,"tris":482,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.196605,0.302764],"uvScl":[0.458269,0.608568],"off":42174,"len":7174}]}],"stand":[],"snag":[]},{"name":"Pavementblock.030_13","h":0.1,"tris":274,"bb":[-0.071,0.0,-0.0617,0.071,0.0961,0.0617],"shipped":false,"rungs":[{"lod":0,"tris":274,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.283705,0.002378],"uvScl":[0.688231,0.923477],"off":49348,"len":3966}]}],"stand":[],"snag":[]},{"name":"Pavementblock.033_16","h":0.1,"tris":658,"bb":[-0.1787,0.0,-0.1457,0.1787,0.1007,0.1457],"shipped":false,"rungs":[{"lod":0,"tris":658,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.002378,0.302764],"uvScl":[0.443973,0.489838],"off":53314,"len":9280}]}],"stand":[],"snag":[]},{"name":"Pavementblock.018_1","h":0.09,"tris":446,"bb":[-0.0667,0.0,-0.0755,0.0667,0.0947,0.0755],"shipped":false,"rungs":[{"lod":0,"tris":446,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.534877,0.102613],"uvScl":[0.417279,0.858999],"off":62594,"len":6846}]}],"stand":[],"snag":[]},{"name":"Pavementblock.027_10","h":0.06,"tris":270,"bb":[-0.1018,0.0,-0.045,0.1018,0.0577,0.045],"shipped":false,"rungs":[{"lod":0,"tris":270,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.400378,0.568613],"uvScl":[0.101796,0.359573],"off":69440,"len":3914}]}],"stand":[],"snag":[]},{"name":"Pavementblock.029_12","h":0.06,"tris":238,"bb":[-0.0607,0.0,-0.0397,0.0607,0.0602,0.0397],"shipped":false,"rungs":[{"lod":0,"tris":238,"parts":[{"mat":"RocksCollection","mode":"OPAQUE","cutoff":0.0,"uvMin":[0.188692,0.683005],"uvScl":[0.316808,0.088759],"off":73354,"len":3582}]}],"stand":[],"snag":[]}]}
+ ],
+ "materials": {"cedar_tree.glb":{"M_Bark.009":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/cedar_tree_m_bark_009_base.6d478c25.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/cedar_tree_m_bark_009_nor.42e2e9bf.jpg"},"M_Branch.009":{"mode":"MASK","cutoff":0.6263,"coverageMips":true,"base":"" + B + "media/tex/trees/cedar_tree_m_branch_009_base.af7f7481.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/cedar_tree_m_branch_009_nor.89a16f71.jpg"}},"fir_tree_georgeous.glb":{"M_Branch.007":{"mode":"MASK","cutoff":0.608,"coverageMips":true,"base":"" + B + "media/tex/trees/fir_tree_georgeous_m_branch_007_base.4742577f.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/fir_tree_georgeous_m_branch_007_nor.e8688e34.jpg"},"M_Bark.007":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/fir_tree_georgeous_m_bark_007_base.4dc7a894.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/fir_tree_georgeous_m_bark_007_nor.beac0ead.jpg"}},"larch_tree.glb":{"M_Bark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/larch_tree_m_bark_base.3057dd84.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/larch_tree_m_bark_nor.24e88780.jpg"},"M_Branch":{"mode":"MASK","cutoff":0.0777,"coverageMips":true,"base":"" + B + "media/tex/trees/larch_tree_m_branch_base.8e0f34a9.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/larch_tree_m_branch_nor.de257583.jpg"}},"realistic_fir_trees_pack_lods_gameready.glb":{"Bark_Mat":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg","baseSize":[512,1024],"nor":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_nor.c153a8b2.jpg"},"Brunches_Mat":{"mode":"MASK","cutoff":0.3764,"coverageMips":true,"base":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_base.96c367ea.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"}},"spruce_tree.glb":{"M_Bark.001":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/spruce_tree_m_bark_001_base.b686d5b2.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/spruce_tree_m_bark_001_nor.26e3e887.jpg"},"M_Branch.001":{"mode":"MASK","cutoff":0.2971,"coverageMips":true,"base":"" + B + "media/tex/trees/spruce_tree_m_branch_001_base.f76f96b7.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/spruce_tree_m_branch_001_nor.d03d0d8d.jpg"}},"pine_georgeous.glb":{"M_Bark.003":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/pine_georgeous_m_bark_003_base.1946cf09.jpg","baseSize":[256,1024],"nor":"" + B + "media/tex/trees/pine_georgeous_m_bark_003_nor.4d6fe611.jpg"},"M_Branch.003":{"mode":"MASK","cutoff":0.224,"coverageMips":true,"base":"" + B + "media/tex/trees/pine_georgeous_m_branch_003_base.6d87b28b.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/pine_georgeous_m_branch_003_nor.50ea8090.jpg"}},"pine_evolveduk.glb":{"Tree_0Mat":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/pine_evolveduk_tree_0mat_base.6a58c21d.jpg","baseSize":[512,1024],"nor":"" + B + "media/tex/trees/pine_evolveduk_tree_0mat_nor.79b4b89b.jpg"},"Tree_1Mat":{"mode":"MASK","cutoff":0.208,"coverageMips":true,"base":"" + B + "media/tex/trees/pine_evolveduk_tree_1mat_base.58ec41cf.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/pine_evolveduk_tree_1mat_nor.4e7be072.jpg"}},"various_forest_assets_pack.glb":{"AshBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_ashbark_base.b4bd9b0d.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_ashbark_nor.64340522.jpg"},"AshBranchAtlas":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_ashbranchatlas_base.33f00c3f.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_ashbranchatlas_nor.bcbcce0e.jpg"},"HollyBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_hollybark_base.b4bd9b0d.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_hollybark_nor.64340522.jpg"},"HollyBranchAtlas":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_hollybranchatlas_base.08a06aeb.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_hollybranchatlas_nor.8b510ad7.jpg"},"RaspberryBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_raspberrybark_base.b4bd9b0d.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_raspberrybark_nor.64340522.jpg"},"RaspberryBranchAtlas":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_raspberrybranchatlas_base.dd0105ce.png","baseSize":[1024,1024]},"BarkMat.003":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_barkmat_003_base.3b3a62e2.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_barkmat_003_nor.db9415a3.jpg"},"BirchBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_birchbark_base.479fe08a.jpg","baseSize":[1024,1024]},"BirchBranchAtlas":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_birchbranchatlas_base.69f8ee80.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_birchbranchatlas_nor.163f2c93.jpg"},"BirchBranchAtlasAlt":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_birchbranchatlasalt_base.93ee041f.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_birchbranchatlasalt_nor.163f2c93.jpg"},"MapleBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_maplebark_base.e7406280.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_maplebark_nor.f9305fcc.jpg"},"MapleBranchAtlas":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_maplebranchatlas_base.be540298.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_maplebranchatlas_nor.a76ec980.jpg"},"OakBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_oakbark_base.d2b269dc.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_oakbark_nor.8cf898b3.jpg"},"OakBranchAtlas":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/various_forest_assets_pack_oakbranchatlas_base.b50b0d3c.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_oakbranchatlas_nor.6a455a78.jpg"},"CommonBark.001":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_commonbark_001_base.a216d4a0.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_commonbark_001_nor.f9305fcc.jpg"},"CommonBark":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/various_forest_assets_pack_commonbark_base.a216d4a0.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/various_forest_assets_pack_commonbark_nor.f9305fcc.jpg"}},"dry_grass.glb":{"M_dry_grass":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/dry_grass_m_dry_grass_base.fd9cfc60.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/dry_grass_m_dry_grass_nor.83bc7331.jpg"}},"grass_patches.glb":{"grass1":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/grass_patches_grass1_base.11a17e1a.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/grass_patches_grass1_nor.fbdc1290.jpg"}},"realtime_grass.glb":{"Plate1":{"mode":"MASK","cutoff":0.5,"coverageMips":true,"base":"" + B + "media/tex/trees/realtime_grass_plate1_base.f93a2da1.png","baseSize":[512,256]},"Plate2":{"mode":"MASK","cutoff":0.5,"coverageMips":true,"base":"" + B + "media/tex/trees/realtime_grass_plate2_base.959efc17.png","baseSize":[512,256]},"Plate3":{"mode":"MASK","cutoff":0.5,"coverageMips":true,"base":"" + B + "media/tex/trees/realtime_grass_plate3_base.7effdb2e.png","baseSize":[512,256]}},"simple_grass_chunks.glb":{"rostlinka_07c":{"mode":"BLEND","cutoff":0.0,"coverageMips":true,"base":"" + B + "media/tex/trees/simple_grass_chunks_rostlinka_07c_base.7f39a58c.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/simple_grass_chunks_rostlinka_07c_nor.0af80a13.jpg"}},"pine_lampi.glb":{"bark04_0Mat":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/pine_lampi_bark04_0mat_base.e9951997.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/pine_lampi_bark04_0mat_nor.50b6ffa6.jpg"},"stump01_1Mat":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/pine_lampi_stump01_1mat_base.0f628ec7.jpg","baseSize":[512,512],"nor":"" + B + "media/tex/trees/pine_lampi_stump01_1mat_nor.de9e1686.jpg"},"branch08_2Mat":{"mode":"MASK","cutoff":0.4251,"coverageMips":true,"base":"" + B + "media/tex/trees/pine_lampi_branch08_2mat_base.06f06da1.png","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/pine_lampi_branch08_2mat_nor.1c5106fc.jpg"}},"free_rock_assets_pack.glb":{"RocksCollection":{"mode":"OPAQUE","base":"" + B + "media/tex/trees/free_rock_assets_pack_rockscollection_base.4b4a777d.jpg","baseSize":[1024,1024],"nor":"" + B + "media/tex/trees/free_rock_assets_pack_rockscollection_nor.fe383d3c.jpg"}}},
+ "biomes": {"mixes":{"conifer":{"species":{"cedar_tree.glb":{"proportion":1,"dead":0.12},"fir_tree_georgeous.glb":{"proportion":1,"dead":0.08},"larch_tree.glb":{"proportion":1,"dead":0.09},"realistic_fir_trees_pack_lods_gameready.glb":{"proportion":2.85,"dead":0.08},"spruce_tree.glb":{"proportion":1,"dead":0.08},"sapling_deciduous":{"proportion":1},"shrub_deciduous":{"proportion":0.5},"holly":{"proportion":0.2},"grass_dry":{"proportion":1,"density":0.25},"flower_foam":{"proportion":1,"density":0.5,"patch":5},"flower_bunchberry":{"proportion":1,"density":0.5,"patch":5},"rocks":{"proportion":1,"size":14}},"forest":{"ground":"plane","count":1040,"radius":220,"under":2,"cover":1,"reach":220,"wet":0,"taper":0.5,"holes":0.2,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":10,"ttype":13,"coverSpread":0.08}},"deciduous":{"species":{"birch":{"proportion":1,"dead":0.05},"ash":{"proportion":0.8,"dead":0.05},"dead_deciduous":{"proportion":0.08},"shrub_deciduous":{"proportion":1},"sapling_deciduous":{"proportion":0.5},"grass_dry":{"proportion":1,"density":2.4},"grass_reed":{"proportion":0.4,"density":0.24,"patch":0},"flower_foam":{"proportion":1,"density":0.5,"patch":5},"flower_bunchberry":{"proportion":1,"density":0.5,"patch":5},"rocks":{"proportion":1,"size":24}},"forest":{"ground":"plane","count":800,"radius":220,"under":4,"cover":1,"reach":220,"wet":0,"mix":1,"edge":12,"glades":6,"taper":0.5,"holes":1,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":2.5,"ttype":14,"coverSpread":0.08}},"muskeg":{"species":{"pine_georgeous.glb":{"proportion":1.6,"dead":0},"pine_evolveduk.glb":{"proportion":1.45,"dead":0},"spruce_tree.glb":{"proportion":0.4,"dead":0.1},"realistic_fir_trees_pack_lods_gameready.glb":{"proportion":0.5,"dead":0.1},"dead_conifer":{"proportion":2},"dead_stick":{"proportion":1.5},"shrub_deciduous":{"proportion":0.5},"sapling_deciduous":{"proportion":0.3},"grass_dry":{"proportion":1,"density":4},"grass_reed":{"proportion":0.5,"density":0.24,"patch":7},"rocks":{"proportion":1,"size":40}},"forest":{"ground":"wet","count":280,"radius":220,"under":2,"cover":1,"reach":220,"mix":0.25,"edge":40,"taper":0.5,"holes":1,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":0.4,"ttype":3,"coverSpread":0.08}},"grassland":{"species":{"shrub_deciduous":{"proportion":1},"raspberry":{"proportion":0.5},"birch":{"proportion":1,"dead":0.05},"oak":{"proportion":0.4},"dead_deciduous":{"proportion":0.08},"grass_dry":{"proportion":1,"density":4},"grass_reed":{"proportion":0.4,"density":0.24,"patch":0},"grass_plates":{"proportion":0.3,"density":2.5},"flower_fireweed":{"proportion":1,"density":0.12,"patch":9},"rocks":{"proportion":1,"size":46}},"forest":{"ground":"plane","count":30,"radius":220,"under":3,"cover":1,"reach":220,"wet":0,"mix":1,"taper":0.5,"holes":1,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":0.15,"ttype":2,"spread":0.2,"coverSpread":0.08}},"borders":{"species":{"shrub_deciduous":{"proportion":1},"holly":{"proportion":0.5},"sapling_deciduous":{"proportion":1},"raspberry":{"proportion":0.6},"birch":{"proportion":0.6,"dead":0.05},"oak":{"proportion":0.3},"maple":{"proportion":0.3},"dead_deciduous":{"proportion":0.1},"grass_plates":{"proportion":1,"density":5},"grass_dry":{"proportion":0.3,"density":4},"flower_foam":{"proportion":1,"density":0.5,"patch":5},"flower_bunchberry":{"proportion":1,"density":0.5,"patch":5},"rocks":{"proportion":1,"size":30}},"forest":{"ground":"plane","count":80,"radius":220,"under":12,"cover":1,"reach":220,"wet":0,"mix":1,"taper":0.5,"holes":1,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":5,"ttype":7,"coverSpread":0.08}},"scree":{"species":{"rocks":{"proportion":1,"size":22}},"forest":{"ground":"plane","count":0,"radius":220,"under":0,"cover":0,"reach":220,"wet":0,"taper":0.5,"holes":1,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":8,"ttype":6,"coverSpread":0.08}},"shore":{"species":{"rocks":{"proportion":1,"size":12}},"forest":{"ground":"plane","count":0,"radius":220,"under":0,"cover":0,"reach":220,"wet":0,"taper":0.5,"holes":1,"blotch":0.6,"blotchM":18,"coverNear":50,"rocks":2,"ttype":11,"coverSpread":0.08}}},"map":{"2":"grassland","3":"muskeg","4":"shore","5":"scree","6":"scree","7":"borders","8":"deciduous","11":"shore","12":"scree","13":"conifer","14":"borders"}}};
 if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
 </script>
 <script type="text/x-flydiy">
@@ -98586,6 +98673,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
 (() => {
   'use strict';
   const PACK = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
+  // a species' materials are its FILE's, held once in PACK.materials (G454.12): joined here
+  if (PACK && PACK.materials) for (const c of PACK.collections) if (!c.materials) c.materials = PACK.materials[c.file] || {};
 
   const BINS = new Map();          // collection name -> Uint8Array
   const TEX = new Map();           // url -> THREE.Texture
@@ -98594,16 +98683,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
 
   const key = (c, s) => c.name + '|' + s.name;
 
-  function treeList() {
+  // THE KINDS (G454.12): the payload is per SPECIES since the biomes - tree, dead (a standing
+  // dead tree, L0 alone), shrub, cover, rock, and a flower (`maps`, no geometry). treeList()
+  // is THE TREES (tree + dead) as every caller before the biomes expects; treeList(kind) one
+  // kind; treeList('all') everything with geometry.
+  const isTree = c => !c.kind || c.kind === 'tree' || c.kind === 'dead';
+  function treeList(kind) {
     if (!PACK) return [];
     const out = [];
-    for (const c of PACK.collections)
+    for (const c of PACK.collections) {
+      if (!c.subjects || !c.subjects.length) continue;
+      if (kind === 'all' ? false : kind ? c.kind !== kind : !isTree(c)) continue;
       for (const s of c.subjects) out.push({ key: key(c, s), col: c, sub: s });
+    }
     return out;
   }
+  const withBin = () => PACK ? PACK.collections.filter(c => c.bin) : [];
 
   function treeReady() {
-    return !!PACK && PACK.collections.every(c => BINS.has(c.name));
+    return !!PACK && withBin().every(c => BINS.has(c.name));
   }
 
   // One fetch per collection, shared. A failure REJECTS and the world takes
@@ -98614,7 +98712,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     if (WARM) return WARM;
     if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
       return Promise.reject(new Error('trees: no ASSET_FETCH here'));
-    WARM = Promise.all(PACK.collections.map(c =>
+    WARM = Promise.all(withBin().map(c =>
       (window.BOOT && window.BOOT.expect('treeBin'),
        window.ASSET_FETCH(c.bin).then(buf => { BINS.set(c.name, buf); if (window.BOOT) window.BOOT.landed('treeBin'); },
                                       e => { if (window.BOOT) window.BOOT.landed('treeBin', false, c.name); throw e; }))));
@@ -98807,9 +98905,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   // pack at 1.3 of its lightness in the bench was at 1.0 here, the spruce
   // at 0.54 was at 1.0, and the stand was a different colour from the one
   // that had been judged. MASTER rides over all of them at once.
-  const MASTER = { hue: -0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint
+  const MASTER = { hue: 0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint (hue negated with the dial's sign, 2026-09-20)
   const TINT_GLSL = [
-    'float _a = uHue * 6.2831853;',
+    // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
+    // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
+    // pushed a species further from the reference - the holly went teal, not yellow-green.
+    // Measured on one holly: uHue -0.097 rendered at hue 0.474, +0.097 at 0.253 (0.371 at 0).
+    // Negated here; the eye-tuned master hue and the shipped payload's hues negated with it.
+    'float _a = -uHue * 6.2831853;',
     'float _c = cos(_a), _s = sin(_a);',
     'mat3 _m = mat3(',
     '  0.299 + 0.701*_c + 0.168*_s, 0.587 - 0.587*_c + 0.330*_s, 0.114 - 0.114*_c - 0.497*_s,',
@@ -98818,8 +98921,41 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     'vec3 _rot = diffuseColor.rgb * _m;',
     // saturation toward luma, so pulling a stand back does not darken it
     'float _y = dot(_rot, vec3(0.2126, 0.7152, 0.0722));',
-    'diffuseColor.rgb = clamp(mix(vec3(_y), _rot, uSat) * uLight, 0.0, 1.0);',
+    // THE CONTRAST (G454.13, the bench's G454.9 calm field): the texel pulled toward the
+    // map's own mean lightness by uFlat - a grass card is a soft silhouette of the ground's
+    // colour, not a picture of straw. 1 on a tree (the texel as before); a cover's `contrast` dial (0.35).
+    'vec3 _f = mix(vec3(uFlatMean), mix(vec3(_y), _rot, uSat), uFlat);',
+    'diffuseColor.rgb = clamp(_f * uLight, 0.0, 1.0);',
   ].join('\n');
+  // THE FADE (G454.13): a cover instance keeps by its distance to the eye - full to uFadeNear,
+  // (1 - t)^(1 + 2 taper) to nothing at uFadeReach - and by the eye's height (uFadeAgl); the
+  // instance's own aRand is its threshold, so the ring is planted once at full density and
+  // thins in the vertex shader as the eye moves (the trees' uThin, the bench's taper)
+  const U_FADE_NEAR = { value: 1e9 }, U_FADE_REACH = { value: 2e9 }, U_FADE_TAPER = { value: 0.5 }, U_FADE_AGL = { value: 1 };
+  const FADE_VS = [
+    '#ifdef USE_INSTANCING',
+    '  vec3 _fp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;',
+    '#else',
+    '  vec3 _fp = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;',
+    '#endif',
+    'float _fd = distance(_fp, cameraPosition);',
+    'float _ft = clamp((_fd - uFadeNear) / max(1.0, uFadeReach - uFadeNear), 0.0, 1.0);',
+    'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
+    'if (aRand > _fk) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);',
+  ].join('\n');
+  const fadeInject = sh => {
+    sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
+    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl;\n' +
+      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS);
+  };
+  // fadeHook(mat): a material of the ring's - a hooked leaf material takes it at its own
+  // compile (userData.fade), any other gets a hook of its own here
+  function fadeHook(mat) {
+    mat.userData.fade = true;
+    mat.customProgramCacheKey = () => 'fade';
+    if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh); }; }
+    return mat;
+  }
   // THE TINT IS A DRAW-TIME TERM ON BOTH TIERS (W0c.20). The impostor sheet
   // used to be baked with the tint in it, so a dial that moved a
   // collection's lightness reached the near tier at once and the far tier
@@ -98852,6 +98988,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     mat.userData.tint = tint || {};
     mat.userData.uHue = { value: 0 }; mat.userData.uSat = { value: 1 }; mat.userData.uLight = { value: 1 };
     mat.userData.uCut = { value: isLeaf ? (cut || 0.5) : 0 };
+    mat.userData.uFlat = { value: 1 }; mat.userData.uFlatMean = { value: 0.4 };   // uFlat 1 = the texel as it is (the bench's dial: contrast 1 = no flattening)
     retint(mat);
     HOOKED.push(mat);
     mat.onBeforeCompile = sh => {
@@ -98863,9 +99000,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
       sh.uniforms.uLight = mat.userData.uLight;
       sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
+      sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
         sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvAoV = aoV;');
+      if (mat.userData.fade) fadeInject(sh);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
       // dense stand on the supersampled tier is the most fragments the frame
@@ -98875,7 +99014,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       // chunk that reads it, is the material's own choice.
       sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
         'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
-        'uniform float uHue, uSat, uLight, uCut, uSharp;\nvarying float vAoV;\n' +
+        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
             '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
@@ -98896,10 +99035,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     uniforms: { uWrap: U_WRAP, uSSS: U_SSS, uSSSP: U_SSSP, uAoBake: U_AO },
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
+    // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
+    fadeHook: fadeHook,
+    // what the loader holds (bytes): the decoded rungs and the coverage mip chains
+    memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
+      for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
+    fade: (near, reach, taper, agl) => { if (near !== undefined) U_FADE_NEAR.value = near; if (reach !== undefined) U_FADE_REACH.value = reach;
+      if (taper !== undefined) U_FADE_TAPER.value = taper; if (agl !== undefined) U_FADE_AGL.value = agl; return [U_FADE_NEAR.value, U_FADE_REACH.value, U_FADE_TAPER.value, U_FADE_AGL.value]; },
     // a collection's own row, live on every material that wears it (the
     // rows are shared by reference with the payload's `tint`) and on its
     // impostors through tintGlsl; TREE_LEAF.collections() lists them
-    collections: () => (PACK ? PACK.collections : []).map(c => ({ name: c.name, tint: c.tint || (c.tint = {}) })),
+    collections: () => (PACK ? PACK.collections : []).map(c => ({ name: c.name, kind: c.kind || 'tree', tint: c.tint || (c.tint = {}) })),
     tintOf: (name, o) => {
       const c = (PACK ? PACK.collections : []).find(x => x.name === name);
       if (!c) return null;
@@ -98933,7 +99079,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     const cacheKey = k + '#' + ser + '#' + (lod || 0);
     let built = BUILT.get(cacheKey);
     if (built) return built;
-    const found = treeList().find(e => e.key === k);
+    const found = treeList('all').find(e => e.key === k);
     if (!found) throw new Error('trees: unknown subject ' + k);
     const bin = BINS.get(found.col.name);
     if (!bin) throw new Error('trees: ' + found.col.name + ' not warmed');
@@ -98970,7 +99116,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
               tris: rung.tris, col: found.col, sub: found.sub, series: ser, lod: rung.lod,
               // the stand series is drawn STRETCHED - a dial, not geometry; see
               // tree_prep.py's gen_rung on why it cannot be baked
-              scaleY: (ser === 'stand' && found.col.place && found.col.place.crownH) || 1 };
+              scaleY: (ser === 'stand' && isTree(found.col) && found.col.kind !== 'dead' && found.col.place && found.col.place.crownH) || 1 };
     BUILT.set(cacheKey, built);
     return built;
   }
@@ -98985,6 +99131,319 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     window.TREE_LEAF = treeLeaf;
   }
 })();
+</script>
+<script type="text/x-flydiy">
+// ============================================================================
+// cover_ring.js — THE COVER RING (G454.13, BIOMES-IN-GAME-2026-09-20.md L2 + L3):
+// the grass, the flowers, the rocks and the bushes of the biome, in a ring
+// around the EYE.
+//
+// The trees stream in 1 km chunks because a tree is seen from 5 km; a tuft is
+// seen from 200 m and only from low, so the cover is not a chunk layer - it is
+// a ring of 32 m CELLS around the camera's ground point, each cell planted
+// once (hashed on its index, so the same cell is the same cover for ever),
+// kept while it is within reach, dropped beyond. Nothing is regenerated as
+// the eye moves inside the ring: the fade is in the vertex shader (trees.js
+// fadeHook: full to `near`, (1 - t)^(1 + 2 taper) to nothing at `reach`, and
+// gone above `aglOff` metres of height), so a cell is planted at FULL density
+// and thins per frame by its distance to the eye. The rules are the bench's
+// (tools/_trees.html, G454.5-G454.10), read from the same numbers:
+//   the mix's row per species: proportion, density (per m2), patch (beds of
+//     `patch` metres holding `patchShare` of the area at density / share),
+//     size (a rock's, per setting); the mix's forest: under (shrubs / 1000 m2),
+//     rocks (/ 1000 m2), reach, coverNear, taper, blotch / blotchM (a species'
+//     density drifts by area), coverSpread (the tufts' size jitter);
+//   the species' place: hMin / hMax (a bush, uniform in metres), bury (a rock,
+//     the fraction of its height under the ground), vary (a tuft's own
+//     lightness jitter), lift + contrast (the tuft's colour: THE GROUND'S AT
+//     ITS FOOT - the two set means of the code's row through the shared
+//     fields' mixK and shade, x lift, the max channel capped at 0.7 - and the
+//     texel flattened toward its map's mean by contrast), noTint (a flower
+//     keeps its picture), aspect + maps (a flower: three crossed cards).
+// The biome at a point is the walker's (ctx.biomeAt: the terrain-type code at
+// the ground's wobbled position -> the mix), so the grass stands on the set the
+// ground draws there. The set means are the splat manifest's
+// (SPLAT_TEX_SETS[i].mean, linear) or the table below measured from the same
+// files. Covers cast no shadow (the bench's rule); bushes and rocks do.
+//
+//   COVER_RING.make(THREE, ctx) -> ring
+//     ctx = { scene, world, camera, treeBuild, treeList, LEAF (TREE_LEAF), BIO, GF,
+//             biomeAt(x, z, r) -> mixName | null, okAt(x, z) -> bool (land, not paved) }
+//     ring.update()            once a frame, after the camera is placed
+//     ring.get() / ring.set(o) the dials (F8): on, reach, near, taper, aglFull,
+//                              aglOff, density, budgetMs, cell
+//     ring.stat()              cells live / queued, instances, the last build's ms
+//     ring.dispose()
+// ============================================================================
+'use strict';
+var COVER_RING = (() => {
+  // the library's means (linear rgb, tools/splat_tex_prep.js's measure), until the
+  // manifest carries them (SPLAT_TEX_SETS[i].mean)
+  const MEANS = { beach: [0.2826, 0.2371, 0.196], rocksA: [0.2155, 0.1901, 0.107], rocksB: [0.1648, 0.1158, 0.046], mud: [0.0897, 0.0702, 0.0458],
+    leaves: [0.2264, 0.1177, 0.0461], cliff: [0.3136, 0.1726, 0.11], rocksG: [0.2521, 0.2134, 0.1638], rockyA: [0.0807, 0.0773, 0.0122],
+    rockyB: [0.0855, 0.053, 0.0176], grassRock: [0.169, 0.1211, 0.0241], forestAir: [0.1259, 0.083, 0.026], snowAir: [0.2491, 0.2483, 0.3039],
+    lush: [0.0584, 0.1065, 0.0218], grass: [0.119, 0.1528, 0.0305], pebble: [0.2178, 0.2034, 0.1649], dry: [0.3005, 0.2486, 0.1239], dirt: [0.1326, 0.1085, 0.0826] };
+  const meanOf = key => {
+    if (typeof SPLAT_TEX_SETS !== 'undefined' && SPLAT_TEX_SETS) { const s = SPLAT_TEX_SETS.find(x => x.key === key); if (s && s.mean) return s.mean; }
+    return MEANS[key] || [0.15, 0.15, 0.08];
+  };
+  const hsh = (ix, iz) => { let h = (ix * 374761393 + iz * 668265263 + 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const rng = seed => { let s = seed >>> 0 || 1; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; };
+  const hashStr = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const vnoise = (x, z, cell, seed) => {
+    const fx = x / cell, fz = z / cell, ix = Math.floor(fx), iz = Math.floor(fz);
+    const tx = fx - ix, tz = fz - iz, sx = tx * tx * (3 - 2 * tx), sz = tz * tz * (3 - 2 * tz);
+    const n = (a, b) => hsh(a * 7 + seed * 131, b * 13 + seed * 17);
+    return (n(ix, iz) * (1 - sx) + n(ix + 1, iz) * sx) * (1 - sz) + (n(ix, iz + 1) * (1 - sx) + n(ix + 1, iz + 1) * sx) * sz;
+  };
+  const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
+
+  function make(THREE, ctx) {
+    const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 1, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };
+    const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
+    const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
+    const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
+    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {} };
+    let flowerTex = new Map();
+    const root = new THREE.Group(); root.name = 'coverRing'; scene.add(root);
+
+    // ---- the prototypes: every species of the kinds the ring plants, built once ------
+    const speciesOf = () => (pack ? pack.collections : []).filter(c => ['cover', 'shrub', 'rock'].includes(c.kind));
+    const measureMean = mat => {   // the map's mean lightness (HSL l of the sRGB mean over the kept texels) - the bench's measureMats
+      const img = mat.map && mat.map.image; if (!img || !img.width) return;
+      try {
+        const c = measureMean.cnv || (measureMean.cnv = document.createElement('canvas')); c.width = c.height = 64;
+        const g = c.getContext('2d', { willReadFrequently: true }); g.clearRect(0, 0, 64, 64); g.drawImage(img, 0, 0, 64, 64);
+        const d = g.getImageData(0, 0, 64, 64).data; let R = 0, G = 0, B = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) continue; R += d[i]; G += d[i + 1]; B += d[i + 2]; n++; }
+        if (!n) return;
+        const mx = Math.max(R, G, B) / n / 255, mn = Math.min(R, G, B) / n / 255;
+        mat.userData.uFlatMean.value = (mx + mn) / 2;
+      } catch (e) {}
+    };
+    function flowerCards(H, aspect, seed) {
+      const r = rng(seed), W = H * aspect, pos = [], uv = [], idx = [];
+      for (let c = 0; c < 3; c++) {
+        const a = c * Math.PI / 3 + (r() - 0.5) * 0.3, tilt = (r() - 0.5) * 0.17, dx = Math.cos(a), dz = Math.sin(a), ox = (r() - 0.5) * 0.15 * W, oz = (r() - 0.5) * 0.15 * W;
+        const y0 = -0.05 * H, y1 = 0.95 * H, lean = Math.sin(tilt) * H, b = pos.length / 3;
+        pos.push(ox - dx * W / 2, y0, oz - dz * W / 2, ox + dx * W / 2, y0, oz + dz * W / 2,
+                 ox + dx * W / 2 - dz * lean, y1, oz + dz * W / 2 + dx * lean, ox - dx * W / 2 - dz * lean, y1, oz - dz * W / 2 + dx * lean);
+        uv.push(0, 1, 1, 1, 1, 0, 0, 0); idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      return g;
+    }
+    const flowerMat = url => {
+      let t = flowerTex.get(url);
+      if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
+      const m = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+      return LEAF.fadeHook(m);
+    };
+    function protosOf(c) {
+      let P = protos.get(c.name);
+      if (P) return P;
+      P = [];
+      const place = c.place || {};
+      if (c.maps && c.maps.length) {                         // a flower: its pictures on cards
+        c.maps.forEach((url, v) => P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true,
+                                            parts: [{ geo: flowerCards(place.size || 1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerMat(url) }] }));
+      } else {
+        const subs = treeList('all').filter(e => e.col === c);
+        for (const e of subs) {
+          let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
+          if (!b || !b.parts.length) continue;
+          const parts = b.parts.map(q => {
+            let mat = q.mat;
+            if (c.kind === 'rock') {                            // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
+              mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }); LEAF.fadeHook(mat);
+            } else {
+              LEAF.fadeHook(mat);
+              if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
+                if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
+            }
+            return { geo: q.geo, mat };
+          });
+          const h = (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)) * (place.size || 1);
+          P.push({ key: e.key, w: 1 / subs.length, kind: c.kind, h, h0: (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)), parts, size: place.size || 1 });
+        }
+      }
+      protos.set(c.name, P);
+      return P;
+    }
+    const draw = (P, r) => { let acc = r; for (const p of P) { acc -= p.w; if (acc <= 0) return p; } return P[P.length - 1]; };
+
+    // ---- the tuft's colour: the ground's at its foot -------------------------------
+    const rowOf = code => (GF && GF.CODES && GF.CODES[code]) || null;
+    const colAt = (x, z, code) => {   // the ground's colour at lift 1, uncapped (the cap is per species, below)
+      const row = rowOf(code);
+      if (!row || !GF.groundColor) return null;
+      const A = meanOf(row.sets[0]), B = row.sets[1] ? meanOf(row.sets[1]) : A;
+      const c = GF.groundColor(x, z, row.period, row.bias, row.sharp, A, B), sh = GF.shade(x, z, row.vary[2]);
+      const t = GF.hueTurn(c, sh.hue * row.vary[0] * Math.PI / 180), k = 1 + sh.value * row.vary[1];
+      return [t[0] * k, t[1] * k, t[2] * k];
+    };
+    const lifted = (c, lift) => { const mx = Math.max(c[0], c[1], c[2]) * lift, sc = mx > 0.7 ? 0.7 / mx : 1;   // the max channel capped at 0.7
+      return [c[0] * lift * sc, c[1] * lift * sc, c[2] * lift * sc]; };
+    // THE CELL'S SUB-GRID (the cost): the code, the mix, the land test and the ground's colour
+    // are smooth over metres (the fields' cells are 15-40 m, the map's 10 m), so a cell samples
+    // them on a 4 m lattice once and every tuft reads the nearest node - a point-by-point
+    // biomeAt (four terrainH, a canopy, two noises) at 2 500 tufts a cell was 50 ms a cell
+    const SG = 4;
+    function subGrid(x0, z0, C) {
+      const N = Math.round(C / SG) + 1, mix = new Array(N * N), code = new Int16Array(N * N), ok = new Uint8Array(N * N), col = new Float32Array(N * N * 3);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
+        const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
+        code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = ctx.okAt(x, z) ? 1 : 0;
+        const c = cd >= 0 ? colAt(x, z, cd) : null;
+        if (c) { col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; } else { col[k * 3] = 0.3; col[k * 3 + 1] = 0.3; col[k * 3 + 2] = 0.15; }
+      }
+      const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
+      return { N, mix, code, ok, col, at };
+    }
+
+    // ---- one cell -------------------------------------------------------------------
+    function buildCell(cx, cz) {
+      const t0 = performance.now();
+      STAT.building = cx + ',' + cz;
+      const C = S.cell, x0 = cx * C, z0 = cz * C;
+      const seed = (hsh(cx, cz) * 4294967295) >>> 0;
+      const R = rng(seed);
+      // the mix at the cell's centre says which species to plant; each point checks its own
+      const G = subGrid(x0, z0, C);
+      const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
+      const group = new THREE.Group(); group.position.set(0, 0, 0);
+      const cell = { group, n: 0, meshes: [] };
+      cells.set(cx + ',' + cz, cell);
+      if (!centreMix) { root.add(group); STAT.lastMs = performance.now() - t0; return cell; }
+      const M = BIO.mixOf(centreMix), F = (M && M.forest) || {};
+      const blotch = F.blotch || 0, blotchM = F.blotchM || 18, spread = F.coverSpread === undefined ? 0.08 : F.coverSpread;
+      if (GF && GF.C && GF.C.blotch) { GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM; }
+      const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
+      const items = new Map();   // proto -> { pos: [], col: [] | null }
+      const push = (p, x, y, z, s, yaw, col) => { let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw); if (col) it.col.push(col[0], col[1], col[2]); };
+      for (const c of speciesOf()) {
+        const row = M.species && M.species[c.name]; if (!row) continue;
+        const place = c.place || {};
+        const P = protosOf(c); if (!P.length) continue;
+        const sSeed = hashStr(c.name);
+        const isRock = c.kind === 'rock', isShrub = c.kind === 'shrub';
+        let per = 0;   // per m2
+        if (isRock) per = (F.rocks || 0) / 1000 * S.rocks * (row.proportion === undefined ? 1 : row.proportion);
+        else if (isShrub) { const tot = Object.keys(M.species).filter(k => { const cc = pack.collections.find(q => q.name === k); return cc && cc.kind === 'shrub'; }).reduce((a, k) => a + (M.species[k].proportion === undefined ? 1 : M.species[k].proportion), 0) || 1;
+          per = (F.under || 0) / 1000 * S.shrubs * (row.proportion === undefined ? 1 : row.proportion) / tot; }
+        else per = (row.density !== undefined ? row.density : (place.density || 0)) * S.density;   // the bench: a cover's density is its own, no proportion
+        if (per <= 0) continue;
+        const patch = row.patch !== undefined ? row.patch : (place.patch || 0), share = place.patchShare || row.patchShare || 0.35;
+        // the bench's beds: centres for 0.25 x patchShare of the area, each of radius `patch`,
+        // so a bed stands at density / (0.25 share) - here the beds are the top slice of a noise
+        const bedFrac = patch ? Math.min(1, 0.25 * share) : 1;
+        const n = Math.round(per * C * C * (patch ? 1 / bedFrac : 1));
+        const lift = place.lift === undefined ? 1 : place.lift, noTint = !!place.noTint || !!c.maps;
+        const vary = place.vary === undefined ? 0.05 : place.vary;
+        for (let i = 0; i < n; i++) {
+          const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
+          if (patch && vnoise(x, z, patch * 2, sSeed % 1000) < 1 - bedFrac) continue;
+          if (blotch && !isRock && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
+          const gk = G.at(x, z);
+          if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
+          const p = draw(P, r2);
+          const y = world.terrainH(x, z);
+          let s = 1, yaw = r3 * Math.PI * 2, col = null;
+          if (isRock) { s = (row.size !== undefined ? row.size : (place.size || 1)) * Math.exp((R() * 2 - 1) * (place.sizeVar === undefined ? 0.35 : place.sizeVar)); }
+          else if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
+          else s = (place.size || 1) * Math.exp((R() * 2 - 1) * spread);   // the species' size ALWAYS (the reed model is 288 units tall at size 0.012 - unscaled it was a 130 m screen-filling card, 450 ms a frame)
+          const yy = isRock ? y - p.h0 * s * (place.bury === undefined ? 0.45 : place.bury) : y - (place.sink || 0);
+          if (!noTint && !isRock && !isShrub) {
+            col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
+            if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
+          } else if (noTint && !isRock && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
+          push(p, x, yy, z, s, yaw, col); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1;
+        }
+      }
+      // the meshes: one InstancedMesh per prototype part
+      const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+      let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 5) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }
+      if (!isFinite(yLo)) { yLo = yHi = world.terrainH(x0 + C / 2, z0 + C / 2); }
+      const yMid = (yLo + yHi) / 2, ySpan = (yHi - yLo) / 2;
+      for (const it of items.values()) {
+        const n = it.xs.length / 5; if (!n) continue;
+        const rand = new Float32Array(n); for (let i = 0; i < n; i++) rand[i] = R();
+        for (const part of it.p.parts) {
+          const m = new THREE.InstancedMesh(part.geo, part.mat, n);
+          for (let i = 0; i < n; i++) {
+            const o = i * 5; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
+            T.compose(V, Q, SC); m.setMatrixAt(i, T);
+          }
+          if (it.col) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(it.col), 3); }
+          // the prototype's buffers shared, the instanced aRand per mesh: a thin geometry wrapper
+          const geo = part.geo, g2 = new THREE.BufferGeometry(); g2.index = geo.index; for (const k in geo.attributes) g2.setAttribute(k, geo.attributes[k]);
+          g2.setAttribute('aRand', new THREE.InstancedBufferAttribute(rand, 1));
+          // the cell's own sphere (the instances hold world positions, the mesh stands at the
+          // origin): three culls the cell as one - half the ring is behind the eye
+          g2.boundingSphere = new THREE.Sphere(new THREE.Vector3(x0 + C / 2, yMid, z0 + C / 2), C * 0.71 + ySpan + 3);
+          m.geometry = g2;
+          m.frustumCulled = true;
+          m.castShadow = it.p.kind !== 'cover'; m.receiveShadow = true;
+          m.instanceMatrix.needsUpdate = true;
+          group.add(m); cell.meshes.push(m);
+        }
+        cell.n += n;
+      }
+      root.add(group);
+      STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
+      return cell;
+    }
+    function dropCell(key) {
+      const cell = cells.get(key); if (!cell) return;
+      root.remove(cell.group);
+      for (const m of cell.meshes) { m.geometry.dispose(); }   // the wrapper only: buffers are the prototype's
+      cells.delete(key);
+    }
+
+    // ---- per frame ------------------------------------------------------------------
+    let queue = [];
+    function update() {
+      if (!S.on || !pack || !BIO) { if (root.visible) root.visible = false; return; }
+      const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
+      const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
+      const aglK = 1 - smooth(S.aglFull, S.aglOff, agl);
+      LEAF.fade(S.near, S.reach, S.taper, aglK);
+      root.visible = aglK > 0.001;
+      if (aglK <= 0.001) { if (cells.size) for (const k of [...cells.keys()]) dropCell(k); queue.length = 0; STAT.live = 0; return; }
+      const C = S.cell, R2 = (S.reach + C) * (S.reach + C), Rdrop = (S.reach + 2 * C) * (S.reach + 2 * C);
+      const cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C), nr = Math.ceil((S.reach + C) / C);
+      queue.length = 0;
+      for (let dz = -nr; dz <= nr; dz++) for (let dx = -nr; dx <= nr; dx++) {
+        const cx = cx0 + dx, cz = cz0 + dz;
+        const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez, d2 = mx * mx + mz * mz;
+        if (d2 > R2) continue;
+        if (!cells.has(cx + ',' + cz)) queue.push([d2, cx, cz]);
+      }
+      queue.sort((a, b) => a[0] - b[0]);
+      const t0 = performance.now();
+      while (queue.length && performance.now() - t0 < S.budgetMs && cells.size < S.maxCells) { const [, cx, cz] = queue.shift(); buildCell(cx, cz); }
+      for (const [k, cell] of cells) { const [cx, cz] = k.split(',').map(Number); const mx = (cx + 0.5) * C - ex, mz = (cz + 0.5) * C - ez; if (mx * mx + mz * mz > Rdrop) dropCell(k); }
+      STAT.live = cells.size; STAT.queued = queue.length;
+      let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
+      STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
+    }
+    const api = {
+      update, root,
+      get: () => Object.assign({}, S),
+      set: o => { const was = { cell: S.cell, density: S.density, shrubs: S.shrubs, rocks: S.rocks }; Object.assign(S, o || {});
+        if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
+      replant: () => { for (const k of [...cells.keys()]) dropCell(k); },
+      stat: () => Object.assign({}, STAT),
+      dispose: () => { api.replant(); scene.remove(root); },
+    };
+    return api;
+  }
+  return { make };
+})();
+if (typeof window !== 'undefined') window.COVER_RING = COVER_RING;
 </script>
 <script type="text/x-flydiy">
 // ================= world rendering (shared generator) =================
@@ -99045,6 +99504,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
+  let coverRing = null;               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -100854,6 +101314,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     function bakeImpostorAtlasNow(src, tag) {
       const parts = Array.isArray(src) ? src : null;
       const srcGeo = parts ? parts[0].geo : src;
@@ -100880,11 +101341,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
       }
       const N = IMP_G * IMP_TILE;
-      const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
-        minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
-        format: THREE.RGBAFormat, generateMipmaps: true });
-      const rt = mkRT(), rtN = mkRT();
-      rt.texture.colorSpace = THREE.SRGBColorSpace;
+      // ONE PAIR OF BAKE TARGETS FOR EVERY SHEET (2026-09-21): a target is its colour
+      // plus a depth renderbuffer and its own framebuffer, ~19 MB the pair at 1024 -
+      // and 67 sheets (the biomes' 22 subjects x 3 series) held 1.3 GB of the card
+      // in targets whose depth nothing read again. The bake draws into the shared
+      // pair and BLITS the colour into a plain texture of its own (the mips
+      // regenerated on the copy): 10.6 MB a sheet, the depth once.
+      if (!BAKE_RT) {
+        const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
+          minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, generateMipmaps: false });
+        BAKE_RT = { rt: mkRT(), rtN: mkRT() };
+        BAKE_RT.rt.texture.colorSpace = THREE.SRGBColorSpace;
+      }
+      const rt = BAKE_RT.rt, rtN = BAKE_RT.rtN;
+      const sheetOf = (srgb) => {     // the sheet's own texture: allocated empty, filled by the blit
+        const t = new THREE.DataTexture(null, N, N, THREE.RGBAFormat, THREE.UnsignedByteType);
+        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
+        t.flipY = false; t.needsUpdate = true;
+        return t;
+      };
       const sc = new THREE.Scene();
       const meshes = [];
       if (parts) {
@@ -100967,9 +101443,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       renderer.setRenderTarget(pRT);
       renderer.autoClear = pAC;
       renderer.setClearColor(pCol, pA);
-      atlas.tex = rt.texture;
-      atlas.nrm = rtN.texture;
-      atlas.rt = rt; atlas.rtN = rtN;        // readable by the inspector
+      atlas.tex = sheetOf(true); renderer.copyTextureToTexture(rt.texture, atlas.tex);
+      atlas.nrm = sheetOf(false); renderer.copyTextureToTexture(rtN.texture, atlas.nrm);
+      // readable by the inspector and the audit: the sheet blitted back into the shared
+      // target and read (readRenderTargetPixels needs a framebuffer; the sheet has none)
+      atlas.N = N;
+      atlas.read = (px, which) => { const T = which === 'nrm' ? atlas.nrm : atlas.tex, R = which === 'nrm' ? rtN : rt;
+        renderer.copyTextureToTexture(T, R.texture); renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
       return atlas;
     }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
@@ -101109,6 +101589,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uLeaf = { value: 1 };
         sh.uniforms.uHue = tintU ? tintU.uHue : { value: 0 };
         sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
+        sh.uniforms.uFlat = { value: 1 }; sh.uniforms.uFlatMean = { value: 0.4 };   // the tint's contrast term: a cover's, never an impostor's
         sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
@@ -101156,7 +101637,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uIGainK, uISolid, uICut, uTile;\n' +
-            'uniform float uHue, uSat, uLight;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
+            'uniform float uHue, uSat, uLight, uFlat, uFlatMean;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -101518,6 +101999,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // big fir) and the larch, the spruce and the small fir sat in the
     // payload undrawn. A tree's prototype is a weighted draw on one hash of
     // its own position, the same for both layers.
+    // THE BIOMES (G454.12, BIOMES-IN-GAME-2026-09-20.md): the terrain-type code names a bench
+    // mix; the fill draws its species from THAT mix's pool. BIO.map / BIO.mixes are the
+    // payload's (tree_prep.py bakes the bench's tuning); F8 edits BIO.map and exports it.
+    const BIO = (typeof BIOMES !== 'undefined' && typeof TREE_PACK !== 'undefined') ? BIOMES.make(TREE_PACK) : null;
     const treePool = () => {
       const pool = [];
       for (const e of treeList()) {
@@ -101590,6 +102075,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (let i = 0; i < pool.length; i++) { acc -= poolW[i]; if (acc <= 0) return i; }
       return pool.length - 1;
     };
+    // a biome's pool over the SHAPE list: the mix's species (trees and the standing dead),
+    // each species' proportion split over its subjects; an entry is { key, w, gi }
+    const biomePools = new Map();   // shapes list -> mix name -> pool (the fill's SHAPE.list and the woodland's PROTO are two lists)
+    const biomePool = (mixName, shapes) => {
+      let byMix = biomePools.get(shapes); if (!byMix) biomePools.set(shapes, byMix = new Map());
+      let P = byMix.get(mixName);
+      if (P) return P;
+      P = [];
+      const M = BIO && BIO.mixOf(mixName);
+      if (M && M.species) for (const [sp, o] of Object.entries(M.species)) {
+        const subs = []; shapes.forEach((H, gi) => { if (H.key && H.key.split('|')[0] === sp) subs.push(gi); });
+        const w = ((o && o.proportion !== undefined) ? o.proportion : 1) / Math.max(1, subs.length);
+        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi });
+      }
+      byMix.set(mixName, P);
+      return P;
+    };
     // AND THE MAPS MUST HAVE LANDED BEFORE ANYTHING BAKES. treeWarm resolves on
     // the bytes; the leaf textures load after, on their own timers, and an
     // impostor atlas baked in between renders every card solid - the round
@@ -101623,6 +102125,33 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     };
     treeSettle().then(() => { treeMapsLanded = true; }).catch(() => {});   // registered FIRST: every replant below reads it true
 
+    // (hoisted above the woodland planter, 2026-09-21: the woodland's stands drew their
+    // species from the WHOLE pool - a pine no mix names stood in every stand)
+    const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
+      // the island's knobs (F8 > trees > from the map): coverage ramps from
+      // `from` to `full` metres of canopy; a tree is canopy x gain over the
+      // model's own height, clamped
+      island: { from: 0.5, full: 6.0, gain: 1.0, min: 0.3, max: 2.2,
+                // THE BIOME'S DENSITY (G454.12): a mix's trees per m2 (its bench `count` in its
+                // `radius`) over the grid's, x biomeGain - 3.5 puts the conifer at the grid's full
+                // density (as the G406 rule had it) and the other biomes in the bench's proportion
+                biomeGain: 3.5, biomeWobble: 8 } };
+    const ISLC = world.island && world.island.canopyAt ? world.island : null;
+    // THE CODE AT A POINT (G454.12/13): the terrain type at the ground's own wobbled position
+    // (the splat wobbles its cells `biomeWobble` m on a 23 m noise), the derived 12/13/14 by
+    // slope and canopy on the point's own draw r - one function for the walk and the cover ring
+    const ttypeAt = (x, z) => {
+      if (!ISLC || !ISLC.ttype) return -1;
+      const wob = FILL.island.biomeWobble || 0;
+      const wx = wob ? x + (vnoise(x, z, 23, 5) - 0.5) * 2 * wob : x, wz = wob ? z + (vnoise(x + 77, z - 77, 23, 6) - 0.5) * 2 * wob : z;
+      return ISLC.ttype[ISLC.cellAt ? ISLC.cellAt(wx, wz) : -1];
+    };
+    const codeAt = (x, z, r) => {
+      const tt = ttypeAt(x, z); if (tt < 0 || !BIO) return -1;
+      const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+      return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
+    };
+    const biomeAt = (x, z, r) => { const c = codeAt(x, z, r); return c < 0 ? null : BIO.mixAt(c); };
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they
@@ -101716,9 +102245,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
          { P: null, imp: impMatsFor(null, blobGeo), geo: blobGeo }];
     // a placed tree with a key goes to that subject's group; anything else
     // is the pool's weighted draw on its position
+    // THE BIOME'S POOL FIRST (2026-09-21, the user: "some trees that I thought I rejected"):
+    // a stand on a biome draws from that mix's species like the fill; only where no mix
+    // names the ground (or the pack has no biomes) does the whole pool stand
+    const drawOf = T => {
+      const r = hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3));
+      const mix = biomeAt(T.x, T.z, hsh(Math.round(T.x * 2.1), Math.round(T.z * 4.3)));
+      if (mix) { const P = biomePool(mix, PROTO); if (P.length) return P[poolPick(P, r, T.x, T.z, T.h)].gi; }
+      return poolPick(PROTO, r, T.x, T.z, T.h);
+    };
     const groupOf = T => PROTO
-      ? ((T.key && PROTO.findIndex(Q => Q.key === T.key) >= 0) ? PROTO.findIndex(Q => Q.key === T.key)
-                                                                : poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3)), T.x, T.z, T.h))
+      ? ((T.key && PROTO.findIndex(Q => Q.key === T.key) >= 0) ? PROTO.findIndex(Q => Q.key === T.key) : drawOf(T))
       : (T.sp < 2 ? 0 : 1);
     plantedKit.push(trunkMat, canopyMat);
     for (const cell of cells.values()) {
@@ -101926,12 +102463,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: world.island ? 160 : 100,   // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26); an island 6.4 m (G400: "MUCH too sparse")
-        // the island's knobs (F8 > trees > from the map): coverage ramps from
-        // `from` to `full` metres of canopy; a tree is canopy x gain over the
-        // model's own height, clamped
-        island: { from: 0.5, full: 6.0, gain: 1.0, min: 0.3, max: 2.2 } };
-      const ISLC = world.island && world.island.canopyAt ? world.island : null;
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
       // shared with the terrain's colour bake and the far canopy mask
@@ -101997,6 +102528,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
         SHAPE.list = [];
         SHAPE.real = !!real;
+        biomePools.clear();
         if (real) {
           for (const H of real) {
             H.series.forEach((S, si) => {
@@ -102055,7 +102587,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0;
+          let can = 0, mixHere = null;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
@@ -102065,8 +102597,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             // (the ramp) and how tall; NDVI is the vigour (a weak stand thins); a slope
             // over 35 deg thins to a third. Species stay the pool's (altitude, wet, steep).
             let kind = 1.0;
-            if (ISLC.ttype) { const tt = ISLC.ttype[ISLC.cellAt ? ISLC.cellAt(x, z) : -1];
-              kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
+            if (ISLC.ttype) {
+              // THE BIOME (G454.12): the code at the ground's own wobbled position, derived as
+              // the shader derives it, names the mix; the mix's density over the grid's is the
+              // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
+              const tt = ttypeAt(x, z);
+              if (BIO) {
+                mixHere = BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));
+                kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
+              } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
               if (kind <= 0.0) continue; }
             let p = (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
@@ -102080,7 +102619,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const h = world.terrainH(x, z);
           const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
                                                              : (hsh(ix + 9, iz + 1) * 5) | 0;
-          const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
+          let gi;
+          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); gi = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)].gi : -1; if (gi < 0) continue; }
+          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can);
         }
       }
@@ -102225,11 +102766,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // before it grows the ring, or it would grow cones and evict them
       const TREE_STATE = { v: treesSettled() ? 'ready' : 'pending' };
       treeSettle().then(() => { TREE_STATE.v = 'ready'; }).catch(() => { TREE_STATE.v = 'fallback'; });
+      // THE COVER RING (G454.13): the grass, flowers, rocks and bushes of the biome around the
+      // eye, once the payload is in (its materials are the trees' loader's)
+      if (ISLC && BIO && typeof COVER_RING !== 'undefined' && !/[?&]cover=0/.test(location.search))   // ?cover=0: the ring off (an A/B, and the rigs' control)
+        treeSettle().then(() => {
+          const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
+            const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
+            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt });
+        }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
           island: () => Object.assign({}, FILL.island),
           setIsland: o => { Object.assign(FILL.island, o || {}); evictAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
+          // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
+          biomes: () => BIO,
+          cover: () => coverRing,
+          setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
           stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; evictAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
@@ -103082,6 +103636,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     dayApply();
     fillUpdate(cg);
     lodUpdate(cg);
+    if (coverRing) coverRing.update();
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / Math.max(SUN.y, SUN_MIN_Y), 520);
