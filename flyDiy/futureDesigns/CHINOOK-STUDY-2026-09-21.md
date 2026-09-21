@@ -101,3 +101,40 @@ vocabulary, the hangar's tube shop). What each number is:
 Measured: the stock aeroplane on the row weighs 276 kg against the steel
 row's 333 and runs 62 integrator substeps against 76 (softer members,
 lighter nodes); GATE FLEX sweeps the row's cantilever with the others.
+
+## 5. The blueprint (G477, the user's three-view)
+
+The user's three-view of the 2S: the pod, the wing over it with the prop
+turning IN A SLOT cut into the trailing edge of the centre section, the
+engine on top of the wing at that slot, the boom leaving the pod's belly and
+rising to the tail, the stab on the boom's end with the fin above, the
+tailwheel under it — and an ogival pod on each front lift strut. Four things
+were built for it and one fixed:
+
+- **The prop's clearance** (`_cage_eng.js propFitCheck`, the join says
+  `prop: through the wing (N of 288 points)`): the disc is sampled at four
+  radii, every 15°, a blade's chord fore and aft, against the wing's own skin
+  probes and the aft skin; a hit turns the blades the tank's red. On the
+  build as it was: 26 points through the wing, 48 through the body.
+- **The centre section 'aft half cut'** (`wgCentre` 3, 1.9 m wide): the slot
+  the prop turns in. With the engine at `engBlockZ` 0.35 / `engBlockY` 0.40
+  and the pod's taper shortened (`taperLen` 0.25, `paxLen` 0.7) the disc
+  clears both: `prop: clear`.
+- **The rod's inclination** (`rodIncl` 6°): the join measured the tailwheel
+  off the drawn boom and left the frame's tail post level — the wheel hung
+  0.36 m above a post that had not moved (the playtest's item 130). A rod
+  boom's tail datum is now its tip's section, inclination and all; the post,
+  the stab's seat and the tailwheel's leg follow the drawing.
+- **The thrust line's tilt** (`engTilt`, degrees, downthrust positive; the
+  join writes `engines[].tilt`, the solver turns the force): flown at 0, 5
+  and 10° the Chinook's take-off run reads 108 / 110 / 112 m and its climb
+  2.61 / 2.64 / 2.64 — the arm is short, the effect is trim. Left at 0: no
+  source gives the Chinook's mount angle.
+- **The strut pods** (`GEN_BAYS.strut`, form `ogive`): a spindle of
+  revolution on each front lift strut at `along` of its length, the pair
+  sharing the vessel's litres (38 L → two 0.82 × 0.20 m pods), billed on
+  each strut's two end nodes by lever. CG 36 %, margin 9 % (the fuel moved
+  from behind the passenger to the struts' middle, 1.13 m).
+
+Flown after all of it (MTOW 476): take-off 175 m, climb 2.0 m/s, circuit
+completed, landing 80 m; empty 219 kg (+5 %).

@@ -7,9 +7,15 @@
   "cw_propD": 1.73,
   "cw_bladeN": 3,
   "s1Z": 1.85,
-  "engBlockZ": 0.75,
+  "engBlockZ": 0.35,
   "wgDx": -0.2,
-  "intCons": 4
+  "intCons": 4,
+  "wgCentre": 3,
+  "wgCentreW": 1.9,
+  "engBlockY": 0.4,
+  "rodIncl": 6,
+  "paxLen": 0.7,
+  "taperLen": 0.25
  },
  "prop": {
   "D": 1.73,
@@ -30,17 +36,13 @@
   "tint": null,
   "vessels": [
    {
-    "bay": "cabin",
+    "bay": "strut",
     "capacity": 38,
-    "along": 1.87,
-    "lv": 0.3,
+    "along": 0.5,
+    "lv": null,
     "rot": 0,
-    "form": "box",
-    "dims": {
-     "L": 0.24,
-     "W": 0.42,
-     "H": 0.38
-    },
+    "form": "ogive",
+    "dims": null,
     "finish": null,
     "hue": null,
     "tint": null

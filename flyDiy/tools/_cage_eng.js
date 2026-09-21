@@ -64,7 +64,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // move together); and which way a wing engine faces —
                    // 0 the mount's own (over the wing pushes, a pair pulls),
                    // 1 puller, 2 pusher
-                   engBlockZ: 0, engBlockY: 0, engAim: 0,
+                   engBlockZ: 0, engBlockY: 0, engAim: 0, engTilt: 0,
                    // THE HAND OF A PAIR (G194): 0 same hand, 1 counter-rotating
                    // tops inward (the Seneca arrangement: down-going blades
                    // inboard, no critical engine), 2 tops outward. The solver
@@ -533,6 +533,12 @@ const ENG_ITEMS = [
   // fore-aft on a pod is `eng_mountGap`, on a block `engBlockZ`.
   ['engY',      'up / down (thrust line)', -0.5, 0.5, 0.005,
    { when: P => +P.engOn, dim: 'm' }],
+  // G477 (the Chinook, the user: "it probably needs the ability to tilt the
+  // engine with regards to the frame"): the thrust line's TILT, degrees,
+  // downthrust positive — the unit turns about its lateral axis on the
+  // mount, the join writes engines[].tilt, the solver turns the force
+  ['engTilt',   'thrust line tilt (downthrust +)', -15, 15, 0.5,
+   { when: P => +P.engOn, dim: 'deg' }],
   ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],
   ['nose cone', grpItems('g_spin').concat([
@@ -1011,6 +1017,11 @@ PAGE.post = ctx => {
     // ON THE THRUSTLINE, BOLTED TO THE FACE — plus the mount's own up/down
     // (G32). An aft unit's firewall plane lands on the face from behind.
     if (u.aft) ug.rotation.y = Math.PI;
+    // G477: the tilt — downthrust: the thrust line points down at the
+    // aeroplane's front. three.js composes the Euler as Rx·Ry, so the same
+    // +x rotation dips a nose unit's crank and raises an aft unit's (its y
+    // flip is applied first): one sign for both.
+    ug.rotation.x = (+P.engTilt || 0) * Math.PI / 180;
     ug.position.set((f.x || 0) + (u.aft ? -ax.x : ax.x),
                     f.yc + ax.y + (P.engY || 0),
                     u.aft ? f.z + zFw : f.z - zFw);
@@ -1048,14 +1059,79 @@ PAGE.post = ctx => {
         exhaustDir = [d.x, d.y, d.z];
       }
     }
+    // G477 (the Chinook, the user: "your engine clips a lot through the
+    // wing ... ensure your prop does not collide. Maybe even write a helper
+    // that colors the prop in case of detected collision, like the fuel
+    // tank"): THE PROPELLER'S CLEARANCE is measured by `propFitCheck` below,
+    // AFTER the whole layer chain (the wing's skin probes and the aft skin
+    // are built after this layer): the hub and the radius are kept here.
+    let propHub = null;
+    if (pg) { ug.updateMatrixWorld(true); const hv = new THREE.Vector3(); pg.getWorldPosition(hv); propHub = [hv.x, hv.y, hv.z]; }
     unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir,
-                   at: [ug.position.x, ug.position.y, ug.position.z] });
+                   at: [ug.position.x, ug.position.y, ug.position.z],
+                   prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
+                   propFit: null });
   });
   scene.add(group);
   const exhaustAt = unitOut[0].exhaustAt;
+  // G477: THE PROPELLER'S CLEARANCE, like the fuel tank's fit. The disc is
+  // sampled — four radii out to the tip, every 15 degrees, a blade's chord
+  // fore and aft — and each point asked of the wing's own skin probes
+  // (CAGE_WING.overAt / underAt, the tank layer's) and of the aft skin
+  // (CAGE_GEAR.AF: the pod and the rod are one surface). A point inside
+  // either is a hit: the blades go the tank's red, the unit carries
+  // `propFit`, the join says it (and the status line). Runs after the
+  // chain: the engine layer is built before the wing and the gear, so the
+  // post schedules it as a microtask and the join calls it outright.
+  const propFitCheck = () => {
+    const W = window.CAGE_WING, AF = window.CAGE_GEAR && window.CAGE_GEAR.AF;
+    const inWing = (x, y, z) => {
+      if (!W || !W.overAt || !W.underAt) return false;
+      const o = W.overAt(x, z), un = W.underAt(x, z);
+      return !!(o && un && o.y - un.y > 0.005 && y > un.y - 0.02 && y < o.y + 0.02);
+    };
+    const inBody = (x, y, z) => {
+      if (!AF || !AF.surf) return false;
+      let lo, hi;
+      try { lo = AF.surf(z, 0); hi = AF.surf(z, Math.PI); } catch (e) { return false; }
+      if (!lo || !hi || !isFinite(lo[1]) || !isFinite(hi[1]) || hi[1] <= lo[1] + 0.01) return false;
+      const yc = 0.5 * (lo[1] + hi[1]);
+      const ang = Math.atan2(y - yc, x);
+      let s; try { s = AF.surf(z, ang + Math.PI / 2); } catch (e) { return false; }
+      if (!s) return false;
+      const rP = Math.hypot(x, y - yc), rS = Math.hypot(s[0], s[1] - yc);
+      return rP < rS - 0.02;
+    };
+    for (const u of unitOut) {
+      if (!u.prop) { u.propFit = null; continue; }
+      const [hx, hy, hz] = u.prop.hub, R = u.prop.R;
+      let wingHits = 0, bodyHits = 0, n = 0;
+      for (const k of [0.35, 0.6, 0.8, 1.0]) for (let j = 0; j < 24; j++) for (const dz of [-0.06, 0, 0.06]) {
+        const th = j / 24 * Math.PI * 2;
+        const x = hx + R * k * Math.cos(th), y = hy + R * k * Math.sin(th), z = hz + dz;
+        n++;
+        if (inWing(x, y, z)) wingHits++;
+        else if (inBody(x, y, z)) bodyHits++;
+      }
+      const why = [];
+      if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');
+      if (bodyHits) why.push('through the body (' + bodyHits + ' points)');
+      u.propFit = { ok: !why.length, why, R, hub: u.prop.hub, wingHits, bodyHits, n };
+      if (why.length) {
+        const bad = new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
+          emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.45 });
+        u.prop.group.traverse(o => { if (o.isMesh) o.material = bad; });
+      }
+      if (stat && why.length) stat.textContent += '  ·  PROP: ' + why.join(', ');
+    }
+    return unitOut.map(u => u.propFit);
+  };
+  if (typeof queueMicrotask === 'function') queueMicrotask(() => { try { propFitCheck(); } catch (e) {} });
 
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
+                      propFitCheck,                                // G477: the disc's clearance, per unit (the join calls it)
+                      get propFit() { return unitOut.map(u => u.propFit); },
                       mount: ['nose', 'pusher', 'wingTop', 'wing'][mountK] || 'nose',
                       units: unitOut,
                       spec, quads: M.stats && M.stats.quads };

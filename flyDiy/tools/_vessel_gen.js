@@ -59,7 +59,9 @@ const SHAPES = {
 //     V / (8 ex ey ez) = pi (2 zc + 4a/3) / (8 (zc + a)) = pi * 1.8 / 8 = 0.707
 // against the box row's declared 0.90: 0.707 / 0.90 = 0.785. The BOX factor is
 // exactly 1, so nothing that existed before this row changed by a gram.
-const FORM_FILL = { box: 1.00, cyl: 0.78 };
+// G477: the ogive pod (a spindle of revolution, r = R (1 - (2u - 1)^2)^0.65)
+// fills 0.55 of its L x D x D box — integrated, not guessed (0.70 of pi/4)
+const FORM_FILL = { box: 1.00, cyl: 0.78, ogive: 0.55 };
 const formFill = (sh, form) => sh.fill * (FORM_FILL[form] || 1);
 
 // the box a vessel of `installedL` litres needs, in metres — or the box the
@@ -68,6 +70,17 @@ const formFill = (sh, form) => sh.fill * (FORM_FILL[form] || 1);
 // capacity is calculated", so a drawn box wins and its litres follow it
 function vesselDims(vesselKey, installedL, dims, form) {
   const sh = SHAPES[vesselKey] || SHAPES.alu;
+  // G477: an OGIVE pod — its own dims from the litres at fineness 4 (L = 4 D),
+  // the drawn one's litres from its dims: V = 0.55 D^2 L (the player's D and
+  // L are the box's W/H and L)
+  if (form === 'ogive') {
+    const fill = formFill(sh, 'ogive');
+    if (dims && dims.L > 0 && dims.W > 0)
+      return { L: +dims.L, W: +dims.W, H: +dims.W, form: 'ogive', fill, own: true };
+    const V = Math.max(0.002, installedL / 1000);        // m3 the pod must hold
+    const D = Math.cbrt(V / (0.55 * 4)), L = 4 * D;
+    return { L, W: D, H: D, form: 'ogive', fill };
+  }
   const fill = formFill(sh, form);
   if (dims && dims.L > 0 && dims.W > 0 && dims.H > 0)
     return { L: +dims.L, W: +dims.W, H: +dims.H, form: sh.form, fill, own: true };

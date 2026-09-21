@@ -3942,6 +3942,13 @@ function clampSpec(spec) {
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
+    // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
+    // positive (the prop axis points down at the front). A high pusher's
+    // line of action runs above the CG and its thrust pitches the nose
+    // down; the Chinook's mount is inclined so the line passes nearer the
+    // CG. The solver turns each engine's thrust by it (62_gen_aero
+    // engTilt); the cage's `engTilt` dial draws the unit at the angle.
+    e.tilt = genClamp(+e.tilt || 0, -15, 15);
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';

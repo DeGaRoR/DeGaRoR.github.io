@@ -261,6 +261,7 @@ function cageJoinSpec(P, M, T) {
       const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
       const one = i => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
+        ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         // G445.1 (the C172 study): THE NOSE ENGINE IS WEIGHED WHERE IT IS
@@ -498,7 +499,10 @@ function cageJoinSpec(P, M, T) {
   if (M.tailW > 0) fus.tailW = M.tailW;
   if (typeof M.tailBot === 'number' && isFinite(M.tailBot))
     fus.tailBot = M.tailBot;
-  if (M.tailTop > 0) fus.tailTop = M.tailTop;
+  // (G477: a rod's tip can sit BELOW the keel datum — rodY −0.4 on the
+  // Chinook — so the top is written whenever it was measured, not only
+  // when it is positive)
+  if (typeof M.tailTop === 'number' && isFinite(M.tailTop)) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
@@ -1111,6 +1115,26 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;
         M.tailTop = AF.surf(zPost, Math.PI)[1] - yD;
+      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0)) {
+        // G477 (the playtest's 130, the user: "the rod inclination impacts
+        // the position of everything related to the tail wheel"): A ROD
+        // BOOM HAS A TAIL END TOO. With no tail rings the datum stayed the
+        // rule's — tailBot 0.20 / tailTop 0.38, level — while the drawn rod
+        // climbs tan(rodIncl) per metre to its tip, the stab and the
+        // tailwheel are drawn on that tip, and the join handed the frame the
+        // tailwheel's measured height alone: 0.36 m above a post that had
+        // not moved. The tip of the rod is the aft skin extreme (the rod is
+        // in CAGE_MATS): its section a hand inside the tip is the tail
+        // datum, inclination and all, and the stab's seat and the
+        // tailwheel's leg are measured against it like any lofted tail's.
+        const zTipIn = AF.z0 + Math.min(0.05, 0.25 * Math.max(0.02, AF.z1 - AF.z0));
+        const bot = AF.surf(zTipIn, 0), top = AF.surf(zTipIn, Math.PI);
+        if (bot && top && isFinite(bot[1]) && isFinite(top[1]) && top[1] > bot[1]) {
+          M.tailW = AF.halfWAt(zTipIn);
+          M.tailBot = bot[1] - yD;
+          M.tailTop = top[1] - yD;
+          M.rodTailDatum = true;
+        }
       }
       if (fwOk && M.cabH > 0.5) {
         // the deck just FORWARD of the windscreen base, as a fraction of
@@ -1177,6 +1201,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (CE && Array.isArray(CE.units) && CE.units.length)
           M.engUnits = CE.units.map(u =>
             ({ x: zFw - u.at[2], y: u.at[1] - yD, z: u.at[0] }));
+          // G477: the propeller's clearance, said where every other fit is
+          // (measured now, after every layer: the wing's skin and the aft
+          // skin are final here)
+          if (CE.propFitCheck) { try { CE.propFitCheck(); } catch (e) {} }
+          for (const u of CE.units) if (u.propFit && !u.propFit.ok)
+            ERRS.push('prop: ' + u.propFit.why.join(', '));
       }
       // G52: the PILLAR PROPORTIONS and the wing's station (user: "the
       // visual fit remains very approximate"). The cabin's x-extent is
@@ -1328,7 +1358,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           NOTES.push('fin: the drawing stopped a slider short — ' + FNm.clamped.join(', '));
         if (stabM && SBm.clamped && SBm.clamped.length)
           NOTES.push('stab: the drawing stopped a slider short — ' + SBm.clamped.join(', '));
-        const tailDatum = zPost != null &&
+        const tailDatum = (zPost != null || M.rodTailDatum) &&
           typeof M.tailTop === 'number' && typeof M.tailBot === 'number';
         if (fwOk && (finM || stabM)) {
           const zAftB = zCabA != null ? zCabA - 0.8

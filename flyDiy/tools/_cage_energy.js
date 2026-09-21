@@ -73,7 +73,7 @@ function fromSpec(energy) {
         along: v.along == null ? null : +v.along,
         lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
         // a round tank or a squared one — geometry, and the capacity follows
-        form: v.form === 'cyl' ? 'cyl' : 'box',
+        form: v.form === 'cyl' ? 'cyl' : v.form === 'ogive' ? 'ogive' : 'box',
         // the player's own box, when they drew one
         dims: (v.dims && v.dims.L > 0) ? { L: +v.dims.L, W: +v.dims.W, H: +v.dims.H } : null,
         // ...AND ITS OWN LOOK (2026-09-05). null at any of the three means
@@ -136,7 +136,7 @@ const vesselKey = () => EN.vessel || (EN.kind === 'battery' ? 'packCase' : 'alu'
 // rides into the two capacity functions in _vessel_gen.js, which apply the
 // catalogue's own fill and then the form's — the box case is 1.0, so every
 // build that existed before this row weighs exactly what it weighed.
-const formOf = v => (v && v.form === 'cyl' ? 'cyl' : 'box');
+const formOf = v => (v && v.form === 'cyl' ? 'cyl' : v && v.form === 'ogive' ? 'ogive' : 'box');
 // installed litres of a drawn box -> the capacity unit the spec stores
 function capacityFromDims(dims, form) {
   const G = VG(), C = core();
@@ -177,6 +177,8 @@ function measureBays(S, ctx) {
   for (const k in C.BAYS) {
     const B = C.BAYS[k];
     if (B.on === 'wing' && !(S.wing && window.CAGE_WING)) continue;
+    // G477: a strut bay only where the wing layer drew lift struts
+    if (B.on === 'strut' && !(window.CAGE_WING && window.CAGE_WING.struts && window.CAGE_WING.struts.length)) continue;
     // G185: a bay on the second plane needs the second plane DRAWN
     if (B.on === 'wing' && B.plane && !(window.CAGE_WING.planes &&
                                         window.CAGE_WING.planes[B.plane])) continue;
@@ -378,7 +380,41 @@ function placeAll(ctx, inv) {
                                 v.capacity, vesselKey(), medium());
     let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
     let pl;
-    if (bay.on === 'wing') {
+    if (bay.on === 'strut') {
+      // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared by
+      // the pair, an ogive on the strut's own axis at `along` of its length
+      // (0 the foot on the body, 1 the wing). The FRONT strut of each side
+      // is the forward-most pin; the pod must clear the wing at its top and
+      // the body at its foot by a hand, and the litres are the pair's.
+      v.form = 'ogive';
+      if (v.dims) v.capacity = capacityFromDims(v.dims, 'ogive') * 2;
+      const resH = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
+                                   v.capacity / 2, vesselKey(), medium());
+      dims = G.vesselDims(vesselKey(), resH.installedL, v.dims, 'ogive');
+      const t0 = v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]);
+      if (v.along == null) { v.along = t0; wroteBack = true; }
+      const S2 = (W && W.struts) || [];
+      const bySide = { L: null, R: null };
+      for (const s of S2) {
+        const k = s.tip[0] < 0 ? 'L' : 'R';
+        if (!bySide[k] || s.pin[2] > bySide[k].pin[2]) bySide[k] = s;
+      }
+      const pods = [], why = [];
+      for (const k of ['L', 'R']) {
+        const s = bySide[k]; if (!s) continue;
+        const ax = [s.tip[0] - s.pin[0], s.tip[1] - s.pin[1], s.tip[2] - s.pin[2]];
+        const len = Math.hypot(ax[0], ax[1], ax[2]) || 1e-6;
+        const u = ax.map(q => q / len);
+        const c = [s.pin[0] + ax[0] * t0, s.pin[1] + ax[1] * t0, s.pin[2] + ax[2] * t0];
+        pods.push({ sign: k === 'L' ? -1 : 1, c, axis: u, L: dims.L, D: dims.W, len, t: t0 });
+      }
+      if (!pods.length) why.push('no lift strut to hang it on');
+      for (const pd of pods) {
+        if (pd.t * pd.len - pd.L / 2 < 0.05) { why.push('into the body at the foot'); break; }
+        if ((1 - pd.t) * pd.len - pd.L / 2 < 0.05) { why.push('into the wing at the top'); break; }
+      }
+      pl = { on: 'strut', ok: !why.length, why, pods, along: t0 };
+    } else if (bay.on === 'wing') {
       const kp = bay.plane | 0, sl = sliceOf(kp), sm = semiOf(kp);
       // G445.2: THE DRAWN SKIN, top and bottom, at any (span, chord) - the
       // wing layer's own ray probes, the ones the gear and engine layers
@@ -955,6 +991,22 @@ function drawResults(group, ctx, results) {
       if (EN.kind !== 'battery' && VIEW.fill > 0.02)
         slotMesh(group, VM.contents(sol, VIEW.fill, 0.008), fuelMat(),
                  'edFuel_' + i, r.c, yaw);
+    } else if (r.on === 'strut' && r.pods && window.THREE) {
+      // G477: the ogive pod, a lathe on the strut's axis — r = R (1 - (2u-1)^2)^0.65
+      const T3 = window.THREE;
+      for (const pd of r.pods) {
+        const NP = 18, pts = [];
+        for (let k = 0; k <= NP; k++) {
+          const u = k / NP, s = 1 - (2 * u - 1) * (2 * u - 1);
+          pts.push(new T3.Vector2(Math.max(0.002, 0.5 * pd.D * Math.pow(Math.max(0, s), 0.65)), (u - 0.5) * pd.L));
+        }
+        const geo = new T3.LatheGeometry(pts, 28);
+        const m = new T3.Mesh(geo, wet ? matWet(bad) : slotMat('shell', bad, i, r.v));
+        m.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L');
+        m.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.axis[0], pd.axis[1], pd.axis[2]));
+        m.position.set(pd.c[0], pd.c[1], pd.c[2]);
+        group.add(m);
+      }
     } else if (r.on === 'wing' && r.sides && VM) {
       // THE WING TANK IS THE SIMPLE ONE, by the user's own ruling: a box in
       // the panel just outboard of the centre section, and that is all. It is
@@ -1734,7 +1786,7 @@ function renderPanel() {
 
     // ROUND OR SQUARED, and the litres follow. A wing tank is neither: it is
     // the box between the spars and the row is not offered there.
-    if (bay && bay.on !== 'wing')
+    if (bay && bay.on !== 'wing' && bay.on !== 'strut')
       select(box, 'shape', 'a squared shell with radiused corners, or a ' +
         'cylinder with domed ends. The drawn box is the same either way; a ' +
         'cylinder simply holds less of it, and the capacity says so',
@@ -1760,7 +1812,19 @@ function renderPanel() {
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
-    if (bay && bay.on !== 'wing') {
+    if (bay && bay.on === 'strut') {
+      // G477: the pod's own length and diameter; the litres (the pair's) follow
+      const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) || { L: 0.8, W: 0.2, H: 0.2 };
+      const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commit(); });
+      podRow('length', 'L', 0.3, 2.0, 'along the strut');
+      podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
+      range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
+        bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,
+        x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
+    }
+    if (bay && bay.on !== 'wing' && bay.on !== 'strut') {
       const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) ||
         { L: 0.5, W: 0.35, H: 0.25 };
       const sizeRow = (label, key, hi, title) => range(box, label, title, 0.08, hi, 0.01,
@@ -1776,7 +1840,9 @@ function renderPanel() {
       sizeRow('height', 'H', 1.0, 'up');
     }
 
-    if (bay && bay.on === 'wing') {
+    if (bay && bay.on === 'strut') {
+      // (the pod's rows are above)
+    } else if (bay && bay.on === 'wing') {
       // LABELS ARE THE TRUNK'S WORDS (G191, HANDOVER "LABEL CONVENTIONS"):
       // a row that is a fore/aft or an up/down says so, the domain word in
       // brackets where the plain word would be ambiguous
@@ -1947,6 +2013,8 @@ function syncReadouts() {
       bits.push((r.clear * 1000).toFixed(0) + ' mm to the skin');
     if (r.on === 'wing' && r.spanM != null)
       bits.push(r.spanM.toFixed(2) + ' m of span each side');
+    if (r.on === 'strut' && r.pods && r.pods.length)
+      bits.push('a ' + r.pods[0].L.toFixed(2) + ' x ' + r.pods[0].D.toFixed(2) + ' m pod each side');
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');

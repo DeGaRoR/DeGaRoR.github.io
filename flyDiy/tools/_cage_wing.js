@@ -1535,6 +1535,7 @@ PAGE.post = ctx => {
 
   let strutOn = false, strutNote = '';
   const SG = window.STRUT_GEN;
+  let STRUTS_OUT = [];             // G477
   if (SG && GG && AF && !WIRE && gs.liftstrut) {
     // the external wing beams, grouped BY THEIR ROOT — which is what
     // discovers that both struts of a side share one fuselage fitting
@@ -1581,6 +1582,7 @@ PAGE.post = ctx => {
       const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
       let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0, onFrame = 0;
       const strutMembers = [];         // G179.2: each member's pin and tip
+      STRUTS_OUT = strutMembers;       // G477: the tank layer's strut pods read them
       for (const [root, tips] of byRoot) {
         const rp = N2[root].p;
         const site = SG.strutSite(AF, nodeCageBody([rp[0] + sx, rp[1], rp[2]]),
@@ -1946,6 +1948,7 @@ PAGE.post = ctx => {
                  })() : null });
   }
   window.CAGE_WING = { surfs,
+                       struts: STRUTS_OUT,   // G477: the drawn lift struts, {pin, tip} in cage metres
                        def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
                        underAt, overAt, leAt, teAt, box: wbox,

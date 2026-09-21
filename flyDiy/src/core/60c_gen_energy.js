@@ -404,6 +404,18 @@ const GEN_BAYS = {
     serves: 'the second plane’s outboard spar bay',
     span: [0.55, 0.88], feed: 'pumped',
   },
+  // G477 (the Chinook's blueprint, the user: "it carries what I believe are
+  // reservoirs on its struts ... Strut-mounted tanks, ogival"): A POD ON EACH
+  // FRONT LIFT STRUT, one tank a side, the pair sharing the vessel's litres.
+  // `along` is the fraction up the strut from its foot on the body (0) to
+  // the wing (1); the pod is an ogive of revolution on the strut's own axis
+  // (form 'ogive', fineness 4). Billed on the strut's two end nodes by lever
+  // (61_gen_frame); needs a strutted wing — a cantilever offers nothing here.
+  strut: {
+    name: 'On the lift struts', on: 'strut',
+    serves: 'a pod on each front lift strut, the pair sharing the litres',
+    span: [0.25, 0.80], feed: 'pumped',
+  },
 };
 
 // THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
@@ -418,6 +430,16 @@ const GEN_BAY_WALL = 0.035;              // metres of structure and trim, per si
 function genBayResolve(S, key, ST) {
   const B = GEN_BAYS[key];
   if (!B) return null;
+  if (B.on === 'strut') {
+    // G477: only a strutted wing has a strut; the litres a pod pair can
+    // reasonably carry are a fraction of the wing's own (the strut is short
+    // and the pod must clear the ground and the wing)
+    const wk = S.wings && S.wings[0];
+    if (!wk || !(S.bracing && S.bracing.type === 'strut')) return null;
+    return { key, name: B.name, on: 'strut', feed: B.feed, free: !!B.free,
+             serves: B.serves, span: B.span.slice(), litres: 80,
+             zFrac: 0.5 * (B.span[0] + B.span[1]) };
+  }
   if (B.on === 'wing') {
     // G185: a bay on the second plane measures the second plane
     const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;

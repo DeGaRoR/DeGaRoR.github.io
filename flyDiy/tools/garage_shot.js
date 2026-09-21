@@ -71,6 +71,13 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // the panels away, the aeroplane alone
   await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='hidden';}for(const b of document.querySelectorAll('button')){if(/^‹(Properties|Parts)$/.test(b.textContent.trim()))b.click();}return 1})()");
   await sleep(1500);
+  // G477 --clean: THE AEROPLANE ALONE — every element that is not the
+  // canvas's own ancestor line is hidden (the bench panel, the rails, the
+  // buttons, the balance sprites' HTML), for the report's pictures
+  if (process.argv.includes('--clean')) {
+    await ev("(()=>{const c=document.querySelector('canvas');const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});if(window.FLIGHT_PROBE&&FLIGHT_PROBE.balanceShow)try{FLIGHT_PROBE.balanceShow(false)}catch(e){}return 1})()");
+    await sleep(800);
+  }
   const info = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC&&(window.GARAGE_SPEC.get?window.GARAGE_SPEC.get():null);const R=window.CAGE_ENERGY.results();return {name:s&&s.meta&&s.meta.name,reg:s&&s.meta&&s.meta.reg,engX:s&&s.engines[0].x,tanks:R.map(r=>({on:r.on,ok:r.ok,why:r.why,along:r.along,fOut:r.fOut,spanM:r.spanM,ribs:(r.sides||[]).map(x=>x.ribs&&x.ribs.length),missed:(r.sides||[]).map(x=>x.ribsMissed),x:(r.sides||[]).map(x=>[x.x0,x.x1].map(v=>+v.toFixed(2)))}))}})())");
   console.log('garage_shot: loaded ' + info);
   // the game's garage orbit (app.js az/el/dist, FLIGHT_PROBE.camSet): quarter, side, front, top

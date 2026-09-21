@@ -971,12 +971,25 @@ function makeSim(def, world) {
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
+      // force is turned about the lateral axis, forward-and-down at the
+      // front of the engine, so a high pusher's line of action passes
+      // nearer the CG. Zero on every def that says nothing — to the bit.
+      const TL = P_.engTilt;
       for (let j = 0; j < def.refs.engine.length; j++) {
         const e = def.refs.engine[j], k = EO[j] < nE ? EO[j] : 0;
         const per = Ti[k] / Math.max(1, cnt[k]);
-        f[e*3]   -= per * xAft[0];
-        f[e*3+1] -= per * xAft[1];
-        f[e*3+2] -= per * xAft[2];
+        const tl = TL ? (TL[k] || 0) : 0;
+        if (tl) {
+          const cs = Math.cos(tl), sn = Math.sin(tl);
+          f[e*3]   -= per * (cs * xAft[0] + sn * yUp[0]);
+          f[e*3+1] -= per * (cs * xAft[1] + sn * yUp[1]);
+          f[e*3+2] -= per * (cs * xAft[2] + sn * yUp[2]);
+        } else {
+          f[e*3]   -= per * xAft[0];
+          f[e*3+1] -= per * xAft[1];
+          f[e*3+2] -= per * xAft[2];
+        }
       }
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;

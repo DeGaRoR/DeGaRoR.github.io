@@ -1,15 +1,15 @@
 | card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| birdman | Chinook Plus 2 (Rotax 582, 64 hp) | 269 / 209 (29 %) | 386 / 476 | 14.2 / 14.3 (-1 %) | 0.26 / 0.32 | 66 / 56 (18 %) | 115 / 133 (-14 %) | 134 / 153 (-12 %) | 2.4 / 6.1 (-60 %) | 7.7 / 10.0 (-23 %) | 0.96 / — (—) | 278 / 61 (356 %) | 487 / — (—) |
+| birdman | Chinook Plus 2 (Rotax 582, 64 hp) | 219 / 209 (5 %) | 337 / 476 | 13.1 / 14.3 (-8 %) | 0.26 / 0.32 | 69 / 56 (22 %) | 116 / 133 (-13 %) | 135 / 153 (-12 %) | 2.4 / 6.1 (-60 %) | 7.7 / 10.0 (-23 %) | 0.93 / — (—) | 142 / 61 (133 %) | 214 / — (—) |
 
-DIMENSIONS (ours / Chinook Plus 2 (Rotax 582, 64 hp); ours at MTOW 476 kg, ballast 90 kg):
+DIMENSIONS (ours / Chinook Plus 2 (Rotax 582, 64 hp); ours at MTOW 476 kg, ballast 139 kg):
   engine     Rotax 582 + 2.62 red. 64 hp 43 kg, prop IVO 3-pale 1.68 m 1.73 m   / 64 hp 39 kg, prop 1.73 m
-  fuselage   tubeFabric, taildragger gear, 2 seats / 2
-  length m (eng flange-rudder TE)   5.46 /   5.38  2 %
-  height m                         2.04 /   1.78  15 %
+  fuselage   aluTube, taildragger gear, 2 seats / 2
+  length m (eng flange-rudder TE)   5.21 /   5.38  -3 %
+  height m                         2.10 /   1.78  18 %
   span m                           9.75 /   9.75  0 %
-  area m2                          14.2 /   14.3  -1 %
-  AR                                6.7 /    6.6  1 %
+  area m2                          13.1 /   14.3  -8 %
+  AR                                7.2 /    6.6  10 %
   root chord m                     1.47 /   1.47  0 %
   tip chord m                      1.47 /   1.47  0 %
   dihedral deg                      3.0 /      —  —
@@ -19,46 +19,46 @@ DIMENSIONS (ours / Chinook Plus 2 (Rotax 582, 64 hp); ours at MTOW 476 kg, balla
   flap span frac                   0.50 /      —  —
   stab span m                      3.12 /      —  —
   stab area m2                     2.86 /      —  —
-  fin area m2                      1.41 /      —  —
+  fin area m2                      1.45 /      —  —
   track m                          1.60 /      —  —
-  wheelbase m                      3.85 /      —  —
+  wheelbase m                      3.77 /      —  —
   cabin width m                    0.55 /   0.60  -8 %
   fuel L                             38 /     38  0 %
-  wing load kg/m2 at MTOW          33.5 /   33.2  1 %
+  wing load kg/m2 at MTOW          36.2 /   33.2  9 %
   power load kg/hp at MTOW          7.4 /    7.4  -1 %
 
-BUILD CHECK (the bench, headless; as baked 386 kg):
-  stance     on its wheels, deck 5.2 deg, suspension travel 5 mm, nose-over 33 deg, power-over 0.37
-  balance    CG 41 % MAC, static margin 3 % (NP 44 % MAC), stab trim 0.9 deg, Cn-beta 0.119, d(eps)/d(a) 0.37
-  shake      FLIES A CIRCUIT: Vs 60 km/h, cruise 110 km/h at thr 0.65, climb 3.58 m/s, TO 254 m, L/D best 7.7 at 76 km/h, 64 hp, 6.0 kg/hp
-  sandbags   HELD: limit 0.73 % of semispan, ultimate 1.09 %, worst member 47 % of yield (wing)
-  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 423 m, climb 2.59 m/s, service ceiling 4903 m
-  ledger     fuselage 31, engines 56, wings 59, bracing 23, tail 19, gear 24, cabin 80*, vessel 2, fuel 27*, panel 5, elec 17, avionics 1, outfit 29, paint 4, cargo 10*  (* payload; empty 269 kg)
+BUILD CHECK (the bench, headless; as baked 337 kg):
+  stance     on its wheels, deck 9.3 deg, suspension travel 10 mm, nose-over 30 deg, power-over 0.81
+  balance    CG 36 % MAC, static margin 9 % (NP 45 % MAC), stab trim -0.8 deg, Cn-beta 0.093, d(eps)/d(a) 0.29
+  shake      FLIES A CIRCUIT: Vs 58 km/h, cruise 114 km/h at thr 0.65, climb 4.43 m/s, TO 93 m, L/D best 7.7 at 69 km/h, 64 hp, 5.2 kg/hp
+  sandbags   HELD: limit 2.49 % of semispan, ultimate 3.79 %, worst member 40 % of yield (wing)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 138 m, climb 3.36 m/s, service ceiling 5788 m
+  ledger     fuselage 22, engines 57, wings 35, bracing 16, tail 14, gear 19, cabin 80*, vessel 2, fuel 27*, panel 5, elec 17, avionics 1, outfit 28, paint 4, cargo 10*  (* payload; empty 219 kg)
   systems    asi 0.4, alt 0.5, ai 1.1, vsi 0.4, compass 0.3, clock 0.3, tacho 0.5, oilP 0.2, oilT 0.2, fuel 0.6, volts 0.1, battery:lead 7.0, alternator:gen20 4.0, starter:yes 4.0, vac:venturi 0.4, com:compact 1.0, harness 1.6
-  drag       CdS fit 0.955 m2 (induced k 94475)  fusCdA 0.775  gear -0.004  brace 0.000  swet 10.920 L 5.153 frontal 0.651 vol 1.716 f 5.661 FF 1.345 boxK 1.058 cdWet 0.013 body 0.194 cool 0.014 heads 0.000 screen 0.025 junct 0.017 exh 0.006 gear 0.183 brace 0.029 axial 0.775
+  drag       CdS fit 0.933 m2 (induced k 97344)  fusCdA 0.766  gear -0.004  brace 0.000  swet 10.293 L 5.079 frontal 0.651 vol 1.593 f 5.579 FF 1.359 boxK 1.058 cdWet 0.013 body 0.185 cool 0.014 heads 0.000 screen 0.025 junct 0.017 exh 0.006 gear 0.183 brace 0.029 axial 0.766
 
 | card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | outcome |
 |---|---|---|---|---|---|
-| build | 337 / 61 (452 %) | 3.1 / 6.1 (-50 %) | 110 at 0.77 | 192 / 91 (111 %) | completed (316 s, 103 s wall) |
+| build | 175 / 61 (187 %) | 2.0 / 6.1 (-67 %) | 106 at 1.00 | 80 / 91 (-12 %) | completed (273 s, 112 s wall) |
 
 RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
-  + 356 %  build     TO roll ours 278.0  real 61.0
+  + 133 %  build     TO roll ours 142.0  real 61.0
    -60 %  build     ROC     ours 2.4  real 6.1
-  +  29 %  build     empty   ours 268.7  real 209.0
    -23 %  build     L/D     ours 7.7  real 10.0
+  +  22 %  build     Vs      ours 68.5  real 56.0
    -21 %  build     T0      ours 1191.4  real 1500.0
-  +  18 %  build     Vs      ours 66.3  real 56.0
-   -14 %  build     V75     ours 114.7  real 133.0
-   -12 %  build     Vmax    ours 134.1  real 153.0
-    -1 %  build     S       ours 14.2  real 14.3
+   -13 %  build     V75     ours 115.6  real 133.0
+   -12 %  build     Vmax    ours 135.2  real 153.0
+    -8 %  build     S       ours 13.1  real 14.3
+  +   5 %  build     empty   ours 219.4  real 209.0
 
 BY INDICATOR (mean signed error over the engine-matched cards):
-  TO roll  356 %  (n 1, spread 356..356)
+  TO roll  133 %  (n 1, spread 133..133)
   ROC      -60 %  (n 1, spread -60..-60)
-  empty     29 %  (n 1, spread 29..29)
   L/D      -23 %  (n 1, spread -23..-23)
+  Vs        22 %  (n 1, spread 22..22)
   T0       -21 %  (n 1, spread -21..-21)
-  Vs        18 %  (n 1, spread 18..18)
-  V75      -14 %  (n 1, spread -14..-14)
+  V75      -13 %  (n 1, spread -13..-13)
   Vmax     -12 %  (n 1, spread -12..-12)
-  S         -1 %  (n 1, spread -1..-1)
+  S         -8 %  (n 1, spread -8..-8)
+  empty      5 %  (n 1, spread 5..5)

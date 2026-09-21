@@ -2311,7 +2311,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
     let pair;
-    if (BAY.on === 'wing') {
+    if (BAY.on === 'strut') {
+      // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared
+      // by the pair, each pod's kilos on its strut's two end nodes by lever
+      // (`along` 0 at the foot on the body, 1 at the wing); a wing with no
+      // strut sends the pod to the strut station's spar pair instead
+      const t = Math.max(0.05, Math.min(0.95, v.along != null ? v.along : 0.5));
+      const L2 = wf.L, R2 = wf.R;
+      const ok = L2 && R2 && L2.strutRoot != null && L2.strutF != null && R2.strutRoot != null && R2.strutF != null;
+      pair = ok ? [[L2.strutRoot, 0.5 * (1 - t)], [L2.strutF, 0.5 * t], [R2.strutRoot, 0.5 * (1 - t)], [R2.strutF, 0.5 * t]]
+                : (() => { const [wl, wr] = wingPair(0.3, 0); return [[wl, 0.5], [wr, 0.5]]; })();
+    } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
       const frac = v.along != null ? v.along

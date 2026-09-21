@@ -54386,3 +54386,46 @@ truss drag, lift split, downwash) was found clean and is unchanged.
 - STILL OWED (A7): 23/32 wing normals and grazing maps, 92 the cowl gap under deformation,
   151 the fin's mapping (a study: the fin's field vs a planar projection), 52's flight-view
   check.
+
+## G477 — THE CHINOOK'S BLUEPRINT: THE PROP'S CLEARANCE, THE CUT CENTRE SECTION, THE ROD'S
+## INCLINATION, THE THRUST LINE'S TILT, THE STRUT PODS (2026-09-21, the user: "your engine
+## clips a lot through the wing ... write a helper that colors the prop in case of detected
+## collision, like the fuel tank ... do the thrust line tilt dial ... the rod angle parameter
+## ... is super buggy ... reservoirs on its struts. Strut-mounted tanks, ogival")
+
+- THE PROP'S CLEARANCE (_cage_eng.js `propFitCheck`, run after the whole layer chain — the
+  engine layer is built before the wing and the gear — as a microtask in the editor and by
+  the join outright): the disc sampled at four radii, every 15°, a blade's chord fore and
+  aft, against CAGE_WING.overAt/underAt and CAGE_GEAR.AF; a hit paints the blades the tank's
+  red, the status line and the join say `prop: through the wing (26 of 288 points), through
+  the body (48)`. The unit publishes `prop: { hub, R, group }`; `CAGE_ENG.propFit` reads it.
+- THE ROD BOOM'S TAIL DATUM (the playtest's 130): with no tail rings the frame's tail end
+  stayed the rule's (tailBot 0.20 / tailTop 0.38, level) while the drawn rod climbed
+  tan(rodIncl) to its tip and the join handed the frame the tailwheel's measured height alone
+  — 0.36 m above a post that had not moved. The rod's tip section (the aft skin extreme, a
+  hand in) is the datum now, the stab's seat and the tailwheel's leg measured against it;
+  `fus.tailTop` written whenever measured (a rod's tip sits below the keel datum on the
+  Chinook — the `> 0` test dropped it).
+- THE THRUST LINE'S TILT: `engines[].tilt` (deg, downthrust +, clamped ±15; 60_gen_spec),
+  `params.engTilt` (62_gen_aero), the solver turns each engine's force about the lateral
+  axis (30_solver; zero on every def that says nothing), the cage dial `engTilt` draws the
+  unit at the angle (one +x rotation for both a nose and an aft unit — three.js composes
+  Rx·Ry), the join writes it. Measured on the Chinook at 0/5/10°: take-off 108/110/112 m,
+  climb 2.61/2.64/2.64 — trim, as expected on a short arm.
+- THE STRUT PODS: `GEN_BAYS.strut` (on: 'strut', a pod on each front lift strut, the pair
+  sharing the litres; a cantilever offers nothing), form `ogive` (r = R (1 − (2u − 1)²)^0.65,
+  0.55 of its box, fineness 4 from the litres), billed on each strut's two end nodes by
+  lever (61_gen_frame; wf.L/R strutRoot + strutF), the wing layer publishes its drawn struts
+  (`CAGE_WING.struts`), the tank layer places, draws (a lathe on the strut's axis) and
+  panels them (length, diameter, up the strut); the fit says into the body / into the wing.
+- THE CHINOOK on all of it (CHINOOK-STUDY §5): centre section 'aft half cut' 1.9 m, engine
+  at engBlockZ 0.35 / engBlockY 0.40 over the slot, taper 0.25, rod 6°, 38 L in two strut
+  pods: `prop: clear`, CG 36 %, margin 9 %, empty 219 kg, flies (take-off 175 m at MTOW,
+  landing 80). The shelf's row and the card regenerated.
+- THE ACCURACY SHEET (the user: "a nice little report, cool to look at that takes our 4
+  planes ... spec sheet VS real ... promotional material"): futureDesigns/ACCURACY-SHEET-
+  2026-09-21.html, one page, the four builds (garage_shot --clean quarter + side, 960x840),
+  bench vs published with deviation bars, the balance strip, the flown line, the 9x4 matrix
+  and the reading: mass and balance transfer to the blind Chinook (empty +5 %, margin 9 %),
+  the powerplant does not (T0 -21 %, ROC -60 %, TO +133 %) - the 582 row's static thrust is
+  the owed number. Published as an artifact for the user the same evening.
