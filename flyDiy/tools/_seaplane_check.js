@@ -40,8 +40,8 @@ function fly(o) {
   const sea = world.aerodromes.find(a => a.id === 'SEA');
   const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
   const ap = C.makePilot(sim, def, world); ap.setRoute(sea, sea);
-  const R = { lift: null, touch: null, stopped: null, maxXWater: 0, maxHdgRun: 0, maxXRun: 0, finite: true, phases: [], touchDepth: null, touchX: null, touchZ: null, hdgTaxi: 0, xTaxi: 0, hdgRef: null };
-  let T = 0, last = '', wasWet = true;
+  const R = { lift: null, touch: null, stopped: null, maxXWater: 0, maxHdgRun: 0, maxXRun: 0, finite: true, phases: [], touchDepth: null, touchX: null, touchZ: null, hdgTaxi: 0, xTaxi: 0, hdgRef: null, skips: 0, airborne: false };
+  let T = 0, last = '', wasWet = true, dryFrom = null;
   for (let s = 0; s < (o.maxS || 400) * 60; s++) {
     ap.update(1 / 60);
     if (o.idle) sim.ctl.thr = 0.12;
@@ -57,7 +57,15 @@ function fly(o) {
     // lane's two directions and the tie fell the other way once the water
     // rudder grew): a |hdg| of 179.9 read on the taxi was the U-turn, not
     // the run. From the first ROLL frame, relative and wrapped.
-    if (wet && R.lift == null) {
+    // G451.2: THE RUN IS JUDGED UNTIL THE AEROPLANE IS AIRBORNE FOR REAL —
+    // dry for two whole seconds — not until the first dry frame. The
+    // ultralight skipped off the ventilated step at 15 m/s (0.99 Vs) in the
+    // crosswind, ballooned under the Vr pull, fell back crabbed at 12.5 m/s
+    // and water-looped 140 deg, and the instrument had stopped looking one
+    // frame before (the red-gates session's finding on e433d31c). Every
+    // wet frame of the ROLL / LIFTOFF counts now, and a wet-dry-wet cycle
+    // before the aeroplane is away is a SKIP, reported and bounded.
+    if (wet && !R.airborne) {
       if (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF') {
         if (R.hdgRef == null) R.hdgRef = hdg;
         const d = ((hdg - R.hdgRef + 540) % 360) - 180;
@@ -65,8 +73,10 @@ function fly(o) {
       }
       R.maxXRun = Math.max(R.maxXRun, Math.abs(cg[0]));
     }
-    if (!wet && wasWet && R.lift == null && T > 2) R.lift = T;
-    if (wet && !wasWet && R.lift != null && R.touch == null) { R.touch = T; R.touchX = cg[0]; R.touchZ = cg[2]; R.touchDepth = world.waterH(cg[0], cg[2]) - world.terrainH(cg[0], cg[2]); }
+    if (!wet && wasWet && T > 2 && !R.airborne) dryFrom = T;
+    if (wet && !wasWet && dryFrom != null && !R.airborne) { R.skips++; dryFrom = null; }
+    if (!wet && dryFrom != null && !R.airborne && T - dryFrom >= 2) { R.airborne = true; R.lift = dryFrom; }
+    if (wet && !wasWet && R.airborne && R.touch == null) { R.touch = T; R.touchX = cg[0]; R.touchZ = cg[2]; R.touchDepth = world.waterH(cg[0], cg[2]) - world.terrainH(cg[0], cg[2]); }
     if (o.idle) { R.hdgTaxi = Math.max(R.hdgTaxi, Math.abs(hdg)); R.xTaxi = Math.max(R.xTaxi, Math.abs(cg[0])); }
     wasWet = wet;
     if (ap.phase === 'STOPPED') { R.stopped = T; break; }
@@ -88,8 +98,13 @@ console.log('CIRCUIT (calm, the pilot, SEA -> SEA)');
 if (ONLY.includes('crosswind')) {
 console.log('\nCROSSWIND TAKE-OFF (5 m/s across the lane)');
   const R = fly({ wind: [5, 0, 0], untilPhase: 'CLIMB', maxS: 120 });
-  console.log(`   lift-off ${f(R.lift, 1)} s; the run: max |x| ${f(R.maxXRun, 1)} m, max heading swing ${f(R.maxHdgRun, 1)} deg from the roll's ${f(R.hdgRef, 0)}; phases: ${R.phases.map(p => p.split(' ')[1]).join(' ')}`);
+  console.log(`   lift-off ${f(R.lift, 1)} s (airborne = dry 2 s; ${R.skips} skip${R.skips === 1 ? '' : 's'} before it); the run: max |x| ${f(R.maxXRun, 1)} m, max heading swing ${f(R.maxHdgRun, 1)} deg from the roll's ${f(R.hdgRef, 0)}; phases: ${R.phases.map(p => p.split(' ')[1]).join(' ')}`);
   verdict(R.finite && R.lift != null && R.lift < 25, `off the water inside 25 s (${f(R.lift, 1)})`);
+  // the ultralight hops once on the step at 13 m/s (0.4 s dry, the nose-high
+  // trim the ventilated step leaves it with — the owed hump-trim item) and
+  // touches once after the unstick; the loop is what the heading and lane
+  // bounds above catch, on every wet frame now
+  verdict(R.skips <= 2, `${R.skips} skip${R.skips === 1 ? '' : 's'} before the aeroplane is away (bound 2)`);
   verdict(R.maxXRun < 30, `the run holds the lane: ${f(R.maxXRun, 1)} m off (bound 30)`);
   verdict(R.maxHdgRun < 30, `the heading swings ${f(R.maxHdgRun, 1)} deg at most (bound 30)`);
 }

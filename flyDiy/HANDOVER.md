@@ -52988,3 +52988,29 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
 - OWED: only `lamp_wall` publishes a prop today; the drawn lanterns, pendants and floods are
   bag geometry with the glass bag's glow (already the day's through uLitK). The sea's moon glint
   (G449) stays the water session's.
+
+## G451.2 — THE CROSSWIND RUN JUDGED TO THE END; THE WATER PULL AT 1.12 Vr (2026-09-21, the red-gates session's finding on e433d31c)
+
+- THE HOLE: GATE SEAPLANE's crosswind block accumulated the heading swing
+  and the lane offset only while `R.lift == null`, and `lift` was set at the
+  FIRST dry frame. On the G451.1 core the ultralight (Vs 16.4) left the
+  ventilated step on its own at 15 m/s, the pilot's full pull at Vr
+  (G396.4; Vr = 0.99 Vs by GEN_VRATIO) ballooned it, it fell back crabbed
+  at 12.5 m/s and water-looped 140 deg 150 m off the lane — and the gate
+  read green because the instrument had stopped looking one frame before.
+- THE INSTRUMENT: every wet ROLL / LIFTOFF frame counts until the aeroplane
+  is dry for two whole seconds (`R.airborne`; `R.lift` is the start of that
+  spell); a wet-dry-wet cycle before it is a SKIP, reported and bounded at
+  2 (the ultralight hops once on the step at 13 m/s for 0.4 s — the
+  nose-high trim the ventilated step leaves it with, the owed hump-trim
+  item — and touches once after the unstick); the heading (30 deg) and lane
+  (30 m) bounds see the whole run now.
+- THE PILOT (43_pilot.js, one line): on the water the stick comes back at
+  1.12 Vr, not Vr (`A.vWaterStick` default). Measured: unstick 16.4 m/s,
+  one touch at 7.1-7.6 s with the heading swinging to 21 deg, away and
+  climbing; the 172 on 2350s lifts off at 25 s / 385 m / 28.9 m/s (22 s /
+  305 m before) and flies its circuit; SEAPLANE (circuit / crosswind /
+  taxi) and ARCHETYPES (floatplane) green.
+- OWED: the hop on the step (the hump trim of 12-14 deg with a dry
+  afterbody, kWake / H3); the red-gates session's own pilot line
+  (highThrust off on the water) is theirs to land.

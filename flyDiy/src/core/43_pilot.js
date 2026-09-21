@@ -1881,7 +1881,13 @@ function makePilot(sim, def, world, opts) {
         // 33 deg (a real float's lower trim limit); and never back either,
         // which buried the sterns and sank it back into the hump. From ON
         // THE STEP, at Vr (0.8 Vr ballooned the single 582 to 31 deg at 14 m/s and it fell back), the stick comes all the way back to unstick.
-        if (sim.hydro && onG > 0) deFloor = V > (A.vWaterStick ?? 1.0) * vr ? (A.deWater ?? 0.70) : 0.02;
+        // G451.2: ...at 1.12 Vr, not Vr. Vr is 0.99 Vs (GEN_VRATIO): a hull
+        // that ventilates its step (G451.1) leaves the water on its own
+        // around Vs, and a full pull there skipped the ultralight off at
+        // 15 m/s in a 5 m/s crosswind, ballooned it, dropped it back crabbed
+        // at 12.5 m/s and water-looped it 140 deg. Pulled at 1.12 Vr it
+        // touches once and climbs away (max swing 21 deg).
+        if (sim.hydro && onG > 0) deFloor = V > (A.vWaterStick ?? 1.12) * vr ? (A.deWater ?? 0.70) : 0.02;
         c.brake = 0;
         if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
         break;
