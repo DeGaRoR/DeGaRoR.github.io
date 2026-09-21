@@ -519,10 +519,12 @@ const ENG_ITEMS = [
   ['engRotate',  'rotation (pair)', 0, 2, 1,
    ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
    { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+  // ...on the pusher too (G461, the Chinook: its engine sits over the wing's
+  // trailing edge, ahead of the pod's aft face — _cage_cowl engineFaces)
   ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   // G250: the label says what the row is — the THRUST LINE. It moves the

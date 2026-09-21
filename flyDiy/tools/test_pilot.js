@@ -339,7 +339,7 @@ function checkCardFast(r) {
   // on `cd.V`, so compare against that and the fixture cannot rot again.
   check(!!cd && cd.VFlown != null && cd.V - cd.VFlown > 2,
         'fast: the flown speed is the aeroplane\'s truth (' +
-        (cd ? cd.VFlown : '—') + ' m/s of 45 asked)');
+        (cd ? cd.VFlown : '—') + ' m/s of ' + (cd ? cd.V : '—') + ' asked)');
 }
 
 // ---------------------------------------------------------------------------
@@ -517,12 +517,15 @@ for (const v of card.report.verdicts) console.log('   ' + v.t + 's ' + v.code + 
 checkCardHeld(card);
 });
 
-part('-- FAST: the stock build, asked for 45 m/s it does not have --', () => {
+part('-- FAST: the stock build, asked for 50 m/s it does not have --', () => {
 // PERF STUDY chantier 2 (2026-09-15): the stock holds 41.8 of the 45 m/s
 // asked now (the wetted drag build-up; it held 36 on the frontal-area row)
 // and flies its circuit legs that much longer — 340 s was the draggy
-// aeroplane's budget
-const fast = fly(null, 420, { V: 45 });
+// aeroplane's budget. G461: THE ASK IS 50. The verdict fires under 0.93 of
+// the ask — 41.85 of 45 — and the stock flies 41.8: a knife-edge the tail's
+// wake q (tailEta 0.9, a few newtons of stab drag less) tipped silent. Fifty
+// is a speed this aeroplane will never have, whatever its drag does next.
+const fast = fly(null, 420, { V: 50 });
 for (const v of fast.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardFast(fast);
 });

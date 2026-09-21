@@ -1126,7 +1126,8 @@ function makeSim(def, world) {
       const [Cl, Cd] = fl > 0
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
-      const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
+      const q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1), iv = 1 / Math.sqrt(V2);
       // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
       // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
       // the lift direction: the bound runs A -> B (inboard -> outboard) and
@@ -1191,6 +1192,39 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    P_.fusCdA);
     blob(def.refs.fusDragAft, P_.fusCdAAft);
+    // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
+    // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
+    // incidence, NOSE-UP with the nose up — destabilising, the term every
+    // hand calculation carries and the blobs (a crossflow force) cannot
+    // make. The incidence is the fore blob's own relative wind against the
+    // body axes; the couple is a force pair on the two blob rings, up on
+    // the fore ring and down on the aft, over the distance between them.
+    // (k2 - k1) and Multhopp's wing correction are one factor, P_.bodyMunk.K
+    // (GEN_RULES.bodyMunkK); a fiche without the record flies as before.
+    if (P_.bodyMunk && P_.bodyMunk.vol > 0 && def.refs.fusDrag && def.refs.fusDragAft) {
+      const A = def.refs.fusDrag, Bq = def.refs.fusDragAft;
+      let vx=0, vy=0, vz=0, ax=0, ay=0, bx=0, by=0;
+      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; }
+      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; }
+      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; bx/=Bq.length; by/=Bq.length;
+      let wx_ = 0, wy_ = 0, wz_ = 0;
+      if (world && world.wind) { const wv = world.wind(ax, ay, 0, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz;
+      const u = rx*xAft[0]+ry*xAft[1]+rz*xAft[2], wn = rx*yUp[0]+ry*yUp[1]+rz*yUp[2];
+      const Vr2 = u*u + wn*wn;
+      if (Vr2 > 1) {
+        // the body's incidence: the relative wind runs aft (u > 0 flying
+        // forward) and from below (wn > 0 along up) with the nose up
+        const alB = Math.atan2(wn, u);
+        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
+        const L = Math.hypot(bx - ax, by - ay);
+        if (L > 0.3) {
+          const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
+          for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
+          for (const i of Bq) { f[i*3] -= F/Bq.length*yUp[0]; f[i*3+1] -= F/Bq.length*yUp[1]; f[i*3+2] -= F/Bq.length*yUp[2]; }
+        }
+      }
+    }
   }
 
   // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
@@ -1530,7 +1564,7 @@ function makeSim(def, world) {
   // setNodeMass would have been invisible to every external reader (the
   // autopilot's taxi feedforward, the shakedown's weights). Same number as
   // ever for anything that never changes mass; nothing writes it.
-  const sim = { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+  const sim = { p, v, m, r, f, beams, n, ctl, out, get totalM() { return totalM; },   // f: the node forces of the last pass, readable (G461's NP decomposition)
            // THE CLOCK, READABLE (G460, ruling ap): the wave the floats are pushed by is
            // waterH(x, z, simT) - the renderer draws the same wave at the same t
            get t() { return simT; },

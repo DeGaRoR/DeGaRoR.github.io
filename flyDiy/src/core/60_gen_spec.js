@@ -331,10 +331,12 @@ const GEN_SURF_MATERIALS = {
   // tail, `tail.section` replaces GEN_RULES.tailSection for its members.
   // The cloth rows say nothing here — cloth is cloth, and their members ARE
   // the structure (the J-3's 14-16 kg fixed tailSection at 0.20).
+  // (G461: 0.75 -> 0.70 — a 172's stab skin is 0.5 mm, 1.35 kg/m2 per
+  // wetted m2, ~1.85 with its ribs and stringers = 0.70 of the wing row's 2.6)
   alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal', cover: 2.6,
-            tail: { cover: 0.75, section: 0.10 } }),
+            tail: { cover: 0.70, section: 0.10 } }),
   carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
-            tail: { cover: 0.75, section: 0.10 } }),
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -2317,7 +2319,10 @@ const GEN_RULES = {
   // post ring is the tube row's, 79 -> 84 at 0.4). [member, cover]; a row
   // absent here takes the two floors above. The alloy cone's real ratio:
   // a 172's post is ~0.4 of its box's perimeter and its cone ~28 kg.
-  fusAftFloors: { alloy: [0.3, 0.4], carbon: [0.3, 0.4] },
+  // (G461: [0.3, 0.4] -> [0.2, 0.3]; the stock alloy and carbon variants
+  // read the same substeps at 0.2 as at 0.7, the 172's cone 36 -> 33 kg
+  // against a 172R's ~28)
+  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3] },
   // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
   // mount, the baffles, the oil, the hoses and the engine controls
   // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
@@ -2387,7 +2392,22 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
+  // G461 (the 172's neutral point, the aero item): the body's Munk moment,
+  // 2 q (k2 - k1) Vol per radian, with (k2 - k1) (~0.9 at fineness 6-8) and
+  // Multhopp's correction for the wing's up/downwash folded into one factor
+  // (30_solver, on the two fuselage blobs). Measured: 172 NP 65 -> 59 %,
+  // Cub 44 -> 41, Jodel 36 -> 33 (their hand calculations 51 / 40 / 33-38).
+  bodyMunkK: 0.75,
+  // ...and the stab's dynamic pressure behind the body, 0.9 (a
+  // conventional tail; the propwash is in its local wind already)
+  tailEta: 0.9,
   tailSection: 0.20,
+  // G461: the tail's k and c FOLLOW a stressed-skin row's mass share
+  // (tail.section) — "stiffness follows mass", the rule the whole lattice
+  // keeps: 0 = in full (the alloy stock 145 -> 102 substeps, carbon 180 ->
+  // 128, the same reads as before the tail rate landed), 1 = k keeps the
+  // 0.20 share whatever the mass does (see 61_gen_frame)
+  tailSectionK: 0,
   // G457: no fuselage or tail node lighter than this (61_gen_frame re-lumps
   // each section's own mass toward its light nodes; the total and the
   // station stay). A stab tip's bow, rib and tape, a tail post's fittings

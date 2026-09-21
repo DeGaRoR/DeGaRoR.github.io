@@ -1665,6 +1665,19 @@ const ARCHETYPES = [
     // (PLAN_C172, the seventies' twin stripe, 200 L in the wings) was the
     // card until then and stays in the file for the other cards that read it
     over: { stock: 'cessna 172' } },
+  // THE CHINOOK (G461, 2026-09-21): the user's birdman.json, "the architecture
+  // from the birdman chinook 2S", corrected to the Chinook Plus 2 / Rotax 582
+  // sheet through the headless join (futureDesigns/CHINOOK-STUDY-2026-09-21.md)
+  // and the shelf's 'chinook' row, verbatim — the fourth validated aeroplane
+  { key: 'chinook', kind: 'recreation', name: 'Chinook-alike', note: 'tube-and-Dacron pod, ' +
+      'the 582 pushing over the wing, tandem, tailwheel — the shed’s own Chinook (G461)',
+    sel: { class: 'ulm', role: 'trainer', seatLayout: 0, paxCount: 1,
+           canopy: 'bubble', mirror: 0, intCons: 1, boomStyle: 1, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 3,
+           engFamily: 'inline', engModel: 'rotax 582', engMount: 'pusher',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+    over: { stock: 'chinook' } },
   // THE TURBOPROP SINGLE (2026-09-05, TURBOPROP §9 — the reason the arc
   // exists): a PT6A-114A on a strutted high-wing tricycle with the most
   // bays the class allows. On `n23` by the user's ruling (`util` stays

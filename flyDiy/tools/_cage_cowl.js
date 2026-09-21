@@ -408,7 +408,12 @@ function engineFaces(mesh, FS, P) {
   const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
     const f = noseFace(mesh, FS, 'tail');
-    return f ? [{ face: f, aft: true, kind: 'pusher' }] : [];
+    // G461 (the Chinook): THE PUSHER'S BLOCK MOVES TOO. The pod's aft face
+    // is where the mount bolts, and a Chinook's engine sits over the wing's
+    // trailing edge, a third of a metre ahead of where the pod ends — the
+    // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
+    // (block fore / aft, up / down), applied to the face the pusher stands on.
+    return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {
     if (!W || !W.leAt || ![0, 3].includes(Math.round(P.wgPos || 0))) return [];   // G185: or a parasol

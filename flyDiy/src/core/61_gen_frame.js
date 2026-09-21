@@ -211,13 +211,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // stab is a small wing, built of what the stab is built of — at its own
     // gain (GEN_RULES.tailK), so the rows below read `cls` through `row()`
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : cls === 'tail' ? (R.tailK ?? R.wingK ?? 1) : 1;
-    const tSec = R.tailSection == null ? 0.5 : R.tailSection;
-    // ...a stressed-skin row names its own share OF THE MASS (GEN_SURF_MATERIALS
-    // alloy/carbon `tail.section`, G457): its cover already carries the ribs.
-    // The stiffness and the damping keep GEN_RULES.tailSection — the first
-    // cut halved the alloy tail's k with its mass and GATE FLEX's alloy
-    // cantilever read its torsion as "near a mechanism".
-    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec;
+    const tSec0 = R.tailSection == null ? 0.5 : R.tailSection;
+    // ...a stressed-skin row names its own share (GEN_SURF_MATERIALS alloy/
+    // carbon `tail.section`, G457): its cover already carries the ribs. The
+    // share is the MASS's; the stiffness and damping follow it by
+    // GEN_RULES.tailSectionK (G461): 1 = k stays the fleet's 0.20 share (the
+    // alloy stock then binds its integrator on 0.26 kg stab tips against a
+    // 9e5 k — 145 substeps where the tube stock reads 76); 0 = k follows
+    // the mass share in full. The alloy tail at half keeps 2.3x the fabric
+    // tail's k — a stressed-skin stab is the stiffer one either way.
+    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec0;
+    const kFollow = R.tailSectionK == null ? 1 : R.tailSectionK;
+    const tSec = tSec0 * Math.pow(tSecM / tSec0, 1 - kFollow);
     const row = (tbl, c, sh = tSec) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? sh * tbl.wing : undefined));
     // a gear member is either the SPRING (vis 'leg') or its bracing
     let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;

@@ -1,0 +1,53 @@
+{
+ "cage": {
+  "wgSpan": 9.75,
+  "wgChord": 1.47,
+  "wgChordTip": 1.47,
+  "wgCrankChord": 1.47,
+  "cw_propD": 1.73,
+  "cw_bladeN": 3,
+  "s1Z": 1.85,
+  "engBlockZ": 0.75,
+  "wgDx": -0.2
+ },
+ "prop": {
+  "D": 1.73,
+  "blades": 3
+ },
+ "fuel": {
+  "litres": 38,
+  "tank": "nose"
+ },
+ "energy": {
+  "kind": "fuel",
+  "fuel": "avgas100LL",
+  "cell": "lifepo4",
+  "kWh": 0,
+  "vessel": "wet",
+  "finish": null,
+  "hue": 0,
+  "tint": null,
+  "vessels": [
+   {
+    "bay": "cabin",
+    "capacity": 38,
+    "along": 1.87,
+    "lv": 0.3,
+    "rot": 0,
+    "form": "box",
+    "dims": {
+     "L": 0.24,
+     "W": 0.42,
+     "H": 0.38
+    },
+    "finish": null,
+    "hue": null,
+    "tint": null
+   }
+  ]
+ },
+ "meta": {
+  "name": "chinook",
+  "reg": "C-ICHK"
+ }
+}

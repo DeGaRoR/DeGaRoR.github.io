@@ -299,22 +299,37 @@ function genFusSwet(S, ST) {
     }
     return L;
   };
-  let swet = 0, frontal = 0;
+  // ...and the section's AREA, the same walk closed by the shoelace (G461,
+  // the body's own pitching moment needs the volume)
+  const area = (halfW, h, nTop, nBot) => {
+    if (!(halfW > 0) || !(h > 0)) return 0;
+    let a = 0, prev = null, first = null;
+    for (let i = 0; i <= N; i++) {
+      const th = 2 * Math.PI * i / N;
+      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      if (prev) a += prev[0] * q[1] - q[0] * prev[1];
+      prev = q; if (!first) first = q;
+    }
+    return 0.5 * Math.abs(a);
+  };
+  let swet = 0, frontal = 0, vol = 0;
   const P = ST.map(st => per(st.w, st.yt - st.yb, nT, nB));
+  const A = ST.map(st => area(st.w, st.yt - st.yb, nT, nB));
   for (const st of ST) frontal = Math.max(frontal, 2 * st.w * (st.yt - st.yb));
-  for (let i = 0; i < ST.length - 1; i++) swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+  for (let i = 0; i < ST.length - 1; i++) { swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+                                            vol += (A[i] + A[i + 1] + Math.sqrt(A[i] * A[i + 1])) / 3 * (ST[i + 1].x - ST[i].x); }
   let cowlL = 0;
   if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
     cowlL = S.cowl.len;
-    const K = 8; let prevP = null;
+    const K = 8; let prevP = null, prevA = null;
     for (let i = 0; i <= K; i++) {
       const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
-      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
-      if (prevP != null) swet += 0.5 * (prevP + pc) * (cowlL / K);
-      prevP = pc;
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
+      if (prevP != null) { swet += 0.5 * (prevP + pc) * (cowlL / K); vol += (prevA + ac + Math.sqrt(prevA * ac)) / 3 * (cowlL / K); }
+      prevP = pc; prevA = ac;
     }
   }
-  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal };
+  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal, vol };
 }
 
 // Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the
@@ -414,7 +429,7 @@ function genFusCdA(S, fr) {
   const out = {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
-    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
+    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
             body, cool, heads, screen, junct, exh },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
@@ -1185,6 +1200,18 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
+    // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
+    // had no word for. A body in potential flow carries a destabilising
+    // moment dM/dalpha = 2 q (k2 - k1) Vol (Munk); the parts of it in the
+    // wing's upwash and downwash count more and less (Multhopp), taken as
+    // one factor GEN_RULES.bodyMunkK on the volume the wetted-area walk
+    // sums. The fuselage blobs stay: they are the crossflow force, the
+    // damping and the weathercocking; this is the couple they cannot make.
+    // tailEta: the stab's q behind the body (0.9 conventional; the propwash
+    // is already in its local wind).
+    bodyMunk: { vol: cda.drag.vol || 0, K: GEN_RULES.bodyMunkK == null ? 0.75 : GEN_RULES.bodyMunkK },
+    tailEta: GEN_RULES.tailEta == null ? 1 : GEN_RULES.tailEta,
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,

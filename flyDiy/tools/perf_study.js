@@ -95,6 +95,17 @@ const REAL = {
                dims: { length: 6.20, height: 2.07, AR: 5.3, cRoot: 1.72, cTip: 1.2, hSpan: 2.74, fuelL: 45, seats: 2,
                        engineHP: 65, engineKg: 77, propD: 1.83, cabinW: 1.05,
                        src: 'D.112 type sheet: 6.20 m long, 2 seats side by side, one 45 L tank; the tail span 2.74 and the height 2.07 measured off src/models/d112 (the reference plane payload)' } },
+  // THE CHINOOK (G461, the user's birdman.json "takes the architecture from
+  // the birdman chinook 2S"): the documented two-seater is ASAP's Chinook
+  // Plus 2 (the 2S evolved: the 1980s Birdman 2S has a 37 ft span and the
+  // 447/503, Wikipedia gives it no weights); with the Rotax 582 the user
+  // mounted, this row IS the Plus 2 / 582.
+  chinook:   { name: 'Chinook Plus 2 (Rotax 582, 64 hp)', mtow: 476, empty: 209, S: 14.35, b: 9.75, powerKW: 48,
+               Vs1: 56, V75: 133, Vmax: 153, roc: 6.1, TO: 61, LDG: 91, LD: 10, T0: 1500, engineMatch: true,
+               src: 'ultralightnews ASAP Chinook Plus 2 sheet: 32 ft span, 154.5 sq ft, 17 ft 8 in, 5 ft 10 in, 380 lb empty / 1050 lb gross, 10 US gal, Rotax 503/582, stall 35 mph (32 with flaperons), cruise 72/83 mph, max 95 (582), Vne 115, climb 1000/1200 fpm, take-off 250/200 ft, glide 10:1, +4/-2 g; pilotmix Plus 2/582: empty 460 lb, 1050 MTOW, stall 32 mph, cruise 83, climb 1200 fpm, take-off 200 ft, landing 300 ft; Vs1 taken at 35 mph clean',
+               dims: { length: 5.38, height: 1.78, AR: 6.6, cRoot: 1.47, cTip: 1.47, fuelL: 38, seats: 2,
+                       engineHP: 64, engineKg: 39, propD: 1.73, cabinW: 0.60,
+                       src: 'ASAP sheet: 17 ft 8 in long, 5 ft 10 in high, 32 ft span, 154.5 sq ft (chord 4.83 ft = 1.47 m, constant), tandem, 10 US gal; the 582 with the E gearbox 39 kg dry; a 68 in three-blade IVO is the usual prop' } },
   c172:      { name: 'Cessna 172R (IO-360-L2A 160 hp)', mtow: 1111, empty: 736, S: 16.2, b: 11.0, powerKW: 119,
                // Vs1 was 87 (the flaps-30 KCAS) until 2026-09-20: the POH's
                // section 5 gives 44 KIAS / 51-52 KCAS flaps up at 2450 lb

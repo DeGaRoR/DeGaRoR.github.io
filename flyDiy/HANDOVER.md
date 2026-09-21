@@ -53608,3 +53608,52 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
 - THE NUMBER: G440.x -> G459.x -> G460.x at the landing (A6's G440 had taken the number on master; G459
   went to the wing-end-faces session during the rebase). tools/_media_check.js: the budget 7.95 -> 8.0
   (water.js 45 KB of code, the LF build 7.87 MiB).
+
+## G461 — THE NEUTRAL POINT (the aero item), THE 172'S LAST MASS ITEMS, AND THE CHINOOK
+## (2026-09-21, the user: "proceed with your suggestions, and implement the last items in the
+## Cessna ... The attached build takes the architecture from the birdman chinook 2S ... review
+## the setup against the specs ... save it directly as official once it flies")
+
+- THE INSTRUMENT: `tools/_np_decomp.js build.json` — the probe's dM/dalpha and dL/dalpha with
+  the tail off, the fuselage's vertical blobs off, both off (sim.f, the node forces of the
+  last pass, is readable now). On the 172: the wing alone reads its AC at 29 % of chord from
+  the root LE (25 % of the true MAC — the tapered outer panel's LE sits aft; the high wing's
+  lift vector tilting forward with alpha adds 5 %, real), the tail 26 %, the blobs +4, no
+  body term: NP 65. A hand calculation on the same tail (V_H 0.62, a_t/a_w 0.73, eta 0.9,
+  1 − 0.4) gives 51 with the body's Munk moment (−5.5). TWO TEXTBOOK TERMS THE PROBE HAD NO
+  WORD FOR: the body's own pitching moment — 2 q (k2 − k1) Vol per radian, destabilising, on
+  the volume the wetted-area walk now sums (62_gen_aero `drag.vol`, the section's area by
+  the same superellipse walk), Munk's (k2 − k1) and Multhopp's wing correction as one
+  factor `GEN_RULES.bodyMunkK` 0.75, applied in the solver as a couple on the two blob rings
+  (up on the fore, down on the aft); and the stab's dynamic pressure behind the body,
+  `tailEta` 0.9 (the propwash is in its local wind already). 172 NP 65 → 56.5 (margin 21 %),
+  Cub 44 → 40 (the J-3's ~40; margin 17), Jodel 36 → 31 (margin 4 — the kernel's dε/dα 0.65
+  behind a cranked low wing; a D.11 with two aboard IS lightly stable). The blobs stay: the
+  crossflow force, the damping and the weathercocking.
+- THE 172'S LAST MASS: the alloy/carbon tail cover 0.75 → 0.70 (0.5 mm skin, 1.35 kg/m2 per
+  wetted m2, ~1.85 with ribs and stringers), the alloy/carbon cone floors [0.3, 0.4] →
+  [0.2, 0.3] (cone 36 → 33 kg; the stock alloy and carbon variants read the same substeps
+  either way). 172 empty 34.2 → 33.3 %, tail 25.7 kg (a 172R's ~23).
+- STIFFNESS FOLLOWS MASS ON THE TAIL: G457's `tail.section` 0.10 took the alloy tail's
+  MASS to half and left its k at the 0.20 share — the alloy stock bound its integrator on
+  0.26 kg stab tips against a 9e5 k, 105 → 145 substeps, carbon 141 → 180 (no gate: they
+  are not fixtures). `GEN_RULES.tailSectionK` 0: k and c follow the mass share (the alloy
+  tail keeps 2.3x the fabric one's k); alloy 102, carbon 128.
+- THE FIXTURES THAT MOVED: PILOT's FAST card asked 45 m/s of a stock that flies 41.8 — the
+  verdict fires under 0.93 × 45 = 41.85, a knife-edge the tail's wake q tipped silent; the
+  ask is 50. DESIGN: the Chinook card's palette colour. ENERGYBASE and WINGSPLIT re-blessed.
+- THE CHINOOK (futureDesigns/CHINOOK-STUDY-2026-09-21.md, `tools/_rejoin_build.js` = the
+  re-join recipe as a tool, `tools/_stock_row.js` = a build as page5 rows): the user's
+  birdman.json measured against the Chinook Plus 2 / 582 sheet (the documented two-seater;
+  the 2S proper has no published weights — perf_study REAL `chinook`, the sources in the
+  row). As found: CG 62 % MAC, margin −18 %, the engine 0.15 m behind the trailing edge on
+  the pod's aft face, the mains behind the CG, a 1.41 m two-blade prop, 17 L. Corrected
+  through the join: span 9.75 × 1.47 (S 14.2), the 1.73 m three-blade IVO, 38 L behind the
+  rear seat, the engine OVER THE WING at 60 % MAC — `engBlockZ` / `engBlockY` apply to the
+  pusher mount now (_cage_cowl engineFaces, the pod's face moved; _cage_eng rows) — the
+  wing 0.2 m aft (the pilot's head under the LE), the mains 0.3 m forward. CG 41 %, margin
+  3 %, flies its circuit (take-off 337 m, climb 3.1 m/s, landing 192). The shelf's
+  'chinook' row + the Chinook-alike card (over: stock). Owed: an ALUMINIUM-TUBE material
+  row (the model's tube-and-fabric rows are 4130 + wood at the J-3's gauge: empty 269 vs
+  209 kg, and that excess is aft — the margin's last 7 %), a thrust-line TILT dial with its
+  physics, the 582 row's static thrust (1168 vs ~1500 N on the 68 in IVO).
