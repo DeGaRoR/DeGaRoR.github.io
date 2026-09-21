@@ -53219,3 +53219,32 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
   limit loads) was discussed and not built — the rig's cfg.limit/ult exist for it; the
   yield model itself (a strut class with its own area) is the honest next step if the
   warning is to become a fail again.
+
+## G459 — THE WING'S END FACES: A BOLTED PLATE AT A CUT ROOT, A RIVETED RIB AT A SQUARE TIP
+## (2026-09-21, the user: "the flat face at the end of the wing with the cut parameter, and
+## probably the central portion of the wing with the cut central section ... maybe an issue with
+## beveling a hard edge, or these parts not correctly mapped. On the inside (cut center), I'd like a
+## full longeron or at least a bolted metal plate, and whatever is proper on the wing far end")
+
+- WHAT IT WAS: genCapLoft closes the loft's first and last rows with a fan in the SKIN mesh - the
+  face's vertices are the row's, so its surface field carried ONE span coordinate across the whole
+  face (the grammar's rivet rows and tapes smeared into a streak), and welded to the skin's
+  vertices, computeVertexNormals rolled the edge - the face shaded as a soft bevel of the skin
+  instead of a rib standing at a hard edge. Both symptoms the user named.
+- THE RIB CAPS ARE THEIR OWN CLASSES (_cage_wing.js skinClass / capOf): a primitive whose vertices
+  all sit at one span station is a cap - `capRoot` at the root station, `capTip` at the extreme -
+  and it takes its own bucket (its own vertices: a hard edge; its own material: no field). ONLY
+  WHERE THE FACE SHOWS: the root caps when the centre section is `removed`, the tip caps on a
+  `square` or `clipped` tip. Everywhere else a cap stays in its skin class - GATE CLIP measures
+  the fittings against closed skins, and splitting the hidden root fans inside a solid centre put
+  the comm aerial "33 mm into the wing" (a lone open fan is not a surface).
+- THE CUT ROOT IS A BOLTED PLATE: the face in the gear kit's bare alloy (GG.gearMat('alloy'),
+  triplanar), a ring of 4.5 mm bolt heads 22 mm inside its outline at ~55 mm pitch, walked round
+  the rim in the face's own plane; G274's carry-through longeron (the spar pair as box members
+  across the cut) is what it bolts to and stands as before. THE SQUARE TIP'S END RIB is the wing
+  skin's own finish on the triplanar material with the skin's rivets 12 mm inside the rim at
+  ~40 mm - the tip rib's flange. Named `edCap_capRoot` / `edCap_capTip` in the wing group (the join
+  bakes them with the wing).
+- SEEN: scratch a7_caps_sheet.png (the Cessna with the centre removed and a square tip: the port
+  root face from the centreline and from above, the tip face from outboard and from above).
+- GATES: CLIP, PARTS, JOIN, UISMOKE, VIEW, MEDIA, LIGHT, BAY, BEACON, STRUT, CAGEFIT, SKIN green.
