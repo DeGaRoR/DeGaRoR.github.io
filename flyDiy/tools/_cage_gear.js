@@ -341,7 +341,11 @@ PAGE.post = ctx => {
     try {
       const S = CG2.cageSpec(P), R = CG2.cageResolve(S);
       if (!S.rod || !R.rodSpan) return null;
-      const tI = Math.tan((S.rod.incl || 0) * Math.PI / 180);
+      // G474: `S.rod.incl` is RADIANS already (_cage_gen cageSpec converts the
+      // row); this converted it again, so the saddle's axis line (G307) and
+      // the rise below read 1/57 of the inclination - the saddle sat off an
+      // inclined tube by the whole rise, and the tailwheel rode it
+      const tI = Math.tan(S.rod.incl || 0);
       return { zRoot: R.rodSpan.zRoot * FS, zTip: R.rodSpan.zTip * FS, r: S.rod.r * FS,
                yAx: z => (S.rod.y + tI * (R.rodSpan.zRoot - z / FS)) * FS };
     } catch (e) { return null; }
@@ -358,6 +362,15 @@ PAGE.post = ctx => {
     };
     provider.saddle = { ctr: [0, rodSpan.yAx(st.z), st.z], axis: [0, 0, -1], r: rodSpan.r };
     provider.onDrawn = rec => saddlesOut.push(rec);
+    // G474 (playtest item 130, the birdman: "the rod inclination impacts the
+    // position of everything related to the tail wheel"): the saddle rides
+    // the tube, so an inclined rod (tail up +) lifted the whole tailwheel
+    // with it - 0.265 m at 6 deg on the birdman, measured - and the stance
+    // solver then dropped the tail until the wheel touched: the row that
+    // says "tail up" sat the aeroplane MORE tail-down. The rise of the tube
+    // at the station over its root is handed to the leg, which lengthens
+    // its spring by it so the wheel's contact stays on the design line.
+    provider.rise = rodSpan.yAx(st.z) - rodSpan.yAx(rodSpan.zRoot);
     return provider;
   };
   const wingMount = (st, sgn) => {
@@ -429,6 +442,11 @@ PAGE.post = ctx => {
       else if (om) st.mount = om;
       else delete st.mount;
       if (st.leg === 3) {
+        // G474 (item 130): the rod's rise at this station over its root,
+        // whatever the mount (the tailwheel usually sits past the saddle's
+        // reach, on the rod's tip cap) - the spring lengthens by it
+        if (rodSpan) st.rodRise = rodSpan.yAx(st.z) - rodSpan.yAx(rodSpan.zRoot);
+        else delete st.rodRise;
         // legTailwheel builds spring AND wheel into one bag-set; the
         // proxies route the spinning parts to the wheel unit, the fork
         // (and now its spat, G133) to the castor unit, and the spring —

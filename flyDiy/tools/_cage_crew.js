@@ -1030,9 +1030,29 @@ function buildPedals(g, A, P, sx) {
     // in the air under the skin ahead of the nosewheel. The keel line is
     // A.floorAt(z); the block sits on it at its own station.
     const cb = K.Bag(), fl = K.Bag();
-    const zC = zA + 0.24, yC = A.floorAt(zC);
+    // G474: ...and on the DRAWN belly where that is higher than the keel
+    // line (ahead of the cabin the smooth skin runs above the control
+    // cage's keel; the block sat 7 mm under the aeroplane, the cable
+    // through the skin - item 20 again, the second cause)
+    const zC = zA + 0.24;
+    const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
+    // 18 mm over the belly: the block's own half-height and the skin's
+    // liner (the cabin's inner face is ~4 mm inside the outer skin)
+    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.018 : -Infinity);
     const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
-    K.tube(cb, e0, e1, 0.0015, 6);
+    // the cable follows the belly where the belly rises above its chord (a
+    // convex-up run under the pedals to a fairlead at the nose): four legs,
+    // each point lifted to 12 mm over the drawn skin
+    const legs = [e0];
+    for (let i = 1; i < 4; i++) {
+      const s = i / 4;
+      const q = [e0[0] + (e1[0] - e0[0]) * s, e0[1] + (e1[1] - e0[1]) * s, e0[2] + (e1[2] - e0[2]) * s];
+      const bq = A.bellyAt ? A.bellyAt(q[0], q[2]) : null;
+      if (bq != null && q[1] < bq + 0.012) q[1] = bq + 0.012;
+      legs.push(q);
+    }
+    legs.push(e1);
+    for (let i = 0; i < legs.length - 1; i++) K.tube(cb, legs[i], legs[i + 1], 0.0015, 6);
     K.boxIn(fl, [xp, yC + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
     K.bolt(pl0, [xp, yC + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
     cb.mesh(g, M.frame); fl.mesh(g, M.cast);
@@ -2961,7 +2981,45 @@ function anchors(spec, P, mesh) {
     for (const q of sidePts) if (q[3] && q[0] * sd > 0 && Math.abs(q[1] - y) < 0.06 && q[2] > zM) zM = q[2];
     return zM;
   };
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  // THE DRAWN BELLY AT A PLACE (G474, playtest item 20, the user of Screenshot
+  // 2026-09-17 190717: "a control poking through under the cowl"). The keel
+  // line above is the CONTROL cage's - a polyline through the rings' keel
+  // points - and the drawn skin is the subdivision surface INSIDE that
+  // polygon: ahead of the cabin, where the belly rises to the nose, the
+  // smooth skin runs 7 mm above the keel line (measured, build (4)) and the
+  // pedals' cable fairlead placed on `floorAt` hung under the aeroplane. This
+  // reads the displayed mesh: the lowest skin vertex within 5 cm of (x, z),
+  // in metres; null where the mesh has no skin (a headless list).
+  const bellyPts = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!FLOOR_WALL.test(f.m || '') && !/^(plywood|cloth|aluminium|taper)/.test(f.m || '')) continue;
+      for (const vi of f.v) {
+        const v = mesh.V[vi];
+        if (v[1] * k < (spec.waistY || 0) * k) bellyPts.push([v[0] * k, v[1] * k, v[2] * k]);
+      }
+    }
+  // (the belly rises toward the nose, so the lowest vertex in a window is
+  // its aft edge: the skin is the lowest vertex per centimetre of station,
+  // interpolated at z between the nearest stations either side)
+  const bellyAt = (x, z) => {
+    const bins = new Map();
+    for (const q of bellyPts) {
+      if (Math.abs(q[0] - x) > 0.04 || Math.abs(q[2] - z) > 0.08) continue;
+      const b = Math.round(q[2] * 100);
+      if (!bins.has(b) || q[1] < bins.get(b)) bins.set(b, q[1]);
+    }
+    if (!bins.size) return null;
+    let a = null, c = null;
+    for (const [b, y] of bins) {
+      const zb = b / 100;
+      if (zb <= z && (!a || zb > a[0])) a = [zb, y];
+      if (zb >= z && (!c || zb < c[0])) c = [zb, y];
+    }
+    if (a && c && c[0] > a[0]) return a[1] + (c[1] - a[1]) * (z - a[0]) / (c[0] - a[0]);
+    return (a || c)[1];
+  };
+  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be

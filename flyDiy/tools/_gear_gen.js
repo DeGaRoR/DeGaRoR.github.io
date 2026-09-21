@@ -834,10 +834,16 @@ const padArc = (AF, z, W, ang) => {
   }
   return Math.min(PAD_ARC, tot);
 };
+// THE PAD IS PAINTED WITH THE AEROPLANE (G474, playtest item 20 - the user
+// of Screenshot 2026-09-17 190717 read the mains' bare grey trunnion plate and
+// brace plate, seen past the nose leg, as "a control poking through the
+// aircraft"): a doubler bolted to the belly is painted over on every light
+// aeroplane; it goes to the steel bag (gearLeg, `wears: 'parent'`) so the
+// base colour reaches it, and only the bolt heads stay bare alloy.
 function fitPad(bags, AF, z, ang, L, W, opt) {
   opt = opt || {};
   const NL = 7, NW = 5;
-  const bag = bags.alloy;
+  const bag = bags.steel || bags.alloy;
   const rows = [], out = [];
   for (let i = 0; i <= NL; i++) {
     const zz = z + L * (i / NL - 0.5);
@@ -987,7 +993,7 @@ function pivotOn(bags, Fr) {
 function padFlat(bags, Fr, L, W, opt) {
   opt = opt || {};
   const NL = 7, NW = 5;
-  const bag = bags.alloy;
+  const bag = bags.steel || bags.alloy;           // G474: painted, as fitPad's
   const rows = [], out = [];
   for (let i = 0; i <= NL; i++) {
     const ri = [], ro = [];
@@ -1522,7 +1528,21 @@ function legOleo(bags, AF, P, st, sgn) {
     const bp = off(bTop.p, bTop.n, 0.018);
     padOn(bags, AF, st, zB, aS * P.oleoAng * D2R * 0.6,
           0.10, 0.09, { thick: 0.006 }, -aS * hubIn);
-    taper(bags.steel, bp, off(trunn, dir, cylL * 0.72), 0.013, 0.010, 12);
+    // G474 (playtest item 20, the user of Screenshot 2026-09-17 190717: "a
+    // control poking through the aircraft, I can't identify"): the brace
+    // was a bare rod from a flat pad to the cylinder, and read as a stray
+    // pushrod. It is a DRAG BRACE, and it now looks like one: a clevis of
+    // two lugs on the pad with a bolt through the rod's eye, the rod's
+    // ends as eyes on both fittings, a collar on the cylinder where it
+    // lands - the fittings every nose leg's drag link actually has.
+    const bEnd = off(trunn, dir, cylL * 0.72);
+    const bAx = nrm(crs(sub(bEnd, bp), bTop.n));             // the pivot's axis, across the brace
+    for (const s of [-1, 1])
+      lug(bags.alloy, off(bp, bAx, s * 0.012), bAx, bTop.n, 0.014, 0.006, 0.030);
+    revolve(bags.bronze, off(bp, bAx, -0.019), bAx, [[0.005, 0], [0.005, 0.038]], 10, true);
+    revolve(bags.steel, bp, bAx, [[0.011, -0.004], [0.011, 0.004]], 12, true);   // the rod's eye
+    taper(bags.steel, off(bp, nrm(sub(bEnd, bp)), 0.012), bEnd, 0.011, 0.009, 12);
+    revolve(bags.steel, bEnd, dir, [[P.oleoDia * 0.5 + 0.004, -0.014], [P.oleoDia * 0.5 + 0.004, 0.014]], 16, true);   // the collar
   }
   // G133: the oleo's shroud — THE pillar fairing. Chord is sized so the
   // elliptic nose still swallows the torque scissor's knee at full offset.
@@ -1684,7 +1704,11 @@ function legTailwheel(bags, AF, P, st) {
   const F = fitOn(AF, st, st.z, 0);
   const root = off(F.p, F.n, 0.008 + P.twSpringT * 0.5);
   const tipZ = st.z - P.twSpringLen;
-  const tip = [0, AF.keelAt(st.z) - P.twSpringDrop, tipZ];
+  // G474 (item 130): on an inclined rod the mount rose with the tube; the
+  // spring drops by that rise as well, so the wheel stays on the design
+  // ground line (the mount says how much - see _cage_gear.js rodMount)
+  const rise = st.rodRise || (st.mount && st.mount.rise) || 0;
+  const tip = [0, AF.keelAt(st.z) - P.twSpringDrop - rise, tipZ];
   const ctrl = [0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);

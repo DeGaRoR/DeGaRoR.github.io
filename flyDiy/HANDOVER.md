@@ -54201,3 +54201,50 @@ at 150 m AGL, medium (ng 128, 9 km, 256 chunks): 79 ms median / 89 p90 headless,
 ~3.4 GB of the card. Pictures: screenshots/density/new_forest (the old-forest spot, the
 young stand dense to the lake, the slopes across it filling), new_field (muskeg round the
 field at 18 /ha by its own mix; the mountains treed but thin - the base quarter).
+
+
+## G474 — A7 OF THE PLAYTEST TRIAGE, FOURTH PASS: THE "CONTROL POKING THROUGH", THE ROD'S
+## RISE AND THE TAILWHEEL, THE WING TANK VERIFIED, THE HANDS AFTER FLOATS (2026-09-22, the
+## user: "keep going on A7, screenshots as proof")
+- THE "CONTROL POKING THROUGH" (item 20, Screenshot 2026-09-17 190717, build (4)) was THREE
+  things under the nose, taken one by one with the skin hidden and every mesh projected to
+  the screen (a7_nosegear.js): (1) the rudder pedals' cables and their fairlead - the block
+  sat on the CONTROL cage's keel line (G444), and ahead of the cabin the drawn skin runs
+  7 mm above that line (the subdivision surface is inside its polygon), so the block hung
+  under the aeroplane and the cable pierced the belly 4 cm ahead. The crew anatomy reads the
+  DRAWN belly now (`A.bellyAt(x, z)`: the lowest skin vertex per centimetre of station,
+  interpolated), the fairlead sits 18 mm over it and the cable runs as four legs each held
+  12 mm over the skin (raycast: block 6 mm inside, 33 mm of nose skin ahead of it). (2) The
+  nose oleo's DRAG BRACE, a bare rod from a flat pad to the cylinder, read as a stray
+  pushrod: a clevis of two lugs on the pad with a bolt through the rod's eye, the rod's eye,
+  a collar on the cylinder. (3) The far MAIN's trunnion and brace PADS, bare grey squares on
+  a white belly seen past the nose leg: every pad is painted with the aeroplane now (the
+  steel bag, gearLeg `wears: 'parent'`), only the bolt heads bare. Shots:
+  shots_a7_nosegear/cmp2.png.
+- THE ROD'S RISE AND THE TAILWHEEL (item 130, the birdman: "the rod inclination impacts the
+  position of everything related to the tail wheel"): measured, +6 deg of `rod inclination
+  (tail up)` lifted the tailwheel's contact 0.265 m (gear.twY), so the stance solver sat the
+  aeroplane MORE tail-down - the row said the opposite of what it did. Two causes. The gear
+  layer's rod line (G307) converted `S.rod.incl` from degrees a second time (it is radians
+  since cageSpec), so the saddle's axis read 1/57 of the inclination - fixed. And the
+  tailwheel's spring hung from the tube wherever the tube was: the station's rise over the
+  rod's root (`st.rodRise`, whatever the mount) now lengthens the spring by the same amount,
+  so the wheel's contact stays on the design line: twY 0.0009 at 0, +6 and -6 deg
+  (a7_rod.js; shots_a7_rod/cmp.png).
+- THE WING TANK DOES NOT CLIP (item 131, "fuel wing option clips everywhere - mesh should be
+  fitted"): G445.2 (the C172 session, 2026-09-20, after the playtest) made the wing tank the
+  spar bay's own section off the wing layer's probes. Verified on the birdman (root and
+  panel bays) and the pusherLight: 0 of 160 vessel vertices outside the wing's over/under
+  band, every bay (a7_wingtank.js). The birdman's 17 L box still "runs past the bay by
+  0.09 m" (the advisor's verdict, a red wet volume) - that is item 14's auto-fit (T2.3).
+- THE HANDS AFTER FLOATS -> TRICYCLE (item 125, cessnaMetal (1)): unreproduced again. The
+  floats build loaded, `gearFloats` 0 + both wheel stations on, rebuilt: the seven hand and
+  foot jobs are bit-identical before and after (wrists 10-11 cm off their grips = the palm
+  offset), the aft bulkhead 112 faces (a7_hands.js). A recipe that shows it is welcome.
+- GATES: GEAR, CLIP, STRUT, CABIN, PARTS, FIT, HINGE, JOIN, SAVE, UISMOKE, DESIGN, WINGSPLIT,
+  SKINMAT, ENERGY, FLOATS, WIPLINE green. SEAPLANE is RED ON MASTER before this pass (the
+  crosswind run: "off the water inside 25 s (null)", 81.5 m off the lane, 180 deg of swing)
+  - the water track's, not touched here.
+- STILL OWED (A7): 15 nose-cone jiggle, 23/32 wing normals and grazing maps, 92 the cowl
+  gap under deformation, 149 the spine/keel rivet stretch, 151 the fin's mapping, 52's
+  flight-view check, 73's birth default.
