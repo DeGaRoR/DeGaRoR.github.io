@@ -521,23 +521,21 @@ function genShakedown(def, opts) {
     // G445.7 (the MASS chantier): THE EMPTY CG beside the loaded one — the
     // number a weight-and-balance sheet starts from, and the one that showed
     // the model's bias (37 % of chord on the Cub AND the Jodel where the
-    // books say 24-26). The same spec with no one aboard, no fuel and no
-    // freight, built once; null on a fiche without the doors.
+    // books say 24-26). G457: READ OFF THE LEDGER, not a second build. The
+    // rebuild "with no one aboard and no fuel" re-gauged the structure for
+    // the lighter gross (fus x0.98, gear x0.95), lost the tanks (a drained
+    // spec has no vessel) and the plumbing, and read 2.5 % of chord forward
+    // of the aeroplane that was actually built. The ledger carries each
+    // section's mass and moment (61_gen_frame `mx`); the empty aeroplane is
+    // its non-payload rows — the same structure, the people, fuel and
+    // freight left out. Null on a ledger without moments (an older core).
     cgEmptyX: (() => {
-      try {
-        if (!S || !S.fuel) return null;
-        const cs = genSpecAtFuel(S, 0);
-        if (cs.cabin) {
-          if (Array.isArray(cs.cabin.occupied)) cs.cabin.occupied = cs.cabin.occupied.map(() => 0);
-          else cs.cabin.occupied = new Array(Math.max(1, cs.cabin.seats || 1)).fill(0);
-          cs.cabin.baggage = 0;
-        }
-        if (cs.cargo) cs.cargo.kg = 0;
-        cs.baggage = 0; cs.cargoKg = 0;
-        const dE = buildGen(cs);
-        const sE = makeSim(dE, null); sE.reset(0);
-        return sE.cgPos()[0];
-      } catch (e) { return null; }
+      const L = def.parts && def.parts.ledger;
+      if (!L) return null;
+      let m = 0, mx = 0, any = false;
+      for (const k in L) { const e = L[k]; if (!e || e.payload || !(e.mass > 0)) continue;
+                           if (e.mx == null) return null; m += e.mass; mx += e.mx; any = true; }
+      return any && m > 0 ? mx / m : null;
     })(),
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way

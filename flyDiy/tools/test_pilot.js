@@ -450,14 +450,16 @@ console.log('-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns -
   const tpbY = base.nodes.find(n => n.tag === 'TPB').p[1];
   const spec = JSON.parse(JSON.stringify(GEN_DEFAULT));
   spec.gear.twY = tpbY - 0.06;
-  // ...WITH 30 KG IN THE BAGGAGE FRAME (G445.8, the MASS chantier): the aft
-  // fuselage and the tail lost a third of their mass to the rules that
-  // follow the section, and the empty stock's level drop stopped folding the
-  // leg (dot 0.72, strain 0.021 - under the stance's own 0.022, the negative
-  // control moot). The user's builds that flipped were loaded; loaded, the
-  // fall still folds it (dot 0.34, strain 0.22) and the stance still holds
-  // (0.91, 0.022).
-  spec.cargo = Object.assign({}, spec.cargo, { kg: 30 });
+  // ...WITH A CARGO BAY BEHIND THE CABIN AND 30 KG IN IT (G445.8 / G457, the
+  // MASS chantier): the aft fuselage and the tail lost a third of their mass
+  // to the rules that follow the section, and the empty stock's level drop
+  // stopped folding the leg (dot 0.72, strain 0.021 - under the stance's own
+  // 0.022, the negative control moot). The user's builds that flipped were
+  // loaded aft; a bay's freight sits on the bay's own aft bulkhead (G457 put
+  // plain baggage IN the cabin box, which no longer reaches the tail), and
+  // with it the fall still folds the leg (dot 0.36, strain 0.21) while the
+  // stance holds (0.91, 0.021).
+  spec.cargo = Object.assign({}, spec.cargo, { len: 0.6, kg: 30 });
   const def = buildGen(spec);
   const sim = makeSim(def, world);
   const run = (withStance) => {

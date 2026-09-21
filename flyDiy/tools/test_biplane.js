@@ -328,7 +328,14 @@ if (!process.argv.includes('--selftest')) {
   check(pl.useStrut, 'a parasol keeps its lift struts');
   const r0 = rigid(def);
   check(C.rigid(r0), 'parasol framework is rigid', r0.rank + '/' + r0.want);
-  const sh0 = cabaneShare(def);
+  // ...measured with NO FREIGHT aboard (G457): the share is the cabane's
+  // part of every vertical force at the root spar nodes, and freight on a
+  // cabin ring hangs from those same roots through the struts — 10 kg on
+  // the ring after the box read 25.5 %, the same 10 kg IN the box (where
+  // G457 put the baggage) 24.5, and 30 kg 38 or 18 by the ring. The load
+  // path under test is the wing's own; empty of freight it reads 27 % on
+  // both placements.
+  const sh0 = cabaneShare(buildGen(paraSpec({ cabin: { baggage: 0 } })));
   say('ROOT LOAD at 1 g: cabane ' + sh0.cab.toFixed(0) + ' N of ' + sh0.all.toFixed(0) +
       ' N vertical at the root spar nodes (' + (100 * sh0.share).toFixed(0) + ' %)');
   check(C.cabaneCarries(sh0), 'the drawn cabane carries the wing (>= 25 % of the root load)',

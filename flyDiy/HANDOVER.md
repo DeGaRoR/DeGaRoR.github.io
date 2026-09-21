@@ -53014,3 +53014,58 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
 - OWED: the hop on the step (the hump trim of 12-14 deg with a dry
   afterbody, kWake / H3); the red-gates session's own pilot line
   (highThrust off on the water) is theirs to land.
+
+## G457 — THE 172'S FORWARD MASS, BY STATION (2026-09-21, the user: "will I still struggle
+## getting the static margin numbers right?" — "we'll do both your recommendation, let's start
+## with the first one")
+
+- THE INSTRUMENT: the ledger carries each section's MOMENT (61_gen_frame `mx`, summed at
+  every `sec()` switch from the node masses added since the last), `tools/_mass_stations.js`
+  prints a build's sections by centroid (m, % MAC) and, with --nodes under GEN_MASS_TRACE,
+  by 0.25 m station with the node tags that carry them. The plaque's empty CG reads the
+  ledger's non-payload rows now (Σmx / Σm) instead of rebuilding a drained spec — the
+  rebuild re-gauged the structure for the lighter gross, lost the tanks and the plumbing,
+  and read 2.5 % of chord forward of the aeroplane on the stand.
+- SEVEN FINDINGS ON THE 172 (C172-STUDY §8 has the table): the tail on a stressed-skin row
+  billed twice (the alloy row's cover carries stringers and ribs AND tailSection 0.20 of a
+  wing spar on top: 38 kg vs a 172R's ~23 — `GEN_SURF_MATERIALS.alloy/carbon.tail = { cover
+  0.75, section 0.10 }`, cloth rows untouched); paint per covered NODE at 3.6 m → by covered
+  AREA at 2.0; the cowl and exhaust on ring 0 = the windscreen base → half the cowl on the
+  engine pair, the exhaust under the engine; the nose flange clamped at −1.0 m (G445.1's own
+  envelope; the drawn one is −1.10) → −3.0; the cone floors by material (`fusAftFloors`
+  alloy/carbon [0.3, 0.4]; the tube floors 0.5/0.7 are the twin fixture's post ring's —
+  measured 79 → 84 at 0.4 — and a stressed-skin cone's substeps do not move between them);
+  the wing tank on the FRONT spar pair alone (16 % MAC, a 172R's 34) → 0.6/0.4 between the
+  spars; the baggage on the ring AFTER the box (2.82 m) → in the box behind the last seat.
+- RESULT: 172 empty CG 43.5 → 34.2 % of chord (book 24-27), loaded 43.4 → 35.7; Cub 27.1 →
+  26.0 (24); Jodel 30.5 → 28.8 (26). The systems catalogue was not the item: its rows are
+  honest per item and the "55 kg" assumed an IFR fit this build does not carry. Named
+  remainder: the cone's last 8 kg and the tail's last 4 (integrator floors), then the NP
+  (the aero item: a hand calculation on the 172's tail gives ~49 against the probe's 65).
+- THE LUMPS: paint by area took 0.05 kg of ballast off every covered node, and the lattice's
+  lightest nodes — a stab tip at 0.12-0.19 kg, a tail post at 0.09 — are the integrator's
+  binding pairs against their class's k (the stock wing pair 79 → 81 substeps, the user's
+  twin boom 124 → 143, the twin matrix row 81 → 93). `GEN_RULES.lumpMin` 0.25 kg: the
+  fuselage's and the tail's own mass re-lumped so no node of the section is under it, the
+  deficit off the section's heaviest nodes in proportion — totals, stations and symmetry
+  untouched. Wing pair 79, nose 76, pusher 73, twin matrix 80, the user's twin 98 (from 124
+  on the landed core), the Cub 75. GATE MOUNT's 80 stands.
+- THE GATES THAT READ THE MOVED MASS, each fixed at the instrument: MASS (a wing tank is on
+  four nodes now, a pair at each spar); BIPLANE (the cabane's share of the root load read
+  with NO freight — 10 kg on ring 3 read 25.5 %, the same 10 kg in the box 24.5, 30 kg 38 or
+  18 by the ring; unladen it reads 27-28 % either way); PILOT's stance negative control (a
+  CARGO BAY with 30 kg — plain baggage sits in the box now and no longer reaches the tail;
+  the bay's freight folds the leg on the level drop, 0.36 / 0.21, the stance holds); FLEX's
+  torsion doubling is SIGNED (the alloy cantilever read −0.14 / −0.09 under a positive
+  couple once the baggage sat on the rear spar's ring — the root station turning with the
+  ring, the box's reading, not the wing's; a row is rated only when its twist is the
+  couple's way; the twin boom's 130 holds at 98); the first cut of the alloy tail's
+  `section` also halved the tail's k and c — it is the MASS share only now.
+- GATE GEN: the stock's legacy-autopilot landing sink 1.28 against 1.2 — the stock's loaded
+  CG went 28 → 23 % of chord across G445.7/.8/G457, every step a measured bias, and the
+  pitch-ramp flare touches down firmer at each (0.81 → 0.98 → 1.09 → 1.28); THE PILOT lands
+  the same build at 0.69. The bound 1.2 → 1.3 ONCE with the note — THE USER'S RULING (with
+  the Tiger weight and parasol margin bands of G445.8); the honest tightening is that
+  circuit flown by THE PILOT. ENERGYBASE and WINGSPLIT re-blessed (mass placement — both
+  headers' own case: the emitted wing carries the CG). Battery on the tip (over G456): every
+  other gate green.

@@ -40,6 +40,11 @@ const { buildGen, makeSim, makeWorld, defBodyProject, makeSkinBinding,
 // 15 mm is under a rib tape's width — invisible on the stand — where the
 // mechanism read 300. Measured: stock pair 3-4 mm, the twin (engines 0.65 m
 // ahead of the front spar) 3-5 mm, nose/pusher/pylon under 5.
+// SUBSTEP_MAX stays 80 (G457, 2026-09-21): paint billed by area (61_gen_frame)
+// took 0.05 kg of ballast off every stab tip, and the stock wing pair read
+// 81 on tips of 0.19 kg against the tail class's k — the lattice's lumping,
+// not the bearer. The re-lump (GEN_RULES.lumpMin) put the tips' own bow and
+// rib on them and the pair reads 79; the twin fixture 79.
 const MOUNT_SAG = 0.015, MOUNT_SETTLE = 3.0, ROOT_MM = 15, SUBSTEP_MAX = 80;
 const SELF = process.argv.includes('--selftest');
 let ok = true; const why = [];

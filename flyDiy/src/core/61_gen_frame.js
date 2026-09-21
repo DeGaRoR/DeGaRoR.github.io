@@ -212,7 +212,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // gain (GEN_RULES.tailK), so the rows below read `cls` through `row()`
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : cls === 'tail' ? (R.tailK ?? R.wingK ?? 1) : 1;
     const tSec = R.tailSection == null ? 0.5 : R.tailSection;
-    const row = (tbl, c) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? tSec * tbl.wing : undefined));
+    // ...a stressed-skin row names its own share OF THE MASS (GEN_SURF_MATERIALS
+    // alloy/carbon `tail.section`, G457): its cover already carries the ribs.
+    // The stiffness and the damping keep GEN_RULES.tailSection — the first
+    // cut halved the alloy tail's k with its mass and GATE FLEX's alloy
+    // cantilever read its torsion as "near a mechanism".
+    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec;
+    const row = (tbl, c, sh = tSec) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? sh * tbl.wing : undefined));
     // a gear member is either the SPRING (vis 'leg') or its bracing
     let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
     // A SHORT SPRING IS A STIFF SPRING (2026-09-04, the user: "quite a few of
@@ -327,7 +333,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketOf(cls, mnt);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls) * aftG * webK, h = h0 * g1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
       if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -352,13 +358,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     return out;
   })();
+  // THE FLOORS ARE THE INTEGRATOR'S, BY MATERIAL (G457): a tube post's
+  // nodes against the tube row's k set them (GEN_RULES.fusAftPerimMin /
+  // fusAftCoverMin); a stressed-skin cone's k is not the tube's and its
+  // substeps do not move between 0.7 and 0.3 (stock alloy 105, carbon 141
+  // either way), so GEN_RULES.fusAftFloors names lower floors for those
+  // rows — the 172's cone 43 -> 36 kg, 3 % of chord on its empty CG.
+  const aftFloor = which => {
+    const byMat = R.fusAftFloors && R.fusAftFloors[S.material];
+    if (byMat && byMat[which] != null) return byMat[which];
+    return which === 0 ? (R.fusAftPerimMin == null ? 0.3 : R.fusAftPerimMin)
+                       : (R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin);
+  };
   const perimK = (() => {
     const fu = S.fuse || {}, cb = S.cab || {};
     const hw0 = Math.max(0.05, cb.halfW || 0.5), h0 = Math.max(0.1, cb.h || 1.0);
     const p0 = Math.PI * (hw0 + 0.5 * h0);
     const x0 = fu.boxRear || 0, x1 = Math.max(x0 + 0.1, fu.tailArm || (x0 + 3));
     const prof = Array.isArray(fu.profile) && fu.profile.length >= 2 ? fu.profile : null;
-    const floor = R.fusAftPerimMin == null ? 0.3 : R.fusAftPerimMin;
+    const floor = aftFloor(0);
     return x => {
       const t = Math.max(0, Math.min(1, (x - x0) / (x1 - x0)));
       let hw, h;
@@ -401,17 +419,36 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // ...and the section marker is ALSO the billing-material switch (G116):
   // one coupling point, so bracing, gear and everything after the wing reset
   // to the aeroplane's own material without a call site to forget.
-  const sec = s => { SEC = s; MB = MSEC[s] || M; };
+  // ...and WHERE each section's mass went (G457, the 172's forward mass): at
+  // every switch the node masses added since the last one are summed with
+  // their x, so the ledger row carries `mx` (kg.m) and a reader gets the
+  // section's own centroid as mx / mass — the instrument that showed the
+  // 172's cabin box billed at 89 % of chord as one lump.
+  let secSnap = null;
+  const secClose = () => {
+    if (!secSnap) return;
+    const e = ledger[SEC] || (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
+    if (e.mx == null) e.mx = 0;
+    const trace = (typeof globalThis !== 'undefined' && globalThis.GEN_MASS_TRACE) ? (e.nodeM || (e.nodeM = [])) : null;
+    for (let i = 0; i < nodes.length; i++) {
+      const dm = nodes[i].m - (secSnap[i] || 0);
+      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); }
+    }
+  };
+  const secOpen = () => { secSnap = nodes.map(n => n.m); };
+  const sec = s => { secClose(); SEC = s; MB = MSEC[s] || M; secOpen(); };
+  secOpen();                                        // the fuselage section is open from the first node
   const spend = c => bill(0, c);
   // EVERY SQUARE METRE THE AEROPLANE IS COVERED IN, kept as it is billed. The
   // paint has to weigh on something and this is the only place that knows the
   // real number -- it is summed from the panels actually built, not from a
   // planform estimate, so a bigger cabin or a longer boom is painted too.
   let coverA = 0;
-  const coverSeen = {}, coverIds = [];
+  const coverSeen = {}, coverIds = [], coverAt = {};   // coverAt: m2 per node (G457)
   const cover = (area, ids) => {
     coverA += area;
-    for (const i of ids) if (!coverSeen[i]) { coverSeen[i] = 1; coverIds.push(i); }
+    for (const i of ids) { if (!coverSeen[i]) { coverSeen[i] = 1; coverIds.push(i); }
+                           coverAt[i] = (coverAt[i] || 0) + area / ids.length; }
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
     const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
@@ -425,8 +462,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     let kA = 1;
     if (SEC === 'fuselage' && S.fuse && S.fuse.boxRear != null && ids.length) {
       let cx = 0; for (const i of ids) cx += P[i][0] / ids.length;
-      if (cx > S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart)) kA = Math.max(R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin, perimK(cx));
+      if (cx > S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart)) kA = Math.max(aftFloor(1), perimK(cx));
     }
+    // ...and the tail's skin at the row's own tail rate (G457): thinner than the wing's
+    if (SEC === 'tail' && MB.tail && MB.tail.cover != null) kA *= MB.tail.cover;
     const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
     if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
@@ -1818,6 +1857,33 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
   }
 
+  // THE LUMPS (G457): a lattice bills a member's mass half to each end, so
+  // a stab tip's node — the end of one short rib and a bow — or a tail
+  // post's comes out at 0.1-0.2 kg while the root nodes carry kilos, and
+  // the integrator is sized by the LIGHTEST node against its class's k
+  // (the stock's binding pair at 2160 rad/s was HR-HB, the user's twin
+  // boom's TPB-TPT at 3800). That lumping hid behind the paint until G457
+  // billed paint by area: 0.05 kg had sat on every covered node, four
+  // times a tip's share. A tip really does carry its bow, its rib and its
+  // tape, a post its fittings: each section's OWN mass is re-lumped so no
+  // node of it is under `lumpMin` (GEN_RULES, 0.25 kg), the deficit taken
+  // from the section's heaviest nodes in proportion — the total, the
+  // symmetry and (to a few grams) the station are untouched, only how the
+  // lattice shares its kilos out. Fuselage nodes (rings, posts, booms) and
+  // tail nodes, each within its own section.
+  const relump = (re) => {
+    if (!(R.lumpMin > 0)) return;
+    const tn = []; for (let i = 0; i < nodes.length; i++) if (re.test(nodes[i].tag)) tn.push(i);
+    let need = 0, heavy = 0;
+    for (const i of tn) { if (nodes[i].m < R.lumpMin) need += R.lumpMin - nodes[i].m; else heavy += nodes[i].m - R.lumpMin; }
+    if (need > 0 && heavy > need) {
+      const f = need / heavy;
+      for (const i of tn) { if (nodes[i].m < R.lumpMin) nodes[i].m = R.lumpMin; else nodes[i].m -= f * (nodes[i].m - R.lumpMin); }
+    }
+  };
+  relump(/^(H[FRB]|HT[LR]|V[FRX]|VX2|FIN)/);
+  relump(/^(S\d+[BT][LR]|TP[BT]|BM)/);
+
   // ---- 5. gear --------------------------------------------------------
   sec('gear');
   spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
@@ -2208,6 +2274,21 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       Math.round(frac * (arrL.length - 1))));
     return [arrL[k], arrR[k]];
   };
+  // ...and the REAR spar's pair at the same station (G457): a wing tank is
+  // the spar bay's own section (G445.2), so its kilos sit between the spars
+  // — billed on the front pair alone the 172's 152 kg of fuel read at 16 %
+  // of MAC where a 172R's tanks centre at ~34 (station 48). The section
+  // is thickest near the front spar, so the bay's volume centres forward
+  // of its middle: 0.6 on the front pair, 0.4 on the rear (the 172 reads
+  // 35 %); the burn drains all four in place.
+  const wingPairRear = (frac, plane) => {
+    const W2 = (planes[plane | 0] || planes[0]).wf;
+    const arrL = W2.L.R, arrR = W2.R.R;
+    if (!arrL || !arrR || !arrL.length) return null;
+    const k = Math.max(0, Math.min(arrL.length - 1,
+      Math.round(frac * (arrL.length - 1))));
+    return [arrL[k], arrR[k]];
+  };
   sec('vessel');
   let fuelTotalM = 0;
   const VES = (S.energy && S.energy.vessels) || [];
@@ -2225,7 +2306,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const frac = v.along != null ? v.along
                  : (v.bay === 'wingPanel' ? 0.34 : 0);
       const [wl, wr] = wingPair(frac, BAY.plane || 0);
-      pair = [[wl, 0.5], [wr, 0.5]];
+      const rr = wingPairRear(frac, BAY.plane || 0);
+      pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]]
+                : [[wl, 0.5], [wr, 0.5]];
     } else {
       const xW = v.along != null ? v.along : bay.xMid;
       const lvW = v.lv != null ? v.lv
@@ -2373,10 +2456,20 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
     else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
-    // the cowl and the exhaust go where the ENGINE is (2026-09-04): a nose
-    // mount bills them on the firewall frame exactly as before
-    half(noseEng ? F[0].TL : EL, noseEng ? F[0].TR : ER, cowlM);
-    half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
+    // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
+    // nose mount they were billed on ring 0 — the WINDSCREEN BASE, the
+    // join's datum (G445): the 172's 19 kg of cowl and stacks sat 0.7 m
+    // behind the cowl itself. G457: the cowl runs from ring 0 to the
+    // spinner, so half of it rides the engine pair (its centroid at
+    // mid-nose); the exhaust hangs under the engine.
+    const engOn = (EL >= 0 && ER >= 0);
+    if (noseEng && engOn) {
+      half(F[0].TL, F[0].TR, 0.5 * cowlM); half(EL, ER, 0.5 * cowlM);
+      half(EL, ER, exhM);
+    } else {
+      half(noseEng ? F[0].TL : EL, noseEng ? F[0].TR : ER, cowlM);
+      half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
+    }
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[2].BL, F[2].BR, 0.5 * ctlM);
@@ -2396,10 +2489,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // moves no centre of gravity.
     const FIN = GEN_FINISH[S.paint.job] || GEN_FINISH.full;
     spend(FIN.price);
+    // ...in proportion to the AREA each node covers (G457): per node it
+    // rode on the tail cone and the empennage, whose many small panels put
+    // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries
+    // half the wetted surface
     const pm = coverA * (FIN.kgM2 || 0);
-    if (pm > 0 && coverIds.length) {
-      const per = pm / coverIds.length;
-      for (const i of coverIds) nodes[i].m += per;
+    if (pm > 0 && coverIds.length && coverA > 0) {
+      for (const i of coverIds) nodes[i].m += pm * (coverAt[i] || 0) / coverA;
       bill(pm, 0);
     }
   }
@@ -2413,8 +2509,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // the freight across both so it sits IN the bay rather than on one end
     for (const rg of [F[2], F[3]]) { pt(rg.BL, 0.25 * load); pt(rg.BR, 0.25 * load); }
   } else {
-    const bag = F[Math.min(3, F.length - 1)];
-    pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load);
+    // ...IN THE BOX, behind the last seat (G457): the "baggage frame" was
+    // ring 3 — on a build whose box ends at ring 2 that is the first TAIL
+    // bay, a metre behind the aft bulkhead (the 172's 40 kg at 2.82 m
+    // where a 172R's compartment centres at ~1.85, station 95). The
+    // compartment runs from the last seat to the box's rear ring; its
+    // middle is where the load goes, split between the rings by lever.
+    const lastSeat = seatsX && seatsX.length ? Math.max(...seatsX.filter(v => typeof v === 'number')) : null;
+    const boxX = ST.reduce((m, s) => (s.x <= boxRear + 1e-6 ? Math.max(m, s.x) : m), 0);
+    if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) billAt(0.5 * (lastSeat + boxX), load);
+    else { const bi = ST.findIndex(s => Math.abs(s.x - boxX) < 1e-6);
+           const bag = F[bi >= 0 ? bi : Math.min(3, F.length - 1)];
+           pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load); }
   }
 
   const refs = {
@@ -2435,6 +2541,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // and what the drawing does not show is the fuselage's own flex.
     origin: [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]],
   };
+  secClose();                                       // the last section's mx (G457)
   const parts = {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
     TAIL,                       // P4: the stab's and fin's spar nodes and planform

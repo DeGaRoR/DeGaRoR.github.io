@@ -40,7 +40,10 @@ function checkFuel(o) {
   check(Math.abs(o.recorded - o.billed) < 1e-6,
     'fuel: the recorded kilos ARE the billed kilos (' + o.recorded.toFixed(1) +
     ' of ' + o.billed.toFixed(1) + ')');
-  check(o.nodes === 2, 'fuel: on exactly the two tank nodes (' + o.nodes + ')');
+  // two nodes (the spar pair at the tank's station) until G457: a wing tank
+  // is the spar bay's own section and its kilos sit between the spars, on
+  // the front AND the rear pair — four nodes, and nothing anywhere else
+  check(o.nodes === 4, 'fuel: on exactly the four tank nodes, a pair at each spar (' + o.nodes + ')');
 }
 function checkSubsteps(o) {
   check(o.omegaDryDt <= 0.451,

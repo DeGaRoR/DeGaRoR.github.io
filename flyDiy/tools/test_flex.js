@@ -188,7 +188,7 @@ function statTorsion(def, torque, plane) {
     sim.impulse(fL,    0, -F * dt, 0); sim.impulse(rL,    0,  F * dt, 0);
     sim.step(dt);
   }
-  return Math.abs(ang(tip.f, tip.r) - ang(root.f, root.r) - base);
+  return ang(tip.f, tip.r) - ang(root.f, root.r) - base;   // signed (G457): the couple's way is +
 }
 
 // B3 — STATIC BENDING, distributed. Up at every station outboard of the root,
@@ -448,7 +448,17 @@ const LIN_MIN = 1.80;
 // to measure", not a verdict. Raising the couple instead was rejected: it would
 // re-scale every published number in HANDOVER for no gain, and a wing that
 // cannot be twisted 0.05 deg by 200 N.m is not the failure mode this looks for.
-const TORS_FLOOR = 0.05;   // deg at 200 N.m
+// ...AND THE TWIST HAS TO HAVE THE COUPLE'S SIGN (G457, 2026-09-21): the alloy
+// cantilever (k.wing 4.6e6) reads its tip twist at the carry-through's noise
+// floor — +0.54 deg at 200 N.m with 10 kg of baggage on ring 3, +0.34 with
+// none, -0.03 at span 11, and -0.14 / -0.09 (0.62x, "near a mechanism") once
+// G457 put the baggage IN the box on ring 2, the ring the rear spar hangs on.
+// A NEGATIVE twist under a positive couple is the root station's chord line
+// turning with the ring more than the tip does, not the wing untwisting: the
+// reading is the box's, and a box is not what this instrument rates. The
+// reading is signed now (statTorsion), and a row is rated only when its
+// twist is the couple's way and above the floor.
+const TORS_FLOOR = 0.05;   // deg at 200 N.m, the couple's way
 {
   const rows = [], soft = [];
   const CFG = [];
@@ -556,6 +566,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
         `  tors ${(r.t2 ?? NaN).toFixed(2).padStart(6)} /${(r.t4 ?? NaN).toFixed(2).padStart(7)}` +
         `  bend ${(r.bd ?? NaN).toFixed(1).padStart(6)} %` +
         `  ${r.tested ? 'doubling ' + (Number.isFinite(r.lin) ? r.lin.toFixed(2) + 'x' : '  ?')
+                      : (r.t2 != null && r.t2 < 0) ? 'the root turns with the ring: the box, not the wing — not rated'
                       : `below the ${TORS_FLOOR} deg floor — too stiff to rate`}` +
         `${bad ? '   *** NEAR A MECHANISM' : ''}`);
   }

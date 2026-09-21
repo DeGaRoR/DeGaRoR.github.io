@@ -321,8 +321,20 @@ const GEN_SURF_MATERIALS = {
   // m2 with its spars), a composite one 1.5-2. Measured with the box's webs
   // billed as skin (GEN_RULES.boxWebK): the RV-alike's wing 173 -> ~90 kg,
   // the 172's 180 -> ~110.
-  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal', cover: 2.6 }),
-  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6 }),
+  // ...AND A TAIL'S SKIN IS NOT A WING'S (G457, the 172's forward mass): a
+  // stressed-skin row's `cover` already carries the stringers and ribs, and
+  // the tail class billed its members at GEN_RULES.tailSection of a wing
+  // spar ON TOP — the 172's empennage read 38 kg (cover 24 + members 11 +
+  // posts) where a 172R's stab, elevator, fin and rudder weigh ~23. A tail
+  // is skinned thinner than a wing (0.5 mm against 0.6-0.8) and its spars
+  // are channels, not beams: `tail.cover` scales the row's cover on the
+  // tail, `tail.section` replaces GEN_RULES.tailSection for its members.
+  // The cloth rows say nothing here — cloth is cloth, and their members ARE
+  // the structure (the J-3's 14-16 kg fixed tailSection at 0.20).
+  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal', cover: 2.6,
+            tail: { cover: 0.75, section: 0.10 } }),
+  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
+            tail: { cover: 0.75, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -2284,6 +2296,9 @@ const GEN_RULES = {
   // to cost the stock aeroplane 5 substeps and the Cub 8 (GATE MOUNT's 80
   // for the wing pair); 0.5 costs none on the Cub and 5 on the stock, and
   // the mass it keeps at the post is 1 % of chord on the Jodel's CG.
+  // G457 tried 0.4 (the 172's cone -6 kg, 2 % of chord): the stock wing
+  // pair held 80, the twin fixture's post ring (S5, 0.32 kg nodes against
+  // the tube row's k) went 79 -> 84. The floor IS the post's; it stays.
   fusAftPerimMin: 0.5,
   // ...from a bay behind the box: the first ring aft of the cabin is the
   // wing's rear-spar frame on a high wing (61_gen_frame, the GATE MOUNT lesson)
@@ -2293,8 +2308,16 @@ const GEN_RULES = {
   // ...and the same factor on the body COVER aft of the box (the row's
   // kg/m2 carries the cabin's doors, floor and windows), floored higher: a
   // bare skin with its stringers is about half the cabin panel's weight —
-  // 0.7 for the same substep reason as fusAftPerimMin
+  // 0.7 for the same substep reason as fusAftPerimMin (G457 tried 0.5 with
+  // the member floor at 0.4 — the twin's post ring, see above)
   fusAftCoverMin: 0.7,
+  // ...and BY MATERIAL where the integrator does not need them (G457): a
+  // stressed-skin cone's substeps do not move between these and the tube
+  // floors (stock alloy 105 / carbon 141 either way; the twin fixture's
+  // post ring is the tube row's, 79 -> 84 at 0.4). [member, cover]; a row
+  // absent here takes the two floors above. The alloy cone's real ratio:
+  // a 172's post is ~0.4 of its box's perimeter and its cone ~28 kg.
+  fusAftFloors: { alloy: [0.3, 0.4], carbon: [0.3, 0.4] },
   // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
   // mount, the baffles, the oil, the hoses and the engine controls
   // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
@@ -2364,7 +2387,13 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
-  tailSection: 0.20,   // G445.7: 16-20 kg read against the J-3's 14-16; 0.20 lands there
+  tailSection: 0.20,
+  // G457: no fuselage or tail node lighter than this (61_gen_frame re-lumps
+  // each section's own mass toward its light nodes; the total and the
+  // station stay). A stab tip's bow, rib and tape, a tail post's fittings
+  // weigh this much; the integrator was sized by 0.09-0.12 kg tips and
+  // posts against their class's k once the paint left them.
+  lumpMin: 0.25,   // G445.7: 16-20 kg read against the J-3's 14-16; 0.20 lands there
   // the prism's depth (the third chord under the stab, the pair either side
   // of the fin) as a fraction of the local chord — the WING's own box depth
   // (sparBoxDepth), because a lattice of constant-k members is stiff out of
@@ -3801,8 +3830,12 @@ function clampSpec(spec) {
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
     e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
     e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
-    // the mount station (2026-09-04): an envelope, null kept for derivation
-    e.x = genClampN(e.x, -1.0, 8.0);
+    // the mount station (2026-09-04): an envelope, null kept for derivation.
+    // -1.0 -> -3.0 (G457): since G445.1 a NOSE mount's x is the drawn
+    // flange, and a 172's sits 1.10 m ahead of the windscreen base (a
+    // Caravan's 2 m) — the old floor put the 172's engine 10 cm aft of
+    // where the cowl page drew it, 1.6 % of chord on its CG.
+    e.x = genClampN(e.x, -3.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
