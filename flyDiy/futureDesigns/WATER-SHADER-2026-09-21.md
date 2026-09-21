@@ -1,4 +1,4 @@
-# THE WATER SHADER — as built (H6, G460 … G460.5), and how it grows
+# THE WATER SHADER — as built (H6, G460 … G460.7), and how it grows
 
 The design's H6 (`WATER-2026-09-13.md` §3), built 2026-09-21 after the r186 migration. This
 is the as-built record and the evolution map; the G entries in HANDOVER carry the day's
@@ -60,12 +60,17 @@ uniforms — nothing per body in the GLSL, one program. Tiers `simple` / `full`;
 the stock material; debug views 1–9.
 
 Cost (tools/water_shot.js --perf / --ab, the queries round the water's own draws, 1080p,
-the full tier): 0.3–0.4 ms at 12 m and over the coast; 1.2–2.0 ms at 300 m straight down
-over open sea, where every pixel runs 32 trains (the rig's number there is noisy). The
-lever if 1.0 ms must hold at that eye: the fragment normal from the 16 longest trains, the
-detail tile + σ² carrying the 16 shortest (1–2 cm; the physics keeps all 32) — or the FFT
-slot. Samplers: 8 of 16 (uWSdf, uWDetail, uWInter, envMap, uApAtlas, dfgLUT, two shadow
-maps).
+the full tier): 0.38 ms at 12 m, 0.45 over the coast, 0.77 ms at 300 m straight down over
+open sea — inside the 1.0 ms budget at every eye (G460.7: every wind-sea train fades out of
+the slope between 12 and 3 px of its own wavelength and costs nothing once gone; σ² takes
+over at 6 px). Samplers: 8 of 16 (uWSdf, uWDetail, uWInter, envMap, uApAtlas, dfgLUT, two
+shadow maps).
+
+The grazing eye (G460.7): the footprint is the geometric mean of the pixel's two axes on the
+water (the longer one put the horizon at Cox-Munk's total); the rough IBL ray is lifted by
+the lobe's half-angle so the cone never straddles the probe's ground cap; Bruneton's mean
+Fresnel darkens the sky reflection toward grazing (a prefiltered lookup has no masking);
+`nonPerturbedNormal` is the up normal (three adds its derivative to the roughness).
 
 The clock: the solver publishes `sim.t` (it never had), app.js hands it to `WATER.setTime`
 every step, the buoys and the patch read `WATER.time()` — ruling (ap) honoured for the
@@ -110,6 +115,6 @@ that pushed it, pause or not).
    so what shows through the shallows is a cliff's mesh with sand painted on it; a real
    beach profile in the terrain (and the hydro's depth) would let the shallows read from
    a low eye as they do from 300 m.
-8. **The horizon at a low eye**: the sub-pixel roughness turns the far sea into a flat
-   grey-white sheet under the mist; a horizon-band treatment (the sky's own colour at
-   grazing, the mist's density over water) is owed to the sky chantier.
+8. **The horizon at a low eye** — DONE as G460.7 (the footprint's mean, the lifted IBL
+   ray, Bruneton's mean Fresnel). What remains is the sky's: the mist's density over water
+   and the horizon sky's colour are the atmosphere's to judge.

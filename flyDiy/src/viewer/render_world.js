@@ -1455,9 +1455,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // recompute a frame is gone; the patch keeps its grid, its snap and its rule
     // (shown only with a sea state, only on the sea).
     const SEAN = 96, SEAW = 360;
-    // (G460: 4 m wider than its box - the far plane is cut out to the box and the patch's last
+    // (G460: wider than its box - the far plane is cut out to the box and the patch's last
     // metres, flat by then, lap over the cut so no pixel row is drawn twice or not at all)
-    const seaGeo = new THREE.PlaneGeometry(SEAW + (WSH ? 4 : 0), SEAW + (WSH ? 4 : 0), SEAN, SEAN);
+    const seaGeo = new THREE.PlaneGeometry(SEAW + (WSH ? 8 : 0), SEAW + (WSH ? 8 : 0), SEAN, SEAN);   // G460.7: 8 m wider than its cut (a 4 m lap on each side), its displacement flat over the lap
     seaGeo.rotateX(-Math.PI / 2);
     const seaNear = new THREE.Mesh(wtag(seaGeo, 0, true), waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
@@ -1508,7 +1508,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const step = SEAW / SEAN;
       const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
       seaNear.position.set(ox, 0.0, oz);
-      if (WSH) WSH.setNear(ox, oz, SEAW / 2 + 1, true);
+      if (WSH) WSH.setNear(ox, oz, SEAW / 2, true);
       else {
         const pa = seaGeo.attributes.position;
         if (waves || seaNear.userData.wavy !== false) {

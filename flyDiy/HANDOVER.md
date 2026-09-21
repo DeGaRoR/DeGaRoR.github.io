@@ -53744,3 +53744,47 @@ the fill re-pools and replants, the ring replants. Two ring stat bugs met on the
 STAT.by ran up for the page's life (a cell's tally is kept and subtracted on drop now) and
 stat() shared the tally object (copied). Verified in the game by the rig: 125 rows / 13
 selects, grass_dry density x3 -> 404 k to 563 k instances and back, forest -> muskeg -> back.
+
+## G460.7 — THE FINISHING LIST: THE DASHES, THE 300 m COST, THE LOW-EYE HORIZON (2026-09-21, the user:
+## "do your finishing list then, screenshots as proof")
+
+- THE CYAN DASHES along the shore's horizon from a low eye (a row of light-blue ticks at the water line,
+  seen since G460) were the NEAR PATCH'S LAST VERTEX ROW: its displacement faded to zero 2 m before the
+  far plane's cut, and where the swell lifted the row the far plane's cut left a gap through which the
+  ground's seabed paint (cyan) showed - hidden with the far plane, gone with the patch, the same on every
+  train count. The patch is 8 m wider than its cut now and its displacement is flat over the last 8 m
+  (uWWave.z - 44 .. - 8), so the rows that lap the cut lie AT the level. g15/i_bigbody.png (the body
+  view at 10 m/s: red to the shore, no ticks).
+- THE 300 m COST (was 1.2-2.0 ms: 32 sin+cos a pixel over a full-screen sea) - PER-TRAIN WINDOWS, not a
+  blanket cut: a first cut (the wind sea summed only under 0.12 m of footprint) read as a LINE across the
+  sea at 120 m (g16/lod_120.png) and, softened, left the 120 m eye a sheet of parallel swell lines
+  (g17). What holds: every wind-sea train fades out of the slope between 12 and 3 px of its own
+  wavelength (the felt swell keeps 6..2 px - it is the sea's shape from altitude) and costs no sin/cos
+  once gone; the slope-variance law starts at 6 px (kc = 2 pi / 6 fp) so the faded energy is roughness.
+  water_shot --perf: 0.77 ms at 300 m straight down (0.63 with the blanket cut, 1.7-2.0 before),
+  0.38 at 12 m, 0.45 over the coast - inside the 1.0 ms budget at every eye; g23/w_120.png has its
+  short-crested sea back.
+- THE LOW-EYE HORIZON (a grey-white sheet under the mist, g18/hz.png; the sharp-reflection A/B
+  g18/hz_nosigma.png showed the dark sea it should be) - THREE CAUSES, each measured:
+  (1) the FOOTPRINT was the pixel's LONGER axis on the water: at a grazing eye the along-view axis runs
+  to metres while the across-view axis stays centimetres, and the longer one put the horizon's
+  roughness at the Cox-Munk total. The footprint is the GEOMETRIC MEAN of the two axes now (Bruneton's
+  Jacobian norm - the isotropic footprint the law was written for).
+  (2) three's getIBLRadiance reads the PMREM at the reflected ray with the lobe of `roughness`, and at
+  grazing that lobe straddles the horizon: half the sky, half the probe's ground cap - a flat grey.
+  The sample ray is LIFTED by the lobe's half-angle (alpha = roughness^2) so the cone's lower edge sits
+  on the horizon: a rough sea's grazing reflection is the horizon sky blurred along it, never the ground.
+  (3) a prefiltered lookup has NO MASKING: a rough sea at grazing reflects a third of the mirror's sky
+  (its facets shadow each other and turn the eye to the higher, darker sky). Bruneton's mean Fresnel
+  (1 - c)^(5 e^(-2.69 s)) / (1 + 22.7 s^1.5) over Schlick's (1 - c)^5, s = sqrt(sigma^2), applied to the
+  sky's reflection where the view is within 55 deg of grazing (the sun's GGX has Smith already).
+  And two corrections the readback found on the way: nonPerturbedNormal is the UP normal (three adds
+  |dFdx(nonPerturbedNormal)| to the roughness, and the swell's normal changes per pixel at grazing:
+  +0.2..0.3 on top of the law); the Beckmann<->GGX mapping counted a 2 twice (Cox-Munk's sigma^2 is the
+  total over both axes: m^2 = sigma^2, roughness = sigma^(1/2)). The roughness debug view reads
+  sRGB-ENCODED through the canvas (0.69 read = 0.44 linear) - decode before judging it. g23/hz.png,
+  hz_sun.png: the far sea darkens toward the horizon instead of going white, the sun's lobe is a
+  glitter field, not a plate; calm_hz.png the glassy day.
+- water_shot --gate green (the lobe 1.29, the direction 95/73, roughness 0.07..0.78, the shore's
+  ramp 54 px / step 90, the lake 101 vs the sea 125); GATE WATER, CLOUD, WORLDRENDER, GFX, MEDIA, LIGHT,
+  HYDRO, SITE green; the full proof ladder in screenshots/water-g440/g23/.

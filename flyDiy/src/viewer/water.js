@@ -87,8 +87,12 @@ const WATER = (() => {
       vec3 s = vec3(0.0);
       for (int i = 0; i < 32; i++) {
         if (i >= uWTrN) break;
-        float fade = 1.0 - smoothstep(0.15, 0.5, fp * uWTrA[i].y * 0.159155);   // a train under ~6 px a wavelength is roughness (wSigma2), not slope
-        if (fade <= 0.0) continue;                                                 // (and costs no sin/cos: the short trains drop out first with distance)
+        // a train fades out of the SLOPE where its wavelength is under ~12 px and is gone under ~3 px - roughness
+        // (wSigma2, which starts at 6 px) carries it from there (G460.7: the felt swell keeps a wider window, 6..2 px -
+        // it is the sea's shape from altitude; the wind sea drops first, which is the 300 m eye's cost lever)
+        float px = fp * uWTrA[i].y * 0.159155;                                      // footprint / wavelength
+        float fade = uWTrD[i].w > 0.5 ? 1.0 - smoothstep(0.15, 0.5, px) : 1.0 - smoothstep(0.08, 0.3, px);
+        if (fade <= 0.0) continue;                                                 // (no sin/cos for it: the short trains drop out first with distance)
         float ph = uWTrA[i].y * (uWTrD[i].x * p.x + uWTrD[i].y * p.y) - uWTrA[i].z;
         float ak = uWTrA[i].x * uWTrA[i].y * fade;
         float sn = sin(ph);
@@ -191,12 +195,13 @@ const WATER = (() => {
     // THE SUB-PIXEL BAND: the slope variance of the waves the pixel cannot resolve
     float wSigma2(float fp) {
       float tot = 0.003 + 0.00512 * uWWind.x;
-      float lkc = log(3.14159265 / max(fp, 1.0e-4));
+      float lkc = log(1.0471976 / max(fp, 1.0e-4));   // 2 pi / (6 fp): a wave under 6 px is roughness (the slopes hand over between 12 and 3 px)
       float f = clamp((uWWind.z - lkc) / max(uWWind.z - uWWind.y, 1.0e-3), 0.0, 1.0);
       return tot * f;
     }
-    // Beckmann sigma^2 -> GGX alpha^2 = 2 sigma^2 -> three's roughness = sqrt(alpha)
-    float wRough(float s2) { return pow(max(2.0 * s2, 1.0e-5), 0.25); }
+    // Cox-Munk's sigma^2 is the TOTAL mean-square slope (both axes); the Beckmann width m^2 = 2 sigma_x^2 = sigma^2;
+    // GGX alpha ~ m; three's roughness = sqrt(alpha) -> sigma^(1/2) (G460.7: the 2 was counted twice before)
+    float wRough(float s2) { return pow(max(s2, 1.0e-5), 0.25); }
     vec4 wInter(vec2 xz) {
       if (uWInterBox.w < 0.5) return vec4(0.0);
       vec2 uv = (xz - uWInterBox.xy) * uWInterBox.z;
@@ -214,7 +219,7 @@ const WATER = (() => {
       .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
         vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
         float wh = 0.0;
-        if (aWater.y > 0.5 && uWWave.x > 0.5) wh = wGerstnerH(wp0.x, wp0.z) * (1.0 - smoothstep(uWWave.z - 40.0, uWWave.z - 2.0, max(abs(wp0.x - uWNear.x), abs(wp0.z - uWNear.y))));
+        if (aWater.y > 0.5 && uWWave.x > 0.5) wh = wGerstnerH(wp0.x, wp0.z) * (1.0 - smoothstep(uWWave.z - 44.0, uWWave.z - 8.0, max(abs(wp0.x - uWNear.x), abs(wp0.z - uWNear.y))));   // flat 8 m before the box's edge: the last rows lap the far plane's cut at the level (G460.7 - the dashes)
         transformed.y += wh;
         vWP = vec3(wp0.x, wp0.y + wh, wp0.z); vWBody = aWater;`);
     sh.fragmentShader = sh.fragmentShader
@@ -225,7 +230,13 @@ const WATER = (() => {
         if (wB == 0 && vWBody.y < 0.5 && uWNear.w > 0.5 && abs(vWP.x - uWNear.x) < uWNear.z && abs(vWP.z - uWNear.y) < uWNear.z) discard;
         vec2 wF = wField(vWP.xz);
         float wD = wDepth(wF, wB);
-        float wFp = clamp(max(length(dFdx(vWP.xz)), length(dFdy(vWP.xz))), 1.0e-4, 1.0e4);
+        // THE FOOTPRINT (G460.7): the GEOMETRIC MEAN of the pixel's two axes on the water, not the longer one.
+        // At a grazing eye the along-view axis runs to metres while the across-view axis stays centimetres;
+        // the longer one put the horizon's roughness at the Cox-Munk total and the far sea reflected the
+        // probe's whole hemisphere - a grey-white sheet under the sky. The mean is the isotropic footprint
+        // the slope-variance law was written for (Bruneton's Jacobian norm), and the glitter stays sharp
+        // along the horizon as it does on a real sea. The felt band's per-train fade reads it too.
+        float wFp = clamp(sqrt(length(dFdx(vWP.xz)) * length(dFdy(vWP.xz))), 1.0e-4, 1.0e4);
         vec3 wS = wGerstnerS(vWP.xz, wFp) * uWBody[wB].x;
         vec4 wDet = detailNormal(vWP.xz, wFp); wDet.xy *= uWBody[wB].y;
         vec4 wIn = wInter(vWP.xz);
@@ -271,12 +282,39 @@ const WATER = (() => {
       .replace('#include <normal_fragment_begin>', `
         float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;
         vec3 wNw = normalize(vec3(-(wS.x + wDet.x + wIn.x), 1.0, -(wS.y + wDet.y + wIn.y)));
-        vec3 wNsmooth = normalize(vec3(-wS.x, 1.0, -wS.y));
         vec3 normal = normalize((viewMatrix * vec4(wNw, 0.0)).xyz) * faceDirection;
-        vec3 nonPerturbedNormal = normalize((viewMatrix * vec4(wNsmooth, 0.0)).xyz) * faceDirection;
+        // (G460.7: the UP normal, not the swell's - three adds geometryRoughness = |dFdx(nonPerturbedNormal)| to the
+        // material's roughness, and the swell's normal changes per pixel at a grazing eye: +0.2..0.3 of roughness on
+        // top of the slope-variance law that already holds the sub-pixel swell; the readback read 0.73 where the
+        // law said 0.5, and the horizon went a flat pale sheet)
+        vec3 nonPerturbedNormal = wUpV * faceDirection;
         // the reflection never looks under the horizon (the probe's lower half is the ground cap)
         vec3 wR = reflect(-wV, normal);
         vec3 wIblN = normalize(mix(normal, wUpV * faceDirection, smoothstep(0.12, -0.05, dot(wR, wUpV))));`)
+      // THE ROUGH REFLECTION STAYS ABOVE THE HORIZON (G460.7, the user: "the horizon looks like a grey-white sheet"):
+      // three's getIBLRadiance reads the PMREM at the reflected ray with the lobe of `roughness`, and at a grazing
+      // eye that lobe straddles the horizon - half the sky, half the probe's ground cap - a flat grey. A sea's
+      // rough reflection at grazing is the horizon SKY blurred along the horizon, never the ground: the sample
+      // ray is lifted by the lobe's own half-angle (the GGX alpha = roughness^2, ~ the cone's tangent), so the
+      // cone's lower edge sits on the horizon, and the specular gets the sky's colour and brightness there.
+      .replace('#include <lights_fragment_maps>', (typeof THREE !== 'undefined' && THREE.ShaderChunk && THREE.ShaderChunk.lights_fragment_maps || '')
+        .replace(/getIBLRadiance\( geometryViewDir, geometryNormal,/g, 'getIBLRadiance( geometryViewDir, wIblN,'))
+      .replace('vec3 iblRadiance = getIBLRadiance( geometryViewDir, wIblN, material.roughness );', `
+        vec3 iblRadiance;
+        { vec3 rr = reflect(-geometryViewDir, wIblN); float ry = dot(rr, wUpV * faceDirection);
+          float lift = material.roughness * material.roughness * 0.9;                  // the lobe's half-angle, as a tangent
+          float want = max(ry, lift);                                                  // the ray's up-component the cone needs
+          vec3 rr2 = normalize(rr + wUpV * faceDirection * (want - ry));               // lifted along up
+          // a normal that reflects the view into rr2: the half vector of (V, rr2)
+          vec3 nn = normalize(geometryViewDir + rr2);
+          iblRadiance = getIBLRadiance( geometryViewDir, nn, material.roughness );
+          // BRUNETON'S MEAN FRESNEL (2010, eq. for a rough sea): a prefiltered lookup has no masking - a rough sea at
+          // grazing reflects a third of the mirror's sky, its facets shadowing each other and turning the eye toward
+          // the higher, darker sky. meanFresnel = (1 - c)^(5 e^(-2.69 s)) / (1 + 22.7 s^1.5) against Schlick's (1 - c)^5:
+          // the ratio, s = sqrt(sigma^2) of the sub-pixel band, applied to the sky's reflection (the sun's GGX has Smith)
+          float wSg = sqrt(max(wSig, 0.0)), wC = clamp(dot(geometryViewDir, wUpV * faceDirection), 0.02, 1.0);
+          float wF5 = pow(1.0 - wC, 5.0), wFm = pow(1.0 - wC, 5.0 * exp(-2.69 * wSg)) / (1.0 + 22.7 * pow(wSg, 1.5));
+          iblRadiance *= mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC)); }`)
       .replace('#include <normal_fragment_maps>', '')
       // THE BODY COLOUR IS NOT A LAMBERT SURFACE (G460.5, the user: "it looks very matte blue"): three lights
       // material.diffuseColor by dot(N, L) on the WAVE normal, so every ridge was a painted stripe and the
@@ -293,8 +331,6 @@ const WATER = (() => {
           'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight ); reflectedLight.directDiffuse += directLight.color * saturate(dot(wUpN, directLight.direction)) * BRDF_Lambert(wDiff);'))
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         reflectedLight.indirectDiffuse += (irradiance + iblIrradiance) * BRDF_Lambert(wDiff);`)
-      .replace('#include <lights_fragment_maps>', (typeof THREE !== 'undefined' && THREE.ShaderChunk && THREE.ShaderChunk.lights_fragment_maps || '')
-        .replace(/getIBLRadiance\( geometryViewDir, geometryNormal,/g, 'getIBLRadiance( geometryViewDir, wIblN,'))
       // the debug views are the LAST word: a plain value, no light, no tone map, no AP (the rig reads them back)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         if (uWDbg == 1) gl_FragColor = vec4(wNw * 0.5 + 0.5, 1.0);
@@ -343,7 +379,7 @@ const WATER = (() => {
     const arr = n => { const a = []; for (let i = 0; i < n; i++) a.push(v4()); return a; };
     U = {
       uWTrA: { value: arr(NTR) }, uWTrD: { value: arr(NTR) }, uWTrN: { value: 0 },
-      uWWave: { value: v4(1, 12, 0, 1) }, uWWind: { value: v4(0, Math.log(TWO_PI / 20), Math.log(TWO_PI / 0.005), 1) },
+      uWWave: { value: v4(1, 12, 0, 0.5) }, uWWind: { value: v4(0, Math.log(TWO_PI / 20), Math.log(TWO_PI / 0.005), 1) },
       uWDetailK: { value: v4(S.detailL[0], S.detailL[1], S.detailK, 1) }, uWDrift: { value: v4() }, uWDir: { value: v4(1, 0, 0, 0) },
       uWAbs: { value: arr(4) }, uWSct: { value: arr(4) }, uWBody: { value: arr(4) },
       uWMisc: { value: v4(S.shoreFade, S.lakeK, S.lakeCap, 1) }, uWFoam: { value: v4(1, 0, 0, 0) },
@@ -614,7 +650,7 @@ const WATER = (() => {
     const f = Math.max(0, Math.min(1, (lkMax - lkc) / Math.max(lkMax - lkMin, 1e-3)));
     return tot * f;
   }
-  const roughJS = s2 => Math.pow(Math.max(2 * s2, 1e-5), 0.25);
+  const roughJS = s2 => Math.pow(Math.max(s2, 1e-5), 0.25);
 
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
