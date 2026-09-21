@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 91da425889102a55
+// body-sha256: 2fff82d7bff01404
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6518,12 +6518,17 @@ const GROUND_FIELDS = (() => {
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
       detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.45, macroExp: 2.2,   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
+      sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
-    // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour
-    grade: { dry: { gain: '#b3b3a6', sat: 1 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
-             grass: { gain: '#ffffff', sat: 0.7 }, lush: { gain: '#ffffff', sat: 0.7 } },   // the lawn grasses toned down where heath and dense scrub still use them
+    // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
+    // and GLOSS (2026-09-21, the Standard ring): the set's rough map taken as is at 1, flattened to matte at 0 - the
+    // lot's lawn grasses ship a roughness of 0.26 (ambientCG's number for a blade, not a lawn from 60 m: the whole
+    // heath took the sky), the dry and the dirt 0.55; the beach (0.61) and the pebbles (0.46) keep theirs - wet sand
+    // and shingle catching the sun is what the user asked the roughness for
+    grade: { dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+             grass: { gain: '#ffffff', sat: 0.7, gloss: 0.3 }, lush: { gain: '#ffffff', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 } },   // the lawn grasses toned down where heath and dense scrub still use them
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [

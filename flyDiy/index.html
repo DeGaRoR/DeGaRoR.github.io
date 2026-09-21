@@ -14709,12 +14709,17 @@ const GROUND_FIELDS = (() => {
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
       detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.45, macroExp: 2.2,   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
+      sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
-    // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour
-    grade: { dry: { gain: '#b3b3a6', sat: 1 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
-             grass: { gain: '#ffffff', sat: 0.7 }, lush: { gain: '#ffffff', sat: 0.7 } },   // the lawn grasses toned down where heath and dense scrub still use them
+    // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
+    // and GLOSS (2026-09-21, the Standard ring): the set's rough map taken as is at 1, flattened to matte at 0 - the
+    // lot's lawn grasses ship a roughness of 0.26 (ambientCG's number for a blade, not a lawn from 60 m: the whole
+    // heath took the sky), the dry and the dirt 0.55; the beach (0.61) and the pebbles (0.46) keep theirs - wet sand
+    // and shingle catching the sun is what the user asked the roughness for
+    grade: { dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+             grass: { gain: '#ffffff', sat: 0.7, gloss: 0.3 }, lush: { gain: '#ffffff', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 } },   // the lawn grasses toned down where heath and dense scrub still use them
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [
@@ -36715,7 +36720,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='91da42588910';window.FLYDIY_BUILD='a0df156ecc67'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='2fff82d7bff0';window.FLYDIY_BUILD='cdaa6d43d2be'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100278,71 +100283,88 @@ const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
     { key: 'beach', metres: 29.98, px: 512, mean: [0.2826,0.2371,0.196],
       get diff() { return mk('media/tex/splat/beach_diff_512.ea67fba6.jpg'); },
       get nor() { return mk('media/tex/splat/beach_nor_gl_512.6bee5c90.jpg'); },
-      get height() { return mk('media/tex/splat/beach_height_512.6bea814d.jpg'); } },
+      get height() { return mk('media/tex/splat/beach_height_512.6bea814d.jpg'); },
+      get rough() { return mk('media/tex/splat/beach_rough_512.7cc3d0fe.jpg'); } },
     { key: 'rocksA', metres: 78.93, px: 512, mean: [0.2155,0.1901,0.107],
       get diff() { return mk('media/tex/splat/rocksA_diff_512.9c1bf1ef.jpg'); },
       get nor() { return mk('media/tex/splat/rocksA_nor_gl_512.85631457.jpg'); },
-      get height() { return mk('media/tex/splat/rocksA_height_512.251b4884.jpg'); } },
+      get height() { return mk('media/tex/splat/rocksA_height_512.251b4884.jpg'); },
+      get rough() { return mk('media/tex/splat/rocksA_rough_512.47168bf6.jpg'); } },
     { key: 'rocksB', metres: 50.18, px: 512, mean: [0.1648,0.1158,0.046],
       get diff() { return mk('media/tex/splat/rocksB_diff_512.0b0af9e9.jpg'); },
       get nor() { return mk('media/tex/splat/rocksB_nor_gl_512.4c42214e.jpg'); },
-      get height() { return mk('media/tex/splat/rocksB_height_512.fd54b346.jpg'); } },
+      get height() { return mk('media/tex/splat/rocksB_height_512.fd54b346.jpg'); },
+      get rough() { return mk('media/tex/splat/rocksB_rough_512.e7b84911.jpg'); } },
     { key: 'mud', metres: 1.25, px: 512, mean: [0.0897,0.0702,0.0458],
       get diff() { return mk('media/tex/splat/mud_diff_512.636dd758.jpg'); },
       get nor() { return mk('media/tex/splat/mud_nor_gl_512.3c1c6eca.jpg'); },
-      get height() { return mk('media/tex/splat/mud_height_512.dbd5e95c.jpg'); } },
+      get height() { return mk('media/tex/splat/mud_height_512.dbd5e95c.jpg'); },
+      get rough() { return mk('media/tex/splat/mud_rough_512.3411d15e.jpg'); } },
     { key: 'leaves', metres: 1.49, px: 512, mean: [0.2264,0.1177,0.0461],
       get diff() { return mk('media/tex/splat/leaves_diff_512.c5814c38.jpg'); },
       get nor() { return mk('media/tex/splat/leaves_nor_gl_512.fd8b9ff4.jpg'); },
-      get height() { return mk('media/tex/splat/leaves_height_512.2ea4040a.jpg'); } },
+      get height() { return mk('media/tex/splat/leaves_height_512.2ea4040a.jpg'); },
+      get rough() { return mk('media/tex/splat/leaves_rough_512.80568e0c.jpg'); } },
     { key: 'cliff', metres: 6.86, px: 512, mean: [0.3136,0.1726,0.11],
       get diff() { return mk('media/tex/splat/cliff_diff_512.76c57eb9.jpg'); },
       get nor() { return mk('media/tex/splat/cliff_nor_gl_512.226afdcc.jpg'); },
-      get height() { return mk('media/tex/splat/cliff_height_512.b8482fc3.jpg'); } },
+      get height() { return mk('media/tex/splat/cliff_height_512.b8482fc3.jpg'); },
+      get rough() { return mk('media/tex/splat/cliff_rough_512.c4fdd0d3.jpg'); } },
     { key: 'rocksG', metres: 2.03, px: 512, mean: [0.2521,0.2134,0.1638],
       get diff() { return mk('media/tex/splat/rocksG_diff_512.98760b2f.jpg'); },
       get nor() { return mk('media/tex/splat/rocksG_nor_gl_512.1db280fd.jpg'); },
-      get height() { return mk('media/tex/splat/rocksG_height_512.449e6feb.jpg'); } },
+      get height() { return mk('media/tex/splat/rocksG_height_512.449e6feb.jpg'); },
+      get rough() { return mk('media/tex/splat/rocksG_rough_512.8b0cfbe4.jpg'); } },
     { key: 'rockyA', metres: 89.94, px: 512, mean: [0.0807,0.0773,0.0122],
       get diff() { return mk('media/tex/splat/rockyA_diff_512.76703799.jpg'); },
       get nor() { return mk('media/tex/splat/rockyA_nor_gl_512.f90cabd9.jpg'); },
-      get height() { return mk('media/tex/splat/rockyA_height_512.5425c5e1.jpg'); } },
+      get height() { return mk('media/tex/splat/rockyA_height_512.5425c5e1.jpg'); },
+      get rough() { return mk('media/tex/splat/rockyA_rough_512.75cd2880.jpg'); } },
     { key: 'rockyB', metres: 89.79, px: 512, mean: [0.0855,0.053,0.0176],
       get diff() { return mk('media/tex/splat/rockyB_diff_512.89dbf1a1.jpg'); },
       get nor() { return mk('media/tex/splat/rockyB_nor_gl_512.49ff538c.jpg'); },
-      get height() { return mk('media/tex/splat/rockyB_height_512.330377f8.jpg'); } },
+      get height() { return mk('media/tex/splat/rockyB_height_512.330377f8.jpg'); },
+      get rough() { return mk('media/tex/splat/rockyB_rough_512.30f3e232.jpg'); } },
     { key: 'grassRock', metres: 15.04, px: 512, mean: [0.169,0.1211,0.0241],
       get diff() { return mk('media/tex/splat/grassRock_diff_512.8198f8c5.jpg'); },
       get nor() { return mk('media/tex/splat/grassRock_nor_gl_512.1e5e64b9.jpg'); },
-      get height() { return mk('media/tex/splat/grassRock_height_512.857d1079.jpg'); } },
+      get height() { return mk('media/tex/splat/grassRock_height_512.857d1079.jpg'); },
+      get rough() { return mk('media/tex/splat/grassRock_rough_512.549490b3.jpg'); } },
     { key: 'forestAir', metres: 80.81, px: 512, mean: [0.1259,0.083,0.026],
       get diff() { return mk('media/tex/splat/forestAir_diff_512.c019a81f.jpg'); },
       get nor() { return mk('media/tex/splat/forestAir_nor_gl_512.7d8881b5.jpg'); },
-      get height() { return mk('media/tex/splat/forestAir_height_512.0cce78f7.jpg'); } },
+      get height() { return mk('media/tex/splat/forestAir_height_512.0cce78f7.jpg'); },
+      get rough() { return mk('media/tex/splat/forestAir_rough_512.63f3fe1e.jpg'); } },
     { key: 'snowAir', metres: 81.2, px: 512, mean: [0.2491,0.2483,0.3039],
       get diff() { return mk('media/tex/splat/snowAir_diff_512.ea591acc.jpg'); },
       get nor() { return mk('media/tex/splat/snowAir_nor_gl_512.d34a594e.jpg'); },
-      get height() { return mk('media/tex/splat/snowAir_height_512.de33c545.jpg'); } },
+      get height() { return mk('media/tex/splat/snowAir_height_512.de33c545.jpg'); },
+      get rough() { return mk('media/tex/splat/snowAir_rough_512.541c3bce.jpg'); } },
     { key: 'lush', metres: 2.4, px: 512, mean: [0.0584,0.1065,0.0218],
       get diff() { return mk('media/tex/splat/lush_diff_512.90a67ae0.jpg'); },
       get nor() { return mk('media/tex/splat/lush_nor_gl_512.379ad06b.jpg'); },
-      get height() { return mk('media/tex/splat/lush_height_512.fcd11ebd.jpg'); } },
+      get height() { return mk('media/tex/splat/lush_height_512.fcd11ebd.jpg'); },
+      get rough() { return mk('media/tex/splat/lush_rough_512.8f65b07b.jpg'); } },
     { key: 'grass', metres: 2.4, px: 512, mean: [0.119,0.1528,0.0305],
       get diff() { return mk('media/tex/splat/grass_diff_512.7cc9f4c2.jpg'); },
       get nor() { return mk('media/tex/splat/grass_nor_gl_512.151550a5.jpg'); },
-      get height() { return mk('media/tex/splat/grass_height_512.518d6118.jpg'); } },
+      get height() { return mk('media/tex/splat/grass_height_512.518d6118.jpg'); },
+      get rough() { return mk('media/tex/splat/grass_rough_512.f5626b4f.jpg'); } },
     { key: 'pebble', metres: 4.5, px: 512, mean: [0.2178,0.2034,0.1649],
       get diff() { return mk('media/tex/splat/pebble_diff_512.00fbe38a.jpg'); },
       get nor() { return mk('media/tex/splat/pebble_nor_gl_512.b29a459b.jpg'); },
-      get height() { return mk('media/tex/splat/pebble_height_512.a96462f6.jpg'); } },
+      get height() { return mk('media/tex/splat/pebble_height_512.a96462f6.jpg'); },
+      get rough() { return mk('media/tex/splat/pebble_rough_512.d985d705.jpg'); } },
     { key: 'dry', metres: 2.2, px: 512, mean: [0.3005,0.2486,0.1239],
       get diff() { return mk('media/tex/splat/dry_diff_512.9f177ab8.jpg'); },
       get nor() { return mk('media/tex/splat/dry_nor_gl_512.89d1ffc2.jpg'); },
-      get height() { return mk('media/tex/splat/dry_height_512.0249b249.jpg'); } },
+      get height() { return mk('media/tex/splat/dry_height_512.0249b249.jpg'); },
+      get rough() { return mk('media/tex/splat/dry_rough_512.8360b752.jpg'); } },
     { key: 'dirt', metres: 1.8, px: 512, mean: [0.1326,0.1085,0.0826],
       get diff() { return mk('media/tex/splat/dirt_diff_512.c5983cf7.jpg'); },
       get nor() { return mk('media/tex/splat/dirt_nor_gl_512.27f8e9b2.jpg'); },
-      get height() { return mk('media/tex/splat/dirt_height_512.ecb3a4f1.jpg'); } },
+      get height() { return mk('media/tex/splat/dirt_height_512.ecb3a4f1.jpg'); },
+      get rough() { return mk('media/tex/splat/dirt_rough_512.a924c560.jpg'); } },
   ];
 })() : null;
 </script>
@@ -100357,20 +100379,26 @@ const SPLAT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
 // stack the game already ships (the lit Landsat albedo IS the macro here).
 // ===========================================================================
 // WHAT THIS FILE OWNS
-//   SPLAT_GROUND.make(gU, isla)  -> { uniforms, glslCommon, glslMap, glslNormal, api }
+//   SPLAT_GROUND.make(gU, isla)  -> { uniforms, glslCommon, glslMap, glslNormal, glslRough, api }
 //     uniforms    the u S* uniforms (two arrays, the per-code tables, the knobs)
 //     glslCommon  the functions, spliced after the hook's own helpers
 //     glslMap     the call, spliced into the map_fragment block after the
 //                 stack's `t` (the stack is the macro it fades to)
 //     glslNormal  the normal's perturbation, spliced after normal_fragment_maps
+//     glslRough   the sets' roughness, spliced after roughnessmap_fragment (the
+//                 near ring is a MeshStandardMaterial since 2026-09-21 - the
+//                 muskeg pools 0.03, wet mud, bare rock catch the sun and the
+//                 probe; a Lambert ring has no such include and ignores it)
 //     api         F8's handle: get/set knobs, code rows, grades, the library
 //   The arrays are assembled from SPLAT_TEX_SETS (lazily-made Images) once the
 //   maps have decoded; the ground draws the stack alone until then (uSplatOn).
 //
 // SAMPLERS (measured, tools/sampler_census.js, 2026-09-20): the near ring
 // spent 8 units, the outer ring 12, the premises patch 13, of 16; the two
-// arrays make that 10 / 14 / 15. Nothing else may be added to the island's
-// ground programs without a census.
+// arrays make that 10 / 14 / 15; the Standard near ring (envMap + dfgLUT,
+// 2026-09-21) 12 / 14 / 15 - the patch clones a Lambert twin. Nothing else
+// may be added to the island's ground programs without a census (GATE SPLAT
+// --gpu holds these numbers as the ratchet).
 //
 // THE SHADER'S RULES (learned on the bench, ANGLE/D3D):
 //   - implicit texture() on the arrays: textureGrad/textureLod on a
@@ -100407,6 +100435,7 @@ const SPLAT_GROUND = (() => {
   uniform float uSplatOn;
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
   uniform vec4 uSGrade[${NLIB}];
+  uniform float uSGloss[${NLIB}];
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform float uSBeachRot;
@@ -100432,7 +100461,7 @@ const SPLAT_GROUND = (() => {
     vec4 nr = texture(uSplatN, vec3(uv, layer));
     vec2 t = nr.xy * 2.0 - 1.0;
     t = vec2(cs.x * t.x + cs.y * t.y, -cs.y * t.x + cs.x * t.y);
-    o.n = vec4(t, nr.z * 2.0 - 1.0, nr.a);
+    o.n = vec4(t, nr.z * 2.0 - 1.0, 1.0 - (1.0 - nr.a) * uSGloss[int(layer + 0.5)]);   // the rough map through the set's gloss grade (1 = the map's, 0 = matte)
     vec4 g = uSGrade[int(layer + 0.5)];
     o.c.rgb *= g.rgb; float l = gLuma(o.c.rgb); o.c.rgb = mix(vec3(l), o.c.rgb, g.a);
     return o;
@@ -100559,7 +100588,7 @@ const SPLAT_GROUND = (() => {
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
     gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM);
-    gSRough = clamp(nrm.a, 0.05, 1.0);
+    gSRough = mix(clamp(nrm.a, 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
     vec3 mac = macro * uSSeam.y;
     if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * (lc / max(gLuma(mac), 1e-3)); col = mix(col, tinted, uSDist2.y); }
     return mix(col, mac, mw);
@@ -100573,8 +100602,14 @@ const SPLAT_GROUND = (() => {
   const glslNormal = () => `
   if (uSplatOn > 0.5) { vec3 pw = (viewMatrix * vec4(gSN, 0.0)).xyz; normal = normalize(normal + pw); }
 `;
+  // after roughnessmap_fragment (a Standard ring): the sets' roughness, the `sheen` knob its lever
+  // (1 = the sets' own, 0 = matte everywhere - the old Lambert look)
+  const glslRough = () => `
+  if (uSplatOn > 0.5) roughnessFactor = 1.0 - (1.0 - gSRough) * uSNrm.y;
+`;
 
   // ---- the arrays: seventeen sets, assembled once the Images have decoded -----
+  // colour + height (rgb + a) and normal + rough (rgb + a): four maps per set
   function buildArrays(sets, U, done) {
     const N = sets.length, px = sets[0].px, S = px * px * 4;
     const data = new Uint8Array(S * N), dataN = new Uint8Array(S * N);
@@ -100582,15 +100617,18 @@ const SPLAT_GROUND = (() => {
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
     const dec = img => (img.complete && img.naturalWidth ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
     Promise.all(sets.map(async (m, i) => {
-      const [d, n, h] = [m.diff, m.nor, m.height];
-      await Promise.all([dec(d), dec(n), dec(h)]);
+      const [d, n, h, r] = [m.diff, m.nor, m.height, m.rough || null];
+      await Promise.all([dec(d), dec(n), dec(h), r ? dec(r) : Promise.resolve()]);
       const o = i * S;
       if (d.naturalWidth) { ctx.drawImage(d, 0, 0, px, px); data.set(ctx.getImageData(0, 0, px, px).data, o); }
       if (h.naturalWidth) { ctx.drawImage(h, 0, 0, px, px); const hd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = hd[k * 4]; }
       else for (let k = 0; k < px * px; k++) data[o + k * 4 + 3] = 128;
       if (n.naturalWidth) { ctx.drawImage(n, 0, 0, px, px); dataN.set(ctx.getImageData(0, 0, px, px).data, o); }
       else for (let k = 0; k < px * px; k++) { dataN[o + k * 4] = 128; dataN[o + k * 4 + 1] = 128; dataN[o + k * 4 + 2] = 255; }
-      for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
+      // the ROUGH map in the normal array's alpha (2026-09-21: the near ring is a Standard material and
+      // reads it at roughnessmap_fragment); a manifest without one - or a map that failed - is 0.9 flat
+      if (r && r.naturalWidth) { ctx.drawImage(r, 0, 0, px, px); const rd = ctx.getImageData(0, 0, px, px).data; for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = rd[k * 4]; }
+      else for (let k = 0; k < px * px; k++) dataN[o + k * 4 + 3] = 230;
     })).then(() => {
       const mk = (dd, srgb) => { const t = new THREE.DataArrayTexture(dd, px, px, N);
         t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType; t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -100643,6 +100681,7 @@ const SPLAT_GROUND = (() => {
       uSMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
+      uSGloss: { value: new Float32Array(NLIB).fill(1) },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
@@ -100661,14 +100700,15 @@ const SPLAT_GROUND = (() => {
         M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
         const v = m.vary || [0, 0, 20]; Vv.set(v[0] * Math.PI / 180, v[1], v[2], 0);
       }
-      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat); });
+      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
+        U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss; });
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
       U.uSDist.value.set(K.detailFrom, K.detailTo, K.macroFrom, K.macroTo);
       U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, 0);
       U.uSHex.value.set(K.hDepth, K.hexOn, K.hexN, K.hexRot * Math.PI / 180);
       U.uSSeam.value.set(K.seamDepth, K.macroExp);
-      U.uSNrm.value.set(K.nrmK, K.specK);
+      U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)
       U.uSPud.value.set(K.pudCell, K.pudCover, K.pudEdge, K.pudSlope);
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
@@ -100686,12 +100726,12 @@ const SPLAT_GROUND = (() => {
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; push(); save(R); return api.code(i); },
-      grade: k => Object.assign({ gain: '#ffffff', sat: 1 }, R.grade[k] || {}),
+      grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1 }, R.grade[k] || {}),
       setGrade: (k, o) => { R.grade[k] = Object.assign(api.grade(k), o); push(); save(R); return api.grade(k); },
       reset: () => { try { localStorage.removeItem('flydiy.ground.splat.v1'); } catch (e) {} Object.assign(R, load()); push(); },
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
     };
-    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), api };
+    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
   return { make };
 })();
@@ -103345,7 +103385,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
             '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' +
             '  diffuseColor.rgb = t; }');
-        if (SPL) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal);
+        if (SPL) sh.fragmentShader = sh.fragmentShader
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal)
+          // the sets' roughness (a Standard ring only: a Lambert has no roughnessmap_fragment and the line is a no-op)
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + SPL.glslRough);
+        // THE IBL'S DIFFUSE STAYS OUT (the near ring is a Standard, above): r186 hands scene.environment
+        // to every lit material as irradiance AND radiance; the world's ambient is the hemisphere,
+        // so the irradiance line is cut and the probe reaches the ground as its reflection only
+        // AND THE SPECULAR IS THE WET GROUND'S ONLY: GGX at roughness 1 on a dark dielectric is no
+        // small term - the sun's 4 % Fresnel lobe measured +40 % (linear) over the muskeg's mud, a
+        // white haze over a ground the world had judged as a Lambert (2026-09-21, island_shot.js
+        // --step A/B: the sun alone, the hemisphere alone, the probe alone - the direct lobe
+        // was the lift, the probe the pools). Both lobes fade out from roughness 0.6 to 0.9: dry
+        // ground is the Lambert it was to the bit, pools (0.03), wet sand and shingle take the sun
+        // and the sky. GATE SPLAT holds the two patched lines.
+        const SC = THREE.ShaderChunk, GLOSS = ' * smoothstep( 0.9, 0.6, material.roughness )';
+        if (SC && SC.lights_fragment_maps) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>',
+          SC.lights_fragment_maps.replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/* the hemisphere is the ambient (render_world.js: THE HEMISPHERE STAYS OUT HERE) */')
+             .replace('vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness );',
+                      'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'));
+        if (SC && SC.lights_physical_pars_fragment) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>',
+          SC.lights_physical_pars_fragment.replace('reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;',
+                                                   'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'));
       };
     }
     groundApi = {
@@ -103525,10 +103586,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'vec3 dC2 = texture2D(uDetail, vDUv * 6.31).rgb;\n' +
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     }; };
-    const gMat = worldLambert({ map: tex });
-    innerPatchShared = { mat: gMat, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
+    // THE NEAR RING IS A STANDARD MATERIAL ON THE ISLAND (TERRAIN FOLLOW-UP 1, 2026-09-21): the splat
+    // carries a roughness per set (the normal array's alpha - the muskeg pools 0.03, wet mud, bare
+    // rock) and a Lambert had nowhere to put it: the pools read as dark slate, nothing ever caught
+    // the sun. A MeshStandardMaterial takes it at roughnessmap_fragment (the hook below), metalness
+    // 0, the reflection off scene.environment (the world's probe); its IBL IRRADIANCE is stripped
+    // in the hook so the hemisphere stays the world's one ambient (THE HEMISPHERE STAYS OUT HERE:
+    // the diffuse response is the Lambert's to the bit, the sheen is what is added). Samplers: the
+    // near ring 10 -> 12 (envMap + dfgLUT; tools/sampler_census.js). The OUTER ring stays a Lambert
+    // (it starts 4.5 km out, past the detail; 14 of 16 units, no room) and so does THE PREMISES
+    // PATCH: it clones the ring's material and adds five of its own (15 of 16 as a Lambert; a
+    // Standard clone would ask 17 and fail to link, drawing nothing - G424) - innerPatchShared
+    // hands it a Lambert TWIN under the same hook. The analytic world's ring is untouched.
+    const gMat = islandGroundHook ? new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }) : worldLambert({ map: tex });
+    const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
+    innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) gMat.onBeforeCompile = islandGroundHook;
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; gMatTwin.onBeforeCompile = islandGroundHook; }
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
@@ -138874,6 +138948,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         Sg.appendChild(select('set', LIB.slice(1), () => gk, v => { gk = v; }));
         Sg.appendChild(color('gain', () => SP.grade(gk).gain, v => SP.setGrade(gk, { gain: v })));
         Sg.appendChild(slider('saturation', 0, 2, 0.05, () => SP.grade(gk).sat, v => SP.setGrade(gk, { sat: v })));
+        Sg.appendChild(slider('gloss', 0, 1, 0.05, () => SP.grade(gk).gloss, v => SP.setGrade(gk, { gloss: v })));
+        Sg.appendChild(note('gloss: the set’s roughness map as shipped at 1, matte at 0 (the near ring is a Standard material: wet sand, shingle and the pools catch the sun)'));
         const Sd = fold(Sf, 'distance \u00b7 macro', false, true);
         Sd.appendChild(slider('detail fades from', 0, 2000, 25, kn('detailFrom'), ss('detailFrom'), v => v + ' m'));
         Sd.appendChild(slider('detail gone by', 50, 4000, 25, kn('detailTo'), ss('detailTo'), v => v + ' m'));
@@ -138892,6 +138968,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         Sb.appendChild(slider('hex rotation', 0, 180, 5, kn('hexRot'), ss('hexRot'), v => v + '\u00b0'));
         Sb.appendChild(slider('triplanar', 0, 16, 1, kn('triK'), ss('triK'), v => v ? 'k ' + v : 'off'));
         Sb.appendChild(slider('normal strength', 0, 3, 0.05, kn('nrmK'), ss('nrmK')));
+        Sb.appendChild(slider('sheen', 0, 1, 0.05, kn('sheen'), ss('sheen')));
+        Sb.appendChild(note('sheen: the sets’ roughness on the near ring (the muskeg pools, wet mud and bare rock catch the sun and the sky’s reflection); 0 is matte, the old look'));
         const Ss = fold(Sf, 'splits (derived surfaces)', false, true);
         Ss.appendChild(slider('cliff from', 10, 60, 1, kn('cliffLo'), ss('cliffLo'), v => v + '\u00b0'));
         Ss.appendChild(slider('cliff full at', 10, 70, 1, kn('cliffHi'), ss('cliffHi'), v => v + '\u00b0'));
