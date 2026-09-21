@@ -13,10 +13,14 @@
 //               plaque.js, every section heading has its line, the bounds
 //               table kept its thresholds, and the band bar's marker never
 //               leaves the bar for any value in either direction.
-//   THE WORD    the fingerprint ignores paint, finish and meta and nothing
-//               else: recolouring keeps a certificate, moving the wing loses
-//               it. The hash is stable across runs (a certificate saved
-//               today must match the same build tomorrow).
+//   THE WORD    the fingerprint ignores paint, finish and meta, the looks
+//               inside energy and systems, the cage's state and view rows,
+//               a row at its default and the key order — and nothing else:
+//               recolouring keeps a certificate, moving the wing loses it.
+//               The hash is stable across runs (a certificate saved today
+//               must match the same build tomorrow), and survives a save
+//               envelope's round trip (A9: it did not, for a row any update
+//               adds).
 //   THE STRIP   the run card's phase strip knows every phase the test pilot
 //               can be in; the stickers draw on a stub context without
 //               throwing, land on their own page, and the shader has the
@@ -135,6 +139,31 @@ console.log('THE WORD');
   ok(/^[0-9a-f]{8}$/.test(f0) && BE.benchFingerprint(spec) === f0, 'the hash is eight hex digits and stable');
   ok(BE.benchHash('') === '811c9dc5' && BE.benchHash('a') === 'e40c292c', 'FNV-1a reference values');
   ok(JSON.stringify(BE.BENCH_COSMETIC) === '["paint","finish","meta"]', 'the cosmetic set is paint, finish, meta');
+  // THE SECOND SCHEME (A9): what weighs nothing and what a builder did not
+  // move is not the aeroplane
+  {
+    const D = { waistY: 0.5, wgSpan: 9.0, lightOn: 0, zzNew: 0.42 };
+    const s2 = { wings: [{ span: 10 }], energy: { hue: 0.1, tint: '#abc', finish: 'gloss', vessels: [{ capacity: 40, hue: 0.2, tint: '#123', finish: 'matt' }] },
+                 systems: { avionics: 'basic', look: { bezel: 1, sw: 0 } },
+                 cage: { waistY: 0.5, wgSpan: 9.4, lightOn: 0, _viewLoops: 0, explodeD: 0, cabOcc: 0, paxOcc2: 0, li_reflect: 1, accDetail: 2 } };
+    const g0 = BE.benchFingerprint(s2, D);
+    const v = (mut, same, label) => { const c = JSON.parse(JSON.stringify(s2)); mut(c); ok((BE.benchFingerprint(c, D) === g0) === same, label); };
+    v(c => { c.energy.hue = 0.9; c.energy.tint = '#000'; c.energy.finish = 'matt'; c.energy.vessels[0].hue = 0.7; c.energy.vessels[0].tint = '#fff'; }, true, 'a tank hue, tint or finish keeps it');
+    v(c => { c.systems.look = { bezel: 3, sw: 2 }; }, true, 'the panel bezel keeps it');
+    v(c => { c.cage.lightOn = 1; c.cage.cabOcc = 1; c.cage.paxOcc2 = 1; c.cage._viewLoops = 1; c.cage.explodeD = 0.4; c.cage.li_reflect = 0; c.cage.accDetail = 0; }, true, 'the lights, who is aboard, a view toggle and a look row keep it');
+    v(c => { c.cage.zzNew = 0.42; }, true, 'a cage row added at its default keeps it');
+    v(c => { const o = {}; Object.keys(c.cage).reverse().forEach(k => o[k] = c.cage[k]); c.cage = o; }, true, 'the key order keeps it');
+    v(c => { c.cage.waistY = 0.5 + 1e-12; }, true, 'a float printed to the last digit keeps it');
+    v(c => { c.cage.zzNew = 0.5; }, false, 'a cage row moved off its default changes it');
+    v(c => { c.cage.wgSpan = 9.0; }, false, 'a row put back to its default changes it (it was moved)');
+    v(c => { c.energy.vessels[0].capacity = 60; }, false, 'a vessel capacity changes it');
+    v(c => { c.systems.avionics = 'ifr'; }, false, 'the systems fit changes it');
+    ok(BE.benchFingerprint(s2, null) !== g0 && /^[0-9a-f]{8}$/.test(BE.benchFingerprint(s2, null)), 'without defaults every row counts (a core-only caller)');
+    ok(typeof BE.BENCH_FP_SCHEME === 'string' && /^f\d$/.test(BE.BENCH_FP_SCHEME), 'the scheme is named in the tag');
+    ok(BE.benchCanon({ b: 1, a: [2, { d: 1, c: 2 }] }) === '{"a":[2,{"c":2,"d":1}],"b":1}', 'canonical JSON sorts keys at every depth');
+  }
+  ok(/G\.cageDefaults\(\)/.test(rd('src/viewer/bench.js')) && /cageDefaults: \(\) =>/.test(rd('src/viewer/garage.js')),
+     'fpNow reads the default aeroplane garage.js publishes');
   // THE PHYSICS IS IN THE WORD (TAIL CHANTIER 2 P5, ruling (p)): the same
   // spec under another PHYSICS_V or GEN_SPEC_V is another fingerprint, and
   // the restore compares instead of stamping
@@ -154,8 +183,9 @@ console.log('THE WORD');
   const src = rd('src/viewer/bench.js');
   ok(/results\[id\]\.fp && results\[id\]\.fp !== fp/.test(src), 'the dirty hook compares fingerprints');
   ok(!/if \(results\[id\] && !results\[id\]\.stale && !results\[id\]\.fp\) results\[id\]\.fp = fp/.test(src) &&
-     /certified before fingerprints/.test(src) && /physics changed since the certificate/.test(src),
-     'the restore withdraws a changed or unstamped certificate instead of stamping the live fingerprint on it');
+     /certified before fingerprints/.test(src) && /physics changed since the certificate/.test(src)
+     && /certified under the old fingerprint/.test(src) && /r\.fps = BENCH_FP_SCHEME/.test(src),
+     'the restore withdraws a changed, unstamped or old-scheme certificate instead of stamping the live fingerprint on it');
   ok(/stale: true/.test(src) && /withdrawn/.test(src), 'a withdrawn certificate is kept, struck through');
   ok(/r\.when = today\(\)/.test(src), 'every settled result is dated');
   ok(/trim: \(trimUse && f/.test(src), 'BENCH_STATE carries the advised trim only from a live, accepted flight');
@@ -172,7 +202,7 @@ console.log('THE STRIP');
   for (const m of PILOT.matchAll(/ap\.phase = '([A-Z_-]+)'/g)) phases.add(m[1]);
   const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK/.test(p));
   ok(phases.size >= 15 && !unknown.length, 'the phase strip knows all ' + phases.size + ' pilot phases' + (unknown.length ? ' — not ' + unknown.join(', ') : ''));
-  ok(BE.benchFlightStep('CROSSWIND 3.0 m/s') === 6 && BE.benchFlightStep('TAXI') === 0 && BE.benchFlightStep('STOPPED') === 5, 'crosswind, taxi and stopped map to their steps');
+  ok(BE.benchFlightStep('CROSSWIND 3.0 m/s') === 3 && BE.benchFlightStep('TAXI') === 0 && BE.benchFlightStep('STOPPED') === 5, 'the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)');
   // the stickers: a stub context that records calls and throws on nothing
   const calls = [];
   const g = new Proxy({}, { get: (_, k) => (k === 'measureText' ? () => ({ width: 8 }) : (...a) => { calls.push(k); }),
@@ -185,21 +215,37 @@ console.log('THE STRIP');
       ST.stickerRoundel(g, 20, 20, 18, { title: M.title, emblem: M.emblem, small: true });
     }
   } catch (e) { threw = e; }
-  ok(!threw, 'all five roundels draw on a stub context' + (threw ? ': ' + threw.message : ''));
+  ok(!threw, 'all six roundels draw on a stub context' + (threw ? ': ' + threw.message : ''));
+  // A9: the master draws too, with the ring, the registration and the date
+  threw = null;
+  try { ST.stickerRoundel(g, 0.125, 0.125, 0.12, { title: ST.STICKER_MASTER.title, ring: ST.STICKER_MASTER.ring, emblem: ST.STICKER_MASTER.emblem, sub: 'F-PGAR', date: '2026-09-21' }); }
+  catch (e) { threw = e; }
+  ok(!threw && ST.STICKER_MASTER.title === 'AIRWORTHY' && ST.STICKER_MASTER_PAGE === 7 && ST.STICKER_MASTER.d === 0.25,
+     'the master roundel draws: AIRWORTHY, 250 mm, on page 7' + (threw ? ': ' + threw.message : ''));
+  ok(ST.stickerMasterDate({ certs: [{ id: 'shake', when: '2026-09-20' }, { id: 'dalt', when: '2026-09-22' }, { id: 'flight', when: '2026-09-21' }] }) === '2026-09-21',
+     'the master is dated by the last GATING certificate (a rating does not date it)');
   ok(calls.includes('arc') && calls.includes('fillText') && calls.includes('rotate'), 'a roundel is a disc with lettering round it');
-  ok(ST.STICKER_ORDER.length === 5 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id)), 'one sticker per declared test (five: the hydroplane row is the seaplane one, S1 G451.1)');
-  ok(Math.abs(ST.stickerStripW() - 0.72) < 1e-9 && ST.STICKER_PLACE.d === 0.12, 'five 120 mm roundels in a 0.72 m strip');
+  ok(ST.STICKER_ORDER.length === 6 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id))
+     && BE.BENCH_TESTS.every(t => ST.STICKER_ORDER.includes(t.id)), 'one sticker per declared test, and every test has one (six: the crosswind\'s A9, the hydroplane\'s S1 G451.1)');
+  ok(Math.abs(ST.stickerStripW() - 0.87) < 1e-9 && ST.STICKER_PLACE.d === 0.12, 'six 120 mm roundels in a 0.87 m strip');
   // G208.2: a place plus fine tuning, like a tank's bay plus offset
   const R0 = ST.stickerResolve({}), Rf = ST.stickerResolve({ stkPlace: 3, stkL: 0.5, stkC: -0.2, stkSize: 0.08, stkRot: 0.1 });
-  ok(R0 && R0.place === 'aft' && Math.abs(R0.sL - (1.70 + 0.36)) < 1e-9 && R0.sC === -0.16 && R0.on.body === 1, 'no decal block = the rear fuselage under the registration');
+  ok(R0 && R0.place === 'aft' && Math.abs(R0.sL - (1.70 + 0.435)) < 1e-9 && R0.sC === -0.16 && R0.on.body === 1, 'no decal block = the rear fuselage under the registration');
   ok(Rf && Rf.place === 'fin' && Rf.on.tail === 1 && Rf.mode === 'side' && Math.abs(Rf.d - 0.08) < 1e-9 && Math.abs(Rf.sL - (5.20 + 0.5 + ST.stickerStripW(0.08) / 2)) < 1e-9
      && Math.abs(Rf.sC - 1.0) < 1e-9 && Rf.rot === 0.1, 'the fin place (box side frame), fine-tuned, smaller, turned');
   const Rl = ST.stickerResolve({ stkPlace: 3 }, { finTop: 2.0, finAlong: 6.0, finBand: [5.0, 5.8], wingAlong: 1.4 });
   ok(Rl && Math.abs(Rl.sL - 5.4) < 1e-9 && Math.abs(Rl.sC - 1.65) < 1e-9, 'with a measured fin, the strip is centred on its chord 0.35 m under the top');
   const Rn = ST.stickerResolve({ stkPlace: 3 }, { finTop: 2.0, finAlong: 6.0, finBand: null, wingAlong: 1.4 });
-  ok(Rn && Math.abs(Rn.sL - (6.0 - 0.45 - 0.72 + 0.36)) < 1e-9, 'without a chord, hung short of the top\'s station');
+  ok(Rn && Math.abs(Rn.sL - (6.0 - 0.45 - 0.87 + 0.435)) < 1e-9, 'without a chord, hung short of the top\'s station');
+  // A9: the master resolves on its own keys, one roundel wide
+  const Rm = ST.stickerResolve({}, null, 'master'), Rm2 = ST.stickerResolve({ mstPlace: 3, mstL: 0.1, mstC: 0.2, mstSize: 0.3, mstRot: -0.2 }, null, 'master');
+  ok(Rm && Rm.place === 'aft' && Math.abs(Rm.d - 0.25) < 1e-9 && Math.abs(Rm.w - 0.25) < 1e-9 && Math.abs(Rm.sL - (1.70 + 0.125)) < 1e-9,
+     'no decal block = the master 250 mm, one roundel wide');
+  ok(Rm2 && Rm2.place === 'fin' && Math.abs(Rm2.d - 0.3) < 1e-9 && Math.abs(Rm2.sL - (5.20 + 0.1 + 0.15)) < 1e-9 && Math.abs(Rm2.sC - 1.4) < 1e-9 && Rm2.rot === -0.2,
+     'the master on the fin, fine-tuned, bigger, turned — on its own keys');
+  ok(ST.stickerResolve({ mstOn: 0 }, null, 'master') === null && ST.stickerResolve({ mstOn: 0 }) !== null, 'the master off hides the master and not the strip');
   const Rw = ST.stickerResolve({ stkPlace: 4 }, { finTop: 2.0, finAlong: 6.0, wingAlong: 1.4 });
-  ok(Rw && Rw.mode === 'plan' && Rw.on.wing === 1 && Math.abs(Rw.sL - (0.9 + 0.36)) < 1e-9 && Math.abs(Rw.sC - 1.4) < 1e-9, 'with a measured wing, the strip lies across the span on its chord station');
+  ok(Rw && Rw.mode === 'plan' && Rw.on.wing === 1 && Math.abs(Rw.sL - (0.9 + 0.435)) < 1e-9 && Math.abs(Rw.sC - 1.4) < 1e-9, 'with a measured wing, the strip lies across the span on its chord station');
   ok(ST.stickerResolve({ stkOn: 0 }) === null, 'stickers shown off = no strip');
   ok(ST.STICKER_PLACES.length === 5 && ST.STICKER_PLACES.every(p => p.name && p.on && p.mode), 'five named places, each with surfaces and a projection');
   // stkPlace 3 = THE FIN (G242.1, the user: "stick them on the fin, that's
@@ -207,13 +253,77 @@ console.log('THE STRIP');
   // fuselage went red on the change it was there to notice, which is the
   // job; it now pins the place that was chosen, so the next move is noticed too
   ok(/stkOn: 1, stkPlace: 3, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,/.test(SKIN), 'the sticker keys are decal defaults, so they ride finish.decals — and the default place is the fin');
+  ok(/mstOn: 1, mstPlace: 0, mstL: 0, mstC: 0, mstSize: 0.25, mstRot: 0,/.test(SKIN) && /'mstOn'/.test(rd('tools/_cage_ui.js')) && /'mstPlace'/.test(rd('tools/_cage_ui.js')),
+     'the master keys are decal defaults too (the rear fuselage under the registration), with their panel rows');
   ok(/DECG\.cur = 'stk'/.test(rd('tools/_cage_ui.js')) && /stk: \[\]/.test(rd('src/viewer/editor.js')), 'the panel has a stickers block and the finish view a heading for it');
   ok(ST.STICKER_PAGE === 6, 'the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)');
-  ok(/const AERO_MAXD = 7/.test(SKIN) && /#define AERO_MAXD 7/.test(SKIN), 'the shader has the seventh decal slot');
+  ok(/const AERO_MAXD = 8/.test(SKIN) && /#define AERO_MAXD 8/.test(SKIN), 'the shader has the eighth decal slot (the strip and the master)');
   ok(/window\.AERO_EXTRA_DECALS\(THREE, D\)/.test(SKIN), 'aeroDecalsFor takes the stickers through the hook, with the decal block');
-  ok(/'plaque\.js', 'stickers\.js', 'bench\.js'/.test(BUILD) && /'bench\.css'/.test(BUILD), 'the manifest carries plaque.js, stickers.js and bench.css');
+  ok(/'plaque\.js', 'stickers\.js', 'bench_worker\.js', 'bench\.js'/.test(BUILD) && /'bench\.css'/.test(BUILD), 'the manifest carries plaque.js, stickers.js, bench_worker.js, bench.js and bench.css');
   ok(/redecal:/.test(rd('tools/_cage_ui.js')), 'the editor can be asked to rebuild its decal list');
-  ok(/pos: \[cgN\[0\], cgN\[1\], cgN\[2\]\]/.test(APP), 'the circuit poll carries the trace');
+}
+
+// ---- THE THREAD, THE VERDICT, THE FLIGHT CARD (A9) --------------------------
+console.log('THE THREAD');
+{
+  const BW = load('src/viewer/bench_worker.js');
+  const src = rd('src/viewer/bench.js');
+  const wsrc = BW.benchWorkerSource('http://x/');
+  ok(/importScripts\("http:\/\/x\/src\/viewer\/bench_worker\.js"\)/.test(wsrc) && /importScripts\("http:\/\/x\/tools\/flight_core\.js"\)/.test(wsrc)
+     && /makeLoadTest/.test(wsrc) && /makeCrosswindProbe/.test(wsrc), 'the worker imports this module and the core bundle, and names the rig and the ladder');
+  ok(/const LOAD_STEP_BUDGET_MS = (\d+)/.test(APP) && +APP.match(/const LOAD_STEP_BUDGET_MS = (\d+)/)[1] <= 16, 'the page backend steps under a frame\'s budget');
+  const kills = (APP.match(/killLoadRun\(\)/g) || []).length;
+  ok(/function killLoadRun\(\)[^]*?\.kill\(\)/.test(APP) && kills >= 4 && /w\.terminate\(\)/.test(rd('src/viewer/bench_worker.js')), 'the rig\'s thread is killed at every way out (' + kills + ' sites), with terminate()');
+  ok(/const LOAD_TIP_CAP = 15;/.test(src) && /ok = !broke && !bent/.test(src) && !/ok: st\.verdict === 'HELD'/.test(src), 'the certificate fails on a break-up or the tip cap, never on the yield proxy');
+  ok(/warn: overYield/.test(src) && /yield proxy/.test(src), 'the proxy is reported as a warning, named for what it is');
+  const fix = src.match(/fix: ok \? '' : '([^']*)'\s*\+ '([^']*)'/);
+  ok(fix && /fixation|construction|span/.test(fix[1] + fix[2]) && !/deeper spar|second bay/.test(src), 'the fix line names rows that exist (fixation, construction, span), not a deeper spar');
+  ok(BW.BENCH_LOAD_LEVERS.every(L => /^(fixation|construction|span)$/.test(L.row)) && BW.BENCH_LOAD_LEVERS.length === 4
+     && !BW.BENCH_LOAD_LEVERS.some(L => /thick|panel|station/i.test(L.id + L.label)), 'the advisor\'s levers are the wing page\'s rows; thickness and spar stations are not offered (measured useless / worse)');
+  const vs = BW.benchLoadVariants({ wings: [{ span: 9, material: 'alloy' }], bracing: { type: 'cantilever' } });
+  ok(vs.map(v => v.id).join(',') === 'strut,carbon,span', 'a cantilever aluminium wing is offered struts, carbon and a metre off — not aluminium again');
+  const vs2 = BW.benchLoadVariants({ wings: [{ span: 9 }], fuselage: { material: 'alloy' }, bracing: { type: 'strut' } }, { genSurfKey: () => 'alloy' });
+  ok(vs2.map(v => v.id).join(',') === 'carbon,span', 'a wing that follows an aluminium fuselage is not offered aluminium either (genSurfKey decides)');
+  ok(vs.length && /measuring what would help/.test(src) && /loadAdvise/.test(src) && /loadAdvise: cb => startLoadAdvise\(cb\)/.test(APP), 'the advisor runs after the verdict through the bridge, line by line');
+  ok(BE.benchLeverLine && /lift struts \(fixation\): tip 4\.1 % · 54 % of yield/.test(BE.benchLeverLine({ label: 'lift struts', row: 'fixation', ultPct: 4.09, ultYield: 54.2, verdict: 'HELD' })), 'a lever line names the row and the tip it buys');
+  // the flight card is flown
+  const fl = BE.BENCH_TESTS.filter(t => t.id === 'flight')[0], xw = BE.BENCH_TESTS.filter(t => t.id === 'xwind')[0];
+  ok(fl && fl.kind === 'flown' && fl.needs.join() === 'testFlight' && typeof fl.judge === 'function', 'the test flight is a flown card: it hands off to the game');
+  const j1 = fl.judge({ report: { verdicts: [], outcome: 'completed', landing: { run: 210, sink: 0.4, pastAim: 12 }, trimDe: 0.04 }, arrived: true, t: 200, manual: false });
+  const j2 = fl.judge({ report: { verdicts: [{ code: 'rejected-takeoff' }], outcome: 'rejected-takeoff', landing: null }, arrived: false, t: 20, manual: false });
+  const j3 = fl.judge({ report: { verdicts: [], outcome: 'completed', landing: null, trimDe: 0.04 }, arrived: true, td: { sink: 0.6, V: 20, z: 1 }, t: 300, manual: true });
+  ok(j1.ok && j1.verdict === 'FLEW THE CIRCUIT' && j1.trim === 0.04 && /210 m/.test(j1.note), 'an arrival on the pilot awards, with the landing run and the trim');
+  ok(!j2.ok && j2.verdict === 'REJECTED TAKEOFF' && /rejected take-off/.test(j2.fix), 'a refusal is a failed test with its reason');
+  ok(j3.ok && j3.verdict === 'ARRIVED, BY HAND' && j3.trim === null, 'an arrival by hand awards, and carries no trim reading');
+  ok(/window\.BENCH_FLIGHT_LOGGED = f =>/.test(src) && /window\.BENCH_FLIGHT_OFF = \(\) =>/.test(src) && /flightArrived\(\);/.test(APP) && /function startTestFlight\(card\)/.test(APP)
+     && /testFlight: card => startTestFlight\(card\)/.test(APP) && !/circuitStart/.test(APP), 'logFlight hands every flight to the bench; the offscreen circuit is gone');
+  ok(/report\.trimDe/.test(rd('src/core/43_pilot.js')) && /trimAcc/.test(rd('src/core/43_pilot.js')), 'the game pilot publishes the trim it held (the advisor reads the real flight now)');
+  ok(/const DIRECTOR_CUTS = \{/.test(APP) && /director\.frame\(\)/.test(APP) && /if \(!directorPick\) director\.stop\(\)/.test(APP), 'the director cuts on the phases and a framing pick ends it');
+  ok(/let simRate = 1/.test(APP) && /for \(let k = 0; k < simRate; k\+\+\)/.test(APP) && /not on floats/.test(APP) && /simRateSet\(1\)/.test(APP), '2x steps twice a frame, refuses floats, drops itself');
+  // the crosswind card
+  ok(xw && xw.advisory === true && xw.kind === 'live' && xw.offscreen === true && xw.needs.join() === 'xwindStart,xwindPoll,xwindEnd', 'the crosswind is its own advisory card');
+  const api = { xwindPoll: () => ({ done: true, result: { limit: 5.5, cap: 10, failW: 6, failWhy: 'off the edge line', runs: [] }, runs: [{ w: 2, ok: true, roll: 1.2 }, { w: 6, ok: false, why: 'off the edge line', roll: 3.4 }] }) };
+  const xr = xw.poll(api);
+  ok(xr.done && xr.ok && /CROSSWIND LIMIT 5\.5 m\/s/.test(xr.verdict) && xr.rungs.length === 2 && /off the edge line/.test(xr.rungs[1]), 'the verdict names the limit and every rung');
+  const xr2 = xw.poll({ xwindPoll: () => ({ done: true, result: { limit: 2, cap: 10, failW: 4, failWhy: 'never airborne', runs: [] }, runs: [] }) });
+  ok(!xr2.ok && /under the 4 m\/s bar/.test(xr2.why) && /4\.0 m\/s: never airborne/.test(xr2.why), 'under the plaque\'s bar it says why, with the first failed rung');
+  ok(/get runs\(\) \{ return runs; \}/.test(rd('src/core/42_crosswind.js')), 'the probe publishes its rungs as they land (read-only)');
+  ok(/'in a crosswind'/.test(rd('src/viewer/plaque.js')) && /'first rung failed'/.test(rd('src/viewer/plaque.js')) && /xwind: xwIfRun\(\)/.test(APP), 'the plaque has the crosswind section, from the card\'s sheet');
+  // the identity of the worker's path with the rig's
+  let core = null;
+  try { core = require(path.join(ROOT, 'tools', 'flight_core.js')); } catch (e) {}
+  if (!core || !core.makeLoadTest) console.log('  skip  tools/flight_core.js not built (the identity check)');
+  else {
+    const spec = JSON.parse(JSON.stringify(core.GEN_DEFAULT));
+    const def = core.buildGen(spec), sim = core.makeSim(def, null); sim.reset(0);
+    const rig = core.makeLoadTest(sim, def, BW.benchLoadCfg(core, spec, { settleS: 1.0, rampS: 1.5, holdS: 0.5 }));
+    for (let i = 0; i < 3600 && !rig.state.done; i++) rig.step(1 / 60);
+    const run = BW.benchLoadRun(core, { spec, cfg: { settleS: 1.0, rampS: 1.5, holdS: 0.5 } });
+    for (let i = 0; i < 3600 && !run.done; i++) run.pump(1);
+    const st = run.snapshot().state;
+    ok(rig.state.done && st.done && st.verdict === rig.state.verdict && Math.abs(st.tipPct - rig.state.tipPct) < 1e-9 && st.frac === 1,
+       'the worker\'s run is the rig: same verdict, same tip (' + st.verdict + ', ' + (+st.tipPct).toFixed(3) + ' %)');
+  }
 }
 
 // ---- THE FLIGHT (G208.3) --------------------------------------------------

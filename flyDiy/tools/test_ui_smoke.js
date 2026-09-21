@@ -479,29 +479,30 @@ try {
       `${hot.TORun.toFixed(0)} m take-off, ${hot.climbRate.toFixed(2)} m/s climb on ` +
       `${(hot.power * 100).toFixed(0)}% power, service ceiling ` +
       `${da.serviceCeiling == null ? '> ' + da.ceilingCap : da.serviceCeiling.toFixed(0)} m`);
-    // THE CROSSWIND LIMIT (G193.2) rides the test flight's report and the
-    // plaque prints it in the test-flight section — with the roll and the
-    // lift-off heading beside it, and the row's own bound. Restored the way
-    // a saved certificate comes back, so the round trip is the thing tested.
+    // THE CROSSWIND LIMIT (G193.2) rode the test flight's report; since A9 it
+    // is the crosswind CARD's own sheet (`xwind`) and the plaque prints it in
+    // its own section, IN A CROSSWIND — with the roll and the lift-off
+    // heading beside it, the row's own bound, and the first rung that failed.
+    // Restored the way a saved certificate comes back, so the round trip is
+    // the thing tested.
     B.restoreSheets({ flight: { t: 300, report: {
       outcome: 'completed', verdicts: [],
-      landing: { run: 152, sink: 0.8, V: 20, offCentre: 0.1, pastAim: 10 },
-      xwind: { limit: 2, cap: 10, band: 12.5, roll: 10.11, e: 0.227, runs: [] } } } });
+      landing: { run: 152, sink: 0.8, V: 20, offCentre: 0.1, pastAim: 10 } } },
+      xwind: { result: { limit: 2, cap: 10, band: 12.5, roll: 10.11, e: 0.227, failW: 4, failWhy: 'off the edge line', runs: [] }, runs: [] } });
     B.plaque(true);
     {
       const h = els['pqRows'].innerHTML;
       if (!/crosswind limit/.test(h))
         throw new Error('the plaque did not print the crosswind limit');
+      if (!/in a crosswind/i.test(h) || !/first rung failed/.test(h) || !/4\.0 m\/s · off the edge line/.test(h))
+        throw new Error('the crosswind has no section of its own, or the failed rung is not on it');
       if (!/2\.0 m\/s/.test(h) || !/roll 10\.1 m/.test(h) || !/13\u00b0 off/.test(h))
         throw new Error('the crosswind row does not carry its limit, roll and heading: ' +
                         (h.match(/crosswind limit[^<]*<[^>]*>[^<]*/) || [''])[0]);
       if (!/\u2265 4 m\/s/.test(h))
         throw new Error('the crosswind row does not print its bound');
     }
-    B.restoreSheets({ flight: { t: 300, report: {
-      outcome: 'completed', verdicts: [],
-      landing: { run: 152, sink: 0.8, V: 20, offCentre: 0.1, pastAim: 10 },
-      xwind: { limit: null, cap: 10, band: 12.5, roll: 3.2, e: 0.02, runs: [] } } } });
+    B.restoreSheets({ xwind: { result: { limit: null, cap: 10, band: 12.5, roll: 3.2, e: 0.02, failW: null, failWhy: null, runs: [] }, runs: [] } });
     B.plaque(true);
     if (!/&gt; 10 m\/s|> 10 m\/s/.test(els['pqRows'].innerHTML))
       throw new Error('a limit above the cap does not print as "> cap"');

@@ -47,6 +47,29 @@
 /* the run button reads "again" on a certified row; a stale row says why */
 #edInfo .bWhy { color:var(--ed-warn); font:400 10.5px/1.5 'IBM Plex Sans';
   margin-top:5px; }
+/* A9: the yield proxy, reported not failed; and the advisor's measured
+   levers, one line each as they land (under the row and on the award card) */
+#edInfo .bRungs { margin-top:5px; color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans'; }
+#edInfo .bRungs div:before { content:'▸ '; color:var(--ed-faint); }
+#edInfo .bWarn { color:var(--ed-warn); opacity:.85; font:400 10.5px/1.5 'IBM Plex Sans';
+  margin-top:5px; }
+.bAdvice { margin-top:7px; padding:7px 9px; border-radius:6px; text-align:left;
+  background:var(--ed-acc-soft); color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans'; }
+.bAdvice > span { display:block; font:600 9px/1.3 'IBM Plex Sans'; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ed-faint); margin-bottom:3px; }
+.bAdvice:not(.done) > span:after { content:''; display:inline-block; width:8px; height:8px;
+  margin-left:7px; border-radius:50%; border:1.5px solid var(--ed-faint); border-top-color:transparent;
+  animation:bSpin .9s linear infinite; vertical-align:-1px; }
+@keyframes bSpin { to { transform:rotate(360deg); } }
+.bAdvice div { color:var(--ed-ink); }
+.bAdvice div:before { content:'▸ '; color:var(--ed-faint); }
+/* A9: on the flight screen (the flown card's award, the master's) the card
+   centres on the viewport — the workshop's insets are not there */
+body.mode-fly #bAward { left:50vw; top:38%; }
+#bAward.master canvas { width:180px; height:180px; }
+#bAward.master .bAs { border-width:3px; font-size:15px; }
+#bAward .bAw { margin-top:8px; color:var(--ed-warn); opacity:.85; text-align:left; }
+#bRun .bRlive .dim { color:var(--ed-faint); }
 
 /* THE CARDS LIVE ON THE BODY, over the view, and editor.css declares its
    palette on the workshop's own containers — so the tokens are redeclared

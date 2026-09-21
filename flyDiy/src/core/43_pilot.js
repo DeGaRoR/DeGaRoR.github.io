@@ -320,6 +320,11 @@ function makePilot(sim, def, world, opts) {
   let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
   let vsSlow = 0, gaT = 0;
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
+  // A9: THE TRIM THE PILOT HELD (41_test_pilot.js, verbatim in intent): the
+  // slewed elevator on the settled downwind, time-weighted, published as
+  // `report.trimDe` for the bench's trim advisor — the test flight is a real
+  // flight on THIS pilot now, so the reading has to come from here
+  let trimAcc = { n: 0, de: 0 };
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   // ROTATION AUTHORITY (2026-09-11). holdPitch's integrator is capped at
@@ -2385,6 +2390,10 @@ function makePilot(sim, def, world, opts) {
     // nothing jumps when the box takes the axis
     const ownV = !BX.on || AF.vert !== 'OFF', ownL = !BX.on || AF.lat !== 'OFF';
     if (ownV) { aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe; } else aDe = c.de;
+    if (ap.phase === 'DOWNWIND' && phaseT > 8 && onG === 0 && ap.report) {
+      trimAcc.n += dt; trimAcc.de += aDe * dt;
+      ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
+    }
     if (ownL) {
       aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
       aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;

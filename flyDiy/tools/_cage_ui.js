@@ -3959,6 +3959,15 @@ function buildDecPanel() {
   num('stickers up', 'stkC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the place\'s own height', 'up');
   num('sticker size', 'stkSize', 0.06, 0.30, 0.01, 'the roundel\'s diameter, metres (120 mm is a real placard)');
   num('stickers turn', 'stkRot', -0.6, 0.6, 0.01, 'radians');
+  // A9: THE MASTER — the AIRWORTHY roundel the whole certificate earns
+  flag('master sticker shown', 'mstOn',
+       'the AIRWORTHY roundel — worn when the bench check, the wing loading and the test flight are all held; off hides it');
+  pick('master goes on', 'mstPlace', STK.map(p => p.name),
+       'the place the master is worn — its own station and height; the two rows below fine-tune from there');
+  num('master along', 'mstL', -3.0, 3.0, 0.02, 'metres fore (-) or aft (+) of the station of the place', 'len');
+  num('master up', 'mstC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the height of the place', 'up');
+  num('master size', 'mstSize', 0.10, 0.60, 0.01, 'the diameter of the roundel, metres');
+  num('master turn', 'mstRot', -0.6, 0.6, 0.01, 'radians');
   // THE SPINNER'S SPIRAL (G345.1, the user: "the nose cone option to draw
   // the little typical spiral and choose its colour"). Painted by the
   // weathering module in the cone's own polar frame, so it turns with it.

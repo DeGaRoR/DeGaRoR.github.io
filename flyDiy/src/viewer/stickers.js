@@ -27,16 +27,31 @@
 // circle in metres is an ellipse in page pixels; the canvas transform does
 // that arithmetic (setTransform P/w, P/h) and the roundel is written once,
 // in metres, for the atlas and for the panel's thumbnails alike.
+//
+// THE MASTER (A9, 2026-09-21, the user: "we need like a master sticker").
+// One larger roundel — AIRWORTHY round the top, FLYDIY · CERTIFIED round
+// the bottom, a pair of wings, the registration and the day the last
+// gating certificate landed — worn when the whole certificate is held
+// (BENCH_STATE().passed: the bench check, the wing loading and the test
+// flight; the density altitude and the crosswind are ratings and never
+// gate it). Its own page (7), its own place and size (`mst*` in the decal
+// block, the rear fuselage under the registration by default, 250 mm — the
+// nose behind the cowl was tried and lay under the D.112's cowl), peeled off with the
+// first withdrawal like the small ones. The strip grew a fifth cell for the
+// crosswind card, and a sixth (S1, G451.1) for the hydroplane's.
 // ============================================================
 
-const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight', 'hydro'];
+const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight', 'xwind', 'hydro'];
 const STICKER_META = {
   shake:  { title: 'BENCH CHECK',      emblem: 'balance' },
   load:   { title: 'WING LOADING',     emblem: 'sandbags' },
   dalt:   { title: 'DENSITY ALTITUDE', emblem: 'mountain' },
   flight: { title: 'TEST FLIGHT',      emblem: 'circuit' },
+  xwind:  { title: 'CROSSWIND',        emblem: 'windsock' },
   hydro:  { title: 'HYDROPLANE',       emblem: 'float' },      // S1 (G451.1): the seaplane's own
 };
+const STICKER_MASTER = { title: 'AIRWORTHY', ring: 'FLYDIY · CERTIFIED', emblem: 'wings', d: 0.25 };
+const STICKER_MASTER_PAGE = 7;
 const STICKER_INK = '#1f3552', STICKER_GROUND = '#f1e7d0', STICKER_RIM = '#d9c9a5';
 // the strip on the fuselage: field frame, metres aft of the firewall and
 // above the waist; `d` the roundel's diameter, `gap` between two.
@@ -83,6 +98,13 @@ const STICKER_PLACES = [
 ];
 const stickerStripW = d => { d = d || STICKER_PLACE.d;
   return STICKER_ORDER.length * d + (STICKER_ORDER.length - 1) * d / 4; };
+// the two vinyls' keys in the decal block: the strip's and the master's
+const STICKER_KEYS = {
+  strip:  { on: 'stkOn', place: 'stkPlace', L: 'stkL', C: 'stkC', size: 'stkSize', rot: 'stkRot',
+            d: STICKER_PLACE.d, w: d => stickerStripW(d), max: 0.5 },
+  master: { on: 'mstOn', place: 'mstPlace', L: 'mstL', C: 'mstC', size: 'mstSize', rot: 'mstRot',
+            d: STICKER_MASTER.d, w: d => d, max: 0.6 },
+};
 
 // THE LANDMARKS, off the fielded skin mesh the editor's scene holds (the
 // same mesh decReframe reads), in the craft frame: along runs aft (-z), up
@@ -148,13 +170,16 @@ function stickerLandmarks() {
 // height (measured when a landmark is available), the fine tuning, the size,
 // the turn — resolved in one place so the editor's live DEC and the flown
 // spec's merged decals read the same
-function stickerResolve(D, L) {
+// `kind` (A9): 'strip' (the default) or 'master' — the same arithmetic on
+// the master's own keys, a single roundel wide
+function stickerResolve(D, L, kind) {
   D = D || {};
-  if (D.stkOn != null && !D.stkOn) return null;
-  const pi = Math.max(0, Math.min(STICKER_PLACES.length - 1, Math.round(+D.stkPlace || 0)));
+  const K = STICKER_KEYS[kind || 'strip'] || STICKER_KEYS.strip;
+  if (D[K.on] != null && !D[K.on]) return null;
+  const pi = Math.max(0, Math.min(STICKER_PLACES.length - 1, Math.round(+D[K.place] || 0)));
   const p = STICKER_PLACES[pi];
-  const d = Math.max(0.03, Math.min(0.5, +D.stkSize || STICKER_PLACE.d));
-  const w = stickerStripW(d);
+  const d = Math.max(0.03, Math.min(K.max, +D[K.size] || K.d));
+  const w = K.w(d);
   let sL = p.sL, sC = p.sC;
   if (p.land === 'fin' && L && isFinite(L.finTop)) {
     // centred on the fin's chord at the strip's height, 0.35 m under the
@@ -168,8 +193,8 @@ function stickerResolve(D, L) {
     sL = 0.90; sC = L.wingAlong;
   }
   return { d, w, h: d,
-           sL: sL + (+D.stkL || 0) + w / 2, sC: sC + (+D.stkC || 0),
-           rot: +D.stkRot || 0, on: p.on, mode: p.mode, place: p.id };
+           sL: sL + (+D[K.L] || 0) + w / 2, sC: sC + (+D[K.C] || 0),
+           rot: +D[K.rot] || 0, on: p.on, mode: p.mode, place: p.id };
 }
 
 // ---- ONE ROUNDEL ------------------------------------------------------
@@ -207,10 +232,15 @@ function stickerRoundel(g, cx, cy, r, o) {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     stickerArcText(g, String(o.title || ''), r * 0.77, -Math.PI / 2, fs, true);
     g.font = '500 ' + (fs * 0.82) + 'px "IBM Plex Sans", sans-serif';
-    stickerArcText(g, 'FLYDIY · ENGINEERING BENCH', r * 0.77, Math.PI / 2, fs * 0.82, false);
+    stickerArcText(g, String(o.ring || 'FLYDIY · ENGINEERING BENCH'), r * 0.77, Math.PI / 2, fs * 0.82, false);
+    if (o.sub) {
+      // the master's registration, above the date
+      g.font = '700 ' + (r * 0.15) + 'px "IBM Plex Mono", monospace';
+      g.fillText(String(o.sub), 0, r * 0.40);
+    }
     if (o.date) {
       g.font = '600 ' + (r * 0.13) + 'px "IBM Plex Mono", monospace';
-      g.fillText(String(o.date), 0, r * 0.50);
+      g.fillText(String(o.date), 0, o.sub ? r * 0.56 : r * 0.50);
     }
   }
   g.restore();
@@ -308,6 +338,30 @@ function stickerEmblem(g, kind) {
     P(); g.moveTo(0, -0.2); g.lineTo(0, 0.28); g.stroke();
     P(); g.moveTo(-0.34, -0.02); g.lineTo(0.34, -0.02); g.stroke();
     P(); g.moveTo(-0.13, 0.24); g.lineTo(0.13, 0.24); g.stroke();
+  } else if (kind === 'windsock') {
+    // a mast with the sock streaming to the right: the crosswind card
+    P(); g.moveTo(-0.75, 0.95); g.lineTo(-0.75, -0.75); g.stroke();
+    P(); g.moveTo(-0.75, -0.75); g.lineTo(0.85, -0.45); g.lineTo(0.85, -0.05); g.lineTo(-0.75, -0.25); g.closePath(); g.fill();
+    // the stripes, cut out of the sock
+    g.save(); g.globalCompositeOperation = 'destination-out';
+    for (const x of [-0.35, 0.2]) { P(); g.moveTo(x, -0.75 + (x + 0.75) * 0.1875 - 0.02); g.lineTo(x + 0.2, -0.75 + (x + 0.95) * 0.1875 - 0.02);
+      g.lineTo(x + 0.2, -0.25 + (x + 0.95) * 0.1875 - 0.03); g.lineTo(x, -0.25 + (x + 0.75) * 0.1875 - 0.03); g.closePath(); g.fill(); }
+    g.restore();
+    // the wind
+    for (const y of [0.35, 0.6]) { P(); g.moveTo(-0.3, y); g.lineTo(0.6, y); g.stroke(); }
+  } else if (kind === 'wings') {
+    // a pair of wings about a hub: the master's emblem
+    P(); g.arc(0, 0.05, 0.16, 0, Math.PI * 2); g.fill();
+    for (const sgn of [-1, 1]) {
+      P(); g.moveTo(sgn * 0.18, -0.02);
+      g.quadraticCurveTo(sgn * 0.55, -0.55, sgn * 0.98, -0.30);
+      g.quadraticCurveTo(sgn * 0.75, -0.05, sgn * 0.62, 0.02);
+      g.quadraticCurveTo(sgn * 0.78, 0.12, sgn * 0.85, 0.18);
+      g.quadraticCurveTo(sgn * 0.55, 0.22, sgn * 0.45, 0.16);
+      g.quadraticCurveTo(sgn * 0.5, 0.3, sgn * 0.52, 0.36);
+      g.quadraticCurveTo(sgn * 0.3, 0.3, sgn * 0.18, 0.12); g.closePath(); g.fill();
+    }
+    P(); g.moveTo(-0.16, 0.36); g.lineTo(0.16, 0.36); g.lineTo(0, 0.7); g.closePath(); g.fill();
   }
 }
 
@@ -316,8 +370,15 @@ function stickerEmblem(g, kind) {
 // changed and returns the ONE placement, or [] when nothing is awarded.
 let stickerSig = null, stickerPlacement = null;
 // `D` is the decal block (the editor's live DEC, or the flown spec's merged
-// decals) — the place, the fine tuning, the size and the turn come from it
+// decals) — the place, the fine tuning, the size and the turn come from it.
+// Returns the strip's placement and, when the whole certificate is held,
+// the master's (A9) — two vinyls, two pages, one list.
 function stickerPlacements(THREE, D) {
+  const out = stickerStripPlacements(THREE, D);
+  const m = stickerMasterPlacement(THREE, D);
+  return m ? out.concat([m]) : out;
+}
+function stickerStripPlacements(THREE, D) {
   const A = (typeof window !== 'undefined') ? window.AEROSKIN : null;
   const st = (typeof window !== 'undefined' && typeof window.BENCH_STATE === 'function')
            ? window.BENCH_STATE() : null;
@@ -373,6 +434,62 @@ function stickerPlacements(THREE, D) {
   return [place];
 }
 
+// THE MASTER'S PAGE (A9). The recipe is the registration, the date of the
+// last gating certificate and the size; drawn on page 7 when it changed.
+let masterSig = null;
+function stickerMasterDate(st) {
+  const gate = { shake: 1, load: 1, flight: 1 };
+  let d = '';
+  for (const c of (st && st.certs) || []) if (c && gate[c.id] && c.when && c.when > d) d = c.when;
+  return d;
+}
+function stickerMasterPlacement(THREE, D) {
+  const A = (typeof window !== 'undefined') ? window.AEROSKIN : null;
+  const st = (typeof window !== 'undefined' && typeof window.BENCH_STATE === 'function')
+           ? window.BENCH_STATE() : null;
+  if (!st || !st.passed) { masterSig = null; return null; }
+  const R = stickerResolve(D, stickerLandmarks(), 'master');
+  if (!R) { masterSig = null; return null; }
+  const reg = (D && D.reg) || stickerReg();
+  const when = stickerMasterDate(st);
+  const sig = reg + '|' + when + '|' + R.d;
+  const place = { page: STICKER_MASTER_PAGE, sL: R.sL, sC: R.sC, w: R.w, h: R.h, rot: R.rot,
+                  rough: -0.08, on: R.on, mode: R.mode, one: 1 };
+  if (sig === masterSig) return place;
+  if (!A || !A.aeroAtlas) return null;
+  try {
+    const t = A.aeroAtlas(THREE), cv = t.image;
+    const N = A.AERO_ATLAS_N || 4, PX = cv.width || 4096, P = PX / N;
+    const px = (STICKER_MASTER_PAGE % N) * P, py = Math.floor(STICKER_MASTER_PAGE / N) * P;
+    const g = cv.getContext('2d');
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(px, py, P, P);
+    g.beginPath(); g.rect(px, py, P, P); g.clip();
+    g.setTransform(P / R.w, 0, 0, P / R.h, px, py);
+    stickerRoundel(g, R.d / 2, R.d / 2, R.d / 2 * 0.98,
+      { title: STICKER_MASTER.title, ring: STICKER_MASTER.ring, emblem: STICKER_MASTER.emblem,
+        sub: reg || '', date: when || '' });
+    g.restore();
+    stickerDilate(g, px, py, P, P, Math.max(3, Math.round(3 * P / 256)));
+    t.needsUpdate = true;
+  } catch (e) {
+    console.error('master sticker:', e);
+    return null;
+  }
+  masterSig = sig;
+  return place;
+}
+// the registration the master carries: the spec's own meta (aeroskin's
+// decal block carries it as `reg` once built; the shelf spec always does)
+function stickerReg() {
+  try {
+    const G = (typeof window !== 'undefined') && window.GARAGE_SPEC;
+    const sp = G && typeof G.get === 'function' ? G.get() : null;
+    return (sp && sp.meta && sp.meta.reg) || '';
+  } catch (e) { return ''; }
+}
+
 // bleed the opaque pixels' colour into their transparent neighbours, so the
 // bilinear sample at a roundel's edge never mixes in the atlas's black
 function stickerDilate(g, x, y, w, h, rounds) {
@@ -395,7 +512,7 @@ function stickerDilate(g, x, y, w, h, rounds) {
 // the bench calls this when a certificate is awarded or withdrawn: the strip
 // is rebuilt on the next decal pass, which the editor is asked for now
 function stickerRefresh() {
-  stickerSig = null;
+  stickerSig = null; masterSig = null;
   try {
     if (typeof window !== 'undefined' && window.CAGE_UI && window.CAGE_UI.redecal)
       window.CAGE_UI.redecal();
@@ -405,6 +522,8 @@ function stickerRefresh() {
 if (typeof window !== 'undefined') {
   window.STICKERS = { ORDER: STICKER_ORDER, META: STICKER_META, PLACE: STICKER_PLACE,
                       PLACES: STICKER_PLACES, PAGE: STICKER_PAGE, roundel: stickerRoundel,
+                      MASTER: STICKER_MASTER, MASTER_PAGE: STICKER_MASTER_PAGE,
+                      masterDate: stickerMasterDate,
                       placements: stickerPlacements, resolve: stickerResolve,
                       landmarks: stickerLandmarks,
                       refresh: stickerRefresh, stripW: stickerStripW };
@@ -412,5 +531,6 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { STICKER_ORDER, STICKER_META, STICKER_PLACE, STICKER_PLACES,
-                     STICKER_PAGE, stickerRoundel, stickerArcText, stickerEmblem,
+                     STICKER_PAGE, STICKER_MASTER, STICKER_MASTER_PAGE, STICKER_KEYS,
+                     stickerRoundel, stickerArcText, stickerEmblem, stickerMasterDate,
                      stickerStripW, stickerResolve, stickerPlacements, stickerDilate };

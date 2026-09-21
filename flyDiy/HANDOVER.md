@@ -53069,3 +53069,153 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
   circuit flown by THE PILOT. ENERGYBASE and WINGSPLIT re-blessed (mass placement — both
   headers' own case: the emitted wing carries the CG). Battery on the tip (over G456): every
   other gate green.
+## G458 — THE CERTIFICATES REVAMP (A9, 2026-09-21, the user: "the certificates do not seem
+## to be saved with the plane, they should. And some modification like liveries or paint
+## colors should not lead to the need for a re-certification ... I also think we need like
+## a master sticker"; the playtest's 36/85/133/144-146: "the wing loading test is cool
+## visually but a lot of planes fail it and there seems to be really no option, especially
+## when the wing geometry is a real plane's"; "it freezes the interface"; "the plane
+## should be put further up so the wings do not touch the ground"; "the test flight is too
+## long and not cinematic enough"; "the crosswind test should be separate")
+
+- THE CERTIFICATES WERE SAVED. THE FINGERPRINT LOST THEM. The plaque rides every save door
+  (garage.js envelope, `plaque` beside `spec`; bench.js persist) and is restored last on a
+  load — what withdrew them was bench.js's `benchFingerprint`: FNV-1a over the join's WHOLE
+  export minus `paint/finish/meta`, i.e. every one of ~900 cage rows since G377 (the view
+  toggles, the lights, who is aboard), the tanks' hue and tint, the panel's bezel, in the
+  join's key order. So a tank tint, "show loops" or the cabin lights withdrew every
+  certificate live, and ANY row a later version added at its default (one landed between
+  the playtest and this fix: `_viewLoops`) changed the hash of every saved aeroplane on
+  load — "the build or its physics changed since the certificate", on a build nobody had
+  touched. bugReports/cessna (2).json: all three stale.
+  THE SECOND SCHEME (`f2` in the tag): the cage counts only rows that DIFFER from the
+  default aeroplane (`GARAGE_SPEC.cageDefaults()`, the merge STOCK bakes a preset over —
+  the cessna: 906 rows, 197 deviations); `BENCH_STATE_ROWS` (`_view*`, explodeD, dumOn,
+  cabOcc, paxOcc*, lightOn, li_reflect, li_beaconRpm, accDetail) and `BENCH_LOOK`
+  (energy.finish/hue/tint per tank, systems.look) are out; canonical JSON (sorted keys at
+  every depth) so the order never counts. GEN_SPEC_V|PHYSICS_V stay folded in — ruling (p)
+  unchanged, PHYSICS_V is the by-hand honesty handle. A certificate hashed under the first
+  scheme (no `fps`) loads withdrawn ONCE with its own reason ("certified under the old
+  fingerprint — run the tests once more"). Proved headless on both playtest builds (ten
+  cosmetic/state/added-row/key-order cases keep it, six structural cases change it) and in
+  the browser (tools/bench_shot.js: export → load keeps 4/4; lights on + show loops keep;
+  a tank tint keeps; the span +0.3 m withdraws "the build changed").
+- WING LOADING: THE PROXY IS A WARNING, THE FIX IS MEASURED. The row failed the
+  certificate on the rig's 'HELD — over yield', a proxy 65_gen_loadtest.js itself calls
+  coarse (one lin/rho area per member CLASS; the lift strut is class 'wing', judged at the
+  fabric wing's spruce 39 MPa) and GATE LOAD deliberately never gated on. Over the 26
+  archetype cards at HEAD: seven failed on the proxy alone (stearman 242 % wire, caravan
+  186, sesqui 146, twinBush 137, skymaster 119, vtail 109, rv 101), none broke up; and
+  fitting lift struts to the jodel HALVED its tip (6.8 → 4.1 %) while RAISING its yield
+  figure (the strut became the worst 'wing' member) — the paradox that failed real
+  cantilever designs. Now: the certificate fails on BROKE UP or a tip past
+  `LOAD_TIP_CAP` = 15 % of the semispan at ultimate (GATE FLEX's reality figures: real
+  wings 2-4 % at limit, 8 % at 1 g is 'folds in bending'); the proxy is a `warn` line named
+  for what it is. All 26 cards HELD; the seven carry the warning. And THE ADVISOR
+  (bench_worker.js BENCH_LOAD_LEVERS): after a fail or a warning the same rig runs on the
+  levers the wing page HAS — `fixation` (lift struts), `construction` (aluminium, carbon),
+  `span` (a metre off) — and the card prints each tip as it lands. Measured on the jodel:
+  struts 4.1 %, aluminium 2.5, carbon 2.8 (yield 7 %), span −1 m 5.3; THICKNESS moved
+  nothing (the spar box depth is sparBoxDepth × chord, 61:1005 — the old fix line's "a
+  deeper spar" named a lever that does not exist) and FIVE SPAR STATIONS made it worse
+  (9.35 %), so neither is offered. A wing that already IS aluminium (its own row or the
+  fuselage's material it follows — genSurfKey decides) is not offered aluminium. The
+  steel-tube RV (27.5 %) is the one that fails the cap: "lift struts 3.7 % · aluminium
+  6.7 % · carbon 7.8 %". GATE BENCH pins the rule, the levers and the fix words.
+- OFF THE MAIN THREAD (src/viewer/bench_worker.js, window.BENCH_WORKER): a Blob worker on
+  the readouts worker's pattern (importScripts of this file and tools/flight_core.js — the
+  file must stay fetchable next to the page, like balance.js), handed the SPEC and the
+  stand's node positions (`p0`, taken BEFORE the page's own makeLoadTest inverts them, so
+  both rigs invert the same aeroplane), stepping its own rig paced to real time (≤3 frames
+  a turn, a heavy build runs slower rather than skipping) and posting `{state, p}` at
+  ≤30 Hz; app.js keeps the LIVE rig (its constructor turns the stand over at once,
+  buildLoadViz reads its bags) but never steps it — the snapshot lands in `rig.state` and
+  `sim.p`, so poseModel and updateLoadViz draw the worker's bend without knowing. The
+  worker's sim is `makeSim(def, null)` — the sandbag test is in a hangar, which is GATE
+  LOAD's rig; the in-game rig ran in the day's wind before. Page backend (file://, the
+  smoke harness, a worker that fails): the live rig under `LOAD_STEP_BUDGET_MS` = 12, at
+  least one frame a frame. `killLoadRun()` at every way out (endLoadTest, enterGarage,
+  rollOut, a new test). The card says which thread and, when behind, "0.6× real time" (the
+  jodel at 200 substeps on the rig's box). MEASURED (bench_shot, a 20 ms interval on the
+  main thread): the longest gap while the bags went on 33 ms, none over 50; the way back
+  to the shed after the verdict 216 ms — enterGarage's synchronous rebuild (A2's item 31,
+  the roll-in screen covers the flight's way back, not the test's). The advisor has a thread of its own (`loadfix`),
+  the crosswind ladder too (`xwind`, 42_crosswind.js grew a read-only `runs` getter so a
+  rung prints as it lands). GATE BENCH proves the worker's run IS the rig (same verdict,
+  same tip on GEN_DEFAULT).
+- THE TRESTLES: the rig turns the aeroplane over about its CG and the room rode the same
+  200 m hop, so a high wing (or a low wing's fin) sat in the slab. `rigLift` = min(the hop,
+  the lowest node − LOAD_FLOOR_CLEAR(semi) − the standing lowest node): the floor is a
+  trestle's height (0.45 m + 0.08 × semispan) under whatever is lowest. The jodel's fin:
+  0.78 m clear.
+- THE TEST FLIGHT IS A FLIGHT. G107's hidden second sim (tfStart/tfPoll, 420 s on the test
+  pilot, the crosswind ladder as phase seven with the bar pinned at 90-99 %) is gone. The
+  bench's flight row is `kind: 'flown'`: it ARMS (the fingerprint taken at roll-out) and
+  hands off — app.js startTestFlight rolls out, `setManual(false)`, the pilot's own circuit
+  (setCard rides the two fields), THE DIRECTOR cuts the camera on the phases (tower for the
+  roll and the landing, wing for the climb, a slow orbit for the pattern, chase home —
+  each cut eased in like the roll-out shot; a drag on the canvas or a framing pick is the
+  player's and ends it; NOT the reveal's own end, which is what the first cut of the code
+  read as a hand), and a `time 1× / 2×` row on the pilot's flyout (two solver steps a
+  frame; refused on floats — the hydro step is the frame; drops itself after 30 frames
+  over 20 ms). `logFlight` → `BENCH_FLIGHT_LOGGED({report, arrived, outcome, t, manual,
+  landing, td, armed})`: an armed flight settles the row whatever it brought (a refusal is
+  a failed test with its reason); an unarmed ARRIVAL awards too — you flew it, it landed,
+  "a landing is a landing" (no trim reading from a hand); an unarmed non-arrival is
+  ignored (your crash is not a withdrawal, the fingerprint is). A reset or the way back
+  to the shed mid-flight → `BENCH_FLIGHT_OFF` (the row stops waiting). The plaque's
+  flight sheet is the real flight's report; 43_pilot.js accumulates `report.trimDe` on the
+  settled downwind (41's accumulator, ported) so the trim advisor keeps its reading.
+- THE CROSSWIND CARD: its own row, ADVISORY (a limit is a rating, like the density
+  altitude — it never gates the master), run on the bench's thread with one line per rung
+  ("4.0 m/s · airborne, roll 1.6 m" / "6.0 m/s · off the edge line, roll 3.4 m"), the
+  verdict the limit ("CROSSWIND LIMIT 5.5 m/s" / "> 10 m/s"), `ok` against the plaque's own
+  bar (PLAQUE_BOUNDS 4 m/s, read through window.PLAQUE — one keeper), the why the first
+  failed rung, the fix the plaque's own WHY. The plaque grew a section, IN A CROSSWIND
+  (`crosswind limit`, `first rung failed`), off `sheets.xwind`. Sticker: a windsock.
+- THE MASTER (stickers.js STICKER_MASTER): one 250 mm roundel — AIRWORTHY round the top,
+  FLYDIY · CERTIFIED round the bottom, a pair of wings, the registration and the day the
+  last GATING certificate landed (shake, load, flight; dalt and xwind never date it) — on
+  its own atlas page (7; `AERO_MAXD` 7 → 8, the JS const and the GLSL define), worn when
+  `BENCH_STATE().passed`, peeled with the first withdrawal. Its own keys in the decal
+  block (`mstOn/mstPlace/mstL/mstC/mstSize/mstRot`, the rear fuselage under the
+  registration by default — "the nose behind the cowl" was the first cut and lay UNDER
+  the D.112's cowl, seen only by the rig's zoomed clip; cosmetic like the strip's) and six rows under the stickers heading; `stickerResolve(D,
+  L, 'master')` is the same arithmetic on the master's keys, one roundel wide. The strip
+  is five cells now (0.72 m). The moment: the last gating certificate's award card is
+  followed by the AIRWORTHINESS CERTIFICATE card; the header word is AIRWORTHY.
+- THE FLIGHT, MEASURED (bench_shot, the D.112 at 2×): armed at roll-out, tower → wing at
+  LIFT-OFF → orbit at CROSSWIND → chase at BASE → tower at FINAL/FLARE → chase at ROLLOUT;
+  FLEW THE CIRCUIT, landing run 76 m, touchdown 2.25 m/s, 6 min of sim, trim 1 click nose
+  up; the AIRWORTHINESS card over the arrival card; BENCH_STATE().passed true, the
+  master on the rear fuselage.
+- THE RIG (tools/bench_shot.js): headless Chrome on the GPU, the named stock design
+  loaded, every card pressed THROUGH ITS OWN BUTTON and read back off BENCH_STATE —
+  which thread stepped the rig, the longest gap a 20 ms interval saw on the main thread
+  while it ran, the ladder's rungs, the flight to its arrival with the director's cuts,
+  the master under the registration, and THE WORD (export → load, the lights, a tint, the span).
+  Written because the Browser pane has no WebGL (GL_VENDOR Disabled) and a bench is a
+  thing you have to watch. Shots: screenshots/bench-2026-09-21/.
+- MERGED OVER G451.1 (the floats' hydroplane row): the strip is SIX cells (0.87 m) - shake,
+  load, dalt, flight, xwind, hydro - usable() keeps its `when` gate, the bench's flown
+  row and the hydro row's offscreen sim share nothing; the bridge lost circuitStart/Poll/End
+  and kept hasFloats/hydroStart/Poll/End.
+- FILES: bench.js (the scheme, the rows, the advisor, BENCH_FLIGHT_LOGGED/OFF, the
+  master card), NEW bench_worker.js, app.js (the runner, the raise, startTestFlight /
+  flightArrived / the director / simRate, xwStart/Poll/End, the plaque's crosswind
+  section, the bridge; tfStart/tfPoll/circuit* retired), stickers.js, aeroskin.js
+  (AERO_MAXD, mst* defaults), _cage_ui.js (master rows), plaque.js (the section, the
+  row), garage.js (cageDefaults), 43_pilot.js (trimDe), 42_crosswind.js (runs), bench.css,
+  build.js (the manifest), _bench_check.js (THE THREAD: 30 checks; 103 in all), NEW
+  tools/bench_shot.js. GATES on the rebased tree (over G457): BENCH, UISMOKE, SAVE, BUILD,
+  LOAD, TAKEOFF, PARTS, DESIGN, WINGSPLIT, ENGINE, PREMISES, ENERGY, WORLD, AERO, GEN, PILOT,
+  SEAPLANE green; RED AT HEAD and NOT MINE (identical on a clean master worktree at G457):
+  HOTHIGH (the kerosene gauge check, +2.63 kg for 50 L), ARCHETYPES (seven cards give up —
+  the Tiger Moth: "go-around: terrain under the approach" at 264 s, the same trace on
+  master), PILOTMATRIX (the ratchet). 65 and 42's physics unchanged.
+- OWED: trestle boxes under the inverted fuselage (the stand-off reads as air today);
+  the Browser pane's rAF-dead frame means the run card's g bar can only be watched in a
+  real browser (unchanged since G208); a `category` row (LSA / utility / aerobatic
+  limit loads) was discussed and not built — the rig's cfg.limit/ult exist for it; the
+  yield model itself (a strut class with its own area) is the honest next step if the
+  warning is to become a fail again.

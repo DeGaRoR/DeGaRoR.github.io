@@ -324,7 +324,11 @@ const MANIFEST = {
     // plaque.js and stickers.js before bench.js (G208): the plaque's sheet
     // (explanations, bounds, hover cards) and the certification roundels;
     // bench.js and app.js read both through window.PLAQUE / window.STICKERS.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench.js', 'refplane.js',
+    // bench_worker.js before bench.js (A9): the load rig's and the crosswind
+    // ladder's thread (window.BENCH_WORKER), imported RAW by its own Blob
+    // worker next to tools/flight_core.js — so it must stay a file the page
+    // can fetch, like balance.js.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,

@@ -1307,7 +1307,7 @@ function aeroDetailTex(THREE, key) {
 // the two image channels. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 7;             // G208: +1, the certification stickers' strip
+const AERO_MAXD = 8;             // G208: +1, the certification stickers' strip; A9: +1, the master
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -1835,6 +1835,12 @@ const AERO_DEC_DEF = {
   // visible"). Place 3 in STICKER_PLACES; the rear fuselage (0) was the first
   // cut and it is the one panel a pod, a rod boom or a twin boom may not have.
   stkOn: 1, stkPlace: 3, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
+  // A9: THE MASTER — the AIRWORTHY roundel, worn when the whole certificate
+  // is held; its own place and size (250 mm), cosmetic like the strip's.
+  // THE REAR FUSELAGE UNDER THE REGISTRATION (place 0): the strip's own
+  // first cut, proven to take a decal (G208.2); 'the nose behind the cowl'
+  // was tried first and lay under the D.112's cowl (measured 2026-09-21).
+  mstOn: 1, mstPlace: 0, mstL: 0, mstC: 0, mstSize: 0.25, mstRot: 0,
   // G345.1: THE SPINNER'S SPIRAL — a marking, painted by aeroweather.js in
   // the cone's own frame; null colour = white; hand 0 / 1
   spiralOn: 0, spiralCol: null, spiralHand: 0, spiralPitch: 0.10, spiralW: 0.30,
@@ -2334,7 +2340,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 7
+#define AERO_MAXD 8
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround

@@ -1249,6 +1249,18 @@ function garageInit(api) {
   try {
     window.GARAGE_SPEC = {
       get: () => JSON.parse(JSON.stringify(spec)),
+      // THE DEFAULT AEROPLANE, for whoever compares a build against it (A9:
+      // the bench's fingerprint counts only the cage rows a builder moved).
+      // The same merge STOCK bakes a page preset over: the template's own
+      // parameters under the page's declared defaults. Null before the
+      // editor is up, which every caller treats as "count everything".
+      cageDefaults: () => {
+        try {
+          const C = window.CAGE2, PG = window.CAGE_PAGE;
+          if (!C || typeof C.cageDefaults !== 'function') return null;
+          return Object.assign(C.cageDefaults(), (PG && PG.defaults) || {});
+        } catch (e) { return null; }
+      },
       // G190: the image pages the working build was restored with, for the
       // editor's boot seed (the autosave comes back before the editor exists)
       images: () => wipImages,

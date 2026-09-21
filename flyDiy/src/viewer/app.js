@@ -957,7 +957,9 @@
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
     // the test ran against an empty sky. Nothing MOVES relative to anything —
-    // that is the point — so the rig still reads exactly as before.
+    // that is the point — so the rig still reads exactly as before. (A9: the
+    // room may ride a little LESS than the hop, so its floor stays a trestle
+    // under the inverted aeroplane's lowest node — see LOAD_FLOOR_CLEAR.)
     if (hangar) hangar.group.position.y = groundY + rigLift;
     const inRoom = inGarage && garageIsHangar() && hangar;
     // THE MOBILE KIT stands next to whatever aeroplane is in the room, so it
@@ -4020,6 +4022,7 @@
   let panD = null;
   canvas.addEventListener('pointerdown', e => {
     flReveal = 0;                      // a hand on it ends the roll-out shot
+    if (!inGarage && director.on) director.stop();   // A9: ...and the director's cuts
     if (edSit.visible && !edEye && (e.button === 1 || e.button === 2)) {
       panD = { x: e.clientX, y: e.clientY, base: edPan.clone() };
       e.preventDefault();
@@ -4650,6 +4653,7 @@
                           // which a swiftshader capture rig cannot wait out
                           cam: () => ({ az, el, dist, azT, elT, distT, reveal: flReveal }),
                           camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
+                          camModeNow: () => cam.mode,                                   // A9: the director's cut, read by bench_shot.js
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
@@ -4890,6 +4894,118 @@
                              ok: false });
       }
     } catch (e) {}
+    // A9: THE FLIGHT CARD IS AWARDED BY A FLIGHT. Every logged flight of the
+    // garage's own build reaches the bench — the test flight it asked for,
+    // or one you flew yourself; the bench decides what it is worth (it
+    // holds the fingerprint the flight was armed with).
+    flightArrived();
+  }
+  // ---- THE TEST FLIGHT IS A FLIGHT (A9, the user: "the test flight is too
+  // long and not cinematic enough — do the three first tests, award the
+  // global one after the first actual successful flight"). The G107 circuit
+  // flew a hidden second sim for 420 s and nobody saw it. Now the bench's
+  // flight card ROLLS OUT: the pilot flies its own circuit on the real world
+  // with the camera cutting to the phases (the director), the certificate
+  // is awarded when the aeroplane arrives — by this pilot or by your hand,
+  // since a landing is a landing — and the plaque's flight sheet is the
+  // real flight's report. `testFlight` is the arming: the fingerprint the
+  // bench measured at roll-out, so an edit made in between cannot be
+  // certified by a flight of the aeroplane before it.
+  let testFlight = null;
+  function startTestFlight(card) {
+    if (!inGarage) return false;
+    if (window.CAGE_UI) syncBuild();
+    const fp = card && card.fp;
+    rollOut(() => {
+      started = true;
+      setManual(false);
+      if (ap && ap.setCard && card && (card.alt || card.V))
+        ap.setCard({ alt: card.alt || NaN, V: card.V || NaN });
+      testFlight = { fp: fp || null, when: new Date().toISOString().slice(0, 10) };
+      director.start();
+      flRender();
+    });
+    return true;
+  }
+  // the real flight's sheet for the plaque (what tfIfRun used to memoise
+  // off the hidden circuit)
+  let tfFor = null, tfVal = null;
+  const tfIfRun = () => (tfFor === def ? tfVal : null);
+  function flightArrived() {
+    const rep = ap && ap.report ? ap.report : { verdicts: [], outcome: null, landing: null };
+    const t = ap ? ap.tdInfo : null;
+    const outcome = t ? 'arrived' : (rep.outcome || 'stopped');
+    if (curKey === 'gen') {
+      tfFor = def; tfVal = { report: JSON.parse(JSON.stringify(rep)), t: Math.max(0, Math.round(ap.t)), arrived: !!t };
+    }
+    const armed = testFlight; testFlight = null;
+    director.stop(); simRateSet(1);
+    if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen') {
+      try {
+        window.BENCH_FLIGHT_LOGGED({
+          report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual,
+          landing: rep.landing || null,
+          td: t ? { sink: t.sink, V: t.V, z: t.z } : null,
+          armed: armed ? { fp: armed.fp, when: armed.when } : null,
+        });
+      } catch (e) { console.warn('bench: the flight could not be handed over —', e); }
+    }
+    flRender();
+  }
+  // THE DIRECTOR: the camera cuts on the pilot's phases while a test flight
+  // is on — the tower watches the take-off and the landing, the wing rides
+  // the climb, a slow orbit takes the cruise, the chase brings it home. Each
+  // cut is a reveal (the roll-out shot's own ease); a drag on the canvas or
+  // a framing pick is the player's and ends it (the pointerdown handler and
+  // flCamMode call director.stop — NOT the reveal's own end: a shot that
+  // settled is not a hand).
+  const DIRECTOR_CUTS = {
+    TAXI: 'tower', STOP: 'tower', HOLD: 'tower', LINEUP: 'tower', ROLL: 'tower',
+    LIFTOFF: 'wing', CLIMB: 'wing',
+    CROSSWIND: 'orbit', DEPART: 'orbit', DOWNWIND: 'orbit', ENROUTE: 'orbit', CRUISE: 'orbit',
+    BASE: 'chase', INBOUND: 'chase', FINAL: 'tower', APPROACH: 'tower', FLARE: 'tower', PUTDOWN: 'tower',
+    ROLLOUT: 'chase', STOPPED: 'chase',
+  };
+  const director = {
+    on: false, phase: null, mode0: null,
+    start() { this.on = true; this.phase = null; this.mode0 = cam.mode; },
+    stop() { if (!this.on) return; this.on = false; this.phase = null; },
+    frame() {
+      if (!this.on || inGarage || !ap) return;
+      const ph = ap.phase;
+      if (ph === this.phase) return;
+      const m = DIRECTOR_CUTS[ph];
+      this.phase = ph;
+      if (!m || m === cam.mode) return;
+      if (cam.mode === 'cockpit' || cam.mode === 'free') { this.stop(); return; }   // the player's own eye
+      directorPick = true;
+      try { flCamMode(m); } finally { directorPick = false; }
+      // the cut arrives from further out and swings in, like the roll-out shot
+      const D = def.params.viewDist || 12;
+      az = azT + 0.6; el = elT + 0.12; dist = Math.max(distT, D) * 1.6;
+      flReveal = FL_REVEAL_FRAMES;
+    },
+  };
+  let directorPick = false;
+  window.TEST_FLIGHT = { armed: () => testFlight, director, rate: r => { simRateSet(r); return simRate; } };
+  // 2× (A9): two solver steps a frame on the test flight — a row on the
+  // pilot's flyout, refused on floats (the hydro step is the frame), and
+  // dropped by itself when the doubled step costs more than a frame for
+  // half a second, so it can never stutter a flight it was meant to shorten
+  // the flight ended without arriving (a reset, the way back to the shed):
+  // the bench is told so its row does not wait for ever
+  function testFlightOff() {
+    const was = testFlight; testFlight = null;
+    director.stop(); simRateSet(1);
+    if (was && typeof window.BENCH_FLIGHT_OFF === 'function') { try { window.BENCH_FLIGHT_OFF(); } catch (e) {} }
+  }
+  let simRate = 1, slowFrames = 0;
+  const floatsOn = () => !!(sim && sim.hydro) || !!(genSpec && genSpec.gear && /float/i.test(genSpec.gear.type || ''));
+  function simRateSet(r) {
+    r = (r === 2 && !floatsOn()) ? 2 : 1;
+    if (r === simRate) return;
+    simRate = r; slowFrames = 0;
+    flRender();
   }
 
   // ---- build indicators: what you cannot see by looking at the aeroplane ----
@@ -4957,81 +5073,53 @@
   };
   const densAltIfRun = () => (daFor === def ? daVal : null);
 
-  // THE TEST FLIGHT (G107) — the bench row the roadmap has carried since G64,
-  // finally with a `run`: a SECOND sim flies the whole circuit on the TEST
-  // PILOT, fast-stepped and offscreen, and brings back the LANDING RUN plus
-  // the pilot's own report. IN PAGE, per the row's declared decision — the
-  // game already runs this exact sim in the browser. Stepping is budgeted by
-  // WALL CLOCK per poll (not by step count) so a heavy build slows the test
-  // down instead of freezing the panel. Memoised on `def` like the two sheets
-  // above: a rebuild takes the flight away with the rest of the certificate.
-  let tf = null, tfFor = null, tfVal = null;
-  const tfIfRun = () => (tfFor === def ? tfVal : null);
-  // `card` (G107.1): { alt: metres, Vkmh: km/h } from the bench's own two
-  // fields — units convert HERE, at the UI boundary; the pilot speaks SI.
-  function tfStart(card) {
-    const s2 = makeSim(def, world);
-    s2.reset(0);
-    for (let i = 0; i < 600; i++) s2.step(1 / 60);   // parked settle
-    const pilot = (typeof makeTestPilot === 'function')
-      ? makeTestPilot(s2, def, world) : makeAutopilot(s2, def, world);
-    if (pilot.setCard && card && (card.alt || card.Vkmh))
-      pilot.setCard({ alt: card.alt || NaN,
-                      V: card.Vkmh ? card.Vkmh / 3.6 : NaN });
-    // the budget grows with the card's climb; give the runner the same slack
-    tf = { sim: s2, ap: pilot, t: 0, maxS: (pilot.budget || 420) + 60, def };
+  // (the G107 offscreen circuit — tfStart/tfPoll/tfEnd, a hidden second sim
+  // on the test pilot — retired by A9: the test flight is a real flight,
+  // see startTestFlight / flightArrived above)
+
+
+  // ---- THE CROSSWIND CARD (A9): its own row on the bench, the ladder on
+  // the bench's thread (bench_worker.js) with one line per departure, or on
+  // the page in the probe's own budgeted bites when there is no worker.
+  // The result is the plaque's crosswind sheet (it rode the flight's report
+  // before, as phase seven of a test nobody could watch).
+  let xw = null, xwFor = null, xwVal = null;
+  const xwIfRun = () => (xwFor === def ? xwVal : null);
+  function xwStart() {
+    xwEnd();
+    const seq = ++loadSeq, spec = genSpec;
+    const X = xw = { seq, snap: { runs: [], frac: 0, done: false }, w: null, run: null };
+    const W = window.BENCH_WORKER;
+    const w = (W && typeof W.start === 'function')
+      ? W.start(m => {
+          if (!m || m.seq !== seq || xw !== X) return;
+          if (m.error) { console.warn('crosswind: the worker could not fly, flying on the page instead —', m.error); if (X.w) X.w.kill(); X.w = null; return; }
+          if (m.kind === 'xwind') X.snap = m;
+        }, () => { if (xw === X) X.w = null; })
+      : null;
+    if (w && w.post({ kind: 'xwind', spec, seq })) X.w = w;
+    else if (w) w.kill();
+    return true;
   }
-  function tfPoll() {
-    if (!tf) return null;
-    const t0 = performance.now();
-    // G193.2: THE CROSSWIND LIMIT rides after the circuit, on the same build,
-    // in a world of its own (the live day's wind must not be the test's).
-    // Polled on the same wall-clock budget; the plaque reads `report.xwind`.
-    if (tf.xw) {
-      const r = tf.xw.poll(60);
-      if (!r.done) return { phase: 'CROSSWIND ' + r.w.toFixed(1) + ' m/s', t: tf.t,
-                            frac: 0.9 + 0.1 * r.frac };
-      tf.rep.xwind = r.result;
-      tfFor = tf.def; tfVal = { report: tf.rep, t: tf.t };
-      const out = { done: true, report: tf.rep, t: tf.t };
-      tf = null;
-      return out;
+  function xwPoll() {
+    const X = xw;
+    if (!X) return null;
+    if (!X.w) {
+      const W = window.BENCH_WORKER;
+      if (!W || !W.xwindRun || typeof makeCrosswindProbe !== 'function') { xwEnd(); return { done: true, result: null, runs: [], error: 'no crosswind probe' }; }
+      if (!X.run) X.run = W.xwindRun({ buildGen, makeSim, makeCrosswindProbe, makeWorld, genSurfKey }, { spec: genSpec });
+      X.run.pump(40);
+      X.snap = X.run.snapshot();
     }
-    let fin = null;
-    while (performance.now() - t0 < 60 && !fin) {
-      for (let i = 0; i < 60; i++) {
-        tf.ap.update(1 / 60); tf.sim.step(1 / 60); tf.t += 1 / 60;
-        if (tf.sim.stats().bad) { fin = { bad: true }; break; }
-        if ((tf.ap.phase === 'STOPPED' && tf.ap.t > 5) || tf.t > tf.maxS) {
-          fin = {}; break;
-        }
-      }
+    const sn = X.snap;
+    if (sn.done) {
+      xwFor = def; xwVal = { result: sn.result, runs: sn.runs || [] };
+      xwEnd();
+      return sn;
     }
-    if (!fin) {
-      // G208: THE FLIGHT IS WATCHED. The bench draws the circuit as it is
-      // flown — the track in plan, height and speed against time — so the
-      // trace rides every poll: the CG, the pilot's own readouts, the pattern
-      // path once it exists, and the field frame the pilot flies in.
-      const cgN = tf.sim.cgPos(), d = tf.ap.dbg || {};
-      return { phase: tf.ap.phase, t: tf.t, frac: Math.min(1, tf.t / 300),
-               pos: [cgN[0], cgN[1], cgN[2]], V: d.V, agl: d.agl, de: d.e,
-               path: tf.ap.path || null, frame: tf.ap.frame || null,
-               notes: (tf.ap.report && tf.ap.report.verdicts) || [] };
-    }
-    const rep = tf.ap.report || { verdicts: [], outcome: null, landing: null };
-    if (fin.bad) rep.outcome = 'broke-up';
-    else if (!rep.outcome) rep.outcome = 'gave-up';
-    if (!fin.bad && typeof makeCrosswindProbe === 'function') {
-      try {
-        tf.rep = rep; tf.xw = makeCrosswindProbe(tf.def);
-        return { phase: 'CROSSWIND', t: tf.t, frac: 0.9 };
-      } catch (e) { console.error('crosswind probe:', e); tf.xw = null; }
-    }
-    tfFor = tf.def; tfVal = { report: rep, t: tf.t };
-    tf = null;
-    return { done: true, report: rep, t: tfVal.t };
+    return sn;
   }
-  function tfEnd() { tf = null; }
+  function xwEnd() { if (xw && xw.w) xw.w.kill(); xw = null; }
 
   // ---- THE HYDROPLANE TEST (S1, G451.1; playtest item 99 "hydroplane test +
   // guidance") — the seaplane's own certificate. A second sim on the sea
@@ -5209,9 +5297,8 @@
         R('past the aim', n1(L.pastAim, 0) + ' m',
           Math.abs(L.pastAim || 0) > 150 ? 'warn' : '');
       }
-      // G193.2: THE CROSSWIND LIMIT — measured after the circuit on the same
-      // build; the band is the strip's own edge lines (`xwind.band`)
-      const XW = rep.xwind;
+      // (the crosswind limit moved to its own section below — A9)
+      const XW = null;
       if (XW) {
         const v = XW.limit == null ? '> ' + n1(XW.cap, 0) + ' m/s'
                 : n1(XW.limit, 1) + ' m/s';
@@ -5246,6 +5333,21 @@
       if (rep.verdicts.length)
         R('pilot notes', rep.verdicts.length + ' — ' +
           rep.verdicts[rep.verdicts.length - 1].code, 'warn');
+    }
+    // A9: IN A CROSSWIND — the ladder's own card, on this build; the band is
+    // the strip's own edge lines (`xwind.band`)
+    const xwr = xwIfRun();
+    if (xwr && xwr.result) {
+      const XW = xwr.result;
+      H('in a crosswind');
+      const v = XW.limit == null ? '> ' + n1(XW.cap, 0) + ' m/s'
+              : n1(XW.limit, 1) + ' m/s';
+      R('crosswind limit', v + (XW.roll != null ? ' · roll ' + n1(XW.roll, 1) + ' m' : '')
+                            + (XW.e != null ? ' · ' + n1(XW.e * 57.3, 0) + '\u00b0 off' : ''),
+        judge('crosswind limit', XW.limit == null ? XW.cap : XW.limit));
+      if (XW.failW != null)
+        R('first rung failed', n1(XW.failW, 1) + ' m/s · ' + (XW.failWhy || '—'),
+          XW.failWhy === 'off the edge line' ? 'warn' : XW.failWhy ? 'bad' : '');
     }
     // G134: THE POWERPLANT SHEET — the thermo laws' first readout (the name
     // and horsepower stay in the footer, as ever). The duty is the heat the
@@ -5598,6 +5700,34 @@
   // an affine blend of the same nodes and needs no help. Leaving the garage or
   // resetting rebuilds the aeroplane, which is what puts it back on its wheels.
   let rig = null, rigTested = false;
+  // A9: THE RIG OFF THE MAIN THREAD. `rig` stays the object on the LIVE sim
+  // (its constructor turns the stand over at once, buildLoadViz reads its
+  // bags and stations, the bench polls its state) — what changed is who
+  // STEPS it. With a worker (bench_worker.js) nobody here does: the worker
+  // rebuilds the aeroplane from the same spec, steps its own rig paced to
+  // real time, and posts state + node positions, which land in rig.state
+  // and sim.p — so poseModel and updateLoadViz draw the worker's bend
+  // without knowing. Without one (file://, the smoke harness, a worker that
+  // failed) the render loop steps the live rig under a BUDGET: at least one
+  // frame per frame, no more than LOAD_STEP_BUDGET_MS of them — a heavy
+  // build's test runs slower than real time, never as a freeze.
+  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let loadRun = null;                  // { kind: 'worker'|'page', w?, seq, t0, stepped, rate }
+  let loadFix = null;                  // the advisor's job: { variants, results, i, run?, cb, done }
+  let loadSeq = 0;
+  const LOAD_STEP_BUDGET_MS = 12;
+  // THE TRESTLES (A9, the user: "the plane should be put further up so the
+  // wings do not touch the ground"): the rig turns the aeroplane over about
+  // its CG, so a high wing ends up as far BELOW the CG as it stood above it,
+  // and the room rode the same 200 m hop — the tips sat in the slab. The
+  // room now rides LOWER by whatever puts its floor a trestle's height under
+  // the lowest node, plus room for the tips to bend DOWN under the bags
+  // (ultimate tips are a few per cent of the semispan; the stab's cap is 10).
+  const LOAD_FLOOR_CLEAR = semi => 0.45 + 0.08 * (semi || 4);
+  function killLoadRun() {
+    if (loadRun && loadRun.w) loadRun.w.kill();
+    loadRun = null;
+  }
 
   // ---- THE RIG, ON SCREEN -------------------------------------------------
   // Every number this test produces was already correct and none of it could be
@@ -5744,18 +5874,148 @@
 
   function startLoadTest() {
     if (!inGarage) return;
-    rig = makeLoadTest(sim, def, { material: (genSpec && genSpec.fuselage &&
-                                              genSpec.fuselage.material) || undefined,
-                                   // G213: the wing's own row for the wing class
-                                   wingMaterial: (genSpec && typeof genSurfKey === 'function')
-                                     ? genSurfKey(genSpec, 'wing', 0) : undefined });
+    killLoadRun(); killLoadFix();
+    const cfg = { material: (genSpec && genSpec.fuselage &&
+                             genSpec.fuselage.material) || undefined,
+                  // G213: the wing's own row for the wing class
+                  wingMaterial: (genSpec && typeof genSurfKey === 'function')
+                    ? genSurfKey(genSpec, 'wing', 0) : undefined };
+    // the stand's pose BEFORE the rig turns it over: the worker starts from
+    // the same nodes, so both rigs invert the same aeroplane
+    const p0 = Float64Array.from(sim.p);
+    let lo0 = Infinity;
+    for (let i = 1; i < p0.length; i += 3) lo0 = Math.min(lo0, p0[i]);
+    rig = makeLoadTest(sim, def, cfg);
     if (!rig.state.ok) { rig = null; return; }        // no spar stations to load
-    rigLift = rig.lift; applyEnv();                   // take the room up with it
+    // the room rides up with the aeroplane — but no higher than puts its
+    // floor a trestle under the lowest node (see LOAD_FLOOR_CLEAR)
+    let lo = Infinity;
+    for (let i = 1; i < sim.p.length; i += 3) lo = Math.min(lo, sim.p[i]);
+    const clear = LOAD_FLOOR_CLEAR(rig.semi);
+    rigLift = Math.min(rig.lift, lo - clear - (isFinite(lo0) ? lo0 : 0));
+    applyEnv();
     buildLoadViz(rig);
     railPhase = ''; setRail('LOAD TEST');
+    // ...and who steps it
+    const seq = ++loadSeq;
+    const W = window.BENCH_WORKER;
+    const w = (W && typeof W.start === 'function')
+      ? W.start(m => loadMessage(m, seq), why => {
+          console.warn('load test: the worker failed, stepping on the page instead —', why);
+          if (loadRun && loadRun.seq === seq) loadRun = { kind: 'page', seq, t0: perfNow(), stepped: 0, rate: 1 };
+        })
+      : null;
+    if (w && w.post({ kind: 'load', spec: genSpec, p0, cfg, seq }, [p0.buffer])) {
+      loadRun = { kind: 'worker', w, seq, t0: perfNow(), stepped: 0, rate: 1 };
+    } else {
+      if (w) w.kill();
+      loadRun = { kind: 'page', seq, t0: perfNow(), stepped: 0, rate: 1 };
+    }
   }
-  function loadTestState() { return rig ? rig.state : null; }
+  // a message from the rig's thread: a snapshot lands in the live rig and
+  // the live sim; the advisor's lines in loadFix
+  function loadMessage(m, seq) {
+    if (!m || m.seq !== seq || !rig) return;
+    if (m.error) {
+      console.warn('load test: the worker could not step, stepping on the page instead —', m.error);
+      if (loadRun && loadRun.seq === seq) {
+        if (loadRun.w) loadRun.w.kill();
+        loadRun = { kind: 'page', seq, t0: perfNow(), stepped: 0, rate: 1 };
+      }
+      return;
+    }
+    if (m.kind === 'load' && m.state) {
+      Object.assign(rig.state, m.state);
+      if (m.p && m.p.length === sim.p.length) sim.p.set(m.p);
+      if (loadRun) { loadRun.rate = m.rate || 1; loadRun.thread = 'worker'; }
+    }
+  }
+  // the render loop's tick: the page's backend steps the live rig under the
+  // budget; the worker's needs nothing (its snapshots already landed)
+  function loadTick() {
+    if (!rig || !loadRun || loadRun.kind !== 'page' || rig.state.done) return;
+    const t0 = perfNow();
+    let k = 0;
+    do { rig.step(1 / 60); k++; } while (!rig.state.done && perfNow() - t0 < LOAD_STEP_BUDGET_MS);
+    loadRun.stepped += k;
+    loadRun.rate = (loadRun.stepped / 60) / Math.max(1e-3, (perfNow() - loadRun.t0) / 1000);
+    loadRun.thread = 'page';
+  }
+  // THE ADVISOR (A9): the bench asks, after reading the verdict, for the
+  // levers measured — on a thread of its own (the rig's is taken down with
+  // the bags the moment the verdict is read), or on the page one budgeted
+  // slice per frame (fixTick). `cb(job)` fires as each line lands and once
+  // at the end. A new test, a roll-out or a new ask retires the old one.
+  function killLoadFix() {
+    if (loadFix && loadFix.w) loadFix.w.kill();
+    loadFix = null;
+  }
+  function startLoadAdvise(cb) {
+    killLoadFix();
+    const spec = genSpec;
+    if (!spec || !spec.wings || !spec.wings[0]) { if (cb) cb({ variants: [], results: [], done: true }); return null; }
+    const cfg = { material: (spec.fuselage && spec.fuselage.material) || undefined,
+                  wingMaterial: (typeof genSurfKey === 'function') ? genSurfKey(spec, 'wing', 0) : undefined };
+    const seq = ++loadSeq;
+    const F = loadFix = { seq, spec: JSON.parse(JSON.stringify(spec)), cfg, variants: null, results: [], i: 0,
+                          run: null, cb, done: false, w: null, thread: 'page' };
+    const W = window.BENCH_WORKER;
+    const onMsg = m => {
+      if (!m || m.seq !== seq || loadFix !== F) return;
+      if (m.error) {
+        console.warn('load advisor: the worker could not measure, measuring on the page instead —', m.error);
+        if (F.w) F.w.kill(); F.w = null; F.thread = 'page';
+        return;
+      }
+      if (m.kind !== 'loadfix') return;
+      if (m.start) F.variants = m.variants || [];
+      if (m.variant) F.results.push(m.variant);
+      if (m.done) F.done = true;
+      if (F.cb) F.cb(F);
+    };
+    const w = (W && typeof W.start === 'function')
+      ? W.start(onMsg, why => { if (loadFix === F) { F.w = null; F.thread = 'page'; } }) : null;
+    if (w && w.post({ kind: 'loadfix', spec: F.spec, cfg, seq })) { F.w = w; F.thread = 'worker'; }
+    else if (w) w.kill();
+    return F;
+  }
+  function fixTick() {
+    const F = loadFix, W = window.BENCH_WORKER;
+    if (!F || F.done || F.w) return;              // nothing, or the worker has it
+    if (!F.run) {
+      if (!F.variants) F.variants = (W && W.loadVariants) ? W.loadVariants(F.spec, { genSurfKey }) : [];
+      const v = F.variants[F.i];
+      if (!v || !W || !W.loadRun) { F.done = true; if (F.cb) F.cb(F); return; }
+      try {
+        const L = W.LEVERS.filter(x => x.id === v.id)[0];
+        const sp = JSON.parse(JSON.stringify(F.spec)); L.apply(sp);
+        F.run = { v, r: W.loadRun({ buildGen, makeSim, makeLoadTest, genSurfKey }, { spec: sp, cfg: F.cfg }) };
+      } catch (e) {
+        F.results.push({ id: v.id, row: v.row, label: v.label, verdict: 'not measurable' });
+        F.i++; if (F.i >= F.variants.length) F.done = true;
+        if (F.cb) F.cb(F);
+        return;
+      }
+    }
+    const t0 = perfNow(), R = F.run.r;
+    do { R.pump(1); } while (!R.done && perfNow() - t0 < LOAD_STEP_BUDGET_MS);
+    if (R.done) {
+      const st = R.rig.state, v = F.run.v;
+      F.results.push({ id: v.id, row: v.row, label: v.label, verdict: st.verdict, limitPct: st.limitPct,
+                       ultPct: st.ultPct, ultYield: st.ultYield, worstCls: st.worstCls });
+      F.run = null; F.i++;
+      if (F.i >= F.variants.length) F.done = true;
+      if (F.cb) F.cb(F);
+    }
+  }
+  function loadTestState() {
+    if (!rig) return null;
+    const st = rig.state;
+    if (loadRun) { st.thread = loadRun.thread || loadRun.kind; st.rate = loadRun.rate; }
+    return st;
+  }
   function endLoadTest() {
+    killLoadRun();
     rig = null;
     if (inGarage) enterGarage();                      // back on its wheels
   }
@@ -5814,7 +6074,9 @@
     // every spec change comes back through here (GARAGE_SPEC.apply -> enterGarage),
     // so this is where a changed aeroplane loses its certificate: you tested the
     // one you had, not the one you now have.
+    killLoadRun();
     rig = null; rigTested = false;
+    testFlightOff();                  // A9: back in the shed is not an arrival
     sim.reset(0);
     standOnWheels();
     // NO AERODROME. The garage is not a place on the map, and the apron
@@ -5865,6 +6127,7 @@
   function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
+    killLoadRun(); killLoadFix();
     rig = null;
     // Rolling out is the one way to leave a FINISHED test without passing
     // through enterGarage, so the sandbags have to be taken off here too — or
@@ -6095,6 +6358,7 @@
       if (st && st.trim != null && isFinite(st.trim)) INP.setTrim(st.trim);
     }
     airborneSeen = wasAir = false; stillT = 0;
+    testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
     lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false;
@@ -7316,6 +7580,15 @@
       flRow(body, 'the pilot');
       flPills(body, [{ label: 'autopilot', value: false }, { label: 'by hand', value: true }],
               o => o.value === manual, o => setManual(o.value));
+      // A9: the clock, on the test flight — 2× is two solver steps a frame
+      if (testFlight) {
+        flRow(body, 'time');
+        flPills(body, [{ label: '1×', value: 1 },
+                       { label: '2×', value: 2, why: floatsOn() ? 'not on floats: the water step is the frame' : null }],
+                o => o.value === simRate, o => simRateSet(o.value));
+        flNote(body, 'The test flight: the pilot flies its circuit and the camera follows the phases. ' +
+                     'Take the stick any time — an arrival by hand earns the certificate too.');
+      }
       for (const d of INP.devices()) {
         const r = flRow(body, d.kind === 'keyboard' ? 'keyboard' : 'controller');
         const v = document.createElement('span');
@@ -8067,6 +8340,7 @@
       document.exitPointerLock();                                      // DEVCAM / HEADCAM
     cam.mode = m; flSave('Cam', cam);
     flReveal = 0;                      // a framing pick is the player's
+    if (!directorPick) director.stop();   // A9: ...and ends the director's cuts
     if (m !== 'cockpit' && flyEye) { flyEye = null; setNear(CAM_NEAR); }
     if (m === 'orbit') { distT = def.params.viewDist; elT = 0.25; }
     flApplyFov();
@@ -8523,16 +8797,22 @@
     // produce, handed to the bench for its stored snapshot — and seeded back
     // on restore, memoised onto the CURRENT def so the plaque's gating
     // (daFor === def, tfFor === def) accepts them as this aeroplane's own.
-    sheets: () => ({ densAlt: densAltIfRun(), flight: tfIfRun() }),
+    sheets: () => ({ densAlt: densAltIfRun(), flight: tfIfRun(), xwind: xwIfRun() }),
     restoreSheets: sh => {
       if (sh && sh.densAlt) { daVal = sh.densAlt; daFor = def; }
       if (sh && sh.flight) { tfVal = sh.flight; tfFor = def; }
+      if (sh && sh.xwind) { xwVal = sh.xwind; xwFor = def; }
     },
-    // THE TEST FLIGHT (G107): the offscreen fast circuit on the test pilot;
-    // the bench's card ({alt, Vkmh}) rides in (G107.1)
-    circuitStart: card => tfStart(card),
-    circuitPoll: () => tfPoll(),
-    circuitEnd: () => tfEnd(),
+    // THE TEST FLIGHT (A9): a real roll-out on the pilot, the camera
+    // directed; the award comes back through BENCH_FLIGHT_LOGGED. The
+    // bench's card ({alt, V} in SI, fp) rides in. (G107's offscreen
+    // circuit and its three bridge calls retired with it.)
+    testFlight: card => startTestFlight(card),
+    testFlightOn: () => !!testFlight,
+    // THE CROSSWIND CARD (A9): the ladder on the bench's thread
+    xwindStart: () => xwStart(),
+    xwindPoll: () => xwPoll(),
+    xwindEnd: () => xwEnd(),
     // THE HYDROPLANE TEST (S1, G451.1): the seaplane's take-off run on the
     // sea lane, offscreen, on the test pilot; a row the bench shows for a
     // float build only
@@ -8546,6 +8826,7 @@
     loadTest: () => startLoadTest(),
     loadTestState: () => loadTestState(),
     endLoadTest: () => endLoadTest(),
+    loadAdvise: cb => startLoadAdvise(cb),           // A9: the measured levers, after the verdict
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
   });
@@ -8672,7 +8953,7 @@
     // the garage does not step — EXCEPT on the load-test rig, which is the one
     // thing that moves while the aeroplane is still on the stand
     if (inGarage && rig && !rig.state.done) {
-      rig.step(1 / 60);
+      loadTick();                     // A9: the worker's snapshot, or the budgeted page step
       // the RIG decides the build has been tested, not the panel. The panel is a
       // view; if it were the thing that noticed, a headless run (or a collapsed
       // panel) would leave a tested aeroplane marked untested.
@@ -8682,9 +8963,19 @@
     // held at ultimate: the bags stay on and the wing stays bent, so the result
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
+    if (inGarage) fixTick();          // A9: the advisor's page slice, when it has no thread
     else if (running && !inGarage) {
-      script(1 / 60);
-      sim.step(1 / 60);              // substep rate is a per-aircraft property
+      // A9: 2× steps twice a frame on the test flight; a doubled step that
+      // costs more than a frame for half a second drops itself back to 1×
+      const t2 = perfNow();
+      for (let k = 0; k < simRate; k++) {
+        script(1 / 60);
+        sim.step(1 / 60);              // substep rate is a per-aircraft property
+      }
+      if (simRate > 1) {
+        if (perfNow() - t2 > 20) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
+      }
+      director.frame();
       if (CK) CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up

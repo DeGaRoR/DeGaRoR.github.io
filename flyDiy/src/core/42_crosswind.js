@@ -170,7 +170,9 @@ function makeCrosswindProbe(def, opts) {
     return { done: false, w: cur ? cur.w : 0, t: cur ? cur.t : 0,
              frac: Math.min(0.95, runs.length / 6) };
   }
-  return { poll, get result() { return result; }, band, cap };
+  // A9: the rungs as they land (read-only), so a card can print each
+  // departure while the ladder is still climbing
+  return { poll, get result() { return result; }, get runs() { return runs; }, band, cap };
 }
 
 // the whole measurement at once (the gates)

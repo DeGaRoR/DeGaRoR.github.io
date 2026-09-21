@@ -114,6 +114,8 @@ const PLAQUE_WHY = {
       + 'a high thrust line lifts the tail before the rudder has the air to '
       + 'hold it: mains further aft, a bigger fin, or a lower thrust line. '
       + 'No pilot gain moves this number (HANDOVER G193.1).' },
+  'first rung failed': { what: 'the lightest crosswind the ladder failed in, and why: off the edge line (the roll left the painted lines), rejected take-off, never airborne, or a break-up.',
+    fix: 'the same three levers as the limit: mains further aft, a bigger fin, a lower thrust line. Off the edge line is steering authority on the ground; never airborne is a departure the wind alone stopped.' },
   'test card': { what: 'the height and speed the bench asked the pilot to '
       + 'hold on the cruise leg. Blank fields mean the standard circuit.' },
   'held': { what: 'what the pilot actually flew on the cruise leg, against '
@@ -221,7 +223,8 @@ const PLAQUE_SECTIONS = {
   'wing': 'the wing as an aerofoil: how much of it there is and how well it glides',
   'speeds & field': 'how slow it flies, how fast it cruises, and the field it needs at sea level',
   'in thin air': 'the same take-off and climb out of a hot mountain strip, from the density-altitude test',
-  'on the test flight': 'what the test pilot found flying the circuit, from the test flight',
+  'on the test flight': 'what the pilot found flying the circuit — the real flight the bench rolled out, or the one you flew',
+  'in a crosswind': 'the take-off ladder from the crosswind card: the strongest wind it keeps between the lines, and the rung that failed',
   'powerplant': 'what the engine burns and the heat it sheds at full throttle',
   'balance': 'where the centre of gravity sits against the neutral point, loaded as it stands',
   'at reserves': 'the same aeroplane with 15% fuel — lighter, and with its CG moved by the burn-off',
