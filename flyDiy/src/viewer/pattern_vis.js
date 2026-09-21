@@ -30,10 +30,14 @@ function buildPatternVis(THREE, pattern, groundY, core) {
   group.name = 'patternVis';
   const gy = (typeof groundY === 'function') ? groundY : (() => (groundY || 0));
   const LIFT = 0.06;                          // above the strip's paint
+  // G449: THE OVERLAYS ARE NOT LIGHTS. An unlit material is multiplied by the exposure like
+  // everything else, and the night's schedule opens 15 stops: the pilot's planned legs (a line
+  // in the sky) and the slope's ribbons blew to white bars on the horizon after dusk. These are
+  // instruments drawn on the picture, so they keep their own colour: toneMapped off.
   const mkMat = (col, op) => new THREE.MeshBasicMaterial({
-    color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
+    color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
   const lineMat = (col, op) => new THREE.LineBasicMaterial({
-    color: col, transparent: true, opacity: op, depthWrite: false });
+    color: col, transparent: true, opacity: op, depthWrite: false, toneMapped: false });
   const layers = { graph: new THREE.Group(), slope: new THREE.Group(), targets: new THREE.Group(),
                    // G202: the PAPI (an airfield fixture, on unless switched off) and the
                    // pilot's planned legs in the air (its circuit, drawn as it plans it)
@@ -216,9 +220,15 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       const lx = u[1], lz = -u[0];                     // left of the landing direction
       const bx = aim[0] + lx * 22, bz = aim[1] + lz * 22;
       const units = [];
+      // G449: A PAPI UNIT IS A LIGHT, not an unlit box. The old MeshBasicMaterial ignored the day:
+      // its "dark" housing (0x2a2622) went through the night's exposure to four white blocks off
+      // every threshold (the emitter nobody claimed, seen in every night frame of G443). Now a
+      // lit Standard housing, dark, whose EMISSIVE is the reading - white above the unit's angle,
+      // red below, nothing from behind - at the level papiUpdate is handed (app.js: the runway
+      // lenses' law, 1.2 x (0.92 / exposure)^0.9; a PAPI is lit by day too).
       const unit = (x, z, bar, off) => {
         const g = new THREE.BoxGeometry(kind === 'vasi' ? 1.6 : 1.2, 0.9, 1.2);
-        const m = new THREE.MeshBasicMaterial({ color: dark });
+        const m = new THREE.MeshStandardMaterial({ color: dark, emissive: 0x000000, emissiveIntensity: 0, roughness: 0.6, metalness: 0.1 });
         const box = new THREE.Mesh(g, m);
         box.position.set(x, gy(x, z) + 0.6, z);
         box.rotation.y = Math.atan2(-u[1], u[0]);
@@ -236,17 +246,19 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark, kind });
     }
   }
-  const papiUpdate = (x, y, z) => {
+  const papiUpdate = (x, y, z, level) => {
+    const lv = level == null ? 1.2 : level;
     for (const P of papis) {
       for (const U of P.units) {
         // each unit reads its own distance along the landing direction (a VASI's bars stand 210 m apart)
         const dist = (U.x - x) * P.u[0] + (U.z - z) * P.u[1];
-        let col = P.dark;
+        let col = 0;
         if (dist > 40) {
           const ang = Math.atan2(y - U.y, dist);
           col = ang > P.gs + U.off ? P.white : P.red;
         }
-        if (U.m.color.getHex() !== col) U.m.color.setHex(col);
+        if (U.m.emissive.getHex() !== col) U.m.emissive.setHex(col);
+        U.m.emissiveIntensity = col ? lv : 0;
       }
     }
   };

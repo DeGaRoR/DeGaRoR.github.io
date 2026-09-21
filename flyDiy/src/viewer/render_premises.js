@@ -56,7 +56,56 @@ function make(THREE, scene, world, rec0, opts) {
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
   placeLots();
   scene.add(root);
-  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0 };
+  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0 };
+  // THE LAMP POOL (G449 - G417's account, whose code never reached the tree: the commit carried the
+  // HANDOVER, the doc and the F8 dial only). Every built thing publishes its lights (HOUSE_GEN
+  // stats.lit.lights: the bulb's place in the house frame, colour, level k, reach; the fixtures
+  // are GEOMETRY placed by placeBuilt, the day says whether they glow). A CONSTANT pool of eight
+  // PointLights on the premises root - a count that changes recompiles every lit material
+  // (cockpit.js's own note) - is re-assigned every 30 frames to the published lamps nearest the
+  // eye within 500 m; `on` = (2 deg - sunEl) / 4 clamped (they fade in through the horizon); the
+  // level is the village bench's night (k x 2.2 x 1.1 x gain 2, judged at exposure ~1) DIVIDED by
+  // the live exposure base - a source judged at one exposure under a schedule that opens 15
+  // stops. The lit panes follow: each finish's glass uniform uLitK (its base the generator's
+  // lightK) x on x the runway lenses' colour-keeping dimmer. The world switchboard declares it
+  // as `lamps` (render_world) and the mute is honoured here. F8: `village lamps` reads .gain.
+  const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500 };
+  const lampPoolInit = () => {
+    if (LAMPS.pool.length) return;
+    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = false; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
+  };
+  const _lp = new THREE.Vector3();
+  // eye: a Vector3; on: the day's 0..1; ex: the live exposure base
+  LAMPS.update = (eye, on, ex) => {
+    lampPoolInit();
+    LAMPS.on = on;
+    const kGlass = 0.45 * Math.pow(0.92 / Math.max(0.92, ex), 1.0), kLamp = 2.2 * 1.1 * LAMPS.gain / Math.max(1, ex);
+    // the panes: the generator's lightK (judged on the bench by DAY, 2.2) x 0.45 x the exposure's inverse - a lit window at night is warm, not white (at the lenses' 0.9 the mill's windows saturated)
+    for (const [u, base] of LAMPS.glass) u.value = base * on * kGlass * (LAMPS.muted ? 0 : 1);
+    // the chimney smoke is lit by the sky: its unlit colour dimmed back through the exposure schedule (a haze, not a lamp)
+    const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35);   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
+    for (const u of LAMPS.smoke) u.value = kSmoke;
+    if (on <= 0 || LAMPS.muted) { for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } LAMPS.litNow = stats.litNow = 0; return; }
+    if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
+      // the published lamps of the groups still standing, in the world, the nearest first
+      const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
+      for (const e of pub) if (!e.wp) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }
+      const r2 = LAMPS.reach * LAMPS.reach;
+      LAMPS.near = pub.map(e => { const dx = e.wp[0] - eye.x, dy = e.wp[1] - eye.y, dz = e.wp[2] - eye.z; return [dx * dx + dy * dy + dz * dz, e]; })
+        .filter(q => q[0] < r2).sort((a, b) => a[0] - b[0]).slice(0, LAMPS.N).map(q => q[1]);
+    }
+    const near = LAMPS.near;
+    for (let i = 0; i < LAMPS.pool.length; i++) {
+      const l = LAMPS.pool[i], e = near[i];
+      if (!e) { l.intensity = 0; l.visible = false; continue; }
+      l.position.set(e.wp[0], e.wp[1], e.wp[2]);
+      l.color.setRGB(e.col[0], e.col[1], e.col[2]);
+      l.distance = e.range; l.intensity = e.k * kLamp * on; l.visible = true;
+    }
+    LAMPS.litNow = stats.litNow = near.length;
+  };
+  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } for (const [u] of LAMPS.glass) u.value = 0; };
+  LAMPS.unmute = () => { LAMPS.muted = false; };
   // the bench's bounds are the world's window; the game's are the premises' extent in the world (+ a margin)
   const extentWorld = () => { const F = O.frame, e = O.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; return { x0: Math.min(...c.map(q => q[0])) - 40, z0: Math.min(...c.map(q => q[1])) - 40, x1: Math.max(...c.map(q => q[0])) + 40, z1: Math.max(...c.map(q => q[1])) + 40 }; };
   const bounds = o.game ? extentWorld() : (world.bounds || { x0: -160, z0: -160, x1: 160, z1: 160 });
@@ -805,6 +854,11 @@ function make(THREE, scene, world, rec0, opts) {
       if (st.lit) for (const L of st.lit.lights) if (L.prop && PR.props[L.prop]) grp.add(pp(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
     }
     parent.add(grp);
+    // G449: the lamps this thing published, for the pool (world positions resolved when first assigned);
+    // its finish's lit panes for the day's hand (the base is the generator's lightK, set at build)
+    if (st.lit && st.lit.lights) for (const L of st.lit.lights) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp, p: [L.x, L.y, L.z], col: L.col || [1, 0.85, 0.6], k: L.k == null ? 1 : L.k, range: L.range || 10, kind: L.kind });
+    if (F && F.GLASS_U && F.GLASS_U.uLitK && !LAMPS.glass.has(F.GLASS_U.uLitK)) { LAMPS.glass.set(F.GLASS_U.uLitK, F.GLASS_U.uLitK.value); F.GLASS_U.uLitK.value = F.GLASS_U.uLitK.value * LAMPS.on; }
+    if (F && F.SMOKE_U) { if (!F.SMOKE_U.uSmokeLit) F.SMOKE_U.uSmokeLit = { value: 1 }; LAMPS.smoke.add(F.SMOKE_U.uSmokeLit); }
     return grp;
   }
   function buildHouse(plot) {
@@ -1247,6 +1301,7 @@ function make(THREE, scene, world, rec0, opts) {
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); },
+    lamps: LAMPS,                                                    // G449: the pool (update / mute / gain / litNow)
     // the material map as painted (a probe for scripts and the gate's eyes): the slots, whether their textures
     // arrived, and the map's weights at a world point
     // WHERE THE FINE PATCH IS (G434.1): the world's ring sinks its vertices under it - the ring's 17 m

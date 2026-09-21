@@ -51804,3 +51804,53 @@ prompts). Findings that matter beyond it:
   (the 'lag' rule, since G397). None of them read post_fx.js, gfx_settings.js, hangar.js's setMood or
   app.js's WORLD_ENV.
 - Gates: AA, POSTFX, UISMOKE, BUILD, LIGHT, HANGAR, SKINMAT, WORLDRENDER, PROPS green. Landed as G448 on master at G447 / G446.1.; the built page is the landing session's (LF worktree).
+## G449 — THE PREMISES LAMP POOL (G417's account, landed at last), THE PANES AND THE SMOKE BY THE
+## DAY, THE OLD EMITTERS (2026-09-21, the user: "do the missing G417 lamp pool too, and
+## identify/remove the old emitters then commit")
+
+- G417's lamp pool never reached the tree (its commit 0119a4bc carried the HANDOVER, the doc, the
+  sheet and the F8 dial; the village did not light at night). It is render_premises.js LAMPS now,
+  to the account: every built thing publishes its lights (HOUSE_GEN stats.lit.lights - the bulb's
+  place in the house frame, colour, level k, reach; the fixtures are geometry placeBuilt already
+  stood), a CONSTANT pool of eight PointLights on the premises root (a count that changes
+  recompiles every lit material), re-assigned every 30 frames to the published lamps nearest the
+  eye within 500 m (world positions resolved through the group on first assignment; a group taken
+  down drops out), `on` = (2 deg - sunEl) / 4 clamped, the level the village bench's night (k x
+  2.2 x 1.1 x gain 2) DIVIDED by the live exposure base. Declared on the world switchboard as
+  `lamps` (render_world; the NIGHT strip's pill mutes it), driven from dayApply each frame beside
+  the runway lights; WF.premises is the F8 dial's handle (`village lamps`: .lamps.gain, the
+  stats' litNow). Measured on Jolene at night from the village: 8 of 8 assigned.
+- THE PANES: each finish's glass uniform uLitK (its base the generator's lightK, 2.2, judged by
+  DAY on the bench - every window glowed at noon) x on x 0.45 x the exposure's inverse: dark by
+  day, warm at night, not white (at the lenses' ^0.9 the mill's windows saturated). Muted with
+  the lamps.
+- THE OLD EMITTERS, identified by census (a traverse at night for every emissive / unlit
+  material near the field and the village):
+  1. THE PAPI (pattern_vis.js): four MeshBasicMaterial boxes per approach whose "dark" housing
+     (0x2a2622) went through the night's exposure to four white blocks off every threshold -
+     the dots that survived the `runway` mute in every G443 night frame. A PAPI unit is a LIGHT
+     now: a lit Standard housing whose emissive is the reading (white above the unit's angle,
+     red below, nothing from behind) at the runway lights' level, handed in by app.js's loop
+     (papiUpdate's fourth argument: 1.2 x (0.92 / exposure)^0.9; a PAPI is lit by day too).
+  2. THE OVERLAYS (pattern_vis.js): the pilot's planned legs (a LineBasic in the sky) and the
+     slope ribbons are instruments on the picture, not lights - toneMapped off, so they keep
+     their colour instead of blowing to white bars on the horizon after dusk.
+  3. THE CHIMNEY SMOKE (_house_gen.js): an unlit MeshBasic haze multiplied by the night's
+     exposure was a white column over every chimney. `uSmokeLit` on the smoke uniforms (per
+     finish; makeSmokeU), the fragment's colour x it, driven by the pool's update at
+     (0.92 / exposure)^1.35 - at the night's 6444 the haze sits at ~5 % of its day grey, the
+     moonlit ground's own level (1.1 left a 40 % column).
+  Not touched, named: THE SEA'S MOON GLINT - the flat far water (MeshStandard, roughness 0.16)
+  reflects the moon along the whole horizon as one saturated white bar from any eye that sees
+  the sea (the "white line at the horizon" of the G443 air shots; absent at dusk, the sea by
+  day). It is the water material's, which the water-shader session (G440 H6) is replacing -
+  owed there: a glitter path, not a bar.
+- GATES: CLOUD holds the pool's shape and cadence, the publishing, the switchboard and the
+  drive, the smoke's uniform and law, the PAPI's material and the overlays' toneMapped, the
+  loop's level; HOUSE / VILLAGE / WORLDRENDER / LIGHT (world 6: sun hemi env sky runway lamps)
+  green; PREMISES the foreign 5b; the battery at the landing.
+- SEEN: screenshots/clouds-2026-09-20/ui/village_lamps.png (the village at night from three
+  eyes, by day, at dusk, muted), papi_night.png (the threshold view with the blocks gone and
+  the far PAPI reading red, the field from the approach - the funnel and the green bar).
+- OWED: the fixtures' own glow (props are one baked material; G417's propSetGlowOf never
+  existed either) - a per-prop emissive would need the prop pipeline; the sea's glint above.

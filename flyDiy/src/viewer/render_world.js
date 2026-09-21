@@ -632,7 +632,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // else is off
       .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; })
       // G443: the runway lights - emissive lenses, one material a colour (RWY.mats fills as the strips stand)
-      .declare('runway', 'runway lights', 'emissive', () => { for (const k in RWY.mats) RWY.mats[k].emissiveIntensity = 0; });
+      .declare('runway', 'runway lights', 'emissive', () => { for (const k in RWY.mats) RWY.mats[k].emissiveIntensity = 0; })
+      // G449: the premises' lamp pool (render_premises LAMPS) - eight point lights and the lit panes
+      .declare('lamps', 'the premises lamps', 'light', () => { if (premisesR && premisesR.lamps) premisesR.lamps.mute(); });
   }
   // the day's hand on the runway lights: on from 2 deg of sun down through the horizon, the level
   // divided back through the exposure schedule (a lens judged at ~0.92 under a night that opens 15 stops)
@@ -4085,6 +4087,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (probe && !rigCur.manual) probe.maybe(day, 1.5);
     if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     runwayLightsApply(day, camera.position);                                                // G443: before the sun-moved guard (the exposure and the eye move on their own)
+    if (premisesR && premisesR.lamps) {                                                     // G449: the premises lamps, the same fade, the pool re-assigned to the eye
+      const W2 = typeof window !== 'undefined' ? window : {};
+      const ex2 = (W2.GFX && W2.GFX.exposureBase && W2.GFX.exposureBase() != null) ? W2.GFX.exposureBase() : 0.92;
+      if (worldSwitch && worldSwitch.on('lamps')) premisesR.lamps.unmute();
+      premisesR.lamps.update(camera.position, Math.max(0, Math.min(1, (2 - day.sunEl) / 4)), ex2);
+    }
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -4248,6 +4256,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
+    get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),

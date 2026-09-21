@@ -4513,7 +4513,10 @@
     // G202: the PAPI reads the aeroplane's position; the planned legs are
     // drawn the moment the pilot plans them
     if (patVis) {
-      if (patVis.papiUpdate) { const cgP = sim.cgPos(); patVis.papiUpdate(cgP[0], cgP[1], cgP[2]); }
+      if (patVis.papiUpdate) {   // G449: the PAPI's lenses at the runway lights' level (a lamp judged at the day's exposure, dimmed back through the night's schedule)
+        const cgP = sim.cgPos(), exP = (window.GFX && GFX.exposureBase && GFX.exposureBase() != null) ? GFX.exposureBase() : 0.92;
+        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9));
+      }
       if (patVis.setLegs && ap.legs !== patLegsRef) { patLegsRef = ap.legs; try { patVis.setLegs(ap.legs, ap.altRef); } catch (e) {} }
     }
     // THE GAME IS THE "EXTERNAL RUNNER" (G130). The test pilot's watchdog

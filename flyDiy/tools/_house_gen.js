@@ -1186,7 +1186,9 @@ function shadeGround(m, foot, o) {
 // seems to rise without a vertex ever moving, and a fade with age so the top
 // dissolves. Thirty-six triangles for the near mesh, sixteen for the far one,
 // and no light touches it.
-const makeSmokeU = () => ({ uTime: { value: 0 }, uSmokeK: { value: 0.55 } });
+// uSmokeLit (G449): the smoke is a haze lit by the sky - an unlit material multiplied by the night's
+// exposure was a white column over every chimney after dusk; the game's day drives this (render_premises)
+const makeSmokeU = () => ({ uTime: { value: 0 }, uSmokeK: { value: 0.55 }, uSmokeLit: { value: 1 } });
 const SMOKE_U = makeSmokeU();
 const makeFinish = () => ({ MAT: makeMats(), SHADE_U: makeShadeU(),
                             GLASS_U: makeGlassU(), SMOKE_U: makeSmokeU() });
@@ -1200,12 +1202,13 @@ function shadeSmoke(m, MU0) {
   m.onBeforeCompile = sh => {
     sh.uniforms.uTime = MU.uTime;
     sh.uniforms.uSmokeK = MU.uSmokeK;
+    sh.uniforms.uSmokeLit = MU.uSmokeLit || (MU.uSmokeLit = { value: 1 });
     sh.vertexShader = 'attribute float aHouseLit;\nvarying float vAge;\n' +
       'varying vec2 vSm;\n' + sh.vertexShader
       .replace('#include <begin_vertex>',
                '#include <begin_vertex>\n  vAge = aHouseLit;\n  vSm = uv;');
     sh.fragmentShader = 'varying float vAge;\nvarying vec2 vSm;\n' +
-      'uniform float uTime, uSmokeK;\n' +
+      'uniform float uTime, uSmokeK, uSmokeLit;\n' +
       'float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
       'float sNoise(vec2 p) {\n' +
       '  vec2 i = floor(p), f = fract(p);\n' +
@@ -1223,7 +1226,7 @@ function shadeSmoke(m, MU0) {
         '              pow(1.0 - vAge, 1.4) * uSmokeK;\n' +
         '    a *= smoothstep(0.0, 0.08, vAge + 0.02);\n' +
         '    diffuseColor.a *= a;\n' +
-        '    diffuseColor.rgb *= 0.85 + 0.25 * n;\n' +
+        '    diffuseColor.rgb *= (0.85 + 0.25 * n) * uSmokeLit;\n' +
         '  }');
   };
   m.needsUpdate = true;
