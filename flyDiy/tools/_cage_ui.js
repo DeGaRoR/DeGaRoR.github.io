@@ -1342,6 +1342,26 @@ function build() {
     for (const f of PAGE.coerce) try { if (f(P)) ch = true; } catch (e) {}
     if (ch) syncSliders();
   }
+  // T2.3 (51): THE HINGE FINISH ROW AND THE FINISH TAB AGREE. The row is the
+  // keeper: 0 drops the hinges' own override (the soft pin walks the
+  // fuselage's chain), 1 pins bare steel, 2 leaves whatever the finish tab
+  // chose (the tab's pick set 2; a tab reset sets 0). Bench pages without the
+  // hinge layer have no row and nothing moves.
+  const AH = P.hgFinish != null ? AK() : null;
+  if (AH && AH.AERO_SEC && AH.AERO_SEC.ctlHinge) {
+    let hf = Math.round(+P.hgFinish);
+    // -1 (a build from before the row): the row takes what the finish tab
+    // already holds for the hinges, so a past build's pick stays its own
+    if (!(hf >= 0)) {
+      hf = secFin.ctlHinge == null ? 0 : secFin.ctlHinge === 'steelTube' ? 1 : 2;
+      P.hgFinish = hf; syncSliders();
+    }
+    const was = secFin.ctlHinge;
+    if (hf === 0) delete secFin.ctlHinge;
+    else if (hf === 1) secFin.ctlHinge = 'steelTube';
+    else if (secFin.ctlHinge == null) { P.hgFinish = 0; syncSliders(); }
+    if (secFin.ctlHinge !== was) aeroSavePrefs();
+  }
   const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
   const L = +$('lvl').value;
@@ -4441,6 +4461,12 @@ function buildMatPanel() {
     sfin.value = secFin[nm] || '';
     sfin.onchange = () => {
       if (sfin.value) secFin[nm] = sfin.value; else delete secFin[nm];
+      // T2.3 (51): a pick on the hinges flips their own row to 'own'
+      // (bare steel to 'bare steel'); a cleared pick to 'as the fuselage'
+      if (nm === 'ctlHinge' && P.hgFinish != null) {
+        P.hgFinish = !sfin.value ? 0 : sfin.value === 'steelTube' ? 1 : 2;
+        syncSliders();
+      }
       aeroSavePrefs(); build();
     };
     row.appendChild(sfin);

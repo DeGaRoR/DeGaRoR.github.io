@@ -1538,7 +1538,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // are derived from the rows, so a build with the layer off still loads.
     const bays = Math.max(0, Math.round(+P.paxCount || 0));
     const abreast = Math.round(P.seatLayout) === 1;
+    // T2.3 (132): the bays' own abreast when the row says so
+    const paxAb0 = Math.round(+P.paxAbreast || 0);
     const perRow = abreast ? 2 : 1;
+    const perBay = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
     M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
              : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
              : 'single';
@@ -1552,12 +1555,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       M.pilots = drawn.filter(s => !s.section && s.filled).length;
       M.pax = drawn.filter(s => s.section && s.filled).length;
     } else {
-      M.seats = perRow * (1 + bays);
+      M.seats = perRow + perBay * bays;
       const occ = [1];
       if (abreast) occ.push(+P.cabOcc ? 1 : 0);
       for (let n = 1; n <= bays; n++) {
-        const k = Math.min(perRow, Math.max(0, Math.round(+P['paxOcc' + n] || 0)));
-        for (let j = 0; j < perRow; j++) occ.push(j < k ? 1 : 0);
+        const k = Math.min(perBay, Math.max(0, Math.round(+P['paxOcc' + n] || 0)));
+        for (let j = 0; j < perBay; j++) occ.push(j < k ? 1 : 0);
       }
       M.occupied = occ;
       M.pilots = occ.slice(0, perRow).reduce((a, b) => a + b, 0);

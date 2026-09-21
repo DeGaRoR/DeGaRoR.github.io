@@ -167,6 +167,7 @@ window.CAGE_PAGE = {
     // design keeps whatever it says. `seatPitch` is gone with the tandem
     // layout — a bay's length is its pitch.
     cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
+    paxAbreast: 0, flapX: 0, flapZ: 0,                                   // T2.3 (132), (18)
     paxSeatZ: 0, paxSize: 1, paxRecline: 0,
   },
 
@@ -679,6 +680,14 @@ window.CAGE_PAGE = {
         ['pedalAngle','pedal angle',    0, 60, 1,
          { when: P => +P.crewOn && +P.ctlPed }],
         ['flapCtl',   'flaps',           0, 1, 1, ['floor lever', 'dash switch']],   // G335
+        // T2.3 (18): the floor lever's two axes — offsets from its default
+        // spot beside the seat (+x the pilot's left, +z forward); the height
+        // follows the floor at the new station, the base plate stays inside
+        // the wall
+        ['flapX',     'flap lever left', -0.40, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.flapCtl === 0, dim: 'len' }],
+        ['flapZ',     'flap lever fore', -0.40, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.flapCtl === 0, dim: 'len' }],
         // G331: the trim wheel's own place (offsets from its wall seat: +x
         // the pilot's left, +y up, +z forward)
         ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
@@ -831,6 +840,11 @@ window.CAGE_PAGE = {
       ['paxCount',  'pax bays',        0, 4, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
+      // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
+      // before (a bay seats the cockpit's row); a single seat behind a
+      // side-by-side cockpit, a pair behind a tandem one, or a bench of three
+      ['paxAbreast','bay seating',     0, 3, 1, ['as the cockpit', 'single', 'pair', 'bench of three'],
+       { when: P => +P.paxCount > 0 }],
       ['winSillPax','win sill',        0, 0.9, 0.01,
        { when: P => +P.paxCount > 0 && !+P.paxWinN }],
       // DRAWN WINDOWS (G245): 0 = the glazed band; else this many windows
@@ -846,13 +860,15 @@ window.CAGE_PAGE = {
       // cockpit. A bay seats the cockpit's row (one abreast or two), so
       // 'two' on a single-row aeroplane seats the one seat there is — the
       // crew layer clamps, and the join bills the seats actually filled.
-      ['paxOcc1',   'bay 1 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      // (T2.3 (132): 'three' fills a bench; the crew layer clamps to the
+      // bay's own seating as before)
+      ['paxOcc1',   'bay 1 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 1 }],
-      ['paxOcc2',   'bay 2 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      ['paxOcc2',   'bay 2 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 2 }],
-      ['paxOcc3',   'bay 3 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      ['paxOcc3',   'bay 3 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 3 }],
-      ['paxOcc4',   'bay 4 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      ['paxOcc4',   'bay 4 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 4 }],
     ]],
     ['7 · boom', [

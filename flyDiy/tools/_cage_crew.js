@@ -1377,9 +1377,16 @@ const tapeOn = (parent, name, w, p, ry) => {
 function buildFlapLever(g0, A, P, sx, seat, sbs) {
   const K = window.GEAR_KIT;
   if (!K) return null;
-  const x = sbs ? 0 : sx - Math.sign(sx || 1) * 0.30;
-  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.30;
+  // T2.3 (18): the lever's two axes on the floor — the in/out and fore/aft
+  // rows move its default spot; the height follows the floor at the new
+  // station (a sloped keel), and the base plate stays inside the wall
+  let x = (sbs ? 0 : sx - Math.sign(sx || 1) * 0.30) + (+P.flapX || 0);
+  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.30 + (+P.flapZ || 0);
   const y0 = A.floorAt(z) + 0.004;
+  if (A.wallAt) {
+    const w = Math.abs(A.wallAt(Math.sign(x || 1), y0 + 0.05, z) || 0) - 0.05;
+    if (w > 0.05) x = Math.max(-w, Math.min(w, x));
+  }
   const piv = [x, y0 + 0.040, z];
   const cheek = K.Bag(), teeth = K.Bag();
   // the base plate and two cheeks, the arc cut as a row of teeth on the
@@ -3047,16 +3054,25 @@ function anchors(spec, P, mesh) {
 function seatPlaces(A, P) {
   const lay = Math.round(P.seatLayout);
   const abreast = lay === 1 ? 2 : 1;
+  // T2.3 (132): the bays' own abreast — 0 = as the cockpit (every build
+  // before), 1 a single seat (tandem passengers behind a side-by-side
+  // cockpit), 2 a pair, 3 a bench (x = 0, +-gap)
+  const paxAb0 = Math.round(+P.paxAbreast || 0);
+  const paxAb = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : abreast;
   const bays = Math.max(0, Math.round(P.paxCount || 0));
   // the outer shoulder sits ~0.21 m outboard of the seat centre (the
   // dummy's clavicle + joint), so the seat centre stays 0.25 m inside the
   // waist half-width (2026-09-04: the pilots stuck out of the sides)
   const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
-  const row = (zBack, halfW, section, filled) => {
+  const row = (zBack, halfW, section, filled, ab) => {
     const out = [];
-    const gp = abreast === 2 ? gapIn(halfW) : 0;
-    for (let j = 0; j < abreast; j++)
-      out.push({ x: abreast === 2 ? (j ? -gp : gp) : 0, zBack, section,
+    const n = ab || abreast;
+    const gp = n >= 2 ? gapIn(halfW) : 0;
+    // a pair sits +-gap; a bench of three adds the middle seat last (the
+    // outer two fill first, the way a rear bench is used)
+    const xs = n === 3 ? [gp, -gp, 0] : n === 2 ? [gp, -gp] : [0];
+    for (let j = 0; j < n; j++)
+      out.push({ x: xs[j], zBack, section,
                  pilot: section === 0 && j === 0,
                  filled: section === 0 && j === 0 ? true : j < filled });
     return out;
@@ -3073,7 +3089,7 @@ function seatPlaces(A, P) {
     const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
     const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
     const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));
-    seats.push(...row(zBack, halfW, n, Math.min(abreast, want)));
+    seats.push(...row(zBack, halfW, n, Math.min(paxAb, want), paxAb));
   }
   return seats;
 }

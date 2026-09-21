@@ -54702,3 +54702,31 @@ gate's golden hash reads the woodland, not the fill).
   dispersive step (a capillary ring and a gravity wake at their own speeds) if a low eye on a
   taxiing hull asks; the press depth from the displaced volume (a fit today); a lake's rim
   reflecting (the rim absorbs everywhere); the crosswind card and the shelf, from G460.7.
+## G482 — T2.3, THE GAME-SIDE BATCH (2026-09-22, the user: "open T2.3 game side"; the
+## playtest's 18/51/132)
+
+- (18) THE FLAP LEVER'S TWO AXES: `flapX` / `flapZ` (offsets from its default spot beside
+  the seat, +x the pilot's left, +z forward; shown for the floor lever) read by
+  buildFlapLever — the height FOLLOWS THE FLOOR at the new station (A.floorAt, so a
+  sloped keel keeps the plate on it) and the base plate is clamped inside the wall
+  (A.wallAt at plate height, 5 cm in). 0/0 = every build before. Claimed by the
+  Cockpit's flaps group.
+- (51) THE HINGE FINISH: `hgFinish` on the control hardware layer — 'as the fuselage'
+  (the 2026-09-13 soft pin: steel until the fuselage picks, then the fuselage's),
+  'bare steel' (pinned steelTube whatever the fuselage wears), 'own (finish tab)'. THE
+  ROW AND THE FINISH TAB AGREE: each build the row writes the hinges' section override
+  (0 drops it, 1 pins steelTube, 2 leaves the tab's pick, and 2 with no pick falls back
+  to 0); a pick on the hinges in the finish tab flips the row (steelTube -> 'bare steel',
+  else 'own', cleared -> 'as the fuselage'). A build from before the row carries -1 and
+  takes what the tab already held for the hinges on its first build, so a past pick
+  stays its own. Bench pages without the layer have no row and nothing moves.
+- (132) PASSENGERS PER BAY: `paxAbreast` — 'as the cockpit' (every build before: a bay
+  seats the cockpit's row), 'single' (tandem passengers behind a side-by-side cockpit),
+  'pair', 'bench of three' (x = +-gap, 0; the outer two fill first). seatPlaces takes
+  the bay's own abreast per row; paxOcc1-4 reach 'three'; the join's fallback (crew
+  layer off) bills perBay seats and occupants, the drawn path unchanged (it reads the
+  seats the crew layer placed).
+- GATES: PARTS, DESIGN, SAVE, JOIN, BUILD, BENCH, STARTER, FRAMES, KNIFE green.
+- THE RIG: screenshots/frames/t23g_*.png (the lever moved, the bench of three, the
+  hinge finish states).
+- OWED: 48's fitments (the carry-through's brackets); the aft-pod twins for the frame rows.

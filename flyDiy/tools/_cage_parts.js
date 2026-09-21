@@ -409,7 +409,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen']],
+      ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
@@ -728,6 +728,7 @@ const CAGE_PARTS = [
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
       ['doors', ['hgDoor', 'hgDoorEdge']],       // G310
+      ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },
 
@@ -1026,7 +1027,7 @@ const CAGE_PARTS = [
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
-      ['flaps', ['flapCtl']],                              // G335
+      ['flaps', ['flapCtl', 'flapX', 'flapZ']],            // G335, T2.3 (18)
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
       ['floor', ['floorOn', 'floorLift']],                 // G331
     ] },

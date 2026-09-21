@@ -31,6 +31,9 @@ const VIEWS = (opt('views', 'q') || '').split(',').filter(Boolean);
 const PANEL = argv.includes('--panel');
 const INFO = argv.includes('--info');
 const EXPERT = argv.includes('--expert');
+const XRAY = argv.includes('--xray');          // T2.3: see inside (the seats, the flap lever)
+const CAM = opt('cam', null);                  // T2.3: a free camera 'az,el,dist' shot as view 'cam'
+const PAN = opt('pan', null);                  // T2.3: the orbit's target 'x,y,z' (FLIGHT_PROBE.pan)
 const JS = opt('js', null);
 const PART = opt('part', 'fuselage');   // the part selected in the tree (T2.2: 'drawnWin')            // an expression evaluated after the selection, its value printed
 const PORT = 9400 + (process.pid % 500);
@@ -83,16 +86,17 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // the rows under test
   if (SETS.length) {
     const js = SETS.map(([k, v]) => 'P[' + JSON.stringify(k) + ']=' + (v === 'null' ? 'null' : JSON.stringify(+v)) + ';').join('');
-    await ev('(()=>{const P=window.CAGE_UI.P;' + js + 'window.CAGE_UI.build();return 1})()');
+    await ev('(()=>{const P=window.CAGE_UI.P;' + js + 'window.CAGE_UI.build();window.CAGE_UI.syncSliders();return 1})()');   // the widgets follow P (a build alone repaints only the follow rows)
     await sleep(WAIT);
   }
   // the Fuselage selected: the FRAMES groups are its first
-  await ev("(()=>{window.EDITOR_SELECT(" + JSON.stringify(PART) + ");return 1})()");
+  if (PART !== 'none') await ev("(()=>{window.EDITOR_SELECT(" + JSON.stringify(PART) + ");return 1})()");   // --part none: nothing lit
   await sleep(1200);
   // every frames group opened, the inspector scrolled to the top
   await ev("(()=>{[...document.querySelectorAll('#edRows .edH.edHC.shut')].filter(h=>/frame|reference|row/i.test(h.textContent)).forEach(h=>h.click());return 1})()");
   await sleep(600);
   await ev("(()=>{const S=[...document.querySelectorAll('#edRows .edH')].find(x=>/^(reference section|row 1)/i.test(x.textContent.trim()));if(S)S.scrollIntoView({block:'start'});return 1})()");
+  if (XRAY) { await ev("(()=>{const c=document.getElementById('xray');if(c&&!c.checked){c.checked=true;c.dispatchEvent(new Event('change'));}return 1})()"); await sleep(800); }
   if (JS) console.log('frames_shot: js -> ' + await ev(JS));
   if (INFO) {
     const info = await ev("JSON.stringify(window.CAGE_UI.frames)");
@@ -111,6 +115,14 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     await sleep(600);
   }
   for (const v of VIEWS) { const p = PRESETS[v]; if (!p) continue; await cam(p[0], p[1], p[2]); await shot(v); }
+  if (PAN && PAN[0] === '@') {   // '@name': the orbit aimed at that object (its world position less the orbit's own target)
+    const r = await ev("(()=>{const F=window.FLIGHT_PROBE;let o=null;F.hangarScene().traverse(x=>{if(!o&&x.name===" + JSON.stringify(PAN.slice(1)) + ")o=x;});if(!o)return 'no such object';const p=new (o.position.constructor)();o.getWorldPosition(p);const t=F.camGet().target;F.pan(p.x-t[0],p.y-t[1],p.z-t[2]);return JSON.stringify(p.toArray().map(v=>+v.toFixed(3)))})()");
+    console.log('frames_shot: pan @' + PAN.slice(1) + ' -> ' + r);
+  } else if (PAN && PAN[0] === '=') {   // '=x,y,z': the orbit aimed at that world point
+    const p = PAN.slice(1).split(',').map(Number);
+    await ev('(()=>{const F=window.FLIGHT_PROBE,t=F.camGet().target;F.pan(' + p[0] + '-t[0],' + p[1] + '-t[1],' + p[2] + '-t[2]);return 1})()');
+  } else if (PAN) { const p = PAN.split(',').map(Number); await ev('FLIGHT_PROBE.pan(' + p.join(',') + '), 1'); }
+  if (CAM) { const p = CAM.split(',').map(Number); await cam(p[0], p[1], p[2]); await shot('cam'); if (PAN) console.log('frames_shot: cam ' + await ev('JSON.stringify(FLIGHT_PROBE.camGet().target.map(v=>+v.toFixed(2)))')); }
   ws.close(); ch.kill();
   try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
   process.exit(0);

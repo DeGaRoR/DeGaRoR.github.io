@@ -100,7 +100,13 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              the hover cut (editor.js), the certificate's deviation hash (bench.js):
 //              46 KB, measured 7.957 -> 8.002 MiB on the LF build, 1.5 KB over the
 //              line. No data: the corpus fixtures live in tools/fixtures/, never inlined.
-const BUDGET_MIB = 8.1;
+//   8.1 -> 8.2 (G482, 2026-09-22): the T2 batches' rows are code - G480's cage-side
+//              batch (the ease/collapse/joint/strut/beam/incidence rows, the stab pitch
+//              in _fin_gen.js) and G482's game side (the lever's axes, the hinge finish
+//              sync in _cage_ui.js, the bays' seating) on top of a peer's H7 water
+//              field (G460.8): measured 8.096 -> 8.1005 MiB on the LF build, 0.5 KB
+//              over the line. No data inlined.
+const BUDGET_MIB = 8.2;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

@@ -69,6 +69,7 @@ const hgDef = {
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges, on the A-pillar edge
+  hgFinish: -1,                              // T2.3 (51): 0 as the fuselage, 1 bare steel, 2 the finish tab's own; -1 = read off the finish tab once
 };
 const FAM = ['as built', 'strap', 'piano', 'bracket'];
 PAGE.defaults = Object.assign(hgDef, PAGE.defaults || {});
@@ -105,6 +106,15 @@ const GROUP = ['13 · control hardware', [
     ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
     ['hgDoorEdge', 'hinge edge', 0, 2, 1, ['forward', 'top', 'aft'],
      { when: P => +P.hgOn && +P.hgDoor }],
+  ], { when: P => +P.hgOn }],
+  // T2.3 (51): THE FINISH, on the layer's own rows. The hardware's section
+  // (ctlHinge) is a soft pin in the finish table — steel until the fuselage
+  // picks a finish, then the fuselage's (2026-09-13). The row names the
+  // three states a builder means: 'as the fuselage' (that rule, every build
+  // before), 'bare steel' (cadmium-plated whatever the fuselage wears), and
+  // 'own' (the finish tab's pick on the hinges, which flips this row itself)
+  ['finish', [
+    ['hgFinish', 'finish', 0, 2, 1, ['as the fuselage', 'bare steel', 'own (finish tab)']],
   ], { when: P => +P.hgOn }],
   ['detail', [
     ['hgDetail', 'detail ×', 0.4, 2.0, 0.1],
