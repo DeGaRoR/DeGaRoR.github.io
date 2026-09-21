@@ -20,11 +20,18 @@
 //           window on three monoplanes and the biplane, the probe's residual,
 //           the model switch, and the build-time ratio.
 //
+//   AUDIT   THE BIPLANE AUDIT (2026-09-21): the pair rule (two planes in two
+//           bands — the "extra wing" was a parasol 35 cm over a high wing),
+//           the second plane's own place.dy in the frame, its aileron chord
+//           and flap type/chord reaching the strips (one ailTau, one flap
+//           record: scaled fractions), the flap record from a lower-plane-
+//           only flap.
+//
 // node tools/test_biplane.js            -> the checks
 // node tools/test_biplane.js --selftest -> the checks proven able to go red
 'use strict';
 const { buildGen, makeSim, makeWorld, makePilot, genShakedown,
-        GEN_RULES, vortexKernel } = require('./flight_core.js');
+        GEN_RULES, vortexKernel, genPlanePair } = require('./flight_core.js');
 const { rigidityRank } = require('./_rigidity.js');
 
 const fails = [];
@@ -310,6 +317,13 @@ const C = {
   // where it read 29. A parasol with an A-65 a metre ahead of a big tail
   // sits there honestly; the band records the new fleet, not a wish.
   margin: sm => sm >= 0.05 && sm <= 0.40,
+  // THE AUDIT (2026-09-21)
+  pairBands: r => r.coerced === 8 && r.kept === 8 && r.sameBand === 0,   // 16 pairs: 8 same-band coerced, 8 kept
+  pairBuilt: (p1, gap) => p1 === 'low' && gap > 0.9,
+  dyMoves: (y0, y1, dy, yA, yB) => Math.abs((y1 - y0) - dy) < 1e-9 && Math.abs(yB - yA) < 1e-12,
+  ailScaled: (k1, want, k0) => Math.abs(k1 - want) < 1e-9 && k0 === 1 && want > 1.05,
+  flapFromLower: (rec, f1, f0) => !!rec && rec.dCl0 > 0.5 && f1 > 0.99 && f0 === 0,
+  flapScaled: (f1, want) => Math.abs(f1 - want) < 1e-9 && want < 0.95,
 };
 
 if (!process.argv.includes('--selftest')) {
@@ -402,6 +416,47 @@ if (!process.argv.includes('--selftest')) {
     check(d.params.gen.braceDCdA > 0.10 && dE.params.gen.braceDCdA < d.params.gen.braceDCdA,
           'the truss pays its drag, the cleaner one less',
           d.params.gen.braceDCdA.toFixed(3) + ' / ' + dE.params.gen.braceDCdA.toFixed(3));
+  }
+  // ---- THE AUDIT (2026-09-21): the pair, the nudge, the surfaces ----------
+  {
+    say('AUDIT: the pair rule, the second plane’s nudge, its surfaces at their own chord');
+    const BANDS = ['high', 'parasol', 'low', 'mid'];
+    const up = p => p === 'high' || p === 'parasol';
+    let coerced = 0, kept = 0, sameBand = 0;
+    for (const a of BANDS) for (const b of BANDS) {
+      const r = genPlanePair(a, b);
+      if (up(r) === up(a)) sameBand++;
+      if (r === b) kept++; else coerced++;
+    }
+    check(C.pairBands({ coerced, kept, sameBand }), 'the two planes stand in two bands (genPlanePair over 16 pairs)',
+          coerced + ' coerced, ' + kept + ' kept, ' + sameBand + ' same-band');
+    const dHP = buildGen(bipSpec(sp => { sp.wings[0].position = 'high'; sp.wings[1].position = 'parasol'; sp.wings[1].cabaneH = 0.45; }));
+    const gapHP = dHP.parts.planes[0].wingY0 - dHP.parts.planes[1].wingY0;
+    check(C.pairBuilt(dHP.spec.wings[1].position, gapHP), 'a parasol asked for over a high wing builds LOW under it (the extra-wing case)',
+          dHP.spec.wings[1].position + ' · gap ' + gapHP.toFixed(2) + ' m');
+    const rootY = (dd, k) => dd.nodes[dd.parts.planes[k].wf.R.F[0]].p[1];
+    const d0 = buildGen(bipSpec()), dDy = buildGen(bipSpec(sp => { sp.wings[1].place = { dx: 0, dy: 0.30 }; }));
+    check(C.dyMoves(rootY(d0, 1), rootY(dDy, 1), 0.30, rootY(d0, 0), rootY(dDy, 0)),
+          'the second plane’s place.dy moves ITS root (plane 0 untouched)',
+          rootY(d0, 1).toFixed(3) + ' -> ' + rootY(dDy, 1).toFixed(3));
+    const dA = buildGen(bipSpec(sp => { sp.wings[1].controls.aileron.chord = 0.30; }));
+    const ailK = (dd, k) => Math.max(...dd.strips.filter(st => st.kind === 'wing' && (st.plane | 0) === k).map(st => st.ail));
+    // the thin-aerofoil flap law (60_gen_spec genFlapTau), restated here
+    const tF = c => { const th = Math.acos(2 * c - 1); return 1 - (th - Math.sin(th)) / Math.PI; };
+    say('AUDIT: plane 1 aileron chord 0.30 -> strip ail ' + ailK(dA, 1).toFixed(3) + ' (plane 0 ' + ailK(dA, 0) + ', ailTau ' + dA.params.ailTau.toFixed(3) + ')');
+    check(C.ailScaled(ailK(dA, 1), tF(0.30) / tF(0.22), ailK(dA, 0)),
+          'the second plane’s aileron chord reaches its strips (the chord law’s ratio; plane 0 at 1)',
+          ailK(dA, 1).toFixed(3) + ' vs ' + (tF(0.30) / tF(0.22)).toFixed(3));
+    const dF = buildGen(bipSpec(sp => { sp.wings[1].controls.flap = { type: 'plain', span: 0.5, chord: 0.20 }; }));
+    const flapK = (dd, k) => Math.max(0, ...dd.strips.filter(st => st.kind === 'wing' && (st.plane | 0) === k).map(st => st.flap));
+    check(C.flapFromLower(dF.params.flaps, flapK(dF, 1), flapK(dF, 0)),
+          'flaps on the lower plane only: a flap record, its strips flapped, plane 0’s not',
+          (dF.params.flaps ? 'dCl0 ' + dF.params.flaps.dCl0.toFixed(2) : 'no record') + ' · ' + flapK(dF, 1).toFixed(2) + ' / ' + flapK(dF, 0));
+    const dF2 = buildGen(bipSpec(sp => { sp.controls = { flap: { type: 'plain', span: 0.5, chord: 0.25 } };
+                                         sp.wings[1].controls.flap = { type: 'plain', span: 0.5, chord: 0.15 }; }));
+    check(C.flapScaled(flapK(dF2, 1), tF(0.15) / tF(0.25)),
+          'a narrower lower flap flies a smaller fraction of plane 0’s record (the chord law)',
+          flapK(dF2, 1).toFixed(3) + ' vs ' + (tF(0.15) / tF(0.25)).toFixed(3));
   }
   // ---- G185.5 the vortex kernel ------------------------------------------
   {
@@ -528,6 +583,12 @@ if (process.argv.includes('--selftest')) {
     ['weights flat along the span', !C.weightsShape(1.0, 1.0)],
     ['a residual of 5 %',    !C.resid(0.05)],
     ['a biplane 4x the stock', !C.perf(80, 20)],
+    ['a same-band pair let through', !C.pairBands({ coerced: 7, kept: 9, sameBand: 1 })],
+    ['a parasol 35 cm over a high wing', !C.pairBuilt('parasol', 0.35)],
+    ['a nudge that moves nothing', !C.dyMoves(-0.1, -0.1, 0.3, 1.5, 1.5)],
+    ['the aileron chord ignored', !C.ailScaled(1, 1, 1)],
+    ['no flap record from the lower plane', !C.flapFromLower(undefined, 0, 0)],
+    ['the lower flap at the upper chord', !C.flapScaled(1, 0.8)],
   ];
   let pass = true;
   for (const [nm, caught] of cases) {

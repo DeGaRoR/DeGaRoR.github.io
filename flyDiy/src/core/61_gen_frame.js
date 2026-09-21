@@ -849,8 +849,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // outboard. Without a crank both halves use the same angle and this is the
   // straight line it always was.
   const dihOut = Math.tan((w.dihedralOut == null ? w.dihedral : w.dihedralOut) * D);
+  // THE SECOND PLANE'S OWN NUDGE (biplane audit, 2026-09-21). S.place.wingDy
+  // is wings[0].place.dy under its flat name, and every plane read it — so
+  // wings[1].place.dy (the editor's `up / down` on the second plane, written
+  // by the join since G185) moved nothing. Plane 0 keeps the flat name (to
+  // the bit); a later plane reads its own record.
+  const planeDy = k === 0 ? S.place.wingDy : ((w.place && w.place.dy) || 0);
   const yF = z => {
-    const base = wingY0 + S.place.wingDy;
+    const base = wingY0 + planeDy;
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };

@@ -1035,11 +1035,14 @@ const DESIGN_ROWS = [
         writes: { cage: { w2On: 1,
                           w2Span: P => Math.max(+P.w2Span || 0, +(0.8 * +P.wgSpan).toFixed(2)) } },
         seed: { cage: {
-          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : 3,
+          // (biplane audit, 2026-09-21: the seed follows the BAND — a low
+          // or mid first plane keeps its band and gets a parasol over it;
+          // a high or parasol first becomes the parasol over a low second)
+          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : Math.round(P.wgPos) === 1 ? 1 : 3,
           wgParaH: 0.45,
-          w2Pos: P => Math.round(P.wgPos) === 2 ? 0 : 2,
+          w2Pos: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? 0 : 2,
           w2ParaH: 0.45,
-          w2Stagger: P => Math.round(P.wgPos) === 2 ? -0.35 : 0.35,
+          w2Stagger: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? -0.35 : 0.35,
           w2Span: P => +P.wgSpan, w2Chord: P => +P.wgChord,
           w2ChordTip: P => +P.wgChordTip, w2Tip: P => P.wgTip,
           wgAilOn: P => Math.round(P.wgPos) === 2 ? 1 : 0,
@@ -1049,11 +1052,11 @@ const DESIGN_ROWS = [
         note: 'a short lower plane under a long upper',
         writes: { cage: { w2On: 1, w2Span: P => +(0.72 * +P.wgSpan).toFixed(2) } },
         seed: { cage: {
-          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : 3,
+          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : Math.round(P.wgPos) === 1 ? 1 : 3,
           wgParaH: 0.45,
-          w2Pos: P => Math.round(P.wgPos) === 2 ? 0 : 2,
+          w2Pos: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? 0 : 2,
           w2ParaH: 0.45,
-          w2Stagger: P => Math.round(P.wgPos) === 2 ? -0.35 : 0.35,
+          w2Stagger: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? -0.35 : 0.35,
           w2Chord: P => +(0.80 * +P.wgChord).toFixed(2),
           w2ChordTip: P => +(0.80 * +P.wgChordTip).toFixed(2), w2Tip: P => P.wgTip,
           wgAilOn: 1, w2AilOn: 0,
@@ -2276,7 +2279,7 @@ function designBake(sel, over) {
       span: +full.w2Span, chord: +full.w2Chord,
       taper: +full.w2Chord > 0 ? +(+full.w2ChordTip / +full.w2Chord).toFixed(4) : 1,
       dihedral: +full.w2Dihedral, incidence: +full.w2Incidence,
-      position: ['parasol', 'mid', 'low'][Math.round(full.w2Pos)] || 'low',
+      position: ['parasol', 'mid', 'low', 'high'][Math.round(full.w2Pos)] || 'low',
       stagger: +full.w2Stagger || 0,
       controls: { aileron: { span: +full.w2AilOn ? +full.w2AilSpan : 0, chord: +full.w2AilChord },
                   flap: { type: flapKeys[Math.round(full.w2FlapType)] || 'none',

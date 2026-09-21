@@ -54248,3 +54248,101 @@ field at 18 /ha by its own mix; the mountains treed but thin - the base quarter)
 - STILL OWED (A7): 15 nose-cone jiggle, 23/32 wing normals and grazing maps, 92 the cowl
   gap under deformation, 149 the spine/keel rivet stretch, 151 the fin's mapping, 52's
   flight-view check, 73's birth default.
+
+## G475 — THE BIPLANE AUDIT: THE PAIR RULE, THE SECOND PLANE'S OWN HEIGHT, ITS SURFACES AT
+## THEIR OWN CHORD, THE TRUSS ON BOTH SKINS (2026-09-21, the user: "audit of the bi planes ...
+## an extra wing appearing when switching from single to double wing, the controls for the
+## low wing seem insufficient, the truss structure seems not detailed enough, and I'm not
+## sure if it anchors correctly ... check the integration of the physics model")
+
+The pre-study before the user's own playtest: the G185 biplane measured on the stock
+aeroplane through a headless sweep of every plane-position pair (tools/biplane_shot.js,
+below), the editor's rows against the joined spec, and the joined spec against the flown
+frame. Six defects, all ironed; the physics core itself (kernel, per-plane polars, wires,
+truss drag, lift split, downwash) was found clean and is unchanged.
+
+- THE EXTRA WING WAS A SAME-BAND PAIR. G185's pair clamp was a rank test (low 0, mid 0.5,
+  high 1, parasol 1.5; coerce under 0.5 apart), which let 'parasol' stand over 'high' (a
+  second plane 35 cm above the first — the roof plus a cabane) and 'mid' over 'low' (36 cm,
+  both through the cabin). Measured on the stock: gap 0.35 / 0.36 / 0.75 m on the three
+  same-band pairs. THE RULE IS BANDS: upper = {high, parasol}, lower = {low, mid}; the two
+  planes stand in different bands and the second is coerced to the far side of the other
+  (`genPlanePair(pos0, pos1)` in 60_gen_spec, exported; clampSpec uses it). Sixteen pairs:
+  eight kept, eight coerced, none same-band (GATE BIPLANE). The stock with a parasol asked
+  over its high wing now builds low under it, gap 1.20 m.
+- THE ROW SAYS WHAT IS BUILT. The editor's `w2Pos` row kept its value while the spec coerced
+  the plane ('low wing' shown over an aeroplane built as a parasol; the cabane-height row
+  hidden because the row said 'low'). `PAGE.coerce` (a list of `P => changed`, run at the top
+  of the editor's build() before cageSheet, the widgets synced) carries the wing layer's pair
+  rule: the row is rewritten to the band the spec would build. The row has a fourth stop,
+  'high wing' (index 3 — saved builds keep 0..2 meaning what they did; the join, the editor's
+  spec and designBake read the same list). The design tile's seed follows the band too (a
+  MID first plane kept its band and got 'low' under it — the same-band pair — it gets a
+  parasol over it now).
+- THE SECOND PLANE'S `up / down` DID NOTHING, TWICE. The frame's yF read `S.place.wingDy`
+  (= wings[0].place.dy under its flat name) for every plane; wings[1].place.dy (the join
+  wrote it since G185) reached nothing. And the row appeared twice in the inspector: the
+  generated twin of `wgDy` plus the explicit `w2Dy`. Now: buildPlane(k) reads
+  `w.place.dy` for k > 0 (plane 0 keeps the flat name, to the bit); `wgDy` is in W2_DROP;
+  the one `w2Dy` row is in metres with the clamp's own range (−0.25..0.60 — "a control that
+  silently stops is a control that lies"). Measured: plane 1's root −0.100 → +0.200 at dy
+  0.30, plane 0 untouched.
+- THE FLOWN LOWER PLANE WAS NOT WHERE THE DRAWN ONE WAS. G266.1 hands plane 0's DRAWN root
+  height back to the frame (`yRoot`) and plane 1's was never measured: the game's second
+  plane stood where the frame's RULE put it, the drawn one the rule's distance under the
+  drawn upper. 9 cm on the stock (gap 1.418 flown vs 1.508 drawn); on a low-wing build the
+  whole 0.41 m G266.1 measured. The join reads `W.planes[1].rootY` as `M.wingY2` →
+  `spec.wings[1].yRoot`, zeroing the joined place.dy (the nudge is in the measurement, as
+  plane 0's dx is). Flown = drawn: yRoot [1.768, −0.09] on the parasol-over-low stock.
+- THE TRUSS HAD NO FITTINGS ON THE SECOND PLANE. `CAGE_WING.planes[1]` published probes but
+  no `wingRay`; the brace layer's plates and lugs on plane 1 fell back to the bare spar
+  node ('4 plates on skin' of 8 on every biplane), and a cabane on plane 1 — every card,
+  every tile-born build — aimed plane 0's ray: tips on nothing ('0/8 on wing'), or on the
+  WRONG plane when the parasol stood 35 cm over it. AND plane 0's own ray was the MAIN
+  panel alone: a cabane's tips stand at the root station, on the main/centre seam, and
+  answered null there since G185 (every mono parasol read '0/8 on wing' too). Now: probesOf
+  publishes a ray over every skin class of its plane; plane 0's ray covers main + centre +
+  tip (the lift strut's station is inside the main panel, same first hit); the cabane aims
+  the ray of the plane its spar nodes belong to. Sweep: 8 plates on skin, 8/8 on wing on
+  every pair, mono parasol included.
+- THE SECOND PLANE'S SURFACES FLEW AS PLANE 0'S. One `ailTau` (S.controls = plane 0's
+  aileron chord) and one flap record (plane 0's type and chord) — the lower plane's aileron
+  chord row and flap type/chord rows drew surfaces that flew at plane 0's effectiveness, and
+  a biplane flapped on the lower plane only flew none (FP undefined). The strip's `ail` and
+  `flap` are fractions the solver multiplies the aeroplane-wide effectiveness by, so a later
+  plane's carry ITS ratio: the aileron by the chord law (genTauAt(c)/genTauAt(c0) — 1.150 at
+  0.30 over 0.22), the flap by its type's dCl at its chord over the record's; the record is
+  `genFlapRef(S)` — plane 0's flap when it has one, else the first plane's that does. Plane
+  0 reads 1 and 1: every monoplane's strips byte-identical (GEN's G8 holds).
+- SMALLER, SAME DAY: the join's plane-2 `centre` list had four of the eight kinds (a second
+  plane drawn 'removed' flew solid) and no `centreW` — both as plane 0's now; the editor's
+  plane-2 material list was G185's ('tubeFabric', 'wood' — never a wing's vocabulary since
+  G213) — the join's list; the status line's gap is |Δy| of the drawn roots (it read
+  "gap −1.96 m" with the parasol on plane 1).
+- WHAT WAS LOOKED AT AND LEFT AS IT WAS (for the user's test, decisions owed):
+  · the truss's DETAIL. Per side the frame emits 2 N posts + 1 diagonal (or 2 I posts + an
+    inner shear path), 2 flying wires (lower root → upper station, F and R) and 2 landing
+    wires (upper root → lower station); no cabane wires, no incidence (cross) wires in the
+    strut bay, no doubled flying wires. Each is a physics member (GATE LOAD's biplane rows
+    move with any of them), so none was added on a pre-study. The drawn wire is 5 mm round
+    (bpWireD 3..8): sub-pixel at the editor's default distance — a streamline section
+    (~6×18 mm, the Stearman's) is a drawing option worth ruling on.
+  · the cabane FOOT. The frame's foot is the top-longeron ring node; the strut module snaps
+    the drawn foot to the skin ('snap 237..590 mm' in the status line by pair — 590 on the
+    low-wing stock, whose "top longeron" is the canopy sill). The G185.6 lift-strut
+    convention (foot lands where its ring is, the physics beam runs node to node); a
+    measured cabane foot for the flown frame is not done.
+  · the roll-out: the parasol-over-low stock rolled out and sat at TAXI 0 km/h for 40 s
+    in the rig (the pilot's own taxi rules on a tail-down biplane — not measured further).
+  · G185's owed list stands: the braced-spar row, the plane-2 lamp bay, E.tank2, wing PIN
+    rows, the mutual term's ground image.
+- THE RIG: tools/biplane_shot.js (frames_shot's rig + --select, a layer census, --air):
+  `--set w2On=1,wgPos=<0..3>,w2Pos=<0..3> --js "..."` sweeps the pairs; screenshots/biplane/
+  (gitignored) holds the audit's before/after (m00 = the extra wing; n00 = the same rows after
+  the rule; fly_air = the joined biplane on the field).
+- GATES: BIPLANE +6 rows (+6 selftest cases, all caught). On the branch: GEN (4 shards),
+  BIPLANE, SKIN, WINGSPLIT, JOIN, PARTS, DESIGN, FLEX, FRAMES (the 47-item corpus identity
+  holds — no saved biplane sat on a same-band pair), LOAD, BUILD all PASS. Reds at HEAD not
+  mine: none seen. ARCHETYPES (full tier) not re-run on the branch: the five biplane cards
+  are parasol-over-low with plane 0's aileron chord and no flaps, and run headless (no join),
+  so nothing here reaches them.

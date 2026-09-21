@@ -3639,6 +3639,24 @@ function clampControls(ct) {
   ct.flap.chord = genClamp(ct.flap.chord == null ? 0.20 : ct.flap.chord, 0.10, 0.40);
 }
 
+// THE PAIR'S RULE (biplane audit, 2026-09-21): a biplane's two planes stand
+// in DIFFERENT BANDS of the fuselage — the upper on the roof or a cabane
+// (high, parasol), the lower on the belly or through the waist (low, mid).
+// G185's rank test (|rank0 - rank1| < 0.5, ranks 0 / 0.5 / 1 / 1.5) let two
+// same-band pairs through: a 'parasol' second plane over a 'high' first
+// (35 cm apart — the "extra wing" the playtest saw when the second wing was
+// switched on), and 'mid' over 'low' (36 cm apart, both through the cabin).
+// The first plane keeps what it says; the second is coerced to the far
+// side of the other band. One function, so the spec clamp, the editor's
+// row and the design tile's seed cannot disagree about which pairs exist.
+const GEN_UPPER_BAND = { high: 1, parasol: 1, low: 0, mid: 0 };
+function genPlanePair(pos0, pos1) {
+  const b0 = GEN_UPPER_BAND[pos0], b1 = GEN_UPPER_BAND[pos1];
+  if (b0 == null) return pos1;
+  if (b1 != null && b1 !== b0) return pos1;
+  return b0 ? 'low' : 'parasol';
+}
+
 // G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
 // plane is clamped by the same lines as the first (every wing key lives on
 // each entry of wings[]); the text is the old block verbatim.
@@ -4099,8 +4117,8 @@ function clampSpec(spec) {
       // the second is coerced to the other band.
       const rank = { low: 0, mid: 0.5, high: 1, parasol: 1.5 };
       const [w0, w1] = S.wings;
-      if (Math.abs(rank[w0.position] - rank[w1.position]) < 0.5)
-        w1.position = rank[w0.position] >= 1 ? 'low' : 'parasol';
+      // (the band rule — genPlanePair — replaced G185's rank test here)
+      w1.position = genPlanePair(w0.position, w1.position);
       // wires need the interplane station to land on
       if (br.wires !== 'none' && br.interplane === 'none') br.interplane = 'N';
       // a sesquiplane's small plane is at least 0.45 of the big one

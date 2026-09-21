@@ -161,7 +161,9 @@ function cageJoinPlane2(P, T) {
     dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
     naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
     panels: Math.round(P.w2Panels),
-    position: ['parasol', 'mid', 'low'][Math.round(P.w2Pos)] || 'low',
+    // (biplane audit, 2026-09-21: 'high' is the fourth stop, the wing
+    // layer's W2_POS_KEYS order)
+    position: ['parasol', 'mid', 'low', 'high'][Math.round(P.w2Pos)] || 'low',
     cabaneH: Math.round(P.w2Pos) === 0 ? (+P.w2ParaH || 0.45) : null,
     stagger: +P.w2Stagger || 0,
     place: { dx: 0, dy: +P.w2Dy || 0 },
@@ -170,7 +172,11 @@ function cageJoinPlane2(P, T) {
     crankChord: P.w2CrankAt > 0 ? +P.w2CrankChord : null,
     crankX: P.w2CrankAt > 0 ? (+P.w2CrankX || 0) : null,
     dihedralOut: P.w2CrankAt > 0 ? P.w2DihedralOut : null,
-    centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.w2Centre)] || 'solid',
+    // (biplane audit: the full centre list and the width, as plane 0's —
+    // the join had four of the eight and no width, so a second plane drawn
+    // 'removed' or narrowed flew solid at the cabin's width)
+    centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.w2Centre)] || 'solid',
+    centreW: +P.w2CentreW > 0 ? +P.w2CentreW : null,
     controls: {
       flap: { type: flap, span: P.w2FlapSpan, chord: P.w2FlapChord },
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
@@ -437,6 +443,17 @@ function cageJoinSpec(P, M, T) {
   // front-spar node is drawn at yAnchor + wgDy; this hands that back)
   if (typeof M.wingY === 'number' && isFinite(M.wingY))
     spec.wings[0].yRoot = M.wingY;
+  // THE SECOND PLANE'S HEIGHT TOO (biplane audit, 2026-09-21). Plane 0's
+  // drawn root was handed back and plane 1's was not, so the flown lower
+  // plane stood where the FRAME'S RULE put it while the drawn one stood
+  // the rule's distance under the DRAWN upper — 9 cm apart on the stock,
+  // the whole G266.1 discrepancy on a low-wing build. Its nudge is in the
+  // measurement (the wing layer draws the frame's root at rule + place.dy),
+  // so the joined place.dy is zeroed, as plane 0's dx is above.
+  if (spec.wings[1] && typeof M.wingY2 === 'number' && isFinite(M.wingY2)) {
+    spec.wings[1].yRoot = M.wingY2;
+    spec.wings[1].place = Object.assign({}, spec.wings[1].place || {}, { dy: 0 });
+  }
   // G49: the tail-end section and the cowl deck ride with the tail arm —
   // clampSpec's envelope bounds them, and tailY stays 0 (it is the
   // editor's OFFSET knob; these are absolute measurements).
@@ -1086,6 +1103,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // the up/down nudge); read it back in the frame's own y
       if (W && W.anchor && typeof W.anchor.yAnchor === 'number')
         M.wingY = W.anchor.yAnchor + (+P.wgDy || 0) - yD;
+      // ...and the second plane's, off its own drawn root front-spar node
+      // (the wing layer publishes each plane's rootY in cage metres)
+      if (W && W.planes && W.planes[1] && typeof W.planes[1].rootY === 'number')
+        M.wingY2 = W.planes[1].rootY - yD;
       if (zPost != null) {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;

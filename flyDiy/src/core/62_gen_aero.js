@@ -85,6 +85,18 @@ function genTailPolar(AR, matCd0) {
 // panel; one fin. Attach weights put the quarter chord where it belongs
 // between the two spars, exactly as the hand fiches do.
 // ---------------------------------------------------------------------------
+// the flap the solver's one record is written from: plane 0's when it has
+// one (every monoplane, to the bit), else the first later plane's that has
+// (a biplane flapped on the lower plane only); null when no plane has flaps
+function genFlapRef(S) {
+  const CT0 = S.controls;
+  if (CT0 && CT0.flap && GEN_FLAPS[CT0.flap.type] && GEN_FLAPS[CT0.flap.type].dCl > 0) return CT0.flap;
+  for (let k = 1; k < (S.wings || []).length; k++) {
+    const c = S.wings[k] && S.wings[k].controls;
+    if (c && c.flap && GEN_FLAPS[c.flap.type] && GEN_FLAPS[c.flap.type].dCl > 0) return c.flap;
+  }
+  return null;
+}
 function genStrips(S, fr) {
   const P = fr.parts, R = GEN_RULES, strips = [];
   // G134: the resolved row (custom dials outrank the preset), and the wash
@@ -122,6 +134,7 @@ function genStrips(S, fr) {
   // stations, spar record, controls and propwash.
   const PLANES = P.planes || [P];
   const NONE_CT = { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } };
+  const flapRef = genFlapRef(S);
   // the thrustline, for the second plane's share of the wash (see below)
   const yProp = S.engY != null ? S.engY : 0;
   for (let k = 0; k < PLANES.length; k++) {
@@ -133,6 +146,22 @@ function genStrips(S, fr) {
   const CT = k === 0 ? S.controls : (wk.controls || NONE_CT);
   const aStart = (1 - CT.aileron.span) * semi;
   const fEnd = GEN_FLAPS[CT.flap.type].dCl > 0 ? CT.flap.span * semi : -1;
+  // THE SECOND PLANE'S SURFACES AT THEIR OWN CHORD (biplane audit,
+  // 2026-09-21). The solver flies ONE ailTau and ONE flap record (the
+  // aeroplane's, from S.controls = plane 0's), so the second plane's
+  // aileron chord and flap type/chord rows drew surfaces that flew as plane
+  // 0's — and a biplane with flaps on the lower plane only flew none. The
+  // strip's `ail` and `flap` are fractions the solver multiplies the
+  // aeroplane-wide effectiveness by, so a later plane's are scaled by ITS
+  // surfaces' effectiveness over the reference's: the aileron by the chord
+  // law (genTauAt), the flap by its type's dCl at its chord over the flap
+  // record's (`flapRef` below — plane 0's flap, else the first plane with
+  // one). Plane 0 reads 1 and 1: every monoplane's strips are what they were.
+  const kAil = k === 0 ? 1
+             : genTauAt(CT.aileron.chord, 0.22, 0.35) / genTauAt(S.controls.aileron.chord, 0.22, 0.35);
+  const kFlap = (k === 0 || !flapRef || fEnd < 0) ? 1
+              : (GEN_FLAPS[CT.flap.type].dCl * genFlapTau(CT.flap.chord))
+                / (GEN_FLAPS[flapRef.type].dCl * genFlapTau(flapRef.chord));
   // PROPWASH ON THE SECOND PLANE (G185): washAt is fitted to the Cub with the
   // Cub's wing at its own height, so plane 0 keeps that law untouched; plane
   // k pays only the EXTRA radial distance from the thrustline beyond plane
@@ -164,7 +193,7 @@ function genStrips(S, fr) {
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
           wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
-          ail: zc > aStart ? 1 : 0, flap: fFrac,
+          ail: zc > aStart ? kAil : 0, flap: fFrac * kFlap,
           // G185: the plane this strip belongs to, its plane's spar spacing
           // (the Cm0 couple arm) and the quarter-chord weight — the solver
           // reads the strip's own numbers, never a single aeroplane-wide one
@@ -1133,10 +1162,15 @@ function genParams(S, fr, strips) {
   // High lift. dCl scales off the reference chord the table is quoted at; the
   // pitching moment is DERIVED from the lift increment, not chosen separately
   // (see GEN_FLAP_CM — both flapped fiches agree on the ratio).
-  const FL = GEN_FLAPS[CT.flap.type];
+  // (biplane audit, 2026-09-21: the record is the REFERENCE plane's flap —
+  // plane 0's when it has one, else the first plane's that does, so a
+  // biplane flapped on its lower plane only has a record; genStrips scales
+  // every other plane's flap fraction to it)
+  const FREF = genFlapRef(S) || CT.flap;
+  const FL = GEN_FLAPS[FREF.type];
   let flaps;
   if (FL.dCl > 0) {
-    const kc = genFlapTau(CT.flap.chord) / genFlapTau(GEN_FLAP_CREF);
+    const kc = genFlapTau(FREF.chord) / genFlapTau(GEN_FLAP_CREF);
     const dCl0 = FL.dCl * kc;
     flaps = { to: 0, ldg: 1, rate: FL.rate, dCl0,
               dCd0: FL.cd * kc, dAStall: 0.02, dCm0: GEN_FLAP_CM * dCl0 };

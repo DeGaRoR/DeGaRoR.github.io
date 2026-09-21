@@ -1327,6 +1327,16 @@ function build() {
       }
     if (ch) syncSliders();
   }
+  // THE LAYERS' OWN COERCIONS (biplane audit, 2026-09-21): a layer whose
+  // spec clamp would silently overrule a row (the second plane's band, by
+  // the pair rule) writes the row itself before the build, and the widgets
+  // follow — so what the row says is what is built. PAGE.coerce is a list of
+  // P => changed; absent on the bench pages, a no-op.
+  if (PAGE.coerce && PAGE.coerce.length) {
+    let ch = false;
+    for (const f of PAGE.coerce) try { if (f(P)) ch = true; } catch (e) {}
+    if (ch) syncSliders();
+  }
   const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
   const L = +$('lvl').value;

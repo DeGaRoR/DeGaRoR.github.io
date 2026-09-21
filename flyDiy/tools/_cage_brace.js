@@ -284,9 +284,16 @@ PAGE.post = ctx => {
                      return { top: nodeCage([q[0] + sx, q[1], q[2]]),
                               beam: nodeCage(q), node: id }; })
         .sort((a, b) => b.top[2] - a.top[2]);
+      // THE PLANE THE CABANE HOLDS UP (biplane audit, 2026-09-21): its own
+      // skin's ray. W.wingRay is plane 0's, and a biplane's cabane belongs
+      // to the parasol plane, which is plane 1 on every card and every
+      // build born from the tile — the tips found no skin ('0/8 on wing')
+      // or, on a parasol 35 cm over a high wing, the WRONG plane's.
+      const plC = planeOfNode(spars[0]);
+      const rayC = (plC && plC.wingRay) || W.wingRay;
       for (let i = 0; i < ends.length; i += 2) {
         const r = SG.strutBuild(bags, AF, site, ends.slice(i, i + 2),
-                                { wingRay: W.wingRay });
+                                { wingRay: rayC });
         if (!r) continue;
         dSnap = Math.max(dSnap, site.snap.d);
         r.struts.forEach((st, j) => {

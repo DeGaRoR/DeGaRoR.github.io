@@ -204,8 +204,11 @@ const WING_ITEMS = [
 // Dropped: the master switch, the fuselage-strut rows and the fore/aft
 // nudge (the second plane's fore/aft IS its stagger); added: its position
 // band, its cabane height, its stagger and its aileron switch.
+// (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
+// `up / down` is the explicit row below, in the spec's own metres; the
+// generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStrutZ', 'wgStrutX',
-                         'wgDx', 'wgParaH']);
+                         'wgDx', 'wgDy', 'wgParaH']);
 const w2Key = k => 'w2' + k.slice(2);
 const w2On = P => +P.wingOn && +P.w2On;
 const w2When = f => P => w2On(P) && (!f || f(new Proxy(P, {
@@ -229,15 +232,37 @@ const w2Row = it => {
   if (opts) out[out.length - 1] = o2; else out.push(o2);
   return out;
 };
+// THE SECOND PLANE'S POSITION (biplane audit, 2026-09-21): the four bands
+// ('high wing' is the fourth stop — a second plane on the roof over a low
+// first, the cabin biplane; saved builds keep 0..2 meaning what they did),
+// and the PAIR RULE the spec clamps by (genPlanePair: the two planes stand
+// in different bands, upper = high/parasol, lower = low/mid) is applied to
+// the row itself before every build (PAGE.coerce, below), so the row never
+// says 'mid wing' over an aeroplane the spec built as a parasol.
+const W2_POS_KEYS = ['parasol', 'mid', 'low', 'high'];
 const W2_ITEMS = [
   ['w2On', 'second wing', 0, 1, 1, on],
-  ['w2Pos', 'position', 0, 2, 1, ['parasol', 'mid wing', 'low wing'], { when: w2On }],
+  ['w2Pos', 'position', 0, 3, 1, ['parasol', 'mid wing', 'low wing', 'high wing'], { when: w2On }],
   ['w2ParaH', 'height (cabane)', 0.25, 1.20, 0.01,
    { when: P => w2On(P) && Math.round(P.w2Pos) === 0, dim: 'm' }],
   ['w2Stagger', 'fore / aft (stagger)', -1.00, 1.00, 0.02, { when: w2On, dim: 'm' }],
-  ['w2Dy', 'up / down', -1.0, 1.0, 0.02, { when: w2On }],
+  // the spec's own place.dy (metres, clamped -0.25..0.60 in clampWing —
+  // the row stops where the physics stops)
+  ['w2Dy', 'up / down', -0.25, 0.60, 0.01, { when: w2On, dim: 'm' }],
   ...WING_ITEMS.map(w2Row).filter(Boolean),
 ];
+// the pair rule on the rows: what the spec would coerce, written back so the
+// row, the drawing and the flown aeroplane say the same band
+const W0_POS_KEYS = ['high', 'mid', 'low', 'parasol'];
+(PAGE.coerce = PAGE.coerce || []).push(P => {
+  if (!+P.wingOn || !+P.w2On || typeof genPlanePair !== 'function') return false;
+  const p0 = W0_POS_KEYS[Math.round(P.wgPos)] || 'high';
+  const p1 = W2_POS_KEYS[Math.round(P.w2Pos)] || 'low';
+  const want = genPlanePair(p0, p1);
+  if (want === p1) return false;
+  P.w2Pos = W2_POS_KEYS.indexOf(want);
+  return true;
+});
 const host6 = (PAGE.groupsOverride || []).find(g => g[0] === '6 · wings');
 if (host6) host6[1].push(...WING_ITEMS, ['second wing', W2_ITEMS, { when: P => +P.wingOn }]);
 else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
@@ -508,7 +533,7 @@ PAGE.post = ctx => {
       dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
       naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
       panels: Math.round(P.w2Panels),
-      position: ['parasol', 'mid', 'low'][Math.round(P.w2Pos)] || 'low',
+      position: W2_POS_KEYS[Math.round(P.w2Pos)] || 'low',
       cabaneH: Math.round(P.w2Pos) === 0 ? (+P.w2ParaH || 0.45) : null,
       stagger: +P.w2Stagger || 0,
       place: { dx: 0, dy: +P.w2Dy || 0 },
@@ -525,7 +550,8 @@ PAGE.post = ctx => {
         aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
       },
       ...(Math.round(P.w2Cons) > 0
-        ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
+        // the wing's own vocabulary (G213), the join's list
+        ? { material: ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
     };
   };
   const gspec = {
@@ -1477,9 +1503,16 @@ PAGE.post = ctx => {
     // RAY — from, direction, first hit, and a normal turned to face where
     // the ray started. Which surface of the wing a fitting belongs on is the
     // strut's question, not this file's, and it asks it by aiming the ray.
+    // (biplane audit, 2026-09-21: over EVERY skin class, not the main
+    // panel alone — a cabane's tips stand at the root station, on the
+    // main/centre seam, and the main-only probe answered null there:
+    // '0/8 on wing' on every parasol since G185. The lift strut's station
+    // is inside the main panel, where the first hit is the same face.)
     let wingRay = null;
     if (wingGeo && THREE.Raycaster) {
-      const probe = new THREE.Mesh(wingGeo, MAT.main);
+      const probe = new THREE.Group();
+      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      for (const g of (skinProbe.length ? skinProbe : [wingGeo])) probe.add(new THREE.Mesh(g, pm));
       probe.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
       rc.far = 1.2;
@@ -1488,7 +1521,7 @@ PAGE.post = ctx => {
         o.set(from[0], from[1], from[2]);
         d.set(dir[0], dir[1], dir[2]).normalize();
         rc.set(o, d);
-        const h = rc.intersectObject(probe, false);
+        const h = rc.intersectObject(probe, true);
         if (!h.length || !h[0].face) return null;
         const n = h[0].face.normal;
         // FACING THE RAY'S ORIGIN, always. The wing skin is double-sided and
@@ -1777,7 +1810,31 @@ PAGE.post = ctx => {
       tA = x => { for (let k = 0; k <= 48; k++) { const z = bb.min.z + (bb.max.z - bb.min.z) * k / 48;
         const t = oA(x, z), u = uA(x, z); if (t && u) return { z, yTop: t.y, yBot: u.y }; } return null; };
     }
-    return { underAt: uA, overAt: oA, leAt: lA, teAt: tA, box: bx };
+    // ...and the raw ray the brace layer lands a fitting with (plane 0's
+    // wingRay, over this plane's own skin: the interplane plates, the wire
+    // lugs and a cabane's tips found no skin on the second plane before
+    // the biplane audit of 2026-09-21 — `4 plates on skin` of 8)
+    let ray = null;
+    if (geos.length && THREE.Raycaster) {
+      const pg = new THREE.Group();
+      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      for (const g of geos) pg.add(new THREE.Mesh(g, pm));
+      pg.updateMatrixWorld(true);
+      const rc = new THREE.Raycaster();
+      rc.far = 1.2;
+      const o = new THREE.Vector3(), d = new THREE.Vector3();
+      ray = (from, dir) => {
+        o.set(from[0], from[1], from[2]);
+        d.set(dir[0], dir[1], dir[2]).normalize();
+        rc.set(o, d);
+        const h = rc.intersectObject(pg, true);
+        if (!h.length || !h[0].face) return null;
+        const n = h[0].face.normal;
+        const sg2 = n.x * d.x + n.y * d.y + n.z * d.z > 0 ? -1 : 1;
+        return { p: h[0].point.toArray(), n: [n.x * sg2, n.y * sg2, n.z * sg2] };
+      };
+    }
+    return { underAt: uA, overAt: oA, leAt: lA, teAt: tA, box: bx, wingRay: ray };
   };
   const rootYOf = PL => {
     const i = PL && PL.wf && PL.wf.R && PL.wf.R.F ? PL.wf.R.F[0] : null;
@@ -2008,7 +2065,7 @@ PAGE.post = ctx => {
       // G185: the second plane, its gap (a READOUT — the cabane height and
       // the low band decide it) and its stagger
       (plane1 ? ' · 2 planes · gap ' +
-        ((def.parts.planes[0].wingY0 || 0) - (def.parts.planes[1].wingY0 || 0)).toFixed(2) +
+        Math.abs(plane0.rootY - plane1.rootY).toFixed(2) +
         ' m · stagger ' + (+P.w2Stagger || 0).toFixed(2) + ' m' : '');
   }
 };
