@@ -13022,6 +13022,7 @@ function hangarWants(S) {
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy') want.add('metal');
     else if (m === 'carbon') want.add('composite');
+    else if (m === 'aluTube' || m === 'aluFabric') want.add('tube');   // G466: bolted tube wants the tube shop
     // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
     // fabric over tube the tube shop
     else if (m === 'fabric') want.add('wood');
@@ -24418,6 +24419,53 @@ const GEN_MATERIALS = {
     price: 165,                         // moulds, cloth, vacuum, and the hours
     cd0: 0.0004, clmaxK: 1.05,          // moulded: the best surface on the list
   },
+  // THE ULTRALIGHT'S ROW (G466, the user's Chinook: "do the aluminium tube
+  // material row then. It also needs to have appropriate mechanical
+  // characteristics ... there needs to be a trade-off in stiffness"). A
+  // Chinook, a Quicksilver, a Kolb: 6061-T6 tube, BOLTED and gusseted (no
+  // welded clusters, few diagonals — cables and tang brackets), Dacron
+  // sailcloth sewn over it, undoped. Weighed as 4130 + wood at the J-3's
+  // gauge the Chinook read 269 kg empty against its 209, and the excess sat
+  // aft (CHINOOK-STUDY §3).
+  //   phys    6061-T6: E 68.9 GPa (a third of steel's), yield 276 MPa (60 %)
+  //           — its elastic strain limit is 0.40 % where 4130's is 0.22, so
+  //           it bends further before it yields, and the load test reads
+  //           that off `phys` as it does every row's.
+  //   lin     kg per metre of member. A 1.75 x 0.058 in 6061 tube is 0.82
+  //           kg/m — HEAVIER than the 7/8 x 0.035 4130 tube's 0.58 — and the
+  //           aeroplane is lighter because there are half the members: a
+  //           bolted pod is four longerons, a keel and its struts. The
+  //           lattice's member count is the frame's, so the per-metre carries
+  //           that: fus 0.42 (a Chinook pod + boom ~22 kg), wing 0.40 (two
+  //           tube spars, formed ribs, cables: ~24 kg of structure on 14 m2),
+  //           gear 0.75 (a bungee or a spring rod, small wheels).
+  //   cover   0.20: 3.9 oz Dacron (132 g/m2) with its tapes and stitching,
+  //           no dope — the sail is the sail at any gross.
+  //   k, c    THE TRADE-OFF: E_alu x A_alu against E_steel x A_steel on the
+  //           tubes actually used comes out near 1 (the fat tube buys back
+  //           the soft metal), and the bolted joints, the tang brackets and
+  //           the missing diagonals give a third of that back: 0.6 x the
+  //           steel row per class, the damping by root(k m) at the lighter
+  //           mass (0.7 x). A Chinook's boom visibly flexes on a rough
+  //           strip; GATE FLEX's materials sweep and the load test measure
+  //           where that lands (wing k per its own surface row, aluFabric).
+  //   refMass the row IS an ultralight's: 400 kg loaded (a two-seater on a
+  //           582 at its 476 kg gross), refGross 476, cloth ungauged.
+  //   cdWet   sailcloth is smooth but sags between its ribs and tubes, and
+  //           the tubes stand proud of it: the doped-fabric figure.
+  aluTube: {
+    name: '6061 tube + Dacron',
+    phys: { E: 68.9e9, rho: 2700, sigY: 276e6 },
+    lin:   { fus: 0.42, wing: 0.40, gear: 0.75 },
+    cover: 0.20,
+    k:     { fus: 4.8e5, wing: 3.0e5, gear: 1.7e4 },
+    c:     { fus: 84,    wing: 315,   gear: 630 },
+    refMass: 400,
+    refGross: 476, coverGauged: false,
+    cdWet: 0.0125,
+    price: 30,                          // bolted tube and sewn sail: the cheapest way to fly
+    cd0: 0.0022, clmaxK: 1.00,
+  },
 };
 
 // ===========================================================================
@@ -24475,6 +24523,13 @@ const GEN_SURF_MATERIALS = {
             c: GEN_MATERIALS.tubeFabric.c,
             cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
             refGross: 550, coverGauged: false },
+  // G466: the ultralight's wing and tail — two 6061 tube spars, formed
+  // ribs, drag cables, Dacron sewn on (see GEN_MATERIALS.aluTube)
+  aluFabric: { name: '6061 tube + Dacron', phys: GEN_MATERIALS.aluTube.phys,
+            lin: GEN_MATERIALS.aluTube.lin, k: GEN_MATERIALS.aluTube.k,
+            c: GEN_MATERIALS.aluTube.c,
+            cover: 0.20, price: 30, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
+            refGross: 476, coverGauged: false },
   // A WING'S SKIN IS NOT A FUSELAGE'S (PERF STUDY chantier 1, 2026-09-15):
   // the fuselage rows' cover carries frames, doors, floors and windows in
   // its 4.5 kg/m2; a wing panel is skin, stringers and ribs — a GA alloy
@@ -24510,9 +24565,9 @@ const GEN_SURF_MATERIALS = {
 // stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
 // mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
 const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
-                           alloy: 'alloy', carbon: 'carbon' };
+                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
 const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
-                                alloy: 'alloy', carbon: 'carbon' };
+                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
 // the tokens a saved spec may still carry from before G213, read as what
 // they always meant on a flying surface: a "wood" wing was fabric over
 // wood, a "tubeFabric" wing was fabric over tube
@@ -24693,6 +24748,12 @@ GEN_BUILD_GRAMMAR.fabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                          { name: 'wood + fabric', alias: 'tubeFabric' });
 GEN_BUILD_GRAMMAR.steel  = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                          { name: 'steel tube + fabric', alias: 'tubeFabric' });
+// G466: the ultralight's sail over its bolted tube reads like doped fabric
+// over a truss — the same grammar, its own name
+GEN_BUILD_GRAMMAR.aluTube   = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                            { name: '6061 tube + Dacron', alias: 'tubeFabric' });
+GEN_BUILD_GRAMMAR.aluFabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                            { name: '6061 tube + Dacron', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -24917,7 +24978,7 @@ const GEN_ACCESS = {
     at: R => R.booms ? { sL: R.booms.len * 0.78, lv: 'flank' }
                      : { sL: R.tailArm * 0.62, lv: 'keel' },
     snap: 'bay', side: R => R.booms ? 'both' : 'centre',
-    form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
     size: { w: 0.130, h: 0.130 },
   },
   inspBelly: {
@@ -24926,7 +24987,7 @@ const GEN_ACCESS = {
     need: R => R.material === 'carbon' ? 0 : 1,
     at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
     snap: 'bay', side: 'centre',
-    form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
     size: { w: 0.200, h: 0.150 },
   },
   inspAileron: {
@@ -24994,7 +25055,7 @@ const GEN_ACCESS = {
     name: 'Venturi',
     serves: 'the vacuum for the turn indicator, on an aeroplane with no'
           + ' engine-driven pump',
-    need: R => (R.systems === 'basic' && R.material === 'tubeFabric') ? 1 : 0,
+    need: R => (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube')) ? 1 : 0,
     at: () => ({ sL: 0.34, lv: 1.45 }),
     snap: 'ring', side: 'port',
     form: 'venturi', size: { d: 0.058, len: 0.190, stand: 0.070 },
@@ -25646,7 +25707,7 @@ const GEN_SEATS = {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
-  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0 },
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6 },
   glassKgM2: 3.6,
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
@@ -26914,7 +26975,7 @@ const GEN_MIGRATORS = {
     if (!c || typeof c !== 'object') return r;
     if (c.intCons == null) {
       const m = r.fuselage && r.fuselage.material;
-      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3 }[m];
+      c.intCons = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4 }[m];
       if (c.intCons == null) c.intCons = 1;
     }
     return r;
@@ -36596,41 +36657,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a9a4c7ffdee6';window.FLYDIY_BUILD='7f7623ba2735'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5fe62409233e';window.FLYDIY_BUILD='54aefd35009a'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -40032,6 +40093,10 @@ const DESIGN_ROWS = [
         writes: { cage: { intCons: 2 } } },
       { value: 3, label: 'Aluminium', icon: ICON.conAlu,
         writes: { cage: { intCons: 3 } } },
+      // G466: the ultralight's construction — bolted 6061 tube under a Dacron
+      // sail (GEN_MATERIALS.aluTube; the Chinook's)
+      { value: 4, label: 'Aluminium tube', icon: ICON.conTube,
+        writes: { cage: { intCons: 4 } } },
     ] },
 
   { key: 'boomStyle', label: 'Fuselage style', kind: 'discriminator',
@@ -41380,8 +41445,8 @@ function designBake(sel, over) {
   // The MW5-alike's sailcloth on tubes was billed as a ply D-box (0.80
   // kg/m2 against 0.42) until the card could say `steel`.
   if (Math.round(+full.wgCons || 0) > 0)
-    wing.material = ['carbon', 'steel', 'fabric', 'alloy'][
-      Math.min(3, Math.round(+full.wgCons) - 1)];
+    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][   // G466: the fifth stop
+      Math.min(4, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' };
   if (+full.w2On) {
@@ -41434,8 +41499,8 @@ function designBake(sel, over) {
   // fuselage's material at all. The mappings are the join's own, verbatim
   // (_cage_join.js fus.material / spec.gear.fairing..twLegFair); the join
   // rewrites them on the very next build in the app.
-  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][
-    Math.max(0, Math.min(3, Math.round(+full.intCons || 0)))] } });
+  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'][
+    Math.max(0, Math.min(4, Math.round(+full.intCons || 0)))] } });
   if (full.canopy != null)
     designMerge(out, { cabin: { canopy: { style: Math.round(+full.canopy) === 3 ? 'bubble' : 'screen' } } });
   designMerge(out, { gear: {
@@ -41736,8 +41801,8 @@ window.CAGE_PAGE = {
         // they were unreachable here — and the piper-cub preset sets
         // intOn 0, which then could not be undone (user 2026-08-19).
         ['intOn',     'interior',        0, 1, 1],
-        ['intCons',   'construction',    0, 3, 1, ['composite', 'steel tube',
-                                                  'plywood', 'aluminium']],
+        ['intCons',   'construction',    0, 4, 1, ['composite', 'steel tube',
+                                                  'plywood', 'aluminium', 'aluminium tube']],
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
@@ -43097,7 +43162,7 @@ window.CAGE_PAGE = {
       paneThick: 0.004, doorOn: 0, doorPax: 0, doorDeep: 1, doorSill: 0.06,
       doorSillPax: 0.06, doorDepth: 0.004, doorRim: 0.02, bulkZ: 0, doorGone: 0,
       skinOn: 1, glazeOn: 1, intOn: 1, intBulk: 1, intFire: 1, intPillars: 1,
-      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 1, intDash: 1,
+      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 4, intDash: 1,
       dashBack: 0.05, dashLip: 0.035, dashDepth: 0.12, dashCrease: 3,
       dashCrown: 0.175, shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135,
       shoulderT: 0.003, shoulderLip: 0.027, shoulderRun: 0, doorPanelOn: 0,
@@ -44080,7 +44145,7 @@ window.CAGE_PAGE = {
           z: 0,
           sense: 1 }],
       fuselage: {
-        material: "tubeFabric",
+        material: "aluTube",
         shape: "straight",
         covering: "open",
         tailArm: 4.596412174999999,
@@ -74999,8 +75064,8 @@ const WING_ITEMS = [
   // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
   // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
   // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
-  ['wgCons', 'construction', 0, 4, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
+  ['wgCons', 'construction', 0, 5, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    on],
   ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
@@ -75161,13 +75226,13 @@ function wingMat(cl, plane) {
   // dresses every class
   // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
   // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G466: the fifth stop
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'];
   const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
-    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(4, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
@@ -75368,7 +75433,7 @@ PAGE.post = ctx => {
         aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
       },
       ...(Math.round(P.w2Cons) > 0
-        ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+        ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
     };
   };
   const gspec = {
@@ -79051,8 +79116,8 @@ const GROUP = ['8 · tail — fin (2D)', [
   // bottom-out, and the STRUCTURE itself (`tail.finMaterial` through the
   // join): mass and price since G116, stiffness and damping since G117 —
   // WYSIWYG, see genLattice's note.
-  ['finCons', 'construction',      0, 4, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
+  ['finCons', 'construction',      0, 5, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
@@ -79207,14 +79272,14 @@ function tailMat(k, sec, boxPlane) {
   const pk = sec && sec.indexOf('stab') === 0 ? 'stCons' : 'finCons';
   // G213: the tail's own tokens (fabric over a wooden or tubular structure
   // on a wood or tube aeroplane), 'as the aeroplane' through GEN_SURF_DEFAULT
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G466: the fifth stop
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'];
   // the TAIL's default: the fabric over the fuselage's own structure
   const SD = (typeof GEN_SURF_DEFAULT_TAIL !== 'undefined' && GEN_SURF_DEFAULT_TAIL) ||
-    { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
+    { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric' };
   const kc = Math.round(P0[pk] || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(4, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
@@ -79888,8 +79953,8 @@ const GROUP = ['8b · tail — stab & elevator', [
   // of the two off the section it is dressing. Mass/price follow since
   // G116, stiffness/damping since G117 (`tail.stabMaterial`; a V-tail
   // takes this one — it IS the stab).
-  ['stCons', 'construction',     0, 4, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
+  ['stCons', 'construction',     0, 5, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    { when: P => +P.stOn }],
   ['position', [
     ['stMount', 'root sits', 0, 3, 1,
@@ -87829,7 +87894,7 @@ function cageJoinPlane2(P, T) {
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
     },
     ...(Math.round(P.w2Cons) > 0
-      ? { material: ['carbon', 'steel', 'fabric', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+      ? { material: ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
   };
 }
 
@@ -87872,7 +87937,7 @@ function cageJoinSpec(P, M, T) {
       // order — 'wood' and 'tubeFabric' never reach a wing again
       ...(Math.round(P.wgCons) > 0
         ? { material: ['carbon', 'steel', 'fabric',
-                       'alloy'][Math.round(P.wgCons) - 1] } : {}),
+                       'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] } : {}),   // G466: the fifth stop
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                // G185: the cabane's drawing style rides only when there is one
@@ -88107,8 +88172,8 @@ function cageJoinSpec(P, M, T) {
   // material it has; the cage default is 0 (composite) and would have
   // put every such build on carbon.
   if (P.intCons != null)
-    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy'][
-      Math.max(0, Math.min(3, Math.round(+P.intCons || 0)))];
+    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'][
+      Math.max(0, Math.min(4, Math.round(+P.intCons || 0)))];
   // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
   // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
   // lattice it flies is not the tube it draws. Written on every join: the
@@ -88184,7 +88249,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];   // G213
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G213; G466 the fifth stop
     if (Math.round(P.finCons) > 0)
       tl.finMaterial = CONS4[Math.round(P.finCons) - 1];
     if (Math.round(P.stCons) > 0)
@@ -90642,8 +90707,8 @@ const BASE_GROUPS = [
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
-    ['intCons',   'construction',  0, 3, 1, ['composite', 'steel tube',
-                                             'plywood', 'aluminium']],
+    ['intCons',   'construction',  0, 4, 1, ['composite', 'steel tube',
+                                             'plywood', 'aluminium', 'aluminium tube']],
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
     ['intPillars','pillar bodies', 0, 1, 1],
@@ -90853,17 +90918,17 @@ const fieldM = () => (G.CAGE_UNIT || 1) * (P.planeScale || 1);
 // 'metal' and is NOT renamed casually — G14's ruling — while the material the
 // player reads is 'aluminium')
 const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy',
-                   carbon: 'carbon' };
+                   carbon: 'carbon', alu: 'aluTube' };   // G466: the ultralight's bolted 6061 + Dacron
 // THE MEMBER SCREWS' NUMBERS (G214), metres, or null when hidden or when the
 // construction has none to show (fabric is stitched, not screwed)
 const memFOf = () => {
   if (!+P.memFast) return null;
   const c = consOf();
-  if (c === 'tubeFabric') return null;
+  if (c === 'tubeFabric' || c === 'aluTube') return null;   // a sail is sewn, not screwed
   return [+P.memPitch || 0.03, +P.memDia || 0.0025, +P.memRise || 0.0004];
 };
-const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal'][
-  Math.max(0, Math.min(3, Math.round(P.intCons || 0)))]] || 'tubeFabric';
+const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu'][
+  Math.max(0, Math.min(4, Math.round(P.intCons || 0)))]] || 'tubeFabric';
 // which section is on which shader branch — filled by meshFrom from the
 // mesh's own groups, so there is ONE description of the split (G66)
 const matSurf = {};
@@ -128051,35 +128116,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=dcd314a7"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {
