@@ -734,6 +734,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    depends on the rhythm reads it from here. */
 #edRows .r { display:flex; align-items:center; gap:var(--ed-gap);
   height:30px; margin:0; min-width:0; }
+/* T2.2: a row carrying a NOTE (the drawn windows' refusal) grows a second
+   line under its widgets; the note spans the row */
+#edRows .r.noted { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
+#edRows .r > .rn { flex:none; width:100%; font-size:10px; color:#e0a23a; padding-left:6px; line-height:12px; }
 
 /* THE GROUP'S ROWS HANG OFF ITS TITLE rather than sharing its left edge (the
    user: "everything in the menu needs indentation"). One step, the same step
@@ -27507,6 +27511,9 @@ const GEN_DEFAULT = {
             // at all — two half-wings on the carry-through, which the frame
             // still builds and the cut draws as a longeron.
             centreW: null,
+            // T2.3 (48): the carry-through BEAM drawn in a cut centre section
+            // ('on', every build before; 'off' leaves the cut bare)
+            beam: 'on',
             // G185: THE CABANE. A 'parasol' plane stands this far above the
             // cabin roof on four drawn cabane struts (null = the default
             // 0.55 m). Ignored on every other position. It is the ONE knob
@@ -27941,6 +27948,7 @@ function clampWing(w, S, k) {
   // the cockpit, the classic view from a biplane's seat
   if (!GEN_CENTRE_KEYS.includes(w.centre)) w.centre = 'solid';
   w.centreW = genClampN(w.centreW, 0.2, 3.0);                    // G274
+  if (w.beam !== 'off') w.beam = 'on';                              // T2.3 (48)
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
@@ -28213,6 +28221,9 @@ function clampSpec(spec) {
     } else if ('custom' in e) delete e.custom;
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
+  // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
+  // before) or a single front strut (1); the truss is the same either way
+  S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -28361,6 +28372,10 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
+  // (a stab is usually set a degree or two nose-down; the birdman's sits
+  // inclined at rest). 0 = every build before: the spars level
+  S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
   if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
@@ -30960,8 +30975,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // The two members to the strut station are the REAL lift struts and are
       // the only ones drawn; the rest of the fan is the lumped stand-in for a
       // spar box this planar wing does not have, so it lives under the fabric.
+      // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
+      // the rear one stays as a hidden fan member, so the truss the physics
+      // flies is the same aeroplane — the drawing is what changes
       B(strutRoot, WF[iStrut], 'wing', true);
-      B(strutRoot, WR[iStrut], 'wing', true);
+      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's
@@ -31574,13 +31592,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // stab station — what the tail-arm rig loads, the gauge reads and the
     // game's tail assembly anchors on
     HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    // T2.3 (140): the incidence on the twin boom's stab too (LE up +)
+    const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
+    const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
     const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
-    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yStab, 0, 'HR'),
-                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0), 0, 'HB') };
+    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yR(0), 0, 'HR'),
+                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0) - 0.5 * (xRH(0) - xFH(0)) * tanI, 0, 'HB') };
     for (const [sd, sg] of [['L', -1], ['R', 1]]) {
       HF[sd] = zsH.map((z, i) => i === 0 ? C0.F : N(xFH(z), yStab, sg * z, 'HF'));
-      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yStab, sg * z, 'HR'));
-      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z), sg * z, 'HB'));
+      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yR(z), sg * z, 'HR'));
+      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
       // the station ON THE BOOM is a PYRAMID on the boom's tail triangle:
       // its three spar nodes and the tagged node each tie to T, I, O and to
       // the bay before (out of the triangle's plane) — the boom is the post
@@ -31723,11 +31744,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // own depth (GEN_RULES.tailBoxDepth × chord), and a pair (VX) either side
   // of the fin — the twin boom's own three-chord idiom.
   const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+  // T2.3 (140): THE INCIDENCE — the front spar stays at stabY, the rear one
+  // drops by the spar spacing x tan(hInc) (LE up +, x aft +); the aero
+  // reads the stab's chord off these nodes, so the tail flies its setting
+  const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
-    HR[sd] = zsH.map(z => N(xRH(z), stabY, sg * z, 'HR'));
-    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z), sg * z, 'HB'));
+    HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
+    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
     for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
@@ -35115,7 +35140,8 @@ function genWingInto(def, out) {
     // the aerofoil at the spar's chord station (85 % of it, inside the
     // skin) and a third as wide, in the section's own frame; a round tube
     // of that depth when the wing is built of steel tube.
-    if (out.longeron && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
+    // T2.3 (48): optional — wings[].beam 'off' leaves the cut section bare
+    if (out.longeron && W.beam !== 'off' && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
       const E = genAfEval(W.naca);
       const tube = W.material === 'steel';
       const which = CTR === 'cutout' ? ['R'] : CTR === 'foreCut' ? ['F'] : ['F', 'R'];
@@ -36875,7 +36901,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='e213d0bcf758';window.FLYDIY_BUILD='5a2e74b6341f'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='b89c1cb7c320'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -37136,7 +37162,7 @@ const CAGE_PARTS = [
   // already, filed under their bays.
   { key: 'fuselage', name: 'Fuselage', parent: null, layer: 'cage',
     sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
-    place: { up: 'waistY', at: 'the whole shell' },
+    place: { at: 'the whole shell' },          // (waistY sits in the reference section since T2.2)
     groups: [
       ['reference section', ['roofY', 'keelY', 'waistY', 'halfW', 'roofHalfW']],
       ['nose frame', ['frNoseTopY', 'frNoseBotY', 'frNoseTopW', 'frNoseBotW',
@@ -37177,7 +37203,7 @@ const CAGE_PARTS = [
       // (noseLen is the nose FRAME's deck fore/aft since T2.1)
       ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
-      ['tip', ['noseTip', 'crNoseCap', 'crFrontCap']],
+      ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
       // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice
       // "should be associated to the nose section"). `noseFinish` was reached
       // by one derived selector under the ENGINE group and by nothing else;
@@ -37187,10 +37213,12 @@ const CAGE_PARTS = [
       // the cowl LAYER is fitted, and it lofts THIS part. Filed under Cowl until
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
-      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlBulge']],
+      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
       // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
       // became the nose FRAME's rows, T2.1; the loops are not frames)
       ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
+      // T2.3 (134): the nose joint band (the nose frame's band) can be hidden
+      ['joint', ['noseJointOn']],
       ['pillar', ['pfW'], EXPERT],
     ] },
 
@@ -37299,9 +37327,9 @@ const CAGE_PARTS = [
     groups: [
       ['shape', ['aftNoseLen', 'aftNoseW', 'aftNoseH', 'aftDroop',
                  'aftNoseCrown', 'aftWsBaseLift', 'aftCrSillNose']],
-      ['end rings', ['aftRingNoseTop', 'aftRingNoseBot', 'aftNoseTip',
+      ['end rings', ['aftRingNoseTop', 'aftRingNoseBot', 'aftNoseTip', 'aftNoseTipV',
                      'aftRingCowl1W', 'aftRingCowl2W']],
-      ['cowl curve', ['aftCowlLoops', 'aftCowlEase', 'aftCowlBulge']],
+      ['cowl curve', ['aftCowlLoops', 'aftCowlEase', 'aftCowlEaseBot', 'aftCowlBulge']],
     ] },
 
   { key: 'aftCabin', name: 'Aft cabin', parent: 'fuselage', layer: 'cage',
@@ -37449,6 +37477,7 @@ const CAGE_PARTS = [
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
     sections: ['wingSkin', 'wingTip', 'wingLongeron'],
+    // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
                     'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX']],
@@ -37456,7 +37485,7 @@ const CAGE_PARTS = [
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
       ['aerofoil', ['wgCamber', 'wgThick']],
-      ['structure', ['wgCentre', 'wgCentreW', 'wgPanels', 'wgCons']],
+      ['structure', ['wgCentre', 'wgCentreW', 'wgBeam', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
     ] },
 
@@ -37471,7 +37500,7 @@ const CAGE_PARTS = [
     place: { fore: 'wgStrutZ', out: 'wgStrutX',
              at: 'the foot, on the fuselage side' },
     groups: [
-      ['foot', ['wgStrutZ', 'wgStrutX']],
+      ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
     ] },
 
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
@@ -37511,7 +37540,7 @@ const CAGE_PARTS = [
                     'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
       ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
       ['aerofoil', ['w2Camber', 'w2Thick']],
-      ['structure', ['w2Centre', 'w2CentreW', 'w2Panels', 'w2Cons']],
+      ['structure', ['w2Centre', 'w2CentreW', 'w2Beam', 'w2Panels', 'w2Cons']],
       ['placement', ['w2Pos', 'w2Stagger', 'w2Dy', 'w2ParaH']],
     ] },
 
@@ -37600,7 +37629,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['stOn', 'stRootGuard']],
       ['construction', ['stCons']],
-      ['position', ['stMount', 'stX', 'stY', 'stZ', 'stCant']],
+      ['position', ['stInc', 'stMount', 'stX', 'stY', 'stZ', 'stCant']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stSolid', 'stThick', 'stThickTE']],
       // the fin's outline laid flat — same corners, same order, "in / out"
@@ -39080,21 +39109,41 @@ function finToStab(m, opts) {
   const rootX = opts.rootX || 0, stabY = opts.stabY || 0;
   const sRef = opts.sRef || 0, zOff = opts.zOff || 0;
   const cant = opts.cant || 0, cC = Math.cos(cant), sC = Math.sin(cant);
-  const V = m.V.map(p => cant
+  // T2.3 (140): THE INCIDENCE — a pitch about the root's leading edge
+  // (opts.incZ, in the mesh's own frame), leading edge UP for a positive
+  // angle, applied BEFORE the lay so the cant and the side rule are
+  // untouched; 0 (every stab before) is the identity map exactly
+  const inc = opts.inc || 0, cI = Math.cos(inc), sI = Math.sin(inc);
+  const zP = opts.incZ || 0;
+  const pitch = p => inc
+    ? [p[0] * cI + (p[2] - zP) * sI, p[1], zP + (p[2] - zP) * cI - p[0] * sI]
+    : p;
+  const V = m.V.map(p0 => { const p = pitch(p0); return cant
     ? [side * (rootX + (p[1] - sRef) * cC - p[0] * sC),
        stabY + (p[1] - sRef) * sC + p[0] * cC, p[2] + zOff]
-    : [side * (rootX + (p[1] - sRef)), stabY + p[0], p[2] + zOff]);
+    : [side * (rootX + (p[1] - sRef)), stabY + p[0], p[2] + zOff]; });
   // G317: a face's built normals ride the lay — the same map as the
   // positions', less the translation, and reversed with the winding
-  const nMap = n => cant
+  const nPitch = n => inc ? [n[0] * cI + n[2] * sI, n[1], n[2] * cI - n[0] * sI] : n;
+  const nMap = n0 => { const n = nPitch(n0); return cant
     ? [side * (n[1] * cC - n[0] * sC), n[1] * sC + n[0] * cC, n[2]]
-    : [side * n[1], n[0], n[2]];
+    : [side * n[1], n[0], n[2]]; };
   const F = m.F.map(f => {
     const o = { v: side > 0 ? f.v.slice().reverse() : f.v.slice(), m: f.m, part: f.part };
     if (f.n) o.n = (side > 0 ? f.n.slice().reverse() : f.n.slice()).map(nMap);
     return o;
   });
   return { V, F };
+}
+
+// T2.3 (140): the root chord's LEADING EDGE in the fin mesh's own frame —
+// the most forward vertex on the root line (p[1] within 5 mm of it) — the
+// point the incidence pitches about, so the seat and the stab's height row
+// keep their meaning at the leading edge
+function stabIncZ(m, rootLine) {
+  let z = -Infinity;
+  for (const p of (m && m.V) || []) if (Math.abs(p[1] - rootLine) < 0.005 && p[2] > z) z = p[2];
+  return isFinite(z) ? z : 0;
 }
 
 // the fuselage centreline polylines from a built cage mesh: top is the deck
@@ -39434,7 +39483,7 @@ function rootKeys(m) {
 const API = { FIN_DEFAULT, FIN_PARAMS, FIN_CUB, FIN_STRAIGHT, FIN_MATS, FIN_BOUNDARY_W,
               ST2FIN,
               buildFin2, finSpec, finProjectRoot, finCentreline,
-              finCutMesh, finThicken, finToStab, finMeasure,
+              finCutMesh, finThicken, finToStab, stabIncZ, finMeasure,
               deckOnFitting, rootKeys };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIN_GEN = API;
@@ -41726,7 +41775,8 @@ function designBake(sel, over) {
     wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][   // G466: the fifth stop
       Math.min(4, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
-  const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' };
+  const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
+                    struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)
   if (+full.w2On) {
     const w2 = {
       span: +full.w2Span, chord: +full.w2Chord,
@@ -42264,6 +42314,11 @@ window.CAGE_PAGE = {
       // the cap edge is a CREASE — a fully-sharp cap edge on a
       // collapsed ring is the spike.
       ['noseTip',   'tip collapse',   0.00, 0.98, 0.01],
+      // T2.3 (135): the collapse split — noseTip is the horizontal one
+      ['noseTipV',  'tip collapse · vertical (-1 = same)', -1, 0.98, 0.01],
+      // T2.3 (134): the nose joint band — the frame band between the twin
+      // and the nose ring; off paints it as skin with no crease
+      ['noseJointOn', 'nose joint band', 0, 1, 1],
       ['crNoseCap', 'tip sharpness',  0, 3, 0.05],
       ['crFrontCap','front cap crease', 0, 3, 0.05],
       // WHAT THE FRONT OF THE NOSE IS (2026-09-11, the user: "it should be
@@ -42286,6 +42341,8 @@ window.CAGE_PAGE = {
       // SEVERAL rings and two was not several.
       ['cowlLoops', 'front rings',    0, 5, 1],
       ['cowlEase',  'ring ease',      0.00, 1.00, 0.01],
+      // T2.3 (84): the bottom's own ease (-1 = the deck's)
+      ['cowlEaseBot', 'ring ease · bottom (-1 = same)', -1, 1.00, 0.01],
       ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
     ]],
     ['4 · cabin', [
@@ -42438,11 +42495,13 @@ window.CAGE_PAGE = {
       ['aftRingNoseTop','deck end lift',-1, 0.6, 0.005],
       ['aftRingNoseBot','deck end bottom',-1, 0.35, 0.005],
       ['aftNoseTip', 'tip point',      -1, 0.98, 0.01],
+      ['aftNoseTipV', 'tip point · vertical', -1, 0.98, 0.01],
       ['aftCrSillNose','deck crease',  -1, 3, 0.05],
       ['aftRingCowl1W','cowl 1 width', -1, 0.25, 0.005],
       ['aftRingCowl2W','cowl 2 width', -1, 0.25, 0.005],
       ['aftCowlLoops','cowl loops',    -1, 2, 1],
       ['aftCowlEase', 'cowl ease',     -1, 1.0, 0.01],
+      ['aftCowlEaseBot', 'cowl ease · bottom', -1, 1.0, 0.01],
       ['aftCowlBulge','cowl bulge',    -1, 1.3, 0.005],
     ], { when: P => +P.mirror }],
     ['4b · aft cabin', [
@@ -42614,7 +42673,10 @@ window.CAGE_PAGE = {
     // =====================================================================
     ['4b · drawn windows', [
       ['row 1', [
-        ['paxWinN',     'windows',         0, 4, 1],
+        ['paxWinN',     'windows',         0, 4, 1,
+         { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const k = R.filter(w => w.row === 1).length;
+                        return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
         ['paxWinShape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.paxWinN > 0 }],
         ['paxWinZ',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
         ['paxWinPitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.paxWinN > 1, dim: 'len' }],
@@ -42635,7 +42697,10 @@ window.CAGE_PAGE = {
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
       ], 'open'],
       ['row 2', [
-        ['win2N',     'windows',         0, 4, 1],
+        ['win2N',     'windows',         0, 4, 1,
+         { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const k = R.filter(w => w.row === 2).length;
+                        return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
         ['win2Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win2N > 0 }],
         ['win2Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
         ['win2Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win2N > 1, dim: 'len' }],
@@ -42656,7 +42721,10 @@ window.CAGE_PAGE = {
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
       ], {}],
       ['row 3', [
-        ['win3N',     'windows',         0, 4, 1],
+        ['win3N',     'windows',         0, 4, 1,
+         { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const k = R.filter(w => w.row === 3).length;
+                        return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
         ['win3Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win3N > 0 }],
         ['win3Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
         ['win3Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win3N > 1, dim: 'len' }],
@@ -48586,12 +48654,14 @@ function buildCage2(S, step) {
       const target = (aeroFin ? R.noseRing : R.noseTwin).lv;
       for (let i = 1; i <= cowl.loops; i++) {
         const t = i / (cowl.loops + 1);
-        const e = t * (1 - cowl.ease)
-                + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * cowl.ease;
+        // T2.3: the deck (waist + crown) eases by cowl.ease, the keel and
+        // the floor by cowl.easeBot — one number when the row follows
+        const eAt = ez => t * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * ez;
+        const e = eAt(cowl.ease), eB = eAt(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const bg = 1 + (cowl.bulge - 1) * Math.sin(Math.PI * t);
         const lv = {};
         for (const k of ['waist', 'floor', 'keel']) {
-          lv[k] = lerpLv(wsLow[k], target[k], e);
+          lv[k] = lerpLv(wsLow[k], target[k], k === 'waist' ? e : eB);
           // dims follow the eased blend, z stays linear — that lag IS the
           // convexity
           lv[k].z = wsLow[k].z + (target[k].z - wsLow[k].z) * t;
@@ -48632,11 +48702,11 @@ function buildCage2(S, step) {
         const zw2 = wsLow.waist.z, zr2 = R.noseRing.lv.waist.z;
         const t2 = Math.max(0, Math.min(1,
           (R.noseTwin.lv.waist.z - zw2) / ((zr2 - zw2) || 1e-9)));
-        const e2 = t2 * (1 - cowl.ease)
-                 + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * cowl.ease;
+        const e2At = ez => t2 * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * ez;
+        const e2 = e2At(cowl.ease), e2B = e2At(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const lv3 = {};
         for (const k of ['waist', 'floor', 'keel']) {
-          lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], e2);
+          lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], k === 'waist' ? e2 : e2B);
           lv3[k].z = wsLow[k].z
                    + (R.noseRing.lv[k].z - wsLow[k].z) * t2;
           if (lv3[k].zC != null) {
@@ -48700,7 +48770,8 @@ function buildCage2(S, step) {
                    b: nIds[0], mat: CAGE_MAT.plain, deck: 'body' });
     for (let i = 0; i + 1 < nIds.length; i++) {
       const pf = noseSeq[i].name === 'noseTwin'
-              && noseSeq[i + 1].name === 'noseRing';
+              && noseSeq[i + 1].name === 'noseRing'
+              && !(S.config && S.config.noseJoint === 0);   // T2.3: the band hidden = skin
       lowSets.push({ a: nIds[i], b: nIds[i + 1],
                      mat: pf ? CAGE_PILLAR('pillarFront') : CAGE_MAT.plain,
                      deck: pf ? 'pillarFront' : 'body' });
@@ -48755,7 +48826,7 @@ function buildCage2(S, step) {
     // (own family so a round nose can dome while the tail cap stays crisp);
     // an intermediate cowl loop stays smooth
     if (E) noseSeq.forEach((r, i) => {
-      if (r.name === 'noseTwin') tagLoop(nIds[i], r, CW.pillar);
+      if (r.name === 'noseTwin' && !(S.config && S.config.noseJoint === 0)) tagLoop(nIds[i], r, CW.pillar);
       if (r.name === 'noseRing')
         tagLoop(nIds[i], r, CW.noseCap != null ? CW.noseCap : CW.cap);
     });
@@ -53850,6 +53921,19 @@ const CAGE_PARAMS = {
   // 0 = template ring, 0.98 max keeps the cap grid non-degenerate —
   // visually a point, CC rounds it. Aft twin for the pod's tail cone.
   noseTip: 0, aftNoseTip: -1,
+  // T2.3 (135, 2026-09-22): THE TIP COLLAPSE SPLIT — noseTip stays the
+  // HORIZONTAL collapse (the ring's widths toward the deck point); noseTipV
+  // is the VERTICAL one (keel and floor rising to the deck line, the crown
+  // fading); -1 = follow noseTip, the one dial every build had. Aft twin.
+  noseTipV: -1, aftNoseTipV: -1,
+  // T2.3 (84): THE COWL EASE, BOTTOM — cowlEase eases the deck (the waist
+  // level and its crown) along the loft; cowlEaseBot eases the keel and the
+  // floor; -1 = follow cowlEase (every build before: one ease). Aft twin.
+  cowlEaseBot: -1, aftCowlEaseBot: -1,
+  // T2.3 (134): THE NOSE JOINT BAND — the frame band between the twin and
+  // the nose ring (`pillarFront`, its own crease and livery section). 0
+  // paints it as skin, no crease: the cowl meets the deck without a seam.
+  noseJointOn: 1,
   // DECK-EDGE CREASE split from the cabin sill (user: the deck would
   // not smooth out — the cowl deck edge carried the global crSill):
   // -1 = follow crSill (fit identity); explicit 0..3 creases the nose
@@ -54345,6 +54429,8 @@ const CAGE_AFT_SUB = [
   ['aftRingNoseTop', 'ringNoseTop', -0.5],
   ['aftRingNoseBot', 'ringNoseBot', -0.5],
   ['aftNoseTip', 'noseTip', -0.01],
+  ['aftNoseTipV', 'noseTipV', -0.5],          // T2.3: -1 = follow the front (which may itself follow noseTip)
+  ['aftCowlEaseBot', 'cowlEaseBot', -0.5],
   ['aftCrSillNose', 'crSillNose', -0.5],
   ['aftRingWinW', 'ringWinW', -0.5],
   ['aftRingScrW', 'ringScrW', -0.5],
@@ -54598,7 +54684,10 @@ function cageSpec(P) {
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
-            ease: P.cowlEase, bulge: P.cowlBulge },
+            ease: P.cowlEase, bulge: P.cowlBulge,
+            // T2.3: the bottom's own ease, the deck's by default
+            easeBot: (P.cowlEaseBot != null && +P.cowlEaseBot >= 0) ? +P.cowlEaseBot : P.cowlEase },
+    noseJoint: P.noseJointOn == null || +P.noseJointOn ? 1 : 0,
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,
             tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05 },
     boomMid: P.boomMidOn ? { t: P.boomMidT, pinch: P.boomMidPinch } : 0,
@@ -54809,16 +54898,20 @@ function cageSpec(P) {
   // point: x scales out, keel/floor converge on the deck line, the
   // ring's crown fades (a crest spike otherwise). The twin band now
   // STAYS in aero finish (the user's pillar): cowl -> band -> point.
-  if (P.noseFinish && P.noseTip > 0) {
+  // T2.3 (135): split H/V — noseTip scales the widths (horizontal),
+  // noseTipV lifts keel and floor to the deck line and fades the crown
+  // (vertical); -1 = the horizontal one, which is the old single dial
+  if (P.noseFinish && (P.noseTip > 0 || P.noseTipV > 0)) {
     const t = Math.min(0.98, Math.max(0, P.noseTip));
+    const tv = (P.noseTipV != null && +P.noseTipV >= 0) ? Math.min(0.98, Math.max(0, +P.noseTipV)) : t;
     const n = S.nose.ring;
     const yD = P.waistY - (S.nose.droop || 0) + (S.nose.lift || 0);
-    n.crownF = 1 - t;
+    n.crownF = 1 - tv;
     n.deck.x *= 1 - t;
     for (const k of ['floor', 'keel']) {
       n[k].x *= 1 - t;
-      n[k].y += (yD - n[k].y) * t;
-      if (n[k].yC != null) n[k].yC += (yD - n[k].yC) * t;
+      n[k].y += (yD - n[k].y) * tv;
+      if (n[k].yC != null) n[k].yC += (yD - n[k].yC) * tv;
     }
   }
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
@@ -75908,7 +76001,9 @@ function strutBuild(bags, AF, site, ends, opt) {
   const out = [];
   for (let i = 0; i < Math.min(2, ends.length); i++) {
     const sgn = i === 0 ? 1 : -1;
-    const ft = footAt(sgn * FIT.lugGap);
+    // T2.3 (83): a single strut stands on the fitting's centre, not on a
+    // lug of a pair that is not there
+    const ft = footAt(ends.length === 1 ? 0 : sgn * FIT.lugGap);
     const foot = clevis(ft.p, ft.n, ft.fore, FIT.standoff);
 
     // THE WING END IS A FITTING TOO (user: "the struts are also well anchored
@@ -76347,6 +76442,8 @@ PAGE.defaults = Object.assign({
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
   wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
+  wgStruts: 2,                     // T2.3 (83): lift struts per side (2 = the V pair, 1 = a single front strut)
+  wgBeam: 1,                       // T2.3 (48): the carry-through beam drawn in a cut centre section
   wgPanels: 3, wgDx: 0, wgDy: 0,
   // G185: a PARASOL wing's cabane height above the deck (wgPos 3)
   wgParaH: 0.45,
@@ -76421,6 +76518,10 @@ const WING_ITEMS = [
    { when: P => +P.wingOn }],
   ['wgCentreW', 'centre section width (0 = cabin)', 0, 3.0, 0.05,
    { ...on, dim: 'm' }],
+  // T2.3 (48): the carry-through BEAM in a cut centre section — optional
+  // (default on), a real box or tube in bare metal (the finish tab repaints)
+  ['wgBeam', 'carry-through beam', 0, 1, 1,
+   { when: P => +P.wingOn && [3, 4, 7].includes(Math.round(P.wgCentre)) }],
   ['wgPanels', 'spar stations',  2, 5, 1, on],
   // THE WING'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what THIS surface is built from — the structure grammar and the
@@ -76458,6 +76559,9 @@ const WING_ITEMS = [
     //             says so in the status line.
     //   lateral   moves only the foot, as ARC LENGTH around the section
     //             (never an angle: see _strut_gen.js).
+    // T2.3 (83): the V pair or a single front strut (the truss is unchanged)
+    ['wgStruts', 'struts per side', 1, 2, 1,
+     { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
     ['wgStrutZ', 'fore / aft', -0.20, 0.20, 0.01,
      { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
     ['wgStrutX', 'in / out (foot)',   -0.25, 0.35, 0.01,
@@ -76484,7 +76588,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStrutZ', 'wgStrutX',
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH']);
 const w2Key = k => 'w2' + k.slice(2);
 const w2On = P => +P.wingOn && +P.w2On;
@@ -76821,6 +76925,7 @@ PAGE.post = ctx => {
       dihedralOut: P.w2CrankAt > 0 ? P.w2DihedralOut : null,
       centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.w2Centre)] || 'solid',
       centreW: +P.w2CentreW > 0 ? +P.w2CentreW : null,              // G274
+      beam: P.w2Beam == null || +P.w2Beam ? 'on' : 'off',              // T2.3 (48)
       controls: {
         flap: { type: FLAP_KEYS[Math.round(P.w2FlapType)] || 'none',
                 span: P.w2FlapSpan, chord: P.w2FlapChord },
@@ -76853,11 +76958,13 @@ PAGE.post = ctx => {
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre)] || 'solid',
       centreW: +P.wgCentreW > 0 ? +P.wgCentreW : null,              // G274
+      beam: P.wgBeam == null || +P.wgBeam ? 'on' : 'off',              // T2.3 (48)
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
+               struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
                cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N',
                // G185: the biplane's truss, from the brace layer's rows
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
@@ -81381,7 +81488,7 @@ const stDef = { stOn: 1, stCut: 1, stCutGap: 0.012,
   // T-tail rides the fin, whatever its height); stY stays the offset from
   // that seat. stCant tips each panel up about its root line — 0 is a flat
   // tailplane, 30-40 a V-tail; the join reads >= 20 as tail.type 'v'.
-  stMount: 0, stCant: 0 };
+  stMount: 0, stCant: 0, stInc: 0 };
 for (const [sk, fk] of Object.entries(ST2FIN))
   stDef[sk] = FIN.FIN_CUB[fk] !== undefined ? FIN.FIN_CUB[fk]
                                             : FIN.FIN_PARAMS[fk];
@@ -81411,6 +81518,9 @@ const GROUP = ['8b · tail — stab & elevator', [
    ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube'],
    { when: P => +P.stOn }],
   ['position', [
+      // T2.3 (140): the incidence — leading edge up +; drawn here, flown by
+    // the frame (spec.tail.hInc through the join)
+    ['stInc', 'incidence ° (LE up +)', -10, 10, 0.25],
     ['stMount', 'root sits', 0, 3, 1,
      ['on the boom keel', 'on the boom deck', 'on the fin tip',
       'between the booms']],
@@ -81555,6 +81665,10 @@ PAGE.post = ctx => {
   const mount = Math.round(P.stMount || 0);
   const cantDeg = Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
+  // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
+  // the root chord's leading edge (the most forward root-line vertex)
+  const incDeg = Math.max(-10, Math.min(10, +P.stInc || 0));
+  const inc = incDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(FIN.FIN_DEFAULT.zH1 + dzS);
   // THE STAB MEETS A FITTING, NOT THE TUBE (G307, the fitment study P3): on
@@ -81650,7 +81764,8 @@ PAGE.post = ctx => {
   group.name = 'cageLayer:stab';
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
-                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant };
+                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
+                inc, incZ: FIN.stabIncZ(m0, rootLine) };
   for (const side of [1, -1]) {
     const half = FIN.finToStab(disp, Object.assign({ side }, lay));
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
@@ -81707,7 +81822,7 @@ PAGE.post = ctx => {
   // cant/mount the join keys on. _tail_headless.js computes the same
   // object with no page; GATE FIN pins the two.
   window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay,
-    cant: cantDeg, mount,
+    cant: cantDeg, mount, inc: incDeg,
     measure: Object.assign(
       FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
       { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }),
@@ -81853,6 +81968,10 @@ function buildStab(P, mesh, L, fin, approx) {
   const mount = Math.round(P.stMount || 0);
   const cantDeg = Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
+  // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
+  // the root chord's leading edge (the most forward root-line vertex)
+  const incDeg = Math.max(-10, Math.min(10, +P.stInc || 0));
+  const inc = incDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(D().zH1 + dzS);
   // G307: on a single bare rod a stab asked for below the saddle's plate is
@@ -81897,8 +82016,9 @@ function buildStab(P, mesh, L, fin, approx) {
     sheet = FIN.finCutMesh(s, { mode: cutMode, zCut: m0.cutZ, gap: P.stCutGap || 0 });
   const FS = scaleOf(P);
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
-                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant };
-  return { spec: S, cage: m0, mesh: s, sheet, lay, cant: cantDeg, mount, clamped: m0.clamped || [],
+                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
+                inc, incZ: FIN.stabIncZ ? FIN.stabIncZ(m0, rootLine) : 0 };
+  return { spec: S, cage: m0, mesh: s, sheet, lay, cant: cantDeg, mount, inc: incDeg, clamped: m0.clamped || [],
            measure: Object.assign(
              FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
              { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }) };
@@ -89497,6 +89617,7 @@ function cageJoinPlane2(P, T) {
     // 'removed' or narrowed flew solid at the cabin's width)
     centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.w2Centre)] || 'solid',
     centreW: +P.w2CentreW > 0 ? +P.w2CentreW : null,
+    beam: P.w2Beam == null || +P.w2Beam ? 'on' : 'off',              // T2.3 (48)
     controls: {
       flap: { type: flap, span: P.w2FlapSpan, chord: P.w2FlapChord },
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
@@ -89535,6 +89656,7 @@ function cageJoinSpec(P, M, T) {
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre)] || 'solid',
       centreW: +P.wgCentreW > 0 ? +P.wgCentreW : null,              // G274
+      beam: P.wgBeam == null || +P.wgBeam ? 'on' : 'off',              // T2.3 (48)
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
       cuts: cageWingCuts(P),
@@ -89548,6 +89670,7 @@ function cageJoinSpec(P, M, T) {
                        'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] } : {}),   // G466: the fifth stop
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
+               struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
                // G185: the cabane's drawing style rides only when there is one
                ...(Math.round(P.wgPos) === 3 || +P.w2On
                    ? { cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N' } : {}),
@@ -89861,6 +89984,8 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
   }
+  // T2.3 (140): the stab's incidence — the frame pitches its spars by it
+  if (typeof M.hInc === 'number' && isFinite(M.hInc)) tl.hInc = M.hInc;
   // twin booms (2026-09-04): the type, the half-track and the length — the
   // two fins are one Sv (the spec doubles the measured fin)
   if (M.boomX > 0) {
@@ -90703,6 +90828,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
           const SBv = SBm, TBj = window.CAGE_BOOMS;
           const isV = !!(SBv && SBv.cant >= 20);
+          // T2.3 (140): the stab's incidence, as drawn (degrees, LE up +)
+          if (SBv && typeof SBv.inc === 'number' && isFinite(SBv.inc)) M.hInc = SBv.inc;
           // THE AREAS AND THE CONTROL FRACTIONS, off the sheets
           // THE TAPER (P4): tip chord over root chord, read as the 75 %
           // slice over the 25 % — the trapezoid the frame's truss stands on
@@ -93014,9 +93141,14 @@ const matOf = name => {
       // T2.2: the glazing material's base numbers (aeroskin GLASS_MATS),
       // the builder's dials and the pane's own tint well on top
       const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass'][Math.round(+P.glazeMat || 0)]) : {};
-      matCache[key] = A.aeroGlass(THREE, Object.assign({}, GLASS, GM, {
-        tint: secTint[name] != null ? secTint[name] : (GLASS.tint != null ? GLASS.tint : GM.tint),
-        opacity: Math.min(a, GLASS.opacity),
+      // the material under the dials the builder MOVED (a dial at its
+      // default is the material's to set)
+      const dial = {};
+      for (const k in GLASS) if (GLASS[k] !== GLASS_DEFV[k]) dial[k] = GLASS[k];
+      const eff = Object.assign({}, GLASS, GM, dial);
+      matCache[key] = A.aeroGlass(THREE, Object.assign({}, eff, {
+        tint: secTint[name] != null ? secTint[name] : (eff.tint != null ? eff.tint : GM.tint),
+        opacity: Math.min(a, eff.opacity),
         ext: GLASS_EXT[name] || [0, 0, 0, 0],
         // the condition dial reaches the glazing now, scaled by the pane's
         // own wear multiplier exactly as every other section's is
@@ -93636,6 +93768,8 @@ function build() {
   // frame's station range (cage units) for the row-hover highlight
   meshObj.userData.frameZones = G.cageFrameZones ? G.cageFrameZones(spec) : null;
   if (window.CAGE_UI) window.CAGE_UI.frames = spec.frames || null;
+  // T2.2: the windows the spec REFUSED (overlaps), for the rows' notes
+  if (window.CAGE_UI) window.CAGE_UI.windowsRefused = (spec.windows || []).filter(w => w.refused);
   // T2.2: THE GLAZED AREA, measured on the sheet the skin is drawn from —
   // every glass section (windscreen, side bands, skylight, drawn panes) by
   // triangle area, as built (a cut part's offset moves it, not its area),
@@ -94119,6 +94253,15 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   // find a row by its key and style it by its kind without knowing anything
   // about how the widget inside was built. Attributes only: no behaviour
   // hangs off either of them, and the bench pages ignore both.
+  // note (T2.2): P => string|'' — a short line under the row, re-read after
+  // every build (the drawn windows say how many of them were refused)
+  if (opts.note) {
+    const nt = document.createElement('span');
+    nt.className = 'rn';
+    nt.style.cssText = 'flex:none;width:100%;font-size:10px;color:#e0a23a;padding-left:6px;display:none';
+    d.appendChild(nt);
+    meta.noteEl = nt;
+  }
   d.dataset.k = k;
   d.dataset.kind = meta.kind || '';
   d.classList.add('r-' + (meta.kind || 'x'));
@@ -94932,6 +95075,12 @@ function applyRowVis() {
       let vis = !(o.level === 'expert' && !EXPERT.on);
       if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }
       meta.row.style.display = vis ? '' : 'none';
+    }
+    if (meta.noteEl && o && o.note) {
+      let t = ''; try { t = o.note(P) || ''; } catch (e) {}
+      meta.noteEl.textContent = t;
+      meta.noteEl.style.display = t ? '' : 'none';
+      meta.row.classList.toggle('noted', !!t);
     }
     // optHide (2026-09-05): a select whose OPTIONS follow a discriminator —
     // P => [hidden per option]. The value stays the index into the full
@@ -110467,7 +110616,9 @@ const AERO_SEC = {
               layer: 'wing', wears: 'parent' },
   // G274: the carry-through drawn in a cut or removed centre section — a
   // spar, painted with the struts until repainted
-  wingLongeron: { parent: 'strut', fin: 'trim', label: 'the carry-through',
+  // T2.3 (48, the user: "proper tube/square section, raw metal"): a bare
+  // alloy member, no longer painted with the struts; the finish tab repaints
+  wingLongeron: { parent: 'strut', fin: 'alclad', label: 'the carry-through',
               layer: 'wing', wears: 'parent' },
   // G185: the truss follows the lift struts (paint, the fuselage's colour)
   cabane:   { parent: 'strut', fin: 'trim',     label: 'the cabane struts',
@@ -113050,12 +113201,18 @@ const GLASS_DEF = {
 // owns (opacity, touch, grime, refl, rainbow) and the per-pane tint wells
 // stay theirs on top:
 //   acrylic        GLASS_DEF itself — the 3 mm sheet every light aeroplane flies
-//   polycarbonate  a warm cast (it yellows), the bulk hazier and the clear
-//                  layer rougher (it scratches and never polishes out)
+//   polycarbonate  a warm cast (it yellows), LESS CLEAR (the user: "less
+//                  clear, and more scratched/weathered by default") — the
+//                  bulk hazier, the clear layer rougher, more of the light
+//                  stopped, the handling smear and the frame grime well up
+//                  from the start (it scratches and never polishes out)
 //   glass          the clearest bulk, a faint green edge, a harder limb
+// The dials a builder MOVES still win (the editor applies the material under
+// the dials that differ from their defaults; the flight side under
+// finish.glass's deviations) — the material is the starting point.
 const GLASS_MATS = {
   acrylic: {},
-  polycarbonate: { tint: 0xd9d0b4, rough: 0.24, ccR: 0.28 },
+  polycarbonate: { tint: 0xd6c9a4, opacity: 0.34, rough: 0.32, ccR: 0.36, touch: 0.8, grime: 0.3, refl: 0.8 },
   glass: { tint: 0xa9cfc4, rough: 0.05, ccR: 0.06, fresnel: 1.26 },
 };
 const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;

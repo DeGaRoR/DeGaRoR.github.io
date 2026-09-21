@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e213d0bcf7589e5b
+// body-sha256: b89eae32b01c5f77
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -19316,6 +19316,9 @@ const GEN_DEFAULT = {
             // at all — two half-wings on the carry-through, which the frame
             // still builds and the cut draws as a longeron.
             centreW: null,
+            // T2.3 (48): the carry-through BEAM drawn in a cut centre section
+            // ('on', every build before; 'off' leaves the cut bare)
+            beam: 'on',
             // G185: THE CABANE. A 'parasol' plane stands this far above the
             // cabin roof on four drawn cabane struts (null = the default
             // 0.55 m). Ignored on every other position. It is the ONE knob
@@ -19750,6 +19753,7 @@ function clampWing(w, S, k) {
   // the cockpit, the classic view from a biplane's seat
   if (!GEN_CENTRE_KEYS.includes(w.centre)) w.centre = 'solid';
   w.centreW = genClampN(w.centreW, 0.2, 3.0);                    // G274
+  if (w.beam !== 'off') w.beam = 'on';                              // T2.3 (48)
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
@@ -20022,6 +20026,9 @@ function clampSpec(spec) {
     } else if ('custom' in e) delete e.custom;
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
+  // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
+  // before) or a single front strut (1); the truss is the same either way
+  S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -20170,6 +20177,10 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // T2.3 (140): the stabiliser's INCIDENCE, degrees, leading edge up +
+  // (a stab is usually set a degree or two nose-down; the birdman's sits
+  // inclined at rest). 0 = every build before: the spars level
+  S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
   if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
@@ -22769,8 +22780,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // The two members to the strut station are the REAL lift struts and are
       // the only ones drawn; the rest of the fan is the lumped stand-in for a
       // spar box this planar wing does not have, so it lives under the fabric.
+      // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
+      // the rear one stays as a hidden fan member, so the truss the physics
+      // flies is the same aeroplane — the drawing is what changes
       B(strutRoot, WF[iStrut], 'wing', true);
-      B(strutRoot, WR[iStrut], 'wing', true);
+      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's
@@ -23383,13 +23397,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // stab station — what the tail-arm rig loads, the gauge reads and the
     // game's tail assembly anchors on
     HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    // T2.3 (140): the incidence on the twin boom's stab too (LE up +)
+    const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
+    const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
     const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
-    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yStab, 0, 'HR'),
-                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0), 0, 'HB') };
+    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yR(0), 0, 'HR'),
+                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0) - 0.5 * (xRH(0) - xFH(0)) * tanI, 0, 'HB') };
     for (const [sd, sg] of [['L', -1], ['R', 1]]) {
       HF[sd] = zsH.map((z, i) => i === 0 ? C0.F : N(xFH(z), yStab, sg * z, 'HF'));
-      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yStab, sg * z, 'HR'));
-      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z), sg * z, 'HB'));
+      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yR(z), sg * z, 'HR'));
+      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
       // the station ON THE BOOM is a PYRAMID on the boom's tail triangle:
       // its three spar nodes and the tagged node each tie to T, I, O and to
       // the bay before (out of the triangle's plane) — the boom is the post
@@ -23532,11 +23549,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // own depth (GEN_RULES.tailBoxDepth × chord), and a pair (VX) either side
   // of the fin — the twin boom's own three-chord idiom.
   const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+  // T2.3 (140): THE INCIDENCE — the front spar stays at stabY, the rear one
+  // drops by the spar spacing x tan(hInc) (LE up +, x aft +); the aero
+  // reads the stab's chord off these nodes, so the tail flies its setting
+  const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
-    HR[sd] = zsH.map(z => N(xRH(z), stabY, sg * z, 'HR'));
-    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z), sg * z, 'HB'));
+    HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
+    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
     for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
@@ -26924,7 +26945,8 @@ function genWingInto(def, out) {
     // the aerofoil at the spar's chord station (85 % of it, inside the
     // skin) and a third as wide, in the section's own frame; a round tube
     // of that depth when the wing is built of steel tube.
-    if (out.longeron && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
+    // T2.3 (48): optional — wings[].beam 'off' leaves the cut section bare
+    if (out.longeron && W.beam !== 'off' && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
       const E = genAfEval(W.naca);
       const tube = W.material === 'steel';
       const which = CTR === 'cutout' ? ['R'] : CTR === 'foreCut' ? ['F'] : ['F', 'R'];
