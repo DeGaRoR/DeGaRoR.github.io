@@ -35603,7 +35603,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5047a912b429';window.FLYDIY_BUILD='fc3ea0d30bf6'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='5047a912b429';window.FLYDIY_BUILD='573957ccf68f'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -59359,10 +59359,20 @@ function spat(bags, hub, axis, R, o) {
       row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
     }
     rows.push(row);
-    const pE = an2 => add(hub, add(mul(fwd, z),
-      add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
-    edges[0].push(pE(-aMax));
-    edges[1].push(pE(aMax));
+    // THE BEAD RUNS WHERE THE OPENING IS (A7, 2026-09-21, the user of
+    // Screenshots 2026-09-17 192550/192612: "the fairings' faulty edges,
+    // front and back"). Ahead of and behind the tyre the section shrinks
+    // under the cut line, aMax reaches pi and the ring closes - and both
+    // edge polylines went on to the tips ALONG THE KEEL, one on top of the
+    // other: two 6 mm beads swept down the closed nose and tail, a ridge
+    // with a pinch where they parted at the opening's ends. The edges stop
+    // at the last open station; the closed run-out is plain shell.
+    if (aMax < Math.PI - 1e-3) {
+      const pE = an2 => add(hub, add(mul(fwd, z),
+        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
+      edges[0].push(pE(-aMax));
+      edges[1].push(pE(aMax));
+    }
   }
   // the (fwd, up, ax) frame flips handedness with the wheel side, which
   // turned one fairing of the pair inside out
@@ -59384,7 +59394,7 @@ function spat(bags, hub, axis, R, o) {
   }
   // the rolled edge bead down both sides of the opening
   for (const e of edges)
-    sweep(bag, resample(e, 24), () => secRound(R * 0.030, 7), true);
+    if (e.length >= 2) sweep(bag, resample(e, 24), () => secRound(R * 0.030, 7), true);
 }
 
 // ---- AN AIRFRAME FROM A MESH ---------------------------------------------
@@ -62494,6 +62504,53 @@ function pianoHinge(bF, bM, F, S, len) {
 }
 
 // ---------------------------------------------------------------------------
+// THE BUTT HINGE — a door's (A7, 2026-09-21, the user: "the door inspection
+// traps are pixelated", of Screenshot 2026-09-18 191558). A door hung on the
+// piano drawing above came out as a stack of alternating square leaves -
+// two knuckle pitches over a 0.10 m run, each leaf its own plate, one
+// forward and one aft, and the pair read as a blocky cross on the flank. A
+// butt hinge is two RECTANGULAR leaves the whole length of the run, one on
+// the frame and one on the door, meeting at a barrel of a few knuckles on
+// one pin: the same read as a real door hinge at any distance. Both leaves
+// lie on the fuselage skin (the door is shut; the moving bag is the caller's
+// choice), following the MEASURED skin where the layer offers it.
+// ---------------------------------------------------------------------------
+function buttHinge(bF, bM, F, S, len) {
+  const r = S.r, t = S.t * 1.6;
+  const lie = r + t * 0.5 + 0.0008;
+  const nk = Math.max(3, Math.round(len / 0.028)) | 1;   // odd: the fixed side gets the ends
+  const pitch = len / nk;
+  for (let i = 0; i < nk; i++) {
+    const zc = -len * 0.5 + pitch * (i + 0.5);
+    revolve((i % 2) === 0 ? bF : bM, at(F, 0, 0, zc - pitch * 0.46), F.z,
+      [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.92],
+       [S.pinR * 1.02, pitch * 0.92]], 8, false);
+  }
+  for (const dir of [-1, 1]) {
+    const bag = dir < 0 ? bF : bM;
+    const hAt = (a, fb) => {
+      if (!S.skin) return fb;
+      let h = null;
+      for (const dz of [-len * 0.4, 0, len * 0.4]) {
+        const q = S.skin(a, dz, dir);
+        if (q != null && (h == null || q > h)) h = q;
+      }
+      return h == null ? fb : h + t * 0.5 + 0.0008;
+    };
+    const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
+    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
+    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
+    if (S.skin) for (const f of [0.25, 0.5, 0.75]) {
+      const a = a1 + (a2 - a1) * f;
+      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
+    }
+    path.push(at(F, a2, h2, 0));
+    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
+  }
+  tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
+}
+
+// ---------------------------------------------------------------------------
 // THE CONTROL HORN — the lever the pushrod or the cable pulls on. One lug:
 // the eye out in the air, the tang running back to the surface's skin, the
 // plate standing in the section's own plane. Turns with the surface, always.
@@ -62663,7 +62720,7 @@ function fairlead(bag, p, n, u, S) {
   return g.mouth;
 }
 
-const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge,
+const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge, buttHinge,
               controlHorn, linkRod, bellcrank, hingeFair, fairlead, fairleadMouth,
               fowlerTrack, fowlerCarriage,
               HINGE_BAGS: ['metal', 'fair'] };
@@ -68258,6 +68315,23 @@ function buildDetail(group,mats){
       const c=1+(r+1)*NA+(j+1)%NA, e=1+(r+1)*NA+j;
       idx.push(a,b,c,a,c,e);
     }
+    /* FACING OUT (A7, 2026-09-21, the user of Screenshot 2026-09-17 192338:
+       "the top trap bay is not the cowl's colour"). The fan and the rings
+       above wind the disc so its normals point INTO the cowl - measured on
+       the pusher's aft cowl: the door's normal (0.09, -1, 0) under a skin
+       whose normal is (0, 1, 0) - so a DoubleSide skin drew it lit from the
+       inside, a dark grey plate in the middle of the red. The winding is
+       set from the surface's own normal at the centre, whichever way the
+       parameters were walked. */
+    {
+      const nC=cowlNormalAt(Math.PI/2,zc);
+      // the first fan triangle is (centre, ring vertex 1, ring vertex 0):
+      // its normal is (v1 - c) x (v0 - c)
+      const a=[pos[6]-pos[0],pos[7]-pos[1],pos[8]-pos[2]], b=[pos[3]-pos[0],pos[4]-pos[1],pos[5]-pos[2]];
+      const fx=a[1]*b[2]-a[2]*b[1], fy=a[2]*b[0]-a[0]*b[2], fz=a[0]*b[1]-a[1]*b[0];
+      if(fx*nC[0]+fy*nC[1]+fz*nC[2]<0)
+        for(let i=0;i<idx.length;i+=3){ const t=idx[i+1]; idx[i+1]=idx[i+2]; idx[i+2]=t; }
+    }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
     g.setIndex(idx); g.computeVertexNormals();
@@ -71679,7 +71753,12 @@ function fairStations(f, ref) {
   const cap = capOf(f.cap);
   const out = [];
   if (L <= 1e-4) { out.push({ d: 0, s: 1, close: true }); return out; }
-  const N = 8;
+  // SIXTEEN STATIONS, CROWDED TOWARD THE TIP (A7, 2026-09-21, the user of
+  // Screenshot 2026-09-17 201534: "the twin-boom tips are low-poly"). Eight
+  // even stations over a 0.6 m ogive were 75 mm bands, each a visible facet
+  // under a raking light; an ogive's curvature is all at its tip, so the
+  // stations follow a sine - half of them in the last third of the run.
+  const N = 16;
   const sEnd = cap === 'point' ? 0 : cap === 'flat' ? 0.40 : 0.55;
   // the taper runs until the scale reaches sEnd (a point runs the whole way)
   let tEnd = 1;
@@ -71690,7 +71769,7 @@ function fairStations(f, ref) {
     tEnd = hi;
   }
   for (let i = 0; i <= N; i++) {
-    const t = tEnd * i / N;
+    const t = tEnd * Math.sin(0.5 * Math.PI * i / N);
     out.push({ d: L * t, s: Math.max(0, fairScale(t, k)) });
   }
   if (cap === 'point') { out[out.length - 1].s = 0; out[out.length - 1].close = true; }
@@ -71700,7 +71779,7 @@ function fairStations(f, ref) {
     // half-size (reference `ref`, the section's mean half-extent) times sEnd
     const dome = Math.max(0.01, ref * sEnd);
     const d0 = out[out.length - 1].d, s0 = out[out.length - 1].s;
-    const M = 5;
+    const M = 8;                        // A7: the dome at the same pitch as the taper
     for (let j = 1; j <= M; j++) {
       const q = j / M;
       out.push({ d: d0 + dome * Math.sin(0.5 * Math.PI * q), s: s0 * Math.cos(0.5 * Math.PI * q) });
@@ -73729,7 +73808,7 @@ PAGE.post = ctx => {
                   collar: +P.boomCollar || 0,
                   nose: { len: +P.boomNoseLen || 0, k: +P.boomNoseK || 0, cap: Math.round(+P.boomNoseCap || 0) },
                   tail: { len: +P.boomTailLen || 0, k: +P.boomTailK || 0, cap: Math.round(+P.boomTailCap || 0) },
-                  seg: 28 };
+                  seg: 40 };   // A7: 28 read as a polygon on the tips (Screenshot 2026-09-17 201534)
       const mm = BG.boomMesh(o);
       boomGroup = new THREE.Group();
       boomGroup.name = 'cageLayer:boom';
@@ -76996,6 +77075,14 @@ PAGE.post = ctx => {
     // aeroplane quietly missing its wing filler cap is the acceptance test
     // failing quietly, and quietly is how this gap survived two chantiers
     if (!FG.FIT_SURFACES[row.on]) { unplaced.push(row); continue; }
+    // THE COWL DRAWS ITS OWN OIL DOOR (G213: a disc let into the loft, in the
+    // cowl's skin, with its gap and latch). This table's `oilDoor` was a
+    // SECOND door beside it - a flat plate on the tangent plane at az 122,
+    // in the fittings' trim colour, with a piano hinge of stacked leaves
+    // (A7, 2026-09-21, the user of Screenshot 2026-09-17 192338: "the top
+    // trap bay is not the cowl's colour, is pixelated and does not bend to
+    // the cowl"). One door: the cowl's, whenever the cowl layer is drawn.
+    if (row.key === 'oilDoor' && Math.round(P.cowlOn === undefined ? 1 : P.cowlOn)) continue;
     const form = FG.FORMS[row.form];
     if (!form) { unplaced.push(row); continue; }
 
@@ -83112,14 +83199,17 @@ PAGE.post = ctx => {
       for (let f = 0; f < faces; f++) {
         const F = frameOn(p, axL, s.aft, f ? V.mul(faceL, -1) : faceL);
         Fcur = F;
-        if (fam === 'piano')
-          // a surface's piano runs join into one continuous knuckle; a
-          // DOOR's edge is a curve, so its runs are short butt hinges on
+        if (s.kind === 'door' && HG.buttHinge)
+          // a DOOR's edge is a curve, so its runs are short BUTT hinges on
           // the local tangent (G310: a 0.5 m straight run on the flank's
-          // curve sat 22 mm inside it at its ends)
+          // curve sat 22 mm inside it at its ends) - two whole leaves and a
+          // barrel, not the piano's alternating squares (A7: "pixelated")
+          HG.buttHinge(bagsF.metal, bm.metal, F, S,
+                       Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length)));
+        else if (fam === 'piano')
+          // a surface's piano runs join into one continuous knuckle
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
-                        s.kind === 'door' ? Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length))
-                                          : span * (1 - 2 * inset) / Math.max(1, ts.length));
+                        span * (1 - 2 * inset) / Math.max(1, ts.length));
         else HG.strapHinge(bagsF.metal, bm.metal, F, S);
       }
     }
@@ -125542,7 +125632,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                           camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
-                          renderer: () => renderer, hangarScene: () => hangarScene, camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
+                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)
