@@ -4089,6 +4089,38 @@ function buildMatPanel() {
   // the soft-pinned hardware (the hinges, 2026-09-13), so they follow the
   // body from here. The per-section wells below still override
   // afterwards; the wing and the tail keep their own.
+  //
+  // G468 (playtest item 129, the user on the birdman: "the individual
+  // settings of the parts should take precedence over the overall
+  // colour"): a base pick reaches only the sections that were FOLLOWING
+  // it. Before, every exterior section and every parent-wearing part was
+  // overwritten on each pick, so a red waistband or a black cowl chosen
+  // by hand was wiped the moment the base moved. Now a section keeps its
+  // own value when it differs from the base the pick REPLACES (the value
+  // the previous pick wrote, or the finish's own base when nothing was
+  // written): equal = it was following, and follows on; different = the
+  // user's own, kept. The picker fires per notch, so the base it replaces
+  // is always the last notch's — a following section never falls behind.
+  // The same rule for the base metallic and the base roughness.
+  //
+  // `reach(map, prev, next, secs)`: for every exterior cage section and
+  // every parent-wearing / soft-pinned layer part, write `next` (or delete,
+  // when `next` is the neutral) if the entry is unset or equals `prev`;
+  // leave it when it is the user's own.
+  const baseReach = (map, prev, next, neutral, eq) => {
+    const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
+    const following = k => map[k] == null || same(map[k], prev);
+    const put = k => { if (!following(k)) return;
+      if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
+    for (const nm of names)
+      if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) put(nm);
+    put('body');
+    // the parent-wearing parts follow by having NO override: clear theirs
+    // only when it was the base's own value (a cowl painted by hand keeps it)
+    if (A.AERO_SEC) for (const k in A.AERO_SEC)
+      if ((A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
+        delete map[k];
+  };
   {
     const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
       'the skin, the rings and pillars, the nose deck, the cowl, the ' +
@@ -4107,11 +4139,12 @@ function buildMatPanel() {
     matPanelSync.push(() => { if (document.activeElement !== c) c.value = cur(); });
     c.oninput = () => {
       const v = parseInt(c.value.slice(1), 16);
-      for (const nm of names)
-        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) secTint[nm] = v;
+      // the base this pick replaces: what the body wears now (its override,
+      // else its finish's base) — a section equal to it was following
+      const prev = secTint.body != null ? secTint.body
+        : A.AERO_FINISH[secFin.body || A.aeroFinishFor('body', cons)].base;
+      baseReach(secTint, prev, v, null, (a, b) => (a >>> 0) === (b >>> 0));
       secTint.body = v;
-      if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secTint[k];
       aeroSavePrefs(); build();
     };
     d.appendChild(c);
@@ -4128,13 +4161,9 @@ function buildMatPanel() {
     vm.className = 'v'; vm.textContent = (+im.value).toFixed(2);
     im.oninput = () => {
       const x = +im.value; vm.textContent = x.toFixed(2);
-      for (const nm of names)
-        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) {
-          if (x <= 0) delete secMetal[nm]; else secMetal[nm] = x;
-        }
+      const prev = secMetal.body != null ? secMetal.body : null;   // unset = 0, the neutral
+      baseReach(secMetal, prev, x <= 0 ? null : x, 0, (a, b) => Math.abs(a - b) < 1e-6);
       if (x <= 0) delete secMetal.body; else secMetal.body = x;
-      if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secMetal[k];
       aeroSavePrefs(); build();
     };
     dm.appendChild(im); dm.appendChild(vm);
@@ -4154,13 +4183,9 @@ function buildMatPanel() {
     vr.className = 'v'; vr.textContent = (+ir.value).toFixed(2);
     ir.oninput = () => {
       const x = +ir.value; vr.textContent = x.toFixed(2);
-      for (const nm of names)
-        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) {
-          if (Math.abs(x - 1) < 1e-6) delete secRough[nm]; else secRough[nm] = x;
-        }
+      const prev = secRough.body != null ? secRough.body : null;   // unset = 1, the neutral
+      baseReach(secRough, prev, Math.abs(x - 1) < 1e-6 ? null : x, 1, (a, b) => Math.abs(a - b) < 1e-6);
       if (Math.abs(x - 1) < 1e-6) delete secRough.body; else secRough.body = x;
-      if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secRough[k];
       aeroSavePrefs(); build();
     };
     dr.appendChild(ir); dr.appendChild(vr);

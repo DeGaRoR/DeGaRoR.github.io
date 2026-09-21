@@ -1536,6 +1536,7 @@
         jobs.push({ chain: j.chain, label: j.label, a, sh, part: cm.obj,
                     // G279: the editor's measured fist correction, hand frame
                     fixH: j.fixH ? new THREE.Vector3().fromArray(j.fixH) : null,
+                    fixF: j.fixF ? new THREE.Vector3().fromArray(j.fixF) : null,   // G468: the sole
                     ctx: { s: r.s, palm: r.palm, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
@@ -1835,7 +1836,7 @@
       // emissive is its own — the cockpit's switches dim them per frame
       if (data.cage && (m.lamp || m.lampCup) && window.CAGE_LIGHT) {
         const src = m.lamp && window.CAGE_LIGHT.lensMat ? window.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
-                  : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup)
+                  : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK)
                   : null;
         if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }
       }
@@ -1942,7 +1943,7 @@
       // the panel arc (session 4): which buckets are lamps, for the cockpit
       if (mats[name] && (mats[name].lamp || mats[name].lampCup))
         lamps.push({ mesh, key: mats[name].lamp || mats[name].lampCup,
-                     kind: mats[name].lamp ? 'lens' : 'cup' });
+                     kind: mats[name].lamp ? 'lens' : 'cup', k: mats[name].lampK || 1 });   // G468: the socket at a third
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1), as in the editor
     if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetCabin)
@@ -2090,7 +2091,7 @@
           // tail light) is still a lamp — the cockpit switch has to find it
           if (mats[name] && (mats[name].lamp || mats[name].lampCup))
             lamps.push({ mesh, key: mats[name].lamp || mats[name].lampCup,
-                         kind: mats[name].lamp ? 'lens' : 'cup' });
+                         kind: mats[name].lamp ? 'lens' : 'cup', k: mats[name].lampK || 1 });
         }
         if (pt.kind === 'prop') {
           // THE WANDERING PROPELLER (G58.6, user: "the prop sometimes

@@ -17,13 +17,13 @@ starter prompt carries what its agent needs to reproduce.
 
 ---
 
-## STATUS — 2026-09-21, end of day two (master `ddaa3818`, G462 built)
+## STATUS — 2026-09-22 (updated at G468; first written 2026-09-21 at G462)
 
 Written by the triage session after reading every landing since the baseline
 (`30cbf395`) and asking each live session for its own account. One line per
 session below; the item-by-item map is §3 (each line there now carries its
-landing). The playtest's 159 remarks: **99 landed, 6 partly, 54 open** — of the
-open ones 22 are the T2 garage chantiers (T2.1 in design), 17 are A7's tail,
+landing). The playtest's 159 remarks: **104 landed, 7 partly, 48 open** — of the
+open ones 22 are the T2 garage chantiers (T2.1 built, landing pending), 12 are A7's tail,
 6 the pilot (A8), the rest T1.2/T1.3, S2, B2, D1, W and G.
 
 ### Phase A — stable release: DONE except A7's tail and A8
@@ -36,7 +36,7 @@ open ones 22 are the T2 garage chantiers (T2.1 in design), 17 are A7's tail,
 | **A4** | DONE | G441 | "small options into fewer flyouts" |
 | **A5** | DONE | G439 | — |
 | **A6** | DONE | G436-G436.12, G440, G443, G449, G456, G464 (the glint = the sky table's ground half; also the 1-px line; landed as a second G461, renumbered by G465); G462 (the world switchboard re-runs the day before the mutes) | — |
-| **A7** | IN PROGRESS (this session) | G444 (cowl trap, oil doors, butt hinges, spat beads, boom tips, pedal fairlead), G447/G450 (hinges at real size and count, flap rod inside), G453 (wingtip light fitment, six tips), G459 (wing end faces: bolted plate at a cut root, riveted rib at a square tip) | A7a: 15 nose-cone jiggle, 23/32 wing normals + grazing maps, 41 winglet, 73 nose subdivision inside, 92 cowl gap deformed (flight repro), 130 rod inclination vs the tailwheel, 149 spine/keel rivet stretch (measured: a tenth of the centreline edges at 0.6 of metric), 151 fin mapping. A7b: 20 control under the cowl, 25 feet vs pedals, 47 carbon seat edges, 52 actuator, 123 socket emissive, 125 hands after floats→tricycle (bulkhead: unreproduced, 52 faces headless), 129 finish precedence, 131 fuel-wing clipping. 91 (livery ≠ garage) measured identical on three builds — closed unless a repro comes |
+| **A7** | IN PROGRESS (this session) | G444 (cowl trap, oil doors, butt hinges, spat beads, boom tips, pedal fairlead), G447/G450 (hinges at real size and count, flap rod inside), G453 (wingtip light fitment, six tips), G459 (wing end faces: bolted plate at a cut root, riveted rib at a square tip), G468 (a part's own colour over the base, the socket glow, the seat's ends, the soles on the pedals, a blended winglet) | A7a: 15 nose-cone jiggle, 23/32 wing normals + grazing maps, 73 (`front rings` birth default), 92 cowl gap deformed (flight repro), 130 rod inclination vs the tailwheel, 149 spine/keel rivet stretch (measured: a tenth of the centreline edges at 0.6 of metric), 151 fin mapping. A7b: 20 control under the cowl, 52 (flight repro from below), 125 hands after floats→tricycle (bulkhead: unreproduced, 52 faces headless), 131 fuel-wing clipping. 91 (livery ≠ garage) measured identical on three builds — closed unless a repro comes |
 | **A8** | OPEN (nobody has it) | touched from the side: G435 GLIDE (67) + 'in-the-water' (74); G451.2 the water pull at 1.12 Vr (113); G455 highThrust off on the water, PILOTMATRIX/ARCHETYPES reds recorded as pilot-track items | 30/80 rudder oscillation on downwind (saturation, §1.3), 112 water go-around aborts / no flaps / lands short, 152 taxi oscillation vs the oleo, 69 RPM in the trace, the birdman flare, the c172 crosswind card (red on purpose), the water-rudder loop re-tune |
 | **A9** | DONE | G458 (certificates saved by a fingerprint of the physics only; load test in a Worker, raised; three tests + the flown test flight with a director; crosswind advisory card; AIRWORTHY master) | trestle boxes under the inverted fuselage |
 | **S1** | DONE | G451 (Wipline range as presets, drawn float, paddle, water rudder), G451.1 (hydro 14x→1.5x, the hump, the advisor, hydroplane certificate), G451.2 (crosswind run judged to the end) | the hump trim; the crosswind run on a short-crested sea (SEA_FELT 0.45) |
@@ -61,7 +61,7 @@ open ones 22 are the T2 garage chantiers (T2.1 in design), 17 are A7's tail,
 | **T1.1** | DONE | G445-G445.8 (`perf_study.js`, the 172 corrected and a stock design, the Cub and the Jodel), G457 (forward mass by station), G461 (THE NEUTRAL POINT: Munk body moment + tail eta; the Chinook Plus 2 = 4th validated build) | an aluminium-tube material row (GEN_MATERIALS.aluTube + aluFabric, uncommitted in the C172 session, landing 2026-09-21 evening; the Chinook 269 → 218 kg), the 582 row's static thrust |
 | **T1.2** | OPEN | — | the blurred prop disc (3) |
 | **T1.3** | PARTLY | the birdman flies as the Chinook (G461), the pusher mount weighed where drawn (G445.1), the nose-over (G435) | 127 the thrust-line TILT dial (the block already moves: engBlockZ/Y, G461), 128 strut-mounted ogival tanks, the birdman as a GATE ARCHETYPES fixture (G435 rule 11 covers GEN) |
-| **T2.1** | IN DESIGN 2026-09-21, not started (its own session, "Pillar chantier fuselage controls": the word is FRAME, rows in absolute metres with a follow default, the ring*/lean*/taperW/ringPullIn rows retired by migration) | nothing landed, nothing uncommitted | 81, 82, 89, 90, 137, 138, 141 |
+| **T2.1** | BUILT 2026-09-22, landing pending (its own session, "Pillar chantier fuselage controls": seven FRAMES with absolute + follow rows under Fuselage, ring/lean/taperW retired, GATE FRAMES over 47 saved/born aeroplanes, row-hover highlight, pax run profile) | nothing landed yet | 81, 82, 89, 90, 137, 138, 141 |
 | **T2.2** | OPEN | — | 116, 117, 118, 139 |
 | **T2.3** | OPEN | — | 14, 18, 40, 48, 51, 83, 84, 132, 134, 135, 140 |
 | **S2** | PARTLY | G451: the Wipaire range as presets (142), the drawn float takes the livery (108 in part) | 108 panels/seams/bolts, 143 bottom fin, 114 the cart, 68 the splash (G460 opened the interaction slot — `setInteraction`, the field that writes wakes/splashes is H7), 110 pier/patterns/glideslope (buoys as G396.2 left them) |
@@ -337,7 +337,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 22. Sun through every material → **A6** · P1 · inv. §1.10 · **LANDED** G436.4
 23. Wing normals too low-definition → **A7a** · P2 · **OPEN** A7a owed
 24. Show-interior takes seconds, UI frozen → **A4** · P1 · the crew layer + panel rebuild on the main thread; profile (was fast before G357?) · **LANDED** G441
-25. Pilot feet vs pedals → **A7b** · P2 · **OPEN** A7b owed
+25. Pilot feet vs pedals → **A7b** · P2 · **LANDED** G468 (fitSoles: the dressed shoe's contact patch on the pedal)
 26. Jolene by default → **A2** · verify (G434.3 landed 09-19) · **LANDED** G437
 27. Dial "horns" at 3 and 9 o'clock → **A3** · P2 · the bezel's screw bosses? identify in `_panel_gen.js` faceBase / cockpit bezel · **LANDED** G442-G442.4
 28. Battery/alternator/key missing on the small build → **A3** · P1 · inv. §1.10 · **LANDED** G442.1 / G442.4
@@ -353,18 +353,18 @@ Legend: session · severity · note. "inv." = investigated in §1.
 38. Bubble UI arcs hidden by default → **A5** · P3 · **LANDED** G439
 39. Drawing table: PBR, lip, plan in contact → **A5** · P3 · **LANDED** G439
 40. Outside lights own section; wing-bay light click opens it → **T2.3** · P3 · **OPEN** T2.3 not started
-41. Proper winglet → **A7a** · P2 · **OPEN** A7a owed
+41. Proper winglet → **A7a** · P2 · **LANDED** G468 (a blended winglet: 0.30 c radius, 75° cant, 35° sweep, taper 0.35, 0.75 c high; nav light on its top corner)
 42. Green tint on dash/interior → **A6** · P2 · the cabin probe / hemisphere ground colour · **LANDED** G436.5
 43. Registration > 8 chars → 7 + "." → **A3** · P3 · (build 4 is "EXPERIMENTAL") · **LANDED** G442-G442.4
 44. Dial placement optimised per dash, central first → **A3** · P2 · **LANDED** G442-G442.4
 45. Pause changes the camera → **A4** · P2 · `running=false` path in flCamera/placeCamera · **LANDED** G441
 46. Floor shading issues → **A5** · P3 · **LANDED** G439
-47. Carbon seat interior edges → **A7b** · P2 · **OPEN** A7b owed
+47. Carbon seat interior edges → **A7b** · P2 · **LANDED** G468 (the lip rolls down, the top rolls aft, half-round rims)
 48. Wing beams optional ("transversal beam"), proper tube/square, raw metal → **T2.3** · P3 · **OPEN** T2.3 not started
 49. Light-control tape bigger until they touch → **A3** · P3 · **LANDED** G442-G442.4
 50. Bubble mode: flood light in the aft bulkhead or none → **A3** · P3 · **LANDED** G442.3
 51. Hinge finish option → **T2.3** · P3 · **OPEN** T2.3 not started
-52. Aileron/flap actuator rendering (195236) → **A7b** · P2 · **OPEN** A7b owed
+52. Aileron/flap actuator rendering (195236) → **A7b** · P2 · **PARTLY** G447 (flap rod inside) + G450 (hinge parts) + G468 (the pitot mast at real proportions — the white L in the shot); a flight repro from below still owed
 53. Time-of-day row in flight; regroup small options → **A4** · P2 · **LANDED** G441
 54. Welcome screen + career → **G1/G2** · **OPEN** G not started
 55. Tyl trip crash in the sea → **A1/A8/A3** · P0 · inv. §1.2 · **LANDED** G435
@@ -385,7 +385,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 70. Gauge graduations follow the units convention → **A3** · P2 · **LANDED** G442.3
 71. Fuel gauge urgently → **A3** · P0 (dup 56) · **LANDED** G442
 72. Is a few km on that charge realistic? → **answered §1.2**: yes for 2 kWh; the pack is 1/12 of a Velis · **LANDED** answered §1.2
-73. Nose extra subdivision seen from the cockpit → **A7a** · P2 · **OPEN** A7a owed
+73. Nose extra subdivision seen from the cockpit → **A7a** · P2 · **OPEN** G468 found the cause (the nose run is one control quad; `front rings` 2-3 smooths it) — an automatic ring collides with GATE CAGEFIT's template contract, so it is a birth default to add (design flow), owed
 74. Submerged physics → **A8** · P1 · define the crashed-in-water end state · **LANDED** G435 (GLIDE, in-the-water)
 75. Twin-boom tips low-poly → **A7a** · P2 · **LANDED** G444
 76. Blade spins forever at 0 RPM → **A3** · P1 · inv. §1.10 · **LANDED** G435 (the visual prop gated on the engine)
@@ -439,7 +439,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 120. White bands on the night horizon (200031) → **A6** · P2 · **LANDED** G464 (the sky table's ground half)
 121. All lights on when starting at night → **A3** (dup 61) · **LANDED** G442-G442.4
 122. 1-px sky line round the plane over clouds → **A6** · P2 · **LANDED** G464 (the sky table's ground half)
-123. Light sockets emissive like the hangar lamps → **A7b** · P3 · **OPEN** A7b owed
+123. Light sockets emissive like the hangar lamps → **A7b** · P3 · **LANDED** G468 (the housing glows at a third of the reflector; the recessed shell and the beacon mirror are lit reflectors)
 124. Static on water, frame rate dramatic → dup 93 · **LANDED** dup 93 → G451.1
 125. Floats → tricycle: hands misplaced, aft bulkhead gone (cessnaMetal (1).json — file missing) → **A7b** · P1 · **PARTLY** the bulkhead unreproduced (52 faces headless, G444); the hands owed
 126. Hangar runway material + yellow lines lit at night → **A6** · P2 (unlit/emissive material on the apron) · **LANDED** G443 + G449 + G456
@@ -447,7 +447,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 **The pusher (birdman)**
 127. Engine angle at its mount → **T1.3** · **PARTLY** G461: the pusher block moves fore/aft and up/down (engBlockZ/Y on mount 1); the thrust-line TILT dial with its physics owed
 128. Strut-mounted ogival fuel tanks → **T1.3** · **OPEN** T1.3, not touched
-129. Part settings precedence over the overall colour → **A7b** · P2 · **OPEN** A7b owed
+129. Part settings precedence over the overall colour → **A7b** · P2 · **LANDED** G468 (a base pick reaches only the sections that were following it)
 130. Rod inclination moves the tailwheel → **A7a/A1** · P1 (part of the nose-over geometry) · **OPEN** A7a owed
 131. Fuel-wing option clips everywhere → **A7b** · P2 · **OPEN** A7b owed
 132. Crew seating options / passengers → **T2.3** · **OPEN** T2.3 not started

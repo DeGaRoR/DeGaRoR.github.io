@@ -357,7 +357,7 @@
       }
       if ((m.lamp || m.lampCup) && W.CAGE_LIGHT) {
         const src = m.lamp && W.CAGE_LIGHT.lensMat ? W.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
-                  : m.lampCup && W.CAGE_LIGHT.cupMat ? W.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup) : null;
+                  : m.lampCup && W.CAGE_LIGHT.cupMat ? W.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK) : null;
         if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return cache[mn] = lm; }
       }
       if (m.ves && W.CAGE_ENERGY && W.CAGE_ENERGY.material)

@@ -424,12 +424,21 @@ function seatShell(parent, A, P, g) {
   const F = [H[0] + panL * Math.sin(tilt), H[1] + panL * Math.cos(tilt)];
   const hH = backH + 0.16;                            // head above the hinge
   const B = [H[0] + hH * bc, H[1] - hH * bs];
+  // THE ENDS ROLL AWAY FROM THE BODY (G468, playtest item 47, the user:
+  // "the carbon seat has interior edges at its ends, rendering it
+  // practically unusable, since it would cut the back of the neck and the
+  // legs"). The lip curled UP into the back of the knees and the headrest
+  // curled FORWARD into the neck - both ends pointed at the occupant. A
+  // moulded bucket rolls its edges OUTWARD: the front lip rolls down and
+  // forward under the thighs, the top rolls aft behind the head, and the
+  // cut edge of the shell is a half-round of its own thickness (below),
+  // not an 11 mm saw cut.
   const prof = [
-    [sx, F[0] + 0.055, F[1] + 0.030],                 // front lip, curled up
+    [sx, F[0] - 0.040, F[1] + 0.045],                 // front lip, rolled DOWN and forward
     [sx, F[0], F[1]],
     [sx, H[0], H[1]],
     [sx, B[0], B[1]],
-    [sx, B[0] + 0.035, B[1] + 0.055],                 // headrest curl forward
+    [sx, B[0] + 0.030, B[1] - 0.060],                 // the top rolled AFT, behind the head
   ];
   const C = filletPath(prof, 0.085, 5);
   const NU = C.length, NV = 12, TH = 0.011;
@@ -470,10 +479,28 @@ function seatShell(parent, A, P, g) {
     bag.quad(IN[i][0], IN[i + 1][0], OUT[i + 1][0], OUT[i][0]);
     bag.quad(IN[i][NV], OUT[i][NV], OUT[i + 1][NV], IN[i + 1][NV]);
   }
-  for (let j = 0; j < NV; j++) {                      // end rims
-    bag.quad(IN[0][j], OUT[0][j], OUT[0][j + 1], IN[0][j + 1]);
-    bag.quad(IN[NU - 1][j], IN[NU - 1][j + 1],
-             OUT[NU - 1][j + 1], OUT[NU - 1][j]);
+  // the end rims: a HALF-ROUND of the shell's thickness (G468) - three rings
+  // swept round from the inner face to the outer one, past the profile's end
+  // along its tangent, so the edge the thighs and the neck meet is a radius
+  for (const end of [0, NU - 1]) {
+    const i = end, nb = end === 0 ? 1 : NU - 2;
+    const tg = _nrm3(_sub3(C[i], C[nb]));             // outward along the profile
+    const rings = [];
+    for (let k = 0; k <= 4; k++) {
+      const th = Math.PI * k / 4;                     // inner face -> outer face
+      const ext = Math.sin(th) * TH * 0.5, off = -TH * 0.5 + Math.cos(th) * TH * 0.5;
+      const ring = [];
+      for (let j = 0; j <= NV; j++) {
+        const v = -1 + 2 * j / NV;
+        const a = pt(i, v, off);
+        ring.push(bag.v(a[0] + tg[0] * ext, a[1] + tg[1] * ext, a[2] + tg[2] * ext));
+      }
+      rings.push(ring);
+    }
+    for (let k = 0; k < 4; k++) for (let j = 0; j < NV; j++) {
+      if (end === 0) bag.quad(rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1]);
+      else bag.quad(rings[k][j], rings[k][j + 1], rings[k + 1][j + 1], rings[k + 1][j]);
+    }
   }
   bag.mesh(parent);
   // a thin cushion pad laid in the bucket, so it is not bare carbon
@@ -2587,6 +2614,10 @@ function solveGripJob(dum, j, ctx) {
     // the target moves by its negative, so the hollow of the fingers lands
     // on the grip whatever the rig's own hand and arm proportions are
     if (j.fixH) aw.p.add(_hv.copy(j.fixH).applyQuaternion(alignQ));
+  } else if (j.fixF) {
+    // G468: the SOLE lands on the pedal - fitSoles() measured where this
+    // rig's shoe bottom sits against the ATD's, in the anchor's frame
+    aw.p.add(_hv.copy(j.fixF).applyQuaternion(alignQ));
   }
   const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
   // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
@@ -3357,6 +3388,42 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
         { fist: P.dumFist == null ? 0.5 : +P.dumFist });
     }
   };
+  // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
+  // leg job's target is the ANKLE, placed so the ATD's foot box has its
+  // mid-sole (0.06 forward, 0.0725 below the ankle, bone frame) on the
+  // pedal's centre. A dressed rig's shoe is another depth and length, so
+  // its sole is read (CAGE_CHAR.soleAt, in the anchor's frame) and the
+  // target moved by the difference: the contact patch of THIS shoe lands
+  // where the ATD's would. Rides the job as `fixF` through the join.
+  const fitSoles = (dum, CH, jobs, solveJob, s) => {
+    if (!dum.char || !window.CAGE_CHAR.soleAt) return;
+    const legs = jobs.filter(j => !j.a.userData.grip && !CHAINS[j.chain].arm);
+    if (!legs.length) return;
+    const sp = new THREE.Vector3(), e = new THREE.Vector3(), inv = new THREE.Matrix4();
+    const atd = new THREE.Vector3(0, -0.0725, 0.06);
+    for (let it = 0; it < 2; it++) {
+      let moved = false;
+      group.updateMatrixWorld(true);
+      for (const j of legs) {
+        const side = /L$/.test(CHAINS[j.chain].end) ? 'L' : 'R';
+        j.a.updateWorldMatrix(true, false);
+        inv.copy(j.a.matrixWorld).invert();
+        if (!window.CAGE_CHAR.soleAt(dum.char, side, inv, sp)) continue;
+        // the anchor's frame is the ankle's (alignQ = the anchor's own
+        // rotation for a fixed anchor), so the ATD's mid-sole is `atd`
+        // scaled by the stature; what is left after the last pass is the
+        // residual (the target already carries fixF)
+        e.copy(sp).addScaledVector(atd, -(s || 1));
+        if (e.lengthSq() < 1e-6 || e.length() > 0.20) continue;
+        j.fixF = (j.fixF || new THREE.Vector3()).sub(e);
+        solveJob(j);
+        moved = true;
+      }
+      if (!moved) break;
+      window.CAGE_CHAR.dress(dum.char, dum,
+        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+    }
+  };
   const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
     if (!dum.char || LIVE_POLICY === 'none') return dum;
     if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return dum;
@@ -3499,6 +3566,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     }
     dressed(dum, CH, role, idx);
     fitFists(dum, CH, jobs, solveJob);
+    fitSoles(dum, CH, jobs, solveJob, s);
     return markLive(dum, CH, role, idx, s, jobs, ctx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what

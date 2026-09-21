@@ -317,7 +317,7 @@ function make(THREE) {
       const gain = l.key === 'beacon' ? beacon : 1;
       const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
       if (l.mesh.material && l.mesh.material.emissive)
-        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (inside ? kIn : kOut);
+        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third
     }
     if (CK.model && CK.model.spot) {
       const land = CK.lightOn && busOk ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;

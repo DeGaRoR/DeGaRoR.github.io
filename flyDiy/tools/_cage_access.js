@@ -754,13 +754,20 @@ PAGE.post = ctx => {
         // it follows `surf` and is unmoved.
         const sz = row.size || {};
         const foot = Math.max(+sz.w || 0, +sz.h || 0, +sz.d || 0, (+sz.r || 0) * 2, 0.04);
+        // G468: the grid reaches 0.65 of the footprint, not 0.5 - a proud
+        // cap's flange is 0.62 d (capProud), and on the nose deck's crown
+        // (the cowl profile's rings, item 73) the flange's rim was 3.4 mm in
+        // where the ±0.5 d grid read the skin flat
+        // ...and 9 x 9 (was 5 x 5): a venturi's legs land at 0.34 of its
+        // 0.19 m length, between the coarse grid's samples, and its foot
+        // sat at the gate's 1.5 mm on the cowl profile's flank
         let lift = 0;
-        for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
-          const q = surf(i * foot * 0.25, j * foot * 0.25);
+        for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+          const q = surf(i * foot * 0.1625, j * foot * 0.1625);
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
         }
-        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * lift, pm[1] + F.n[1] * lift, pm[2] + F.n[2] * lift], F.n);
+        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)], F.n);
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site

@@ -53788,3 +53788,79 @@ selects, grass_dry density x3 -> 404 k to 563 k instances and back, forest -> mu
 - water_shot --gate green (the lobe 1.29, the direction 95/73, roughness 0.07..0.78, the shore's
   ramp 54 px / step 90, the lake 101 vs the sea 125); GATE WATER, CLOUD, WORLDRENDER, GFX, MEDIA, LIGHT,
   HYDRO, SITE green; the full proof ladder in screenshots/water-g440/g23/.
+
+## G468 — A7 OF THE PLAYTEST TRIAGE, THIRD PASS: THE PART'S OWN COLOUR, THE SOCKET'S GLOW,
+## THE SEAT'S ENDS, THE SOLES ON THE PEDALS, A BLENDED WINGLET (2026-09-22, the user: "keep
+## going on A7, publish table of all features and track progress, screenshots documenting the work")
+- THE PART'S OWN COLOUR OVER THE BASE (item 129, the birdman: "the individual settings of the
+  parts should take precedence over the overall colour"). The base-colour pick (G214) wrote
+  every exterior cage section's tint AND deleted every parent-wearing part's override on each
+  notch, so a red waistband or a black strut chosen by hand was wiped the moment the base
+  moved. `baseReach` (tools/_cage_ui.js): a pick reaches only the sections that were FOLLOWING
+  it - equal to the base it replaces (the last notch's, or the finish's own base when nothing
+  was written) - and leaves the ones the user set; the same rule for the base metallic and
+  the base roughness. Measured on the birdman: waistband #ff0000 and strut #101010 kept
+  through two base picks, the pillars followed (a7_base.js).
+- THE SOCKET GLOWS (item 123, "the socket mesh also being given an emissive material, like
+  the hangar's hanging lamps"): the housing - the barrel of a proud fitting, the wingtip
+  pod's fairing, the recessed shell - is the cup material at a THIRD of the reflector's
+  term (`cupMat(lv, col, on, key, k)`, SOCK_K 0.33, `lampK` on the join's bucket key and
+  record, cockpit.js's dimmer and the hour's drive scale it). The recessed wing lamp's shell
+  is the lit reflector now (it was bare lodge alloy round a lit bulb), the beacon's rotating
+  mirror too. Night, the 172: lens 2.4 / cup 0.55 / socket 0.18 (a7_sock2.js).
+- THE SEAT'S ENDS ROLL AWAY (item 47, "the carbon seat has interior edges at its ends ...
+  it would cut the back of the neck and the legs"): seatShell's front lip curled UP into the
+  knees and the headrest FORWARD into the neck. The lip rolls down and forward, the top rolls
+  aft, and the cut edge is a half-round of the shell's thickness (three rings past the
+  profile's end) instead of an 11 mm saw cut. Build (4), x-ray: shots_a7_seat/cmp.png.
+- THE SOLES ON THE PEDALS (item 25, "the feet of the pilot are not well calibrated to the
+  pedals"): the leg IK put the ATD's ANKLE where the ATD's foot box (7 cm deep, 21 long)
+  had its mid-sole on the pedal; the dressed rig's shoe is 11 cm deep and 25 long, so it
+  sank 4 cm through the plate with the toes past its top (build (4): sole 0.749 against a
+  plate top 0.868). `fitSoles` (fitFists' twin): CAGE_CHAR.soleAt reads the dressed foot's
+  contact patch (the lowest tenth of the Foot/ToeBase-weighted vertices along the anchor's
+  -y) in the pedal anchor's frame and moves the target by the difference to the ATD's
+  mid-sole (0, -0.0725, 0.06) x stature; rides the job as `fixF` through the join into the
+  flight's solver. After: the sole on the foot tube, the bar under it (shots_a7_feet/cmp2.png).
+- A BLENDED WINGLET (item 41, "a proper winglet, not just a straight up band"): the winglet
+  was the last bow row copied up 0.42 c. GEN_TIPS.winglet is bow 0 / fin 0.75 now and
+  63_gen_wing lofts eight rows off the tip station: a 0.30 c transition radius canting to
+  75 deg, a straight blade to 0.75 tip chords of height, the LE swept 35 deg, the chord
+  tapering to 0.35, the thickness axis rolled with the cant, the influences the tip's spar
+  ends'; a wall row closes the aileron's outboard end where the blade is full chord. Display
+  only (the planform ends at the tip: no strip lifts on the blade, no rib weighs there -
+  an owed honesty item if winglets get flown for their e 1.07). The nav light on a winglet
+  rides the blade's top leading corner (tipFit reads the wing's highest vertices), not the
+  inboard face the probes found. Shots: shots_a7_winglet/cmp_nav.png.
+- THE PITOT AT REAL PROPORTIONS (item 52 in part - the "actuator" under build (4)'s wing
+  read as the white L of the pitot mast, 0.22 m of drop, twice a real one, and the venturi
+  beside it): 0.11 m down, raked 20 deg forward, 0.20 m of tube. The flap rod (G447) and the
+  hinge parts (G450) were the rest of that picture. WINGSPLIT re-blessed twice (the winglet
+  case, then every case's pitot) - deliberate, the record in tools/_wing_split.json.
+- THE NOSE RUN'S RINGS, TRIED AND WITHDRAWN (item 73, "the polygonality of the nose is very
+  visible from the cockpit ... the top part of the nose feels blocky"): with `front rings` 0
+  the deck from the windscreen base to the twin band is ONE control quad, 0.45 m of the
+  surface nearest the eye on four subdivided segments; the row at 2-3 smooths it (measured
+  from the eye on build (4): the crown's kink at the windscreen gone). An automatic ring
+  every 0.14 m of the run was built, and GATE CAGEFIT refused it: the generator is held to
+  the user's Blender template ring for ring, and the template's nose run is 0.6 m on no
+  loops. So the fix is a BIRTH default (`front rings` 2 in the design flow / page5
+  starters), owed, not a loft rule. Found on the way: the joined spec moved by 0.5 mm on
+  gear.twY (the nosewheel's contact re-measured on the finer skin) and THAT flips the
+  certificates' fingerprint - bench.js benchCanon hashes full floats, so any drawing change
+  that moves a measured row by a micron withdraws every certificate (G444/G450/G453/G459 will
+  have done the same). AN A9 ITEM, recorded: quantise the measured rows (1 mm / 0.1 %) under
+  an f3 scheme.
+- THE FITTING PLACER'S SAGITTA (the CLIP reds the finer nose surfaced): the lift that keeps a
+  flat-based form's rim out of a convex skin sampled a 5 x 5 grid over ±0.5 of the footprint,
+  short of a proud cap's 0.62 d flange (3.4 mm in on the stock's nose deck) and coarse past a
+  venturi's legs (1.5 mm, at the gate's line). 9 x 9 over ±0.65, + 0.3 mm. GATE CLIP green.
+- GATES: LIGHT, SKINMAT, JOIN, PARTS, CLIP, CABIN, BAY, BEACON, WEATHER, SAVE, UISMOKE, FIT,
+  VIEW green after the first four; the rebuilt core's battery (GEN, SKIN, CLIP, FIT, LIGHT,
+  WINGSPLIT, DESIGN, AERO, JOIN, PARTS, CABIN, SAVE, UISMOKE, VIEW, HINGE, GEAR, STRUT, BUILD,
+  MEDIA, SKINMAT, BAY, BEACON, WEATHER, PANEL) green before the landing.
+- STILL OWED (A7): 15 nose-cone jiggle, 20 the control under the cowl, 23/32 wing normals
+  and grazing maps, 52's flight-view check, 73 as a birth default (`front rings` 2), the nose's subdivision inside, 92 the cowl gap
+  under deformation, 125 the hands after floats -> tricycle, 130 the rod's inclination and
+  the tailwheel, 131 the fuel-wing clipping, 149 the spine/keel rivet stretch, 151 the fin's
+  mapping.

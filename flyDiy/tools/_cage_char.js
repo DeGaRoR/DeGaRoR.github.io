@@ -389,6 +389,48 @@ function fistAt(inst, side, out) {
   return n ? out.multiplyScalar(1 / n) : null;
 }
 
+// WHERE THE SOLE IS (G468, playtest item 25, the user: "the feet of the
+// pilot are not well calibrated to the pedals"): the rig's shoe is its own
+// depth and length under the ankle - on the build (4) pilot the sole ran
+// 11 cm under the Foot bone against the ATD's 7 cm, and the toes 25 cm
+// forward against 21 - so a target solved for the ATD's foot box sank the
+// shoe 4 cm through the pedal plate and pushed the toes out past its top.
+// This reads the DRESSED foot: every skinned vertex weighted to the side's
+// Foot / ToeBase bones, expressed in `frameInv` (the pedal anchor's frame,
+// whose -y is into the plate), the lowest tenth along that -y averaged -
+// the sole's contact patch, in the anchor's own axes. fitSoles() in the
+// crew layer moves the target by the difference to the ATD's mid-sole.
+const _sv = new THREE.Vector3();
+function soleAt(inst, side, frameInv, out) {
+  const S = side === 'L' ? 'Left' : 'Right';
+  const re = new RegExp(S + '(Foot|ToeBase)$');
+  const pts = [];
+  for (const m of inst.meshes) {
+    if (!m.isSkinnedMesh) continue;
+    const g = m.geometry, p = g.attributes.position,
+          si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    if (!p || !si || !sw) continue;
+    const bones = m.skeleton.bones;
+    const on = bones.map(b => re.test(b.name));
+    for (let i = 0; i < p.count; i++) {
+      let w = 0;
+      for (let k = 0; k < 4; k++) if (on[si.getComponent(i, k)]) w += sw.getComponent(i, k);
+      if (w < 0.5) continue;
+      _sv.fromBufferAttribute(p, i);
+      m.applyBoneTransform(i, _sv);
+      m.localToWorld(_sv).applyMatrix4(frameInv);
+      pts.push([_sv.x, _sv.y, _sv.z]);
+    }
+  }
+  if (pts.length < 8) return null;
+  pts.sort((a, b) => a[1] - b[1]);
+  const n = Math.max(4, Math.floor(pts.length * 0.10));
+  out = out || new THREE.Vector3();
+  out.set(0, 0, 0);
+  for (let i = 0; i < n; i++) out.x += pts[i][0], out.y += pts[i][1], out.z += pts[i][2];
+  return out.multiplyScalar(1 / n);
+}
+
 // dispose the per-instance objects (geometries and materials are shared and
 // stay for the page's life)
 function dispose(inst) {
@@ -572,6 +614,6 @@ function flatMaterial(key, mi) {
 }
 
 window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
-  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt,
+  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, soleAt,
   animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();

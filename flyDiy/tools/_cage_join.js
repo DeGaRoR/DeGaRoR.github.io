@@ -2048,6 +2048,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             (kud.panelSet ? 'G' + kud.panelSet : '') +
             (kud.lampKey ? 'Lp' + kud.lampKey : '') +
             (kud.lampCup ? 'Lc' + kud.lampCup : '') +
+            (kud.lampK ? 'Lk' + kud.lampK : '') +          // G468: the socket's own bucket
             // session 4d: a baked piece's own textured material (the key)
             // keeps its maps and its uv — its own bucket, rebuilt from the
             // props registry
@@ -2114,7 +2115,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // lens / cup) and the lamps are dimmed per frame
           ...(ud.panelSet ? { panel: ud.panelSet } : {}),
           ...(ud.lampKey ? { lamp: ud.lampKey, lampCol: ud.lampCol } : {}),
-          ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol } : {}),
+          ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol, ...(ud.lampK ? { lampK: ud.lampK } : {}) } : {}),
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
@@ -2541,7 +2542,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
                       poleFig: j.poleFig.toArray(),
                       // G279: where this rig's fist closes, in the hand's frame
-                      fixH: j.fixH ? j.fixH.toArray() : null });
+                      fixH: j.fixH ? j.fixH.toArray() : null,
+                      // G468: where this rig's sole sits, in the anchor's frame
+                      fixF: j.fixF ? j.fixF.toArray() : null });
         }
         people.push({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
                       fist: L.fist, anim: L.anim, figM, bones, jobs });

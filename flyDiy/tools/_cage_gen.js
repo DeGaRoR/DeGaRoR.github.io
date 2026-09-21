@@ -1446,6 +1446,14 @@ function buildCage2(S, step) {
                yC: wsLv.floor.y, zC: wsLv.floor.z },
       keel:  wsLv.keel,
     };
+    // G468, TRIED AND WITHDRAWN (playtest item 73, "the polygonality of the
+    // nose is very visible from the cockpit"): a ring every 0.14 m of the
+    // nose run whatever `front rings` says. It smooths the deck (the row at
+    // 2-3 does the same by hand) but GATE CAGEFIT holds the generator to the
+    // user's Blender template ring for ring, and the template's nose run is
+    // 0.6 m on no loops - an automatic ring is a different cage. The fix
+    // belongs to the BIRTH (a `front rings` default in the design flow), not
+    // to the loft; owed.
     if (cowl.loops > 0 && sv >= 1) {
       const target = (aeroFin ? R.noseRing : R.noseTwin).lv;
       for (let i = 1; i <= cowl.loops; i++) {

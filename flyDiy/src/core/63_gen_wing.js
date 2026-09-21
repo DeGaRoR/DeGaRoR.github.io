@@ -779,11 +779,20 @@ function genWingInto(def, out) {
     const root = wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord,
                                [genAfEval(W.naca).lo(XC)])[0];
     // the mast drops a fixed distance below the skin, and the probe runs
-    // forward from its foot into clean air ahead of the leading edge
-    const DROP = 0.22, REACH = 0.24;
-    const foot = [root.p[0], root.p[1] - DROP, root.p[2]];
-    genTubeInto(pitot, root.p, foot, 0.010, 8, root.infl, B);
-    genTubeInto(pitot, foot, [foot[0] - REACH, foot[1], foot[2]], 0.011, 8,
+    // forward from its foot into clean air ahead of the leading edge.
+    // G468 (playtest item 52, the white pieces under build (4)'s wing):
+    // 0.22 m of drop was twice a real mast - a 172's stands ~0.10 m under
+    // the skin with the tube ~0.20 m forward - and read as a strut. Real
+    // proportions now, the mast raked 20 deg forward as the fitting is.
+    const DROP = 0.11, REACH = 0.20;
+    const foot = [root.p[0] - DROP * 0.36, root.p[1] - DROP, root.p[2]];
+    // a raked tube's rim cuts the skin by r sin(rake) (3 mm, GATE CLIP allows
+    // 1.5): the mast starts 6 mm down its own axis, under the skin's line
+    const dm = Math.hypot(foot[0] - root.p[0], foot[1] - root.p[1]) || 1;
+    const top = [root.p[0] + (foot[0] - root.p[0]) * 0.006 / dm,
+                 root.p[1] + (foot[1] - root.p[1]) * 0.006 / dm, root.p[2]];
+    genTubeInto(pitot, top, foot, 0.009, 8, root.infl, B);
+    genTubeInto(pitot, foot, [foot[0] - REACH, foot[1], foot[2]], 0.010, 8,
                 root.infl, B);
   }
   }
@@ -923,9 +932,51 @@ function genWingInto(def, out) {
       }
     }
     if (TIP.fin > 0) {
-      const h = TIP.fin * W.chord, last = fixRows[fixRows.length-1];
-      fixRows.push(last.map(pt => ({ p: [pt.p[0], pt.p[1]+h, pt.p[2] - 0.22*h*side],
-        infl: pt.infl, u: pt.u })));
+      // G468: A BLENDED WINGLET (playtest item 41). The old winglet was the
+      // last bow row copied straight up by 0.42 c - a band. This is the
+      // shape every blended winglet has: from the last full station the
+      // section rolls through a transition RADIUS (0.30 c) up to a cant of
+      // 75 deg (15 off the vertical), then runs straight to `fin` tip chords
+      // of height; the leading edge sweeps aft 35 deg as it climbs and the
+      // chord tapers to 0.35 of the tip's at the top. Eight rows on the
+      // path, each the tip station's own aerofoil rebuilt in a rotated
+      // frame (the thickness axis rolls from up to inboard with the cant),
+      // the node influences the tip station's, so the blade rides the spar
+      // ends. Display only: the planform (chordAt) ends at the tip, so no
+      // strip lifts and no rib weighs where the winglet stands.
+      const zW = zStraight, f = frameAt(zW);
+      const ch = genV3.norm(genV3.sub(f.pR, f.pF));
+      let up = genV3.norm(genV3.cross(ch, [0, 0, 1]));
+      if (up[1] < 0) up = genV3.mul(up, -1);
+      const c0 = f.chord, Hh = TIP.fin * c0;
+      const R = 0.30 * c0, PHI = 75 * Math.PI / 180, LAM = 0.35, SW = Math.tan(35 * Math.PI / 180);
+      const hArc = R * (1 - Math.cos(PHI));
+      const L = Math.max(0.05 * c0, (Hh - hArc) / Math.sin(PHI));
+      const sArc = R * PHI, sTot = sArc + L, NW = 8;
+      const pts = genAfSegCove(W.naca, 1, NAF, ARCN, gapAt(zW), curbAt(zW));
+      // the wall at the aileron's outboard end (the winglet is full chord)
+      const hLast = hOf(zW);
+      if (Math.abs(hLast - 1) > 1e-9) { fixRows.push(fixSec(zW, 1)); fixRows.push(fixSec(zW, 1)); }
+      for (let i = 1; i <= NW; i++) {
+        const s = sTot * i / NW;
+        let phi, dy, dz;
+        if (s <= sArc) { phi = s / R; dy = R * (1 - Math.cos(phi)); dz = R * Math.sin(phi); }
+        else { phi = PHI; dy = hArc + (s - sArc) * Math.sin(PHI); dz = R * Math.sin(PHI) + (s - sArc) * Math.cos(PHI); }
+        const cT = c0 * (1 - (1 - LAM) * (s / sTot));
+        // the section's frame on the path: the LE swept aft, the thickness
+        // axis rolled by the cant toward the inboard side
+        const pF = genV3.add(genV3.add(f.pF, genV3.mul(ch, SW * dy)), [0, dy, side * dz]);
+        const th = genV3.add(genV3.mul(up, Math.cos(phi)), [0, 0, -side * Math.sin(phi)]);
+        const row = pts.map(([xc, yc]) => {
+          const p = genV3.add(genV3.add(pF, genV3.mul(ch, (xc - sparF) * cT)), genV3.mul(th, yc * cT));
+          const k = kOf(xc), infl = [];
+          for (const [i2, w2] of f.wF) if (w2 > 1e-6) infl.push([i2, (1 - k) * w2]);
+          for (const [i2, w2] of f.wR) if (w2 > 1e-6) infl.push([i2, k * w2]);
+          return { p, infl, u: xc };
+        });
+        row.z0 = zW + dz;
+        fixRows.push(row);
+      }
     }
     // UV v is the TRUE span fraction, not the row index. Row-index v put the
     // paint's tip stripe wherever a loft happened to start, and once the

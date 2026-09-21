@@ -251,19 +251,30 @@ function lensMat(key, level, colOver) {
 // NOT an AERO_HARD change: `AERO_HARD.light` is `{lodge, seal}` and adding a
 // third name there would make every layer that reads the table carry a
 // finish for something that is a lighting state, not a material.
+// THE SOCKET GLOWS TOO (G468, playtest item 123, the user: "the lights should
+// probably come with their socket mesh also being given an emissive material,
+// like we did for the hangar's hanging lamps"): the HOUSING - the barrel of a
+// proud fitting, the teardrop fairing of a wingtip light, the shell of a
+// recessed one - is the same cup material at a THIRD of the reflector's term
+// (`k` 0.33: a housing is lit by spill, a reflector by the bulb it holds).
+// It crosses the join as `lampK` on the cup's bucket, so the flight's
+// dimmer (cockpit.js CK.glow) and the hour's drive scale it with the lamp.
 const cupMats = {};
-function cupMat(level, colOver, on, key) {
+const SOCK_K = 0.33;
+function cupMat(level, colOver, on, key, k) {
   const lv = on ? level : 0;
   const col = colOver != null ? colOver : 0xfff0d8;
-  const id = lv.toFixed(2) + '|' + col + '|' + (key || '');
+  const kk = k || 1;
+  const id = lv.toFixed(2) + '|' + col + '|' + (key || '') + '|' + kk.toFixed(2);
   if (cupMats[id]) return cupMats[id];
   const row = MAT.lodge;
   const m = new THREE.MeshStandardMaterial({
     color: row.col, roughness: row.rough, metalness: row.metal,
-    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55,
+    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,
     side: THREE.DoubleSide });
   m.userData.aeroskin = 1;            // as for the lens: never the grey understudy
-  if (key) { m.userData.lampCup = key; m.userData.lampCol = col; }   // the panel arc
+  if (key) { m.userData.lampCup = key; m.userData.lampCol = col;   // the panel arc
+             if (kk !== 1) m.userData.lampK = kk; }
   return (cupMats[id] = m);
 }
 
@@ -868,6 +879,47 @@ function sites(scene, group, P) {
         return null;
       };
       const chordAt = x => { const l = edge(x, true), t = edge(x, false); return (l != null && t != null) ? l - t : 0; };
+      // G468: ON A WINGLET THE LIGHT RIDES THE BLADE'S TOP LEADING CORNER
+      // (the airliner idiom - the probes below see the blade as a very
+      // thick station and seat the pod on its inboard face). The wing's
+      // own skin is read: the highest vertices within the outboard metre
+      // are the winglet's top edge, the most forward of them its LE corner.
+      // The pod stands on the top edge, its axis the blade's own (15 deg
+      // off the vertical, outboard), its body running aft along the edge.
+      const tipKind = (typeof GEN_TIPS !== 'undefined' && window.CAGE_UI && window.CAGE_UI.P)
+        ? Object.keys(GEN_TIPS)[Math.round(window.CAGE_UI.P.wgTip) || 0] : null;
+      if (tipKind === 'winglet' && GEN_TIPS.winglet.fin > 0) {
+        const v = new THREE.Vector3(), wg = new THREE.Matrix4().copy(W.group.matrixWorld).invert();
+        const pts = [];
+        W.group.traverse(o => {
+          if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+          if (!/^(edWing|wing)/i.test(o.name || '') && !(o.material && o.material.userData && o.material.userData.aeroSurf)) return;
+          o.updateMatrixWorld(true);
+          const m = new THREE.Matrix4().multiplyMatrices(wg, o.matrixWorld);
+          const pa = o.geometry.attributes.position;
+          for (let i = 0; i < pa.count; i++) {
+            v.fromBufferAttribute(pa, i).applyMatrix4(m);
+            if (sgn * v.x > sgn * xExt - 1.0) pts.push([v.x, v.y, v.z]);
+          }
+        });
+        if (pts.length > 8) {
+          let yMax = -1e9; for (const q of pts) if (q[1] > yMax) yMax = q[1];
+          const top = pts.filter(q => q[1] > yMax - 0.025);
+          let le = top[0]; for (const q of top) if (q[2] > le[2]) le = q;
+          let te = top[0]; for (const q of top) if (q[2] < te[2]) te = q;
+          const cTop = Math.max(0.05, le[2] - te[2]);
+          const zSeat = le[2] - Math.max(0.03, cTop * 0.25) - navChord;
+          // the top edge's own slope (sweep): the pod's body runs along it
+          let tx = 0, ty = te[1] - le[1], tz = te[2] - le[2];
+          const tl = Math.hypot(tx, ty, tz) || 1; ty /= tl; tz /= tl;
+          const cant = 15 * Math.PI / 180;
+          const ax = [sgn * Math.sin(cant), Math.cos(cant), 0];
+          const at = top.reduce((b, q) => Math.abs(q[2] - zSeat) < Math.abs(b[2] - zSeat) ? q : b, top[0]);
+          const p = toL(at[0] - ax[0] * navSpan, at[1] - ax[1] * navSpan, zSeat);
+          return { p, ax, chord: [tx, ty, tz], thick: 0.03, len: Math.max(0.10, cTop * 0.35),
+                   xFull: at[0], chordFull: cTop };
+        }
+      }
       // 1. the last full station: the chord stops growing (within 4 %)
       let xFull = xExt - sgn * 0.02, cFull = 0;
       for (let d = 0.02; d < Math.min(1.5, span * 0.45); d += 0.02) {
@@ -1304,7 +1356,7 @@ function applyDrive() {
   for (const e of lampMats) {
     const lv = (L && L[e.key] != null) ? Math.max(0, Math.min(1, +L[e.key])) : e.lv;
     if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;
-    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K;
+    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K * (e.k || 1);
   }
   for (const R of rotors) R.base = ((L && L.beacon != null) ? Math.max(0, Math.min(1, +L.beacon)) : R.lv) * LENS_K;
   // the dial faces are the panel layer's one emissive material (the instrument dimmer)
@@ -1374,19 +1426,27 @@ PAGE.post = (ctx) => {
     // this ended up with a lamp poking through the panel it was supposed to be
     // behind. So a recessed lamp is a REFLECTOR CUP with a bulb in it and a
     // RIM round the cut, and the glass belongs to the wing.
-    const lodge = Bag(hwMat('lodge')), seal = Bag(hwMat('seal'));
+    const seal = Bag(hwMat('seal'));
     const lensM = lensMat(key, lv, col), cupM = cupMat(lv, col, reflectOn, key);
+    // G468 (item 123): the housing is the socket material - the lodge's
+    // alloy lit by the lamp's spill, a third of the reflector's term
+    const sockM = cupMat(lv, col, reflectOn, key, SOCK_K);
+    const lodge = Bag(sockM);
     const lens = Bag(lensM);
     // the reflector: the lodge's alloy, lit by the bulb it surrounds
     const cup = Bag(cupM);
     // for the hour's drive (applyDrive): the design's level, the factories' materials
     if (!lampMats.some(e => e.mat === lensM)) lampMats.push({ key, kind: 'lens', mat: lensM, lv });
     if (!lampMats.some(e => e.mat === cupM)) lampMats.push({ key, kind: 'cup', mat: cupM, lv, reflect: reflectOn });
+    if (!lampMats.some(e => e.mat === sockM)) lampMats.push({ key, kind: 'cup', mat: sockM, lv, reflect: reflectOn, k: SOCK_K });
     if (site.recess) {
       // THE REFLECTOR AND THE BULB ARE SOLIDS, and the bulb is the emitter —
       // it is drawn in the lens material because a bulb IS the light. The
       // wing's glass is the lens; there is no second dome here.
-      revolveInto(lodge, site.p, site.ax, PROF.cup, 18, r);
+      // G468: the recessed shell IS the reflector - lit by its bulb, as the
+      // proud fitting's cup is (it was the bare lodge alloy, dark round a
+      // lit bulb - the ceiling-lamp complaint of 2026-08-31 in the wing bay)
+      revolveInto(cup, site.p, site.ax, PROF.cup, 18, r);
       revolveInto(lens, site.p, site.ax, PROF.bulb, 14, r);
       // the mount: the cup hangs off the back of the bay on a bracket, which
       // is the difference between a lamp fitted in a bay and one floating in
@@ -1496,7 +1556,7 @@ PAGE.post = (ctx) => {
       // beam horizontal on a beacon whose can stands vertical
       const a2 = Math.abs(site.ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
       const side = nrm(cross(site.ax, a2));
-      const mir = Bag(hwMat('lodge')), fil = Bag(lensMat(key, lv, col));
+      const mir = Bag(cupM), fil = Bag(lensMat(key, lv, col));   // G468: the mirror is a reflector, lit
       revolveInto(mir, [0, 0, 0], side, PROF.cup, 14, r * 0.52);
       revolveInto(fil, [0, 0, 0], site.ax, PROF.bulb, 10, r * 0.30);
       mir.mesh(rot); fil.mesh(rot);

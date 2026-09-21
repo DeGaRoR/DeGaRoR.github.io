@@ -2162,7 +2162,14 @@ const GEN_TIPS = {
   rounded: { name: 'Rounded',    e: 1.00, bow: 0.50, arc: 7, fin: 0 },
   elliptic:{ name: 'Elliptical', e: 1.03, bow: 0.80, arc: 9, fin: 0 },
   hoerner: { name: 'Hoerner',    e: 1.02, bow: 0.30, arc: 5, fin: 0 },
-  winglet: { name: 'Winglet',    e: 1.07, bow: 0.20, arc: 4, fin: 0.42 },
+  // G468 (playtest item 41, the user: "a proper winglet, not just a straight
+  // up band"): the planform runs full-chord to the tip and the winglet is a
+  // BLENDED one lofted off that station (63_gen_wing): a 0.30 c transition
+  // radius canting to 75 deg, then a straight blade to `fin` tip chords of
+  // height, the leading edge swept 35 deg, the chord tapering to 0.35 at the
+  // top. `bow` 0 because the blend IS the tip; `fin` is the height in tip
+  // chords (0.42 was the old band's).
+  winglet: { name: 'Winglet',    e: 1.07, bow: 0,    arc: 0, fin: 0.75 },
 };
 
 // Design constants that are rules rather than choices. Each one reproduces a
