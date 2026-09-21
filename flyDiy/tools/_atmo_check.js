@@ -118,6 +118,11 @@ console.log('5. the sources');
 {
   const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'atmo.js'), 'utf8');
   yes(/#include <tonemapping_fragment>/.test(src) && /#include <colorspace_fragment>/.test(src), 'the dome is tone-mapped and encoded by three\'s own chunks');
+  // G461: THE GROUND AT NIGHT. The GLSL ground term read the multiple-scattering table at max(0, muS): a sun
+  // under the horizon lit the ground half of the sky-view table as if it stood on the horizon (0.52 against
+  // 2.2e-3 one row up) - the white bar on every night horizon where the sea plane ended. MS takes the
+  // sun's true cosine, as the path loop does; only the direct term keeps the clamp.
+  yes(/float muS0 = dot\(g, sun\) \/ gr, muG = max\(0\.0, muS0\);/.test(src) && /0\.5 \* MS\(gr, muS0\) \* 4\.0 \* PI \* 0\.1/.test(src) && !/MS\(gr, muG\)/.test(src), 'the ground under the sky takes the multiple scattering at the sun\'s true cosine (a night ground is dark)');
   // S4: THE ONE SPLICE. The aerial perspective is applied at the head of tonemapping_fragment (linear
   // radiance; three's own fog runs AFTER the tone map) and fog_fragment is replaced by the flag-gated
   // legacy - both inside install(), nowhere else; and every material that defines its own

@@ -53248,3 +53248,30 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
 - SEEN: scratch a7_caps_sheet.png (the Cessna with the centre removed and a square tip: the port
   root face from the centreline and from above, the tip face from outboard and from above).
 - GATES: CLIP, PARTS, JOIN, UISMOKE, VIEW, MEDIA, LIGHT, BAY, BEACON, STRUT, CAGEFIT, SKIN green.
+## G461 — THE "SEA'S MOON GLINT" WAS THE SKY TABLE'S GROUND, LIT BY A SUN UNDER THE HORIZON
+## (2026-09-21, the user: "do the sea's moon glint too, then commit and land")
+
+- THE FINDING, by bisection at night from the approach eye (tools/cloud_shot.js, --at none,
+  DAY_CLOCK.rate(0) so the sun stood): the water's roughness 0.16 -> 0.6 dimmed the bar but left
+  it; the WATER HIDDEN showed the whole quarter below the horizon WHITE (the bar was the sliver of
+  it over the sea plane's far edge, 24 km, short of the geometric horizon from 60 m); the moon key
+  zeroed and the environment removed changed nothing. Not a glint: the physical dome's GROUND
+  HALF. The sky-view table read back (readRenderTargetPixels on the HalfFloat target, decoded by
+  hand): 0.52 in every row under v = 0.48 against 2.2e-3 one row above - the ground 200x the
+  night sky. The CPU mirror (ATMO.skyRadiance) gave 2e-8 for the same rays: the GLSL disagreed.
+- THE CAUSE (atmo.js skyRadiance, the ground branch shared by the sky-view and the AP pass):
+  `muG = max(0, dot(g, sun)/gr)` fed BOTH the direct term and the multiple-scattering table - a
+  sun eleven degrees under the horizon lit the ground as if it stood ON the horizon (MS at muS =
+  0 is a sunset ground). The path loop above hands MS negative cosines all night; the CPU mirror
+  reused the last segment's MS (the true one). Now MS takes the sun's true cosine; only the
+  direct term keeps the clamp. By day nothing moves (the clamp never bit). The night's
+  reflection probe loses the same white ground half (every underside reflected it).
+- FOUND ON THE WAY, not touched: render_world applyWorldLights re-asserts the DAY's sun and
+  hemisphere levels (RIG.sun x LIGHT_UNIT) before the mutes - a world-light pill pressed at
+  night on the NIGHT flyout floods the ground yellow until the sun moves 0.02 deg and dayApply
+  runs again. Owed: re-run the day (dayVer = -1; dayApply()) instead of the constants.
+- GATES: ATMO holds the ground term's cosines (muS0 for MS, the clamp on the direct term only);
+  CLOUD / LIGHT / WORLDRENDER green; the battery at the landing.
+- SEEN: screenshots/clouds-2026-09-20/ui/horizon_night.png - the approach eye at night, dusk,
+  golden and afternoon after the fix, and the field from 600 m by day (unchanged); the table
+  rows before and after in this entry.

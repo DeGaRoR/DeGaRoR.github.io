@@ -317,9 +317,14 @@ var ATMO = (function () {
         Tpath *= exp(-e * dt);
       }
       if (ground) {
+        // THE GROUND AT NIGHT (G461, the "white bar on the horizon" of every night frame): the sky term
+        // of the ground's light read MS at max(0, muS) - a sun eleven degrees under the horizon lit the
+        // ground as if it stood ON the horizon, 200x the night sky above it (the table read back: 0.52
+        // against 2.2e-3 a row higher). The multiple-scattering table takes the sun's true cosine (the
+        // path loop above hands it negatives all night); only the direct term keeps the clamp.
         vec3 g = vec3(0.0, r, 0.0) + d * tEnd; float gr = length(g);
-        float muG = max(0.0, dot(g, sun) / gr);
-        L += Tpath * uAtm[2].w / PI * E * (muG * T(gr, muG) + 0.5 * MS(gr, muG) * 4.0 * PI * 0.1);
+        float muS0 = dot(g, sun) / gr, muG = max(0.0, muS0);
+        L += Tpath * uAtm[2].w / PI * E * (muG * T(gr, muG) + 0.5 * MS(gr, muS0) * 4.0 * PI * 0.1);
       }
       return L;
     }
