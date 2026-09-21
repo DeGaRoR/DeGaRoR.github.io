@@ -503,28 +503,84 @@ function makeWorld(seed, opts) {
     // two octaves — the wind's own swell and a shorter cross chop.
     if (t == null || h !== 0 || !SEA.A) return h;
     let y = 0;
-    for (const w of SEA.W) y += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
+    for (const w of SEA.W) if (w.felt !== false) y += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
     return y;
   }
   // SEA STATE FROM THE WIND (ruling ar: sea state belongs to THE DAY, one
   // more consumer of setWeather's wind, never a second model). Amplitude
-  // 0.04 m per m/s of wind (5 m/s: 0.2 m; 10: 0.4), wavelength 3 + 1.4 W
+  // 0.018 m per m/s of wind (5 m/s: 0.09 m; 10: 0.18 - see setWind), wavelength 3 + 1.4 W
   // (5 m/s: 10 m), the swell down-wind, a 40 % chop 35 deg off it at half
   // the length. Calm air is glassy — no waves — which is the harder
   // landing (§2.5), for free. `world.sea` reads it; `setSea` overrides it
   // (the bench, a test) until the next setWind.
+  // THE SPECTRUM (G460.3, the user: "your waves keep being a clearly visible grid
+  // with repetition ... look at the state of the art for that issue"): a sum of
+  // a FEW cosines is periodic by construction - one swell cosine lays parallel
+  // ridges across the whole sea, and a handful of fixed chop trains weave over
+  // it. The classical answer (Tessendorf's summed sinusoids, Crest's batched
+  // Gerstner: dozens of components DRAWN FROM THE SPECTRUM) is 32 trains here:
+  //   - the SWELL BAND, 8 components at wavelengths 0.78..1.28 L round the
+  //     peak, +-9 deg of the wind, JONSWAP-shaped amplitudes; components a
+  //     little apart in wavelength BEAT - the sea comes in groups, the ridges
+  //     lose their period;
+  //   - the WIND SEA, 24 components from L/1.4 to L/7 (geometric), spread
+  //     narrowing toward the peak (+-12 deg long, +-55 deg short: Hasselmann)
+  //     with a cos^2 weight, equilibrium amplitudes (A_i proportional to L_i)
+  //     - short-crested up close, lines with groups from altitude.
+  // Each band is normalised to the variance the two old trains carried (the
+  // swell A^2/2, the chop (0.4 A)^2/2), so a slider's A means what it meant
+  // and the floats feel the same energy. Directions and phases come from a
+  // seeded generator: a day is the same day twice. The trains are WORLD DATA
+  // (ruling ap): the shader draws these 32 (water.js holds 32; GATE WATER's
+  // parity walks them). THE FELT BAND (G460.6): the floats are pushed by the
+  // SWELL BAND (the 8 trains round L) and the wind sea (24 trains under L/1.4,
+  // spread across the wind) is drawn as a slope only, like the ripple tile:
+  // the hydro (G451's held forces and chine air law) water-looped the
+  // crosswind take-off when it felt the long wind sea, and rides the swell
+  // clean; `felt` marks the band, waterH sums it, the vertex displacement
+  // follows waterH exactly (the hull sits in the wave it is drawn in). Cost:
+  // waterH 0.9 -> ~1 us a call. setSea({ n: 2 }) gives the old pair.
   const SEA = { A: 0, L: 0, dir: 0, W: [] };
-  function seaFrom(A, L, dir) {
+  const SEA_TRAINS = 32;
+  // THE FELT BAND'S EDGE: the swell band (0.78..1.28 L) is felt, the wind sea (under L/1.4) is drawn
+  // as a slope only. Bisected on GATE SEAPLANE's crosswind take-off (2026-09-21): the hull looping
+  // on the long wind sea (5-9 m, spread across the wind) at 0.45 L, clean at 0.75 L. SEA_FELT=<f>
+  // in the environment moves it for a test.
+  const SEA_FELT = (typeof process !== 'undefined' && process.env && process.env.SEA_FELT) ? +process.env.SEA_FELT : 0.75;
+  function seaFrom(A, L, dir, n) {
     SEA.A = A; SEA.L = L; SEA.dir = dir; SEA.W.length = 0;
     if (!(A > 0) || !(L > 0)) return;
-    for (const [a, l, d, ph] of [[A, L, dir, 0], [0.4 * A, 0.5 * L, dir + 35 * Math.PI / 180, 1.7]]) {
+    const N = Math.max(2, Math.min(SEA_TRAINS, n || SEA_TRAINS));
+    const rows = [];
+    if (N === 2) { rows.push([A, L, dir, 0], [0.4 * A, 0.5 * L, dir + 35 * Math.PI / 180, 1.7]); }
+    else {
+      let seed = 0x5EA5; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      const D2R = Math.PI / 180;
+      const nS = Math.max(1, Math.round(N / 4)), nW = N - nS;
+      // the swell band: JONSWAP-shaped weights round L, normalised to A^2/2
+      const sw = [];
+      for (let i = 0; i < nS; i++) { const r = 0.78 + 0.5 * (nS === 1 ? 0.44 : i / (nS - 1)) + (rnd() - 0.5) * 0.04; const w = Math.exp(-Math.pow((r - 1) / 0.18, 2));
+        sw.push({ l: L * r, w, d: dir + (rnd() - 0.5) * 18 * D2R, ph: rnd() * 2 * Math.PI }); }   // +-9 deg: a swell is long-crested (Hasselmann s ~ 10 at the peak)
+      const cS = A / Math.sqrt(sw.reduce((q, t) => q + t.w * t.w, 0));
+      for (const t of sw) rows.push([cS * t.w, t.l, t.d, t.ph]);
+      // the wind sea: geometric wavelengths L/1.4 .. L/7, cos^2 spread, equilibrium amplitudes, normalised to (0.4 A)^2/2
+      const ws = [];
+      // the spread NARROWS toward the peak (Hasselmann): a long wind-sea component runs with the wind
+      // (+-12 deg at L/1.4), the short chop spreads wide (+-55 deg at L/7) - from altitude the sea is
+      // lines with groups, not a weave; up close the chop is short-crested
+      for (let i = 0; i < nW; i++) { const u = nW === 1 ? 0 : i / (nW - 1), f = 1.4 * Math.pow(5, u); const th = (rnd() - 0.5) * (24 + 86 * u) * D2R;
+        ws.push({ l: L / f * (0.94 + 0.12 * rnd()), w: (L / f / L) * Math.pow(Math.cos(th), 2), d: dir + th, ph: rnd() * 2 * Math.PI }); }
+      const cW = 0.4 * A / Math.sqrt(ws.reduce((q, t) => q + t.w * t.w, 0));
+      for (const t of ws) rows.push([cW * t.w, t.l, t.d, t.ph]);
+    }
+    for (const [a, l, d, ph] of rows) {
       const k = 2 * Math.PI / l;
-      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph });
+      SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
     }
   }
   function setSea(spec) {
     if (!spec) { seaFrom(0, 0, 0); return; }
-    seaFrom(spec.A || 0, spec.L || (3 + 1.4 * 5), spec.dir || 0);
+    seaFrom(spec.A || 0, spec.L || (3 + 1.4 * 5), spec.dir || 0, spec.n);
   }
   // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
   // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
@@ -657,7 +713,11 @@ function makeWorld(seed, opts) {
     // ...and the sea follows the wind (H4, G393)
     const b = windSpec ? windSpec.base : [0, 0, 0];
     const Wv = Math.hypot(b[0], b[2]);
-    seaFrom(Wv > 0.5 ? 0.04 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
+    // THE WIND -> SEA LAW (G460.6): 0.018 m of amplitude per m/s, calibrated to the SMB fetch-limited
+    // sea of a 10 km sound (H_s 0.26 m at 5 m/s, 0.5 at 10; A_equiv = H_s / 2.8) - G393's 0.04 was a
+    // guess that put a 0.57 m significant sea under a 5 m/s breeze, and with a real spectrum (groups
+    // twice the single amplitude) the crosswind take-off of GATE SEAPLANE water-looped in it
+    seaFrom(Wv > 0.5 ? 0.018 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
   // ---- the day: ONE weather state, air and wind together (G72) ------------

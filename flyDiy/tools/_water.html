@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flyDiy — the water bench (H6, G460.1)</title>
+<!-- THE WATER BENCH: the one material (src/viewer/water.js) in a tank of its own - a coast painted into
+     a signed-distance field, a beach, a shelf, a lake on the land, the real world's trains (flight_core's
+     makeWorld / setSea / waterH), a sun and a gradient-sky probe. The dials: the sea state, the wind, the
+     tier, the bands' switches, the presets' colours, the debug views, the interaction slot with the test V,
+     the PARITY button (the GPU's height against the trains, read back through a half-float target) and the
+     frame timer with the water's own GPU ms. Served by tools/_serve.js; no ATMO here (the hook's inject
+     is guarded), so the sky is a plain gradient and there is no aerial perspective. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #101418; color: #d8dde3; font: 12px/1.35 system-ui, sans-serif; overflow: hidden; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #p { position: absolute; top: 8px; left: 8px; width: 300px; max-height: calc(100% - 16px); overflow: auto; background: rgba(12,16,20,.86); border: 1px solid #2a323a; border-radius: 6px; padding: 8px 10px; }
+  #p h3 { margin: 6px 0 4px; font-size: 12px; letter-spacing: .04em; color: #9fb3c8; text-transform: uppercase; }
+  .row { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .row label { flex: 0 0 118px; color: #aab4be; }
+  .row input[type=range] { flex: 1; }
+  .row .v { flex: 0 0 52px; text-align: right; color: #e8edf2; font-variant-numeric: tabular-nums; }
+  select, button, input[type=color] { background: #1a2129; color: #e8edf2; border: 1px solid #34404b; border-radius: 4px; padding: 2px 6px; font: inherit; }
+  button { cursor: pointer; }
+  .note { color: #7f8b96; font-size: 11px; margin: 2px 0 6px; }
+  #stat { position: absolute; right: 8px; top: 8px; background: rgba(12,16,20,.86); border: 1px solid #2a323a; border-radius: 6px; padding: 6px 10px; font-variant-numeric: tabular-nums; white-space: pre; }
+  #stat b { color: #ffd479; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="p"></div>
+<div id="stat"></div>
+<script src="../vendor/three.min.js"></script>
+<script src="flight_core.js"></script>
+<script src="../src/viewer/water.js"></script>
+<script>
+'use strict';
+const $ = (t, a) => { const e = document.createElement(t); if (a) for (const k in a) { if (k === 'text') e.textContent = a[k]; else e.setAttribute(k, a[k]); } return e; };
+const P = document.getElementById('p'), STAT = document.getElementById('stat');
+const slider = (label, min, max, step, get, set, fmt) => {
+  const row = $('div', { class: 'row' }), l = $('label', { text: label }), i = $('input', { type: 'range', min, max, step }), v = $('span', { class: 'v' });
+  const show = () => { const x = get(); v.textContent = fmt ? fmt(x) : (typeof x === 'number' ? x.toFixed(2) : String(x)); i.value = x; };
+  i.oninput = () => { set(+i.value); show(); };
+  row.append(l, i, v); show(); row.refresh = show; return row;
+};
+const select = (label, opts, get, set) => {
+  const row = $('div', { class: 'row' }), l = $('label', { text: label }), s = $('select');
+  for (const [v, t] of opts) s.appendChild($('option', { value: v, text: t }));
+  s.value = get(); s.onchange = () => set(s.value); row.append(l, s); return row;
+};
+const note = t => $('div', { class: 'note', text: t });
+const h3 = t => $('h3', { text: t });
+
+// ---- the world's own trains --------------------------------------------------------------------
+const world = makeWorld(0);
+world.setSea({ A: 0.35, L: 14, dir: 0.4 });
+
+// ---- three ---------------------------------------------------------------------------------------
+const cv = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, logarithmicDepthBuffer: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.toneMapping = THREE.CineonToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = false;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 60000);
+const sun = new THREE.DirectionalLight(0xffffff, 3.0); sun.position.set(0.5, 0.7, -0.4).normalize().multiplyScalar(100); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xb8d4f0, 0x556644, 0.6));
+// the sky: a gradient dome, a PMREM of it is the environment (the water's reflection)
+const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, uniforms: { uSun: { value: sun.position.clone().normalize() } },
+  vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `varying vec3 vD; uniform vec3 uSun; void main(){ float y = clamp(vD.y, -1.0, 1.0);
+    vec3 z = vec3(0.16, 0.36, 0.72), h = vec3(0.70, 0.80, 0.92), g = vec3(0.30, 0.34, 0.30);
+    vec3 c = y > 0.0 ? mix(h, z, pow(y, 0.6)) : mix(h, g, clamp(-y * 3.0, 0.0, 1.0));
+    float s = pow(max(0.0, dot(vD, uSun)), 600.0) * 40.0 + pow(max(0.0, dot(vD, uSun)), 8.0) * 0.6;
+    gl_FragColor = vec4(c + s, 1.0); }` });
+const sky = new THREE.Mesh(new THREE.SphereGeometry(30000, 32, 16), skyMat); scene.add(sky);
+{ const pm = new THREE.PMREMGenerator(renderer); const es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), skyMat)); scene.environment = pm.fromScene(es, 0.04, 1, 100).texture; pm.dispose(); }
+
+// ---- the tank: the fields, the ground, the water -------------------------------------------------
+// the coast: the line at x = +150 (land east of it), the sea west; a lake disc on the land at (260, -120) r 45
+const G = { x0: -400, z0: -400, w: 800, h: 800, n: 200 };
+const cell = G.w / G.n, sdf = new Uint8Array(G.n * G.n * 4);
+const coastAt = (x, z) => (x - 150) + 12 * Math.sin(z / 70);                       // signed metres, land > 0
+const lakeAt = (x, z) => 45 - Math.hypot(x - 260, z + 120);                       // inside > 0
+for (let j = 0; j < G.n; j++) for (let i = 0; i < G.n; i++) {
+  const x = G.x0 + (i + 0.5) * cell, z = G.z0 + (j + 0.5) * cell, p = (j * G.n + i) * 4;
+  sdf[p] = 0; sdf[p + 1] = 0;
+  sdf[p + 2] = Math.max(0, Math.min(255, Math.round(128 + coastAt(x, z) / 4)));
+  sdf[p + 3] = Math.max(0, Math.min(255, Math.round(128 + lakeAt(x, z) / 4)));
+}
+const sdfTex = new THREE.DataTexture(sdf, G.n, G.n, THREE.RGBAFormat, THREE.UnsignedByteType);
+sdfTex.magFilter = sdfTex.minFilter = THREE.LinearFilter; sdfTex.flipY = false; sdfTex.needsUpdate = true;
+// the ground: the shelf under the sea (28_island.js's seaFloor), a beach to +1.5 m, the land flat with the lake's bed
+const groundH = (x, z) => { const sd = coastAt(x, z); if (sd < 0) { const t = Math.min(1, -sd / 500); return Math.min(-5 - 9 * t * t * (3 - 2 * t), sd * 0.35); }
+  const l = lakeAt(x, z); return l > 0 ? 2.0 - Math.min(6, l * 0.6) : 0.4 + Math.min(1.6, sd * 0.05); };
+{
+  const g = new THREE.PlaneGeometry(G.w, G.h, 240, 240); g.rotateX(-Math.PI / 2);
+  const pa = g.attributes.position, col = new Float32Array(pa.count * 3);
+  for (let i = 0; i < pa.count; i++) { const x = pa.getX(i) + (G.x0 + G.w / 2), z = pa.getZ(i) + (G.z0 + G.h / 2); const y = groundH(x, z); pa.setY(i, y);
+    const c = y < -0.3 ? [0.16, 0.20, 0.18] : y < 0.9 ? [0.62, 0.57, 0.46] : [0.36, 0.44, 0.22]; col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2]; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })); m.position.set(G.x0 + G.w / 2, 0, G.z0 + G.h / 2); scene.add(m);
+}
+// the water: the far plane (body 0), the near patch (body 0, wavy), the lake quad (body 1) at its level
+const mat = WATER.make(THREE);
+WATER.setSDF(sdfTex, { x: G.x0, y: G.z0, z: G.w, w: G.h });
+WATER.setSea(world.sea); WATER.setWind(7, 0.4);
+const SEAW = 360, SEAN = 96;
+const farGeo = new THREE.PlaneGeometry(6000, 6000); farGeo.rotateX(-Math.PI / 2);
+const far = new THREE.Mesh(WATER.tag(THREE, farGeo, 0, false), mat); far.renderOrder = -10; WATER.watch(far, renderer); scene.add(far);
+const nearGeo = new THREE.PlaneGeometry(SEAW + 4, SEAW + 4, SEAN, SEAN); nearGeo.rotateX(-Math.PI / 2);
+const near = new THREE.Mesh(WATER.tag(THREE, nearGeo, 0, true), mat); near.frustumCulled = false; WATER.watch(near, renderer); scene.add(near);
+const lakeGeo = new THREE.PlaneGeometry(110, 110); lakeGeo.rotateX(-Math.PI / 2);
+const lake = new THREE.Mesh(WATER.tag(THREE, lakeGeo, 1, false), mat); lake.position.set(260, 2.0, -120); scene.add(lake);
+// a post in the water (the water line) and a pier plank
+{ const post = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 4, 10), new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 0.9 })); post.position.set(120, 1, 20); scene.add(post);
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(30, 0.2, 2.4), new THREE.MeshStandardMaterial({ color: 0x8a7458, roughness: 0.85 })); plank.position.set(135, 1.3, 20); scene.add(plank); }
+
+// ---- the eye: an orbit round a point, three presets ---------------------------------------------
+const EYE = { tx: 60, ty: 0, tz: 20, yaw: -0.9, pitch: -0.12, dist: 14 };
+const eyeSet = (tx, ty, tz, yaw, pitch, dist) => Object.assign(EYE, { tx, ty, tz, yaw, pitch, dist });
+function placeCamera() {
+  const cp = Math.cos(EYE.pitch), x = EYE.tx + EYE.dist * cp * Math.sin(EYE.yaw), z = EYE.tz + EYE.dist * cp * Math.cos(EYE.yaw), y = Math.max(0.6, EYE.ty - EYE.dist * Math.sin(EYE.pitch));
+  camera.position.set(x, y, z); camera.lookAt(EYE.tx, EYE.ty, EYE.tz);
+}
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: EYE.yaw, pitch: EYE.pitch }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (!drag) return; EYE.yaw = drag.yaw - (e.clientX - drag.x) * 0.005; EYE.pitch = Math.max(-1.5, Math.min(0.3, drag.pitch + (e.clientY - drag.y) * 0.005)); });
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('wheel', e => { EYE.dist = Math.max(1.5, Math.min(3000, EYE.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: true });
+
+// ---- the panel -----------------------------------------------------------------------------------
+P.appendChild(h3('the eye'));
+{ const row = $('div', { class: 'row' });
+  for (const [t, f] of [['dock 2 m', () => eyeSet(100, 0, 20, -1.2, -0.06, 12)], ['deck 12 m', () => eyeSet(0, 0, 0, -0.9, -0.15, 30)], ['air 120 m', () => eyeSet(-100, 0, 0, -0.9, -0.55, 200)], ['down 300 m', () => eyeSet(-150, 0, 0, -0.9, -1.45, 300)], ['the lake', () => eyeSet(260, 2, -120, 0.6, -0.5, 70)]]) { const b = $('button', { text: t }); b.onclick = f; row.appendChild(b); }
+  P.appendChild(row); P.appendChild(note('drag to orbit, wheel to close in')); }
+P.appendChild(h3('the sea state (the world\'s own trains)'));
+const seaRows = [];
+const setSea = o => { const S = world.sea; world.setSea({ A: o.A != null ? o.A : S.A, L: o.L != null ? o.L : S.L, dir: o.dir != null ? o.dir : S.dir }); WATER.setSea(world.sea); };
+seaRows.push(P.appendChild(slider('swell A (m)', 0, 1.5, 0.05, () => world.sea.A, v => setSea({ A: v }))));
+seaRows.push(P.appendChild(slider('wavelength L (m)', 3, 60, 1, () => world.sea.L, v => setSea({ L: v }), v => v + ' m')));
+seaRows.push(P.appendChild(slider('direction', -3.14, 3.14, 0.05, () => world.sea.dir, v => setSea({ dir: v }), v => (v * 57.3).toFixed(0) + '°')));
+P.appendChild(note('SEA.W: the swell and a 40 % chop 35° off it at half the length - what the floats feel and what the shader draws'));
+P.appendChild(h3('the wind (the ripples, the roughness)'));
+P.appendChild(slider('U10 (m/s)', 0, 20, 0.5, () => WATER.uniforms.uWWind.value.x, v => WATER.setWind(v, world.sea.dir), v => v + ' m/s'));
+P.appendChild(slider('ripple strength', 0, 2, 0.05, () => WATER.S.detailK, v => { WATER.set({ detailK: v }); WATER.setWind(WATER.uniforms.uWWind.value.x, world.sea.dir); }));
+P.appendChild(slider('ripple tile (m)', 1, 8, 0.1, () => WATER.S.detailL[0], v => WATER.set({ detailL: [v, WATER.S.detailL[1]] }), v => v.toFixed(1) + ' m'));
+P.appendChild(slider('fine tile (m)', 0.3, 3, 0.05, () => WATER.S.detailL[1], v => WATER.set({ detailL: [WATER.S.detailL[0], v] }), v => v.toFixed(2) + ' m'));
+P.appendChild(h3('the material'));
+P.appendChild(select('tier', [['full', 'full'], ['simple', 'simple']], () => WATER.S.tier, v => WATER.set({ tier: v })));
+P.appendChild(select('roughness law', [['1', 'slope variance (Bruneton)'], ['0', 'off']], () => WATER.S.sigma ? '1' : '0', v => WATER.set({ sigma: v === '1' })));
+P.appendChild(select('lifted near sea', [['1', 'on'], ['0', 'off']], () => WATER.S.displace ? '1' : '0', v => WATER.set({ displace: v === '1' })));
+P.appendChild(select('ripples', [['1', 'on'], ['0', 'off']], () => WATER.S.detail ? '1' : '0', v => WATER.set({ detail: v === '1' })));
+P.appendChild(select('foam', [['1', 'on'], ['0', 'off']], () => WATER.S.foam ? '1' : '0', v => WATER.set({ foam: v === '1' })));
+P.appendChild(slider('swell shading', 0, 1.5, 0.05, () => WATER.PRESETS.sea.wave, v => WATER.set({ presets: { sea: { wave: v } } })));
+P.appendChild(slider('crest foam at', 0.2, 2, 0.02, () => WATER.PRESETS.sea.foam, v => WATER.set({ presets: { sea: { foam: v } } })));
+P.appendChild(slider('shore fade (m)', 0.5, 12, 0.5, () => WATER.S.shoreFade, v => WATER.set({ shoreFade: v }), v => v + ' m'));
+P.appendChild(slider('fold Q', 0, 1.2, 0.05, () => WATER.S.foldQ, v => WATER.set({ foldQ: v })));
+P.appendChild(h3('the bodies\' colours (linear)'));
+const hex = c => '#' + c.map(v => Math.round(Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2) * 255).toString(16).padStart(2, '0')).join('');
+const unhex = h => [1, 3, 5].map(i => Math.pow(parseInt(h.slice(i, i + 2), 16) / 255, 2.2));
+for (const body of ['sea', 'lake']) {
+  for (const k of ['sct', 'abs']) {
+    const row = $('div', { class: 'row' }), l = $('label', { text: body + ' ' + (k === 'sct' ? 'colour at depth' : 'absorption') }), i = $('input', { type: 'color', value: hex(WATER.PRESETS[body][k]) });
+    i.oninput = () => WATER.set({ presets: { [body]: { [k]: unhex(i.value) } } }); row.append(l, i); P.appendChild(row);
+  }
+  P.appendChild(slider(body + ' opacity /m', 0.05, 2, 0.05, () => WATER.PRESETS[body].opa, v => WATER.set({ presets: { [body]: { opa: v } } })));
+}
+P.appendChild(h3('the views'));
+P.appendChild(select('debug view', [['0', 'the water'], ['1', 'normal'], ['2', 'roughness'], ['3', 'slope variance'], ['4', 'depth'], ['5', 'foam'], ['6', 'alpha'], ['7', 'body'], ['8', 'height']], () => String(WATER.S.dbg), v => WATER.set({ dbg: +v })));
+P.appendChild(select('interaction slot', [['0', 'empty'], ['1', 'the test V at the origin']], () => WATER.uniforms.uWInterBox.value.w > 0.5 ? '1' : '0', v => { if (v === '1') WATER.setInteraction(WATER.paintTestV(THREE, 128, 80), -40, -40, 80); else WATER.setInteraction(null); }));
+P.appendChild(note('the test V: a painted Kelvin wake (RG slope, B foam) in the world-locked box H7 will write live'));
+P.appendChild(h3('parity'));
+{ const b = $('button', { text: 'the GPU\'s height against waterH' }), out = note('');
+  b.onclick = () => { const r = parity(); out.textContent = `max |GPU - gerstnerJS| = ${(r.max * 1000).toFixed(2)} mm over ${r.n} points at t = ${r.t.toFixed(1)} s (a float target)`; };
+  P.appendChild($('div', { class: 'row' })).appendChild(b); P.appendChild(out); }
+
+// THE PARITY: the height debug view (8: h * 0.5 + 0.5) drawn from straight above into a float target over
+// the near patch, read back, decoded and held against world.waterH at the same t (the shader's clock)
+function parity() {
+  const N = 128, rt = new THREE.WebGLRenderTarget(N, N, { type: THREE.FloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+  const half = 150, oc = new THREE.OrthographicCamera(-half, half, half, -half, 1, 500); oc.position.set(0, 200, 0); oc.up.set(0, 0, -1); oc.lookAt(0, 0, 0);
+  // (the debug view is the shader's last word - after the tone map, after the colour space - so the
+  // renderer's own settings stay as they are: a toneMapping change would re-key every program)
+  const dbg = WATER.S.dbg; WATER.set({ dbg: 8 });
+  const t = WATER.time();
+  renderer.setRenderTarget(rt); renderer.render(scene, oc); renderer.setRenderTarget(null);
+  const buf = new Float32Array(N * N * 4); renderer.readRenderTargetPixels(rt, 0, 0, N, N, buf);
+  WATER.set({ dbg });
+  let max = 0, n = 0;
+  for (let j = 8; j < N - 8; j += 3) for (let i = 8; i < N - 8; i += 3) {
+    const x = -half + (i + 0.5) / N * 2 * half, z = half - (j + 0.5) / N * 2 * half;   // the read-back's row 0 is the bottom (south, +z)
+    const v = buf[(j * N + i) * 4]; if (!(v > 0.0 && v < 1.0)) continue;
+    // the reference is the module's JS mirror of the shipped GLSL (the tank is not the world: waterH here is
+    // the analytic world's land); GATE WATER holds that mirror against waterH itself
+    const h = (v - 0.5) * 2, ref = WATER.gerstnerJS(x, z, t, world.sea.W);
+    const d = Math.abs(h - ref); if (d > max) max = d; n++;
+  }
+  rt.dispose();
+  return { max, n, t };
+}
+
+// ---- the frame ------------------------------------------------------------------------------------
+WATER.set({ timer: true });
+let last = performance.now(), fr = [];
+function frame() {
+  const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+  fr.push(now); while (fr.length > 60) fr.shift();
+  const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  // the clock is the bench's own (no solver here): frame() free-runs
+  WATER.frame(dt);
+  // the near patch follows the eye's target, snapped to its grid; the far plane is cut out of its box
+  const step = SEAW / SEAN, ox = Math.round(EYE.tx / step) * step, oz = Math.round(EYE.tz / step) * step;
+  const wavy = world.sea.A > 0 && WATER.S.displace;
+  near.position.set(ox, 0, oz); near.visible = wavy; WATER.setNear(ox, oz, SEAW / 2 + 1, wavy);
+  placeCamera();
+  renderer.render(scene, camera);
+  const fps = fr.length > 1 ? (fr.length - 1) / ((fr[fr.length - 1] - fr[0]) / 1000) : 0;
+  STAT.innerHTML = `<b>${fps.toFixed(0)} fps</b>  water draws <b>${WATER.stats.gpuMs.toFixed(3)} ms</b> GPU (${WATER.stats.draws})\nt ${WATER.time().toFixed(1)} s · trains ${WATER.trains.length} · tier ${WATER.S.tier} · wind ${WATER.uniforms.uWWind.value.x} m/s`;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

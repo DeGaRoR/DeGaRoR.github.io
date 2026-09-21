@@ -60,7 +60,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   })()`);
   const r = JSON.parse(out);
   console.log('MAX_TEXTURE_IMAGE_UNITS', r.MAXU);
-  for (const row of r.rows) if (ALL || row.samplers >= 8 || /ground|ring|patch|lake|Ground|Ring/.test(row.mesh + row.name)) console.log(`${String(row.samplers).padStart(2)}  ${row.mesh.padEnd(28)} ${row.name.padEnd(22)} ${row.list.join(' ')}`);
+  for (const row of r.rows) if (ALL || row.samplers >= 8 || /ground|ring|patch|lake|water|Ground|Ring/.test(row.mesh + row.name)) console.log(`${String(row.samplers).padStart(2)}  ${row.mesh.padEnd(28)} ${row.name.padEnd(22)} ${row.list.join(' ')}`);
   ws.close(); ch.kill(); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
   process.exit(0);
 })().catch(e => { console.error('sampler_census: ' + e.message); ch.kill(); process.exit(1); });

@@ -387,6 +387,30 @@
     Ew.appendChild(slider('swell (m)', 0, 1.5, 0.05, () => wsea() && wsea().sea ? wsea().sea.A : NaN, v => { const w = wsea(); if (w && w.setSea) w.setSea({ A: v, L: w.sea.L || 12, dir: w.sea.dir || 0 }); }));
     Ew.appendChild(slider('wavelength', 3, 60, 1, () => wsea() && wsea().sea ? wsea().sea.L : NaN, v => { const w = wsea(); if (w && w.setSea) w.setSea({ A: w.sea.A, L: v, dir: w.sea.dir || 0 }); }, v => v + ' m'));
     Ew.appendChild(note('the sea follows the wind through the DAY (setWeather); these override it until the next wind'));
+    // THE WATER SHADER'S DIALS (H6, G460): the tier, the wind the ripples and the roughness read, the
+    // bands' switches, the presets' colours, the debug views and a test texture in the interaction slot
+    const WT = () => W.WATER || null;
+    const Ewt = fold(E, 'the water shader', false, true);
+    Ewt.appendChild(select('tier', [['full', 'full (ripples, lifted near sea, foam)'], ['simple', 'simple (the swell’s shading, the glitter)']], () => WT() ? WT().S.tier : 'full', v => WT() && WT().set({ tier: v })));
+    Ewt.appendChild(slider('wind (ripples, glitter)', 0, 20, 0.5, () => WT() && WT().uniforms ? WT().uniforms.uWWind.value.x : NaN, v => WT() && WT().setWind(v, WT().uniforms ? Math.atan2(WT().uniforms.uWDir.value.y, WT().uniforms.uWDir.value.x) : 0), v => v + ' m/s'));
+    Ewt.appendChild(slider('ripple strength', 0, 2, 0.05, () => WT() ? WT().S.detailK : NaN, v => { const w = WT(); if (w) { w.set({ detailK: v }); w.setWind(w.uniforms.uWWind.value.x, Math.atan2(w.uniforms.uWDir.value.y, w.uniforms.uWDir.value.x)); } }));
+    Ewt.appendChild(slider('ripple tile (m)', 1, 8, 0.1, () => WT() ? WT().S.detailL[0] : NaN, v => WT() && WT().set({ detailL: [v, WT().S.detailL[1]] }), v => v.toFixed(1) + ' m'));
+    Ewt.appendChild(slider('swell shading', 0, 1.5, 0.05, () => WT() ? WT().PRESETS.sea.wave : NaN, v => WT() && WT().set({ presets: { sea: { wave: v } } })));
+    Ewt.appendChild(slider('shore fade (m)', 0.5, 12, 0.5, () => WT() ? WT().S.shoreFade : NaN, v => WT() && WT().set({ shoreFade: v }), v => v + ' m'));
+    Ewt.appendChild(slider('crest foam at', 0.2, 2, 0.02, () => WT() ? WT().PRESETS.sea.foam : NaN, v => WT() && WT().set({ presets: { sea: { foam: v } } })));
+    Ewt.appendChild(select('roughness law', [['1', 'slope variance (Bruneton)'], ['0', 'off (the material’s own)']], () => WT() && WT().S.sigma ? '1' : '0', v => WT() && WT().set({ sigma: v === '1' })));
+    Ewt.appendChild(select('lifted near sea', [['1', 'on (the swell in the vertices)'], ['0', 'off (flat, shaded)']], () => WT() && WT().S.displace ? '1' : '0', v => WT() && WT().set({ displace: v === '1' })));
+    Ewt.appendChild(select('debug view', [['0', 'the water'], ['1', 'normal'], ['2', 'roughness'], ['3', 'slope variance'], ['4', 'depth'], ['5', 'foam'], ['6', 'alpha'], ['7', 'body'], ['8', 'height']], () => String(WT() ? WT().S.dbg : 0), v => WT() && WT().set({ dbg: +v })));
+    // THE INTERACTION SLOT'S TEST TEXTURE: a painted V of ripples (the shape H7 will write live) under
+    // the aeroplane, the box snapped to whole metres so it does not swim with the CG
+    Ewt.appendChild(select('interaction slot', [['0', 'empty'], ['1', 'a test V under the aeroplane']], () => (WT() && WT().uniforms && WT().uniforms.uWInterBox.value.w > 0.5) ? '1' : '0', v => {
+      const w = WT(); if (!w || !W.THREE) return;
+      if (v !== '1') { w.setInteraction(null); return; }
+      const size = 80, t = w.paintTestV(W.THREE, 128, size);
+      const cg = (W.FLIGHT_PROBE && W.FLIGHT_PROBE.sim) ? W.FLIGHT_PROBE.sim().cgPos() : [0, 0, 0];
+      w.setInteraction(t, Math.round(cg[0]) - size / 2, Math.round(cg[2]) - size / 2, size);
+    }));
+    Ewt.appendChild(note('one material for every water (water.js): SEA.W in GLSL (the parity is GATE WATER’s), a ripple tile on the wind, the sub-pixel slope variance as roughness; ?water=0 for the stock A/B'));
     // ---- FRAME, CAMERA -------------------------------------------------------
     const F = fold(root, 'frame', false);
     F.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['off', 'off (4x MSAA)']],

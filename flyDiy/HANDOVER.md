@@ -157,6 +157,16 @@ before every battery so stale hand-edits get overwritten, loudly.
 - `tools/make_perf.js` — RETIRED with the fleet (G184). The garage build's
   performance sheet is `genShakedown` (the plaque) and `gen_ap_probe.js` is the
   garage's autopilot instrument.
+- `src/viewer/water.js` — THE WATER (H6, G460): the one material every water
+  takes (the sea, the near patch, the island's lakes, the analytic world's
+  rivers and cells, the premises sheet) — MeshPhysicalMaterial ior 1.333 +
+  ONE hook, three bands in one normal (the felt band = SEA.W in GLSL from a
+  uniform array, the detail tile, the sub-pixel slope variance as roughness),
+  the column's colour off the coast/lake fields, the shore fade, the foam, the
+  interaction slot. The body is a vertex attribute (aWater), the presets are
+  uniform rows. `gerstnerFromGLSL` transpiles the shipped Gerstner string into
+  the JS the buoys, the bench and GATE WATER read. `_water_check.js` is its
+  gate; `tools/cloud_shot.js` with a sea-state JS is its camera.
 - `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
   GL draw counters, before/after against the previous commit's viewer, and
   handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
@@ -301,6 +311,16 @@ asserts every POWERPLANTS row declares an `aspiration`, so a new registry row
 cannot quietly default an electric motor into lapsing like a piston. Section 9
 covers the surface layer, INCLUDING that a wind with no `refH` is still a
 uniform column.
+
+GATE WATER (G460, core, ~2 s) holds what a headless node can hold about the
+water shader: the PARITY of the felt band — the Gerstner GLSL water.js ships,
+transpiled to JS by the module itself, against `world.waterH(x, z, t)` at 3000
+points and t up to 1e5 s (1e-11 m); the hook's rules (one hook, ATMO.inject
+first, nothing interpolated, 8 trains, three samplers); render_world.js off
+the CPU patch, the far plane at the level, the solver's clock; the σ² law
+monotone and inside Cox-Munk; the tile periodic, zero-mean, deterministic.
+What it cannot hold is the picture: that is `tools/cloud_shot.js` over the
+east coast (see G460).
 
 GATE HOTHIGH (appended G72, full tier) is the same air with an aeroplane in
 it, which is a different claim: that the model REACHES the wing and the
@@ -53275,3 +53295,316 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
 - SEEN: screenshots/clouds-2026-09-20/ui/horizon_night.png - the approach eye at night, dusk,
   golden and afternoon after the fix, and the field from 600 m by day (unchanged); the table
   rows before and after in this entry.
+
+## G460 — THE WATER SHADER, H6 (2026-09-21, the user: "water shader: we need a good, professional-
+## looking one, and one that will accept to react to external solicitations; wakes, ripples,
+## splashes"; "the same shader for all water with different parameters for lake?"; "beautiful and
+## not too taxing on performance"; "start by doing a web research on the state of the art, and
+## devise an approach that will allow evolution")
+
+THE RESEARCH (the plan file carries the sources): every credible system - Sea of Thieves, MSFS,
+Crest/UE Water, Triton, Proland, the 2026 three.js kits (Tidewater, clean-room-fft-ocean, Water
+Free) - is ONE architecture: a wave field (GPU displacement + normal + foam from a JONSWAP spectrum
+through 2-4 FFT cascades) and a surface shader (Fresnel, sky reflection, depth absorption, Jacobian
+crest foam, shore foam); a lake, a river, a pool are the SAME shader retuned (Tidewater's 13 presets).
+The one technique that matters for a FLIGHT game is Bruneton 2010 (Proland): the water is seen from
+1 m to the horizon, and a wave must be geometry at 1 m, a normal at 200 m and ROUGHNESS at 2 km or
+it shimmers - the flight-sim sparkle; the waves finer than the pixel fold into a slope variance
+sigma^2 read off the screen-space footprint, fed to a Cox-Munk BRDF. Interaction (wakes, ripples,
+splashes) is a world-locked float heightfield objects stamp into, sampled by the same shader.
+THE USER'S THREE RULINGS on the day: (1) the WAVE MODEL IS NOT TOUCHED until the water physics'
+performance report - SEA.W's two trains stay, ruling (aq) Gerstner-not-FFT stands, the detail is
+scrolling tiles, FFT is a SLOT; (2) INTERACTION IS A SAMPLER INPUT (setInteraction) - the field
+that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no depth buffer.
+
+- src/viewer/water.js (new, 35 KB): ONE MeshPhysicalMaterial (ior 1.333 = F0 0.02, the water's own
+  Fresnel; transparent + depthWrite, the lake quads' proven path; DoubleSide) + ONE module-level
+  hook through ATMO's accessor: the probe, the AP, the mist, the cloud shadow, the near shadow and
+  the log depth all come through three's chunks (the AEROSKIN rule). THREE BANDS, ONE NORMAL:
+  1. THE FELT BAND - SEA.W evaluated in GLSL from uWTrA[8]/uWTrD[8] (A, k, phase | dx, dz, Q):
+     the height in the vertex shader (the near patch only), the analytic slopes and the fold (a
+     VIRTUAL Gerstner Q for the crest mask - waterH has no horizontal term, so neither has the
+     mesh) per fragment. The phase reaches the GPU REDUCED - mod(om t - ph, 2 pi) per train in
+     double - so float32 never sees an 8000 rad argument (t = 1 h at om 2.3): parity at any sim time.
+  2. THE DETAIL BAND - detailNormal(xz): one tile (baked at boot on the CPU, 256^2, deterministic:
+     96 cosines with INTEGER wave numbers - periodic by construction - on a peaked k^-3 spectrum
+     with a +-75 deg cos^2 spread; RG = slope, B = crests, A = noise), read twice (3.2 m and
+     0.75 m, the second in a frame turned 0.65 rad so they never line up), each scrolled along the
+     wind at its own phase speed sqrt(g L / 2 pi); the strength is the wind's (0.12 at calm, 1 by
+     8 m/s); each tile fades where it is under ~3 pixels a length. THE FFT PLUGS IN HERE: a cascade
+     sets uWDetail to its output and uWDetailK.x to its patch length, no GLSL changes.
+  3. THE SUB-PIXEL BAND - wSigma2(footprint): Cox-Munk's total 0.003 + 0.00512 U10, the equilibrium
+     tail's constant variance per octave, the unresolved fraction from ln(kMax/kc)/ln(kMax/kMin)
+     with kc = pi / footprint (dFdx/dFdy of the world xz) -> three's own per-pixel ROUGHNESS
+     (pow(2 sigma^2, 0.25): Beckmann to GGX), so the GGX sun and the PMREM sky do the BRDF. At
+     7 m/s: roughness 0.06 at the dock, 0.53 at the horizon. The felt band's slopes fade into it
+     where a wavelength is under ~6 pixels. Foam pushes the roughness to 0.9.
+  THE COLOUR: the column d off the fields - the sea 5 + 9 smoothstep(-sd/500) (28_island.js's
+  shelf) capped by a 0.35 beach slope so the line is 0 deep, a lake 0.6 x its field to 6 m - then
+  sct (1 - exp(-2 abs d)) (1 - F(NoV)), the alpha the shore's fade (3 m of the coast field; the
+  lake's own -3..1) times the column's opacity 1 - exp(-opa d). The IBL normal is bent so the
+  reflected ray never looks under the horizon (the probe's lower half is the olive ground cap).
+  FOUR BODIES by a vertex attribute aWater = (body, wavy) - sea 0 / lake 1 / river 2 / premises 3 -
+  each a preset row (abs, opa, sct, wave, detail, foam, depth) in uniforms: nothing per body in
+  the GLSL, ONE program. The interaction slot: setInteraction(tex, x0, z0, size), RG slope B foam,
+  added inside its box. Debug views uWDbg 1-8 (normal, roughness, sigma^2, depth, foam, alpha,
+  body, height) at the shader's tail, raw. Tiers: `simple` (bands 1+3, no displacement, no tile,
+  no foam) and `full`; S.on the dev kill switch; ?water=0 the stock material for an A/B.
+- THE CLOCK WAS NOT SHARED (found in the reading, ruling ap not honoured): the solver's simT was a
+  closure-private let, render_world.js accumulated its own seaT 1/60 a frame, pause or not - the
+  hull was pushed by one wave and drawn in another. 30_solver.js publishes `get t()`; app.js hands
+  sim.t to WATER.setTime after every step; the buoys and the patch read WATER.time(); frame()
+  free-runs only when nobody spoke (the bench, a DEVCAM before the roll-out).
+- render_world.js: waterMat = WATER.make(THREE) (the stock material without the module: the
+  WORLDRENDER stub, an old page); the far plane's GEOMETRY turned (rotateX) so the displacement's
+  y is up, and AT THE LEVEL (the -0.4 shore seam of G396.2 retired: the shore is the field's fade
+  now); the near patch 4 m wider than its box, lifted by the SHADER (the CPU loop of 9 409 waterH
+  calls + computeVertexNormals a frame gone), its displacement fading to nothing over its last
+  40 m, the far plane cut out of its box (uWNear) - shown only with a sea state on the full tier
+  (flat it would fight the plane it is coplanar with); the lake quads on the one material as body
+  1 (the G413 hook is the no-shader path); the proc rivers (2) and cells (1) by vertex count;
+  the fields handed over at the ground block (setSDF), the wind at setWindVis; `renderOrder -10`
+  pins the far plane first among the transparents. render_premises.js: the editor's sheet is body
+  3 when the page carries water.js (_premises.html does now). build.js: water.js before
+  render_world.js. _media_check.js: the budget 7.4 -> 7.5 MiB (35 KB of code, no media).
+- THE PICTURE (screenshots/water-g440/, tools/cloud_shot.js on dev.html?world=jolene, the aeroplane
+  at 3000,40,0 over the east coast, a sea state of A 0.35 L 14 and 7 m/s set by the shot's JS):
+  w_low.png (4 m over the water) - wind ripples over the swell, the sun's glitter to the right,
+  the sky's reflection to the horizon; graze.png / mid.png (calm) - a glassy sea with the cloud
+  shadows on it; shoreC.png (6 m at the line) - the water lapping over the shingle, the beach
+  showing through the shallows; lakeH.png - a lake from 400 m, its edge the field's fade;
+  bird2.png - the island from 9 km. THE HONEST PICTURE OF TWO TRAINS: w_mid.png / w_edge.png -
+  from 30-120 m the swell (14 m) and its 35-degree chop (7 m) interfere as a CHECKERBOARD, which
+  is exactly SEA.W drawn with its true slopes (the stock material's CPU patch showed the same
+  interference as facets, ab_low.png). Not a shader defect: the spectrum fit (8 trains in the
+  array, JONSWAP with fetch and depth) waits on the physics' performance report by the user's
+  ruling. PRESETS.sea.wave scales the felt band's shading if a judgement wants it softer.
+- RIG TRAPS: (1) the roll-out overlay's "compiling the world" step never completes under the
+  headless rig on this worktree (the same with ?water=0 - not the water's): the shot's JS clicks
+  CONTINUE ANYWAY; (2) the Browser pane has NO WebGL context (every render is the rig's); (3) a
+  fresh headless profile re-decimates the parked aeroplanes every boot (~80 s): --boot 60000, and
+  many shots per boot; (4) DEV_CAM has no collision - an eye under the terrain shows its underside.
+- SEEN, NOT MINE: the far terrain LOD's seabed paint (islandGroundHook, sd < 0 -> the water colour)
+  rises above the line as CYAN cliffs and beach triangles where a coarse cell straddles the coast
+  (ab_low.png with ?water=0 shows them the same); a height gate on that paint is the ground's fix.
+- GATE WATER born (core, ~2 s): the parity 1.45e-11 m over 3000 points at t <= 1e5 s; the rules;
+  the laws; the tile. GATES run: WATER, WORLDRENDER, HYDRODYN, HYDRO, FLOATS, LIGHT, GFX, MEDIA green.
+- OWED: the crest foam judged with a real sea state (the fold's threshold is a guess at 0.62); the
+  lake's colour judged at eye level (a grey sheet from 75 m today); the far terrain's seabed paint
+  (the ground's). The bench, the rig, the rows and the numbers are G460.1's.
+
+## G460.1 — THE WATER'S BENCH, ITS CAMERA, ITS ROWS AND ITS NUMBERS (2026-09-21)
+
+- tools/_water.html (new): THE BENCH - the one material in a tank of its own: a coast painted into
+  a signed-distance field (the line at x = 150 with a sine, a lake disc on the land), the island's
+  own shelf under the sea, a beach, the real world's trains (flight_core's makeWorld / setSea), a
+  sun and a gradient-sky PMREM; five eyes (dock 2 m, deck 12 m, air 120 m, down 300 m, the lake),
+  drag to orbit; the sea state, the wind, the tier, every band's switch, the presets' colours, the
+  debug views, the interaction slot with the test V, and THE PARITY BUTTON: the height debug view
+  (8) drawn from straight above into a float target, read back and held against the module's JS
+  mirror - 1.4 mm max over 1444 points (float32's own grain at k x ~ 70 rad; GATE WATER holds the
+  mirror against waterH to 1e-11). No ATMO on the page: the hook's inject is guarded, the sky a
+  plain gradient. The frame line carries the water's own GPU ms.
+- tools/water_shot.js (new): THE CAMERA WITH MEASURES - cloud_shot's rig with CONTINUE ANYWAY
+  pressed, the aeroplane over the east coast, a sea state set by the rig; the default set is
+  measured (a PNG + a JSON line each) and --gate is a verdict: down (300 m) darker than graze
+  (Fresnel); the sun's lobe a bright band toward the sun (row max/median 1.31 > 1.25) and the
+  water under it brighter than away from it (117 vs 107 - three's GGX at F0 0.02 makes a glint of
+  the sky's own order at 45 deg, so the bound is modest); the roughness view inside [0.05, 1]
+  (no NaN: 0.14 .. 0.79); the shore's alpha a ramp over the water's pixels (285 px, no step over
+  160); the lake not the sea's colour. --perf: the queries round the water's own draws
+  (WATER.watch on the far plane and the patch; a frame's sum published when every query of that
+  frame is back - the first cut summed whatever came back and read 3 ms): AT 1080p, FULL TIER:
+  0.37 ms over open sea from 300 m, 0.16 ms at 12 m, 0.22 ms over the coast at 120 m; simple
+  0.29 / 0.17 / 0.21 - a third of the 1.0 ms budget. (The rig's whole-frame medians are 60-90 ms
+  and noisy - the headless machine's, not a number.) The first cut's "streak" measure (column
+  max/median) was ill-posed at a 46-degree sun - the glitter covers the frame at graze; the
+  glitter's DIRECTION at 45 deg from 300 m is the measure that holds.
+- gfx_settings.js: the `water` row (simple / full) in every preset (low: simple); live.
+  dev_panel.js: `the water shader` fold under the sea - tier, wind, ripple strength and tile,
+  swell shading, shore fade, crest foam, the roughness law, the lifted near sea, the debug view,
+  the interaction slot's test V under the aeroplane (WATER.paintTestV: a Kelvin V of 1.2 m ripples
+  and foam astern, the box snapped to whole metres). water.js: paintTestV, watch/stats (the GPU
+  timer), `on` and `timer` in set(). _premises.html carries water.js (the editor's sheet is body
+  3). sampler_census.js filters `water`: the water program 8 of 16 (uWSdf, uWDetail, uWInter,
+  envMap, uApAtlas, dfgLUT, two shadow maps).
+- THE SLOT PROVEN IN THE GAME (slotV.png): the painted V astern of the aeroplane over the sea at
+  22 m - the foam and the ripples read by the shader inside its box. (A first frame missed the V:
+  it was 2.2 m wide at 128 texels over 80 m; the bold half-blue texture proved the path, the V is
+  4 m wide now.)
+- THE BATTERY (core, --jobs=6, 12 min wall): 84 green; four red - AERO, ENERGY (the peers' reds
+  since G416: the aerodrome checks, require('zlib') in 19_terrain_codec.js), WORLD (golden trees
+  hash, default==seed0) and PREMISES (5b, the heights outside the extent) - ALL FOUR IDENTICAL on a
+  clean export of HEAD (git archive, built, the two gates run there): none of them this arc's.
+  Every gate that reads this work is green: WATER, WORLDRENDER, GFX, MEDIA, LIGHT, UISMOKE, CLOUD,
+  ATMO, HYDRODYN, HYDRO, FLOATS, SEAPLANE not run (full tier).
+- futureDesigns/WATER-SHADER-2026-09-21.md (new): the as-built and the evolution map - the
+  spectrum fit (retires the checkerboard, no shader change), the FFT slot, H7's field contract,
+  the near-ring clipmap, the depth-buffer refinement, underwater, the ground's seabed paint.
+
+## G460.2 — THE LATTICE BROKEN, THE CYAN CLIFFS GONE (2026-09-21, the user: "the tiling is really
+## obvious, it looks like a sea with bands and a matrix"; "a lot of blue going onto the sea-side
+## cliffs - issues with tessellating terrain?")
+
+- STOCHASTIC TILING for the ripple band (water.js wTile): a periodic tile read straight repeats every
+  L metres and the eye finds the lattice at once. Heitz & Neyret's hex tiling now: a lattice of
+  hexagonal cells 1.4 L wide, each reading the tile at its own random offset and angle (a 2D hash),
+  a point blending the three cells round it by its barycentric weights normalised by their length
+  (a zero-mean slope keeps its variance; a plain lerp would flatten the seams). The tile's drift
+  runs under the still cells. Three taps a tile (six in all). AND CAT'S PAWS: the ripples' strength
+  wanders with a slow field (the tile's own noise at 45 m, x0.55..1.45) - the dark and bright patches
+  a gusty day shows. g2/w_low.png: the lattice is gone. Cost re-measured (water_shot --perf, 1080p,
+  full): 0.47 ms over open sea from 300 m (was 0.37), 0.22 at 12 m, 0.28 over the coast. What remains
+  banded from 30-300 m is the TWO TRAINS (g2/w_edge.png) - the model; see G460's entry.
+- THE CYAN CLIFFS WERE THE GROUND'S SEABED PAINT, gated by the field alone (islandGroundHook,
+  `sd < 0.0`): the far LOD's coarse faces run from a shelf vertex at -5 m to a hill vertex 50 m
+  inland, and their sea-side half - sd < 0 by the fine coast field, yet metres up the slope by the
+  mesh - was painted the seabed's cyan ABOVE the water. The user's guess (the terrain's
+  tessellation against the field) was exactly it. The paint is gated on the fragment's own height
+  too (`vWPi.y < 0.6`); the coast reads as grey rock now (g2/w_low.png, g2/w_edge.png).
+- THE IMPOSTORS "dark and thin" in every picture of this arc: the fix (0b276cfc, "THE IMPOSTORS
+  WERE BLACK SKELETONS - a bake before its maps", labelled G437 - a G-NUMBER COLLISION with master's
+  G437 "screens & flow") sits on branch claude/flydiy-vegetation-impostors-50f2d6 and has NOT
+  landed on master; this worktree branched from 565393b2 without it, and the headless rig's fresh
+  profile re-bakes the impostors on every boot - the very race that fix addresses.
+
+## G460.3 — THE SEA IS A SPECTRUM: 32 TRAINS (2026-09-21, the user: "your waves keep being a clearly
+## visible grid with repetition, so the texture tiling does not cut it alone"; "look at the state of
+## the art for that issue, which seems like a super classical one")
+
+- THE CLASSICAL ONE: a sum of a few cosines is periodic by construction - one swell cosine lays
+  parallel ridges across the whole sea and a handful of fixed chop trains weave over it, whatever the
+  shading (g3/w_down.png, g3/coast300.png). The literature's answer for a Gerstner sea (Tessendorf's
+  summed sinusoids, Crest's batched Gerstner) is dozens of components DRAWN FROM THE SPECTRUM: near-
+  peak components a little apart in wavelength beat into wave GROUPS, a directional spread breaks the
+  crests short. 20_world.js seaFrom makes 32 now: a SWELL BAND of 8 (0.78..1.28 L, +-18 deg, JONSWAP-
+  shaped weights) and a WIND SEA of 24 (L/1.4 .. L/7 geometric, +-50 deg with a cos^2 weight,
+  equilibrium amplitudes A_i ~ L_i), each band normalised to the variance the old two trains carried
+  (A^2/2 and (0.4 A)^2/2: a slider's A means what it meant, the floats feel the same energy;
+  measured 0.0522 = 0.0522), directions and phases from a seeded generator (a day is the same day
+  twice). setSea({ n: 2 }) is the old pair. THE WAVE MODEL CHANGED under the user's earlier "wait for
+  the physics report" - so the report came first: waterH 0.88 us (2 trains) -> 1.66 (8) -> 4.1 (32)
+  a call; the hydro calls it ~8 times a float a substep (the chine, keel and stern edges - not per
+  panel), ~130 a frame with two floats at sub-rate 8: HALF A MILLISECOND. HYDRO, HYDRODYN, FLOATS,
+  WIPLINE green on the eight-train sea; re-run on 32 below.
+- water.js: the uniform arrays hold 32 (uWTrA/uWTrD[32], the GLSL loops and the transpiler's table
+  follow); each train's slope fades where ITS OWN wavelength is under ~6 pixels (fp k / 2 pi over
+  0.15..0.5) - the short wind sea is roughness (wSigma2) from a few hundred metres, the swell from a
+  few kilometres. GATE WATER's parity walks the 32 (1.2e-11 m). GPU cost (water_shot --perf, 1080p,
+  full): 0.62 ms over open sea from 300 m (0.47 with 8), 0.28 at 12 m, 0.36 over the coast - 32
+  sin+cos a pixel is the difference; still under the 1.0 ms budget.
+- THE PICTURES (g4/): 4 m, 14 m, 30 m, 120 m, 300 m down, the coast from 300 m, 1000 m down - wave
+  groups, short crests, no lattice at any height. The rig's fresh preset (g3/fresh_*.png) proved the
+  chain the user asked about: selCond 'fresh' -> setWeather -> setWind -> seaFrom (6 m/s: A 0.24 m,
+  L 11.4 m) -> the floats and the shader alike, and WATER.setWind 6.03 through setWindVis, no override.
+- THE FFT QUESTION, answered by this: the spectrum is now in the world data, where ruling (ap) wants
+  it; an FFT would only make the same spectrum cheaper per pixel and denser (hundreds of components)
+  at the price of a CPU mirror for the floats. It stays the slot in detailNormal.
+
+## G460.4 — THE SEAM, THE SPREAD, THE LAKE (2026-09-21, the user: "a clear seam in your screenshot,
+## which is unacceptable"; "weave patterns still show through"; "I'd also like to see the calm water
+## and the lake water")
+
+- THE SEAM WAS THE CLOUD SHADOW TILE'S WRAP LINE, not the water's: the debug views showed it absent
+  from the water's normal and roughness, and it went with CLOUDS.S.mode = 'off'. The weather map
+  tiles over its 40 km span, but the decks' noise period (the type's, and the 700 m detail) did not
+  divide the span, so the shadow tile's two edges disagreed and its wrap - it drifts with the clouds,
+  so it crosses anywhere - was a step in the transmittance on every lit surface, the sea most
+  visibly (a straight line across the sea from 1000 m, g5/seam.png). clouds.js: both periods rounded
+  to divide the span (span / round(span / period), under 1 % from the values asked for); GATE CLOUD's
+  rule follows. g6/seam.png: the same spot, no line.
+- THE WEAVE: the wind sea's spread was a flat +-50 deg, so its long components crossed at wide angles
+  and wove. Hasselmann's spread narrows toward the peak: +-12 deg for the longest wind-sea component,
+  +-55 deg for the shortest (20_world.js seaFrom). From altitude the sea reads as lines with groups,
+  up close the chop stays short-crested (g7/: 1000, 300, 120, 30, 4 m).
+- THE LAKE was a grey sheet with a cyan ring: the muskeg preset too transparent at the edge over the
+  ground's lake-bed paint, which was a saturated light blue (0.05, 0.17, 0.24 under the colour
+  ruling). The bed is dark peat now (0.045, 0.055, 0.035); the lake preset darker (sct 0.018/0.040/
+  0.034), opaque within a metre (opa 1.6), its column 1.2 m per metre of field to 8 m, its edge fade
+  centred on the line (-2..2). g8/: eye level in 2 m/s, 60 m, 200 m down, eye level in 6 m/s.
+- CALM (g5/calm_*.png): the day's own 'calm' preset, no override - glassy, the sky and the clouds'
+  shadows in it, the shore through the shallows. The chain the user asked about, proven in the game:
+  selCond -> setWeather -> setWind -> seaFrom -> the floats and the shader; WATER.setWind through
+  setWindVis.
+- GATE SEAPLANE (full, 30 min) READS RED - NOT THE TRAINS': the crosswind take-off water-loops (the
+  run 746 m off the lane, the heading through 180 deg, never off the water) IDENTICALLY on the old
+  two trains (SEA_TRAINS=2 node tools/_seaplane_check.js - the env A/B added to the gate: 779 m,
+  180.0 deg, the same three checks); the circuit and the taxi pass on both. The floats session
+  reports the same water-loop on master's core (a G445 mass shift) and has since landed G451/G451.1
+  (the hydro sub-rate, the chine-ventilation air law) at e433d31c: re-judge on the tip after the
+  rebase. HYDRO, HYDRODYN, FLOATS, WORLDRENDER, WATER, CLOUD green on the 32 trains here.
+
+## G460.5 — THE LOOK: THE BODY IS NOT A LAMBERT SURFACE, THE SHALLOWS, WHITECAPS, THE LAP (2026-09-21, the
+## user: "it looks very matte blue. Or the reflections?"; "manage the coastline by tracing some ground-under-
+## the-water thing"; "maybe some slight foam in the sea"; "do the analysis yourself")
+
+- THE MATTE WAS THE DIFFUSE TERM ON THE WAVE NORMAL: three's RE_Direct_Physical lights the material's
+  diffuse by dot(N, L) on the normal it is given - the wave's - so every ridge was a painted stripe and
+  the sea read as a matte relief, the reflection fighting it. The colour of water is light scattered
+  INSIDE it: it depends on the sun over the flat sea, not on the local slope. water.js zeroes the
+  material's diffuse (lights_physical_fragment; the GGX specular and the IBL keep the wave normal) and
+  adds the column colour lit by the UP normal - each directional light's colour (its shadow and the
+  cloud's already in it) x saturate(up . L) x Lambert, spliced after RE_Direct in the (already CLOUDS-
+  and SHADOW_NEAR-patched) lights_fragment_begin, and the ambient + sky irradiance after the loop. The
+  waves now live only in the reflection and the glitter: g9/w_300.png against g7/w_300.png. Cost: none
+  measurable (an A/B on the bench with the three splices cut out: 0.78 vs 0.82 ms).
+- THE SHALLOWS: the ground's seabed paint KEEPS the beach's own texture for the first 60 m out (a mix
+  toward the seabed colour over 0..60 m of the coast field instead of a replacement at the line), and
+  the water's visual column is a 1:12 beach off the line (0.08 m a metre, capped by the island's shelf)
+  instead of 1:3 - the sand shows through a turquoise fringe 40-60 m wide, the deep is deep
+  (g10/coast300.png, shore60, shore6; calm_coast300). The physics' shelf (-5 m at the line) is untouched:
+  what shows through is the shelf's mesh with the sand's paint on it.
+- WHITECAPS BY THE WIND (Monahan & O'Muircheartaigh: cover 3.84e-6 U10^3.41 - 7 m/s 3 %, 10 m/s 10 %,
+  under 4 m/s none): the fold (the virtual Gerstner Q x sum A k cos) in units of its own RMS - 32 trains
+  with random phases add as sqrt(N), so the norm is Q sqrt(sum (A k)^2 / 2), NOT the sum (the first cut
+  normalised by the sum and never broke) - thresholded at the Gaussian quantile of the cover
+  (0.85 sqrt(-2 ln c) - 0.35: 3 % -> 1.9 sigma, 10 % -> 1.5), the tile's crest pattern tearing the patch:
+  the fraction of the sea in foam IS the cover. g11/w10_*.png (10 m/s, A 0.5 m): scattered caps at 4,
+  30, 120, 300 m; g11/w7_*: a few. A lake's row (foam 2) never breaks.
+- THE SHORE'S LAP: the coast field is a 30 m texel, so a foam band read straight off it is a staircase
+  of bilinear patches (g9/shore60.png - blocky white plates, and on the beach: foam was max'd into the
+  alpha, so it painted the land). Now: foam x the shore alpha (on the water only), a wide faint wash
+  (0.55 over the last 14 m) torn by a 7 m noise and the swell's height at the line - never a white line.
+- COST, HONESTLY: water_shot --perf at 300 m straight down over open sea reads 1.2-2.0 ms now (0.62 at
+  G460.3) and --ab (new: the water's ms by switch) shows it is the COMMON path, not a band - simple 1.15,
+  nofoam 1.77, nodetail 1.55: the rig's numbers at that eye are noisy (its frame is 80-90 ms; the GPU is
+  shared with the overlay's compile that never completes) and every pixel of a full-screen sea runs 32
+  trains (64 transcendentals). 12 m and the coast are 0.3-0.4 ms, as before. A train whose footprint fade
+  is 0 now costs no sin/cos (`continue`) - the short trains drop out first with distance. THE LEVER IF
+  1.0 ms MUST HOLD at that eye: draw the fragment's normal from the 16 longest trains and let the detail
+  tile + sigma^2 carry the 16 shortest (L 1.7-3.4 m, A 1-2 cm - inside the tile's own band; the vertex
+  displacement and the physics keep all 32) - a rendering LOD of centimetres, the user's call; or the
+  FFT slot.
+- water_shot.js: --ab. The measures green but the shore ramp (the alpha view across the coast now ramps
+  over the shallows' 60 m, wider than the rig's rows read - the measure needs the new geometry).
+
+## G460.6 — THE FELT BAND: THE FLOATS RIDE THE SWELL, THE WIND SEA IS A SLOPE (2026-09-21, at the
+## landing)
+
+- Rebased onto master 1f07bfcc (G438.2 after G458): the peers' hydro (G451/G451.1: the forces held every
+  8th substep, the chine's air law) landed under the 32-train sea, and GATE SEAPLANE's crosswind take-off
+  WATER-LOOPED on it (the heading through 180 deg, 338 m off the lane, never off the water) where the
+  same core on the old two trains passes clean (7.4 m, 19.7 deg, away at 7.7 s). Bisected on the train
+  count (SEA_TRAINS=n, the env A/B in _seaplane_check.js) - 8, 16 and 32 fail alike - then on the FELT
+  BAND (SEA_FELT=f): the hull felt the 24-train wind sea (short-crested, spread across the wind) and
+  looped; felt the swell band alone (the 8 trains 0.78..1.28 L) it rides clean (away at 9.1 s, 21.7 m off,
+  2 skips); felt nothing, cleaner still. The halved amplitude law made no difference: it is the wind
+  sea's SHAPE under that hydro, not the height. So: seaFrom marks every train `felt: L_i >= 0.75 L`
+  (the swell band, 8 of 32); waterH sums the felt trains (the floats' surface, ~1 us a call); the
+  vertex displacement follows waterH exactly (uWTrD[i].w, `continue` in the felt loop); the fragment's
+  slopes take all 32 - the wind sea is drawn as a slope only, like the ripple tile the user's first
+  ruling made visual-only. Ruling (ap) holds for the hull: it sits in the wave it is drawn in; the wind
+  sea lifts nothing. Not the physics session's to fix tonight - the crosswind run on a short-crested
+  sea is a hydro/pilot calibration owed to the floats track (SEA_FELT=0.45 reproduces the loop).
+- THE WIND -> SEA LAW recalibrated on the way (setWind): 0.018 m of amplitude per m/s (H_s 0.26 m at
+  5 m/s, 0.5 at 10 - the SMB fetch-limited sea of a 10 km sound); G393's 0.04 put a 0.57 m significant
+  sea under a 5 m/s breeze, and with a real spectrum (groups at twice the single amplitude) that read
+  as Beaufort 4 on a "breeze" day.
+- AND THE SWELL IS LONG-CRESTED: felt alone, the swell band at +-18 deg still swung the heading 47 deg
+  (bound 30) - a component 18 deg off the beam puts crests at an angle across the run. A swell IS narrow
+  (Hasselmann s ~ 10 at the peak): +-9 deg now, the wind sea carries the spread. GATE SEAPLANE: PASS -
+  away at 7.8 s, 10.2 m off the lane, 27.6 deg of swing, the taxi 9.7 deg / 1.5 m. GATE WATER holds the
+  band (8 felt / 24 slope, waterH != the sum of all, the two-train sea felt whole); the parity 1.2e-11 m.
+- THE NUMBER: G440.x -> G459.x -> G460.x at the landing (A6's G440 had taken the number on master; G459
+  went to the wing-end-faces session during the rebase). tools/_media_check.js: the budget 7.95 -> 8.0
+  (water.js 45 KB of code, the LF build 7.87 MiB).

@@ -391,7 +391,11 @@ function make(THREE, scene, world, rec0, opts) {
     if (!isFinite(wy)) return;
     const g2 = new THREE.PlaneGeometry(W * 1.6, H * 1.6);
     g2.rotateX(-Math.PI / 2);
-    water = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ color: 0x1f3a48, roughness: 0.32, metalness: 0, transparent: true, opacity: 0.86 }));
+    // G460: the one water material (body 3, the premises row: glassy, its own depth) when the
+    // page carries it; the editor's own sheet otherwise
+    const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial) ? WATER : null;
+    water = new THREE.Mesh(WSH ? WSH.tag(THREE, g2, 3, false) : g2,
+      WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({ color: 0x1f3a48, roughness: 0.32, metalness: 0, transparent: true, opacity: 0.86 }));
     water.position.set((bounds.x0 + bounds.x1) / 2, wy, (bounds.z0 + bounds.z1) / 2);
     water.receiveShadow = true; water.name = 'water';
     G.water.add(water);

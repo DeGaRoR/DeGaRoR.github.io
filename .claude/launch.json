@@ -680,6 +680,18 @@
         "8437"
       ],
       "port": 8437
+    },
+    {
+      "name": "flydiy-water",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8480",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8480
     }
   ]
 }

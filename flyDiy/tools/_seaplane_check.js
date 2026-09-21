@@ -37,6 +37,7 @@ const def = C.buildGen(C.genMigrateSpec(spec));
 function fly(o) {
   const world = C.makeWorld();
   if (o.wind) world.setWind({ base: o.wind, gust: 0 });
+  if (process.env.SEA_TRAINS) world.setSea({ A: world.sea.A, L: world.sea.L, dir: world.sea.dir, n: +process.env.SEA_TRAINS });   // an A/B on the sea's train count (G460.3)
   const sea = world.aerodromes.find(a => a.id === 'SEA');
   const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
   const ap = C.makePilot(sim, def, world); ap.setRoute(sea, sea);

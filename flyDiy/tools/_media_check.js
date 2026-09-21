@@ -91,7 +91,10 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              every rung's part records, the file's materials once, the biome
 //              table) plus 28c_biomes.js (4 KB) + cover_ring.js - measured +0.19 MiB.
 //              Nothing heavy: 9.9 MB of geometry and 29 MB of maps are refs in media/.
-const BUDGET_MIB = 7.95;
+//   7.95 -> 8.0 (G460, 2026-09-21): THE WATER SHADER is code - src/viewer/water.js
+//              (45 KB: the GLSL of the three bands, the presets, the tile bake, the JS
+//              mirror of the felt band). No media: the detail tile is baked at boot.
+const BUDGET_MIB = 8.0;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

@@ -651,11 +651,16 @@ var CLOUDS = (function () {
       if (world && typeof world.wind === 'function') { const w = world.wind(0, l.base, 0, 0); if (w) { wx = w[0] * 1.5; wz = w[2] * 1.5; } }
       winds[i][0] = wx; winds[i][1] = wz;
       drifts[i][0] = wx * secs * S.driftK; drifts[i][1] = wz * secs * S.driftK;
-      LA[o] = l.base; LA[o + 1] = l.thick; LA[o + 2] = l.cover > 0.003 ? 1 : 0; LA[o + 3] = S.period > 0 ? S.period : T.period;
+      // THE NOISE PERIOD DIVIDES THE SPAN (G460.4, the user: "a clear seam" - a straight line across the sea
+      // from 1000 m): the weather map tiles over the span, but the deck's noise did not, so the shadow tile's
+      // two edges disagreed and its wrap line (it drifts with the clouds - it crosses anywhere) was a step in
+      // the transmittance. span / round(span / period) is under 1 % from the period asked for.
+      const per = q => map.span / Math.max(1, Math.round(map.span / q));
+      LA[o] = l.base; LA[o + 1] = l.thick; LA[o + 2] = l.cover > 0.003 ? 1 : 0; LA[o + 3] = per(S.period > 0 ? S.period : T.period);
       PA[o] = T.bot; PA[o + 1] = T.top; PA[o + 2] = T.erode * S.erodeK; PA[o + 3] = S.calCover ? coverGain[i] : S.covGain;
       DA[o] = drifts[i][0]; DA[o + 1] = drifts[i][1]; DA[o + 2] = 0; DA[o + 3] = 0;
     }
-    U.uGlob.value.set(S.sigma, map.span, S.detailPeriod, L.length);
+    U.uGlob.value.set(S.sigma, map.span, map.span / Math.max(1, Math.round(map.span / S.detailPeriod)), L.length);   // the detail's period divides the span too
     // the clock's seconds for the drift: the day's UT seconds plus a per-date offset (97 days' worth wraps) - a
     // small number, so the noise coordinates keep their precision (a 5e7 m drift left 4 m of float, and the
     // 11 m detail jittered); continuous through a day, a jump at the date's roll

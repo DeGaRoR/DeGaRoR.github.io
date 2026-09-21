@@ -1531,6 +1531,9 @@ function makeSim(def, world) {
   // autopilot's taxi feedforward, the shakedown's weights). Same number as
   // ever for anything that never changes mass; nothing writes it.
   const sim = { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+           // THE CLOCK, READABLE (G460, ruling ap): the wave the floats are pushed by is
+           // waterH(x, z, simT) - the renderer draws the same wave at the same t
+           get t() { return simT; },
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY,

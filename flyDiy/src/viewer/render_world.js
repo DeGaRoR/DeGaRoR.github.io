@@ -995,6 +995,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
       });
       GROUND.on = true;
+      if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
@@ -1095,12 +1096,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")
-            '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.05, 0.17, 0.24), smoothstep(-1.0, 3.0, lsd));\n' +
+            // (G460.4: the bed is dark peat, not a pale blue - a muskeg lake's edge is a dark rim under
+            // the water's fade, and the blue bed had read as a cyan ring round every lake from the air)
+            '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.045, 0.055, 0.035), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
             '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SPL ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
-            // straddles the shore never shows a seabed above the water plane
-            '  if (sd < 0.0) t = mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd));\n' +
+            // straddles the shore never shows a seabed above the water plane.
+            // AND ONLY BELOW IT (G460.2, the user: "a lot of blue going onto the sea-side cliffs"): the far
+            // LOD's coarse faces run from a shelf vertex at -5 m to a hill vertex 50 m inland, and their
+            // sea-side half - sd < 0 by the fine field, yet 10 m up the slope by the mesh - was painted
+            // cyan above the water: the paint is gated on the fragment's own height as well
+            // (G460.5, the user: "manage the coastline by tracing some ground-under-the-water thing": the bed
+            // KEEPS the beach's own texture for the first 60 m out - the shallows show sand through the water's
+            // column - and darkens into the seabed's colour beyond; the water shader's column opacity (its own
+            // 1:12 beach ramp) is what makes it turquoise)
+            '  if (sd < 0.0 && vWPi.y < 0.6) t = mix(t, mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd)), smoothstep(0.0, 60.0, -sd));\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
             '  if (uGMode == 1) t = texture2D(uGTint, guv).rgb;\n' +
@@ -1401,15 +1412,31 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       strip(OV, -OV, BX1, OV, 78, 84);
     }
 
-    const waterMat = new THREE.MeshStandardMaterial({
+    // THE WATER SHADER (H6, G460): src/viewer/water.js is the one material every
+    // water takes - the felt band (SEA.W) in GLSL, a detail tile, the sub-pixel
+    // slope variance as roughness, the column's colour from the coast and lake
+    // fields, the shore's fade, the foam, the interaction slot. Without it (the
+    // WORLDRENDER stub, an old page) the stock material stands as it did.
+    // ?water=0: the stock material, for an A/B (the perf rig's, the eye's)
+    const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial && !(typeof location !== 'undefined' && /[?&]water=0/.test(location.search))) ? WATER : null;
+    const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
+    const wtag = (g, body, wavy) => WSH ? WSH.tag(THREE, g, body, wavy) : g;
     // INFINITE WATER ON AN ISLAND (G402, the user): the plane ran to the domain's
     // edge and the dome's ground showed past it as another sea. 400 km is the
     // horizon from any height this game flies; the logarithmic depth buffer
-    // does not mind the size
+    // does not mind the size.
+    // ONE LEVEL (G460): the far plane sat 0.4 m under the true level (the shore
+    // seam, G396.2) - the shader fades the shore off the coast field now, so the
+    // plane is AT the level, and the near patch's box is cut out of it (uWNear)
+    // where the displaced patch dips into its troughs. The geometry is turned,
+    // not the mesh: the displacement is along the model's y, which must be up.
     const WSZ = world.island ? 400000 : SIZE;
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(WSZ, WSZ), waterMat);
-    water.rotation.x = -Math.PI / 2; water.position.set((BX0 + BX1) / 2, -0.4, (BZ0 + BZ1) / 2);
+    const farGeo = new THREE.PlaneGeometry(WSZ, WSZ); farGeo.rotateX(-Math.PI / 2);
+    const water = new THREE.Mesh(wtag(farGeo, 0, false), waterMat);
+    water.position.set((BX0 + BX1) / 2, WSH ? 0.0 : -0.4, (BZ0 + BZ1) / 2);
+    water.renderOrder = -10;   // the first transparent drawn, whatever its bounding sphere says from far offshore
+    if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
     // carve-out): a 360 m patch of the sea around the aeroplane, its
@@ -1418,11 +1445,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // wave it is drawn in. Shown only with a sea state (the flat far sea
     // stays as it was, 0.4 m under the true level, on a calm day); the
     // patch is snapped to its own grid step so it does not swim.
+    // G460: the patch's vertices are lifted by the SHADER now (the same trains,
+    // the solver's clock) - the CPU loop of 9 409 waterH calls and a normal
+    // recompute a frame is gone; the patch keeps its grid, its snap and its rule
+    // (shown only with a sea state, only on the sea).
     const SEAN = 96, SEAW = 360;
-    const seaGeo = new THREE.PlaneGeometry(SEAW, SEAW, SEAN, SEAN);
+    // (G460: 4 m wider than its box - the far plane is cut out to the box and the patch's last
+    // metres, flat by then, lap over the cut so no pixel row is drawn twice or not at all)
+    const seaGeo = new THREE.PlaneGeometry(SEAW + (WSH ? 4 : 0), SEAW + (WSH ? 4 : 0), SEAN, SEAN);
     seaGeo.rotateX(-Math.PI / 2);
-    const seaNear = new THREE.Mesh(seaGeo, waterMat);
+    const seaNear = new THREE.Mesh(wtag(seaGeo, 0, true), waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
+    if (WSH) WSH.watch(seaNear, renderer);
     scene.add(seaNear);
     // THE SEA LANE IS MARKED (G396.2; the user: "we need to visualize the
     // limits and the touchdown points"). Buoys on the water: orange every
@@ -1447,29 +1481,37 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (a.tdz) for (const w of [-hw, -hw * 0.5, hw * 0.5, hw]) { const dx = a.tdz[0] - a.x, dz = a.tdz[1] - a.z; const st = dx * ca + dz * sa; const [tx, tz] = along(st, w); put(tx, tz, 0x35c46a, 1.6); }
       }
     }
+    // THE CLOCK IS THE SOLVER'S (G460, ruling ap honoured): app.js hands sim.t
+    // to WATER.setTime every step; the free-running 1/60 accumulator that drew
+    // the hull a frame away from the wave that pushed it is gone. Without the
+    // shader (the stub) the old accumulator stands in.
     let seaT = 0;
+    const seaTime = () => WSH ? WSH.time() : seaT;
     function seaUpdate(cx, cz, dt) {
       const S = world.sea;
-      seaT += dt;
+      if (WSH) { WSH.frame(dt); if (WSH.seaChanged(S)) WSH.setSea(S); } else seaT += dt;
+      const t = seaTime();
       // the buoys ride the wave (and mark the level on a calm day)
-      for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, seaT) : 0) + 0.15; }
+      for (const b of buoys) { if (Math.abs(b.position.x - cx) > 900 || Math.abs(b.position.z - cz) > 900) continue; b.position.y = (S && S.A > 0 ? world.waterH(b.position.x, b.position.z, t) : 0) + 0.15; }
       // THE NEAR SEA IS AT THE TRUE LEVEL, WAVES OR NOT (G396.2; the user:
-      // "it's important that we get the water line right"): the far flat
-      // sea sits 0.4 m under it (the shore seam), so on a calm day the
-      // floats read 0.4 m too high against the water they were drawn on.
-      // The patch stays around the aeroplane, flat at 0 in calm, displaced
-      // by the wave otherwise.
-      if (world.waterH(cx, cz) !== 0) { seaNear.visible = false; return; }
+      // "it's important that we get the water line right"). With the shader
+      // the far plane is at the level too, so the patch is shown only when it
+      // is displaced (a sea state, the full tier) and the far plane is cut out
+      // under it; flat, it would fight the plane it is coplanar with.
+      const waves = !!(S && S.A > 0);
+      if (world.waterH(cx, cz) !== 0 || (WSH && !(waves && WSH.S.displace))) { seaNear.visible = false; if (WSH) WSH.setNear(0, 0, 0, false); return; }
       const step = SEAW / SEAN;
       const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
       seaNear.position.set(ox, 0.0, oz);
-      const pa = seaGeo.attributes.position;
-      const waves = !!(S && S.A > 0);
-      if (waves || seaNear.userData.wavy !== false) {
-        for (let i = 0; i < pa.count; i++) pa.setY(i, waves ? world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, seaT) : 0);
-        pa.needsUpdate = true;
-        seaGeo.computeVertexNormals();
-        seaNear.userData.wavy = waves;
+      if (WSH) WSH.setNear(ox, oz, SEAW / 2 + 1, true);
+      else {
+        const pa = seaGeo.attributes.position;
+        if (waves || seaNear.userData.wavy !== false) {
+          for (let i = 0; i < pa.count; i++) pa.setY(i, waves ? world.waterH(pa.getX(i) + ox, pa.getZ(i) + oz, t) : 0);
+          pa.needsUpdate = true;
+          seaGeo.computeVertexNormals();
+          seaNear.userData.wavy = waves;
+        }
       }
       seaNear.visible = true;
     }
@@ -1562,8 +1604,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // THE EDGE IS THE FIELD'S FADE (G413): the surface's alpha rises over 4 m of
         // the signed distance (-3 m on the bank to +1 m in), not a hard discard at
         // the line - one tone, one outline, the bank showing through the shallows
-        const lakeMat = waterMat.clone(); lakeMat.transparent = true; lakeMat.depthWrite = true;
-        lakeMat.onBeforeCompile = sh => {
+        // G460: with the shader the lake is body 1 of the ONE material (its edge, its colour
+        // and its depth read the same field there); the hook below is the pre-shader path
+        const lakeMat = WSH ? waterMat : waterMat.clone();
+        if (!WSH) { lakeMat.transparent = true; lakeMat.depthWrite = true; }
+        if (!WSH) lakeMat.onBeforeCompile = sh => {
           if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
           sh.uniforms.uGPackA = gU.uGPackA; sh.uniforms.uGGrid = gU.uGGrid;
           sh.vertexShader = sh.vertexShader
@@ -1591,11 +1636,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (L.level <= 0.2 || L.cells < 3) continue;
           if (isSea(L)) { seaSkipped++; continue; }
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
-          const m = new THREE.Mesh(g, lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
+          const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
           m.receiveShadow = true; scene.add(m); n++;
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
       }
+      const riverVerts = pos.length / 3;   // G460: the ribbons before this count are rivers (body 2), the cells after are lakes (body 1)
       const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
       for (const [lx, lz, ws, mask] of world.hydro.lakeSurf) {
         const y = ws - 0.15;
@@ -1609,6 +1655,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       wg.setIndex(idx);
       wg.computeVertexNormals();
+      if (WSH) { const nv = pos.length / 3, aw = new Float32Array(nv * 2); for (let i = 0; i < nv; i++) aw[i * 2] = i < riverVerts ? 2 : 1; wg.setAttribute('aWater', new THREE.Float32BufferAttribute(aw, 2)); }
       const wm = new THREE.Mesh(wg, waterMat);
       wm.receiveShadow = true;
       scene.add(wm);
@@ -4140,6 +4187,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const _sd = new THREE.Vector3(), _su = new THREE.Vector3(0, 1, 0), _sm = new THREE.Vector3();
   function setWindVis(base) {
     const mag = base ? Math.hypot(base[0], base[2]) : 0;
+    if (typeof WATER !== 'undefined' && WATER.setWind) WATER.setWind(mag, base ? Math.atan2(base[2], base[0]) : 0);   // G460: the detail band and the slope variance are the wind's
     for (const s of socks) {
       if (mag < 0.3) _sd.set(0.30, -0.92, 0.18).normalize();
       else {

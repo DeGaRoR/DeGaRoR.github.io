@@ -8976,6 +8976,7 @@
         if (perfNow() - t2 > 20) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
       }
       director.frame();
+      if (window.WATER && WATER.setTime) WATER.setTime(sim.t);   // G460: the water is drawn at the solver's own time
       if (CK) CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
