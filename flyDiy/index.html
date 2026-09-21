@@ -35772,7 +35772,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='142aa579c553'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='6eb3e37421d6'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -54724,12 +54724,18 @@ function buildPedals(g, A, P, sx) {
     // fairlead on the boards 30 cm ahead (drawn still — the eye moves a
     // centimetre at full rudder; the other end is what keeps a real one
     // taut)
+    // ON THE KEEL AT ITS OWN STATION (A7, 2026-09-21, the user of Screenshot
+    // 2026-09-17 190717: "a control poking through under the cowl"). The
+    // fairlead sat at the PEDALS' floor height 24 cm ahead - where a short
+    // nose's belly has already risen, so the block and the cable's end hung
+    // in the air under the skin ahead of the nosewheel. The keel line is
+    // A.floorAt(z); the block sits on it at its own station.
     const cb = K.Bag(), fl = K.Bag();
-    const zC = zA + 0.24;
-    const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yF + 0.010, zC];
+    const zC = zA + 0.24, yC = A.floorAt(zC);
+    const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
     K.tube(cb, e0, e1, 0.0015, 6);
-    K.boxIn(fl, [xp, yF + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
-    K.bolt(pl0, [xp, yF + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
+    K.boxIn(fl, [xp, yC + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
+    K.bolt(pl0, [xp, yC + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
     cb.mesh(g, M.frame); fl.mesh(g, M.cast);
   }
   pl0.mesh(g, M.plated);
@@ -63917,31 +63923,43 @@ function pianoHinge(bF, bM, F, S, len) {
   for (let i = 0; i < kn; i++) {
     const zc = -len * 0.5 + pitch * (i + 0.5);
     const fixed = (i % 2) === 0;
-    const bag = fixed ? bF : bM, dir = fixed ? -1 : 1;
+    const bag = fixed ? bF : bM;
     // the knuckle: a short barrel on the pin
     revolve(bag, at(F, 0, 0, zc - pitch * 0.40), F.z,
       [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.80],
        [S.pinR * 1.02, pitch * 0.80]], 8, false);
-    // and its leaf, flat on the skin — the MEASURED skin where the layer
-    // offers it (G304; see strapHalf)
+  }
+  // THE LEAVES ARE TWO STRIPS, THE LENGTH OF THE RUN (A7, 2026-09-21, the
+  // user of Screenshots 2026-09-18 191521 and 2026-09-19 162359: "lots of
+  // hinges ... more than required" on the wing, and the fin "never mapped
+  // right" - a column of alternating squares up the rudder line). Each
+  // knuckle used to carry its own leaf, one side or the other, so a run
+  // read as a row of separate plates staggered across the hinge line - a
+  // chequer, not a hinge. A piano hinge's leaves are continuous: one strip
+  // on the fixed skin, one on the moving, the knuckles alternating between
+  // them on the pin. Each strip lies on the MEASURED skin where the layer
+  // offers it (G304; see strapHalf), sampled along the run.
+  const NS = Math.min(9, Math.max(3, kn | 1));
+  for (const dir of [-1, 1]) {
+    const bag = dir < 0 ? bF : bM;
     const hAt = (a, fb) => {
       if (!S.skin) return fb;
       let h = null;
-      for (const dz of [-pitch * 0.4, 0, pitch * 0.4]) {
-        const q = S.skin(a, zc + dz, dir);
+      for (let j = 0; j < NS; j++) {
+        const q = S.skin(a, -len * 0.45 + len * 0.9 * j / (NS - 1), dir);
         if (q != null && (h == null || q > h)) h = q;
       }
       return h == null ? fb : h + t * 0.5 + 0.0008;
     };
     const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
     const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
-    const path = [at(F, 0, S.pinR * 1.2, zc), at(F, a1, h1, zc)];
+    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
     if (S.skin) for (const f of [0.2, 0.4, 0.6, 0.8]) {
       const a = a1 + (a2 - a1) * f;
-      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), zc));
+      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
     }
-    path.push(at(F, a2, h2, zc));
-    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(pitch * 0.86, t, 2), true, F.z);
+    path.push(at(F, a2, h2, 0));
+    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
   }
   tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
 }
@@ -84841,7 +84859,17 @@ PAGE.post = ctx => {
       return { p: V.lerp(a, b, u), ax: V.sub(b, a), face };
     };
     const faces = row.faces || 1;
-    for (const t of ts) {
+    // A PIANO RUN TILES THE SPAN (A7, 2026-09-21, the user of Screenshot
+    // 2026-09-18 193659: "some stick out" - at the stab tips). The runs are
+    // span(1-2i)/n long and were CENTRED on the strap stations, which sit
+    // ON the insets: the outermost run overhung its end by (1-2i)/2n - i of
+    // the span, past the tip whenever n < 7 (8.7 % of the span at n 3 with
+    // the 6 % inset). The runs' centres are the tiles' now - the first
+    // starts at the inset, the last ends at the other - and they abut
+    // instead of overlapping. Straps and doors keep their stations.
+    const tsRun = (fam === 'piano' && s.kind !== 'door')
+      ? ts.map((_, k) => inset + (1 - 2 * inset) * (k + 0.5) / ts.length) : ts;
+    for (const t of tsRun) {
       const { p, ax: axL, face: faceL } = along(t);
       for (let f = 0; f < faces; f++) {
         const F = frameOn(p, axL, s.aft, f ? V.mul(faceL, -1) : faceL);
@@ -84898,7 +84926,16 @@ PAGE.post = ctx => {
                        V.mul(F.x, -0.075));
           pin = V.add(bc, V.mul(V.nrm(V.sub(eye, bc)), 0.075));
         } else if (row.link === 'rod') {
-          pin = HG.at(F, -0.24, S.r * 1.05, 0);
+          // INSIDE THE WING (A7, 2026-09-21, the user of Screenshot 2026-09-17
+          // 195236: "the aileron/flap actuator sticking out of the wing
+          // underside"). F.y is the face's OUTWARD normal - the horn's eye is
+          // at +reach along it, in the air, rightly - and the torque tube's
+          // stub sat at +1.05 r: a nose radius OUTSIDE the lower skin, so the
+          // rod lay along the underside from 240 mm forward of the hinge to
+          // the horn, a stick on the wing. The tube is inside the section,
+          // deeper than the aileron's crank; the rod comes out through the
+          // skin to the horn the way the aileron's does.
+          pin = HG.at(F, -0.24, -S.r * 0.9, 0);
           revolve(bagsF.inner, pin, F.z,
             [[S.linkR * 1.4, 0], [S.linkR * 1.4, S.w * 0.5]], 10, true);
         } else {
