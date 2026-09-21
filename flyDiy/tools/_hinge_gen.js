@@ -200,35 +200,21 @@ function strapHinge(bF, bM, F, S) {
 // run of `n` knuckle pairs over `len` about F.p; the pin is one tube.
 // ---------------------------------------------------------------------------
 function pianoHinge(bF, bM, F, S, len) {
-  // pitch: a real piano hinge's knuckles are ~25 mm, which over a 4 m flap
-  // would be 160 of them and 40 000 triangles for a part 3 mm proud. The
-  // knuckle is drawn at the strap's own width instead — the same READ at any
-  // distance a player looks from, at a tenth of the cost — and `detail`
-  // scales it for anyone who wants the real pitch.
-  const kn = Math.max(2, Math.round(len / Math.max(0.02, S.w * 2.6 / Math.max(0.35, S.detail || 1))));
-  const pitch = len / kn;
-  const r = S.r, t = S.t * 1.6;
+  // AT THE EXTRUSION'S OWN SIZE (A7, 2026-09-21, the user: "not sure about the
+  // huge hinges ... they need to remain quite small"). A piano hinge is an
+  // MS20257-type extrusion: a leaf of 20-25 mm each side of an 8 mm barrel,
+  // knuckles every 25 mm, the whole thing continuous down the hinge line and
+  // near-flush - at two metres it is a thin bright line with a bead on it.
+  // The first cut drew the leaves at the STRAP's reach (r 0.9 + 0.7 reach, up
+  // to 110 mm a side) and, worse, a square leaf per knuckle alternating
+  // sides; the second drew those leaves continuous - 220 mm plates. This is
+  // the real part: two 22 mm strips of the gauge on the measured skin and
+  // one barrel, the knuckles only as shallow grooves in it (a barrel per
+  // knuckle over 4 m of flap is 40 000 triangles for nothing the eye keeps).
+  const leaf = S.leaf || 0.022, rB = S.barrelR || S.pinR * 1.9, t = S.t;
+  const r = S.r;
   const lie = r + t * 0.5 + 0.0008;
-  for (let i = 0; i < kn; i++) {
-    const zc = -len * 0.5 + pitch * (i + 0.5);
-    const fixed = (i % 2) === 0;
-    const bag = fixed ? bF : bM;
-    // the knuckle: a short barrel on the pin
-    revolve(bag, at(F, 0, 0, zc - pitch * 0.40), F.z,
-      [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.80],
-       [S.pinR * 1.02, pitch * 0.80]], 8, false);
-  }
-  // THE LEAVES ARE TWO STRIPS, THE LENGTH OF THE RUN (A7, 2026-09-21, the
-  // user of Screenshots 2026-09-18 191521 and 2026-09-19 162359: "lots of
-  // hinges ... more than required" on the wing, and the fin "never mapped
-  // right" - a column of alternating squares up the rudder line). Each
-  // knuckle used to carry its own leaf, one side or the other, so a run
-  // read as a row of separate plates staggered across the hinge line - a
-  // chequer, not a hinge. A piano hinge's leaves are continuous: one strip
-  // on the fixed skin, one on the moving, the knuckles alternating between
-  // them on the pin. Each strip lies on the MEASURED skin where the layer
-  // offers it (G304; see strapHalf), sampled along the run.
-  const NS = Math.min(9, Math.max(3, kn | 1));
+  const NS = 7;
   for (const dir of [-1, 1]) {
     const bag = dir < 0 ? bF : bM;
     const hAt = (a, fb) => {
@@ -240,17 +226,37 @@ function pianoHinge(bF, bM, F, S, len) {
       }
       return h == null ? fb : h + t * 0.5 + 0.0008;
     };
-    const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
-    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
-    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
-    if (S.skin) for (const f of [0.2, 0.4, 0.6, 0.8]) {
-      const a = a1 + (a2 - a1) * f;
-      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
-    }
+    // the leaf lies from the barrel's edge outward by its own width
+    const a1 = dir * (rB * 1.1), a2 = dir * (rB * 1.1 + leaf);
+    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.92 : 1));
+    const path = [at(F, dir * rB * 0.4, Math.max(h1, rB) * 0.98, 0), at(F, a1, h1, 0)];
+    for (const f of [0.5]) path.push(at(F, (a1 + a2) * 0.5, hAt((a1 + a2) * 0.5, (h1 + h2) * 0.5), 0));
     path.push(at(F, a2, h2, 0));
-    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
+    sweep(bag, path, () => secBlade(len * 0.98, t, 2), true, F.z);
   }
-  tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
+  // the barrel, on the skin line, the knuckles as grooves every 25 mm
+  const hB = Math.max(lie, rB);
+  const c0 = at(F, 0, hB, -len * 0.5), c1 = at(F, 0, hB, len * 0.5);
+  tube(bF, c0, c1, rB, 10);
+  const kn = Math.max(2, Math.round(len / 0.025));
+  for (let i = 1; i < kn; i++) {
+    const z = -len * 0.5 + len * i / kn;
+    revolve(i % 2 ? bM : bF, at(F, 0, hB, z - 0.0008), F.z,
+      [[rB * 0.85, 0], [rB * 1.06, 0], [rB * 1.06, 0.0016], [rB * 0.85, 0.0016]], 8, false);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// THE BRACKET HINGE - the metal surface's (A7, 2026-09-21). A Cessna hangs an
+// aileron on three of these: a short fitting either side of the gap, riveted
+// to the skins, a barrel between; the strap's drawing at a fitting's reach
+// and width (GEN_HINGE.bracketW / bracketReach), so the knee, the eye and
+// the rivets are the strap's - which already follow the measured skin and
+// go round the cove's lip (G304).
+// ---------------------------------------------------------------------------
+function bracketHinge(bF, bM, F, S) {
+  const S2 = Object.assign({}, S, { w: S.bracketW || 0.025, reach: S.bracketReach || 0.035 });
+  strapHinge(bF, bM, F, S2);
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +476,7 @@ function fairlead(bag, p, n, u, S) {
   return g.mouth;
 }
 
-const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge, buttHinge,
+const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge, buttHinge, bracketHinge,
               controlHorn, linkRod, bellcrank, hingeFair, fairlead, fairleadMouth,
               fowlerTrack, fowlerCarriage,
               HINGE_BAGS: ['metal', 'fair'] };

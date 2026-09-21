@@ -70,13 +70,13 @@ const hgDef = {
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges, on the A-pillar edge
 };
-const FAM = ['as built', 'strap', 'piano'];
+const FAM = ['as built', 'strap', 'piano', 'bracket'];
 PAGE.defaults = Object.assign(hgDef, PAGE.defaults || {});
 
 const GROUP = ['13 · control hardware', [
   ['hgOn', 'hinges & horns', 0, 1, 1, ['off', 'on']],
   ['type', [
-    ['hgFamily', 'hinge type', 0, 2, 1, FAM],
+    ['hgFamily', 'hinge type', 0, 3, 1, FAM],
     ['hgCount', 'hinges per surface', 0, 6, 1],
   ], { when: P => +P.hgOn }],
   ['position', [
@@ -638,6 +638,9 @@ PAGE.post = ctx => {
     hornT: HC.hornT * sz, hornReach: Math.max(0.02, +P.hgHornLen || HC.hornReach),
     linkR: HC.linkR * sz, cableR: HC.cableR * sz, fairT: HC.fairT,
     detail,
+    // A7: the bracket's and the piano's own sizes (GEN_HINGE), through the same knob
+    bracketW: (HC.bracketW || 0.025) * sz, bracketReach: (HC.bracketReach || 0.035) * sz,
+    leaf: (HC.pianoLeaf || 0.022) * sz, barrelR: (HC.pianoBarrelR || 0.0042) * sz,
   };
 
   // `inner` is the hardware that lives INSIDE the wing by design — the
@@ -677,6 +680,7 @@ PAGE.post = ctx => {
     const fam = s.kind === 'door' ? 'piano'
               : Math.round(+P.hgFamily || 0) === 1 ? 'strap'
               : Math.round(+P.hgFamily || 0) === 2 ? 'piano'
+              : Math.round(+P.hgFamily || 0) === 3 ? 'bracket'
               : (familyOf ? familyOf(consOf(s.kind)) : 'strap');
     // a door's stations keep clear of its corners (the belly and roof
     // curves the edge turns into): a deeper inset than a surface's
@@ -739,9 +743,11 @@ PAGE.post = ctx => {
           HG.buttHinge(bagsF.metal, bm.metal, F, S,
                        Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length)));
         else if (fam === 'piano')
-          // a surface's piano runs join into one continuous knuckle
+          // a surface's piano runs join into one continuous hinge
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
                         span * (1 - 2 * inset) / Math.max(1, ts.length));
+        else if (fam === 'bracket' && HG.bracketHinge)
+          HG.bracketHinge(bagsF.metal, bm.metal, F, S);   // A7: the metal surface's fitting, three a surface
         else HG.strapHinge(bagsF.metal, bm.metal, F, S);
       }
     }

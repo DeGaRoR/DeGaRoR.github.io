@@ -318,7 +318,7 @@ for (const c of CASES) {
   check(genHingeStations(2, 99).length === GEN_HINGE.nMax,
     'a wild override clamps', String(genHingeStations(2, 99).length));
   // the family discriminates on construction
-  check(genHingeFamily('fabric') === 'strap' && genHingeFamily('alloy') === 'piano',
+  check(genHingeFamily('fabric') === 'strap' && genHingeFamily('alloy') === 'bracket',
     'the hinge family follows the construction',
     genHingeFamily('fabric') + '/' + genHingeFamily('alloy'));
   // every surface in the kit says what it serves and what reaches it

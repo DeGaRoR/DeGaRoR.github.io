@@ -51901,3 +51901,34 @@ prompts). Findings that matter beyond it:
 - The row is claimed by the 'pitch & roll' part (tools/_cage_parts.js), GATE PARTS' rule.
 - GATE PANEL: the hub law + the row + the ring, on the source. PANEL CABIN JOIN DESIGN UISMOKE
   CAGEFIT PARTS SAVE green.
+
+
+## G450 — THE HINGES AT THEIR REAL SIZE AND COUNT (2026-09-21, the user: "not sure about the huge
+## hinges you've drawn ... they need to remain quite small, and not too numerous. Here you have
+## fixed the issue by oversizing them, that's not proper. Determine real world size and counts,
+## then test in the cessna and another plane")
+
+- G447'S CONTINUOUS LEAVES WERE THE WRONG ANSWER: they were drawn at the STRAP's reach (r 0.9 +
+  0.7 x 90 mm a side - up to 110 mm each way) the length of the run - 220 mm plates down every
+  hinge line. Withdrawn.
+- THE REAL PARTS. A Cessna 172 hangs each aileron on THREE hinge brackets, the flaps on three
+  tracks, the elevator and rudder on three: a fitting two fingers wide, mostly inside the gap, a
+  barrel and a bolt showing - 25 x 35 mm of it outside. A fabric aeroplane's strap hinge is what
+  GEN_HINGE already had (30 mm wide, a hand's width of tail). A piano hinge is an MS20257-type
+  extrusion: 20-25 mm of leaf each side of an 8 mm barrel, knuckles every 25 mm, continuous and
+  near-flush - at two metres a thin bright line with a bead on it - and it is the HOMEBUILT's
+  answer, not the Cessna's.
+- SO: genHingeFamily (60_gen_spec.js) hangs alloy / carbon / composite surfaces on the new BRACKET
+  family (GEN_HINGE.bracketW 0.025, bracketReach 0.035 - the strap's drawing at a fitting's size:
+  _hinge_gen.js bracketHinge, so the knee, the eye and the rivets still follow the measured skin
+  and go round the cove lip, G304); fabric stays on straps; the piano is the builder's explicit
+  choice (hgFamily 2; the row gains `bracket` as 3) and is drawn at the extrusion's size
+  (pianoLeaf 0.022, pianoBarrelR 0.0042: two thin strips, one barrel, the knuckles as grooves).
+  The COUNT was right and is unchanged: genHingeCount = ceil(span / 0.9) + 1 in 2..6 - three on a
+  1.6-1.8 m aileron or flap, three on the rudder, as built. G447's tiling of piano runs and the
+  doors' butt hinges stand.
+- TESTED on cessnaFloatsWOrks (alloy: three brackets a flap, three an aileron, three up the
+  rudder, small - scratch shots_a7_br/zoom.png) and on build (4) (steel tube / fabric: straps,
+  three an aileron, two on the fin's rudder - shots_a7_b4/zoom.png). GATE HINGE's family check
+  reads bracket now.
+- GATES: HINGE, CLIP, PARTS, JOIN, FIT, DESIGN, GEN, UISMOKE, MEDIA.
