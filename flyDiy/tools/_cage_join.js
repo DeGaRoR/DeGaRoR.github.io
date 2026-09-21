@@ -1115,7 +1115,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;
         M.tailTop = AF.surf(zPost, Math.PI)[1] - yD;
-      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0)) {
+      } else if (Math.round(+P.boomStyle || 0) === 1 && isFinite(AF.z0) && Math.abs(+P.rodIncl || 0) > 0.05) {
         // G477 (the playtest's 130, the user: "the rod inclination impacts
         // the position of everything related to the tail wheel"): A ROD
         // BOOM HAS A TAIL END TOO. With no tail rings the datum stayed the
@@ -1127,6 +1127,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // in CAGE_MATS): its section a hand inside the tip is the tail
         // datum, inclination and all, and the stab's seat and the
         // tailwheel's leg are measured against it like any lofted tail's.
+        // AN INCLINED ROD ONLY (the same evening): a LEVEL rod keeps the
+        // rule's datum. The floatplane card draws its level boom 0.65 m
+        // above the keel; on the measured datum its tail stood that much
+        // higher, its fin's drawn station was written for the first time
+        // (0.85 m forward of the rule's), and its crosswind water take-off
+        // swung 180 deg and aborted (GATE SEAPLANE). The card is one of the
+        // unvalidated ones and the drawn tail is the honest one - that
+        // fixture is owed a look before the level rod follows the drawing.
         const zTipIn = AF.z0 + Math.min(0.05, 0.25 * Math.max(0.02, AF.z1 - AF.z0));
         const bot = AF.surf(zTipIn, 0), top = AF.surf(zTipIn, Math.PI);
         if (bot && top && isFinite(bot[1]) && isFinite(top[1]) && top[1] > bot[1]) {
@@ -1198,7 +1206,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
       {
         const CE = window.CAGE_ENG;
-        if (CE && Array.isArray(CE.units) && CE.units.length)
+        if (CE && Array.isArray(CE.units) && CE.units.length) {
           M.engUnits = CE.units.map(u =>
             ({ x: zFw - u.at[2], y: u.at[1] - yD, z: u.at[0] }));
           // G477: the propeller's clearance, said where every other fit is
@@ -1207,6 +1215,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (CE.propFitCheck) { try { CE.propFitCheck(); } catch (e) {} }
           for (const u of CE.units) if (u.propFit && !u.propFit.ok)
             ERRS.push('prop: ' + u.propFit.why.join(', '));
+        }
       }
       // G52: the PILLAR PROPORTIONS and the wing's station (user: "the
       // visual fit remains very approximate"). The cabin's x-extent is

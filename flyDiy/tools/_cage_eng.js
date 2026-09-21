@@ -1111,7 +1111,10 @@ PAGE.post = ctx => {
         const x = hx + R * k * Math.cos(th), y = hy + R * k * Math.sin(th), z = hz + dz;
         n++;
         if (inWing(x, y, z)) wingHits++;
-        else if (inBody(x, y, z)) bodyHits++;
+        // the body from 0.6 R out: the innermost ring sits inside the
+        // spinner and the cowl's nose on every tractor by construction (the
+        // stock Cub read 6 hits there, the 172 twelve, all at the hub)
+        else if (k >= 0.6 && inBody(x, y, z)) bodyHits++;
       }
       const why = [];
       if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');

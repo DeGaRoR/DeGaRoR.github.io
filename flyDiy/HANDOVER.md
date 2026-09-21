@@ -54429,3 +54429,66 @@ truss drag, lift split, downwash) was found clean and is unchanged.
   and the reading: mass and balance transfer to the blind Chinook (empty +5 %, margin 9 %),
   the powerplant does not (T0 -21 %, ROC -60 %, TO +133 %) - the 582 row's static thrust is
   the owed number. Published as an artifact for the user the same evening.
+
+## G478 — STOL: THE TAKE-OFF NOTCH, THE WEIGHT A SHEET IS FLOWN AT, THE FINE PROP
+## (2026-09-21, the user: "let's look at our static thrust and climb rate model then, and
+## retest. Indeed, for a game about STOL, our rolling distances and stall speeds are always
+## too high")
+
+- WHAT THE NUMBERS SAID FIRST (tools diag, the four validated builds at MTOW): the prop
+  synthesis puts every build at fm 0.477 x 1.055/blade, so the Chinook's 3-blade IVO on a
+  2.62 reduction read 1191 N standing (its sheet ~1500); its wing (2412, ClMax 1.48) needs
+  CL 2.4 to stall at the sheet's 35 mph AT GROSS and the Jodel's 2.54 - numbers no clean
+  wing has done. The ultralight's sheet is a ONE-UP sheet (209 + pilot + fuel ~ 340 kg): at
+  340 kg the same wing needs 1.7. Every take-off, flown and estimated, was flaps UP against
+  sheets flown with the take-off notch (the 172R's POH roll is at flaps 10).
+- THE TAKE-OFF NOTCH: `GEN_FLAP_TO` 0.25 of the travel (10 deg of 40) is `flaps.to` on
+  every row with a flap (62_gen_aero); the pilot already lowered `to` for the roll and
+  raised it at 2 x hSafe - it was 0; genTORunAt integrates the roll at it and puts the
+  flap back (64_gen_build). Bench at MTOW: 172 299 -> 264 m (POH 288), Jodel 198 -> 183
+  (200), Chinook 142 -> 128; the Cub 108 -> 118 (113) - its roll is bound by the rotation
+  floor, and the notch on a flap a J-3 does not have is drag only.
+- THE WEIGHT A SHEET IS FLOWN AT: `perfKg` on a REAL row (perf_study) loads the build to
+  the sheet's weight for Vs / V75 / ROC / TO / LDG instead of MTOW; the Chinook's 340. THE
+  JODEL'S STALL ROW IS A RULING: 35 mph refused (CL 2.54 at gross), Vs1 65 km/h (the club's
+  60-65), the roll and the climb kept at gross - they are consistent with a 70 km/h stall.
+- THE FINE PROP: the Chinook's prop on 'auto' (it picks `climb` on a 58 km/h stall - a
+  ground-adjustable IVO is set for climb on a STOL ultralight): fm 0.559, 1324 N standing
+  (-11 % of the IVO's claimed figure; the claim is the optimistic one).
+- THE CHINOOK AT ITS SHEET'S WEIGHT, on all three: Vs 58/56 (+3 %), V75 -6, Vmax -8, ROC
+  5.0/6.1 (-17 %), TO 52/61 (-15 %), T0/W 0.40/0.32; L/D 7.7/10 (-23 %) is what is left
+  (CdS 0.93: an open pod with a gear in the wind; the sheet's 10:1 is a brochure's).
+- THE PROP LAW'S SHAPE, recorded not fixed: T = T0 (1 - (V/V0)^2) puts the propulsive peak
+  (75 % of shaft) at V0/sqrt 3 = 218 km/h on the 172 and 58 % at Vy - a real fixed-pitch
+  prop is ~65 % at Vy and ~80 % at cruise; the climb rows run 10-20 % short on every build
+  with a matched engine (172 -11, Jodel -20 on its cruise prop, Chinook -17 one-up) and
+  that is the next thrust item, a gentler exponent or a J-shaped efficiency on the row's rpm.
+- WHY THE FLOWN CHINOOK IS HALF THE BENCH (found flying the circuits; THE PILOT SESSION'S
+  FIRST ITEM, the user: "the pilot will need its own session"): in "level" flight at full
+  throttle the pilot holds 110 km/h with 1070 N where the bench's trim needs 620 N, and the
+  trace shows why - a pitch LIMIT CYCLE, -5.5..+8.5 deg at 1.4 Hz, the elevator swinging
+  -0.13..+0.28, vs +-2 m/s (scratchpad diag_pitch.js: engage PITCH or VS, thr 1, trace at
+  10 Hz). Elevator frozen at its mean: smooth. Gains x0.5, rate filter 0.12 -> 0.5, the
+  slipstream's q on the tail divided out of the servo (tried, reverted): the swing does not
+  move. THE SAME BUILD ON THE STEEL ROW holds 1.7 deg dead steady at 130 km/h. It is the
+  aluminium-tube row's k 0.6 / c 0.7 (G466): the frame flexes at ~1.4 Hz under the
+  elevator, the pilot's rate estimate reads the flex off the node cloud's axes and drives
+  it. Where to look: sense the attitude off the cabin's nodes (not the whole cloud), or
+  the row's c - and the flown TO 101 m / climb 2.5 against the bench's 52 / 5.0 are this,
+  not the thrust.
+- TWO JOIN FIXES from the G477 full tier: the prop check's body test runs from 0.6 R (the
+  hub ring sat inside every tractor's spinner: the stock Cub read 6 hits, the 172 twelve);
+  the rod-boom datum applies to an INCLINED rod only - the floatplane card draws a level
+  boom 0.65 m above the keel, on the measured datum its tail stood that much higher, its
+  fin's drawn station was written for the first time, and its crosswind water take-off
+  swung 180 deg (GATE SEAPLANE). The card is unvalidated and the drawn tail is the honest
+  one; that fixture is owed a look before a level rod follows its drawing. The `CE` guard
+  in the join's measure had lost its braces (a card without an engine layer threw).
+- PILOTMATRIX IS RED ON MASTER ITSELF (700d8f7c): c172:HOME:calm sink 0.95 -> 2.04,
+  cub:HOME-A3:calm 1.49 -> 3.88, bit-identical on master's core and this candidate's
+  (the stock defs differ by `engTilt: [0]` alone). Bisected on the built cores: the 172's
+  is G461's (the neutral point - tailEta 0.9 and the Munk couple: 0.68 m/s on 6038dbb6,
+  the core before it, 2.04 after; the flare has 10 % less elevator and a stabler
+  aeroplane to rotate), the Cub's predates it (3.08 on that core against the G422
+  baseline's 1.49). Both are the pilot session's second item: the 172's flare on the
+  G461 tail is this session's debt.

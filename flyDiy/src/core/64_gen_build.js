@@ -310,6 +310,11 @@ function genTORunAt(sim, def, W) {
   // copy here. Cleared at every exit below, so nothing else this sim measures
   // (Vs, the cruise trim, the climb gradient) sees it.
   if (sim.setGroundRef) sim.setGroundRef(0);
+  // ...AND WITH THE TAKE-OFF NOTCH DOWN (GEN_FLAP_TO): the roll is integrated
+  // in the configuration the pilot flies it in, and put back as it was found
+  // at every exit, like the ground reference.
+  const FS_ = def.params.flaps, flap0 = sim.ctl.flap;
+  if (FS_) sim.ctl.flap = FS_.to ?? 0;
   // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
   // twice over: less thrust to accelerate on, and further to accelerate to.
   let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
@@ -359,6 +364,7 @@ function genTORunAt(sim, def, W) {
   // moving the propeller moved one onto it (151 + 72 = 224). Round once, then
   // sum, so the row on the plaque is arithmetic the player can check.
   if (sim.setGroundRef) sim.setGroundRef(null);
+  sim.ctl.flap = flap0;
   const rollM = Math.round(sRoll), airM = Math.round(air);
   return { TORun: rollM + airM, Vun, sRoll: rollM, air: airM };
 }

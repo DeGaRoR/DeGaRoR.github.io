@@ -1172,7 +1172,7 @@ function genParams(S, fr, strips) {
   if (FL.dCl > 0) {
     const kc = genFlapTau(FREF.chord) / genFlapTau(GEN_FLAP_CREF);
     const dCl0 = FL.dCl * kc;
-    flaps = { to: 0, ldg: 1, rate: FL.rate, dCl0,
+    flaps = { to: GEN_FLAP_TO, ldg: 1, rate: FL.rate, dCl0,
               dCd0: FL.cd * kc, dAStall: 0.02, dCm0: GEN_FLAP_CM * dCl0 };
   }
   const P0 = { polarWing, polarTail, elevTau, ailTau };

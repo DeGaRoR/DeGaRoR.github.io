@@ -1295,6 +1295,21 @@ const GEN_SHAPES = {
 // drift away from the lift it belongs to.
 const GEN_FLAP_CREF = 0.20;   // chord fraction the dCl values are quoted at
 const GEN_FLAP_CM = -0.25;
+// THE TAKE-OFF SETTING (2026-09-21, the user: "for a game about STOL, our
+// rolling distances ... are always too high"). Every take-off flew and was
+// estimated flaps UP (`flaps.to` 0), against sheets whose short-field
+// figures are flown with the take-off notch: the 172R's POH ground roll is
+// at flaps 10 deg, an ultralight's at its flaperons' first stop. One fraction
+// of the travel for every row that has a flap - 10 deg of a 40 deg slotted
+// or plain flap, 9 of the Fowler's 35 - which is the setting the doctrine
+// gives (more lift than drag until ~15 deg; past it the drag wins the roll).
+// The pilot lowers it for the roll and raises it at 2 x hSafe (43_pilot);
+// genTORunAt integrates at it, so the plaque's roll is the roll the pilot
+// flies. Measured on the four validated builds at MTOW: 172 299 -> 264 m
+// (POH 288 at flaps 10), Jodel 198 -> 183, Chinook 142 -> 128; the Cub's
+// own roll is bound by its rotation floor, not its lift, so its notch costs
+// it 9 % in drag - a J-3 has no flap, and a build that gives it one pays.
+const GEN_FLAP_TO = 0.25;
 const GEN_FLAPS = {
   none:    { name: 'None',         dCl: 0,    cd: 0,     rate: 0.20 },
   plain:   { name: 'Plain flap',   dCl: 0.95, cd: 0.055, rate: 0.25 },

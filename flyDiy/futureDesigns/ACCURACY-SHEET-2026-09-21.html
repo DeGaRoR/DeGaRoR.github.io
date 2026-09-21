@@ -124,12 +124,12 @@ footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);font-si
 <header class="hero">
   <div class="stamp"><b>flyDiy</b><span class="eyebrow">accuracy sheet · bench of 21 September 2026</span></div>
   <h1>Four aeroplanes,<br>one physics model</h1>
-  <p class="lede">Every aeroplane in flyDiy is built in the garage from tube, wood, sheet and fabric, then flown by the same solver. Three were used to tune that solver against their published sheets. The fourth, an ultralight, was built afterwards from a three-view and an encyclopaedia entry, and flown without touching a number. This is what the bench says, deviation by deviation.</p>
+  <p class="lede">Every aeroplane in flyDiy is built in the garage from tube, wood, sheet and fabric, then flown by the same solver. Three were used to tune that solver against their published sheets. The fourth, an ultralight, was built afterwards from a three-view and an encyclopaedia entry, and flown without touching a number. This is what the bench says, deviation by deviation — each aeroplane loaded to the weight its own sheet was flown at, every take-off with the notch of flap the sheets assume.</p>
   <div class="board">
     <div class="tile"><div class="big">3<small>tuned</small></div><div class="lab">Cessna 172R, Piper J-3 Cub, Jodel D.112 — the only validated builds</div></div>
     <div class="tile"><div class="big">1<small>blind</small></div><div class="lab">Birdman Chinook Plus 2, built after the tuning, nothing fitted to its sheet</div></div>
     <div class="tile"><div class="big">+5<small>%</small></div><div class="lab">the Chinook's empty weight, predicted from its tubes, fabric and engine</div></div>
-    <div class="tile"><div class="big">−60<small>%</small></div><div class="lab">its rate of climb — the honest number this sheet is about</div></div>
+    <div class="tile"><div class="big">−17<small>%</small></div><div class="lab">its rate of climb at the weight its sheet was flown at — the honest residual</div></div>
   </div>
 </header>
 
@@ -145,18 +145,18 @@ footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);font-si
 
 <section class="reading">
   <div class="verdict"><h3>Did the rebalancing make the model genuinely more accurate?</h3>
-    <p>On mass and balance, yes, and the Chinook proves it: its 219 kg empty weight came out of a material row written from the metallurgy of 6061 tube and undoped sailcloth, not from its sheet, and landed 5 % over the published 209 kg. Its balance came out sane on the first flight — 36 % CG, 9 % static margin — where the same architecture on the steel row had 3 %. On performance the answer is not yet: the Chinook climbs at 40 % of the real aeroplane, needs twice the runway, and stalls 22 % fast. Those three residuals share one cause and it is not the airframe.</p></div>
+    <p>On mass and balance, yes, and the Chinook proves it: its 219 kg empty weight came out of a material row written from the metallurgy of 6061 tube and undoped sailcloth, not from its sheet, and landed 5 % over the published 209 kg; its balance came out sane on the first flight — 36 % CG, 9 % static margin. On performance the answer moved this evening from “no” to “mostly”: once the ultralight was loaded to the weight its sheet was actually flown at (340 kg one-up, not 476 gross), its prop set to the fine class a ground-adjustable three-blade is set to, and every take-off flown with the notch of flap the sheets assume, the blind aeroplane sits within 3 % on stall, 8 % on top speed, 15 % on the take-off roll and 17 % on climb. What is left — thrust 11 % short of a brochure figure, glide 23 % short of a 10:1 that an open pod with a gear in the wind does not do — is smaller than the errors that were in the comparison.</p></div>
   <div><h3>What got better</h3>
-    <p>Empty weight is billed by station from the lattice, so the Cub, Jodel and Chinook all sit within 6 % of their sheets; the 172 — an all-metal aeroplane with a factory interior — is 13 % light, and its forward mass now sits where the engine and panel are rather than being smeared down the cabin. The neutral point moved aft on every build once the fuselage's Munk couple and the tail's efficiency were put on physical values: static margins went from “always marginal” to 17–21 % on the two strut-braced high wings and 4 % on the cantilever Jodel, which is what those aeroplanes are known for.</p>
-    <p>The Cub is the reference case: nine bench metrics, eight within 5 %, none beyond 15 %. It is the aeroplane the model understands best because everything about it is a strut, a tube and a fabric-covered surface.</p></div>
+    <p>Empty weight is billed by station from the lattice, so the Cub, Jodel and Chinook all sit within 6 % of their sheets; the 172 — an all-metal aeroplane with a factory interior — is 13 % light. The neutral point moved aft on every build once the fuselage's Munk couple and the tail's efficiency were put on physical values: static margins went from “always marginal” to 17–21 % on the two strut-braced high wings and 4 % on the cantilever Jodel, which is what those aeroplanes are known for.</p>
+    <p>The take-off roll was flown and estimated flaps-up on every build against sheets flown with the take-off notch — the 172R's handbook roll is at flaps 10°. With the notch: 172 299 → 264 m against 288, Jodel 198 → 183 against 200, Chinook 142 → 128 at gross. The Cub is the reference case: nine bench metrics, eight within 5 %, none beyond 15 %.</p></div>
   <div><h3>What is still wrong, and whose fault it is</h3>
-    <p><b>Stall speed</b> runs 22–29 % high on the two light wings (Jodel, Chinook) and right on the two with published flap figures. The model's clean-wing C<sub>L max</sub> is honest; the sheets quote the aeroplane at its best, often with a slip or a hard pull at the flare.</p>
-    <p><b>Static thrust and climb</b> are the model's weak side. The Chinook's 582 gives 1191 N where the registry says about 1500 N; with a pusher prop the model has no downwash fixture for, the climb deficit follows (−60 %) and so does the take-off roll (+133 %). The Jodel's A-65 is 13 % short and its climb 20 % short for the same reason. That is one owed number — the engine row's static thrust — not a rebalancing question.</p>
-    <p><b>The 172's take-off to 50 ft</b> is 21 % short because the model climbs out at its best angle where the handbook climbs at a rotation speed with a flap setting; the ground roll itself is within 4 %.</p></div>
+    <p><b>Two published numbers were refused.</b> The Jodel's catalogue stall of 35 mph at 530 kg needs a lift coefficient of 2.54 on a 13 % wing; no clean wing has done that, and a 23012 wing at 1.6 puts a D.112 at gross at 73 km/h. The row now carries the club's 65 km/h and the model's 72 is read against that. The Chinook's 35 mph at 1050 lb gross needs 2.4; at 340 kg it needs 1.7, which is what its double-surface wing does — so its whole sheet is read one-up.</p>
+    <p><b>Static thrust and climb</b> remain the model's weak side, at lower amplitude than before. The Chinook's 582 now gives 1324 N against a claimed ~1500 (the fine class is 11 % short of a figure the propeller maker publishes); the Jodel's A-65 is 13 % short on the cruise prop its builder chose. Beyond that the prop law's shape puts peak propulsive efficiency at cruise and 58 % at the climb speed, where a real fixed-pitch propeller sits nearer 65 %: the climb rows run 10–20 % short on every matched engine. That is the next thrust item.</p>
+    <p><b>The flown line lags the bench on the Chinook</b> because the pilot limit-cycles in pitch on the soft aluminium-tube frame — ±7° at 1.4 Hz in level flight, costing 1070 N of thrust to hold 110 km/h where the trim needs 620. The same build on the steel row flies dead steady. That is a pilot-and-structure item, not a thrust one, and has its own session.</p></div>
   <div><h3>How to read the bars</h3>
-    <p>“Ours” is the bench: the aeroplane as it sits in the hangar, at its maximum take-off weight, at sea level in a standard atmosphere, measured by the same solver that flies it. “Published” is the manufacturer's sheet or the type certificate; where a value has a range, the middle of it. The flown line is different — it is the autopilot taking the aeroplane round a whole circuit, and its take-off rolls run long on every type because it rotates late and conservatively. Bars are clipped at ±40 %; an arrowhead means the bar runs off the scale.</p></div>
+    <p>“Ours” is the bench: the aeroplane as it sits in the hangar, loaded to the weight named in the table's header — the type's MTOW where the sheet is a handbook's, one-up where the sheet is an ultralight's — at sea level in a standard atmosphere, measured by the same solver that flies it. “Published” is the manufacturer's sheet or the type certificate; where a value has a range, the middle of it. The flown line is the autopilot taking the aeroplane round a whole circuit at the same weight; its take-off rolls run long on every type because it rotates late and conservatively. Bars are clipped at ±40 %; an arrowhead means the bar runs off the scale.</p></div>
   <div><h3>What a blind test means here</h3>
-    <p>The Chinook was built from its three-view after the mass and balance work closed. Its material row's stiffness and linear weights were reasoned from tube gauges and a published parts list, so its <em>weight</em> is a semi-blind result — reasoned, not fitted. Its balance is unverified: the manufacturer publishes no CG range. Its performance numbers are wholly blind, and they are the ones that miss. That is the useful outcome: the mass model transfers to a new architecture; the powerplant model does not yet.</p></div>
+    <p>The Chinook was built from its three-view after the mass and balance work closed. Its material row's stiffness and linear weights were reasoned from tube gauges and a published parts list, so its <em>weight</em> is a semi-blind result — reasoned, not fitted. Its balance is unverified: the manufacturer publishes no CG range. Its performance numbers are wholly blind; the three corrections that brought them in (the sheet's weight, the prop's class, the take-off notch) are corrections to the comparison and to a build setting, not to a constant in the model. Nothing in the solver was tuned to the Chinook.</p></div>
 </section>
 
 <footer><span>flyDiy · builds cessna_172 · piper_cub · jodel_D112 · chinook · bench of 21 September 2026</span><span>tools/perf_study.js --build --vs --fly · garage_shot.js --clean</span></footer>
@@ -167,24 +167,24 @@ const IMG = {"cessna_172_q": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD
 const PLANES = [
  {key:'c172', name:'Cessna 172R', reg:'C-FSKY', sub:'Lycoming IO-360-L2A, 160 hp · all-metal · strut-braced high wing · tricycle',
   blind:false, role:'the reference: a factory aeroplane with a public handbook', q:IMG.cessna_172_q, s:IMG.cessna_172_s,
-  rows:[['empty weight','kg',641,736],['wing area','m²',16.5,16.2],['stall speed','km/h',93,95],['cruise 75 %','km/h',194,218],['max level speed','km/h',221,230],['rate of climb','m/s',3.3,3.7],['best glide L/D','',11.2,9.0],['static thrust','N',2198,2290],['take-off roll','m',299,288],['take-off to 50 ft','m',408,514]],
-  cg:35, np:56, emptyCg:'33.3 % MAC · book 24–27 %', mtow:[994,1111],
-  flown:[['take-off roll','m',422,288],['climb','m/s',2.7,3.7],['landing roll','m',206,168]]},
+  rows:[['empty weight','kg',641,736],['wing area','m²',16.5,16.2],['stall speed','km/h',93,95],['cruise 75 %','km/h',194,218],['max level speed','km/h',221,230],['rate of climb','m/s',3.3,3.7],['best glide L/D','',11.2,9.0],['static thrust','N',2198,2290],['take-off roll','m',264,288],['take-off to 50 ft','m',370,514]],
+  cg:35, np:56, emptyCg:'33.3 % MAC · book 24–27 %', mtow:[994,1111], at:'at MTOW 1111 kg',
+  flown:[['take-off roll','m',308,288],['climb','m/s',2.5,3.7],['landing roll','m',206,168]]},
  {key:'cub', name:'Piper J-3C-65 Cub', reg:'C-FCUB', sub:'Continental A-65, 65 hp · steel tube + fabric · strut-braced high wing · taildragger',
   blind:false, role:'the light end of the certified world', q:IMG.piper_cub_q, s:IMG.piper_cub_s,
-  rows:[['empty weight','kg',354,345],['wing area','m²',17.6,16.6],['stall speed','km/h',62,61],['cruise 75 %','km/h',123,120],['max level speed','km/h',142,140],['rate of climb','m/s',2.4,2.3],['best glide L/D','',9.4,9.5],['static thrust','N',1215,1200],['take-off roll','m',108,113]],
-  cg:23, np:40, emptyCg:'26.0 % MAC · book 24 %', mtow:[476,550],
-  flown:[['take-off roll','m',148,113],['climb','m/s',2.1,2.3],['landing roll','m',79,88]]},
+  rows:[['empty weight','kg',354,345],['wing area','m²',17.6,16.6],['stall speed','km/h',62,61],['cruise 75 %','km/h',123,120],['max level speed','km/h',142,140],['rate of climb','m/s',2.4,2.3],['best glide L/D','',9.4,9.5],['static thrust','N',1215,1200],['take-off roll','m',118,113]],
+  cg:23, np:40, emptyCg:'26.0 % MAC · book 24 %', mtow:[476,550], at:'at MTOW 550 kg',
+  flown:[['take-off roll','m',144,113],['climb','m/s',1.9,2.3],['landing roll','m',79,88]]},
  {key:'jodel', name:'Jodel D.112', reg:'F-PJOD', sub:'Continental A-65, 65 hp · wood + fabric · cantilever cranked low wing · taildragger',
   blind:false, role:'a homebuilt with a bent wing and a thin book', q:IMG.jodel_D112_q, s:IMG.jodel_D112_s,
-  rows:[['empty weight','kg',341,320],['wing area','m²',13.8,12.7],['stall speed','km/h',72,56],['cruise 75 %','km/h',134,150],['max level speed','km/h',159,175],['rate of climb','m/s',2.0,2.5],['best glide L/D','',9.0,10.0],['static thrust','N',1039,1200],['take-off roll','m',198,200]],
-  cg:27, np:31, emptyCg:'28.8 % MAC · book 26 %', mtow:[463,530],
-  flown:[['take-off roll','m',294,200],['climb','m/s',1.5,2.5],['landing roll','m',244,150]]},
+  rows:[['empty weight','kg',341,320],['wing area','m²',13.8,12.7],['stall speed','km/h',72,65],['cruise 75 %','km/h',134,150],['max level speed','km/h',159,175],['rate of climb','m/s',2.0,2.5],['best glide L/D','',9.0,10.0],['static thrust','N',1039,1200],['take-off roll','m',183,200]],
+  cg:27, np:31, emptyCg:'28.8 % MAC · book 26 %', mtow:[463,530], at:'at MTOW 530 kg · the stall row is the club\'s 65 km/h; the catalogue\'s 35 mph refused (CL 2.54)',
+  flown:[['take-off roll','m',262,200],['climb','m/s',1.4,2.5],['landing roll','m',243,150]]},
  {key:'chinook', name:'Birdman Chinook Plus 2', reg:'C-ICHK', sub:'Rotax 582, 64 hp, pusher · 6061 aluminium tube + Dacron · strut-braced high wing · tailwheel on a rod boom',
   blind:true, role:'built after the model was tuned; nothing in it was fitted to its sheet', q:IMG.chinook_q, s:IMG.chinook_s,
-  rows:[['empty weight','kg',219,209],['wing area','m²',13.1,14.3],['stall speed','km/h',69,56],['cruise 75 %','km/h',116,133],['max level speed','km/h',135,153],['rate of climb','m/s',2.4,6.1],['best glide L/D','',7.7,10.0],['static thrust','N',1191,1500],['take-off roll','m',142,61]],
-  cg:36, np:45, emptyCg:'not published', mtow:[337,476],
-  flown:[['take-off roll','m',175,61],['climb','m/s',2.0,6.1],['landing roll','m',80,91]]},
+  rows:[['empty weight','kg',219,209],['wing area','m²',13.1,14.3],['stall speed','km/h',58,56],['cruise 75 %','km/h',125,133],['max level speed','km/h',140,153],['rate of climb','m/s',5.0,6.1],['best glide L/D','',7.7,10.0],['static thrust','N',1324,1500],['take-off roll','m',52,61]],
+  cg:36, np:45, emptyCg:'not published', mtow:[337,476], at:'at the sheet\'s weight: 340 kg one-up (its 35 mph at gross would need CL 2.4)',
+  flown:[['take-off roll','m',101,61],['climb','m/s',2.5,6.1],['landing roll','m',74,91]]},
 ];
 const dev = (o,r) => (o-r)/r*100;
 const cls = d => Math.abs(d) <= 5 ? 'g' : Math.abs(d) <= 15 ? 'w' : 'b';
@@ -212,7 +212,7 @@ function sheet(p){
   </div>
   <div class="body">
     <div class="tablewrap"><table class="spec">
-      <thead><tr><th>bench · at MTOW · sea level</th><th></th><th>ours</th><th>published</th><th>Δ</th><th class="bh">deviation</th></tr></thead>
+      <thead><tr><th>bench · sea level · ${p.at}</th><th></th><th>ours</th><th>published</th><th>Δ</th><th class="bh">deviation</th></tr></thead>
       <tbody>${trs}</tbody></table>
       <div class="scale"><span></span><span>−40 %</span><span>0</span><span>+40 %</span></div></div>
     <div class="side">

@@ -89,9 +89,18 @@ const REAL = {
   // two-seat A-65 Jodel; the sources scatter on the climb (800 fpm and 2 m/s
   // in one line) and the cruise (150-160), the middle is taken; the tail
   // span and the height are the d112 reference payload's own (G89 model)
+  // THE STALL ROW IS A RULING (2026-09-21, the user: "our rolling distances
+  // and stall speeds are always too high"): the catalogue's 35 mph at 530 kg
+  // on 12.7 m2 would need CL 2.54 on a 13 % wing, which no clean wing has
+  // ever done, and a 23012 wing at 1.6 puts a D.112 at gross at 73 km/h.
+  // The club's own figure is 60-65 km/h (the flight manual's "decrochage",
+  // an indicated figure at high alpha); 65 is taken, and the model's 72 is
+  // read against that, not against a number physics refuses. The roll and
+  // the climb stay the catalogue's at gross (200 m, 2.5 m/s) - they are
+  // consistent with a 70 km/h stall, not with a 56 one.
   d112:      { name: 'Jodel D.112 (A-65)', mtow: 530, empty: 320, S: 12.7, b: 8.2, powerKW: 48,
-               Vs1: 56, V75: 150, Vmax: 175, roc: 2.5, TO: 200, LDG: 150, LD: 10, T0: 1200, engineMatch: true,
-               src: 'Wikipedia D.11 / aircraft-catalog D.112: A-65 65 hp, 8.20 m, 12.70 m2, 320 / 530 kg, stall 35 mph, cruise 100 mph, climb 800 fpm or 2 m/s (sic), Vmax 124 mph',
+               Vs1: 65, V75: 150, Vmax: 175, roc: 2.5, TO: 200, LDG: 150, LD: 10, T0: 1200, engineMatch: true,
+               src: 'Wikipedia D.11 / aircraft-catalog D.112: A-65 65 hp, 8.20 m, 12.70 m2, 320 / 530 kg, stall 35 mph (CL 2.54 at gross - refused; Vs1 65 km/h, the club figure), cruise 100 mph, climb 800 fpm or 2 m/s (sic), Vmax 124 mph',
                dims: { length: 6.20, height: 2.07, AR: 5.3, cRoot: 1.72, cTip: 1.2, hSpan: 2.74, fuelL: 45, seats: 2,
                        engineHP: 65, engineKg: 77, propD: 1.83, cabinW: 1.05,
                        src: 'D.112 type sheet: 6.20 m long, 2 seats side by side, one 45 L tank; the tail span 2.74 and the height 2.07 measured off src/models/d112 (the reference plane payload)' } },
@@ -100,7 +109,17 @@ const REAL = {
   // Plus 2 (the 2S evolved: the 1980s Birdman 2S has a 37 ft span and the
   // 447/503, Wikipedia gives it no weights); with the Rotax 582 the user
   // mounted, this row IS the Plus 2 / 582.
-  chinook:   { name: 'Chinook Plus 2 (Rotax 582, 64 hp)', mtow: 476, empty: 209, S: 14.35, b: 9.75, powerKW: 48,
+  // THE WEIGHT THE SHEET WAS FLOWN AT (2026-09-21, the same session): a POH's
+  // numbers are at gross and say so; an ultralight's sheet is the aeroplane
+  // as its owner flies it - one up, half fuel - and says nothing. perfKg 340:
+  // 209 empty + an 86 kg pilot + 27 kg of fuel + 18 of kit. The sheet's
+  // 35 mph at 1050 lb gross would need CL 2.4 clean on a 154 ft2 wing; at
+  // 340 kg it needs 1.7, which is what the double-surface wing does, and the
+  // 200 ft roll and the 1200 fpm are the same aeroplane, one up. `perfKg` is
+  // the weight the bench loads the build to for Vs / V75 / ROC / TO / LDG
+  // when the row carries it; empty weight, area and the dimensions are
+  // compared as they are.
+  chinook:   { name: 'Chinook Plus 2 (Rotax 582, 64 hp)', mtow: 476, perfKg: 340, empty: 209, S: 14.35, b: 9.75, powerKW: 48,
                Vs1: 56, V75: 133, Vmax: 153, roc: 6.1, TO: 61, LDG: 91, LD: 10, T0: 1500, engineMatch: true,
                src: 'ultralightnews ASAP Chinook Plus 2 sheet: 32 ft span, 154.5 sq ft, 17 ft 8 in, 5 ft 10 in, 380 lb empty / 1050 lb gross, 10 US gal, Rotax 503/582, stall 35 mph (32 with flaperons), cruise 72/83 mph, max 95 (582), Vne 115, climb 1000/1200 fpm, take-off 250/200 ft, glide 10:1, +4/-2 g; pilotmix Plus 2/582: empty 460 lb, 1050 MTOW, stall 32 mph, cruise 83, climb 1200 fpm, take-off 200 ft, landing 300 ft; Vs1 taken at 35 mph clean',
                dims: { length: 5.38, height: 1.78, AR: 6.6, cRoot: 1.47, cTip: 1.47, fuelL: 38, seats: 2,
@@ -167,7 +186,10 @@ function measureSpec(spec0, R, name) {
   // climbs faster and rolls shorter for the mass alone) - through the door,
   // at its own CG (see ballast()); the spec and the def are the card's own
   const spec = spec0, def = def0;
-  const kg = R && R.mtow > asBaked ? R.mtow - asBaked : 0;
+  // ...or to the weight the sheet's performance was flown at (perfKg), when
+  // the row says the sheet is not a gross-weight one
+  const target = R ? (R.perfKg || R.mtow) : 0;
+  const kg = target > asBaked ? target - asBaked : 0;
   const sim = C.makeSim(def, null); sim.reset(0);
   ballast(sim, kg);
   const W = sim.totalM * 9.81;
@@ -300,7 +322,7 @@ if (buildFile) {
   // THE DIMENSIONS against the type sheet
   const d = dimsOf(m), rd = R.dims || {};
   out('');
-  out('DIMENSIONS (ours / ' + R.name + '; ours at MTOW ' + f(m.mass, 0) + ' kg, ballast ' + f(m.ballast, 0) + ' kg):');
+  out('DIMENSIONS (ours / ' + R.name + '; ours at ' + (R.perfKg ? "the sheet's weight " : "MTOW ") + f(m.mass, 0) + ' kg, ballast ' + f(m.ballast, 0) + ' kg):');
   out('  engine     ' + (d.engineName || '-') + ' ' + f(d.engineHP, 0) + ' hp ' + f(d.engineKg, 0) + ' kg, prop ' + (d.propName || '-') + ' ' + f(d.propD, 2) + ' m' +
       (rd.engineHP ? '   / ' + f(rd.engineHP, 0) + ' hp ' + f(rd.engineKg, 0) + ' kg, prop ' + f(rd.propD, 2) + ' m' : ''));
   out('  fuselage   ' + (d.material || '-') + ', ' + (d.gearType || '-') + ' gear, ' + f(d.seats, 0) + ' seats / ' + f(rd.seats, 0));
@@ -309,7 +331,7 @@ if (buildFile) {
                  ['stab span m', 'hSpan', 2], ['stab area m2', 'Sh', 2], ['fin area m2', 'Sv', 2], ['track m', 'track', 2], ['wheelbase m', 'wheelbase', 2],
                  ['cabin width m', 'cabinW', 2], ['fuel L', 'fuelL', 0], ['wing load kg/m2 at MTOW', 'wingLoad', 1], ['power load kg/hp at MTOW', 'powerLoad', 1]];
   const oursD = Object.assign({ span: m.b, area: m.S, wingLoad: m.mass / m.S, powerLoad: m.mass / Math.max(1e-6, eHP) }, d);
-  const realD = Object.assign({ span: R.b, area: R.S, wingLoad: R.mtow / R.S, powerLoad: rd.engineHP ? R.mtow / rd.engineHP : null }, rd);
+  const realD = Object.assign({ span: R.b, area: R.S, wingLoad: (R.perfKg || R.mtow) / R.S, powerLoad: rd.engineHP ? (R.perfKg || R.mtow) / rd.engineHP : null }, rd);
   for (const [label, k, dec] of rowsD) out('  ' + label.padEnd(30) + f(oursD[k], dec).padStart(7) + ' / ' + f(realD[k], dec).padStart(6) + '  ' + pct(oursD[k], realD[k]));
   // THE BUILD CHECK
   const bc = buildCheck(m), s = bc.shake;

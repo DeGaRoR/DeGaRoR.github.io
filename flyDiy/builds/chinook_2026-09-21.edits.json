@@ -19,7 +19,8 @@
  },
  "prop": {
   "D": 1.73,
-  "blades": 3
+  "blades": 3,
+  "pitch": "auto"
  },
  "fuel": {
   "litres": 38,
