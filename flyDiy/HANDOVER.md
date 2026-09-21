@@ -54520,3 +54520,33 @@ truss drag, lift split, downwash) was found clean and is unchanged.
 - OWED: the user's eye on coastA's gain (dark; the imagery's foreshore is paler - a grade, not a
   recolour) and on the shingle band's width (15 m inland is the map's); the rest of the doc as before.
 - GATES: SPLAT (the manifest's 19 sets, four files each) / MEDIA / BUILD / UISMOKE / WORLDRENDER green.
+
+## G478 — THE SCRUB IS THE MUSKEG, THE LAWN GRASSES TURNED YELLOW, THE MACRO'S LIGHT KEPT (2026-09-22, the
+## user: "Scrub should become muskeg with 100 trees/ha, muskeg should just be mud with nothing in it ... the
+## green-blue texture ... golf grass ... the whole island looks yellow, while the colour data gives mostly
+## green and brown and there is little macro contrast remaining once the detailed textures show")
+
+THE MAP: code 7 scrub (21 % of the land) -> the muskeg MIX at 100 /ha (count 1520 in r 220), and
+its GROUND is the muskeg's - mud first with the pools (the shader's `i == 3` became `3 || 7`), the
+moor's grassRock and rockyA under the cloud mask; code 14 scrub dense the same; code 3 muskeg ->
+NO mix (nothing planted) and its ground mud + grassRock (the lush lawn out). Baked with
+`tree_prep.py --biomes`.
+THE LAWNS: `grass` (mean hue 72) and `lush` (hue 88, the blue-green on every coast) against the
+moor's 40-48 - graded in RECIPE.grade: grass gain #ffc8a0 sat 0.75 (-> hue ~45 at value 0.39),
+lush gain #ffb890 sat 0.7 (-> ~50 at 0.29); lush is off codes 3 and 14 as well (grassRock).
+THE MACRO (the design answer to "reselect PBR materials, colour correct everything, live with
+it?": none of the three - the imagery is the colour authority and the sets are TEXTURE): the
+near ground's `tinted` term was the imagery's HUE at the detail's own brightness, so the
+imagery's light and dark - the green valley, the brown slope, the pale flat, the whole macro
+contrast - was thrown away wherever the detail showed. New knob macroLum (RECIPE.knobs, F8 >
+splat > distance/macro > "macro light kept", default 0.6): each set's mean luminance after its
+grade goes up as uSLum[layer]; sMat leaves the texel's ratio to it (gSRel - the texture alone);
+sSplat blends the ratio across the candidates like the colour, and tinted = mac x mix(lc /
+luma(mac), rel, macroLum). At 1 the ground is the imagery's colour and brightness wearing the
+sets' texture; at 0 it is the old picture. macroNear (0.45) is still how much of the detail's
+own colour gives way - the second dial to raise if the island still reads yellow. Pictures:
+screenshots/macro/_lum_stack.png (0 / 0.6 / 1 at 200 m over the field: the top is the yellow
+flat, the lower two carry the imagery's greens and darks). THE TRAP MET: the GLSL global was
+declared after sMat (which writes it) - the ring compiled to a grey plane at every knob; declare
+before the first use. NOTE for the user's browser: RECIPE is remembered in localStorage
+('flydiy.ground.splat.v1') - F8 > splat > reset (or clear it) to see these defaults.

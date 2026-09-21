@@ -65,6 +65,8 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
   uniform vec4 uSGrade[${NLIB}];
   uniform float uSGloss[${NLIB}];
+  uniform float uSLum[${NLIB}];   // each set's mean luminance after its grade (linear): the detail's texel over it is pure TEXTURE
+  float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud;
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform float uSBeachRot;
@@ -150,7 +152,8 @@ const SPLAT_GROUND = (() => {
     if (fw > 0.001) { Smp t = sTriplet(F, FS, P, tw, ang, m1, m2); o.c += fw * t.c; o.n += fw * t.n; }
     vec4 V = uSVary[i];
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
-    if (i == 3 && uSPud.y > 0.0) {
+    gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
+    if ((i == 3 || i == 7) && uSPud.y > 0.0) {   // the pools: muskeg AND scrub (the user, 2026-09-21: the scrub is the muskeg)
       float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, uSPud.z);
       o.c.rgb = mix(o.c.rgb, vec3(0.022, 0.030, 0.034), m);   // still water, linear
       o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m);
@@ -201,25 +204,32 @@ const SPLAT_GROUND = (() => {
     float mw = uSDist2.x * smoothstep(uSDist.z, uSDist.w, d);
     vec3 tw = vec3(0.0, 1.0, 0.0);
     if (uSDist2.z > 0.5) { vec3 a = pow(abs(nGeo), vec3(uSDist2.z)); tw = a / (a.x + a.y + a.z); }
-    vec4 C[8]; vec4 NN[8]; float Wt[8]; int n = 0; float ma = -10.0;
+    vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
     for (int i = 0; i < uSNCode; i++) {
       if (w[i] < 0.004 || n >= uSNCand) continue;
       Smp m = sMat(i, vWPi, tw, seaAng, fw, slope);
-      C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; ma = max(ma, m.c.a + w[i]); n++;
+      C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
     }
     ma -= uSSeam.x;
-    vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0;
+    vec3 col = vec3(0.0); vec4 nrm = vec4(0.0); float tot = 0.0, rel = 0.0;
     for (int j = 0; j < uSNCand; j++) {
       if (j >= n) break;
       float bb = max(C[j].a + Wt[j] - ma, 0.0);
-      col += C[j].rgb * bb; nrm += NN[j] * bb; tot += bb;
+      col += C[j].rgb * bb; nrm += NN[j] * bb; rel += Rl[j] * bb; tot += bb;
     }
+    rel = tot > 1e-5 ? rel / tot : 1.0;
     col = tot > 1e-5 ? col / tot : macro;
     nrm = tot > 1e-5 ? nrm / tot : vec4(0.0, 0.0, 0.0, 0.9);
     gSN = nrm.xyz * uSNrm.x * (1.0 - mw) * (1.0 - lakeM);
     gSRough = mix(clamp(nrm.a, 0.05, 1.0), 1.0, mw);   // the far tier is the lit stack: no sheen out there
     vec3 mac = macro * uSSeam.y;
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * (lc / max(gLuma(mac), 1e-3)); col = mix(col, tinted, uSDist2.y); }
+    // THE MACRO IN THE NEAR GROUND (the user, 2026-09-21: "the whole island looks yellow, while the colour data
+    // gives mostly green and brown and there is little macro contrast remaining once the detailed textures show"):
+    // 'tinted' was the imagery's HUE at the detail's own brightness - the imagery's light and dark (the
+    // green valley, the brown slope, the pale flat) were thrown away. macroLum (uSDist2.w) keeps them: the
+    // detail's texel over its set's mean is the texture alone (rel), and mac * rel is the imagery's colour AND
+    // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y); }
     return mix(col, mac, mw);
   }
 `;
@@ -310,7 +320,7 @@ const SPLAT_GROUND = (() => {
       uSMatM: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(30, 1, 0, 0)) },
       uSVary: { value: Array.from({ length: NCODE }, () => new THREE.Vector4(0, 0, 20, 0)) },
       uSGrade: { value: Array.from({ length: NLIB }, () => new THREE.Vector4(1, 1, 1, 1)) },
-      uSGloss: { value: new Float32Array(NLIB).fill(1) },
+      uSGloss: { value: new Float32Array(NLIB).fill(1) }, uSLum: { value: new Float32Array(NLIB).fill(0.2) },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() },
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
@@ -330,11 +340,14 @@ const SPLAT_GROUND = (() => {
         const v = m.vary || [0, 0, 20]; Vv.set(v[0] * Math.PI / 180, v[1], v[2], 0);
       }
       LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
-        U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss; });
+        U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss;
+        // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
+        const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
+        U.uSLum.value[i] = Math.max(1e-3, 0.2126 * mn[0] * c.r + 0.7152 * mn[1] * c.g + 0.0722 * mn[2] * c.b); });
       U.uSSplit.value.set(K.cliffLo, K.cliffHi, K.oldLo, K.oldHi);
       U.uSSplit2.value.set(K.denseLo, K.denseHi, K.splatWobble, K.splatBlend);
       U.uSDist.value.set(K.detailFrom, K.detailTo, K.macroFrom, K.macroTo);
-      U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, 0);
+      U.uSDist2.value.set(K.macroMix, K.macroNear, K.triK, K.macroLum === undefined ? 0 : K.macroLum);
       U.uSHex.value.set(K.hDepth, K.hexOn, K.hexN, K.hexRot * Math.PI / 180);
       U.uSSeam.value.set(K.seamDepth, K.macroExp);
       U.uSNrm.value.set(K.nrmK, K.sheen === undefined ? 1 : K.sheen);   // (.y was the bench's specK, unused in the game; the game's lever is `sheen`)

@@ -173,6 +173,8 @@
         Sd.appendChild(slider('macro full by', 100, 30000, 100, kn('macroTo'), ss('macroTo'), v => v + ' m'));
         Sd.appendChild(slider('macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix')));
         Sd.appendChild(slider('macro tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear')));
+        Sd.appendChild(slider('macro light kept', 0, 1, 0.05, kn('macroLum'), ss('macroLum')));
+        Sd.appendChild(note('tint under: how much of the near ground’s colour is the imagery’s (the sets keep their texture); light kept: how much of the imagery’s own light and dark the tint carries (0 = the detail’s brightness, 1 = the imagery’s - the valley green, the slope brown, the flat pale)'));
         Sd.appendChild(note('the macro is the stack above (the Landsat albedo the game already ships); \u201ctint under\u201d gives the detail the place\u2019s colour, luminance kept'));
         const Sb = fold(Sf, 'blend \u00b7 tiling', false, true);
         Sb.appendChild(slider('blend radius', 0.5, 3, 0.1, kn('splatBlend'), ss('splatBlend'), v => v + ' cells'));

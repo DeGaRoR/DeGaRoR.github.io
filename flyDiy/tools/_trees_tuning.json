@@ -216,7 +216,7 @@
    },
    "forest": {
     "ground": "wet",
-    "count": 280,
+    "count": 1520,
     "radius": 220,
     "under": 2,
     "cover": 1,
@@ -229,7 +229,7 @@
     "blotchM": 18,
     "coverNear": 50,
     "rocks": 0.4,
-    "ttype": 3,
+    "ttype": 7,
     "coverSpread": 0.08
    }
   },
@@ -1265,15 +1265,14 @@
  },
  "biomes": {
   "2": "grassland",
-  "3": "muskeg",
   "4": "shore",
   "5": "scree",
   "6": "conifer_steep",
-  "7": "borders",
+  "7": "muskeg",
   "8": "conifer_young",
   "11": "shore",
   "12": "conifer_steep",
   "13": "conifer",
-  "14": "borders"
+  "14": "muskeg"
  }
 }
