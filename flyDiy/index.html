@@ -35772,7 +35772,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='556ea15782ef'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='bd7de28122d5'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -36779,7 +36779,7 @@ const CAGE_PARTS = [
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
     groups: [
-      ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'stickLen', 'stickCrank']],
+      ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
@@ -40824,7 +40824,7 @@ window.CAGE_PAGE = {
     crewOn: 1, seatLayout: 1, seatTilt: 3, seatBelt: 0,
     seatType: 0, seatZ: 0.205, seatH: 0.08, seatRake: 13,
     seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
-    ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
+    ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, yokeGap: 0.16,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
     flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
@@ -41198,6 +41198,9 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
         ['stickLen',  'stick length',   0.18, 0.75, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
+        // G446.2: the wheel's stand-off from the dash face (the hub's face to the plate)
+        ['yokeGap',   'yoke off the dash', 0.04, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 1 }],
         // a double bend: the grip this much nearer the seat than the base
         ['stickCrank', 'stick crank',   0, 0.20, 0.005,
          { when: P => +P.crewOn && +P.ctlStick === 0 }],
@@ -54496,10 +54499,12 @@ function buildStickCenter(g0, A, P, sx, seat) {
                 : [T[0], T[1] + 0.035, T[2] + 0.006];
   return { obj: gripAt(gP, gc, up), label: 'stick' };
 }
+// the yoke's forward-most metal: the hub's face at +0.052 from its origin
+// (the horns sweep to +0.036 behind it)
+const YOKE_FRONT = 0.052;
 function buildYoke(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'stickX', 'stickY', 'stickZ');
   const yY = A.waistY - 0.04;
-  const zHub = A.zBack + 0.54;
   // the column: a steel tube through a plated collar on the panel's face,
   // three screws round the collar (session 4e). G442.2 (the playtest: "the
   // yoke renders into the panel"): the collar sits at the PLATE'S OWN DEPTH
@@ -54509,14 +54514,26 @@ function buildYoke(g0, A, P, sx) {
   // switch is placed where the boot is.
   const F = A.face || null;
   const zCol = F && F.depthAt ? F.depthAt(sx, yY) - 0.001 : A.zDash;
+  // G446.2 (the user: "the yoke renders within the dash by default - proper
+  // spacing relative to the dash face, editable, and the default must not
+  // clip"): THE HUB STANDS OFF THE PLATE, not off the seat back. It sat at
+  // zBack + 0.54, a station that lands inside the plate on a short cabin;
+  // it is `yokeGap` (the row 'yoke off the dash', 0.16 m by default) from
+  // the plate to the hub's face now, whatever the cabin. The stick offsets
+  // (stickX/Y/Z) still move the wheel; the collar stays ON THE PLATE and the
+  // column runs from it to wherever the wheel went, so no offset can pull
+  // the boot off the panel.
+  const gap = P.yokeGap != null ? Math.max(0.04, +P.yokeGap) : 0.16;
+  const zHub = zCol - YOKE_FRONT - gap;
+  const off = [P.stickX || 0, P.stickY || 0, P.stickZ || 0];
   {
     const K = window.GEAR_KIT;
-    tube(g, K ? M.frame : M.ctrl, [sx, yY, zCol + 0.05], [sx, yY, zHub], 0.0125);
+    tube(g0, K ? M.frame : M.ctrl, [sx, yY, zCol + 0.05], [sx + off[0], yY + off[1], zHub + off[2]], 0.0125);
     if (K) {
       const col = K.Bag();
       K.revolve(col, [sx, yY, zCol], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
       for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, zCol - 0.004], [0, 0, -1], 0.0025, 0.002); }
-      col.mesh(g, M.plated);
+      col.mesh(g0, M.plated);
     }
   }
   if (Array.isArray(A.keepOut)) A.keepOut.push({ x0: sx - 0.048, x1: sx + 0.048, y0: yY - 0.048, y1: yY + 0.048, what: 'yoke' });
@@ -59614,6 +59631,25 @@ function keyAt(parent, x, y, z, pos) {
     kg.position.set(0, 0, 0.020 - k.bb[3] * 0.8);
     for (const p of k.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; kg.add(m); }
     g.add(kg);
+    // THE RING (G446.2, the user: "let's fix the key's bow"): a flat key's
+    // bow is symmetric about its blade, so seen from the seat its angle read
+    // mod 180 - OFF at half past seven looked like half past one, and the
+    // law's five steps could not be told apart. A split ring hangs off the
+    // bow's hole, in the plane the hole's axis lies in (the key's thickness,
+    // local x - so the ring faces the pilot as a circle), straight down the
+    // key's own six o'clock; it turns in the key's group, so it reads OFF at
+    // 7:30 -> BOTH 10:30 -> START 11:30 the way the wrapper meant. The bow
+    // spans local z -0.030..-0.008 (pack x scaled 0.8 from the tip at
+    // +0.020), its lower edge local y -0.0127 (pack +y, the wide lobe); the
+    // hole 3 mm in from that edge, the ring 9 mm radius through it.
+    {
+      const R = 0.009, T = 0.0008;
+      const yEdge = -k.bb[4] * 0.8, zBow = kg.position.z + (k.bb[0] + (k.bb[3] - k.bb[0]) * 0.2) * 0.8;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, T, 8, 28), matFor('barrel'));
+      ring.position.set(0, yEdge + 0.003 - R, zBow);
+      ring.name = 'keyRing';
+      g.add(ring);
+    }
     const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');
     g.rotation.z = clockRad(30 * Math.max(0, idx));
     return g;
