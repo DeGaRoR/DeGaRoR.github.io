@@ -53678,3 +53678,16 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
 - NOTE: HANDOVER carries two G461 headings - mine (the sky table's ground) and the C172 session's
   (the neutral point), which landed on top of it with the same number. Left as they are; the
   commits are distinct (dcbea507 / 2e40f653).
+
+## G463 — THE PLAYTEST TRIAGE'S STATUS, END OF DAY TWO (2026-09-21, the user: "check all active
+## sessions, T2 has started in another session, make a full status on the playtest report")
+- futureDesigns/PLAYTEST-TRIAGE-2026-09-20.md carries a STATUS section before §0 (one row per
+  session: state, landed G numbers, owed), the §2 rows marked, and every one of the 159 remarks
+  of §3 annotated with its landing (LANDED / PARTLY / OPEN + the G number or the reason). Read
+  off master `ddaa3818` and each live session's own account (vegetation, terrain, clouds, water,
+  pillar). 99 landed, 5 partly, 55 open: phase A done but A7's tail and A8 (nobody has the
+  pilot); B1/B3/B4 done, B2 the impostor-first ladder owed; C1's library done, the techniques
+  inventory never written (it is D1's first step); T1.1 done, T1.2/T1.3 owed; T2.1 in design
+  in its own session (the FRAME chantier), T2.2/T2.3/S2/W/G open.
+- Numbering: HANDOVER holds two `## G461` headings (the glint, then the neutral point) — left as
+  they are; G462 (the cloud session's) landed while this was written. Doc only, no built commit. Doc only, no built commit.
