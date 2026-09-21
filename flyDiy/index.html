@@ -16242,7 +16242,8 @@ function makeSim(def, world) {
       const [Cl, Cd] = fl > 0
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
-      const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
+      const q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1), iv = 1 / Math.sqrt(V2);
       // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
       // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
       // the lift direction: the bound runs A -> B (inboard -> outboard) and
@@ -16307,6 +16308,39 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    P_.fusCdA);
     blob(def.refs.fusDragAft, P_.fusCdAAft);
+    // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
+    // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
+    // incidence, NOSE-UP with the nose up — destabilising, the term every
+    // hand calculation carries and the blobs (a crossflow force) cannot
+    // make. The incidence is the fore blob's own relative wind against the
+    // body axes; the couple is a force pair on the two blob rings, up on
+    // the fore ring and down on the aft, over the distance between them.
+    // (k2 - k1) and Multhopp's wing correction are one factor, P_.bodyMunk.K
+    // (GEN_RULES.bodyMunkK); a fiche without the record flies as before.
+    if (P_.bodyMunk && P_.bodyMunk.vol > 0 && def.refs.fusDrag && def.refs.fusDragAft) {
+      const A = def.refs.fusDrag, Bq = def.refs.fusDragAft;
+      let vx=0, vy=0, vz=0, ax=0, ay=0, bx=0, by=0;
+      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; }
+      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; }
+      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; bx/=Bq.length; by/=Bq.length;
+      let wx_ = 0, wy_ = 0, wz_ = 0;
+      if (world && world.wind) { const wv = world.wind(ax, ay, 0, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz;
+      const u = rx*xAft[0]+ry*xAft[1]+rz*xAft[2], wn = rx*yUp[0]+ry*yUp[1]+rz*yUp[2];
+      const Vr2 = u*u + wn*wn;
+      if (Vr2 > 1) {
+        // the body's incidence: the relative wind runs aft (u > 0 flying
+        // forward) and from below (wn > 0 along up) with the nose up
+        const alB = Math.atan2(wn, u);
+        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
+        const L = Math.hypot(bx - ax, by - ay);
+        if (L > 0.3) {
+          const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
+          for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
+          for (const i of Bq) { f[i*3] -= F/Bq.length*yUp[0]; f[i*3+1] -= F/Bq.length*yUp[1]; f[i*3+2] -= F/Bq.length*yUp[2]; }
+        }
+      }
+    }
   }
 
   // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
@@ -16646,7 +16680,7 @@ function makeSim(def, world) {
   // setNodeMass would have been invisible to every external reader (the
   // autopilot's taxi feedforward, the shakedown's weights). Same number as
   // ever for anything that never changes mass; nothing writes it.
-  const sim = { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+  const sim = { p, v, m, r, f, beams, n, ctl, out, get totalM() { return totalM; },   // f: the node forces of the last pass, readable (G461's NP decomposition)
            // THE CLOCK, READABLE (G460, ruling ap): the wave the floats are pushed by is
            // waterH(x, z, simT) - the renderer draws the same wave at the same t
            get t() { return simT; },
@@ -24458,10 +24492,12 @@ const GEN_SURF_MATERIALS = {
   // tail, `tail.section` replaces GEN_RULES.tailSection for its members.
   // The cloth rows say nothing here — cloth is cloth, and their members ARE
   // the structure (the J-3's 14-16 kg fixed tailSection at 0.20).
+  // (G461: 0.75 -> 0.70 — a 172's stab skin is 0.5 mm, 1.35 kg/m2 per
+  // wetted m2, ~1.85 with its ribs and stringers = 0.70 of the wing row's 2.6)
   alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal', cover: 2.6,
-            tail: { cover: 0.75, section: 0.10 } }),
+            tail: { cover: 0.70, section: 0.10 } }),
   carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
-            tail: { cover: 0.75, section: 0.10 } }),
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -26444,7 +26480,10 @@ const GEN_RULES = {
   // post ring is the tube row's, 79 -> 84 at 0.4). [member, cover]; a row
   // absent here takes the two floors above. The alloy cone's real ratio:
   // a 172's post is ~0.4 of its box's perimeter and its cone ~28 kg.
-  fusAftFloors: { alloy: [0.3, 0.4], carbon: [0.3, 0.4] },
+  // (G461: [0.3, 0.4] -> [0.2, 0.3]; the stock alloy and carbon variants
+  // read the same substeps at 0.2 as at 0.7, the 172's cone 36 -> 33 kg
+  // against a 172R's ~28)
+  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3] },
   // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
   // mount, the baffles, the oil, the hoses and the engine controls
   // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
@@ -26514,7 +26553,22 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
+  // G461 (the 172's neutral point, the aero item): the body's Munk moment,
+  // 2 q (k2 - k1) Vol per radian, with (k2 - k1) (~0.9 at fineness 6-8) and
+  // Multhopp's correction for the wing's up/downwash folded into one factor
+  // (30_solver, on the two fuselage blobs). Measured: 172 NP 65 -> 59 %,
+  // Cub 44 -> 41, Jodel 36 -> 33 (their hand calculations 51 / 40 / 33-38).
+  bodyMunkK: 0.75,
+  // ...and the stab's dynamic pressure behind the body, 0.9 (a
+  // conventional tail; the propwash is in its local wind already)
+  tailEta: 0.9,
   tailSection: 0.20,
+  // G461: the tail's k and c FOLLOW a stressed-skin row's mass share
+  // (tail.section) — "stiffness follows mass", the rule the whole lattice
+  // keeps: 0 = in full (the alloy stock 145 -> 102 substeps, carbon 180 ->
+  // 128, the same reads as before the tail rate landed), 1 = k keeps the
+  // 0.20 share whatever the mass does (see 61_gen_frame)
+  tailSectionK: 0,
   // G457: no fuselage or tail node lighter than this (61_gen_frame re-lumps
   // each section's own mass toward its light nodes; the total and the
   // station stay). A stab tip's bow, rib and tape, a tail post's fittings
@@ -29958,13 +30012,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // stab is a small wing, built of what the stab is built of — at its own
     // gain (GEN_RULES.tailK), so the rows below read `cls` through `row()`
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : cls === 'tail' ? (R.tailK ?? R.wingK ?? 1) : 1;
-    const tSec = R.tailSection == null ? 0.5 : R.tailSection;
-    // ...a stressed-skin row names its own share OF THE MASS (GEN_SURF_MATERIALS
-    // alloy/carbon `tail.section`, G457): its cover already carries the ribs.
-    // The stiffness and the damping keep GEN_RULES.tailSection — the first
-    // cut halved the alloy tail's k with its mass and GATE FLEX's alloy
-    // cantilever read its torsion as "near a mechanism".
-    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec;
+    const tSec0 = R.tailSection == null ? 0.5 : R.tailSection;
+    // ...a stressed-skin row names its own share (GEN_SURF_MATERIALS alloy/
+    // carbon `tail.section`, G457): its cover already carries the ribs. The
+    // share is the MASS's; the stiffness and damping follow it by
+    // GEN_RULES.tailSectionK (G461): 1 = k stays the fleet's 0.20 share (the
+    // alloy stock then binds its integrator on 0.26 kg stab tips against a
+    // 9e5 k — 145 substeps where the tube stock reads 76); 0 = k follows
+    // the mass share in full. The alloy tail at half keeps 2.3x the fabric
+    // tail's k — a stressed-skin stab is the stiffer one either way.
+    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec0;
+    const kFollow = R.tailSectionK == null ? 1 : R.tailSectionK;
+    const tSec = tSec0 * Math.pow(tSecM / tSec0, 1 - kFollow);
     const row = (tbl, c, sh = tSec) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? sh * tbl.wing : undefined));
     // a gear member is either the SPRING (vis 'leg') or its bracing
     let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
@@ -32752,22 +32811,37 @@ function genFusSwet(S, ST) {
     }
     return L;
   };
-  let swet = 0, frontal = 0;
+  // ...and the section's AREA, the same walk closed by the shoelace (G461,
+  // the body's own pitching moment needs the volume)
+  const area = (halfW, h, nTop, nBot) => {
+    if (!(halfW > 0) || !(h > 0)) return 0;
+    let a = 0, prev = null, first = null;
+    for (let i = 0; i <= N; i++) {
+      const th = 2 * Math.PI * i / N;
+      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      if (prev) a += prev[0] * q[1] - q[0] * prev[1];
+      prev = q; if (!first) first = q;
+    }
+    return 0.5 * Math.abs(a);
+  };
+  let swet = 0, frontal = 0, vol = 0;
   const P = ST.map(st => per(st.w, st.yt - st.yb, nT, nB));
+  const A = ST.map(st => area(st.w, st.yt - st.yb, nT, nB));
   for (const st of ST) frontal = Math.max(frontal, 2 * st.w * (st.yt - st.yb));
-  for (let i = 0; i < ST.length - 1; i++) swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+  for (let i = 0; i < ST.length - 1; i++) { swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+                                            vol += (A[i] + A[i + 1] + Math.sqrt(A[i] * A[i + 1])) / 3 * (ST[i + 1].x - ST[i].x); }
   let cowlL = 0;
   if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
     cowlL = S.cowl.len;
-    const K = 8; let prevP = null;
+    const K = 8; let prevP = null, prevA = null;
     for (let i = 0; i <= K; i++) {
       const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
-      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
-      if (prevP != null) swet += 0.5 * (prevP + pc) * (cowlL / K);
-      prevP = pc;
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
+      if (prevP != null) { swet += 0.5 * (prevP + pc) * (cowlL / K); vol += (prevA + ac + Math.sqrt(prevA * ac)) / 3 * (cowlL / K); }
+      prevP = pc; prevA = ac;
     }
   }
-  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal };
+  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal, vol };
 }
 
 // Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the
@@ -32867,7 +32941,7 @@ function genFusCdA(S, fr) {
   const out = {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
-    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
+    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
             body, cool, heads, screen, junct, exh },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
@@ -33638,6 +33712,18 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
+    // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
+    // had no word for. A body in potential flow carries a destabilising
+    // moment dM/dalpha = 2 q (k2 - k1) Vol (Munk); the parts of it in the
+    // wing's upwash and downwash count more and less (Multhopp), taken as
+    // one factor GEN_RULES.bodyMunkK on the volume the wetted-area walk
+    // sums. The fuselage blobs stay: they are the crossflow force, the
+    // damping and the weathercocking; this is the couple they cannot make.
+    // tailEta: the stab's q behind the body (0.9 conventional; the propwash
+    // is already in its local wind).
+    bodyMunk: { vol: cda.drag.vol || 0, K: GEN_RULES.bodyMunkK == null ? 0.75 : GEN_RULES.bodyMunkK },
+    tailEta: GEN_RULES.tailEta == null ? 1 : GEN_RULES.tailEta,
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
@@ -36510,41 +36596,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='c5136956d182';window.FLYDIY_BUILD='b298fca76a30'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='038984bafc8a';window.FLYDIY_BUILD='ac7f0af6f304'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -40699,6 +40785,19 @@ const ARCHETYPES = [
     // (PLAN_C172, the seventies' twin stripe, 200 L in the wings) was the
     // card until then and stays in the file for the other cards that read it
     over: { stock: 'cessna 172' } },
+  // THE CHINOOK (G461, 2026-09-21): the user's birdman.json, "the architecture
+  // from the birdman chinook 2S", corrected to the Chinook Plus 2 / Rotax 582
+  // sheet through the headless join (futureDesigns/CHINOOK-STUDY-2026-09-21.md)
+  // and the shelf's 'chinook' row, verbatim — the fourth validated aeroplane
+  { key: 'chinook', kind: 'recreation', name: 'Chinook-alike', note: 'tube-and-Dacron pod, ' +
+      'the 582 pushing over the wing, tandem, tailwheel — the shed’s own Chinook (G461)',
+    sel: { class: 'ulm', role: 'trainer', seatLayout: 0, paxCount: 1,
+           canopy: 'bubble', mirror: 0, intCons: 1, boomStyle: 1, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 3,
+           engFamily: 'inline', engModel: 'rotax 582', engMount: 'pusher',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+    over: { stock: 'chinook' } },
   // THE TURBOPROP SINGLE (2026-09-05, TURBOPROP §9 — the reason the arc
   // exists): a PT6A-114A on a strutted high-wing tricycle with the most
   // bays the class allows. On `n23` by the user's ruling (`util` stays
@@ -42949,6 +43048,225 @@ window.CAGE_PAGE = {
       cw_stubDeckH: 1.27, cw_stubWaist: -0.07, cw_stubKeelH: 0.83,
       cw_stubSqTop: 0.53, cw_stubSqBot: 0.35,
     },
+    // THE CHINOOK (G461, 2026-09-21): the user's birdman.json — "the
+    // architecture from the birdman chinook 2S, eyeballed" — measured against
+    // the Chinook Plus 2 / Rotax 582 sheet and corrected through the headless
+    // join (futureDesigns/CHINOOK-STUDY-2026-09-21.md; builds/chinook_2026-09-21_
+    // corrected.json is the file this row was imported from, verbatim).
+    "chinook": {
+      _base: "template", planeScale: 0.745, paxCount: 1, paxLen: 0.8,
+      pilotLen: 0.42, boomLen: 3.3, tailLen: 0.169815, cabPillarW: 0.115,
+      paxPillarW: 0.11, pillarW: 0.1, leanPaxDeg: 0, leanCabDeg: 0,
+      leanPivot: "floor", halfW: 0.48, roofHalfW: 0.195, roofY: 0.815,
+      keelY: -0.71, floorY: -0.58, ceilInset: 0.2, waistY: -0.4, bandH: 0.052,
+      aftRoofY: 0.78, aftKeelY: -0.765, tailHalfW: 0.053446, tailRoofY: 0.3,
+      tailKeelY: -0.07775, ringPullIn: 0, wsRun: 1.28, wsTopOff: 0.081824,
+      wsBaseBow: 0.48, wsCeilBow: 0.115, apilW: 0.92, apilPerp: 1, noseLen: 0.38,
+      noseW: 0.8, pfW: 0.3, topRound: 0, topAngCeil: 52, topAngRoof: 81,
+      topComp: 1.03, bubble: 1, skylight: 0, skyExt: 5, winSillPilot: 0,
+      winSillPax: 0, paxWinN: 0, paxWinShape: 0, paxWinZ: 0.45,
+      paxWinPitch: 0.75, paxWinY: 0.5, paxWinW: 0.52, paxWinH: 0.4,
+      paxWinR: 0.08, paxWinDepth: 0.006, crPillar: 3, crSill: 3, crBand: 3,
+      crCeil: 3, crFrame: 3, crCap: 3, crFrontCap: 0.65, crNoseCap: 3, crKeel: 3,
+      botRound: 1, noseCrown: 0, noseH: 0.06, noseDroop: 0.08, wsBaseLift: 0,
+      cowlLoops: 2, cowlEase: 0.62, cowlBulge: 1.06, noseFinish: 1, aeroNose: 0,
+      aeroWsLen: 0.9, aeroLen: 1.5, aeroDroop: 0.3, aeroTipW: 0.1,
+      aeroTipH: 0.12, rearAperture: 0, boomMidOn: 1, boomMidT: 0.38,
+      boomMidPinch: 0.86, taperOn: 1, taperLen: 0.55, taperW: 0.78,
+      taperPanels: 1, boomStyle: 1, rodY: -0.415, rodD: 0.12, rodIncl: 0,
+      boomTwin: 0, boomX: 1.2, boomWf: 0.16, boomHf: 0.24, boomWa: 0.112,
+      boomHa: 0.168, boomSquare: 0, boomIncl: 0, boomCollar: 0.5, boomDy: 0,
+      boomDz: 0, boomNoseLen: 0.35, boomNoseK: 0.7, boomNoseCap: 2,
+      boomTailLen: 0.45, boomTailK: 0.7, boomTailCap: 2, aeroAftOn: 0,
+      aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5, aeroAftShape: 0,
+      aeroAftEdge: 0.6, crestH: 0, crestAt: 0.55, crestLoops: 1, canopy: 0,
+      bubH: 0.79, bubAt: 0.45, bubW: 1.25, canLoops: 1, bubH2: 0.7, bubAt2: 0.25,
+      bubW2: 1, bubH3: 0.6, bubAt3: 0.7, bubW3: 1, arcFit: 1, noseTip: 0.98,
+      aftNoseTip: -1, crSillNose: 3, aftCrSillNose: -1, ringCabW: 0, ringWinW: 0,
+      ringScrW: 0, ringCowl1W: 0, ringCowl2W: -0.02, aftRingWinW: -1,
+      aftRingScrW: -1, aftRingCowl1W: -1, aftRingCowl2W: -1, mirror: 0,
+      aftPilotLen: -1, aftWsRun: -1, aftNoseLen: -1, aftNoseW: -1, aftNoseH: -1,
+      aftDroop: -1, aftNoseCrown: -1, aftCowlEase: -1, aftCowlBulge: -1,
+      aftWsBaseLift: -1, aftWsTopOff: -1, aftWsBaseBow: -1, aftWsCeilBow: -1,
+      aftCowlLoops: -1, ringNoseBot: 0, ringScrBot: -0.015, ringWinTop: 0,
+      ringWinBot: 0, ringCabTop: 0, ringCabBot: 0, ringNoseTop: 0,
+      aftRingNoseTop: -1, aftRingNoseBot: -1, winFrameW: 0, winDepth: 0.015,
+      winBlow: 0, crGlass: 3, rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 0,
+      rimSides: 8, rimArc: 3, rimRise: 0.22, paneInset: 0.0025, rimRivet: 0.04,
+      memFast: 1, memPitch: 0.03, memDia: 0.0025, memRise: 0.0004,
+      paneThick: 0.004, doorOn: 0, doorPax: 0, doorDeep: 1, doorSill: 0.06,
+      doorSillPax: 0.06, doorDepth: 0.004, doorRim: 0.02, bulkZ: 0, doorGone: 0,
+      skinOn: 1, glazeOn: 1, intOn: 1, intBulk: 1, intFire: 1, intPillars: 1,
+      shellT: 0.035, fireSealW: 0.018, skinT: 0, intCons: 1, intDash: 1,
+      dashBack: 0.05, dashLip: 0.035, dashDepth: 0.12, dashCrease: 3,
+      dashCrown: 0.175, shoulderOn: 1, shoulderW: 0.07, shoulderH: 0.135,
+      shoulderT: 0.003, shoulderLip: 0.027, shoulderRun: 0, doorPanelOn: 0,
+      doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
+      doorPanelPocket: 1, cutParts: 1, hgOn: 1, hgFamily: 0, hgCount: 0,
+      hgOut: 0.06, hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
+      hgFair: 0, hgLink: 1, hgDetail: 1, hgDoor: 1, hgDoorEdge: 0, lightOn: 1,
+      lightSw: 1, li_bayFrac: 0.24, li_bayHalf: 0.17, li_bayChord: 0.13,
+      li_bayDepth: 0.06, li_lampSize: 1, li_beaconRpm: 45, li_podLen: 1,
+      li_podGirth: 1, li_beaconSink: 0.04, li_navSpan: 0.02, li_navChord: 0.1,
+      li_navRise: 0, li_plane: 0, li_reflect: 1, li_taxi: 0, li_beacon: 0,
+      li_land: 0, li_nav: 0, li_flood: 0, li_instr: 0, li_pedal: 0, li_pax: 0,
+      accOn: 1, accFluids: 0, accAccess: 1, accInstr: 1, accAerials: 1,
+      accHandling: 1, accDetail: 1, stOn: 1, stCut: 1, stCutGap: 0.012,
+      stSolid: 1, stThick: 0.05, stThickTE: 0.012, stX: 0.05, stY: -0.03,
+      stZ: -0.145, stCons: 0, stOver: 0, stMount: 0, stCant: 0, stRootGuard: 1,
+      stTipZ: -0.2, stTipY: -0.3, stAftZ: 0, stAftY: -0.3, stBaseZ: 0,
+      stBaseY: 0, stMidY: -0.2, stUY: 0, stRootFwd: 0, stLEZ: -0.1, stLEY: 0,
+      stShoulderZ: 0.305521, stShoulderY: 0, stTopY: 0, stTERoot: 0, stTEU: 0,
+      stTEMid: 0, stSharpTip: 3, stSharpAft: 3, stSharpBase: 3,
+      stSharpShoulder: 0, stSharpLE: 3, stSpan: 1.1616124712157891,
+      stChord: 1.1616124712157891, stChordTip: 0.5, stSweep: 4, stHinge: 0.31,
+      finOn: 1, finProject: 1, finCut: 1, finVentralOn: 1, finVentralH: 0.4,
+      finVentralC: 0.6, finVentralZ: 0.08, finVentralTip: 0.35, finCutGap: 0.013,
+      finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
+      finFillet: 0.075, finCons: 0, finDorsal: 1, finRootGuard: 1, finKeel: 1,
+      finCrA: 0, finCrB: 0, finTipZ: -0.2, finTipY: -0.305, finAftZ: 0,
+      finAftY: -0.3, finBaseZ: -0.04, finBaseY: 0.325, finMidY: -0.02,
+      finUY: -0.015, finRootFwd: 0.015, finLEZ: -0.1, finLEY: 0,
+      finShoulderZ: 0.305521, finShoulderY: 0, finTopY: 0, finTERoot: 0,
+      finTEU: 0, finTEMid: 0, finSharpTip: 3, finSharpAft: 3, finSharpBase: 3,
+      finSharpShoulder: 0, finSharpLE: 3, finHeight: 1.03, finChord: 1.32,
+      finChordTip: 0.54, finSweep: -2, finHinge: 0.38, mass: 620, cgZ: 1.17,
+      cgY: 0.05, propR: 0.875, propZ: 2.96, s1On: 1, s1Z: 1.85, s1X: 0.8,
+      s1Leg: 1, s1R: 0.2, s1Drop: 0.22, s1Brake: 1, s1Steer: 0, s1Fair: 0,
+      s1FairSkirt: 0, s1FairTail: 1, s1FairRake: 0, s1FairW: 1, s1LegFair: 0,
+      s2On: 1, s2Z: 0.06, s2X: 0, s2Leg: 3, s2R: 0.07, s2Drop: 0.37, s2Brake: 0,
+      s2Steer: 1, s2Fair: 0, s2FairSkirt: 0, s2FairTail: 1, s2FairRake: 0,
+      s2FairW: 1, s2LegFair: 0, s1AxZ: -0.12, s2AxZ: 0, fairCons: 0,
+      whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
+      whValve: 1, whBrake: 0, whBulge: 1, beamAng: 62, beamW: 0.075, beamT: 0.02,
+      beamTaper: 0.72, beamBow: 1.06, beamRake: 0.1, linkAng: 58,
+      linkArmW: 0.042, linkSwing: -42, linkVee: 1, linkSpread: 0.46, linkX: 0,
+      linkPanel: 1, linkPanelT: 0.004, shockKind: 1, shockAt: 0.72, shockZ: 0.34,
+      shockAng: 30, bungeeSpan: 0.26, oleoAng: 40, oleoDia: 0.058, oleoCyl: 0.55,
+      oleoScissor: 0.052, oleoBrace: 1, oleoBraceZ: 0.42, twR: 0.1,
+      twSpringLen: 0.52, twSpringDrop: 0.3, twSpringW: 0.052, twSpringT: 0.009,
+      twLeaves: 3, twRake: 18, twTrail: 0.052, twLegDrop: 0.1, twSteer: 0,
+      twSteerVis: 1, s1_beamAng: 62, s1_beamW: 0.075, s1_beamT: 0.02,
+      s1_beamTaper: 0.72, s1_beamBow: 1.06, s1_beamRake: 0.1, s1_linkAng: 25,
+      s1_linkSwing: 17, s1_linkArmW: 0.042, s1_linkVee: 1, s1_linkSpread: 0.49,
+      s1_linkX: 0, s1_linkPanel: 0, s1_shockKind: 2, s1_shockAt: 0.92,
+      s1_shockZ: 0.01, s1_shockAng: 90, s1_bungeeSpan: 0.26, s1_oleoAng: 40,
+      s1_oleoDia: 0.058, s1_oleoCyl: 0.55, s1_oleoScissor: 0.052,
+      s1_oleoBrace: 1, s1_oleoBraceZ: 0.42, s1_twSpringLen: 0.55,
+      s1_twSpringDrop: 0.3, s1_twSpringW: 0.052, s1_twSpringT: 0.009,
+      s1_twLeaves: 3, s1_twRake: 18, s1_twTrail: 0.052, s1_twLegDrop: 0.1,
+      s1_twSteer: 0, s1_twSteerVis: 1, s2_beamAng: 62, s2_beamW: 0.075,
+      s2_beamT: 0.02, s2_beamTaper: 0.72, s2_beamBow: 1.06, s2_beamRake: 0.1,
+      s2_linkAng: 58, s2_linkSwing: -42, s2_linkArmW: 0.042, s2_linkVee: 1,
+      s2_linkSpread: 0.46, s2_linkX: 0, s2_linkPanel: 1, s2_shockKind: 1,
+      s2_shockAt: 0.72, s2_shockZ: 0.34, s2_shockAng: 30, s2_bungeeSpan: 0.26,
+      s2_oleoAng: 40, s2_oleoDia: 0.058, s2_oleoCyl: 0.55, s2_oleoScissor: 0.052,
+      s2_oleoBrace: 1, s2_oleoBraceZ: 0.42, s2_twSpringLen: 0.32,
+      s2_twSpringDrop: 0.09, s2_twSpringW: 0.072, s2_twSpringT: 0.008,
+      s2_twLeaves: 1, s2_twRake: 0, s2_twTrail: 0.048, s2_twLegDrop: 0.09,
+      s2_twSteer: 0, s2_twSteerVis: 1, gearOn: 1, gearSit: 1, gearFloats: 0,
+      bpCabane: 0, bpStrutZ: 0, bpStrutX: 0, bpInter: 0, bpInterAt: 0.62,
+      bpInterZ: 0, bpWires: 1, bpWireD: 5, wingOn: 1, wgSpan: 9.75,
+      wgChord: 1.47, wgChordTip: 1.47, wgTipX: 0, wgCrankChord: 1.47,
+      wgCrankX: 0, wgDihedral: 3, wgIncidence: 1.5, wgWashout: 1.5, wgCamber: 2,
+      wgThick: 12, wgTip: 1, wgPos: 0, wgCentre: 2, wgCentreW: 0.35, wgBrace: 0,
+      wgCrankAt: 0, wgDihedralOut: 6, wgPanels: 3, wgDx: -0.2, wgDy: -0.06,
+      wgParaH: 0.45, wgStrutZ: 0, wgStrutX: 0, wgFlapType: 3, wgFlapSpan: 0.5,
+      wgFlapChord: 0.2, wgAilOn: 1, wgAilSpan: 0.38, wgAilChord: 0.22, wgCons: 0,
+      w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0, w2Span: 10,
+      w2Chord: 1.6, w2ChordTip: 1.6, w2TipX: 0, w2CrankAt: 0, w2CrankChord: 1.6,
+      w2CrankX: 0, w2DihedralOut: 6, w2Dihedral: 3, w2Incidence: 1.5,
+      w2Washout: 1.5, w2Camber: 2, w2Thick: 12, w2Tip: 2, w2Centre: 0,
+      w2Panels: 3, w2Cons: 0, w2FlapType: 0, w2FlapSpan: 0.5, w2FlapChord: 0.2,
+      w2AilOn: 1, w2AilSpan: 0.38, w2AilChord: 0.22, engOn: 1, engPreset: 9,
+      engPower: 0, engDetail: 0.8, eng_screws: 1, engY: 0.355, propOn: 1,
+      engMount: 1, engNacAt: 0.35, engPylonH: 0.3, engBlockZ: 0.75, engBlockY: 0,
+      engAim: 0, engRotate: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05,
+      eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0,
+      eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 6500,
+      eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1,
+      eng_liquid: 1, eng_geared: 1, eng_arch: 1, eng_cyl: 1, eng_radialRows: 1,
+      eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.076, eng_stroke: 0.064,
+      eng_stagger: 0.5, eng_twoStroke: 1, eng_blower: 0, eng_boost: 1,
+      eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8,
+      eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24,
+      eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0,
+      eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0,
+      eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 3,
+      eng_exDrop: 1.5, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0,
+      eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1,
+      eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75,
+      eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1,
+      eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0,
+      eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1,
+      eng_fwSpread: 1.5, spinMat: 0, cowlOn: 0, fitNose: 1, cowlGap: 0,
+      cw_fwLipOn: 1, cw_fwLipR: 0.004, cw_fwLipRise: 0, cw_fwLipIn: 0.025,
+      cw_cowlLen: 0.455, cw_aftW: 0.5346006505551372,
+      cw_aftH: 0.3406349704887502, cw_taperW: 0.82, cw_taperH: 0.78,
+      cw_lidRise: 0.06, cw_lidLen: 0.125, cw_lidShoulder: 0.45,
+      cw_lidRound: 0.53, cw_faceRise: 0.018, cw_deckSweep: 0, cw_keelSweep: 0.55,
+      cw_waistSweep: 0, cw_lidMode: 1, cw_lidR: 0.17, cw_lidGap: 0.009,
+      cw_deckH: 1, cw_keelH: 1, cw_waist: 0.05337383734191484,
+      cw_sqAftTop: 0.5329149083978864, cw_sqAftBot: 0.5639850552920584,
+      cw_sqFrontTop: 0.54, cw_sqFrontBot: 0.48, cw_lidSqTop: 0.62,
+      cw_lidSqBot: 0.6, cw_detail: 1, cw_lobeN: 2, cw_lobeAmp: 0.022,
+      cw_lobeT: 0.45, cw_lobeAz: 0, cw_lobeSig: 34, cw_lobeTSig: 0.3,
+      cw_cutSpan: 0, cw_cutAz: 270, cw_apMode: 1, cw_apW: 0.296, cw_apH: 0.108,
+      cw_apSq: 0.47, cw_apOffX: 0, cw_apOffY: 0, cw_pairX: 0.2, cw_pairW: 0.08,
+      cw_pairH: 0.048, cw_pairY: 0.012, cw_pairSq: 0.625, cw_lipMode: 0,
+      cw_lipThick: 0.009, cw_lipDepth: 0.055, cw_lipRound: 0.55,
+      cw_lipProtrude: 0.5, cw_lipInset: 0.028, cw_ductLen: 0.12, cw_ductFlare: 0,
+      cw_scoopOn: 1, cw_scoopZ: 0, cw_scoopLen: 0.22, cw_scoopW: 0.065,
+      cw_scoopH: 0.055, cw_scoopSq: 0.5, cw_scoopDrop: 0.7, cw_scoopRake: 0.18,
+      cw_scoopAp: 0.68, cw_scoopLipH: 0.011, cw_scoopLipDepth: 0.032,
+      cw_scoopDuct: 0.125, cw_seamOn: 1, cw_seamType: 1, cw_seamPos: 0.745,
+      cw_seamWidth: 0.005, cw_seamDepth: 0.0022, cw_partOn: 1, cw_partY: 0,
+      cw_partW: 0.0022, cw_fastOn: 1, cw_fastPitch: 0.11, cw_fastD: 0.016,
+      cw_oilOn: 1, cw_oilZ: 0.42, cw_oilW: 0.13, cw_oilL: 0.16, cw_oilSq: 1,
+      cw_noseOff: -0.04, cw_spinR: 0.101, cw_spinLen: 0.25, cw_spinRound: 0.6,
+      cw_bladeStation: 0.42, cw_shaftR: 0.045, cw_shaftLen: 0.3, cw_bladeN: 3,
+      cw_propD: 1.73, cw_material: 0, cw_rpm: 2400, cw_tas: 205, cw_power: 160,
+      cw_rootChord: 0.165, cw_tipChord: 0.05, cw_chordBulge: 0.18, cw_sweep: 0,
+      cw_thickRoot: 0.2, cw_thickTip: 0.09, cw_camb: 0.04, cw_tipRound: 0.1,
+      cw_cuff: 0.22, cw_shankR: 0.045, cw_slip: 12, cw_aftMode: 0,
+      cw_tailLen: 1.5, cw_tailDrop: 0.02, crewOn: 1, seatLayout: 0, seatTilt: 3,
+      seatBelt: 0, seatType: 1, seatZ: 0.205, seatH: 0.08, seatRake: 13,
+      seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
+      ctlThr: 5, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
+      yokeGap: 0.16, floorOn: 1, floorLift: 0, trimX: 0, trimY: 0, trimZ: 0,
+      flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0,
+      thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18, pedalSpread: 0.1, pedalAngle: 25,
+      dumOn: 1, dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0,
+      dumMarkers: 1, pilotWho: 2, copWho: 0, dumFist: 0.75, dumIdle: 0.5,
+      swMaster: 0, swAlt: 0, swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.67,
+      paxFeetY: 0.18, paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.045, cabOcc: 0,
+      paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.185,
+      paxSize: 1, paxRecline: 0, fltPreset: 15, fltDetail: 1, fltPaddle: 1,
+      fltRudder: 1, fltL: 4.3, fltStep: 0.54, fltB: 0.67,
+      fltH: 0.45454545454545453, fltBeta: 20, fltBetaBow: 30.21892547607422,
+      fltBetaA: 20, fltHs: 0.045, fltAft: 6.5, fltAftCurve: 0.020273656845092775,
+      fltFlat: 0.3, fltStem: 0.1578107452392578, fltRake: 12, fltNoseR: 0.1,
+      fltPlan: 3.958951473236084, fltStern: 0.75, fltFlare: 4,
+      fltMass: 27.200000000000003, fltSpreadAft: 0.36, fltZ: 0, fltDrop: 0.55,
+      fltInc: 0, fltTrack: 0.8, fltStrutR: 0.018, fltWires: 1, fltStrutAng: 55,
+      fltSpread: 1, acc_fuelCap_sL: 0, acc_fuelCap_lv: 0, acc_fuelCapWing_sL: 0,
+      acc_fuelCapWing_lv: 0, acc_fuelDrain_sL: 0, acc_fuelDrain_lv: 0,
+      acc_oilDoor_sL: 0, acc_oilDoor_lv: 0, acc_staticDrain_sL: 0,
+      acc_staticDrain_lv: 0, acc_inspTail_sL: 0, acc_inspTail_lv: 0,
+      acc_inspBelly_sL: 0, acc_inspBelly_lv: 0, acc_inspAileron_sL: 0,
+      acc_inspAileron_lv: 0, acc_fuelCapWing2_sL: 0, acc_fuelCapWing2_lv: 0,
+      acc_inspAileron2_sL: 0, acc_inspAileron2_lv: 0, acc_baggageDoor_sL: 0,
+      acc_baggageDoor_lv: 0, acc_staticPort_sL: 0, acc_staticPort_lv: 0,
+      acc_venturi_sL: 0, acc_venturi_lv: 0, acc_oatProbe_sL: 0,
+      acc_oatProbe_lv: 0, acc_commAerial_sL: 0, acc_commAerial_lv: 0,
+      acc_navAerial_sL: 0, acc_navAerial_lv: 0, acc_xpdrAerial_sL: 0,
+      acc_xpdrAerial_lv: 0, acc_beacon_sL: 0, acc_beacon_lv: 0, acc_step_sL: 0,
+      acc_step_lv: 0, acc_doorHandle_sL: 0, acc_doorHandle_lv: 0,
+      acc_grabHandle_sL: 0, acc_grabHandle_lv: 0, acc_tieDownTail_sL: 0,
+      acc_tieDownTail_lv: 0, fltBow: 0.36, fltBowB: 0.15, fltSide: 0.22,
+      cw_stubDeckH: 1.27, cw_stubWaist: -0.07, cw_stubKeelH: 0.83,
+      cw_stubSqTop: 0.53, cw_stubSqBot: 0.35,
+    },
   },
 
   // THE WHOLE AEROPLANE, for the stock rows that are a BUILD and not just a
@@ -43705,6 +44023,322 @@ window.CAGE_PAGE = {
             hue: null,
             tint: null }] },
       outfit: { seats: "sling" },
+    },
+    "chinook": {
+      wings: [{
+          span: 9.75,
+          chord: 1.47,
+          taper: 1,
+          sweep: null,
+          dihedral: 3,
+          position: "high",
+          tip: "clipped",
+          naca: 2412,
+          incidence: 1.5,
+          washout: 1.5,
+          panels: 3,
+          crankAt: 0,
+          dihedralOut: null,
+          crankChord: null,
+          crankX: null,
+          tipX: 0,
+          cuts: [1, 1.34],
+          centre: "open",
+          centreW: 0.35,
+          cabaneH: null,
+          xLE: 0.9330999999999995,
+          yRoot: 1.0920262226563353,
+          place: {
+            dx: 0,
+            dy: 0 } }],
+      bracing: {
+        type: "strut",
+        interplane: "none",
+        interplaneAt: 0.62,
+        wires: "both",
+        cabane: "N" },
+      controls: {
+        flap: {
+          type: "fowler",
+          span: 0.5,
+          chord: 0.2 },
+        aileron: {
+          span: 0.38,
+          chord: 0.22 },
+        elevator: {
+          chord: 0.37488825701678713 },
+        rudder: {
+          chord: 0.43362965079693394 } },
+      engines: [{
+          type: "rotax582_ivo",
+          mount: "pusher",
+          place: {
+            dx: 0,
+            dy: 0 },
+          x: 1.7358078703703756,
+          y: 1.0039702430005506,
+          z: 0,
+          sense: 1 }],
+      fuselage: {
+        material: "tubeFabric",
+        shape: "straight",
+        covering: "open",
+        tailArm: 4.596412174999999,
+        postGap: 0.67,
+        tailBays: 4,
+        tailW: 0.1,
+        tailBot: 0.2,
+        tailTop: 0.38,
+        boom: "rod",
+        profile: null,
+        tailY: 0,
+        cowlDeck: 0.2801653211089666,
+        windRun: 0.26,
+        crownTop: 0.72,
+        crownSide: 0.07 },
+      cabin: {
+        canopy: {
+          style: "screen",
+          height: 0,
+          sill: 0.3,
+          skew: 0.42,
+          bubble: 0.7,
+          lid: 1,
+          width: 1,
+          x0: null,
+          x1: null,
+          reach: null,
+          joint: "square",
+          jointRun: 3,
+          facet: false,
+          sun: 0,
+          sunStart: 0.38,
+          sides: false,
+          sideTop: 0.34,
+          sideDepth: 0.5,
+          sideReach: 1,
+          sideGap: 0.1,
+          wsAngle: null,
+          wsCurve: 1 },
+        baggage: 10,
+        seating: "tandem2",
+        glazing: "bubble",
+        pilots: 1,
+        pax: 0,
+        halfW: 0.27725543281030623,
+        h: 1.1420262226563354,
+        len: 0.7450000000000002,
+        noseGap: 1.2664999999999995,
+        seatX: 0,
+        seatY: 0.1,
+        seatPitch: 0.86,
+        seatsX: [0.8114999999999994, 1.5019999999999998],
+        seats: 2,
+        occupied: [1, 0],
+        panel: {
+          on: true,
+          depth: 0.27,
+          inset: 0.06,
+          wrap: 0.5 },
+        pilot: {
+          show: true,
+          stature: 1.75,
+          lean: 17,
+          thigh: -9,
+          shank: 10,
+          armDown: 40,
+          fore: 6,
+          head: -11,
+          armIn: 26,
+          ankle: 40,
+          toeOut: 7,
+          hipOut: 0,
+          kneeOut: 3 } },
+      gear: {
+        fairing: "none",
+        twFairing: "none",
+        legFair: "none",
+        twLegFair: "none",
+        type: "taildragger",
+        suspension: "oleo",
+        fairTail: 1,
+        twFairTail: 1,
+        fairMat: "glass",
+        track: 1.6,
+        x: 1.058268305351846,
+        y: -0.2191284539741889,
+        wheelR: 0.2,
+        twX: 4.904412174999999,
+        twY: 0.0008808516827415458,
+        twR: 0.07,
+        stiffness: 1,
+        legDrop: null,
+        twLeg: null,
+        camber: 0,
+        floats: null,
+        place: {
+          dx: 0,
+          dtrack: 0 } },
+      fuel: {
+        litres: 38,
+        tank: "nose" },
+      systems: {
+        fit: "basic",
+        units: "aviation",
+        items: null,
+        elec: {
+          battery: null,
+          alternator: null,
+          starter: null,
+          vac: null },
+        avionics: {
+          com: null,
+          xpdr: null,
+          nav: null,
+          gps: null },
+        side: "pilot",
+        look: {
+          bezel: "plastic",
+          sw: "toggle" } },
+      meta: {
+        name: "chinook",
+        reg: "C-ICHK" },
+      cargo: {
+        len: 0,
+        kg: 0 },
+      energy: {
+        kind: "fuel",
+        fuel: "avgas100LL",
+        cell: "lifepo4",
+        kWh: 0,
+        vessel: "wet",
+        finish: null,
+        hue: 0,
+        tint: null,
+        vessels: [{
+            bay: "cabin",
+            capacity: 38,
+            along: 1.87,
+            lv: 0.3,
+            rot: 0,
+            form: "box",
+            dims: {
+              L: 0.24,
+              W: 0.42,
+              H: 0.38 },
+            finish: null,
+            hue: null,
+            tint: null }] },
+      outfit: {
+        seats: "sling" },
+      cowl: {
+        fillet: 0.1,
+        taper: 0.94,
+        halfW: null,
+        top: null,
+        bot: null,
+        intake: "chin" },
+      prop: {
+        D: 1.73,
+        blades: 3,
+        material: "wood",
+        pitch: "standard",
+        chord: 0.1,
+        root: 0.16,
+        spinner: {
+          shape: "ogive",
+          len: 2.2,
+          dia: 0.17 } },
+      tail: {
+        type: "conventional",
+        vAngle: 33,
+        Sh: 2.855189490161934,
+        Sv: 1.4088773590407981,
+        Svt: null,
+        hSpan: 3.124329469203949,
+        hChord: 0.9138567229561134,
+        hX: 4.345661985296173,
+        hTaper: 0.5014912895158304,
+        tip: "rounded",
+        tipV: null,
+        tipH: null,
+        vSweep: null,
+        stabH: 0,
+        dorsal: {
+          len: 0.34,
+          height: 0.16,
+          width: 0.55,
+          angle: null,
+          area: 0 },
+        vHeight: null,
+        vChord: null,
+        vX: null,
+        vTaper: 0.542163020737832,
+        place: {
+          dx: 0 },
+        boomX: null,
+        boomLen: null,
+        boomR: null,
+        boomX0: null,
+        boomTaper: null,
+        boomOval: null,
+        boomIncl: 0,
+        boomDy: 0,
+        stabY: null },
+      paint: {
+        job: "full",
+        base: 15909943,
+        trim: 1784412,
+        sweep: 0.55,
+        gloss: 0.42,
+        regX: 0.3 },
+      finish: {
+        sections: {
+          body: {
+            tint: 13017115 },
+          ceilingLoop: {
+            tint: 13017115 },
+          floorLoop: {
+            tint: 13017115 },
+          pillarCabin: {
+            tint: 13017115 },
+          pillarFront: {
+            tint: 13017115 },
+          pillarPassenger: {
+            tint: 13017115 },
+          pillarTail: {
+            tint: 13017115 },
+          pillarTaper: {
+            tint: 13017115 },
+          pillarWindow: {
+            tint: 13017115 },
+          taper: {
+            tint: 13017115 },
+          taperPanel: {
+            tint: 13017115 },
+          waistband: {
+            tint: 13017115 },
+          wingSkin: {
+            tint: 12983067 },
+          wingTip: {
+            tint: 13017115 },
+          finSkin: {
+            tint: 12983067 },
+          finRud: {
+            tint: 12983067 },
+          stabSkin: {
+            tint: 12983067 },
+          boomTube: {
+            tint: 13017115 } },
+        decals: {
+          regH: 0.18,
+          regL: 1.5,
+          regC: 0.22,
+          regTarget: 2,
+          regMode: 1,
+          regCol: 13017115,
+          regOutOn: 0,
+          regW: 1.02678246539572 } },
     },
   },
 };
@@ -71579,7 +72213,12 @@ function engineFaces(mesh, FS, P) {
   const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
     const f = noseFace(mesh, FS, 'tail');
-    return f ? [{ face: f, aft: true, kind: 'pusher' }] : [];
+    // G461 (the Chinook): THE PUSHER'S BLOCK MOVES TOO. The pod's aft face
+    // is where the mount bolts, and a Chinook's engine sits over the wing's
+    // trailing edge, a third of a metre ahead of where the pod ends — the
+    // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
+    // (block fore / aft, up / down), applied to the face the pusher stands on.
+    return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {
     if (!W || !W.leAt || ![0, 3].includes(Math.round(P.wgPos || 0))) return [];   // G185: or a parasol
@@ -72776,10 +73415,12 @@ const ENG_ITEMS = [
   ['engRotate',  'rotation (pair)', 0, 2, 1,
    ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
    { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+  // ...on the pusher too (G461, the Chinook: its engine sits over the wing's
+  // trailing edge, ahead of the pod's aft face — _cage_cowl engineFaces)
   ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 1, dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
@@ -127405,35 +128046,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=dcd314a7"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {

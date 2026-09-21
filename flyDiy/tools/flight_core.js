@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c5136956d1820e33
+// body-sha256: 038984bafc8a2b58
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8051,7 +8051,8 @@ function makeSim(def, world) {
       const [Cl, Cd] = fl > 0
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
-      const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
+      const q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1), iv = 1 / Math.sqrt(V2);
       // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
       // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
       // the lift direction: the bound runs A -> B (inboard -> outboard) and
@@ -8116,6 +8117,39 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    P_.fusCdA);
     blob(def.refs.fusDragAft, P_.fusCdAAft);
+    // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
+    // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
+    // incidence, NOSE-UP with the nose up — destabilising, the term every
+    // hand calculation carries and the blobs (a crossflow force) cannot
+    // make. The incidence is the fore blob's own relative wind against the
+    // body axes; the couple is a force pair on the two blob rings, up on
+    // the fore ring and down on the aft, over the distance between them.
+    // (k2 - k1) and Multhopp's wing correction are one factor, P_.bodyMunk.K
+    // (GEN_RULES.bodyMunkK); a fiche without the record flies as before.
+    if (P_.bodyMunk && P_.bodyMunk.vol > 0 && def.refs.fusDrag && def.refs.fusDragAft) {
+      const A = def.refs.fusDrag, Bq = def.refs.fusDragAft;
+      let vx=0, vy=0, vz=0, ax=0, ay=0, bx=0, by=0;
+      for (const i of A) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; ax+=p[i*3]; ay+=p[i*3+1]; }
+      for (const i of Bq) { bx+=p[i*3]; by+=p[i*3+1]; }
+      vx/=A.length; vy/=A.length; vz/=A.length; ax/=A.length; ay/=A.length; bx/=Bq.length; by/=Bq.length;
+      let wx_ = 0, wy_ = 0, wz_ = 0;
+      if (world && world.wind) { const wv = world.wind(ax, ay, 0, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz;
+      const u = rx*xAft[0]+ry*xAft[1]+rz*xAft[2], wn = rx*yUp[0]+ry*yUp[1]+rz*yUp[2];
+      const Vr2 = u*u + wn*wn;
+      if (Vr2 > 1) {
+        // the body's incidence: the relative wind runs aft (u > 0 flying
+        // forward) and from below (wn > 0 along up) with the nose up
+        const alB = Math.atan2(wn, u);
+        const M = 2 * P_.bodyMunk.K * P_.bodyMunk.vol * 0.5 * rho * Vr2 * Math.sin(2 * alB) * 0.5;
+        const L = Math.hypot(bx - ax, by - ay);
+        if (L > 0.3) {
+          const F = M / L;      // nose-up couple: up on the fore ring, down on the aft
+          for (const i of A)  { f[i*3] += F/A.length*yUp[0];  f[i*3+1] += F/A.length*yUp[1];  f[i*3+2] += F/A.length*yUp[2]; }
+          for (const i of Bq) { f[i*3] -= F/Bq.length*yUp[0]; f[i*3+1] -= F/Bq.length*yUp[1]; f[i*3+2] -= F/Bq.length*yUp[2]; }
+        }
+      }
+    }
   }
 
   // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
@@ -8455,7 +8489,7 @@ function makeSim(def, world) {
   // setNodeMass would have been invisible to every external reader (the
   // autopilot's taxi feedforward, the shakedown's weights). Same number as
   // ever for anything that never changes mass; nothing writes it.
-  const sim = { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+  const sim = { p, v, m, r, f, beams, n, ctl, out, get totalM() { return totalM; },   // f: the node forces of the last pass, readable (G461's NP decomposition)
            // THE CLOCK, READABLE (G460, ruling ap): the wave the floats are pushed by is
            // waterH(x, z, simT) - the renderer draws the same wave at the same t
            get t() { return simT; },
@@ -16267,10 +16301,12 @@ const GEN_SURF_MATERIALS = {
   // tail, `tail.section` replaces GEN_RULES.tailSection for its members.
   // The cloth rows say nothing here — cloth is cloth, and their members ARE
   // the structure (the J-3's 14-16 kg fixed tailSection at 0.20).
+  // (G461: 0.75 -> 0.70 — a 172's stab skin is 0.5 mm, 1.35 kg/m2 per
+  // wetted m2, ~1.85 with its ribs and stringers = 0.70 of the wing row's 2.6)
   alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal', cover: 2.6,
-            tail: { cover: 0.75, section: 0.10 } }),
+            tail: { cover: 0.70, section: 0.10 } }),
   carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
-            tail: { cover: 0.75, section: 0.10 } }),
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -18253,7 +18289,10 @@ const GEN_RULES = {
   // post ring is the tube row's, 79 -> 84 at 0.4). [member, cover]; a row
   // absent here takes the two floors above. The alloy cone's real ratio:
   // a 172's post is ~0.4 of its box's perimeter and its cone ~28 kg.
-  fusAftFloors: { alloy: [0.3, 0.4], carbon: [0.3, 0.4] },
+  // (G461: [0.3, 0.4] -> [0.2, 0.3]; the stock alloy and carbon variants
+  // read the same substeps at 0.2 as at 0.7, the 172's cone 36 -> 33 kg
+  // against a 172R's ~28)
+  fusAftFloors: { alloy: [0.2, 0.3], carbon: [0.2, 0.3] },
   // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
   // mount, the baffles, the oil, the hoses and the engine controls
   // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
@@ -18323,7 +18362,22 @@ const GEN_RULES = {
   // 10.7 (its skin and eleven members — the structure was never there);
   // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
   // measurement). The tail members' k follows.
+  // G461 (the 172's neutral point, the aero item): the body's Munk moment,
+  // 2 q (k2 - k1) Vol per radian, with (k2 - k1) (~0.9 at fineness 6-8) and
+  // Multhopp's correction for the wing's up/downwash folded into one factor
+  // (30_solver, on the two fuselage blobs). Measured: 172 NP 65 -> 59 %,
+  // Cub 44 -> 41, Jodel 36 -> 33 (their hand calculations 51 / 40 / 33-38).
+  bodyMunkK: 0.75,
+  // ...and the stab's dynamic pressure behind the body, 0.9 (a
+  // conventional tail; the propwash is in its local wind already)
+  tailEta: 0.9,
   tailSection: 0.20,
+  // G461: the tail's k and c FOLLOW a stressed-skin row's mass share
+  // (tail.section) — "stiffness follows mass", the rule the whole lattice
+  // keeps: 0 = in full (the alloy stock 145 -> 102 substeps, carbon 180 ->
+  // 128, the same reads as before the tail rate landed), 1 = k keeps the
+  // 0.20 share whatever the mass does (see 61_gen_frame)
+  tailSectionK: 0,
   // G457: no fuselage or tail node lighter than this (61_gen_frame re-lumps
   // each section's own mass toward its light nodes; the total and the
   // station stay). A stab tip's bow, rib and tape, a tail post's fittings
@@ -21767,13 +21821,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // stab is a small wing, built of what the stab is built of — at its own
     // gain (GEN_RULES.tailK), so the rows below read `cls` through `row()`
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : cls === 'tail' ? (R.tailK ?? R.wingK ?? 1) : 1;
-    const tSec = R.tailSection == null ? 0.5 : R.tailSection;
-    // ...a stressed-skin row names its own share OF THE MASS (GEN_SURF_MATERIALS
-    // alloy/carbon `tail.section`, G457): its cover already carries the ribs.
-    // The stiffness and the damping keep GEN_RULES.tailSection — the first
-    // cut halved the alloy tail's k with its mass and GATE FLEX's alloy
-    // cantilever read its torsion as "near a mechanism".
-    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec;
+    const tSec0 = R.tailSection == null ? 0.5 : R.tailSection;
+    // ...a stressed-skin row names its own share (GEN_SURF_MATERIALS alloy/
+    // carbon `tail.section`, G457): its cover already carries the ribs. The
+    // share is the MASS's; the stiffness and damping follow it by
+    // GEN_RULES.tailSectionK (G461): 1 = k stays the fleet's 0.20 share (the
+    // alloy stock then binds its integrator on 0.26 kg stab tips against a
+    // 9e5 k — 145 substeps where the tube stock reads 76); 0 = k follows
+    // the mass share in full. The alloy tail at half keeps 2.3x the fabric
+    // tail's k — a stressed-skin stab is the stiffer one either way.
+    const tSecM = (cls === 'tail' && MB.tail && MB.tail.section != null) ? MB.tail.section : tSec0;
+    const kFollow = R.tailSectionK == null ? 1 : R.tailSectionK;
+    const tSec = tSec0 * Math.pow(tSecM / tSec0, 1 - kFollow);
     const row = (tbl, c, sh = tSec) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? sh * tbl.wing : undefined));
     // a gear member is either the SPRING (vis 'leg') or its bracing
     let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
@@ -24561,22 +24620,37 @@ function genFusSwet(S, ST) {
     }
     return L;
   };
-  let swet = 0, frontal = 0;
+  // ...and the section's AREA, the same walk closed by the shoelace (G461,
+  // the body's own pitching moment needs the volume)
+  const area = (halfW, h, nTop, nBot) => {
+    if (!(halfW > 0) || !(h > 0)) return 0;
+    let a = 0, prev = null, first = null;
+    for (let i = 0; i <= N; i++) {
+      const th = 2 * Math.PI * i / N;
+      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      if (prev) a += prev[0] * q[1] - q[0] * prev[1];
+      prev = q; if (!first) first = q;
+    }
+    return 0.5 * Math.abs(a);
+  };
+  let swet = 0, frontal = 0, vol = 0;
   const P = ST.map(st => per(st.w, st.yt - st.yb, nT, nB));
+  const A = ST.map(st => area(st.w, st.yt - st.yb, nT, nB));
   for (const st of ST) frontal = Math.max(frontal, 2 * st.w * (st.yt - st.yb));
-  for (let i = 0; i < ST.length - 1; i++) swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+  for (let i = 0; i < ST.length - 1; i++) { swet += 0.5 * (P[i] + P[i + 1]) * (ST[i + 1].x - ST[i].x);
+                                            vol += (A[i] + A[i + 1] + Math.sqrt(A[i] * A[i + 1])) / 3 * (ST[i + 1].x - ST[i].x); }
   let cowlL = 0;
   if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
     cowlL = S.cowl.len;
-    const K = 8; let prevP = null;
+    const K = 8; let prevP = null, prevA = null;
     for (let i = 0; i <= K; i++) {
       const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
-      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
-      if (prevP != null) swet += 0.5 * (prevP + pc) * (cowlL / K);
-      prevP = pc;
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
+      if (prevP != null) { swet += 0.5 * (prevP + pc) * (cowlL / K); vol += (prevA + ac + Math.sqrt(prevA * ac)) / 3 * (cowlL / K); }
+      prevP = pc; prevA = ac;
     }
   }
-  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal };
+  return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal, vol };
 }
 
 // Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the
@@ -24676,7 +24750,7 @@ function genFusCdA(S, fr) {
   const out = {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
-    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
+    drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
             body, cool, heads, screen, junct, exh },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
@@ -25447,6 +25521,18 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
+    // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
+    // had no word for. A body in potential flow carries a destabilising
+    // moment dM/dalpha = 2 q (k2 - k1) Vol (Munk); the parts of it in the
+    // wing's upwash and downwash count more and less (Multhopp), taken as
+    // one factor GEN_RULES.bodyMunkK on the volume the wetted-area walk
+    // sums. The fuselage blobs stay: they are the crossflow force, the
+    // damping and the weathercocking; this is the couple they cannot make.
+    // tailEta: the stab's q behind the body (0.9 conventional; the propwash
+    // is already in its local wind).
+    bodyMunk: { vol: cda.drag.vol || 0, K: GEN_RULES.bodyMunkK == null ? 0.75 : GEN_RULES.bodyMunkK },
+    tailEta: GEN_RULES.tailEta == null ? 1 : GEN_RULES.tailEta,
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
