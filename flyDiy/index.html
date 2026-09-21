@@ -26324,7 +26324,14 @@ const GEN_TIPS = {
   rounded: { name: 'Rounded',    e: 1.00, bow: 0.50, arc: 7, fin: 0 },
   elliptic:{ name: 'Elliptical', e: 1.03, bow: 0.80, arc: 9, fin: 0 },
   hoerner: { name: 'Hoerner',    e: 1.02, bow: 0.30, arc: 5, fin: 0 },
-  winglet: { name: 'Winglet',    e: 1.07, bow: 0.20, arc: 4, fin: 0.42 },
+  // G468 (playtest item 41, the user: "a proper winglet, not just a straight
+  // up band"): the planform runs full-chord to the tip and the winglet is a
+  // BLENDED one lofted off that station (63_gen_wing): a 0.30 c transition
+  // radius canting to 75 deg, then a straight blade to `fin` tip chords of
+  // height, the leading edge swept 35 deg, the chord tapering to 0.35 at the
+  // top. `bow` 0 because the blend IS the tip; `fin` is the height in tip
+  // chords (0.42 was the old band's).
+  winglet: { name: 'Winglet',    e: 1.07, bow: 0,    arc: 0, fin: 0.75 },
 };
 
 // Design constants that are rules rather than choices. Each one reproduces a
@@ -34587,11 +34594,20 @@ function genWingInto(def, out) {
     const root = wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord,
                                [genAfEval(W.naca).lo(XC)])[0];
     // the mast drops a fixed distance below the skin, and the probe runs
-    // forward from its foot into clean air ahead of the leading edge
-    const DROP = 0.22, REACH = 0.24;
-    const foot = [root.p[0], root.p[1] - DROP, root.p[2]];
-    genTubeInto(pitot, root.p, foot, 0.010, 8, root.infl, B);
-    genTubeInto(pitot, foot, [foot[0] - REACH, foot[1], foot[2]], 0.011, 8,
+    // forward from its foot into clean air ahead of the leading edge.
+    // G468 (playtest item 52, the white pieces under build (4)'s wing):
+    // 0.22 m of drop was twice a real mast - a 172's stands ~0.10 m under
+    // the skin with the tube ~0.20 m forward - and read as a strut. Real
+    // proportions now, the mast raked 20 deg forward as the fitting is.
+    const DROP = 0.11, REACH = 0.20;
+    const foot = [root.p[0] - DROP * 0.36, root.p[1] - DROP, root.p[2]];
+    // a raked tube's rim cuts the skin by r sin(rake) (3 mm, GATE CLIP allows
+    // 1.5): the mast starts 6 mm down its own axis, under the skin's line
+    const dm = Math.hypot(foot[0] - root.p[0], foot[1] - root.p[1]) || 1;
+    const top = [root.p[0] + (foot[0] - root.p[0]) * 0.006 / dm,
+                 root.p[1] + (foot[1] - root.p[1]) * 0.006 / dm, root.p[2]];
+    genTubeInto(pitot, top, foot, 0.009, 8, root.infl, B);
+    genTubeInto(pitot, foot, [foot[0] - REACH, foot[1], foot[2]], 0.010, 8,
                 root.infl, B);
   }
   }
@@ -34731,9 +34747,51 @@ function genWingInto(def, out) {
       }
     }
     if (TIP.fin > 0) {
-      const h = TIP.fin * W.chord, last = fixRows[fixRows.length-1];
-      fixRows.push(last.map(pt => ({ p: [pt.p[0], pt.p[1]+h, pt.p[2] - 0.22*h*side],
-        infl: pt.infl, u: pt.u })));
+      // G468: A BLENDED WINGLET (playtest item 41). The old winglet was the
+      // last bow row copied straight up by 0.42 c - a band. This is the
+      // shape every blended winglet has: from the last full station the
+      // section rolls through a transition RADIUS (0.30 c) up to a cant of
+      // 75 deg (15 off the vertical), then runs straight to `fin` tip chords
+      // of height; the leading edge sweeps aft 35 deg as it climbs and the
+      // chord tapers to 0.35 of the tip's at the top. Eight rows on the
+      // path, each the tip station's own aerofoil rebuilt in a rotated
+      // frame (the thickness axis rolls from up to inboard with the cant),
+      // the node influences the tip station's, so the blade rides the spar
+      // ends. Display only: the planform (chordAt) ends at the tip, so no
+      // strip lifts and no rib weighs where the winglet stands.
+      const zW = zStraight, f = frameAt(zW);
+      const ch = genV3.norm(genV3.sub(f.pR, f.pF));
+      let up = genV3.norm(genV3.cross(ch, [0, 0, 1]));
+      if (up[1] < 0) up = genV3.mul(up, -1);
+      const c0 = f.chord, Hh = TIP.fin * c0;
+      const R = 0.30 * c0, PHI = 75 * Math.PI / 180, LAM = 0.35, SW = Math.tan(35 * Math.PI / 180);
+      const hArc = R * (1 - Math.cos(PHI));
+      const L = Math.max(0.05 * c0, (Hh - hArc) / Math.sin(PHI));
+      const sArc = R * PHI, sTot = sArc + L, NW = 8;
+      const pts = genAfSegCove(W.naca, 1, NAF, ARCN, gapAt(zW), curbAt(zW));
+      // the wall at the aileron's outboard end (the winglet is full chord)
+      const hLast = hOf(zW);
+      if (Math.abs(hLast - 1) > 1e-9) { fixRows.push(fixSec(zW, 1)); fixRows.push(fixSec(zW, 1)); }
+      for (let i = 1; i <= NW; i++) {
+        const s = sTot * i / NW;
+        let phi, dy, dz;
+        if (s <= sArc) { phi = s / R; dy = R * (1 - Math.cos(phi)); dz = R * Math.sin(phi); }
+        else { phi = PHI; dy = hArc + (s - sArc) * Math.sin(PHI); dz = R * Math.sin(PHI) + (s - sArc) * Math.cos(PHI); }
+        const cT = c0 * (1 - (1 - LAM) * (s / sTot));
+        // the section's frame on the path: the LE swept aft, the thickness
+        // axis rolled by the cant toward the inboard side
+        const pF = genV3.add(genV3.add(f.pF, genV3.mul(ch, SW * dy)), [0, dy, side * dz]);
+        const th = genV3.add(genV3.mul(up, Math.cos(phi)), [0, 0, -side * Math.sin(phi)]);
+        const row = pts.map(([xc, yc]) => {
+          const p = genV3.add(genV3.add(pF, genV3.mul(ch, (xc - sparF) * cT)), genV3.mul(th, yc * cT));
+          const k = kOf(xc), infl = [];
+          for (const [i2, w2] of f.wF) if (w2 > 1e-6) infl.push([i2, (1 - k) * w2]);
+          for (const [i2, w2] of f.wR) if (w2 > 1e-6) infl.push([i2, k * w2]);
+          return { p, infl, u: xc };
+        });
+        row.z0 = zW + dz;
+        fixRows.push(row);
+      }
     }
     // UV v is the TRUE span fraction, not the row index. Row-index v put the
     // paint's tip stripe wherever a loft happened to start, and once the
@@ -36657,7 +36715,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='bed89453dec6';window.FLYDIY_BUILD='32bed9181091'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='91da42588910';window.FLYDIY_BUILD='21be61e5515a'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -47943,6 +48001,14 @@ function buildCage2(S, step) {
                yC: wsLv.floor.y, zC: wsLv.floor.z },
       keel:  wsLv.keel,
     };
+    // G468, TRIED AND WITHDRAWN (playtest item 73, "the polygonality of the
+    // nose is very visible from the cockpit"): a ring every 0.14 m of the
+    // nose run whatever `front rings` says. It smooths the deck (the row at
+    // 2-3 does the same by hand) but GATE CAGEFIT holds the generator to the
+    // user's Blender template ring for ring, and the template's nose run is
+    // 0.6 m on no loops - an automatic ring is a different cage. The fix
+    // belongs to the BIRTH (a `front rings` default in the design flow), not
+    // to the loft; owed.
     if (cowl.loops > 0 && sv >= 1) {
       const target = (aeroFin ? R.noseRing : R.noseTwin).lv;
       for (let i = 1; i <= cowl.loops; i++) {
@@ -54999,6 +55065,48 @@ function fistAt(inst, side, out) {
   return n ? out.multiplyScalar(1 / n) : null;
 }
 
+// WHERE THE SOLE IS (G468, playtest item 25, the user: "the feet of the
+// pilot are not well calibrated to the pedals"): the rig's shoe is its own
+// depth and length under the ankle - on the build (4) pilot the sole ran
+// 11 cm under the Foot bone against the ATD's 7 cm, and the toes 25 cm
+// forward against 21 - so a target solved for the ATD's foot box sank the
+// shoe 4 cm through the pedal plate and pushed the toes out past its top.
+// This reads the DRESSED foot: every skinned vertex weighted to the side's
+// Foot / ToeBase bones, expressed in `frameInv` (the pedal anchor's frame,
+// whose -y is into the plate), the lowest tenth along that -y averaged -
+// the sole's contact patch, in the anchor's own axes. fitSoles() in the
+// crew layer moves the target by the difference to the ATD's mid-sole.
+const _sv = new THREE.Vector3();
+function soleAt(inst, side, frameInv, out) {
+  const S = side === 'L' ? 'Left' : 'Right';
+  const re = new RegExp(S + '(Foot|ToeBase)$');
+  const pts = [];
+  for (const m of inst.meshes) {
+    if (!m.isSkinnedMesh) continue;
+    const g = m.geometry, p = g.attributes.position,
+          si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    if (!p || !si || !sw) continue;
+    const bones = m.skeleton.bones;
+    const on = bones.map(b => re.test(b.name));
+    for (let i = 0; i < p.count; i++) {
+      let w = 0;
+      for (let k = 0; k < 4; k++) if (on[si.getComponent(i, k)]) w += sw.getComponent(i, k);
+      if (w < 0.5) continue;
+      _sv.fromBufferAttribute(p, i);
+      m.applyBoneTransform(i, _sv);
+      m.localToWorld(_sv).applyMatrix4(frameInv);
+      pts.push([_sv.x, _sv.y, _sv.z]);
+    }
+  }
+  if (pts.length < 8) return null;
+  pts.sort((a, b) => a[1] - b[1]);
+  const n = Math.max(4, Math.floor(pts.length * 0.10));
+  out = out || new THREE.Vector3();
+  out.set(0, 0, 0);
+  for (let i = 0; i < n; i++) out.x += pts[i][0], out.y += pts[i][1], out.z += pts[i][2];
+  return out.multiplyScalar(1 / n);
+}
+
 // dispose the per-instance objects (geometries and materials are shared and
 // stay for the page's life)
 function dispose(inst) {
@@ -55182,7 +55290,7 @@ function flatMaterial(key, mi) {
 }
 
 window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
-  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt,
+  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, soleAt,
   animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();
 </script>
@@ -55613,12 +55721,21 @@ function seatShell(parent, A, P, g) {
   const F = [H[0] + panL * Math.sin(tilt), H[1] + panL * Math.cos(tilt)];
   const hH = backH + 0.16;                            // head above the hinge
   const B = [H[0] + hH * bc, H[1] - hH * bs];
+  // THE ENDS ROLL AWAY FROM THE BODY (G468, playtest item 47, the user:
+  // "the carbon seat has interior edges at its ends, rendering it
+  // practically unusable, since it would cut the back of the neck and the
+  // legs"). The lip curled UP into the back of the knees and the headrest
+  // curled FORWARD into the neck - both ends pointed at the occupant. A
+  // moulded bucket rolls its edges OUTWARD: the front lip rolls down and
+  // forward under the thighs, the top rolls aft behind the head, and the
+  // cut edge of the shell is a half-round of its own thickness (below),
+  // not an 11 mm saw cut.
   const prof = [
-    [sx, F[0] + 0.055, F[1] + 0.030],                 // front lip, curled up
+    [sx, F[0] - 0.040, F[1] + 0.045],                 // front lip, rolled DOWN and forward
     [sx, F[0], F[1]],
     [sx, H[0], H[1]],
     [sx, B[0], B[1]],
-    [sx, B[0] + 0.035, B[1] + 0.055],                 // headrest curl forward
+    [sx, B[0] + 0.030, B[1] - 0.060],                 // the top rolled AFT, behind the head
   ];
   const C = filletPath(prof, 0.085, 5);
   const NU = C.length, NV = 12, TH = 0.011;
@@ -55659,10 +55776,28 @@ function seatShell(parent, A, P, g) {
     bag.quad(IN[i][0], IN[i + 1][0], OUT[i + 1][0], OUT[i][0]);
     bag.quad(IN[i][NV], OUT[i][NV], OUT[i + 1][NV], IN[i + 1][NV]);
   }
-  for (let j = 0; j < NV; j++) {                      // end rims
-    bag.quad(IN[0][j], OUT[0][j], OUT[0][j + 1], IN[0][j + 1]);
-    bag.quad(IN[NU - 1][j], IN[NU - 1][j + 1],
-             OUT[NU - 1][j + 1], OUT[NU - 1][j]);
+  // the end rims: a HALF-ROUND of the shell's thickness (G468) - three rings
+  // swept round from the inner face to the outer one, past the profile's end
+  // along its tangent, so the edge the thighs and the neck meet is a radius
+  for (const end of [0, NU - 1]) {
+    const i = end, nb = end === 0 ? 1 : NU - 2;
+    const tg = _nrm3(_sub3(C[i], C[nb]));             // outward along the profile
+    const rings = [];
+    for (let k = 0; k <= 4; k++) {
+      const th = Math.PI * k / 4;                     // inner face -> outer face
+      const ext = Math.sin(th) * TH * 0.5, off = -TH * 0.5 + Math.cos(th) * TH * 0.5;
+      const ring = [];
+      for (let j = 0; j <= NV; j++) {
+        const v = -1 + 2 * j / NV;
+        const a = pt(i, v, off);
+        ring.push(bag.v(a[0] + tg[0] * ext, a[1] + tg[1] * ext, a[2] + tg[2] * ext));
+      }
+      rings.push(ring);
+    }
+    for (let k = 0; k < 4; k++) for (let j = 0; j < NV; j++) {
+      if (end === 0) bag.quad(rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1]);
+      else bag.quad(rings[k][j], rings[k][j + 1], rings[k + 1][j + 1], rings[k + 1][j]);
+    }
   }
   bag.mesh(parent);
   // a thin cushion pad laid in the bucket, so it is not bare carbon
@@ -57776,6 +57911,10 @@ function solveGripJob(dum, j, ctx) {
     // the target moves by its negative, so the hollow of the fingers lands
     // on the grip whatever the rig's own hand and arm proportions are
     if (j.fixH) aw.p.add(_hv.copy(j.fixH).applyQuaternion(alignQ));
+  } else if (j.fixF) {
+    // G468: the SOLE lands on the pedal - fitSoles() measured where this
+    // rig's shoe bottom sits against the ATD's, in the anchor's frame
+    aw.p.add(_hv.copy(j.fixF).applyQuaternion(alignQ));
   }
   const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
   // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
@@ -58546,6 +58685,42 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
         { fist: P.dumFist == null ? 0.5 : +P.dumFist });
     }
   };
+  // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
+  // leg job's target is the ANKLE, placed so the ATD's foot box has its
+  // mid-sole (0.06 forward, 0.0725 below the ankle, bone frame) on the
+  // pedal's centre. A dressed rig's shoe is another depth and length, so
+  // its sole is read (CAGE_CHAR.soleAt, in the anchor's frame) and the
+  // target moved by the difference: the contact patch of THIS shoe lands
+  // where the ATD's would. Rides the job as `fixF` through the join.
+  const fitSoles = (dum, CH, jobs, solveJob, s) => {
+    if (!dum.char || !window.CAGE_CHAR.soleAt) return;
+    const legs = jobs.filter(j => !j.a.userData.grip && !CHAINS[j.chain].arm);
+    if (!legs.length) return;
+    const sp = new THREE.Vector3(), e = new THREE.Vector3(), inv = new THREE.Matrix4();
+    const atd = new THREE.Vector3(0, -0.0725, 0.06);
+    for (let it = 0; it < 2; it++) {
+      let moved = false;
+      group.updateMatrixWorld(true);
+      for (const j of legs) {
+        const side = /L$/.test(CHAINS[j.chain].end) ? 'L' : 'R';
+        j.a.updateWorldMatrix(true, false);
+        inv.copy(j.a.matrixWorld).invert();
+        if (!window.CAGE_CHAR.soleAt(dum.char, side, inv, sp)) continue;
+        // the anchor's frame is the ankle's (alignQ = the anchor's own
+        // rotation for a fixed anchor), so the ATD's mid-sole is `atd`
+        // scaled by the stature; what is left after the last pass is the
+        // residual (the target already carries fixF)
+        e.copy(sp).addScaledVector(atd, -(s || 1));
+        if (e.lengthSq() < 1e-6 || e.length() > 0.20) continue;
+        j.fixF = (j.fixF || new THREE.Vector3()).sub(e);
+        solveJob(j);
+        moved = true;
+      }
+      if (!moved) break;
+      window.CAGE_CHAR.dress(dum.char, dum,
+        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+    }
+  };
   const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
     if (!dum.char || LIVE_POLICY === 'none') return dum;
     if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return dum;
@@ -58688,6 +58863,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     }
     dressed(dum, CH, role, idx);
     fitFists(dum, CH, jobs, solveJob);
+    fitSoles(dum, CH, jobs, solveJob, s);
     return markLive(dum, CH, role, idx, s, jobs, ctx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
@@ -81285,13 +81461,20 @@ PAGE.post = ctx => {
         // it follows `surf` and is unmoved.
         const sz = row.size || {};
         const foot = Math.max(+sz.w || 0, +sz.h || 0, +sz.d || 0, (+sz.r || 0) * 2, 0.04);
+        // G468: the grid reaches 0.65 of the footprint, not 0.5 - a proud
+        // cap's flange is 0.62 d (capProud), and on the nose deck's crown
+        // (the cowl profile's rings, item 73) the flange's rim was 3.4 mm in
+        // where the ±0.5 d grid read the skin flat
+        // ...and 9 x 9 (was 5 x 5): a venturi's legs land at 0.34 of its
+        // 0.19 m length, between the coarse grid's samples, and its foot
+        // sat at the gate's 1.5 mm on the cowl profile's flank
         let lift = 0;
-        for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
-          const q = surf(i * foot * 0.25, j * foot * 0.25);
+        for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+          const q = surf(i * foot * 0.1625, j * foot * 0.1625);
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
         }
-        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * lift, pm[1] + F.n[1] * lift, pm[2] + F.n[2] * lift], F.n);
+        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)], F.n);
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site
@@ -81592,19 +81775,30 @@ function lensMat(key, level, colOver) {
 // NOT an AERO_HARD change: `AERO_HARD.light` is `{lodge, seal}` and adding a
 // third name there would make every layer that reads the table carry a
 // finish for something that is a lighting state, not a material.
+// THE SOCKET GLOWS TOO (G468, playtest item 123, the user: "the lights should
+// probably come with their socket mesh also being given an emissive material,
+// like we did for the hangar's hanging lamps"): the HOUSING - the barrel of a
+// proud fitting, the teardrop fairing of a wingtip light, the shell of a
+// recessed one - is the same cup material at a THIRD of the reflector's term
+// (`k` 0.33: a housing is lit by spill, a reflector by the bulb it holds).
+// It crosses the join as `lampK` on the cup's bucket, so the flight's
+// dimmer (cockpit.js CK.glow) and the hour's drive scale it with the lamp.
 const cupMats = {};
-function cupMat(level, colOver, on, key) {
+const SOCK_K = 0.33;
+function cupMat(level, colOver, on, key, k) {
   const lv = on ? level : 0;
   const col = colOver != null ? colOver : 0xfff0d8;
-  const id = lv.toFixed(2) + '|' + col + '|' + (key || '');
+  const kk = k || 1;
+  const id = lv.toFixed(2) + '|' + col + '|' + (key || '') + '|' + kk.toFixed(2);
   if (cupMats[id]) return cupMats[id];
   const row = MAT.lodge;
   const m = new THREE.MeshStandardMaterial({
     color: row.col, roughness: row.rough, metalness: row.metal,
-    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55,
+    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,
     side: THREE.DoubleSide });
   m.userData.aeroskin = 1;            // as for the lens: never the grey understudy
-  if (key) { m.userData.lampCup = key; m.userData.lampCol = col; }   // the panel arc
+  if (key) { m.userData.lampCup = key; m.userData.lampCol = col;   // the panel arc
+             if (kk !== 1) m.userData.lampK = kk; }
   return (cupMats[id] = m);
 }
 
@@ -82209,6 +82403,47 @@ function sites(scene, group, P) {
         return null;
       };
       const chordAt = x => { const l = edge(x, true), t = edge(x, false); return (l != null && t != null) ? l - t : 0; };
+      // G468: ON A WINGLET THE LIGHT RIDES THE BLADE'S TOP LEADING CORNER
+      // (the airliner idiom - the probes below see the blade as a very
+      // thick station and seat the pod on its inboard face). The wing's
+      // own skin is read: the highest vertices within the outboard metre
+      // are the winglet's top edge, the most forward of them its LE corner.
+      // The pod stands on the top edge, its axis the blade's own (15 deg
+      // off the vertical, outboard), its body running aft along the edge.
+      const tipKind = (typeof GEN_TIPS !== 'undefined' && window.CAGE_UI && window.CAGE_UI.P)
+        ? Object.keys(GEN_TIPS)[Math.round(window.CAGE_UI.P.wgTip) || 0] : null;
+      if (tipKind === 'winglet' && GEN_TIPS.winglet.fin > 0) {
+        const v = new THREE.Vector3(), wg = new THREE.Matrix4().copy(W.group.matrixWorld).invert();
+        const pts = [];
+        W.group.traverse(o => {
+          if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+          if (!/^(edWing|wing)/i.test(o.name || '') && !(o.material && o.material.userData && o.material.userData.aeroSurf)) return;
+          o.updateMatrixWorld(true);
+          const m = new THREE.Matrix4().multiplyMatrices(wg, o.matrixWorld);
+          const pa = o.geometry.attributes.position;
+          for (let i = 0; i < pa.count; i++) {
+            v.fromBufferAttribute(pa, i).applyMatrix4(m);
+            if (sgn * v.x > sgn * xExt - 1.0) pts.push([v.x, v.y, v.z]);
+          }
+        });
+        if (pts.length > 8) {
+          let yMax = -1e9; for (const q of pts) if (q[1] > yMax) yMax = q[1];
+          const top = pts.filter(q => q[1] > yMax - 0.025);
+          let le = top[0]; for (const q of top) if (q[2] > le[2]) le = q;
+          let te = top[0]; for (const q of top) if (q[2] < te[2]) te = q;
+          const cTop = Math.max(0.05, le[2] - te[2]);
+          const zSeat = le[2] - Math.max(0.03, cTop * 0.25) - navChord;
+          // the top edge's own slope (sweep): the pod's body runs along it
+          let tx = 0, ty = te[1] - le[1], tz = te[2] - le[2];
+          const tl = Math.hypot(tx, ty, tz) || 1; ty /= tl; tz /= tl;
+          const cant = 15 * Math.PI / 180;
+          const ax = [sgn * Math.sin(cant), Math.cos(cant), 0];
+          const at = top.reduce((b, q) => Math.abs(q[2] - zSeat) < Math.abs(b[2] - zSeat) ? q : b, top[0]);
+          const p = toL(at[0] - ax[0] * navSpan, at[1] - ax[1] * navSpan, zSeat);
+          return { p, ax, chord: [tx, ty, tz], thick: 0.03, len: Math.max(0.10, cTop * 0.35),
+                   xFull: at[0], chordFull: cTop };
+        }
+      }
       // 1. the last full station: the chord stops growing (within 4 %)
       let xFull = xExt - sgn * 0.02, cFull = 0;
       for (let d = 0.02; d < Math.min(1.5, span * 0.45); d += 0.02) {
@@ -82645,7 +82880,7 @@ function applyDrive() {
   for (const e of lampMats) {
     const lv = (L && L[e.key] != null) ? Math.max(0, Math.min(1, +L[e.key])) : e.lv;
     if (e.kind === 'lens') e.mat.emissiveIntensity = lv * LENS_K;
-    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K;
+    else e.mat.emissiveIntensity = (e.reflect ? lv : 0) * CUP_K * (e.k || 1);
   }
   for (const R of rotors) R.base = ((L && L.beacon != null) ? Math.max(0, Math.min(1, +L.beacon)) : R.lv) * LENS_K;
   // the dial faces are the panel layer's one emissive material (the instrument dimmer)
@@ -82715,19 +82950,27 @@ PAGE.post = (ctx) => {
     // this ended up with a lamp poking through the panel it was supposed to be
     // behind. So a recessed lamp is a REFLECTOR CUP with a bulb in it and a
     // RIM round the cut, and the glass belongs to the wing.
-    const lodge = Bag(hwMat('lodge')), seal = Bag(hwMat('seal'));
+    const seal = Bag(hwMat('seal'));
     const lensM = lensMat(key, lv, col), cupM = cupMat(lv, col, reflectOn, key);
+    // G468 (item 123): the housing is the socket material - the lodge's
+    // alloy lit by the lamp's spill, a third of the reflector's term
+    const sockM = cupMat(lv, col, reflectOn, key, SOCK_K);
+    const lodge = Bag(sockM);
     const lens = Bag(lensM);
     // the reflector: the lodge's alloy, lit by the bulb it surrounds
     const cup = Bag(cupM);
     // for the hour's drive (applyDrive): the design's level, the factories' materials
     if (!lampMats.some(e => e.mat === lensM)) lampMats.push({ key, kind: 'lens', mat: lensM, lv });
     if (!lampMats.some(e => e.mat === cupM)) lampMats.push({ key, kind: 'cup', mat: cupM, lv, reflect: reflectOn });
+    if (!lampMats.some(e => e.mat === sockM)) lampMats.push({ key, kind: 'cup', mat: sockM, lv, reflect: reflectOn, k: SOCK_K });
     if (site.recess) {
       // THE REFLECTOR AND THE BULB ARE SOLIDS, and the bulb is the emitter —
       // it is drawn in the lens material because a bulb IS the light. The
       // wing's glass is the lens; there is no second dome here.
-      revolveInto(lodge, site.p, site.ax, PROF.cup, 18, r);
+      // G468: the recessed shell IS the reflector - lit by its bulb, as the
+      // proud fitting's cup is (it was the bare lodge alloy, dark round a
+      // lit bulb - the ceiling-lamp complaint of 2026-08-31 in the wing bay)
+      revolveInto(cup, site.p, site.ax, PROF.cup, 18, r);
       revolveInto(lens, site.p, site.ax, PROF.bulb, 14, r);
       // the mount: the cup hangs off the back of the bay on a bracket, which
       // is the difference between a lamp fitted in a bay and one floating in
@@ -82837,7 +83080,7 @@ PAGE.post = (ctx) => {
       // beam horizontal on a beacon whose can stands vertical
       const a2 = Math.abs(site.ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
       const side = nrm(cross(site.ax, a2));
-      const mir = Bag(hwMat('lodge')), fil = Bag(lensMat(key, lv, col));
+      const mir = Bag(cupM), fil = Bag(lensMat(key, lv, col));   // G468: the mirror is a reflector, lit
       revolveInto(mir, [0, 0, 0], side, PROF.cup, 14, r * 0.52);
       revolveInto(fil, [0, 0, 0], site.ax, PROF.bulb, 10, r * 0.30);
       mir.mesh(rot); fil.mesh(rot);
@@ -89766,6 +90009,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             (kud.panelSet ? 'G' + kud.panelSet : '') +
             (kud.lampKey ? 'Lp' + kud.lampKey : '') +
             (kud.lampCup ? 'Lc' + kud.lampCup : '') +
+            (kud.lampK ? 'Lk' + kud.lampK : '') +          // G468: the socket's own bucket
             // session 4d: a baked piece's own textured material (the key)
             // keeps its maps and its uv — its own bucket, rebuilt from the
             // props registry
@@ -89832,7 +90076,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // lens / cup) and the lamps are dimmed per frame
           ...(ud.panelSet ? { panel: ud.panelSet } : {}),
           ...(ud.lampKey ? { lamp: ud.lampKey, lampCol: ud.lampCol } : {}),
-          ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol } : {}),
+          ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol, ...(ud.lampK ? { lampK: ud.lampK } : {}) } : {}),
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
@@ -90259,7 +90503,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
                       poleFig: j.poleFig.toArray(),
                       // G279: where this rig's fist closes, in the hand's frame
-                      fixH: j.fixH ? j.fixH.toArray() : null });
+                      fixH: j.fixH ? j.fixH.toArray() : null,
+                      // G468: where this rig's sole sits, in the anchor's frame
+                      fixF: j.fixF ? j.fixF.toArray() : null });
         }
         people.push({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
                       fist: L.fist, anim: L.anim, figM, bones, jobs });
@@ -94656,6 +94902,38 @@ function buildMatPanel() {
   // the soft-pinned hardware (the hinges, 2026-09-13), so they follow the
   // body from here. The per-section wells below still override
   // afterwards; the wing and the tail keep their own.
+  //
+  // G468 (playtest item 129, the user on the birdman: "the individual
+  // settings of the parts should take precedence over the overall
+  // colour"): a base pick reaches only the sections that were FOLLOWING
+  // it. Before, every exterior section and every parent-wearing part was
+  // overwritten on each pick, so a red waistband or a black cowl chosen
+  // by hand was wiped the moment the base moved. Now a section keeps its
+  // own value when it differs from the base the pick REPLACES (the value
+  // the previous pick wrote, or the finish's own base when nothing was
+  // written): equal = it was following, and follows on; different = the
+  // user's own, kept. The picker fires per notch, so the base it replaces
+  // is always the last notch's — a following section never falls behind.
+  // The same rule for the base metallic and the base roughness.
+  //
+  // `reach(map, prev, next, secs)`: for every exterior cage section and
+  // every parent-wearing / soft-pinned layer part, write `next` (or delete,
+  // when `next` is the neutral) if the entry is unset or equals `prev`;
+  // leave it when it is the user's own.
+  const baseReach = (map, prev, next, neutral, eq) => {
+    const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
+    const following = k => map[k] == null || same(map[k], prev);
+    const put = k => { if (!following(k)) return;
+      if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
+    for (const nm of names)
+      if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) put(nm);
+    put('body');
+    // the parent-wearing parts follow by having NO override: clear theirs
+    // only when it was the base's own value (a cowl painted by hand keeps it)
+    if (A.AERO_SEC) for (const k in A.AERO_SEC)
+      if ((A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
+        delete map[k];
+  };
   {
     const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
       'the skin, the rings and pillars, the nose deck, the cowl, the ' +
@@ -94674,11 +94952,12 @@ function buildMatPanel() {
     matPanelSync.push(() => { if (document.activeElement !== c) c.value = cur(); });
     c.oninput = () => {
       const v = parseInt(c.value.slice(1), 16);
-      for (const nm of names)
-        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) secTint[nm] = v;
+      // the base this pick replaces: what the body wears now (its override,
+      // else its finish's base) — a section equal to it was following
+      const prev = secTint.body != null ? secTint.body
+        : A.AERO_FINISH[secFin.body || A.aeroFinishFor('body', cons)].base;
+      baseReach(secTint, prev, v, null, (a, b) => (a >>> 0) === (b >>> 0));
       secTint.body = v;
-      if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secTint[k];
       aeroSavePrefs(); build();
     };
     d.appendChild(c);
@@ -94695,13 +94974,9 @@ function buildMatPanel() {
     vm.className = 'v'; vm.textContent = (+im.value).toFixed(2);
     im.oninput = () => {
       const x = +im.value; vm.textContent = x.toFixed(2);
-      for (const nm of names)
-        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) {
-          if (x <= 0) delete secMetal[nm]; else secMetal[nm] = x;
-        }
+      const prev = secMetal.body != null ? secMetal.body : null;   // unset = 0, the neutral
+      baseReach(secMetal, prev, x <= 0 ? null : x, 0, (a, b) => Math.abs(a - b) < 1e-6);
       if (x <= 0) delete secMetal.body; else secMetal.body = x;
-      if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secMetal[k];
       aeroSavePrefs(); build();
     };
     dm.appendChild(im); dm.appendChild(vm);
@@ -94721,13 +94996,9 @@ function buildMatPanel() {
     vr.className = 'v'; vr.textContent = (+ir.value).toFixed(2);
     ir.oninput = () => {
       const x = +ir.value; vr.textContent = x.toFixed(2);
-      for (const nm of names)
-        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) {
-          if (Math.abs(x - 1) < 1e-6) delete secRough[nm]; else secRough[nm] = x;
-        }
+      const prev = secRough.body != null ? secRough.body : null;   // unset = 1, the neutral
+      baseReach(secRough, prev, Math.abs(x - 1) < 1e-6 ? null : x, 1, (a, b) => Math.abs(a - b) < 1e-6);
       if (Math.abs(x - 1) < 1e-6) delete secRough.body; else secRough.body = x;
-      if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secRough[k];
       aeroSavePrefs(); build();
     };
     dr.appendChild(ir); dr.appendChild(vr);
@@ -127874,7 +128145,7 @@ function make(THREE) {
       const gain = l.key === 'beacon' ? beacon : 1;
       const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
       if (l.mesh.material && l.mesh.material.emissive)
-        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (inside ? kIn : kOut);
+        l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third
     }
     if (CK.model && CK.model.spot) {
       const land = CK.lightOn && busOk ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;
@@ -128185,7 +128456,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
 <script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=f5bc6864"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=dcd314a7"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
@@ -129728,6 +129999,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         jobs.push({ chain: j.chain, label: j.label, a, sh, part: cm.obj,
                     // G279: the editor's measured fist correction, hand frame
                     fixH: j.fixH ? new THREE.Vector3().fromArray(j.fixH) : null,
+                    fixF: j.fixF ? new THREE.Vector3().fromArray(j.fixF) : null,   // G468: the sole
                     ctx: { s: r.s, palm: r.palm, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
@@ -130027,7 +130299,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       // emissive is its own — the cockpit's switches dim them per frame
       if (data.cage && (m.lamp || m.lampCup) && window.CAGE_LIGHT) {
         const src = m.lamp && window.CAGE_LIGHT.lensMat ? window.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
-                  : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup)
+                  : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK)
                   : null;
         if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }
       }
@@ -130134,7 +130406,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       // the panel arc (session 4): which buckets are lamps, for the cockpit
       if (mats[name] && (mats[name].lamp || mats[name].lampCup))
         lamps.push({ mesh, key: mats[name].lamp || mats[name].lampCup,
-                     kind: mats[name].lamp ? 'lens' : 'cup' });
+                     kind: mats[name].lamp ? 'lens' : 'cup', k: mats[name].lampK || 1 });   // G468: the socket at a third
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1), as in the editor
     if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetCabin)
@@ -130282,7 +130554,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           // tail light) is still a lamp — the cockpit switch has to find it
           if (mats[name] && (mats[name].lamp || mats[name].lampCup))
             lamps.push({ mesh, key: mats[name].lamp || mats[name].lampCup,
-                         kind: mats[name].lamp ? 'lens' : 'cup' });
+                         kind: mats[name].lamp ? 'lens' : 'cup', k: mats[name].lampK || 1 });
         }
         if (pt.kind === 'prop') {
           // THE WANDERING PROPELLER (G58.6, user: "the prop sometimes
