@@ -333,8 +333,8 @@ function build() {
       return [b1, b3];
     };
     const skin = bnd(f => f.m !== 'joint' && f.m !== 'doorSeal' && f.m !== 'reveal'
-                          && f.m !== 'pasengerWindow');
-    const pane = bnd(f => f.m === 'pasengerWindow');
+                          && f.m !== 'drawnPane');
+    const pane = bnd(f => f.m === 'drawnPane');
     const lp = (s.knifeLoops || []).reduce((a, l) => a + l.pts.length, 0);
     water = { skin: skin[0], pane: pane[0], loop: lp, over: skin[1] + pane[1] };
   }

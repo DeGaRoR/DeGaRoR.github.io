@@ -51,7 +51,7 @@
 'use strict';
 (function () {
 
-const GLASS = new Set(['pilotWindow', 'pasengerWindow', 'windshield']);
+const GLASS = new Set(['pilotWindow', 'pasengerWindow', 'windshield', 'drawnPane']);
 const SKIN = new Set(['body', 'waistband', 'floorLoop', 'ceilingLoop',
                       'pillarWindow', 'pillarCabin', 'pillarPassenger',
                       'pillarFront', 'pillarTail', 'taper']);

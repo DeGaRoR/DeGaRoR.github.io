@@ -34,6 +34,7 @@ const SEC = {
   pilotWindow:     '#1b67cc',
   pillarCabin:     '#12cc10',
   pasengerWindow:  '#5ecc12',
+  drawnPane:       '#6ad81e',       // T2.2: the knife's panes, their own section
   pillarPassenger: '#2b28cc',
   pillarTail:      '#cc2b80',
   pillarFront:     '#8a5ecc',
@@ -290,7 +291,7 @@ const XRAY_A = 0.12;
 // their own: a cowl at 0.15 over a fuselage at 0.12 is two x-rays, and the
 // eye reads the difference as the cowl still being there.
 VIEW.xrayA = XRAY_A;
-const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                         'skyWindows']);
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
@@ -755,14 +756,17 @@ const matOf = name => {
                 // it had already built. The dials never reached the stand.
                 (A.AERO_GLASS.has(name)
                   ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
-                            GLASS.grime, GLASS.refl, GLASS.rainbow].join(',')
+                            GLASS.grime, GLASS.refl, GLASS.rainbow, P.glazeMat || 0].join(',')
                   : '');
     if (matCache[key]) return matCache[key];
     if (A.AERO_GLASS.has(name)) {
       // the VIEW alpha still wins when it is asking for less: `glass a` is a
       // way of LOOKING at the build and must be able to see through it
-      matCache[key] = A.aeroGlass(THREE, Object.assign({}, GLASS, {
-        tint: secTint[name] != null ? secTint[name] : GLASS.tint,
+      // T2.2: the glazing material's base numbers (aeroskin GLASS_MATS),
+      // the builder's dials and the pane's own tint well on top
+      const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass'][Math.round(+P.glazeMat || 0)]) : {};
+      matCache[key] = A.aeroGlass(THREE, Object.assign({}, GLASS, GM, {
+        tint: secTint[name] != null ? secTint[name] : (GLASS.tint != null ? GLASS.tint : GM.tint),
         opacity: Math.min(a, GLASS.opacity),
         ext: GLASS_EXT[name] || [0, 0, 0, 0],
         // the condition dial reaches the glazing now, scaled by the pane's
@@ -1373,6 +1377,24 @@ function build() {
   // frame's station range (cage units) for the row-hover highlight
   meshObj.userData.frameZones = G.cageFrameZones ? G.cageFrameZones(spec) : null;
   if (window.CAGE_UI) window.CAGE_UI.frames = spec.frames || null;
+  // T2.2: THE GLAZED AREA, measured on the sheet the skin is drawn from —
+  // every glass section (windscreen, side bands, skylight, drawn panes) by
+  // triangle area, as built (a cut part's offset moves it, not its area),
+  // in metres after the scale; the join carries it to spec.cabin.glazedM2
+  if (window.CAGE_UI) {
+    let a = 0;
+    for (const f of s.F) {
+      if (!GLASSM.has(f.m) || f.v.length < 3) continue;
+      const p0 = s.V[f.v[0]];
+      for (let i = 1; i + 1 < f.v.length; i++) {
+        const p1 = s.V[f.v[i]], p2 = s.V[f.v[i + 1]];
+        const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+        const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+        a += 0.5 * Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
+      }
+    }
+    window.CAGE_UI.glazedM2 = a * FS * FS;
+  }
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
@@ -4323,7 +4345,8 @@ function buildMatPanel() {
   const SEC_LABEL = { dashFace: 'instrument facia', dash: 'glareshield & shell',
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
-    pillarTaper: 'boom frame band', pillarTail: 'tail frame band' };
+    pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],

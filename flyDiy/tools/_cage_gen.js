@@ -3680,7 +3680,7 @@ function cageInterior(m, S) {
     // the monocoque shell depth takes skinT too (its doublers keep
     // shellT and start on the shell face wherever it sits)
     const t1 = I.skinT > 0 ? I.skinT : t0c * 0.35;
-    const GLM2 = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+    const GLM2 = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
@@ -3749,7 +3749,7 @@ function cageInterior(m, S) {
     const yW = S.waistY + 1e-3;
     const yB = S.bandY + 1e-3;
     const t0 = I.shellT || 0.035;
-    const GLM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+    const GLM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                          'skyWindows']);
     // METAL sections build like wood (user: based on the wooden
     // version) — same layout — with sheet-metal realizations for skin,
@@ -6747,6 +6747,31 @@ const CAGE_PARAMS = {
   paxWinN: 0, paxWinShape: 0, paxWinZ: 0.45, paxWinPitch: 0.75,
   paxWinY: 0.50, paxWinW: 0.52, paxWinH: 0.40, paxWinR: 0.08,
   paxWinDepth: 0.006,
+  // T2.2 (2026-09-22): THREE INDEPENDENT WINDOW ROWS, anywhere on the shell
+  // (the knife cuts any skin face — the taper and the boom included; the
+  // rows were only ever framed as the passenger bay's). Row 1 keeps the
+  // paxWin* keys above; rows 2 and 3 are win2*/win3*. Every row is THE QUAD
+  // BY CONSTRUCTION (the user's choice over four free corners): the bottom
+  // edge is the width, the top edge topK x the width (0 = a triangle),
+  // shifted fore/aft by skew (the parallelogram rear window), and each
+  // corner its own radius (null = the row's radius) — always convex, which
+  // the knife needs. Overlapping windows are REFUSED in cageSpec: the later
+  // one in row order is skipped and marked, its bead never crosses a hole.
+  paxWinTopK: 1, paxWinSkew: 0,
+  paxWinR1: -1, paxWinR2: -1, paxWinR3: -1, paxWinR4: -1,
+  win2N: 0, win2Shape: 0, win2Z: -0.6, win2Pitch: 0.75, win2Y: 0.40,
+  win2W: 0.40, win2H: 0.32, win2R: 0.06, win2Depth: 0.006,
+  win2TopK: 1, win2Skew: 0, win2R1: -1, win2R2: -1, win2R3: -1, win2R4: -1,
+  win3N: 0, win3Shape: 0, win3Z: 1.6, win3Pitch: 0.75, win3Y: 0.40,
+  win3W: 0.40, win3H: 0.32, win3R: 0.06, win3Depth: 0.006,
+  win3TopK: 1, win3Skew: 0, win3R1: -1, win3R2: -1, win3R3: -1, win3R4: -1,
+  // THE GLAZING MATERIAL (T2.2, remark 139): one choice for the whole
+  // aeroplane — 0 acrylic (3 mm, every light aeroplane's), 1 polycarbonate
+  // (the same weight, a warm cast and a scratch haze, the bush aeroplane's),
+  // 2 glass (tempered, twice the weight, the clearest). The join carries it
+  // to spec.cabin.glazingMat with the glazed area it measures; the look
+  // table (aeroskin GLASS_MATS) and the ledger (GEN_OUTFIT.glassKgM2) read it.
+  glazeMat: 0,
   // pillar crease defaults to MAX (user ruling): the pillar bands render
   // at their drawn width — width itself is adjusted via pillarW below,
   // never via the crease.
@@ -7490,15 +7515,62 @@ function cageSpec(P) {
   // is what the sweep's corner logic expects of a curved run
   S.windows = [];
   {
-    const n = Math.max(0, Math.min(4, Math.round(+P.paxWinN || 0)));
     const rim = +P.rimW > 0 ? +P.rimW : 0.012;
-    for (let i = 0; i < n; i++)
-      S.windows.push({ shape: +P.paxWinShape ? 'ellipse' : 'rect',
-                       z: +P.paxWinZ + i * +P.paxWinPitch, y: +P.paxWinY,
-                       w: +P.paxWinW, h: +P.paxWinH, r: +P.paxWinR,
-                       depth: Math.max(0, +P.paxWinDepth || 0),
-                       step: Math.max(0.006, rim * 1.1) });
+    // T2.2: three rows — row 1 on the paxWin* keys, rows 2-3 on win2*/win3*
+    for (const [row, pre] of [[1, 'paxWin'], [2, 'win2'], [3, 'win3']]) {
+      const n = Math.max(0, Math.min(4, Math.round(+P[pre + 'N'] || 0)));
+      if (!n) continue;
+      const r = Math.max(0, +P[pre + 'R'] || 0);
+      const rr = [1, 2, 3, 4].map(k => {
+        const v = P[pre + 'R' + k];
+        return v == null || !isFinite(+v) || +v < 0 ? r : +v;
+      });
+      const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
+      const skew = +P[pre + 'Skew'] || 0;
+      for (let i = 0; i < n; i++)
+        S.windows.push({ shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
+                         z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
+                         w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
+                         depth: Math.max(0, +P[pre + 'Depth'] || 0),
+                         step: Math.max(0.006, rim * 1.1) });
+    }
+    // THE REFUSAL (the design note: "the second outline crosses the first
+    // hole's reveal and the loops go open"): every pair of outlines is
+    // tested in the side view (convex, so a separating axis settles it),
+    // inflated by a bead's width so the joints never touch either; a
+    // window that meets an earlier one is kept in the list, marked, and
+    // never cut — the sheet stays watertight, the row can be moved
+    if (S.windows.length > 1) {
+      const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
+        : (typeof require === 'function' ? require('./_knife_gen.js') : null);
+      if (KG && KG.knifeOutline) {
+        const margin = rim * 2.2;
+        const polys = S.windows.map(w => KG.knifeOutline(w));
+        const sep = (A, B) => {
+          for (const Pl of [A, B])
+            for (let i = 0; i < Pl.length; i++) {
+              const p = Pl[i], q = Pl[(i + 1) % Pl.length];
+              const nx = q[1] - p[1], ny = p[0] - q[0];
+              const nl = Math.hypot(nx, ny); if (nl < 1e-12) continue;
+              let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+              for (const v of A) { const d = (v[0] * nx + v[1] * ny) / nl; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+              for (const v of B) { const d = (v[0] * nx + v[1] * ny) / nl; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+              if (a1 + margin < b0 || b1 + margin < a0) return true;
+            }
+          return false;
+        };
+        for (let i = 1; i < S.windows.length; i++)
+          for (let j = 0; j < i; j++) {
+            if (S.windows[j].refused) continue;
+            if (!sep(polys[i], polys[j])) {
+              S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
+              break;
+            }
+          }
+      }
+    }
   }
+  S.glazeMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat || 0)))];
   S.glaze = { sky: P.skylight == null || P.skylight ? 1 : 0,
               ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
               sillPilot: Math.max(0, P.winSillPilot || 0),
@@ -8500,9 +8572,12 @@ function cageSheet(P, opts) {
       // every pass after this carries them: the hole must not change how
       // the surface round it shades (see _knife_gen.js)
       s.N = KG.knifeNormals(s);
-      for (const w of spec.windows) for (const side of [1, -1])
-        s = KG.knifeCut(s, w, { side, depth: w.depth,
-                                paneMat: 'pasengerWindow', wallMat: 'reveal' });
+      for (const w of spec.windows) {
+        if (w.refused) continue;                    // T2.2: an overlapping window is never cut
+        for (const side of [1, -1])
+          s = KG.knifeCut(s, w, { side, depth: w.depth,
+                                  paneMat: 'drawnPane', wallMat: 'reveal' });
+      }
       // G316: the drawn panes explode as parts — one part per pane (the
       // knife's copies are per window, a pane's polygons share them and
       // share none with the skin or with another pane), grouped by the

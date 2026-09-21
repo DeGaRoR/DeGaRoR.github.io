@@ -304,7 +304,7 @@ const CAGE_PARTS = [
   // options but pilot door"): one switch, the glass parts under it
   { key: 'glazing', name: 'Glazing', parent: 'cabin', layer: 'cage',
     when: P => P.glazeOn == null || +P.glazeOn, gate: 'glazeOn',
-    groups: [['glazing', ['glazeOn']]] },
+    groups: [['glazing', ['glazeOn', 'glazeMat']]] },
 
   { key: 'windscreen', name: 'windscreen', parent: 'glazing', layer: 'cage',
     sections: ['windshield'],
@@ -318,6 +318,25 @@ const CAGE_PARTS = [
                          'bubAt3', 'bubW3']],
       // (the screen base pair's bottom and width = the windscreen FRAME's)
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
+    ] },
+
+  // THE DRAWN WINDOWS (T2.2, 2026-09-22; G245's knife): three independent
+  // rows of windows cut anywhere on the shell — a part of the glazing, not of
+  // the passenger bay, since a row may sit on the taper or the boom. Its
+  // section is the panes themselves (`drawnPane`, the knife's material); the
+  // passenger bay keeps its BAND glass (`pasengerWindow`), which the knife
+  // turns back to skin the moment any row draws.
+  { key: 'drawnWin', name: 'drawn windows', parent: 'glazing', layer: 'cage',
+    sections: ['drawnPane', 'reveal'],           // the panes and the holes' walls
+    place: { count: 'paxWinN', at: 'anywhere on the shell, at their stations' },
+    groups: [
+      ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
+                 'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
+                 'paxWinR3', 'paxWinR4', 'paxWinDepth']],
+      ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
+                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth']],
+      ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
+                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth']],
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
@@ -394,10 +413,7 @@ const CAGE_PARTS = [
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
-      // G245: the drawn windows — the band's replacement, same group
-      ['drawn windows', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch',
-                         'paxWinY', 'paxWinW', 'paxWinH', 'paxWinR',
-                         'paxWinDepth']],
+      // (the drawn windows are their own part under Glazing since T2.2)
       ['doors', ['doorPax', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
     ] },

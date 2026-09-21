@@ -388,6 +388,14 @@ function cageJoinSpec(P, M, T) {
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed
   if (P.glazeOn != null && !+P.glazeOn) cabin.glazing = 'none';
+  // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
+  // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
+  if (P.glazeMat != null)
+    cabin.glazingMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat)))];
+  {
+    const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;   // headless joins measure no sheet
+    if (UI && UI.glazedM2 > 0) cabin.glazedM2 = +UI.glazedM2.toFixed(3);
+  }
   // PERF STUDY chantier 2 (2026-09-15): THE CANOPY'S STYLE reaches the drag
   // build-up — a flat windscreen is a step in the flow, a blown hood a
   // faired one (genFusCdA). The tile's own reading (canopy 3 = bubble).

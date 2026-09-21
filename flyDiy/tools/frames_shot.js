@@ -21,7 +21,7 @@ const path = require('path');
 const http = require('http');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const URL = opt('url', 'http://localhost:8471/flyDiy/dev.html?world=none');
+const URL = opt('url', 'http://localhost:8474/flyDiy/dev.html?world=none');
 const BUILD = opt('build', null);
 const OUT = opt('out', 'screenshots/frames/shot');
 const WAIT = +opt('wait', 4000);
@@ -31,7 +31,8 @@ const VIEWS = (opt('views', 'q') || '').split(',').filter(Boolean);
 const PANEL = argv.includes('--panel');
 const INFO = argv.includes('--info');
 const EXPERT = argv.includes('--expert');
-const JS = opt('js', null);            // an expression evaluated after the selection, its value printed
+const JS = opt('js', null);
+const PART = opt('part', 'fuselage');   // the part selected in the tree (T2.2: 'drawnWin')            // an expression evaluated after the selection, its value printed
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
@@ -86,12 +87,12 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     await sleep(WAIT);
   }
   // the Fuselage selected: the FRAMES groups are its first
-  await ev("(()=>{window.EDITOR_SELECT('fuselage');return 1})()");
+  await ev("(()=>{window.EDITOR_SELECT(" + JSON.stringify(PART) + ");return 1})()");
   await sleep(1200);
   // every frames group opened, the inspector scrolled to the top
-  await ev("(()=>{[...document.querySelectorAll('#edRows .edH.edHC.shut')].filter(h=>/frame|reference/i.test(h.textContent)).forEach(h=>h.click());return 1})()");
+  await ev("(()=>{[...document.querySelectorAll('#edRows .edH.edHC.shut')].filter(h=>/frame|reference|row/i.test(h.textContent)).forEach(h=>h.click());return 1})()");
   await sleep(600);
-  await ev("(()=>{const S=[...document.querySelectorAll('#edRows .edH')].find(x=>/^reference section/i.test(x.textContent.trim()));if(S)S.scrollIntoView({block:'start'});return 1})()");
+  await ev("(()=>{const S=[...document.querySelectorAll('#edRows .edH')].find(x=>/^(reference section|row 1)/i.test(x.textContent.trim()));if(S)S.scrollIntoView({block:'start'});return 1})()");
   if (JS) console.log('frames_shot: js -> ' + await ev(JS));
   if (INFO) {
     const info = await ev("JSON.stringify(window.CAGE_UI.frames)");

@@ -23,7 +23,7 @@ Written by the triage session after reading every landing since the baseline
 (`30cbf395`) and asking each live session for its own account. One line per
 session below; the item-by-item map is §3 (each line there now carries its
 landing). The playtest's 159 remarks: **104 landed, 7 partly, 48 open** — of the
-open ones 15 are the T2 garage chantiers (T2.1 landed as G470), 12 are A7's tail,
+open ones 11 are the T2 garage chantiers (T2.1 landed as G470, T2.2 as G472), 12 are A7's tail,
 6 the pilot (A8), the rest T1.2/T1.3, S2, B2, D1, W and G.
 
 ### Phase A — stable release: DONE except A7's tail and A8
@@ -62,7 +62,7 @@ open ones 15 are the T2 garage chantiers (T2.1 landed as G470), 12 are A7's tail
 | **T1.2** | OPEN | — | the blurred prop disc (3) |
 | **T1.3** | PARTLY | the birdman flies as the Chinook (G461), the pusher mount weighed where drawn (G445.1), the nose-over (G435) | 127 the thrust-line TILT dial (the block already moves: engBlockZ/Y, G461), 128 strut-mounted ogival tanks, the birdman as a GATE ARCHETYPES fixture (G435 rule 11 covers GEN) |
 | **T2.1** | DONE — G470 (2026-09-21; its own session, "Pillar chantier fuselage controls": seven FRAMES with absolute + follow rows under Fuselage, ring/lean/taperW retired, GATE FRAMES over 50 saved/born aeroplanes, row-hover highlight, pax run profile) | landed G470 | 81, 82, 89, 90, 137, 138, 141 |
-| **T2.2** | OPEN | — | 116, 117, 118, 139 |
+| **T2.2** | DONE — G472 (2026-09-22; three window rows anywhere on the shell, the quad by construction, overlaps refused, the glazing material + measured glazed area, GATE KNIFE) | landed G472 | 116, 117, 118, 139 |
 | **T2.3** | OPEN | — | 14, 18, 40, 48, 51, 83, 84, 132, 134, 135, 140 |
 | **S2** | PARTLY | G451: the Wipaire range as presets (142), the drawn float takes the livery (108 in part) | 108 panels/seams/bolts, 143 bottom fin, 114 the cart, 68 the splash (G460 opened the interaction slot — `setInteraction`, the field that writes wakes/splashes is H7), 110 pier/patterns/glideslope (buoys as G396.2 left them) |
 | **W1-W3** | OPEN | G460 the water shader (H6) is the sea every strip now sees | 159 the loader UI, the AP over the matrix, new airports |
@@ -291,7 +291,7 @@ tagged P1 — if B1 cannot start immediately, A6 takes the bisect.
 
 ### T2 — THE GARAGE, EASIER TO OPERATE (parallel)
 | **T2.1** | DONE G470 (2026-09-21, THE FRAME CHANTIER: seven frames, nine absolute+follow rows each under Fuselage; rings/lean/taperW retired and lifted; GATE FRAMES) — THE PILLAR CHANTIER (the user's own spec): window / cabin(pilot) / passenger pillars each with width AND height, separately for keel, waist and top; the cabin roof and passenger bay angled (a linear profile pillar to pillar); waist width per pillar; tail-cone roof/keel allowed negative; the cabin section no longer straight-only; "Pillar window" slider that does nothing; retire the "rings" controls | `tools/_cage_gen.js`, `_cage_ui.js`, `60_gen_spec.js` (cage schema), GATE DESIGN | XL |
-| **T2.2** | OPEN — WINDOWS: on the taper section too; per-corner manipulation (quad base, rounded corners); several independent window layers; glazing material (glass vs polycarbonate: weight + look) | `tools/_knife_gen.js`, `_cage_ui.js`, `_win.html` | L |
+| **T2.2** | DONE G472 (2026-09-22) — WINDOWS: on the taper section too; per-corner manipulation (quad base, rounded corners); several independent window layers; glazing material (glass vs polycarbonate: weight + look) | `tools/_knife_gen.js`, `_cage_ui.js`, `_win.html` | L |
 | **T2.3** | OPEN — SMALL CONTROLS BATCH: tanks auto-fit by downsizing, flap floor lever 2-axis placement, outside lights as their own section (+ wing-bay light click opens it), wing beams optional + proper tube/square section, hinge finish option (parent colour / bare / own), nose joint hide, nose collapse split H/V, single wing truss, cowl ease top/bottom separately, stab incidence for pushers, crew seating (pax count), cockpit-side options | `_cage_ui.js`, the relevant `_cage_*.js` | L — split as needed |
 | **S2** | PARTLY (G451 presets + livery; G460 the water shader underneath) — FLOATS — THE MODELLING: Wipaire-based hull (angled deck faces, panels, seams, rivets, bolts), liveries on floats, presets from the Wipaire range, the water lane's pier/patterns/glideslope (with W), the splash on a water crash (the seaplane's spray system), the bottom fin streamlined, the hangar cart under a seaplane | `tools/_cage_float.js`, `_hydro_gen.js`, `vessel_tex.js`, `app.js` (spray) | L |
 
@@ -432,9 +432,9 @@ Legend: session · severity · note. "inv." = investigated in §1.
 113. AP rotates too early on water → 1.2 Vs → **A8** · P1 · **LANDED** G451.2 (the water pull at 1.12 Vr)
 114. Logistical cart under seaplanes in the hangar → **S2** · P3 · **OPEN** S2 not started
 115. Explode moved the wing height → **A5** · P2 · **LANDED** G439
-116. Windows on the taper section → **T2.2** · **OPEN** T2.2 not started
-117. Per-corner window shapes → **T2.2** · **OPEN** T2.2 not started
-118. Several window layers → **T2.2** · **OPEN** T2.2 not started
+116. Windows on the taper section → **T2.2** · **DONE** G472 (the windows chantier)
+117. Per-corner window shapes → **T2.2** · **DONE** G472 (the windows chantier)
+118. Several window layers → **T2.2** · **DONE** G472 (the windows chantier)
 119. Lights on at night → interior overexposed (195801) → **A6** · P1 · **LANDED** G436.5
 120. White bands on the night horizon (200031) → **A6** · P2 · **LANDED** G464 (the sky table's ground half)
 121. All lights on when starting at night → **A3** (dup 61) · **LANDED** G442-G442.4
@@ -457,7 +457,7 @@ Legend: session · severity · note. "inv." = investigated in §1.
 136. Pushers thrust "wrong direction" → **A1** · P0 · inv. §1.1 · **LANDED** G435
 137. Angled roof/passenger bays, pillar heights independent → **T2.1** · **DONE** G470 (the FRAME chantier)
 138. Waist width per pillar → **T2.1** · **DONE** G470 (the FRAME chantier)
-139. Glass vs polycarbonate glazing → **T2.2** · **OPEN** T2.2 not started
+139. Glass vs polycarbonate glazing → **T2.2** · **DONE** G472 (the windows chantier)
 140. Stabiliser incidence option (birdman inclined at rest) → **T2.3** · **OPEN** T2.3 not started
 141. The full pillar chantier → **T2.1** · **DONE** G470 (the FRAME chantier)
 142. Float presets from Wipaire → **S2** · **LANDED** G451

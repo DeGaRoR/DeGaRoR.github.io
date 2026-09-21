@@ -58,6 +58,15 @@ const lerpN = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
 // ---------------------------------------------------------------------------
 // OUTLINES — drawn in the side view, centred on (z, y), CONVEX, CCW in (u, v).
 // ---------------------------------------------------------------------------
+// a window with no corner rows set is the rectangle every build drew before
+// T2.2: topK 1, no skew, one radius on all four corners
+function knifeIsPlainRect(w) {
+  const topK = w.topK == null ? 1 : +w.topK;
+  if (Math.abs(topK - 1) > 1e-12 || Math.abs(+w.skew || 0) > 1e-12) return false;
+  if (!Array.isArray(w.rr) || w.rr.length !== 4) return true;
+  const r = +w.r || 0;
+  return w.rr.every(v => Math.abs((+v || 0) - r) < 1e-12);
+}
 function knifeOutline(w) {
   const step = w.step || 0.012;
   const W = Math.max(0.02, w.w), H = Math.max(0.02, w.h);
@@ -70,7 +79,9 @@ function knifeOutline(w) {
       const t = i / n * 2 * Math.PI;
       pts.push([w.z + a * Math.cos(t), w.y + b * Math.sin(t)]);
     }
-  } else {
+  } else if (knifeIsPlainRect(w)) {
+    // THE RECTANGLE, VERBATIM (every window drawn before T2.2): one radius
+    // on four right angles, the quarter arcs sampled as they always were
     const r = Math.max(0, Math.min(w.r || 0, W / 2, H / 2));
     const cx = [W/2 - r, -(W/2 - r), -(W/2 - r), W/2 - r];
     const cy = [H/2 - r, H/2 - r, -(H/2 - r), -(H/2 - r)];
@@ -81,6 +92,51 @@ function knifeOutline(w) {
       for (let i = 0; i <= n; i++) {
         const t = a0 + i / n * Math.PI / 2;
         pts.push([w.z + cx[c] + r * Math.cos(t), w.y + cy[c] + r * Math.sin(t)]);
+      }
+    }
+  } else {
+    // THE QUAD BY CONSTRUCTION (T2.2, the user: "a quad base with rounded
+    // corners, so triangles and odd shapes are reachable"): the bottom edge
+    // is the width, the top edge is topK x the width (0 = a triangle) shifted
+    // fore/aft by skew (a parallelogram, the Jodel's rear window), and each
+    // corner has its own radius, clamped to what its corner can take. Always
+    // convex — an intersection of four half-planes — which the knife needs.
+    const topK = Math.max(0, w.topK == null ? 1 : +w.topK);
+    const sk = +w.skew || 0;
+    const Wt = W * topK;
+    let corners, radii;
+    const rr = Array.isArray(w.rr) && w.rr.length === 4
+      ? w.rr.map(v => Math.max(0, +v || 0)) : [w.r, w.r, w.r, w.r].map(v => Math.max(0, +v || 0));
+    if (Wt < 1e-6) {                 // the triangle: one apex, its radius the larger of the top pair
+      corners = [[sk, H / 2], [-W / 2, -H / 2], [W / 2, -H / 2]];
+      radii = [Math.max(rr[0], rr[1]), rr[2], rr[3]];
+    } else {                         // CCW: top-fwd, top-aft, bottom-aft, bottom-fwd
+      corners = [[sk + Wt / 2, H / 2], [sk - Wt / 2, H / 2], [-W / 2, -H / 2], [W / 2, -H / 2]];
+      radii = rr;
+    }
+    const k = corners.length;
+    for (let i = 0; i < k; i++) {
+      const P = corners[i], A = corners[(i + k - 1) % k], B = corners[(i + 1) % k];
+      const la = Math.hypot(A[0] - P[0], A[1] - P[1]), lb = Math.hypot(B[0] - P[0], B[1] - P[1]);
+      const e1 = [(A[0] - P[0]) / la, (A[1] - P[1]) / la];
+      const e2 = [(B[0] - P[0]) / lb, (B[1] - P[1]) / lb];
+      const th = Math.acos(Math.max(-1, Math.min(1, e1[0] * e2[0] + e1[1] * e2[1])));
+      const tanH = Math.tan(th / 2);
+      const r = Math.min(radii[i], Math.min(la, lb) / 2 * tanH);
+      if (r < 1e-6 || th < 1e-6) { pts.push([w.z + P[0], w.y + P[1]]); continue; }
+      const d = r / tanH;
+      const T1 = [P[0] + e1[0] * d, P[1] + e1[1] * d];
+      const T2 = [P[0] + e2[0] * d, P[1] + e2[1] * d];
+      const bis = [e1[0] + e2[0], e1[1] + e2[1]], bl = Math.hypot(bis[0], bis[1]) || 1;
+      const C = [P[0] + bis[0] / bl * r / Math.sin(th / 2), P[1] + bis[1] / bl * r / Math.sin(th / 2)];
+      const a1 = Math.atan2(T1[1] - C[1], T1[0] - C[0]);
+      let da = Math.atan2(T2[1] - C[1], T2[0] - C[0]) - a1;
+      while (da <= 0) da += 2 * Math.PI;
+      while (da > 2 * Math.PI) da -= 2 * Math.PI;
+      const n = Math.max(3, Math.ceil(da * r / step));
+      for (let j = 0; j <= n; j++) {
+        const t = a1 + j / n * da;
+        pts.push([w.z + C[0] + r * Math.cos(t), w.y + C[1] + r * Math.sin(t)]);
       }
     }
   }
@@ -237,7 +293,7 @@ function knifeCut(m, win, opt) {
   // faces away); a face nearly edge-on to the projection is still cut if
   // it is convex in the side view, so a window can run up to the crown
   const nMin = opt.nMin != null ? opt.nMin : 0.03;
-  const paneMat = opt.paneMat || 'pasengerWindow';
+  const paneMat = opt.paneMat || 'drawnPane';
   const wallMat = opt.wallMat || 'reveal';
   const V = m.V.map(p => p.slice()), F = [];
   const A = m.A ? m.A.slice() : null;

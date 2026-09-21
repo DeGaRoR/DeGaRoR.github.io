@@ -54093,3 +54093,82 @@ waits on the Poly Haven zips; 2 (the fine ring) is its own chantier; 5-7 as the 
 - OWED (the doc, unchanged): the rock-beach set (coast_land_rocks_01/02, coast_sand_rocks_02 - the zips
   are not in assets/alphaSplat), the fine ring (2), the user's eye on the gloss per set and the
   grades (5), the rare aerials, the hex-cell jitter, displacement (6), the macro pass (7).
+## G472 — T2.2 WINDOWS: THREE ROWS, THE QUAD BY CONSTRUCTION, THE GLAZING MATERIAL
+## (2026-09-22, the playtest's 116 "windows on the taper section too", 117 "per-corner
+## window shapes", 118 "several independent window layers", 139 "glass vs polycarbonate";
+## the user's four rulings: the quad by construction, three rows under Glazing, one
+## material for the whole aeroplane, the glazed area MEASURED)
+
+- THE FIXTURE FIRST (the T2.1 discipline): tools/_knife_check.js --record wrote
+  tools/fixtures/knife_corpus.json at G470 — the level-2 sheet (vertices to 1e-9, faces by
+  material, the recorded loops) of every aeroplane that carries drawn windows (the two 172
+  builds, the two bug-report builds, the cessna preset); GATE KNIFE holds them to it with
+  the pane's new section name mapped to the old (a rename is not a geometry change).
+- THE KNIFE ALREADY CUT ANY SKIN FACE — the taper's, the boom's, the shoulder's, a door's:
+  116 was the rows' framing (hidden unless paxCount > 0, a station range of -1..2.5 cage
+  units, one group under Passenger bay), not a material gate. The rows are now THREE
+  INDEPENDENT ROWS in their own part, `drawn windows` under Glazing (tools/_cage_parts.js,
+  sections `drawnPane` + `reveal` — the knife's panes are their own section now, so the
+  passenger bay keeps its band glass `pasengerWindow` and a click on a pane lands on the
+  windows; every glass enumeration learned the name: _cage_ui GLASSM + the colour table,
+  aeroskin AERO_ROLE/AERO_GLASS, the interior's GLM/GLM2, the shoulder's GLASS, the bench's
+  predicate), always shown, stations -6..3.5. Row 1 keeps the paxWin* keys (every saved
+  build unchanged), rows 2-3 are win2*/win3* (15 keys each: count, shape, first station,
+  pitch, centre height, width, height, top width x, top shift, corner radius, four corner
+  radii on the `link` idiom (-1 = the row's radius), reveal depth). The page group is
+  `4b · drawn windows`.
+- THE QUAD BY CONSTRUCTION (117, the user's choice over four free corners): knifeOutline
+  keeps the RECTANGLE VERBATIM when nothing beyond w/h/r is set (the fixture proves it) and
+  otherwise builds a convex quad — bottom edge = the width, top edge = topK x the width
+  shifted fore/aft by skew (0 = a triangle, its apex radius the larger of the top pair),
+  each corner rounded by its own radius on the bisector (d = r / tan(theta/2), clamped to
+  half the shorter adjacent edge, the arc sampled at the row's step). Trapezoids (the
+  172's rear window), parallelograms (the Jodel's), triangles, kites-by-radius; GATE KNIFE
+  sweeps 72 corner sets for convexity and cuts four of them watertight.
+- THE REFUSAL (the design note's open item: "the second outline crosses the first hole's
+  reveal and the loops go open" — nobody refused it): cageSpec tests every pair of
+  outlines in the side view (convex: a separating axis over both polygons' edge normals,
+  the projections inflated by 2.2 bead widths so the joints never touch), and a window
+  that meets an earlier one stays in S.windows MARKED `refused` and is never cut — the
+  sheet stays watertight, the row can be moved. Rows refuse in row order, windows in
+  station order. OWED: the inspector says nothing about it yet (the pane is simply not
+  there); CAGE_UI could carry the count.
+- THE GLAZING MATERIAL (139): one `glazeMat` row under Glazing (acrylic / polycarbonate /
+  glass), carried by the join to spec.cabin.glazingMat, with THE GLAZED AREA MEASURED:
+  _cage_ui sums the sheet's glass faces (windscreen, side bands, skylight, every drawn
+  pane) by triangle area after the scale -> CAGE_UI.glazedM2 -> spec.cabin.glazedM2 (3
+  decimals; null on a headless join, and the ledger keeps its cabin-box estimate then).
+  61_gen_frame bills area x GEN_OUTFIT.glassKgM2By[material] (acrylic 3.6, polycarbonate
+  3.6 — Lexan is 1.20 g/cc against acrylic's 1.19 — glass 7.5: tempered at 3 mm is 2.5
+  g/cc, twice the acrylic, which is why light aeroplanes do not carry it); clampSpec
+  normalises both fields. THE LOOK (aeroskin GLASS_MATS, aeroGlassMat): base numbers over
+  GLASS_DEF under the builder's dials — polycarbonate a warm cast (0xd9d0b4), the bulk
+  hazier (rough 0.24) and the clear layer rougher (ccR 0.28); glass the clearest bulk
+  (rough 0.05, ccR 0.06), a faint green edge (0xa9cfc4), a harder limb (fresnel 1.26);
+  acrylic = GLASS_DEF. aeroGlassSpec merges the material under finish.glass; the editor's
+  pane material takes it under its dials and the per-pane tint well (the cache key
+  carries it). THE CERTIFICATE: glazedM2 is measured off rows the cage hash already
+  carries and glazingMat IS the cage's row, so benchStripCosmetic drops both from
+  spec.cabin — no aeroplane re-certifies for a measurement.
+- GATE KNIFE (tools/_knife_check.js, core, 21 checks, --selftest): IDENTITY (the corpus),
+  WATERTIGHT (the design note's identity on the SKIN sheet — interior, shoulder and door
+  panels off, since their sheets share edges by their own rules: one closed loop per
+  window per side, the panes' boundary edges = the loops' points, zero over-shared
+  edges), SHAPES (the rectangle verbatim, 72 corner sets convex, the triangle, oversize
+  radii clamped, four cuts watertight), ROWS (a window on the pax bay, the taper and the
+  boom: 6 loops), REFUSAL (row 2 over row 1: refused, 4 loops, watertight), GLAZING (2 m2
+  of glass weighs the table's 7.8 kg over acrylic plus what the gross-sized structure
+  adds; polycarbonate = acrylic; a measured area replaces the estimate). GATE PARTS got a
+  'drawn windows' shape that goes through cageSheet (the knife runs there, not in the
+  passes the census replays) and the reveal has an owner at last. The join guards its
+  window read (GATE JOIN is headless).
+- THE RIG: tools/frames_shot.js --part <key> (the part selected in the tree) -> screenshots/
+  frames/win_rows_* (the 172: row 1 trapezoids, an oval on the taper, a triangle on the
+  boom, all lit as the selection), win_refused_*, glaze_1/2_*. The server on 8471 was a
+  peer's by then (the launch entry landed with G470); this worktree serves on 8474
+  (`flydiy-t22`).
+- GATES: KNIFE, FRAMES, BUILD, BENCH, PARTS, DESIGN, SAVE, JOIN, STARTER, CLIP, SHOULDER,
+  MASS, HONEST, ENERGYBASE, MEDIA green on the branch.
+- OWED: the refusal's note in the inspector; the interior liners still ignore the holes
+  (the note's item 5); the bench _win.html has not learned the quad rows; a glazing
+  material per row was declined (one material for the whole aeroplane, the user's ruling).

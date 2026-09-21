@@ -399,7 +399,7 @@ const AERO_ROLE = {
   waistband: 'rail', ceilingLoop: 'rail', floorLoop: 'rail',
   pillarWindow: 'pillar', pillarCabin: 'pillar', pillarPassenger: 'pillar',
   pillarTail: 'pillar', pillarFront: 'pillar', pillarTaper: 'pillar',
-  windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass',
+  windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass', drawnPane: 'glass',
   skyWindows: 'glass',
   // THE WINDOW FRAME IS ALUMINIUM (G214, the user: "I have looked at cessna
   // and jodels, and the 'joint' would rather be a aluminium riveted frame
@@ -517,7 +517,7 @@ const AERO_BY_CONS = {
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
                 edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
 };
-const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                             'skyWindows']);
 
 // section name + construction -> finish key. ONE description of the mapping;
@@ -2176,6 +2176,9 @@ function aeroDecalsFor(THREE, D, opts) {
 function aeroGlassSpec(spec) {
   const out = {};
   for (const k in GLASS_DEF) out[k] = GLASS_DEF[k];
+  // T2.2: the material's base numbers under the builder's deviations
+  const mat = aeroGlassMat(spec && spec.cabin && spec.cabin.glazingMat);
+  for (const k in mat) out[k] = mat[k];
   const s = spec && spec.finish && spec.finish.glass;
   if (s && typeof s === 'object')
     for (const k in GLASS_DEF) if (s[k] !== undefined) out[k] = s[k];
@@ -3433,6 +3436,22 @@ const GLASS_DEF = {
   diffuse: 0.20,    // what an OPAQUE pane shows of a lit body colour
 };
 
+// THE GLAZING MATERIAL (T2.2, 2026-09-22): what the panes are made of, one
+// choice for the whole aeroplane (spec.cabin.glazingMat, the cage's glazeMat
+// row). Each is a set of BASE numbers over GLASS_DEF — the dials the builder
+// owns (opacity, touch, grime, refl, rainbow) and the per-pane tint wells
+// stay theirs on top:
+//   acrylic        GLASS_DEF itself — the 3 mm sheet every light aeroplane flies
+//   polycarbonate  a warm cast (it yellows), the bulk hazier and the clear
+//                  layer rougher (it scratches and never polishes out)
+//   glass          the clearest bulk, a faint green edge, a harder limb
+const GLASS_MATS = {
+  acrylic: {},
+  polycarbonate: { tint: 0xd9d0b4, rough: 0.24, ccR: 0.28 },
+  glass: { tint: 0xa9cfc4, rough: 0.05, ccR: 0.06, fresnel: 1.26 },
+};
+const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
+
 const AEROGLASS_HOOK = function (shader) {
   const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
   const u = this.userData.aeroU;
@@ -4480,7 +4499,7 @@ function aeroDispose() {
 
 if (typeof window !== 'undefined')
   window.AEROSKIN = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
-                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
+                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin, GLASS_MATS, aeroGlassMat,
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroGlassSpec,
@@ -4507,7 +4526,7 @@ if (typeof window !== 'undefined')
                       aeroLabExport };
 if (typeof module !== 'undefined')
   module.exports = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
-                     AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
+                     AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin, GLASS_MATS, aeroGlassMat,
                      aeroLinear, AERO_TEX, AERO_MAXD, AERO_ATLAS_N,
                      aeroPageRect, AERO_DEC_FONTS,
                      AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish,

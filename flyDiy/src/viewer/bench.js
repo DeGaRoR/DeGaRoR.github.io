@@ -488,6 +488,10 @@ function benchStripCosmetic(spec, defaults) {
   }
   if (c.systems && typeof c.systems === 'object')
     for (const k of BENCH_LOOK.systems) delete c.systems[k];
+  // T2.2: the glazed area is MEASURED off rows the cage part of the hash
+  // already carries (the windows, the glazing switch), and the material is
+  // the cage's glazeMat row — neither is a second deviation to count
+  if (c.cabin && typeof c.cabin === 'object') { delete c.cabin.glazedM2; delete c.cabin.glazingMat; }
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};

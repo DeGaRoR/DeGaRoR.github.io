@@ -2440,9 +2440,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
+    // T2.2: the MEASURED glazed area when the join gave one (every pane the
+    // skin carries, drawn windows included), the cabin-box estimate
+    // otherwise; the material's own areal density either way
+    const glassKg = (O.glassKgM2By && O.glassKgM2By[cb.glazingMat]) || O.glassKgM2;
     const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
-      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
-                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0));
+      : glassKg * (cb.glazedM2 > 0 ? cb.glazedM2
+                   : (2 * cb.halfW * cb.h * 0.55 +
+                      (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0)));
     // THE FURNISHING (PERF STUDY chantier 1): the lining, by the fit's tier
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the

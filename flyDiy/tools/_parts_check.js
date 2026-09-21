@@ -244,6 +244,9 @@ const SHAPES = [
   ['aluminium', { intOn: 1, intCons: 3, intDash: 1, intFire: 1, intBulk: 1 }],
   // G3xx: the door inner panel is off by default — its section exists only here
   ['door panel', { intOn: 1, cutParts: 1, doorPanelOn: 1 }],
+  // T2.2: the drawn windows' panes exist only when a row draws (the knife
+  // runs in cageSheet, so this shape goes through the sheet itself below)
+  ['drawn windows', { paxWinN: 2, win2N: 1, win2Z: -0.9, win2Y: 0.3 }, 'sheet'],
 ];
 // THE BUILD IS THE EDITOR'S BUILD, subdivision included. _cage_ui.js
 // SUBDIVIDES FIRST and runs the crease passes on the refined mesh, and that
@@ -260,8 +263,12 @@ const PAGE_BASE = Object.assign({}, G.CAGE_PARAMS,
                                 (W.CAGE_PAGE && W.CAGE_PAGE.defaults) || {});
 function emittedSections() {
   const all = new Set();
-  for (const [, over] of SHAPES) {
+  for (const [, over, via] of SHAPES) {
     const P = Object.assign({}, PAGE_BASE, over);
+    if (via === 'sheet') {                        // the editor's whole sheet (the knife included)
+      for (const f of G.cageSheet(P, { step: 'crease', level: 1 }).mesh.F) all.add(f.m);
+      continue;
+    }
     const spec = G.cageSpec(P);
     let s = G.cageSubdivide(G.buildCage2(spec, 'crease'));
     if (G.cageGlassSill) s = G.cageGlassSill(s, spec);

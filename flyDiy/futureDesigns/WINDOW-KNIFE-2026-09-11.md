@@ -99,3 +99,17 @@ refuse it (pitch >= width + a frame).
 6. THE FIELD. The pane's aStruct is lerped, so glass dirt/edge dirt
    (G113.2 GLASS_EXT) works unchanged.
 7. A GATE: the watertight identity above, over the archetype set.
+
+## T2.2 (G472, 2026-09-22) — three rows, the quad by construction, the refusal, the glazing
+
+Items 5 (the interior liners) stays open; 7 (the gate) is `tools/_knife_check.js`
+(GATE KNIFE: the corpus identity, the watertight identity on the skin sheet, the
+shapes, the rows, the refusal, the glazing). What changed: the drawn windows are
+their own part under Glazing with THREE independent rows (row 1 = the paxWin*
+keys, rows 2-3 = win2*/win3*), cut anywhere on the shell; the outline is a
+convex QUAD by construction (top width x, top shift, four corner radii — the
+rectangle path verbatim when none is set); overlapping windows are refused in
+cageSpec (marked, never cut); the panes are the `drawnPane` section; one glazing
+material for the whole aeroplane (acrylic / polycarbonate / glass) reaches the
+look (aeroskin GLASS_MATS) and the ledger with the glazed area MEASURED off the
+sheet (spec.cabin.glazingMat / glazedM2). See HANDOVER G472.
