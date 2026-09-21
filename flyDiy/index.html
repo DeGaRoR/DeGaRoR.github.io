@@ -35772,7 +35772,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='218ccf73e403'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='142aa579c553'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -54885,48 +54885,58 @@ function buildThrottleDash(g0, A, P, sx) {
   const F = A.face || null;
   const xT = sx + 0.16;
   const yT = F ? F.yBot + 0.060 : A.floorAt(A.zDash) + 0.42;
-  const z0 = F && F.depthAt ? F.depthAt(xT, yT) - 0.001 : A.zDash + 0.005;
   const KD = window.GEAR_KIT;
-  if (KD) {
-    // a plated collar with a hex lock nut on the panel's face (session 4e)
-    const col = KD.Bag();
-    KD.revolve(col, [xT, yT, z0], [0, 0, -1], [[0.020, 0], [0.020, 0.003], [0.011, 0.005], [0.011, 0.016], [0.0085, 0.017], [0, 0.017]], 24, false);
-    KD.sweep(col, [[xT, yT, z0 - 0.005], [xT, yT, z0 - 0.011]], () => { const o = []; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; o.push([0.0135 * Math.cos(a), 0.0135 * Math.sin(a)]); } return o; }, true, [0, 1, 0]);
-    col.mesh(g, M.plated);
-    // its shadow on the plate (session 4h): the panel layer's soft disc
-    if (window.CAGE_PANEL && window.CAGE_PANEL.material) {
-      const ao = new THREE.Mesh(new THREE.PlaneGeometry(0.058, 0.058), window.CAGE_PANEL.material('ao'));
-      ao.position.set(xT, yT, z0 - 0.0003); ao.rotation.y = Math.PI; ao.renderOrder = 2;
-      g.add(ao);
-    }
-  } else {
-    const m = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.020, 0.020, 0.012, 12), M.metal);
-    m.position.set(xT, yT, z0 - 0.006); m.rotation.x = Math.PI / 2;
-    g.add(m);
-  }
   const LT = P.thrLen != null ? P.thrLen : 0.16;
-  // a push-pull rod SLIDES (live crew): drawn pulled out at idle, it runs
-  // into the panel by THR_PUSH x its length at full — a slide-only part,
-  // the yoke's contract with a zero swing
-  const kp = [xT, yT, z0 - LT * 0.72];
-  const gT = movingAt(g, 'edCtl_throttle', kp, [0, 0, 1], 'thr', 0, 0,
-                      { slide: [0, 0, LT * THR_PUSH], slideDrive: 'thr',
-                        slideSgn: 1 });
-  tube(gT, KD ? M.plated : M.metal, inG(gT, [xT, yT, z0]), inG(gT, [xT, yT, z0 - LT * 0.60]),
-       0.006);
-  if (KD) {
-    // the vernier's knob: a plated ring behind a moulded head, the head
-    // domed toward the hand
-    const kb = KD.Bag(), ring = KD.Bag();
-    KD.revolve(ring, [0, 0, 0.016], [0, 0, -1], [[0.008, 0], [0.014, 0.001], [0.014, 0.007], [0.010, 0.008]], 20, false);
-    KD.revolve(kb, [0, 0, 0.008], [0, 0, -1], [[0.010, 0], [0.024, 0.004], [0.026, 0.014], [0.024, 0.026], [0.016, 0.032], [0, 0.034]], 24, false);
-    kb.mesh(gT, M.knob); ring.mesh(gT, M.plated);
-  } else {
-    const k = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.026, 0.026, 0.030, 14), M.knob);
-    k.rotation.x = Math.PI / 2;
-    gT.add(k);
+  // G446 (A3): A TWIN GETS TWO RODS, 56 mm apart inboard (two 52 mm knobs
+  // side by side), each on its engine's drive - the wall lever's rule
+  // (twinEngines / thr0, thr1); a single engine keeps its one rod on 'thr'
+  const inb = sx >= 0 ? -1 : 1;
+  const rods = twinEngines(P) ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.056]] : [['edCtl_throttle', 'thr', 0]];
+  let first = null;
+  for (const [nm, drv, dx] of rods) {
+    const xR = xT + dx;
+    const z0 = F && F.depthAt ? F.depthAt(xR, yT) - 0.001 : A.zDash + 0.005;
+    if (KD) {
+      // a plated collar with a hex lock nut on the panel's face (session 4e)
+      const col = KD.Bag();
+      KD.revolve(col, [xR, yT, z0], [0, 0, -1], [[0.020, 0], [0.020, 0.003], [0.011, 0.005], [0.011, 0.016], [0.0085, 0.017], [0, 0.017]], 24, false);
+      KD.sweep(col, [[xR, yT, z0 - 0.005], [xR, yT, z0 - 0.011]], () => { const o = []; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; o.push([0.0135 * Math.cos(a), 0.0135 * Math.sin(a)]); } return o; }, true, [0, 1, 0]);
+      col.mesh(g, M.plated);
+      // its shadow on the plate (session 4h): the panel layer's soft disc
+      if (window.CAGE_PANEL && window.CAGE_PANEL.material) {
+        const ao = new THREE.Mesh(new THREE.PlaneGeometry(0.058, 0.058), window.CAGE_PANEL.material('ao'));
+        ao.position.set(xR, yT, z0 - 0.0003); ao.rotation.y = Math.PI; ao.renderOrder = 2;
+        g.add(ao);
+      }
+    } else {
+      const m = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.020, 0.020, 0.012, 12), M.metal);
+      m.position.set(xR, yT, z0 - 0.006); m.rotation.x = Math.PI / 2;
+      g.add(m);
+    }
+    // a push-pull rod SLIDES (live crew): drawn pulled out at idle, it runs
+    // into the panel by THR_PUSH x its length at full — a slide-only part,
+    // the yoke's contract with a zero swing
+    const kp = [xR, yT, z0 - LT * 0.72];
+    const gT = movingAt(g, nm, kp, [0, 0, 1], drv, 0, 0,
+                        { slide: [0, 0, LT * THR_PUSH], slideDrive: drv,
+                          slideSgn: 1 });
+    tube(gT, KD ? M.plated : M.metal, inG(gT, [xR, yT, z0]), inG(gT, [xR, yT, z0 - LT * 0.60]),
+         0.006);
+    if (KD) {
+      // the vernier's knob: a plated ring behind a moulded head, the head
+      // domed toward the hand
+      const kb = KD.Bag(), ring = KD.Bag();
+      KD.revolve(ring, [0, 0, 0.016], [0, 0, -1], [[0.008, 0], [0.014, 0.001], [0.014, 0.007], [0.010, 0.008]], 20, false);
+      KD.revolve(kb, [0, 0, 0.008], [0, 0, -1], [[0.010, 0], [0.024, 0.004], [0.026, 0.014], [0.024, 0.026], [0.016, 0.032], [0, 0.034]], 24, false);
+      kb.mesh(gT, M.knob); ring.mesh(gT, M.plated);
+    } else {
+      const k = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.026, 0.026, 0.030, 14), M.knob);
+      k.rotation.x = Math.PI / 2;
+      gT.add(k);
+    }
+    if (!first) first = gT;
   }
   // THE KNOB IS IN THE FIST (G279): the axis was the ROD's, which put the
   // hand's width along it and the fingers hanging down beside the knob,
@@ -54934,8 +54944,8 @@ function buildThrottleDash(g0, A, P, sx) {
   // fingers curled over its top and the thumb round its side — the axis
   // the hand wraps is lateral, the wrist continues the forearm, and the
   // knob's own centre (the head runs z +0.008 .. -0.026) sits in the palm.
-  return { obj: gripAt(gT, [0, 0.004, -0.008], [1, 0, 0]),
-           label: 'throttle (push-pull)' };
+  return { obj: gripAt(first, [0, 0.004, -0.008], [1, 0, 0]),
+           label: 'throttle (push-pull)', twinDx: rods.length > 1 ? rods[1][2] : 0 };
 }
 // THE CONSOLE BOX IS A SIDE-BY-SIDE FITTING (user 2026-08-19): with one
 // seat across the cabin there is nowhere for it to stand — a single or
@@ -54988,15 +54998,25 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
     q.mesh(g, M.cast);
   } else boxAt(g, M.ctrl, [cx, yQ + 0.03, zQ], [0.075, 0.06, 0.15]);
   // the quadrant lever swings like the wall one (live crew)
-  const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
-  const K = inG(gT, kn);
-  if (KQ) {
-    const lev = KQ.Bag(), boss = KQ.Bag(), kb = KQ.Bag();
-    KQ.sweep(lev, [[0, 0, 0], K], () => [[-0.012, -0.004], [0.012, -0.004], [0.012, 0.004], [-0.012, 0.004]], true, [1, 0, 0]);
-    KQ.revolve(boss, [0, 0, 0], [1, 0, 0], [[0.011, -0.038], [0.011, 0.038], [0, 0.038]], 16, true);
-    KQ.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.024, 0.011), 36, true);
-    lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
-  } else { tube(gT, M.metal, [0, 0, 0], K, 0.008); ballAt(gT, M.knob, K, 0.024); }
+  // G446 (A3): a twin gets two levers between the cheeks, 24 mm apart, each on its engine's
+  // drive (the wall lever's rule); the boss is one across the box either way
+  const twin = twinEngines(P);
+  const levers = twin ? [['edCtl_throttle', 'thr0', -0.012], ['edCtl_throttle2', 'thr1', 0.012]] : [['edCtl_throttle', 'thr', 0]];
+  const hw = twin ? 0.009 : 0.012;
+  let gT = null, K = null;
+  for (const [nm, drv, dx] of levers) {
+    const pv = [piv[0] + dx, piv[1], piv[2]];
+    const gL = movingAt(g, nm, pv, [1, 0, 0], drv, 1, THR_ARC);
+    const KL = inG(gL, [kn[0] + dx, kn[1], kn[2]]);
+    if (KQ) {
+      const lev = KQ.Bag(), boss = KQ.Bag(), kb = KQ.Bag();
+      KQ.sweep(lev, [[0, 0, 0], KL], () => [[-hw, -0.004], [hw, -0.004], [hw, 0.004], [-hw, 0.004]], true, [1, 0, 0]);
+      if (!gT) KQ.revolve(boss, [-dx, 0, 0], [1, 0, 0], [[0.011, -0.038], [0.011, 0.038], [0, 0.038]], 16, true);
+      KQ.revolve(kb, KL, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(twin ? 0.020 : 0.024, 0.011), 36, true);
+      lev.mesh(gL, M.frame); boss.mesh(gL, M.plated); kb.mesh(gL, M.ball);
+    } else { tube(gL, M.metal, [0, 0, 0], KL, 0.008); ballAt(gL, M.knob, KL, 0.024); }
+    if (!gT) { gT = gL; K = KL; }
+  }
   // held from above like the wall lever's ball (G279): the pivot's axis
   return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [1, 0, 0]),
            label: 'throttle (quadrant)' };
@@ -56878,7 +56898,8 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (thrMode === 1 && thr && thr.obj && thr.obj.parent && thr.obj.parent.position) {
     const p = thr.obj.parent.position, m = 0.045;      // the moving group sits on the pivot: the collar's x / y
     const out = (P.thrLen != null ? P.thrLen : 0.16) * 0.72;
-    A.keepOut.push({ x0: p.x - m, x1: p.x + m, y0: p.y - m, y1: p.y + m + out * 0.5, what: 'throttle' });
+    const dx2 = thr.twinDx || 0;                         // G446: the twin's second rod, inboard
+    A.keepOut.push({ x0: Math.min(p.x, p.x + dx2) - m, x1: Math.max(p.x, p.x + dx2) + m, y0: p.y - m, y1: p.y + m + out * 0.5, what: 'throttle' });
   }
   let pedals = st1.pedals;
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —
