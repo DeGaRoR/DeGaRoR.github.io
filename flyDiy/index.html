@@ -2919,6 +2919,29 @@ body.premOpen #flFly { display:none; }
 /* the run button reads "again" on a certified row; a stale row says why */
 #edInfo .bWhy { color:var(--ed-warn); font:400 10.5px/1.5 'IBM Plex Sans';
   margin-top:5px; }
+/* A9: the yield proxy, reported not failed; and the advisor's measured
+   levers, one line each as they land (under the row and on the award card) */
+#edInfo .bRungs { margin-top:5px; color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans'; }
+#edInfo .bRungs div:before { content:'▸ '; color:var(--ed-faint); }
+#edInfo .bWarn { color:var(--ed-warn); opacity:.85; font:400 10.5px/1.5 'IBM Plex Sans';
+  margin-top:5px; }
+.bAdvice { margin-top:7px; padding:7px 9px; border-radius:6px; text-align:left;
+  background:var(--ed-acc-soft); color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans'; }
+.bAdvice > span { display:block; font:600 9px/1.3 'IBM Plex Sans'; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ed-faint); margin-bottom:3px; }
+.bAdvice:not(.done) > span:after { content:''; display:inline-block; width:8px; height:8px;
+  margin-left:7px; border-radius:50%; border:1.5px solid var(--ed-faint); border-top-color:transparent;
+  animation:bSpin .9s linear infinite; vertical-align:-1px; }
+@keyframes bSpin { to { transform:rotate(360deg); } }
+.bAdvice div { color:var(--ed-ink); }
+.bAdvice div:before { content:'▸ '; color:var(--ed-faint); }
+/* A9: on the flight screen (the flown card's award, the master's) the card
+   centres on the viewport — the workshop's insets are not there */
+body.mode-fly #bAward { left:50vw; top:38%; }
+#bAward.master canvas { width:180px; height:180px; }
+#bAward.master .bAs { border-width:3px; font-size:15px; }
+#bAward .bAw { margin-top:8px; color:var(--ed-warn); opacity:.85; text-align:left; }
+#bRun .bRlive .dim { color:var(--ed-faint); }
 
 /* THE CARDS LIVE ON THE BODY, over the view, and editor.css declares its
    palette on the workshop's own containers — so the tokens are redeclared
@@ -20620,7 +20643,9 @@ function makeCrosswindProbe(def, opts) {
     return { done: false, w: cur ? cur.w : 0, t: cur ? cur.t : 0,
              frac: Math.min(0.95, runs.length / 6) };
   }
-  return { poll, get result() { return result; }, band, cap };
+  // A9: the rungs as they land (read-only), so a card can print each
+  // departure while the ladder is still climbing
+  return { poll, get result() { return result; }, get runs() { return runs; }, band, cap };
 }
 
 // the whole measurement at once (the gates)
@@ -20952,6 +20977,11 @@ function makePilot(sim, def, world, opts) {
   let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
   let vsSlow = 0, gaT = 0;
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
+  // A9: THE TRIM THE PILOT HELD (41_test_pilot.js, verbatim in intent): the
+  // slewed elevator on the settled downwind, time-weighted, published as
+  // `report.trimDe` for the bench's trim advisor — the test flight is a real
+  // flight on THIS pilot now, so the reading has to come from here
+  let trimAcc = { n: 0, de: 0 };
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   // ROTATION AUTHORITY (2026-09-11). holdPitch's integrator is capped at
@@ -23017,6 +23047,10 @@ function makePilot(sim, def, world, opts) {
     // nothing jumps when the box takes the axis
     const ownV = !BX.on || AF.vert !== 'OFF', ownL = !BX.on || AF.lat !== 'OFF';
     if (ownV) { aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe; } else aDe = c.de;
+    if (ap.phase === 'DOWNWIND' && phaseT > 8 && onG === 0 && ap.report) {
+      trimAcc.n += dt; trimAcc.de += aDe * dt;
+      ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
+    }
     if (ownL) {
       aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
       aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
@@ -36413,41 +36447,41 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d124e48d465e';window.FLYDIY_BUILD='28164d24cfb0'</script>
-<script type="text/x-flydiy" src="src/models/pa18_model.js?v=e58f49e1"></script>
-<script type="text/x-flydiy" src="src/models/c172_model.js?v=c04a2c0b"></script>
-<script type="text/x-flydiy" src="src/models/d112_model.js?v=1c93058a"></script>
-<script type="text/x-flydiy" src="src/models/pio200_model.js?v=4cb51bac"></script>
-<script type="text/x-flydiy" src="src/models/c195_model.js?v=c7959754"></script>
-<script type="text/x-flydiy" src="src/models/stemme_model.js?v=c679a0e0"></script>
-<script type="text/x-flydiy" src="src/models/guepard_model.js?v=ffd5e4f5"></script>
-<script type="text/x-flydiy" src="src/models/da40_model.js?v=594e79b5"></script>
-<script type="text/x-flydiy" src="src/models/g115_model.js?v=03a7e598"></script>
-<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=c29889d4"></script>
-<script type="text/x-flydiy" src="src/models/eiii_model.js?v=8e83410f"></script>
-<script type="text/x-flydiy" src="src/models/pa28_model.js?v=86470bea"></script>
-<script type="text/x-flydiy" src="src/props/props_bench.js?v=7c6e64b4"></script>
-<script type="text/x-flydiy" src="src/props/props_storage.js?v=e051184c"></script>
-<script type="text/x-flydiy" src="src/props/props_machine.js?v=14f1da60"></script>
-<script type="text/x-flydiy" src="src/props/props_handling.js?v=a92f7dd8"></script>
-<script type="text/x-flydiy" src="src/props/props_vessel.js?v=96edf5b9"></script>
-<script type="text/x-flydiy" src="src/props/props_tools.js?v=d179d596"></script>
-<script type="text/x-flydiy" src="src/props/props_curio.js?v=8ca61851"></script>
-<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=cd02f7b8"></script>
-<script type="text/x-flydiy" src="src/props/props_fixture.js?v=93362da1"></script>
-<script type="text/x-flydiy" src="src/props/props_airframe.js?v=f8726344"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
-<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
-<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=bad6494c"></script>
-<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=190e2922"></script>
-<script type="text/x-flydiy" src="src/chars/remy_char.js?v=33b3e4f7"></script>
-<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=6de5f22b"></script>
-<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=2a57366c"></script>
-<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=ea8887fe"></script>
-<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
-<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=b0e439a1"></script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='2ba19d73148a';window.FLYDIY_BUILD='504a0e8f3a71'</script>
+<script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
+<script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
+<script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
+<script type="text/x-flydiy" src="src/models/pio200_model.js?v=981cd31e"></script>
+<script type="text/x-flydiy" src="src/models/c195_model.js?v=8974dedd"></script>
+<script type="text/x-flydiy" src="src/models/stemme_model.js?v=04fd92f7"></script>
+<script type="text/x-flydiy" src="src/models/guepard_model.js?v=bf419178"></script>
+<script type="text/x-flydiy" src="src/models/da40_model.js?v=82bf8782"></script>
+<script type="text/x-flydiy" src="src/models/g115_model.js?v=87b45f7c"></script>
+<script type="text/x-flydiy" src="src/models/yak18t_model.js?v=25ff8781"></script>
+<script type="text/x-flydiy" src="src/models/eiii_model.js?v=623d6f2c"></script>
+<script type="text/x-flydiy" src="src/models/pa28_model.js?v=a6c43592"></script>
+<script type="text/x-flydiy" src="src/props/props_bench.js?v=69711d9a"></script>
+<script type="text/x-flydiy" src="src/props/props_storage.js?v=02f1c776"></script>
+<script type="text/x-flydiy" src="src/props/props_machine.js?v=2733b959"></script>
+<script type="text/x-flydiy" src="src/props/props_handling.js?v=a568a7bc"></script>
+<script type="text/x-flydiy" src="src/props/props_vessel.js?v=4e732810"></script>
+<script type="text/x-flydiy" src="src/props/props_tools.js?v=037dbb79"></script>
+<script type="text/x-flydiy" src="src/props/props_curio.js?v=f3aaba4a"></script>
+<script type="text/x-flydiy" src="src/props/props_vehicle.js?v=58405541"></script>
+<script type="text/x-flydiy" src="src/props/props_fixture.js?v=d5aa9ff4"></script>
+<script type="text/x-flydiy" src="src/props/props_airframe.js?v=88d864cd"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_switch.js?v=0d35c503"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_knob.js?v=fb915c1f"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_button.js?v=af0086f8"></script>
+<script type="text/x-flydiy" src="src/panelhw/panelhw_key.js?v=cc25d95b"></script>
+<script type="text/x-flydiy" src="src/chars/ch42_char.js?v=086852d8"></script>
+<script type="text/x-flydiy" src="src/chars/ch02_char.js?v=51d9d671"></script>
+<script type="text/x-flydiy" src="src/chars/remy_char.js?v=9b3e0f50"></script>
+<script type="text/x-flydiy" src="src/chars/ch22_char.js?v=d244bcf3"></script>
+<script type="text/x-flydiy" src="src/chars/ch01_char.js?v=c039fedb"></script>
+<script type="text/x-flydiy" src="src/chars/ch20_char.js?v=d6f91211"></script>
+<script type="text/x-flydiy" src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script type="text/x-flydiy" src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -93630,6 +93664,15 @@ function buildDecPanel() {
   num('stickers up', 'stkC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the place\'s own height', 'up');
   num('sticker size', 'stkSize', 0.06, 0.30, 0.01, 'the roundel\'s diameter, metres (120 mm is a real placard)');
   num('stickers turn', 'stkRot', -0.6, 0.6, 0.01, 'radians');
+  // A9: THE MASTER — the AIRWORTHY roundel the whole certificate earns
+  flag('master sticker shown', 'mstOn',
+       'the AIRWORTHY roundel — worn when the bench check, the wing loading and the test flight are all held; off hides it');
+  pick('master goes on', 'mstPlace', STK.map(p => p.name),
+       'the place the master is worn — its own station and height; the two rows below fine-tune from there');
+  num('master along', 'mstL', -3.0, 3.0, 0.02, 'metres fore (-) or aft (+) of the station of the place', 'len');
+  num('master up', 'mstC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the height of the place', 'up');
+  num('master size', 'mstSize', 0.10, 0.60, 0.01, 'the diameter of the roundel, metres');
+  num('master turn', 'mstRot', -0.6, 0.6, 0.01, 'radians');
   // THE SPINNER'S SPIRAL (G345.1, the user: "the nose cone option to draw
   // the little typical spiral and choose its colour"). Painted by the
   // weathering module in the cone's own polar frame, so it turns with it.
@@ -107337,7 +107380,7 @@ function aeroDetailTex(THREE, key) {
 // the two image channels. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 7;             // G208: +1, the certification stickers' strip
+const AERO_MAXD = 8;             // G208: +1, the certification stickers' strip; A9: +1, the master
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -107865,6 +107908,12 @@ const AERO_DEC_DEF = {
   // visible"). Place 3 in STICKER_PLACES; the rear fuselage (0) was the first
   // cut and it is the one panel a pod, a rod boom or a twin boom may not have.
   stkOn: 1, stkPlace: 3, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
+  // A9: THE MASTER — the AIRWORTHY roundel, worn when the whole certificate
+  // is held; its own place and size (250 mm), cosmetic like the strip's.
+  // THE REAR FUSELAGE UNDER THE REGISTRATION (place 0): the strip's own
+  // first cut, proven to take a decal (G208.2); 'the nose behind the cowl'
+  // was tried first and lay under the D.112's cowl (measured 2026-09-21).
+  mstOn: 1, mstPlace: 0, mstL: 0, mstC: 0, mstSize: 0.25, mstRot: 0,
   // G345.1: THE SPINNER'S SPIRAL — a marking, painted by aeroweather.js in
   // the cone's own frame; null colour = white; hand 0 / 1
   spiralOn: 0, spiralCol: null, spiralHand: 0, spiralPitch: 0.10, spiralW: 0.30,
@@ -108364,7 +108413,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 7
+#define AERO_MAXD 8
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround
@@ -115591,6 +115640,18 @@ function garageInit(api) {
   try {
     window.GARAGE_SPEC = {
       get: () => JSON.parse(JSON.stringify(spec)),
+      // THE DEFAULT AEROPLANE, for whoever compares a build against it (A9:
+      // the bench's fingerprint counts only the cage rows a builder moved).
+      // The same merge STOCK bakes a page preset over: the template's own
+      // parameters under the page's declared defaults. Null before the
+      // editor is up, which every caller treats as "count everything".
+      cageDefaults: () => {
+        try {
+          const C = window.CAGE2, PG = window.CAGE_PAGE;
+          if (!C || typeof C.cageDefaults !== 'function') return null;
+          return Object.assign(C.cageDefaults(), (PG && PG.defaults) || {});
+        } catch (e) { return null; }
+      },
       // G190: the image pages the working build was restored with, for the
       // editor's boot seed (the autosave comes back before the editor exists)
       images: () => wipImages,
@@ -116361,6 +116422,8 @@ const PLAQUE_WHY = {
       + 'a high thrust line lifts the tail before the rudder has the air to '
       + 'hold it: mains further aft, a bigger fin, or a lower thrust line. '
       + 'No pilot gain moves this number (HANDOVER G193.1).' },
+  'first rung failed': { what: 'the lightest crosswind the ladder failed in, and why: off the edge line (the roll left the painted lines), rejected take-off, never airborne, or a break-up.',
+    fix: 'the same three levers as the limit: mains further aft, a bigger fin, a lower thrust line. Off the edge line is steering authority on the ground; never airborne is a departure the wind alone stopped.' },
   'test card': { what: 'the height and speed the bench asked the pilot to '
       + 'hold on the cruise leg. Blank fields mean the standard circuit.' },
   'held': { what: 'what the pilot actually flew on the cruise leg, against '
@@ -116468,7 +116531,8 @@ const PLAQUE_SECTIONS = {
   'wing': 'the wing as an aerofoil: how much of it there is and how well it glides',
   'speeds & field': 'how slow it flies, how fast it cruises, and the field it needs at sea level',
   'in thin air': 'the same take-off and climb out of a hot mountain strip, from the density-altitude test',
-  'on the test flight': 'what the test pilot found flying the circuit, from the test flight',
+  'on the test flight': 'what the pilot found flying the circuit — the real flight the bench rolled out, or the one you flew',
+  'in a crosswind': 'the take-off ladder from the crosswind card: the strongest wind it keeps between the lines, and the rung that failed',
   'powerplant': 'what the engine burns and the heat it sheds at full throttle',
   'balance': 'where the centre of gravity sits against the neutral point, loaded as it stands',
   'at reserves': 'the same aeroplane with 15% fuel — lighter, and with its CG moved by the burn-off',
@@ -116706,16 +116770,31 @@ if (typeof module !== 'undefined' && module.exports)
 // circle in metres is an ellipse in page pixels; the canvas transform does
 // that arithmetic (setTransform P/w, P/h) and the roundel is written once,
 // in metres, for the atlas and for the panel's thumbnails alike.
+//
+// THE MASTER (A9, 2026-09-21, the user: "we need like a master sticker").
+// One larger roundel — AIRWORTHY round the top, FLYDIY · CERTIFIED round
+// the bottom, a pair of wings, the registration and the day the last
+// gating certificate landed — worn when the whole certificate is held
+// (BENCH_STATE().passed: the bench check, the wing loading and the test
+// flight; the density altitude and the crosswind are ratings and never
+// gate it). Its own page (7), its own place and size (`mst*` in the decal
+// block, the rear fuselage under the registration by default, 250 mm — the
+// nose behind the cowl was tried and lay under the D.112's cowl), peeled off with the
+// first withdrawal like the small ones. The strip grew a fifth cell for the
+// crosswind card, and a sixth (S1, G451.1) for the hydroplane's.
 // ============================================================
 
-const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight', 'hydro'];
+const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight', 'xwind', 'hydro'];
 const STICKER_META = {
   shake:  { title: 'BENCH CHECK',      emblem: 'balance' },
   load:   { title: 'WING LOADING',     emblem: 'sandbags' },
   dalt:   { title: 'DENSITY ALTITUDE', emblem: 'mountain' },
   flight: { title: 'TEST FLIGHT',      emblem: 'circuit' },
+  xwind:  { title: 'CROSSWIND',        emblem: 'windsock' },
   hydro:  { title: 'HYDROPLANE',       emblem: 'float' },      // S1 (G451.1): the seaplane's own
 };
+const STICKER_MASTER = { title: 'AIRWORTHY', ring: 'FLYDIY · CERTIFIED', emblem: 'wings', d: 0.25 };
+const STICKER_MASTER_PAGE = 7;
 const STICKER_INK = '#1f3552', STICKER_GROUND = '#f1e7d0', STICKER_RIM = '#d9c9a5';
 // the strip on the fuselage: field frame, metres aft of the firewall and
 // above the waist; `d` the roundel's diameter, `gap` between two.
@@ -116762,6 +116841,13 @@ const STICKER_PLACES = [
 ];
 const stickerStripW = d => { d = d || STICKER_PLACE.d;
   return STICKER_ORDER.length * d + (STICKER_ORDER.length - 1) * d / 4; };
+// the two vinyls' keys in the decal block: the strip's and the master's
+const STICKER_KEYS = {
+  strip:  { on: 'stkOn', place: 'stkPlace', L: 'stkL', C: 'stkC', size: 'stkSize', rot: 'stkRot',
+            d: STICKER_PLACE.d, w: d => stickerStripW(d), max: 0.5 },
+  master: { on: 'mstOn', place: 'mstPlace', L: 'mstL', C: 'mstC', size: 'mstSize', rot: 'mstRot',
+            d: STICKER_MASTER.d, w: d => d, max: 0.6 },
+};
 
 // THE LANDMARKS, off the fielded skin mesh the editor's scene holds (the
 // same mesh decReframe reads), in the craft frame: along runs aft (-z), up
@@ -116827,13 +116913,16 @@ function stickerLandmarks() {
 // height (measured when a landmark is available), the fine tuning, the size,
 // the turn — resolved in one place so the editor's live DEC and the flown
 // spec's merged decals read the same
-function stickerResolve(D, L) {
+// `kind` (A9): 'strip' (the default) or 'master' — the same arithmetic on
+// the master's own keys, a single roundel wide
+function stickerResolve(D, L, kind) {
   D = D || {};
-  if (D.stkOn != null && !D.stkOn) return null;
-  const pi = Math.max(0, Math.min(STICKER_PLACES.length - 1, Math.round(+D.stkPlace || 0)));
+  const K = STICKER_KEYS[kind || 'strip'] || STICKER_KEYS.strip;
+  if (D[K.on] != null && !D[K.on]) return null;
+  const pi = Math.max(0, Math.min(STICKER_PLACES.length - 1, Math.round(+D[K.place] || 0)));
   const p = STICKER_PLACES[pi];
-  const d = Math.max(0.03, Math.min(0.5, +D.stkSize || STICKER_PLACE.d));
-  const w = stickerStripW(d);
+  const d = Math.max(0.03, Math.min(K.max, +D[K.size] || K.d));
+  const w = K.w(d);
   let sL = p.sL, sC = p.sC;
   if (p.land === 'fin' && L && isFinite(L.finTop)) {
     // centred on the fin's chord at the strip's height, 0.35 m under the
@@ -116847,8 +116936,8 @@ function stickerResolve(D, L) {
     sL = 0.90; sC = L.wingAlong;
   }
   return { d, w, h: d,
-           sL: sL + (+D.stkL || 0) + w / 2, sC: sC + (+D.stkC || 0),
-           rot: +D.stkRot || 0, on: p.on, mode: p.mode, place: p.id };
+           sL: sL + (+D[K.L] || 0) + w / 2, sC: sC + (+D[K.C] || 0),
+           rot: +D[K.rot] || 0, on: p.on, mode: p.mode, place: p.id };
 }
 
 // ---- ONE ROUNDEL ------------------------------------------------------
@@ -116886,10 +116975,15 @@ function stickerRoundel(g, cx, cy, r, o) {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     stickerArcText(g, String(o.title || ''), r * 0.77, -Math.PI / 2, fs, true);
     g.font = '500 ' + (fs * 0.82) + 'px "IBM Plex Sans", sans-serif';
-    stickerArcText(g, 'FLYDIY · ENGINEERING BENCH', r * 0.77, Math.PI / 2, fs * 0.82, false);
+    stickerArcText(g, String(o.ring || 'FLYDIY · ENGINEERING BENCH'), r * 0.77, Math.PI / 2, fs * 0.82, false);
+    if (o.sub) {
+      // the master's registration, above the date
+      g.font = '700 ' + (r * 0.15) + 'px "IBM Plex Mono", monospace';
+      g.fillText(String(o.sub), 0, r * 0.40);
+    }
     if (o.date) {
       g.font = '600 ' + (r * 0.13) + 'px "IBM Plex Mono", monospace';
-      g.fillText(String(o.date), 0, r * 0.50);
+      g.fillText(String(o.date), 0, o.sub ? r * 0.56 : r * 0.50);
     }
   }
   g.restore();
@@ -116987,6 +117081,30 @@ function stickerEmblem(g, kind) {
     P(); g.moveTo(0, -0.2); g.lineTo(0, 0.28); g.stroke();
     P(); g.moveTo(-0.34, -0.02); g.lineTo(0.34, -0.02); g.stroke();
     P(); g.moveTo(-0.13, 0.24); g.lineTo(0.13, 0.24); g.stroke();
+  } else if (kind === 'windsock') {
+    // a mast with the sock streaming to the right: the crosswind card
+    P(); g.moveTo(-0.75, 0.95); g.lineTo(-0.75, -0.75); g.stroke();
+    P(); g.moveTo(-0.75, -0.75); g.lineTo(0.85, -0.45); g.lineTo(0.85, -0.05); g.lineTo(-0.75, -0.25); g.closePath(); g.fill();
+    // the stripes, cut out of the sock
+    g.save(); g.globalCompositeOperation = 'destination-out';
+    for (const x of [-0.35, 0.2]) { P(); g.moveTo(x, -0.75 + (x + 0.75) * 0.1875 - 0.02); g.lineTo(x + 0.2, -0.75 + (x + 0.95) * 0.1875 - 0.02);
+      g.lineTo(x + 0.2, -0.25 + (x + 0.95) * 0.1875 - 0.03); g.lineTo(x, -0.25 + (x + 0.75) * 0.1875 - 0.03); g.closePath(); g.fill(); }
+    g.restore();
+    // the wind
+    for (const y of [0.35, 0.6]) { P(); g.moveTo(-0.3, y); g.lineTo(0.6, y); g.stroke(); }
+  } else if (kind === 'wings') {
+    // a pair of wings about a hub: the master's emblem
+    P(); g.arc(0, 0.05, 0.16, 0, Math.PI * 2); g.fill();
+    for (const sgn of [-1, 1]) {
+      P(); g.moveTo(sgn * 0.18, -0.02);
+      g.quadraticCurveTo(sgn * 0.55, -0.55, sgn * 0.98, -0.30);
+      g.quadraticCurveTo(sgn * 0.75, -0.05, sgn * 0.62, 0.02);
+      g.quadraticCurveTo(sgn * 0.78, 0.12, sgn * 0.85, 0.18);
+      g.quadraticCurveTo(sgn * 0.55, 0.22, sgn * 0.45, 0.16);
+      g.quadraticCurveTo(sgn * 0.5, 0.3, sgn * 0.52, 0.36);
+      g.quadraticCurveTo(sgn * 0.3, 0.3, sgn * 0.18, 0.12); g.closePath(); g.fill();
+    }
+    P(); g.moveTo(-0.16, 0.36); g.lineTo(0.16, 0.36); g.lineTo(0, 0.7); g.closePath(); g.fill();
   }
 }
 
@@ -116995,8 +117113,15 @@ function stickerEmblem(g, kind) {
 // changed and returns the ONE placement, or [] when nothing is awarded.
 let stickerSig = null, stickerPlacement = null;
 // `D` is the decal block (the editor's live DEC, or the flown spec's merged
-// decals) — the place, the fine tuning, the size and the turn come from it
+// decals) — the place, the fine tuning, the size and the turn come from it.
+// Returns the strip's placement and, when the whole certificate is held,
+// the master's (A9) — two vinyls, two pages, one list.
 function stickerPlacements(THREE, D) {
+  const out = stickerStripPlacements(THREE, D);
+  const m = stickerMasterPlacement(THREE, D);
+  return m ? out.concat([m]) : out;
+}
+function stickerStripPlacements(THREE, D) {
   const A = (typeof window !== 'undefined') ? window.AEROSKIN : null;
   const st = (typeof window !== 'undefined' && typeof window.BENCH_STATE === 'function')
            ? window.BENCH_STATE() : null;
@@ -117052,6 +117177,62 @@ function stickerPlacements(THREE, D) {
   return [place];
 }
 
+// THE MASTER'S PAGE (A9). The recipe is the registration, the date of the
+// last gating certificate and the size; drawn on page 7 when it changed.
+let masterSig = null;
+function stickerMasterDate(st) {
+  const gate = { shake: 1, load: 1, flight: 1 };
+  let d = '';
+  for (const c of (st && st.certs) || []) if (c && gate[c.id] && c.when && c.when > d) d = c.when;
+  return d;
+}
+function stickerMasterPlacement(THREE, D) {
+  const A = (typeof window !== 'undefined') ? window.AEROSKIN : null;
+  const st = (typeof window !== 'undefined' && typeof window.BENCH_STATE === 'function')
+           ? window.BENCH_STATE() : null;
+  if (!st || !st.passed) { masterSig = null; return null; }
+  const R = stickerResolve(D, stickerLandmarks(), 'master');
+  if (!R) { masterSig = null; return null; }
+  const reg = (D && D.reg) || stickerReg();
+  const when = stickerMasterDate(st);
+  const sig = reg + '|' + when + '|' + R.d;
+  const place = { page: STICKER_MASTER_PAGE, sL: R.sL, sC: R.sC, w: R.w, h: R.h, rot: R.rot,
+                  rough: -0.08, on: R.on, mode: R.mode, one: 1 };
+  if (sig === masterSig) return place;
+  if (!A || !A.aeroAtlas) return null;
+  try {
+    const t = A.aeroAtlas(THREE), cv = t.image;
+    const N = A.AERO_ATLAS_N || 4, PX = cv.width || 4096, P = PX / N;
+    const px = (STICKER_MASTER_PAGE % N) * P, py = Math.floor(STICKER_MASTER_PAGE / N) * P;
+    const g = cv.getContext('2d');
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(px, py, P, P);
+    g.beginPath(); g.rect(px, py, P, P); g.clip();
+    g.setTransform(P / R.w, 0, 0, P / R.h, px, py);
+    stickerRoundel(g, R.d / 2, R.d / 2, R.d / 2 * 0.98,
+      { title: STICKER_MASTER.title, ring: STICKER_MASTER.ring, emblem: STICKER_MASTER.emblem,
+        sub: reg || '', date: when || '' });
+    g.restore();
+    stickerDilate(g, px, py, P, P, Math.max(3, Math.round(3 * P / 256)));
+    t.needsUpdate = true;
+  } catch (e) {
+    console.error('master sticker:', e);
+    return null;
+  }
+  masterSig = sig;
+  return place;
+}
+// the registration the master carries: the spec's own meta (aeroskin's
+// decal block carries it as `reg` once built; the shelf spec always does)
+function stickerReg() {
+  try {
+    const G = (typeof window !== 'undefined') && window.GARAGE_SPEC;
+    const sp = G && typeof G.get === 'function' ? G.get() : null;
+    return (sp && sp.meta && sp.meta.reg) || '';
+  } catch (e) { return ''; }
+}
+
 // bleed the opaque pixels' colour into their transparent neighbours, so the
 // bilinear sample at a roundel's edge never mixes in the atlas's black
 function stickerDilate(g, x, y, w, h, rounds) {
@@ -117074,7 +117255,7 @@ function stickerDilate(g, x, y, w, h, rounds) {
 // the bench calls this when a certificate is awarded or withdrawn: the strip
 // is rebuilt on the next decal pass, which the editor is asked for now
 function stickerRefresh() {
-  stickerSig = null;
+  stickerSig = null; masterSig = null;
   try {
     if (typeof window !== 'undefined' && window.CAGE_UI && window.CAGE_UI.redecal)
       window.CAGE_UI.redecal();
@@ -117084,6 +117265,8 @@ function stickerRefresh() {
 if (typeof window !== 'undefined') {
   window.STICKERS = { ORDER: STICKER_ORDER, META: STICKER_META, PLACE: STICKER_PLACE,
                       PLACES: STICKER_PLACES, PAGE: STICKER_PAGE, roundel: stickerRoundel,
+                      MASTER: STICKER_MASTER, MASTER_PAGE: STICKER_MASTER_PAGE,
+                      masterDate: stickerMasterDate,
                       placements: stickerPlacements, resolve: stickerResolve,
                       landmarks: stickerLandmarks,
                       refresh: stickerRefresh, stripW: stickerStripW };
@@ -117091,8 +117274,301 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { STICKER_ORDER, STICKER_META, STICKER_PLACE, STICKER_PLACES,
-                     STICKER_PAGE, stickerRoundel, stickerArcText, stickerEmblem,
+                     STICKER_PAGE, STICKER_MASTER, STICKER_MASTER_PAGE, STICKER_KEYS,
+                     stickerRoundel, stickerArcText, stickerEmblem, stickerMasterDate,
                      stickerStripW, stickerResolve, stickerPlacements, stickerDilate };
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE BENCH'S OWN THREAD (A9, 2026-09-21). The user: "the wing loading test
+// freezes the interface for much too long without feedback"; "the last
+// certification remains stuck on crosswinds".
+//
+// Two tests step a sim for seconds of wall clock: the sandbag rig (24-200
+// solver substeps per frame, stepped in the render loop since G64 — every
+// frame of it a hitch) and the crosswind ladder (four to seven departures,
+// polled in 60-step bites that block half a second each on a heavy build).
+// Both now run HERE, in a Worker built the way the energy panel's readouts
+// worker is (tools/_cage_energy.js readoutWorker): a Blob whose source
+// imports this file and the built core bundle, is handed the SPEC (a def
+// cannot cross a postMessage) and rebuilds the aeroplane on its own thread
+// — buildGen is a pure function of the spec, so the worker's nodes are the
+// page's nodes in the same order.
+//
+// ONE PHYSICS. Nothing here measures: the rig is 65_gen_loadtest.js's
+// makeLoadTest and the ladder is 42_crosswind.js's makeCrosswindProbe, the
+// same objects GATE LOAD and GATE TAKEOFF tick headlessly. This file only
+// decides WHEN to step them and WHAT to post back:
+//   load     the rig, paced to real time (the bags going on is the thing the
+//            user watches), a snapshot at most every 33 ms carrying the
+//            rig's state and the node positions — the page writes them into
+//            its own sim so the aeroplane on the stand bends exactly as the
+//            worker's does (poseModel, updateLoadViz read sim.p and nothing
+//            else);
+//   loadfix  THE ADVISOR — the same rig again on the levers a builder can
+//            actually turn (lift struts, an aluminium or carbon wing, a
+//            metre off the span), one verdict line per variant as each
+//            arrives, MEASURED rather than asserted: on the jodel card a
+//            thicker aerofoil moved the tip by nothing and five spar
+//            stations made it worse, so neither is offered;
+//   xwind    the ladder, one message per departure (the rung's wind, whether
+//            it stayed between the lines, why not), then the result.
+// The page falls back to the same functions on its own thread (file://, the
+// smoke harness, a worker that fails), budgeted per frame so a fallback is
+// slower, never a freeze.
+// ============================================================
+
+// ---- the jobs, thread-agnostic --------------------------------------------
+// CORE is { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld,
+// genSurfKey } — the page's globals, or the worker's imported bundle.
+
+// the rig's cfg from a spec: the fuselage material (the yield allowable) and
+// the wing's own construction row (G213)
+function benchLoadCfg(CORE, spec, cfg) {
+  return Object.assign({
+    material: (spec && spec.fuselage && spec.fuselage.material) || undefined,
+    wingMaterial: (spec && typeof CORE.genSurfKey === 'function')
+      ? CORE.genSurfKey(spec, 'wing', 0) : undefined,
+  }, cfg || {});
+}
+
+// A LOAD RUN. `job.p0` is the page's live node positions BEFORE its own
+// makeLoadTest inverted them (the stand's pose — standOnWheels is a rigid
+// rotation a fresh sim does not have), so both rigs invert the same
+// aeroplane. Without it the worker starts from reset(0), which GATE LOAD
+// does too. `frac` is the card's progress: settle 0-0.2, ramp 0.2-0.9,
+// hold 0.9-1 — the phases the rig itself walks, in its own cfg's seconds.
+function benchLoadRun(CORE, job) {
+  const spec = job.spec;
+  const def = CORE.buildGen(spec);
+  const sim = CORE.makeSim(def, null);
+  sim.reset(0);
+  if (job.p0 && job.p0.length === sim.p.length) sim.p.set(job.p0);
+  const cfg = benchLoadCfg(CORE, spec, job.cfg);
+  const rig = CORE.makeLoadTest(sim, def, cfg);
+  const settleS = cfg.settleS != null ? cfg.settleS : 2.0;
+  const rampS = cfg.rampS != null ? cfg.rampS : 4.0;
+  const holdS = cfg.holdS != null ? cfg.holdS : 1.5;
+  let steps = 0, t = 0;
+  const frac = () => {
+    const st = rig.state;
+    if (!st.ok) return 1;
+    if (st.done) return 1;
+    if (st.phase === 'settle') return 0.2 * Math.min(1, t / Math.max(1e-6, settleS));
+    if (st.phase === 'hold') return 0.9 + 0.1 * Math.min(1, (t - settleS - rampS) / Math.max(1e-6, holdS));
+    return 0.2 + 0.7 * Math.min(1, st.n / Math.max(1e-6, st.nTarget || rig.ult || 5.7));
+  };
+  return {
+    kind: 'load',
+    ok: !!rig.state.ok,
+    rig, sim, def,
+    get done() { return !rig.state.ok || !!rig.state.done; },
+    // advance up to `n` frames of 1/60 s; returns the frames taken
+    pump(n) {
+      let k = 0;
+      while (k < (n || 1) && rig.state.ok && !rig.state.done) { rig.step(1 / 60); t += 1 / 60; steps++; k++; }
+      return k;
+    },
+    snapshot() {
+      const st = rig.state;
+      const state = {};
+      for (const k in st) state[k] = Array.isArray(st[k]) ? st[k].slice() : st[k];
+      state.frac = frac();
+      state.t = t;
+      return { kind: 'load', state, p: Float64Array.from(sim.p) };
+    },
+  };
+}
+
+// THE ADVISOR'S LEVERS: each one a row the wing page has (its label, so the
+// card names a control that exists), applied to the join's own spec. The
+// variant is skipped where it would change nothing (struts on a strutted
+// wing, aluminium on a wing that already IS aluminium — by its own row or
+// by the fuselage's material it follows, `mat` = genSurfKey's answer).
+const BENCH_LOAD_LEVERS = [
+  { id: 'strut', row: 'fixation', label: 'lift struts',
+    when: s => !(s.bracing && s.bracing.type === 'strut'),
+    apply: s => { s.bracing = Object.assign({}, s.bracing || {}, { type: 'strut' }); } },
+  { id: 'alloy', row: 'construction', label: 'an aluminium wing',
+    when: (s, mat) => mat !== 'alloy',
+    apply: s => { s.wings[0].material = 'alloy'; } },
+  { id: 'carbon', row: 'construction', label: 'a carbon wing',
+    when: (s, mat) => mat !== 'carbon',
+    apply: s => { s.wings[0].material = 'carbon'; } },
+  { id: 'span', row: 'span', label: 'a metre off the span',
+    when: s => !!(s.wings && s.wings[0] && s.wings[0].span > 7.5),
+    apply: s => { s.wings[0].span = s.wings[0].span - 1; } },
+];
+// the variants a spec can take, in the order the card lists them
+function benchLoadVariants(spec, CORE) {
+  if (!spec || !spec.wings || !spec.wings[0]) return [];
+  let mat = spec.wings[0].material || null;
+  try { if (CORE && typeof CORE.genSurfKey === 'function') mat = CORE.genSurfKey(spec, 'wing', 0) || mat; } catch (e) {}
+  return BENCH_LOAD_LEVERS.filter(L => { try { return L.when(spec, mat); } catch (e) { return false; } })
+    .map(L => ({ id: L.id, row: L.row, label: L.label }));
+}
+// one variant, run to its verdict (headless: the whole rig, no pacing)
+function benchLoadVariant(CORE, spec, id, cfg) {
+  const L = BENCH_LOAD_LEVERS.filter(x => x.id === id)[0];
+  if (!L) return null;
+  const s = JSON.parse(JSON.stringify(spec));
+  L.apply(s);
+  const run = benchLoadRun(CORE, { spec: s, cfg });
+  if (!run.ok) return { id, row: L.row, label: L.label, verdict: 'no wing to load' };
+  for (let i = 0; i < 60 * 60 && !run.done; i++) run.pump(1);
+  const st = run.rig.state;
+  return { id, row: L.row, label: L.label, verdict: st.verdict, limitPct: st.limitPct,
+           ultPct: st.ultPct, ultYield: st.ultYield, worstCls: st.worstCls,
+           mass: run.sim.totalM };
+}
+
+// A CROSSWIND RUN: the ladder as the probe steps it, one rung reported as
+// it lands. The probe is the page's (42_crosswind.js makeCrosswindProbe);
+// `poll(ms)` is its own budgeted step, so pacing here is just the budget.
+function benchXwindRun(CORE, job) {
+  const def = CORE.buildGen(job.spec);
+  const world = (typeof CORE.makeWorld === 'function') ? CORE.makeWorld() : null;
+  const probe = CORE.makeCrosswindProbe(def, Object.assign({ world }, job.opts || {}));
+  let seen = 0, last = null, result = null;
+  return {
+    kind: 'xwind',
+    get done() { return !!result; },
+    // step for `ms` of wall clock; returns the rungs that landed meanwhile
+    pump(ms) {
+      if (result) return [];
+      const r = probe.poll(ms || 60);
+      last = r;
+      if (r && r.done) result = r.result;
+      const runs = probe.runs || (result && result.runs) || [];
+      const fresh = runs.slice(seen).map(r => ({ w: r.w, ok: r.ok, roll: r.roll, e: r.e, why: r.why }));
+      seen = runs.length;
+      return fresh;
+    },
+    snapshot() {
+      const runs = probe.runs || (result && result.runs) || [];
+      return { kind: 'xwind', w: last && last.w, t: last && last.t, frac: last ? (last.done ? 1 : last.frac) : 0,
+               runs: runs.map(r => ({ w: r.w, ok: r.ok, roll: r.roll, e: r.e, why: r.why })),
+               result: result || null, done: !!result };
+    },
+  };
+}
+
+// ---- the worker's side -----------------------------------------------------
+// Stringified into the Blob (so it may close over nothing but its two
+// arguments): `CORE` the imported bundle, `BW` this module's exports.
+function benchWorkerBody(CORE, BW) {
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let cur = null;                       // the one job in flight
+  const post = (m, tr) => { try { postMessage(m, tr || []); } catch (e) { postMessage(m); } };
+  const loop = () => {
+    const J = cur; if (!J) return;
+    try {
+      if (J.kind === 'load') {
+        // paced to real time: the frames due since the start, at most three
+        // per turn so a heavy build slows rather than skips
+        const due = Math.floor((now() - J.t0) / (1000 / 60)) - J.stepped;
+        const k = J.run.pump(Math.max(0, Math.min(3, due)));
+        J.stepped += k;
+        const st = J.run.rig.state;
+        const phaseMoved = st.phase !== J.phase; J.phase = st.phase;
+        if (J.run.done || phaseMoved || now() - J.sent >= 33) {
+          const s = J.run.snapshot(); s.seq = J.seq;
+          s.rate = J.stepped > 0 ? (J.stepped / 60) / Math.max(1e-3, (now() - J.t0) / 1000) : 1;
+          J.sent = now();
+          post(s, [s.p.buffer]);
+        }
+        if (J.run.done) { cur = null; return; }
+        setTimeout(loop, 4);
+        return;
+      }
+      if (J.kind === 'loadfix') {
+        // THE ADVISOR: one lever per turn, its line posted as it lands (the
+        // bench asked for it after reading the rig's verdict — the verdict
+        // rule is the bench's, not this thread's)
+        const v = J.variants[J.i++];
+        if (!v) { post({ kind: 'loadfix', seq: J.seq, done: true }); cur = null; return; }
+        const r = BW.benchLoadVariant(CORE, J.spec, v.id, J.cfg);
+        post({ kind: 'loadfix', seq: J.seq, variant: r, i: J.i, n: J.variants.length });
+        setTimeout(loop, 0);
+        return;
+      }
+      if (J.kind === 'xwind') {
+        const fresh = J.run.pump(60);
+        const s = J.run.snapshot(); s.seq = J.seq; s.fresh = fresh;
+        post(s);
+        if (J.run.done) { cur = null; return; }
+        setTimeout(loop, 0);
+        return;
+      }
+    } catch (err) {
+      post({ kind: J.kind, seq: J.seq, error: String(err && err.stack || err) });
+      cur = null;
+    }
+  };
+  self.onmessage = e => {
+    const job = e.data || {};
+    if (job.kind === 'stop') { cur = null; return; }
+    try {
+      if (job.kind === 'load') {
+        const run = BW.benchLoadRun(CORE, job);
+        cur = { kind: 'load', run, seq: job.seq, t0: now(), stepped: 0, sent: 0, phase: null };
+        if (!run.ok) { const s = run.snapshot(); s.seq = job.seq; post(s, [s.p.buffer]); cur = null; return; }
+        loop();
+      } else if (job.kind === 'loadfix') {
+        const variants = BW.benchLoadVariants(job.spec, CORE);
+        post({ kind: 'loadfix', seq: job.seq, variants, start: true });
+        cur = { kind: 'loadfix', seq: job.seq, spec: job.spec, cfg: job.cfg, variants, i: 0 };
+        loop();
+      } else if (job.kind === 'xwind') {
+        cur = { kind: 'xwind', run: BW.benchXwindRun(CORE, job), seq: job.seq };
+        loop();
+      }
+    } catch (err) {
+      post({ kind: job.kind, seq: job.seq, error: String(err && err.stack || err) });
+      cur = null;
+    }
+  };
+}
+
+// the Blob's source: this file and the built core bundle, both by URL next
+// to the page (dev.html and index.html sit in flyDiy/), then the body
+function benchWorkerSource(base) {
+  return 'self.module = { exports: {} };\n' +
+    'importScripts(' + JSON.stringify(base + 'src/viewer/bench_worker.js') + ');\n' +
+    'const BW = self.module.exports; self.module = { exports: {} };\n' +
+    'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
+    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey };\n' +
+    '(' + benchWorkerBody.toString() + ')(CORE, BW);\n';
+}
+
+// ---- the page's side --------------------------------------------------------
+// One worker per test (a test owns its thread; abort terminates it). Null
+// when there is no worker to be had — the caller runs the job on the page.
+function benchWorkerStart(onMessage, onError) {
+  try {
+    if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' ||
+        typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return null;
+    const base = new URL('.', location.href).href;
+    const url = URL.createObjectURL(new Blob([benchWorkerSource(base)], { type: 'text/javascript' }));
+    const w = new Worker(url);
+    const kill = () => { try { w.terminate(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} };
+    w.onmessage = e => { try { onMessage(e.data); } catch (err) { console.warn('bench worker message:', err); } };
+    w.onerror = err => { kill(); if (onError) onError(err && err.message || 'worker failed'); };
+    return {
+      post: (job, tr) => { try { w.postMessage(job, tr || []); return true; } catch (e) { return false; } },
+      kill,
+    };
+  } catch (e) { return null; }
+}
+
+if (typeof window !== 'undefined') {
+  window.BENCH_WORKER = { start: benchWorkerStart, loadRun: benchLoadRun, loadVariants: benchLoadVariants,
+                          loadVariant: benchLoadVariant, xwindRun: benchXwindRun, loadCfg: benchLoadCfg,
+                          LEVERS: BENCH_LOAD_LEVERS };
+}
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { benchLoadCfg, benchLoadRun, benchLoadVariants, benchLoadVariant, benchXwindRun,
+                     benchWorkerBody, benchWorkerSource, benchWorkerStart, BENCH_LOAD_LEVERS };
 </script>
 <script type="text/x-flydiy">
 // ============================================================
@@ -117200,30 +117676,71 @@ const BENCH_TESTS = [
     // one computation. Since G64 it puts the aeroplane ON ITS BACK, which is
     // how the test is really done and the only way the bags can push the wing
     // the way they look like they push it.
+    //
+    // THE VERDICT RULE (A9, the user: "a lot of planes fail it and there
+    // seems to be really no option, especially when the wing geometry is a
+    // real plane's"). The row used to fail the certificate on the rig's
+    // 'HELD — over yield', a PROXY the rig itself calls coarse (65:361: one
+    // lin/rho area per class, the lift strut judged as a wing member —
+    // GATE LOAD deliberately does not gate on it). Measured over the 26
+    // archetype cards at HEAD: seven failed on the proxy alone, none broke
+    // up; fitting lift struts HALVED a jodel's deflection and RAISED its
+    // yield figure, because the strut became the worst 'wing' member. So
+    // the proxy is now a warning on the card, and the certificate fails on
+    // what the rig can actually see: a member that let go (BROKE UP) or a
+    // tip past LOAD_TIP_CAP at ultimate (GATE FLEX's reality figures: real
+    // wings bend 2-4 % of the semispan at limit, 8 % at 1 g is 'folds in
+    // bending'; a sixth of the span at ultimate is not a wing that held).
+    // AND THE FIX IS MEASURED: after a failed or warned rig the ADVISOR runs
+    // the same rig on the levers the wing page has (bench_worker.js: lift
+    // struts, an aluminium or carbon wing, a metre off the span) and prints
+    // each tip as it lands. Thickness and spar stations are not offered —
+    // measured on the jodel, the first moved nothing and the second made it
+    // worse.
     start(api) { api.loadTest(); },
     poll(api) {
       const st = api.loadTestState();
       if (!st) return { verdict: 'no wing to load', ok: false, done: true };
-      const pct = Math.max(0, Math.min(1, st.n / Math.max(1e-6, st.nTarget)));
+      const nT = Math.max(1e-6, st.nTarget || 5.7);
+      const pct = Math.max(0, Math.min(1, st.n / nT));
+      // the card's progress over the rig's own phases: settle, ramp, hold
+      const prog = st.phase === 'settle' ? 0.1 : st.phase === 'hold' ? 0.95 : 0.2 + 0.7 * pct;
+      const thread = st.thread === 'worker' ? 'off the page' : st.thread === 'page' ? 'on the page' : '';
+      const slow = (st.rate != null && isFinite(st.rate) && st.rate < 0.85) ? ' · ' + benchNum(st.rate, 1) + '× real time' : '';
       if (!st.done) return {
         done: false,
-        running: st.phase === 'settle' ? 'settling on the trestles'
-          : benchNum(st.n, 2) + ' g · tip ' + benchNum(st.tipPct, 2) + ' %',
-        progress: pct,
+        running: (st.phase === 'settle' ? 'settling on the trestles'
+          : benchNum(st.n, 2) + ' g · tip ' + benchNum(st.tipPct, 2) + ' %') + (thread ? ' · ' + thread : '') + slow,
+        progress: prog,
         step: st.phase === 'settle' ? 1 : st.phase === 'hold' ? 4 : (st.n < 3.8 ? 2 : 3),
-        live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget },
+        live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget,
+                limit: st.limit, ult: st.ult, thread, rate: st.rate },
       };
+      const broke = st.verdict === 'BROKE UP';
+      const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
+      const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
+      const ok = !broke && !bent;
+      const why = broke ? 'a member let go before the ultimate load'
+                : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
+                         + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
       return {
         done: true,
-        verdict: st.verdict || 'HELD',
-        ok: st.verdict === 'HELD',
+        verdict: broke ? 'BROKE UP' : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
+        ok,
         note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
           + benchNum(st.ultPct, 2) + ' %'
           + (st.ultYield == null ? ''
-             : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of yield'
+             : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
                + (st.worstCls ? ' (' + st.worstCls + ')' : '')),
-        fix: st.verdict === 'HELD' ? '' : 'the spar, the struts or the wires gave: a deeper '
-           + 'spar, a lift strut or a second bay of bracing carries the ultimate load.',
+        why,
+        // the proxy, reported and named for what it is
+        warn: overYield ? 'worst member at ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
+                + (st.worstCls ? ' (' + st.worstCls + ')' : '')
+                + ' — reported, not failed: one area per member class, the lift strut sized as a wing member' : '',
+        fix: ok ? '' : 'the levers below are measured on this wing: fixation (lift struts), '
+           + 'construction (an aluminium or carbon wing), span.',
+        // the advisor runs after a fail OR a warning
+        advise: !ok || overYield,
       };
     },
     stop(api) { api.endLoadTest(); },
@@ -117280,64 +117797,116 @@ const BENCH_TESTS = [
     },
   },
   {
-    // BUILT AT G107, as declared at G64 — IN PAGE, exactly as the row's open
-    // decision resolved: a second sim flies the whole circuit OFFSCREEN on the
-    // TEST PILOT (41_test_pilot.js), fast-stepped on a wall-clock budget, and
-    // brings back the landing run genShakedown cannot compute plus the
-    // pilot's own report — bounded attempts, structured verdicts. An
-    // aeroplane that cannot fly comes back SAYING SO ('rejected-takeoff',
-    // 'wont-climb'), which is a FAILED test with a reason, not a hang.
+    // A REAL FLIGHT (A9, the user: "the test flight is too long and not
+    // cinematic enough — do the three first tests, award the global one
+    // after the first actual successful flight"). G107 flew a hidden second
+    // sim on the test pilot for 420 s, then the crosswind ladder, and nobody
+    // could watch either. This row now HANDS OFF: it rolls the aeroplane
+    // out, the pilot flies its own circuit on the real world with the camera
+    // cutting to the phases, and the certificate is awarded when the
+    // aeroplane ARRIVES — through app.js's logFlight → BENCH_FLIGHT_LOGGED,
+    // which also fires for a flight you flew by hand: a landing is a
+    // landing. The fingerprint is taken at roll-out (the arming), so an
+    // edit made while the aeroplane is out is not what got certified.
     id: 'flight',
     name: 'Test flight',
-    blurb: 'A full circuit on the test pilot — the landing run, and the pilot’s verdicts.',
-    kind: 'live',
-    offscreen: true,           // the circuit flies a second sim, not the stand
-    steps: ['taxi', 'take-off', 'climb', 'cruise', 'approach', 'landing', 'crosswind'],
+    blurb: 'A circuit on the pilot, out on the field — awarded on arrival, yours or the pilot’s.',
+    kind: 'flown',              // no freeze, no poll: the game is the test
+    steps: ['taxi', 'take-off', 'climb', 'cruise', 'approach', 'landing'],
     // THE TEST CARD (G107.1): the two setpoints the game imposes on the
-    // flight. Blank = the standard circuit. The pilot clamps an unsafe ask
+    // flight. Blank = the pilot's own circuit. The pilot clamps an unsafe ask
     // (never below its own approach speed or safe height) and SAYS so, and
     // the plaque prints asked-vs-flown. Units are the UI's; app.js converts.
     card: [{ k: 'alt', label: 'altitude', unit: 'm', ph: 'auto' },
            { k: 'V', label: 'speed', unit: 'km/h', ph: 'auto' }],
-    needs: ['circuitStart', 'circuitPoll', 'circuitEnd'],
-    start(api, cv) {
+    needs: ['testFlight'],
+    start(api, cv, fp) {
       const num = s => { const v = parseFloat(s); return isFinite(v) && v > 0 ? v : null; };
-      api.circuitStart({ alt: num(cv && cv.alt), Vkmh: num(cv && cv.V) });
+      const V = num(cv && cv.V);
+      return api.testFlight({ alt: num(cv && cv.alt), V: V ? V / 3.6 : null, fp });
     },
-    poll(api) {
-      const r = api.circuitPoll();
-      if (!r) return { done: true, verdict: 'no circuit running', ok: false };
-      if (!r.done) return {
-        done: false,
-        running: r.phase + ' · t=' + benchNum(r.t, 0) + ' s',
-        progress: r.frac,
-        step: benchFlightStep(r.phase),
-        live: r,
-      };
-      const rep = r.report, L = rep.landing;
-      const eventful = rep.verdicts.length > 0;
+    // the verdict, from what the flight brought back (BENCH_FLIGHT_LOGGED)
+    judge(f) {
+      const rep = f.report || { verdicts: [], outcome: null, landing: null };
+      const L = rep.landing || null, T = f.td || null;
+      const eventful = (rep.verdicts || []).length > 0;
+      const ok = !!f.arrived;
       return {
-        done: true,
-        verdict: rep.outcome === 'completed'
-          ? (eventful ? 'COMPLETED, WITH NOTES' : 'FLEW THE CIRCUIT')
-          : String(rep.outcome || 'no verdict').toUpperCase().replace(/-/g, ' '),
-        ok: rep.outcome === 'completed',
+        verdict: ok ? (f.manual ? 'ARRIVED, BY HAND' : eventful ? 'FLEW THE CIRCUIT, WITH NOTES' : 'FLEW THE CIRCUIT')
+                    : String(f.outcome || rep.outcome || 'no arrival').toUpperCase().replace(/-/g, ' '),
+        ok,
         note: (L ? 'landing run ' + benchNum(L.run, 0) + ' m · touchdown '
-                 + benchNum(L.sink, 2) + ' m/s · ' + benchNum(L.pastAim, 0)
-                 + ' m past the aim'
-                 : 'no landing')
+                 + benchNum(L.sink, 2) + ' m/s · ' + benchNum(L.pastAim, 0) + ' m past the aim'
+               : T ? 'touchdown ' + benchNum(T.sink, 2) + ' m/s at ' + benchNum(T.V * 3.6, 0) + ' km/h'
+               : 'no landing')
+          + (f.t ? ' · ' + benchNum(f.t / 60, 0) + ' min' : '')
           + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : ''),
-        fix: rep.outcome === 'completed' ? ''
+        fix: ok ? ''
            : 'the phase it stopped in names the problem: a rejected take-off is '
            + 'power or field, a climb that never came is power against weight, '
            + 'a broken circuit is control authority.',
         fills: 'plaque',
         // G208: THE TRIM ADVISOR's measured reading — the elevator the pilot
-        // held on the settled cruise leg (41_test_pilot.js report.trimDe)
-        trim: (rep.trimDe != null && isFinite(rep.trimDe)) ? rep.trimDe : null,
+        // held on the settled downwind (43_pilot.js report.trimDe)
+        trim: (!f.manual && rep.trimDe != null && isFinite(rep.trimDe)) ? rep.trimDe : null,
       };
     },
-    stop(api) { api.circuitEnd(); },
+  },
+  {
+    // THE CROSSWIND CARD (A9, the user: "the crosswind test should be
+    // separate and offer better feedback"; "the last certification remains
+    // stuck on crosswinds"). It was phase seven of the flight test: four to
+    // seven departures with the bar pinned at 90-99 % and no verdict of its
+    // own. Its own row now, ADVISORY like the density altitude (a crosswind
+    // limit is a rating, not airworthiness), run on the bench's thread with
+    // one line per rung as it lands, and a verdict that names the limit,
+    // the rung that failed and why. The bar is the plaque's own (4 m/s,
+    // plaque.js PLAQUE_BOUNDS); the fix line is the plaque's own WHY. The
+    // ladder itself is 42_crosswind.js's, untouched.
+    id: 'xwind',
+    name: 'Crosswind',
+    blurb: 'Departures in a rising crosswind, until the roll leaves the strip’s lines.',
+    kind: 'live',
+    offscreen: true,
+    advisory: true,
+    needs: ['xwindStart', 'xwindPoll', 'xwindEnd'],
+    steps: ['2 m/s', '4 m/s', '6 m/s', '8 m/s', 'bisecting'],
+    start(api) { api.xwindStart(); },
+    poll(api) {
+      const r = api.xwindPoll();
+      if (!r) return { done: true, verdict: 'no ladder running', ok: false };
+      const runs = r.runs || [];
+      const rungLine = q => benchNum(q.w, 1) + ' m/s · ' + (q.ok ? 'airborne, roll ' + benchNum(q.roll, 1) + ' m'
+                                                             : (q.why || 'failed') + (q.roll != null ? ', roll ' + benchNum(q.roll, 1) + ' m' : ''));
+      if (!r.done) {
+        const w = r.w || 0;
+        return {
+          done: false,
+          running: (w > 0 ? 'departing in ' + benchNum(w, 1) + ' m/s across' : runs.length ? 'lining up for the next rung' : 'departing in calm air')
+            + (r.t ? ' · t=' + benchNum(r.t, 0) + ' s' : ''),
+          progress: r.frac || 0,
+          step: runs.length >= 4 ? 4 : Math.min(3, Math.max(0, Math.round(w / 2) - 1)),
+          live: { rungs: runs.map(rungLine), w, t: r.t },
+        };
+      }
+      const X = r.result;
+      if (!X) return { done: true, verdict: 'NOT MEASURED', ok: false, note: r.error || 'the ladder did not finish' };
+      const lo = benchBound('crosswind limit');
+      const lim = X.limit == null ? X.cap : X.limit;
+      const ok = lim >= lo;
+      const first = X.failW != null ? benchNum(X.failW, 1) + ' m/s: ' + (X.failWhy || 'failed') : null;
+      return {
+        done: true,
+        verdict: (X.limit == null ? 'CROSSWIND LIMIT > ' + benchNum(X.cap, 0) : 'CROSSWIND LIMIT ' + benchNum(X.limit, 1)) + ' m/s',
+        ok,
+        note: runs.map(rungLine).join(' · '),
+        why: ok ? '' : 'the limit is under the ' + lo + ' m/s bar' + (first ? ' — first failed at ' + first : ''),
+        fix: ok ? '' : benchWhyFix('crosswind limit'),
+        rungs: runs.map(rungLine),
+        fills: 'plaque',
+      };
+    },
+    stop(api) { api.xwindEnd(); },
   },
   {
     // THE HYDROPLANE TEST (S1, G451.1; the playtest: "hydroplane test +
@@ -117394,6 +117963,31 @@ const BENCH_TESTS = [
 ];
 
 const benchNum = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
+// the plaque's own thresholds and fixes (plaque.js), so a card and a row
+// can never disagree about a number
+const benchBound = label => {
+  try { const B = (typeof window !== 'undefined' && window.PLAQUE && window.PLAQUE.BOUNDS) || null;
+        return (B && B[label] && B[label].lo != null) ? B[label].lo : 4; } catch (e) { return 4; }
+};
+const benchWhyFix = label => {
+  try { const W = (typeof window !== 'undefined' && window.PLAQUE && window.PLAQUE.WHY) || null;
+        return (W && W[label] && W[label].fix) || ''; } catch (e) { return ''; }
+};
+// THE TIP CAP (A9): the deflection past which the wing loading certificate
+// is not awarded, in % of the semispan at the ultimate load. GATE FLEX's
+// reality figures (tools/test_flex.js): real aeroplanes bend ~0.3-1 % at
+// 1 g, 2-4 % at the 3.8 g limit; 8 % at 1 g is its 'folds in bending' bar.
+// Fifteen at 5.7 g is generous to every honest structure and still refuses
+// a wing bending a sixth of its span.
+const LOAD_TIP_CAP = 15;
+// the advisor's line for one measured lever (bench_worker.js): "lift struts
+// (fixation): tip 4.1 %" — a control that exists, and the number it buys
+const benchLeverLine = v => {
+  if (!v) return '';
+  const tip = (v.ultPct != null && isFinite(v.ultPct)) ? 'tip ' + benchNum(v.ultPct, 1) + ' %' : (v.verdict || '—');
+  const y = (v.ultYield != null && isFinite(v.ultYield)) ? ' · ' + benchNum(v.ultYield, 0) + ' % of yield' : '';
+  return v.label + ' (' + v.row + '): ' + (v.verdict === 'BROKE UP' ? 'BROKE UP' : tip + y);
+};
 // the trim the hand flies is clicks of TRIM_STEP (input.js, 0.02 of full
 // elevator per click); the advisor speaks in the same units
 const BENCH_TRIM_STEP = 0.02;
@@ -117413,7 +118007,7 @@ const BENCH_FLIGHT_STEPS = {
 function benchFlightStep(phase) {
   if (!phase) return 0;
   const p = String(phase).toUpperCase();
-  if (p.indexOf('CROSSWIND') === 0) return 6;
+  if (p.indexOf('CROSSWIND') === 0) return 3;    // the pilot's own crosswind leg is cruise
   const k = BENCH_FLIGHT_STEPS[p];
   return k == null ? 3 : k;
 }
@@ -117426,13 +118020,75 @@ function benchFlightStep(phase) {
 // FNV-1a over the JSON: short, stable, and enough to say "this build" —
 // a collision would keep a certificate on a different aeroplane, and at 32
 // bits over a builder's own handful of edits that is not a real risk.
+//
+// THE SECOND SCHEME (A9, 2026-09-21, the user: "the certificates do not
+// seem to be saved with the plane"; "liveries or paint colours should not
+// lead to a re-certification"). They WERE saved — the plaque rides every
+// save door — and lost at the next load, because the first scheme hashed
+// the join's WHOLE export: since G377 that is every cage row (~700, the view
+// toggles, the lights, the occupancy among them), the tanks' hue and tint,
+// the panel's bezel. A panel row ADDED by any update (one landed between the
+// playtest and this fix, `_viewLoops`) changed the hash of every saved
+// aeroplane; a tank tint or "show loops" withdrew a live certificate. So:
+//   DEVIATIONS  a cage row counts only when it differs from the default
+//               aeroplane (`defaults`, the merged page defaults garage.js
+//               seeds the design flow from) — a row a later version adds at
+//               its default is not a change to this aeroplane;
+//   LOOKS OUT   `energy.finish/hue/tint` (and per vessel), `systems.look`
+//               weigh nothing (60_gen_spec.js "THE LOOK"); the cage's own
+//               state and view rows (`_view*`, explodeD, the lights, who is
+//               aboard, the reflector glow, the fastener density) are not
+//               the aeroplane either — BENCH_LOOK and BENCH_STATE_ROWS;
+//   CANONICAL   keys sorted before hashing, so the join's key order never
+//               counts.
+// PHYSICS_V stays the honesty handle (ruling (p) below): a certificate never
+// loads valid over a plaque the physics moved. Without `defaults` (a
+// core-only caller) every non-state cage row counts, as before.
 // ---------------------------------------------------------------------------
 const BENCH_COSMETIC = ['paint', 'finish', 'meta'];
-function benchStripCosmetic(spec) {
+const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'],
+                     systems: ['look'] };
+const BENCH_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$/;
+function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
   for (const k of BENCH_COSMETIC) delete c[k];
+  if (c.energy && typeof c.energy === 'object') {
+    for (const k of BENCH_LOOK.energy) delete c.energy[k];
+    if (Array.isArray(c.energy.vessels))
+      for (const v of c.energy.vessels) if (v && typeof v === 'object')
+        for (const k of BENCH_LOOK.vessel) delete v[k];
+  }
+  if (c.systems && typeof c.systems === 'object')
+    for (const k of BENCH_LOOK.systems) delete c.systems[k];
+  if (c.cage && typeof c.cage === 'object') {
+    const D = (defaults && typeof defaults === 'object') ? defaults : null;
+    const out = {};
+    for (const k in c.cage) {
+      if (BENCH_STATE_ROWS.test(k)) continue;
+      const v = c.cage[k];
+      if (D && (k in D) && benchSame(v, D[k])) continue;
+      out[k] = v;
+    }
+    c.cage = out;
+  }
   return c;
+}
+// a row equals its default: numbers to 1e-9 (a slider's value is a number a
+// file may have printed), else by value
+function benchSame(a, b) {
+  if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  if (a === b) return true;
+  if (a == null || b == null || typeof a !== 'object' || typeof b !== 'object') return false;
+  return benchCanon(a) === benchCanon(b);
+}
+// canonical JSON: the same object hashes the same whatever order its keys
+// were written in
+function benchCanon(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if (Array.isArray(v)) return '[' + v.map(benchCanon).join(',') + ']';
+  const ks = Object.keys(v).filter(k => v[k] !== undefined).sort();
+  return '{' + ks.map(k => JSON.stringify(k) + ':' + benchCanon(v[k])).join(',') + '}';
 }
 function benchHash(str) {
   let h = 0x811c9dc5;
@@ -117447,14 +118103,18 @@ function benchHash(str) {
 // 60_gen_spec.js) are folded in ahead of the spec, so a certificate earned
 // under an older physics does not load VALID over a plaque that now says
 // otherwise — it loads withdrawn, with the reason (BENCH_RESTORE).
+// `f2` is the scheme above: a certificate hashed under the first scheme can
+// never equal one hashed under this, so it loads withdrawn with its own
+// reason (BENCH_RESTORE) instead of as a silent "the build changed".
+const BENCH_FP_SCHEME = 'f2';
 function benchVersionTag() {
   const sv = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0;
   const pv = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
-  return 'v' + sv + '|p' + pv + '|';
+  return BENCH_FP_SCHEME + '|v' + sv + '|p' + pv + '|';
 }
-function benchFingerprint(spec) {
-  const c = benchStripCosmetic(spec);
-  return c ? benchHash(benchVersionTag() + JSON.stringify(c)) : null;
+function benchFingerprint(spec, defaults) {
+  const c = benchStripCosmetic(spec, defaults);
+  return c ? benchHash(benchVersionTag() + benchCanon(c)) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -117482,17 +118142,27 @@ function benchInit(api) {
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function') &&
     (!t.when || t.when(api));                         // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
+  // the row buttons are dead while a flight is out (the bench cannot run
+  // two things, and the aeroplane is not on the stand)
+  const busyNow = () => !!live || !!flown;
   const today = () => new Date().toISOString().slice(0, 10);
 
   // ---- the fingerprint of the aeroplane on the stand ----------------------
   // Off the join's export — the same spec the tests measure — with the
   // cosmetic blocks removed. Null when there is no join (core-only build, or
   // the editor not up yet), which every caller treats as "cannot say".
+  // ...against THE DEFAULT AEROPLANE (A9): the merged page defaults garage.js
+  // publishes (GARAGE_SPEC.cageDefaults), so only a row the builder moved
+  // counts. Without them (an older garage.js) every row counts, as before.
   function fpNow() {
     try {
       const J = window.CAGE_JOIN;
       if (!J || typeof J.export !== 'function') return null;
-      return benchFingerprint(J.export());
+      const G = window.GARAGE_SPEC;
+      let D = null;
+      try { D = (G && typeof G.cageDefaults === 'function') ? G.cageDefaults() : null; } catch (e) { D = null; }
+      if (!D && window.CAGE_PAGE && window.CAGE_PAGE.defaults) D = window.CAGE_PAGE.defaults;
+      return benchFingerprint(J.export(), D);
     } catch (e) { return null; }
   }
 
@@ -117543,7 +118213,7 @@ function benchInit(api) {
   // what keeps the load path's own storms off a restored certificate.
   let dirtyT = null;
   window.BENCH_DIRTY = () => {
-    if (busy || live) return;
+    if (busy || live || flown) return;
     if (!anyRun()) return;
     if (dirtyT) clearTimeout(dirtyT);
     dirtyT = setTimeout(() => {
@@ -117574,7 +118244,7 @@ function benchInit(api) {
   // loadSpec; app.js boot). Restoring is not running: no logbook rows, no
   // ceremony, and never over a live test.
   window.BENCH_RESTORE = pq => {
-    if (live) return;
+    if (live || flown) return;
     if (dirtyT) { clearTimeout(dirtyT); dirtyT = null; }
     if (!pq || !pq.results || !Object.keys(pq.results).length) {
       results = {}; withdrawnNote = '';
@@ -117598,16 +118268,18 @@ function benchInit(api) {
     // physics loads valid.
     const fp = fpNow();
     if (fp) {
-      let changed = 0, unstamped = 0;
+      let changed = 0, unstamped = 0, old = 0;
       for (const id in results) {
         const r = results[id];
         if (!r || r.stale) continue;
         if (!r.fp) unstamped++;
+        else if (r.fps !== BENCH_FP_SCHEME) old++;     // A9: the first scheme's hash
         else if (r.fp !== fp) changed++;
       }
-      if (changed || unstamped) {
+      if (changed || unstamped || old) {
         const reason = changed ? 'the build or its physics changed since the certificate'
-                               : 'certified before fingerprints';
+                     : old ? 'certified under the old fingerprint — run the tests once more'
+                           : 'certified before fingerprints';
         for (const id in results) {
           const r = results[id];
           if (!r || r.stale) continue;
@@ -117662,20 +118334,88 @@ function benchInit(api) {
   // logbook, persisted, and — when the test was run rather than restored —
   // awarded in the card over the view. `after` runs when the card closes.
   function settle(t, r, fp, after) {
+    const wasPassed = passed();
     r.when = today();
     r.fp = fp;
+    r.fps = BENCH_FP_SCHEME;      // which scheme hashed it (A9): the restore reads it
     results[t.id] = r;
     if (r.fills === 'plaque' && r.ok !== undefined) api.plaque(plaqueOn());
     if (!anyStale()) withdrawnNote = '';
     note(t, r);
+    if (r.advise) startAdvice(t, r);
     persist();
     stickersChanged();
     render();
-    award(t, r, after);
+    // THE MASTER'S MOMENT (A9): the last gating certificate lands, the whole
+    // certificate is held — the airworthiness card follows the test's own
+    if (!wasPassed && passed()) award(t, r, () => awardMaster(after));
+    else award(t, r, after);
   }
+  // THE AIRWORTHINESS CERTIFICATE (A9, the user: "we need like a master
+  // sticker"): one bigger roundel, the registration and the day, worn on
+  // the rear fuselage (stickers.js STICKER_MASTER) for as long as every gating
+  // certificate stands
+  function awardMaster(after) {
+    const U = ui();
+    const done = () => {
+      if (awardT) { clearTimeout(awardT); awardT = null; }
+      if (U) { U.aw.hidden = true; U.aw.onclick = null; }
+      if (after) after();
+    };
+    if (!U || !window.STICKERS || !window.STICKERS.MASTER) { done(); return; }
+    const M = window.STICKERS.MASTER;
+    const when = (window.STICKERS.masterDate && window.STICKERS.masterDate(window.BENCH_STATE())) || today();
+    let reg = '';
+    try { const sp = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); reg = (sp && sp.meta && sp.meta.reg) || ''; } catch (e) {}
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    U.aw.className = 'master';
+    U.aw.innerHTML =
+      '<div class="bAk">airworthiness certificate</div>' +
+      '<div class="bAn">' + esc(reg || 'this aeroplane') + '</div>' +
+      '<canvas width="360" height="360"></canvas>' +
+      '<div class="bAs">airworthy</div>' +
+      '<div class="bAv">the bench check, the wing loading and the test flight are held</div>' +
+      '<div class="bAd">' + esc(when) + ' · the master roundel is on the fuselage · click to close</div>';
+    U.aw.hidden = false;
+    U.aw.dataset.test = 'master';
+    try {
+      const g = U.aw.querySelector('canvas').getContext('2d');
+      window.STICKERS.roundel(g, 180, 180, 172, { title: M.title, ring: M.ring, emblem: M.emblem, sub: reg, date: when });
+    } catch (e) {}
+    U.aw.onclick = done;
+    awardT = setTimeout(done, 5000);
+    awardCur = { r: null, done };
+  }
+  // THE ADVISOR (A9): a failed or warned wing loading asks the rig what the
+  // wing page's levers would buy, and the answer lands line by line on the
+  // award card and under the row — kept with the result, so a saved
+  // aeroplane still carries what it was told.
+  function startAdvice(t, r) {
+    if (typeof api.loadAdvise !== 'function') return;
+    r.advice = { lines: [], done: false, n: 0 };
+    try {
+      api.loadAdvise(job => {
+        if (results[t.id] !== r) return;           // the result moved on
+        r.advice = { lines: (job.results || []).map(benchLeverLine), done: !!job.done,
+                     n: (job.variants || []).length };
+        persist();
+        render();
+        awardAdvice(r);
+      });
+    } catch (e) { r.advice = { lines: [], done: true, n: 0 }; }
+  }
+  const adviceHtml = r => {
+    const A = r.advice;
+    if (!A) return '';
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const head = A.done ? (A.lines.length ? 'measured on this wing — what each lever buys:' : 'no lever to offer on this wing')
+                        : 'measuring what would help… ' + A.lines.length + (A.n ? ' of ' + A.n : '');
+    return '<div class="bAdvice' + (A.done ? ' done' : '') + '"><span>' + head + '</span>' +
+           A.lines.map(l => '<div>' + esc(l) + '</div>').join('') + '</div>';
+  };
 
   function runOne(t, after) {
-    if (live || !usable(t)) { if (after) after(); return; }
+    if (live || flown || !usable(t)) { if (after) after(); return; }
     busy = true;
     const errs = sync();
     const fp = fpNow();
@@ -117690,6 +118430,19 @@ function benchInit(api) {
                   note: errs.join(' · ') }, fp, after);
       api.plaque(false);
       return render();
+    }
+    if (t.kind === 'flown') {
+      // THE HAND-OFF (A9): the bench arms the flight with the fingerprint it
+      // just took and the game takes it from here — no freeze, no poll; the
+      // result arrives through BENCH_FLIGHT_LOGGED when the aeroplane does.
+      // A run-all queue ends here: nothing runs while the aeroplane is out.
+      results[t.id] = { running: 'rolled out — the pilot is flying', ok: false };
+      flown = { test: t, fp, after };
+      render();
+      let went = false;
+      try { went = !!t.start(api, cardVals[t.id] || {}, fp); } catch (e) { went = false; }
+      if (!went) { delete results[t.id]; flown = null; render(); if (after) after(); }
+      return;
     }
     if (t.kind === 'live') {
       if (!t.offscreen) api.showPhysical(true);   // the flight flies a 2nd sim
@@ -117746,6 +118499,31 @@ function benchInit(api) {
     if (!live) return;
     endLive(live.test, { aborted: true, ok: false, verdict: 'ABORTED' });
   }
+  // THE FLIGHT COMES BACK (A9). app.js's logFlight hands every logged
+  // flight of the garage's build here: { report, arrived, outcome, t,
+  // manual, landing, td, armed: { fp, when } | null }. An armed flight (the
+  // bench's own) settles the row whatever it brought — an aeroplane that
+  // could not fly comes back SAYING SO, a failed test with a reason. An
+  // unarmed flight (you rolled out yourself) awards on an arrival and is
+  // otherwise ignored: your crash is not a withdrawal, the fingerprint is.
+  let flown = null;
+  window.BENCH_FLIGHT_OFF = () => {
+    if (!flown) return;
+    const F = flown; flown = null;
+    if (results.flight && results.flight.running) delete results.flight;
+    render();
+    if (F.after) F.after();
+  };
+  window.BENCH_FLIGHT_LOGGED = f => {
+    const t = BENCH_TESTS.filter(x => x.id === 'flight')[0];
+    if (!t || !f) return;
+    const F = flown; flown = null;
+    const fp = (f.armed && f.armed.fp) || (F && F.fp) || fpNow();
+    if (!F && !f.armed && !f.arrived) return;
+    if (results.flight && results.flight.running) delete results.flight;
+    const r = t.judge(f);
+    settle(t, r, fp, F ? F.after : null);
+  };
 
   // the logbook stub (G63's envelope): what was tested, and what it said
   function note(t, r) {
@@ -117758,8 +118536,10 @@ function benchInit(api) {
 
   function runAll() {
     // sequentially, because a live test owns the sim while it runs, and
-    // each award card closes before the next test starts
-    const queue = BENCH_TESTS.filter(usable);
+    // each award card closes before the next test starts. A FLOWN row goes
+    // last and ends the queue: the aeroplane is out of the shed after it.
+    const queue = BENCH_TESTS.filter(t => usable(t) && t.kind !== 'flown')
+      .concat(BENCH_TESTS.filter(t => usable(t) && t.kind === 'flown'));
     const next = () => {
       const t = queue.shift();
       if (!t) return;
@@ -117871,12 +118651,25 @@ function benchInit(api) {
         }
         trace.notes = notes.length;
       }
+    } else if (t.id === 'xwind') {
+      U.liveEl.innerHTML = '<span>' + (r.running || '') + '</span>';
+      const rungs = L.rungs || [];
+      if (trace && rungs.length > (trace.notes || 0)) {
+        for (let i = trace.notes || 0; i < rungs.length; i++) {
+          const d = document.createElement('div');
+          d.textContent = rungs[i];
+          U.notes.appendChild(d);
+        }
+        trace.notes = rungs.length;
+      }
     } else if (t.id === 'load') {
       U.liveEl.innerHTML =
         '<span>load <b>' + benchNum(L.g, 2) + '</b> g of ' + benchNum(L.nTarget, 1) + '</span>' +
         '<span>tip <b>' + benchNum(L.tipPct, 2) + '</b> % of semispan</span>' +
         '<span>' + (L.phase === 'settle' ? 'settling on the trestles'
-                   : L.phase === 'hold' ? 'holding at ultimate' : 'bags going on') + '</span>';
+                   : L.phase === 'hold' ? 'holding at ultimate' : 'bags going on') + '</span>' +
+        (L.thread ? '<span class="dim">' + L.thread +
+          (L.rate != null && isFinite(L.rate) && L.rate < 0.85 ? ' · ' + benchNum(L.rate, 1) + '× real time' : '') + '</span>' : '');
     } else {
       U.liveEl.textContent = r.running || '';
     }
@@ -117904,11 +118697,12 @@ function benchInit(api) {
       g.fillStyle = 'rgba(255,248,236,.10)'; g.fillRect(x0, y - 14, x1 - x0, 28);
       g.fillStyle = 'rgba(230,219,201,.75)'; g.fillRect(x0, y - 14, X(gNow) - x0, 28);
       g.fillStyle = 'rgba(244,239,230,.9)';
-      for (const [v, lab] of [[1, '1 g'], [3.8, 'limit 3.8 g'], [5.7, 'ultimate 5.7 g']]) {
+      const lim = (L && L.limit) || 3.8, ult = (L && L.ult) || 5.7;
+      for (const [v, lab] of [[1, '1 g'], [lim, 'limit ' + lim + ' g'], [ult, 'ultimate ' + ult + ' g']]) {
         if (v > gT + 1e-6) continue;
         g.fillRect(X(v) - 1.5, y - 24, 3, 48);
-        g.textAlign = v > 4 ? 'right' : 'center';
-        g.fillText(lab, X(v) + (v > 4 ? 6 : 0), y + 54);
+        g.textAlign = v >= ult - 1e-6 ? 'right' : 'center';
+        g.fillText(lab, X(v) + (v >= ult - 1e-6 ? 6 : 0), y + 54);
       }
       g.textAlign = 'left'; g.font = '600 26px "IBM Plex Mono", monospace';
       g.fillText(benchNum(gNow, 2) + ' g', x0, y - 40);
@@ -118014,9 +118808,12 @@ function benchInit(api) {
       (r.note ? '<br>' + esc(r.note) : '') + '</div>' +
       (!r.ok && (r.why || r.fix) ? '<div class="bAf">' +
         (r.why ? esc(r.why) + '<br>' : '') + (r.fix ? '→ ' + esc(r.fix) : '') + '</div>' : '') +
+      (r.warn ? '<div class="bAw">' + esc(r.warn) + '</div>' : '') +
+      adviceHtml(r) +
       '<div class="bAd">' + esc(r.when || today()) + (r.ok ? ' · the sticker is on the fuselage' : '') +
       ' · click to close</div>';
     U.aw.hidden = false;
+    U.aw.dataset.test = t.id;
     if (r.ok && M && window.STICKERS && window.STICKERS.roundel) {
       try {
         const cv = U.aw.querySelector('canvas');
@@ -118025,7 +118822,22 @@ function benchInit(api) {
       } catch (e) {}
     }
     U.aw.onclick = done;
-    awardT = setTimeout(done, r.ok ? 2800 : 9000);
+    // a card with the advisor on it waits for the measurements (awardAdvice
+    // re-arms the close once they are in); a plain pass closes itself
+    awardT = (r.advice && !r.advice.done) ? null : setTimeout(done, r.ok ? 2800 : 9000);
+    awardCur = { r, done };
+  }
+  let awardCur = null;
+  // the advisor's lines land on the open card; the close is armed when the
+  // last one has
+  function awardAdvice(r) {
+    const U = ui();
+    if (!U || U.aw.hidden || !awardCur || awardCur.r !== r) return;
+    const old = U.aw.querySelector('.bAdvice');
+    const html = adviceHtml(r);
+    if (old) old.outerHTML = html;
+    else { const d = U.aw.querySelector('.bAd'); if (d) d.insertAdjacentHTML('beforebegin', html); }
+    if (r.advice && r.advice.done && !awardT) awardT = setTimeout(awardCur.done, r.ok ? 7000 : 12000);
   }
 
   // ---- the panel ---------------------------------------------------------
@@ -118057,8 +118869,9 @@ function benchInit(api) {
     const bits = [];
     const nCert = certs().length, nGate = gating().length;
     const v = live ? '<b class="run">TESTING</b>'
+      : flown ? '<b class="run">FLYING</b>'
       : anyRun()
-      ? (passed() ? '<b class="cert">CERTIFIED</b>'
+      ? (passed() ? '<b class="cert">AIRWORTHY</b>'
                   : '<b class="bad">NOT PASSED</b>')
       : anyStale() ? '<b class="stale">WITHDRAWN</b>'
       : '<b class="dim">UNTESTED</b>';
@@ -118117,26 +118930,29 @@ function benchInit(api) {
           '" value="' + ((cardVals[t.id] || {})[cfg.k] || '') +
           '" placeholder="' + (cfg.ph || '') + '" inputmode="decimal"> ' +
           cfg.unit + '</label>').join('') + '</div>' : '') +
-        (r && r.note && !r.stale ? '<div class="bW">' + r.note + '</div>' : '') +
+        (r && r.rungs && r.rungs.length && !r.stale ? '<div class="bRungs">' + r.rungs.map(x => '<div>' + x + '</div>').join('') + '</div>'
+          : r && r.note && !r.stale ? '<div class="bW">' + r.note + '</div>' : '') +
         (r && !r.ok && !r.stale && !r.running && (r.why || r.fix)
           ? '<div class="bWhy">' + (r.why ? r.why + ' — ' : '') + (r.fix || '') + '</div>' : '') +
+        (r && r.warn && !r.stale && !r.running ? '<div class="bWarn">' + r.warn + '</div>' : '') +
+        (r && !r.stale && !r.running ? adviceHtml(r) : '') +
         (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
     rows.innerHTML = bits.join('');
     paintSeals();
     const all = $('bRunAll');
-    if (all) { all.disabled = !!live; all.onclick = runAll; }
+    if (all) { all.disabled = busyNow(); all.onclick = runAll; }
     changed();
     rows.querySelectorAll('button[data-t]').forEach(b => {
-      b.disabled = !!live;
+      b.disabled = busyNow();
       b.onclick = () => {
         const t = BENCH_TESTS.filter(x => x.id === b.dataset.t)[0];
         if (t) runOne(t);
       };
     });
     rows.querySelectorAll('input[data-card]').forEach(inp => {
-      inp.disabled = !!live;
+      inp.disabled = busyNow();
       inp.oninput = () => {
         const [id, k] = inp.dataset.card.split(':');
         (cardVals[id] || (cardVals[id] = {}))[k] = inp.value;
@@ -118149,7 +118965,8 @@ function benchInit(api) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { BENCH_TESTS, BENCH_COSMETIC, benchStripCosmetic, benchHash,
+  module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME,
+                     benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine,
                      benchFingerprint, benchFlightStep, benchTrimWords, benchNum };
 </script>
 <script type="text/x-flydiy">
@@ -125741,35 +126558,35 @@ if (typeof window !== 'undefined') window.FLYDIY_COCKPIT = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
 </script>
-<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=e53149ad"></script>
-<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=3f72d68a"></script>
-<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=5e1be449"></script>
-<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=ba429deb"></script>
-<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=0f6a1dc3"></script>
-<script type="text/x-flydiy" src="src/pier/pier_people.js?v=1c02dfbe"></script>
-<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=c4c4ce6c"></script>
-<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6beac5ec"></script>
-<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=565c7b29"></script>
-<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=cc5e850a"></script>
-<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=f1734a22"></script>
-<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=3aa55574"></script>
-<script type="text/x-flydiy" src="tools/_house_kit.js?v=64fd4ef1"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tex.js?v=430f04e3"></script>
+<script type="text/x-flydiy" src="src/viewer/lot_tex.js?v=290372c3"></script>
+<script type="text/x-flydiy" src="src/viewer/sign_tex.js?v=f6c42517"></script>
+<script type="text/x-flydiy" src="src/pier/pier_pier.js?v=1e541c7b"></script>
+<script type="text/x-flydiy" src="src/pier/pier_boat.js?v=39aa1bee"></script>
+<script type="text/x-flydiy" src="src/pier/pier_people.js?v=610a9a6a"></script>
+<script type="text/x-flydiy" src="src/pier/pier_yard.js?v=6e5dc9c2"></script>
+<script type="text/x-flydiy" src="src/pier/pier_car.js?v=6e1c08b7"></script>
+<script type="text/x-flydiy" src="src/pier/pier_vehicle.js?v=428d2f41"></script>
+<script type="text/x-flydiy" src="src/pier/pier_auto.js?v=a2ca9beb"></script>
+<script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
+<script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
+<script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
 <script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
-<script type="text/x-flydiy" src="tools/_big_gen.js?v=7e830853"></script>
-<script type="text/x-flydiy" src="tools/_sport_gen.js?v=ca9bdc5f"></script>
-<script type="text/x-flydiy" src="tools/_shed_gen.js?v=54236357"></script>
-<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=02a59b26"></script>
-<script type="text/x-flydiy" src="tools/_tower_gen.js?v=1bccdbdc"></script>
-<script type="text/x-flydiy" src="tools/_tram_gen.js?v=b91a8a59"></script>
-<script type="text/x-flydiy" src="tools/_totem_gen.js?v=725d9e05"></script>
-<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=5ca9cccc"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9b0088c8"></script>
-<script type="text/x-flydiy" src="src/viewer/cabin.js?v=e6c4b01d"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=44b3c79c"></script>
-<script type="text/x-flydiy" src="tools/_village_gen.js?v=31861016"></script>
-<script type="text/x-flydiy" src="src/viewer/parked.js?v=00f22b4d"></script>
+<script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
+<script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
+<script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
+<script type="text/x-flydiy" src="tools/_hangar_gen.js?v=a711b43f"></script>
+<script type="text/x-flydiy" src="tools/_tower_gen.js?v=962e54a2"></script>
+<script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
+<script type="text/x-flydiy" src="tools/_totem_gen.js?v=24fd567c"></script>
+<script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
+<script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
+<script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
+<script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
 <script type="text/x-flydiy" src="src/viewer/render_premises.js?v=88cad745"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=f9e2a4ba"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
 (() => {
@@ -126731,7 +127548,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
     // the test ran against an empty sky. Nothing MOVES relative to anything —
-    // that is the point — so the rig still reads exactly as before.
+    // that is the point — so the rig still reads exactly as before. (A9: the
+    // room may ride a little LESS than the hop, so its floor stays a trestle
+    // under the inverted aeroplane's lowest node — see LOAD_FLOOR_CLEAR.)
     if (hangar) hangar.group.position.y = groundY + rigLift;
     const inRoom = inGarage && garageIsHangar() && hangar;
     // THE MOBILE KIT stands next to whatever aeroplane is in the room, so it
@@ -129794,6 +130613,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   let panD = null;
   canvas.addEventListener('pointerdown', e => {
     flReveal = 0;                      // a hand on it ends the roll-out shot
+    if (!inGarage && director.on) director.stop();   // A9: ...and the director's cuts
     if (edSit.visible && !edEye && (e.button === 1 || e.button === 2)) {
       panD = { x: e.clientX, y: e.clientY, base: edPan.clone() };
       e.preventDefault();
@@ -130424,6 +131244,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                           // which a swiftshader capture rig cannot wait out
                           cam: () => ({ az, el, dist, azT, elT, distT, reveal: flReveal }),
                           camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
+                          camModeNow: () => cam.mode,                                   // A9: the director's cut, read by bench_shot.js
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
@@ -130664,6 +131485,118 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
                              ok: false });
       }
     } catch (e) {}
+    // A9: THE FLIGHT CARD IS AWARDED BY A FLIGHT. Every logged flight of the
+    // garage's own build reaches the bench — the test flight it asked for,
+    // or one you flew yourself; the bench decides what it is worth (it
+    // holds the fingerprint the flight was armed with).
+    flightArrived();
+  }
+  // ---- THE TEST FLIGHT IS A FLIGHT (A9, the user: "the test flight is too
+  // long and not cinematic enough — do the three first tests, award the
+  // global one after the first actual successful flight"). The G107 circuit
+  // flew a hidden second sim for 420 s and nobody saw it. Now the bench's
+  // flight card ROLLS OUT: the pilot flies its own circuit on the real world
+  // with the camera cutting to the phases (the director), the certificate
+  // is awarded when the aeroplane arrives — by this pilot or by your hand,
+  // since a landing is a landing — and the plaque's flight sheet is the
+  // real flight's report. `testFlight` is the arming: the fingerprint the
+  // bench measured at roll-out, so an edit made in between cannot be
+  // certified by a flight of the aeroplane before it.
+  let testFlight = null;
+  function startTestFlight(card) {
+    if (!inGarage) return false;
+    if (window.CAGE_UI) syncBuild();
+    const fp = card && card.fp;
+    rollOut(() => {
+      started = true;
+      setManual(false);
+      if (ap && ap.setCard && card && (card.alt || card.V))
+        ap.setCard({ alt: card.alt || NaN, V: card.V || NaN });
+      testFlight = { fp: fp || null, when: new Date().toISOString().slice(0, 10) };
+      director.start();
+      flRender();
+    });
+    return true;
+  }
+  // the real flight's sheet for the plaque (what tfIfRun used to memoise
+  // off the hidden circuit)
+  let tfFor = null, tfVal = null;
+  const tfIfRun = () => (tfFor === def ? tfVal : null);
+  function flightArrived() {
+    const rep = ap && ap.report ? ap.report : { verdicts: [], outcome: null, landing: null };
+    const t = ap ? ap.tdInfo : null;
+    const outcome = t ? 'arrived' : (rep.outcome || 'stopped');
+    if (curKey === 'gen') {
+      tfFor = def; tfVal = { report: JSON.parse(JSON.stringify(rep)), t: Math.max(0, Math.round(ap.t)), arrived: !!t };
+    }
+    const armed = testFlight; testFlight = null;
+    director.stop(); simRateSet(1);
+    if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen') {
+      try {
+        window.BENCH_FLIGHT_LOGGED({
+          report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual,
+          landing: rep.landing || null,
+          td: t ? { sink: t.sink, V: t.V, z: t.z } : null,
+          armed: armed ? { fp: armed.fp, when: armed.when } : null,
+        });
+      } catch (e) { console.warn('bench: the flight could not be handed over —', e); }
+    }
+    flRender();
+  }
+  // THE DIRECTOR: the camera cuts on the pilot's phases while a test flight
+  // is on — the tower watches the take-off and the landing, the wing rides
+  // the climb, a slow orbit takes the cruise, the chase brings it home. Each
+  // cut is a reveal (the roll-out shot's own ease); a drag on the canvas or
+  // a framing pick is the player's and ends it (the pointerdown handler and
+  // flCamMode call director.stop — NOT the reveal's own end: a shot that
+  // settled is not a hand).
+  const DIRECTOR_CUTS = {
+    TAXI: 'tower', STOP: 'tower', HOLD: 'tower', LINEUP: 'tower', ROLL: 'tower',
+    LIFTOFF: 'wing', CLIMB: 'wing',
+    CROSSWIND: 'orbit', DEPART: 'orbit', DOWNWIND: 'orbit', ENROUTE: 'orbit', CRUISE: 'orbit',
+    BASE: 'chase', INBOUND: 'chase', FINAL: 'tower', APPROACH: 'tower', FLARE: 'tower', PUTDOWN: 'tower',
+    ROLLOUT: 'chase', STOPPED: 'chase',
+  };
+  const director = {
+    on: false, phase: null, mode0: null,
+    start() { this.on = true; this.phase = null; this.mode0 = cam.mode; },
+    stop() { if (!this.on) return; this.on = false; this.phase = null; },
+    frame() {
+      if (!this.on || inGarage || !ap) return;
+      const ph = ap.phase;
+      if (ph === this.phase) return;
+      const m = DIRECTOR_CUTS[ph];
+      this.phase = ph;
+      if (!m || m === cam.mode) return;
+      if (cam.mode === 'cockpit' || cam.mode === 'free') { this.stop(); return; }   // the player's own eye
+      directorPick = true;
+      try { flCamMode(m); } finally { directorPick = false; }
+      // the cut arrives from further out and swings in, like the roll-out shot
+      const D = def.params.viewDist || 12;
+      az = azT + 0.6; el = elT + 0.12; dist = Math.max(distT, D) * 1.6;
+      flReveal = FL_REVEAL_FRAMES;
+    },
+  };
+  let directorPick = false;
+  window.TEST_FLIGHT = { armed: () => testFlight, director, rate: r => { simRateSet(r); return simRate; } };
+  // 2× (A9): two solver steps a frame on the test flight — a row on the
+  // pilot's flyout, refused on floats (the hydro step is the frame), and
+  // dropped by itself when the doubled step costs more than a frame for
+  // half a second, so it can never stutter a flight it was meant to shorten
+  // the flight ended without arriving (a reset, the way back to the shed):
+  // the bench is told so its row does not wait for ever
+  function testFlightOff() {
+    const was = testFlight; testFlight = null;
+    director.stop(); simRateSet(1);
+    if (was && typeof window.BENCH_FLIGHT_OFF === 'function') { try { window.BENCH_FLIGHT_OFF(); } catch (e) {} }
+  }
+  let simRate = 1, slowFrames = 0;
+  const floatsOn = () => !!(sim && sim.hydro) || !!(genSpec && genSpec.gear && /float/i.test(genSpec.gear.type || ''));
+  function simRateSet(r) {
+    r = (r === 2 && !floatsOn()) ? 2 : 1;
+    if (r === simRate) return;
+    simRate = r; slowFrames = 0;
+    flRender();
   }
 
   // ---- build indicators: what you cannot see by looking at the aeroplane ----
@@ -130731,81 +131664,53 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   };
   const densAltIfRun = () => (daFor === def ? daVal : null);
 
-  // THE TEST FLIGHT (G107) — the bench row the roadmap has carried since G64,
-  // finally with a `run`: a SECOND sim flies the whole circuit on the TEST
-  // PILOT, fast-stepped and offscreen, and brings back the LANDING RUN plus
-  // the pilot's own report. IN PAGE, per the row's declared decision — the
-  // game already runs this exact sim in the browser. Stepping is budgeted by
-  // WALL CLOCK per poll (not by step count) so a heavy build slows the test
-  // down instead of freezing the panel. Memoised on `def` like the two sheets
-  // above: a rebuild takes the flight away with the rest of the certificate.
-  let tf = null, tfFor = null, tfVal = null;
-  const tfIfRun = () => (tfFor === def ? tfVal : null);
-  // `card` (G107.1): { alt: metres, Vkmh: km/h } from the bench's own two
-  // fields — units convert HERE, at the UI boundary; the pilot speaks SI.
-  function tfStart(card) {
-    const s2 = makeSim(def, world);
-    s2.reset(0);
-    for (let i = 0; i < 600; i++) s2.step(1 / 60);   // parked settle
-    const pilot = (typeof makeTestPilot === 'function')
-      ? makeTestPilot(s2, def, world) : makeAutopilot(s2, def, world);
-    if (pilot.setCard && card && (card.alt || card.Vkmh))
-      pilot.setCard({ alt: card.alt || NaN,
-                      V: card.Vkmh ? card.Vkmh / 3.6 : NaN });
-    // the budget grows with the card's climb; give the runner the same slack
-    tf = { sim: s2, ap: pilot, t: 0, maxS: (pilot.budget || 420) + 60, def };
+  // (the G107 offscreen circuit — tfStart/tfPoll/tfEnd, a hidden second sim
+  // on the test pilot — retired by A9: the test flight is a real flight,
+  // see startTestFlight / flightArrived above)
+
+
+  // ---- THE CROSSWIND CARD (A9): its own row on the bench, the ladder on
+  // the bench's thread (bench_worker.js) with one line per departure, or on
+  // the page in the probe's own budgeted bites when there is no worker.
+  // The result is the plaque's crosswind sheet (it rode the flight's report
+  // before, as phase seven of a test nobody could watch).
+  let xw = null, xwFor = null, xwVal = null;
+  const xwIfRun = () => (xwFor === def ? xwVal : null);
+  function xwStart() {
+    xwEnd();
+    const seq = ++loadSeq, spec = genSpec;
+    const X = xw = { seq, snap: { runs: [], frac: 0, done: false }, w: null, run: null };
+    const W = window.BENCH_WORKER;
+    const w = (W && typeof W.start === 'function')
+      ? W.start(m => {
+          if (!m || m.seq !== seq || xw !== X) return;
+          if (m.error) { console.warn('crosswind: the worker could not fly, flying on the page instead —', m.error); if (X.w) X.w.kill(); X.w = null; return; }
+          if (m.kind === 'xwind') X.snap = m;
+        }, () => { if (xw === X) X.w = null; })
+      : null;
+    if (w && w.post({ kind: 'xwind', spec, seq })) X.w = w;
+    else if (w) w.kill();
+    return true;
   }
-  function tfPoll() {
-    if (!tf) return null;
-    const t0 = performance.now();
-    // G193.2: THE CROSSWIND LIMIT rides after the circuit, on the same build,
-    // in a world of its own (the live day's wind must not be the test's).
-    // Polled on the same wall-clock budget; the plaque reads `report.xwind`.
-    if (tf.xw) {
-      const r = tf.xw.poll(60);
-      if (!r.done) return { phase: 'CROSSWIND ' + r.w.toFixed(1) + ' m/s', t: tf.t,
-                            frac: 0.9 + 0.1 * r.frac };
-      tf.rep.xwind = r.result;
-      tfFor = tf.def; tfVal = { report: tf.rep, t: tf.t };
-      const out = { done: true, report: tf.rep, t: tf.t };
-      tf = null;
-      return out;
+  function xwPoll() {
+    const X = xw;
+    if (!X) return null;
+    if (!X.w) {
+      const W = window.BENCH_WORKER;
+      if (!W || !W.xwindRun || typeof makeCrosswindProbe !== 'function') { xwEnd(); return { done: true, result: null, runs: [], error: 'no crosswind probe' }; }
+      if (!X.run) X.run = W.xwindRun({ buildGen, makeSim, makeCrosswindProbe, makeWorld, genSurfKey }, { spec: genSpec });
+      X.run.pump(40);
+      X.snap = X.run.snapshot();
     }
-    let fin = null;
-    while (performance.now() - t0 < 60 && !fin) {
-      for (let i = 0; i < 60; i++) {
-        tf.ap.update(1 / 60); tf.sim.step(1 / 60); tf.t += 1 / 60;
-        if (tf.sim.stats().bad) { fin = { bad: true }; break; }
-        if ((tf.ap.phase === 'STOPPED' && tf.ap.t > 5) || tf.t > tf.maxS) {
-          fin = {}; break;
-        }
-      }
+    const sn = X.snap;
+    if (sn.done) {
+      xwFor = def; xwVal = { result: sn.result, runs: sn.runs || [] };
+      xwEnd();
+      return sn;
     }
-    if (!fin) {
-      // G208: THE FLIGHT IS WATCHED. The bench draws the circuit as it is
-      // flown — the track in plan, height and speed against time — so the
-      // trace rides every poll: the CG, the pilot's own readouts, the pattern
-      // path once it exists, and the field frame the pilot flies in.
-      const cgN = tf.sim.cgPos(), d = tf.ap.dbg || {};
-      return { phase: tf.ap.phase, t: tf.t, frac: Math.min(1, tf.t / 300),
-               pos: [cgN[0], cgN[1], cgN[2]], V: d.V, agl: d.agl, de: d.e,
-               path: tf.ap.path || null, frame: tf.ap.frame || null,
-               notes: (tf.ap.report && tf.ap.report.verdicts) || [] };
-    }
-    const rep = tf.ap.report || { verdicts: [], outcome: null, landing: null };
-    if (fin.bad) rep.outcome = 'broke-up';
-    else if (!rep.outcome) rep.outcome = 'gave-up';
-    if (!fin.bad && typeof makeCrosswindProbe === 'function') {
-      try {
-        tf.rep = rep; tf.xw = makeCrosswindProbe(tf.def);
-        return { phase: 'CROSSWIND', t: tf.t, frac: 0.9 };
-      } catch (e) { console.error('crosswind probe:', e); tf.xw = null; }
-    }
-    tfFor = tf.def; tfVal = { report: rep, t: tf.t };
-    tf = null;
-    return { done: true, report: rep, t: tfVal.t };
+    return sn;
   }
-  function tfEnd() { tf = null; }
+  function xwEnd() { if (xw && xw.w) xw.w.kill(); xw = null; }
 
   // ---- THE HYDROPLANE TEST (S1, G451.1; playtest item 99 "hydroplane test +
   // guidance") — the seaplane's own certificate. A second sim on the sea
@@ -130983,9 +131888,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         R('past the aim', n1(L.pastAim, 0) + ' m',
           Math.abs(L.pastAim || 0) > 150 ? 'warn' : '');
       }
-      // G193.2: THE CROSSWIND LIMIT — measured after the circuit on the same
-      // build; the band is the strip's own edge lines (`xwind.band`)
-      const XW = rep.xwind;
+      // (the crosswind limit moved to its own section below — A9)
+      const XW = null;
       if (XW) {
         const v = XW.limit == null ? '> ' + n1(XW.cap, 0) + ' m/s'
                 : n1(XW.limit, 1) + ' m/s';
@@ -131020,6 +131924,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (rep.verdicts.length)
         R('pilot notes', rep.verdicts.length + ' — ' +
           rep.verdicts[rep.verdicts.length - 1].code, 'warn');
+    }
+    // A9: IN A CROSSWIND — the ladder's own card, on this build; the band is
+    // the strip's own edge lines (`xwind.band`)
+    const xwr = xwIfRun();
+    if (xwr && xwr.result) {
+      const XW = xwr.result;
+      H('in a crosswind');
+      const v = XW.limit == null ? '> ' + n1(XW.cap, 0) + ' m/s'
+              : n1(XW.limit, 1) + ' m/s';
+      R('crosswind limit', v + (XW.roll != null ? ' · roll ' + n1(XW.roll, 1) + ' m' : '')
+                            + (XW.e != null ? ' · ' + n1(XW.e * 57.3, 0) + '\u00b0 off' : ''),
+        judge('crosswind limit', XW.limit == null ? XW.cap : XW.limit));
+      if (XW.failW != null)
+        R('first rung failed', n1(XW.failW, 1) + ' m/s · ' + (XW.failWhy || '—'),
+          XW.failWhy === 'off the edge line' ? 'warn' : XW.failWhy ? 'bad' : '');
     }
     // G134: THE POWERPLANT SHEET — the thermo laws' first readout (the name
     // and horsepower stay in the footer, as ever). The duty is the heat the
@@ -131372,6 +132291,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   // an affine blend of the same nodes and needs no help. Leaving the garage or
   // resetting rebuilds the aeroplane, which is what puts it back on its wheels.
   let rig = null, rigTested = false;
+  // A9: THE RIG OFF THE MAIN THREAD. `rig` stays the object on the LIVE sim
+  // (its constructor turns the stand over at once, buildLoadViz reads its
+  // bags and stations, the bench polls its state) — what changed is who
+  // STEPS it. With a worker (bench_worker.js) nobody here does: the worker
+  // rebuilds the aeroplane from the same spec, steps its own rig paced to
+  // real time, and posts state + node positions, which land in rig.state
+  // and sim.p — so poseModel and updateLoadViz draw the worker's bend
+  // without knowing. Without one (file://, the smoke harness, a worker that
+  // failed) the render loop steps the live rig under a BUDGET: at least one
+  // frame per frame, no more than LOAD_STEP_BUDGET_MS of them — a heavy
+  // build's test runs slower than real time, never as a freeze.
+  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let loadRun = null;                  // { kind: 'worker'|'page', w?, seq, t0, stepped, rate }
+  let loadFix = null;                  // the advisor's job: { variants, results, i, run?, cb, done }
+  let loadSeq = 0;
+  const LOAD_STEP_BUDGET_MS = 12;
+  // THE TRESTLES (A9, the user: "the plane should be put further up so the
+  // wings do not touch the ground"): the rig turns the aeroplane over about
+  // its CG, so a high wing ends up as far BELOW the CG as it stood above it,
+  // and the room rode the same 200 m hop — the tips sat in the slab. The
+  // room now rides LOWER by whatever puts its floor a trestle's height under
+  // the lowest node, plus room for the tips to bend DOWN under the bags
+  // (ultimate tips are a few per cent of the semispan; the stab's cap is 10).
+  const LOAD_FLOOR_CLEAR = semi => 0.45 + 0.08 * (semi || 4);
+  function killLoadRun() {
+    if (loadRun && loadRun.w) loadRun.w.kill();
+    loadRun = null;
+  }
 
   // ---- THE RIG, ON SCREEN -------------------------------------------------
   // Every number this test produces was already correct and none of it could be
@@ -131518,18 +132465,148 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 
   function startLoadTest() {
     if (!inGarage) return;
-    rig = makeLoadTest(sim, def, { material: (genSpec && genSpec.fuselage &&
-                                              genSpec.fuselage.material) || undefined,
-                                   // G213: the wing's own row for the wing class
-                                   wingMaterial: (genSpec && typeof genSurfKey === 'function')
-                                     ? genSurfKey(genSpec, 'wing', 0) : undefined });
+    killLoadRun(); killLoadFix();
+    const cfg = { material: (genSpec && genSpec.fuselage &&
+                             genSpec.fuselage.material) || undefined,
+                  // G213: the wing's own row for the wing class
+                  wingMaterial: (genSpec && typeof genSurfKey === 'function')
+                    ? genSurfKey(genSpec, 'wing', 0) : undefined };
+    // the stand's pose BEFORE the rig turns it over: the worker starts from
+    // the same nodes, so both rigs invert the same aeroplane
+    const p0 = Float64Array.from(sim.p);
+    let lo0 = Infinity;
+    for (let i = 1; i < p0.length; i += 3) lo0 = Math.min(lo0, p0[i]);
+    rig = makeLoadTest(sim, def, cfg);
     if (!rig.state.ok) { rig = null; return; }        // no spar stations to load
-    rigLift = rig.lift; applyEnv();                   // take the room up with it
+    // the room rides up with the aeroplane — but no higher than puts its
+    // floor a trestle under the lowest node (see LOAD_FLOOR_CLEAR)
+    let lo = Infinity;
+    for (let i = 1; i < sim.p.length; i += 3) lo = Math.min(lo, sim.p[i]);
+    const clear = LOAD_FLOOR_CLEAR(rig.semi);
+    rigLift = Math.min(rig.lift, lo - clear - (isFinite(lo0) ? lo0 : 0));
+    applyEnv();
     buildLoadViz(rig);
     railPhase = ''; setRail('LOAD TEST');
+    // ...and who steps it
+    const seq = ++loadSeq;
+    const W = window.BENCH_WORKER;
+    const w = (W && typeof W.start === 'function')
+      ? W.start(m => loadMessage(m, seq), why => {
+          console.warn('load test: the worker failed, stepping on the page instead —', why);
+          if (loadRun && loadRun.seq === seq) loadRun = { kind: 'page', seq, t0: perfNow(), stepped: 0, rate: 1 };
+        })
+      : null;
+    if (w && w.post({ kind: 'load', spec: genSpec, p0, cfg, seq }, [p0.buffer])) {
+      loadRun = { kind: 'worker', w, seq, t0: perfNow(), stepped: 0, rate: 1 };
+    } else {
+      if (w) w.kill();
+      loadRun = { kind: 'page', seq, t0: perfNow(), stepped: 0, rate: 1 };
+    }
   }
-  function loadTestState() { return rig ? rig.state : null; }
+  // a message from the rig's thread: a snapshot lands in the live rig and
+  // the live sim; the advisor's lines in loadFix
+  function loadMessage(m, seq) {
+    if (!m || m.seq !== seq || !rig) return;
+    if (m.error) {
+      console.warn('load test: the worker could not step, stepping on the page instead —', m.error);
+      if (loadRun && loadRun.seq === seq) {
+        if (loadRun.w) loadRun.w.kill();
+        loadRun = { kind: 'page', seq, t0: perfNow(), stepped: 0, rate: 1 };
+      }
+      return;
+    }
+    if (m.kind === 'load' && m.state) {
+      Object.assign(rig.state, m.state);
+      if (m.p && m.p.length === sim.p.length) sim.p.set(m.p);
+      if (loadRun) { loadRun.rate = m.rate || 1; loadRun.thread = 'worker'; }
+    }
+  }
+  // the render loop's tick: the page's backend steps the live rig under the
+  // budget; the worker's needs nothing (its snapshots already landed)
+  function loadTick() {
+    if (!rig || !loadRun || loadRun.kind !== 'page' || rig.state.done) return;
+    const t0 = perfNow();
+    let k = 0;
+    do { rig.step(1 / 60); k++; } while (!rig.state.done && perfNow() - t0 < LOAD_STEP_BUDGET_MS);
+    loadRun.stepped += k;
+    loadRun.rate = (loadRun.stepped / 60) / Math.max(1e-3, (perfNow() - loadRun.t0) / 1000);
+    loadRun.thread = 'page';
+  }
+  // THE ADVISOR (A9): the bench asks, after reading the verdict, for the
+  // levers measured — on a thread of its own (the rig's is taken down with
+  // the bags the moment the verdict is read), or on the page one budgeted
+  // slice per frame (fixTick). `cb(job)` fires as each line lands and once
+  // at the end. A new test, a roll-out or a new ask retires the old one.
+  function killLoadFix() {
+    if (loadFix && loadFix.w) loadFix.w.kill();
+    loadFix = null;
+  }
+  function startLoadAdvise(cb) {
+    killLoadFix();
+    const spec = genSpec;
+    if (!spec || !spec.wings || !spec.wings[0]) { if (cb) cb({ variants: [], results: [], done: true }); return null; }
+    const cfg = { material: (spec.fuselage && spec.fuselage.material) || undefined,
+                  wingMaterial: (typeof genSurfKey === 'function') ? genSurfKey(spec, 'wing', 0) : undefined };
+    const seq = ++loadSeq;
+    const F = loadFix = { seq, spec: JSON.parse(JSON.stringify(spec)), cfg, variants: null, results: [], i: 0,
+                          run: null, cb, done: false, w: null, thread: 'page' };
+    const W = window.BENCH_WORKER;
+    const onMsg = m => {
+      if (!m || m.seq !== seq || loadFix !== F) return;
+      if (m.error) {
+        console.warn('load advisor: the worker could not measure, measuring on the page instead —', m.error);
+        if (F.w) F.w.kill(); F.w = null; F.thread = 'page';
+        return;
+      }
+      if (m.kind !== 'loadfix') return;
+      if (m.start) F.variants = m.variants || [];
+      if (m.variant) F.results.push(m.variant);
+      if (m.done) F.done = true;
+      if (F.cb) F.cb(F);
+    };
+    const w = (W && typeof W.start === 'function')
+      ? W.start(onMsg, why => { if (loadFix === F) { F.w = null; F.thread = 'page'; } }) : null;
+    if (w && w.post({ kind: 'loadfix', spec: F.spec, cfg, seq })) { F.w = w; F.thread = 'worker'; }
+    else if (w) w.kill();
+    return F;
+  }
+  function fixTick() {
+    const F = loadFix, W = window.BENCH_WORKER;
+    if (!F || F.done || F.w) return;              // nothing, or the worker has it
+    if (!F.run) {
+      if (!F.variants) F.variants = (W && W.loadVariants) ? W.loadVariants(F.spec, { genSurfKey }) : [];
+      const v = F.variants[F.i];
+      if (!v || !W || !W.loadRun) { F.done = true; if (F.cb) F.cb(F); return; }
+      try {
+        const L = W.LEVERS.filter(x => x.id === v.id)[0];
+        const sp = JSON.parse(JSON.stringify(F.spec)); L.apply(sp);
+        F.run = { v, r: W.loadRun({ buildGen, makeSim, makeLoadTest, genSurfKey }, { spec: sp, cfg: F.cfg }) };
+      } catch (e) {
+        F.results.push({ id: v.id, row: v.row, label: v.label, verdict: 'not measurable' });
+        F.i++; if (F.i >= F.variants.length) F.done = true;
+        if (F.cb) F.cb(F);
+        return;
+      }
+    }
+    const t0 = perfNow(), R = F.run.r;
+    do { R.pump(1); } while (!R.done && perfNow() - t0 < LOAD_STEP_BUDGET_MS);
+    if (R.done) {
+      const st = R.rig.state, v = F.run.v;
+      F.results.push({ id: v.id, row: v.row, label: v.label, verdict: st.verdict, limitPct: st.limitPct,
+                       ultPct: st.ultPct, ultYield: st.ultYield, worstCls: st.worstCls });
+      F.run = null; F.i++;
+      if (F.i >= F.variants.length) F.done = true;
+      if (F.cb) F.cb(F);
+    }
+  }
+  function loadTestState() {
+    if (!rig) return null;
+    const st = rig.state;
+    if (loadRun) { st.thread = loadRun.thread || loadRun.kind; st.rate = loadRun.rate; }
+    return st;
+  }
   function endLoadTest() {
+    killLoadRun();
     rig = null;
     if (inGarage) enterGarage();                      // back on its wheels
   }
@@ -131588,7 +132665,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // every spec change comes back through here (GARAGE_SPEC.apply -> enterGarage),
     // so this is where a changed aeroplane loses its certificate: you tested the
     // one you had, not the one you now have.
+    killLoadRun();
     rig = null; rigTested = false;
+    testFlightOff();                  // A9: back in the shed is not an arrival
     sim.reset(0);
     standOnWheels();
     // NO AERODROME. The garage is not a place on the map, and the apron
@@ -131639,6 +132718,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   function rollOut(after) {            // `after` runs when the aeroplane is on the stand and on screen (S3)
     closeEditor();       // flying with the craft hidden is not a thing (G36)
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
+    killLoadRun(); killLoadFix();
     rig = null;
     // Rolling out is the one way to leave a FINISHED test without passing
     // through enterGarage, so the sandbags have to be taken off here too — or
@@ -131869,6 +132949,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (st && st.trim != null && isFinite(st.trim)) INP.setTrim(st.trim);
     }
     airborneSeen = wasAir = false; stillT = 0;
+    testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
     lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false;
@@ -133090,6 +134171,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       flRow(body, 'the pilot');
       flPills(body, [{ label: 'autopilot', value: false }, { label: 'by hand', value: true }],
               o => o.value === manual, o => setManual(o.value));
+      // A9: the clock, on the test flight — 2× is two solver steps a frame
+      if (testFlight) {
+        flRow(body, 'time');
+        flPills(body, [{ label: '1×', value: 1 },
+                       { label: '2×', value: 2, why: floatsOn() ? 'not on floats: the water step is the frame' : null }],
+                o => o.value === simRate, o => simRateSet(o.value));
+        flNote(body, 'The test flight: the pilot flies its circuit and the camera follows the phases. ' +
+                     'Take the stick any time — an arrival by hand earns the certificate too.');
+      }
       for (const d of INP.devices()) {
         const r = flRow(body, d.kind === 'keyboard' ? 'keyboard' : 'controller');
         const v = document.createElement('span');
@@ -133841,6 +134931,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       document.exitPointerLock();                                      // DEVCAM / HEADCAM
     cam.mode = m; flSave('Cam', cam);
     flReveal = 0;                      // a framing pick is the player's
+    if (!directorPick) director.stop();   // A9: ...and ends the director's cuts
     if (m !== 'cockpit' && flyEye) { flyEye = null; setNear(CAM_NEAR); }
     if (m === 'orbit') { distT = def.params.viewDist; elT = 0.25; }
     flApplyFov();
@@ -134297,16 +135388,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // produce, handed to the bench for its stored snapshot — and seeded back
     // on restore, memoised onto the CURRENT def so the plaque's gating
     // (daFor === def, tfFor === def) accepts them as this aeroplane's own.
-    sheets: () => ({ densAlt: densAltIfRun(), flight: tfIfRun() }),
+    sheets: () => ({ densAlt: densAltIfRun(), flight: tfIfRun(), xwind: xwIfRun() }),
     restoreSheets: sh => {
       if (sh && sh.densAlt) { daVal = sh.densAlt; daFor = def; }
       if (sh && sh.flight) { tfVal = sh.flight; tfFor = def; }
+      if (sh && sh.xwind) { xwVal = sh.xwind; xwFor = def; }
     },
-    // THE TEST FLIGHT (G107): the offscreen fast circuit on the test pilot;
-    // the bench's card ({alt, Vkmh}) rides in (G107.1)
-    circuitStart: card => tfStart(card),
-    circuitPoll: () => tfPoll(),
-    circuitEnd: () => tfEnd(),
+    // THE TEST FLIGHT (A9): a real roll-out on the pilot, the camera
+    // directed; the award comes back through BENCH_FLIGHT_LOGGED. The
+    // bench's card ({alt, V} in SI, fp) rides in. (G107's offscreen
+    // circuit and its three bridge calls retired with it.)
+    testFlight: card => startTestFlight(card),
+    testFlightOn: () => !!testFlight,
+    // THE CROSSWIND CARD (A9): the ladder on the bench's thread
+    xwindStart: () => xwStart(),
+    xwindPoll: () => xwPoll(),
+    xwindEnd: () => xwEnd(),
     // THE HYDROPLANE TEST (S1, G451.1): the seaplane's take-off run on the
     // sea lane, offscreen, on the test pilot; a row the bench shows for a
     // float build only
@@ -134320,6 +135417,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     loadTest: () => startLoadTest(),
     loadTestState: () => loadTestState(),
     endLoadTest: () => endLoadTest(),
+    loadAdvise: cb => startLoadAdvise(cb),           // A9: the measured levers, after the verdict
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
   });
@@ -134446,7 +135544,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // the garage does not step — EXCEPT on the load-test rig, which is the one
     // thing that moves while the aeroplane is still on the stand
     if (inGarage && rig && !rig.state.done) {
-      rig.step(1 / 60);
+      loadTick();                     // A9: the worker's snapshot, or the budgeted page step
       // the RIG decides the build has been tested, not the panel. The panel is a
       // view; if it were the thing that noticed, a headless run (or a collapsed
       // panel) would leave a tested aeroplane marked untested.
@@ -134456,9 +135554,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // held at ultimate: the bags stay on and the wing stays bent, so the result
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
+    if (inGarage) fixTick();          // A9: the advisor's page slice, when it has no thread
     else if (running && !inGarage) {
-      script(1 / 60);
-      sim.step(1 / 60);              // substep rate is a per-aircraft property
+      // A9: 2× steps twice a frame on the test flight; a doubled step that
+      // costs more than a frame for half a second drops itself back to 1×
+      const t2 = perfNow();
+      for (let k = 0; k < simRate; k++) {
+        script(1 / 60);
+        sim.step(1 / 60);              // substep rate is a per-aircraft property
+      }
+      if (simRate > 1) {
+        if (perfNow() - t2 > 20) { if (++slowFrames >= 30) simRateSet(1); } else slowFrames = 0;
+      }
+      director.frame();
       if (CK) CK.frame(1 / 60, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
