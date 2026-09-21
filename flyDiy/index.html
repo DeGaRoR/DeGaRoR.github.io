@@ -36901,7 +36901,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='e61d9ecaf3c9'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='524bca2ea764'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -37349,7 +37349,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen']],
+      ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
@@ -37668,6 +37668,7 @@ const CAGE_PARTS = [
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
       ['doors', ['hgDoor', 'hgDoorEdge']],       // G310
+      ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },
 
@@ -37966,7 +37967,7 @@ const CAGE_PARTS = [
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
-      ['flaps', ['flapCtl']],                              // G335
+      ['flaps', ['flapCtl', 'flapX', 'flapZ']],            // G335, T2.3 (18)
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
       ['floor', ['floorOn', 'floorLift']],                 // G331
     ] },
@@ -42085,6 +42086,7 @@ window.CAGE_PAGE = {
     // design keeps whatever it says. `seatPitch` is gone with the tandem
     // layout — a bay's length is its pitch.
     cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
+    paxAbreast: 0, flapX: 0, flapZ: 0,                                   // T2.3 (132), (18)
     paxSeatZ: 0, paxSize: 1, paxRecline: 0,
   },
 
@@ -42597,6 +42599,14 @@ window.CAGE_PAGE = {
         ['pedalAngle','pedal angle',    0, 60, 1,
          { when: P => +P.crewOn && +P.ctlPed }],
         ['flapCtl',   'flaps',           0, 1, 1, ['floor lever', 'dash switch']],   // G335
+        // T2.3 (18): the floor lever's two axes — offsets from its default
+        // spot beside the seat (+x the pilot's left, +z forward); the height
+        // follows the floor at the new station, the base plate stays inside
+        // the wall
+        ['flapX',     'flap lever left', -0.40, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.flapCtl === 0, dim: 'len' }],
+        ['flapZ',     'flap lever fore', -0.40, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.flapCtl === 0, dim: 'len' }],
         // G331: the trim wheel's own place (offsets from its wall seat: +x
         // the pilot's left, +y up, +z forward)
         ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
@@ -42749,6 +42759,11 @@ window.CAGE_PAGE = {
       ['paxCount',  'pax bays',        0, 4, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
+      // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
+      // before (a bay seats the cockpit's row); a single seat behind a
+      // side-by-side cockpit, a pair behind a tandem one, or a bench of three
+      ['paxAbreast','bay seating',     0, 3, 1, ['as the cockpit', 'single', 'pair', 'bench of three'],
+       { when: P => +P.paxCount > 0 }],
       ['winSillPax','win sill',        0, 0.9, 0.01,
        { when: P => +P.paxCount > 0 && !+P.paxWinN }],
       // DRAWN WINDOWS (G245): 0 = the glazed band; else this many windows
@@ -42764,13 +42779,15 @@ window.CAGE_PAGE = {
       // cockpit. A bay seats the cockpit's row (one abreast or two), so
       // 'two' on a single-row aeroplane seats the one seat there is — the
       // crew layer clamps, and the join bills the seats actually filled.
-      ['paxOcc1',   'bay 1 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      // (T2.3 (132): 'three' fills a bench; the crew layer clamps to the
+      // bay's own seating as before)
+      ['paxOcc1',   'bay 1 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 1 }],
-      ['paxOcc2',   'bay 2 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      ['paxOcc2',   'bay 2 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 2 }],
-      ['paxOcc3',   'bay 3 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      ['paxOcc3',   'bay 3 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 3 }],
-      ['paxOcc4',   'bay 4 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+      ['paxOcc4',   'bay 4 seated',    0, 3, 1, ['nobody', 'one', 'two', 'three'],
        { when: P => +P.crewOn && +P.paxCount >= 4 }],
     ]],
     ['7 · boom', [
@@ -57799,9 +57816,16 @@ const tapeOn = (parent, name, w, p, ry) => {
 function buildFlapLever(g0, A, P, sx, seat, sbs) {
   const K = window.GEAR_KIT;
   if (!K) return null;
-  const x = sbs ? 0 : sx - Math.sign(sx || 1) * 0.30;
-  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.30;
+  // T2.3 (18): the lever's two axes on the floor — the in/out and fore/aft
+  // rows move its default spot; the height follows the floor at the new
+  // station (a sloped keel), and the base plate stays inside the wall
+  let x = (sbs ? 0 : sx - Math.sign(sx || 1) * 0.30) + (+P.flapX || 0);
+  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.30 + (+P.flapZ || 0);
   const y0 = A.floorAt(z) + 0.004;
+  if (A.wallAt) {
+    const w = Math.abs(A.wallAt(Math.sign(x || 1), y0 + 0.05, z) || 0) - 0.05;
+    if (w > 0.05) x = Math.max(-w, Math.min(w, x));
+  }
   const piv = [x, y0 + 0.040, z];
   const cheek = K.Bag(), teeth = K.Bag();
   // the base plate and two cheeks, the arc cut as a row of teeth on the
@@ -59469,16 +59493,25 @@ function anchors(spec, P, mesh) {
 function seatPlaces(A, P) {
   const lay = Math.round(P.seatLayout);
   const abreast = lay === 1 ? 2 : 1;
+  // T2.3 (132): the bays' own abreast — 0 = as the cockpit (every build
+  // before), 1 a single seat (tandem passengers behind a side-by-side
+  // cockpit), 2 a pair, 3 a bench (x = 0, +-gap)
+  const paxAb0 = Math.round(+P.paxAbreast || 0);
+  const paxAb = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : abreast;
   const bays = Math.max(0, Math.round(P.paxCount || 0));
   // the outer shoulder sits ~0.21 m outboard of the seat centre (the
   // dummy's clavicle + joint), so the seat centre stays 0.25 m inside the
   // waist half-width (2026-09-04: the pilots stuck out of the sides)
   const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
-  const row = (zBack, halfW, section, filled) => {
+  const row = (zBack, halfW, section, filled, ab) => {
     const out = [];
-    const gp = abreast === 2 ? gapIn(halfW) : 0;
-    for (let j = 0; j < abreast; j++)
-      out.push({ x: abreast === 2 ? (j ? -gp : gp) : 0, zBack, section,
+    const n = ab || abreast;
+    const gp = n >= 2 ? gapIn(halfW) : 0;
+    // a pair sits +-gap; a bench of three adds the middle seat last (the
+    // outer two fill first, the way a rear bench is used)
+    const xs = n === 3 ? [gp, -gp, 0] : n === 2 ? [gp, -gp] : [0];
+    for (let j = 0; j < n; j++)
+      out.push({ x: xs[j], zBack, section,
                  pilot: section === 0 && j === 0,
                  filled: section === 0 && j === 0 ? true : j < filled });
     return out;
@@ -59495,7 +59528,7 @@ function seatPlaces(A, P) {
     const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
     const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
     const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));
-    seats.push(...row(zBack, halfW, n, Math.min(abreast, want)));
+    seats.push(...row(zBack, halfW, n, Math.min(paxAb, want), paxAb));
   }
   return seats;
 }
@@ -88538,6 +88571,7 @@ const hgDef = {
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges, on the A-pillar edge
+  hgFinish: -1,                              // T2.3 (51): 0 as the fuselage, 1 bare steel, 2 the finish tab's own; -1 = read off the finish tab once
 };
 const FAM = ['as built', 'strap', 'piano', 'bracket'];
 PAGE.defaults = Object.assign(hgDef, PAGE.defaults || {});
@@ -88574,6 +88608,15 @@ const GROUP = ['13 · control hardware', [
     ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
     ['hgDoorEdge', 'hinge edge', 0, 2, 1, ['forward', 'top', 'aft'],
      { when: P => +P.hgOn && +P.hgDoor }],
+  ], { when: P => +P.hgOn }],
+  // T2.3 (51): THE FINISH, on the layer's own rows. The hardware's section
+  // (ctlHinge) is a soft pin in the finish table — steel until the fuselage
+  // picks a finish, then the fuselage's (2026-09-13). The row names the
+  // three states a builder means: 'as the fuselage' (that rule, every build
+  // before), 'bare steel' (cadmium-plated whatever the fuselage wears), and
+  // 'own' (the finish tab's pick on the hinges, which flips this row itself)
+  ['finish', [
+    ['hgFinish', 'finish', 0, 2, 1, ['as the fuselage', 'bare steel', 'own (finish tab)']],
   ], { when: P => +P.hgOn }],
   ['detail', [
     ['hgDetail', 'detail ×', 0.4, 2.0, 0.1],
@@ -90978,7 +91021,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // are derived from the rows, so a build with the layer off still loads.
     const bays = Math.max(0, Math.round(+P.paxCount || 0));
     const abreast = Math.round(P.seatLayout) === 1;
+    // T2.3 (132): the bays' own abreast when the row says so
+    const paxAb0 = Math.round(+P.paxAbreast || 0);
     const perRow = abreast ? 2 : 1;
+    const perBay = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
     M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
              : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
              : 'single';
@@ -90992,12 +91038,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       M.pilots = drawn.filter(s => !s.section && s.filled).length;
       M.pax = drawn.filter(s => s.section && s.filled).length;
     } else {
-      M.seats = perRow * (1 + bays);
+      M.seats = perRow + perBay * bays;
       const occ = [1];
       if (abreast) occ.push(+P.cabOcc ? 1 : 0);
       for (let n = 1; n <= bays; n++) {
-        const k = Math.min(perRow, Math.max(0, Math.round(+P['paxOcc' + n] || 0)));
-        for (let j = 0; j < perRow; j++) occ.push(j < k ? 1 : 0);
+        const k = Math.min(perBay, Math.max(0, Math.round(+P['paxOcc' + n] || 0)));
+        for (let j = 0; j < perBay; j++) occ.push(j < k ? 1 : 0);
       }
       M.occupied = occ;
       M.pilots = occ.slice(0, perRow).reduce((a, b) => a + b, 0);
@@ -93717,6 +93763,26 @@ function build() {
     let ch = false;
     for (const f of PAGE.coerce) try { if (f(P)) ch = true; } catch (e) {}
     if (ch) syncSliders();
+  }
+  // T2.3 (51): THE HINGE FINISH ROW AND THE FINISH TAB AGREE. The row is the
+  // keeper: 0 drops the hinges' own override (the soft pin walks the
+  // fuselage's chain), 1 pins bare steel, 2 leaves whatever the finish tab
+  // chose (the tab's pick set 2; a tab reset sets 0). Bench pages without the
+  // hinge layer have no row and nothing moves.
+  const AH = P.hgFinish != null ? AK() : null;
+  if (AH && AH.AERO_SEC && AH.AERO_SEC.ctlHinge) {
+    let hf = Math.round(+P.hgFinish);
+    // -1 (a build from before the row): the row takes what the finish tab
+    // already holds for the hinges, so a past build's pick stays its own
+    if (!(hf >= 0)) {
+      hf = secFin.ctlHinge == null ? 0 : secFin.ctlHinge === 'steelTube' ? 1 : 2;
+      P.hgFinish = hf; syncSliders();
+    }
+    const was = secFin.ctlHinge;
+    if (hf === 0) delete secFin.ctlHinge;
+    else if (hf === 1) secFin.ctlHinge = 'steelTube';
+    else if (secFin.ctlHinge == null) { P.hgFinish = 0; syncSliders(); }
+    if (secFin.ctlHinge !== was) aeroSavePrefs();
   }
   const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
@@ -96817,6 +96883,12 @@ function buildMatPanel() {
     sfin.value = secFin[nm] || '';
     sfin.onchange = () => {
       if (sfin.value) secFin[nm] = sfin.value; else delete secFin[nm];
+      // T2.3 (51): a pick on the hinges flips their own row to 'own'
+      // (bare steel to 'bare steel'); a cleared pick to 'as the fuselage'
+      if (nm === 'ctlHinge' && P.hgFinish != null) {
+        P.hgFinish = !sfin.value ? 0 : sfin.value === 'steelTube' ? 1 : 2;
+        syncSliders();
+      }
       aeroSavePrefs(); build();
     };
     row.appendChild(sfin);
