@@ -154,6 +154,11 @@ const PLAQUE_WHY = {
   'CG as loaded': { what: 'the CG as a fraction of the mean chord behind the '
       + 'leading edge — the way a real weight-and-balance sheet quotes it. '
       + 'Light aeroplanes publish ranges like 17 to 36 % MAC.' },
+  // G445.7: the empty CG beside the loaded one — the number a weight-and-
+  // balance sheet starts from
+  'CG empty': { what: 'the same fraction of the chord with nobody aboard, the '
+      + 'tanks dry and no freight — the figure a weight-and-balance sheet '
+      + 'starts from. A J-3 reads 24 % MAC empty, a Jodel D.112 26.' },
   'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
       + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
     fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '

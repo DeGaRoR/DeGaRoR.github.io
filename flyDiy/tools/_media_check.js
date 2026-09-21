@@ -79,7 +79,10 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              runway lights (1.5 KB) - master's own LF build measured 7.419 MiB at G442.4,
 //              over the line before this commit added its 5 KB. Nothing heavy: the data
 //              payload is still 118 KB against its 400 (DATA_BUDGET_KB is the guard that matters).
-const BUDGET_MIB = 7.55;
+//   7.55 -> 7.75 (G445.8, 2026-09-21): three STOCK DESIGNS on the shelf as whole
+//              builds (the user's 172, Cub and Jodel D.112, ~60 KB of joined spec each in
+//              tools/_cage_page5.js, 180 KB) - build data, not media; DATA_BUDGET_KB unchanged
+const BUDGET_MIB = 7.75;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;

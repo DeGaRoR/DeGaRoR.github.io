@@ -265,6 +265,32 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // G396.2: `opt.kMul` — a member of a class at a multiple of its k (the
     // float truss: gear-class tube that is NOT a spring), c by its root
     const kMul = (opt && opt.kMul) || 1;
+    // G445.7/8: THE AFT FUSELAGE'S GAUGE, computed once here for the mass
+    // block below. THE STIFFNESS STAYS (G351: "the clusters hold the aft
+    // structure") — tried the other way on 2026-09-20: k scaled with the
+    // perimeter factor cleared GATE FLEX's substep budget and put the stock
+    // aeroplane's elevator at 51 deg/s in gusts (GATE GEN's cruise-quiet
+    // bound is 3): the body attitude is read off the nose frame and the
+    // tail-mid nodes (genRestFrame), and a soft tail cone makes the pitch
+    // reading wobble for the pilot to chase. The mass floors
+    // (fusAftPerimMin / fusAftCoverMin) are what keep the post's nodes
+    // heavy enough for the substep budgets instead.
+    // ...and the PERIMETER factor starts a bay behind the box (fusAftStart):
+    // the first ring aft of the cabin carries the wing's rear spar on the
+    // stock aeroplane (WR -> S3, k 5.7e6), and lightening it to 1.5 kg put the
+    // wing-pair fixture at 84 substeps against GATE MOUNT's 80 — a wing
+    // attach frame is a heavy frame on any aeroplane. G351's flat 0.6 still
+    // applies from boxRear as it always did.
+    const aftX0 = S.fuse ? S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart) : 0;
+    // ...and never the WING'S ATTACH FRAMES: the rings the spars land on are
+    // the heaviest frames of the fuselage wherever they fall (the stock's
+    // rear spar lands on S3, 0.9 m behind the box). A member with an end
+    // within fusAftSparReach of a spar station keeps the flat gauge.
+    const nearSpar = x => sparX.some(sx => Math.abs(x - sx) < (R.fusAftSparReach == null ? 0.75 : R.fusAftSparReach));
+    const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
+                  P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
+                          ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
     const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
@@ -294,9 +320,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // box-to-post taper where it has not), floored at fusAftPerimMin.
       // Measured: the empty CG was 37 % of chord on the Cub AND the Jodel
       // where the books say 24 and 26; the same 13 % on two constructions.
-      const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
-                    P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
-        ? R.fusAftGauge * perimK(0.5 * (P[a][0] + P[b][0])) : 1;
+      // (aftG: computed above with the member's k — one factor, mass and stiffness)
       // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
       // aeroplane's design gross. Pass 1 bills at 1 and records what would
       // follow the gauge; pass 2 bills at the solved factor.
@@ -317,6 +341,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // tail post; a bake without one tapers the box linearly to the post's
   // tailW / tailBot / tailTop). A fuselage-class member aft of the box bills
   // its length at fusAftGauge x this, floored at GEN_RULES.fusAftPerimMin.
+  // the wing's spar stations (every plane), for the attach-frame exemption above
+  const sparX = (() => {
+    const out = [];
+    const ws = Array.isArray(S.wings) && S.wings.length ? S.wings : (S.wing ? [S.wing] : []);
+    for (const w of ws) {
+      if (!w || typeof w.xLE !== 'number') continue;
+      const c = w.chord || 1;
+      out.push(w.xLE + (R.sparFront != null ? R.sparFront : 0.15) * c, w.xLE + (R.sparRear != null ? R.sparRear : 0.65) * c);
+    }
+    return out;
+  })();
   const perimK = (() => {
     const fu = S.fuse || {}, cb = S.cab || {};
     const hw0 = Math.max(0.05, cb.halfW || 0.5), h0 = Math.max(0.1, cb.h || 1.0);
@@ -390,7 +425,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     let kA = 1;
     if (SEC === 'fuselage' && S.fuse && S.fuse.boxRear != null && ids.length) {
       let cx = 0; for (const i of ids) cx += P[i][0] / ids.length;
-      if (cx > S.fuse.boxRear) kA = Math.max(R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin, perimK(cx));
+      if (cx > S.fuse.boxRear + (R.fusAftStart == null ? 0.5 : R.fusAftStart)) kA = Math.max(R.fusAftCoverMin == null ? 0.5 : R.fusAftCoverMin, perimK(cx));
     }
     const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
@@ -557,6 +592,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // G134: the resolved spec's own powerplant row — custom dials outrank the
   // registry preset; same shape either way (see resolveSpec's S.pplant).
   const PP = S.pplant || POWERPLANTS[S.engine];
+  // G445.8: the engine's INSTALLED mass — the row's dry engine plus its
+  // installation (resolveSpec's S.engInstallM: cowl, exhaust, mount, oil...)
+  const engDryM = PP.engine.mass + (S.engInstallM || 0);
   // THE MOUNT (2026-09-04): a nose engine is the firewall pair below, byte for
   // byte; every other mount needs the wing's spar nodes and is built in 2b,
   // after the wing — so the default aeroplane's node order never moves.
@@ -593,12 +631,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                         P[a][2] - P[b][2]) > 0.05;
       for (const q of [EL, ER, F[0].TL, F[0].TR, F[0].BL, F[0].BR])
         if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
-      pt(CG, PP.engine.mass);
+      pt(CG, engDryM);
       pt(EL, 0.5 * S.prop.mass);
       pt(ER, 0.5 * S.prop.mass);
     } else {
-      pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
-      pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+      pt(EL, 0.5 * (engDryM + S.prop.mass));
+      pt(ER, 0.5 * (engDryM + S.prop.mass));
     }
   }
   spend((PP.price || 0) * S.engines.length);
@@ -1137,7 +1175,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ST.forEach((s, i) => { const dd = Math.abs(s.x - x); if (dd < d) { d = dd; b = i; } });
       return b;
     };
-    const engM = PP.engine.mass + S.prop.mass;
+    const engM = engDryM + S.prop.mass;
     // the engine's mass at its CG, behind the flange (ahead of it on a
     // pusher, whose flange faces aft) — the nose block's rule, per mount
     // (2026-09-05, the cfFwd half-session). Anchors: the mount pair and the
@@ -1166,7 +1204,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
-                   PP.engine.mass, S.prop.mass);
+                   engDryM, S.prop.mass);
         engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
@@ -1179,7 +1217,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
         hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
-                   PP.engine.mass, S.prop.mass);
+                   engDryM, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
@@ -1228,7 +1266,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // a whole engine a side — at its CG when the row knows one, on the
           // nacelle node otherwise (the mirror's z is the node's own)
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
-                     P[n][2], PP.engine.mass, S.prop.mass);
+                     P[n][2], engDryM, S.prop.mass);
         }
         engNodes.push(NL, NR); engIdx.push(0, 1);
       }

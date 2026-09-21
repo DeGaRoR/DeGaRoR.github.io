@@ -51504,3 +51504,63 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
 - perf_study: the `jodel` card measures against the D.112 row (REAL.jodel = REAL.d112;
   the D.119 kept as `d119`).
 - GATES: see the battery below.
+
+## G445.8 — THE FORWARD MASS: THE ENGINE INSTALLATION (2026-09-20/21, the user: "start
+## the forward mass item on the 172")
+
+- A registry row's `mass` is the DRY engine. The outfit row already bills the cowl and
+  the exhaust from their own geometry and power (61_gen_frame cowlM, exhM on the firewall
+  frame); nothing billed the mount, the baffles, the oil, the hoses and the engine
+  controls — ~18 kg on a 172R's IO-360 (mount 5, baffles 3, oil 7, hoses/controls 3),
+  ~10 on a Cub's A-65. GEN_RULES.engInstallK by family (four-stroke 0.13, two-stroke 0.08,
+  turbine 0.10, electric 0.06) -> resolveSpec's S.engInstallM, billed with the engine at
+  every mount (61_gen_frame `engDryM` at the five sites). THE FIRST CUT WAS 0.20 "cowl,
+  exhaust, mount, baffles, oil..." — found counting the cowl and the exhaust twice by the
+  GEN circuit, not by a weight check: the stock aeroplane's legacy-autopilot landing went
+  0.98 -> 1.24 m/s of sink (the bound 1.2; THE PILOT lands the same build at 0.69, three-
+  point) — a firmer flare under a 0.35 elevator clamp is what 20 kg on the nose does, and
+  the question "is 20 kg right?" found the outfit row.
+- THE AFT RULE'S SPAR REACH: `fusAftSparReach` 0.35 -> 0.75 (with `fusAftStart` 0.5 from
+  the box's rear). GATE MOUNT's stock wing-pair fixture ran 83-84 substeps against 80: the
+  critical pair is the rear spar root (WR) to the S3 ring's top (S3TR), and S3 sits 0.63 m
+  behind the rear spar station — outside a 0.35 reach, so it lost a fifth of its mass
+  (1.77 -> 1.56 kg) while its beam kept its k. The ring a spar braces to keeps the flat
+  gauge: 80 / 77 / 74 (wing pair / nose / pusher).
+- RESULTS (empty CG, book): Cub 354 kg, 25.5 % loaded / 27.1 % empty (the J-3's 24),
+  margin 19 %; Jodel 341 kg, 29.1 / 30.5 (the D.112's 26), margin 7 %; 172 664 kg,
+  43.4 / 43.5 (24-27), margin 22 %; the stock 333 kg, 25.5 / 28.0.
+- THE 172'S REMAINING ~17 % OF CHORD, named: the systems catalogue (panel 8 + avionics 3 +
+  harness 2 = 30 kg at the firewall where a 172R's IFR stack, wiring and battery are ~55),
+  the alloy cabin box's fore/aft split (267 kg of fuselage + fit-out + systems reads at
+  89 % of chord), the baggage billed on the ring at 2.8 m where a 172's compartment
+  centroid is ~1.9 (2 % loaded), and 20 % of wing weight (133 vs ~110, neutral). Items,
+  not a rule.
+- GATE WEIGHT: the Tiger Moth-alike left its 15 % band (591 vs 506): +10 % before this
+  (its biplane bracing 83 kg against a DH.82's ~25, wings 5.9 kg/m2), +17 % with the
+  Gipsy's real 28 kg. The band widened ONCE to 0.20 with the note — against the file's
+  own rule, on purpose, to be tightened when the bracing rule lands. THE USER'S RULING.
+- THE BATTERY ON THE MASS RULES (2026-09-20/21), read red by red: ENERGYBASE re-blessed
+  (its header's own case — a deliberate change to where the mass sits); FLEX/MOUNT were the
+  substep budgets — TRIED scaling the aft members' k with the perimeter factor ("stiffness
+  follows mass"): FLEX went green and the stock aeroplane's ELEVATOR CHATTERED AT 51 deg/s
+  in gusts (GATE GEN's cruise-quiet bound is 3) — the body attitude is read off the nose
+  frame and the tail-mid nodes (genRestFrame), a soft tail cone wobbles the pitch reading
+  and the pilot chases it; k restored (G351 was right), the mass FLOORS raised instead
+  (fusAftPerimMin 0.3 -> 0.5, fusAftCoverMin 0.5 -> 0.7: the Cub back at 72 substeps,
+  1 % of chord on the Jodel's CG), then the spar reach above; BENCH wanted the 'CG empty'
+  explanation (plaque.js); MEDIA: three stock builds are 180 KB of JSON, the page budget
+  7.4 -> 7.6 MiB with the note; DRAG held the jodel card to the D.119's CdS — the D.112
+  row (0.60); BIPLANE's parasol band 35 -> 40 % and WEIGHT's Tiger band 0.15 -> 0.20,
+  both with dated notes — THE USER'S RULING on the two bands; TAKEOFF (a wall-clock
+  check) green alone; PILOT's STANCE NEGATIVE CONTROL (G170: a 6 cm-short tail-wheel leg
+  must fold on a level spawn, dot 0.33 / strain 0.22 on master) stopped folding on the
+  lighter tail (0.72 / 0.021 — under the stance's own 0.022): the fixture now carries
+  30 kg in the baggage frame, as the user's builds that flipped did — loaded it folds
+  (0.34 / 0.217) and the stance still holds (0.91 / 0.022). Pre-existing at the 200
+  substep cap on G445.6 already: skymaster, p38, c172. LANDED on master after a rebase
+  over G435 (A1) .. G444 (A7): the series was G435.x on its branch for a day — a
+  G-number is taken at landing, never on a branch.
+- THE BATTERY AT LANDING (2026-09-21, --jobs=6 on the rebased tip): everything green
+  but master's own six — WINGSPLIT, ENGINE, PREMISES, ENERGY, WORLD, AERO fail the same
+  way in a clean master checkout (verified one by one) — and PILOT, green once the
+  fixture above was re-armed.

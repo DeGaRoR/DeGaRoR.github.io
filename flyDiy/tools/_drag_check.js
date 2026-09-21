@@ -32,7 +32,9 @@ const PR = require(path.join(T, '_perf_probe.js'));
 // the open frames have no published figure.
 const TABLE = {
   cub:   { real: 0.75, band: 0.15, src: 'J-3: 65 hp x 0.75 at 120 km/h' },
-  jodel: { real: 0.45, band: 0.25, src: 'D.119: 100 hp x 0.75 at 175 km/h' },
+  // G445.8: the card is the D.112 since G445.4 — 65 hp x 0.75 with a 0.75
+  // prop at 150 km/h: 647 N, CdS 0.61
+  jodel: { real: 0.60, band: 0.25, src: 'D.112: 65 hp x 0.75 x eta 0.75 at 150 km/h' },
   c172:  { real: 0.47, band: 0.25, src: '172R: 160 hp x 0.75 at 218 km/h' },
   // the RV-alike: MEASURED 0.38 with the build-up — its axial 0.24 (body
   // 0.09 on 13.6 m2 of alloy, cooling 0.02, a bubble, a bare-root low wing's

@@ -147,5 +147,19 @@ forward one. Fleet: every card's CG moved 2-6 % of chord forward; the
 cards' pre-existing negative margins (pusherPod, da62, twinBush,
 skymaster, vtail at 0) are not touched by rules that only take aft mass
 away.
+
+### 4.2 The forward item (G445.8)
+
+The engine installation as a fraction of the dry mass (`engInstallK`: 0.13
+on a four-stroke — the mount, baffles, oil, hoses and controls; the cowl
+and the exhaust were already the outfit row's, and a first cut at 0.20 had
+counted them twice). With it, and the aft rule's spar reach at 0.75 (the
+ring a spar braces to keeps the flat gauge): Cub CG 26 → 25.5 % loaded,
+empty 28 → 27 (the J-3's 24); Jodel 30 → 29, empty 32 → 30.5 (the D.112's
+26), margin 6 → 7 %; 172 43 / 43.5. The Jodel's last 4-5 % of chord is
+its tail (17 kg vs a D.112's ~12) and the model's tail effectiveness (NP
+36 vs a real ~40). The 172's last 17 % is its systems catalogue (30 kg at
+the firewall against a 172R's ~55), its alloy cabin box's split and its
+baggage station — calibration items.
 - The 45 L nose tank reads "through the crew (105 points)" on the bench —
   the same ENERGY item as the Cub's.

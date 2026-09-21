@@ -2264,13 +2264,32 @@ const GEN_RULES = {
   // G445.7: ...times the local section's perimeter over the cabin box's
   // (61_gen_frame perimK), floored here. A tube fuselage's longerons step
   // down a gauge or two toward the post and its diagonals shorten; a
-  // plywood cone is its skin. 0.3 keeps the last bays at the post from
-  // billing nothing.
-  fusAftPerimMin: 0.3,
+  // plywood cone is its skin. THE FLOOR IS THE SUBSTEP BUDGET'S (2026-09-20):
+  // at 0.3 the post's nodes went light enough against the tail members' k
+  // to cost the stock aeroplane 5 substeps and the Cub 8 (GATE MOUNT's 80
+  // for the wing pair); 0.5 costs none on the Cub and 5 on the stock, and
+  // the mass it keeps at the post is 1 % of chord on the Jodel's CG.
+  fusAftPerimMin: 0.5,
+  // ...from a bay behind the box: the first ring aft of the cabin is the
+  // wing's rear-spar frame on a high wing (61_gen_frame, the GATE MOUNT lesson)
+  fusAftStart: 0.5,
+  // ...and never within this of a spar station (the wing's attach frames)
+  fusAftSparReach: 0.75,   // the ring a spar root braces to sits a bay behind it (stock: 0.63 m)
   // ...and the same factor on the body COVER aft of the box (the row's
   // kg/m2 carries the cabin's doors, floor and windows), floored higher: a
-  // bare skin with its stringers is about half the cabin panel's weight
-  fusAftCoverMin: 0.5,
+  // bare skin with its stringers is about half the cabin panel's weight —
+  // 0.7 for the same substep reason as fusAftPerimMin
+  fusAftCoverMin: 0.7,
+  // G445.8: the engine INSTALLATION as a fraction of the dry mass — the
+  // mount, the baffles, the oil, the hoses and the engine controls
+  // (60_gen_spec engInstallM). NOT the cowl and NOT the exhaust: the outfit
+  // row bills those from their own geometry and power (61_gen_frame cowlM,
+  // exhM, on the firewall frame) — 0.20 had counted them twice. A 172R's
+  // IO-360 (133 kg dry): mount 5 + baffles 3 + oil 7 + hoses/controls 3 =
+  // 18 kg, 0.13; a Cub's A-65 (77): 3 + 1.5 + 3.5 + 1.5 = 9.5, 0.12. A
+  // two-stroke has no sump and a light mount; a turbine's oil and mount
+  // weigh less against its core; an electric motor's controller cabling.
+  engInstallK: { four: 0.13, two: 0.08, turbine: 0.10, electric: 0.06 },
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -4538,6 +4557,23 @@ function resolveSpec(spec) {
   // written into the registry row (a registry dict is shared by every build).
   S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
     ? genEngineCgAft(S.engine, PP.engine) : null;
+  // G445.8 (the MASS chantier, the forward item): THE INSTALLATION. A
+  // registry row's `mass` is the DRY engine — the number a Lycoming sheet
+  // prints. The outfit row bills the cowl and the exhaust (61_gen_frame
+  // cowlM, exhM); nothing billed the mount, the baffles, the oil (8 qt on
+  // an IO-360), the hoses and the controls that hang on it: ~18 kg on a
+  // 172R's IO-360, ~10 on a Cub's A-65. Measured: the 172 read 630 kg empty
+  // against 736 and its empty CG 43 % of chord against 24 — the missing
+  // mass is forward. A fraction of the dry mass by family
+  // (GEN_RULES.engInstallK), billed where the engine is (61_gen_frame,
+  // every mount).
+  {
+    const K = (typeof GEN_RULES !== 'undefined' && GEN_RULES.engInstallK) || {};
+    const en = PP && PP.engine;
+    const fam = !en ? 'four' : en.aspiration === 'electric' ? 'electric'
+              : en.family === 'turbine' ? 'turbine' : en.family === 'two' ? 'two' : 'four';
+    S.engInstallM = en ? (K[fam] == null ? 0 : K[fam]) * (en.mass || 0) : 0;
+  }
   // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
   // prop is the DEFAULT diameter and nothing more; every number below is derived,
   // so a bigger disc really does pull harder and blow harder over the tail.
