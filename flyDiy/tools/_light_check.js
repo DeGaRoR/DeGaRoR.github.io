@@ -225,6 +225,12 @@ check(!/aeroSetEnv\(|propSetEnv\(|CAGE_ENERGY\.setEnv\(/.test(shed.replace(/^\s*
         'be exactly one, inside the shared factory, or the impostor bake and ' +
         'the world it stands in will drift apart');
   check(/const RIG = \{[^}]*sun:/.test(world), 'the world RIG object is gone');
+  // G462: THE SWITCHBOARD RE-RUNS THE DAY. applyWorldLights re-asserted the alps row's daytime sun and
+  // hemisphere (RIG.sun x LIGHT_UNIT) before the mutes; under the physical sky those are the day's, so a
+  // world-light pill pressed at night set a noon sun until the sun moved 0.02 deg (the ground flooded
+  // yellow). The day is applied again (dayVer reset, dayApply) before worldSwitch.apply().
+  check(/function applyWorldLights\(\) \{[\s\S]*?if \(world\.day && !rigCur\.manual\) \{ dayVer = -1; dayEl = NaN; dayAz = NaN; dayApply\(\); \}\r?\n\s*worldSwitch\.apply\(\);/.test(world),
+        'applyWorldLights no longer re-runs the day before the mutes (a world-light pill at night floods the ground)');
   const uses = world.match(/RIG\.sun/g) || [];
   check(uses.length >= 2,
         `RIG.sun is read ${uses.length} time(s) — the impostor bake is supposed ` +

@@ -53657,3 +53657,24 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   row (the model's tube-and-fabric rows are 4130 + wood at the J-3's gauge: empty 269 vs
   209 kg, and that excess is aft — the margin's last 7 %), a thrust-line TILT dial with its
   physics, the 582 row's static thrust (1168 vs ~1500 N on the 68 in IVO).
+
+## G462 — THE WORLD SWITCHBOARD RE-RUNS THE DAY (2026-09-21, the user: "do the applyWorldLights fix
+## too, then commit and land"; G461's owed)
+
+- render_world.js applyWorldLights: it re-asserted the alps row's DAYTIME constants (sun = RIG.sun x
+  LIGHT_UNIT, hemi likewise) before the mutes went over the top - the ordering the shed taught (a
+  mute must survive whatever else touches the rig), written when the row WAS the level. Under the
+  physical sky the sun and the hemisphere are the day's (SKY_LIGHT.applyDay inside dayApply), so a
+  world-light pill pressed at night on the NIGHT flyout set a noon sun and the ground flooded
+  yellow until the sun had moved 0.02 deg and dayApply ran again (every night frame of the
+  bisection in G461 that pressed a pill). Now the day is applied again first (dayVer / dayEl /
+  dayAz reset, dayApply - which also re-runs the runway lights and the lamps), then the mutes.
+  Without a day (the bench) the constants stand as before.
+- SEEN: screenshots/clouds-2026-09-20/ui/world_switch_night.png - the threshold at night, the
+  hemisphere pill off and on, the sun pill off, all on, and a toggle by day: the ground keeps the
+  day's level in every frame.
+- GATES: LIGHT holds it (applyWorldLights runs the day before worldSwitch.apply); WORLDRENDER /
+  ATMO / CLOUD green; the battery at the landing.
+- NOTE: HANDOVER carries two G461 headings - mine (the sky table's ground) and the C172 session's
+  (the neutral point), which landed on top of it with the same number. Left as they are; the
+  commits are distinct (dcbea507 / 2e40f653).

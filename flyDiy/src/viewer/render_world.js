@@ -671,6 +671,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     hemi.intensity = RIG.hemi * LIGHT_UNIT;
     scene.environment = envMap;
     if (worldSky) worldSky.visible = true;
+    // G462: THE DAY'S LEVELS, NOT THE ROW'S. The two lines above are the alps row's daytime constants; under
+    // the physical sky the sun and the hemisphere are the day's (SKY_LIGHT.applyDay in dayApply), and a
+    // world-light pill pressed at night re-asserted a noon sun for as long as the sun stood still (the
+    // ground flooded yellow until it moved 0.02 deg). Run the day again before the mutes go over the top.
+    if (world.day && !rigCur.manual) { dayVer = -1; dayEl = NaN; dayAz = NaN; dayApply(); }
     worldSwitch.apply();
   }
 
