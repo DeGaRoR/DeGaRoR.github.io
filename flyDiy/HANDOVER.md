@@ -54550,3 +54550,13 @@ flat, the lower two carry the imagery's greens and darks). THE TRAP MET: the GLS
 declared after sMat (which writes it) - the ring compiled to a grey plane at every knob; declare
 before the first use. NOTE for the user's browser: RECIPE is remembered in localStorage
 ('flydiy.ground.splat.v1') - F8 > splat > reset (or clear it) to see these defaults.
+
+## G479 — THE DENSE SCRUB IS SMALL CONIFERS; BORDERS OFF THE MAP (2026-09-22, the user: "scrub dense should be
+## small conifers, mixed with shrubs. Let's not use borders for now, that's too much deciduous look")
+
+Code 14 (scrub with a 1-2.5 m canopy, 4 % of the land) -> `conifer_scrub`: fir pack 2 / spruce 1.5 /
+the two muskeg pines 1 + 1, dead conifers 0.3, at 3800 in r 220 = 250 /ha (the canopy map sizes them
+small), shrubs 8 per 1000 m2 (shrub_deciduous 1, sapling 0.5, holly 0.3), dry grass + plates,
+bunchberry, rocks. `borders` names no code now (it stays in the table for F8). The map: 2 grassland,
+3 none (mud), 4/11 shore, 5 scree, 6/12 conifer_steep, 7 muskeg, 8 conifer_young, 13 conifer,
+14 conifer_scrub.
