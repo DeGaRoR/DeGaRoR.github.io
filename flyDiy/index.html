@@ -36798,7 +36798,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a4e5cd7d720c';window.FLYDIY_BUILD='d952329f3bdf'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a4e5cd7d720c';window.FLYDIY_BUILD='d9f1987e2ee6'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -40510,8 +40510,18 @@ const DESIGN_ROWS = [
       // "increase the length, increase the cowl count, max the tip collapse,
       // adjust the droop so the tip is in line with the fuselage, play with
       // bulge and ease". `NOSE_AERO` is that, once.
+      // G476 (playtest item 73, the user from the cockpit: "the polygonality
+      // of the nose is very visible ... the top part of the nose feels
+      // blocky"): with `front rings` 0 the deck from the windscreen base to
+      // the twin band is ONE control quad, 0.45 m of the surface nearest
+      // the eye on four subdivided segments. Two rings smooth it; a loft
+      // rule was tried and GATE CAGEFIT refused it (the template's nose is
+      // 0.6 m on no rings), so the rings come with the CHOICE of a nose
+      // engine, the way NOSE_AERO's four come with a pusher's cone. A
+      // builder's own count stands: the write keeps a higher one.
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
-        writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1 } } },
+        writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1,
+                          cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher
@@ -55448,6 +55458,62 @@ function cageShoulder(m, S) {
   return withPanel(out);
 }
 
+// THE FIELD RE-MEASURED ON THE SMOOTH SKIN (G476, playtest item 149, the
+// user's Screenshot 2026-09-19 162154: "mapping issue on the centre section,
+// back and belly - stretched rivets"). sC is the arc round the CONTROL ring's
+// polyline (arcOf), carried through the subdivision as an attribute. The
+// smooth skin is inside its control polygon, so round the crown and the keel
+// - where the control polyline turns hardest - the real arc between two
+// vertices is shorter than the field they span: measured, a tenth of the
+// centreline edges at 0.6 field-metre per metre, and the rivet rows the
+// shader lays at a metric pitch in sC came out spread apart there. This
+// walks every subdivided ring (the vertices sharing a station, each flank
+// its own walk from the waist datum) and re-integrates sC from the REAL
+// distances, keeping the direction and the datum - and adding nothing
+// where the field did not advance (the nose rings' crown traverse belongs
+// to sL by the split in arcOf, and stays there).
+function cageRefitArc(s) {
+  if (!s || !s.A || !s.V) return s;
+  const V = s.V, A = s.A, n = V.length;
+  const rows = new Map();
+  for (let i = 0; i < n; i++) {
+    const a = A[i];
+    if (!a || (a[0] === 0 && a[1] === 0 && a[2] === 0 && a[3] === 0)) continue;
+    const x = V[i][0];
+    const st = Math.round(a[2] * 1000);
+    for (const side of (Math.abs(x) < 1e-6 ? [1, -1] : [x > 0 ? 1 : -1])) {
+      const k = st + ':' + side;
+      if (!rows.has(k)) rows.set(k, []);
+      rows.get(k).push(i);
+    }
+  }
+  const A2 = A.map(a => a ? a.slice() : a);
+  for (const ids of rows.values()) {
+    if (ids.length < 3) continue;
+    ids.sort((i, j) => A[i][1] - A[j][1]);
+    // the datum: the vertex nearest sC 0 (the waist rail) keeps its value
+    let d0 = 0;
+    for (let k = 1; k < ids.length; k++) if (Math.abs(A[ids[k]][1]) < Math.abs(A[ids[d0]][1])) d0 = k;
+    const base = A[ids[d0]][1];
+    const dist = (i, j) => Math.hypot(V[i][0] - V[j][0], V[i][1] - V[j][1], V[i][2] - V[j][2]);
+    // consecutive-in-sC vertices are neighbours on a plain ring; where the
+    // order jumps (a windscreen chain, a pane strip, the tail post's twin
+    // columns sharing a station) the 3D gap is several edges long, and there
+    // the field's own difference is kept - the walk re-measures edges, it
+    // does not re-draw the ring
+    const gaps = []; for (let k = 1; k < ids.length; k++) gaps.push(dist(ids[k], ids[k - 1]));
+    const med = gaps.slice().sort((a, b) => a - b)[gaps.length >> 1] || 0;
+    const step = (k, j) => { const df = A[ids[k]][1] - A[ids[j]][1]; const d = dist(ids[k], ids[j]);
+      return df <= 1e-9 ? 0 : (med > 0 && d > 3 * med) ? df : d; };
+    let acc = base;
+    A2[ids[d0]][1] = base;
+    for (let k = d0 + 1; k < ids.length; k++) { acc += step(k, k - 1); A2[ids[k]][1] = acc; }
+    acc = base;
+    for (let k = d0 - 1; k >= 0; k--) { acc -= step(k + 1, k); A2[ids[k]][1] = acc; }
+  }
+  return Object.assign({}, s, { A: A2 });
+}
+
 function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
@@ -55455,6 +55521,7 @@ function cageSheet(P, opts) {
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
+  if (L > 0) s = cageRefitArc(s);
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
   // window that no longer exists. The knife itself runs after cageCut: a
@@ -91295,7 +91362,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           try {
             const d = new THREE.Vector3(0, 0, 1)
               .transformDirection(o.matrixWorld).transformDirection(inv);
-            const a2 = rotP(-d.z, d.y, d.x);
+            // G476 (playtest item 15, "nose cones tend to jiggle and not be
+            // perfectly aligned perpendicular to their rotation direction"):
+            // the axis went through the POSITIONS map (BK = B^-1, a shear on
+            // an oblique pair) and the flight turns a rigid part in the TRUE
+            // frame (poseRigid, G357: B^-1 R B on vertices stored as B^-1 v,
+            // so the world sees R on the true geometry). A true-frame
+            // rotation wants the true-frame axis, which is the raw direction
+            // - mapping it made the disc spin about an axis 1.9 deg off the
+            // cone's own on build (4), the apex circling on a 2 cm radius.
+            const a2 = [-d.z, d.y, d.x];
             const L2 = Math.hypot(a2[0], a2[1], a2[2]) || 1;
             pp.axis = [a2[0] / L2, a2[1] / L2, a2[2] / L2];
           } catch (e2) {}
