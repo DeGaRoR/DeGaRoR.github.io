@@ -426,6 +426,10 @@
     }
     // ---- ENVIRONMENT: the light, the air, the ground's shading, surfaced ----------
     const E = fold(root, 'environment', true);
+    if (world() && world().envAlbedo) {
+      E.appendChild(slider('albedo', 0.2, 1.5, 0.02, () => world().envAlbedo(), v => world().envAlbedo(v)));
+      E.appendChild(note('one gain over the ground (after the splat) and the vegetation (leaf light + impostor lit) - the environment alone; the aeroplane, the buildings and the sky keep theirs'));
+    }
     E.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)'], ['island', 'island (alps, hemisphere x2)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
     // dragging either sun slider takes the rig MANUAL (the clock fold above hands it back)

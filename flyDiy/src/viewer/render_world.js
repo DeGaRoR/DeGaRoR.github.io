@@ -2804,7 +2804,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the island's knobs (F8 > trees > from the map): coverage ramps from
       // `from` to `full` metres of canopy; a tree is canopy x gain over the
       // model's own height, clamped
-      island: { from: 0.5, full: 6.0, gain: 1.0, min: 0.3, max: 2.2,
+      island: { from: 0.5, full: 6.0, gain: 1.3, min: 0.45, max: 2.4,   // 2026-09-22 (the user, against the airport reference: "our trees are too small"): gain 1.0 -> 1.3, the floor 0.3 -> 0.45
                 // THE BIOME'S DENSITY (G454.12): a mix's trees per m2 (its bench `count` in its
                 // `radius`) over the grid's, x biomeGain - 3.5 puts the conifer at the grid's full
                 // density (as the G406 rule had it) and the other biomes in the bench's proportion
@@ -4549,7 +4549,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  // THE ENVIRONMENT'S ALBEDO (2026-09-22, the user: "a global albedo dimming slider, but only on the
+  // environment"): one number over the ground (GROUND.light = uGLight, after the splat) and the
+  // vegetation (the leaf master light and the impostors' lit term, from their booted base) - the
+  // aeroplane, the buildings and the sky untouched. F8 > environment > albedo.
+  const ENV_ALB = { k: 1, base: null };
+  const envAlbedo = k => {
+    if (k === undefined) return ENV_ALB.k;
+    if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;
+    ENV_ALB.k = Math.max(0.05, +k);
+    groundApi.set({ light: ENV_ALB.k });
+    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = ENV_ALB.base * ENV_ALB.k * 0.9; }
+    return ENV_ALB.k;
+  };
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

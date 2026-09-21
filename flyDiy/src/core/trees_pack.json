@@ -7635,10 +7635,7 @@
       "dead": 0.08
      },
      "dead_conifer": {
-      "proportion": 1
-     },
-     "dead_stick": {
-      "proportion": 0.8
+      "proportion": 1.8
      },
      "shrub_deciduous": {
       "proportion": 0.5
@@ -8016,7 +8013,7 @@
       "dead": 0.03
      },
      "dead_conifer": {
-      "proportion": 0.3
+      "proportion": 0.5
      },
      "shrub_deciduous": {
       "proportion": 1

@@ -54743,3 +54743,21 @@ gate's golden hash reads the woodland, not the fill).
 - GATE FRAMES / KNIFE corpora re-recorded for the two items that changed (arch:C172-alike,
   file:builds/cessna172_2026-09-20.json; every other item identical); DESIGN, BUILD,
   STARTER, SAVE green. screenshots/frames/c172_roof_before_cam / c172_roof_0.85_*.png.
+
+## G483 — THE ENVIRONMENT'S ALBEDO DIAL, THE TREES 30 % BIGGER, THE MUSKEG'S DEAD (2026-09-22, the user with
+## the Gravina street view and the airport from above: "a global albedo dimming slider, but only on the
+## environment ... our trees are too small ... a lot of dead trees in there too")
+
+WORLD.envAlbedo(k) - F8 > environment > albedo: one gain over the ground (GROUND.light = uGLight,
+which multiplies after the splat) and the vegetation (the leaf master light and the impostors'
+lit term uILit, from their booted base) - the aeroplane, the buildings and the sky keep theirs.
+THE SIZE: FILL.island gain 1.0 -> 1.3, min 0.3 -> 0.45, max 2.2 -> 2.4 (the floored muskeg trees
+5-7 m now) - no instance added, the cheapest fill there is. THE DEAD: dead_stick is in the
+tuning but not in the payload (no subjects baked), so the muskeg's dead share was 16 % where the
+bench has 28 %: dead_conifer 1 -> 1.8, dead_stick off the row; conifer_scrub dead_conifer 0.5.
+THE GRASS, checked against the bench: the ring plants the mix's own rows (muskeg grass_dry 4/m2,
+reed 0.24 in 7 m beds, the blotch keeping 0.4-1 by area - the bench's rule, the same numbers);
+at 10 m over the scrub the ring held 258 k dry tufts in 213 cells. The plates are the grassland
+row's (0.3 x 2.5/m2) - nowhere else. screenshots/map/musk10 (the chase eye at 38 m over the
+scrub: small conifers, snags, reed beds, the pools - the street-view look). The card peaked at
+9.9 GB on that run with other rigs holding 3.4 - the ring + the fill at ng 128 are near the edge.
