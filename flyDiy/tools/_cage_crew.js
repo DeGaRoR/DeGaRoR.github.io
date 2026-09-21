@@ -982,12 +982,18 @@ function buildPedals(g, A, P, sx) {
     // fairlead on the boards 30 cm ahead (drawn still — the eye moves a
     // centimetre at full rudder; the other end is what keeps a real one
     // taut)
+    // ON THE KEEL AT ITS OWN STATION (A7, 2026-09-21, the user of Screenshot
+    // 2026-09-17 190717: "a control poking through under the cowl"). The
+    // fairlead sat at the PEDALS' floor height 24 cm ahead - where a short
+    // nose's belly has already risen, so the block and the cable's end hung
+    // in the air under the skin ahead of the nosewheel. The keel line is
+    // A.floorAt(z); the block sits on it at its own station.
     const cb = K.Bag(), fl = K.Bag();
-    const zC = zA + 0.24;
-    const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yF + 0.010, zC];
+    const zC = zA + 0.24, yC = A.floorAt(zC);
+    const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
     K.tube(cb, e0, e1, 0.0015, 6);
-    K.boxIn(fl, [xp, yF + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
-    K.bolt(pl0, [xp, yF + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
+    K.boxIn(fl, [xp, yC + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
+    K.bolt(pl0, [xp, yC + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
     cb.mesh(g, M.frame); fl.mesh(g, M.cast);
   }
   pl0.mesh(g, M.plated);

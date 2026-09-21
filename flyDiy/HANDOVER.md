@@ -51620,3 +51620,50 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   next pass if the user wants engine instruments per engine.
 - GATE PANEL: the three twin kinds asserted on the crew's source (rods + keep-out span, quadrant
   levers). PANEL CABIN JOIN UISMOKE DESIGN green.
+
+## G447 — A7 OF THE PLAYTEST TRIAGE, SECOND PASS: HINGES THAT READ AS HINGES, THE FLAP ROD INSIDE
+## THE WING, THE PEDAL FAIRLEAD ON THE KEEL (2026-09-21, the user: "lots of hinges are generated in
+## flight on the cessna, frankly more than required, some stick out"; "the fin has never mapped
+## right"; "the aileron/flap actuator sticking out of the wing underside"; "a control poking
+## through under the cowl"; "mapping issue on the center section, back and belly - stretched rivets")
+
+- THE PIANO HINGE'S LEAVES ARE TWO STRIPS (_hinge_gen.js pianoHinge): every knuckle carried its own
+  leaf, alternately on the fixed skin and the moving one, so a run read as a row of separate plates
+  staggered across the hinge line - the "lots of hinges" along the wing (Screenshot 2026-09-18
+  191521) and the column of alternating squares up the rudder line the user read as a fin mapping
+  fault (2026-09-19 162359: the chequers were the hinge). A piano hinge's leaves are continuous:
+  one strip on each skin the length of the run, the knuckles alternating on the pin. SEEN:
+  scratch shots_a7_piano/cmp.png (the wing's flap line from below in flight), shots_a7_tail/cmp.png
+  (the fin and stab in the shed).
+- A PIANO RUN TILES THE SPAN (_cage_hinge.js): the runs are span(1-2i)/n long and were centred on
+  the STRAP stations, which sit on the insets - the outermost run overhung its end by (1-2i)/2n - i
+  of the span, past the tip whenever n < 7 (8.7 % at n 3 with the 6 % inset): "some stick out",
+  at the stab tips (2026-09-18 193659). The runs' centres are the tiles' now, abutting, first at
+  the inset and last ending at the other. Straps and doors keep their stations.
+- THE FLAP ROD'S TORQUE-TUBE END IS INSIDE THE WING (_cage_hinge.js, link 'rod'): F.y is the face's
+  outward normal - the horn's eye is at +reach along it, in the air, rightly - and the tube's stub
+  sat at +1.05 r, a nose radius OUTSIDE the lower skin, so the rod lay along the underside from
+  240 mm forward of the hinge to the horn (2026-09-17 195236). At -0.9 r it is inside the section,
+  deeper than the aileron's crank, and the rod comes out through the skin to the horn.
+- THE PEDAL CABLE'S FAIRLEAD SITS ON THE KEEL AT ITS OWN STATION (_cage_crew.js buildPedals): it
+  was drawn at the pedals' floor height 24 cm ahead, where a short nose's belly has already risen -
+  the block and the cable's end hung under the skin ahead of the nosewheel (2026-09-17 190717,
+  build (4)). A.floorAt(zC) is the keel line there. SEEN: shots_a7_nose/cmp.png (nothing under
+  the nose).
+- THE STRETCHED RIVETS ON THE SPINE AND KEEL, MEASURED, NOT FIXED (item 149): a field census
+  (rig a7_field*.js: |d aStruct.xy| x uFieldM over |d position| per edge, thickness edges dropped)
+  reads 1.00 at the median on every wing, flap, aileron, stab and cage group - the wing's centre
+  section included (0.99, so G214's signed-z fix holds) - but the cage's body groups carry a tenth
+  of their edges at 0.60-0.67 (the field 40 % short of metric: the tile stretched 1.6x), and
+  those edges cluster on the CENTRELINE (cells at z 0: the belly at x -2.5/-1.5/0 and the spine at
+  y 2), which is the user's "back and belly". arcOf() gives the centre column P0 + |x| of its
+  flank neighbour, which is metric on a plain ring; where the tenth comes from (the guard rings'
+  fractional levels? the caps' D traverse? the subdivided roof strip?) is the next measurement.
+  The fin's field is 1.00 at the median with a long tail (q90 9-21) on its fillet and rim edges
+  only; its "mapping" complaint was the hinge above.
+- OWED (A7b): the wingtip lights as a fitted lens in the tip's corner (34 - the pod-with-nose-lens
+  is a considered part; the "cutout or fitted" wants a ruling and the tip knife), the light
+  sockets' emissive idiom (123), the carbon seat's edges (47), the pilot's feet vs the pedals (25)
+  and the hands after floats -> tricycle (125), a part's finish over the overall colour (129), the
+  fuel-wing clipping (131). A7a as before: 15, 23/32, 41, 73, 92, 130, and 149 above.
+- GATES: HINGE, CLIP, PARTS, FIT, CABIN, JOIN, LIGHT, SKIN, UISMOKE, MEDIA green.

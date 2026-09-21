@@ -212,31 +212,43 @@ function pianoHinge(bF, bM, F, S, len) {
   for (let i = 0; i < kn; i++) {
     const zc = -len * 0.5 + pitch * (i + 0.5);
     const fixed = (i % 2) === 0;
-    const bag = fixed ? bF : bM, dir = fixed ? -1 : 1;
+    const bag = fixed ? bF : bM;
     // the knuckle: a short barrel on the pin
     revolve(bag, at(F, 0, 0, zc - pitch * 0.40), F.z,
       [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.80],
        [S.pinR * 1.02, pitch * 0.80]], 8, false);
-    // and its leaf, flat on the skin — the MEASURED skin where the layer
-    // offers it (G304; see strapHalf)
+  }
+  // THE LEAVES ARE TWO STRIPS, THE LENGTH OF THE RUN (A7, 2026-09-21, the
+  // user of Screenshots 2026-09-18 191521 and 2026-09-19 162359: "lots of
+  // hinges ... more than required" on the wing, and the fin "never mapped
+  // right" - a column of alternating squares up the rudder line). Each
+  // knuckle used to carry its own leaf, one side or the other, so a run
+  // read as a row of separate plates staggered across the hinge line - a
+  // chequer, not a hinge. A piano hinge's leaves are continuous: one strip
+  // on the fixed skin, one on the moving, the knuckles alternating between
+  // them on the pin. Each strip lies on the MEASURED skin where the layer
+  // offers it (G304; see strapHalf), sampled along the run.
+  const NS = Math.min(9, Math.max(3, kn | 1));
+  for (const dir of [-1, 1]) {
+    const bag = dir < 0 ? bF : bM;
     const hAt = (a, fb) => {
       if (!S.skin) return fb;
       let h = null;
-      for (const dz of [-pitch * 0.4, 0, pitch * 0.4]) {
-        const q = S.skin(a, zc + dz, dir);
+      for (let j = 0; j < NS; j++) {
+        const q = S.skin(a, -len * 0.45 + len * 0.9 * j / (NS - 1), dir);
         if (q != null && (h == null || q > h)) h = q;
       }
       return h == null ? fb : h + t * 0.5 + 0.0008;
     };
     const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
     const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
-    const path = [at(F, 0, S.pinR * 1.2, zc), at(F, a1, h1, zc)];
+    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
     if (S.skin) for (const f of [0.2, 0.4, 0.6, 0.8]) {
       const a = a1 + (a2 - a1) * f;
-      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), zc));
+      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
     }
-    path.push(at(F, a2, h2, zc));
-    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(pitch * 0.86, t, 2), true, F.z);
+    path.push(at(F, a2, h2, 0));
+    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
   }
   tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
 }

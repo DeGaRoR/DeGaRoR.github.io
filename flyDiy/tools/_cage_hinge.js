@@ -716,7 +716,17 @@ PAGE.post = ctx => {
       return { p: V.lerp(a, b, u), ax: V.sub(b, a), face };
     };
     const faces = row.faces || 1;
-    for (const t of ts) {
+    // A PIANO RUN TILES THE SPAN (A7, 2026-09-21, the user of Screenshot
+    // 2026-09-18 193659: "some stick out" - at the stab tips). The runs are
+    // span(1-2i)/n long and were CENTRED on the strap stations, which sit
+    // ON the insets: the outermost run overhung its end by (1-2i)/2n - i of
+    // the span, past the tip whenever n < 7 (8.7 % of the span at n 3 with
+    // the 6 % inset). The runs' centres are the tiles' now - the first
+    // starts at the inset, the last ends at the other - and they abut
+    // instead of overlapping. Straps and doors keep their stations.
+    const tsRun = (fam === 'piano' && s.kind !== 'door')
+      ? ts.map((_, k) => inset + (1 - 2 * inset) * (k + 0.5) / ts.length) : ts;
+    for (const t of tsRun) {
       const { p, ax: axL, face: faceL } = along(t);
       for (let f = 0; f < faces; f++) {
         const F = frameOn(p, axL, s.aft, f ? V.mul(faceL, -1) : faceL);
@@ -773,7 +783,16 @@ PAGE.post = ctx => {
                        V.mul(F.x, -0.075));
           pin = V.add(bc, V.mul(V.nrm(V.sub(eye, bc)), 0.075));
         } else if (row.link === 'rod') {
-          pin = HG.at(F, -0.24, S.r * 1.05, 0);
+          // INSIDE THE WING (A7, 2026-09-21, the user of Screenshot 2026-09-17
+          // 195236: "the aileron/flap actuator sticking out of the wing
+          // underside"). F.y is the face's OUTWARD normal - the horn's eye is
+          // at +reach along it, in the air, rightly - and the torque tube's
+          // stub sat at +1.05 r: a nose radius OUTSIDE the lower skin, so the
+          // rod lay along the underside from 240 mm forward of the hinge to
+          // the horn, a stick on the wing. The tube is inside the section,
+          // deeper than the aileron's crank; the rod comes out through the
+          // skin to the horn the way the aileron's does.
+          pin = HG.at(F, -0.24, -S.r * 0.9, 0);
           revolve(bagsF.inner, pin, F.z,
             [[S.linkR * 1.4, 0], [S.linkR * 1.4, S.w * 0.5]], 10, true);
         } else {
