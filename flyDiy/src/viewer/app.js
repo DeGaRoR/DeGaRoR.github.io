@@ -5760,6 +5760,12 @@
     if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
       enterGarage(); openEditor(); if (after) after(); return;
     }
+    // G446.1: THE SHED NEVER HOLDS THE FRAME. `holdRender` is the roll-out
+    // screen's (set on its way in, cleared by its 'frames' step); a roll-in
+    // that cuts a roll-out short (a rig's click under the overlay; a door
+    // pressed the instant the overlay lifts) inherited the hold and the shed
+    // drew nothing but sky. The garage renders from its first frame.
+    holdRender = false;
     const steps = [
       { id: 'shed', label: 'back into the shed', w: 6, fn: () => { enterGarage(); } },
       { id: 'board', label: 'the drawing board', w: 4, fn: () => { openEditor(); } },

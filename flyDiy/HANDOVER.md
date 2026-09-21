@@ -51667,3 +51667,27 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   and the hands after floats -> tricycle (125), a part's finish over the overall colour (129), the
   fuel-wing clipping (131). A7a as before: 15, 23/32, 41, 73, 92, 130, and 149 above.
 - GATES: HINGE, CLIP, PARTS, FIT, CABIN, JOIN, LIGHT, SKIN, UISMOKE, MEDIA green.
+
+## G446.1 — THE SHED NEVER INHERITS THE ROLL-OUT'S HOLD; THE RIG SHOOTS THE SHED (2026-09-21, the user:
+## "can you do a yoke screenshot in the garage and in flight, just to be sure?")
+
+- THE YOKE IS IN BOTH: screenshots/panel-2026-09-20/10_yoke_shed.png (the editor's INTERIOR preset,
+  the head pitched 30 deg down: hub, plated cap, the column into its collar, the horns) and
+  11_yoke_flight.png (the cockpit view, the same pitch). The playtest's "absent in the garage" is
+  not reproduced on cessna (2).json; closed unless the user can show the view.
+- FOUND ON THE WAY: `holdRender` is the roll-out screen's (set on its way in, cleared by its
+  'frames' step or its done). A roll-in that cuts the roll-out short - the rig clicked "The shed"
+  under the overlay, which a finger cannot, but a door pressed the instant the overlay lifts is
+  the same race - left the hold true for ever: the loop returned at `if (holdRender)` every frame,
+  the sky pass still drew its quad into its target, the canvas showed the page's blue and the shed
+  drew nothing (measured: 58 renders in 300 ms, every one an ortho quad into a target, the camera
+  a correct 3/4 at 12 m, 1979 meshes visible in the scene). rollInScreen clears the hold before its
+  first step. GATE PANEL asserts it on the source.
+- THE RIG (tools/panel_shot.js): `--garage` goes back in through "The shed" after the roll-out and
+  shoots the editor's camera preset (`--gcam`, default interior; `--look` pitches the head there
+  too); the "flight is up" test read `offsetParent` on a position:fixed overlay (always null) and
+  called the roll-out screen gone while the forest was still growing - it reads `hidden` /
+  display now. The camera and the renderer are read through FLIGHT_PROBE.camGet() / renderer()
+  (G439's door): a hook on window.FLYDIY_RENDERER.render sees every call (r186's render is an own
+  property, so the prototype sees none).
+- UISMOKE BOOT PANEL green.

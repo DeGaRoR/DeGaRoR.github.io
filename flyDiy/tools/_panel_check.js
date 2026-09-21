@@ -422,6 +422,8 @@ function run() {
     check(/['edCtl_throttle2', 'thr1', inb * 0.056]/.test(crewSrc) && /twinDx: rods.length > 1/.test(crewSrc) && /const dx2 = thr.twinDx || 0;/.test(crewSrc),
       'crew: a twin gets two push-pull rods, and the keep-out spans both');
     check(/['edCtl_throttle2', 'thr1', 0.012]/.test(crewSrc), 'crew: a twin gets two quadrant levers in the console');
+    // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step
+    check(/function rollInScreen\(after\) \{[\s\S]{0,900}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
     {
       const L = C.makeLinkage(0.001); let st = null;
       for (let i = 0; i < 60; i++) st = L.step({ thr: 0.8, eng: [{ on: true, thr: 1 }, { on: true, thr: 0.5 }] }, 1 / 60);

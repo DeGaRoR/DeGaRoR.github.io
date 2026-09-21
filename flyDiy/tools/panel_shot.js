@@ -33,6 +33,8 @@ const JS = opt('js', null);
 const LOOK = +opt('look', 0);          // degrees the pilot's head looks DOWN from its own line
 const SCALE = +opt('scale', 1);
 const CLIP = opt('clip', null);        // x,y,w,h in CSS px: a second file, <out>_clip.png, of that region at the same scale
+const GARAGE = argv.includes('--garage');
+const GCAM = opt('gcam', 'interior');       // the editor camera preset to shoot from in the shed (--garage: back in after the roll-out)
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
@@ -85,7 +87,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // click every 30 s until then - a second click re-boots the flight, so
   // not sooner (the loader then waits on pieces the first boot had claimed).
   const KEEP = '(()=>{const n=[...document.querySelectorAll("button,a,div")].filter(b=>/keep the current build/i.test(b.textContent||"")&&b.children.length===0);n.forEach(x=>x.click());return n.length;})()';
-  const READY = '(()=>{const b=document.getElementById("boot");const up=b&&getComputedStyle(b).display!=="none"&&b.offsetParent!==null;const s=window.FLIGHT_PROBE&&FLIGHT_PROBE.sim();return !up&&!!s&&!!(s.out.rpm&&s.out.rpm.length)&&!!window.FLYDIY_COCKPIT_I&&!!FLYDIY_COCKPIT_I.model;})()';
+  const READY = '(()=>{const b=document.getElementById("boot");const up=b&&!b.hidden&&getComputedStyle(b).display!=="none";const s=window.FLIGHT_PROBE&&FLIGHT_PROBE.sim();return !up&&!!s&&!!(s.out.rpm&&s.out.rpm.length)&&!!window.FLYDIY_COCKPIT_I&&!!FLYDIY_COCKPIT_I.model;})()';
   let flying = false;
   for (let a = 0; a < 120 && !flying; a++) {
     if (a % 30 === 0) await ev('(()=>{[...document.querySelectorAll("button")].filter(b=>/roll out|fly the circuit/i.test(b.textContent)).forEach(x=>x.click());})()');
@@ -107,6 +109,36 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (argv.includes('--drain')) {
     await ev('(()=>{const s=FLIGHT_PROBE.sim(),F=s.fuel;if(F.kind==="battery")F.soc=0.0003;else{F.frac=0.0003;F.litres=F.litres0*0.0003;F.kg=F.kg0*0.0003;}s.ctl.thr=1;return 1;})()');
     await sleep(4000);
+  }
+  // THE SHED (G446.1): the flight's "The shed" door rolls back in and opens the
+  // editor (rollInScreen); the editor rail's camera flyout has the INTERIOR
+  // preset - the pilot's own eye point, the head hidden - which is the view
+  // the user compares the flight's cockpit against
+  if (GARAGE) {
+    await ev('(()=>{const b=document.getElementById("bHangar2");if(b)b.click();return 1;})()');
+    for (let i = 0; i < 90; i++) {
+      await sleep(1000);
+      const ok = await ev('(()=>{const b=document.getElementById("boot");const up=b&&!b.hidden&&getComputedStyle(b).display!=="none";return !up&&!!window.CAGE_CREW_EYE&&!!document.querySelector("#edRail [data-f=camera]");})()').catch(() => false);
+      if (ok && i > 3) break;
+    }
+    await sleep(2000);
+    await ev('(()=>{const r=document.querySelector("#edRail [data-f=camera]");if(r)r.click();return 1;})()');
+    await sleep(500);
+    let got = 0;   // the flyout fills a beat after the rail's click
+    for (let i = 0; i < 20 && !got; i++) { got = await ev('(()=>{const p=[...document.querySelectorAll("#edFlyBody .pill")].find(b=>b.textContent.trim()==="' + GCAM + '");if(!p)return 0;p.click();return 1;})()'); if (!got) await sleep(300); }
+    if (!got) console.error('panel_shot: no ' + GCAM + ' pill on the editor camera flyout');
+    await sleep(500);
+    await ev('(()=>{const r=document.querySelector("#edRail [data-f=camera]");if(r)r.click();return 1;})()');
+    if (LOOK) { await sleep(1000); await ev('(()=>{if(window.HEAD_CAM)HEAD_CAM.pitch = ' + (-LOOK * Math.PI / 180) + ';return 1;})()'); }
+    if (JS) console.log('panel_shot (garage) js: ' + await ev('(async()=>JSON.stringify(await (async()=>{' + JS + '})()))()'));
+    await sleep(WAIT);
+    const shotG = await cmd('Page.captureScreenshot', { format: 'png' });
+    if (shotG.result) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, Buffer.from(shotG.result.data, 'base64')); }
+    const yoke = await ev('JSON.stringify((()=>{const g=window.CAGE_CREW&&CAGE_CREW.moving||[];return {moving:g.filter(m=>/yoke|stick|throttle/.test(m.name)).map(m=>m.name),eye:!!window.CAGE_CREW_EYE};})())');
+    console.log('panel_shot (garage): wrote ' + OUT + '\n  ' + yoke);
+    ws.close(); ch.kill();
+    try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {}
+    return;
   }
   if (JS) await ev('(()=>{' + JS + ';return 1;})()');
   // the readings' lags let settle - the gauge's is 1.5 s of FRAME time, and
