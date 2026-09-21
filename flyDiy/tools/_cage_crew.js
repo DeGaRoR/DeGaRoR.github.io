@@ -754,10 +754,12 @@ function buildStickCenter(g0, A, P, sx, seat) {
                 : [T[0], T[1] + 0.035, T[2] + 0.006];
   return { obj: gripAt(gP, gc, up), label: 'stick' };
 }
+// the yoke's forward-most metal: the hub's face at +0.052 from its origin
+// (the horns sweep to +0.036 behind it)
+const YOKE_FRONT = 0.052;
 function buildYoke(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'stickX', 'stickY', 'stickZ');
   const yY = A.waistY - 0.04;
-  const zHub = A.zBack + 0.54;
   // the column: a steel tube through a plated collar on the panel's face,
   // three screws round the collar (session 4e). G442.2 (the playtest: "the
   // yoke renders into the panel"): the collar sits at the PLATE'S OWN DEPTH
@@ -767,14 +769,26 @@ function buildYoke(g0, A, P, sx) {
   // switch is placed where the boot is.
   const F = A.face || null;
   const zCol = F && F.depthAt ? F.depthAt(sx, yY) - 0.001 : A.zDash;
+  // G446.2 (the user: "the yoke renders within the dash by default - proper
+  // spacing relative to the dash face, editable, and the default must not
+  // clip"): THE HUB STANDS OFF THE PLATE, not off the seat back. It sat at
+  // zBack + 0.54, a station that lands inside the plate on a short cabin;
+  // it is `yokeGap` (the row 'yoke off the dash', 0.16 m by default) from
+  // the plate to the hub's face now, whatever the cabin. The stick offsets
+  // (stickX/Y/Z) still move the wheel; the collar stays ON THE PLATE and the
+  // column runs from it to wherever the wheel went, so no offset can pull
+  // the boot off the panel.
+  const gap = P.yokeGap != null ? Math.max(0.04, +P.yokeGap) : 0.16;
+  const zHub = zCol - YOKE_FRONT - gap;
+  const off = [P.stickX || 0, P.stickY || 0, P.stickZ || 0];
   {
     const K = window.GEAR_KIT;
-    tube(g, K ? M.frame : M.ctrl, [sx, yY, zCol + 0.05], [sx, yY, zHub], 0.0125);
+    tube(g0, K ? M.frame : M.ctrl, [sx, yY, zCol + 0.05], [sx + off[0], yY + off[1], zHub + off[2]], 0.0125);
     if (K) {
       const col = K.Bag();
       K.revolve(col, [sx, yY, zCol], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
       for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, zCol - 0.004], [0, 0, -1], 0.0025, 0.002); }
-      col.mesh(g, M.plated);
+      col.mesh(g0, M.plated);
     }
   }
   if (Array.isArray(A.keepOut)) A.keepOut.push({ x0: sx - 0.048, x1: sx + 0.048, y0: yY - 0.048, y1: yY + 0.048, what: 'yoke' });

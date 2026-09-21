@@ -1304,6 +1304,25 @@ function keyAt(parent, x, y, z, pos) {
     kg.position.set(0, 0, 0.020 - k.bb[3] * 0.8);
     for (const p of k.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; kg.add(m); }
     g.add(kg);
+    // THE RING (G446.2, the user: "let's fix the key's bow"): a flat key's
+    // bow is symmetric about its blade, so seen from the seat its angle read
+    // mod 180 - OFF at half past seven looked like half past one, and the
+    // law's five steps could not be told apart. A split ring hangs off the
+    // bow's hole, in the plane the hole's axis lies in (the key's thickness,
+    // local x - so the ring faces the pilot as a circle), straight down the
+    // key's own six o'clock; it turns in the key's group, so it reads OFF at
+    // 7:30 -> BOTH 10:30 -> START 11:30 the way the wrapper meant. The bow
+    // spans local z -0.030..-0.008 (pack x scaled 0.8 from the tip at
+    // +0.020), its lower edge local y -0.0127 (pack +y, the wide lobe); the
+    // hole 3 mm in from that edge, the ring 9 mm radius through it.
+    {
+      const R = 0.009, T = 0.0008;
+      const yEdge = -k.bb[4] * 0.8, zBow = kg.position.z + (k.bb[0] + (k.bb[3] - k.bb[0]) * 0.2) * 0.8;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, T, 8, 28), matFor('barrel'));
+      ring.position.set(0, yEdge + 0.003 - R, zBow);
+      ring.name = 'keyRing';
+      g.add(ring);
+    }
     const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');
     g.rotation.z = clockRad(30 * Math.max(0, idx));
     return g;

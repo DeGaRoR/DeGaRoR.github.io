@@ -424,6 +424,17 @@ function run() {
     check(/['edCtl_throttle2', 'thr1', 0.012]/.test(crewSrc), 'crew: a twin gets two quadrant levers in the console');
     // G446.1: the shed never inherits the roll-out screen's hold - the roll-in clears it before its first step
     check(/function rollInScreen\(after\) \{[\s\S]{0,900}holdRender = false;[\s\S]{0,200}id: 'shed'/.test(appSrc), 'app.js: rollInScreen clears holdRender before the shed step');
+    // G446.2: the yoke's hub stands yokeGap off the PLATE (not off the seat back), the collar stays on the plate whatever the stick offsets; the row is on the cabin page
+    check(/const zHub = zCol - YOKE_FRONT - gap;/.test(crewSrc) && /const gap = P\.yokeGap != null \? Math\.max\(0\.04, \+P\.yokeGap\) : 0\.16;/.test(crewSrc)
+          && /tube\(g0, K \? M\.frame : M\.ctrl, \[sx, yY, zCol \+ 0\.05\], \[sx \+ off\[0\], yY \+ off\[1\], zHub \+ off\[2\]\], 0\.0125\);/.test(crewSrc),
+      'crew: the yoke hub is yokeGap off the plate; the collar and column live outside the stick shift');
+    {
+      const p5 = fs.readFileSync(path.join(__dirname, '_cage_page5.js'), 'utf8');
+      check(/yokeGap: 0\.16/.test(p5) && /\['yokeGap', +'yoke off the dash', 0\.04, 0\.40, 0\.005/.test(p5), 'page5: the yoke-off-the-dash row, 0.16 m by default');
+    }
+    // G446.2: the key's ring - the bow read mod 180; a ring in the key's own group at its six o'clock tells OFF from BOTH
+    check(/const ring = new THREE\.Mesh\(new THREE\.TorusGeometry\(R, T, 8, 28\), matFor\('barrel'\)\);[\s\S]{0,200}g\.add\(ring\);/.test(fs.readFileSync(path.join(__dirname, '_cage_panel.js'), 'utf8')),
+      'panel: the key carries a ring in its turning group');
     {
       const L = C.makeLinkage(0.001); let st = null;
       for (let i = 0; i < 60; i++) st = L.step({ thr: 0.8, eng: [{ on: true, thr: 1 }, { on: true, thr: 0.5 }] }, 1 / 60);

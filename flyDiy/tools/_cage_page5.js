@@ -143,7 +143,7 @@ window.CAGE_PAGE = {
     crewOn: 1, seatLayout: 1, seatTilt: 3, seatBelt: 0,
     seatType: 0, seatZ: 0.205, seatH: 0.08, seatRake: 13,
     seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
-    ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
+    ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, yokeGap: 0.16,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
     flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
@@ -517,6 +517,9 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
         ['stickLen',  'stick length',   0.18, 0.75, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],
+        // G446.2: the wheel's stand-off from the dash face (the hub's face to the plate)
+        ['yokeGap',   'yoke off the dash', 0.04, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 1 }],
         // a double bend: the grip this much nearer the seat than the base
         ['stickCrank', 'stick crank',   0, 0.20, 0.005,
          { when: P => +P.crewOn && +P.ctlStick === 0 }],

@@ -51874,3 +51874,30 @@ prompts). Findings that matter beyond it:
   reflection still on the canopy, the pilot readable through it. Not the proper answer - that is ONE tone
   map over background + reflection, which needs the linear split (POST-FX study §2 b, P2) - but the
   honest one under the display-space rule. Gates SKINMAT, AA, POSTFX, LIGHT, BUILD, UISMOKE green.
+
+## G446.2 — THE YOKE STANDS OFF THE PLATE; THE KEY'S RING (2026-09-21, the user: "let's fix the key's
+## bow then. Also, the yoke renders within the dash by default. Please do some proper spacing relative
+## to the dash face. That should be editable, but default should also not clip")
+
+- THE HUB WAS PLACED OFF THE SEAT BACK (tools/_cage_crew.js buildYoke): `zHub = A.zBack + 0.54`, a
+  station that lands inside the plate on a short cabin - so the wheel sat in the panel on the
+  cessna (2) build and stickZ was the only way out. Now the hub's FACE stands `yokeGap` off the
+  plate where the column meets it (A.face.depthAt, the collar's own station): `zHub = zCol -
+  YOKE_FRONT - gap`, YOKE_FRONT the hub's forward-most metal (+0.052 from its origin). `yokeGap`
+  is a cabin row ('yoke off the dash', 0.04..0.40 m, default 0.16, on crewOn + a yoke) so the
+  default cannot clip and the spacing is the user's to dial. The stick offsets still move the
+  wheel; the collar and the column now live in the UNSHIFTED group and the column runs from the
+  collar to wherever the wheel went, so no offset can pull the boot off the panel.
+- THE KEY'S BOW READ MOD 180 (tools/_cage_panel.js keyAt): the kit's key is a flat blade with an
+  oval bow, symmetric about the blade, so from the seat OFF at half past seven looked like half
+  past one and the law's five steps could not be told apart. A split ring (torus 9 mm, 0.8 mm
+  wire, 'barrel') hangs off the bow's hole - in the plane the hole's axis lies in (the key's
+  thickness, local x, so it faces the pilot as a circle), down the key's own six o'clock - and
+  lives in the key's turning group `g`, so it reads OFF at 7:30 -> BOTH at 10:30 -> START 11:30,
+  the clock the 45° wrapper was drawn for. Proof: bench/panel/c2_key_off_clip.png (ring at 7:30)
+  vs c2_key_both_clip.png (10:30); START is momentary and shoots as BOTH.
+- The yoke shots: bench/panel/c2_yoke_gap45.png (flight, head 50° down: collar on the plate, the
+  column to the wheel in the pilot's hand), c2_yoke_gap_garage.png (the shed, INTERIOR preset).
+- The row is claimed by the 'pitch & roll' part (tools/_cage_parts.js), GATE PARTS' rule.
+- GATE PANEL: the hub law + the row + the ring, on the source. PANEL CABIN JOIN DESIGN UISMOKE
+  CAGEFIT PARTS SAVE green.
