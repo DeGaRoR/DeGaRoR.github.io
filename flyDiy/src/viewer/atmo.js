@@ -317,7 +317,7 @@ var ATMO = (function () {
         Tpath *= exp(-e * dt);
       }
       if (ground) {
-        // THE GROUND AT NIGHT (G461, the "white bar on the horizon" of every night frame): the sky term
+        // THE GROUND AT NIGHT (G464 - landed as G461, the "white bar on the horizon" of every night frame): the sky term
         // of the ground's light read MS at max(0, muS) - a sun eleven degrees under the horizon lit the
         // ground as if it stood ON the horizon, 200x the night sky above it (the table read back: 0.52
         // against 2.2e-3 a row higher). The multiple-scattering table takes the sun's true cosine (the

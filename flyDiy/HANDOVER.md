@@ -53268,7 +53268,8 @@ BIOME were green again (BIOME's 6.4 us was contention: 2.4 quiet).
 - SEEN: scratch a7_caps_sheet.png (the Cessna with the centre removed and a square tip: the port
   root face from the centreline and from above, the tip face from outboard and from above).
 - GATES: CLIP, PARTS, JOIN, UISMOKE, VIEW, MEDIA, LIGHT, BAY, BEACON, STRUT, CAGEFIT, SKIN green.
-## G461 — THE "SEA'S MOON GLINT" WAS THE SKY TABLE'S GROUND, LIT BY A SUN UNDER THE HORIZON
+## G464 — THE "SEA'S MOON GLINT" WAS THE SKY TABLE'S GROUND, LIT BY A SUN UNDER THE HORIZON
+## (landed as G461 in dcbea507 / 6038dbb6, before the C172 session's G461; renumbered here, G465)
 ## (2026-09-21, the user: "do the sea's moon glint too, then commit and land")
 
 - THE FINDING, by bisection at night from the approach eye (tools/cloud_shot.js, --at none,
@@ -53659,7 +53660,7 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   physics, the 582 row's static thrust (1168 vs ~1500 N on the 68 in IVO).
 
 ## G462 — THE WORLD SWITCHBOARD RE-RUNS THE DAY (2026-09-21, the user: "do the applyWorldLights fix
-## too, then commit and land"; G461's owed)
+## too, then commit and land"; G464's owed)
 
 - render_world.js applyWorldLights: it re-asserted the alps row's DAYTIME constants (sun = RIG.sun x
   LIGHT_UNIT, hemi likewise) before the mutes went over the top - the ordering the shed taught (a
@@ -53667,7 +53668,7 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   physical sky the sun and the hemisphere are the day's (SKY_LIGHT.applyDay inside dayApply), so a
   world-light pill pressed at night on the NIGHT flyout set a noon sun and the ground flooded
   yellow until the sun had moved 0.02 deg and dayApply ran again (every night frame of the
-  bisection in G461 that pressed a pill). Now the day is applied again first (dayVer / dayEl /
+  bisection in G464 that pressed a pill). Now the day is applied again first (dayVer / dayEl /
   dayAz reset, dayApply - which also re-runs the runway lights and the lamps), then the mutes.
   Without a day (the bench) the constants stand as before.
 - SEEN: screenshots/clouds-2026-09-20/ui/world_switch_night.png - the threshold at night, the
@@ -53675,9 +53676,10 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   day's level in every frame.
 - GATES: LIGHT holds it (applyWorldLights runs the day before worldSwitch.apply); WORLDRENDER /
   ATMO / CLOUD green; the battery at the landing.
-- NOTE: HANDOVER carries two G461 headings - mine (the sky table's ground) and the C172 session's
-  (the neutral point), which landed on top of it with the same number. Left as they are; the
-  commits are distinct (dcbea507 / 2e40f653).
+- NOTE: HANDOVER carried two G461 headings - mine (the sky table's ground) and the C172 session's
+  (the neutral point), which landed on top of it with the same number; G465 renumbered mine to
+  G464 (the C172's keeps G461 - its number is in a dozen code comments). The commits are
+  distinct (dcbea507 / 2e40f653).
 
 ## G463 — THE PLAYTEST TRIAGE'S STATUS, END OF DAY TWO (2026-09-21, the user: "check all active
 ## sessions, T2 has started in another session, make a full status on the playtest report")
@@ -53689,5 +53691,16 @@ that writes it is H7; (3) DEPTH IS ANALYTIC off the coast and lake fields - no d
   pilot); B1/B3/B4 done, B2 the impostor-first ladder owed; C1's library done, the techniques
   inventory never written (it is D1's first step); T1.1 done, T1.2/T1.3 owed; T2.1 in design
   in its own session (the FRAME chantier), T2.2/T2.3/S2/W/G open.
-- Numbering: HANDOVER holds two `## G461` headings (the glint, then the neutral point) — left as
-  they are; G462 (the cloud session's) landed while this was written. Doc only, no built commit. Doc only, no built commit.
+- Numbering: HANDOVER held two `## G461` headings (the glint, then the neutral point); resolved
+  in G465 - the glint entry is G464 now, the neutral point keeps G461. Doc only, no built commit.
+
+## G465 — TWO G461 HEADINGS, ONE NUMBER EACH (2026-09-21, the user: "fix the two G461 headings in
+## HANDOVER too, then commit and land")
+
+- The queue collided: the cloud session's sky-table ground fix (dcbea507, built 6038dbb6) and the
+  C172 session's neutral point (2e40f653, built c3d052c3) both landed as G461, an hour apart.
+  The C172's keeps G461 - its number stands in a dozen code comments (30_solver, 60_gen_spec,
+  61_gen_frame, 62_gen_aero) and in its own commits. The glint entry is G464 now, its heading
+  saying so (landed as G461), and its two source comments (atmo.js, _atmo_check.js) with it; the
+  G462 entry's references and the G463 status line follow. Commit messages are history and stay.
+- Doc + two comments, no behaviour; the built outputs carry the comments.

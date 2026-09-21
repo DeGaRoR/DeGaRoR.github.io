@@ -118,7 +118,7 @@ console.log('5. the sources');
 {
   const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'atmo.js'), 'utf8');
   yes(/#include <tonemapping_fragment>/.test(src) && /#include <colorspace_fragment>/.test(src), 'the dome is tone-mapped and encoded by three\'s own chunks');
-  // G461: THE GROUND AT NIGHT. The GLSL ground term read the multiple-scattering table at max(0, muS): a sun
+  // G464 (landed as G461): THE GROUND AT NIGHT. The GLSL ground term read the multiple-scattering table at max(0, muS): a sun
   // under the horizon lit the ground half of the sky-view table as if it stood on the horizon (0.52 against
   // 2.2e-3 one row up) - the white bar on every night horizon where the sea plane ended. MS takes the
   // sun's true cosine, as the path loop does; only the direct term keeps the clamp.
