@@ -1084,6 +1084,23 @@ function buildDetail(group,mats){
       const c=1+(r+1)*NA+(j+1)%NA, e=1+(r+1)*NA+j;
       idx.push(a,b,c,a,c,e);
     }
+    /* FACING OUT (A7, 2026-09-21, the user of Screenshot 2026-09-17 192338:
+       "the top trap bay is not the cowl's colour"). The fan and the rings
+       above wind the disc so its normals point INTO the cowl - measured on
+       the pusher's aft cowl: the door's normal (0.09, -1, 0) under a skin
+       whose normal is (0, 1, 0) - so a DoubleSide skin drew it lit from the
+       inside, a dark grey plate in the middle of the red. The winding is
+       set from the surface's own normal at the centre, whichever way the
+       parameters were walked. */
+    {
+      const nC=cowlNormalAt(Math.PI/2,zc);
+      // the first fan triangle is (centre, ring vertex 1, ring vertex 0):
+      // its normal is (v1 - c) x (v0 - c)
+      const a=[pos[6]-pos[0],pos[7]-pos[1],pos[8]-pos[2]], b=[pos[3]-pos[0],pos[4]-pos[1],pos[5]-pos[2]];
+      const fx=a[1]*b[2]-a[2]*b[1], fy=a[2]*b[0]-a[0]*b[2], fz=a[0]*b[1]-a[1]*b[0];
+      if(fx*nC[0]+fy*nC[1]+fz*nC[2]<0)
+        for(let i=0;i<idx.length;i+=3){ const t=idx[i+1]; idx[i+1]=idx[i+2]; idx[i+2]=t; }
+    }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
     g.setIndex(idx); g.computeVertexNormals();

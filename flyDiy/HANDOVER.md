@@ -51242,3 +51242,61 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   the panel arc; the data payload is still 118 KB of 400).
 - OWED: the runway lights on the island's premises strips judged from the air (the analytic
   field was the bench here); the four far-end dots; the lamp pool above.
+
+## G444 — A7 OF THE PLAYTEST TRIAGE, FIRST PASS: THE AIRFRAME'S DRAWING BUGS (2026-09-21, the user:
+## "the top trap bay is not the cowl's colour, is pixelated and does not bend to the cowl"; "the
+## inspection traps at the doors are pixelated"; "the fairings' faulty edges front/back"; "the
+## twin-boom tips are low-poly"; "the in-game livery mapping remains different than in garage";
+## "switching back from floats to tricycle ... the aft bulkhead is not drawn anymore")
+
+- THE TRAP ON THE COWL WAS TWO DOORS. GEN_ACCESS's `oilDoor` (on: cowl, az 122, a flat doorHinged
+  plate in the fittings' trim colour on the tangent plane, with a piano hinge of stacked leaves) was
+  drawn BESIDE the cowl's own oil door (G213: a disc let into the loft, in the cowl's skin, with its
+  gap and latch): the grey rectangle with the white "pixelated" cross on the pusher's aft cowl
+  (Screenshot 2026-09-17 192338). The access row is skipped whenever the cowl layer is drawn - one
+  door, the cowl's. AND THAT ONE WAS DARK: the disc's fan and rings wound its normals INTO the cowl
+  (measured on the pusher: (0.09, -1, 0) under a skin normal of (0, 1, 0)), so DoubleSide drew it
+  lit from inside - a dark grey plate whatever the cowl's colour. The winding is set from the
+  surface's own normal at the centre now: red on the red cowl, bent to it, with its gap and latch
+  (scratch shots_a7_door/cowl_zoom2.png).
+- A DOOR HANGS ON BUTT HINGES (_hinge_gen.js buttHinge, _cage_hinge.js): a door's short piano
+  runs (G310) came out as two knuckle pitches over a 0.10 m run, every leaf its own square, one
+  forward and one aft, stacked - the blocky cross the user read as pixelated (Screenshot 2026-09-18
+  191558). A butt hinge is two whole rectangular leaves the length of the run on a barrel of a few
+  knuckles; both leaves on the fuselage (the door is shut). GATE HINGE green (its `door` checks
+  read the edges, not the leaves).
+- THE SPAT'S BEAD RUNS WHERE THE OPENING IS (_gear_gen.js spat): ahead of and behind the tyre the
+  section shrinks under the cut line, the ring closes (aMax = pi), and BOTH edge polylines went on
+  to the tips along the keel, one over the other - two 6 mm beads swept down the closed nose and
+  tail, a ridge with a pinch where they parted at the opening's ends (Screenshots 192550/192612).
+  The edges stop at the last open station. GATE GEAR green (37 134 triangles measured).
+- THE TWIN-BOOM TIPS (_boom_gen.js fairStations, _cage_wing.js): eight even stations over the
+  ogive were 75 mm facets; sixteen now, sine-spaced so half of them sit in the tip's last third,
+  the round cap's dome at eight steps instead of five, and the ring at 40 segments instead of 28
+  (Screenshot 201534). GATE PARTS' closed/outward manifold check over every cap combination green.
+- THE LIVERY MAPPING, MEASURED AND NOT DIFFERENT (item 91). Rig a7_livery.js reads the projector
+  frame (uCraftInv) and the decal block off the live materials in the shed and on the strip: on
+  cessna (2), cessnaMetal (1) and build (4) the same physical points (the crew eye, the skin's
+  extents, six probe vertices with their aStruct field x uFieldM) land within 6-26 mm in craft
+  space, the decal uniforms are identical (uDecA/B/C/D/E and the atlas page's pixels, sampled) and
+  the pictures match band for band (scratch shots_a7_nd/cmp_runs.png; the first "difference" I saw
+  was a metallic upper flank reflecting the tree line). ONE REAL NUMBER: on the taildragger build
+  (4) the crew eye reads z 0.281 in the shed and 0.369 on the strip - a 9 cm vertical offset
+  between the two craft frames (1.4 cm on the Cessnas) that a side-projected stripe would show;
+  not chased. A parked aeroplane's capture (parked.js) also paints the shared atlas pages and
+  restores the block, not the pages - the editor's next decal apply repaints, so no defect found.
+- THE AFT BULKHEAD ON cessnaMetal (1) IS DRAWN (item 125): headless cageSheet gives 52 bulkhead
+  faces as saved, with paxWinN 0, with s1On/s2On 0, with gearFloats 1 and in the floats build's
+  state; unreproduced from the spec - the pilot's hands after a floats -> tricycle switch not
+  looked at (A7b).
+- FLIGHT_PROBE gets `camera` (a rig that projects a mesh onto the screen).
+- OWED (A7a): the nose cone's jiggle (15), the wing normals and grazing-angle map settings (23,
+  32 - anisotropy is already 8 on every skin map; the rivet stretch on the centre section (149)
+  and the fin's mapping (151) are FIELD questions, projection over topology), a proper winglet
+  (41), the nose's extra subdivision seen from inside (73 - the `front rings` row goes to 5; the
+  loft's ring pitch does not follow the subdivision level), the cowl gap under deformation (92,
+  needs a flight repro), the rod boom's inclination moving the tailwheel (130, A1's G199 finding).
+  A7b (20, 25, 34, 47, 52, 87, 123, 129, 131) untouched.
+- GATES: HINGE, FIT, COWL, PARTS, JOIN, FLEX, GEAR, CLIP green; UISMOKE, SKIN, VIEW, DESIGN, MEDIA
+  re-proved at landing. Rigs: scratch a7_livery.js (frames, blocks, atlas column, field probes),
+  a7_doorm.js (the door disc's normal), a7_spat.js / a7_hinge.js (a mesh projected to the screen).

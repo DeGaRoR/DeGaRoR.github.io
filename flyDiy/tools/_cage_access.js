@@ -534,6 +534,14 @@ PAGE.post = ctx => {
     // aeroplane quietly missing its wing filler cap is the acceptance test
     // failing quietly, and quietly is how this gap survived two chantiers
     if (!FG.FIT_SURFACES[row.on]) { unplaced.push(row); continue; }
+    // THE COWL DRAWS ITS OWN OIL DOOR (G213: a disc let into the loft, in the
+    // cowl's skin, with its gap and latch). This table's `oilDoor` was a
+    // SECOND door beside it - a flat plate on the tangent plane at az 122,
+    // in the fittings' trim colour, with a piano hinge of stacked leaves
+    // (A7, 2026-09-21, the user of Screenshot 2026-09-17 192338: "the top
+    // trap bay is not the cowl's colour, is pixelated and does not bend to
+    // the cowl"). One door: the cowl's, whenever the cowl layer is drawn.
+    if (row.key === 'oilDoor' && Math.round(P.cowlOn === undefined ? 1 : P.cowlOn)) continue;
     const form = FG.FORMS[row.form];
     if (!form) { unplaced.push(row); continue; }
 

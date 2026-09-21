@@ -51,7 +51,12 @@ function fairStations(f, ref) {
   const cap = capOf(f.cap);
   const out = [];
   if (L <= 1e-4) { out.push({ d: 0, s: 1, close: true }); return out; }
-  const N = 8;
+  // SIXTEEN STATIONS, CROWDED TOWARD THE TIP (A7, 2026-09-21, the user of
+  // Screenshot 2026-09-17 201534: "the twin-boom tips are low-poly"). Eight
+  // even stations over a 0.6 m ogive were 75 mm bands, each a visible facet
+  // under a raking light; an ogive's curvature is all at its tip, so the
+  // stations follow a sine - half of them in the last third of the run.
+  const N = 16;
   const sEnd = cap === 'point' ? 0 : cap === 'flat' ? 0.40 : 0.55;
   // the taper runs until the scale reaches sEnd (a point runs the whole way)
   let tEnd = 1;
@@ -62,7 +67,7 @@ function fairStations(f, ref) {
     tEnd = hi;
   }
   for (let i = 0; i <= N; i++) {
-    const t = tEnd * i / N;
+    const t = tEnd * Math.sin(0.5 * Math.PI * i / N);
     out.push({ d: L * t, s: Math.max(0, fairScale(t, k)) });
   }
   if (cap === 'point') { out[out.length - 1].s = 0; out[out.length - 1].close = true; }
@@ -72,7 +77,7 @@ function fairStations(f, ref) {
     // half-size (reference `ref`, the section's mean half-extent) times sEnd
     const dome = Math.max(0.01, ref * sEnd);
     const d0 = out[out.length - 1].d, s0 = out[out.length - 1].s;
-    const M = 5;
+    const M = 8;                        // A7: the dome at the same pitch as the taper
     for (let j = 1; j <= M; j++) {
       const q = j / M;
       out.push({ d: d0 + dome * Math.sin(0.5 * Math.PI * q), s: s0 * Math.cos(0.5 * Math.PI * q) });

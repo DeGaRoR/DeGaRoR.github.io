@@ -242,6 +242,53 @@ function pianoHinge(bF, bM, F, S, len) {
 }
 
 // ---------------------------------------------------------------------------
+// THE BUTT HINGE — a door's (A7, 2026-09-21, the user: "the door inspection
+// traps are pixelated", of Screenshot 2026-09-18 191558). A door hung on the
+// piano drawing above came out as a stack of alternating square leaves -
+// two knuckle pitches over a 0.10 m run, each leaf its own plate, one
+// forward and one aft, and the pair read as a blocky cross on the flank. A
+// butt hinge is two RECTANGULAR leaves the whole length of the run, one on
+// the frame and one on the door, meeting at a barrel of a few knuckles on
+// one pin: the same read as a real door hinge at any distance. Both leaves
+// lie on the fuselage skin (the door is shut; the moving bag is the caller's
+// choice), following the MEASURED skin where the layer offers it.
+// ---------------------------------------------------------------------------
+function buttHinge(bF, bM, F, S, len) {
+  const r = S.r, t = S.t * 1.6;
+  const lie = r + t * 0.5 + 0.0008;
+  const nk = Math.max(3, Math.round(len / 0.028)) | 1;   // odd: the fixed side gets the ends
+  const pitch = len / nk;
+  for (let i = 0; i < nk; i++) {
+    const zc = -len * 0.5 + pitch * (i + 0.5);
+    revolve((i % 2) === 0 ? bF : bM, at(F, 0, 0, zc - pitch * 0.46), F.z,
+      [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.92],
+       [S.pinR * 1.02, pitch * 0.92]], 8, false);
+  }
+  for (const dir of [-1, 1]) {
+    const bag = dir < 0 ? bF : bM;
+    const hAt = (a, fb) => {
+      if (!S.skin) return fb;
+      let h = null;
+      for (const dz of [-len * 0.4, 0, len * 0.4]) {
+        const q = S.skin(a, dz, dir);
+        if (q != null && (h == null || q > h)) h = q;
+      }
+      return h == null ? fb : h + t * 0.5 + 0.0008;
+    };
+    const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
+    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
+    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
+    if (S.skin) for (const f of [0.25, 0.5, 0.75]) {
+      const a = a1 + (a2 - a1) * f;
+      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
+    }
+    path.push(at(F, a2, h2, 0));
+    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
+  }
+  tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
+}
+
+// ---------------------------------------------------------------------------
 // THE CONTROL HORN — the lever the pushrod or the cable pulls on. One lug:
 // the eye out in the air, the tang running back to the surface's skin, the
 // plate standing in the section's own plane. Turns with the surface, always.
@@ -411,7 +458,7 @@ function fairlead(bag, p, n, u, S) {
   return g.mouth;
 }
 
-const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge,
+const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge, buttHinge,
               controlHorn, linkRod, bellcrank, hingeFair, fairlead, fairleadMouth,
               fowlerTrack, fowlerCarriage,
               HINGE_BAGS: ['metal', 'fair'] };

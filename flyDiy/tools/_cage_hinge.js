@@ -721,14 +721,17 @@ PAGE.post = ctx => {
       for (let f = 0; f < faces; f++) {
         const F = frameOn(p, axL, s.aft, f ? V.mul(faceL, -1) : faceL);
         Fcur = F;
-        if (fam === 'piano')
-          // a surface's piano runs join into one continuous knuckle; a
-          // DOOR's edge is a curve, so its runs are short butt hinges on
+        if (s.kind === 'door' && HG.buttHinge)
+          // a DOOR's edge is a curve, so its runs are short BUTT hinges on
           // the local tangent (G310: a 0.5 m straight run on the flank's
-          // curve sat 22 mm inside it at its ends)
+          // curve sat 22 mm inside it at its ends) - two whole leaves and a
+          // barrel, not the piano's alternating squares (A7: "pixelated")
+          HG.buttHinge(bagsF.metal, bm.metal, F, S,
+                       Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length)));
+        else if (fam === 'piano')
+          // a surface's piano runs join into one continuous knuckle
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
-                        s.kind === 'door' ? Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length))
-                                          : span * (1 - 2 * inset) / Math.max(1, ts.length));
+                        span * (1 - 2 * inset) / Math.max(1, ts.length));
         else HG.strapHinge(bagsF.metal, bm.metal, F, S);
       }
     }

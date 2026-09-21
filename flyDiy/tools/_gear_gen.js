@@ -442,10 +442,20 @@ function spat(bags, hub, axis, R, o) {
       row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
     }
     rows.push(row);
-    const pE = an2 => add(hub, add(mul(fwd, z),
-      add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
-    edges[0].push(pE(-aMax));
-    edges[1].push(pE(aMax));
+    // THE BEAD RUNS WHERE THE OPENING IS (A7, 2026-09-21, the user of
+    // Screenshots 2026-09-17 192550/192612: "the fairings' faulty edges,
+    // front and back"). Ahead of and behind the tyre the section shrinks
+    // under the cut line, aMax reaches pi and the ring closes - and both
+    // edge polylines went on to the tips ALONG THE KEEL, one on top of the
+    // other: two 6 mm beads swept down the closed nose and tail, a ridge
+    // with a pinch where they parted at the opening's ends. The edges stop
+    // at the last open station; the closed run-out is plain shell.
+    if (aMax < Math.PI - 1e-3) {
+      const pE = an2 => add(hub, add(mul(fwd, z),
+        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
+      edges[0].push(pE(-aMax));
+      edges[1].push(pE(aMax));
+    }
   }
   // the (fwd, up, ax) frame flips handedness with the wheel side, which
   // turned one fairing of the pair inside out
@@ -467,7 +477,7 @@ function spat(bags, hub, axis, R, o) {
   }
   // the rolled edge bead down both sides of the opening
   for (const e of edges)
-    sweep(bag, resample(e, 24), () => secRound(R * 0.030, 7), true);
+    if (e.length >= 2) sweep(bag, resample(e, 24), () => secRound(R * 0.030, 7), true);
 }
 
 // ---- AN AIRFRAME FROM A MESH ---------------------------------------------

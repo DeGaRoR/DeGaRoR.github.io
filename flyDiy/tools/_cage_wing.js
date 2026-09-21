@@ -1859,7 +1859,7 @@ PAGE.post = ctx => {
                   collar: +P.boomCollar || 0,
                   nose: { len: +P.boomNoseLen || 0, k: +P.boomNoseK || 0, cap: Math.round(+P.boomNoseCap || 0) },
                   tail: { len: +P.boomTailLen || 0, k: +P.boomTailK || 0, cap: Math.round(+P.boomTailCap || 0) },
-                  seg: 28 };
+                  seg: 40 };   // A7: 28 read as a polygon on the tips (Screenshot 2026-09-17 201534)
       const mm = BG.boomMesh(o);
       boomGroup = new THREE.Group();
       boomGroup.name = 'cageLayer:boom';
