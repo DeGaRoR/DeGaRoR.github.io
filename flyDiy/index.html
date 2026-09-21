@@ -36715,7 +36715,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='91da42588910';window.FLYDIY_BUILD='21be61e5515a'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='91da42588910';window.FLYDIY_BUILD='8467caa26a75'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -101612,7 +101612,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // everything that can be seen by the eye ... don't hide terrain geometry in
   // a flight game"): there is no fog wall to hide behind. 9 km first, measured;
   // the horizon is the next step once the far chunks are coarser.
-  const NEAR_R = 270, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
+  // IMPOSTOR-FIRST (2026-09-21, the user: "full model really, really close, contact level, say 10 m,
+  // lod 1 say 20 or 30 m - in flight they should barely trigger - and the impostors for all the
+  // rest"): the near edge is 30 m now (270 since W0c); GFX 'forest detail' = far brings 60/270 back
+  const NEAR_R = 30, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // THE RING THINS WITH DISTANCE, IT DOES NOT POP (LOADING S3, G420). The
   // fill's far chunks used to be a different, quarter-density set and a
@@ -101636,7 +101639,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // today, then straight to billboard"): L1 (stick + full foliage) runs
   // from 60 m to the impostor at 270; the half-foliage rung stays in the
   // payload and the dial (L1 to < L2 to) brings it back.
-  const LOD_U = [{ value: 60 }, { value: 270 }], U0 = { value: 0 };
+  const LOD_U = [{ value: 10 }, { value: 30 }], U0 = { value: 0 };   // impostor-first (2026-09-21): L0 to 10 m, L1 to 30 m; was 60 / 270
   // THE TRANSITION WINDOW (W0c.13): over uFadeW metres about every edge BOTH
   // rungs are drawn, each through a screen-door dither with complementary
   // thresholds from the same noise, so every pixel is covered exactly once
@@ -104909,6 +104912,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
           biomes: () => BIO,
           cover: () => coverRing,
+          // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
+          // code and its name, the derived code (cliff / old forest / dense scrub by slope and
+          // canopy, at the split's midpoint here - no draw), the mix it names, the canopy, the
+          // NDVI, the slope
+          at: (x, z) => {
+            if (!ISLC || !ISLC.ttype || !BIO) return null;
+            const tt = ttypeAt(x, z); if (tt < 0) return null;
+            const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+            const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
+            const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
+            const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
+            return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixAt(code), canopy, slopeDeg,
+                     ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
+          },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
@@ -124017,8 +124034,8 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
         { v: 128, label: 'dense', why: 'a tree every 8 m' },
         { v: 160, label: 'very dense', why: 'a tree every 6.4 m' } ] },
     { k: 'bands', label: 'forest detail', steps: [
-        { v: 'near', label: 'near', why: 'real trees to 270 m, pictures of trees beyond - the bench’s bands' },
-        { v: 'far',  label: 'far', why: 'real trees to 450 m; the frame is 1.3-2x dearer in a dense stand' } ] },
+        { v: 'near', label: 'impostors', why: 'the full tree to 10 m, its light rung to 30 m, pictures of trees beyond - in flight nearly every tree is a picture (2 triangles), which is what buys the density' },
+        { v: 'far',  label: 'real trees', why: 'real trees to 270 m (the bands before 2026-09-21); the frame is 1.3-2x dearer in a dense stand' } ] },
     { k: 'shadows', label: 'shadows', steps: [
         { v: 'off',   label: 'off', why: 'no shadow at all' },
         { v: 'near',  label: 'near', why: 'a 1024 map around the aeroplane' },
@@ -124104,7 +124121,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   ];
   const TONE = { aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping', neutral: 'NeutralToneMapping',
                  reinhard: 'ReinhardToneMapping', cineon: 'CineonToneMapping', linear: 'LinearToneMapping' };
-  const BANDS = { near: [60, 270, 270], far: [150, 450, 450] };   // W0c.32: L1 to the impostor, no L2
+  const BANDS = { near: [10, 30, 30], far: [60, 270, 270] };   // 2026-09-21 impostor-first: L0 to 10 m, L1 to 30 m, pictures beyond; 'far' is W0c.32's near (L1 to 270)
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 
@@ -124113,8 +124130,8 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
     low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple' },
     medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
+    high:   { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
+    ultra:  { aa: 'full', density: 160, bands: 'near', shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -135383,6 +135400,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
+    if (flyOpen === 'ground') flGroundLive(o);
     // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
     // "we need a framerate indicator, optional") - a half-second window of frames
     if (flyOpen === 'graphics') {
@@ -135682,6 +135700,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
     // over the flight scene: the sim paused, the host's camera, every edit recomposed live. A
     // developer's tool designed to become the player's (ISLAND-ADMIRALTY §9). A map pin glyph.
+    // 2026-09-21 (L6, BIOMES-IN-GAME-2026-09-20.md): THE GROUND - what is under you, live: the
+    // terrain type and the biome it names, the canopy, the slope, the cover ring's count. The
+    // in-game readout of the biomes, not a dial (F8 has the dials). A tuft glyph.
+    { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy',
+      icon: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8' },
     { k: 'world', label: 'world', title: 'The premises of the world: roads, zones, strips, sites',
       icon: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z' },
   ];
@@ -136114,6 +136137,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           o => { if (o.value === '!none') GE.setWorldLights(() => false); else if (o.value === '!all') GE.setWorldLights(() => true); else GE.setWorldLight(o.value, !GE.worldLightOn(o.value)); });
       }
     },
+    // L6: THE GROUND - live rows, filled by flGroundLive on the tick
+    ground(body) {
+      const TF = window.TREE_FILL;
+      if (!TF || !TF.at || !TF.onIsland || !TF.onIsland()) { flNote(body, 'No island under this world: the analytic ground has no terrain types.'); return; }
+      flLive(body, 'ground', 'flGndCode');
+      flLive(body, 'biome', 'flGndMix');
+      flLive(body, 'canopy', 'flGndCanopy');
+      flLive(body, 'vigour', 'flGndNdvi');
+      flLive(body, 'slope', 'flGndSlope');
+      flLive(body, 'height', 'flGndAgl');
+      flLive(body, 'cover', 'flGndRing');
+      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. F8 > trees > biomes holds the dials.');
+      flGroundLive(sim ? sim.out : null);
+    },
     clouds(body) {
       if (!window.CLOUDS_UI) { flNote(body, 'This build has no cloud panel.'); return; }
       window.CLOUDS_UI.mount(body, {
@@ -136516,6 +136553,27 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     cv.width = cv.height = mapBig ? 1024 : 344;
     $('mmp').classList.toggle('big', mapBig);
     drawMap();
+  }
+  // L6: the GROUND flyout's rows, every tick while it is open (a half-second cadence: the
+  // fields are cheap, the DOM is not)
+  const flGnd = { t: 0 };
+  function flGroundLive(o) {
+    const el = $('flGndCode'); if (!el || !sim) return;
+    const now = performance.now(); if (now - flGnd.t < 500) return; flGnd.t = now;
+    const TF = window.TREE_FILL, cg = sim.cgPos();
+    const g = TF && TF.at ? TF.at(cg[0], cg[2]) : null;
+    if (!g) { el.textContent = 'sea / off the map'; for (const id of ['flGndMix', 'flGndCanopy', 'flGndNdvi', 'flGndSlope']) { const e = $(id); if (e) e.textContent = '\u2014'; } }
+    else {
+      el.textContent = g.name + (g.code !== g.tt ? ' (from ' + (TF.biomes().names[g.tt] || g.tt) + ')' : '') + ' \u00b7 code ' + g.code;
+      $('flGndMix').textContent = g.mix ? g.mix + ' mix' : 'none planted';
+      $('flGndCanopy').textContent = g.canopy > 0.2 ? g.canopy.toFixed(1) + ' m' : 'open';
+      $('flGndNdvi').textContent = g.ndvi === null ? '\u2014' : (g.ndvi > 0.5 ? 'lush' : g.ndvi > 0.3 ? 'green' : g.ndvi > 0.1 ? 'thin' : 'bare') + ' (NDVI ' + g.ndvi.toFixed(2) + ')';
+      $('flGndSlope').textContent = g.slopeDeg.toFixed(0) + '\u00b0';
+    }
+    const agl = cg[1] - groundH(cg[0], cg[2]);
+    $('flGndAgl').textContent = agl.toFixed(0) + ' m AGL \u00b7 ' + groundH(cg[0], cg[2]).toFixed(0) + ' m ground';
+    const c = TF && TF.cover && TF.cover(), st = c && c.stat();
+    $('flGndRing').textContent = st ? (st.instances ? (st.instances / 1000).toFixed(0) + ' k tufts in ' + st.live + ' cells' : (agl > 150 ? 'above the ring (150 m)' : 'none here')) : 'no cover ring';
   }
   function flAirLive(o) {
     const w = $('flAirWind');
