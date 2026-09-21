@@ -177,19 +177,38 @@ check(/bakeHangarEnv\(\)/.test(setLightBody(app)),
       'baked into the environment and the switch is a lie');
 
 // 4c. THE AEROPLANE DOES NOT FLY OUT REFLECTING THE SHED. Every mood scales
-// its envMapIntensity for the room's probe (AFTERNOON runs x2.2) and nothing
+// the room's environment for its probe (AFTERNOON runs x2.2) and nothing
 // used to put it back. Measured after rolling out: 2.20 against an authored
 // 1.0, pointed at a completely different environment. That is "washed out".
+// SINCE W0.5a (r186) THE NUMBER IS THE SCENE'S: scene.environmentIntensity
+// overrides envMapIntensity on every material without its own envMap, so the
+// aeroSetEnv(WORLD_ENV) that stood at the door reached nothing for a week
+// (found by the post-FX study, 2026-09-21). The door writes the scene's number.
 {
   const roll = app.slice(app.indexOf('function rollOut'),
-                         app.indexOf('function rollOut') + 2200);
-  check(/aeroSetEnv\(\s*WORLD_ENV\s*\)/.test(roll),
-        'rollOut no longer resets the aeroplane\'s envMapIntensity for the world');
+                         app.indexOf('function rollOut') + 3400);
+  check(/scene\.environmentIntensity\s*=\s*WORLD_ENV/.test(roll),
+        'rollOut no longer writes the world scene\'s environmentIntensity (WORLD_ENV) at the door');
   const we = /const\s+WORLD_ENV\s*=\s*([\d.]+)/.exec(app);
   check(!!we && +we[1] > 0 && +we[1] <= 1,
         'WORLD_ENV is missing or not a fraction — the world counts the sky ' +
         'twice for Standard materials (hemisphere AND probe), so it is not 1');
 }
+
+// 4e. THE SHED'S LEVEL IS WRITTEN TO ITS SCENE, AND THE MUTE ZEROES IT. The
+// per-material loops in setMood reach only the outdoor list (own envMap);
+// everything else in the room reads the scene's number, so setMood must end
+// by writing it - from the mood's factor, or 0 under the env mute.
+{
+  const sm = shed.slice(shed.indexOf('setMood = '), shed.indexOf('setMood = ') + 9000);
+  check(/environmentIntensity\s*=\s*muted\.env\s*\?\s*0\s*:\s*m\.env\s*\/\s*0\.55/.test(sm),
+        'hangar.js setMood no longer writes the scene\'s environmentIntensity (mood factor, 0 under the mute)');
+}
+// 4f. NO CALL THAT CANNOT REACH A SCENE-LIT MATERIAL. aeroSetEnv, propSetEnv
+// and CAGE_ENERGY.setEnv scale materials without an envMap of their own,
+// which r186 ignores: a call to them from the shed's mood is a false fact.
+check(!/aeroSetEnv\(|propSetEnv\(|CAGE_ENERGY\.setEnv\(/.test(shed.replace(/^\s*\/\/.*$/gm, '')),
+      'hangar.js still calls aeroSetEnv / propSetEnv / CAGE_ENERGY.setEnv - inert under r186, the room\'s level is scene.environmentIntensity');
 
 // 4d. THE WORLD'S RIG IS DECLARED ONCE. render_world used to build the same
 // hemi+sun pair twice: once for the world, once for the tree-impostor bake,
@@ -394,10 +413,13 @@ if (process.argv.includes('--selftest')) {
       s => s.replace(/if \(k !== 'env'\) bakeHangarEnv\(\);/, ''),
       s => !/bakeHangarEnv\(\)/.test(setLightBody(s))],
     ['craft flies out with the shed\'s env', app,
-      s => s.replace(/aeroSetEnv\(WORLD_ENV\)/, 'void 0'),
+      s => s.replace(/scene\.environmentIntensity = WORLD_ENV;(\s*syncEnvBtn)/, 'void 0;$1'),
       s => { const r = s.slice(s.indexOf('function rollOut'),
-                               s.indexOf('function rollOut') + 2200);
-             return !/aeroSetEnv\(\s*WORLD_ENV\s*\)/.test(r); }],
+                               s.indexOf('function rollOut') + 3400);
+             return !/scene\.environmentIntensity\s*=\s*WORLD_ENV/.test(r); }],
+    ['shed mood forgets the scene\'s number', shed,
+      s => s.replace(/if \(sc\) sc\.environmentIntensity = muted\.env \? 0 : m\.env \/ 0\.55;/, ''),
+      s => !/environmentIntensity\s*=\s*muted\.env/.test(s)],
     ['impostor bake grows its own hemisphere', world,
       s => s.replace('      sc.add(hemiLight());',
                      '      sc.add(new THREE.HemisphereLight(C(0xbcd8f0), C(0x6a5a3c), 0.50));'),

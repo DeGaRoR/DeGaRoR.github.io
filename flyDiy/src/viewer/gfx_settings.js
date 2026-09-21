@@ -65,6 +65,32 @@
         { v: 'off',  label: 'off', why: 'a clear sky whatever the day' },
         { v: 'half', label: 'half', why: 'the layer marched at half resolution (the cost of a few ms)' },
         { v: 'full', label: 'full', why: 'every pixel marched - for screenshots and the strongest cards' } ] },
+    // THE POST PASSES (POST-FX study, 2026-09-21; src/viewer/post_fx.js): six switches, every
+    // one OFF in every preset - the user's ruling: "ensure we can perfectly operate as of today
+    // when turning the post fx off". Each is a pass over the resolved frame, in display space,
+    // after the resolve; the cost of each is the F8 panel's readout and tools/frame_perf.js's.
+    { k: 'bloom', label: 'bloom', steps: [
+        { v: 'off',    label: 'off', why: 'no glow - the frame as resolved' },
+        { v: 'soft',   label: 'soft', why: 'the brightest pixels (the sun, lamps, highlights) bleed a little - a five-level pyramid, about a millisecond' },
+        { v: 'strong', label: 'strong', why: 'a wider, stronger glow from a lower threshold' } ] },
+    { k: 'look', label: 'look', steps: [
+        { v: 'off',    label: 'off', why: 'the tone curve alone' },
+        { v: 'punchy', label: 'punchy', why: 'a little more contrast and saturation' },
+        { v: 'soft',   label: 'soft', why: 'lifted blacks, a gentler contrast' },
+        { v: 'faded',  label: 'faded', why: 'lifted blacks, muted colour, a warm cast - a print' } ] },
+    { k: 'lens', label: 'lens', steps: [
+        { v: 'off',                  label: 'off', why: 'no vignette, no colour fringe' },
+        { v: 'vignette',             label: 'vignette', why: 'the corners darkened' },
+        { v: 'vignette+aberration',  label: 'vignette + fringe', why: 'the corners darkened and a small chromatic fringe toward the edge' } ] },
+    { k: 'rays', label: 'sun rays', steps: [
+        { v: 'off', label: 'off', why: 'no shafts' },
+        { v: 'on',  label: 'on', why: 'light shafts from the sun through the frame, hidden where the wing or the hills hide the sun - half resolution' } ] },
+    { k: 'ao', label: 'ambient occlusion', steps: [
+        { v: 'off', label: 'off', why: 'none' },
+        { v: 'on',  label: 'on', why: 'creases and contacts darkened from the depth (half resolution, a few ms) - drawn over the finished picture, so it darkens lit surfaces too' } ] },
+    { k: 'eye', label: 'auto exposure', steps: [
+        { v: 'off', label: 'off', why: 'the day’s exposure schedule alone' },
+        { v: 'on',  label: 'on', why: 'the exposure follows the frame’s brightness, within a stop and a half of the schedule' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -97,10 +123,10 @@
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off' },
-    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half' },
-    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half' },
-    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
+    high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
+    ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -110,9 +136,12 @@
   // ---- the state ----------------------------------------------------------
   const S = Object.assign({ preset: 'medium' }, PRESETS.medium);
   let expBase = null;                        // the exposure the writers last declared
-  // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step on the renderer. A
+  let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
+  // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
   // writer that has no menu (the headless stubs) sets the property itself.
-  const setExposure = (R, v) => { expBase = v; if (R) R.toneMappingExposure = v * (S.exposure || 1); return expBase; };
+  const setExposure = (R, v) => { expBase = v; if (R) R.toneMappingExposure = v * (S.exposure || 1) * eyeK; return expBase; };
+  // the eye writes its factor here and nowhere else: the schedule keeps declaring the base
+  const setEye = k => { eyeK = Math.max(0.25, Math.min(4, +k || 1)); const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK; return eyeK; };
   const load = () => {
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
@@ -165,8 +194,11 @@
     // out at x1.4^n, the user's "lighting went crazy")
     if (R && applied.exposure !== S.exposure) {
       if (expBase == null) expBase = R.toneMappingExposure;
-      R.toneMappingExposure = expBase * S.exposure; applied.exposure = S.exposure;
+      R.toneMappingExposure = expBase * S.exposure * eyeK; applied.exposure = S.exposure;
     }
+    // the post passes (post_fx.js): each row handed over; with every row off the module
+    // installs nothing (its hook is null, no target asked for) - the frame of today
+    if (W.POST_FX && W.POST_FX.set) for (const k of W.POST_FX.KEYS) if (applied[k] !== S[k]) { W.POST_FX.set(k, S[k]); applied[k] = S[k]; }
     // an island boots in the alps rig - the one the trees were judged in - whatever
     // the preset says (the user, 2026-09-14: "boot that on the alps HDR for now")
     // (the loader's ISLAND_BOOT, not FLIGHT_PROBE: onWorld() runs before the probe exists)
@@ -267,12 +299,13 @@
     OPTIONS, PRESETS, BANDS, SHADOWS,
     get: () => Object.assign({}, S),
     set, apply, mount, presetOf, frameText,
-    setExposure, exposureBase: () => expBase,
+    setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
-                      glare: 'live', mist: 'live', clouds: 'live', anything: 'no restart' }),
+                      glare: 'live', mist: 'live', clouds: 'live',
+                      bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live', anything: 'no restart' }),
   };
 })();

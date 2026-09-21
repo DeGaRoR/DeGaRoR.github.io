@@ -51691,3 +51691,116 @@ The builds named there live in ~/Downloads; the birdman is now tools/fixtures/bu
   (G439's door): a hook on window.FLYDIY_RENDERER.render sees every call (r186's render is an own
   property, so the prototype sees none).
 - UISMOKE BOOT PANEL green.
+
+## G448 / G448.1 — THE POST-FX STUDY (2026-09-21, the user: "where do we stand regarding post FX?
+## Like bloom, colour grading (on top of the managed colour profile), etc. ... what we have, what we
+## can have, and the associated performance costs. Also study the differences in rendering/lighting
+## conditions between the shed and the world, there shouldn't be any ultimately. And anything new
+## and fancy, recent, in our recent three.js packages, or in some github repo, or in the literature";
+## then: "all the effects should have on/off switches in the graphics menu. Let's not take too much
+## risk here, and ensure we can perfectly operate as of today when turning the post fx off")
+
+The study: futureDesigns/POST-FX-2026-09-21.md (the state, the cost table, three ways in, the thirteen
+shed/world differences, r183-r186 / the ecosystem / the literature, the recommendation and two starter
+prompts). Findings that matter beyond it:
+
+- THERE WAS NO POST-PROCESSING, BY RULE, AND THE RULE STANDS. The resolve target is DISPLAY-SPACE
+  (isXRRenderTarget + sRGB texture: every material tone-maps and encodes on the way in, the blend unit
+  composites in display space - the +68-code table in aa_resolve.js), and the resolve owns no colour
+  (GATE AA). So there is no linear HDR radiance after the scene pass; a "real" bloom / SSR / AO on the
+  ambient term is a two-pass split (opaque HDR -> post -> tone map -> transparents on top; the AP splice
+  moves; the 22 toneMapped:false sites carried) - two sessions, named P2 in the study, not taken. r186's
+  own outputBufferType + setEffects chain (WebGLOutput.js) is that split written by three, with 4x MSAA,
+  no supersample, no dither and toneMapped:false ignored; named so nobody re-discovers it.
+- G448: SIX SWITCHABLE PASSES, EVERY ONE OFF IN EVERY PRESET (src/viewer/post_fx.js over the resolve
+  pass's POST hook, unused since G436.7). bloom (display-space threshold + the CoD:AW 13/9-tap pyramid,
+  1/2..1/32, additive), look (lift/gain/contrast/saturation, three presets, a 32^3 LUT slot left in the
+  shader), lens (vignette + a 3-tap chromatic fringe, folded into the look pass), rays (a far-plane
+  luminance mask round the sun -> 32-tap radial blur x2 -> additive, dimmed by the flare's occlusion and
+  CLOUDS.sunT), ao (a GTAO-shaped horizon search off the LOG depth - 4 slices x 2 dirs x 8 steps, normals
+  from the depth's neighbours, IGN rotation, a 5-tap depth-aware blur x2, a MULTIPLY masked to the far
+  plane; applied to the tone-mapped picture, so it darkens lit paint too - said so on the row), eye (a
+  16x16 mean read back with readRenderTargetPixelsAsync, a bounded loop on the display mean, +/-1.5
+  stops round the schedule, tau 0.6 s up / 1.6 s down, written as a THIRD factor in GFX.setExposure -
+  base x step x eye - so light_rig's schedule and the shed's lamp cap keep their authority).
+  OFF IS OFF: the module installs aa.setPost(render) only while a row is on and setPost(null) otherwise;
+  the target's ask is keyed in app.js (aa.needRT(on, key) - 'clouds' for gfx_settings/dev_panel's
+  unkeyed calls, 'post' for the passes - the OR of the keys is what the pass hears, so neither takes the
+  other's target away); nothing draws into the resolve target (G425's second-resolve trap); every
+  material toneMapped:false; aa_resolve.js untouched. Proved on the GPU with tools/postfx_shot.js
+  --diff: the clock frozen, dither 0, clouds off - two consecutive 'off' frames differ by 107 pixels
+  (the aeroplane's idling parts, one box), off -> bloom+ao -> off by 131 in the same box. GATE POSTFX
+  (tools/test_postfx.js, in the battery): every row off in every preset, the hostile-stub run counts
+  the hook and target calls, no draw into the target, no colour math, one needRT keeper, the build
+  order. F8's frame fold reads the passes' GPU timers and the eye's factor.
+  TRAPS: a backtick in a comment inside a template-literal shader is a syntax error the page swallows
+  (POST_FX undefined, every shot 'null'); GTAO's slice frame - ortho = cross(V, axis), not cross(axis, V),
+  or every flat plane reads fully occluded (the first AO shot was a black apron); a display-space bloom's
+  threshold sits on the tone curve, so `strong` (0.66) blooms a bright sky itself - a limit of the kind,
+  not a bug; GFX.set() in the shed re-applies the whole menu including the AA tier (the garage boots at
+  the aa_resolve pref, not the menu's - pre-existing, now visible when a row is flipped in the shed).
+- G448.1: THE ROOM'S LEVEL IS THE SCENE'S NUMBER - A REGRESSION SINCE W0.5a, VERIFIED IN THE r186
+  SOURCE. WebGLRenderer.setProgram writes the envMapIntensity uniform from scene.environmentIntensity
+  (default 1) for every Standard/Lambert/Phong material without an envMap of its own; WebGLMaterials
+  uploads material.envMapIntensity only when material.envMap is set. Nothing wrote the scene's number,
+  so aeroSetEnv(WORLD_ENV), the moods' aeroSetEnv(m.env/0.55), propSetEnv, CAGE_ENERGY.setEnv, the ENV0
+  loop for the room's materials and the shed's env mute were all no-ops for a week: every room at 1.0,
+  the G94 double-counted sky back on the wing under the island's doubled hemisphere (SKY-CHANTIER:40
+  had found it and handed it to Session D; D landed the probe, not the number). Now hangar.js setMood
+  ends with hangarScene.environmentIntensity = muted.env ? 0 : m.env / 0.55 and drops the three inert
+  factory calls (the ENV0 loop stays: the OUTDOOR list carries the sky probe as its own envMap and is
+  still read per material); app.js writes scene.environmentIntensity = WORLD_ENV at creation and at the
+  door. GATE LIGHT 4c re-aimed, 4e (the shed writes its scene), 4f (no inert call), self-test probes;
+  GATE SKINMAT's ban keeps its why re-worded. The A/B (screenshots/postfx-2026-09-21/ibl-shed,
+  ibl-world; A = the scene forced to 1 after the mood, B = the fix, same boot/eye/hour): shed afternoon
+  crop mean 46 -> 62 (x2.2 - the factor authored at G62.5, and every shed judgement since S5/G412/G439
+  was made at 1.0, so THIS IS THE FIX'S BIGGEST VISIBLE CHANGE and the user's eye rules it; the other
+  anchor is m.env / 1.21), dusk 77 -> 73, night 81 -> 76, the env mute 46 -> 32 (it did nothing before);
+  world fuselage saturation 0.49 -> 0.53 afternoon / 0.57 -> 0.61 golden with luminance -10 %, the water
+  -3 % (G94's direction). The 0.5 now reaches everything Standard in the world (water, leaves, impostor
+  gain, premises, parked builds, the cabin - all tuned at 1.0); the constants live in ONE place each.
+  Owed F1: the shed floor's 1.7 / glass 1.4 / canopy 1.4 x refl bases are lost under a scene number (the
+  canopy refl dial was already dead).
+- THE SHED AND THE WORLD, THIRTEEN DIFFERENCES (the study §3): the physics ones are the sun's UNIT (1 in
+  hangar.js:3238, pi in render_world.js:334 - the sun on the aeroplane is 1.65 stops stronger outside at
+  the same hour; r128's physicallyCorrectLights was true in the room and false in the world, W0.5a froze
+  the gap as LIGHT_UNIT, roomGain is 1 in both callers), the sky's radiance (K_SUN vs K_SUN x pi - the
+  shed's sky, door view and both probes pi darker), the hemisphere (none vs K_HEMI x pi x 2.0 on top of
+  the probe), the shed's Fog(40,120), and G448.1's. The proposal - ONE LIGHT CONTRACT - is the study's
+  L1 starter prompt; the r184 LightProbeGrid (WebGL, L2 SH in a 3D texture) is the shed's ambient volume
+  and the terrain's, and the RULING OWED at render_world.js:124 is where it starts.
+- tools/frame_perf.js (D1's instrument): every renderer.render() call under an EXT_disjoint_timer_query
+  TIME_ELAPSED query, tagged by the target (scene / resolve / atmo:sky / atmo:ap / clouds:march /
+  clouds:shadow / shadow:far / shadow:cover / probe / flare), three's shadow pass in a second sub-run
+  (queries cannot nest), the raw frame beside the queried one, places stand / forest (tree_perf's
+  densest) / sea / --garage, --probes for named configurations, --compare. THE TRAP: THE GPU IS SHARED.
+  Five sessions were on the box, two headless rigs at 100 % with --disable-gpu-vsync; a TIME_ELAPSED
+  query is wall time on the GPU's timeline and another context's work lands inside it - the same stand
+  read 86 / 241 / 350 / 418 ms in four runs. A number taken while nvidia-smi says 100 % is not a number:
+  every row records the utilisation before it, --quiet waits for < 15 %. Two D1 findings in the way:
+  headless, the roll-out screen's parallel compile idles out (the overlay stays ~62 s; tree_perf.js
+  sleeps 8 s after the roll-out and since LOADING S3 has been measuring under holdRender - frame_perf
+  waits for BOOT.state), and the island's far terrain at the stand is 16 Lambert meshes of 0.2-2.2 M
+  triangles (12 M in the scene, 14.5 M in the frustum, 4-7 k draw calls).
+- THE NUMBERS (G448.5, tools/perf/frame_perf.json + frame_perf_fx.json): no quiet window came in 25
+  minutes of waiting (the box never under 33 %), so the tables are UPPER BOUNDS taken at 48-100 %
+  foreign load, kept for their structure - the scene pass is 97-99 % of every frame (stand 64 ms
+  msaa / 79 full / 36 off; forest 75 / 94 / 55; sea 73 / 143 / 42 under load), three's shadow pass
+  1-12 ms and called ~5x a frame (each render() with shadow lights re-runs it - a D2 item), the
+  resolve blit 0.03-0.12, the ATMO tables 0.05, the far cascade and cover ~0. The post passes by
+  their own timers at msaa: bloom 0.09 ms (10 draws), look 0.02, ao 0.33-0.6 (2.4-3.4 at 100 %
+  foreign load), eye 0.002, rays 0.65 (one contended reading), all together 0.4-0.7 ms. Under heavy
+  foreign load the queries come back DISJOINT and are dropped (two rows carry no post tag). The
+  quiet run is one command away: node tools/frame_perf.js --quiet --places stand,forest,sea --tiers
+  full,msaa,off; then --garage; then --probes for the rows. Also: frame_perf's per-tier loop sets
+  the tier AFTER the probe, so a probe that sets 'aa' is overridden (the two tieroff rows in the fx
+  JSON are msaa rows).
+- G448.3: the index.html budget 7.4 -> 7.5 MiB (_media_check.js, the reason beside the number):
+  post_fx.js is 28 KB of code, the rebuilt page measured 7.40 MiB in the worktree.
+- The full battery at HEAD of this branch: POSTFX, AA, GFX, LIGHT, HANGAR, SKINMAT, WORLDRENDER, PROPS,
+  UISMOKE, BUILD, MEDIA green (74 PASS); red and RED AT THE PRE-SESSION HEAD 4f69c24c IN THIS WORKTREE
+  TOO (verified in a throwaway worktree): WINGSPLIT, ENGINE, PREMISES, WORLD, AERO ("POSITIONS moved",
+  "a control surface hinge moved" - a fixture or a bench asset this worktree does not carry), ENERGY
+  (the 'lag' rule, since G397). None of them read post_fx.js, gfx_settings.js, hangar.js's setMood or
+  app.js's WORLD_ENV.
+- Gates: AA, POSTFX, UISMOKE, BUILD, LIGHT, HANGAR, SKINMAT, WORLDRENDER, PROPS green. Landed as G448 on master at G447 / G446.1.; the built page is the landing session's (LF worktree).

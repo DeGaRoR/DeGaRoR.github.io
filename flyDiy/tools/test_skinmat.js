@@ -285,7 +285,7 @@ const BANNED = [
   ['encodings_fragment', /encodings_fragment/, 'r153+: colorspace_fragment'],
   ['geometryNormal before the lights', /geometryNormal/, 'r155+: nonPerturbedNormal (geometryNormal is declared from `normal` in lights_fragment_begin)'],
   ['environmentIntensity', /environmentIntensity/,
-   'the scene has one since r163, but each material carries envMapIntensity and that is the one the moods scale'],
+   'the ROOM owns scene.environmentIntensity (hangar.js setMood, app.js WORLD_ENV, since 2026-09-21); the factory has no scene and must not grow one'],
 ];
 for (const [nm, re, why] of BANNED)
   check(!re.test(CODE), `aeroskin.js uses ${nm}`, why);

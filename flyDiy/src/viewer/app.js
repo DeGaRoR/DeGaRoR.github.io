@@ -173,6 +173,15 @@
     : (typeof window !== 'undefined' && window.AA_RESOLVE)
       ? window.AA_RESOLVE.make(THREE, renderer) : null;
   if (typeof window !== 'undefined') window.FLYDIY_AA = aa;
+  // ONE KEEPER FOR THE TARGET'S ASK (POST-FX, 2026-09-21): two things may want the resolve
+  // target and its depth even at tier `off` - the clouds (gfx_settings.js, dev_panel.js call
+  // needRT(bool), the 'clouds' key) and the post passes ('post'). The pass's needRT is a
+  // single flag, so it is keyed here and the OR of the keys is what it hears; a key that
+  // lets go does not take the other's target away.
+  if (aa && aa.needRT) {
+    const needRT0 = aa.needRT, wants = {};
+    aa.needRT = (on, key) => { wants[key || 'clouds'] = !!on; needRT0(Object.keys(wants).some(k => wants[k])); };
+  }
   // THE CLOUDS (CLOUDS C1): the volumetric layer draws over the scene inside the resolve pass, before
   // the resolve, reading its depth; the world only (the shed sees the dome; the layer in it is C3's)
   if (typeof CLOUDS !== 'undefined' && aa && aa.setOverlay) {
@@ -182,6 +191,11 @@
     aa.setPre((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
+  // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
+  // menu, every one off by default; the hook is installed only while a row is on, so the
+  // frame with them off is the frame without this block (GATE POSTFX). GFX.apply() hands the
+  // rows over once the menu's saved state is read.
+  if (typeof POST_FX !== 'undefined' && aa && aa.setPost) POST_FX.init(THREE, renderer, aa);
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
   // above. src/viewer/input.js publishes only its API at eval; this is the
   // one instance, and the two rails and input_panel.js read it through
@@ -536,6 +550,7 @@
   // Lambert world has, and halving that would darken the terrain to fix the
   // aeroplane. This touches exactly the materials that were counted twice.
   const WORLD_ENV = 0.5;
+  scene.environmentIntensity = WORLD_ENV;   // the world scene's number from the start (it renders before any roll-out)
 
 
   // THE STUDIO IS GONE (user, 2026-08-30: "retire it").
@@ -5725,7 +5740,15 @@
     //
     // The world's probe is baked at its own level, so the aeroplane wants its
     // AUTHORED response out here: 1.0, the factory's own env0.
-    if (typeof aeroSetEnv === 'function') aeroSetEnv(WORLD_ENV);
+    //
+    // r186 (W0.5a -> 2026-09-21): the number is the SCENE'S. scene.environmentIntensity
+    // overrides envMapIntensity on every material without its own envMap, so the
+    // aeroSetEnv(WORLD_ENV) that stood here reached nothing for a week (the wing flew at
+    // 1.0 - the two skies of G94 back). The world scene's number is set once where WORLD_ENV
+    // is declared and re-asserted here at the door (GATE LIGHT 4c); the shed never writes
+    // this scene, and it reaches everything Standard out there (the water, the leaves, the
+    // premises, the cabin) - the study's A/B says whether 0.5 is their number too.
+    scene.environmentIntensity = WORLD_ENV;
     syncEnvBtn();
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';

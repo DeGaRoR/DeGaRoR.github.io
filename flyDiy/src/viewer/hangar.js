@@ -9,8 +9,9 @@
 // marked at its site:
 //   - texture colour space is an ENCODING in r128, not a `colorSpace`
 //   - MeshPhysicalMaterial has no `thickness` before r132
-//   - there is no `scene.environmentIntensity`; the moods scale each material's
-//     own `envMapIntensity` instead, which is the r128 equivalent
+//   - r128 had no `scene.environmentIntensity`; the moods scaled each material's
+//     own `envMapIntensity` instead. r186 (W0.5a) reads the scene's number for
+//     every material without its own envMap, so setMood writes that (2026-09-21)
 // NOT copied: the session sets `PCFShadowMap` because PCFSoftShadowMap is
 // deprecated in r184. That is not true in r128, where soft PCF is strictly
 // better, so the viewer's own shadow settings are left alone.
@@ -3041,10 +3042,12 @@ ROOT.add(shafts);
 // in that picture actually is rather than at the brightest clipped pixel of
 // its bloom.
 //
-// `env` was `scene.environmentIntensity`, which r128 does not have — so each
-// material's own envMapIntensity is scaled from the value it was authored
-// with. Authored values are captured once, here, because scaling a scaled
-// value compounds every time the mood changes.
+// `env` is `scene.environmentIntensity` since W0.5a (r186; written at the foot
+// of setMood) - r128 had none, so each material's own envMapIntensity was
+// scaled from the value it was authored with. That scaling survives here for
+// the OUTDOOR materials only (the ones with an envMap of their own, which
+// r186 still reads per material). Authored values are captured once, here,
+// because scaling a scaled value compounds every time the mood changes.
 const ENV0 = new Map();
 for (const k in M) if (M[k] && M[k].envMapIntensity !== undefined)
   ENV0.set(M[k], M[k].envMapIntensity);
@@ -3061,8 +3064,8 @@ for (const k in M) if (M[k] && M[k].envMapIntensity !== undefined)
 //
 // `env` is the odd one and the interesting one: it is not a light, it is
 // scene.environment, and muting it is how you find out how much of the room is
-// the PMREM rather than the lamps. It works by zeroing every material's own
-// envMapIntensity, the same lever the moods use.
+// the PMREM rather than the lamps. It works by zeroing the scene's
+// environmentIntensity (setMood's last line) and the outdoor list's own.
 // THE SWEEP (G65). M.bulb and M.skyPanel are marked seen because they are
 // driven by the mood and handled by name below; everything else self-lit that
 // nobody claimed lands in `glow`, and `glow` only becomes a switch if the
@@ -3151,9 +3154,7 @@ function applyMutes(m) {
   // ...and every registered emitter, whichever source owns it
   for (const e of EMIT) if (muted[e.key]) e.mat.emissiveIntensity = 0;
   if (muted.env) {
-    for (const [mat] of ENV0) mat.envMapIntensity = 0;
-    if (typeof propSetEnv === 'function') propSetEnv(0);
-    if (typeof aeroSetEnv === 'function') aeroSetEnv(0);
+    for (const [mat] of ENV0) mat.envMapIntensity = 0;   // the outdoor list (own envMap); the room's number is zeroed by setMood
   }
   shafts.visible = !muted.shafts && (m ? m.shaft > 0 : true);
   // VISIBILITY IS SET BOTH WAYS, unlike an intensity. setMood re-asserts every
@@ -3298,28 +3299,13 @@ const setMood = i => {
   // and reasserted here only so a mood change cannot leave it muted-then-lit.
   if (STOVE.light) STOVE.light.intensity = STOVE.cd0;
   // the environment is baked in ONE sky, so it has to be scaled with
-  // everything else or the room stays lit by a sun that has gone
+  // everything else or the room stays lit by a sun that has gone. THIS LOOP
+  // REACHES ONLY THE OUTDOOR LIST since W0.5a (r186): a material's own
+  // envMapIntensity is uploaded only when it carries its own envMap (the
+  // apron, strip, grass and tufts carry the sky probe); every other Standard
+  // material in the room - the walls, the floor, the props, the aeroplane, the
+  // tanks - takes the SCENE'S number, written at the foot of this function.
   for (const [mat, e0] of ENV0) mat.envMapIntensity = e0 * (m.env / 0.55);
-  // the props are materials too, and they were built after ENV0 was
-  // captured — propSetEnv scales the ones already built AND the ones
-  // the editor builds later, from the factory's own record
-  if (typeof propSetEnv === 'function') propSetEnv(m.env / 0.55);
-  // AND SO IS THE AEROPLANE (G67). It never was: app.js set envMapIntensity
-  // once when the material was built and nothing touched it again, so under
-  // GOLDEN or NIGHT the room dimmed around a machine still reflecting a
-  // midday probe. Same shape as the props — the factory keeps each
-  // material's own env0 and scales from it, so materials built later by the
-  // editor arrive already correct.
-  if (typeof aeroSetEnv === 'function') aeroSetEnv(m.env / 0.55);
-  // ...and so are the TANKS AND PACKS (2026-09-04). They are the third family
-  // of materials in the room with a factory of their own — the energy layer's
-  // — and they arrived at envMapIntensity 1.0 against everything else's 2.2,
-  // which on a bare-alloy tank is a dull grey box beside a bright aeroplane.
-  // Same contract as the two above: the factory keeps each material's env0 and
-  // stamps new ones with the current factor, so this only has to say when the
-  // factor moves.
-  if (window.CAGE_ENERGY && window.CAGE_ENERGY.setEnv)
-    window.CAGE_ENERGY.setEnv(m.env / 0.55);
   BG.setHex(m.bg); FOG.color.setHex(m.bg);
   M.daylight.color.setHex(m.card);
   M.skyPanel.emissiveIntensity = m.panel;
@@ -3335,6 +3321,18 @@ const setMood = i => {
   shaftMat.opacity = m.shaft;
   // LAST, so a mood change cannot turn a muted source back on
   applyMutes(m);
+  // THE LEVEL IS THE SCENE'S NUMBER (POST-FX study, 2026-09-21). Under r186
+  // `scene.environmentIntensity` overrides `envMapIntensity` on every
+  // material without an envMap of its own (WebGLRenderer.setProgram;
+  // WebGLMaterials uploads the material's number only when material.envMap is
+  // set), so from W0.5a to this line the per-material scaling above - and the
+  // props', the aeroplane's, the tanks' factories - reached nothing: every
+  // mood ran the room at 1.0, and the env mute did not mute. The number lives
+  // here, once, at the mood's own factor; the mute zeroes it. ROOT's parent
+  // is the garage scene once app.js has hung the room in it; the build-time
+  // setMood(0) runs before that and app.js re-applies the mood after.
+  const sc = ROOT.parent;
+  if (sc) sc.environmentIntensity = muted.env ? 0 : m.env / 0.55;
   return m;
 };
 

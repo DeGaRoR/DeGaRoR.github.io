@@ -392,6 +392,15 @@
     F.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['off', 'off (4x MSAA)']],
       () => (W.FLYDIY_AA && W.FLYDIY_AA.tier) ? W.FLYDIY_AA.tier() : 'full', v => { if (W.FLYDIY_AA) W.FLYDIY_AA.setTier(v); }));
     F.appendChild(note('measured (tree_perf, densest stand, bands 60/132/270, NG 112): smooth ~24 ms, smoothest ~29; with geometry to 450 m: 32 / 38'));
+    { // the post passes' cost (post_fx.js): the GPU timer per pass, the eye's factor - the GRAPHICS menu switches them
+      const n = note('');
+      const R = { el: n, refresh: () => { const P = W.POST_FX; if (!P) { n.textContent = 'no post_fx module'; return; }
+        const on = P.KEYS.filter(k => P.S[k] !== 'off');
+        n.textContent = !on.length ? 'post fx: all off (no hook, no target)' : 'post fx: ' + on.map(k => k + ' ' + P.S[k] + (P.stats[k + 'Ms'] ? ' ' + P.stats[k + 'Ms'].toFixed(2) + ' ms' : '')).join(' · ')
+          + (P.S.eye !== 'off' ? ' · eye x' + P.stats.eyeK.toFixed(2) + ' (mean ' + P.stats.eyeLum.toFixed(2) + ')' : ''); } };
+      rows.push(R); live.push(R);
+      F.appendChild(n);
+    }
     const C = fold(root, 'camera', false);
     C.appendChild(slider('free cam speed', 1, 400, 1, () => W.DEV_CAM.speed, v => { W.DEV_CAM.speed = v; }, v => v + ' m/s'));
     C.appendChild(note('CAMERA → free: WASD/ZQSD, R/F up-down, Shift x5, drag to look'));

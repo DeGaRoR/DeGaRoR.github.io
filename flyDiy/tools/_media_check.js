@@ -82,6 +82,9 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //   7.55 -> 7.75 (G445.8, 2026-09-21): three STOCK DESIGNS on the shelf as whole
 //              builds (the user's 172, Cub and Jodel D.112, ~60 KB of joined spec each in
 //              tools/_cage_page5.js, 180 KB) - build data, not media; DATA_BUDGET_KB unchanged
+//   7.75 holds (G448 post-FX, 2026-09-21): post_fx.js (28 KB: six shaders and their passes,
+//              every one off by default) plus the six GRAPHICS rows (2 KB) - measured under
+//              the line on the LF build. No data: the passes own no texture, no LUT.
 const BUDGET_MIB = 7.75;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
