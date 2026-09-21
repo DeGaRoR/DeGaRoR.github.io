@@ -25714,6 +25714,11 @@ const GEN_OUTFIT = {
   panelKgM2: 6.0,
   cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6 },
   glassKgM2: 3.6,
+  // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
+  // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
+  // at the same gauge; tempered GLASS at 3 mm is 2.5 g/cc — 7.5 kg/m2, twice
+  // the acrylic, which is why light aeroplanes do not carry it
+  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5 },
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
   // heavier per kW because it is longer as well as fatter.
@@ -27109,6 +27114,13 @@ const GEN_DEFAULT = {
     // as always; 'none' is an open cockpit — no glass mass. The cage's
     // `glazeOn` row is the one writer (tools/_cage_join.js).
     glazing: 'glass',
+    // T2.2: WHAT the glazing is made of (one material for the whole aeroplane,
+    // the cage's `glazeMat` row), and the glazed AREA the join MEASURES off
+    // the built skin — windscreen, side windows, skylight, every drawn pane
+    // — in m2; null = not measured (a hand-written spec, a build with no
+    // join), and the ledger falls back to its cabin-box estimate
+    glazingMat: 'acrylic',
+    glazedM2: null,
     // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
     // seats are filled for the flight the shakedown and the gates measure. A
     // J-3-class aeroplane is flown solo; loading both seats is a different
@@ -28233,6 +28245,9 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
+  if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
+    ? genClamp(cb.glazedM2, 0, 40) : null;
   // G185: the wing clamp is a function of the PLANE (clampWing, above), run
   // on every entry of wings[] — a biplane's second plane keeps the same
   // envelope as the first.
@@ -32314,9 +32329,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
+    // T2.2: the MEASURED glazed area when the join gave one (every pane the
+    // skin carries, drawn windows included), the cabin-box estimate
+    // otherwise; the material's own areal density either way
+    const glassKg = (O.glassKgM2By && O.glassKgM2By[cb.glazingMat]) || O.glassKgM2;
     const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
-      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
-                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0));
+      : glassKg * (cb.glazedM2 > 0 ? cb.glazedM2
+                   : (2 * cb.halfW * cb.h * 0.55 +
+                      (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0)));
     // THE FURNISHING (PERF STUDY chantier 1): the lining, by the fit's tier
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
@@ -36720,7 +36740,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='2fff82d7bff0';window.FLYDIY_BUILD='cdaa6d43d2be'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ae4130c859d4';window.FLYDIY_BUILD='b86ee793943d'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -37063,7 +37083,7 @@ const CAGE_PARTS = [
   // options but pilot door"): one switch, the glass parts under it
   { key: 'glazing', name: 'Glazing', parent: 'cabin', layer: 'cage',
     when: P => P.glazeOn == null || +P.glazeOn, gate: 'glazeOn',
-    groups: [['glazing', ['glazeOn']]] },
+    groups: [['glazing', ['glazeOn', 'glazeMat']]] },
 
   { key: 'windscreen', name: 'windscreen', parent: 'glazing', layer: 'cage',
     sections: ['windshield'],
@@ -37077,6 +37097,25 @@ const CAGE_PARTS = [
                          'bubAt3', 'bubW3']],
       // (the screen base pair's bottom and width = the windscreen FRAME's)
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
+    ] },
+
+  // THE DRAWN WINDOWS (T2.2, 2026-09-22; G245's knife): three independent
+  // rows of windows cut anywhere on the shell — a part of the glazing, not of
+  // the passenger bay, since a row may sit on the taper or the boom. Its
+  // section is the panes themselves (`drawnPane`, the knife's material); the
+  // passenger bay keeps its BAND glass (`pasengerWindow`), which the knife
+  // turns back to skin the moment any row draws.
+  { key: 'drawnWin', name: 'drawn windows', parent: 'glazing', layer: 'cage',
+    sections: ['drawnPane', 'reveal'],           // the panes and the holes' walls
+    place: { count: 'paxWinN', at: 'anywhere on the shell, at their stations' },
+    groups: [
+      ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
+                 'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
+                 'paxWinR3', 'paxWinR4', 'paxWinDepth']],
+      ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
+                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth']],
+      ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
+                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth']],
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
@@ -37153,10 +37192,7 @@ const CAGE_PARTS = [
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
-      // G245: the drawn windows — the band's replacement, same group
-      ['drawn windows', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch',
-                         'paxWinY', 'paxWinW', 'paxWinH', 'paxWinR',
-                         'paxWinDepth']],
+      // (the drawn windows are their own part under Glazing since T2.2)
       ['doors', ['doorPax', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
     ] },
@@ -42117,6 +42153,9 @@ window.CAGE_PAGE = {
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
         ['bubble',    'bubble glass',   0, 1, 1],
+        // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
+        // and the ledger read it; the join carries it as cabin.glazingMat)
+        ['glazeMat',  'glazing material', 0, 2, 1, ['acrylic', 'polycarbonate', 'glass']],
         ['skylight',  'skylight',       0, 1, 1],
         ['skyExt',    'sky extent',     0, 5, 1,
          { when: P => +P.skylight }],
@@ -42417,6 +42456,79 @@ window.CAGE_PAGE = {
         ['paxIdle',   'idle motion',    0, 1, 0.05],
       ], 'open', { when: P => +P.crewOn && +P.paxCount > 0 }],
     ], 'open'],
+    // =====================================================================
+    // THE DRAWN WINDOWS (T2.2, 2026-09-22): three independent rows of windows
+    // knife-cut anywhere on the shell — the taper and the boom included —
+    // each a rounded QUAD by construction (width, top width x, top shift,
+    // four corner radii) or an oval, at absolute stations. Row 1 is the
+    // passenger bay's old drawn-windows keys; a window that overlaps an
+    // earlier one is refused (never cut) until it is moved.
+    // =====================================================================
+    ['4b · drawn windows', [
+      ['row 1', [
+        ['paxWinN',     'windows',         0, 4, 1],
+        ['paxWinShape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.paxWinN > 0 }],
+        ['paxWinZ',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
+        ['paxWinPitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.paxWinN > 1, dim: 'len' }],
+        ['paxWinY',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
+        ['paxWinW',     'width',           0.05, 1.5, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
+        ['paxWinH',     'height',          0.05, 1.0, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
+        ['paxWinTopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.paxWinN > 0 && !+P.paxWinShape }],
+        ['paxWinSkew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len' }],
+        ['paxWinR',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len' }],
+        ['paxWinR1',    'radius · fwd top',   -0.01, 0.45, 0.005,
+         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+        ['paxWinR2',    'radius · aft top',   -0.01, 0.45, 0.005,
+         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+        ['paxWinR3',    'radius · aft bottom', -0.01, 0.45, 0.005,
+         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+        ['paxWinR4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
+         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+        ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
+      ], 'open'],
+      ['row 2', [
+        ['win2N',     'windows',         0, 4, 1],
+        ['win2Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win2N > 0 }],
+        ['win2Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
+        ['win2Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win2N > 1, dim: 'len' }],
+        ['win2Y',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
+        ['win2W',     'width',           0.05, 1.5, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
+        ['win2H',     'height',          0.05, 1.0, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
+        ['win2TopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.win2N > 0 && !+P.win2Shape }],
+        ['win2Skew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len' }],
+        ['win2R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len' }],
+        ['win2R1',    'radius · fwd top',   -0.01, 0.45, 0.005,
+         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+        ['win2R2',    'radius · aft top',   -0.01, 0.45, 0.005,
+         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+        ['win2R3',    'radius · aft bottom', -0.01, 0.45, 0.005,
+         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+        ['win2R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
+         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+        ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
+      ], {}],
+      ['row 3', [
+        ['win3N',     'windows',         0, 4, 1],
+        ['win3Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win3N > 0 }],
+        ['win3Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
+        ['win3Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win3N > 1, dim: 'len' }],
+        ['win3Y',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
+        ['win3W',     'width',           0.05, 1.5, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
+        ['win3H',     'height',          0.05, 1.0, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
+        ['win3TopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.win3N > 0 && !+P.win3Shape }],
+        ['win3Skew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len' }],
+        ['win3R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len' }],
+        ['win3R1',    'radius · fwd top',   -0.01, 0.45, 0.005,
+         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+        ['win3R2',    'radius · aft top',   -0.01, 0.45, 0.005,
+         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+        ['win3R3',    'radius · aft bottom', -0.01, 0.45, 0.005,
+         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+        ['win3R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
+         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+        ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
+      ], {}],
+    ]],
     ['5 · passengers', [
       ['paxCount',  'pax bays',        0, 4, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
@@ -42427,25 +42539,7 @@ window.CAGE_PAGE = {
       // drawn in the side view and knife-cut into the skin (_knife_gen.js).
       // Stations are ABSOLUTE (user ruling) — a window stays where it was
       // drawn when the cabin moves.
-      ['paxWinN',   'drawn windows',   0, 4, 1,
-       { when: P => +P.paxCount > 0 }],
-      ['paxWinShape', 'shape',         0, 1, 1, ['rounded', 'oval'],
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0 }],
-      ['paxWinZ',   'first station',  -1.0, 2.5, 0.01,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0, dim: 'len' }],
-      ['paxWinPitch', 'pitch',         0.2, 1.5, 0.01,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 1, dim: 'len' }],
-      ['paxWinY',   'centre height',  -0.3, 1.0, 0.01,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0, dim: 'len' }],
-      ['paxWinW',   'width',           0.05, 1.2, 0.01,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0, dim: 'len' }],
-      ['paxWinH',   'height',          0.05, 0.9, 0.01,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0, dim: 'len' }],
-      ['paxWinR',   'corner radius',   0, 0.45, 0.005,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0 && !+P.paxWinShape,
-         dim: 'len' }],
-      ['paxWinDepth', 'reveal depth',  0, 0.03, 0.001,
-       { when: P => +P.paxCount > 0 && +P.paxWinN > 0, dim: 'len' }],
+      // (the drawn windows moved to '4b · drawn windows', T2.2)
       ['doorPax',   'pax doors',       0, 1, 1,
        { when: P => +P.paxCount > 0 }],
       ['doorSillPax','door sill',      0, 0.25, 0.002,
@@ -44733,6 +44827,15 @@ const lerpN = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
 // ---------------------------------------------------------------------------
 // OUTLINES — drawn in the side view, centred on (z, y), CONVEX, CCW in (u, v).
 // ---------------------------------------------------------------------------
+// a window with no corner rows set is the rectangle every build drew before
+// T2.2: topK 1, no skew, one radius on all four corners
+function knifeIsPlainRect(w) {
+  const topK = w.topK == null ? 1 : +w.topK;
+  if (Math.abs(topK - 1) > 1e-12 || Math.abs(+w.skew || 0) > 1e-12) return false;
+  if (!Array.isArray(w.rr) || w.rr.length !== 4) return true;
+  const r = +w.r || 0;
+  return w.rr.every(v => Math.abs((+v || 0) - r) < 1e-12);
+}
 function knifeOutline(w) {
   const step = w.step || 0.012;
   const W = Math.max(0.02, w.w), H = Math.max(0.02, w.h);
@@ -44745,7 +44848,9 @@ function knifeOutline(w) {
       const t = i / n * 2 * Math.PI;
       pts.push([w.z + a * Math.cos(t), w.y + b * Math.sin(t)]);
     }
-  } else {
+  } else if (knifeIsPlainRect(w)) {
+    // THE RECTANGLE, VERBATIM (every window drawn before T2.2): one radius
+    // on four right angles, the quarter arcs sampled as they always were
     const r = Math.max(0, Math.min(w.r || 0, W / 2, H / 2));
     const cx = [W/2 - r, -(W/2 - r), -(W/2 - r), W/2 - r];
     const cy = [H/2 - r, H/2 - r, -(H/2 - r), -(H/2 - r)];
@@ -44756,6 +44861,51 @@ function knifeOutline(w) {
       for (let i = 0; i <= n; i++) {
         const t = a0 + i / n * Math.PI / 2;
         pts.push([w.z + cx[c] + r * Math.cos(t), w.y + cy[c] + r * Math.sin(t)]);
+      }
+    }
+  } else {
+    // THE QUAD BY CONSTRUCTION (T2.2, the user: "a quad base with rounded
+    // corners, so triangles and odd shapes are reachable"): the bottom edge
+    // is the width, the top edge is topK x the width (0 = a triangle) shifted
+    // fore/aft by skew (a parallelogram, the Jodel's rear window), and each
+    // corner has its own radius, clamped to what its corner can take. Always
+    // convex — an intersection of four half-planes — which the knife needs.
+    const topK = Math.max(0, w.topK == null ? 1 : +w.topK);
+    const sk = +w.skew || 0;
+    const Wt = W * topK;
+    let corners, radii;
+    const rr = Array.isArray(w.rr) && w.rr.length === 4
+      ? w.rr.map(v => Math.max(0, +v || 0)) : [w.r, w.r, w.r, w.r].map(v => Math.max(0, +v || 0));
+    if (Wt < 1e-6) {                 // the triangle: one apex, its radius the larger of the top pair
+      corners = [[sk, H / 2], [-W / 2, -H / 2], [W / 2, -H / 2]];
+      radii = [Math.max(rr[0], rr[1]), rr[2], rr[3]];
+    } else {                         // CCW: top-fwd, top-aft, bottom-aft, bottom-fwd
+      corners = [[sk + Wt / 2, H / 2], [sk - Wt / 2, H / 2], [-W / 2, -H / 2], [W / 2, -H / 2]];
+      radii = rr;
+    }
+    const k = corners.length;
+    for (let i = 0; i < k; i++) {
+      const P = corners[i], A = corners[(i + k - 1) % k], B = corners[(i + 1) % k];
+      const la = Math.hypot(A[0] - P[0], A[1] - P[1]), lb = Math.hypot(B[0] - P[0], B[1] - P[1]);
+      const e1 = [(A[0] - P[0]) / la, (A[1] - P[1]) / la];
+      const e2 = [(B[0] - P[0]) / lb, (B[1] - P[1]) / lb];
+      const th = Math.acos(Math.max(-1, Math.min(1, e1[0] * e2[0] + e1[1] * e2[1])));
+      const tanH = Math.tan(th / 2);
+      const r = Math.min(radii[i], Math.min(la, lb) / 2 * tanH);
+      if (r < 1e-6 || th < 1e-6) { pts.push([w.z + P[0], w.y + P[1]]); continue; }
+      const d = r / tanH;
+      const T1 = [P[0] + e1[0] * d, P[1] + e1[1] * d];
+      const T2 = [P[0] + e2[0] * d, P[1] + e2[1] * d];
+      const bis = [e1[0] + e2[0], e1[1] + e2[1]], bl = Math.hypot(bis[0], bis[1]) || 1;
+      const C = [P[0] + bis[0] / bl * r / Math.sin(th / 2), P[1] + bis[1] / bl * r / Math.sin(th / 2)];
+      const a1 = Math.atan2(T1[1] - C[1], T1[0] - C[0]);
+      let da = Math.atan2(T2[1] - C[1], T2[0] - C[0]) - a1;
+      while (da <= 0) da += 2 * Math.PI;
+      while (da > 2 * Math.PI) da -= 2 * Math.PI;
+      const n = Math.max(3, Math.ceil(da * r / step));
+      for (let j = 0; j <= n; j++) {
+        const t = a1 + j / n * da;
+        pts.push([w.z + C[0] + r * Math.cos(t), w.y + C[1] + r * Math.sin(t)]);
       }
     }
   }
@@ -44912,7 +45062,7 @@ function knifeCut(m, win, opt) {
   // faces away); a face nearly edge-on to the projection is still cut if
   // it is convex in the side view, so a window can run up to the crown
   const nMin = opt.nMin != null ? opt.nMin : 0.03;
-  const paneMat = opt.paneMat || 'pasengerWindow';
+  const paneMat = opt.paneMat || 'drawnPane';
   const wallMat = opt.wallMat || 'reveal';
   const V = m.V.map(p => p.slice()), F = [];
   const A = m.A ? m.A.slice() : null;
@@ -45462,7 +45612,7 @@ if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 'use strict';
 (function () {
 
-const GLASS = new Set(['pilotWindow', 'pasengerWindow', 'windshield']);
+const GLASS = new Set(['pilotWindow', 'pasengerWindow', 'windshield', 'drawnPane']);
 const SKIN = new Set(['body', 'waistband', 'floorLoop', 'ceilingLoop',
                       'pillarWindow', 'pillarCabin', 'pillarPassenger',
                       'pillarFront', 'pillarTail', 'taper']);
@@ -50380,7 +50530,7 @@ function cageInterior(m, S) {
     // the monocoque shell depth takes skinT too (its doublers keep
     // shellT and start on the shell face wherever it sits)
     const t1 = I.skinT > 0 ? I.skinT : t0c * 0.35;
-    const GLM2 = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+    const GLM2 = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
@@ -50449,7 +50599,7 @@ function cageInterior(m, S) {
     const yW = S.waistY + 1e-3;
     const yB = S.bandY + 1e-3;
     const t0 = I.shellT || 0.035;
-    const GLM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+    const GLM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                          'skyWindows']);
     // METAL sections build like wood (user: based on the wooden
     // version) — same layout — with sheet-metal realizations for skin,
@@ -53447,6 +53597,31 @@ const CAGE_PARAMS = {
   paxWinN: 0, paxWinShape: 0, paxWinZ: 0.45, paxWinPitch: 0.75,
   paxWinY: 0.50, paxWinW: 0.52, paxWinH: 0.40, paxWinR: 0.08,
   paxWinDepth: 0.006,
+  // T2.2 (2026-09-22): THREE INDEPENDENT WINDOW ROWS, anywhere on the shell
+  // (the knife cuts any skin face — the taper and the boom included; the
+  // rows were only ever framed as the passenger bay's). Row 1 keeps the
+  // paxWin* keys above; rows 2 and 3 are win2*/win3*. Every row is THE QUAD
+  // BY CONSTRUCTION (the user's choice over four free corners): the bottom
+  // edge is the width, the top edge topK x the width (0 = a triangle),
+  // shifted fore/aft by skew (the parallelogram rear window), and each
+  // corner its own radius (null = the row's radius) — always convex, which
+  // the knife needs. Overlapping windows are REFUSED in cageSpec: the later
+  // one in row order is skipped and marked, its bead never crosses a hole.
+  paxWinTopK: 1, paxWinSkew: 0,
+  paxWinR1: -1, paxWinR2: -1, paxWinR3: -1, paxWinR4: -1,
+  win2N: 0, win2Shape: 0, win2Z: -0.6, win2Pitch: 0.75, win2Y: 0.40,
+  win2W: 0.40, win2H: 0.32, win2R: 0.06, win2Depth: 0.006,
+  win2TopK: 1, win2Skew: 0, win2R1: -1, win2R2: -1, win2R3: -1, win2R4: -1,
+  win3N: 0, win3Shape: 0, win3Z: 1.6, win3Pitch: 0.75, win3Y: 0.40,
+  win3W: 0.40, win3H: 0.32, win3R: 0.06, win3Depth: 0.006,
+  win3TopK: 1, win3Skew: 0, win3R1: -1, win3R2: -1, win3R3: -1, win3R4: -1,
+  // THE GLAZING MATERIAL (T2.2, remark 139): one choice for the whole
+  // aeroplane — 0 acrylic (3 mm, every light aeroplane's), 1 polycarbonate
+  // (the same weight, a warm cast and a scratch haze, the bush aeroplane's),
+  // 2 glass (tempered, twice the weight, the clearest). The join carries it
+  // to spec.cabin.glazingMat with the glazed area it measures; the look
+  // table (aeroskin GLASS_MATS) and the ledger (GEN_OUTFIT.glassKgM2) read it.
+  glazeMat: 0,
   // pillar crease defaults to MAX (user ruling): the pillar bands render
   // at their drawn width — width itself is adjusted via pillarW below,
   // never via the crease.
@@ -54190,15 +54365,62 @@ function cageSpec(P) {
   // is what the sweep's corner logic expects of a curved run
   S.windows = [];
   {
-    const n = Math.max(0, Math.min(4, Math.round(+P.paxWinN || 0)));
     const rim = +P.rimW > 0 ? +P.rimW : 0.012;
-    for (let i = 0; i < n; i++)
-      S.windows.push({ shape: +P.paxWinShape ? 'ellipse' : 'rect',
-                       z: +P.paxWinZ + i * +P.paxWinPitch, y: +P.paxWinY,
-                       w: +P.paxWinW, h: +P.paxWinH, r: +P.paxWinR,
-                       depth: Math.max(0, +P.paxWinDepth || 0),
-                       step: Math.max(0.006, rim * 1.1) });
+    // T2.2: three rows — row 1 on the paxWin* keys, rows 2-3 on win2*/win3*
+    for (const [row, pre] of [[1, 'paxWin'], [2, 'win2'], [3, 'win3']]) {
+      const n = Math.max(0, Math.min(4, Math.round(+P[pre + 'N'] || 0)));
+      if (!n) continue;
+      const r = Math.max(0, +P[pre + 'R'] || 0);
+      const rr = [1, 2, 3, 4].map(k => {
+        const v = P[pre + 'R' + k];
+        return v == null || !isFinite(+v) || +v < 0 ? r : +v;
+      });
+      const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
+      const skew = +P[pre + 'Skew'] || 0;
+      for (let i = 0; i < n; i++)
+        S.windows.push({ shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
+                         z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
+                         w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
+                         depth: Math.max(0, +P[pre + 'Depth'] || 0),
+                         step: Math.max(0.006, rim * 1.1) });
+    }
+    // THE REFUSAL (the design note: "the second outline crosses the first
+    // hole's reveal and the loops go open"): every pair of outlines is
+    // tested in the side view (convex, so a separating axis settles it),
+    // inflated by a bead's width so the joints never touch either; a
+    // window that meets an earlier one is kept in the list, marked, and
+    // never cut — the sheet stays watertight, the row can be moved
+    if (S.windows.length > 1) {
+      const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
+        : (typeof require === 'function' ? require('./_knife_gen.js') : null);
+      if (KG && KG.knifeOutline) {
+        const margin = rim * 2.2;
+        const polys = S.windows.map(w => KG.knifeOutline(w));
+        const sep = (A, B) => {
+          for (const Pl of [A, B])
+            for (let i = 0; i < Pl.length; i++) {
+              const p = Pl[i], q = Pl[(i + 1) % Pl.length];
+              const nx = q[1] - p[1], ny = p[0] - q[0];
+              const nl = Math.hypot(nx, ny); if (nl < 1e-12) continue;
+              let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+              for (const v of A) { const d = (v[0] * nx + v[1] * ny) / nl; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+              for (const v of B) { const d = (v[0] * nx + v[1] * ny) / nl; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+              if (a1 + margin < b0 || b1 + margin < a0) return true;
+            }
+          return false;
+        };
+        for (let i = 1; i < S.windows.length; i++)
+          for (let j = 0; j < i; j++) {
+            if (S.windows[j].refused) continue;
+            if (!sep(polys[i], polys[j])) {
+              S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
+              break;
+            }
+          }
+      }
+    }
   }
+  S.glazeMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat || 0)))];
   S.glaze = { sky: P.skylight == null || P.skylight ? 1 : 0,
               ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
               sillPilot: Math.max(0, P.winSillPilot || 0),
@@ -55200,9 +55422,12 @@ function cageSheet(P, opts) {
       // every pass after this carries them: the hole must not change how
       // the surface round it shades (see _knife_gen.js)
       s.N = KG.knifeNormals(s);
-      for (const w of spec.windows) for (const side of [1, -1])
-        s = KG.knifeCut(s, w, { side, depth: w.depth,
-                                paneMat: 'pasengerWindow', wallMat: 'reveal' });
+      for (const w of spec.windows) {
+        if (w.refused) continue;                    // T2.2: an overlapping window is never cut
+        for (const side of [1, -1])
+          s = KG.knifeCut(s, w, { side, depth: w.depth,
+                                  paneMat: 'drawnPane', wallMat: 'reveal' });
+      }
       // G316: the drawn panes explode as parts — one part per pane (the
       // knife's copies are per window, a pane's polygons share them and
       // share none with the skin or with another pane), grouped by the
@@ -88954,6 +89179,14 @@ function cageJoinSpec(P, M, T) {
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed
   if (P.glazeOn != null && !+P.glazeOn) cabin.glazing = 'none';
+  // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
+  // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
+  if (P.glazeMat != null)
+    cabin.glazingMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat)))];
+  {
+    const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;   // headless joins measure no sheet
+    if (UI && UI.glazedM2 > 0) cabin.glazedM2 = +UI.glazedM2.toFixed(3);
+  }
   // PERF STUDY chantier 2 (2026-09-15): THE CANOPY'S STYLE reaches the drag
   // build-up — a flat windscreen is a step in the flow, a blown hood a
   // faired one (genFusCdA). The tile's own reading (canopy 3 = bubble).
@@ -91452,6 +91685,7 @@ const SEC = {
   pilotWindow:     '#1b67cc',
   pillarCabin:     '#12cc10',
   pasengerWindow:  '#5ecc12',
+  drawnPane:       '#6ad81e',       // T2.2: the knife's panes, their own section
   pillarPassenger: '#2b28cc',
   pillarTail:      '#cc2b80',
   pillarFront:     '#8a5ecc',
@@ -91708,7 +91942,7 @@ const XRAY_A = 0.12;
 // their own: a cowl at 0.15 over a fuselage at 0.12 is two x-rays, and the
 // eye reads the difference as the cowl still being there.
 VIEW.xrayA = XRAY_A;
-const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                         'skyWindows']);
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
@@ -92173,14 +92407,17 @@ const matOf = name => {
                 // it had already built. The dials never reached the stand.
                 (A.AERO_GLASS.has(name)
                   ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
-                            GLASS.grime, GLASS.refl, GLASS.rainbow].join(',')
+                            GLASS.grime, GLASS.refl, GLASS.rainbow, P.glazeMat || 0].join(',')
                   : '');
     if (matCache[key]) return matCache[key];
     if (A.AERO_GLASS.has(name)) {
       // the VIEW alpha still wins when it is asking for less: `glass a` is a
       // way of LOOKING at the build and must be able to see through it
-      matCache[key] = A.aeroGlass(THREE, Object.assign({}, GLASS, {
-        tint: secTint[name] != null ? secTint[name] : GLASS.tint,
+      // T2.2: the glazing material's base numbers (aeroskin GLASS_MATS),
+      // the builder's dials and the pane's own tint well on top
+      const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass'][Math.round(+P.glazeMat || 0)]) : {};
+      matCache[key] = A.aeroGlass(THREE, Object.assign({}, GLASS, GM, {
+        tint: secTint[name] != null ? secTint[name] : (GLASS.tint != null ? GLASS.tint : GM.tint),
         opacity: Math.min(a, GLASS.opacity),
         ext: GLASS_EXT[name] || [0, 0, 0, 0],
         // the condition dial reaches the glazing now, scaled by the pane's
@@ -92791,6 +93028,24 @@ function build() {
   // frame's station range (cage units) for the row-hover highlight
   meshObj.userData.frameZones = G.cageFrameZones ? G.cageFrameZones(spec) : null;
   if (window.CAGE_UI) window.CAGE_UI.frames = spec.frames || null;
+  // T2.2: THE GLAZED AREA, measured on the sheet the skin is drawn from —
+  // every glass section (windscreen, side bands, skylight, drawn panes) by
+  // triangle area, as built (a cut part's offset moves it, not its area),
+  // in metres after the scale; the join carries it to spec.cabin.glazedM2
+  if (window.CAGE_UI) {
+    let a = 0;
+    for (const f of s.F) {
+      if (!GLASSM.has(f.m) || f.v.length < 3) continue;
+      const p0 = s.V[f.v[0]];
+      for (let i = 1; i + 1 < f.v.length; i++) {
+        const p1 = s.V[f.v[i]], p2 = s.V[f.v[i + 1]];
+        const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+        const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+        a += 0.5 * Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
+      }
+    }
+    window.CAGE_UI.glazedM2 = a * FS * FS;
+  }
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
@@ -95741,7 +95996,8 @@ function buildMatPanel() {
   const SEC_LABEL = { dashFace: 'instrument facia', dash: 'glareshield & shell',
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
-    pillarTaper: 'boom frame band', pillarTail: 'tail frame band' };
+    pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals' };
   const DASH_HEAD = [
     ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
     ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],
@@ -109114,7 +109370,7 @@ const AERO_ROLE = {
   waistband: 'rail', ceilingLoop: 'rail', floorLoop: 'rail',
   pillarWindow: 'pillar', pillarCabin: 'pillar', pillarPassenger: 'pillar',
   pillarTail: 'pillar', pillarFront: 'pillar', pillarTaper: 'pillar',
-  windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass',
+  windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass', drawnPane: 'glass',
   skyWindows: 'glass',
   // THE WINDOW FRAME IS ALUMINIUM (G214, the user: "I have looked at cessna
   // and jodels, and the 'joint' would rather be a aluminium riveted frame
@@ -109232,7 +109488,7 @@ const AERO_BY_CONS = {
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
                 edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
 };
-const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane',
                             'skyWindows']);
 
 // section name + construction -> finish key. ONE description of the mapping;
@@ -110891,6 +111147,9 @@ function aeroDecalsFor(THREE, D, opts) {
 function aeroGlassSpec(spec) {
   const out = {};
   for (const k in GLASS_DEF) out[k] = GLASS_DEF[k];
+  // T2.2: the material's base numbers under the builder's deviations
+  const mat = aeroGlassMat(spec && spec.cabin && spec.cabin.glazingMat);
+  for (const k in mat) out[k] = mat[k];
   const s = spec && spec.finish && spec.finish.glass;
   if (s && typeof s === 'object')
     for (const k in GLASS_DEF) if (s[k] !== undefined) out[k] = s[k];
@@ -112148,6 +112407,22 @@ const GLASS_DEF = {
   diffuse: 0.20,    // what an OPAQUE pane shows of a lit body colour
 };
 
+// THE GLAZING MATERIAL (T2.2, 2026-09-22): what the panes are made of, one
+// choice for the whole aeroplane (spec.cabin.glazingMat, the cage's glazeMat
+// row). Each is a set of BASE numbers over GLASS_DEF — the dials the builder
+// owns (opacity, touch, grime, refl, rainbow) and the per-pane tint wells
+// stay theirs on top:
+//   acrylic        GLASS_DEF itself — the 3 mm sheet every light aeroplane flies
+//   polycarbonate  a warm cast (it yellows), the bulk hazier and the clear
+//                  layer rougher (it scratches and never polishes out)
+//   glass          the clearest bulk, a faint green edge, a harder limb
+const GLASS_MATS = {
+  acrylic: {},
+  polycarbonate: { tint: 0xd9d0b4, rough: 0.24, ccR: 0.28 },
+  glass: { tint: 0xa9cfc4, rough: 0.05, ccR: 0.06, fresnel: 1.26 },
+};
+const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
+
 const AEROGLASS_HOOK = function (shader) {
   const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
   const u = this.userData.aeroU;
@@ -113195,7 +113470,7 @@ function aeroDispose() {
 
 if (typeof window !== 'undefined')
   window.AEROSKIN = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
-                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
+                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin, GLASS_MATS, aeroGlassMat,
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroGlassSpec,
@@ -113222,7 +113497,7 @@ if (typeof window !== 'undefined')
                       aeroLabExport };
 if (typeof module !== 'undefined')
   module.exports = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
-                     AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
+                     AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin, GLASS_MATS, aeroGlassMat,
                      aeroLinear, AERO_TEX, AERO_MAXD, AERO_ATLAS_N,
                      aeroPageRect, AERO_DEC_FONTS,
                      AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish,
@@ -120703,6 +120978,10 @@ function benchStripCosmetic(spec, defaults) {
   }
   if (c.systems && typeof c.systems === 'object')
     for (const k of BENCH_LOOK.systems) delete c.systems[k];
+  // T2.2: the glazed area is MEASURED off rows the cage part of the hash
+  // already carries (the windows, the glazing switch), and the material is
+  // the cage's glazeMat row — neither is a second deviation to count
+  if (c.cabin && typeof c.cabin === 'object') { delete c.cabin.glazedM2; delete c.cabin.glazingMat; }
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};

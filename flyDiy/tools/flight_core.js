@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2fff82d7bff01404
+// body-sha256: ae4130c859d43901
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -17523,6 +17523,11 @@ const GEN_OUTFIT = {
   panelKgM2: 6.0,
   cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6 },
   glassKgM2: 3.6,
+  // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
+  // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
+  // at the same gauge; tempered GLASS at 3 mm is 2.5 g/cc — 7.5 kg/m2, twice
+  // the acrylic, which is why light aeroplanes do not carry it
+  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5 },
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
   // heavier per kW because it is longer as well as fatter.
@@ -18918,6 +18923,13 @@ const GEN_DEFAULT = {
     // as always; 'none' is an open cockpit — no glass mass. The cage's
     // `glazeOn` row is the one writer (tools/_cage_join.js).
     glazing: 'glass',
+    // T2.2: WHAT the glazing is made of (one material for the whole aeroplane,
+    // the cage's `glazeMat` row), and the glazed AREA the join MEASURES off
+    // the built skin — windscreen, side windows, skylight, every drawn pane
+    // — in m2; null = not measured (a hand-written spec, a build with no
+    // join), and the ledger falls back to its cabin-box estimate
+    glazingMat: 'acrylic',
+    glazedM2: null,
     // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
     // seats are filled for the flight the shakedown and the gates measure. A
     // J-3-class aeroplane is flown solo; loading both seats is a different
@@ -20042,6 +20054,9 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
+  if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
+    ? genClamp(cb.glazedM2, 0, 40) : null;
   // G185: the wing clamp is a function of the PLANE (clampWing, above), run
   // on every entry of wings[] — a biplane's second plane keeps the same
   // envelope as the first.
@@ -24123,9 +24138,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
+    // T2.2: the MEASURED glazed area when the join gave one (every pane the
+    // skin carries, drawn windows included), the cabin-box estimate
+    // otherwise; the material's own areal density either way
+    const glassKg = (O.glassKgM2By && O.glassKgM2By[cb.glazingMat]) || O.glassKgM2;
     const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
-      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
-                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0));
+      : glassKg * (cb.glazedM2 > 0 ? cb.glazedM2
+                   : (2 * cb.halfW * cb.h * 0.55 +
+                      (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0)));
     // THE FURNISHING (PERF STUDY chantier 1): the lining, by the fit's tier
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
