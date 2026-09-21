@@ -29,12 +29,13 @@
 // in metres, for the atlas and for the panel's thumbnails alike.
 // ============================================================
 
-const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight'];
+const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight', 'hydro'];
 const STICKER_META = {
   shake:  { title: 'BENCH CHECK',      emblem: 'balance' },
   load:   { title: 'WING LOADING',     emblem: 'sandbags' },
   dalt:   { title: 'DENSITY ALTITUDE', emblem: 'mountain' },
   flight: { title: 'TEST FLIGHT',      emblem: 'circuit' },
+  hydro:  { title: 'HYDROPLANE',       emblem: 'float' },      // S1 (G451.1): the seaplane's own
 };
 const STICKER_INK = '#1f3552', STICKER_GROUND = '#f1e7d0', STICKER_RIM = '#d9c9a5';
 // the strip on the fuselage: field frame, metres aft of the firewall and
@@ -278,6 +279,17 @@ function stickerEmblem(g, kind) {
       P(); g.moveTo(-0.55 + Math.cos(a) * 0.3, -0.55 + Math.sin(a) * 0.3);
       g.lineTo(-0.55 + Math.cos(a) * 0.42, -0.55 + Math.sin(a) * 0.42); g.stroke();
     }
+  } else if (kind === 'float') {
+    // a float in profile, bow to the left, on the step over two waves
+    P(); g.moveTo(-0.95, -0.35); g.quadraticCurveTo(-0.6, -0.55, 0.2, -0.5); g.lineTo(0.9, -0.42);
+    g.lineTo(0.9, -0.15); g.lineTo(0.1, -0.02); g.lineTo(0.1, 0.12); g.lineTo(-0.4, 0.12);
+    g.quadraticCurveTo(-0.85, 0.1, -0.95, -0.35); g.closePath(); g.fill();
+    // the strut up to the aeroplane
+    P(); g.moveTo(-0.2, -0.5); g.lineTo(-0.2, -0.9); g.stroke();
+    P(); g.moveTo(-0.55, -0.9); g.lineTo(0.55, -0.9); g.stroke();
+    // the water: two waves under the step
+    const wave = y => { P(); g.moveTo(-1, y); for (let x = -1; x <= 1.001; x += 0.25) g.quadraticCurveTo(x + 0.125, y - 0.12, x + 0.25, y); g.stroke(); };
+    wave(0.45); wave(0.72);
   } else if (kind === 'circuit') {
     // the rectangular pattern, flown clockwise, with the aeroplane on the
     // downwind leg

@@ -519,6 +519,10 @@ function checkExistence(P) {
       off[k] = 0; on[k] = (+G.CAGE_PARAMS[k] || 1) || 1;
       hi[k] = ROWMAX.has(k) ? ROWMAX.get(k) : on[k];
     }
+    // S1 (G451.1): a part that exists only WITHOUT another switch (the wheel
+    // stations under a float build) names it in `unless`: the on-probe
+    // holds those at 0
+    for (const k of (p.unless || [])) { on[k] = 0; hi[k] = 0; }
     try { sawFalse = !p.when(off); } catch (e) {}
     try { sawTrue = !!p.when(on); } catch (e) {}
     try { sawTrue = sawTrue || !!p.when(hi); } catch (e) {}

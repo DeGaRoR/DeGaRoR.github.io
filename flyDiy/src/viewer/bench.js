@@ -242,6 +242,58 @@ const BENCH_TESTS = [
     },
     stop(api) { api.circuitEnd(); },
   },
+  {
+    // THE HYDROPLANE TEST (S1, G451.1; the playtest: "hydroplane test +
+    // guidance", "should the 172 lift off on stock floats?"). A row the bench
+    // shows for a FLOAT build only (`when`): a second sim on the sea lane
+    // under the test pilot's water technique, watched like the flight. The
+    // verdict says WHY — the hump against the thrust, the step's air, the
+    // trim, the floats against the weight (the advisor's reserve) — because
+    // "it will not get off the water" without a reason is the bug report
+    // this row exists to answer.
+    id: 'hydro',
+    name: 'Hydroplane',
+    blurb: 'Full power from rest on the sea: the hump, the step, the lift-off — and why.',
+    kind: 'live',
+    offscreen: true,
+    when: api => typeof api.hasFloats === 'function' && api.hasFloats(),
+    steps: ['afloat', 'the plough', 'the hump', 'on the step', 'lift-off'],
+    needs: ['hydroStart', 'hydroPoll', 'hydroEnd'],
+    start(api) { api.hydroStart(); },
+    poll(api) {
+      const r = api.hydroPoll();
+      if (!r) return { done: true, verdict: 'no run', ok: false };
+      if (r.none) return { done: true, verdict: 'NO WATER TO RUN ON', ok: false, note: 'this world has no sea lane, or the build has no floats' };
+      if (!r.done) return {
+        done: false,
+        running: r.phase + ' · ' + benchNum(r.V * 3.6, 0) + ' km/h · R/W ' + benchNum(r.R, 2) + ' · trim ' + benchNum(r.trim, 1) + '° · t=' + benchNum(r.t, 0) + ' s',
+        progress: r.frac,
+        step: ['afloat', 'the plough', 'the hump', 'on the step', 'lift-off'].indexOf(r.phase),
+        live: r,
+      };
+      const A = r.adv, why = [], fix = [];
+      const off = !!r.lift && !r.bad;
+      if (r.bad) why.push('the simulation broke up on the water');
+      if (A && A.reserve < 1.8) { why.push('the floats are UNDERSIZED: the pair displaces ' + benchNum(A.reserve, 2) + ' x the weight (1.8 needed)'); fix.push('a bigger float — the catalogue puts ' + benchNum(A.grossKg, 0) + ' kg on the ' + A.recommend); }
+      if (!off && r.hump.R >= 0.8 * r.TW) { why.push('the hump costs R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h against ' + benchNum(r.TW, 2) + ' of thrust — no margin to climb it'); fix.push('more thrust or less weight over the hump: a coarser propeller, a bigger engine, fuel off'); }
+      if (!off && A && A.narrow) { why.push('the floats are NARROW for the weight (' + A.line.replace(/^.*NARROW: /, '') + ')'); fix.push('the catalogue' + String.fromCharCode(39) + 's row for ' + benchNum(A.grossKg, 0) + ' kg is the ' + A.recommend); }
+      if (!off && r.ventMax < 0.5) { why.push('the step never ventilated (air ' + benchNum(r.airMax, 2) + '): the chine sits too deep'); fix.push('a wider or longer float, or less weight — the chine must ride within the step\'s height of the surface'); }
+      if (!off && r.trimMax > 14) { why.push('the trim ran to ' + benchNum(r.trimMax, 0) + '° nose-up'); fix.push('the step further aft under the CG, or less back-stick'); }
+      if (!off && !why.length) why.push('it reached ' + benchNum(r.Vmax * 3.6, 0) + ' km/h on the water and stayed there (' + String(r.phase).toLowerCase() + ')');
+      return {
+        done: true,
+        verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'BROKE UP' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
+        ok: off,
+        note: 'hump R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h · T/W ' + benchNum(r.TW, 2)
+            + ' · step air ' + benchNum(r.ventMax, 2) + ' · trim ' + benchNum(r.trimMin, 0) + '…' + benchNum(r.trimMax, 0) + '°'
+            + (off ? ' · off at ' + benchNum(r.lift.t, 0) + ' s, ' + benchNum(r.lift.dist, 0) + ' m, ' + benchNum(r.lift.V * 3.6, 0) + ' km/h' : '')
+            + (A ? ' · floats ' + benchNum(A.reserve, 2) + ' x the ' + benchNum(A.grossKg, 0) + ' kg (' + A.verdict + ')' : ''),
+        why: why.join('; '),
+        fix: fix.join('; '),
+      };
+    },
+    stop(api) { api.hydroEnd(); },
+  },
 ];
 
 const benchNum = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
@@ -331,7 +383,8 @@ function benchInit(api) {
   let withdrawnNote = ''; // the header's line after a withdrawal
 
   const usable = t => !!(t.run || t.start) &&
-    (t.needs || []).every(k => typeof api[k] === 'function');
+    (t.needs || []).every(k => typeof api[k] === 'function') &&
+    (!t.when || t.when(api));                         // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
   const today = () => new Date().toISOString().slice(0, 10);
 
   // ---- the fingerprint of the aeroplane on the stand ----------------------
@@ -915,8 +968,8 @@ function benchInit(api) {
     bits.push('<div class="bHead"><span>engineering bench</span>' + v +
       '<button id="bRunAll">run the tests</button>' +
       '<div class="bSeals">' +
-      BENCH_TESTS.map(t => sealCanvas(t.id, awarded(t.id), 34)).join('') +
-      '<em>' + (nCert ? nCert + ' of ' + BENCH_TESTS.length + ' certificates'
+      BENCH_TESTS.filter(usable).map(t => sealCanvas(t.id, awarded(t.id), 34)).join('') +
+      '<em>' + (nCert ? nCert + ' of ' + BENCH_TESTS.filter(usable).length + ' certificates'
                         + (passed() ? ' · airworthy' : nGate && !passed() ? '' : '')
                       : withdrawnNote ? 'certificates withdrawn — ' + withdrawnNote
                       : 'no certificate yet') + '</em>' +
@@ -924,6 +977,7 @@ function benchInit(api) {
     for (const t of BENCH_TESTS) {
       const r = results[t.id] || null;
       const can = usable(t);
+      if (!can && t.when) continue;                   // S1 (G451.1): a build-conditional row is absent, not dim
       const cls = !can ? 'dim'
         : !r ? ''
         : r.running ? 'run'

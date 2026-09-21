@@ -862,7 +862,9 @@ const CAGE_PARTS = [
   { key: 'gear', name: 'Running gear', parent: null, layer: 'gear' },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',
-    when: P => +P.gearOn,
+    // S1 (G451.1): one gear kind — a float build has no wheel stations (a
+    // product for the reachability probe, as the floats' own `when`)
+    when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     place: { on: 's1On',
              type: ['s1Leg', 's1Steer', 's1Brake', 's1Fair', 's1LegFair'],
              fore: 's1Z', out: 's1X', up: 's1Drop', at: 'station 1' },
@@ -892,7 +894,10 @@ const CAGE_PARTS = [
 
   // THE FLOATS (H2, G389): one part, both pontoons and their struts; the
   // section is the hull's paint, the struts wear gearLeg with the mains'
-  { key: 'floats', name: 'Floats', parent: 'gear', layer: 'gear',
+  // S1 (G451.1, item 97): the part's layer is the one the float page DRAWS
+  // (`cageLayer:float`), not the gear's — the highlight and the click
+  // resolve a layer group to the part whose `layer` names it
+  { key: 'floats', name: 'Floats', parent: 'gear', layer: 'float',
     // a product, not `&&`: the reachability probe reads `when` with a spy over
     // CAGE_PARAMS (where neither key lives), and a short-circuit would hide
     // the second key from it
@@ -910,7 +915,7 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'third', name: 'Third wheel', parent: 'gear', layer: 'gear',
-    when: P => +P.gearOn,
+    when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     place: { on: 's2On',
              type: ['s2Leg', 's2Steer', 's2Brake', 's2Fair', 's2LegFair'],
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
@@ -935,7 +940,7 @@ const CAGE_PARTS = [
 
   // 2026-09-04 (the user: "the wheel is a child of suspension"): under the mains
   { key: 'wheels', name: 'Wheels & tyres', parent: 'mains', layer: 'gear',
-    when: P => +P.gearOn,
+    when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     sections: ['spat'],
     place: { type: ['whProfile', 'whTread', 'whRim', 'whCap', 'whBrake', 'fairCons'],
              count: ['whRibs', 'whBolts'], at: 'every station' },

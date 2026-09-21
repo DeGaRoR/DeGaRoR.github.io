@@ -21,6 +21,11 @@
 //      may add more than a small fraction of the weight.
 // Plus the Savitsky comparison: the transom fade's static lift against his
 // buoyant term over (tau, lambda, Cv), reported, not bounded (H3's job).
+//   5. THE COST (S1, G451.1) — sim.step(1/60) on the user's 172 on Wipline
+//      2350s at rest on the sea against the same build 10 m in the air,
+//      best-of-windows (the machine is shared; the minimum is the honest
+//      figure): the water may cost at most 2.5 x the dry step, and the pass
+//      must land the same weight with the sub-rate as at every substep.
 //
 // node tools/_hydro_check.js [--verbose] [--trace]
 'use strict';
@@ -189,6 +194,40 @@ console.log('\nSavitsky buoyant term vs the transom fade (flat plate; ratio = mo
 for (const [tau, lam, Cv] of [[4, 2, 2], [4, 2, 3], [4, 3, 3], [6, 2, 3], [4, 2, 5], [2, 3, 4]]) {
   const r = H.savitskyStatic(F.P, tau, lam, Cv);
   console.log(`   tau ${tau} lambda ${lam} Cv ${Cv}: CL_sav ${f(r.CLsav, 4)} model ${f(r.CLmodel, 4)} (${f(r.ratio, 2)})  bare Archimedes ${f(r.CLarch, 4)} (${f(r.ratioArch, 2)})`);
+}
+
+// ---- 5. THE COST (S1, G451.1): the solver's step on water vs dry -----------------------
+{
+  console.log('\nTHE COST (the 172 on Wipline 2350s, sim.step(1/60), best of 12 windows of 10 steps)');
+  const C = require('./flight_core.js');
+  const FIX = require('path').join(__dirname, 'fixtures', 'build_v10_c172_wipline2350_2026-09-20.json');
+  const spec = JSON.parse(require('fs').readFileSync(FIX, 'utf8')).spec;
+  const mk = every => {
+    const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
+    if (every) def.params.hydroEvery = every;
+    const world = C.makeWorld(), h = world.waterH(0, 1600);
+    const sim = C.makeSim(def, world); sim.reset(0);
+    const p = sim.p, v = sim.v, iK = def.refs.mains[0], dx = -p[iK * 3], dz = 1600 - p[iK * 3 + 2], dy = (h + 0.3) - p[iK * 3 + 1];
+    for (let i = 0; i < sim.n; i++) { p[i * 3] += dx; p[i * 3 + 1] += dy; p[i * 3 + 2] += dz; v[i * 3] = v[i * 3 + 1] = v[i * 3 + 2] = 0; }
+    sim.ctl.thr = 0;
+    let M = 0; for (const n of def.nodes) M += n.m;
+    return { sim, W: M * G };
+  };
+  const best = (sim, n, win) => { let b = Infinity; for (let w = 0; w < n; w++) { const t0 = process.hrtime.bigint(); for (let s = 0; s < win; s++) sim.step(1 / 60); b = Math.min(b, Number(process.hrtime.bigint() - t0) / 1e6 / win); } return b; };
+  const lw = sim => { let Fy = 0; for (const x of sim.hydro.floats) Fy += x.out.F[1]; return Fy; };
+  // the settle: 10 s, L/W averaged over the last 2 s (the hull still bobs a few mm)
+  const settle = R => { let a = 0, n = 0; for (let s = 0; s < 600; s++) { R.sim.step(1 / 60); if (s >= 480) { a += lw(R.sim) / R.W; n++; } } return a / n; };
+  const A = mk(0);                                   // the shipped sub-rate
+  const lwA = settle(A);
+  const water = best(A.sim, 12, 10);
+  for (let i = 0; i < A.sim.n; i++) { A.sim.p[i * 3 + 1] += 10; A.sim.v[i * 3] = A.sim.v[i * 3 + 1] = A.sim.v[i * 3 + 2] = 0; }
+  for (let s = 0; s < 30; s++) A.sim.step(1 / 60);
+  const dry = best(A.sim, 12, 10);
+  const B = mk(1);                                   // every substep, the calibration's own rate
+  const lwB = settle(B);
+  console.log(`   water ${f(water, 2)} ms/step (hydro every ${A.sim.hydro.every} of 24 substeps)  dry ${f(dry, 2)} ms/step  ratio ${f(water / dry, 2)} x  L/W at rest ${f(lwA, 4)} (every substep: ${f(lwB, 4)})`);
+  verdict(water / dry <= 2.5, `the water costs ${f(water / dry, 2)} x the dry step (bound 2.5)`);
+  verdict(Math.abs(lwA - lwB) < 0.005 && Math.abs(lwA - 1) < 0.02, `the sub-rated pass carries the weight as the full-rate one does (L/W ${f(lwA, 4)} vs ${f(lwB, 4)})`);
 }
 
 // the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code

@@ -446,8 +446,17 @@ function makeFloat(over = {}) {
   let volDeck = 0;
   for (let i = 0; i + 1 < sta.length; i++) if (sta[i].body === sta[i + 1].body)
     volDeck += 0.5 * (secArea(sta[i], P) + secArea(sta[i + 1], P)) * (sta[i + 1].x - sta[i].x);
+  // S1 (G451.1): the plan's half-beam b(x), TABULATED per body (the step is a
+  // jump the table must keep) — halfBeamAt ran the whole section builder
+  // (keel, deck, warp) for every wet bottom vertex of every panel of every
+  // substep: 15 % of a step on the water
+  const NB = 96, bTab = { n: NB, F: new Float64Array(NB + 1), A: new Float64Array(NB + 1), x0F: -P.xs, x1F: -1e-6, x0A: 1e-6, x1A: LA };
+  for (let i = 0; i <= NB; i++) {
+    bTab.F[i] = sectionOf(P, bTab.x0F + (bTab.x1F - bTab.x0F) * i / NB).b;
+    bTab.A[i] = sectionOf(P, bTab.x0A + (bTab.x1A - bTab.x0A) * i / NB).b;
+  }
   return { P, V, panels, sta, m, cg, I, edge, stern, volDeck, nF, nA,
-           xBow: -P.xs, xStern: LA, b: P.B / 2 };
+           xBow: -P.xs, xStern: LA, b: P.B / 2, bTab };
 }
 // the section's area below a water height (float frame), from its polygon:
 // the V to the chine, the flared side, the chamfer — a clip of the (y, z)
@@ -530,8 +539,11 @@ function makeScratch(F) {
                                Fs: v3(), Fp: v3(), Ff: v3(), Fx: v3(), Fm: v3(), Fr: v3(), Fk: v3(), poly: [], depth: [] })),
     F: v3(), tau: v3(),
     terms: { static: v3(), plan: v3(), fric: v3(), cross: v3(), slam: v3(), rad: v3(), suck: v3() },
+    LE: { F: [[Infinity, Infinity], [Infinity, Infinity]], A: [[Infinity, Infinity], [Infinity, Infinity]] },   // [side -1, side +1] x [keel, chine]
+    ql: v3(),
   };
 }
+const FKEYS = ['Fs', 'Fp', 'Ff', 'Fx', 'Fm', 'Fr', 'Fk'];
 
 function hydroForces(F, S, water, out, opt = {}) {
   if (!S._ctx || S._ctx.F !== F) S._ctx = rigidCtx(F, S);
@@ -573,8 +585,22 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const sep = smooth01(1 - sigma);                 // the flow leaves the edge
   // ...and air can follow it: the cavity behind the step is hs deep and open
   // at the chine line, so the water at the side must be within hs + dVent
-  // of the surface there
-  const air = smooth01(1 - (dChine - P.hs) / P.dVent);
+  // of the surface there —
+  // OR (S1, G451.1) THE SIDE ITSELF IS VENTILATED: the flow leaves a sharp
+  // chine by the same cavity law the step edge obeys (sigma_chine = 2 g
+  // dChine / V^2 below 1), and a chine cavity is open to the sky up the dry
+  // side, so the air reaches the step's cavity along the chine however deep
+  // the chine sits. The spray-root rise is not modelled (H0 cut), so the
+  // clipper sees a side that is 14 cm "wet" at 11 m/s where the water has
+  // in fact been thrown off the chine — with the still-water rule alone the
+  // 172 on 2350s sat at the hump (air 0.14 at 11 m/s: the step face's base
+  // suction 0.10 W and the wet afterbody's friction 0.05 W on top of a
+  // planing hull's 0.12) at R/W 0.29 against its 0.31 of thrust, while a
+  // 172 on 2350s lifts off in 20 s on 180 hp. The tank's band (0.18-0.22
+  // at the hump) is GATE HYDRODYN's to hold.
+  const airStill = smooth01(1 - (dChine - P.hs) / P.dVent);
+  const airChine = smooth01(1 - 2 * G * Math.max(0, dChine) / (Vflow * Vflow));
+  const air = Math.max(airStill, airChine);
   const vent = air * sep;
   const lr = Math.max(0.02, P.kWake * Vflow * Vflow / G);
   // the stern transom's own: its chines are higher, so it usually has air
@@ -595,7 +621,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   for (let i = 0; i < V.length; i++) {
     const x = V[i][0];
     let h = water.h(W[i][0], W[i][2], t);
-    if (x > 0) {
+    if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
       const drop = Math.max(0, h - yW) * Math.exp(-dx / lr);
@@ -604,24 +630,30 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     D[i] = h - W[i][1];
   }
   // 4. clip every panel; the wet leading edge per (body, side) row
-  const LE = { F: { '-1': [Infinity, Infinity], '1': [Infinity, Infinity] }, A: { '-1': [Infinity, Infinity], '1': [Infinity, Infinity] } };
-  const per = out.per;
+  const LE = out.LE;
+  LE.F[0][0] = LE.F[0][1] = LE.F[1][0] = LE.F[1][1] = LE.A[0][0] = LE.A[0][1] = LE.A[1][0] = LE.A[1][1] = Infinity;
+  const per = out.per, ql = out.ql;
   let wetF = 0, wetA = 0, wetOther = 0;
   for (let k = 0; k < F.panels.length; k++) {
     const pn = F.panels[k], o = per[k];
     o.wet = 0; o.A = 0; o.p = 0; o.d = 0;
-    for (const key of ['Fs', 'Fp', 'Ff', 'Fx', 'Fm', 'Fr', 'Fk']) { o[key][0] = o[key][1] = o[key][2] = 0; }
+    // S1 (G451.1): a panel with every corner clear of the water is dry — no clip
+    let anyWet = false;
+    for (let j = 0; j < pn.v.length; j++) if (D[pn.v[j]] >= 0) { anyWet = true; break; }
+    if (!anyWet) { o.poly.length = 0; continue; }
     clipPoly(pn.v, W, D, o);
     if (o.A <= 1e-9) { o.poly.length = 0; continue; }
     o.wet = 1;
+    // (the term accumulators are read on wet panels only: zeroed here, not on every panel)
+    for (let q = 0; q < 7; q++) { const key = FKEYS[q]; o[key][0] = o[key][1] = o[key][2] = 0; }
     // the outward normal of the wet polygon itself (planar: the rest normal rotated)
     o.n[0] = o.AN[0]; o.n[1] = o.AN[1]; o.n[2] = o.AN[2]; nrm(o.n);
     if (pn.kind === 'bottomF' || pn.kind === 'bottomA') {
-      const row = LE[pn.body][String(pn.side)];
+      const row = LE[pn.body][pn.side > 0 ? 1 : 0];
       for (let j = 0; j < o.poly.length; j++) {
         const q = o.poly[j];
         // float-frame position of the wet vertex
-        const ql = ctx.toLocal(q, v3());
+        ctx.toLocal(q, ql);
         const b = halfBeamAt(F, ql[0]);
         const f = b > 1e-6 ? Math.min(1, Math.abs(ql[2]) / b) : 0;
         if (f < 0.35 && ql[0] < row[0]) row[0] = ql[0];
@@ -653,7 +685,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     const un = dot(u, n); ut[0] = u[0] - un * n[0]; ut[1] = u[1] - un * n[1]; ut[2] = u[2] - un * n[2];
     const Vt = len(ut);
     // the float-frame x of the centroid: distance to the trailing edge, and to the wet leading edge
-    const cl = ctx.toLocal(o.c, v3());
+    const cl = ctx.toLocal(o.c, ql);
     const xTE = pn.body === 'F' ? 0 : F.xStern;
     const sTE = Math.max(0, xTE - cl[0]);
     let fTr = 1;
@@ -677,7 +709,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     // the wet leading edge distance s for this centroid
     let s = 0.05;
     if (isBottom) {
-      const row = LE[pn.body][String(pn.side)];
+      const row = LE[pn.body][pn.side > 0 ? 1 : 0];
       const b = halfBeamAt(F, cl[0]);
       const f = b > 1e-6 ? Math.min(1, Math.abs(cl[2]) / b) : 0;
       const xk = Number.isFinite(row[0]) ? row[0] : pn.body === 'F' ? F.xBow : 0;
@@ -758,21 +790,34 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   out.cEffMax = cEffMax; out.slamMax = slamMax;
   return out;
 }
-function halfBeamAt(F, x) { return sectionOf(F.P, Math.min(F.xStern, Math.max(F.xBow, x))).b; }
+function halfBeamAt(F, x) {
+  const T = F.bTab;
+  if (!T) return sectionOf(F.P, Math.min(F.xStern, Math.max(F.xBow, x))).b;
+  const fwd = x < 0, tab = fwd ? T.F : T.A, x0 = fwd ? T.x0F : T.x0A, x1 = fwd ? T.x1F : T.x1A;
+  const u = Math.max(0, Math.min(T.n, (x - x0) / (x1 - x0) * T.n)), i = Math.min(T.n - 1, Math.floor(u)), f = u - i;
+  return tab[i] + (tab[i + 1] - tab[i]) * f;
+}
 
 // Sutherland-Hodgman on d >= 0 over the panel's corners; fills o.poly (wet
 // vertices), o.depth, o.A (wet area), o.c (area centroid), o.p (integral of
 // depth over the area), o.cp (the depth-weighted centroid = centre of pressure)
+const CLIP_E1 = v3(), CLIP_E2 = v3(), CLIP_CR = v3();
 function clipPoly(idx, W, D, o) {
   const poly = o.poly, dep = o.depth; poly.length = 0; dep.length = 0;
   const n = idx.length;
+  // S1 (G451.1): the cut vertices come from the panel's own pool (no allocation per substep)
+  const pool = o.pool || (o.pool = [v3(), v3(), v3(), v3(), v3(), v3()]);
+  let np = 0;
   for (let i = 0; i < n; i++) {
     const a = idx[i], b = idx[(i + 1) % n], da = D[a], db = D[b];
     if (da >= 0) { poly.push(W[a]); dep.push(da); }
     if ((da >= 0) !== (db >= 0)) {
       const t = da / (da - db);
       const A = W[a], B = W[b];
-      poly.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t]); dep.push(0);
+      if (np >= pool.length) pool.push(v3());
+      const q = pool[np++];
+      q[0] = A[0] + (B[0] - A[0]) * t; q[1] = A[1] + (B[1] - A[1]) * t; q[2] = A[2] + (B[2] - A[2]) * t;
+      poly.push(q); dep.push(0);
     }
   }
   o.A = 0; o.p = 0;
@@ -787,7 +832,7 @@ function clipPoly(idx, W, D, o) {
   const q0 = poly[0], d0 = dep[0];
   for (let i = 1; i + 1 < poly.length; i++) {
     const q1 = poly[i], q2 = poly[i + 1], d1 = dep[i], d2 = dep[i + 1];
-    const e1 = sub(q1, q0), e2 = sub(q2, q0), cr = cross(e1, e2);
+    const e1 = sub(q1, q0, CLIP_E1), e2 = sub(q2, q0, CLIP_E2), cr = cross(e1, e2, CLIP_CR);
     const A = 0.5 * len(cr);
     if (A < 1e-12) continue;
     o.A += A;
@@ -1140,9 +1185,27 @@ function tetraCtx(F, T, Q, p, v, slab) {
   // exactly what they were, with no weight outside [-1, 2] and none
   // beyond the slab.
   ctx.slab = slab || null;
+  const qD = v3();
+  // one station's share: w of the force o onto the station k's three nodes
+  const land = (S, k, w, q, f, o) => {
+    // the station's triangle in its own (y, z) plane: K, DL, DR rest coords
+    const st = S.st[k];
+    const ky = st.K[0], kz = st.K[1], ly = st.DL[0], lz = st.DL[1], ry = st.DR[0], rz = st.DR[1];
+    const det = (ly - ky) * (rz - kz) - (lz - kz) * (ry - ky);
+    let b1 = 0, b2 = 0;
+    if (Math.abs(det) > 1e-12) {
+      b1 = ((q[1] - ky) * (rz - kz) - (q[2] - kz) * (ry - ky)) / det;
+      b2 = ((ly - ky) * (q[2] - kz) - (lz - kz) * (q[1] - ky)) / det;
+    }
+    const b0 = 1 - b1 - b2;
+    const ids = st.ids;   // [K, DL, DR] node ids
+    let a = w * b0, i3 = ids[0] * 3; f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2];
+    a = w * b1; i3 = ids[1] * 3; f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2];
+    a = w * b2; i3 = ids[2] * 3; f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2];
+  };
   ctx.distribute = (pt, f, o) => {
     if (!ctx.slab) { ctx.bary(pt, l); for (let j = 0; j < 4; j++) { const i3 = T[j] * 3, a = l[j]; f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2]; } return; }
-    const S = ctx.slab, q = ctx.toLocal(pt, v3());
+    const S = ctx.slab, q = ctx.toLocal(pt, qD);
     const xs = S.x, n = xs.length;
     let i = 0; while (i + 2 < n && q[0] > xs[i + 1]) i++;
     // G451: the end slabs EXTRAPOLATE (t a little outside [0, 1]) so a
@@ -1153,24 +1216,9 @@ function tetraCtx(F, T, Q, p, v, slab) {
     // pitch-poled at 3.5 s (trim -58 deg) where the same hull with its node
     // on the tip rose onto the step. Weights stay inside [-0.35, 1.35].
     const t = Math.max(-0.35, Math.min(1.35, (q[0] - xs[i]) / Math.max(1e-6, xs[i + 1] - xs[i])));
-    for (const [k, w] of [[i, 1 - t], [i + 1, t]]) {
-      if (w === 0) continue;                 // (a NEGATIVE weight is the extrapolation's, and it must land)
-      // the station's triangle in its own (y, z) plane: K, DL, DR rest coords
-      const st = S.st[k];
-      const [ky, kz] = st.K, [ly, lz] = st.DL, [ry, rz] = st.DR;
-      const det = (ly - ky) * (rz - kz) - (lz - kz) * (ry - ky);
-      let b1 = 0, b2 = 0;
-      if (Math.abs(det) > 1e-12) {
-        b1 = ((q[1] - ky) * (rz - kz) - (q[2] - kz) * (ry - ky)) / det;
-        b2 = ((ly - ky) * (q[2] - kz) - (lz - kz) * (q[1] - ky)) / det;
-      }
-      const b0 = 1 - b1 - b2;
-      const ids = st.ids;   // [K, DL, DR] node ids
-      for (const [nid, b] of [[ids[0], b0], [ids[1], b1], [ids[2], b2]]) {
-        const a = w * b, i3 = nid * 3;
-        f[i3] += a * o[0]; f[i3 + 1] += a * o[1]; f[i3 + 2] += a * o[2];
-      }
-    }
+    // (a NEGATIVE weight is the extrapolation's, and it must land)
+    if (1 - t !== 0) land(S, i, 1 - t, q, f, o);
+    if (t !== 0) land(S, i + 1, t, q, f, o);
   };
   ctx.velAt = (pt, o) => { ctx.bary(pt, l); o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { o[0] += l[k] * Vn[k][0]; o[1] += l[k] * Vn[k][1]; o[2] += l[k] * Vn[k][2]; } return o; };
   ctx.toLocal = (pt, o) => { ctx.bary(pt, l); o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { o[0] += l[k] * Q[k][0]; o[1] += l[k] * Q[k][1]; o[2] += l[k] * Q[k][2]; } return o; };
@@ -1189,8 +1237,17 @@ function hydroBuild(def, p, v) {
     let mMin = Infinity; for (const i of rec.tetra) mMin = Math.min(mMin, def.nodes[i].m || 1);
     return { rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] };
   });
-  return { floats };
+  // S1 (G451.1): THE HYDRO SUB-RATE. The water's forces are computed every
+  // `every` substeps and HELD between (the held node forces in fh, added to
+  // f on the substeps in between). Measured on the 172 on 2350s: the hydro
+  // pass was 82 % of a step on the water, 14 x the dry step; the hull's
+  // own frequencies are low (heave ~7 Hz, the slam bounded per compute by
+  // mNode Vn / dt with dt the HELD interval), so 360 Hz is more than the
+  // water needs. 1 = every substep (the H0-H4 calibration figure).
+  const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || HYDRO_EVERY));
+  return { floats, every, tick: 0, fh: new Float64Array(p.length), wet: 0 };
 }
+const HYDRO_EVERY = 8;
 // one substep's hydro pass over the solver's floats: forces onto the frame
 // nodes by the barycentrics of each term's point of application. water.h is
 // sampled ONCE per float at its step keel (a lake is level; waterH costs
@@ -1259,6 +1316,19 @@ function waterRudder(fx, ctl, water, simT, f) {
   out.wrForce = Fy; out.wrAlpha = al;
 }
 function hydroSolverPass(HY, world, f, simT, dt, ctl) {
+  const every = HY.every || 1, fh = HY.fh;
+  if (every > 1) {
+    if (HY.tick % every) { HY.tick++; for (let i = 0; i < fh.length; i++) f[i] += fh[i]; return HY.wet; }
+    HY.tick++;
+    fh.fill(0);
+    const wet = hydroSolverCompute(HY, world, fh, simT, dt * every, ctl);
+    for (let i = 0; i < fh.length; i++) f[i] += fh[i];
+    HY.wet = wet;
+    return wet;
+  }
+  return HY.wet = hydroSolverCompute(HY, world, f, simT, dt, ctl);
+}
+function hydroSolverCompute(HY, world, f, simT, dt, ctl) {
   let wetAny = 0;
   for (const fx of HY.floats) {
     const F = fx.F, ctx = fx.ctx, out = fx.out;
@@ -1434,12 +1504,41 @@ function presetParams(name, over) {
   return Object.assign(P, over || {});
 }
 
+// THE SIZING ADVISOR (S1, G451.1; playtest item 111 "automated float-sizing
+// advice"). From the aeroplane's all-up mass: the catalogue row it belongs
+// on (the smallest Wipline whose rated gross carries it — the catalogue's
+// own rule, the model number is the aircraft's gross in pounds), and the
+// verdict on the pair that is fitted: a pair must displace 1.8 x the gross
+// (the FAA's 80 % reserve, 14 CFR 23.751 / CS-23) — under 1.8 the floats
+// are UNDERSIZED (they sit deep, the chine buries and the step cannot
+// ventilate: the hump is a wall, however much power); over 3 the pair is
+// oversized (weight and drag for nothing). The 172 on 2350s carries 2.2.
+function floatAdvice(grossKg, P) {
+  const rows = FLOAT_PRESET_NAMES.map(n => Object.assign({ name: n }, FLOAT_PRESETS[n])).sort((a, b) => a.gross - b.gross);
+  const fit = rows.find(r => r.gross >= grossKg) || rows[rows.length - 1];
+  const out = { grossKg, recommend: fit.name, recommendGross: fit.gross, rows: rows.filter(r => r.gross >= 0.85 * grossKg && r.gross <= 1.4 * grossKg).map(r => r.name) };
+  if (P) {
+    const F = makeFloat(Object.assign({}, P, { mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0] }));
+    const pair = 2 * F.volDeck * P.rho;
+    out.pairKg = pair; out.reserve = pair / Math.max(1, grossKg);
+    out.verdict = out.reserve < 1.8 ? 'UNDERSIZED' : out.reserve > 3.0 ? 'oversized' : 'sized';
+    // the BEAM against the row's: a narrow float carries its load deeper and
+    // ploughs at the hump (the user's 6.3 x 0.61 m pair on a 960 kg 172 sat
+    // at 25 km/h at R/W 0.23 where the 2350's 0.74 m beam planes)
+    out.narrow = P.B < 0.9 * fit.B;
+    out.line = `${out.verdict}: the pair displaces ${pair.toFixed(0)} kg to the deck = ${out.reserve.toFixed(2)} x the ${grossKg.toFixed(0)} kg all-up (1.8 needed, 2-2.5 usual)` +
+      (P.preset && P.preset === fit.name ? `; the ${fit.name} is the catalogue's row for it` : `; the catalogue puts ${grossKg.toFixed(0)} kg on the ${fit.name} (rated to ${fit.gross} kg)`) +
+      (out.narrow ? `; NARROW: ${P.B.toFixed(2)} m of beam against the row's ${fit.B.toFixed(2)} — a narrow float ploughs deeper at the hump` : '');
+  } else out.line = `the catalogue puts ${grossKg.toFixed(0)} kg on the ${fit.name} (rated to ${fit.gross} kg)`;
+  return out;
+}
+
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
-              waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V };
+              waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;
 })();

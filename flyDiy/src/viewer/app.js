@@ -3612,7 +3612,7 @@
     // pilot flies as it flies a meadow (no site, no taxi graph): the take-off
     // run down the lane, the circuit, the landing back onto it
     if (sim.hydro) {
-      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1250], elev: 0 };
+      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 };
       placeAtAerodrome(sim, sea);
       patternVisFor(sea, null);
       ap.setRoute(sea, destId === 'CIRCUIT' || destId === 'SEA' ? sea : to);
@@ -3883,7 +3883,7 @@
     // the CG and the aeroplane nosed over into the sea)
     { let cx = 0, cy = 0, mm = 0;
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
-      if (mm > 0 && typeof window !== 'undefined') window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; }
+      if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm; } }   // S1 (G451.1): the all-up mass, for the float advisor
     if (model) craft.add(model.grp);
     if (model && window.SHADOW_NEAR) SHADOW_NEAR.tagCraft(craft);   // A6: the craft casts into its own 3 cm shadow map and reads only that one
     // THE COCKPIT (the panel arc, session 4): the readings, the switches,
@@ -4638,6 +4638,7 @@
   // G179.2: the live model too, so a session can ask WHICH vertices follow
   // WHAT (rigs, parts, bindings) instead of reasoning about a screenshot
   window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def,
+                          pickAt, camera,                                       // S1 (G451.1): the garage picker, for the headless rig
                           world: () => world,                                   // W2: the world that booted (an island, or the analytic one)
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nav: () => flNav,                                         // G202.1
@@ -5028,6 +5029,83 @@
     return { done: true, report: rep, t: tfVal.t };
   }
   function tfEnd() { tf = null; }
+
+  // ---- THE HYDROPLANE TEST (S1, G451.1; playtest item 99 "hydroplane test +
+  // guidance") — the seaplane's own certificate. A second sim on the sea
+  // lane, the test pilot's take-off technique (neutral stick through the
+  // hump, back from Vr), watched as the flight is: the hump (the
+  // resistance's maximum under 14 m/s against the thrust), the step (the
+  // air reaching it), the trim, the lift-off. A build that stays on the
+  // water comes back SAYING WHY: the hump against the thrust, a step that
+  // never ventilated, a pair of floats too small for the weight (the
+  // advisor's reserve), a trim that ran away — and what to turn.
+  let ht = null;
+  function htStart() {
+    const sea = (world.aerodromes || []).find(a => a.kind === 'water');
+    if (!sea || !def.parts || !def.parts.floats) { ht = { none: true }; return; }
+    const s2 = makeSim(def, world);
+    s2.reset(0);
+    placeAtAerodrome(s2, sea);
+    const pilot = (typeof makeTestPilot === 'function') ? makeTestPilot(s2, def, world) : makeAutopilot(s2, def, world);
+    pilot.setRoute(sea, sea);
+    let M = 0; for (const n of def.nodes) M += n.m;
+    const P = def.parts.floats[0].P;
+    const adv = (typeof HYDRO !== 'undefined' && HYDRO.floatAdvice) ? HYDRO.floatAdvice(M, P) : null;
+    ht = { sim: s2, ap: pilot, t: 0, W: M * 9.81, M, adv, sea,
+           hump: { R: 0, V: 0 }, TW: 0, trimMax: -Infinity, trimMin: Infinity, airMax: 0, ventMax: 0,
+           Vmax: 0, x0: null, dist: 0, lift: null, wetLast: 1, samples: [] };
+  }
+  function htPoll() {
+    if (!ht) return null;
+    if (ht.none) { ht = null; return { done: true, none: true }; }
+    const t0 = performance.now();
+    const s = ht.sim, fl = s.hydro && s.hydro.floats;
+    let fin = null;
+    while (performance.now() - t0 < 60 && !fin) {
+      for (let i = 0; i < 30; i++) {
+        ht.ap.update(1 / 60); s.step(1 / 60); ht.t += 1 / 60;
+        if (s.stats().bad) { fin = { bad: true }; break; }
+        const cg = s.cgPos(), v = s.cgVel(), V = Math.hypot(v[0], v[2]);
+        if (!ht.x0) ht.x0 = [cg[0], cg[2]];
+        ht.dist = Math.hypot(cg[0] - ht.x0[0], cg[2] - ht.x0[1]);
+        const [xA] = s.axes();
+        const trim = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI;
+        let R = 0, wet = 0, air = 0, vent = 0;
+        // the resistance is the water's force along the track, HORIZONTAL (the
+        // body's aft axis tilts with the trim and would take a fifth of the
+        // buoyancy for resistance at 11 deg); the lane runs whichever way the
+        // world says, so the direction is the aft axis flattened
+        const hh = Math.hypot(xA[0], xA[2]) || 1, ax = xA[0] / hh, az = xA[2] / hh;
+        if (fl) for (const x of fl) { const F = x.out.F; R += F[0] * ax + F[2] * az; wet += x.wet; air = Math.max(air, x.out.air || 0); vent = Math.max(vent, x.out.vent || 0); }
+        R /= ht.W;
+        if (ht.t > 0.5 && ht.t < 1.5) ht.TW = Math.max(ht.TW, (s.out.thrust || 0) / ht.W);
+        if (wet > 0) {
+          if (V < 14 && R > ht.hump.R) ht.hump = { R, V };
+          ht.trimMax = Math.max(ht.trimMax, trim); ht.trimMin = Math.min(ht.trimMin, trim);
+          ht.airMax = Math.max(ht.airMax, air); ht.ventMax = Math.max(ht.ventMax, vent);
+        }
+        ht.Vmax = Math.max(ht.Vmax, V);
+        if (Math.round(ht.t * 4) !== Math.round((ht.t - 1 / 60) * 4)) ht.samples.push({ t: ht.t, V, R, trim, vent, wet });
+        if (wet === 0 && ht.wetLast > 0 && V > 12 && ht.lift == null) ht.lift = { t: ht.t, V, dist: ht.dist };
+        ht.wetLast = wet;
+        const ph = ht.ap.phase;
+        if (ht.lift != null && ht.t > ht.lift.t + 2 && (ph === 'CLIMB' || ph === 'LIFTOFF' || cg[1] > 5)) { fin = {}; break; }
+        if (ph === 'ABORT' || ph === 'STOPPED' || ht.t > 75) { fin = {}; break; }
+      }
+    }
+    const last = ht.samples[ht.samples.length - 1] || { V: 0, R: 0, trim: 0, vent: 0, wet: 0 };
+    if (!fin) {
+      const V = last.V;
+      const phase = ht.lift ? 'lift-off' : V > 14 && last.vent > 0.9 ? 'on the step' : V > 7 ? 'the hump' : V > 2 ? 'the plough' : 'afloat';
+      return { done: false, phase, t: ht.t, V, R: last.R, trim: last.trim, vent: last.vent, frac: Math.min(0.95, ht.t / 40), samples: ht.samples };
+    }
+    const out = { done: true, bad: !!fin.bad, t: ht.t, hump: ht.hump, TW: ht.TW, trimMax: ht.trimMax, trimMin: ht.trimMin,
+                  airMax: ht.airMax, ventMax: ht.ventMax, Vmax: ht.Vmax, lift: ht.lift, dist: ht.dist, adv: ht.adv, M: ht.M,
+                  phase: ht.ap.phase, last, samples: ht.samples };
+    ht = null;
+    return out;
+  }
+  function htEnd() { ht = null; }
 
   // ---- THE PLAQUE (P3) -------------------------------------------------
   // The aeroplane's own measured numbers, posted where it was built.
@@ -8452,6 +8530,13 @@
     circuitStart: card => tfStart(card),
     circuitPoll: () => tfPoll(),
     circuitEnd: () => tfEnd(),
+    // THE HYDROPLANE TEST (S1, G451.1): the seaplane's take-off run on the
+    // sea lane, offscreen, on the test pilot; a row the bench shows for a
+    // float build only
+    hasFloats: () => !!(def && def.parts && def.parts.floats && def.parts.floats.length),
+    hydroStart: () => htStart(),
+    hydroPoll: () => htPoll(),
+    hydroEnd: () => htEnd(),
     // the export the bench needs before it measures anything — the same one
     // rolling out uses, so a test and a flight can never read different builds
     sync: () => syncBuild(),

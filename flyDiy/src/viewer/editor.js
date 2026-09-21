@@ -2252,6 +2252,11 @@ function editorInit(api) {
     // the kit now and the legs to their station, which is also what makes
     // "click a tyre, get the tyre; click a leg, get the leg" true.
     [/^edWheel/, 'wheels'],
+    // S1 (G451.1, playtest item 97 "floats not selectable in the garage"): the
+    // float layer names its hulls, blades and truss `edFloat…`, but nothing
+    // here answered to them and the layer's own name (`float`) is not the
+    // part's (it sits under `gear`), so a click on a float selected nothing
+    [/^edFloat/, 'floats'],
     [/^edLegT|^edCastorT/, 'third'],
     [/^edLeg|^edCastor/, 'mains'],
     [/^edSpinner|^edProp/, 'prop'],

@@ -52127,6 +52127,141 @@ prompts). Findings that matter beyond it:
   the fixture's 172 is at planeScale 0.745 (a 172-alike, not measured);
   the 7000 / 10000 rows' dimensions are estimates (their boxes trimmed
   until the family reaches their flotation); the big rows fit at 32-35
-  deg of deadrise and the 2100 / 2350 at 17-19 — the honest consequence
-  of the catalogue's boxes under one family, and the user's eye on the
-  2350 (a shallow V) and the 8750 (a deep one) is owed.
+  deg of deadrise and the 2100 / 2350 at 21 (the fineness's FULLER
+  branch, f < 0, shallows the V by 6 deg per unit only and takes the
+  volume from the plan, the transom and the keel flat — at 20 deg per
+  unit the 2350 came out at 17 deg with its chine 14 cm under at the hump,
+  and a low chine is a step that cannot ventilate) — the honest
+  consequence of the catalogue's boxes under one family, and the user's
+  eye on the 2350 (a shallow V) and the 8750 (a deep one) is owed.
+
+## G451.1 — PLAYTEST S1, THE FLOATS' PHYSICS: THE STEP COST, THE HUMP, THE ADVISOR, THE HYDROPLANE CERTIFICATE, THE GARAGE (2026-09-20/21; futureDesigns/PLAYTEST-TRIAGE-2026-09-20.md §1.4, §1.5, §2 S1, items 93-100, 103, 105, 111; the user: "handle the whole S1 step ... with priority on the performance cost, and its analysis")
+
+- THE COST (item 93, "frame rate with floats dramatic, even static"). Measured
+  first (node, the user's 172 on Wipline 2350s, sim.step(1/60) at rest on the
+  sea against the same build 10 m up; the box was shared with peers' batteries
+  throughout, so best-of-windows and same-process A/B, never a lone figure):
+  HEAD 182-186 ms a step on the water against 11-13 dry — 14-16 x. The CPU
+  profile: hydroSolverPass 82 % of the step; inside it hydroPanels 54 (the
+  Sutherland-Hodgman clip 16, halfBeamAt -> sectionOf SIXTEEN, the force
+  loop 16), distribute 18, the garbage collector 6. The hull the physics
+  clips is 196 vertices / 388 panels a float, two floats, and the pass ran
+  on EVERY one of the 24 substeps (1440 Hz): 18 600 clips a frame. Four cuts:
+    1. THE SUB-RATE (32_hydro HYDRO_EVERY = 8, 180 Hz): the water's forces
+       are computed every eighth substep and HELD between (a zero-order hold
+       on the node forces, `HY.fh`; the slam's semi-implicit cap reads the
+       HELD interval). The hull's own frequencies are low (heave ~7 Hz, the
+       slam bounded per compute), and the 172's plough is identical to two
+       decimals at every 1 / 2 / 4 / 8, L/W at rest 1.0001 both ways, the
+       settle's bob 103.1 vs 103.5 mm. `def.params.hydroEvery` overrides it
+       per build, so a gate can compare against the calibration's own rate.
+    2. halfBeamAt TABULATED — it rebuilt the whole section (keel, deck,
+       warp) for every wet bottom vertex of every panel every substep; a
+       96-sample table a body (the step's jump kept). Forces agree with HEAD
+       at the fifth significant figure.
+    3. ALLOCATION-FREE inner loops: clipPoly's cut vertices from a per-panel
+       pool and scratch edges, distribute without its arrays-of-pairs and
+       v3(), the LE table and the key list hoisted, a panel with every corner
+       clear rejected before the clip, the term accumulators zeroed on wet
+       panels only, the wake's exp skipped unventilated. GC 6 -> 2 %.
+    4. NOT done, on purpose: a coarser force hull than the drawn one (it
+       would move the fineness fit and the H0-H4 calibration for ~1.5 x the
+       sub-rate already bought for nothing).
+  Result: 19-23 ms on the water against 11-14 dry, 1.1-1.7 x (the noise is
+  the box). GATE HYDRODYN has a fifth section, THE COST — the ms table
+  (water, dry, ratio; bound 2.5 x) and "the sub-rated pass carries the same
+  weight as the full-rate one" (L/W averaged over the settle's last 2 s: an
+  instantaneous reading two runs apart samples two phases of a 5 mm bob).
+  The SEAPLANE battery runs 5 x faster for it.
+- THE HUMP (items 96 / 103 / 106, "the Cessna cannot get past 35-44 km/h,
+  the O-540 no better"). The 172 on 2350s sat at 11 m/s at R/W 0.29 against
+  0.31 of thrust. Decomposed there (the hump.js trace): skin friction
+  0.115 W on a FULLY WET afterbody, the unventilated step face's base
+  suction 0.104 W, planing pressure 0.06. The step never ventilated because
+  the air law read the chine's depth against the STILL water (dChine
+  0.136 m, hs 0.097, dVent 0.05 -> air 0.14), and the model carries no
+  spray-root rise (an H0 cut): a side the water has been thrown off at
+  11 m/s counted as 14 cm wet. THE LAW NOW: the side above a sharp chine
+  ventilates by the same cavity number the step edge obeys (sigma_chine =
+  2 g dChine / V^2 below 1), and a chine cavity is open to the sky up the
+  dry side, so the air reaches the step along the chine however deep the
+  chine sits (`airChine`, max'ed with the still-water rule). The 172:
+  hump R/W 0.19 with the stick neutral (0.26 held back: the pilot's
+  neutral-through-the-hump schedule, G396.4, is the right one and stays),
+  on the step at 10 s, the pilot's lift-off at 22 s / 305 m, the full
+  circuit and the water landing completed; the tank's band and the
+  calibration gates hold. THE ANSWER TO 103: the drag was NOT honest —
+  40 % of it was the air rule — and the power DOES matter now (the user's
+  6.3 x 0.61 m build on the IO-360: hump 0.23 at 25 km/h against 0.27 of
+  thrust, a narrow float ploughing; the test pilot rejects it or crawls
+  off in 45 s). GATE FLOATS judges the hump (under 14 m/s) and the ride on
+  the step apart: with the early ventilation the twin pops up to 14 deg
+  at 7 m/s and, eased at 14 m/s, porpoises 1-6 deg on the step, damped,
+  R/W 0.27 at a trough — a resistance spike the old "max R" read as a hump
+  at 17 m/s.
+- THE ADVISOR (item 111): HYDRO.floatAdvice(grossKg, P) — the catalogue's
+  row for the all-up mass (the smallest Wipline whose rated gross carries
+  it), the fitted pair's reserve (pair displacement / gross: 1.8 needed,
+  the FAA's 80 %, UNDERSIZED under it, oversized over 3), and the BEAM
+  against the row's (a narrow float ploughs). app.js publishes the built
+  def's all-up mass beside the CG (FLYDIY_MASS_MODEL); the float page's
+  status line quotes the advisor.
+- THE HYDROPLANE CERTIFICATE (item 99): a fifth bench row, for FLOAT builds
+  only (`when: api => api.hasFloats()` — usable() honours `when`, the seal
+  row and the count follow, a conditional row is absent rather than dim):
+  a second sim on the world's water lane under the test pilot, polled on
+  the flight's wall-clock budget, watched (phase strip afloat / plough /
+  hump / step / lift-off, the live km/h, R/W, trim). It measures the hump
+  (max R along the HORIZONTAL track under 14 m/s — the body's aft axis
+  tilts with the trim and took a fifth of the buoyancy for resistance at
+  11 deg), T/W at the start, the step's air, the trim's range, the
+  lift-off (time, distance, speed), the advisor's reserve. A build that
+  stays on the water says WHY: the hump against the thrust (no margin
+  under 0.8 T/W), a step that never ventilated, undersized or narrow
+  floats, a trim past 14 deg — and what to turn. Its sticker (stickers.js
+  'hydro', a float on two waves) rides the fuselage with the others.
+- THE GARAGE (items 94, 95, 97, 98, 105):
+    105 ONE GEAR KIND — floats on = no wheel stations: gearStations returns
+        none, the station rows and the wheel rows hide, the Main gear /
+        Third wheel / Wheels parts declare `unless: ['gearFloats']` (the
+        parts check's on-probe holds those at 0; a `when` that is false
+        with a key at 1 could not pass the discriminate rule otherwise).
+    97  SELECTABLE — HIT_NAME maps `edFloat…` to the floats part and the
+        part's layer is the float page's own (`float`, it was `gear`), so a
+        click on a hull, a blade or the truss selects Floats and the
+        highlight covers them (the app's pickAt, exposed on FLIGHT_PROBE
+        with the camera for the headless rig, returns edFloatHullR /
+        edFloatR at the float's pixels).
+    94  the double floats on the first swap: NOT REPRODUCED on this code —
+        wheels -> floats -> wheels -> floats counted one cageLayer:float of
+        19 meshes each time and zero gear meshes with the floats on.
+    95  the support structure in the game: the truss is a `floatStrut` part
+        (members with pins and tips, G389/G451) and the flight model
+        carries 3 strut rigs for the 172; the flight screen does not render
+        under headless Chrome (the loop waits on a frame that never comes),
+        so the eye's confirmation is the user's.
+    98  the macro rows are the preset's own (fltL / fltB / fltH + the
+        Wipline row) since G451.
+- THE BUOY (item 100): the analytic SEA lane spawned at [0, 1250] — its end
+  line, where G396.2 moors the centre white buoy. 35 m inside now (the
+  premises rule); app.js's fallback record the same.
+- TRAPS: (1) MSYS `sed -i` writes LF and flips a CRLF working copy; the
+  worktree was checked out CRLF under the global autocrlf while the repo's
+  own config says false, so a touched CRLF file, or a build output
+  concatenated from mixed sources, diffs whole — normalise the modified
+  files to the index's LF before committing (`git ls-files --eol -m`).
+  (2) a bash heredoc strips backslashes even quoted: `\'` in a JS string
+  and `\d` in a JSON regex both arrived bare — write edit scripts with the
+  Write tool. (3) the resistance is horizontal: dot the water's force with
+  the aft axis FLATTENED, never with the body axis. (4) an instantaneous
+  L/W two runs apart is two phases of the settle's bob — average it.
+- Gates: HYDRODYN (+ THE COST), FLOATS (hump / step split), WIPLINE,
+  SEAPLANE, ARCHETYPES (floatplane), PARTS (`unless`) green; the full
+  battery run before the commit.
+- OWED: the flight screen's render under headless Chrome (a frame pump for
+  the rig); the pilot's water take-off on the 172 takes 22 s where the test
+  pilot takes 34 (the two techniques differ on the water and the bench
+  quotes the test pilot's); the hump trim of 12-14 deg with the afterbody
+  fully dry (a real 172 humps at 8-10: the wake behind the step recovers
+  faster than kWake lets it, H3's calibration); the A9 card idiom for the
+  hydroplane row's live panel (it reuses the flight's).

@@ -167,7 +167,10 @@ function makeWorld(seed, opts) {
     // graph; the pilot flies it as it flies a meadow, on the water rudder.
     { id: 'SEA', name: 'The Sound', kind: 'water', x: 0, z: 2000, hdg: Math.PI / 2,
       len: 1500, wid: 200, surface: SURFACE.WATER, elev: 0, tdz: [0, 2530],
-      spawn: [0, 1250] },
+      // S1 (G451.1, playtest item 100): the spawn 35 m INSIDE the lane's end
+      // (the premises rule) — at [0, 1250] it was the end line itself, where
+      // G396.2 moored the centre white buoy, and the seaplane spawned on it
+      spawn: [0, 1285] },
   ];
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)

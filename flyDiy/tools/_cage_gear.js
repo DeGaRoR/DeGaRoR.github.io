@@ -157,15 +157,16 @@ const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
    { when: P => +P.gearOn }],
-  station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn }]),
-  station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn }]),
+  // S1 (G451.1): the wheel stations are not there under a float build (one gear kind)
+  station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }]),
+  station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }]),
   // G133: one build material for the whole set of fairings — a set of
   // spats is laid up as one job, and the row exists only when one is worn
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
    { when: P => +P.gearOn && fairAny(P) }],
   // the wheel dressing — shared rows (G33: this group never made the
   // cage port; tundra + smooth tread = the bush slick)
-  ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn }],
+  ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }],
   ['balance + prop', [
     ['cgZ',   'CG station z', -2, 4, 0.01, { dim: 'm' }],
     ['cgY',   'CG height y',  -1, 1, 0.01, { dim: 'm' }],

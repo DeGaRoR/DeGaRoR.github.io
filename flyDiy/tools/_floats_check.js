@@ -109,17 +109,24 @@ const sim = C.makeSim(def, world); sim.reset(0); place(sim, 0.3, 0, 0); sim.ctl.
 // step and the twin's tail out of any propwash, the hump is flown at
 // -5 deg (plowing) at R/W 0.35: the honest cost of a wing-mounted twin on
 // floats, and why the bound is 0.45 rather than the tank's 0.30.
+// S1 (G451.1): the HUMP is the plough's maximum (under 14 m/s); the ride ON
+// THE STEP is judged apart — its resistance and its trim excursions (a
+// porpoise reads as a resistance spike at 17 m/s: with the chine-ventilated
+// step the twin pops up to 14 deg at 7 m/s and the eased stick lets it
+// porpoise 1-6 deg on the step, damped, R/W 0.27 at the trough).
 console.log('\nTAKEOFF (full throttle from rest, stick back, eased past 14 m/s)');
 {
   sim.ctl.thr = 1; sim.ctl.de = 0.45;
   let ok = true, hump = { R: 0, V: 0 }, ventBeforeLift = 0, airborne = null, maxRoll = 0, T = 0, Vlift = 0;
+  let stepR = { R: 0, V: 0 }, trimLo = Infinity, trimHi = -Infinity;
   for (let s = 0; s < 40 * 60; s++) {
     sim.step(1 / 60); T += 1 / 60;
     const r = state(sim);
     if (!finite(r)) { ok = false; break; }
     sim.ctl.de = r.V > 14 ? 0.2 : 0.45;
     maxRoll = Math.max(maxRoll, Math.abs(r.roll));
-    if (r.wet > 0 && r.R > hump.R) hump = { R: r.R, V: r.V };
+    if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V };
+    if (r.wet > 0 && r.V >= 14) { if (r.R > stepR.R) stepR = { R: r.R, V: r.V }; trimLo = Math.min(trimLo, r.trim); trimHi = Math.max(trimHi, r.trim); }
     if (r.wet > 0) ventBeforeLift = Math.max(ventBeforeLift, r.vent);
     if (airborne == null && r.wet === 0 && r.Fy === 0 && s > 60) { airborne = T; Vlift = r.V; }
     if (SHOW && s % 60 === 59) console.log(`   t ${f(T, 1)} V ${f(r.V, 2)} cgY ${f(r.cgY)} trim ${f(r.trim, 2)} roll ${f(r.roll, 2)} L/W ${f(r.Fy)} R/W ${f(r.R)} wet ${f(r.wet, 2)} vent ${f(r.vent, 2)}`);
@@ -128,6 +135,7 @@ console.log('\nTAKEOFF (full throttle from rest, stick back, eased past 14 m/s)'
   console.log(`   hump R/W ${f(hump.R)} at ${f(hump.V, 1)} m/s; steps ventilated to ${f(ventBeforeLift, 2)} before lift-off; airborne ${airborne == null ? 'NO' : 'at ' + f(airborne, 1) + ' s, ' + f(Vlift, 1) + ' m/s'}; max roll ${f(maxRoll, 2)} deg`);
   verdict(ok, `the take-off stays finite`);
   verdict(hump.R > 0.10 && hump.R < 0.45 && hump.V < 14, `a hump of R/W ${f(hump.R)} at ${f(hump.V, 1)} m/s (bound 0.10-0.45, under 14 m/s)`);
+  verdict(stepR.R < 0.35 && trimLo > -1 && trimHi < 12, `on the step: R/W ${f(stepR.R)} at most (at ${f(stepR.V, 1)} m/s; bound 0.35), the trim between ${f(trimLo, 1)} and ${f(trimHi, 1)} deg (bound -1..12)`);
   verdict(ventBeforeLift > 0.95, `the steps ventilate before lift-off (${f(ventBeforeLift, 2)})`);
   verdict(airborne != null && airborne < 30, `airborne inside 30 s (${airborne == null ? 'never' : f(airborne, 1) + ' s'})`);
   verdict(maxRoll < 5, `roll under 5 deg through the run (${f(maxRoll, 2)})`);

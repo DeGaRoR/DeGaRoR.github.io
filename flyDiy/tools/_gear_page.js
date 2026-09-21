@@ -169,6 +169,11 @@ const gearLegP = (P, i) => {
 // The live station list, in the shape _gear_gen.js's leg builders expect.
 const gearStations = P => {
   const out = [];
+  // S1 (G451.1, playtest item 105): ONE GEAR KIND. Floats on = no wheel
+  // stations — the wheels stayed drawn under a float build (the join had
+  // already declared it a floatplane), an invalid configuration on the
+  // screen. An amphibian's wheels will live in its floats, not here.
+  if (+P.gearFloats) return out;
   for (let i = 1; i <= 2; i++) {
     if (!P['s' + i + 'On']) continue;
     // G188: row 2 IS the third wheel — its identity, not its lateral offset.

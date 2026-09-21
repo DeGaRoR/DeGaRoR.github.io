@@ -468,6 +468,10 @@ PAGE.post = ctx => {
     const R = HP.preset && HY.FLOAT_PRESETS[HP.preset];
     stat.textContent += `  ·  floats: ${HP.preset || 'custom'} ${HP.L.toFixed(2)} x ${HP.B.toFixed(2)} x ${HP.H.toFixed(2)} m, step z ${zc.toFixed(2)}, keel ${keelY.toFixed(2)}, ` +
       `the pair displaces ${(2 * F.volDeck * 1000).toFixed(0)} kg to the deck${R ? ` (catalogue ${2 * R.flot} max, ${2 * R.disp} rated)` : ''}, ${(2 * HP.mFloat).toFixed(0)} kg of hull`;
+    // S1 (G451.1): THE SIZING ADVISOR — the flown aeroplane's all-up mass
+    // (app.js publishes it with the CG) against the pair that is fitted
+    const M = window.FLYDIY_MASS_MODEL;
+    if (M > 0 && HY.floatAdvice) stat.textContent += `  ·  ADVISOR ${HY.floatAdvice(M, HP).line}`;
   }
 };
 })();
