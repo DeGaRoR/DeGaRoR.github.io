@@ -35772,7 +35772,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='dcf31b62141b'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b3815c334cdb';window.FLYDIY_BUILD='d4bf688912ae'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -98102,7 +98102,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // else is off
       .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; })
       // G443: the runway lights - emissive lenses, one material a colour (RWY.mats fills as the strips stand)
-      .declare('runway', 'runway lights', 'emissive', () => { for (const k in RWY.mats) RWY.mats[k].emissiveIntensity = 0; });
+      .declare('runway', 'runway lights', 'emissive', () => { for (const k in RWY.mats) RWY.mats[k].emissiveIntensity = 0; })
+      // G449: the premises' lamp pool (render_premises LAMPS) - eight point lights and the lit panes
+      .declare('lamps', 'the premises lamps', 'light', () => { if (premisesR && premisesR.lamps) premisesR.lamps.mute(); });
   }
   // the day's hand on the runway lights: on from 2 deg of sun down through the horizon, the level
   // divided back through the exposure schedule (a lens judged at ~0.92 under a night that opens 15 stops)
@@ -101555,6 +101557,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (probe && !rigCur.manual) probe.maybe(day, 1.5);
     if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     runwayLightsApply(day, camera.position);                                                // G443: before the sun-moved guard (the exposure and the eye move on their own)
+    if (premisesR && premisesR.lamps) {                                                     // G449: the premises lamps, the same fade, the pool re-assigned to the eye
+      const W2 = typeof window !== 'undefined' ? window : {};
+      const ex2 = (W2.GFX && W2.GFX.exposureBase && W2.GFX.exposureBase() != null) ? W2.GFX.exposureBase() : 0.92;
+      if (worldSwitch && worldSwitch.on('lamps')) premisesR.lamps.unmute();
+      premisesR.lamps.update(camera.position, Math.max(0, Math.min(1, (2 - day.sunEl) / 4)), ex2);
+    }
     const el = day.sunEl, az = day.sunAzGrid;
     if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
     dayVer = day.version; dayEl = el; dayAz = az;
@@ -101718,6 +101726,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
+    get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     premisesStart() { if (premisesR || !world.premises || !window.RENDER_PREMISES) return premisesR;
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
@@ -117495,10 +117504,14 @@ function buildPatternVis(THREE, pattern, groundY, core) {
   group.name = 'patternVis';
   const gy = (typeof groundY === 'function') ? groundY : (() => (groundY || 0));
   const LIFT = 0.06;                          // above the strip's paint
+  // G449: THE OVERLAYS ARE NOT LIGHTS. An unlit material is multiplied by the exposure like
+  // everything else, and the night's schedule opens 15 stops: the pilot's planned legs (a line
+  // in the sky) and the slope's ribbons blew to white bars on the horizon after dusk. These are
+  // instruments drawn on the picture, so they keep their own colour: toneMapped off.
   const mkMat = (col, op) => new THREE.MeshBasicMaterial({
-    color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
+    color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
   const lineMat = (col, op) => new THREE.LineBasicMaterial({
-    color: col, transparent: true, opacity: op, depthWrite: false });
+    color: col, transparent: true, opacity: op, depthWrite: false, toneMapped: false });
   const layers = { graph: new THREE.Group(), slope: new THREE.Group(), targets: new THREE.Group(),
                    // G202: the PAPI (an airfield fixture, on unless switched off) and the
                    // pilot's planned legs in the air (its circuit, drawn as it plans it)
@@ -117681,9 +117694,15 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       const lx = u[1], lz = -u[0];                     // left of the landing direction
       const bx = aim[0] + lx * 22, bz = aim[1] + lz * 22;
       const units = [];
+      // G449: A PAPI UNIT IS A LIGHT, not an unlit box. The old MeshBasicMaterial ignored the day:
+      // its "dark" housing (0x2a2622) went through the night's exposure to four white blocks off
+      // every threshold (the emitter nobody claimed, seen in every night frame of G443). Now a
+      // lit Standard housing, dark, whose EMISSIVE is the reading - white above the unit's angle,
+      // red below, nothing from behind - at the level papiUpdate is handed (app.js: the runway
+      // lenses' law, 1.2 x (0.92 / exposure)^0.9; a PAPI is lit by day too).
       const unit = (x, z, bar, off) => {
         const g = new THREE.BoxGeometry(kind === 'vasi' ? 1.6 : 1.2, 0.9, 1.2);
-        const m = new THREE.MeshBasicMaterial({ color: dark });
+        const m = new THREE.MeshStandardMaterial({ color: dark, emissive: 0x000000, emissiveIntensity: 0, roughness: 0.6, metalness: 0.1 });
         const box = new THREE.Mesh(g, m);
         box.position.set(x, gy(x, z) + 0.6, z);
         box.rotation.y = Math.atan2(-u[1], u[0]);
@@ -117701,17 +117720,19 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark, kind });
     }
   }
-  const papiUpdate = (x, y, z) => {
+  const papiUpdate = (x, y, z, level) => {
+    const lv = level == null ? 1.2 : level;
     for (const P of papis) {
       for (const U of P.units) {
         // each unit reads its own distance along the landing direction (a VASI's bars stand 210 m apart)
         const dist = (U.x - x) * P.u[0] + (U.z - z) * P.u[1];
-        let col = P.dark;
+        let col = 0;
         if (dist > 40) {
           const ang = Math.atan2(y - U.y, dist);
           col = ang > P.gs + U.off ? P.white : P.red;
         }
-        if (U.m.color.getHex() !== col) U.m.color.setHex(col);
+        if (U.m.emissive.getHex() !== col) U.m.emissive.setHex(col);
+        U.m.emissiveIntensity = col ? lv : 0;
       }
     }
   };
@@ -123224,7 +123245,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/pier/pier_lods.js?v=aaede226"></script>
 <script type="text/x-flydiy" src="src/totems/totems_poles.js?v=63ad4d9f"></script>
 <script type="text/x-flydiy" src="tools/_house_kit.js?v=d635a246"></script>
-<script type="text/x-flydiy" src="tools/_house_gen.js?v=9e8ae296"></script>
+<script type="text/x-flydiy" src="tools/_house_gen.js?v=ec32f923"></script>
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=aa1ee37b"></script>
 <script type="text/x-flydiy" src="tools/_sport_gen.js?v=4e7d9a83"></script>
 <script type="text/x-flydiy" src="tools/_shed_gen.js?v=4b29f5fe"></script>
@@ -123238,7 +123259,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=2c7dc7ba"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=7bb8bf6c"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=021657f8"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=8539efad"></script>
 <script type="text/x-flydiy">
@@ -127757,7 +127778,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // G202: the PAPI reads the aeroplane's position; the planned legs are
     // drawn the moment the pilot plans them
     if (patVis) {
-      if (patVis.papiUpdate) { const cgP = sim.cgPos(); patVis.papiUpdate(cgP[0], cgP[1], cgP[2]); }
+      if (patVis.papiUpdate) {   // G449: the PAPI's lenses at the runway lights' level (a lamp judged at the day's exposure, dimmed back through the night's schedule)
+        const cgP = sim.cgPos(), exP = (window.GFX && GFX.exposureBase && GFX.exposureBase() != null) ? GFX.exposureBase() : 0.92;
+        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9));
+      }
       if (patVis.setLegs && ap.legs !== patLegsRef) { patLegsRef = ap.legs; try { patVis.setLegs(ap.legs, ap.altRef); } catch (e) {} }
     }
     // THE GAME IS THE "EXTERNAL RUNNER" (G130). The test pilot's watchdog
