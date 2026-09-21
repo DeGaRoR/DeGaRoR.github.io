@@ -6920,6 +6920,7 @@
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
+    if (flyOpen === 'ground') flGroundLive(o);
     // G441 (A4): the frame rate, on the GRAPHICS flyout while it is open (the user:
     // "we need a framerate indicator, optional") - a half-second window of frames
     if (flyOpen === 'graphics') {
@@ -7219,6 +7220,11 @@
     // G387: WORLD - the premises editor (PREMISES-EDITOR-2026-09-13.md), the bench's own module
     // over the flight scene: the sim paused, the host's camera, every edit recomposed live. A
     // developer's tool designed to become the player's (ISLAND-ADMIRALTY §9). A map pin glyph.
+    // 2026-09-21 (L6, BIOMES-IN-GAME-2026-09-20.md): THE GROUND - what is under you, live: the
+    // terrain type and the biome it names, the canopy, the slope, the cover ring's count. The
+    // in-game readout of the biomes, not a dial (F8 has the dials). A tuft glyph.
+    { k: 'ground', label: 'ground', title: 'What is under you: the ground, the biome, the canopy',
+      icon: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8' },
     { k: 'world', label: 'world', title: 'The premises of the world: roads, zones, strips, sites',
       icon: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z' },
   ];
@@ -7651,6 +7657,20 @@
           o => { if (o.value === '!none') GE.setWorldLights(() => false); else if (o.value === '!all') GE.setWorldLights(() => true); else GE.setWorldLight(o.value, !GE.worldLightOn(o.value)); });
       }
     },
+    // L6: THE GROUND - live rows, filled by flGroundLive on the tick
+    ground(body) {
+      const TF = window.TREE_FILL;
+      if (!TF || !TF.at || !TF.onIsland || !TF.onIsland()) { flNote(body, 'No island under this world: the analytic ground has no terrain types.'); return; }
+      flLive(body, 'ground', 'flGndCode');
+      flLive(body, 'biome', 'flGndMix');
+      flLive(body, 'canopy', 'flGndCanopy');
+      flLive(body, 'vigour', 'flGndNdvi');
+      flLive(body, 'slope', 'flGndSlope');
+      flLive(body, 'height', 'flGndAgl');
+      flLive(body, 'cover', 'flGndRing');
+      flNote(body, 'The terrain type under the aeroplane (the island\u2019s map, recomputed) names a bench mix - the biome - and the fill, the stands and the near cover draw from it. Cliff, old forest and dense scrub are derived from rock, forest and scrub by slope and canopy. F8 > trees > biomes holds the dials.');
+      flGroundLive(sim ? sim.out : null);
+    },
     clouds(body) {
       if (!window.CLOUDS_UI) { flNote(body, 'This build has no cloud panel.'); return; }
       window.CLOUDS_UI.mount(body, {
@@ -8053,6 +8073,27 @@
     cv.width = cv.height = mapBig ? 1024 : 344;
     $('mmp').classList.toggle('big', mapBig);
     drawMap();
+  }
+  // L6: the GROUND flyout's rows, every tick while it is open (a half-second cadence: the
+  // fields are cheap, the DOM is not)
+  const flGnd = { t: 0 };
+  function flGroundLive(o) {
+    const el = $('flGndCode'); if (!el || !sim) return;
+    const now = performance.now(); if (now - flGnd.t < 500) return; flGnd.t = now;
+    const TF = window.TREE_FILL, cg = sim.cgPos();
+    const g = TF && TF.at ? TF.at(cg[0], cg[2]) : null;
+    if (!g) { el.textContent = 'sea / off the map'; for (const id of ['flGndMix', 'flGndCanopy', 'flGndNdvi', 'flGndSlope']) { const e = $(id); if (e) e.textContent = '\u2014'; } }
+    else {
+      el.textContent = g.name + (g.code !== g.tt ? ' (from ' + (TF.biomes().names[g.tt] || g.tt) + ')' : '') + ' \u00b7 code ' + g.code;
+      $('flGndMix').textContent = g.mix ? g.mix + ' mix' : 'none planted';
+      $('flGndCanopy').textContent = g.canopy > 0.2 ? g.canopy.toFixed(1) + ' m' : 'open';
+      $('flGndNdvi').textContent = g.ndvi === null ? '\u2014' : (g.ndvi > 0.5 ? 'lush' : g.ndvi > 0.3 ? 'green' : g.ndvi > 0.1 ? 'thin' : 'bare') + ' (NDVI ' + g.ndvi.toFixed(2) + ')';
+      $('flGndSlope').textContent = g.slopeDeg.toFixed(0) + '\u00b0';
+    }
+    const agl = cg[1] - groundH(cg[0], cg[2]);
+    $('flGndAgl').textContent = agl.toFixed(0) + ' m AGL \u00b7 ' + groundH(cg[0], cg[2]).toFixed(0) + ' m ground';
+    const c = TF && TF.cover && TF.cover(), st = c && c.stat();
+    $('flGndRing').textContent = st ? (st.instances ? (st.instances / 1000).toFixed(0) + ' k tufts in ' + st.live + ' cells' : (agl > 150 ? 'above the ring (150 m)' : 'none here')) : 'no cover ring';
   }
   function flAirLive(o) {
     const w = $('flAirWind');

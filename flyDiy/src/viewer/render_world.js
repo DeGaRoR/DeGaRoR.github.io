@@ -90,7 +90,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // everything that can be seen by the eye ... don't hide terrain geometry in
   // a flight game"): there is no fog wall to hide behind. 9 km first, measured;
   // the horizon is the next step once the far chunks are coarser.
-  const NEAR_R = 270, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
+  // IMPOSTOR-FIRST (2026-09-21, the user: "full model really, really close, contact level, say 10 m,
+  // lod 1 say 20 or 30 m - in flight they should barely trigger - and the impostors for all the
+  // rest"): the near edge is 30 m now (270 since W0c); GFX 'forest detail' = far brings 60/270 back
+  const NEAR_R = 30, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // THE RING THINS WITH DISTANCE, IT DOES NOT POP (LOADING S3, G420). The
   // fill's far chunks used to be a different, quarter-density set and a
@@ -114,7 +117,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // today, then straight to billboard"): L1 (stick + full foliage) runs
   // from 60 m to the impostor at 270; the half-foliage rung stays in the
   // payload and the dial (L1 to < L2 to) brings it back.
-  const LOD_U = [{ value: 60 }, { value: 270 }], U0 = { value: 0 };
+  const LOD_U = [{ value: 10 }, { value: 30 }], U0 = { value: 0 };   // impostor-first (2026-09-21): L0 to 10 m, L1 to 30 m; was 60 / 270
   // THE TRANSITION WINDOW (W0c.13): over uFadeW metres about every edge BOTH
   // rungs are drawn, each through a screen-door dither with complementary
   // thresholds from the same noise, so every pixel is covered exactly once
@@ -3387,6 +3390,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE BIOMES' HANDLE (G454.12): the code -> mix map, the mixes, the export F8 offers
           biomes: () => BIO,
           cover: () => coverRing,
+          // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
+          // code and its name, the derived code (cliff / old forest / dense scrub by slope and
+          // canopy, at the split's midpoint here - no draw), the mix it names, the canopy, the
+          // NDVI, the slope
+          at: (x, z) => {
+            if (!ISLC || !ISLC.ttype || !BIO) return null;
+            const tt = ttypeAt(x, z); if (tt < 0) return null;
+            const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+            const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
+            const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
+            const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
+            return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixAt(code), canopy, slopeDeg,
+                     ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
+          },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); return r; },
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /

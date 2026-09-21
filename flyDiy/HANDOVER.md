@@ -53864,3 +53864,35 @@ selects, grass_dry density x3 -> 404 k to 563 k instances and back, forest -> mu
   under deformation, 125 the hands after floats -> tricycle, 130 the rod's inclination and
   the tailwheel, 131 the fuel-wing clipping, 149 the spine/keel rivet stretch, 151 the fin's
   mapping.
+
+## G469 — L6: THE GROUND STRIP; IMPOSTOR-FIRST BANDS; THE DENSITY QUESTION (2026-09-21)
+
+L6 (BIOMES-IN-GAME L6): `ground` on the flight rail between NIGHT/CLOUDS/GRAPHICS and WORLD -
+a live flyout (half-second cadence): the terrain type under the aeroplane and its derived
+name ("forest old (from forest) - code 13"), the biome (the mix), the canopy height, the
+vigour (NDVI in words), the slope, the height (AGL + ground), the cover ring's count.
+TREE_FILL.at(x, z) is the world's handle behind it: { tt, code, name, mix, canopy,
+slopeDeg, ndvi } (the derived code at the split's midpoint - no draw).
+IMPOSTOR-FIRST (the user: "full model really, really close, contact level, say 10 m, lod 1
+say 20 or 30 m - in flight they should barely trigger - and the impostors for all the
+rest"): NEAR_R 270 -> 30, LOD_U 60/270 -> 10/30; GFX 'forest detail' = impostors (10/30/30,
+every preset) or real trees (60/270/270, the old near); _gfx_check follows.
+NOT MEASURED CLEANLY: tree_perf at ng 160 read 98 ms median / ng 100 85.7 ms (p90 181) with
+the card shared again (3.9 GB held by other rigs, two of four runs crashed) - the morning's
+60 ms at 40 m AGL is not comparable (AGL 110 here). The impostor count is the cost now
+(434 k cards at ng 160), not the near geometry.
+THE DENSITY (the user: "the dense coniferous forest should really be dense, probably half or
+a quarter of real tree density ... the settings in your screenshots are much too sparse"):
+measured what the game can reach. A mix's density is the bench's `count` in `radius` and
+the game plants kind = min(1, density x spacing^2 x biomeGain) of the grid - so the GRID
+is the ceiling: ng 100 = 10.2 m = 95 /ha, ng 160 = 244 /ha, ng 240 = 549 /ha. The mixes
+themselves are sparse: conifer 1040 in r 220 = 68 /ha, deciduous 53, muskeg 18, borders 5,
+grassland 2 (a real coastal spruce-hemlock stand is 800-2500 /ha). And on Jolene code 8
+(forest) names the DECIDUOUS mix; only code 13 (old forest, canopy > 17 m at the midpoint)
+names the conifer - the island is Sitka spruce and hemlock, so 8 -> conifer is the ruling
+to take (F8 > biomes > code -> mix, one select). Pictures: screenshots/density/ (deep100 /
+deep240 at 4706,-2971 in the old forest; the chase eye looks across the lake, the far
+hillsides read bare where the map says scrub/heath - the borders / grassland mixes at
+5 and 2 /ha). TO DO for "dense": (1) 8 -> conifer on Jolene, (2) conifer count 1040 -> ~4000
+(263 /ha) in _trees_tuning.json and the payload rebaked, (3) 'dense' presets at ng 200-240,
+(4) then the frame measured on a quiet card - 549 /ha of impostors is 2-3x today's cards.
