@@ -36740,7 +36740,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ae4130c859d4';window.FLYDIY_BUILD='06f8bff4e2bf'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ae4130c859d4';window.FLYDIY_BUILD='066b14253a7c'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -57157,9 +57157,29 @@ function buildPedals(g, A, P, sx) {
     // in the air under the skin ahead of the nosewheel. The keel line is
     // A.floorAt(z); the block sits on it at its own station.
     const cb = K.Bag(), fl = K.Bag();
-    const zC = zA + 0.24, yC = A.floorAt(zC);
+    // G474: ...and on the DRAWN belly where that is higher than the keel
+    // line (ahead of the cabin the smooth skin runs above the control
+    // cage's keel; the block sat 7 mm under the aeroplane, the cable
+    // through the skin - item 20 again, the second cause)
+    const zC = zA + 0.24;
+    const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
+    // 18 mm over the belly: the block's own half-height and the skin's
+    // liner (the cabin's inner face is ~4 mm inside the outer skin)
+    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.018 : -Infinity);
     const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
-    K.tube(cb, e0, e1, 0.0015, 6);
+    // the cable follows the belly where the belly rises above its chord (a
+    // convex-up run under the pedals to a fairlead at the nose): four legs,
+    // each point lifted to 12 mm over the drawn skin
+    const legs = [e0];
+    for (let i = 1; i < 4; i++) {
+      const s = i / 4;
+      const q = [e0[0] + (e1[0] - e0[0]) * s, e0[1] + (e1[1] - e0[1]) * s, e0[2] + (e1[2] - e0[2]) * s];
+      const bq = A.bellyAt ? A.bellyAt(q[0], q[2]) : null;
+      if (bq != null && q[1] < bq + 0.012) q[1] = bq + 0.012;
+      legs.push(q);
+    }
+    legs.push(e1);
+    for (let i = 0; i < legs.length - 1; i++) K.tube(cb, legs[i], legs[i + 1], 0.0015, 6);
     K.boxIn(fl, [xp, yC + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
     K.bolt(pl0, [xp, yC + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
     cb.mesh(g, M.frame); fl.mesh(g, M.cast);
@@ -59088,7 +59108,45 @@ function anchors(spec, P, mesh) {
     for (const q of sidePts) if (q[3] && q[0] * sd > 0 && Math.abs(q[1] - y) < 0.06 && q[2] > zM) zM = q[2];
     return zM;
   };
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  // THE DRAWN BELLY AT A PLACE (G474, playtest item 20, the user of Screenshot
+  // 2026-09-17 190717: "a control poking through under the cowl"). The keel
+  // line above is the CONTROL cage's - a polyline through the rings' keel
+  // points - and the drawn skin is the subdivision surface INSIDE that
+  // polygon: ahead of the cabin, where the belly rises to the nose, the
+  // smooth skin runs 7 mm above the keel line (measured, build (4)) and the
+  // pedals' cable fairlead placed on `floorAt` hung under the aeroplane. This
+  // reads the displayed mesh: the lowest skin vertex within 5 cm of (x, z),
+  // in metres; null where the mesh has no skin (a headless list).
+  const bellyPts = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!FLOOR_WALL.test(f.m || '') && !/^(plywood|cloth|aluminium|taper)/.test(f.m || '')) continue;
+      for (const vi of f.v) {
+        const v = mesh.V[vi];
+        if (v[1] * k < (spec.waistY || 0) * k) bellyPts.push([v[0] * k, v[1] * k, v[2] * k]);
+      }
+    }
+  // (the belly rises toward the nose, so the lowest vertex in a window is
+  // its aft edge: the skin is the lowest vertex per centimetre of station,
+  // interpolated at z between the nearest stations either side)
+  const bellyAt = (x, z) => {
+    const bins = new Map();
+    for (const q of bellyPts) {
+      if (Math.abs(q[0] - x) > 0.04 || Math.abs(q[2] - z) > 0.08) continue;
+      const b = Math.round(q[2] * 100);
+      if (!bins.has(b) || q[1] < bins.get(b)) bins.set(b, q[1]);
+    }
+    if (!bins.size) return null;
+    let a = null, c = null;
+    for (const [b, y] of bins) {
+      const zb = b / 100;
+      if (zb <= z && (!a || zb > a[0])) a = [zb, y];
+      if (zb >= z && (!c || zb < c[0])) c = [zb, y];
+    }
+    if (a && c && c[0] > a[0]) return a[1] + (c[1] - a[1]) * (z - a[0]) / (c[0] - a[0]);
+    return (a || c)[1];
+  };
+  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be
@@ -63686,10 +63744,16 @@ const padArc = (AF, z, W, ang) => {
   }
   return Math.min(PAD_ARC, tot);
 };
+// THE PAD IS PAINTED WITH THE AEROPLANE (G474, playtest item 20 - the user
+// of Screenshot 2026-09-17 190717 read the mains' bare grey trunnion plate and
+// brace plate, seen past the nose leg, as "a control poking through the
+// aircraft"): a doubler bolted to the belly is painted over on every light
+// aeroplane; it goes to the steel bag (gearLeg, `wears: 'parent'`) so the
+// base colour reaches it, and only the bolt heads stay bare alloy.
 function fitPad(bags, AF, z, ang, L, W, opt) {
   opt = opt || {};
   const NL = 7, NW = 5;
-  const bag = bags.alloy;
+  const bag = bags.steel || bags.alloy;
   const rows = [], out = [];
   for (let i = 0; i <= NL; i++) {
     const zz = z + L * (i / NL - 0.5);
@@ -63839,7 +63903,7 @@ function pivotOn(bags, Fr) {
 function padFlat(bags, Fr, L, W, opt) {
   opt = opt || {};
   const NL = 7, NW = 5;
-  const bag = bags.alloy;
+  const bag = bags.steel || bags.alloy;           // G474: painted, as fitPad's
   const rows = [], out = [];
   for (let i = 0; i <= NL; i++) {
     const ri = [], ro = [];
@@ -64374,7 +64438,21 @@ function legOleo(bags, AF, P, st, sgn) {
     const bp = off(bTop.p, bTop.n, 0.018);
     padOn(bags, AF, st, zB, aS * P.oleoAng * D2R * 0.6,
           0.10, 0.09, { thick: 0.006 }, -aS * hubIn);
-    taper(bags.steel, bp, off(trunn, dir, cylL * 0.72), 0.013, 0.010, 12);
+    // G474 (playtest item 20, the user of Screenshot 2026-09-17 190717: "a
+    // control poking through the aircraft, I can't identify"): the brace
+    // was a bare rod from a flat pad to the cylinder, and read as a stray
+    // pushrod. It is a DRAG BRACE, and it now looks like one: a clevis of
+    // two lugs on the pad with a bolt through the rod's eye, the rod's
+    // ends as eyes on both fittings, a collar on the cylinder where it
+    // lands - the fittings every nose leg's drag link actually has.
+    const bEnd = off(trunn, dir, cylL * 0.72);
+    const bAx = nrm(crs(sub(bEnd, bp), bTop.n));             // the pivot's axis, across the brace
+    for (const s of [-1, 1])
+      lug(bags.alloy, off(bp, bAx, s * 0.012), bAx, bTop.n, 0.014, 0.006, 0.030);
+    revolve(bags.bronze, off(bp, bAx, -0.019), bAx, [[0.005, 0], [0.005, 0.038]], 10, true);
+    revolve(bags.steel, bp, bAx, [[0.011, -0.004], [0.011, 0.004]], 12, true);   // the rod's eye
+    taper(bags.steel, off(bp, nrm(sub(bEnd, bp)), 0.012), bEnd, 0.011, 0.009, 12);
+    revolve(bags.steel, bEnd, dir, [[P.oleoDia * 0.5 + 0.004, -0.014], [P.oleoDia * 0.5 + 0.004, 0.014]], 16, true);   // the collar
   }
   // G133: the oleo's shroud — THE pillar fairing. Chord is sized so the
   // elliptic nose still swallows the torque scissor's knee at full offset.
@@ -64536,7 +64614,11 @@ function legTailwheel(bags, AF, P, st) {
   const F = fitOn(AF, st, st.z, 0);
   const root = off(F.p, F.n, 0.008 + P.twSpringT * 0.5);
   const tipZ = st.z - P.twSpringLen;
-  const tip = [0, AF.keelAt(st.z) - P.twSpringDrop, tipZ];
+  // G474 (item 130): on an inclined rod the mount rose with the tube; the
+  // spring drops by that rise as well, so the wheel stays on the design
+  // ground line (the mount says how much - see _cage_gear.js rodMount)
+  const rise = st.rodRise || (st.mount && st.mount.rise) || 0;
+  const tip = [0, AF.keelAt(st.z) - P.twSpringDrop - rise, tipZ];
   const ctrl = [0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
@@ -78597,7 +78679,11 @@ PAGE.post = ctx => {
     try {
       const S = CG2.cageSpec(P), R = CG2.cageResolve(S);
       if (!S.rod || !R.rodSpan) return null;
-      const tI = Math.tan((S.rod.incl || 0) * Math.PI / 180);
+      // G474: `S.rod.incl` is RADIANS already (_cage_gen cageSpec converts the
+      // row); this converted it again, so the saddle's axis line (G307) and
+      // the rise below read 1/57 of the inclination - the saddle sat off an
+      // inclined tube by the whole rise, and the tailwheel rode it
+      const tI = Math.tan(S.rod.incl || 0);
       return { zRoot: R.rodSpan.zRoot * FS, zTip: R.rodSpan.zTip * FS, r: S.rod.r * FS,
                yAx: z => (S.rod.y + tI * (R.rodSpan.zRoot - z / FS)) * FS };
     } catch (e) { return null; }
@@ -78614,6 +78700,15 @@ PAGE.post = ctx => {
     };
     provider.saddle = { ctr: [0, rodSpan.yAx(st.z), st.z], axis: [0, 0, -1], r: rodSpan.r };
     provider.onDrawn = rec => saddlesOut.push(rec);
+    // G474 (playtest item 130, the birdman: "the rod inclination impacts the
+    // position of everything related to the tail wheel"): the saddle rides
+    // the tube, so an inclined rod (tail up +) lifted the whole tailwheel
+    // with it - 0.265 m at 6 deg on the birdman, measured - and the stance
+    // solver then dropped the tail until the wheel touched: the row that
+    // says "tail up" sat the aeroplane MORE tail-down. The rise of the tube
+    // at the station over its root is handed to the leg, which lengthens
+    // its spring by it so the wheel's contact stays on the design line.
+    provider.rise = rodSpan.yAx(st.z) - rodSpan.yAx(rodSpan.zRoot);
     return provider;
   };
   const wingMount = (st, sgn) => {
@@ -78685,6 +78780,11 @@ PAGE.post = ctx => {
       else if (om) st.mount = om;
       else delete st.mount;
       if (st.leg === 3) {
+        // G474 (item 130): the rod's rise at this station over its root,
+        // whatever the mount (the tailwheel usually sits past the saddle's
+        // reach, on the rod's tip cap) - the spring lengthens by it
+        if (rodSpan) st.rodRise = rodSpan.yAx(st.z) - rodSpan.yAx(rodSpan.zRoot);
+        else delete st.rodRise;
         // legTailwheel builds spring AND wheel into one bag-set; the
         // proxies route the spinning parts to the wheel unit, the fork
         // (and now its spat, G133) to the castor unit, and the spring —
