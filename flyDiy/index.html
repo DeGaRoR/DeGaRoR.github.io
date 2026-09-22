@@ -37053,7 +37053,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a70853898f79';window.FLYDIY_BUILD='c34bb2bb7d7b'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a70853898f79';window.FLYDIY_BUILD='c2328f27c0a9'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -108537,11 +108537,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (L.level <= 0.2 || L.cells < 3) continue;
           if (isSea(L)) { seaSkipped++; continue; }
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
-          const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
+          // THE DRAWN SURFACE IS THE PHYSICS' (ruling ap: ONE surface; G460.11.7, the user: "the lake quads at
+          // waterH, let's fix that hovering plane"). The island's DEM lake level and the hydrology's waterH are
+          // two models of the same lake and they disagree - 0.62 m at Jolene's (DEM 37.90, waterH 38.54) - so a
+          // floatplane rode the hydrology and HOVERED over the surface it was drawn on. The quad takes waterH,
+          // sampled at the lake's centre and its four quarter points (a ring-shaped lake's centre can be land),
+          // the median of the finite samples within 3 m of the DEM level; nothing else moves, so the shore's
+          // fade (the lake FIELD's, not the terrain's) still cuts the edge where it always did - the bank is
+          // under 0.6 m more water there, which is the cost of the two models agreeing.
+          const cx = (L.x0 + L.x1) / 2, cz = (L.z0 + L.z1) / 2, qx = (L.x1 - L.x0) / 4, qz = (L.z1 - L.z0) / 4;
+          const hs = [[cx, cz], [cx - qx, cz], [cx + qx, cz], [cx, cz - qz], [cx, cz + qz]]
+            .map(q => (world.waterH ? world.waterH(q[0], q[1]) : NaN))
+            .filter(h => Number.isFinite(h) && Math.abs(h - L.level) < 3).sort((p1, p2) => p1 - p2);
+          const lakeY = hs.length ? hs[hs.length >> 1] : L.level + 0.02;
+          const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set(cx, lakeY, cz);
           m.receiveShadow = true; scene.add(m); n++;
           // the DRAWN level, for anything that needs the plane the eye sees rather than the physics' (the water's
           // planar mirror: it reflects about a plane, and 0.6 m of error there stretches the reflection, G460.11.4)
-          lakeQuads.push({ x0: L.x0 - 4, x1: L.x1 + 4, z0: L.z0 - 4, z1: L.z1 + 4, y: L.level + 0.02 });
+          lakeQuads.push({ x0: L.x0 - 4, x1: L.x1 + 4, z0: L.z0 - 4, z1: L.z1 + 4, y: lakeY });
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
       }

@@ -1967,11 +1967,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (L.level <= 0.2 || L.cells < 3) continue;
           if (isSea(L)) { seaSkipped++; continue; }
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
-          const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
+          // THE DRAWN SURFACE IS THE PHYSICS' (ruling ap: ONE surface; G460.11.7, the user: "the lake quads at
+          // waterH, let's fix that hovering plane"). The island's DEM lake level and the hydrology's waterH are
+          // two models of the same lake and they disagree - 0.62 m at Jolene's (DEM 37.90, waterH 38.54) - so a
+          // floatplane rode the hydrology and HOVERED over the surface it was drawn on. The quad takes waterH,
+          // sampled at the lake's centre and its four quarter points (a ring-shaped lake's centre can be land),
+          // the median of the finite samples within 3 m of the DEM level; nothing else moves, so the shore's
+          // fade (the lake FIELD's, not the terrain's) still cuts the edge where it always did - the bank is
+          // under 0.6 m more water there, which is the cost of the two models agreeing.
+          const cx = (L.x0 + L.x1) / 2, cz = (L.z0 + L.z1) / 2, qx = (L.x1 - L.x0) / 4, qz = (L.z1 - L.z0) / 4;
+          const hs = [[cx, cz], [cx - qx, cz], [cx + qx, cz], [cx, cz - qz], [cx, cz + qz]]
+            .map(q => (world.waterH ? world.waterH(q[0], q[1]) : NaN))
+            .filter(h => Number.isFinite(h) && Math.abs(h - L.level) < 3).sort((p1, p2) => p1 - p2);
+          const lakeY = hs.length ? hs[hs.length >> 1] : L.level + 0.02;
+          const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set(cx, lakeY, cz);
           m.receiveShadow = true; scene.add(m); n++;
           // the DRAWN level, for anything that needs the plane the eye sees rather than the physics' (the water's
           // planar mirror: it reflects about a plane, and 0.6 m of error there stretches the reflection, G460.11.4)
-          lakeQuads.push({ x0: L.x0 - 4, x1: L.x1 + 4, z0: L.z0 - 4, z1: L.z1 + 4, y: L.level + 0.02 });
+          lakeQuads.push({ x0: L.x0 - 4, x1: L.x1 + 4, z0: L.z0 - 4, z1: L.z1 + 4, y: lakeY });
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
       }

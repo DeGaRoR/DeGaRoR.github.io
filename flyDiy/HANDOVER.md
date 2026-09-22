@@ -55672,3 +55672,19 @@ LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
 - OWED: the splice bolts and the lapped panel ends (the tone step is all we draw); a timber-post
   variant for a village lane; nothing reads a rail as a collision surface - an aeroplane taxis through
   it; the analytic island's own roads shot (Jolene is the default map, so the pictures are hers).
+## G460.11.7 — THE LAKE QUADS TAKE waterH: THE HOVERING FLOATPLANE (2026-09-22, the user: "the lake quads at
+## waterH, let's fix that hovering plane")
+
+- The island's DEM lakes and the hydrology's `waterH` are two models of the same lake and they disagree -
+  0.62 m at Jolene's (the DEM's level 37.90 + 0.02 drawn, waterH 38.54 felt) - so a floatplane rode the
+  hydrology and HOVERED over the surface it was drawn on, and any plane mirror built on either one was wrong
+  for the other (G460.11.4). Ruling (ap) says ONE surface: the RENDERER follows the physics, which also
+  leaves HYDRODYN / FLOATS / WIPLINE / SEAPLANE untouched (nothing the hull feels moved).
+- The quad's y is waterH sampled at the lake's CENTRE and its four quarter points (a ring-shaped lake's
+  centre can be land), the median of the finite samples within 3 m of the DEM level, else the DEM level as
+  before. `waterDrawY` publishes the same number, so the mirror's plane, the drawn surface and the physics
+  now agree everywhere.
+- What moved with it: the shore's fade is the lake FIELD's, not the terrain's, so the edge still cuts where
+  it did - the bank is simply under ~0.6 m more water there (7 m of a 1:12 shore). s1/shore.png: the water's
+  edge along the grass, clean. s1/floatClose.png: the floats' chines in the water, the waterline across the
+  hull, the reflection starting at it.
