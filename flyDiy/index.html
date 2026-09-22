@@ -9482,6 +9482,20 @@ var DAY = (function () {
       // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
       const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
       d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
+      // TWO NUMBERS OUT OF ONE HUMIDITY, AND THEY ARE NOT THE SAME MEDIUM. They sit
+      // together deliberately, because keeping them apart is what went wrong before:
+      // `visibilityKm` above is the COLUMN - the whole air, aerosol spread through the
+      // boundary layer and above it, roughly uniform over kilometres, and the number a
+      // Koschmieder extinction is calibrated from. `mistRho0` is the IN-LAYER density of
+      // a shallow ground fog: droplets, tens of metres deep, absent above its lid. At
+      // rh 0.90 the column gives 1.05e-4 /m and the layer 1.11e-3 - ten times denser -
+      // and that is not a disagreement to reconcile, it is two media. A ray's
+      // transmittance is the product of both, so an eye at the surface sees the SUM of
+      // the extinctions (climate.haze().surfaceVisM), while an eye above the lid looking
+      // at a ridge sees only the column. The renderer owns where the layer LIES (its top
+      // follows the valley floors, it has banks); the day owns only how dense the air
+      // makes it. One law, one place - atmo.js reads this and no longer carries a copy.
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2);
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -9592,7 +9606,7 @@ var DAY = (function () {
     for (const k of ['sun', 'sunEl', 'sunAz', 'sunAzGrid', 'rigAzim', 'sunUp', 'illumClass', 'isNight',
                      'moon', 'moonEl', 'moonAz', 'moonPhase', 'moonWaxing', 'moonUp',
                      'noonUtc', 'sunriseUtc', 'sunsetUtc', 'polar',
-                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm',
+                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm', 'mistRho0',
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
                      'sunElLag',                                                       // K3
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
@@ -10506,28 +10520,52 @@ var CLIMATE = (function () {
       if (lcl == null) return lid;
       return Math.min(lid, lcl);
     }
-    // haze(): THE INGREDIENTS OF A MIST, not a distance. Koschmieder's law turns
-    // a visibility into an extinction, beta = 3.912 / V; the day's own
-    // visibilityKm carries the turbidity and the humidity, and a front thickens
-    // it. What is published is (rho0, top, H) - the layer itself - and the
-    // consumer integrates along ITS OWN ray.
+    // haze(): THE INGREDIENTS OF A MIST, not a distance - and TWO MEDIA, never one.
+    //
+    // This function used to hand over a flat { rho0, top, H }: a COLUMN density paired
+    // with a LAYER geometry, as though they belonged together. They do not, and the fog
+    // study found it by trying to use them: adopting `rho0` as the mist's density made
+    // the mist ten times too thin and all but erased it. The shape below makes that
+    // mistake impossible to make by accident.
+    //
+    //   column : the whole air - aerosol through the boundary layer and above it,
+    //            roughly uniform over kilometres. `rho0` is Koschmieder's extinction
+    //            from the day's own visibility, 3.912 / V, and a front thickens it.
+    //            This is the AERIAL PERSPECTIVE's number.
+    //   layer  : the shallow ground fog - droplets, tens of metres deep, absent above
+    //            its lid, roughly ten times denser than the column at the same humidity.
+    //            `rho0` is the day's (07_day.js derives it beside visibilityKm - ONE law,
+    //            one place; atmo.js reads the day and carries no copy). `top` and `H` are
+    //            its nominal shape; the RENDERER owns where it actually lies, because F2
+    //            lays the layer on the valley floors and gives it banks, at which point
+    //            `top` is a height above the LOCAL FLOOR rather than above the sea.
     //
     // TWO WARNINGS FOR WHOEVER CONSUMES THIS, both measured by the fog study
     // (futureDesigns/FOG-MIST-2026-09-21.md) rather than argued:
     //
-    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid at `top`,
-    //    so how far an eye can see depends on where the eye is and where it is
-    //    looking: from 200 m over Jolene the distant GROUND dies at about 4 km
-    //    (that ray looks down through the layer) while the RIDGES stand at 5-9
-    //    km (their ray never enters it). A far plane or a ring radius sized off
-    //    a single surface number escapes by luck at rh 0.85 and shears the
-    //    mountains off at rh 0.90. Integrate the ray; that is what these three
-    //    numbers are for.
-    // 2. THIS NUMBER MOVES DURING A FLIGHT NOW. It used to be a constant per
-    //    day; a front takes it 60 -> 26 km over a couple of hours and the
-    //    diurnal humidity walks it as well. Any consumer that sizes a STREAMED
-    //    thing from it (the forest ring, a far cascade) needs two-radii
-    //    hysteresis and a rate limit, or it re-imports the chunk-crossing pop.
+    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid, so how far an eye
+    //    can see depends on where the eye is and where it is LOOKING: from 200 m over
+    //    Jolene the distant GROUND dies at about 4 km (that ray looks down through the
+    //    layer) while the RIDGES stand at 5-9 km (their ray never enters it). With F2's
+    //    banks it is direction-dependent in a second way - a ray into a bank and one down
+    //    a clear lane differ from the same eye. A far plane or a ring radius sized off any
+    //    single scalar escapes by luck at rh 0.85 and shears the mountains off at rh 0.90.
+    //    Integrate the ray; these numbers are the ingredients for doing so.
+    // 2. THESE NUMBERS MOVE DURING A FLIGHT NOW. They used to be constants per day; a
+    //    front takes the visibility 60 -> 26 km over a couple of hours and the diurnal
+    //    humidity walks both. Any consumer that sizes a STREAMED thing from them (the
+    //    forest ring, a far cascade) needs two-radii hysteresis and a rate limit, or it
+    //    re-imports the chunk-crossing pop.
+    //
+    // `surfaceVisM` is the one honest scalar here, and only at the surface: an eye on the
+    // ground looking horizontally is inside BOTH media, so the extinctions add and
+    // Koschmieder inverts the sum. That is what a pilot is told, and it is why the panel
+    // must not quote `column.visibilityKm` on a fog morning - the column says 37 km while
+    // the strip's far end has vanished. It is the WEATHER's number, blind to the graphics
+    // dials, and to where the eye happens to be. Where the renderer can integrate the
+    // eye's OWN ray through the layer it really drew (the fog study's ATMO.seeRange),
+    // that wins and climate_link.js prefers it - asked at Koschmieder's 2 % contrast,
+    // the same constant inverted here, so the two definitions cannot drift apart.
     function haze() {
       const day = env.day;
       if (!day) return null;
@@ -10535,8 +10573,14 @@ var CLIMATE = (function () {
       let visKm = day.visibilityKm;
       if (st) visKm *= 1 - 0.55 * st.I;                             // a front's murk, declared
       const w = waterNow();
-      return { visibilityKm: visKm, rho0: 3.912 / Math.max(0.05, visKm * 1000),
-               top: 60, H: 18, rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
+      const colRho = 3.912 / Math.max(0.05, visKm * 1000);
+      // the day's own law (07_day.js). The fallback is for a bare day-shaped object, not
+      // a second copy of the law: a DAY always derives it.
+      const layRho = day.mistRho0 != null ? day.mistRho0 : 0;
+      return { column: { rho0: colRho, visibilityKm: visKm },
+               layer: { rho0: layRho, top: 60, H: 18 },
+               surfaceVisM: 3.912 / Math.max(1e-9, colRho + layRho),
+               rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
     }
     // thermals(): every live column within `r` of a point, as records - what the
     // debug view draws, what a gate flies to, and what a panel counts. Pure in
@@ -38352,7 +38396,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='75a898aa80ec';window.FLYDIY_BUILD='459fe74a685c'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='3e96b010c557';window.FLYDIY_BUILD='c41bed41cde5'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100296,8 +100340,9 @@ var ATMO = (function () {
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
   const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
-  // (humidity: rho0 = 0.0025/m x ((rh - 0.7) / 0.3)^2 - saturated air sees 1.2 km), its top (m ASL)
+  // (`day.mistRho0`, derived in 07_day.js - saturated air sees 1.2 km), its top (m ASL)
   // and thickness (m), the forward peak. F8's atmosphere fold writes these.
+  let mistWarned = false;                                    // the density's one-shot complaint (below)
   const MIST = { on: true, k: 1, top: 60, H: 18, fwd: 0.8, rhoDay: 0, get rho0() { return this.rhoDay * this.k; },
     cloud: { rho: 0, base: 0, top: 0 },                         // the slab the eye is in (clouds.js writes it)
     // F2: `relief` lifts the layer off one world altitude and onto the land (0 = the flat slab,
@@ -100689,8 +100734,19 @@ ${MIST_GLSL}
     U.eyeY.value = camAltM || 0;
     // the mist's day: its density from the humidity, its colour from the sun and the sky at its top
     if (day) {
-      const rh = day.rh != null ? day.rh : 0.5;
-      MIST.rhoDay = 0.0025 * Math.pow(Math.max(0, Math.min(1, (rh - 0.7) / 0.3)), 2);
+      // THE DENSITY IS THE DAY'S, and this file no longer carries a copy of the law.
+      // It is a weather fact (a function of the humidity) and it was derived here and
+      // nowhere else, which is how the climate came to publish a COLUMN density that
+      // looked like it meant the same thing and was ten times thinner. 07_day.js now
+      // derives it beside visibilityKm, where the difference between the two is
+      // written down. What stays here is what this file actually owns: MIST.k (the F8
+      // multiplier), the layer's SHAPE, its relief, its banks and its colour.
+      // The zero is not a default: it means whoever called this handed a day that is not
+      // a 07_day DAY, and a mist that quietly disappears is the failure this chantier has
+      // twice paid to learn about (the fog session asked for it to be loud, and was right).
+      if (day.mistRho0 == null && !mistWarned) { mistWarned = true;
+        console.warn('ATMO: day.mistRho0 is undefined - this is not a 07_day day, so the mist is off. That is a bug, not a setting.'); }
+      MIST.rhoDay = day.mistRho0 != null ? day.mistRho0 : 0;
       const km = MIST.top / 1000, T = [0, 0, 0], E = [0, 0, 0], Em = [0, 0, 0];
       sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E);
       const sy = Math.max(0, day.sun[1]);
@@ -102519,10 +102575,37 @@ var WEATHER_UI = (function () {
   }
   function wOf(day) {
     const w = worldNow(), c = w && w.climate ? w.climate : null;
-    if (!c) return { rh: null, lcl: null, mixTop: null, vis: day ? day.visibilityKm : null };
+    if (!c) return { rh: null, lcl: null, mixTop: null, vis: day ? day.visibilityKm : null, sfcVis: null, drawn: false };
     const p = c.profile ? c.profile(0) : null, hz = c.haze ? c.haze() : null;
+    // TWO VISIBILITIES, AND THE PLAYER IS TOLD THE ONE THEY FLY IN. `vis` is the
+    // COLUMN - the authored number, what the day was written with and what a front
+    // moves. `sfcVis` is what an eye on the ground can actually see horizontally,
+    // which on a fog morning is the fog's number and not the column's: the column
+    // would cheerfully say 37 km while the far end of the strip has gone. Preferring
+    // the renderer's own measurement (CLIMATE_LINK.pub.visM) when it exists means the
+    // panel quotes what was DRAWN; the weather's own surfaceVisM is the fallback.
+    const L = (typeof window !== 'undefined') ? window.CLIMATE_LINK : null;
+    const drawn = L && L.pub && L.pub.on && L.pub.visM != null ? L.pub.visM : null;
     return { rh: p ? p.rh : null, lcl: p ? p.lcl : null,
-             mixTop: c.mixTop ? c.mixTop() : null, vis: hz ? hz.visibilityKm : (day ? day.visibilityKm : null) };
+             mixTop: c.mixTop ? c.mixTop() : null,
+             vis: hz ? hz.column.visibilityKm : (day ? day.visibilityKm : null),
+             sfcVis: drawn != null ? drawn : (hz ? hz.surfaceVisM : null),
+             drawn: drawn != null };
+  }
+  // THE VISIBILITY ROW. The column first, because that is the day as authored; then
+  // the surface, but ONLY when it is meaningfully worse - on a clear day the two are
+  // the same number twice and a panel that says so is noise. Under a kilometre it is
+  // said in metres, as a METAR does, because that is the regime where the difference
+  // stops being interesting and starts being the flight.
+  function visKmStr(km) { return km >= 60 ? '60+ km' : km >= 10 ? km.toFixed(0) + ' km' : km.toFixed(1) + ' km'; }
+  function visLine(w) {
+    if (w.vis == null) return '—';
+    const col = visKmStr(w.vis);
+    if (w.sfcVis == null || !isFinite(w.sfcVis)) return col;
+    const sKm = w.sfcVis / 1000;
+    if (sKm > w.vis * 0.9) return col;                       // nothing on the deck worth saying
+    const sfc = sKm < 1 ? (Math.round(w.sfcVis / 100) * 100) + ' m' : visKmStr(sKm);
+    return col + ' · ' + sfc + ' on the deck' + (w.drawn ? '' : '*');
   }
   // what the front is doing, said in a sentence
   function frontLine(day) {
@@ -102548,7 +102631,7 @@ var WEATHER_UI = (function () {
       wxCol: (day.oatC != null ? day.oatC.toFixed(0) : '—') + ' °C · ' + (day.qnhEff / 100).toFixed(0) + ' hPa'
              + (w.mixTop != null ? ' · thermals to ' + w.mixTop.toFixed(0) + ' m' : '')
              + (day.cloudBase > 0 && day.cloudCover > 0.05 ? ' · base ' + day.cloudBase.toFixed(0) + ' m' : ''),
-      wxVis: w.vis != null ? (w.vis >= 60 ? '60+ km' : w.vis.toFixed(0) + ' km') : '—',
+      wxVis: visLine(w),
       wxFront: day.storm ? day.storm.phase + ' · ' + (day.storm.I * 100).toFixed(0) + ' %'
                : (day.stormSpec ? 'in ' + dur(day.stormSpec.at - day.utc) : 'none'),
     };
@@ -102599,6 +102682,7 @@ var CLIMATE_LINK = (function () {
     cam: [0, 0, 0],
     gust: 0,
     haze: null,
+    visM: null,          // what the RENDERER measured, when it can (see frame())
     sea: null,
     utc: 0,
   };
@@ -102664,6 +102748,22 @@ var CLIMATE_LINK = (function () {
     }
     // ---- what the mist and the sea would read ------------------------------
     pub.haze = c.haze ? c.haze() : null;
+    // WHAT THE EYE CAN ACTUALLY SEE, measured through the mist that was really DRAWN.
+    // haze().surfaceVisM is the WEATHER's number - the two extinctions added at the
+    // ground - and it is blind to the graphics dials, to F2's relief and banks, and to
+    // where the eye is. The fog study's ATMO.seeRange() integrates the eye's own level
+    // ray through the real layer, so where it exists it is the better number.
+    //
+    // THE THRESHOLD IS OURS, NOT ITS CALLER'S. WORLD.visM() asks seeRange for 1 %
+    // transmittance, which is right for what it does (sizing a far plane: keep drawing
+    // while anything is still faintly there). A VISIBILITY, the number on a METAR and
+    // the one a pilot is briefed with, is Koschmieder's 2 % contrast - exp(-3.912) =
+    // 0.02 exactly, the same constant haze() inverts. Asking for 1 % here would report
+    // a fifth further than the met definition and would disagree with the fallback by
+    // that much whenever a world came up. So: their integral, our constant.
+    const A = (typeof ATMO !== 'undefined') ? ATMO : null;
+    pub.visM = (A && typeof A.seeRange === 'function' && camPos)
+      ? A.seeRange(camPos.y, camPos.y, 0.02) : null;
     pub.sea = world.sea || null;
     pub.utc = day ? day.utc : 0;
     // ---- the ripples, on CHANGE only ---------------------------------------
@@ -146773,7 +146873,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
             + (pr ? ` · ${pr.T.toFixed(1)}°C rh ${(pr.rh == null ? NaN : pr.rh * 100).toFixed(0)}%` : '')
             + ` · thermals to ${c.mixTop ? c.mixTop().toFixed(0) : '?'} m`
             + (pr && pr.lcl != null ? ` (base ${pr.lcl.toFixed(0)})` : ' (no base)')
-            + (hz ? ` · vis ${hz.visibilityKm.toFixed(0)} km` : '')
+            + (hz ? ` · vis ${hz.column.visibilityKm.toFixed(0)} km` + (hz.surfaceVisM < hz.column.visibilityKm * 900 ? ` (${(hz.surfaceVisM / 1000).toFixed(1)} on the deck)` : '') : '')
             + (st ? ` · front ${st.phase} I ${st.I.toFixed(2)}` : '')
             + ` · raster ${c.relief ? c.relief.nx + '²  ' + S.rasterMs.toFixed(0) + ' ms' : 'not built'}`
             + ` · ${S.full || 0} full / ${S.linear || 0} linear`;
