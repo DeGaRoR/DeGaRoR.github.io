@@ -56765,3 +56765,31 @@ whichever hook arrives first declares it and the other does not. The phase is st
 leaf's instance id, the ring's aRand). Proved off-line by running both hooks over a stub shader:
 one uWind, one sway block, one swayPh, braces balanced (scratch idem.js).
 Landed within the hour of the report; the reporter's own files were never touched.
+
+## G506.1 - THE BRACE THAT TURNED A GATE OFF (2026-09-22)
+
+GATE POSTFX went red at G505 and stayed red through G506. Mine, and the cause is worth the entry
+because the defect was INVISIBLE to everything except the gate that caught it.
+
+Resolving a rebase conflict in `gfx_settings.js` (the climate's `sway` row and F1's `drawDist` row
+landed in the same place), I repaired the PRESETS object's closing brace and it ended up on the
+SAME LINE as the last preset: `... mirror: 'live' },  };`. That is perfectly good JavaScript. The
+file parsed, every runtime gate passed, the presets all held the right values, and GATE GFX -
+which reads the parsed object - was green. But GATE POSTFX reads the SOURCE, and its anchor is
+`/const PRESETS = \{[\s\S]*?
+  \};/`: with no `
+  };` to stop at, the match ran on to the
+NEXT one, which is `PRESET_WHY`'s, so the block it examined contained six `low:`/`high:` lines
+instead of four and `presetRows.length === 4` failed. The gate was right and the message was
+honest; it simply describes the symptom ("every preset says off for all six rows") and not the
+cause, because it cannot know it was reading the wrong object.
+
+THE LESSON, and it is not "be careful with braces": a source-scanning gate anchors on FORMATTING,
+so a hand-merge that is semantically perfect can still turn one off. When a gate that reads source
+goes red after a conflict resolution, suspect the shape of the file before the value of the data -
+and print what the gate SEES rather than what the file says, which is what found this in a minute
+after an hour of looking at the right values in the wrong place.
+
+Found by the user; independently bisected by the climate session to exactly G505 (22/22 at
+e48a675b, 21/22 from 5eb1cd94 on), which is the commit the brace came in with. GATE SKINMAT's five
+role rows are red too, all day, on master and independently of this.
