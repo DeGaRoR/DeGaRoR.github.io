@@ -301,12 +301,49 @@ const SPLAT_GROUND = (() => {
       return Math.min(6, Math.max(1, (ls / ns) / (lm / nm)));
     } catch (e) { return 1; }
   }
+  // THE SETS NORMALISED TO THE IMAGERY (2026-09-22, the user: "the whole island looks yellow, while the
+  // colour data gives mostly green and brown ... do the per-set albedo normalisation to the imagery").
+  // The imagery (isla.albedo, the Landsat composite the stack is built on) is the colour authority:
+  // per terrain type its mean linear rgb is measured (forest 0.017/0.030/0.009, heath 0.056/0.064/0.028,
+  // scrub 0.041/0.055/0.020 on Jolene - the sets ship at 3-10x that: dry 0.30/0.25/0.12, forestAir
+  // 0.13/0.08/0.03). Each set gets one gain per channel so that, over the codes it stands on (weighted
+  // by the code's cells and the set's slot in the code's mix: first 0.6, second 0.3, third 0.1), its
+  // mean lands on the imagery's. A derived code (cliff / old forest / dense scrub) takes its parent's
+  // imagery. Clamped 0.15-2.5. albedoNorm (knob, 0..1) is how far the gain is applied; at 1 the
+  // macro's exposure is 1 as well (the imagery as it is - autoExposure lifted it to the OLD sets).
+  function normGains(isla, R) {
+    const out = {};
+    try {
+      const T = isla.ttype, A = isla.albedo, n = T.length; if (!T || !A) return out;
+      const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const acc = {};
+      for (let i = 0; i < n; i += 7) { const t = T[i]; if (t < 2) continue; const a = acc[t] || (acc[t] = [0, 0, 0, 0]);
+        a[0] += lin(A[i * 3]); a[1] += lin(A[i * 3 + 1]); a[2] += lin(A[i * 3 + 2]); a[3]++; }
+      const target = {}; for (const k in acc) { const a = acc[k]; target[k] = [a[0] / a[3], a[1] / a[3], a[2] / a[3], a[3]]; }
+      const parent = { 12: 6, 13: 8, 14: 7 };
+      const mean = {}; for (const st of SPLAT_TEX_SETS) mean[st.key] = st.mean;
+      const num = {}, den = {}, SLOT = [0.6, 0.3, 0.1];
+      for (let c = 2; c < 16; c++) {
+        const row = R.codes[c]; if (!row) continue;
+        const tg = target[parent[c] || c]; if (!tg) continue;
+        row.tex.forEach((k, si) => { if (!k || !mean[k]) return;
+          const w = tg[3] * SLOT[si]; const N = num[k] || (num[k] = [0, 0, 0]);
+          for (let ch = 0; ch < 3; ch++) N[ch] += w * tg[ch] / Math.max(mean[k][ch], 1e-4);
+          den[k] = (den[k] || 0) + w; });
+      }
+      for (const k in num) out[k] = num[k].map(v => Math.min(2.5, Math.max(0.15, v / den[k])));
+    } catch (e) {}
+    return out;
+  }
   function make(gU, isla) {
     if (!G || typeof SPLAT_TEX_SETS === 'undefined' || !SPLAT_TEX_SETS) return null;
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
-    if (!R.macroExpSaved && isla) R.knobs.macroExp = +autoExposure(isla, R).toFixed(2);
+    if (R.knobs.albedoNorm === undefined) R.knobs.albedoNorm = RECIPE.knobs.albedoNorm === undefined ? 1 : RECIPE.knobs.albedoNorm;
+    R.norm = isla ? normGains(isla, R) : {};
+    if (!R.macroExpSaved && isla) { const auto = autoExposure(isla, R); R.knobs.macroExp = +(auto + (1 - auto) * R.knobs.albedoNorm).toFixed(2); }
+    if (Object.keys(R.norm).length) console.log('splat: the sets normalised to the imagery (gain r/g/b): ' + Object.keys(R.norm).map(k => k + ' ' + R.norm[k].map(v => v.toFixed(2)).join('/')).join(', '));
     const LIB = SPLAT_TEX_SETS.map(s => s.key);
     const V4 = () => new THREE.Vector4();
     const blank = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); blank.needsUpdate = true;
@@ -339,7 +376,10 @@ const SPLAT_GROUND = (() => {
         M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
         const v = m.vary || [0, 0, 20]; Vv.set(v[0] * Math.PI / 180, v[1], v[2], 0);
       }
-      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
+      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff');
+        const nm = (R.norm && R.norm[k]) || [1, 1, 1], kA = K.albedoNorm === undefined ? 1 : K.albedoNorm;
+        c.r *= 1 + (nm[0] - 1) * kA; c.g *= 1 + (nm[1] - 1) * kA; c.b *= 1 + (nm[2] - 1) * kA;   // the normalisation rides on the hand grade
+        U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
         U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss;
         // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
         const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
@@ -364,6 +404,7 @@ const SPLAT_GROUND = (() => {
       library: () => SPLAT_TEX_SETS.map(s => ({ key: s.key, metres: s.metres })),
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
+      norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });

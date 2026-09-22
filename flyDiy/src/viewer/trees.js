@@ -258,7 +258,12 @@
   // pack at 1.3 of its lightness in the bench was at 1.0 here, the spruce
   // at 0.54 was at 1.0, and the stand was a different colour from the one
   // that had been judged. MASTER rides over all of them at once.
-  const MASTER = { hue: 0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint (hue negated with the dial's sign, 2026-09-20)
+  // THE TREES NORMALISED TO THE FOREST CELLS (2026-09-22, with the ground's per-set normalisation): the
+  // conifer sheets' mean albedo as baked (AO in, tint out) is 0.043 linear; the imagery's forest cells
+  // read 0.026 (0.017/0.030/0.009 - a spruce canopy's real albedo). light 1.12 -> 0.6 puts the rendered
+  // canopy on the imagery's level; sat 1.58 -> 1.2 (the imagery's green is moderate, g/r 1.75 against
+  // the fir map's 1.85 - the boost was against the OLD bright ground). W0c.31 had 1.58 / 1.12 by eye.
+  const MASTER = { hue: 0.045, sat: 1.2, light: 0.6 };
   const TINT_GLSL = [
     // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
     // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)

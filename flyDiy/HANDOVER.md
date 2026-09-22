@@ -54915,3 +54915,29 @@ splat through groundApi.splat(). screenshots/map/musk10b.
   speed (64 m at 10 m/s) is beyond the coarse level's band - a third level (8 m texels) if the planing
   wake is ever the subject; the sheet's edge as a curl (a second row of sheets peeling); soft-particle
   depth for the sprites.
+
+## G485 — THE ALBEDO NORMALISED TO THE IMAGERY: THE SETS AND THE TREES (2026-09-22, the user: "do the per-set
+## albedo normalisation to the imagery")
+
+THE MEASUREMENT (tools: island_node offline, then splat_ground.normGains at boot): the imagery's mean
+linear rgb per terrain type on Jolene - forest 0.017/0.030/0.009 (luma 0.026), rock 0.018/0.028/0.010,
+scrub 0.041/0.055/0.020, heath 0.056/0.064/0.028, muskeg 0.048/0.053/0.023, shingle 0.066/0.072/0.041,
+sand 0.10, built 0.09, scree 0.25, snow 0.68. The sets shipped at 3-10x that (dry 0.30/0.25/0.12,
+grassRock 0.17/0.12/0.02, forestAir 0.13/0.08/0.03) and autoExposure LIFTED the imagery up to them
+(macroExp up to 6) - the yellow island. THE NORMALISATION: per set one gain per channel, the weighted
+mean over the codes it stands on (the code's cells x the slot's share 0.6/0.3/0.1; a derived code
+takes its parent's imagery) of target / set mean, clamped 0.15-2.5, riding on the hand grade; knob
+albedoNorm (F8 > splat > distance/macro > "albedo to imagery", default 1) blends it in, and blends
+macroExp from the auto value to 1. The gains on Jolene: dry 0.19/0.26/0.23, grassRock 0.25/0.45/0.84,
+mud 0.29/0.55/0.29, forestAir 0.15/0.36/0.35, rocksA/B and cliff at the 0.15 floor, rockyB and
+snowAir at the 2.5 ceiling (they stand on scree and snow - the two bright codes), coastA/coastSand
+0.7-1.4. SP.norm() prints the table; the console has it at boot. THE TREES: the conifer sheets' mean
+albedo as baked (AO in, tint out) is 0.043 (WORLD.treeAtlases check.mean); x the master light 1.12
+= 0.049 against the forest cells' 0.026 - the master light is 0.6 now, the saturation 1.58 -> 1.2
+(the imagery's green is moderate: g/r 1.75 against the fir map's 1.85). uILit stays 0.9 - it is
+the impostor/geometry match, not the level (G483's envAlbedo had scaled it with the base: fixed, it
+scales with the dial alone). Pictures: screenshots/norm/field200 (the ground alone), field200b
+(the trees too) against screenshots/map/field200e (before): the imagery's greens and greys, the
+trees dark green, the drone reference's family. What is still the old world: the far tier's
+canopy texture and the impostor sheets' own colour beyond the tint (both lit by the same master),
+the rocks (a plain Standard on the pack's map), the water's bed paint.
