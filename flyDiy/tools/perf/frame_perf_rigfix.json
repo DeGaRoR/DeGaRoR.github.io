@@ -1,0 +1,78 @@
+{
+ "date": "2026-09-22T19:21:10.443Z",
+ "url": "http://localhost:8479/flyDiy/dev.html?world=jolene",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "label": "rigfix",
+ "frames": 30,
+ "rows": [
+  {
+   "place": "stand",
+   "probe": "cloudy",
+   "tier": "full",
+   "where": {
+    "at": [
+     -150,
+     31,
+     700
+    ]
+   },
+   "frame": {
+    "median": 157.6,
+    "p90": 173,
+    "timed": 154.7
+   },
+   "gpuSum": 146.5,
+   "cpuWorld": 10.98,
+   "calls": 12915,
+   "tris": 44755245,
+   "gpuUtilBefore": 72,
+   "tags": {
+    "clouds:march*": {
+     "median": 0.91,
+     "p90": 5.02,
+     "calls": 1
+    },
+    "atmo:sky": {
+     "median": 0.03,
+     "p90": 0.03,
+     "calls": 1
+    },
+    "atmo:ap": {
+     "median": 0.02,
+     "p90": 0.02,
+     "calls": 1
+    },
+    "scene": {
+     "median": 145.42,
+     "p90": 161.25,
+     "calls": 1
+    },
+    "resolve": {
+     "median": 0.12,
+     "p90": 0.13,
+     "calls": 1
+    },
+    "shadow:far": {
+     "median": 0,
+     "p90": 9.73,
+     "calls": 0.3
+    },
+    "shadow:maps": {
+     "median": 29.97,
+     "p90": 40.4,
+     "calls": 5.4
+    }
+   },
+   "post": {
+    "bloomMs": 0,
+    "lookMs": 0,
+    "raysMs": 0,
+    "aoMs": 0,
+    "eyeMs": 0,
+    "eyeK": 1,
+    "eyeLum": 0,
+    "passes": 0
+   }
+  }
+ ]
+}

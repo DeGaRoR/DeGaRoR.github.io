@@ -3,12 +3,22 @@
 //
 //   node tools/island_shot.js --url "http://localhost:8430/flyDiy/dev.html?world=jolene" \
 //        --at -100,450,100 --out bench/jolene/shot_map.png [--wait 12000] [--eval "<js>"] [--step "<js>" ...]
+//        [--clean] [--no-boot-wait]
 //
 // Headless Chrome on this machine's GPU (tree_perf.js's rig), the game rolled
 // out, the fresh profile's chooser dismissed, the aeroplane teleported to
 // `--at` (x, AGL, z: the height is added to the ground there) and HELD, the
 // streamer given `--wait` ms to settle, one screenshot written. Two runs with
 // two URLs are an A/B from the same eye - which is what the picture is for.
+//
+// IT WAITS FOR THE ROLL-OUT SCREEN (FOG-MIST, 2026-09-22). frame_perf.js waits for
+// `BOOT.state === 'gone'`; this rig did not, so under a slow compile every shot came out DIMMED
+// through the boot overlay with a CONTINUE ANYWAY button in the corner - a whole A/B sheet had
+// to be thrown away. The wait is bounded (100 s) and prints how it went; `--no-boot-wait`
+// restores the old behaviour for a caller that wants the overlay in frame.
+//
+// --clean: dismiss the overlay if it is still up and hide `#ui` / `#devPanel` before shooting.
+// OFF by default, because an existing caller's pictures must not change under it.
 'use strict';
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -58,6 +68,13 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (argv.includes('--timeline')) console.log(`t+${((Date.now() - T0) / 1000).toFixed(0)}s  ${flying ? 'FLYING' : (await ev("((document.querySelector('#boot')||{}).innerText||'') + ' || ' + document.body.innerText.replace(/\s+/g,' ').slice(0,200)").catch(() => '')).replace(/\s+/g, ' ').slice(0, 90)}`);
   }
   if (!flying) throw new Error('the roll-out never happened');
+  // the roll-out screen holds the render until its steps land (LOADING S3): shoot under it and the
+  // frame is dimmed through the overlay - wait for it to go, and say how it went
+  if (!argv.includes('--no-boot-wait')) {
+    const t0 = Date.now(); let bs = '';
+    for (let i = 0; i < 100; i++) { bs = await ev("window.BOOT ? BOOT.state : 'none'").catch(() => 'none'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
+    console.log('island_shot: roll-out screen ' + bs + ' after ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+  }
   await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());})()");
   await sleep(3000);
   await ev(`(()=>{const s=FLIGHT_PROBE.sim(),w=FLIGHT_PROBE.world();const cg=s.cgPos();const gy=w.terrainH(${AT[0]},${AT[2]});
@@ -67,6 +84,8 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // --cam az,el,dist: the orbit camera set where a picture wants it (G413: the whole island from above) - RADIANS, dist in m (el 1.3 = looking down at 75 deg)
   const CAM = opt('cam', null);
   if (CAM) { const c = CAM.split(',').map(Number); await ev(`FLIGHT_PROBE.camSet(${c[0]}, ${c[1]}, ${c[2]}), 1`); }
+  // --clean: the overlay dismissed and the UI hidden, for a picture of the WORLD and nothing else
+  if (argv.includes('--clean')) await ev("[...document.querySelectorAll('button,a,div')].filter(b=>/continue anyway/i.test(b.textContent||'')&&!b.children.length).forEach(x=>x.click());['boot','ui','devPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});1");
   await sleep(WAIT);
   // --eval "<expr>": the expression's value from the flying page, printed before the shot
   const EV = opt('eval', null);

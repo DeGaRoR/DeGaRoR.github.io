@@ -55817,3 +55817,34 @@ the rigs under `tools/perf/run_fog_*.js` + `fog_diff.js`, the rows in
   `dayApply` returns early under `rigCur.manual` so a climate-driven mist freezes on an F8 sun row.
 - GATES: none run - no src/ changed, no gate covers a document. The rigs are measurement tools,
   not gates (they need a GPU and a browser, which the battery does not assume).
+
+## G501 - THE TWO RIG DEFECTS THE FOG STUDY FOUND, FIXED (2026-09-22, the user: "fix the two
+## rig defects")
+
+Both are instruments lying quietly rather than loudly, which is the kind that costs a day.
+
+- **`frame_perf.js` COULD NOT TIME THE CLOUD MARCH, AND SAID NOTHING.** `clouds.js:555` opens its
+  OWN `TIME_ELAPSED_EXT` query round the march; the rig opens one round every `renderer.render`.
+  GL queries cannot nest, so the rig's query is invalid, its result never lands, and the
+  `clouds:march` tag was simply ABSENT from all 27 rows of the fog study - which reads exactly
+  like a pass that never ran. A whole probe series (`CLOUDS.S.maxKm` at three places) was scored
+  against a pass the instrument could not see, and read as "no saving" when the truth was "no
+  measurement". THE FIX: the rig READS the module's own timer for such a pass instead of wrapping
+  it (`CLOUDS.stats.gpuLast` / `shadowLast`, sampled per frame, recorded only when the value
+  changes so a stale reading is not counted twice) and MARKS it - a tag ending in `*` was measured
+  by the pass itself, not by this rig. Still a GPU millisecond; simply not ours. The header
+  carries the rule for the next pass that decides to time itself.
+- **`island_shot.js` DID NOT WAIT FOR THE ROLL-OUT SCREEN.** `frame_perf.js` waits for
+  `BOOT.state === 'gone'`; this rig went straight from the roll-out click to the shot, so under a
+  slow compile every frame came out DIMMED through the boot overlay with a CONTINUE ANYWAY button
+  in the corner - the fog study's first A/B sheet, eighteen frames, was thrown away for it. THE
+  FIX: the same bounded wait (100 s), printed like frame_perf's; `--no-boot-wait` restores the old
+  behaviour. Also `--clean` (OFF by default, so no existing caller's pictures move): dismiss the
+  overlay if it is still up and hide `#ui` / `#devPanel`, which every picture-of-the-world caller
+  was otherwise doing by hand in its own `--step`.
+
+Verified, not asserted: a short run (`tools/perf/frame_perf_rigfix.json`, stand, tier full, cloud
+cover 0.6) now carries a `clouds:march*` row where before there was no march tag at all.
+FOG-MIST-2026-09-21.md §1a updated - the defect it documents is now the fix it documents.
+`FLIGHT_PROBE.camSet` taking RADIANS is left alone: that is an API, not a defect, and the study
+records it.

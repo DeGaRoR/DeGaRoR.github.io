@@ -13,6 +13,15 @@
 // INSIDE render()) is timed in a second sub-run that wraps
 // renderer.shadowMap.render alone.
 //
+// A PASS THAT TIMES ITSELF IS INVISIBLE TO US, AND THAT USED TO BE SILENT (FOG-MIST, 2026-09-22).
+// clouds.js opens its OWN TIME_ELAPSED query round the march (clouds.js:555). Queries cannot nest,
+// so ours over the same draw is invalid, the result never lands, and the `clouds:march` tag was
+// simply ABSENT from every row - which reads exactly like a pass that never ran. A whole probe
+// series (`CLOUDS.S.maxKm`) was scored against a pass this rig could not see. So the numbers for
+// such a pass are now taken from the module's own timer and MARKED: a tag ending in `*` was
+// measured by the pass itself (CLOUDS.stats.gpuLast / shadowLast), not by this rig's query. Still
+// a GPU millisecond; simply not ours. If another pass ever times itself, add it here.
+//
 // Usage:  node tools/frame_perf.js [--url http://localhost:8477/flyDiy/dev.html?world=jolene]
 //              [--tiers full,msaa,off] [--places stand,forest,sea] [--frames 120]
 //              [--probes "base=1;;bloom=GFX.set('bloom','soft')"]   (named configurations, each measured at each place)
@@ -136,8 +145,19 @@ const INSTRUMENT = `(() => {
       R.info.autoReset = false; R.info.reset();
       const wu = window.WORLD && WORLD.worldUpdate;
       if (wu) WORLD.worldUpdate = cg => { const t0 = performance.now(); wu(cg); cpu += performance.now() - t0; };
+      let seenMarch = -1, seenCShadow = -1;
+      const selfTimed = () => {            // the passes that hold their own query: READ them, never wrap them (header)
+        const C = window.CLOUDS;
+        if (!C || !C.stats || !C.active) return;
+        const a = S.acc[S.frame] || (S.acc[S.frame] = {});
+        // the count is how often a NEW result landed, not how often the pass drew - a self-timed
+        // pass's query lands a frame or two late, so this is < 1 per frame and is not a draw count
+        if (C.stats.gpuLast && C.stats.gpuLast !== seenMarch) { a['clouds:march*'] = C.stats.gpuLast; seenMarch = C.stats.gpuLast; S.calls['clouds:march*'] = (S.calls['clouds:march*'] || 0) + 1; }
+        if (C.stats.shadowLast && C.stats.shadowLast !== seenCShadow) { a['clouds:shadow*'] = C.stats.shadowLast; seenCShadow = C.stats.shadowLast; S.calls['clouds:shadow*'] = (S.calls['clouds:shadow*'] || 0) + 1; }
+      };
       const tick = () => {
         poll();
+        if (S.mode === 'passes') selfTimed();
         const now = performance.now(); frames.push(now - last); last = now;
         calls += R.info.render.calls; tris += R.info.render.triangles; R.info.reset();
         S.frame++;
