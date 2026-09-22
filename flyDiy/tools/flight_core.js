@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 83991faaac7b4e21
+// body-sha256: 9578e21719e5e228
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1290,7 +1290,26 @@ var DAY = (function () {
       // at a ridge sees only the column. The renderer owns where the layer LIES (its top
       // follows the valley floors, it has banks); the day owns only how dense the air
       // makes it. One law, one place - atmo.js reads this and no longer carries a copy.
-      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2);
+      // ...and THE MORNING TAKES IT AWAY (FOG-MIST F3c). Radiation fog forms under a clear
+      // night and thins as the ground gives back the heat it has been taking - so the term
+      // is the LAGGED sun, `sunElLag` (the elevation two hours ago, K3), not the sun now:
+      // the fog does not thin because the sun is up, it thins because the GROUND has been
+      // warming for a while. Using the lag rather than an hours-since-sunrise count is what
+      // makes the poles fall out of the arithmetic instead of needing branches - polar night
+      // keeps the lagged sun under 5 deg all day so `burn` is 0, polar day keeps it above so
+      // burn proceeds on elevation alone, and there is no `sunriseUtc` to be null. An
+      // overcast holds the fog in: no sun on the ground, nothing given back.
+      // It multiplies the LAYER only. The column must not take it or the morning is counted
+      // twice - `visibilityKm` is a function of `rh`, and `rh` already falls as diurnalC warms
+      // the day against a fixed dew point, which is the same sunrise clearing the same haze.
+      // `cloudCoverEff`, not `cloudCover`: the latter is not on the derived day at all (it is the
+      // spec's), so it would have read undefined and the overcast term would have been silently
+      // dead - the third time today that shape has come up. The effective one is the right input
+      // anyway: a storm's overcast holds the fog in exactly as a fair-weather deck does.
+      const cov = clamp(d.cloudCoverEff != null ? d.cloudCoverEff : 0, 0, 1);
+      const burn = clamp((d.sunElLag - 5) / 20, 0, 1) * (1 - cov);
+      d.mistBurn = burn;
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2) * Math.max(0, 1 - burn);
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -1404,6 +1423,7 @@ var DAY = (function () {
                      'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm', 'mistRho0',
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
                      'sunElLag',                                                       // K3
+                     'mistBurn',                                                       // F3c: how much of the layer the morning has taken
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }
