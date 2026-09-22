@@ -274,14 +274,21 @@ var COVER_RING = (() => {
         }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
-        // NOTHING LIES ON A PAVEMENT (2026-09-22, the roads session's v1.17 `coverAt`, which the ring already
-        // samples per lattice node for the tufts): a log has no business on a runway, an apron, a road or a
-        // track. `kill` is 1 over a hard surface AND its drawn band, falling to 0 over the 6 m fade past it -
-        // but a GRASS strip only ever thins the cover to 0.6, so kill alone would leave a log across a grass
-        // runway: the piece is refused wherever the pavement has a CLASS and a grip on the ground (kill 0.5),
-        // and thinned by what is left of the fade beyond it.
-        if (G.kill[gk] >= 1 || (G.cls[gk] && G.kill[gk] >= 0.5)) continue;
-        if (G.kill[gk] > 0 && Rq() > 1 - G.kill[gk]) continue;
+        // NOTHING LIES ON A PAVEMENT (2026-09-22; G502's rule, kept whole, asked PER PIECE). A log has no
+        // business on a runway, an apron, a road or a track. `kill` is 1 over a hard surface AND its drawn
+        // band, falling to 0 over the 6 m fade past it - but a GRASS strip only ever thins the cover to 0.6,
+        // so kill alone would leave a log across a grass runway at 40 %: the piece is refused wherever the
+        // pavement has a CLASS and a grip on the ground (kill 0.5), and thinned by what is left of the fade
+        // beyond it, which is what a graded gravel verge looks like.
+        // The QUERY, not the node: the ring's lattice is 4 m, so a node's answer can be 2.8 m from the piece
+        // it is deciding - and the whole of this law happens within 7 m of an edge. `pave` is the cheap half
+        // of the query (0.19 us against 1.34: no plot walk, no drawn colour), which is what makes a call per
+        // piece affordable here, and the far rock map shares this function.
+        { const cv = ctx.coverAt ? ctx.coverAt(x, z, 1) : null;
+          if (cv && cv.kill > 0) {
+            if (cv.kill >= 1 || (cv.cls && cv.kill >= 0.5)) continue;
+            if (Rq() > 1 - cv.kill) continue;
+          } }
         if (floats) { if (!(ctx.poolAt && ctx.poolAt(x, z) > 0.6)) continue; }
         else if (!G.ok[gk]) continue;
         const p = draw(P, r2);

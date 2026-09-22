@@ -710,6 +710,10 @@ function mount(host, ctx) {
       // shoulder, the bend's outside, clear of the plots and the junctions); 'always' rails the whole
       // road both sides, 'never' none of it. GRAPHICS > guardrails hides them all whatever this says.
       rows.select(insp, 'guardrail', [['auto', 'where the ground says'], ['on', 'the whole road'], ['off', 'none']], () => e.rail || 'auto', v => ed(x => { x.rail = v === 'auto' ? undefined : v; }, 'guardrail of ' + id));
+      // THE POWER LINE (2026-09-22): poles every ~34 m along one verge with the cable between them and
+      // a street lamp on every second one - on unless this says otherwise; the side is the module's
+      // (whichever takes more poles, and never the verge a guardrail already has)
+      rows.select(insp, 'power line', [['auto', 'poles and cable'], ['off', 'none']], () => e.poles || 'auto', v => ed(x => { x.poles = v === 'auto' ? undefined : v; }, 'power line of ' + id));
       // PROTO TRAFFIC (G432): vehicles per km running up and down this road
       rows.slider(insp, 'traffic (per km)', 0, 20, 1, () => e.traffic || 0, v => ed(x => { x.traffic = v || undefined; }, 'traffic of ' + id, 'traffic'), v => v ? v.toFixed(0) + ' / km' : 'none');
       const np = (R.plots ? R.plots() : []).filter(p => p.road === id).length;

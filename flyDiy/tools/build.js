@@ -231,6 +231,8 @@ const MANIFEST = {
     ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_sport_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
+    // powerline.js after tram_run.js (it takes its sag from the tram's rope) and before the renderer
+    ['src/viewer', 'powerline.js'],
     ['tools', '_village_gen.js'],
     // THE PARKED AEROPLANES (G411): builds as props, before the renderer that stands them
     ['src/viewer', 'parked.js'],

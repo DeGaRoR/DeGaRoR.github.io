@@ -693,4 +693,18 @@ after the freeze, against this document.
   the renderer supplies - no rail over a plot or within 8 m of one, in a junction, or on a strip.
   Nothing is stored about where the rails actually stand: they are rebuilt with the road. The
   player's GRAPHICS > guardrails switch hides them whatever a road says.
+- **v1.19 (2026-09-22, the user: "do we have the electric poles? ... allow roads to have it
+  optionally, on by default").** A road entry may carry `poles`: `'off'` (none), absent or
+  `'auto'` (the rule decides, which is ON). The rule is `src/viewer/powerline.js`'s: the poles
+  stand every ~34 m along ONE verge — whichever takes more of them once the renderer's `keep` has
+  refused the plots' interiors, the junctions and the strips, and never the verge a guardrail took
+  — with three conductors and a service cable strung between consecutive poles, and the village's
+  street lamp on every second one. `polesSide` (-1 | 1) forces the verge. Nothing is stored about
+  where a pole actually stands: they are rebuilt with the road. The player's GRAPHICS > power
+  lines switch hides them whatever a road says.
+- **v1.17.1 (2026-09-22).** `coverAt(x, z, pave)`: a truthy third argument answers the PAVEMENT half
+  only — `kill`, `boost`, `cls` — and skips the plot walk, so `kind`/`grass` come back null. It is
+  0.19 µs against the full query's 1.34, and it is what the TREE fill asks on every lattice point
+  (`render_world.js` forestHere/openHere reject where `kill > 0`: the pavement, its band and the 6 m
+  fade, about 7 m of clearance from a road's edge). The full query is still the cover ring's.
 

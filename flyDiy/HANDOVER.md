@@ -56402,3 +56402,80 @@ proof battery that never commits its build will let you forget it.
   landed SOURCE ONLY - no built commit - so master's page carried none of the climate until G460.11.9's
   build; verified by them as a byte-for-byte rebuild of master's own source.
 - OWED: a GATE WATER rule asserting `WF.vis.applied === true` inside the capture, once F1 lands.
+
+
+## G505 — THE POWER LINE: THE POLES AND THE CABLE (2026-09-22, the user with a photograph of a
+## road on Revillagigedo: "do we have the electric poles?" ... "yes, do the line, and allow roads to
+## have it optionally, on by default")
+
+WE HAD THE POLES AND NEVER STOOD ONE. Three Poly Haven presets (pole_a with a transformer, pole_b
+plain, pole_c) were baked into the yard pack at G285 with two LOD rungs, and _village_gen.js's
+planPoles (G285/G370) placed them every 32-40 m with a street lamp on every second one - and the
+ONLY consumer of `vil.poles` in the repo was tools/_village.html. Nothing in src/viewer ever read
+it, so Skarvik's "poles" in the screenshots were dead tree trunks. And there had never been a
+CABLE, which is the part that reads: the theme doc has carried it as owed since 2026-09-14.
+NEW src/viewer/powerline.js - the rule and the wire, and nothing else: it knows no props, no house
+kit, no lamp; the renderer hands it `place(q)` and `lamp(q)`. THE SIDE: one verge the whole way,
+whichever takes more poles once the caller's `keep` has spoken, and never the verge a guardrail
+took (the rail publishes its `sides` now); a tie goes inland, the village's convention. THE KEEP
+(the premises'): not INSIDE a plot - a pole stands on the verge in front of a frontage, unlike the
+guardrail which keeps 8 m clear - not in a junction, not on a strip, and not on a PAVED POLYGON
+(the first cut stood one on Jolene's apron). THE CABLE: three conductors on the crossarm (which
+runs across the road, so they spread along the road's normal) and a service cable 1.6 m lower,
+each span a parabola through TRAM_RUN.ropeCurve - the codebase's one sag, the tram's haul rope,
+which now exports for node too. A gap over 110 m breaks the line rather than striding it. Merged
+per 10 spans (~350 m): one mesh a road would be drawn from everywhere, one a span is a draw call
+every 34 m. A four-sided 35 mm tube, ~90 triangles a wire a span. THE POLE IS STOOD AT 1.35x: the
+kit's 6.13 m is a small rural pole and a distribution pole is 9-11 m; the lamp's arm rides up with
+it (the bench measured it off the kit's own top). THE LAMPS are VILLAGE_GEN.streetLamp verbatim,
+drawn into the road's bags with the galvanised finish, the lens in LAMPS.glass (it follows the
+night like every pane) and each head in LAMPS.pub - the renderer's nearest-eight point-light pool,
+so no new light budget. Jolene: 8 lines, 221 poles, 212 spans, 80 k triangles of cable.
+THE SWITCHES: GRAPHICS > power lines, and a road's `poles` row in the editor (contract v1.19),
+on unless it says otherwise. The analytic world's roads take the same line (no lamps: the pool is
+the premises renderer's).
+THE BUG IT FOUND, WHICH G497 HAD SHIPPED: `world.waterH(x, z)` is a FIELD - the surface at that
+point, -Infinity where there is none, a lake's 137 m where there is one. The guardrail was handing
+its rule ONE NUMBER sampled at the world's origin, so a lake under the origin clamped every probe
+on the island above its own bank and EVERY GUARDRAIL ON JOLENE DISAPPEARED. `waterY` takes a
+function now and is evaluated at the probe point; GATE PAVEMENT §7 holds it with a lake over a
+bed (the bare bed falls 40 m and takes two beams; filled, the same bank falls 6 m to the water and
+takes one).
+AND THE WARRANT RECALIBRATED, on the real island this time: G497's 1:3 table was set against the
+analytic world alone. Measured IN THE GAME on Jolene's own DEM her roads fall 0.4 / 1.6 / 2.5 m at
+3 / 7 / 14 m (the airport road), 0.7 / 1.6 / 2.9 (the shore), and only v_north has a bank at
+1.2 / 3.3 / 6.1 - so the 1:3 table rails SIXTY METRES of the whole island, nothing the eye ever
+meets. The 1:4 table (0.8 / 1.7 / 3.0) rails 221 m of Jolene - where it stood when the user judged
+the pictures - and 6.2 km of the analytic world's mountain roads. That is the shipped table.
+AND THE TREES NOW OBEY THE PAVEMENT (the user, on the first pictures: "feels to me like we have a
+lot of trees on the roads"). They were right and it was this chantier's own asymmetry: the tufts
+have obeyed coverAt since v1.17, the trees never did. The streamed fill's forestHere/openHere knew
+nothing about a road - their only road awareness was world.surface INSIDE the carriageway (a
+clearance of ZERO from the edge), and ROAD_CLS maps track/path to SURFACE.GRASS, which openHere
+accepts, so trees planted ON a track; the collidable woodland's `SET.roadNear < 12` is dead code on
+an island (SET is a stub); its clump neighbours are thrown 4-18 m with no test at all. Now
+forestHere/openHere - the ONE pair the fill, the stand cards, the colour bake and the canopy mask
+share - reject where world.coverAt(x, z).kill > 0 (the pavement, its band, the 6 m fade: 6.5-7.2 m
+past a road's edge, 9-10 m from a village street's centre, measured), and so do the woodland bake
+and the clump neighbours. coverAt gained `pave`: the pavement half without the plot walk, 0.19 us
+against 1.34, the same kill to the bit - the fill calls it on every lattice point of every chunk
+(25 600 a chunk, 5 ms). Contract v1.17.1; GATE PAVEMENT §6 holds the equality, the cost and the
+clearance.
+THE ROCKS AND THE DEBRIS take the same law, but they are NOT mine: the terrain session landed it as
+G502 (cover_ring.js placeRocks, which the far rock map shares) in the same hour their user asked for
+it - `G.kill[gk] >= 1 || (G.cls[gk] && G.kill[gk] >= 0.5)` then a taper at `1 - kill`, read off the
+ring's own 4 m node rather than queried per piece. I had written the same test per piece; theirs is
+cheaper and catches the case mine dropped (a GRASS pavement only thins to 0.6, so a log survived on
+a grass strip at 40 %), so mine was dropped. GATE PAVEMENT §6 now walks all THREE planters' bodies
+and fails if one stops reading the cover - which is exactly how the trees came to stand on the roads.
+- FILES: src/viewer/powerline.js (new, in the MANIFEST's world list after tram_run.js), tram_run.js
+  (module.exports), guardrail.js (waterY as a field, `sides` published), render_premises.js
+  (poleKeep, lampFinish, buildLine), render_world.js (the analytic roads), gfx_settings.js,
+  premises_ui.js, 27_premises.js + 20_world.js (coverAt's `pave`, the woodland's test),
+  tools/_pavement_check.js (GATE PAVEMENT §6 and §8), futureDesigns/PAVEMENT-2026-09-21.md §8-9,
+  PREMISES-CONTRACT v1.19 + v1.17.1.
+- PROOF: screenshots/pavement/poles_skarvik*.png (in game, the line along the airport road and over
+  the apron's edge), the gate's §8.
+- OWED: a service drop from the line into each frontage (the photograph's lower cable runs into the
+  shed); guy wires at an angle pole; the PLANT tool and a `line` feature kind, which is what would
+  let a hand draw a spur the roads do not follow.

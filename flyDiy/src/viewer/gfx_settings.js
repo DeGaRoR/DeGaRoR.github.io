@@ -105,6 +105,12 @@
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
+    // THE POWER LINE (2026-09-22): the poles along a road and the cable between them
+    // (src/viewer/powerline.js). The poles are props with their own LOD ladder; the cable is a few
+    // hundred metres of merged tube a mesh.
+    { k: 'poles', label: 'power lines', steps: [
+        { v: 'on',  label: 'on', why: 'utility poles every ~34 m along one verge, the cable strung between them, a street lamp on every second one' },
+        { v: 'off', label: 'off', why: 'no poles and no cable' } ] },
     // THE WATER (H6, G460): the one material's two tiers
     { k: 'water', label: 'water', steps: [
         { v: 'simple', label: 'simple', why: 'the swell’s shading and the sun’s glitter; no ripple tile, no lifted surface, no foam' },
@@ -157,10 +163,10 @@
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
-    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
+    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
+    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -227,6 +233,7 @@
     if (W.CLIMATE_LINK) W.CLIMATE_LINK.S.swayGain = S.sway === 'off' ? 0 : 1;
     if (W.WATER && applied.water !== S.water) { W.WATER.set({ tier: S.water }); applied.water = S.water; }
     if (W.GUARDRAIL && applied.rails !== S.rails) { W.GUARDRAIL.setOn(S.rails !== 'off'); applied.rails = S.rails; }
+    if (W.POWERLINE && applied.poles !== S.poles) { W.POWERLINE.setOn(S.poles !== 'off'); applied.poles = S.poles; }
     if (W.WATER && applied.mirror !== S.mirror) { W.WATER.set({ mirror: S.mirror }); applied.mirror = S.mirror; }
     if (W.CLOUDS && applied.clouds !== S.clouds) { W.CLOUDS.S.mode = S.clouds; if (AA && AA.needRT) AA.needRT(S.clouds !== 'off'); applied.clouds = S.clouds; }
     // the compositing (G448.3): the resolve target's space, the panes' blend, the post passes' input

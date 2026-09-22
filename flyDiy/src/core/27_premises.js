@@ -1085,7 +1085,7 @@ function compose(rec0, world, opts) {
     //     grass the zone's grass rule when kind is a plot's (h, density)
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
-    coverAt: (x, z) => coverAt(x, z),
+    coverAt: (x, z, pave) => coverAt(x, z, pave),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -1138,7 +1138,10 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
-  function coverAt(x, z) {
+  // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
+  // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
+  // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.
+  function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
@@ -1156,6 +1159,7 @@ function compose(rec0, world, opts) {
       boost = Math.max(boost, bump * 0.7, soft);
       if (d > best) { best = d; cls = it.cls; }
     }
+    if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
     let kind = null, grass = null;
     // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }

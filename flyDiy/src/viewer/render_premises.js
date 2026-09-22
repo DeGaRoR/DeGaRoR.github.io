@@ -385,22 +385,82 @@ function make(THREE, scene, world, rec0, opts) {
   const RAIL = (typeof GUARDRAIL !== 'undefined') ? GUARDRAIL : null;
   function railKeep(rd) {
     return (lx, lz) => {
-      for (const p of O.records.plots) if (p.poly && PG.sdPoly(p.poly, lx, lz) < 8) return false;      // a plot and its frontage
+      // INSIDE a plot only (2026-09-22): "8 m clear of one" read well in the abstract and left the
+      // island with thirty metres of rail - the banks that warrant one on Jolene are the shore road's,
+      // which has frontages along it. A rail on the verge in front of a house is what the coast looks like.
+      for (const p of O.records.plots) if (p.poly && PG.sdPoly(p.poly, lx, lz) < 1.5) return false;
       for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 6) return false;   // a junction
       for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 8) return false;                   // a strip
       return true;
     };
   }
   function buildRail(rd, pr) {
-    if (!RAIL || rd.rail === 'off') return;
+    if (!RAIL || rd.rail === 'off') return null;
     const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
     const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
       hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
-      waterY: world.waterH ? world.waterH(0, 0) : null, keep: railKeep(rd) });
+      waterY: world.waterH ? ((lx, lz) => { const W2 = F.toWorld(lx, lz); return world.waterH(W2[0], W2[1]); }) : null,
+      keep: railKeep(rd) });
     if (m) { m.userData.premId = rd.id; G.roads.add(m); }
+    return m;
+  }
+  // THE POWER LINE (2026-09-22, the user with a photograph of a Revillagigedo road: "do we have the
+  // electric poles?"): the yard kit's poles every ~34 m along one verge with the cable strung between
+  // them, and the street lamp that already existed on every second one. A pole may not stand INSIDE a
+  // plot (it belongs on the verge in front of a frontage, which is the village's own rule - unlike the
+  // guardrail, which keeps 8 m clear of one), nor in a junction, nor on a strip.
+  const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : null;
+  function poleKeep(rd) {
+    return (lx, lz) => {
+      for (const p of O.records.plots) if (p.poly && PG.inPoly(p.poly, lx, lz)) return false;                                    // a garden
+      for (const o2 of O.roads) if (o2 !== rd && o2.pts && o2.pts.length > 1 && PG.roadDist(o2, lx, lz) < o2.w / 2 + 4) return false;   // a junction
+      for (const r of O.runways) if (!PG.runwayIsWater(r) && PG.sdPoly(PG.runwayBox(r, 0), lx, lz) < 4) return false;            // a strip
+      for (const pp2 of O.pavePolys || []) if (PG.sdPoly(pp2.poly, lx, lz) < 3) return false;                                    // an apron, a pad, a turnaround
+      return true;
+    };
+  }
+  let LAMP_F = null;
+  function lampFinish() {
+    if (LAMP_F) return LAMP_F;
+    const HG = window.HOUSE_GEN;
+    const F = HG.makeFinish();
+    HG.applyFinish(Object.assign({}, HG.DEF, { metalSet: HG.SET_IDX('metal', 'galv') }), F);   // the bench's galvanised (G370)
+    LAMP_F = F;
+    return F;
+  }
+  function buildLine(rd, pr, railG) {
+    if (!PWR || rd.poles === 'off') return null;
+    const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
+    if (!VG || !HG || !HK || !pp || !PR) return null;
+    const F = O.frame, LF = lampFinish();
+    const bags = { metal: HK.Bag('metal'), glass: HK.Bag('glass') };
+    const lit = [];
+    // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
+    const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
+    const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
+    const g = PWR.build(THREE, { path: pr, w: rd.w, mode: rd.poles || 'auto', name: 'poles:' + rd.id,
+      side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
+      keep: poleKeep(rd),
+      place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
+      lamp: q => { const L = VG.streetLamp(bags, q); if (L) lit.push(L); } });
+    if (!g) return null;
+    PWR.own(bags.metal.mesh(g, LF.MAT.metal));                                  // the lamps' geometry is the line's to free
+    const gm = PWR.own(bags.glass.mesh(g, HG.MAT.glass)); if (gm) gm.castShadow = false;
+    // the lens follows the night like every other glass (the finish's uLitK), and each head joins the
+    // lamp pool - the nearest eight of the world's lamps get one of the eight point lights
+    if (LF.GLASS_U && LF.GLASS_U.uLitK && !LAMPS.glass.has(LF.GLASS_U.uLitK)) { LAMPS.glass.set(LF.GLASS_U.uLitK, LF.GLASS_U.uLitK.value); LF.GLASS_U.uLitK.value = LF.GLASS_U.uLitK.value * LAMPS.on; }
+    for (const L of lit) if (isFinite(L.x) && isFinite(L.y) && isFinite(L.z)) LAMPS.pub.push({ grp: g, p: [L.x, L.y, L.z], col: L.col || [1, 0.92, 0.74], k: L.k == null ? 1 : L.k, range: L.range || 30, kind: L.kind });
+    g.userData.premId = rd.id;
+    g.userData.lamps = lit.length;
+    G.roads.add(g);
+    return g;
   }
   function buildRoads() {
-    for (const c of G.roads.children.slice()) { if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; } G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c); }
+    for (const c of G.roads.children.slice()) {
+      if (RAIL && c.userData.guardrail) { RAIL.dispose(c); continue; }
+      if (PWR && c.userData.powerline) { PWR.dispose(c); continue; }      // the cable's own geometry; the poles are shared prop meshes
+      G.roads.remove(c); if (c.geometry) c.geometry.dispose(); disposePav(c);
+    }
     if (PAV) {
       const lib = pavLib();
       for (const rd of O.roads) {
@@ -414,7 +474,7 @@ function make(THREE, scene, world, rec0, opts) {
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band });
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.frustumCulled = false; m.name = 'road:' + rd.id; m.userData.premId = rd.id;
         G.roads.add(m);
-        buildRail(rd, pr);
+        buildLine(rd, pr, buildRail(rd, pr));
       }
       buildPolys();
       return;
@@ -433,7 +493,7 @@ function make(THREE, scene, world, rec0, opts) {
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, roadMat); m.renderOrder = 2; m.receiveShadow = true; m.name = 'road:' + rd.id;
       G.roads.add(m);
-      buildRail(rd, pr);
+      buildLine(rd, pr, buildRail(rd, pr));
     }
   }
   // THE PAVED POLYGONS (v1.16): an apron, a turnaround, a pad - a material polygon with a look; drawn under

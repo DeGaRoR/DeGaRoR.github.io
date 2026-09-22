@@ -925,10 +925,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // nothing whatever their biome said. A point on plain GRASS ground, off the corridor, the
   // exclusions and the water, is the BIOME's to plant (the mix's count decides); the terrain's colour
   // bake and the far canopy mask keep forestHere's rule.
+  // NOTHING GROWS ON A PAVEMENT OR ITS BAND (2026-09-22, the user: "feels to me like we have a lot of
+  // trees on the roads"). The tufts have obeyed this since the cover ring read coverAt (v1.17); the
+  // trees never did - their only road awareness was world.surface INSIDE the carriageway, which is a
+  // clearance of zero, and a `track` road reports GRASS, which openHere accepts, so trees planted on
+  // it. `kill > 0` is the pavement, its drawn band and the 6 m fade past it - about 7 m of clearance
+  // from a road's edge. `pave` skips the query's plot walk: this runs on every lattice point.
+  const paved = (x, z) => { if (!world.coverAt) return false; const c = world.coverAt(x, z, 1); return !!(c && c.kill > 0); };
   const openHere = (x, z) => {
     if (!world.island) return false;
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
     for (const e of treeEx) if (inEx(e, x, z)) return false;
+    if (paved(x, z)) return false;
     if (world.surface(x, z) !== world.SURFACE.GRASS) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
@@ -940,6 +948,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
     if (!world.island && nearTree(x, z) < 0) return false;
+    if (paved(x, z)) return false;
     if ((sc === undefined ? world.surface(x, z) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
@@ -2085,6 +2094,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const h = world.terrainH(x, z);
         if (h < 1.5 || h > 200) continue;
         if (world.waterH(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
+        // ...nor on a road (2026-09-22): a legal tree 12 m from a road threw satellites 4-18 m in
+        // every direction, and half of them landed on the pavement
+        if (world.coverAt) { const cv = world.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
         // neighbours mostly share the stand's species, with strays
         const sp = hsh(i, k * 13 + 5) < 0.85 ? T.sp : (hsh(i, k * 13 + 6) * 5) | 0;
         P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
@@ -3813,7 +3825,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
-          const coverAt = (x, z) => { const c = world.coverAt ? world.coverAt(x, z) : null; if (!c) return null; c.col = (c.cls && PAV) ? PAV.groundColor(c.cls, PM_RECIPE()) : null; return c; };
+          // `pave` forwarded (2026-09-22): the rocks and the debris ask the cheap half of the query,
+          // per piece, and have no use for the drawn colour - that is the tufts' business
+          const coverAt = (x, z, pave) => { const c = world.coverAt ? world.coverAt(x, z, pave) : null; if (!c) return null; if (!pave) c.col = (c.cls && PAV) ? PAV.groundColor(c.cls, PM_RECIPE()) : null; return c; };
           const PM_RECIPE = () => (world.premises && world.premises.rec && world.premises.rec.pavement) || null;
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
             GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt, coverAt });
@@ -4458,9 +4472,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (typeof GUARDRAIL !== 'undefined') {
           const rail = GUARDRAIL.build(THREE, { path: pr, w, mode: 'auto', name: 'guardrail:road' + i,
             hAt: world.terrainH, heightAt: world.terrainH, seed: i * 17 + 3,
-            waterY: world.waterH ? world.waterH(0, 0) : null,
+            waterY: world.waterH ? ((x, z) => world.waterH(x, z)) : null,
             keep: (x, z) => !(world.roadNet.inCore && world.roadNet.inCore(x, z)) && !world.roadNet.buildings.some(b => Math.abs(b.x - x) < 20 && Math.abs(b.z - z) < 20) });
           if (rail) scene.add(rail);
+        }
+        // THE POWER LINE (2026-09-22): the poles and the cable along the analytic world's roads too -
+        // one verge, ~34 m apart, clear of the settlement's own buildings and of the verge the
+        // guardrail took. No street lamps here: the lamp pool is the premises renderer's.
+        const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : ((typeof window !== 'undefined' && window.POWERLINE) || null);
+        const PRG = (typeof PROP_REG !== 'undefined') ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null);
+        if (PWR && PRG && typeof propPlace === 'function') {
+          const line = PWR.build(THREE, { path: pr, w, mode: 'auto', name: 'powerline:road' + i,
+            seed: i * 31 + 7, heightAt: world.terrainH,
+            keep: (x, z) => !world.roadNet.buildings.some(b => Math.abs(b.x - x) < 12 && Math.abs(b.z - z) < 12),
+            place: q => (PRG.props[q.key] ? propPlace(THREE, q.key, q.x, q.z, q.ry, q.y) : null) });
+          if (line) scene.add(line);
         }
       });
     }

@@ -333,8 +333,8 @@ function makeWorld(seed, opts) {
   // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
   // strips by their box; the premises' answer wins where it has one
   const COV_FADE = 6, COV_BAND = 1.2;
-  function coverAt(x, z) {
-    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+  function coverAt(x, z, pave) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z, pave); if (c) return c; }
     let kill = 0, boost = 0, cls = null;
     // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
     for (const a of aerodromes) {
@@ -476,10 +476,14 @@ function makeWorld(seed, opts) {
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
       if (nearMeadow) continue;
       if (HYD.water(x, z) > h) continue;
-      if (SET.roadNear(x, z) < 12) continue;   // clear of roads
+      if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
+      // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
+      // collidable tree off a village street - the same law the grass obeys (contract v1.17)
+      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
