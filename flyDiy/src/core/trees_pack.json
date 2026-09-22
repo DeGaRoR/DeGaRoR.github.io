@@ -7473,6 +7473,1590 @@
      "snag": []
     }
    ]
+  },
+  {
+   "name": "lowpoly_sticks.glb",
+   "file": "lowpoly_sticks.glb",
+   "kind": "debris",
+   "credit": {
+    "author": "Lo\u00efc Norgeot (https://sketchfab.com/norgeotloic)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/lowpoly-sticks-396f8957029e4440ba15efb0fe217d5f",
+    "title": "Lowpoly Sticks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sizeVar": 0.25,
+    "bury": 0.12,
+    "proportion": 1,
+    "size": 0.17,
+    "note": "the user's big sticks: twelve branches, the pack 21-27 m long, so 0.17 is a 3.6-4.5 m one (merged-by-material: the subjects are named here)",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/lowpoly_sticks.75854bd4.bin",
+   "bytes": 377672,
+   "subjects": [
+    {
+     "name": "stick_07",
+     "h": 6.52,
+     "tris": 2002,
+     "bb": [
+      -13.2805,
+      0.0,
+      -4.5472,
+      13.2805,
+      6.5207,
+      4.5472
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2002,
+       "parts": [
+        {
+         "mat": "stick_07",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000485,
+          0.000485
+         ],
+         "uvScl": [
+          0.989271,
+          0.999031
+         ],
+         "off": 0,
+         "len": 35124
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_03",
+     "h": 5.53,
+     "tris": 1503,
+     "bb": [
+      -10.7248,
+      0.0,
+      -1.7121,
+      10.7248,
+      5.5337,
+      1.7121
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1503,
+       "parts": [
+        {
+         "mat": "stick_03",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000529,
+          0.000529
+         ],
+         "uvScl": [
+          0.998942,
+          0.984797
+         ],
+         "off": 35124,
+         "len": 28504
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_09",
+     "h": 5.26,
+     "tris": 2007,
+     "bb": [
+      -11.046,
+      0.0,
+      -2.0053,
+      11.046,
+      5.2628,
+      2.0053
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2007,
+       "parts": [
+        {
+         "mat": "stick_09",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000692,
+          0.000692
+         ],
+         "uvScl": [
+          0.998615,
+          0.997555
+         ],
+         "off": 63628,
+         "len": 38248
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_02",
+     "h": 5.24,
+     "tris": 1872,
+     "bb": [
+      -10.4166,
+      0.0,
+      -4.1356,
+      10.4166,
+      5.2365,
+      4.1356
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1872,
+       "parts": [
+        {
+         "mat": "stick_02",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.003005,
+          0.003005
+         ],
+         "uvScl": [
+          0.993123,
+          0.993991
+         ],
+         "off": 101876,
+         "len": 35478
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_01",
+     "h": 4.75,
+     "tris": 1996,
+     "bb": [
+      -10.8448,
+      0.0,
+      -3.1644,
+      10.8448,
+      4.7507,
+      3.1644
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1996,
+       "parts": [
+        {
+         "mat": "stick_01",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000627,
+          0.000627
+         ],
+         "uvScl": [
+          0.995324,
+          0.998745
+         ],
+         "off": 137354,
+         "len": 37692
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_08",
+     "h": 4.65,
+     "tris": 2003,
+     "bb": [
+      -11.2286,
+      0.0,
+      -2.3852,
+      11.2286,
+      4.6511,
+      2.3852
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2003,
+       "parts": [
+        {
+         "mat": "stick_08",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000727,
+          0.000727
+         ],
+         "uvScl": [
+          0.962547,
+          0.998545
+         ],
+         "off": 175046,
+         "len": 39190
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_10",
+     "h": 3.54,
+     "tris": 1515,
+     "bb": [
+      -9.9754,
+      0.0,
+      -3.6473,
+      9.9754,
+      3.5418,
+      3.6473
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1515,
+       "parts": [
+        {
+         "mat": "stick_10",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.00046,
+          0.00046
+         ],
+         "uvScl": [
+          0.952715,
+          0.999079
+         ],
+         "off": 214236,
+         "len": 26546
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_12",
+     "h": 3.04,
+     "tris": 2014,
+     "bb": [
+      -12.7671,
+      0.0,
+      -2.2416,
+      12.7671,
+      3.0387,
+      2.2416
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2014,
+       "parts": [
+        {
+         "mat": "stick_12",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000594,
+          0.000594
+         ],
+         "uvScl": [
+          0.98976,
+          0.998812
+         ],
+         "off": 240782,
+         "len": 37534
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_11",
+     "h": 2.81,
+     "tris": 1504,
+     "bb": [
+      -11.5522,
+      0.0,
+      -1.1895,
+      11.5522,
+      2.8068,
+      1.1895
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1504,
+       "parts": [
+        {
+         "mat": "stick_11",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000203,
+          0.000203
+         ],
+         "uvScl": [
+          0.999594,
+          0.997396
+         ],
+         "off": 278316,
+         "len": 21524
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_05",
+     "h": 2.8,
+     "tris": 2260,
+     "bb": [
+      -13.565,
+      0.0,
+      -1.9495,
+      13.565,
+      2.8019,
+      1.9495
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 2260,
+       "parts": [
+        {
+         "mat": "stick_05",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000158,
+          0.000158
+         ],
+         "uvScl": [
+          0.999683,
+          0.999098
+         ],
+         "off": 299840,
+         "len": 31086
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_06",
+     "h": 2.8,
+     "tris": 1506,
+     "bb": [
+      -12.4537,
+      0.0,
+      -1.5292,
+      12.4537,
+      2.8042,
+      1.5292
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1506,
+       "parts": [
+        {
+         "mat": "stick_06",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000186,
+          0.000186
+         ],
+         "uvScl": [
+          0.999628,
+          0.986104
+         ],
+         "off": 330926,
+         "len": 21620
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick_04",
+     "h": 2.78,
+     "tris": 1822,
+     "bb": [
+      -11.884,
+      0.0,
+      -1.606,
+      11.884,
+      2.7808,
+      1.606
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1822,
+       "parts": [
+        {
+         "mat": "stick_04",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000155,
+          0.000155
+         ],
+         "uvScl": [
+          0.989409,
+          0.999691
+         ],
+         "off": 352546,
+         "len": 25126
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "lowpoly_sticks_-_free_download.glb",
+   "file": "lowpoly_sticks_-_free_download.glb",
+   "kind": "debris",
+   "credit": {
+    "author": "Lo\u00efc Norgeot (https://sketchfab.com/norgeotloic)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/lowpoly-sticks-free-download-ca6179af591c417fb4a124f605b6e63d",
+    "title": "Lowpoly Sticks - Free Download"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sizeVar": 0.25,
+    "bury": 0.12,
+    "proportion": 1,
+    "size": 1,
+    "note": "the user's twigs: twenty pieces 0.17-0.38 m (the pack exports merged-by-material, so its subjects are named here: tree_prep drops merged groups from a default pool)",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/lowpoly_sticks_-_free_download.eed7a20b.bin",
+   "bytes": 61640,
+   "subjects": [
+    {
+     "name": "stick01",
+     "h": 0.38,
+     "tris": 150,
+     "bb": [
+      -0.1975,
+      0.0,
+      -0.7179,
+      0.1975,
+      0.2999,
+      0.7179
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick01_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001025,
+          0.000958
+         ],
+         "uvScl": [
+          0.99795,
+          0.998084
+         ],
+         "off": 0,
+         "len": 3026
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick06",
+     "h": 0.33,
+     "tris": 150,
+     "bb": [
+      -0.4182,
+      0.0,
+      -0.6815,
+      0.4182,
+      0.3335,
+      0.6815
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick06_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.000876,
+          0.000851
+         ],
+         "uvScl": [
+          0.998248,
+          0.998298
+         ],
+         "off": 3026,
+         "len": 3138
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick07",
+     "h": 0.28,
+     "tris": 150,
+     "bb": [
+      -0.194,
+      0.0,
+      -0.7548,
+      0.194,
+      0.2836,
+      0.7548
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick07_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001237,
+          0.001038
+         ],
+         "uvScl": [
+          0.997526,
+          0.997924
+         ],
+         "off": 6164,
+         "len": 3334
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick17",
+     "h": 0.17,
+     "tris": 150,
+     "bb": [
+      -0.1887,
+      0.0,
+      -0.6216,
+      0.1887,
+      0.1732,
+      0.6216
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick17_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001307,
+          0.001004
+         ],
+         "uvScl": [
+          0.997387,
+          0.997993
+         ],
+         "off": 9498,
+         "len": 3166
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick15",
+     "h": 0.17,
+     "tris": 150,
+     "bb": [
+      -0.0942,
+      0.0,
+      -0.632,
+      0.0942,
+      0.1673,
+      0.632
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick15_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001793,
+          0.001003
+         ],
+         "uvScl": [
+          0.996414,
+          0.997994
+         ],
+         "off": 12664,
+         "len": 2998
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick11",
+     "h": 0.17,
+     "tris": 150,
+     "bb": [
+      -0.112,
+      0.0,
+      -0.6746,
+      0.112,
+      0.1714,
+      0.6746
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick11_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001319,
+          0.00083
+         ],
+         "uvScl": [
+          0.997362,
+          0.99834
+         ],
+         "off": 15662,
+         "len": 3250
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick10",
+     "h": 0.17,
+     "tris": 150,
+     "bb": [
+      -0.1245,
+      0.0,
+      -0.596,
+      0.1245,
+      0.1717,
+      0.596
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick10_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001374,
+          0.001042
+         ],
+         "uvScl": [
+          0.997251,
+          0.997915
+         ],
+         "off": 18912,
+         "len": 3292
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick03",
+     "h": 0.17,
+     "tris": 150,
+     "bb": [
+      -0.0718,
+      0.0,
+      -0.6159,
+      0.0718,
+      0.1661,
+      0.6159
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick03_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001797,
+          0.000956
+         ],
+         "uvScl": [
+          0.996406,
+          0.998088
+         ],
+         "off": 22204,
+         "len": 3152
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick19",
+     "h": 0.16,
+     "tris": 150,
+     "bb": [
+      -0.083,
+      0.0,
+      -0.5214,
+      0.083,
+      0.1598,
+      0.5214
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick19_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001463,
+          0.000963
+         ],
+         "uvScl": [
+          0.997074,
+          0.998074
+         ],
+         "off": 25356,
+         "len": 2900
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick02",
+     "h": 0.16,
+     "tris": 150,
+     "bb": [
+      -0.1038,
+      0.0,
+      -0.482,
+      0.1038,
+      0.1605,
+      0.482
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick02_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.00115,
+          0.000943
+         ],
+         "uvScl": [
+          0.9977,
+          0.998113
+         ],
+         "off": 28256,
+         "len": 2984
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick20",
+     "h": 0.15,
+     "tris": 150,
+     "bb": [
+      -0.0624,
+      0.0,
+      -0.4349,
+      0.0624,
+      0.1493,
+      0.4349
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick20_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001777,
+          0.001111
+         ],
+         "uvScl": [
+          0.996445,
+          0.997777
+         ],
+         "off": 31240,
+         "len": 3040
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick18",
+     "h": 0.14,
+     "tris": 150,
+     "bb": [
+      -0.074,
+      0.0,
+      -0.4873,
+      0.074,
+      0.141,
+      0.4873
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick18_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001774,
+          0.000962
+         ],
+         "uvScl": [
+          0.996452,
+          0.998076
+         ],
+         "off": 34280,
+         "len": 3124
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick08",
+     "h": 0.14,
+     "tris": 150,
+     "bb": [
+      -0.0708,
+      0.0,
+      -0.5395,
+      0.0708,
+      0.1388,
+      0.5395
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick08_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001487,
+          0.0009
+         ],
+         "uvScl": [
+          0.997026,
+          0.998201
+         ],
+         "off": 37404,
+         "len": 3026
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick05",
+     "h": 0.14,
+     "tris": 150,
+     "bb": [
+      -0.0911,
+      0.0,
+      -0.4528,
+      0.0911,
+      0.1353,
+      0.4528
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick05_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001309,
+          0.000904
+         ],
+         "uvScl": [
+          0.997382,
+          0.998192
+         ],
+         "off": 40430,
+         "len": 2886
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick13",
+     "h": 0.13,
+     "tris": 150,
+     "bb": [
+      -0.0579,
+      0.0,
+      -0.4151,
+      0.0579,
+      0.1257,
+      0.4151
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick13_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001602,
+          0.001001
+         ],
+         "uvScl": [
+          0.996796,
+          0.997998
+         ],
+         "off": 43316,
+         "len": 2984
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick12",
+     "h": 0.13,
+     "tris": 150,
+     "bb": [
+      -0.0981,
+      0.0,
+      -0.684,
+      0.0981,
+      0.1295,
+      0.684
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick12_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001963,
+          0.001008
+         ],
+         "uvScl": [
+          0.996074,
+          0.997984
+         ],
+         "off": 46300,
+         "len": 3124
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick09",
+     "h": 0.13,
+     "tris": 150,
+     "bb": [
+      -0.0812,
+      0.0,
+      -0.5181,
+      0.0812,
+      0.134,
+      0.5181
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick09_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001753,
+          0.000913
+         ],
+         "uvScl": [
+          0.996495,
+          0.998173
+         ],
+         "off": 49424,
+         "len": 2900
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick14",
+     "h": 0.12,
+     "tris": 150,
+     "bb": [
+      -0.0628,
+      0.0,
+      -0.5396,
+      0.0628,
+      0.1191,
+      0.5396
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick14_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001987,
+          0.000951
+         ],
+         "uvScl": [
+          0.996026,
+          0.998097
+         ],
+         "off": 52324,
+         "len": 3012
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick16",
+     "h": 0.1,
+     "tris": 150,
+     "bb": [
+      -0.0533,
+      0.0,
+      -0.4172,
+      0.0533,
+      0.1004,
+      0.4172
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick16_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001632,
+          0.000947
+         ],
+         "uvScl": [
+          0.996736,
+          0.998105
+         ],
+         "off": 55336,
+         "len": 3236
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    },
+    {
+     "name": "stick04",
+     "h": 0.1,
+     "tris": 150,
+     "bb": [
+      -0.1089,
+      0.0,
+      -0.4157,
+      0.1089,
+      0.1047,
+      0.4157
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 4,
+       "tris": 150,
+       "parts": [
+        {
+         "mat": "stick04_LOD4",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.001443,
+          0.00099
+         ],
+         "uvScl": [
+          0.997114,
+          0.998021
+         ],
+         "off": 58572,
+         "len": 3068
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "log.glb",
+   "file": "log.glb",
+   "kind": "debris",
+   "credit": {
+    "author": "Arkikon (https://sketchfab.com/ragnar)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/log-27624ee05fea49899ba2a63e2f6d1e34",
+    "title": "Log"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sizeVar": 0.25,
+    "bury": 0.12,
+    "proportion": 1,
+    "size": 0.0085,
+    "note": "the user's log - the export measures 703 m along its axis, so 0.0085 is a 6 m log",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/log.aa386e95.bin",
+   "bytes": 12680,
+   "subjects": [
+    {
+     "name": "Log",
+     "h": 96.1,
+     "tris": 912,
+     "bb": [
+      -45.7973,
+      0.0,
+      -351.6594,
+      45.7973,
+      96.102,
+      351.6594
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 912,
+       "parts": [
+        {
+         "mat": "Log_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.058146,
+          0.010303
+         ],
+         "uvScl": [
+          0.915947,
+          0.987891
+         ],
+         "off": 0,
+         "len": 12680
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "dry_branches_medium_01.glb",
+   "file": "dry_branches_medium_01.glb",
+   "kind": "debris",
+   "credit": {
+    "title": "dry branches medium 01",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/dry_branches_medium_01"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "sizeVar": 0.25,
+    "bury": 0.12,
+    "proportion": 1,
+    "size": 1,
+    "note": "Poly Haven CC0 scan, 900 tris: a 1.1 m bundle of dry branches",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/dry_branches_medium_01.ceb36b1f.bin",
+   "bytes": 20938,
+   "subjects": [
+    {
+     "name": "dry_branches_medium_01",
+     "h": 0.34,
+     "tris": 900,
+     "bb": [
+      -0.528,
+      0.0,
+      -0.6483,
+      0.528,
+      0.3352,
+      0.6483
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 900,
+       "parts": [
+        {
+         "mat": "dry_branches_medium_01",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.005828,
+          0.008359
+         ],
+         "uvScl": [
+          0.987469,
+          0.987551
+         ],
+         "off": 0,
+         "len": 20938
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "dead_tree_trunk_02.glb",
+   "file": "dead_tree_trunk_02.glb",
+   "kind": "debris",
+   "credit": {
+    "title": "dead tree trunk 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/dead_tree_trunk_02"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "sizeVar": 0.25,
+    "bury": 0.12,
+    "proportion": 1,
+    "size": 1,
+    "note": "Poly Haven CC0 scan, 1 200 tris: a 4 m fallen trunk",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/dead_tree_trunk_02.36cba24e.bin",
+   "bytes": 23032,
+   "subjects": [
+    {
+     "name": "dead_tree_trunk_02",
+     "h": 1.04,
+     "tris": 1200,
+     "bb": [
+      -2.0221,
+      0.0,
+      -0.5145,
+      2.0221,
+      1.0438,
+      0.5145
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1200,
+       "parts": [
+        {
+         "mat": "dead_tree_trunk_02",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.004077,
+          0.004449
+         ],
+         "uvScl": [
+          0.991662,
+          0.99172
+         ],
+         "off": 0,
+         "len": 23032
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "tree_stump_01.glb",
+   "file": "tree_stump_01.glb",
+   "kind": "debris",
+   "credit": {
+    "title": "tree stump 01",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/tree_stump_01"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "sizeVar": 0.25,
+    "bury": 0.12,
+    "proportion": 1,
+    "size": 1,
+    "note": "Poly Haven CC0 scan, 900 tris: a 1.4 m stump",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/tree_stump_01.b9d0eda0.bin",
+   "bytes": 16920,
+   "subjects": [
+    {
+     "name": "tree_stump_01",
+     "h": 0.57,
+     "tris": 900,
+     "bb": [
+      -0.7145,
+      0.0,
+      -0.7955,
+      0.7145,
+      0.5677,
+      0.7955
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 900,
+       "parts": [
+        {
+         "mat": "tree_stump_01",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.006597,
+          0.005523
+         ],
+         "uvScl": [
+          0.987381,
+          0.989246
+         ],
+         "off": 0,
+         "len": 16920
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
   }
  ],
  "materials": {
@@ -7966,6 +9550,342 @@
     ],
     "nor": "media/tex/trees/coast_rocks_03_coast_rocks_03_nor.e86e8650.jpg"
    }
+  },
+  "lowpoly_sticks.glb": {
+   "stick_01": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_01_base.ff7f0bfa.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_01_nor.0f40e78d.jpg"
+   },
+   "stick_02": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_02_base.2da81d97.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_02_nor.916b18a4.jpg"
+   },
+   "stick_03": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_03_base.e566e3bf.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_03_nor.ed156715.jpg"
+   },
+   "stick_04": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_04_base.36633928.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_04_nor.6a611413.jpg"
+   },
+   "stick_05": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_05_base.38d212e9.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_05_nor.e9a55b9b.jpg"
+   },
+   "stick_06": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_06_base.59dcba49.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_06_nor.ef40fa1d.jpg"
+   },
+   "stick_07": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_07_base.a3c1cc8d.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_07_nor.eed922b5.jpg"
+   },
+   "stick_08": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_08_base.b3294b1e.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_08_nor.cc7f4930.jpg"
+   },
+   "stick_09": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_09_base.497d5e6f.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_09_nor.64ca2faf.jpg"
+   },
+   "stick_10": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_10_base.91e7876c.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_10_nor.010d74aa.jpg"
+   },
+   "stick_11": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_11_base.b910d8a7.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_11_nor.d3720b2e.jpg"
+   },
+   "stick_12": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_stick_12_base.aef7d715.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_stick_12_nor.7d48dd32.jpg"
+   }
+  },
+  "lowpoly_sticks_-_free_download.glb": {
+   "stick20_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick20_lod4_base.25e2c4cc.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick20_lod4_nor.91f5a3f1.jpg"
+   },
+   "stick19_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick19_lod4_base.cadb2344.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick19_lod4_nor.aefafb77.jpg"
+   },
+   "stick18_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick18_lod4_base.4d03093f.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick18_lod4_nor.4ff2e0b8.jpg"
+   },
+   "stick17_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick17_lod4_base.7ed81203.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick17_lod4_nor.a0d71331.jpg"
+   },
+   "stick16_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick16_lod4_base.2fbbc06c.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick16_lod4_nor.017301ae.jpg"
+   },
+   "stick15_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick15_lod4_base.8f1b4c7c.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick15_lod4_nor.329bbf48.jpg"
+   },
+   "stick14_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick14_lod4_base.a09724e8.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick14_lod4_nor.c2e8911e.jpg"
+   },
+   "stick13_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick13_lod4_base.4808fdce.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick13_lod4_nor.e77b8c64.jpg"
+   },
+   "stick12_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick12_lod4_base.a8ba0cc0.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick12_lod4_nor.37807973.jpg"
+   },
+   "stick11_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick11_lod4_base.6e5f6fee.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick11_lod4_nor.42cb12a0.jpg"
+   },
+   "stick10_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick10_lod4_base.ac814c1e.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick10_lod4_nor.5ec98be4.jpg"
+   },
+   "stick09_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick09_lod4_base.51fc069c.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick09_lod4_nor.cea0f125.jpg"
+   },
+   "stick08_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick08_lod4_base.0e06250e.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick08_lod4_nor.03d836ac.jpg"
+   },
+   "stick07_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick07_lod4_base.bafbb6ba.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick07_lod4_nor.2d37753c.jpg"
+   },
+   "stick06_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick06_lod4_base.b533ad4e.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick06_lod4_nor.806fc036.jpg"
+   },
+   "stick05_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick05_lod4_base.de54126e.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick05_lod4_nor.debcf6a1.jpg"
+   },
+   "stick04_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick04_lod4_base.8c50491c.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick04_lod4_nor.2aef38c0.jpg"
+   },
+   "stick03_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick03_lod4_base.aaa788d7.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick03_lod4_nor.03f89475.jpg"
+   },
+   "stick02_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick02_lod4_base.7f026291.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick02_lod4_nor.0acf5446.jpg"
+   },
+   "stick01_LOD4": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/lowpoly_sticks_-_free_download_stick01_lod4_base.c9d69796.jpg",
+    "baseSize": [
+     256,
+     256
+    ],
+    "nor": "media/tex/trees/lowpoly_sticks_-_free_download_stick01_lod4_nor.74339b4c.jpg"
+   }
+  },
+  "log.glb": {
+   "Log_Mat": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/log_log_mat_base.118c23d2.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/log_log_mat_nor.a5410fbb.jpg"
+   }
+  },
+  "dry_branches_medium_01.glb": {
+   "dry_branches_medium_01": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/dry_branches_medium_01_dry_branches_medium_01_base.27cd7293.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/dry_branches_medium_01_dry_branches_medium_01_nor.8728740d.jpg"
+   }
+  },
+  "dead_tree_trunk_02.glb": {
+   "dead_tree_trunk_02": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/dead_tree_trunk_02_dead_tree_trunk_02_base.750e7f87.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/dead_tree_trunk_02_dead_tree_trunk_02_nor.2461ea13.jpg"
+   }
+  },
+  "tree_stump_01.glb": {
+   "tree_stump_01": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/tree_stump_01_tree_stump_01_base.debb0ac0.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/tree_stump_01_tree_stump_01_nor.836da7fd.jpg"
+   }
   }
  },
  "biomes": {
@@ -8018,6 +9938,53 @@
      "rocks": {
       "proportion": 1,
       "size": 14
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8035,7 +10002,8 @@
      "coverNear": 50,
      "rocks": 10,
      "ttype": 13,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "debris": 70
     }
    },
    "deciduous": {
@@ -8079,6 +10047,53 @@
      "rocks": {
       "proportion": 1,
       "size": 24
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8099,7 +10114,8 @@
      "coverNear": 50,
      "rocks": 2.5,
      "ttype": 14,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "debris": 50
     }
    },
    "muskeg": {
@@ -8161,6 +10177,61 @@
       "size": 0.2,
       "bury": 0.35,
       "tint": 0.6
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "pool": 0.55,
+      "poolBury": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.45,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.12,
+      "size": 0.0085,
+      "pool": 0.6,
+      "poolBury": 0.08,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.45,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.12,
+      "pool": 0.6,
+      "poolBury": 0.08,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.45,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "pool": 0.5,
+      "poolBury": 0.04,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.35,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.45,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.05,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8182,7 +10253,8 @@
      "coverSpread": 0.08,
      "canopyFloor": 3.5,
      "clump": 0.55,
-     "clumpM": 28
+     "clumpM": 28,
+     "debris": 70
     }
    },
    "grassland": {
@@ -8232,6 +10304,53 @@
       "size": 0.4,
       "bury": 0.3,
       "tint": 0.6
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8252,7 +10371,8 @@
      "ttype": 2,
      "spread": 0.2,
      "coverSpread": 0.08,
-     "canopyFloor": 0
+     "canopyFloor": 0,
+     "debris": 10
     }
    },
    "borders": {
@@ -8303,6 +10423,53 @@
      "rocks": {
       "proportion": 1,
       "size": 30
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8321,7 +10488,8 @@
      "coverNear": 50,
      "rocks": 5,
      "ttype": 7,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "debris": 28
     }
    },
    "scree": {
@@ -8329,6 +10497,53 @@
      "rocks": {
       "proportion": 1,
       "size": 22
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8347,7 +10562,8 @@
      "rocks": 8,
      "ttype": 6,
      "coverSpread": 0.08,
-     "rockMap": 1
+     "rockMap": 1,
+     "debris": 8
     }
    },
    "shore": {
@@ -8355,6 +10571,51 @@
      "rocks": {
       "proportion": 1,
       "size": 12
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.55,
+      "tilt": 1,
+      "bury": 0.22,
+      "cluster": 1,
+      "band": [
+       7,
+       22
+      ],
+      "tint": 0.25
+     },
+     "log.glb": {
+      "proportion": 0.3,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.25,
+      "cluster": 1,
+      "band": [
+       7,
+       22
+      ],
+      "tint": 0.25
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.28,
+      "tilt": 1,
+      "bury": 0.25,
+      "cluster": 1,
+      "band": [
+       7,
+       22
+      ],
+      "tint": 0.25
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.35,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "band": [
+       5,
+       20
+      ],
+      "tint": 0.25
      }
     },
     "forest": {
@@ -8372,7 +10633,9 @@
      "coverNear": 50,
      "rocks": 2,
      "ttype": 11,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "debris": 55,
+     "rockMap": 1
     }
    },
    "conifer_young": {
@@ -8424,6 +10687,53 @@
       "proportion": 1,
       "size": 9,
       "tint": 0.7
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8441,7 +10751,8 @@
      "coverNear": 50,
      "rocks": 4,
      "ttype": 8,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "debris": 55
     }
    },
    "conifer_steep": {
@@ -8505,6 +10816,53 @@
       "size": 0.18,
       "bury": 0.45,
       "tint": 0.5
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8522,7 +10880,8 @@
      "coverNear": 50,
      "rocks": 12,
      "ttype": 12,
-     "coverSpread": 0.08
+     "coverSpread": 0.08,
+     "debris": 35
     }
    },
    "conifer_scrub": {
@@ -8590,6 +10949,53 @@
       "size": 0.2,
       "bury": 0.35,
       "tint": 0.6
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8611,7 +11017,8 @@
      "coverSpread": 0.08,
      "canopyFloor": 4.5,
      "clump": 0.35,
-     "clumpM": 35
+     "clumpM": 35,
+     "debris": 30
     }
    },
    "shingle": {
@@ -8670,6 +11077,51 @@
       "tilt": 1,
       "shore": 0.5,
       "cluster": 1
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.55,
+      "tilt": 1,
+      "bury": 0.22,
+      "cluster": 1,
+      "band": [
+       7,
+       22
+      ],
+      "tint": 0.25
+     },
+     "log.glb": {
+      "proportion": 0.3,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.25,
+      "cluster": 1,
+      "band": [
+       7,
+       22
+      ],
+      "tint": 0.25
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.28,
+      "tilt": 1,
+      "bury": 0.25,
+      "cluster": 1,
+      "band": [
+       7,
+       22
+      ],
+      "tint": 0.25
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.35,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "band": [
+       5,
+       20
+      ],
+      "tint": 0.25
      }
     },
     "forest": {
@@ -8688,7 +11140,8 @@
      "rocks": 150,
      "ttype": 11,
      "coverSpread": 0.08,
-     "rockMap": 1
+     "rockMap": 1,
+     "debris": 45
     }
    },
    "village": {
@@ -8722,6 +11175,53 @@
       "proportion": 1,
       "size": 6,
       "tint": 0.7
+     },
+     "lowpoly_sticks.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.55,
+      "tint": 0.3
+     },
+     "lowpoly_sticks_-_free_download.glb": {
+      "proportion": 0.3,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.4,
+      "tint": 0.3
+     },
+     "dry_branches_medium_01.glb": {
+      "proportion": 0.15,
+      "tilt": 1,
+      "bury": 0.15,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "tree_stump_01.glb": {
+      "proportion": 0.07,
+      "tilt": 0.5,
+      "bury": 0.2,
+      "tint": 0.3
+     },
+     "dead_tree_trunk_02.glb": {
+      "proportion": 0.06,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
+     },
+     "log.glb": {
+      "proportion": 0.06,
+      "size": 0.0085,
+      "tilt": 1,
+      "bury": 0.2,
+      "cluster": 1,
+      "hollow": 0.5,
+      "tint": 0.3
      }
     },
     "forest": {
@@ -8743,7 +11243,8 @@
      "spread": 0.2,
      "coverSpread": 0.08,
      "canopyFloor": 0,
-     "clump": 0
+     "clump": 0,
+     "debris": 6
     }
    }
   },
@@ -8758,7 +11259,8 @@
    "12": "conifer_steep",
    "13": "conifer",
    "14": "conifer_scrub",
-   "10": "village"
+   "10": "village",
+   "3": "muskeg"
   }
  }
 }

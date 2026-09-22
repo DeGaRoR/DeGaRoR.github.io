@@ -739,7 +739,8 @@ def species_list(index, tune):
         if t.get('maps'):
             out.append({'key': key, 'a': a, 'kind': kind, 't': t, 'subjects': [], 'maps': t['maps']})
             claimed.add(a['name']); continue
-        pool = (a.get('cover') or []) + (a.get('shrubs') or []) if kind == 'cover' \
+        pool = groups_all(a) if kind in ('debris', 'cliff') \
+            else (a.get('cover') or []) + (a.get('shrubs') or []) if kind == 'cover' \
             else (a.get('shrubs') or []) + (a.get('trees') or []) if kind == 'shrub' \
             else (a.get('rocks') or []) if kind == 'rock' else (a.get('trees') or [])
         if t.get('subjects'):
@@ -759,8 +760,11 @@ def species_list(index, tune):
 def bake_species(sp, g, bin_, view_crown_w, view_crown_h, blob, used):
     """Every subject of one species into `blob`; returns the manifest's subjects."""
     t, kind, subjects = sp['t'], sp['kind'], []
+    named = set(t.get('subjects') or [])   # a NAMED subject rides through the merged filter (2026-09-22): the filter
+                                           # exists for a tree split across materials, and a pack of separate sticks
+                                           # exported merged-by-material is the case where the tuning knows better
     for S in sp['subjects']:
-        if S.get('merged'):
+        if S.get('merged') and S.get('name') not in named:
             continue
         by_lod = {}
         for el in S.get('els', []):

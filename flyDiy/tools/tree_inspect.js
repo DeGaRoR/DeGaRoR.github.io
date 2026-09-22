@@ -705,7 +705,7 @@ function group(g, bin, folderKind) {
     // two will coexist in the world. It keeps its own kind so the ladder can
     // tell which rung an asset already is, not because it is not a tree.
     if (forced) G.kind = forced;
-    else if (folderKind === 'rock') G.kind = 'rock';
+    else if (folderKind === 'rock' || folderKind === 'debris' || folderKind === 'cliff') G.kind = folderKind;   // the ground's own things: the folder decides before any name rule (a log matched PROP and was filed `terrain`)
     else if ((CARD_MAT.test(matNames) || CARD_MAT.test(G.key)) && !multiLevel(G)) G.kind = 'billboard';
     // A card is TALL and thin. Requiring height as well as a low triangle
     // count keeps a 63-triangle rock 0.85 m high out of the billboard rail.
@@ -752,7 +752,12 @@ function readGLB(file) {
 // A SIXTH KIND (2026-09-20, the user: "let's spawn rocks, half buried, rotated only on the z
 // axis"): ROCK - a folder's word again (vegetation/rocks), so a boulder pack is not filed as
 // terrain-to-scatter-on; the bench plants it like an understory that sinks to its waist
-const FOLDER_KIND = { 'vegetation/grass': 'cover', 'vegetation/shrubs': 'shrub', 'vegetation/rocks': 'rock' };
+// A SEVENTH AND EIGHTH (2026-09-22, the user: "I have added some trunks and branches ... we should add some in
+// the foresty areas, but also on the beaches, and floating in the muskeg ponds"; "photoscanned cliffs"): DEBRIS
+// (vegetation/branches - logs, sticks, stumps: the rock machinery, its own density) and CLIFF (vegetation/cliffs
+// - the 20-90 m Poly Haven scans, placed by cliffs.js, not by the cover ring)
+const FOLDER_KIND = { 'vegetation/grass': 'cover', 'vegetation/shrubs': 'shrub', 'vegetation/rocks': 'rock',
+                      'vegetation/branches': 'debris', 'vegetation/cliffs': 'cliff' };
 
 function analyse(name, g, ctx) {
   const folderKind = FOLDER_KIND[ctx.folder] || null;
@@ -822,7 +827,8 @@ function analyse(name, g, ctx) {
   const cover = kinds('cover').sort((a, b) => b.h - a.h);
   const billboards = kinds('billboard').sort((a, b) => b.h - a.h);
   const terrain = kinds('terrain').sort((a, b) => b.tris - a.tris);
-  const rocks = kinds('rock').sort((a, b) => b.h - a.h);
+  // the ground's own things share the `rocks` bucket (their own kind rides on each group: rock / debris / cliff)
+  const rocks = [].concat(kinds('rock'), kinds('debris'), kinds('cliff')).sort((a, b) => b.h - a.h);
 
   // a stand of conifers is 15-60 m; far outside that is a unit problem in the
   // export, and it is the reason to MEASURE rather than trust

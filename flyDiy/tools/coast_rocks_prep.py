@@ -22,18 +22,31 @@ import bpy, os, sys, math
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 def opt(k, d):
     return argv[argv.index(k) + 1] if k in argv else d
-TRIS = int(opt('--tris', '1500'))
+TRIS = int(opt('--tris', '0'))          # 0: each row's own budget below
 ONLY = opt('--only', None)
+GROUP = opt('--group', None)            # rocks | debris | cliffs (default: all)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 MAIN = 'D:/Dev/DeGaRoR.github.io/flyDiy/assets'
 SRC = os.path.join(ROOT, 'assets', 'coastRocks')
 if not os.path.isdir(SRC): SRC = os.path.join(MAIN, 'coastRocks')          # a worktree carries no link to the main checkout's assets
-OUT = os.path.join(ROOT, 'assets', 'vegetation', 'rocks')
-if not os.path.isdir(OUT): OUT = os.path.join(MAIN, 'vegetation', 'rocks')
+def out_dir(sub):
+    d = os.path.join(ROOT, 'assets', 'vegetation', sub)
+    return d if os.path.isdir(d) else os.path.join(MAIN, 'vegetation', sub)
 
-SCANS = ['coast_land_rocks_02', 'coast_land_rocks_03', 'coast_land_rocks_04', 'coast_rocks_05', 'sand_rocks_small_01', 'coast_rocks_03']
+# name -> (the folder under assets/vegetation, the triangle budget). THE BUDGET IS THE SUBJECT'S SIZE:
+# a 4-10 m rock or a 5 m log reads whole at 1 500 from 20 m; a 40-90 m CLIFF is a landscape feature seen
+# from a kilometre and its silhouette is the whole point - 8 000 (measured: 4 000 loses the ledges).
+SCANS = [('coast_land_rocks_02', 'rocks', 1500), ('coast_land_rocks_03', 'rocks', 1500), ('coast_land_rocks_04', 'rocks', 1500),
+         ('coast_rocks_05', 'rocks', 1500), ('sand_rocks_small_01', 'rocks', 1500), ('coast_rocks_03', 'rocks', 1500),
+         # THE DEBRIS (2026-09-22, the user: "I have added some trunks and branches ... Polyhaven also has some,
+         # I just fear they're too high poly"): they are not - 0.4 to 1.9 MB of geometry, 10-50 k triangles, and
+         # this decimates them to a stick's worth anyway
+         ('dry_branches_medium_01', 'branches', 900), ('dead_tree_trunk_02', 'branches', 1200), ('tree_stump_01', 'branches', 900),
+         # THE CLIFFS (the same day: "Do you think it's realistic to try photoscanned cliffs?")
+         ('coastal_cliff_02', 'cliffs', 8000), ('coastal_cliff_04', 'cliffs', 8000), ('namaqualand_cliff_02', 'cliffs', 8000)]
+GROUPS = {'rocks', 'branches', 'cliffs'}
 
 def clear():
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -59,8 +72,11 @@ def stamp(glb, name):
 def main():
     ground = {}   # name -> {below, above}: how far the scan's own ground sits above its lowest point (tree_prep
                   # floors every subject on its lowest point, so the cover ring's `bury` fraction must carry this)
-    for name in SCANS:
+    for name, sub, tris in SCANS:
         if ONLY and name != ONLY: continue
+        if GROUP and sub != GROUP: continue
+        OUT = out_dir(sub); os.makedirs(OUT, exist_ok=True)
+        want = TRIS or tris
         src = os.path.join(SRC, name, name + '_1k.gltf')
         if not os.path.exists(src): print('MISSING', src); continue
         clear()
@@ -77,7 +93,7 @@ def main():
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         tris0 = sum(len(p.vertices) - 2 for p in ob.data.polygons)
         # DECIMATE: collapse to the ratio that lands on TRIS; UVs ride the collapse (Blender keeps them)
-        ratio = min(1.0, TRIS / max(1, tris0))
+        ratio = min(1.0, want / max(1, tris0))
         if ratio < 1.0:
             mod = ob.modifiers.new('dec', 'DECIMATE'); mod.ratio = ratio; mod.use_collapse_triangulate = True
             bpy.ops.object.modifier_apply(modifier='dec')
@@ -110,7 +126,7 @@ def main():
         ground[name] = {'below': round(-min(zs), 3), 'above': round(max(zs), 3), 'h': round(max(zs) - min(zs), 3)}
         print('%-22s %7d -> %5d tris  %.1f x %.1f m, %.2f m above its ground (%.2f below)  -> %s (%.1f MB)' % (name, tris0, tris1, max(xs) - min(xs), max(ys) - min(ys), max(zs), -min(zs), out, os.path.getsize(out) / 1048576))
     import json
-    gp = os.path.join(OUT, 'coast_rocks_ground.json')
+    gp = os.path.join(out_dir('rocks'), 'coast_rocks_ground.json')
     old = json.load(open(gp)) if os.path.exists(gp) else {}
     old.update(ground)
     json.dump(old, open(gp, 'w'), indent=1)

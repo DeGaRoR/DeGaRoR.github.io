@@ -55557,3 +55557,42 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
 - The same faceting is still in the VIEW vector (vViewPosition is the displaced position - a real geometric
   effect, and the shading over it is smooth because the normal is analytic); only the reflection's lookup
   was sensitive to it.
+
+## G496 — THE DEADWOOD: TRUNKS, STICKS AND DRIFT ON EVERY TREED GROUND, IN THE PONDS AND AT THE TIDE LINE (2026-09-22, the user: "I have added some trunks and branches, and we should add some in the foresty areas, but also on the beaches, and floating in the muskeg ponds as well ... it should not be restricted to ponds ... probably in packs in depressions ... they are usually packed at the beach far end, where the highest tide takes them")
+
+- A SEVENTH KIND, `debris` (tools/tree_inspect.js FOLDER_KIND: vegetation/branches): the rock machinery of
+  G486 - bury, tilt to the ground's own slope over the piece's footprint, the blotch clustering, the
+  shore cull, the rock map's far tier - on a density of its own (`debris` per 1000 m2 on the mix, beside
+  `rocks`). The user's three packs (log.glb, lowpoly_sticks 12 branches, the 20 twigs) and three Poly
+  Haven CC0 scans (dry_branches_medium_01, dead_tree_trunk_02, tree_stump_01) through the same Blender
+  prep (tools/coast_rocks_prep.py --group branches, 900-1 200 tris each). THE USER'S FEAR was of the
+  poly count: Poly Haven's branches are 0.4-1.9 MB of geometry (10-80 k tris) and the prep decimates
+  them anyway - the cliffs below are the heavy ones, not these.
+- TWO TRAPS IN THE USER'S OWN PACKS: they export MERGED BY MATERIAL, and tree_prep drops merged groups
+  from a default pool - both stick packs baked to nothing until their subjects were named in the tuning
+  (a named subject now rides through the merged filter: bake_species). And the exports are not in
+  metres - log.glb is 703 m along its axis, the sticks 21-27 m: `size` 0.0085 and 0.17, read off the
+  BAKED boxes (the inspector's `h` is the height, which for the log is 96 m and says nothing about its
+  length).
+- THREE NEW ROW KEYS (cover_ring.js placeRocks): `pool` is the SHARE of a row's pieces that FLOAT (the
+  shared pool field, 28b_ground_fields, over codes 3 and 7) - a floating piece lies flat on the water
+  (no tilt) and is barely sunk (`poolBury`), the rest are dry pieces on the ground the ok[] test keeps,
+  so ONE row does both halves; `hollow` keeps a piece by how much the ground DISHES under it (the
+  Laplacian over its own footprint, four terrainH taps) - the user's "packs in depressions"; `band`
+  [lo, hi] metres inland of the waterline is the WRACK LINE, where the highest tide left the drift.
+- A TEMPORAL DEAD ZONE ATE THE FOREST'S DEBRIS: `floats` was declared below the hollow test that reads
+  it, so every row carrying `hollow` threw a ReferenceError and its cell planted no debris at all -
+  the beaches (no `hollow`) kept working, which is what made it look like a tuning problem. Measured by
+  counting instances per species near the eye (0 in the forest and the muskeg, 503 on the shore), not
+  by looking. The draw is decided before both tests now.
+- THE BIOMES' CODE 3 HAD NO MIX: the vegetation session's own landing maps `muskeg` to code 7 (scrub),
+  and code 3 - THE MUSKEG TERRAIN, the only code the ground shader draws pools on - to nothing at all,
+  so nothing was planted there and a floating piece could never meet a pond. Mapped to the same mix
+  (their table already shares one between 6 and 12) and the session told; one line if they meant else.
+- THE NUMBERS: debris per 1000 m2 - conifer 70, young 55, steep 35, scrub 30, deciduous 50, borders 28,
+  grassland 10, village 6, scree 8, muskeg 70 (about half of it floating), shore 55 and shingle 45 in
+  the 7-22 m band. `tint` 0.25-0.3 on every piece: the packs are bone-pale under this sun and a third
+  of the way to the ground's chroma reads as weathered wood.
+- SEEN: bench/debris/g1_4.png (the wrack line from above and along the beach, the forest floor, the
+  spits), f1_3.png, e1_4.png; d4_3.png is the pass where the density was three times too high.
+- GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES green.

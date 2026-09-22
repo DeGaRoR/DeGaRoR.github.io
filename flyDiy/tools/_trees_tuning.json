@@ -86,6 +86,53 @@
     "rocks": {
      "proportion": 1,
      "size": 14
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -103,7 +150,8 @@
     "coverNear": 50,
     "rocks": 10,
     "ttype": 13,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "debris": 70
    }
   },
   "deciduous": {
@@ -147,6 +195,53 @@
     "rocks": {
      "proportion": 1,
      "size": 24
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -167,7 +262,8 @@
     "coverNear": 50,
     "rocks": 2.5,
     "ttype": 14,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "debris": 50
    }
   },
   "muskeg": {
@@ -229,6 +325,61 @@
      "size": 0.2,
      "bury": 0.35,
      "tint": 0.6
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "pool": 0.55,
+     "poolBury": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.45,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.12,
+     "size": 0.0085,
+     "pool": 0.6,
+     "poolBury": 0.08,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.45,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.12,
+     "pool": 0.6,
+     "poolBury": 0.08,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.45,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "pool": 0.5,
+     "poolBury": 0.04,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.35,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.45,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.05,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -250,7 +401,8 @@
     "coverSpread": 0.08,
     "canopyFloor": 3.5,
     "clump": 0.55,
-    "clumpM": 28
+    "clumpM": 28,
+    "debris": 70
    }
   },
   "grassland": {
@@ -300,6 +452,53 @@
      "size": 0.4,
      "bury": 0.3,
      "tint": 0.6
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -320,7 +519,8 @@
     "ttype": 2,
     "spread": 0.2,
     "coverSpread": 0.08,
-    "canopyFloor": 0
+    "canopyFloor": 0,
+    "debris": 10
    }
   },
   "borders": {
@@ -371,6 +571,53 @@
     "rocks": {
      "proportion": 1,
      "size": 30
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -389,7 +636,8 @@
     "coverNear": 50,
     "rocks": 5,
     "ttype": 7,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "debris": 28
    }
   },
   "scree": {
@@ -397,6 +645,53 @@
     "rocks": {
      "proportion": 1,
      "size": 22
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -415,7 +710,8 @@
     "rocks": 8,
     "ttype": 6,
     "coverSpread": 0.08,
-    "rockMap": 1
+    "rockMap": 1,
+    "debris": 8
    }
   },
   "shore": {
@@ -423,6 +719,51 @@
     "rocks": {
      "proportion": 1,
      "size": 12
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.55,
+     "tilt": 1,
+     "bury": 0.22,
+     "cluster": 1,
+     "band": [
+      7,
+      22
+     ],
+     "tint": 0.25
+    },
+    "log.glb": {
+     "proportion": 0.3,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.25,
+     "cluster": 1,
+     "band": [
+      7,
+      22
+     ],
+     "tint": 0.25
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.28,
+     "tilt": 1,
+     "bury": 0.25,
+     "cluster": 1,
+     "band": [
+      7,
+      22
+     ],
+     "tint": 0.25
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.35,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "band": [
+      5,
+      20
+     ],
+     "tint": 0.25
     }
    },
    "forest": {
@@ -440,7 +781,9 @@
     "coverNear": 50,
     "rocks": 2,
     "ttype": 11,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "debris": 55,
+    "rockMap": 1
    }
   },
   "conifer_young": {
@@ -492,6 +835,53 @@
      "proportion": 1,
      "size": 9,
      "tint": 0.7
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -509,7 +899,8 @@
     "coverNear": 50,
     "rocks": 4,
     "ttype": 8,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "debris": 55
    }
   },
   "conifer_steep": {
@@ -573,6 +964,53 @@
      "size": 0.18,
      "bury": 0.45,
      "tint": 0.5
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -590,7 +1028,8 @@
     "coverNear": 50,
     "rocks": 12,
     "ttype": 12,
-    "coverSpread": 0.08
+    "coverSpread": 0.08,
+    "debris": 35
    }
   },
   "conifer_scrub": {
@@ -658,6 +1097,53 @@
      "size": 0.2,
      "bury": 0.35,
      "tint": 0.6
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -679,7 +1165,8 @@
     "coverSpread": 0.08,
     "canopyFloor": 4.5,
     "clump": 0.35,
-    "clumpM": 35
+    "clumpM": 35,
+    "debris": 30
    }
   },
   "shingle": {
@@ -738,6 +1225,51 @@
      "tilt": 1,
      "shore": 0.5,
      "cluster": 1
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.55,
+     "tilt": 1,
+     "bury": 0.22,
+     "cluster": 1,
+     "band": [
+      7,
+      22
+     ],
+     "tint": 0.25
+    },
+    "log.glb": {
+     "proportion": 0.3,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.25,
+     "cluster": 1,
+     "band": [
+      7,
+      22
+     ],
+     "tint": 0.25
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.28,
+     "tilt": 1,
+     "bury": 0.25,
+     "cluster": 1,
+     "band": [
+      7,
+      22
+     ],
+     "tint": 0.25
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.35,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "band": [
+      5,
+      20
+     ],
+     "tint": 0.25
     }
    },
    "forest": {
@@ -756,7 +1288,8 @@
     "rocks": 150,
     "ttype": 11,
     "coverSpread": 0.08,
-    "rockMap": 1
+    "rockMap": 1,
+    "debris": 45
    }
   },
   "village": {
@@ -790,6 +1323,53 @@
      "proportion": 1,
      "size": 6,
      "tint": 0.7
+    },
+    "lowpoly_sticks.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.55,
+     "tint": 0.3
+    },
+    "lowpoly_sticks_-_free_download.glb": {
+     "proportion": 0.3,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.4,
+     "tint": 0.3
+    },
+    "dry_branches_medium_01.glb": {
+     "proportion": 0.15,
+     "tilt": 1,
+     "bury": 0.15,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "tree_stump_01.glb": {
+     "proportion": 0.07,
+     "tilt": 0.5,
+     "bury": 0.2,
+     "tint": 0.3
+    },
+    "dead_tree_trunk_02.glb": {
+     "proportion": 0.06,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
+    },
+    "log.glb": {
+     "proportion": 0.06,
+     "size": 0.0085,
+     "tilt": 1,
+     "bury": 0.2,
+     "cluster": 1,
+     "hollow": 0.5,
+     "tint": 0.3
     }
    },
    "forest": {
@@ -811,7 +1391,8 @@
     "spread": 0.2,
     "coverSpread": 0.08,
     "canopyFloor": 0,
-    "clump": 0
+    "clump": 0,
+    "debris": 6
    }
   }
  },
@@ -1604,6 +2185,114 @@
    "light": 1,
    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): the 21 x 28 m reef, 3.2 m - rare",
    "cut": 1.84
+  },
+  "lowpoly_sticks.glb": {
+   "file": "lowpoly_sticks.glb",
+   "kind": "debris",
+   "sizeVar": 0.25,
+   "bury": 0.12,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "size": 0.17,
+   "note": "the user's big sticks: twelve branches, the pack 21-27 m long, so 0.17 is a 3.6-4.5 m one (merged-by-material: the subjects are named here)",
+   "subjects": [
+    "stick_07",
+    "stick_03",
+    "stick_09",
+    "stick_02",
+    "stick_01",
+    "stick_08",
+    "stick_10",
+    "stick_12",
+    "stick_11",
+    "stick_05",
+    "stick_06",
+    "stick_04"
+   ]
+  },
+  "lowpoly_sticks_-_free_download.glb": {
+   "file": "lowpoly_sticks_-_free_download.glb",
+   "kind": "debris",
+   "sizeVar": 0.25,
+   "bury": 0.12,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "size": 1,
+   "note": "the user's twigs: twenty pieces 0.17-0.38 m (the pack exports merged-by-material, so its subjects are named here: tree_prep drops merged groups from a default pool)",
+   "subjects": [
+    "stick01",
+    "stick06",
+    "stick07",
+    "stick17",
+    "stick15",
+    "stick11",
+    "stick10",
+    "stick03",
+    "stick19",
+    "stick02",
+    "stick20",
+    "stick18",
+    "stick08",
+    "stick05",
+    "stick13",
+    "stick12",
+    "stick09",
+    "stick14",
+    "stick16",
+    "stick04"
+   ]
+  },
+  "log.glb": {
+   "file": "log.glb",
+   "kind": "debris",
+   "sizeVar": 0.25,
+   "bury": 0.12,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "size": 0.0085,
+   "note": "the user's log - the export measures 703 m along its axis, so 0.0085 is a 6 m log"
+  },
+  "dry_branches_medium_01.glb": {
+   "file": "dry_branches_medium_01.glb",
+   "kind": "debris",
+   "sizeVar": 0.25,
+   "bury": 0.12,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "size": 1,
+   "note": "Poly Haven CC0 scan, 900 tris: a 1.1 m bundle of dry branches"
+  },
+  "dead_tree_trunk_02.glb": {
+   "file": "dead_tree_trunk_02.glb",
+   "kind": "debris",
+   "sizeVar": 0.25,
+   "bury": 0.12,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "size": 1,
+   "note": "Poly Haven CC0 scan, 1 200 tris: a 4 m fallen trunk"
+  },
+  "tree_stump_01.glb": {
+   "file": "tree_stump_01.glb",
+   "kind": "debris",
+   "sizeVar": 0.25,
+   "bury": 0.12,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "size": 1,
+   "note": "Poly Haven CC0 scan, 900 tris: a 1.4 m stump"
   }
  },
  "biomes": {
@@ -1617,6 +2306,7 @@
   "12": "conifer_steep",
   "13": "conifer",
   "14": "conifer_scrub",
-  "10": "village"
+  "10": "village",
+  "3": "muskeg"
  }
 }

@@ -953,6 +953,17 @@ geometry belongs to evolveduk.
     by tools/coast_rocks_prep.py (Blender), planted on `11 shingle` by the `shingle` mix, sunk to their own
     ground level and tilted to the terrain; the raw scans (300-1 300 k tris) stay under assets/coastRocks/
 
+- **Poly Haven deadwood scans** — `vegetation/branches/dry_branches_medium_01.glb`,
+  `dead_tree_trunk_02.glb`, `tree_stump_01.glb`
+  - author: Poly Haven (https://polyhaven.com) · licence: CC0
+  - use: THE DEADWOOD (2026-09-22, G496) - decimated to 900-1 200 tris by tools/coast_rocks_prep.py
+    --group branches; planted with the user's own log and stick packs as the `debris` kind
+- **Poly Haven cliff scans** — `vegetation/cliffs/coastal_cliff_02.glb`, `coastal_cliff_04.glb`,
+  `namaqualand_cliff_02.glb`
+  - author: Poly Haven (https://polyhaven.com) · licence: CC0
+  - use: THE CLIFF TRIAL (2026-09-22) - 0.2-1.5 M triangles decimated to 8 000 each; 41 x 8.9 m,
+    87 x 9.7 m and 20 x 6 m of real rock face
+
 ### Poly Haven — CC0 (may ship, no attribution required)
 
 Offline-render trees, 1.5–17.2 M triangles each in a `.bin` of up to 900 MB.

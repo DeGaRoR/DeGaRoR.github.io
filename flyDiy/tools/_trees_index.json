@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-22T10:22:47.700Z",
+ "generated": "2026-09-22T12:01:59.597Z",
  "raw": [
   "assets/treesRaw",
   "assets/vegetation"
@@ -4281,6 +4281,2683 @@
    "folder": "treesRaw",
    "fileMB": 85.4,
    "binMB": 85.33,
+   "renderable": true
+  },
+  {
+   "name": "dead_tree_trunk_02.glb",
+   "tris": 1200,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "dead_tree_trunk_02",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "dead_tree_trunk_02_nor_gl_1k",
+     "kb": 1164,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "dead_tree_trunk_02_diff_1k",
+     "kb": 910,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "dead_tree_trunk_02_arm_1k",
+     "kb": 787,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.79,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "dead tree trunk 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/dead_tree_trunk_02"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "dead_tree_trunk_02",
+     "kind": "debris",
+     "h": 1.04,
+     "tris": 1200,
+     "parts": 1,
+     "sig": "7b1ccdde288c",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -2.02,
+      -0.44,
+      -0.51
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1200
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1200,
+       "name": "dead_tree_trunk_02",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "debris",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "a1fe935add36",
+   "kind": "glb",
+   "file": "vegetation/branches/dead_tree_trunk_02.glb",
+   "folder": "vegetation/branches",
+   "fileMB": 2.84,
+   "binMB": 2.84,
+   "renderable": true
+  },
+  {
+   "name": "dry_branches_medium_01.glb",
+   "tris": 900,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "dry_branches_medium_01",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "dry_branches_medium_01_nor_gl_1k",
+     "kb": 1143,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "dry_branches_medium_01_diff_1k",
+     "kb": 761,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "dry_branches_medium_01_arm_1k",
+     "kb": 812,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.65,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "dry branches medium 01",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/dry_branches_medium_01"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "dry_branches_medium_01",
+     "kind": "debris",
+     "h": 0.34,
+     "tris": 900,
+     "parts": 1,
+     "sig": "ca79df97de1b",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.53,
+      -0.04,
+      -0.65
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 900
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 900,
+       "name": "dry_branches_medium_01",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "debris",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "f8bda97aa5a4",
+   "kind": "glb",
+   "file": "vegetation/branches/dry_branches_medium_01.glb",
+   "folder": "vegetation/branches",
+   "fileMB": 2.69,
+   "binMB": 2.69,
+   "renderable": true
+  },
+  {
+   "name": "log.glb",
+   "tris": 912,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "Log_Mat",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": null,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 4,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 829,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 712,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 1298,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 226,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.99,
+   "generator": "Sketchfab-12.68.0",
+   "credit": {
+    "author": "Arkikon (https://sketchfab.com/ragnar)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/log-27624ee05fea49899ba2a63e2f6d1e34",
+    "title": "Log"
+   },
+   "licence": {
+    "text": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "ok": true,
+    "why": "CC-BY — attribution required, see CREDITS.md"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 5,
+   "extensions": [
+    "KHR_materials_pbrSpecularGlossiness"
+   ],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "Log",
+     "kind": "debris",
+     "h": 96.1,
+     "tris": 912,
+     "parts": 1,
+     "sig": "f2deef961457",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -35.1,
+      -43.31,
+      -353.32
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 912
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 4,
+       "lod": null,
+       "tris": 912,
+       "name": "Log_Log_Mat_0",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "debris",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "ef6755357e21",
+   "kind": "glb",
+   "file": "vegetation/branches/log.glb",
+   "folder": "vegetation/branches",
+   "fileMB": 3.04,
+   "binMB": 3.04,
+   "renderable": true
+  },
+  {
+   "name": "lowpoly_sticks.glb",
+   "tris": 22004,
+   "meshes": 12,
+   "materials": [
+    {
+     "name": "stick_01",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_02",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 2,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_03",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 4,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_04",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 6,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_05",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 8,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_06",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 10,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_07",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 12,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_08",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 14,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_09",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 16,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_10",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 18,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_11",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 20,
+     "cannotCut": false
+    },
+    {
+     "name": "stick_12",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 22,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 24,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 648,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 1370,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 666,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 1335,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 614,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 1359,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "",
+     "kb": 516,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 7,
+     "name": "",
+     "kb": 983,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "",
+     "kb": 516,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "",
+     "kb": 1014,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 10,
+     "name": "",
+     "kb": 537,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "",
+     "kb": 1095,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 12,
+     "name": "",
+     "kb": 525,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 13,
+     "name": "",
+     "kb": 1021,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 14,
+     "name": "",
+     "kb": 530,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 15,
+     "name": "",
+     "kb": 1050,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 16,
+     "name": "",
+     "kb": 577,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 17,
+     "name": "",
+     "kb": 1099,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 18,
+     "name": "",
+     "kb": 479,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 19,
+     "name": "",
+     "kb": 951,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 20,
+     "name": "",
+     "kb": 490,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 21,
+     "name": "",
+     "kb": 1292,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 22,
+     "name": "",
+     "kb": 551,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 23,
+     "name": "",
+     "kb": 1048,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 19.79,
+   "generator": "Sketchfab-12.65.0",
+   "credit": {
+    "author": "Loïc Norgeot (https://sketchfab.com/norgeotloic)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/lowpoly-sticks-396f8957029e4440ba15efb0fe217d5f",
+    "title": "Lowpoly Sticks"
+   },
+   "licence": {
+    "text": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "ok": true,
+    "why": "CC-BY — attribution required, see CREDITS.md"
+   },
+   "rawMeshes": 12,
+   "rawNodes": 27,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "stick_07",
+     "kind": "debris",
+     "h": 6.52,
+     "tris": 2002,
+     "parts": 1,
+     "sig": "c303409c03e6",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -26.95,
+      -2.51,
+      13.01
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2002
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 15,
+       "lod": null,
+       "tris": 2002,
+       "name": "stick_07",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_03",
+     "kind": "debris",
+     "h": 5.53,
+     "tris": 1503,
+     "parts": 1,
+     "sig": "d11acbfbd16c",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      3.26,
+      -1.63,
+      1.44
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1503
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 7,
+       "lod": null,
+       "tris": 1503,
+       "name": "stick_03",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_09",
+     "kind": "debris",
+     "h": 5.26,
+     "tris": 2007,
+     "parts": 1,
+     "sig": "69fcaa3252d6",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -25.86,
+      -1.58,
+      0.56
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2007
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 19,
+       "lod": null,
+       "tris": 2007,
+       "name": "stick_09",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_02",
+     "kind": "debris",
+     "h": 5.24,
+     "tris": 1872,
+     "parts": 1,
+     "sig": "97d3bfd299d3",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      3.47,
+      -2.57,
+      6.05
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1872
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 5,
+       "lod": null,
+       "tris": 1872,
+       "name": "stick_02",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_01",
+     "kind": "debris",
+     "h": 4.75,
+     "tris": 1996,
+     "parts": 1,
+     "sig": "0d7f111ed685",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      3.35,
+      -2.38,
+      14.86
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1996
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 3,
+       "lod": null,
+       "tris": 1996,
+       "name": "stick_01",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_08",
+     "kind": "debris",
+     "h": 4.65,
+     "tris": 2003,
+     "parts": 1,
+     "sig": "c7262e39a93c",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -25.55,
+      -2.35,
+      7.13
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2003
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 17,
+       "lod": null,
+       "tris": 2003,
+       "name": "stick_08",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_10",
+     "kind": "debris",
+     "h": 3.54,
+     "tris": 1515,
+     "parts": 1,
+     "sig": "65920d734724",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -24.56,
+      -2.07,
+      -7.22
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1515
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 21,
+       "lod": null,
+       "tris": 1515,
+       "name": "stick_10",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_12",
+     "kind": "debris",
+     "h": 3.04,
+     "tris": 2014,
+     "parts": 1,
+     "sig": "b36ecd639fe6",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -26.12,
+      -1.68,
+      -19.37
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2014
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 25,
+       "lod": null,
+       "tris": 2014,
+       "name": "stick_12",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_11",
+     "kind": "debris",
+     "h": 2.81,
+     "tris": 1504,
+     "parts": 1,
+     "sig": "eaad48a66a14",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -26.03,
+      -0.96,
+      -12.07
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1504
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 23,
+       "lod": null,
+       "tris": 1504,
+       "name": "stick_11",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_05",
+     "kind": "debris",
+     "h": 2.8,
+     "tris": 2260,
+     "parts": 1,
+     "sig": "c3f6f5635847",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      0.44,
+      -1.36,
+      -12.73
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2260
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 11,
+       "lod": null,
+       "tris": 2260,
+       "name": "stick_05",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_06",
+     "kind": "debris",
+     "h": 2.8,
+     "tris": 1506,
+     "parts": 1,
+     "sig": "214bbb00cdb7",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      1.47,
+      -1.39,
+      -19.2
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1506
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 13,
+       "lod": null,
+       "tris": 1506,
+       "name": "stick_06",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick_04",
+     "kind": "debris",
+     "h": 2.78,
+     "tris": 1822,
+     "parts": 1,
+     "sig": "cb318f1b22cf",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      2.18,
+      -1.31,
+      -6.64
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1822
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 9,
+       "lod": null,
+       "tris": 1822,
+       "name": "stick_04",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "debris",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "2ce3604f1a23",
+   "kind": "glb",
+   "file": "vegetation/branches/lowpoly_sticks.glb",
+   "folder": "vegetation/branches",
+   "fileMB": 20.87,
+   "binMB": 20.85,
+   "renderable": true
+  },
+  {
+   "name": "lowpoly_sticks_-_free_download.glb",
+   "tris": 3000,
+   "meshes": 20,
+   "materials": [
+    {
+     "name": "stick20_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "stick19_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 2,
+     "cannotCut": false
+    },
+    {
+     "name": "stick18_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 4,
+     "cannotCut": false
+    },
+    {
+     "name": "stick17_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 6,
+     "cannotCut": false
+    },
+    {
+     "name": "stick16_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 8,
+     "cannotCut": false
+    },
+    {
+     "name": "stick15_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 10,
+     "cannotCut": false
+    },
+    {
+     "name": "stick14_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 12,
+     "cannotCut": false
+    },
+    {
+     "name": "stick13_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 14,
+     "cannotCut": false
+    },
+    {
+     "name": "stick12_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 16,
+     "cannotCut": false
+    },
+    {
+     "name": "stick11_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 18,
+     "cannotCut": false
+    },
+    {
+     "name": "stick10_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 20,
+     "cannotCut": false
+    },
+    {
+     "name": "stick09_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 22,
+     "cannotCut": false
+    },
+    {
+     "name": "stick08_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 24,
+     "cannotCut": false
+    },
+    {
+     "name": "stick07_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 26,
+     "cannotCut": false
+    },
+    {
+     "name": "stick06_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 28,
+     "cannotCut": false
+    },
+    {
+     "name": "stick05_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 30,
+     "cannotCut": false
+    },
+    {
+     "name": "stick04_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 32,
+     "cannotCut": false
+    },
+    {
+     "name": "stick03_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 34,
+     "cannotCut": false
+    },
+    {
+     "name": "stick02_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 36,
+     "cannotCut": false
+    },
+    {
+     "name": "stick01_LOD4",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 38,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 40,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 52,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 105,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 45,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 92,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 44,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 93,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "",
+     "kb": 45,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 7,
+     "name": "",
+     "kb": 88,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "",
+     "kb": 44,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "",
+     "kb": 91,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 10,
+     "name": "",
+     "kb": 47,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "",
+     "kb": 54,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 12,
+     "name": "",
+     "kb": 48,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 13,
+     "name": "",
+     "kb": 57,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 14,
+     "name": "",
+     "kb": 42,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 15,
+     "name": "",
+     "kb": 48,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 16,
+     "name": "",
+     "kb": 38,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 17,
+     "name": "",
+     "kb": 50,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 18,
+     "name": "",
+     "kb": 48,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 19,
+     "name": "",
+     "kb": 52,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 20,
+     "name": "",
+     "kb": 47,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 21,
+     "name": "",
+     "kb": 55,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 22,
+     "name": "",
+     "kb": 51,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 23,
+     "name": "",
+     "kb": 56,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 24,
+     "name": "",
+     "kb": 44,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 25,
+     "name": "",
+     "kb": 51,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 26,
+     "name": "",
+     "kb": 47,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 27,
+     "name": "",
+     "kb": 64,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 28,
+     "name": "",
+     "kb": 44,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 29,
+     "name": "",
+     "kb": 64,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 30,
+     "name": "",
+     "kb": 47,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 31,
+     "name": "",
+     "kb": 46,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 32,
+     "name": "",
+     "kb": 52,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 33,
+     "name": "",
+     "kb": 52,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 34,
+     "name": "",
+     "kb": 48,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 35,
+     "name": "",
+     "kb": 62,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 36,
+     "name": "",
+     "kb": 45,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 37,
+     "name": "",
+     "kb": 54,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 38,
+     "name": "",
+     "kb": 51,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 39,
+     "name": "",
+     "kb": 65,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.18,
+   "generator": "Sketchfab-12.63.0",
+   "credit": {
+    "author": "Loïc Norgeot (https://sketchfab.com/norgeotloic)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/lowpoly-sticks-free-download-ca6179af591c417fb4a124f605b6e63d",
+    "title": "Lowpoly Sticks - Free Download"
+   },
+   "licence": {
+    "text": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "ok": true,
+    "why": "CC-BY — attribution required, see CREDITS.md"
+   },
+   "rawMeshes": 20,
+   "rawNodes": 43,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "stick01",
+     "kind": "debris",
+     "h": 0.38,
+     "tris": 150,
+     "parts": 1,
+     "sig": "6fcf91e6ac81",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -778.92,
+      -0.19,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 41,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick01_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick06",
+     "kind": "debris",
+     "h": 0.33,
+     "tris": 150,
+     "parts": 1,
+     "sig": "0bcc0b12ef19",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.02,
+      -0.16,
+      119.74
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 31,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick06_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick07",
+     "kind": "debris",
+     "h": 0.28,
+     "tris": 150,
+     "parts": 1,
+     "sig": "d3284ae060c3",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -778.49,
+      -0.14,
+      120.75
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 29,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick07_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick17",
+     "kind": "debris",
+     "h": 0.17,
+     "tris": 150,
+     "parts": 1,
+     "sig": "d255cf896248",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.58,
+      -0.09,
+      121.02
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 9,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick17_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick15",
+     "kind": "debris",
+     "h": 0.17,
+     "tris": 150,
+     "parts": 1,
+     "sig": "217a044fe0b2",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -781.35,
+      -0.09,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 13,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick15_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick11",
+     "kind": "debris",
+     "h": 0.17,
+     "tris": 150,
+     "parts": 1,
+     "sig": "7b3b916ad4f5",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.88,
+      -0.08,
+      120.91
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 21,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick11_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick10",
+     "kind": "debris",
+     "h": 0.17,
+     "tris": 150,
+     "parts": 1,
+     "sig": "cf71cc60c909",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.46,
+      -0.08,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 23,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick10_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick03",
+     "kind": "debris",
+     "h": 0.17,
+     "tris": 150,
+     "parts": 1,
+     "sig": "62f2ecb8e882",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -781.6,
+      -0.08,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 37,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick03_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick19",
+     "kind": "debris",
+     "h": 0.16,
+     "tris": 150,
+     "parts": 1,
+     "sig": "b72901219240",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -779.36,
+      -0.08,
+      121.22
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 5,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick19_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick02",
+     "kind": "debris",
+     "h": 0.16,
+     "tris": 150,
+     "parts": 1,
+     "sig": "43caac306d38",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.05,
+      -0.08,
+      121.3
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 39,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick02_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick20",
+     "kind": "debris",
+     "h": 0.15,
+     "tris": 150,
+     "parts": 1,
+     "sig": "169eeb8fe71f",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -778.76,
+      -0.06,
+      121.39
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 3,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick20_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick18",
+     "kind": "debris",
+     "h": 0.14,
+     "tris": 150,
+     "parts": 1,
+     "sig": "6508e831d9f1",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -779.04,
+      -0.08,
+      121.28
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 7,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick18_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick08",
+     "kind": "debris",
+     "h": 0.14,
+     "tris": 150,
+     "parts": 1,
+     "sig": "03b58bd72e6d",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -781.21,
+      -0.07,
+      121.18
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 27,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick08_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick05",
+     "kind": "debris",
+     "h": 0.14,
+     "tris": 150,
+     "parts": 1,
+     "sig": "94aa4013ed64",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -779.21,
+      -0.07,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 33,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick05_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick13",
+     "kind": "debris",
+     "h": 0.13,
+     "tris": 150,
+     "parts": 1,
+     "sig": "739dd691eea9",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.68,
+      -0.05,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 17,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick13_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick12",
+     "kind": "debris",
+     "h": 0.13,
+     "tris": 150,
+     "parts": 1,
+     "sig": "112ec2337973",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -779.65,
+      -0.06,
+      120.89
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 19,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick12_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick09",
+     "kind": "debris",
+     "h": 0.13,
+     "tris": 150,
+     "parts": 1,
+     "sig": "7ab262ccd1ba",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -781.01,
+      -0.06,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 25,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick09_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick14",
+     "kind": "debris",
+     "h": 0.12,
+     "tris": 150,
+     "parts": 1,
+     "sig": "7b1f6f0ad32e",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -781.55,
+      -0.06,
+      121.18
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 15,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick14_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick16",
+     "kind": "debris",
+     "h": 0.1,
+     "tris": 150,
+     "parts": 1,
+     "sig": "62aa59b036ce",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -778.33,
+      -0.05,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 11,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick16_LOD4",
+       "clips": null
+      }
+     ]
+    },
+    {
+     "name": "stick04",
+     "kind": "debris",
+     "h": 0.1,
+     "tris": 150,
+     "parts": 1,
+     "sig": "cf0623d45d5a",
+     "copies": 1,
+     "islands": 0,
+     "merged": true,
+     "inPlace": false,
+     "origin": [
+      -780.09,
+      -0.05,
+      119.78
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 4,
+       "tris": 150
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 35,
+       "lod": 4,
+       "tris": 150,
+       "name": "stick04_LOD4",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "debris",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "b53744cd01b3",
+   "kind": "glb",
+   "file": "vegetation/branches/lowpoly_sticks_-_free_download.glb",
+   "folder": "vegetation/branches",
+   "fileMB": 2.39,
+   "binMB": 2.35,
+   "renderable": true
+  },
+  {
+   "name": "tree_stump_01.glb",
+   "tris": 900,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "tree_stump_01",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "tree_stump_01_nor_gl_1k",
+     "kb": 1209,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "tree_stump_01_diff_1k",
+     "kb": 886,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "tree_stump_01_arm_1k",
+     "kb": 806,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.83,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "tree stump 01",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/tree_stump_01"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "tree_stump_01",
+     "kind": "debris",
+     "h": 0.57,
+     "tris": 900,
+     "parts": 1,
+     "sig": "83bd20f08051",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.71,
+      -0.17,
+      -0.8
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 900
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 900,
+       "name": "tree_stump_01",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "debris",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "c8422aacf933",
+   "kind": "glb",
+   "file": "vegetation/branches/tree_stump_01.glb",
+   "folder": "vegetation/branches",
+   "fileMB": 2.87,
+   "binMB": 2.86,
+   "renderable": true
+  },
+  {
+   "name": "coastal_cliff_02.glb",
+   "tris": 8000,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coastal_cliff_02",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coastal_cliff_02_nor_gl_1k",
+     "kb": 903,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coastal_cliff_02_diff_1k",
+     "kb": 742,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coastal_cliff_02_arm_1k",
+     "kb": 681,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.27,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coastal cliff 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coastal_cliff_02"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [
+    "KHR_materials_specular",
+    "KHR_materials_ior"
+   ],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coastal_cliff_02",
+     "kind": "cliff",
+     "h": 10.06,
+     "tris": 8000,
+     "parts": 1,
+     "sig": "fabf80ec90b7",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -20.46,
+      -1.18,
+      -4.32
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 8000
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 8000,
+       "name": "coastal_cliff_02",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "cliff",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "5bd5f89c68be",
+   "kind": "glb",
+   "file": "vegetation/cliffs/coastal_cliff_02.glb",
+   "folder": "vegetation/cliffs",
+   "fileMB": 2.48,
+   "binMB": 2.48,
+   "renderable": true
+  },
+  {
+   "name": "coastal_cliff_04.glb",
+   "tris": 8000,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coastal_cliff_04",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coastal_cliff_04_nor_gl_1k",
+     "kb": 1163,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coastal_cliff_04_diff_1k",
+     "kb": 784,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coastal_cliff_04_arm_1k",
+     "kb": 764,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.65,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coastal cliff 04",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coastal_cliff_04"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coastal_cliff_04",
+     "kind": "cliff",
+     "h": 10.98,
+     "tris": 8000,
+     "parts": 1,
+     "sig": "ed7cf49ed961",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -43.38,
+      -1.29,
+      -12.16
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 8000
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 8000,
+       "name": "coastal_cliff_04",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "cliff",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "61746049f00e",
+   "kind": "glb",
+   "file": "vegetation/cliffs/coastal_cliff_04.glb",
+   "folder": "vegetation/cliffs",
+   "fileMB": 2.87,
+   "binMB": 2.87,
+   "renderable": true
+  },
+  {
+   "name": "namaqualand_cliff_02.glb",
+   "tris": 7998,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "drone_rock_02",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "namaqualand_cliff_02_nor_gl_1k",
+     "kb": 1047,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "namaqualand_cliff_02_diff_1k",
+     "kb": 775,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "namaqualand_cliff_02_arm_1k",
+     "kb": 795,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.55,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "namaqualand cliff 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/namaqualand_cliff_02"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "namaqualand_cliff_02",
+     "kind": "cliff",
+     "h": 7.2,
+     "tris": 7998,
+     "parts": 1,
+     "sig": "6e588ebeec09",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -10.11,
+      -1.22,
+      -3.31
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 7998
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 7998,
+       "name": "namaqualand_cliff_02",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "cliff",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "0714a67af218",
+   "kind": "glb",
+   "file": "vegetation/cliffs/namaqualand_cliff_02.glb",
+   "folder": "vegetation/cliffs",
+   "fileMB": 2.8,
+   "binMB": 2.8,
    "renderable": true
   },
   {
