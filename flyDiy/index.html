@@ -14858,6 +14858,11 @@ const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'g
 // capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
 // holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
 const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+// WHAT A `pav` MAY SAY (v1.16's per-entry knobs, mirrored from src/viewer/pavement.js's ENTRY_KNOBS,
+// which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
+// ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
+const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
@@ -15572,6 +15577,16 @@ function compose(rec0, world, opts) {
 // ---------------------------------------------------------------------------
 // issues — what refuses a commit; checks — what the panel shows and the gate holds
 // ---------------------------------------------------------------------------
+// what a `pav` may carry, checked once for every layer that takes one. A MISSPELT KEY WAS SILENT:
+// resolve() reads the seven knobs it knows and ignores the rest, so `pav: { mark: 'none' }` did
+// nothing and said nothing (the Metlakatla session asked, 2026-09-23)
+function pavIssues(what, pav) {
+  const out = [];
+  if (typeof pav !== 'object') { out.push(what + ': pav is an object of knobs'); return out; }
+  for (const key in pav) if (PAV_KEYS.indexOf(key) < 0) out.push(what + ': pav has no knob `' + key + '` (' + PAV_KEYS.join(', ') + ')');
+  if (pav.marks !== undefined && PAV_MARKS.indexOf(pav.marks) < 0) out.push(what + ': pav.marks is ' + PAV_MARKS.join(' | '));
+  return out;
+}
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
@@ -15584,9 +15599,17 @@ function issues(rec0) {
     if (k === 'zones' && e.rules && e.rules.grass && ['lawn', 'meadow', 'none'].indexOf(e.rules.grass.kind) < 0) out.push('zone ' + e.id + ': grass kind is lawn, meadow or none');
     if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.pav && typeof e.pav !== 'object') out.push(k.replace(/s$/, '') + ' ' + e.id + ': pav is an object of knobs');
-    if (k === 'roads' && e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push('road ' + e.id + ': unknown look ' + e.look);
+    if (k === 'material' && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push('material ' + e.id + ': band must be 0 or more');
+    if (k === 'material' && e.pav) out.push.apply(out, pavIssues('material ' + e.id, e.pav));
+  }
+  // ROADS AND RUNWAYS ARE VALIDATED HERE (2026-09-23): the polygon loop above carried three checks
+  // written `k === 'roads' || k === 'runways'` and never ran over either layer, so a road's band, its
+  // `pav` and its look have gone unchecked since v1.16. They are checked now.
+  for (const k of ['roads', 'runways']) for (const e of rec.layers[k]) {
+    const what = k.replace(/s$/, '') + ' ' + e.id;
+    if (e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(what + ': band must be 0 or more');
+    if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
+    if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {
@@ -15822,7 +15845,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
@@ -38396,7 +38419,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='3e96b010c557';window.FLYDIY_BUILD='e00d8a92bf7e'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='83991faaac7b';window.FLYDIY_BUILD='6cd5a2481ba9'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
