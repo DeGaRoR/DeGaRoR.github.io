@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d750b8505fa25205
+// body-sha256: 75a898aa80ecda42
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2973,8 +2973,8 @@ function makeWorld(seed, opts) {
   // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
   // strips by their box; the premises' answer wins where it has one
   const COV_FADE = 6, COV_BAND = 1.2;
-  function coverAt(x, z) {
-    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+  function coverAt(x, z, pave) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z, pave); if (c) return c; }
     let kill = 0, boost = 0, cls = null;
     // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
     for (const a of aerodromes) {
@@ -3116,10 +3116,14 @@ function makeWorld(seed, opts) {
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
       if (nearMeadow) continue;
       if (HYD.water(x, z) > h) continue;
-      if (SET.roadNear(x, z) < 12) continue;   // clear of roads
+      if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
+      // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
+      // collidable tree off a village street - the same law the grass obeys (contract v1.17)
+      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
@@ -7082,7 +7086,7 @@ function compose(rec0, world, opts) {
     //     grass the zone's grass rule when kind is a plot's (h, density)
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
-    coverAt: (x, z) => coverAt(x, z),
+    coverAt: (x, z, pave) => coverAt(x, z, pave),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -7135,7 +7139,10 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
-  function coverAt(x, z) {
+  // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
+  // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
+  // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.
+  function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
@@ -7153,6 +7160,7 @@ function compose(rec0, world, opts) {
       boost = Math.max(boost, bump * 0.7, soft);
       if (d > best) { best = d; cls = it.cls; }
     }
+    if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
     let kind = null, grass = null;
     // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }

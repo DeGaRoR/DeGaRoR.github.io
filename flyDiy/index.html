@@ -11178,8 +11178,8 @@ function makeWorld(seed, opts) {
   // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
   // strips by their box; the premises' answer wins where it has one
   const COV_FADE = 6, COV_BAND = 1.2;
-  function coverAt(x, z) {
-    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+  function coverAt(x, z, pave) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z, pave); if (c) return c; }
     let kill = 0, boost = 0, cls = null;
     // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
     for (const a of aerodromes) {
@@ -11321,10 +11321,14 @@ function makeWorld(seed, opts) {
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
       if (nearMeadow) continue;
       if (HYD.water(x, z) > h) continue;
-      if (SET.roadNear(x, z) < 12) continue;   // clear of roads
+      if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
+      // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
+      // collidable tree off a village street - the same law the grass obeys (contract v1.17)
+      if (PM && PM.coverAt) { const cv = PM.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > (ISL ? 0.85 : tp.p)) continue;
       const idx = trees.length;
@@ -15287,7 +15291,7 @@ function compose(rec0, world, opts) {
     //     grass the zone's grass rule when kind is a plot's (h, density)
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
-    coverAt: (x, z) => coverAt(x, z),
+    coverAt: (x, z, pave) => coverAt(x, z, pave),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -15340,7 +15344,10 @@ function compose(rec0, world, opts) {
     if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
-  function coverAt(x, z) {
+  // `pave` (2026-09-22): the PAVEMENT half only - the caller wants to know whether it may stand
+  // something here, not which plot's lawn it is. It skips the plot walk, which is the query's cost
+  // (36 polygons in a village), and the tree fill calls this on every lattice point of every chunk.
+  function coverAt(x, z, pave) {
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
@@ -15358,6 +15365,7 @@ function compose(rec0, world, opts) {
       boost = Math.max(boost, bump * 0.7, soft);
       if (d > best) { best = d; cls = it.cls; }
     }
+    if (pave) return (kill || boost) ? { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null } : null;
     let kind = null, grass = null;
     // the plots: a point inside one takes its zone's grass rule
     for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
@@ -38344,7 +38352,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d750b8505fa2';window.FLYDIY_BUILD='91f7b6bdfdae'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='75a898aa80ec';window.FLYDIY_BUILD='b0b61cddab10'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -105380,7 +105388,12 @@ const GUARDRAIL = (() => {
     // rail is earned - a 1:3 batter (the slope a car rolls rather than rides down) and never under a
     // metre. A flat table (the first cut's "1.6 m within 14 m") rails every road cut into a 12 %
     // hillside, which is most of an island: two thirds of the analytic world's roads wore one.
-    dropAt: [[3, 1.0], [7, 2.2], [14, 4.0]],
+    // Recalibrated 2026-09-22 on the REAL Jolene (the island's own DEM, measured in the game, not a
+    // fixture over the analytic terrain): her roads fall 0.4 / 1.6 / 2.5 m at the airport, 0.7 / 1.6 /
+    // 2.9 on the shore, 1.2 / 3.3 / 6.1 on the one road with a bank. A 1:3 table (1.0 / 2.2 / 4.0)
+    // rails 60 m of the whole island - nothing the eye ever meets; a 1:4 one rails 221 m, which is
+    // where it stood when the user judged it, and 6.2 km of the analytic world's mountain roads.
+    dropAt: [[3, 0.8], [7, 1.7], [14, 3.0]],
     kDrop: 1,          // x the table: under 1 rails more
     kCurve: 0.011,     // 1/m: the curvature a bend must reach to rail its outside (r ~ 90 m)
     twoAt: 8,          // a fall over this gets the picture's SECOND beam (a cliff, a bridge - not every bank)
@@ -105419,7 +105432,12 @@ const GUARDRAIL = (() => {
     const P = o.path, L = P.length, d = Object.assign({}, D, o.D || {});
     const w = o.w || 5;
     if (!P || L < d.minRun || w < d.minW) return [];
-    const hAt = o.hAt, keep = o.keep || null, waterY = (o.waterY === undefined || o.waterY === null) ? -1e9 : o.waterY;
+    const hAt = o.hAt, keep = o.keep || null;
+    // THE WATER IS A FIELD, NOT A LEVEL (2026-09-22): world.waterH(x, z) is the surface AT THAT
+    // POINT and -Infinity where there is none, so a lake's 137 m and the sea's 0 are both in it.
+    // Handing this a single number sampled at the world's origin is how the first cut lost every
+    // rail on Jolene: one lake under the origin clamped every probe on the island above its bank.
+    const wRaw = o.waterY, wAt = typeof wRaw === 'function' ? wRaw : () => ((wRaw === undefined || wRaw === null) ? -Infinity : wRaw);
     const n = Math.max(2, Math.ceil(L / d.step)), off = w / 2 + d.offset;
     const hit = [[], []], dropAt = [[], []];
     for (let i = 0; i <= n; i++) {
@@ -105438,7 +105456,8 @@ const GUARDRAIL = (() => {
         for (const q of d.dropAt) {
           const r = q[0], need = q[1] * d.kDrop;
           const px = A.p[0] + A.n[0] * (off + r) * s, pz = A.p[1] + A.n[1] * (off + r) * s;
-          const h = Math.max(hAt(px, pz), waterY);        // over water the fall is to the water
+          const wy = wAt(px, pz);                          // over water the fall is to the water
+          const h = Math.max(hAt(px, pz), Number.isFinite(wy) ? wy : -Infinity);
           const fall = h0 - h;
           drop = Math.max(drop, fall); warrant = Math.max(warrant, fall / need);
         }
@@ -105618,7 +105637,8 @@ const GUARDRAIL = (() => {
       if (G.metres > longest) { longest = G.metres; const c = G.geo.boundingSphere.center; at = [Math.round(c.x), Math.round(c.y), Math.round(c.z)]; }
     }
     if (!grp.children.length) return null;
-    grp.userData.guardrail = { metres, tris, runs: grp.children.length, at };
+    // `sides` so what stands beside the same road next (the pole line) can take the other verge
+    grp.userData.guardrail = { metres, tris, runs: grp.children.length, at, sides: Array.from(new Set(runs.map(r => r.side))) };
     attach(grp);
     return grp;
   }
@@ -107912,14 +107932,21 @@ var COVER_RING = (() => {
         }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
-        // NOTHING LIES ON A PAVEMENT (2026-09-22, the roads session's v1.17 `coverAt`, which the ring already
-        // samples per lattice node for the tufts): a log has no business on a runway, an apron, a road or a
-        // track. `kill` is 1 over a hard surface AND its drawn band, falling to 0 over the 6 m fade past it -
-        // but a GRASS strip only ever thins the cover to 0.6, so kill alone would leave a log across a grass
-        // runway: the piece is refused wherever the pavement has a CLASS and a grip on the ground (kill 0.5),
-        // and thinned by what is left of the fade beyond it.
-        if (G.kill[gk] >= 1 || (G.cls[gk] && G.kill[gk] >= 0.5)) continue;
-        if (G.kill[gk] > 0 && Rq() > 1 - G.kill[gk]) continue;
+        // NOTHING LIES ON A PAVEMENT (2026-09-22; G502's rule, kept whole, asked PER PIECE). A log has no
+        // business on a runway, an apron, a road or a track. `kill` is 1 over a hard surface AND its drawn
+        // band, falling to 0 over the 6 m fade past it - but a GRASS strip only ever thins the cover to 0.6,
+        // so kill alone would leave a log across a grass runway at 40 %: the piece is refused wherever the
+        // pavement has a CLASS and a grip on the ground (kill 0.5), and thinned by what is left of the fade
+        // beyond it, which is what a graded gravel verge looks like.
+        // The QUERY, not the node: the ring's lattice is 4 m, so a node's answer can be 2.8 m from the piece
+        // it is deciding - and the whole of this law happens within 7 m of an edge. `pave` is the cheap half
+        // of the query (0.19 us against 1.34: no plot walk, no drawn colour), which is what makes a call per
+        // piece affordable here, and the far rock map shares this function.
+        { const cv = ctx.coverAt ? ctx.coverAt(x, z, 1) : null;
+          if (cv && cv.kill > 0) {
+            if (cv.kill >= 1 || (cv.cls && cv.kill >= 0.5)) continue;
+            if (Rq() > 1 - cv.kill) continue;
+          } }
         if (floats) { if (!(ctx.poolAt && ctx.poolAt(x, z) > 0.6)) continue; }
         else if (!G.ok[gk]) continue;
         const p = draw(P, r2);
@@ -109593,10 +109620,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // nothing whatever their biome said. A point on plain GRASS ground, off the corridor, the
   // exclusions and the water, is the BIOME's to plant (the mix's count decides); the terrain's colour
   // bake and the far canopy mask keep forestHere's rule.
+  // NOTHING GROWS ON A PAVEMENT OR ITS BAND (2026-09-22, the user: "feels to me like we have a lot of
+  // trees on the roads"). The tufts have obeyed this since the cover ring read coverAt (v1.17); the
+  // trees never did - their only road awareness was world.surface INSIDE the carriageway, which is a
+  // clearance of zero, and a `track` road reports GRASS, which openHere accepts, so trees planted on
+  // it. `kill > 0` is the pavement, its drawn band and the 6 m fade past it - about 7 m of clearance
+  // from a road's edge. `pave` skips the query's plot walk: this runs on every lattice point.
+  const paved = (x, z) => { if (!world.coverAt) return false; const c = world.coverAt(x, z, 1); return !!(c && c.kill > 0); };
   const openHere = (x, z) => {
     if (!world.island) return false;
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;
     for (const e of treeEx) if (inEx(e, x, z)) return false;
+    if (paved(x, z)) return false;
     if (world.surface(x, z) !== world.SURFACE.GRASS) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
@@ -109608,6 +109643,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // says where the forest is, and the sparse collidable woodland (52/km2)
     // would have left the fill as 90 m blobs round single trees - it did
     if (!world.island && nearTree(x, z) < 0) return false;
+    if (paved(x, z)) return false;
     if ((sc === undefined ? world.surface(x, z) : sc) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
     return !(h < 1.5 || world.waterH(x, z) > h);
@@ -110753,6 +110789,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const h = world.terrainH(x, z);
         if (h < 1.5 || h > 200) continue;
         if (world.waterH(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
+        // ...nor on a road (2026-09-22): a legal tree 12 m from a road threw satellites 4-18 m in
+        // every direction, and half of them landed on the pavement
+        if (world.coverAt) { const cv = world.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
         // neighbours mostly share the stand's species, with strays
         const sp = hsh(i, k * 13 + 5) < 0.85 ? T.sp : (hsh(i, k * 13 + 6) * 5) | 0;
         P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
@@ -112481,7 +112520,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
-          const coverAt = (x, z) => { const c = world.coverAt ? world.coverAt(x, z) : null; if (!c) return null; c.col = (c.cls && PAV) ? PAV.groundColor(c.cls, PM_RECIPE()) : null; return c; };
+          // `pave` forwarded (2026-09-22): the rocks and the debris ask the cheap half of the query,
+          // per piece, and have no use for the drawn colour - that is the tufts' business
+          const coverAt = (x, z, pave) => { const c = world.coverAt ? world.coverAt(x, z, pave) : null; if (!c) return null; if (!pave) c.col = (c.cls && PAV) ? PAV.groundColor(c.cls, PM_RECIPE()) : null; return c; };
           const PM_RECIPE = () => (world.premises && world.premises.rec && world.premises.rec.pavement) || null;
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
             GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt, coverAt });
@@ -113126,9 +113167,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (typeof GUARDRAIL !== 'undefined') {
           const rail = GUARDRAIL.build(THREE, { path: pr, w, mode: 'auto', name: 'guardrail:road' + i,
             hAt: world.terrainH, heightAt: world.terrainH, seed: i * 17 + 3,
-            waterY: world.waterH ? world.waterH(0, 0) : null,
+            waterY: world.waterH ? ((x, z) => world.waterH(x, z)) : null,
             keep: (x, z) => !(world.roadNet.inCore && world.roadNet.inCore(x, z)) && !world.roadNet.buildings.some(b => Math.abs(b.x - x) < 20 && Math.abs(b.z - z) < 20) });
           if (rail) scene.add(rail);
+        }
+        // THE POWER LINE (2026-09-22): the poles and the cable along the analytic world's roads too -
+        // one verge, ~34 m apart, clear of the settlement's own buildings and of the verge the
+        // guardrail took. No street lamps here: the lamp pool is the premises renderer's.
+        const PWR = (typeof POWERLINE !== 'undefined') ? POWERLINE : ((typeof window !== 'undefined' && window.POWERLINE) || null);
+        const PRG = (typeof PROP_REG !== 'undefined') ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null);
+        if (PWR && PRG && typeof propPlace === 'function') {
+          const line = PWR.build(THREE, { path: pr, w, mode: 'auto', name: 'powerline:road' + i,
+            seed: i * 31 + 7, heightAt: world.terrainH,
+            keep: (x, z) => !world.roadNet.buildings.some(b => Math.abs(b.x - x) < 12 && Math.abs(b.z - z) < 12),
+            place: q => (PRG.props[q.key] ? propPlace(THREE, q.key, q.x, q.z, q.ry, q.y) : null) });
+          if (line) scene.add(line);
         }
       });
     }
@@ -131933,6 +131986,12 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
+    // THE POWER LINE (2026-09-22): the poles along a road and the cable between them
+    // (src/viewer/powerline.js). The poles are props with their own LOD ladder; the cable is a few
+    // hundred metres of merged tube a mesh.
+    { k: 'poles', label: 'power lines', steps: [
+        { v: 'on',  label: 'on', why: 'utility poles every ~34 m along one verge, the cable strung between them, a street lamp on every second one' },
+        { v: 'off', label: 'off', why: 'no poles and no cable' } ] },
     // THE WATER (H6, G460): the one material's two tiers
     { k: 'water', label: 'water', steps: [
         { v: 'simple', label: 'simple', why: 'the swell’s shading and the sun’s glitter; no ripple tile, no lifted surface, no foam' },
@@ -131985,10 +132044,10 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
-    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
+    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
+    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -132055,6 +132114,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     if (W.CLIMATE_LINK) W.CLIMATE_LINK.S.swayGain = S.sway === 'off' ? 0 : 1;
     if (W.WATER && applied.water !== S.water) { W.WATER.set({ tier: S.water }); applied.water = S.water; }
     if (W.GUARDRAIL && applied.rails !== S.rails) { W.GUARDRAIL.setOn(S.rails !== 'off'); applied.rails = S.rails; }
+    if (W.POWERLINE && applied.poles !== S.poles) { W.POWERLINE.setOn(S.poles !== 'off'); applied.poles = S.poles; }
     if (W.WATER && applied.mirror !== S.mirror) { W.WATER.set({ mirror: S.mirror }); applied.mirror = S.mirror; }
     if (W.CLOUDS && applied.clouds !== S.clouds) { W.CLOUDS.S.mode = S.clouds; if (AA && AA.needRT) AA.needRT(S.clouds !== 'off'); applied.clouds = S.clouds; }
     // the compositing (G448.3): the resolve target's space, the panes' blend, the post passes' input
@@ -136428,12 +136488,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 <script type="text/x-flydiy" src="src/cabin/cabin_cabin.js?v=f9ae12e3"></script>
 <script type="text/x-flydiy" src="src/viewer/cabin_livery.js?v=9d8bc57e"></script>
 <script type="text/x-flydiy" src="src/viewer/cabin.js?v=f0aac315"></script>
-<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=90fde1c2"></script>
+<script type="text/x-flydiy" src="src/viewer/tram_run.js?v=9bccf31a"></script>
+<script type="text/x-flydiy" src="src/viewer/powerline.js?v=5f386c32"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=62ac423a"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=f5bc6864"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=49457474"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=109123de"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_host.js?v=a05bd741"></script>
-<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=7b7d7c67"></script>
+<script type="text/x-flydiy" src="src/viewer/premises_ui.js?v=4f7618c3"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
