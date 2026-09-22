@@ -37051,7 +37051,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2d018b0afd3';window.FLYDIY_BUILD='a3ce1095b495'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2d018b0afd3';window.FLYDIY_BUILD='5712813d1b8a'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -105957,11 +105957,22 @@ var ROCK_MAP = (() => {
       if (dirty && !planned) { rebuild(); render(); dirty = false; }   // once the frame has nothing left to plan
       else if (dirty && STAT.renders === 0) { rebuild(); render(); }   // and the first picture as soon as there is one
       // the mesh fade law (the cover ring's) for the read: near, reach, taper, aglK
+      // the ring's own fade law, read from it: near, reach, taper, and the height term - times 0 when the ring
+      // plants no rocks at all (F8's `rocks` at 0, the ablation: the map then stands alone instead of being
+      // suppressed by meshes that are not there - 2026-09-22, the user: "I see nothing on the right side either")
       const cs = cover.get ? cover.get() : {}, st = cover.stat ? cover.stat() : {};
-      gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, st.aglK === undefined ? 1 : st.aglK);
+      const aglK = st.aglK === undefined ? 1 : st.aglK;
+      gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, (cs.rocks === 0 ? 0 : aglK));
     }
     const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); return api.get(); },
-                  replan: () => { plans.clear(); dirty = true; }, atlas: () => ATLAS.texture, map: () => MAP.texture };
+                  replan: () => { plans.clear(); dirty = true; }, atlas: () => ATLAS.texture, map: () => MAP.texture, rt: () => MAP, atlasRT: () => ATLAS,
+                  // the instrument: the map's coverage over a box in WORLD metres (the rigs read it; trace before hypothesis)
+                  probe: (x0, z0, side) => { const n = Math.max(1, Math.round(side)); const buf = new Uint8Array(n * n * 4);
+                    const u = Math.round((x0 - (cx0 - S.half)) / (2 * S.half) * S.px), v = Math.round((z0 - (cz0 - S.half)) / (2 * S.half) * S.px);
+                    try { renderer.readRenderTargetPixels(MAP, u, S.px - v - n, n, n, buf); } catch (e) { return { err: e.message }; }
+                    let a = 0, amax = 0, lit = 0, rgb = [0, 0, 0];
+                    for (let i = 0; i < n * n; i++) { const A = buf[i * 4 + 3] / 255; a += A; if (A > amax) amax = A; if (A > 0.1) { lit++; rgb[0] += buf[i * 4]; rgb[1] += buf[i * 4 + 1]; rgb[2] += buf[i * 4 + 2]; } }
+                    return { n: n * n, aMean: +(a / (n * n)).toFixed(3), aMax: +amax.toFixed(3), lit, rgbLit: lit ? rgb.map(c => Math.round(c / lit)) : null }; } };
     return { update, api };
   }
   return { make };
@@ -107183,7 +107194,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                     '      float rd = distance(vWPi.xz, cameraPosition.xz); float ft = clamp((rd - uRockFade.x) / max(1.0, uRockFade.y - uRockFade.x), 0.0, 1.0);\n' +
                     '      float meshK = pow(1.0 - ft, 1.0 + 2.0 * uRockFade.z) * uRockFade.w;\n' +
                     '      float redge = 1.0 - smoothstep(0.8, 1.0, max(abs(ru.x - 0.5), abs(ru.y - 0.5)) * 2.0);\n' +
-                    '      t = mix(t, rk.rgb, rk.a * (1.0 - meshK) * redge); } }\n' : '') +
+                    // THE MAP IS PREMULTIPLIED (measured 2026-09-22: its lit colour read 11,8,5 of 255 where the scans
+                    // mean 26,19,12 - three blends src.rgb * src.a into the target, so mixing by alpha again darkened
+                    // every rock twice and the shore read as a smudge instead of a rocky speckle): divided out here
+                    '      vec3 rkc = rk.rgb / max(rk.a, 0.004);\n' +
+                    '      t = mix(t, rkc, rk.a * (1.0 - meshK) * redge); } }\n' : '') +
             '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")
