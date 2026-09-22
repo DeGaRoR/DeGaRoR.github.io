@@ -7053,6 +7053,420 @@
      "snag": []
     }
    ]
+  },
+  {
+   "name": "coast_land_rocks_02",
+   "file": "coast_land_rocks_02.glb",
+   "kind": "rock",
+   "credit": {
+    "title": "coast land rocks 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_land_rocks_02"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.2,
+    "bury": 0.187,
+    "proportion": 1,
+    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 10 x 5 m strip of the foreshore, 1.35 m high",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coast_land_rocks_02.8b112d45.bin",
+   "bytes": 27268,
+   "subjects": [
+    {
+     "name": "coast_land_rocks_02",
+     "h": 1.35,
+     "tris": 1500,
+     "bb": [
+      -2.4379,
+      0.0,
+      -5.2128,
+      2.4379,
+      1.348,
+      5.2128
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1500,
+       "parts": [
+        {
+         "mat": "coast_land_rocks_02",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.006024,
+          0.00448
+         ],
+         "uvScl": [
+          0.989085,
+          0.99048
+         ],
+         "off": 0,
+         "len": 27268
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "coast_land_rocks_03",
+   "file": "coast_land_rocks_03.glb",
+   "kind": "rock",
+   "credit": {
+    "title": "coast land rocks 03",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_land_rocks_03"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.2,
+    "bury": 0.267,
+    "proportion": 1,
+    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 9 x 6 m strip, 1.5 m",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coast_land_rocks_03.2e104166.bin",
+   "bytes": 27346,
+   "subjects": [
+    {
+     "name": "coast_land_rocks_03",
+     "h": 1.5,
+     "tris": 1499,
+     "bb": [
+      -4.483,
+      0.0,
+      -2.8113,
+      4.483,
+      1.5012,
+      2.8113
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1499,
+       "parts": [
+        {
+         "mat": "coast_land_rocks_03",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.003464,
+          0.006658
+         ],
+         "uvScl": [
+          0.990305,
+          0.98988
+         ],
+         "off": 0,
+         "len": 27346
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "coast_land_rocks_04",
+   "file": "coast_land_rocks_04.glb",
+   "kind": "rock",
+   "credit": {
+    "title": "coast land rocks 04",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_land_rocks_04"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.2,
+    "bury": 0.392,
+    "proportion": 1,
+    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 10 x 11 m flat pavement, 0.8 m",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coast_land_rocks_04.95cd4b4f.bin",
+   "bytes": 23768,
+   "subjects": [
+    {
+     "name": "coast_land_rocks_04",
+     "h": 0.79,
+     "tris": 1500,
+     "bb": [
+      -4.9759,
+      0.0,
+      -5.7148,
+      4.9759,
+      0.788,
+      5.7148
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1500,
+       "parts": [
+        {
+         "mat": "coast_land_rocks_04",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.00505,
+          0.00488
+         ],
+         "uvScl": [
+          0.985132,
+          0.989965
+         ],
+         "off": 0,
+         "len": 23768
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "coast_rocks_05",
+   "file": "coast_rocks_05.glb",
+   "kind": "rock",
+   "credit": {
+    "title": "coast rocks 05",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_rocks_05"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.2,
+    "bury": 0.242,
+    "proportion": 1,
+    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 4 x 4 m rock group, 1.3 m",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coast_rocks_05.44cd05bd.bin",
+   "bytes": 29452,
+   "subjects": [
+    {
+     "name": "coast_rocks_05",
+     "h": 1.32,
+     "tris": 1500,
+     "bb": [
+      -2.0046,
+      0.0,
+      -1.8737,
+      2.0046,
+      1.3221,
+      1.8737
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1500,
+       "parts": [
+        {
+         "mat": "coast_rocks_05",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.003941,
+          0.004265
+         ],
+         "uvScl": [
+          0.99207,
+          0.993526
+         ],
+         "off": 0,
+         "len": 29452
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "sand_rocks_small_01",
+   "file": "sand_rocks_small_01.glb",
+   "kind": "rock",
+   "credit": {
+    "title": "sand rocks small 01",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/sand_rocks_small_01"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.2,
+    "bury": 0.264,
+    "proportion": 1,
+    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): 4.6 x 3.9 m small rocks in sand, 0.5 m",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/sand_rocks_small_01.a308c9cb.bin",
+   "bytes": 31322,
+   "subjects": [
+    {
+     "name": "sand_rocks_small_01",
+     "h": 0.53,
+     "tris": 1499,
+     "bb": [
+      -2.3168,
+      0.0,
+      -1.9436,
+      2.3168,
+      0.5273,
+      1.9436
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1499,
+       "parts": [
+        {
+         "mat": "sand_rocks_small_01",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.003017,
+          0.004688
+         ],
+         "uvScl": [
+          0.993383,
+          0.992777
+         ],
+         "off": 0,
+         "len": 31322
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "coast_rocks_03",
+   "file": "coast_rocks_03.glb",
+   "kind": "rock",
+   "credit": {
+    "title": "coast rocks 03",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_rocks_03"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.2,
+    "bury": 0.569,
+    "proportion": 1,
+    "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): the 21 x 28 m reef, 3.2 m - rare",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coast_rocks_03.f0708f09.bin",
+   "bytes": 24594,
+   "subjects": [
+    {
+     "name": "coast_rocks_03",
+     "h": 3.21,
+     "tris": 1500,
+     "bb": [
+      -10.5649,
+      0.0,
+      -14.1305,
+      10.5649,
+      3.2056,
+      14.1305
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 1500,
+       "parts": [
+        {
+         "mat": "coast_rocks_03",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.005959,
+          0.023616
+         ],
+         "uvScl": [
+          0.98854,
+          0.972479
+         ],
+         "off": 0,
+         "len": 24594
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
   }
  ],
  "materials": {
@@ -7479,6 +7893,72 @@
      1024
     ],
     "nor": "media/tex/trees/free_rock_assets_pack_rockscollection_nor.fe383d3c.jpg"
+   }
+  },
+  "coast_land_rocks_02.glb": {
+   "coast_land_rocks_02": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coast_land_rocks_02_coast_land_rocks_02_base.304de22b.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coast_land_rocks_02_coast_land_rocks_02_nor.d375828d.jpg"
+   }
+  },
+  "coast_land_rocks_03.glb": {
+   "coast_land_rocks_03": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coast_land_rocks_03_coast_land_rocks_03_base.cb4d5339.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coast_land_rocks_03_coast_land_rocks_03_nor.c9383cc8.jpg"
+   }
+  },
+  "coast_land_rocks_04.glb": {
+   "coast_land_rocks_04": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coast_land_rocks_04_coast_land_rocks_04_base.39ffa6b4.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coast_land_rocks_04_coast_land_rocks_04_nor.63a2cf56.jpg"
+   }
+  },
+  "coast_rocks_05.glb": {
+   "coast_rocks_05": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coast_rocks_05_coast_rocks_05_base.064ace56.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coast_rocks_05_coast_rocks_05_nor.4f6f31e1.jpg"
+   }
+  },
+  "sand_rocks_small_01.glb": {
+   "sand_rocks_small_01": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/sand_rocks_small_01_sand_rocks_small_01_base.40f0504b.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/sand_rocks_small_01_sand_rocks_small_01_nor.66cbe913.jpg"
+   }
+  },
+  "coast_rocks_03.glb": {
+   "coast_rocks_03": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coast_rocks_03_coast_rocks_03_base.5b7b2938.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coast_rocks_03_coast_rocks_03_nor.e86e8650.jpg"
    }
   }
  },
@@ -8065,10 +8545,58 @@
    "shingle": {
     "species": {
      "rocks": {
-      "proportion": 1,
+      "proportion": 0.4,
       "size": 6,
       "bury": 0.55,
       "tint": 0.85,
+      "cluster": 1
+     },
+     "coast_land_rocks_02": {
+      "proportion": 0.3,
+      "size": 1,
+      "bury": 0.187,
+      "tilt": 1,
+      "shore": 0.5,
+      "cluster": 1
+     },
+     "coast_land_rocks_03": {
+      "proportion": 0.3,
+      "size": 1,
+      "bury": 0.267,
+      "tilt": 1,
+      "shore": 0.5,
+      "cluster": 1
+     },
+     "coast_land_rocks_04": {
+      "proportion": 0.3,
+      "size": 1,
+      "bury": 0.392,
+      "tilt": 1,
+      "shore": 0.5,
+      "cluster": 1
+     },
+     "coast_rocks_05": {
+      "proportion": 0.3,
+      "size": 1,
+      "bury": 0.242,
+      "tilt": 1,
+      "shore": 0.5,
+      "cluster": 1
+     },
+     "sand_rocks_small_01": {
+      "proportion": 0.45,
+      "size": 1,
+      "bury": 0.264,
+      "tilt": 1,
+      "shore": 0.5,
+      "cluster": 1
+     },
+     "coast_rocks_03": {
+      "proportion": 0.03,
+      "size": 1,
+      "bury": 0.569,
+      "tilt": 1,
+      "shore": 0.5,
       "cluster": 1
      }
     },

@@ -912,6 +912,14 @@ geometry belongs to evolveduk.
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
   - source: https://sketchfab.com/3d-models/free-rock-assets-pack-227f976b7675401e978858ddcb7fc0b1
   - use: the biomes' rocks (the tree bench, 2026-09-20) - half-buried boulders sized per biome
+- **Poly Haven coast rock scans** — `vegetation/rocks/coast_land_rocks_02.glb`, `coast_land_rocks_03.glb`,
+  `coast_land_rocks_04.glb`, `coast_rocks_05.glb`, `sand_rocks_small_01.glb`, `coast_rocks_03.glb`
+  - author: Poly Haven (https://polyhaven.com) — the smugglers_cove collection
+  - licence: CC0 (https://creativecommons.org/publicdomain/zero/1.0/)
+  - source: https://polyhaven.com/a/<name> (the 1k gltf packs, fetched from api.polyhaven.com/files/<name>)
+  - use: THE ROCKY SHORE (2026-09-22) - photoscanned foreshore strips and rock groups, decimated to 1 500 tris
+    by tools/coast_rocks_prep.py (Blender), planted on `11 shingle` by the `shingle` mix, sunk to their own
+    ground level and tilted to the terrain; the raw scans (300-1 300 k tris) stay under assets/coastRocks/
 
 ### Poly Haven — CC0 (may ship, no attribution required)
 

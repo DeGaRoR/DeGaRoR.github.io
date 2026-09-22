@@ -189,7 +189,11 @@ var COVER_RING = (() => {
       if (GF && GF.C && GF.C.blotch) { GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM; }
       const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
       const items = new Map();   // proto -> { pos: [], col: [] | null }
-      const push = (p, x, y, z, s, yaw, col) => { let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw); if (col) it.col.push(col[0], col[1], col[2]); };
+      // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
+      const push = (p, x, y, z, s, yaw, col, tx, tz) => { let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
+      // THE SHORE (2026-09-22, the coast rock scans): a rock row's `shore` culls its rocks by the distance inland
+      // (the island's coast field, positive inland): 1 keeps the water's edge and none past 15 m, 0 keeps all
+      const coastAt = world.island && world.island.coastAt ? world.island.coastAt : null;
       for (const c of speciesOf()) {
         const row = M.species && M.species[c.name]; if (!row) continue;
         const place = c.place || {};
@@ -215,6 +219,7 @@ var COVER_RING = (() => {
           // the bench's GF.blotch: keeps 1 - blotch .. 1 by area; rocks skip it unless their row says `cluster`
           // (THE ROCKY SHORE, 2026-09-22: a foreshore's rocks lie in beds along the tide line, not evenly)
           if (blotch && (!isRock || row.cluster) && r1 > blotchAt(x, z, sSeed)) continue;
+          if (isRock && row.shore > 0 && coastAt) { const sd = coastAt(x, z); if (sd < -2 || R() > 1 - row.shore * smooth(2, 15, sd)) continue; }
           const gk = G.at(x, z);
           if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
           const p = draw(P, r2);
@@ -237,21 +242,27 @@ var COVER_RING = (() => {
             col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
             if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
           } else if (noTint && !isRock && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
-          push(p, x, yy, z, s, yaw, col); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
+          // `tilt`: the rock leans to the ground's slope (a slab lies ON the foreshore, not level in it) - the slope
+          // from terrainH at +-1.5 m, scaled by the row's tilt (1 = the ground's own)
+          let tx = 0, tz = 0;
+          if (isRock && row.tilt > 0) { tx = (world.terrainH(x + 1.5, z) - world.terrainH(x - 1.5, z)) / 3 * row.tilt; tz = (world.terrainH(x, z + 1.5) - world.terrainH(x, z - 1.5)) / 3 * row.tilt; }
+          push(p, x, yy, z, s, yaw, col, tx, tz); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
         }
       }
       // the meshes: one InstancedMesh per prototype part
       const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-      let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 5) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }
+      let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 7) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }
+      const NRM = new THREE.Vector3(), QT = new THREE.Quaternion();
       if (!isFinite(yLo)) { yLo = yHi = world.terrainH(x0 + C / 2, z0 + C / 2); }
       const yMid = (yLo + yHi) / 2, ySpan = (yHi - yLo) / 2;
       for (const it of items.values()) {
-        const n = it.xs.length / 5; if (!n) continue;
+        const n = it.xs.length / 7; if (!n) continue;
         const rand = new Float32Array(n); for (let i = 0; i < n; i++) rand[i] = R();
         for (const part of it.p.parts) {
           const m = new THREE.InstancedMesh(part.geo, part.mat, n);
           for (let i = 0; i < n; i++) {
-            const o = i * 5; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
+            const o = i * 7; Q.setFromAxisAngle(UP, it.xs[o + 4]); V.set(it.xs[o], it.xs[o + 1], it.xs[o + 2]); SC.setScalar(it.xs[o + 3]);
+            if (it.xs[o + 5] || it.xs[o + 6]) { NRM.set(-it.xs[o + 5], 1, -it.xs[o + 6]).normalize(); QT.setFromUnitVectors(UP, NRM); Q.premultiply(QT); }   // the lean: up -> the ground's normal, after the yaw
             T.compose(V, Q, SC); m.setMatrixAt(i, T);
           }
           if (it.col) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(it.col), 3); }

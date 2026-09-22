@@ -54941,3 +54941,41 @@ scales with the dial alone). Pictures: screenshots/norm/field200 (the ground alo
 trees dark green, the drone reference's family. What is still the old world: the far tier's
 canopy texture and the impostor sheets' own colour beyond the tint (both lit by the same master),
 the rocks (a plain Standard on the pack's map), the water's bed paint.
+
+## G486 — THE ROCKY SHORE: POLY HAVEN'S COAST SCANS ON THE SHINGLE (2026-09-22, the user: "Polyhaven has great cliff photoscans ... coastal rock scan which would probably look awesome here, spread a few centimeters below terrain, and possibly curved ... download the scans and start the chantier")
+
+- THE SCANS: six of Poly Haven's smugglers_cove models, fetched from the API's file list into the main
+  checkout's assets/coastRocks/<name>/ (177 MB, gitignored): coast_land_rocks_02 / _03 / _04 (foreshore
+  strips 10 x 5, 9 x 6, 10 x 11 m), coast_rocks_05 (a 4 m rock group), sand_rocks_small_01 (small rocks in
+  sand), coast_rocks_03 (the 21 x 28 m reef). 0.7-1.3 M triangles each.
+- tools/coast_rocks_prep.py (Blender 4.0 headless): import, join, DECIMATE to 1 500 tris (collapse, the 1k
+  diffuse + normal ride the collapse), the faces made consistent and turned UP (the first export drew
+  nothing from the sky and everything double-sided: the scan's node carried a mirror that transform_apply
+  baked into the winding), the scan's OWN GROUND (the 15th percentile of its heights) measured into
+  assets/vegetation/rocks/coast_rocks_ground.json, a GLB per scan into assets/vegetation/rocks/ (the
+  folder tree_inspect files as the ROCK kind), the CC0 licence stamped into asset.extras the way
+  Sketchfab writes it (GATE TREES refuses a species without one). CREDITS.md row.
+- tools/coast_rocks_tune.py: tree_prep floors every subject on its LOWEST point, and a scan's lowest point
+  is its bumpy underside 6-170 cm under the sand it carries; this writes bury = (below + 0.08) / h into
+  the six species' tuning rows and every mix row naming them, so the scan's ground sits 8 cm under the
+  terrain and its rocks stand above. Then the ordinary chain: tree_inspect, tree_prep (six species, 18
+  media files, +2.8 MB), the `shingle` mix (G477.1) names them.
+- THE PLANTING (cover_ring.js, rock rows): `tilt` - the rock leans to the ground's slope (terrainH at
+  +-1.5 m; the instance record is x y z s yaw tx tz now, the lean composed after the yaw as up -> the
+  ground's normal); `shore` - a cull by the island's coast field (1 keeps the water's edge and none past
+  15 m inland, 0 keeps all; the shingle's 0.5); `cluster` and `tint` from G477.1 (the scans take no tint:
+  their diffuse IS the cove's foreshore, the same collection as coastA). Per 1000 m2 on the shingle:
+  cobbles 60 (was 150), each strip 45, the small rocks 67, the reef 4.5 - ~1 200 slabs within the ring's
+  220 m reach. Frame: 32.9 ms median with 101 slabs, 31.9 with 1 244 (island_shot --step, 60 m over the
+  spits, headless) - the trees' frame, the slabs cost nothing measurable.
+- SEEN: bench/coast/slab_final_4.png (45 m along the tide line: the strips and rock groups in the water's
+  edge; 60 m; 110 m; 300 m where the cover ring has faded and the splat carries it), slab3_4.png (the
+  before / after at 110 m), slab_side_3.png (the diagnosis: nothing, then double-sided, then magenta).
+- WHAT IS NOT DONE: the DRAPE (the user's "possibly curved") - a slab lies on the tilted plane of its
+  centre; where the ring's 17.6 m chords bend under a 10 m strip its skirt shows as a plate or sinks
+  (slab_final top-left, the pale pavement) - the fine ring (TERRAIN FOLLOW-UP 2) is the fix, or a CPU
+  drape per instance (no InstancedMesh then); the far tier (past 220 m the shore is texture again);
+  the LOD ladder (one level, 1 500 tris - fine from 20 m up, coarse at the wheels); the cliff scans
+  (coastal_cliff_02/04, 40-90 m: a different placement, on the `12 cliff` code); rocks as OBSTACLES
+  (a 1.4 m strip under a landing floatplane is not in 29_obstacles.js); the user's eye on the density.
+- GATES: TREES (the six species, their licence) / BIOME / WORLD / UISMOKE / MEDIA / SPLAT / BUILD green.

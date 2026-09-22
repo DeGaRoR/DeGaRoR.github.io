@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-20T18:54:38.384Z",
+ "generated": "2026-09-22T09:19:39.694Z",
  "raw": [
   "assets/treesRaw",
   "assets/vegetation"
@@ -6118,6 +6118,561 @@
    "renderable": true
   },
   {
+   "name": "coast_land_rocks_02.glb",
+   "tris": 1500,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coast_land_rocks_02",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coast_land_rocks_02_nor_gl_1k",
+     "kb": 1136,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coast_land_rocks_02_diff_1k",
+     "kb": 866,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coast_land_rocks_02_arm_1k",
+     "kb": 839,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.77,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coast land rocks 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_land_rocks_02"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coast_land_rocks_02",
+     "kind": "rock",
+     "h": 1.35,
+     "tris": 1500,
+     "parts": 1,
+     "sig": "8b3a273c727b",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -2.44,
+      -0.17,
+      -5.21
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1500
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1500,
+       "name": "coast_land_rocks_02",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "25e7eb4ae625",
+   "kind": "glb",
+   "file": "vegetation/rocks/coast_land_rocks_02.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 2.82,
+   "binMB": 2.82,
+   "renderable": true
+  },
+  {
+   "name": "coast_land_rocks_03.glb",
+   "tris": 1499,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coast_land_rocks_03",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coast_land_rocks_03_nor_gl_1k",
+     "kb": 1060,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coast_land_rocks_03_diff_1k",
+     "kb": 842,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coast_land_rocks_03_arm_1k",
+     "kb": 823,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.66,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coast land rocks 03",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_land_rocks_03"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coast_land_rocks_03",
+     "kind": "rock",
+     "h": 1.5,
+     "tris": 1499,
+     "parts": 1,
+     "sig": "b245690c274f",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -4.48,
+      -0.32,
+      -2.81
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1499
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1499,
+       "name": "coast_land_rocks_03",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "7aac23df2571",
+   "kind": "glb",
+   "file": "vegetation/rocks/coast_land_rocks_03.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 2.71,
+   "binMB": 2.71,
+   "renderable": true
+  },
+  {
+   "name": "coast_land_rocks_04.glb",
+   "tris": 1500,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coast_land_rocks_04",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coast_land_rocks_04_nor_gl_1k",
+     "kb": 1050,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coast_land_rocks_04_diff_1k",
+     "kb": 895,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coast_land_rocks_04_arm_1k",
+     "kb": 871,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.75,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coast land rocks 04",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_land_rocks_04"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coast_land_rocks_04",
+     "kind": "rock",
+     "h": 0.79,
+     "tris": 1500,
+     "parts": 1,
+     "sig": "de8fa62413ca",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -4.98,
+      -0.23,
+      -5.71
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1500
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1500,
+       "name": "coast_land_rocks_04",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "f11f4796af28",
+   "kind": "glb",
+   "file": "vegetation/rocks/coast_land_rocks_04.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 2.79,
+   "binMB": 2.79,
+   "renderable": true
+  },
+  {
+   "name": "coast_rocks_03.glb",
+   "tris": 1500,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coast_rocks_03",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coast_rocks_03_nor_gl_1k",
+     "kb": 1136,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coast_rocks_03_diff_1k",
+     "kb": 627,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coast_rocks_03_arm_1k",
+     "kb": 764,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.47,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coast rocks 03",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_rocks_03"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coast_rocks_03",
+     "kind": "rock",
+     "h": 3.21,
+     "tris": 1500,
+     "parts": 1,
+     "sig": "da92705e3783",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -10.56,
+      -1.74,
+      -14.13
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1500
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1500,
+       "name": "coast_rocks_03",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "13cfba6394d8",
+   "kind": "glb",
+   "file": "vegetation/rocks/coast_rocks_03.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 2.51,
+   "binMB": 2.51,
+   "renderable": true
+  },
+  {
+   "name": "coast_rocks_05.glb",
+   "tris": 1500,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "coast_rocks_05",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "coast_rocks_05_nor_gl_1k",
+     "kb": 1297,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "coast_rocks_05_diff_1k",
+     "kb": 932,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "coast_rocks_05_arm_1k",
+     "kb": 873,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 3.03,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "coast rocks 05",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coast_rocks_05"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "coast_rocks_05",
+     "kind": "rock",
+     "h": 1.32,
+     "tris": 1500,
+     "parts": 1,
+     "sig": "9187e6d2d403",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -2,
+      -0.24,
+      -1.87
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1500
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1500,
+       "name": "coast_rocks_05",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "44a8d940528c",
+   "kind": "glb",
+   "file": "vegetation/rocks/coast_rocks_05.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 3.08,
+   "binMB": 3.08,
+   "renderable": true
+  },
+  {
    "name": "free_rock_assets_pack.glb",
    "tris": 5740,
    "meshes": 17,
@@ -6770,6 +7325,117 @@
    "folder": "vegetation/rocks",
    "fileMB": 5.24,
    "binMB": 5.22,
+   "renderable": true
+  },
+  {
+   "name": "sand_rocks_small_01.glb",
+   "tris": 1499,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "sand_rocks_small_01",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "sand_rocks_small_01_nor_gl_1k",
+     "kb": 985,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "sand_rocks_small_01_diff_1k",
+     "kb": 770,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "sand_rocks_small_01_arm_1k",
+     "kb": 741,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 2.44,
+   "generator": "Khronos glTF Blender I/O v4.0.44",
+   "credit": {
+    "title": "sand rocks small 01",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/sand_rocks_small_01"
+   },
+   "licence": {
+    "text": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "ok": true,
+    "why": "CC0 — no attribution required"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 1,
+   "extensions": [],
+   "trees": [],
+   "shrubs": [],
+   "cover": [],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [
+    {
+     "name": "sand_rocks_small_01",
+     "kind": "rock",
+     "h": 0.53,
+     "tris": 1499,
+     "parts": 1,
+     "sig": "bf63c126b895",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -2.32,
+      -0.06,
+      -1.94
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1499
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": null,
+       "tris": 1499,
+       "name": "sand_rocks_small_01",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "folderKind": "rock",
+   "weldedTrees": 0,
+   "tallest": 0,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "binSha": "cabc5e4d1083",
+   "kind": "glb",
+   "file": "vegetation/rocks/sand_rocks_small_01.glb",
+   "folder": "vegetation/rocks",
+   "fileMB": 2.5,
+   "binMB": 2.49,
    "renderable": true
   },
   {
