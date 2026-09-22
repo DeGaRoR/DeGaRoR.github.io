@@ -463,9 +463,15 @@ console.log('16. two media, not one');
       `the column is Koschmieder on the day's own visibility (${hz.column.visibilityKm.toFixed(1)} km -> ${hz.column.rho0.toExponential(2)} /m)`);
   yes(hz.layer.rho0 === day.mistRho0,
       "the layer is the DAY's own density, read and not recomputed");
-  const ratio = hz.layer.rho0 / hz.column.rho0;
+  // THE RATIO IS BETWEEN THE TWO LAWS, NOT BETWEEN TWO HOURS (FOG-MIST F3c). The layer now burns
+  // off through the morning (`day.mistBurn`), so the density at a given clock time is the law
+  // TIMES what the morning has left of it - and this check went red at 2.2x the moment burn-off
+  // landed, not because the media stopped differing but because the sun had taken four fifths of
+  // one of them. Dividing the burn back out asks the question this assertion means to ask.
+  const unburned = hz.layer.rho0 / Math.max(1e-9, 1 - (day.mistBurn || 0));
+  const ratio = unburned / hz.column.rho0;
   yes(ratio > 5 && ratio < 20,
-      `and it is a different medium: the layer is ${ratio.toFixed(1)}x denser than the column at rh ${(day.rh * 100).toFixed(0)} %`);
+      `and it is a different medium: the layer is ${ratio.toFixed(1)}x denser than the column at rh ${(day.rh * 100).toFixed(0)} % (burn ${((day.mistBurn || 0) * 100).toFixed(0)} % taken out first)`);
   // the surface sees both; an eye above the lid sees only the column
   yes(Math.abs(hz.surfaceVisM - 3.912 / (hz.column.rho0 + hz.layer.rho0)) < 1e-9,
       `at the surface the extinctions ADD: ${(hz.surfaceVisM / 1000).toFixed(1)} km on the deck against ${hz.column.visibilityKm.toFixed(0)} in the column`);

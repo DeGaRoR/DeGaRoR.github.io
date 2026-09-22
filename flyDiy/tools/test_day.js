@@ -105,6 +105,39 @@ yes(W.day.local === '2026-06-21 10:00:00 AKDT', 'local time with the US daylight
   yes(v1 > v2 && v2 > v3, `visibility falls with turbidity and humidity: ${v1.toFixed(0)} > ${v2.toFixed(0)} > ${v3.toFixed(1)} km`);
   W.setWeather(null);
 }
+{ // THE MIST BURNS OFF (FOG-MIST F3c) - the layer's density, not the column's
+  // The term is the LAGGED sun (the ground runs two hours behind it, which is why fog thins at
+  // all), so every assertion here is driven by moving the CLOCK, never by poking an elevation.
+  const at = (h, o) => { W.setDay(Object.assign({ date: '2026-06-21', localHours: h }, o || {})); return W.day; };
+  const wet = { rh: 0.98, turbidity: 2.5, cloudCover: 0 };
+  let prev = Infinity, mono = true, sawFull = false, sawGone = false;
+  for (let h = 0; h <= 23; h++) {
+    const d = at(h, wet);
+    if (d.sunElLag <= 5 && Math.abs(d.mistBurn) > 1e-12) mono = false;      // nothing burns before the ground warms
+    if (d.mistBurn > 0.999) sawGone = true;
+    if (d.mistBurn < 1e-12) sawFull = true;
+    if (!Number.isFinite(d.mistRho0)) mono = false;
+  }
+  yes(mono, 'the burn is exactly zero until the LAGGED sun clears 5 deg, and the density is finite all day');
+  yes(sawFull && sawGone, 'a midsummer day both holds the fog (before dawn) and takes it all (by afternoon)');
+  // monotone through the morning: a later hour never has MORE fog than an earlier one while the
+  // lagged sun is climbing
+  { let ok = true, last = -1;
+    for (let h = 4; h <= 12; h++) { const d = at(h, wet); if (d.sunElLag > 5) { if (last >= 0 && d.mistRho0 > last + 1e-15) ok = false; last = d.mistRho0; } }
+    yes(ok, 'through the morning the layer only ever thins'); }
+  // an overcast holds it in: same hour, same humidity, cover 1 keeps the full density
+  { const clear = at(14, wet).mistRho0, cloud = at(14, { rh: 0.98, turbidity: 2.5, cloudCover: 1 }).mistRho0;
+    yes(cloud > clear && Math.abs(cloud - 0.0025 * Math.pow((0.98 - 0.7) / 0.3, 2)) < 1e-9,
+        `an overcast holds the fog in: ${cloud.toExponential(2)} against ${clear.toExponential(2)} in the clear`); }
+  // BOTH POLES ON A SOLSTICE - the case a lagged elevation makes trivial and an hours-count does not
+  for (const [lat, what] of [[89, 'the polar day'], [-89, 'the polar night']]) {
+    const G2 = Object.assign({}, W.geo, { lat });
+    const d = DAY.makeDay({ date: '2026-06-21', localHours: 12, rh: 0.98, turbidity: 2.5, cloudCover: 0 }, G2);
+    yes(Number.isFinite(d.mistRho0) && d.mistRho0 >= 0 && Number.isFinite(d.mistBurn),
+        `${what}: a finite density with no sunrise to divide by (rho0 ${d.mistRho0.toExponential(2)}, burn ${d.mistBurn.toFixed(2)}, lagged sun ${d.sunElLag.toFixed(1)} deg)`);
+  }
+  W.setWeather(null); W.setDay({ date: '2026-09-14', utc: 12 * 3600, rh: 0.5, cloudCover: 0.2 });
+}
 { // round trip and the clock
   W.setDay({ date: '2026-09-14', utc: 5 * 3600, rate: 60, turbidity: 3, rh: 0.6, oatC: 12 });
   const s = W.day.spec();

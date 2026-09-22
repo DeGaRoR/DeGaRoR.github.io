@@ -56953,3 +56953,37 @@ it already does for PAVE_BAND / CLASS_DEF.band. Contract v1.20.
   tools/_pavement_check.js, futureDesigns/PREMISES-CONTRACT-2026-09-13.md.
 - PROOF: a record with `pav: {mark}`, `pav: {marks: 'non'}` and an unknown look reports three issues
   and a good one reports none; GATE PAVEMENT / PREMISES / SITE / WORLDRENDER green.
+## G510 - F3c: THE MORNING TAKES THE FOG AWAY (2026-09-22)
+
+FOG-MIST SS3c, the last buildable item of F3. The mist's density was humidity alone, so a 98 %
+morning was still a 98 % morning at noon unless someone moved a slider.
+
+- **IN `07_day.js`, BESIDE `mistRho0`**, not in atmo.js: the climate chantier had just moved the
+  density law there (G504.11) and burn-off is one multiplication on it. One law, one place.
+- **THE TERM IS THE LAGGED SUN** (`d.sunElLag`, the elevation two hours ago - K3's, built for the
+  thermals), and that was the climate session's correction to the study's design. Fog does not
+  thin because the sun is up; it thins because the GROUND has been warming and is giving the heat
+  back. The lag IS the accumulation, so the hours-since-sunrise term disappears - **and with it
+  both polar cases**: polar night keeps the lagged sun under 5 deg so the burn is 0 by arithmetic,
+  polar day keeps it above so burn proceeds on elevation alone, and there is no `sunriseUtc` to be
+  null. GATE DAY measures it at lat +-89 on a solstice: 0.96 burned at the pole in daylight, 0 at
+  the pole in darkness, both finite, no branch.
+- `burn = clamp((sunElLag - 5) / 20, 0, 1) * (1 - cloudCoverEff)`, **on the layer only**. Not the
+  column: `visibilityKm` is a function of `rh` and `rh` already falls as `diurnalC` warms the day
+  against a fixed dew point, so a burn on both would count one sunrise twice.
+- **A silent term, caught before it shipped**: the first draft read `d.cloudCover`, which is not on
+  the derived day at all (it is the spec's) - so the overcast half of the burn would have been
+  dead and an overcast morning would have burned off like a clear one. `d.cloudCoverEff` is both
+  correct and better: a storm's overcast holds the fog in as a fair-weather deck does.
+- **GATE DAY** grows five checks beside its monotone-visibility one: the burn is exactly zero
+  until the lagged sun clears 5 deg; a midsummer day both holds the fog before dawn and takes all
+  of it by afternoon; through the morning the layer only ever thins; an overcast holds it in
+  (2.18e-3 against 0 in the clear at the same hour); and both poles give a finite density.
+- **GATE CLIMATE 16's ratio check went red and it was mine**: it pins the layer at 5-20x the
+  column, and burn-off had taken four fifths of the layer by the hour it measured, giving 2.2x.
+  The ratio is between the two LAWS, not between two hours, so it now divides `day.mistBurn` back
+  out first. Fixed in their file with the reason written in, and told them.
+- A TESTING TRAP WORTH THE LINE: `run_gates --no-build` tests the COMMITTED build, so a change to
+  `src/core` reads as "the code did not run" - `mistBurn` came back undefined and `mistRho0`
+  unburned for twenty minutes of looking at correct source. Build before gating anything in core.
+- GATES: CLIMATE, DAY, FOG, ATMO, POSTFX, GFX, CLOUD, WORLDRENDER, ATMOS, WATER, MEDIA, LIGHT green.
