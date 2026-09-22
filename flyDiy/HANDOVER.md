@@ -55268,3 +55268,22 @@ ctx key it does not read.
   GFX, WORLDRENDER, MEDIA green.
 - OWED: the cost on a real GPU (tree_perf's PROFILE with the mirror live vs off); the first capture's 460 ms
   (its programs) prewarmed at boot.
+
+## G492 — THE RING READS coverAt: NOTHING ON THE PAVEMENT, THE LAWN ON A PLOT, THE TUFT'S COLOUR AS DRAWN
+## (2026-09-22, the roads session's v1.17 contract, G491)
+
+The ring's 4 m lattice calls ctx.coverAt per node (1.1 us) and keeps kill / boost / kind / the lawn's
+h and density / `col` beside the code and the mix. PER TUFT: a node with kind 'lawn' or 'none' plants
+none of the biome's rows; otherwise the tuft survives at (1 - kill) x (1 + boost) - drawn as a
+rejection against the cell's own (1 + bmax) envelope, so a border is denser and a pavement bare with
+no second pass. THE LAWN: a plot's lawn nodes get grass_dry at the plot's height (0.10-0.15 m, the
+rule's) and 6 tufts a m2 x the rule's density - short and dense, the user's "small and dense on
+every green part of a plot"; a cell of plots alone plants it with no biome mix at all.
+THE TUFT'S COLOUR, three fixes in one: (1) `col` from the query (the drawn colour beside a pavement)
+when it is given; (2) meanOf() is the set's mean AS DRAWN now - the hand grade and G485's
+normalisation to the imagery on the shipped mean: the tuft was wearing dry's 0.30 over a ground
+wearing 0.30 x 0.19, three times too bright (the user: "pale beige over green ground"); (3) a code
+with no CODES row (10 'built' - the village) falls back to the IMAGERY's colour at the foot.
+Measured on Jolene's village plot: 63 k lawn tufts beside 148 k of the biome's in the ring, the
+plots' grass short against the muskeg's. GATE PAVEMENT green (the contract's rule 6).
+OWED to the roads session: the village's biome grass outside the lots is still the muskeg's height.
