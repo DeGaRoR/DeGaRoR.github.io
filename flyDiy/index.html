@@ -38352,7 +38352,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='75a898aa80ec';window.FLYDIY_BUILD='d0b83dcc5cea'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='75a898aa80ec';window.FLYDIY_BUILD='dd59b87bc854'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -100520,6 +100520,62 @@ ${MIST_GLSL}
   // update(renderer, day, camAltM): the day-only tables on a change, the sky-view every call
   let lastVer = -1;
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
+  // ---- F1: WHAT THE SHADER WILL DRAW, ON THE CPU --------------------------
+  // The renderer may only stop drawing where the player cannot see, and "cannot see" must be the
+  // SHADER's opinion or the cut shows as a wall the moment the two disagree (FOG-MIST §2a). So
+  // these are the closed form's own arithmetic, in JS: `mistODcpu` mirrors MIST_GLSL's `mistOD`
+  // line for line, and `seeT` is the transmittance along a straight segment - the mist times the
+  // clear air's own extinction (Rayleigh + Mie + ozone, the same `medium()` the tables are built
+  // from). If one of them is ever edited without the other, GATE FOG says so.
+  //
+  // THE FIELD IS NOT SAMPLED HERE, on purpose. With F2 the layer's top and density vary over the
+  // ground, so a ray into a bank and a ray down a clear lane differ - but the multipliers average
+  // ONE by construction and a path of kilometres crosses several banks, so the day's own rho0 is
+  // the honest mean and the contract's margin (1.3x) covers the variance. A single bank cannot
+  // make a whole path clear; that is the assumption, and it is written down so it can be argued.
+  function mistODcpu(y0, dy, D) {
+    const rho0 = MIST.on ? MIST.rho0 : 0;
+    // THE SLAB THE EYE IS IN (CLOUDS C4) counts too, and it is the case where this matters most:
+    // inside a deck the world is white and the renderer is drawing an island nobody can see.
+    let od = 0;
+    if (MIST.on && MIST.cloud.rho > 0) {
+      const yb = MIST.cloud.base, yt = MIST.cloud.top;
+      if (Math.abs(dy) < 1e-5) od += (y0 >= yb && y0 <= yt) ? MIST.cloud.rho * D : 0;
+      else { const ta = (yb - y0) / dy, tb = (yt - y0) / dy;
+             od += MIST.cloud.rho * Math.max(0, Math.min(D, Math.max(ta, tb)) - Math.max(0, Math.min(ta, tb))); }
+    }
+    if (rho0 <= 0) return od;
+    const yTop = MIST.top, H = Math.max(1, MIST.H);
+    const above = (ya, t0, t1) => (Math.abs(dy) < 1e-4)
+      ? (t1 - t0) * Math.exp(-ya / H)
+      : (H / dy) * (Math.exp(-(ya + dy * t0) / H) - Math.exp(-(ya + dy * t1) / H));
+    const ya = y0 - yTop, y1 = ya + dy * D;
+    if (ya <= 0 && y1 <= 0) return od + rho0 * D;
+    if (ya > 0 && y1 > 0) return od + rho0 * above(ya, 0, D);
+    const ts = -ya / dy;
+    return od + (ya <= 0 ? rho0 * (ts + above(ya, ts, D)) : rho0 * (above(ya, 0, ts) + (D - ts)));
+  }
+  const _med = newMed();
+  // the transmittance from an eye at y0 to a point D metres away that stands at yT
+  function seeT(y0, yT, D) {
+    if (!(D > 0)) return 1;
+    const dy = (yT - y0) / D;
+    let od = mistODcpu(y0, dy, D);
+    // the clear air, four samples along the segment (its extinction varies only with height)
+    let e = 0;
+    for (let i = 0; i < 4; i++) { medium(Math.max(0, (y0 + (yT - y0) * (i + 0.5) / 4) / 1000), _med); e += (_med.e[0] + _med.e[1] + _med.e[2]) / 3; }
+    od += (e / 4) * (D / 1000);          // medium() is per km
+    return Math.exp(-od);
+  }
+  // the distance at which a thing standing at yT stops being visible from an eye at y0
+  function seeRange(y0, yT, thresh) {
+    const th = thresh || 0.01;
+    if (seeT(y0, yT, 200000) > th) return Infinity;      // clear air all the way: nothing to cut
+    let lo = 0, hi = 200000;
+    for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (seeT(y0, yT, m) > th) lo = m; else hi = m; }
+    return hi;
+  }
+
   // eye / world are F2's: the march needs the eye's XZ (the GLSL signature carries only its height)
   // and the patches drift on the surface wind. Both optional - a caller that has neither (the boot,
   // the shed) gets the flat closed form, which is what it had before.
@@ -100649,11 +100705,27 @@ ${MIST_GLSL}
       mistScalars[19] = relief ? Math.max(2, Math.min(16, MIST.steps | 0)) : 0;
       mistScalars[20] = F ? F.x0 : 0; mistScalars[21] = F ? F.z0 : 0; mistScalars[22] = F ? F.inv : 0;
       mistScalars[23] = F ? F.yHi : 0;
-      // the banks drift downwind on the DAY's clock (day.jd is continuous and stops when the clock
-      // is paused - which is what a frozen A/B wants), at the mist's own height, not the gradient's
-      const w = (world && typeof world.wind === 'function') ? world.wind(0, Math.max(10, MIST.top), 0, 0) : null;
-      const tSec = MIST.driftK * (day.jd != null ? day.jd * 86400 : (day.utc || 0));
-      mistScalars[24] = w ? -w[0] * tSec : 0; mistScalars[25] = w ? -w[2] * tSec : 0;
+      // THE BANKS DRIFT ON THE CLIMATE'S OWN FIELD, and as an INTEGRAL (the climate session's
+      // ruling, 2026-09-22): a position computed as `wind now x seconds elapsed` jumps the whole
+      // layer whenever the wind changes, because that is not a position. It accumulates instead,
+      // and it reads `climate.sample()` - the field everyone but the solver reads - so the mist,
+      // the sky and the windsocks cannot disagree about which way the weather is going.
+      const tNow = (day.jd != null ? day.jd * 86400 : (day.utc || 0));
+      const dt = (MIST._t == null) ? 0 : Math.max(0, Math.min(600, tNow - MIST._t));
+      MIST._t = tNow;
+      if (dt > 0 && world) {
+        let wx = 0, wz = 0;
+        if (world.climate && typeof world.climate.sample === 'function') {
+          const f = world.climate.sample(eye ? eye.x : 0, Math.max(10, MIST.top), eye ? eye.z : 0, tNow, MIST._w || (MIST._w = {}));
+          const v = (f && (f.wind || f.v || f)) || null;
+          if (v && v.length >= 3) { wx = v[0]; wz = v[2]; }
+        } else if (typeof world.wind === 'function') {
+          const v = world.wind(0, Math.max(10, MIST.top), 0, 0); if (v) { wx = v[0]; wz = v[2]; }
+        }
+        MIST._dx = (MIST._dx || 0) - wx * dt * MIST.driftK;
+        MIST._dz = (MIST._dz || 0) - wz * dt * MIST.driftK;
+      }
+      mistScalars[24] = MIST._dx || 0; mistScalars[25] = MIST._dz || 0;
       mistScalars[26] = 1 / Math.max(50, MIST.bankM); mistScalars[27] = MIST.patch;
     }
     return true;
@@ -100748,7 +100820,12 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, bakeField, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
+    install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,
+    // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
+    // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
+    // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
+    setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
+    get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();
@@ -109296,6 +109373,63 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // when the eye has moved, and sampled by the TERRAIN alone - which is
   // where a shadow at 500 m is seen. Not a general cascade: trees do not
   // read it, and the near map keeps doing the near work.
+  // ---- F1: THE VISIBILITY CONTRACT (FOG-MIST §2) --------------------------
+  // On a foggy day the renderer draws exactly as much as on a clear one: the far plane is 100 km,
+  // the far terrain quadrants are never distance-culled, and nothing reads the visibility. Fog
+  // does not cost this frame - it LICENSES it to draw less. Measured at the stand: the far plane
+  // alone -25 %, the quadrant test alone -9 %, BOTH TOGETHER -45 % (super-additive, because a
+  // quadrant's bounding sphere reaches into the near field so the far plane cannot drop it, while
+  // only the far plane drops the ~1150 small distant objects).
+  //
+  // THE RULE IS THE SHADER'S OWN: a thing is hidden when the transmittance to its NEAREST point
+  // is under a threshold - ATMO.seeT, the closed form's own arithmetic on the CPU. Never from an
+  // authored visibility, or the cut shows the moment the two disagree.
+  //
+  // IT APPLIES TO THE MAIN CAMERA ONLY. The water's mirror, the reflection probes, the far shadow
+  // cascade and the parked-aeroplane captures all render this same scene from other eyes, and a
+  // cull sized for one eye is wrong for another. app.js wraps the MAIN render in apply/release;
+  // every other pass runs outside that window and sees the world whole.
+  const VIS = {
+    on: true, k: 1.3, minFar: 3000, maxFar: 100000, thresh: 0.01,
+    meshes: [], hidden: [], held: false,
+    far: 100000, visM: Infinity, nHidden: 0, ms: 0,
+    // the surface visibility a person would quote: the clearest LEVEL ray from the eye
+    level(eyeY) { return (typeof ATMO !== 'undefined' && ATMO.seeRange) ? ATMO.seeRange(eyeY, eyeY, this.thresh) : Infinity; },
+    apply(cam) {
+      if (this.held || !this.on || typeof ATMO === 'undefined' || !ATMO.seeT) return;
+      const t0 = performance.now(), eye = cam.position, eyeY = eye.y;
+      // THE FAR PLANE is sized for the thing that stays visible LONGEST: a summit standing at the
+      // top of the world's terrain, seen along a ray that barely enters the layer (§1f - the mist
+      // kills distant GROUND at a few km while the ridges above it stand for tens).
+      const yTop = (world.island && world.island.hMax > 0) ? world.island.hMax : 1200;   // the world's own summit
+      const r = ATMO.seeRange(eyeY, yTop, this.thresh);
+      this.visM = this.level(eyeY);
+      const want = Math.max(this.minFar, Math.min(this.maxFar, r * this.k));
+      if (Math.abs(want - cam.far) > 0.02 * cam.far) { cam.far = want; cam.updateProjectionMatrix(); }
+      this.far = cam.far;
+      // THE QUADRANTS, one test each: the nearest point of the sphere, at its own height.
+      let n = 0;
+      for (const m of this.meshes) {
+        const g = m.geometry; if (!g) continue;
+        if (!g.boundingSphere) g.computeBoundingSphere();
+        if (!g.boundingBox) g.computeBoundingBox();
+        const sp = g.boundingSphere, bb = g.boundingBox; if (!sp || !bb) continue;
+        _vc.copy(sp.center).applyMatrix4(m.matrixWorld);
+        const d = Math.max(0, _vc.distanceTo(eye) - sp.radius);
+        // AIM AT THE HIGHEST GROUND IT HOLDS, not at its bounding sphere: a terrain quadrant's
+        // sphere is kilometres wide, so centre + radius is a point in the SKY and the test asked
+        // whether one could see thin air (it could, so nothing was ever hidden). A quadrant is
+        // invisible only when even its SUMMIT is - which is §1f's own finding, that the mist
+        // takes the distant ground long before it takes the ridges standing out of it.
+        if (d > 0 && ATMO.seeT(eyeY, bb.max.y, d) < this.thresh) { m.visible = false; this.hidden.push(m); n++; }
+      }
+      this.nHidden = n; this.ms = performance.now() - t0; this.live = true;
+    },
+    release() { for (const m of this.hidden) m.visible = true; this.hidden.length = 0; this.live = false; },
+    get applied() { return !!this.live; },     // read-only, for GATE WATER: the capture runs with the cull ON
+  };
+  const _vc = new THREE.Vector3();
+
   const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
     enabled: !(renderer && renderer.isWebGPURenderer),   // W0.5b: the far cascade + canopy map are packed-depth passes; off under the flag until ported
 
@@ -110477,6 +110611,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.uv, 2));
         geo.setIndex(g.idx); geo.computeVertexNormals();
         const m = new THREE.Mesh(geo, oMat); m.receiveShadow = true; scene.add(m);
+        m.userData.farTerrain = true; VIS.meshes.push(m);   // F1: the contract hides these by distance
         farTris += g.idx.length / 3;
       }
       console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
@@ -113792,7 +113927,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (Number.isFinite(h) && Math.abs(h) < 3) return seaPlaneY;   // the sea's plane
     return null;
   }
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, vis: VIS,
+    // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
+    // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
+    // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
@@ -131944,7 +132083,11 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     { k: 'sway', label: 'wind sway', steps: [
         { v: 'off', label: 'off', why: 'the vegetation stands still whatever the wind' },
         { v: 'on',  label: 'on', why: 'leaves, tufts and far cards lean and flutter with the wind' } ] },
-    { k: 'mist', label: 'mist', steps: [
+    // F1: the renderer stops drawing what the weather has already swallowed. `full` is the old
+    // behaviour for anyone who would rather pay than ever risk a cut.
+    { k: 'drawDist', label: 'draw distance', steps: [
+        { v: 'vis',  label: 'by visibility', why: 'the far plane and the far terrain follow what the mist and the air actually let through (a foggy day is the CHEAP day: -45 % at the stand)' },
+        { v: 'full', label: 'always full', why: 'draw to 100 km whatever the weather' } ] },    { k: 'mist', label: 'mist', steps: [
         { v: 'off',   label: 'off', why: 'no ground mist whatever the day' },
         { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
         { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
@@ -132044,11 +132187,10 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
-    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
-  };
+    low:    { drawDist: 'vis', aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'off', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
+    medium: { drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    high:   { drawDist: 'vis', aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    ultra:  { drawDist: 'vis', aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },  };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
     high: 'this machine at ~30 fps in the worst stand', ultra: 'when the card allows',
@@ -132102,6 +132244,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
     // the sky's own switches (S7): the glare's two halves and the mist
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
+    if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
     if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) {
       const M = W.ATMO.MIST;
       M.on = S.mist !== 'off';
@@ -132247,7 +132390,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live',
-                      glare: 'live', mist: 'live', clouds: 'live',
+                      glare: 'live', mist: 'live', drawDist: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', anything: 'no restart' }),
   };
@@ -145808,6 +145951,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
     // dome and the spray stay out of the capture (the probe's sky and clouds are the reflection's sky)
+    // F1 - THE VISIBILITY CONTRACT goes on HERE, before the mirror capture and the main render,
+    // and comes off after both (the water session's ruling, 2026-09-22): `mirrorRender` only runs
+    // under 60 m AGL and the mirrored eye is the main eye moved VERTICALLY, so against a quadrant
+    // kilometres out both eyes get the same answer to well under a per cent - releasing it for
+    // that pass would cost the saving and buy nothing. It must NOT be toggled between the
+    // mirror's own hide and restore, which is why it brackets that whole block from outside.
+    // Everything earlier in the frame - the probes, the far shadow cascade, the parked captures
+    // in worldUpdate - renders from other eyes entirely and sees the world whole.
+    if (!inGarage && WF && WF.vis) WF.vis.apply(camera);
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
@@ -145821,6 +145973,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    // F1: the contract comes OFF here, after the main render and the mirror capture it covers
+    if (!inGarage && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {
       const L = SKY_LIGHT.last;
@@ -146550,6 +146704,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         n.textContent = f ? ('the field: ' + f.N + '² baked in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'
                              + (mist().relief ? ' · ' + (mistScalarsN() || '?') + ' samples a ray' : ' · not in use (relief off)'))
                           : 'no field baked — the flat slab is all there is'; } };
+      rows.push(R); live.push(R); A.appendChild(n); }
+    // F1: what the contract is doing, in the units it decides in
+    { const vis = () => (W.WORLD && W.WORLD.vis) ? W.WORLD.vis : null;
+      A.appendChild(slider('draw distance', 0, 1, 1, () => (vis() ? (vis().on ? 1 : 0) : NaN), v => { const V = vis(); if (V) { V.on = !!v; if (!v) V.release(); } }, v => (v ? 'by visibility' : 'always full')));
+      A.appendChild(slider('cut margin', 1, 3, 0.05, () => (vis() ? vis().k : NaN), v => { if (vis()) vis().k = v; }, v => v.toFixed(2) + 'x'));
+      const n = note(''); const R = { el: n, refresh: () => { const V = vis();
+        n.textContent = V ? ('sees ' + (V.visM === Infinity ? 'to the air’s own limit' : (V.visM / 1000).toFixed(1) + ' km level')
+                             + ' · far plane ' + (V.far / 1000).toFixed(1) + ' km'
+                             + ' · ' + V.nHidden + ' of ' + V.meshes.length + ' far meshes hidden'
+                             + ' · ' + V.ms.toFixed(2) + ' ms') : 'no world'; } };
       rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the mist’s density is the day’s humidity (dry below 70 %); the GRAPHICS menu switches glare and mist off'));
     const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
