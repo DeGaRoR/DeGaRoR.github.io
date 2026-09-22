@@ -37051,7 +37051,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2d018b0afd3';window.FLYDIY_BUILD='5712813d1b8a'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2d018b0afd3';window.FLYDIY_BUILD='f19301f974bb'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -103653,7 +103653,16 @@ const WATER = (() => {
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
                 vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
-                iblRadiance = mix(iblRadiance, mr.rgb, clamp(mr.a, 0.0, 1.0) * edge);
+                // THE CAPTURE IS PREMULTIPLIED (G460.11.2, the user: "there are strange reflections"): the foliage is
+                // drawn with alphaToCoverage, so on the multisampled capture a half-covered canopy pixel RESOLVES to
+                // alpha 0.5 and a colour weighted by it - blended as-is, half the probe's bright sky leaked through
+                // every tree (pale blocky patches in the reflected forest, and blocky because 2 samples quantise the
+                // coverage to 0 / 0.5 / 1). The colour is un-premultiplied (the mips filter it consistently) and the
+                // canopy is made OPAQUE from a sixth of a sample up - a true gap between the trees (alpha 0) still
+                // shows the sky, a thin twig no longer paints the sky over the wood
+                vec3 mcol = mr.rgb / max(mr.a, 0.02);
+                float mmask = smoothstep(0.06, 0.35, mr.a);
+                iblRadiance = mix(iblRadiance, mcol, mmask * edge);
               }
             }
           } }`)
