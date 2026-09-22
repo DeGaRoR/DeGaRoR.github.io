@@ -56842,3 +56842,34 @@ role rows are red too, all day, on master and independently of this.
   mirrored eye, so a material that will not compile is absent from every reflection, and a lake's
   reflection was nearly judged against a forest with holes in it.
 - WATER, WORLDRENDER, MEDIA, GFX, CLOUD, UISMOKE green (water.js is untouched at G460.11.11).
+
+## G504.12 — the anchors that stopped asserting (2026-09-23)
+
+GATE CLIMATE went red on master: `the leaves and the cover lean on one shared uniform`. Not a
+regression — G508 (`acd78b8e`) refactored the tree sway for a real bug the water session found (a
+leaf material carrying `userData.fade` goes through hookLeaf AND fadeInject, each prepending its own
+`uniform vec4 uWind`, so two declarations in one scope stopped the bark compiling and it drew
+nothing, vanishing from the water's mirror with it). The refactor is right and preserves every
+invariant; it renamed `SWAY_GLSL` to `SWAY_MARK` + `swayVS`, and this gate was anchored on the old
+name. Fixed here, and the idempotence G508 introduced is now asserted too, so the double-splice
+cannot come back quietly.
+
+THE LESSON IS THE SECOND ONE OF THESE IN A DAY and it is worth more than the fix. A source-scanning
+gate anchors on FORMATTING and NAMES, and its failure is asymmetric: a lost END anchor makes the
+slice run on and the assertion fails loudly, but a lost START anchor makes indexOf return -1,
+slice(-1, j) return the empty string, and every NEGATIVE assertion about that slice pass forever
+while checking nothing. The fog study paid an hour for the same class the same day (G506.1: a
+hand-merge put the PRESETS closing brace on the previous line, so GATE POSTFX's newline-brace anchor
+ran on into the next object and it reported six presets and a symptom instead of a cause). Both
+changes were semantically perfect JavaScript. Both switched a gate off.
+
+So tools/test_climate.js grows `between(src, a, b, what)`: every anchored slice goes through it, and
+a lost anchor is a named FAILURE ("the tree sway scan lost an anchor (const swayVS) - it is reading
+nothing, so it is asserting nothing") rather than a silent pass. Both of this gate's anchored slices
+use it. PROVED with a negative control rather than asserted: renaming `const swayVS` turns two
+checks red with that message, and restoring it turns them green. The first control was itself wrong
+and is worth recording - renaming to `swayVS_RENAMED` still PASSED, because indexOf matched it as a
+prefix. A negative control has to actually remove the thing.
+
+CLIMATE green on master. Gate only: tools/test_climate.js is in no manifest, so nothing is built
+from this and no `(built)` commit is owed.

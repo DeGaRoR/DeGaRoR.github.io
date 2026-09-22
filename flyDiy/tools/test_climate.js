@@ -652,6 +652,22 @@ console.log('15. the two clocks');
 console.log('14. the sources');
 {
   const core = f => fs.readFileSync(path.join(__dirname, '..', 'src', 'core', f), 'utf8');
+  // A SOURCE SCAN ANCHORED ON TEXT GOES QUIET WHEN THE TEXT MOVES, and the quiet
+  // direction is the dangerous one: indexOf of a renamed anchor is -1, slice(-1, j) is
+  // the empty string, and every NEGATIVE assertion about that slice then passes for the
+  // rest of the project's life while checking nothing at all. Two of these bit in one
+  // day: the fog study's GATE POSTFX read six presets because a hand-merge moved a
+  // closing brace onto the previous line (G506.1), and the scan below lost its anchor
+  // when G508 refactored the tree sway - semantically perfect changes, switched-off
+  // gates. So every anchored slice goes through here and a lost anchor is a FAILURE.
+  const between = (src, a, b, what) => {
+    const i = src.indexOf(a), j = src.indexOf(b);
+    if (i < 0 || j < 0 || j <= i) {
+      fail('the ' + what + ' scan lost an anchor (' + (i < 0 ? a : b) + ') - it is reading nothing, so it is asserting nothing');
+      return src;                       // the whole file: any negative test on it trips too
+    }
+    return src.slice(i, j);
+  };
   const cl = core('09_climate.js');
   yes(!/new Date\(|Date\.now\(|THREE\.|window\.|document\./.test(cl), '09_climate.js has no Date, no THREE, no DOM');
   yes(/'09_climate\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'build.js MANIFEST.core carries 09_climate.js');
@@ -663,7 +679,7 @@ console.log('14. the sources');
   const at = core('05_atmos.js');
   // makeAtmos's own body - from its head to the comment block that opens the water's - must not
   // mention the humidity at all: that is what keeps a dew point from rebuilding the density
-  const mkBody = at.slice(at.indexOf('function makeAtmos'), at.indexOf('// ---- THE WATER IN THE COLUMN'));
+  const mkBody = between(at, 'function makeAtmos', '// ---- THE WATER IN THE COLUMN', 'makeAtmos body');
   yes(/function atmosWater\(/.test(at) && !/dewC|\brh\b/.test(mkBody),
       'the water is atmosWater(), outside makeAtmos: humidity cannot rebuild the density');
   const dayS = core('07_day.js');
@@ -717,8 +733,14 @@ console.log('14. the sources');
   yes(/function aimSock/.test(rw), 'one sag law, two callers (the boot vector and the field)');
   yes(/uWind/.test(rw), 'the impostor cards lean');
   const tj = vw('trees.js');
-  yes(/SWAY_GLSL/.test(tj) && /window\.TREE_WIND/.test(tj), 'the leaves and the cover lean on one shared uniform');
-  yes(!/objectNormal/.test(tj.slice(tj.indexOf('const SWAY_GLSL'), tj.indexOf('const UP_VS'))),
+  yes(/U_WIND/.test(tj) && /window\.TREE_WIND/.test(tj) && /SWAY_MARK/.test(tj),
+      'the leaves and the cover lean on one shared uniform');
+  // G508: both hooks can run on ONE material (a leaf that also carries userData.fade), and each
+  // used to prepend its own `uniform vec4 uWind` and splice its own sway - two declarations in one
+  // scope, so the bark did not compile and drew nothing. The splice is idempotent now; keep it so.
+  yes(/indexOf\(SWAY_MARK\) >= 0 \? src/.test(tj) && /declOnce/.test(tj),
+      'and each is spliced ONCE however many hooks reach the material (G508: two uWind declarations stopped the bark compiling)');
+  yes(!/objectNormal/.test(between(tj, 'const swayVS', 'const declOnce', 'tree sway')),
       "and the sway bends the POSITION only - a cover tuft still shades with the ground's normal (G484)");
   yes(/\.cloudDrift\(/.test(vw('clouds.js')), "the clouds' drift is the link's integral, not wind x seconds");
   yes(/swayGain/.test(vw('gfx_settings.js')), 'and the graphics tier can switch the sway off without a recompile');
