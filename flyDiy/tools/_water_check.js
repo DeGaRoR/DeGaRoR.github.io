@@ -107,7 +107,7 @@ console.log('\n2. THE RULES');
   verdict(!dev || /water\.js/.test(dev), 'dev.html carries water.js');
   // the samplers the hook declares: the detail tile, the fields, the interaction slot - no more
   const samplers = (W.GLSL.frag.match(/sampler2D\s+\w+/g) || []).map(s => s.split(/\s+/)[1]);
-  verdict(samplers.length === 3 && samplers.includes('uWDetail') && samplers.includes('uWSdf') && samplers.includes('uWInter'), `three samplers of its own: ${samplers.join(', ')}`);
+  verdict(samplers.length === 4 && samplers.includes('uWDetail') && samplers.includes('uWSdf') && samplers.includes('uWInter') && samplers.includes('uWMirror'), `four samplers of its own: ${samplers.join(', ')}`);
   verdict(typeof W.setInteraction === 'function' && /uWInterBox/.test(W.GLSL.frag), 'the interaction slot (setInteraction) exists and the shader reads it');
 }
 
@@ -119,6 +119,24 @@ console.log('\n3. THE LAWS');
     const ok = p && [p.abs[0], p.abs[1], p.abs[2], p.opa, p.sct[0], p.sct[1], p.sct[2], p.wave, p.detail, p.foam, p.depth].every(v => Number.isFinite(v)) && p.abs.every(v => v > 0) && p.opa > 0;
     verdict(ok, `preset ${k}: abs ${p.abs.map(v => f(v, 2)).join('/')} opa ${f(p.opa, 2)} sct ${p.sct.map(v => f(v, 3)).join('/')} wave ${p.wave} detail ${p.detail} depth ${p.depth} m`);
   }
+  // THE OPTICS (G460.11): the colours come from the constituents (Morel-Prieur), never painted - pure water is
+  // blue, CDOM browns it, chlorophyll greens it, sediment whitens it; the sea is dark (upwelling under 2 %), a
+  // muskeg lake near-black, and the sea's blue is not above its green (a lagoon's is)
+  { const o = k => W.bodyOptics(k);
+    const clear = o({ cdom: 0.01, chl: 0.1, sed: 0.05 }), bog = o({ cdom: 3, chl: 2, sed: 0.3 }), bloom = o({ cdom: 0.1, chl: 10, sed: 0.5 }), silt = o({ cdom: 0.2, chl: 0.5, sed: 20 });
+    verdict(clear.sct[2] > clear.sct[1] && clear.sct[1] > clear.sct[0], `clear water is blue (${clear.sct.map(v => f(v, 4)).join('/')})`);
+    verdict(bog.sct[2] < clear.sct[2] * 0.1 && Math.max(...bog.sct) < 0.004, `a muskeg lake is near-black (${bog.sct.map(v => f(v, 4)).join('/')})`);
+    verdict(bloom.sct[1] > bloom.sct[2] && bloom.sct[1] > bloom.sct[0], `a bloom is green (${bloom.sct.map(v => f(v, 4)).join('/')})`);
+    verdict(Math.min(...silt.sct) > 0.05, `a silted river is milky (${silt.sct.map(v => f(v, 4)).join('/')})`);
+    const sea = W.PRESETS.sea; verdict(sea.sct[1] >= sea.sct[2] * 0.95 && Math.max(...sea.sct) < 0.02, `the sea upwells under 2 %, green over blue - no lagoon (${sea.sct.map(v => f(v, 4)).join('/')})`);
+    verdict(W.WATER_TYPES && ['sea', 'lake', 'river', 'premises'].every(k => W.WATER_TYPES[k] && ['cdom', 'chl', 'sed'].every(q => Number.isFinite(W.WATER_TYPES[k][q]))), 'every body is three constituents (cdom, chl, sed)'); }
+  // THE MIRROR (G460.11): the shader reads the capture where the point projects, keeps the probe's sky where the
+  // capture is empty; the pass hides the water's own material, reuses the shadow maps, restores the target
+  { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /iblRadiance = mix\(iblRadiance, mr\.rgb, clamp\(mr\.a, 0\.0, 1\.0\) \* edge\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something');
+    const w = src('src/viewer/water.js'), mp = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function mirrorOff('));
+    verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
+    verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
+    const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
   let mono = true, bounded = true, prev = -1;
   for (const U10 of [0, 2, 5, 10, 20, 30]) {
     prev = -1;
@@ -185,6 +203,7 @@ console.log('\n5. THE FIELD');
   verdict(/float rim = smoothstep\(0\.0, uK\.w, e\);/.test(w) && W.field.rim >= 0.02, `the absorbing rim (${W.field.rim} of the box)`);
   verdict(/gl_FragColor = vec4\(clamp\(sl \/ 4\.0 \+ 0\.5, 0\.0, 1\.0\), foam, 1\.0\);/.test(w) && /\(t\.rg \* 2\.0 - 1\.0\) \* 2\.0/.test(W.GLSL.frag), 'the derive pass writes the slot\'s encode (slope over [-2, 2]) and the shader decodes the same');
   verdict(/renderer\.setClearColor\(0x000000, 0\)/.test(w), 'the state is cleared to 0 on first use (not the scene\'s sky colour)');
+  verdict(/F\.out = mk\(FIELD_N, THREE\.HalfFloatType\);/.test(w), 'the slot is half float (a byte slot cannot hold a zero slope: 127.5 rounds to a tilt over the whole box)');
   // the caller's render target is read BEFORE the first-use clears and restored after the passes (read after
   // them, the first step handed app.js the state target and the canvas froze: h7l/h7m)
   { const fs = w.slice(w.indexOf('function fieldStep('), w.indexOf('function fieldOn('));

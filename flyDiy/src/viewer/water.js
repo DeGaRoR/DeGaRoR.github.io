@@ -100,6 +100,11 @@ const WATER = (() => {
         s.y -= ak * uWTrD[i].y * sn;
         s.z += ak * uWTrD[i].z * cos(ph);
       }
+      // THE CRESTS ARE SHARP (G460.11, the user: "plastic on the surface"): a Gerstner wave's surface is steeper at
+      // its crest than its trough by the horizontal motion's Jacobian, 1 / (1 - Q k A cos) - s.z holds that sum
+      // (the fold); the slope is divided by it, clamped short of the fold (a rolling crest)
+      float wJ = clamp(1.0 - s.z, 0.35, 1.0);
+      s.x /= wJ; s.y /= wJ;
       return s;
     }`;
 
@@ -121,6 +126,7 @@ const WATER = (() => {
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4;   // the planar mirror (G460.11): its capture's view-projection; x: on, y: the slope's perturbation, z: the lod per roughness, w: 0
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -321,7 +327,23 @@ const WATER = (() => {
           // the ratio, s = sqrt(sigma^2) of the sub-pixel band, applied to the sky's reflection (the sun's GGX has Smith)
           float wSg = sqrt(max(wSig, 0.0)), wC = clamp(dot(geometryViewDir, wUpV * faceDirection), 0.02, 1.0);
           float wF5 = pow(1.0 - wC, 5.0), wFm = pow(1.0 - wC, 5.0 * exp(-2.69 * wSg)) / (1.0 + 22.7 * pow(wSg, 1.5));
-          iblRadiance *= mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC)); }`)
+          iblRadiance *= mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC));
+          // THE PLANAR MIRROR (G460.11, the user: "we can see tree reflections everywhere, while ours does not mirror
+          // anything at all"): the decor - terrain, trees, the craft - captured from the eye mirrored about the water
+          // plane (the sky left out: the probe carries the sky and its clouds, at the probe's own cadence), read where
+          // this point projects in that capture, the lookup pushed by the wave slope, blurred by the roughness (the
+          // capture's mips), and only where the capture has something (its alpha) - the probe's sky elsewhere
+          if (uWMirror4.x > 0.5) {
+            vec4 mp = uWMirrorVP * vec4(vWP, 1.0);
+            if (mp.w > 0.0) {
+              vec2 muv = mp.xy / mp.w * 0.5 + 0.5 + wNw.xz * uWMirror4.y;
+              if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
+                vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
+                float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
+                iblRadiance = mix(iblRadiance, mr.rgb, clamp(mr.a, 0.0, 1.0) * edge);
+              }
+            }
+          } }`)
       .replace('#include <normal_fragment_maps>', '')
       // THE BODY COLOUR IS NOT A LAMBERT SURFACE (G460.5, the user: "it looks very matte blue"): three lights
       // material.diffuseColor by dot(N, L) on the WAVE normal, so every ridge was a painted stripe and the
@@ -356,14 +378,45 @@ const WATER = (() => {
   // abs: absorption per metre (linear rgb), opa: the column's opacity rate per metre; sct: the colour the
   // column shows at depth (linear); wave: the felt band's scale; detail: the tile's; foam: the fold at
   // which a crest breaks; depth: the column when there is no field (the analytic world, the editor)
-  const PRESETS = {
-    sea:      { abs: [0.42, 0.13, 0.07], opa: 0.55, sct: [0.020, 0.075, 0.105], wave: 1.0, detail: 1.0, foam: 0.62, depth: 14 },
-    // a muskeg lake (Jolene's): dark, tannin-brown-green at depth, opaque within a metre; the column
-    // from its field 1.2 m per metre of field to 8 m - the bed shows only along the very edge
-    lake:     { abs: [0.75, 0.35, 0.22], opa: 1.6, sct: [0.018, 0.040, 0.034], wave: 0.0, detail: 0.55, foam: 2.0, depth: 4 },
-    river:    { abs: [0.60, 0.28, 0.20], opa: 0.90, sct: [0.040, 0.066, 0.052], wave: 0.0, detail: 0.35, foam: 2.0, depth: 1.5 },
-    premises: { abs: [0.42, 0.13, 0.07], opa: 0.55, sct: [0.020, 0.075, 0.105], wave: 0.0, detail: 0.7, foam: 2.0, depth: 6 },
+  // THE COLOUR OF A WATER IS ITS CONSTITUENTS' (G460.11, the user: "you may need different colors for lakes and
+  // sea - how to do that properly and principled?"): the bio-optical model of ocean colour (Morel & Prieur 1977,
+  // Gordon 1988) - the upwelling reflectance R(lambda) = 0.33 b_b / (a + b_b), absorption a = pure water + CDOM
+  // (the yellow substance: tannins, humics - the exponential a_g(440) e^(-0.014 (lambda - 440))) + chlorophyll,
+  // backscatter b_b = pure water + particles (sediment); the diffuse attenuation Kd ~ a + b_b. Three bands
+  // (620 / 550 / 450 nm for R / G / B). Pure water absorbs red 20 x more than blue (the blue of clear water);
+  // CDOM absorbs blue (the brown of a muskeg lake); chlorophyll absorbs blue and red (the green of a bloom);
+  // sediment scatters every band (the milk of a glacial river). The ARTIST'S numbers are three per body -
+  // CDOM a_g(440) m^-1, chlorophyll mg/m^3, sediment g/m^3 - and the colour follows: a body is never a
+  // painted colour. Jerlov's coastal type 3 for this sound (a_g 0.08, chl 1.5, a little sediment); a muskeg
+  // lake at a_g 3 (the tannin of the bog: near-black, the reflection IS its colour, as on the photo); a
+  // glacial river silted. The old presets painted the sea 10 % blue / 7 % green at depth - a lagoon; real
+  // cold coastal water upwells 1-2 %, green over blue, and its blue is the SKY'S reflection.
+  const WATER_TYPES = {
+    sea:      { cdom: 0.08, chl: 1.5, sed: 0.5 },
+    lake:     { cdom: 3.0,  chl: 2.0, sed: 0.3 },
+    river:    { cdom: 1.2,  chl: 1.0, sed: 2.5 },
+    premises: { cdom: 0.08, chl: 1.5, sed: 0.5 },
   };
+  function bodyOptics(w) {
+    const AW = [0.28, 0.064, 0.0145];                   // pure water absorption, m^-1 (620 / 550 / 450 nm; Pope & Fry)
+    const BBW = [0.0007, 0.0011, 0.0025];               // pure water backscatter (b_bw ~ lambda^-4.3)
+    const CG = [Math.exp(-0.014 * (620 - 440)), Math.exp(-0.014 * (550 - 440)), Math.exp(-0.014 * (450 - 440))];   // CDOM's slope
+    const APH = [0.012, 0.004, 0.035];                  // chlorophyll-specific absorption per mg/m^3 (the blue and red peaks)
+    const BBP = 0.004;                                  // particle backscatter per g/m^3 of sediment, flat
+    const sct = [], abs = [];
+    for (let c = 0; c < 3; c++) {
+      const a = AW[c] + w.cdom * CG[c] + w.chl * APH[c], bb = BBW[c] + w.sed * BBP;
+      sct.push(0.33 * bb / (a + bb)); abs.push(a + bb);
+    }
+    return { sct, abs, opa: Math.max(0.3, Math.min(3, 2.5 * abs[1])) };
+  }
+  const PRESETS = {};
+  for (const k of ['sea', 'lake', 'river', 'premises']) PRESETS[k] = Object.assign(bodyOptics(WATER_TYPES[k]), { wave: 0, detail: 0.7, foam: 2.0, depth: 6 });
+  Object.assign(PRESETS.sea, { wave: 1.0, detail: 1.0, foam: 0.62, depth: 14 });
+  // a muskeg lake (Jolene's): the column from its field 1.2 m per metre of field to 8 m - the bed shows only along the very edge
+  Object.assign(PRESETS.lake, { wave: 0.0, detail: 0.55, foam: 2.0, depth: 4 });
+  Object.assign(PRESETS.river, { wave: 0.0, detail: 0.35, foam: 2.0, depth: 1.5 });
+  Object.assign(PRESETS.premises, { wave: 0.0, detail: 0.7, foam: 2.0, depth: 6 });
   const BODIES = ['sea', 'lake', 'river', 'premises'];
 
   // ---- THE DIALS ------------------------------------------------------------------------------
@@ -393,6 +446,7 @@ const WATER = (() => {
       uWMisc: { value: v4(S.shoreFade, S.lakeK, S.lakeCap, 1) }, uWFoam: { value: v4(1, 0, 0, 0) },
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
+      uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() },
       uWNear: { value: v4() }, uWDbg: { value: 0 },
     };
     applyPresets();
@@ -435,6 +489,11 @@ const WATER = (() => {
         H += w.a * c; X -= w.a * w.kx * sn; Z -= w.a * w.kz * sn; L -= w.a * w.k2 * c; }
       h[p] = H; sx[p] = X; sz[p] = Z; lap[p] = L; if (Math.abs(H) > hmax) hmax = Math.abs(H);
     }
+    // THE CRESTS SHARPEN, THE TROUGHS FLATTEN (G460.11): a Stokes second-order profile h' = h + c h^2 / hmax
+    // (c 0.4) - a sum of cosines is a gaussian sea, symmetric, and read as a soft plastic sheen up close;
+    // the real chop is cusped. The slopes follow: s' = s (1 + 2 c h / hmax); the Laplacian (the crest mask)
+    // keeps its own sign
+    { const c = 0.4 / (hmax || 1); for (let p = 0; p < N * N; p++) { const k = 1 + 2 * c * h[p]; sx[p] *= k; sz[p] *= k; h[p] += c * h[p] * h[p]; } }
     // normalise: the tile's height RMS at its own length is set so the slope RMS is ~0.09 per unit
     // strength (a 5 m/s chop over a 3 m tile) - the strength dial and the wind scale it from there
     let srms = 0; for (let p = 0; p < N * N; p++) srms += sx[p] * sx[p] + sz[p] * sz[p];
@@ -609,7 +668,9 @@ const WATER = (() => {
     const mk = (N, type) => { const rt = new THREE.WebGLRenderTarget(N, N, { type, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
       rt.texture.wrapS = rt.texture.wrapT = THREE.ClampToEdgeWrapping; return rt; };
     F.L = LEVELS.map(l => ({ N: l.N, dx: FIELD_M / l.N, rt: [mk(l.N, THREE.HalfFloatType), mk(l.N, THREE.HalfFloatType)], ping: 0 }));
-    F.out = mk(FIELD_N, THREE.UnsignedByteType);
+    // (half float, not bytes: a byte slot's 0.5 is 127.5, rounded to 128 = a 0.45 deg tilt over the whole box - the glint
+    // showed the box as a brighter rectangle with a seam at its edge from 120 m, G460.11)
+    F.out = mk(FIELD_N, THREE.HalfFloatType);
     F.scene = new THREE.Scene(); F.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     F.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); F.quad.frustumCulled = false; F.scene.add(F.quad);
     F.kern = fieldKernel(KERN_P); F.gain = fieldKernelGain(F.kern, KERN_P);
@@ -695,6 +756,91 @@ const WATER = (() => {
     const c = N >> 1, step = Math.max(1, N >> 5); for (let i = 0; i < N; i += step) rows.push(+buf[(c * N + i) * 4].toFixed(4));
     return { maxH: mx, nan, foamMean: fm / n, row: rows, box: [F.ox, F.oz, FIELD_M], N, dx: L.dx };
   }
+
+  // ---- THE PLANAR MIRROR (G460.11): the decor's reflection, captured from the eye mirrored about the water
+  // The IBL is the atmosphere's probe - the sky and its clouds, a flat ground cap: the water reflected NOTHING
+  // of the world (the user, on a lake photo: "we can see tree reflections everywhere, while ours does not mirror
+  // anything at all"). mirrorRender(THREE, renderer, scene, camera, waterY, opts) renders the scene with a camera
+  // mirrored about y = waterY - the sky dome, the water meshes and the spray hidden (opts.hide), the near plane
+  // made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
+  // the shader reads it where a point projects in that capture and keeps the probe's sky where the capture is
+  // empty. The capture is AMORTISED: a 'periodic' mode (the default) re-captures when the eye has moved 4 m or
+  // turned 6 deg or after `every` seconds (never under 0.75 s), 'live' every frame (the rigs that can afford it), 'off' never; only
+  // when the eye is under `maxAgl` over the water - higher, the reflection is the sky. Cost: one scene render
+  // at a quarter of the frame's pixels when it fires (measured in HANDOVER).
+  // (measured under the rig: a capture is 13-22 ms of CPU submission - the world's draw calls + the clouds' march - and
+  // 460 ms the first time (its targets and programs); 'periodic' spaces them: 8 m / 6 deg / 3 s, never under 0.75 s)
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.75, moveM: 8, turnDeg: 6, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  const mirrorTmp = {};
+  function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
+    opts = opts || {};
+    const eyeAgl = camera.position.y - waterY;
+    if (!U || MIR.mode === 'off' || !(eyeAgl > 0.1) || eyeAgl > MIR.maxAgl) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
+    const dt = opts.dt || 1 / 60; MIR.t += dt;
+    const pos = camera.position, q = camera.quaternion;
+    let due = MIR.mode === 'live' || !MIR.last;
+    if (!due && MIR.last) {
+      const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
+      due = (MIR.t - MIR.lastT > MIR.minGap) && (moved > MIR.moveM || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05);
+    }
+    if (!due) return false;
+    const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(mirrorTmp.v2 || (mirrorTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
+    const w = Math.max(64, Math.round(size.x * MIR.res)), h = Math.max(64, Math.round(size.y * MIR.res));
+    if (!MIR.rt || MIR.rt.width !== w || MIR.rt.height !== h) {
+      if (MIR.rt) MIR.rt.dispose();
+      // (a depth texture: the clouds' march reads the capture's depth, as it reads the frame's)
+      MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: false,
+        depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, THREE.UnsignedIntType) : null });
+      MIR.rt.texture.wrapS = MIR.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
+    }
+    if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();
+    const mc = MIR.cam;
+    // the eye mirrored about the plane: position, look direction and up reflected in y about waterY
+    const fwd = mirrorTmp.fwd || (mirrorTmp.fwd = new THREE.Vector3()), up = mirrorTmp.up || (mirrorTmp.up = new THREE.Vector3()), tgt = mirrorTmp.tgt || (mirrorTmp.tgt = new THREE.Vector3());
+    camera.getWorldDirection(fwd); up.set(0, 1, 0).applyQuaternion(q);
+    mc.position.set(pos.x, 2 * waterY - pos.y, pos.z);
+    fwd.y = -fwd.y; up.y = -up.y;
+    tgt.copy(mc.position).add(fwd); mc.up.copy(up); mc.lookAt(tgt);
+    mc.fov = camera.fov; mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
+    mc.updateProjectionMatrix(); mc.updateMatrixWorld(true);
+    // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
+    { const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
+      mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
+      pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
+      pl.applyMatrix4(mc.matrixWorldInverse);
+      n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
+      const e = P.elements;
+      qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
+      n.multiplyScalar(2.0 / n.dot(qv));
+      e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w; }
+    // the capture: the water's own material, the spray's and the sky dome hidden; the shadow maps reused
+    const hidden = [];
+    for (const m of (opts.hideMaterials || [])) if (m && m.visible !== false) { m.visible = false; hidden.push(m); }
+    const hiddenObj = [];
+    for (const o of (opts.hide || [])) if (o && o.visible) { o.visible = false; hiddenObj.push(o); }
+    if (mat) { mat.visible = false; hidden.push(mat); }   // every water mesh shares the one material
+    const prevT = renderer.getRenderTarget(), ac = renderer.autoClear, sm = renderer.shadowMap.autoUpdate;
+    const cc = renderer.getClearColor(mirrorTmp.cc || (mirrorTmp.cc = new THREE.Color())), ca = renderer.getClearAlpha();
+    const t0 = performance.now();
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(MIR.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = true; renderer.clear();
+    const bg = scene.background; scene.background = null;
+    // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march
+    // run for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad
+    if (opts.clouds) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
+    renderer.render(scene, mc);
+    scene.background = bg;
+    renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
+    for (const m of hidden) m.visible = true;
+    for (const o of hiddenObj) o.visible = true;
+    MIR.ms = performance.now() - t0;
+    MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY }; MIR.lastT = MIR.t; MIR.on = true;
+    U.uWMirror.value = MIR.rt.texture;
+    U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
+    U.uWMirror4.value.set(1, MIR.perturb, MIR.lod, 0);
+    return true;
+  }
+  function mirrorOff() { MIR.on = false; MIR.last = null; if (U) U.uWMirror4.value.x = 0; }
 
   // ---- THE GPU TIMER: the water's own draws, summed a frame (EXT_disjoint_timer_query_webgl2) ----
   // watch(mesh) puts a query round every draw of a water mesh; stats.gpuMs is the last frame's sum of the
@@ -809,6 +955,7 @@ const WATER = (() => {
   function set(o) {
     if (!o) return;
     if ('tier' in o) setTier(o.tier);
+    if ('mirror' in o) { MIR.mode = o.mirror === 'live' ? 'live' : o.mirror === 'off' ? 'off' : 'periodic'; if (MIR.mode === 'off') mirrorOff(); }
     for (const k of ['displace', 'detail', 'sigma', 'foam', 'dbg', 'detailK', 'shoreFade', 'lakeK', 'lakeCap', 'foldQ']) if (k in o) S[k] = o[k];
     if ('on' in o) S.on = !!o.on;
     if ('timer' in o) timer.on = !!o.timer;
@@ -872,8 +1019,9 @@ const WATER = (() => {
   const roughJS = s2 => Math.pow(Math.max(s2, 1e-5), 0.25);
 
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
-    make, material, tag, hook, setTime, time, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
+    make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
+    mirrorRender, mirrorOff, mirror: MIR,
     stamp, fieldStep, fieldOn, fieldProbe, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;

@@ -95,6 +95,13 @@
     { k: 'water', label: 'water', steps: [
         { v: 'simple', label: 'simple', why: 'the swell’s shading and the sun’s glitter; no ripple tile, no lifted surface, no foam' },
         { v: 'full',   label: 'full', why: 'the wind’s ripples, the near sea lifted by the swell, the foam' } ] },
+    // THE WATER'S MIRROR (G460.11): the decor - trees, mountains, the aeroplane - reflected in the water from a low
+    // eye; 'periodic' recaptures when the eye moves 4 m / turns 3 deg / every 2 s, 'live' every frame (a second scene
+    // draw at a quarter of the pixels: the rigs that can afford it); the sky and its clouds are the probe's either way
+    { k: 'mirror', label: 'reflections', steps: [
+        { v: 'off',      label: 'sky only', why: 'the water reflects the sky and its clouds, never the shore' },
+        { v: 'periodic', label: 'periodic', why: 'the shore, the trees and the aeroplane captured when the eye has moved or every 2 s' },
+        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size)' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -136,10 +143,10 @@
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
-    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple' },
-    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
-    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
-    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full' },
+    low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
+    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -196,6 +203,7 @@
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
     if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) { W.ATMO.MIST.on = S.mist !== 'off'; applied.mist = S.mist; }
     if (W.WATER && applied.water !== S.water) { W.WATER.set({ tier: S.water }); applied.water = S.water; }
+    if (W.WATER && applied.mirror !== S.mirror) { W.WATER.set({ mirror: S.mirror }); applied.mirror = S.mirror; }
     if (W.CLOUDS && applied.clouds !== S.clouds) { W.CLOUDS.S.mode = S.clouds; if (AA && AA.needRT) AA.needRT(S.clouds !== 'off'); applied.clouds = S.clouds; }
     // the compositing (G448.3): the resolve target's space, the panes' blend, the post passes' input
     if (AA && AA.setLinear && applied.compositing !== S.compositing) {

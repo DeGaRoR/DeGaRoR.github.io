@@ -54979,3 +54979,53 @@ the rocks (a plain Standard on the pack's map), the water's bed paint.
   (coastal_cliff_02/04, 40-90 m: a different placement, on the `12 cliff` code); rocks as OBSTACLES
   (a 1.4 m strip under a landing floatplane is not in 29_obstacles.js); the user's eye on the density.
 - GATES: TREES (the six species, their licence) / BIOME / WORLD / UISMOKE / MEDIA / SPLAT / BUILD green.
+## G460.11 — THE LOOK PASS: THE WATER'S COLOUR FROM ITS CONSTITUENTS, THE PLANAR MIRROR, THE CUSPED CRESTS
+## (2026-09-22, the user: "I still think it looks lagoon blue, and feels a little like plastic on the surface
+## ... we can see tree reflections everywhere, while ours does not mirror anything at all")
+
+- THE ANALYSIS, measured (the mean HSV of open water): our sea's hue was 0.53 (cyan) at saturation 0.58; the
+  user's Alaska photos sit at 0.57-0.58 (blue) - the sky's - over a near-black body. The old sea preset painted
+  10 % blue / 7 % green upwelling at depth with blue OVER green: a tropical lagoon by construction, and a body
+  that bright leaves the Fresnel reflection nothing to win against (the plastic).
+- THE COLOUR IS THE CONSTITUENTS' (water.js bodyOptics, WATER_TYPES): the bio-optical model of ocean colour
+  (Morel-Prieur / Gordon) - R(lambda) = 0.33 b_b / (a + b_b) with a = pure water (Pope & Fry: red 20 x blue)
+  + CDOM (the tannin's exponential, blue-absorbing) + chlorophyll (blue and red peaks), b_b = pure water
+  (lambda^-4.3) + sediment (flat), three bands 620 / 550 / 450 nm; Kd ~ a + b_b for the column's attenuation.
+  A body is THREE NUMBERS - CDOM a_g(440) m^-1, chlorophyll mg/m^3, sediment g/m^3 - never a painted colour:
+  the sea Jerlov coastal 3 (0.08 / 1.5 / 0.5: R 0.3 / 1.1 / 1.1 % - dark, green over blue), the muskeg lake
+  (3 / 2 / 0.3: 0.1 % - near-black, the reflection IS its colour as on the photo), the river silted. GATE
+  WATER holds the model's shape: clear water blue, a bog black, a bloom green, a silted river milky, the sea
+  under 2 % with no lagoon. The ARTIST's answer to "different colours for lakes and sea": change the water,
+  not the paint.
+- THE PLANAR MIRROR (water.js mirrorRender, app.js before the render, GRAPHICS `reflections`): the IBL was the
+  atmosphere's probe - the sky, a flat ground cap - so the water reflected nothing of the world. Now the scene
+  is captured from the eye mirrored about the water plane (the position, look and up reflected; the near
+  plane made OBLIQUE, Lengyel's, so nothing under the water is captured) into a half-float target at half
+  the frame's size with mips, cleared to alpha 0, the water's own material, the spray's and the sky dome
+  hidden, the shadow maps reused, THE CLOUDS' OWN MARCH run for the mirrored eye into the capture (CLOUDS.draw
+  with the mirror camera and the capture's depth texture; the scene's cloud quad composites it) - the user:
+  "the lake needs to reflect an accurate sky". The shader reads the capture where a point projects through
+  the capture's view-projection, the lookup pushed by the wave slope (0.06), blurred by the roughness (the
+  mips, lod = 5 roughness), and only where the capture has something (its alpha): the probe's sky stays
+  elsewhere. Modes: 'periodic' (the default: re-captured when the eye has moved 8 m or turned 6 deg or
+  every 3 s, never under 0.75 s), 'live' (every frame - the rigs that can afford it), 'off' (sky only);
+  only under 60 m over the water - higher, the reflection is the sky. COST, measured under the rig: 13-22 ms
+  of CPU per capture (the world's draw calls + the march), 460 ms the first (its targets and programs) -
+  a hitch every few seconds at the dock in 'periodic', a doubled frame in 'live'; low preset off, medium
+  and high periodic, ultra live.
+- THE CRESTS ARE SHARP: the detail tile takes a Stokes second-order profile before its slopes (h' = h + 0.4
+  h^2 / hmax: crests sharpen, troughs flatten - a sum of cosines is a gaussian sea, read as a soft plastic
+  sheen), and the felt band's slope is divided by the Gerstner Jacobian 1 - Q k A cos (the steepness that
+  fed only the fold mask before). The material's own roughness was already 0.05 (the user asked) - the
+  plastic was the body's brightness and the gaussian normals, not the roughness law.
+- A SEAM FOUND ON THE WAY: from 120 m the field's 192 m box showed as a brighter rectangle with a seam at
+  its edge in the sun's glint (m5/h120.png). The slot was a BYTE target: 0.5 is 127.5, rounded to 128 = a
+  0.45 deg tilt over the whole box. The slot is half float (m7/h120.png clean); gated.
+- PROOF: screenshots/water-g440/m7/ (boatSun.png the sea from 2.5 m: dark blue, the shore mirrored, the
+  sky's reflection; low12, h120, h300; lakeA/lakeB the muskeg lake from 2 m: black water, the trees, the
+  mountains, the aeroplane and the clouds mirrored - the user's photo; lakeE from 70 m), m2/seaC.png (12 m).
+  GATE WATER 3 (the optics, the mirror), GFX (the reflections row), WORLDRENDER, MEDIA green.
+- OWED: the mirror's CPU cost is the draw calls' - a far-plane cap or a coarser tree band for the capture
+  would halve it; the mirror ignores the water's own displacement (the capture is a plane at the level - a
+  hull in a trough reflects a little high); soft-particle depth for the sprites; the muskeg BOULDERS of the
+  user's reference (the biome track: the muskeg mix has no rock props).

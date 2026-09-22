@@ -4573,7 +4573,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
     return ENV_ALB.k;
   };
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
