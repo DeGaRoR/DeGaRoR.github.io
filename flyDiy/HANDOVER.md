@@ -172,6 +172,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   by app.js's emitters (a wet hull's press, a touchdown's ring, the chine's
   foam), written into the slot; `tools/_h7_drive.js` / `_h7_follow.js` are its
   rig drivers (a field under any aeroplane, a following eye).
+- `src/viewer/spray.js` — THE SPRAY (H7.1, G460.9): the white water the hull
+  throws, as ONE instanced batch of lit, soft, motion-stretched sprites (two
+  kinds, their laws in SPRAY.KIND); app.js's syncWaterFx emits and integrates,
+  this module draws. The log-depth chunks are spliced in (the renderer's
+  logarithmic depth buffer) - GATE WATER 6 holds it.
 - `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
   GL draw counters, before/after against the previous commit's viewer, and
   handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
@@ -54761,3 +54766,49 @@ at 10 m over the scrub the ring held 258 k dry tufts in 213 cells. The plates ar
 row's (0.3 x 2.5/m2) - nowhere else. screenshots/map/musk10 (the chase eye at 38 m over the
 scrub: small conifers, snags, reed beds, the pools - the street-view look). The card peaked at
 9.9 GB on that run with other rigs holding 3.4 - the ring + the fill at ng 128 are near the edge.
+## G460.9 — THE SPRAY AS LIT SPRITES (2026-09-22, the user: "the splash particles are still little
+## white squares, they really don't match the quality of the rest")
+
+- THE SCOUTING (Sea of Thieves' tech-art talk, Triton's wakes, the Niagara ships, hfFluid, the three.js
+  soft-particle threads): whitewater is (1) a decaying feedback mask on the surface (H7's field), (2)
+  SPRITES for what leaves the surface - soft, noise-torn, motion-stretched, lit as a scattering medium,
+  alpha-blended, a fast droplet kind and a slow mist kind, (3) a Kelvin V from radiated waves in the
+  water's own shader or an authored decal from the hull's path (owed, see below). Soft-particle depth fade
+  is the one standard trick left out (the frame's depth is a frame stale; the spray sits on the water).
+- src/viewer/spray.js (new): ONE InstancedBufferGeometry quad batch (a draw, <= 1200 sprites, ~0.05 ms).
+  The corners are built in VIEW space (a sprite faces the eye, its size is metres in perspective), the long
+  axis follows the particle's screen velocity (size + |v| x 0.014 s: a streak when thrown, a disc at rest);
+  the sprite is a soft disc torn by two octaves of value noise seeded per particle (no media); lit as white
+  water - 0.9 x (0.65 x the sun's irradiance x a wrapped N.L on the sprite's sphere normal + the sky's
+  hemisphere) / pi, a forward-scatter lobe when the sun is behind it; alpha-blended (additive glowed over
+  the dark sea), depth-tested, no depth write, fading in over a tenth of its life and out over the last 40 %,
+  growing with age, every particle its own density. THE LOG-DEPTH CHUNKS ARE SPLICED IN (both stages):
+  the renderer runs a logarithmic depth buffer and a ShaderMaterial without them writes a linear depth -
+  every sprite failed the test against the water and two runs drew nothing (h7t: the mesh rendered alone
+  to a target lit 3349 pixels; in the frame, none). Two kinds, their laws in SPRAY.KIND (one keeper):
+  DROPLETS (1-4 cm radius, 0.6-1.0 s, ballistic + a little drag, die where they meet the water) and PUFFS
+  (0.2-0.5 m, 1.2-2.0 s, drag-damped near-weightless mist). The Points path stays as the fallback.
+- app.js: the emitters through sprayEmit (the kind's life and birth size drawn inside its range, a seed):
+  TOUCHDOWN throws a crown of 70 fine droplets per m/s of impact (a first cut of 25 at 4-12 cm read as
+  popcorn, h7w/splash.png), out and a little up along the ring, + 6 puffs per m/s; the CHINE FAN is a low
+  sheet flaring OUT and aft (a first cut threw it up and buried the hull in mist, h7v/run6.png) with a puff
+  per 12 droplets outboard of the chine; a THE BOW WAVE press ahead of the stem while under way (3 cm at
+  rest, 12 at 8 m/s - the wake's V radiates from the bow as much as from the stern); WATER_FX.burst(x, z, n,
+  vy) is the rig's and the dev panel's door to the sprites. water.js: the field's foam torn at a second
+  octave (0.65 m) - bubbles inside the patches.
+- THE RIG: tools/_h7_follow.js - a rAF that sets DEV_CAM from the CG every frame (__follow('top', h) /
+  ('low', d, h)) overrides the rig's fixed eye; __thr(v) holds the throttle (the input layer writes ctl only
+  when a hand is on it); __catchSplash(s) unpauses, waits for the first float to go wet, lets s of SIM time
+  pass and pauses - the headless page runs the sim slower than the clock, so a shot timed by the clock
+  missed every splash (h7r/h7s/h7v).
+- PROOF: screenshots/water-g440/h7y/ (splash.png the crown frozen 0.25 s after impact - a torn sheet of
+  fine spray with mist under it; runC.png the chine mist from 5 m; splashB, later), h7w/runB.png (the run
+  from 14 m: spray sheets behind the floats, the bubbly wake), h7w/run5.png. GATE WATER 6 (10 rules: the
+  module loads headless, the kinds' laws, the log-depth / tone-mapping chunks, the stretch, lit + never
+  additive, app.js draws through it, build.js order, the bow wave). WATER / WORLDRENDER green.
+- OWED (the user: "then do the chine sheets and the Kelvin wake"): the chine fan as two thin SHEETS (a
+  curved strip per chine, textured with streaks, droplets peeling off its edge); the wake's V - the field is
+  non-dispersive (one speed) so the V is narrow and faint: a dispersive step (iWave's vertical-derivative
+  kernel: omega^2 = g k, the 19.47 deg Kelvin V and its transverse waves emerge from the moving press) or
+  Triton's analytic radiated-wave sum; the soft-particle depth fade; the C172's float SUPPORT STRUCTURE
+  (spreader bars and struts) is not drawn on the Wipline build (the user) - to look into.
