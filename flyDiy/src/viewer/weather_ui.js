@@ -163,6 +163,19 @@ var WEATHER_UI = (function () {
       H.note(host, 'A working day is stirred by its own thermals to 9.8 °C/km and capped by a lid. The thermals stop at ' +
                    (top == null ? '—' : top.toFixed(0) + ' m') + ' — the lower of the lid and the condensation level (' +
                    (w.lcl == null ? 'none today' : w.lcl.toFixed(0) + ' m') + '), and where the base wins, every thermal wears a cumulus.');
+      // A LOW DECK IS SAID BEFORE IT IS FLOWN INTO. The condensation level is
+      // the day's own 125 m per degree of spread, so a nearly saturated day puts
+      // the base on the deck - at rh 0.98 it is 37 m, and everything above the
+      // valley floor is inside cloud. That is exact rather than a fault, and the
+      // answer to it is a BRIEFING, not a fudge: the panel says so here, where
+      // the player decides, rather than letting them find out in the climb.
+      if (d.cloudBase > 0 && d.cloudBase < 200 && d.cloudCover > 0.05) {
+        const r = H.row(host, 'the deck is on the deck');
+        r.classList.add('fnote');
+        r.textContent = 'The cloud base is at ' + d.cloudBase.toFixed(0) + ' m — below circuit height. '
+          + 'You will be in cloud from the climb-out; the dew point and the temperature are ' + (d.oatC - d.dewC).toFixed(1)
+          + ' °C apart, and every degree of that is 125 m of base.';
+      }
     }
 
     // ---- the front ---------------------------------------------------------------
@@ -238,7 +251,8 @@ var WEATHER_UI = (function () {
         ? (sw.spd / KT).toFixed(0) + ' kt from ' + from.toFixed(0).padStart(3, '0') + '° ' + cardinal(from)
         : 'calm',
       wxCol: (day.oatC != null ? day.oatC.toFixed(0) : '—') + ' °C · ' + (day.qnhEff / 100).toFixed(0) + ' hPa'
-             + (w.mixTop != null ? ' · thermals to ' + w.mixTop.toFixed(0) + ' m' : ''),
+             + (w.mixTop != null ? ' · thermals to ' + w.mixTop.toFixed(0) + ' m' : '')
+             + (day.cloudBase > 0 && day.cloudCover > 0.05 ? ' · base ' + day.cloudBase.toFixed(0) + ' m' : ''),
       wxVis: w.vis != null ? (w.vis >= 60 ? '60+ km' : w.vis.toFixed(0) + ' km') : '—',
       wxFront: day.storm ? day.storm.phase + ' · ' + (day.storm.I * 100).toFixed(0) + ' %'
                : (day.stormSpec ? 'in ' + dur(day.stormSpec.at - day.utc) : 'none'),

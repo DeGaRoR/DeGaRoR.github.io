@@ -693,13 +693,19 @@ var CLIMATE = (function () {
       if (k !== wKey || wAtm !== atm) { wKey = k; wAtm = atm; water = atm ? atmosWater(atm, dew) : null; }
       return water;
     }
-    // profile(h) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL.
-    // HORIZONTALLY UNIFORM, and that is a declared boundary rather than an
-    // oversight: this is the COLUMN, the vertical law. A 2-D mist field - where
-    // a layer's top sits over valley floors and water, where the patches are -
-    // composes with it rather than competing: sample this for the vertical
-    // shape at an (x, z) and let the field say where the top of it is.
-    function profile(h) {
+    // profile(h, x, z) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL.
+    //
+    // THE SPATIAL ARGUMENTS ARE ACCEPTED AND IGNORED, deliberately and by
+    // agreement (the fog study's §5b). The column is HORIZONTALLY UNIFORM today
+    // - a declared boundary, not an oversight: this is the vertical law, and a
+    // 2-D mist field (where a layer's top sits over valley floors and water,
+    // where the patches are) composes with it rather than competing. But its
+    // consumers are spatial FROM THEIR FIRST LINE - a bake that walks xz to
+    // build a mistTop(x, z) - so the signature is taken now, while it costs a
+    // comment, rather than later, when it would touch every call site and the
+    // bake path with it. When the column stops being uniform, these start being
+    // read and nothing else moves.
+    function profile(h, x, z) {
       const atm = env.atmos ? env.atmos() : null, w = waterNow();
       if (!atm) return null;
       return { T: atm.T(h) - 273.15, p: atm.p(h), rho: atm.rho(h), sigma: atm.sigma(h),
