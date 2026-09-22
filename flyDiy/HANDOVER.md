@@ -56128,3 +56128,201 @@ was no valley for it to pool in and no edge to fly INTO.
   CAPTURE's frame, whose x axis is the negative of the world's - a wave slope moves the reflection the
   wrong way horizontally (small at the scale it is used, 0.06 uv); the honest form is a world-space
   offset of the projected point, which also gets the perspective right.
+
+## G504 — THE CLIMATE: one wind field, and a sailplane that can use it (2026-09-22, the user:
+"wind, gust, storm, temperature management, accurate wind profile on the mountains and coasts,
+proper atmosphere gradient of pressure and temperature, possibly humidity. Link all that to future
+haze, and to ripples and waves in the newly constructed water system. Also link that to the cloud
+system to drive the movement of clouds. Let's try and have an holistic climate manager. And would
+we be able to fly sailplanes with these new settings? Could we do ridge riding for example? ... it
+is very clear that the game becomes heavy both on CPU and GPU, so we need versatile, elegant and
+lightweight methods. We will probably need some sort of debugging visualization with current lines
+and intensity. Can we also have hot air lifting things up, or is this too much of a leap? We need
+to link all systems first.")
+
+THE PLAN: `futureDesigns/CLIMATE-2026-09-22.md` (K0-K6). K0-K4 landed here as G504-G504.9 (the G number is taken at LANDING and this chantier paid for it
+THREE TIMES: G501 went to the fog study while it was rebasing, G502 to the pavement session while
+its proof battery was running, and G503 to the fog study again during the second battery. The
+lesson is not to number earlier - it is that a twenty-minute proof is a twenty-minute window, so
+the rebase is scripted and the landing follows the battery by seconds, with the expected-old on
+update-ref catching what still slips through - the
+collision SHARED-TREE-PRACTICES 3 warns about, met in the wild); K5 (the
+debug view) and K6 (the storm's playtest) are owed. The user's decisions, asked and answered:
+soaring first; the thermals lift the aeroplane and bend the smoke and aim the socks; a WEATHER
+panel on both rails.
+
+THE PLUG WAS ALREADY THERE. `world.wind(x,y,z,t)` (G72) was a uniform base x a power-law shear plus
+four gust sines, and the solver samples it ONCE at the mean wing and then PER WING STRIP, per tail
+strip, per fuselage blob (30_solver aeroPass). So an updraft raises a strip's alpha and a spanwise
+gradient produces roll FOR FREE: thermals and ridge lift needed no solver change at all, only a
+better field. That is why this chantier is a new core file and almost nothing else.
+
+**G504 (K0) — THE ONE FIELD.** `src/core/09_climate.js`, pure, node-runnable, in the manifest after
+08_cloud_field. The G72 field moved in VERBATIM as `windLegacy` and is the whole field whenever the
+spec names no rich term - bit-identity BY CONSTRUCTION rather than by care, proved against a
+verbatim copy embedded in the gate over 8 000 points x four forms. Modes zero | legacy | rich.
+THE SAMPLER: `wind()` is the solver's and keeps a linearisation cache keyed on `t` (a reference
+point, the ground's plane, and a Jacobian over seven channels at unit shear); everyone else
+`sample()`s. The SURFACE LAYER is never linearised (one pow per call) and the GROUND is read
+exactly under 60 m agl - the analytic world's 65 m octave made a linearised AGL worth a metre on
+final. Measured: 0.06 m/s over the solver's footprint above 20 m, a full sample 2.3 us quiet.
+THE RELIEF RASTER: 200 m cells over the world's bounds, twelve Float32 channels (two smoothed
+bands, their gradients, a prominence, a signed coast distance and its unit gradient, a heating
+class), built LAZILY on the first rich spec - 52 ms on the analytic world, and a legacy day pays
+nothing.
+
+**G504.1 (K1) — RIDGE LIFT.** Terrain-following flow in THREE bands, each decaying over L/1.6 as
+linear theory says (800 / 200 / 80 m): the raster's coarse and fine, plus a LOCAL band that is the
+true slope at the point (terrainH at +-60 m) less what the raster already carries - a 200 m raster
+smoothed over 300 m cuts a real 35 deg face to 0.25, and a ridge pilot flies within a wingspan of
+the slope. Jackson-Hunt crest speed-up and the valley's shelter on the prominence. The lee rotor's
+turbulence GUSTS ON ITS OWN (0.5 of the base per unit of TI above 1), so a lee is rough on a day
+whose declared gust is zero. MEASURED: 5.96 m/s of lift at 50 m on the steepest windward face in a
+12 m/s wind, -3.61 in the lee, 0.52 at 400 m, never more than the wind times the slope; the crest
+x1.17, the valley floor x0.93; the lee spreads 0.60 m/s where the windward face is exactly steady.
+
+**G504.2 (K2) — THE COLUMN, THE DAY'S WEATHER, AND A PANEL.** 05_atmos grows a LAYERED day (a mixed
+layer stirred to the dry adiabatic, a lid, the free atmosphere, the stratosphere; each layer
+integrated exactly) and BRANCHES FIRST, so a cfg naming no shape runs the G72 closed form and
+ATMOS_ISA is identical to the bit. Continuity 1e-8 K across every layer edge, hydrostatic to 2.6e-7.
+THE WATER IS ITS OWN FUNCTION, `atmosWater(atm, dewC)`, deliberately outside makeAtmos: humidity
+does not change the density (the dry-air cut) and GATE DAY holds that moving it leaves `world.atmos`
+the SAME OBJECT. The condensation level is DERIVED where the dew point (1.8 K/km) meets the
+temperature - which under a mixed layer reproduces the day's own 125 m-per-degree rule to 2.3e-11 m,
+the same arithmetic twice rather than two models. `climate.mixTop()` = min(lid, LCL): a capped day
+tops its thermals early and makes no cumulus, an uncapped one marks every one with a cloud.
+THE DAY CARRIES THE WEATHER: a diurnal swing (default 0 = no change) and a FRONT on the clock (an
+intensity that rises, holds and clears; the wind up and veered, the temperature and the pressure
+down, the sky to cb, the visibility thickened). One `airKey` the world's atmos getter rebuilds
+LAZILY on - which is what lets the CLOCK make weather, since `advance()` never bumps the version.
+`world.dayTick(dt, simT, ax, az)` is the viewer's step; the solver never calls it (the two-clocks
+rule). MEASURED over one passage: 7.1 -> 19 m/s, veer 55 deg, -6 C, -9 hPa, cover -> 0.95 cb,
+visibility 60 -> 26 km, and it clears back to exactly the day it found, never moving more than
+0.14 m/s in a minute of the clock.
+THE WEATHER PANEL (`src/viewer/weather_ui.js`) on BOTH rails: seven presets as whole days, the wind
+with a direction and `the hills`, the air, the column, the front, four LIVE rows. `#selCond` stays
+THE KEEPER - its options became the presets, its handler is still the one place a preset is applied,
+and the panel presses it. `windBase` is DELETED (the map chip and the air flyout read the climate's
+own 10 m wind). `?wind=` / `?storm=`, the weather in the pref, an F8 `climate` fold.
+
+**G504.3 (K3) — HOT AIR THAT LIFTS THINGS.** Thermals on Lenschow/Allen/Deardorff:
+H = heat(1-alb) S0 tau max(0, sin El_lag)(1 - 0.7 cover), w* = (g/T H/(rho cp) z_i)^(1/3), with
+`heat` off the raster (no column over water) and `El_lag` the sun TWO HOURS AGO because the ground
+runs behind it. A square lattice at 1.5 z_i in a frame advected by ONE wind (the boundary layer's) -
+every column drifts with no per-thermal state, and a frozen day is a frozen field. The core peaks at
+4.2x Lenschow's AREA MEAN (his 0.36 w* is an area mean; a core is 1.5 w*), with a sink annulus to
+2 r2 at -w_pk/4 that balances it exactly (analytically +-pi w_pk r2^2/2; measured 0.66 % net of
+gross). THE TILT IS THE SHEAR'S, NOT THE WIND'S - the column rides in the moving air, so only
+U(z)-U_bl can lean it; the whole wind put a 2 km lean on a 900 m column. THE JITTER DECIDES FIRST:
+asking "is there cloud here" at the lattice point instead of at the column's own place blurred the
+clustering from 2.0x to 1.4x. The DAY owns `cloudSeed`, so the climate reads the SAME weather map
+the sky is drawn from and the columns cluster under the cumulus - twice over against cloud on ground
+that could hold one.
+THE SEA BREEZE along the coast's own gradient, same lagged sun, killed by cloud, 700 m deep,
+reversing overnight (2.7 m/s onshore at 15:00, seaward at 02:00). Its vertical part is continuity
+alone and is NAMED as broad - 0.04 m/s, which is a front's convergence smeared over twenty
+kilometres; the sharp line a glider works is owed.
+THE VARIOMETER: `44_machine_sheet.sinkAt(V)` fits the parabolic polar through the two points the
+sheet already had (exact at both, no new assumption); `ap.sheet` is PUBLISHED at last (43_pilot's
+header had claimed it since P0.4 and never did); the HUD reads netto = vs + sinkAt(V) on a 3 s
+needle with a 20 s mean, off until the instruments row asks.
+
+**G504.4 (K4) — THE PICTURE ANSWERS THE WIND.** `src/viewer/climate_link.js` is the ONE place the
+renderer asks the climate, once a frame inside worldUpdate. Everything that showed the wind used to
+keep its own copy - `windBase`, a CONDITIONS row, a hard-coded `3, 1` in clouds.js - and they
+disagreed the moment anything moved.
+THE SEA (agreed with the water session, four conditions): `seaFrom` now RECORDS what it drew (each
+train's amplitude coefficient, wavelength RATIO, direction offset) without touching a line of its
+arithmetic, so the legacy draw is identical to the bit (golden 63eccad3); `seaApply` re-applies it
+at a new state; `seaTau` on the day (default 0 = the immediate rebuild) relaxes it in the WORLD's
+own tick, so the solver's waterH and the shader's uniforms are never two seas. THE FELT FLAG IS THE
+DRAW'S, decided once from the ratio - waterH sums the felt band alone, so a train crossing the
+threshold mid-front would STEP the surface a float is riding, and the longest wind-sea component
+sits at ratio 0.671-0.757 against SEA_FELT 0.75, right on the line. THE PHASE IS ANCHORED AT THE
+AEROPLANE: holding only the time term leaves the space term free, and k times four kilometres turns
+several radians in one tick - a BIGGER step (0.69 m) than the jump this was removing (0.28). Anchored
+at the craft, a 5 -> 16 m/s front steps the surface 0 m and never moves more than 1.5 cm a second
+within 120 m of the hull (0.53 m at 4-8 km, the named slide, where the water's LOD has already
+turned those ridges into roughness). tau 900 is the honest default: tau 120 wobbles 0.22 m/s.
+THE CLOUDS' DRIFT IS AN INTEGRAL, not `wind x secs` - a position computed from the wind NOW, which
+jumped the whole sky by dw x 60 000 s whenever the wind changed; seeded from the old closed form so
+a fresh boot draws the sky it always drew.
+EVERY SOCK IN ITS OWN WIND (a ridge strip and a sheltered valley genuinely differ, and a sock is the
+one instrument in the world meant to say so); the ripples, whitecaps and glitter told on change
+(they used to move ONLY when somebody picked a preset); the spray and the smoke relax toward THE AIR
+rather than toward nothing.
+THE TREES LEAN (agreed with the vegetation session, four conditions) on one shared `uWind`: a leaf by
+its height and gl_InstanceID; a cover tuft by height on the `aRand` it already carries, POSITION
+ONLY (its normal is the ground's - G484, or the harsh light/dark halves come back); an impostor card
+SHEARED not rotated, before the fade's shrink, collapse test last, scaled by uDiam because the stand
+cards share the material. A `sway` gfx row whose gain 0 is a zero bend in the SAME program, so it
+never forks G484's cache key.
+THE MIST IS NOT TOUCHED: `climate.haze()` publishes the INGREDIENTS (Koschmieder rho0, top, H,
+visibilityKm) and the fog study's F1 wires the consumer - agreed by message, and G500 records it.
+
+**G504.5 (K4.1) — THE WEATHER IS NOT THE SUN.** `dayApply()` returned from its WHOLE body on
+`rigCur.manual` (the F8 hand-placed sun), which also froze ATMO.update and the clouds' drift.
+Invisible while the mist was a constant per day; a bug the moment a front moves the visibility and
+the sky drifts on its own clock. The weather now runs first and the manual gate sits where it always
+meant to be - on the LIGHT (the probes already carried their own guards, and the comment two lines
+down already said the clouds were "not gated on the sun's move"). Caught by the FOG session in
+review, not by a gate.
+
+**G504.6 (K4.2) — THE SPATIAL SIGNATURE AND A LOW DECK SAID OUT LOUD.** `profile(h, x, z)` takes the
+spatial arguments and IGNORES them, documented as such and agreed with the fog study (its 5b): the
+column is horizontally uniform by declared boundary, but its consumers are spatial from their first
+line, so the signature costs a comment now and every call site plus a bake path later. AND: because
+the LCL reproduces the 125 m rule exactly, a nearly saturated day puts the base at 38 m and every
+eye above the valley floor is inside cloud - exact, and load-bearing for mixTop(), so NOT to be bent
+for a visual. The panel says so where the player decides instead: "the deck is on the deck - the
+cloud base is at N m, below circuit height".
+
+GATES: **GATE CLIMATE** (core, `tools/test_climate.js`) - the zero path's shared exact vector; the
+legacy field bit-identical against a verbatim G72 copy; determinism across two worlds; the raster;
+the ridge and the crest; the thermals (the beam, w* by ground, the column up and across, the mass
+balance, a night that is an exact zero, the lattice walking downwind); the breeze; the column and
+the water; the front; the sea; the cloud link; the two clocks; and the sources, including the
+viewer's wiring. **GATE SOAR** (full, `tools/test_soar.js`) - the motorglider engine-off on the
+pilot's own GLIDE combination: S1 the flown sink 1.37 against the sheet's 1.36; S2 a ridge beat at
+minimum-sink speed 120 m over the face that GAINS energy height (233 -> 243 m over 230 s) where the
+same beat with `terrain: 0` is on the ground inside the run; S3 a thermal circled at 41 deg that
+CLIMBS 0.58 m/s in air averaging 2.76 and gains 59 m in 200 s where the same circle without the
+columns loses 430, the netto vario reading the air to 0.29 m/s.
+
+THE HARNESS LESSONS, all measured and all in the gate's own comments: the pilot's `HDG` mode holds
+the GROUND TRACK, not the heading (a gate's own crab on top of it walks the aeroplane upwind at
+3.4 m/s); its lateral law NULLS the track error, so a commanded circle needs a point that keeps
+moving AHEAD of it (a rotating tangent gave 8 deg of bank and a 181 m radius where 41 deg and 29 m
+were asked); every beat reversal costs ~300 m of downwind drift, so a ridge beat turns INTO the
+wind, away from the hill; and a *day* spec is not a *wind* spec (the first S3 run had no thermals at
+all and both cases matched exactly). Also: the Browser pane has no live requestAnimationFrame - a
+hidden pane suspends it, so worldUpdate never runs and every link value reads zero; prove render
+wiring headlessly and use the headless-Chrome rigs for pictures.
+
+OWED: K5 the debug visualisation the user asked for (streamlines, an intensity carpet, thermal
+columns) and K6 the storm's playtest; lee/mountain waves (`waves` is parsed and ignored); rotor
+dynamics; katabatic slope winds; the sea-breeze front's sharp line; moist density; precipitation; an
+audio vario; diegetic thermal markers (birds, dust devils); the shed's windsock and sky under a
+storm; shadow-map sway; a ridge tint on the ground (the sampler budget forbids it); an island-world
+SOAR case (bench/ is absent in worktrees, so the ridge case flies the analytic world); the Munk
+moment's `world.wind(ax, ay, 0, simT)` z=0 (fixing it is not bit-identical under refH); and the
+15 m motorglider's "wont-climb" debt, untouched. A RULING IS OPEN for the user: whether a saturated
+day wants a coverage floor, patchiness, or nothing at all.
+
+VERIFIED BY THE SESSIONS THAT OWN THE FILES, which is why the peer messages are worth the time:
+- THE WATER SESSION ran GATE WATER, HYDRODYN, FLOATS and WIPLINE on this branch (all PASS) and
+  proved SEAPLANE's three failures identical TO THE DECIMAL on master and here, i.e. pre-existing.
+  It also re-measured the front with a better instrument than mine - the felt band evaluated at the
+  same instant under the current rows and under a snapshot of the previous ones, differenced - and
+  got 0.115 m/s worst within 120 m of the hull at day rate 60 (about 2 mm/s at rate 1), 1.2-4.6 m/s
+  out at 500 m to 8 km. Its verdict on the slide: invisible, because by 1-2 km those trains have
+  faded out of the slope and only their variance survives, which has no phase to slide. Shot at
+  300 m and at the horizon through the step: no banding, no pop.
+- THE VEGETATION SESSION read the splices and measured the sway over Jolene's densest stand:
+  105.6 ms with gain 1 against 101.5 with gain 0, on a card shared by three other rigs - inside the
+  noise. It also found that the rig's own scene is CALM, so nothing sways in it: hence
+  CLIMATE_LINK.setWind(), so a probe can make weather.
+- THE FOG STUDY caught G504.5 in review (the frozen weather under a hand-placed sun) and set the
+  shape of haze(): the ingredients, never a distance.
+- GATE SKINMAT is red on master already (taperPanel, drawnPane, reveal, shoulder, doorPanel),
+  measured on a clean master worktree; it is not this chantier's.
