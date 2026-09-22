@@ -116,6 +116,10 @@ const GATES = [
   // cut of a staged photoscan, base + three levels) = the park generator's
   // mirror, and the park plan is a park over twenty seeds. ~1 s.
   { id: 'TOTEM', file: '_totem_check.js', tier: 'core' },
+  // THE ANIMALS (2026-09-22): the declared table = the shipped skins, their
+  // clip libraries and the cut levels; and the behaviours run headless
+  // against the real vendor three (a herd, a pod and a flock, 900 steps).
+  { id: 'ANIMALS', file: '_animal_check.js', tier: 'core' },
   // THE TRAM CABIN (G343): the user's cable car baked as a prop and dressed
   // from the house library - roles, metric uvs, the gasket round every
   // window, the livery on both flanks, the liveries published

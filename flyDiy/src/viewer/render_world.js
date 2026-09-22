@@ -15,6 +15,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // written from world.day in dayApply() unless the rig is set to manual.
   const SUN_SKY = SUN.clone();
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
+  let minimapBox = null;              // ...and WHERE it is: { x0, z0, size } in world metres.
+                                      // An ISLAND's bounds are its own square - not centred on
+                                      // the origin, not 24 km wide - and the map drew the picture
+                                      // at a hard-coded +-12000 either way, so on Jolene the
+                                      // underlay and the markers were in two different frames
+                                      // (G498.2). Set where the canvas is, from the same numbers.
   let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
@@ -1062,6 +1068,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           mg.stroke();
         }
         miniCanvas = mc;
+        minimapBox = { x0, z0, size: EXT };            // the box this very picture covers
       }
       const TW = 2048, cv = document.createElement('canvas');
       cv.width = cv.height = TW;
@@ -4478,6 +4485,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         patchMat: inner ? innerPatchShared.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)),
         patchUV: inner ? innerPatchShared.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
         site: { siteRunway, sitePattern, sitePatternIssues, patternPath },
+        // the EYE, for the animals' cull and the ambient flocks' ring: the chase
+        // camera, which is where the player actually is (the CG is the aeroplane)
+        eye: () => camera.position,
       });
       premisesR.rebuild();
       while (premisesR.stats.queued) premisesR.step(4);
@@ -4728,7 +4738,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function worldUpdate(cg) {
     if (premisesR && premisesR.stats.queued) premisesR.step(1);   // a live edit's builds, one a frame
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals)) { const now = performance.now(); premisesR.tick(premTramLast ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }
     if (cg) seaUpdate(cg[0], cg[2], 1 / 60);                       // H4: the near sea, in the aeroplane's wave
     // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
     // view from the direction to the eye, and 30 m of chase offset is 4 deg of
@@ -5008,7 +5018,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (Number.isFinite(h) && Math.abs(h) < 3) return seaPlaneY;   // the sea's plane
     return null;
   }
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
@@ -5022,7 +5032,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const inner = innerPatchShared;
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec || null, { game: true, pool: () => [], editing: () => !!(window.PREMISES_HOST_OPEN),
         patchMat: inner ? inner.mat : (outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null)), patchUV: inner ? inner.uv : (x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)],
-        site: { siteRunway, sitePattern, sitePatternIssues, patternPath } });
+        site: { siteRunway, sitePattern, sitePatternIssues, patternPath }, eye: () => camera.position });
       return premisesR; },
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,

@@ -107,6 +107,10 @@ const MANIFEST = {
     '50_model_codec.js',
     '51_prop_codec.js',
     '52_char_codec.js',
+    // THE ANIMALS (2026-09-22): a skinned subject with a CLIP LIBRARY and a
+    // rigid child — decode only, no three.js, and required by node
+    // (tools/animal_lod.js poses the skin with it before it cuts).
+    '55_animal_codec.js',
     // the baked trees (W0b): decode only, no three.js — the same file the
     // node gate requires, so the payload has ONE reader
     '53_tree_codec.js',
@@ -185,6 +189,15 @@ const MANIFEST = {
   // baked RIGGED CHARACTERS (tools/char_prep.py from tools/chars_table.py):
   // one manifest per character, order written by the baker. They ride in the
   // MODELS slot behind 52_char_codec.js, which defines registerChar().
+  // THE ANIMALS (2026-09-22): the baked skins + their clip libraries
+  // (tools/animal_prep.py from tools/animals_table.py) and, beside them, the
+  // static LEVELS as a PROP pack (tools/animal_lod.js). Both ride in the
+  // MODELS slot: the first behind 55_animal_codec.js, which defines
+  // registerAnimal(), the second behind 51_prop_codec.js's registerPropPack.
+  animals: (() => { try { return JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'src', 'animals', 'animals_index.json'), 'utf8'))
+      .concat(JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'animals', 'animals_packs.json'), 'utf8'))); }
+    catch (e) { return []; } })(),
   chars: (() => { try { return JSON.parse(fs.readFileSync(
       path.join(ROOT, 'src', 'chars', 'chars_index.json'), 'utf8')); }
     catch (e) { return []; } })(),
@@ -198,6 +211,16 @@ const MANIFEST = {
   // but that never counts against index.html's budget. ORDER is the bench
   // page's (tools/_premises.html).
   world: [
+    // THE ANIMALS (2026-09-22): plume.js (the village chimney's smoke recipe,
+    // made portable, for the whale's blow), animals.js (the ONE factory: the
+    // skinned instance, the clip player, the LOD ladder) and animal_run.js
+    // (the herds, the pods and the flocks). In the WORLD pack rather than
+    // inlined for the reason the rest of this list is: 47 KB of code that is
+    // fetched once and cached, and that index.html's budget need not carry.
+    // render_world.js and render_premises.js are the two hosts that make a
+    // runner, and both ask for window.ANIMAL_RUN at call time, so the refs
+    // landing after the inlined viewer is soon enough.
+    ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
@@ -535,6 +558,9 @@ function buildViewer(coreBody) {
   const CHARS_DIR = path.join(ROOT, 'src', 'chars');
   const chars = MANIFEST.chars.map(f => read(path.join(CHARS_DIR, f)));
   chars.forEach((m, i) => syntaxCheck(MANIFEST.chars[i], m));
+  const ANIMALS_DIR = path.join(ROOT, 'src', 'animals');
+  const animals = MANIFEST.animals.map(f => read(path.join(ANIMALS_DIR, f)));
+  animals.forEach((m, i) => syntaxCheck(MANIFEST.animals[i], m));
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
   // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
   // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting.
@@ -647,7 +673,8 @@ window.FLYDIY_BOOT.then(function () {
   const payloadRefs = MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f))
     .concat(MANIFEST.props.map(f => ref(PROPS_DIR, 'src/props', f)))
     .concat(MANIFEST.panelhw.map(f => ref(PANELHW_DIR, 'src/panelhw', f)))
-    .concat(MANIFEST.chars.map(f => ref(CHARS_DIR, 'src/chars', f))).join('\n');
+    .concat(MANIFEST.chars.map(f => ref(CHARS_DIR, 'src/chars', f)))
+    .concat(MANIFEST.animals.map(f => ref(ANIMALS_DIR, 'src/animals', f))).join('\n');
 
   // --- the served page: code inlined, payloads referenced ---
   let art = shell;
@@ -754,6 +781,11 @@ window.FLYDIY_BOOT.then(function () {
     }
   for (const f of MANIFEST.chars)
     if (!art.includes(`src="src/chars/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
+      process.exit(1);
+    }
+  for (const f of MANIFEST.animals)
+    if (!art.includes(`src="src/animals/${f}?v=`)) {
       console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
       process.exit(1);
     }

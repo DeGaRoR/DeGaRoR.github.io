@@ -740,6 +740,18 @@
         "D:/Dev/DeGaRoR.github.io"
       ],
       "port": 8487
+    },
+    {
+      "name": "flydiy-animals",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8490",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8490
     }
   ]
 }

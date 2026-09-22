@@ -50,13 +50,13 @@ function make(THREE, scene, world, rec0, opts) {
                                                      : PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   let O = composeNow();
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
   const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
   placeLots();
   scene.add(root);
-  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0 };
+  const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0, animals: 0, animalsShown: 0 };
   // THE LAMP POOL (G449 - G417's account, whose code never reached the tree: the commit carried the
   // HANDOVER, the doc and the F8 dial only). Every built thing publishes its lights (HOUSE_GEN
   // stats.lit.lights: the bulb's place in the house frame, colour, level k, reach; the fixtures
@@ -87,6 +87,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (typeof propSetGlowOf === 'function') { const kFix = LAMPS.muted ? 0 : on * Math.pow(0.92 / Math.max(0.92, ex), 0.9); for (const key of LAMPS.glowKeys) propSetGlowOf(key, kFix); }
     const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35);   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
     for (const u of LAMPS.smoke) u.value = kSmoke;
+    LAMPS.smokeK = kSmoke;                                   // the animals' plume takes the same hand (animal_run.js)
     if (on <= 0 || LAMPS.muted) { for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } LAMPS.litNow = stats.litNow = 0; return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
@@ -517,7 +518,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function worldPts(entry) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -669,6 +670,54 @@ function make(THREE, scene, world, rec0, opts) {
     stats.runways = O.runways.length;
   }
 
+  // ---- THE ANIMALS (2026-09-22) -------------------------------------------------------------
+  // Every `animal` object of the record is a HOTSPOT: n of a species within r metres. The herd,
+  // the pod or the flock is animal_run.js's; this owns only the hand-off - the hotspots in WORLD
+  // coordinates (the premises frame applied) and the host contract that module asks for: the
+  // composed ground (never the world's raw terrain - an elk stands on the flattened meadow), the
+  // world's water, the eye for the cull, and the aeroplane's own water effects where they exist.
+  let ANIM = null;
+  function animalCtx() {
+    return {
+      scene: G.animals, ground: (x, z) => O.terrainAt(x, z),
+      waterH: (x, z) => (world.waterH ? world.waterH(x, z) : -Infinity),
+      eye: o.eye || null,
+      // THE WATER IS THE AEROPLANE'S OWN (the user: "the whales should trigger the water surface
+      // effects, just like the planes, wake and splashes, they're there and available"): the H7
+      // interaction field, which is only ON while the aircraft is itself near water - which is
+      // exactly the close range the ask names.
+      stamp: (x, z, r, amp, foam, kind) => (window.WATER && WATER.field && WATER.field.on
+        ? WATER.stamp(x, z, r, amp, foam, kind) : false),
+      spray: (kind, x, y, z, vx, vy, vz) => { if (typeof window.FLYDIY_SPRAY === 'function') window.FLYDIY_SPRAY(kind, x, y, z, vx, vy, vz); },
+      // ...and the animals may ASK for the field, so a landplane low over a pod gets the wake too
+      // (app.js's syncWaterFx block reads WATER.field.ask; the ask expires in half a second)
+      wantWater: () => { if (window.WATER && WATER.field) WATER.field.ask = performance.now(); },
+      lit: () => (LAMPS.smokeK === undefined ? 1 : LAMPS.smokeK),     // the day's haze factor, the chimneys' own
+      // world.wind(x, y, z, t) is the world's own sampler (clouds.js reads it the same way)
+      wind: () => { if (typeof world.wind !== 'function') return [0, 0]; const w = world.wind(0, 20, 0, 0); return w ? [w[0], w[2]] : [0, 0]; },
+    };
+  }
+  // THE AMBIENT FLOCKS (the user: "flocks of birds ... should probably just go across the map"):
+  // not a record's - the world's. They are born outside 1.2 km of the eye, cross and die at 1.6,
+  // and they belong here only because the premises runner is the one clock the world already
+  // turns. In the EDITOR they are off: a flock crossing the plan view is noise.
+  // window.FLYDIY_FLOCKS sets how many (0 turns them off entirely).
+  const AMBIENT = () => (typeof window !== 'undefined' && window.FLYDIY_FLOCKS !== undefined
+    ? (window.FLYDIY_FLOCKS | 0) : 2);
+  function syncAnimals() {
+    const spots = (O.records && O.records.animals) || [];
+    const air = window.ANIMALS && window.ANIMALS.list ? (window.ANIMALS.list('air')[0] || null) : null;
+    const nAmb = (o.game && air) ? AMBIENT() : 0;
+    if (!ANIM && (!(spots.length || nAmb) || !window.ANIMAL_RUN || !window.ANIMALS)) { stats.animals = 0; return; }
+    if (!ANIM) { try { ANIM = window.ANIMAL_RUN.make(THREE, animalCtx()); } catch (e) { console.warn('premises animals', e && e.message); return; } }
+    const F = O.frame;
+    ANIM.sync(spots.map(sp => { const w = F.toWorld(sp.x, sp.z);
+      return { id: sp.id, key: sp.key, x: w[0], z: w[1], n: sp.n, r: sp.r, yaw: (sp.yaw || 0) + (F.yaw || 0), dy: sp.dy }; }));
+    if (air) ANIM.ambient(nAmb, air.key);
+    // the tick's own gate reads this (render_world): a world with only ambient flocks still runs
+    stats.animals = ANIM.stats.animals + nAmb;
+  }
+
   // ---- THE TRAM RUNS (G398.3): a cable link's stations tied by their ropes as tubes and two cabins in a
   // jig-back - the village's tram_run on the solved line (its geom is vil.tram's shape: docks, ropes,
   // slots, in the premises frame with absolute heights) - ticked by the host's clock (R.tick). Rebuilt
@@ -762,7 +811,7 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
   // the clock: the host's dt in seconds; the cabins and the traffic move
-  function tick(dt) { hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); return TRAMS.size + TRAFFIC.size; }
+  function tick(dt) { hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
@@ -1306,6 +1355,7 @@ function make(THREE, scene, world, rec0, opts) {
       buildRunways();
       syncTrams();   // the trams run in the game whether or not the editor is open (G398.3)
       syncTraffic();
+      syncAnimals();
       if (o.editing()) { buildOutlines(); buildHandles(); }
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; }
       syncHouses();
@@ -1328,6 +1378,7 @@ function make(THREE, scene, world, rec0, opts) {
     buildOutlines();
     syncTrams();
     syncTraffic();
+    syncAnimals();
     buildRunways();
     buildHandles();
     syncHouses();
@@ -1356,7 +1407,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
     // a hand-placed tree within two metres wins over the polygon under it
     let tree = null, td = 2.5;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
@@ -1372,6 +1423,7 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    if (ANIM) { ANIM.dispose(); ANIM = null; }
     { const R = OBS(); if (R) for (const id of OBST_IDS) R.remove(id); OBST_IDS.clear(); }
     for (const [, m] of chunks) m.geometry.dispose();
     if (patch) { patch.geometry.dispose(); patch = null; }
@@ -1384,6 +1436,8 @@ function make(THREE, scene, world, rec0, opts) {
   const R = {
     root, groups: G, stats,
     rebuild, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    animals: () => (ANIM ? ANIM.list() : []),
+    animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); },

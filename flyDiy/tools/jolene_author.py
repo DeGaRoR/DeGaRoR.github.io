@@ -35,6 +35,12 @@ WHAT IS WRITTEN (contract v1.14, G434):
             hangar, which is the garage's shell), the hill strip's field shed
   zones     the village: a harbour zone at the dock, a residential zone on the
             headland
+  animals   eight HOTSPOTS (2026-09-22, contract v1.17): elk NE of 02/20, does
+            on the headland, gulls over the dock; THE TAMGAS SANCTUARY (a bear,
+            an elk herd and a deer herd either side of the hill strip, which is
+            how you get to them); and the whale watching - a pod of five orca ON the
+            sea lane and a blue whale 8.7 km out in Dixon Entrance. Every site
+            searched on the DEM, see ANIMALS below
 """
 import json, math, os, sys
 import numpy as np
@@ -105,6 +111,42 @@ W3_PROFILE = [[0, -5.5], [0.1, -4.45], [0.2, -3.4], [0.3, -2.01], [0.4, -0.14], 
 # search on the coast field asked water 220 m either side of a 1500 m lane and 300 m past its far end
 SEA_E0, SEA_HDG, SEA_LEN, SEA_WID = (900.0, -3140.0), math.radians(224.0), 1500.0, 200.0
 SEA_C = (SEA_E0[0] + math.cos(SEA_HDG) * SEA_LEN / 2, SEA_E0[1] + math.sin(SEA_HDG) * SEA_LEN / 2)
+
+# ---- THE ANIMALS (2026-09-22) -------------------------------------------------------------------
+# Six HOTSPOTS, each ONE `animal` record (contract v1.17): the species, how many, and the radius
+# they live over. Every site was SEARCHED on the island's own DEM rather than picked off a map -
+# the land ones for a patch with no water in it and the gentlest slope over the herd's own radius,
+# the sea ones for the widest circle of open water. What each search returned is in the comment.
+#   a1  four elk on the flattest 120 m of the bench NE of 02/20's north end (max slope 9.6 % over
+#       the patch, ground at 26 m) - seen on the base leg for 02, and a real reason to look
+#   a2  ONE bear (they are solitary) on the flat below the Tamgas hill strip, 100 m from the strip's
+#       own downhill end (max slope 7.3 %, ground at 22 m)
+#   a3  five does on the headland above the village (max slope 13.6 %, which a deer does not notice)
+#   a4  a pod of FIVE orca in the channel off Annette Dock, on the sea lane itself: the widest open
+#       water within the premises (550 m clear at (0, -3750)), so you meet them on the approach
+#   a5  ONE blue whale in Dixon Entrance, 8.7 km SW - the widest open water in the whole raster
+#       (3.9 km clear). Deliberately far: it is the one you go and look for. A hotspot is placed in
+#       WORLD coordinates and is not bounded by the premises' extent (GATE ANIMALS holds that).
+#   a6  a flock of gulls over the dock, at 45 m
+#   a7/a8  THE TAMGAS SANCTUARY (2026-09-22, the user: "a place on the island for an animal
+#       sanctuary thing"). a2's bear was already 100 m off the hill strip; these two put an elk
+#       herd and a deer herd on the benches either side of it, so the strip IS the way in: land
+#       uphill at Tamgas, walk west, and there are bear, elk and deer inside a kilometre. Both
+#       sites searched the same way - the flattest dry 110 m patch within 700 m of the strip and
+#       no nearer than 90 m to it (a7 mean slope 4.1 %, ground 31 m; a8 5.4 %, ground 26 m).
+#       THE WHALE WATCHING is a4 and a5: the pod is ON the sea lane, so a floatplane meets it on
+#       every approach to Annette Dock, and the blue whale is the expedition out in Dixon Entrance.
+ANIMALS = [
+    {'id': 'a1', 'kind': 'animal', 'key': 'elk',   'x': 1180.0, 'z': -1080.0, 'yaw': 0, 'n': 4, 'r': 120, 'dy': 0},
+    {'id': 'a2', 'kind': 'animal', 'key': 'bear',  'x': -800.0, 'z': -2300.0, 'yaw': 0, 'n': 1, 'r': 70, 'dy': 0},
+    {'id': 'a3', 'kind': 'animal', 'key': 'doe',   'x': 740.0, 'z': -2500.0, 'yaw': 0, 'n': 5, 'r': 110, 'dy': 0},
+    {'id': 'a4', 'kind': 'animal', 'key': 'orca',  'x': 0.0, 'z': -3750.0, 'yaw': 0, 'n': 5, 'r': 300, 'dy': 0},
+    {'id': 'a5', 'kind': 'animal', 'key': 'whale', 'x': -8600.0, 'z': 2400.0, 'yaw': 0, 'n': 1, 'r': 450, 'dy': 0},
+    {'id': 'a6', 'kind': 'animal', 'key': 'bird',  'x': 900.0, 'z': -2980.0, 'yaw': 0, 'n': 7, 'r': 200, 'dy': 45},
+    # THE TAMGAS SANCTUARY - the two herds either side of the hill strip (with a2's bear)
+    {'id': 'a7', 'kind': 'animal', 'key': 'elk',   'x': -1300.0, 'z': -2350.0, 'yaw': 0, 'n': 6, 'r': 150, 'dy': 0},
+    {'id': 'a8', 'kind': 'animal', 'key': 'doe',   'x': -1420.0, 'z': -2520.0, 'yaw': 0, 'n': 7, 'r': 130, 'dy': 0},
+]
 
 # ---- THE CLUB: the pad west of the junction (the satellite's circled building) ------------------
 # the site's frame: +z the strip side = EAST (the apron and the taxiway V lie east of the row),
@@ -262,10 +304,10 @@ def main():
                 {'id': 'o1', 'kind': 'aircraft', 'key': 'arch:cub', 'x': R(club_world(20, 40)[0]), 'z': R(club_world(20, 40)[1]), 'yaw': R(-math.pi / 2, 4)},
                 {'id': 'o2', 'kind': 'aircraft', 'key': 'arch:c172', 'x': R(club_world(36, 42)[0]), 'z': R(club_world(36, 42)[1]), 'yaw': R(-math.pi / 2 + 0.2, 4)},
                 {'id': 'o3', 'kind': 'aircraft', 'key': 'arch:jodel', 'x': R(club_world(-48, 44)[0]), 'z': R(club_world(-48, 44)[1]), 'yaw': R(math.pi / 2 - 0.3, 4)},
-            ],
+            ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 4,
+        'rev': 7,
     }
     txt = json.dumps(rec, indent=1)
     if '--print' in sys.argv: print(txt); return

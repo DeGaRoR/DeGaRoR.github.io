@@ -724,6 +724,49 @@ re-origin to the footprint's centre on the ground, mesh decimation to the
 budgets above (quadric edge collapse; no vertex moved to a new position), and
 the base-colour maps re-encoded at 1024 px JPEG.
 
+## The animals (`assets/animals/`, baked and served from media/)
+
+Six rigged, animated animals for Jolene (2026-09-22): three land animals with
+their own clip libraries, two whales and a gull. Declared in
+`tools/animals_table.py`, baked by `tools/animal_prep.py` into
+`src/animals/<key>_animal.js` + `media/geo/animals/` + `media/tex/animals/`,
+and their static LEVELS cut by `tools/animal_lod.js` into
+`src/animals/animals_lods.js` + `media/geo/animal_lod/`. GATE ANIMALS
+(`tools/_animal_check.js`) holds the table against the payload.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) —
+attribution is a condition of the licence and must stay visible wherever
+these are shown:
+
+- `bear` — **"Realistic Animated Bear 3D Model"** by WildMesh 3D
+  (https://skfb.ly/pwvXN) - 7 508 triangles, 37 joints, 81 delivered clips
+- `elk` — **"Realistic Animated Elk 3D Model"** by WildMesh 3D
+  (https://skfb.ly/pFGDA) - 7 886 triangles, 38 joints, 53 delivered clips
+- `doe` — **"Realistic Animated Doe 3D Model"** by WildMesh 3D
+  (https://skfb.ly/pKFFs) - 5 216 triangles, 38 joints, 55 delivered clips
+- `bird` — **"Bird"** by Blender Artist (Sketchfab; 810 triangles, 435
+  vertices as the listing states - five gulls in one file, of which ONE is
+  baked) - 162 triangles a bird, 10 joints, one 0.67 s flap
+- `whale` — **"Blue Whale - Textured"** by Bohdan Lvov
+  (https://skfb.ly/67RFV) - 2 424 triangles, 24 joints, one swim loop
+- `orca` — **"Killer Whale"** by Trouvaille
+  (https://skfb.ly/6SI7C) - 3 072 triangles, 12 joints, one swim loop
+
+**STILL OWED, one small thing**: the `bird` listing's own URL. Its title,
+author and licence were read off the model's own Sketchfab download dialog
+(2026-09-22) and are in the payload; only the short link is missing, and
+`tools/animals_table.py`'s `SOURCES` row says so rather than inventing one.
+
+Modifications made, as CC-BY asks to be indicated: a uniform scale per animal
+(each export arrives in its own unit; the baker measures the rest mesh and
+scales it to a declared real length - a bear at 2.20 m, a blue whale at 25 m),
+the delivered clips resampled onto a uniform grid at 10-24 fps with the root's
+travel extracted so the game drives the world position, mesh decimation for
+the levels only (quadric edge collapse on a posed copy; no vertex moved to a
+new position, the base mesh untouched), the base-colour and normal maps
+re-encoded at 1024 px, and for the gull the selection of ONE of the five birds
+the file holds. No geometry of any delivered mesh was edited.
+
 ## Design-tile silhouettes (the birth flow)
 
 - **What**: the inline SVG silhouettes and glyphs on the macro-row tiles

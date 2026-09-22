@@ -183,6 +183,15 @@ function manifestFiles() {
       .filter(f => /_(?:char|anim)\.js$/.test(f))
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
+  // the animals (2026-09-22): the baked skins and their clip libraries, plus
+  // the levels pack tools/animal_lod.js cuts - every manifest on disk, the
+  // same catalogue-not-publish-list reasoning as the models above
+  // (media/geo/animals, media/geo/animal_lod, media/tex/animals/<key>)
+  const animals = fs.existsSync(path.join(ROOT, 'src', 'animals'))
+    ? fs.readdirSync(path.join(ROOT, 'src', 'animals'))
+      .filter(f => f.endsWith('.js'))
+      .map(f => path.join(ROOT, 'src', 'animals', f))
+    : [];
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
@@ -190,7 +199,7 @@ function manifestFiles() {
   // user's captures into media/tex/shots and names them in this manifest
   const shots = fs.existsSync(path.join(ROOT, 'src', 'viewer', 'shots_pack.json'))
     ? [path.join(ROOT, 'src', 'viewer', 'shots_pack.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, trees, shots);
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin)/g;   // webp: LOADING S4's texture prep

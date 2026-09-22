@@ -55848,3 +55848,152 @@ cover 0.6) now carries a `clouds:march*` row where before there was no march tag
 FOG-MIST-2026-09-21.md §1a updated - the defect it documents is now the fix it documents.
 `FLIGHT_PROBE.camSet` taking RADIANS is left alone: that is an API, not a defect, and the study
 records it.
+
+## G498 — THE ANIMALS: THE FOURTH ASSET PIPELINE, THE CLIP MACHINE, THE POD AND THE FLOCKS
+## (2026-09-22, the user: "animals on Jolene island ... Can you do the full pipeline of import,
+## including LODs generation through decimation ... placeable using the world editor, and you'll
+## also do a couple of hotspots on Jolene ... The sea animals should loom ... the whales should
+## trigger the water surface effects, just like the planes ... generalize the smoke emission")
+
+Six rigged animals — **bear, elk, doe, orca, blue whale, gull** — imported, cut, placed and
+made to behave. Design: `futureDesigns/ANIMALS-2026-09-22.md`; procedure:
+`docs/ANIMAL-IMPORT-PROC.md`; credits: CREDITS.md — bear/elk/doe by **WildMesh 3D**, blue whale by
+**Bohdan Lvov**, orca by **Trouvaille**, the gull ("Bird") by **Blender Artist**, all CC-BY 4.0
+via Sketchfab; the gull's listing SHORT URL is the one thing still owed. GATE **ANIMALS** (core tier).
+
+TWO RULINGS TAKEN AT THE START, before any code. (1) Provenance: WildMesh 3D (bear, elk, doe),
+Bohdan Lvov (blue whale), Trouvaille (orca), all CC-BY 4.0 — the user's own lines, carried
+verbatim into every manifest. (2) **"don't author anything for the 2 first ones, they're great
+and complete, just do animations chaining clips. Do what's necessary only for the whales and
+birds, take no risk."** So NO joint curve is written by hand anywhere in this arc: the land
+animals run a state machine over their OWN libraries (the bear ships 81 clips, the elk 53, the
+doe 55), and the whales and the gull keep their single delivered loop with everything else —
+the dive, the surfacing, the circuit, the crossing — as ROOT motion.
+
+THE PIPELINE (the fourth table: props, chars, totems, animals):
+`tools/animals_table.py` (the authority) → `tools/animal_prep.py` (skins, clip libraries and
+maps → `media/geo/animals` + `media/tex/animals` + `src/animals/<key>_animal.js`) →
+`tools/animal_lod.js` (poses each skin at the row's `lodPose` and cuts 2 levels with
+prop_lod.js's own quadric decimator → `src/animals/animals_lods.js`, a PROP pack) →
+`src/core/55_animal_codec.js` → `src/viewer/animals.js` → `src/viewer/animal_run.js`.
+Cost as built: 26 268 base triangles, 10 levels (10 497 triangles in all), 34 clips, geometry
+2.6 MB, maps 1.9 MB, 47 KB of code — in the WORLD pack, not inlined (index.html 8.34 of its
+8.4 MiB budget).
+
+WHY A FOURTH CODEC, and it is not a preference: `52_char_codec.js` keeps ROTATION channels only
+(a seated pilot's root belongs to the ATD), carries ONE clip, and has no place for a rigid child.
+An animal's clip is the whole animal (34 of a bear's 76 channels are translations, and its root
+walks the rig forward), it needs a LIBRARY, and the elk's antlers are an unskinned mesh under a
+bone. The LEVELS are prop-format on purpose: a level is a rigid mesh wearing exactly the animal's
+maps, which IS the prop payload's shape — so props.js's one material factory, its texture cache,
+its THREE.LOD placement and propWarm's fetch all apply with no new code, and "a similar volume
+and colour" is true by construction rather than by care.
+
+FIVE THINGS THAT ARE MEASURED RATHER THAN BELIEVED, each of which would otherwise be a bug:
+- **the scale**: a row declares a real `length` (a bear at 2.20 m), the baker measures the rest
+  mesh — run through linear blend skinning, because a skinned mesh's NODE transform is ignored by
+  glTF and these exports set it to 0.01, so `glb_inspect` reports a bear 2 cm tall;
+- **the facing**: `forward` is checked against the walk clip's own direction of travel and a row
+  that disagrees is REFUSED (the whales' and the gull's, which have no gait, were read off an
+  orthographic render of the rest mesh with the small parts coloured — the eyes at +z, the beak at −z);
+- **the gait's speed**: the root's travel is extracted into the clip's `travel` and zeroed in the
+  frames, so the WORLD moves the animal at the clip's own 0.42 m/s and the feet do not skate.
+  That the bear's WalkSlow came out at 0.42 m/s is what proved the unit was right;
+- **the level's volume**: the gate asserts each level's box within 4 % of the animal's along its
+  length axis;
+- **the hotspots' sites**: all six searched on Jolene's own DEM (the flattest 120 m with no water
+  in it for the elk; the widest circle of open water — 550 m in the channel, 3.9 km in Dixon
+  Entrance — for the pod and the whale).
+
+THE BEHAVIOURS. A HOTSPOT is ONE `objects` record (contract **v1.17**, `kind: 'animal'`:
+`key, x, z, n, r, yaw, dy`) — `n` animals within `r` metres, each seeded from `(id, index)` so
+changing the count never moves the ones already standing. LAND: idle / browse / walk / lie, the
+asset's own `Trans_*` played through where the pair exists and a 0.25 s cross-fade where it does
+not; the walk follows the terrain and its normal, and a step into water, up a slope over 28° or
+out of the radius is refused and the animal turns instead. SEA: a slow circuit, and one dive
+cycle whose DERIVATIVE is the pitch (the arch is the motion, not a keyframe); at the surface it
+makes the aeroplane's own water — a `press` stamp of its beam, `foam` along its back, a `ring`
+and a burst of SPRAY when it breaks out (at most 4 of the field's 16 stamps a frame), and it
+BLOWS. THE FIELD IS ASKED FOR: it only ran when the aeroplane itself was on floats, so a surfaced
+animal within 150 m of the eye now sets `WATER.field.ask` and app.js honours it for half a second
+— a LANDPLANE low over a pod gets the wake and the splash too, which is what "just like the
+planes" has to mean. The ask EXPIRES; nothing keeps the field alive by forgetting a flag. AIR: the delivered file is already five gulls in a V, so the V is what the flock is; a
+placed flock circles, the ambient ones are born outside 1.2 km of the eye and cross.
+
+THE LOOM (the user: "ideally we should somehow see through the water a bit"). The water is drawn
+transparent but its opacity is the COLUMN's — deep water is opaque and a submerged whale simply
+is not there. So a submerged sea animal draws a SECOND, unlit copy of itself, skinned off the same
+skeleton, AFTER the water with the depth test off, at 0.62·exp(−depth/fade). It is the only thing
+in this layer that draws over the scene, and that fade is what bounds it: past a few body depths
+there is nothing to draw over.
+
+THE PLUME (`src/viewer/plume.js`). The village chimney's own recipe — the crossed quads, the two
+octaves of value noise scrolling upward, the `uSmokeLit` the day's exposure drives (G449) — made
+portable, with the puffs carrying a DELAY instead of a height so one clock drives a whole
+EVENT (the blow: 7.5 m in a second, gone in four). `tools/_house_gen.js`'s own copy is NOT moved:
+GATE CLOUD asserts the smoke's shader against that file's source, and lifting the body out of it
+would move the village's smoke to fix a whale. Instead the RECIPE is shared as numbers
+(`PLUME.RECIPE`) and GATE ANIMALS rule 8 asserts the two agree, to the digit.
+
+ON JOLENE (`tools/jolene_author.py`, rev 6): EIGHT hotspots, 34 animals, every site searched on
+the island's own DEM rather than picked off a map.
+  THE TAMGAS SANCTUARY (a2/a7/a8) — the answer to "a place on the island for an animal sanctuary
+  thing". The hill strip IS the way in: land uphill at Tamgas and inside a kilometre there is a
+  bear 100 m off the strip, an elk herd of six on the flat bench 250 m past its west end (mean
+  slope 4.1 %, ground 31 m, no water in the patch) and seven does on the bench below (5.4 %,
+  26 m). Nothing else on the island is reachable and stocked like that, which is what makes it a
+  place rather than three records.
+  THE WHALE WATCHING (a4/a5) — a pod of three orca ON the sea lane off Annette Dock, so a
+  floatplane meets them on every approach (550 m of open water, the widest inside the premises),
+  and ONE blue whale 8.7 km SW in Dixon Entrance (3.9 km of open water, the widest in the whole
+  raster): the expedition, the one you go and look for.
+  ...and the field's own: four elk NE of 02/20's north end, five does on the headland above the
+  village, seven gulls over the dock at 45 m, plus the ambient flocks, which belong to no record.
+A hotspot is placed in WORLD coordinates and is NOT bounded by the premises' extent — the whale
+lives 8 km outside it, and the gate holds that.
+
+- THE TRAP THIS ARC PAID FOR, and it is the layer rule restated: `const wAsk = WATER && ...` in
+  app.js threw `ReferenceError: WATER is not defined` under GATE UISMOKE, whose harness never loads
+  water.js. A BARE global throws where the layer is absent; `window.WATER` is merely undefined. The
+  line the ask sits in front of had it right all along (`window.WATER && WATER.fieldStep`), and the
+  new line jumped the guard. Both GATE WATER and GATE ANIMALS now assert `window.WATER` by name.
+- ON THE MAP (the user: "can you mark the hotspots on the mini map"): drawMap marks every
+  hotspot of the COMPOSED record - one mark a HOTSPOT, never one an animal, because the record is
+  the hotspot and its individuals wander inside it. Green, because everything else on that map is
+  spoken for (amber the route, cream the fields, blue the approaches, teal you); the SHAPE says
+  where it lives - a filled dot on the ground, a ring in the water (a pod roams a wide circuit), a
+  chevron in the air; the RADIUS is drawn once it is worth pixels, and the species and the count
+  are labelled once the map is large. GATE ANIMALS rule 10.
+- G498.2, TWO CORRECTIONS the user called (2026-09-22):
+  THE ORCA WAS A FEMALE'S LENGTH. The payload always measured what it declared (dim 4.01 x 3.62 x
+  7.50) - the DECLARED length was wrong for the animal, and it was applied to every orca in the
+  pod. 8.5 m now (a mature bull; males run 8-9.8 m, females 5.5-6.6), and a pod is FIVE. With it a
+  fifth declared field, `spread`: how much the individuals of one hotspot differ, as a fraction
+  either side of the declared length - one scale on each individual at runtime, the payload
+  untouched. A pod is not meant to be uniform (a bull, a matriarch, calves: measured in the game
+  at 8.1 / 8.3 / 8.7 / 9.1 / 9.4 m) and a herd of identical elk is a tell. GATE ANIMALS asserts
+  the spread reaches the manifest AND that no two individuals come out the same size.
+  THE MINIMAP WAS IN THE WRONG FRAME. The underlay is baked over world.bounds, and an ISLAND's
+  bounds are its own square - Jolene's is 39 195 m and starts at (-13824, -29591), NOT centred on
+  the origin. drawMap painted it at a hard-coded +-12000 while drawing every marker in true world
+  coordinates, so the field and the village landed on the wrong island. The rig publishes
+  `minimapBox` (set beside miniCanvas, from bakeGround's own x0/z0/EXT) and north-up frames THAT
+  box. The analytic world's bounds ARE +-12000, so nothing there moves by a pixel - GATE
+  WORLDRENDER prints the two side by side.
+  THE TRAP IT COST: the first cut read BX0/SIZE at the rig's `return`, where they are out of
+  scope. The scene is already in the graph by then, so the ReferenceError left a world that DREW
+  PERFECTLY and a WF of undefined - no map, no premises tick, no animal moving, and nothing in
+  the console. It was caught by reading the map canvas back (all four corners 0,0,0) rather than
+  by looking at it. GATE WORLDRENDER now names the handles the page cannot work without
+  (worldUpdate, minimap, minimapBox, scene, camera, ground, probe), so a quiet loss is loud.
+- BENCH: `tools/_animals.html` (shelf / one / ladder / run), launch `flydiy-animals` port 8490.
+- VERIFIED IN THE GAME, with pictures (tools/island_shot.js teleports the aeroplane to a spot and
+  shoots; `--step` runs JS in the flying page, so one boot visits several): the BEAR walking the
+  meadow by the Tamgas strip and CHANGING POSE between two shots 6.5 s apart (the clip machine
+  runs in the game); an ORCA surfaced in the channel WITH ITS WAKE behind it under a LANDPLANE at
+  26 m — `WATER.field.ask` read back `{on: true, ask: true, sinceAsk: 47 ms}`, so the ask is what
+  turned the field on; the BLUE WHALE looming pale through the water at 28 m down; the elk herd on
+  the sanctuary bench. The census from inside the sanctuary: bear 1, elk 6, doe 7, orca 3 (1.9 km
+  off), bird 16, plume 1 — a whale was blowing at that moment.
+- GATES: ANIMALS / MEDIA / PREMISES / PROPS / TOTEM / CLOUD / BUILD green. GATE MEDIA learned the
+  animals' manifests (one line in `manifestFiles`), or every map it wrote was an orphan.

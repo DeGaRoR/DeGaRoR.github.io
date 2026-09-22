@@ -261,6 +261,23 @@ try {
   console.log('GATE WORLDRENDER: FAIL');
   process.exit(1);
 }
+// THE HANDLE ITSELF (G498.2). The rig's return object is the one place a typo costs
+// nothing visible: the scene is already in the graph by then, so a throw HERE leaves a
+// world that draws perfectly and a WF of undefined - no map, no premises tick, no animals
+// moving, and no error anyone sees. (That is exactly what a reference to a block-scoped
+// name in the return did.) The build above already fails the gate on a throw; these name
+// the handles the page cannot work without, so a QUIET loss is loud.
+for (const k of ['worldUpdate', 'minimap', 'minimapBox', 'scene', 'camera', 'ground', 'probe'])
+  if (WF[k] === undefined) { console.log('the rig has no ' + k); console.log('GATE WORLDRENDER: FAIL'); process.exit(1); }
+// the minimap's box IS the picture's own: the map draws the underlay at it, and every
+// marker on top in world coordinates, so the two must be one frame
+{
+  const W0 = makeWorld(), b = W0.bounds, B = WF.minimapBox;
+  const ok = B && Math.abs(B.x0 - b.x0) < 1 && Math.abs(B.z0 - b.z0) < 1 && Math.abs(B.size - (b.x1 - b.x0)) < 1;
+  console.log(`minimap box: ${B ? B.x0 + ',' + B.z0 + ' size ' + B.size : 'none'} | world bounds ${b.x0},${b.z0} size ${b.x1 - b.x0}`);
+  if (!ok) { console.log('GATE WORLDRENDER: FAIL'); process.exit(1); }
+}
+
 // stream a few chunks in, as flying over the world would
 for (let i = 0; i < 60; i++) WF.worldUpdate([0, 120, 0]);
 // THE API ANSWERS (G460.11.5): every function the frame loop calls on WF is CALLED here - a name that lives in a

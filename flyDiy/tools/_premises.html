@@ -115,6 +115,20 @@
 <script src="../src/viewer/pattern_vis.js"></script>
 <script src="../src/viewer/water.js"></script><!-- G460: the editor's sheet is the game's water (body 3) -->
 <script src="../src/viewer/guardrail.js"></script><!-- the W-beam beside a road (2026-09-22) -->
+<!-- THE ANIMALS (2026-09-22): the factory, the behaviours and the payloads, so the
+     editor bench can place a hotspot and watch the herd, the pod or the flock.
+     55_animal_codec.js is NOT loaded here: it is already in flight_core.js above,
+     and a second copy redeclares its consts and kills the script. -->
+<script src="../src/viewer/plume.js"></script>
+<script src="../src/viewer/animals.js"></script>
+<script src="../src/viewer/animal_run.js"></script>
+<script src="../src/animals/bear_animal.js"></script>
+<script src="../src/animals/elk_animal.js"></script>
+<script src="../src/animals/doe_animal.js"></script>
+<script src="../src/animals/orca_animal.js"></script>
+<script src="../src/animals/whale_animal.js"></script>
+<script src="../src/animals/bird_animal.js"></script>
+<script src="../src/animals/animals_lods.js"></script>
 <script src="../src/viewer/render_premises.js"></script>
 <script src="../src/viewer/premises_host.js"></script>
 <script src="../src/viewer/premises_ui.js"></script>

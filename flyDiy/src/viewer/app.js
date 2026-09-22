@@ -3761,6 +3761,13 @@
     D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
     D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
   }
+  // THE ONE EMITTER ANYTHING ELSE MAY USE (2026-09-22): the whales' splash and
+  // blow come through here, so there is one spray batch and one budget in the
+  // scene and animal_run.js knows nothing about waterFx. Null-safe: a page
+  // with no water layer simply has no spray.
+  window.FLYDIY_SPRAY = (kind, x, y, z, vx, vy, vz) => {
+    if (waterFx && waterFx.drops) sprayEmit(waterFx.drops, kind, x, y, z, vx, vy, vz);
+  };
   function syncWaterFx(dt) {
     if (!waterFx || !sim || !sim.hydro) return;
     const HY = sim.hydro, D = waterFx.drops, G = 9.81;
@@ -7012,8 +7019,13 @@
     const hdg = Math.atan2(-xA[2], -xA[0]);
     // shared frame: screen = T(W2/2) . R(rot) . S(k) . T(-c) applied to world xz
     const rot = mapNoseUp ? -Math.PI / 2 - hdg : 0;
-    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / 24000;
-    const cx = mapNoseUp ? cg2[0] : 0, cz = mapNoseUp ? cg2[2] : 0;
+    // THE UNDERLAY'S OWN BOX (G498.2): the bake covers world.bounds, which for an island is its
+    // own square - Jolene's is neither centred on the origin nor 24 km wide. North-up frames THE
+    // BOX, not a fixed 24 km around the origin, so the picture and every marker on it share one
+    // frame. The analytic world's bounds ARE +-12000, so nothing there moves by a pixel.
+    const MB = (WF && WF.minimapBox) || { x0: -12000, z0: -12000, size: 24000 };
+    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / MB.size;
+    const cx = mapNoseUp ? cg2[0] : MB.x0 + MB.size / 2, cz = mapNoseUp ? cg2[2] : MB.z0 + MB.size / 2;
     const co = Math.cos(rot), si = Math.sin(rot);
     const PX = (x, z) => W2 / 2 + k * ((x - cx) * co - (z - cz) * si);
     const PY = (x, z) => W2 / 2 + k * ((x - cx) * si + (z - cz) * co);
@@ -7032,8 +7044,8 @@
           const bg = oc.getContext('2d');
           bg.fillStyle = '#48899e';                    // beyond-domain reads as sea
           bg.fillRect(0, 0, W2, W2);
-          bg.translate(W2 / 2, W2 / 2); bg.scale(k, k);
-          bg.drawImage(base, -12000, -12000, 24000, 24000);
+          bg.translate(W2 / 2, W2 / 2); bg.scale(k, k); bg.translate(-cx, -cz);
+          bg.drawImage(base, MB.x0, MB.z0, MB.size, MB.size);
           mapBaseCv = oc; mapBaseFor = base;
         }
         g.drawImage(mapBaseCv, 0, 0);
@@ -7045,7 +7057,7 @@
       g.fillRect(0, 0, W2, W2);
       g.save();
       g.translate(W2 / 2, W2 / 2); g.rotate(rot); g.scale(k, k); g.translate(-cx, -cz);
-      g.drawImage(base, -12000, -12000, 24000, 24000);
+      g.drawImage(base, MB.x0, MB.z0, MB.size, MB.size);
       g.restore();
     }
     const from = aeroById(fromId), to = destId === 'CIRCUIT' ? from : aeroById(destId);
@@ -7098,6 +7110,24 @@
       }
     }
     g.font = `500 ${Math.round(11 * mk)}px "IBM Plex Sans", sans-serif`;
+    // ONE LABEL LEDGER for the whole map (G498). Jolene puts four aerodromes and eight animal
+    // hotspots inside a few hundred pixels at 24 km, and the first cut wrote "3 Killer whale"
+    // straight across "Annette Dock". A label is drawn where it FITS - to the right of its mark,
+    // else under it, else not at all: a name half over another name is worse than no name.
+    const LAB = [];
+    const labFits = (x, y, w, h) => !LAB.some(b => x < b.x + b.w && x + w > b.x && y < b.y + b.h && y + h > b.y);
+    const labPut = (sx, sy, txt, back, fore) => {
+      const w = g.measureText(txt).width, h = 12 * mk;
+      const spots = [[sx + 8 * mk, sy + 4 * mk], [sx - w - 8 * mk, sy + 4 * mk], [sx - w / 2, sy + 15 * mk], [sx - w / 2, sy - 8 * mk]];
+      for (const [x, y] of spots) {
+        if (!labFits(x, y - h + 3 * mk, w, h)) continue;
+        LAB.push({ x, y: y - h + 3 * mk, w, h });
+        g.fillStyle = back; g.fillText(txt, x + 1, y + 1);
+        g.fillStyle = fore; g.fillText(txt, x, y);
+        return true;
+      }
+      return false;
+    };
     for (const a of world.aerodromes) {
       const mead = a.kind === 'meadow';
       const active = a.id === from.id || a.id === to.id;
@@ -7110,11 +7140,45 @@
         g.strokeStyle = 'rgba(255,178,87,.5)'; g.lineWidth = 1.5 * mk;
         g.beginPath(); g.arc(sx, sy, 7 * mk, 0, 6.283); g.stroke();
       }
-      if (mapBig && !mead) {                           // labels once there's room
-        g.fillStyle = 'rgba(20,14,8,.75)';
-        g.fillText(a.name, sx + 8 * mk + 1, sy + 4 * mk + 1);
-        g.fillStyle = active ? '#ffd9a3' : 'rgba(251,244,234,.9)';
-        g.fillText(a.name, sx + 8 * mk, sy + 4 * mk);
+      if (mapBig && !mead)                             // labels once there's room, and where they fit
+        labPut(sx, sy, a.name, 'rgba(20,14,8,.75)', active ? '#ffd9a3' : 'rgba(251,244,234,.9)');
+    }
+    // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
+    // around - the sanctuary you land at, the pod you fly over - so the map says so. ONE mark a
+    // HOTSPOT, never one an animal: the record is the hotspot, and its individuals wander inside
+    // it. Green, because every other thing on this map is already spoken for (amber the route,
+    // cream the fields, blue the approaches, teal you); the shape says where it lives - a filled
+    // dot on the ground, a ring in the water (a pod roams a wide circuit), a chevron in the air.
+    // The RADIUS is drawn once it is worth pixels, and the species once the map is big.
+    const PRm = WF && WF.premises, OVm = PRm && PRm.overlay;
+    const HOT = (OVm && OVm.records && OVm.records.animals) || null;
+    if (HOT && HOT.length) {
+      const Fm = OVm.frame, AN = (typeof ANIMALS !== 'undefined' && ANIMALS.reg) ? ANIMALS : null;
+      const GREEN = '#86c97f';
+      for (const h of HOT) {
+        const w = Fm.toWorld(h.x, h.z);
+        const sx = PX(w[0], w[1]), sy = PY(w[0], w[1]);
+        if (sx < -40 || sx > W2 + 40 || sy < -40 || sy > W2 + 40) continue;
+        const a = AN ? AN.reg(h.key) : null, kind = a ? a.kind : 'land';
+        const rr = k * (+h.r || 0);
+        if (rr > 5 * mk) {
+          g.strokeStyle = 'rgba(134,201,127,.34)'; g.lineWidth = 1 * mk;
+          g.beginPath(); g.arc(sx, sy, rr, 0, 6.283); g.stroke();
+        }
+        g.beginPath();
+        if (kind === 'sea') {
+          g.strokeStyle = GREEN; g.lineWidth = 1.8 * mk;
+          g.arc(sx, sy, 3.6 * mk, 0, 6.283); g.stroke();
+        } else {
+          g.fillStyle = GREEN; g.strokeStyle = 'rgba(20,14,8,.8)'; g.lineWidth = 1 * mk;
+          if (kind === 'air') {
+            g.moveTo(sx, sy - 3.4 * mk); g.lineTo(sx + 3.2 * mk, sy + 2.6 * mk);
+            g.lineTo(sx, sy + 1.2 * mk); g.lineTo(sx - 3.2 * mk, sy + 2.6 * mk); g.closePath();
+          } else g.arc(sx, sy, 2.9 * mk, 0, 6.283);
+          g.fill(); g.stroke();
+        }
+        if (mapBig) labPut(sx, sy, (h.n || 1) + ' ' + (a ? a.label : h.key),
+                           'rgba(20,14,8,.75)', 'rgba(190,232,182,.95)');
       }
     }
     g.save();
@@ -9149,7 +9213,12 @@
     if (waterFx && !inGarage) syncWaterFx(running ? 1 / 60 : 0);
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
-    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force)) {   // (no floats: the field runs only when the dev panel forces it)
+    // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
+    // WATER.field.ask, so a LANDPLANE low over a pod gets the wake and the splash too - the user:
+    // "at close range, the whales should trigger the water surface effects, just like the planes".
+    // The ask expires in half a second: nothing keeps the field alive by forgetting to clear a flag.
+    const wAsk = window.WATER && WATER.field && WATER.field.ask && performance.now() - WATER.field.ask < 500;   // window.WATER, ASKED: a bare WATER throws where the layer is absent (the headless smoke gate)
+    if (window.WATER && WATER.fieldStep && !inGarage && (sim.hydro || WATER.field.force || wAsk)) {   // (no floats and nobody asking: the field runs only when the dev panel forces it)
       const cgF = sim.cgPos(), wl = world.waterH ? world.waterH(cgF[0], cgF[2]) : -Infinity;
       const want = Number.isFinite(wl) && cgF[1] - wl < 60;
       if (want !== WATER.field.on) WATER.fieldOn(want);

@@ -225,7 +225,17 @@ console.log('\n5. THE FIELD');
   verdict(/WT\.stamp\([^\n]*'press'\)/.test(app) && /WT\.stamp\([^\n]*'ring'\)/.test(app) && /WT\.stamp\([^\n]*'foam'\)/.test(app), 'app.js stamps press / ring / foam from the hydro\'s own numbers');
   verdict(/const ribbons = \[\];/.test(app) && !/rb\.trail\.push/.test(app), 'the wake ribbons are retired (the field carries the wake)');
   verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\], running \? 1 \/ 60 : 0, cv\[0\], cv\[2\]\)/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG (with its velocity) every frame while a floatplane is over water');
-  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force\)/.test(app), 'without hydro the field runs only when the dev panel forces it');
+  // THE THIRD WAY IN (2026-09-22, G498): a surfaced whale within 150 m of the eye sets
+  // WATER.field.ask, so a LANDPLANE low over a pod gets the wake and the splash too (the user:
+  // "at close range, the whales should trigger the water surface effects, just like the planes").
+  // The rule this line has always held is UNCHANGED in substance - the field does not run for
+  // nothing - so the ask is checked to EXPIRE: a flag nobody clears would be a field that never
+  // stops. GATE ANIMALS rule 9 holds the other end (who sets it, and that the premises host is
+  // the only thing that does).
+  verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force \|\| wAsk\)/.test(app),
+    'without hydro the field runs only when the dev panel forces it, or something ASKS for it');
+  verdict(/const wAsk = window\.WATER && WATER\.field && WATER\.field\.ask && performance\.now\(\) - WATER\.field\.ask < 500/.test(app),
+    'the ask EXPIRES (half a second) and is read off window.WATER (a bare WATER throws where the layer is absent - GATE UISMOKE caught exactly that)');
 }
 
 // ---- 6. THE SPRAY (H7.1, G460.9) ---------------------------------------------
