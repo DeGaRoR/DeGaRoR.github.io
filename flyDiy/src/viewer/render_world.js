@@ -1212,7 +1212,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                     '      float rd = distance(vWPi.xz, cameraPosition.xz); float ft = clamp((rd - uRockFade.x) / max(1.0, uRockFade.y - uRockFade.x), 0.0, 1.0);\n' +
                     '      float meshK = pow(1.0 - ft, 1.0 + 2.0 * uRockFade.z) * uRockFade.w;\n' +
                     '      float redge = 1.0 - smoothstep(0.8, 1.0, max(abs(ru.x - 0.5), abs(ru.y - 0.5)) * 2.0);\n' +
-                    '      t = mix(t, rk.rgb, rk.a * (1.0 - meshK) * redge); } }\n' : '') +
+                    // THE MAP IS PREMULTIPLIED (measured 2026-09-22: its lit colour read 11,8,5 of 255 where the scans
+                    // mean 26,19,12 - three blends src.rgb * src.a into the target, so mixing by alpha again darkened
+                    // every rock twice and the shore read as a smudge instead of a rocky speckle): divided out here
+                    '      vec3 rkc = rk.rgb / max(rk.a, 0.004);\n' +
+                    '      t = mix(t, rkc, rk.a * (1.0 - meshK) * redge); } }\n' : '') +
             '  float sd = (gA.b * 255.0 - 128.0) * 4.0;\n' +
             // (G413: the paint is the BED under the surface, inside the line only - a deep rim
             // outside the surface's edge was the "deep blue vs pale blue battle")

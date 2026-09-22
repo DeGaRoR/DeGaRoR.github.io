@@ -152,11 +152,22 @@ var ROCK_MAP = (() => {
       if (dirty && !planned) { rebuild(); render(); dirty = false; }   // once the frame has nothing left to plan
       else if (dirty && STAT.renders === 0) { rebuild(); render(); }   // and the first picture as soon as there is one
       // the mesh fade law (the cover ring's) for the read: near, reach, taper, aglK
+      // the ring's own fade law, read from it: near, reach, taper, and the height term - times 0 when the ring
+      // plants no rocks at all (F8's `rocks` at 0, the ablation: the map then stands alone instead of being
+      // suppressed by meshes that are not there - 2026-09-22, the user: "I see nothing on the right side either")
       const cs = cover.get ? cover.get() : {}, st = cover.stat ? cover.stat() : {};
-      gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, st.aglK === undefined ? 1 : st.aglK);
+      const aglK = st.aglK === undefined ? 1 : st.aglK;
+      gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, (cs.rocks === 0 ? 0 : aglK));
     }
     const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); return api.get(); },
-                  replan: () => { plans.clear(); dirty = true; }, atlas: () => ATLAS.texture, map: () => MAP.texture };
+                  replan: () => { plans.clear(); dirty = true; }, atlas: () => ATLAS.texture, map: () => MAP.texture, rt: () => MAP, atlasRT: () => ATLAS,
+                  // the instrument: the map's coverage over a box in WORLD metres (the rigs read it; trace before hypothesis)
+                  probe: (x0, z0, side) => { const n = Math.max(1, Math.round(side)); const buf = new Uint8Array(n * n * 4);
+                    const u = Math.round((x0 - (cx0 - S.half)) / (2 * S.half) * S.px), v = Math.round((z0 - (cz0 - S.half)) / (2 * S.half) * S.px);
+                    try { renderer.readRenderTargetPixels(MAP, u, S.px - v - n, n, n, buf); } catch (e) { return { err: e.message }; }
+                    let a = 0, amax = 0, lit = 0, rgb = [0, 0, 0];
+                    for (let i = 0; i < n * n; i++) { const A = buf[i * 4 + 3] / 255; a += A; if (A > amax) amax = A; if (A > 0.1) { lit++; rgb[0] += buf[i * 4]; rgb[1] += buf[i * 4 + 1]; rgb[2] += buf[i * 4 + 2]; } }
+                    return { n: n * n, aMean: +(a / (n * n)).toFixed(3), aMax: +amax.toFixed(3), lit, rgbLit: lit ? rgb.map(c => Math.round(c / lit)) : null }; } };
     return { update, api };
   }
   return { make };

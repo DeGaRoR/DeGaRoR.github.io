@@ -55344,3 +55344,23 @@ point on it) and the wanted set is clipped to world.bounds - the sea costs no lo
 island stands: 370 chunks / 212 k cards from 600 m over the field, every visible slope furred.
 No view test of its own: a chunk is one InstancedMesh with a sphere, and three culls it per frame -
 "the parts visible from the camera" is what the frustum already answers.
+
+## G493.1 — THE ROCK MAP WAS DRAWN TWICE AS DARK (2026-09-22, the user: "can't see rocks on the bottom left ... and on this one, I see nothing on the right side either")
+
+Both remarks were one fault and one honest-instrument gap, found by MEASURING the map instead of the picture.
+
+- THE MAP IS PREMULTIPLIED. rock_map.js gained a probe (`RM.probe(x, z, side)`: readRenderTargetPixels over a
+  box in world metres, the coverage and the lit colour) and it said the map HAD the rocks - 43 % coverage at
+  the spit, alpha to 1.00 - but their lit colour was 11, 8, 5 of 255 where the scans' own mean is 26, 19, 12.
+  three blends `src.rgb * src.a` into a render target, so the map's rgb is premultiplied by coverage, and the
+  ground's read multiplied by alpha a SECOND time: every rock was drawn at a third of its brightness, a dark
+  smudge that the aerial perspective then finished off. The read divides it out (`rk.rgb / max(rk.a, 0.004)`).
+  At 700 m the shore now carries its rock speckle (bench/rockmap/fix_4.png, on / off at 700 and 320 m).
+- THE ABLATION LIED. With F8's `rocks` at 0 the map was still suppressed by meshK - the ring's fade law for
+  meshes that were not being planted - so "the map alone" showed almost nothing and looked like a broken map.
+  uRockFade.w is 0 when the ring plants no rocks: the map then stands alone (bench/rockmap/mid2_3.png: both,
+  the meshes alone, the map alone). The law is unchanged when the ring is planting.
+- WHAT THE MAP IS NOT, seen in that third panel: at 1 m a texel and albedo only it is a far tier - blurred and
+  flat from 50 m, right from 300. The crossfade is what makes it work; the ablation is for reading the code,
+  not the game.
+- GATES: BUILD / MEDIA / UISMOKE / WORLDRENDER / SPLAT / GFX / BIOME green.
