@@ -8061,6 +8061,34 @@
      "coverSpread": 0.08,
      "canopyFloor": 4.5
     }
+   },
+   "shingle": {
+    "species": {
+     "rocks": {
+      "proportion": 1,
+      "size": 6,
+      "bury": 0.55,
+      "tint": 0.85,
+      "cluster": 1
+     }
+    },
+    "forest": {
+     "ground": "plane",
+     "count": 0,
+     "radius": 220,
+     "under": 0,
+     "cover": 0,
+     "reach": 220,
+     "wet": 0,
+     "taper": 0.5,
+     "holes": 1,
+     "blotch": 0.6,
+     "blotchM": 18,
+     "coverNear": 50,
+     "rocks": 150,
+     "ttype": 11,
+     "coverSpread": 0.08
+    }
    }
   },
   "map": {
@@ -8070,7 +8098,7 @@
    "6": "conifer_steep",
    "7": "muskeg",
    "8": "conifer_young",
-   "11": "shore",
+   "11": "shingle",
    "12": "conifer_steep",
    "13": "conifer",
    "14": "conifer_scrub"

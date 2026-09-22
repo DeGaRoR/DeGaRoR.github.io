@@ -211,7 +211,9 @@ var COVER_RING = (() => {
         for (let i = 0; i < n; i++) {
           const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
           if (patch && vnoise(x, z, patch * 2, sSeed % 1000) < 1 - bedFrac) continue;
-          if (blotch && !isRock && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
+          // the bench's GF.blotch: keeps 1 - blotch .. 1 by area; rocks skip it unless their row says `cluster`
+          // (THE ROCKY SHORE, 2026-09-22: a foreshore's rocks lie in beds along the tide line, not evenly)
+          if (blotch && (!isRock || row.cluster) && r1 > blotchAt(x, z, sSeed)) continue;
           const gk = G.at(x, z);
           if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
           const p = draw(P, r2);
@@ -220,8 +222,17 @@ var COVER_RING = (() => {
           if (isRock) { s = (row.size !== undefined ? row.size : (place.size || 1)) * Math.exp((R() * 2 - 1) * (place.sizeVar === undefined ? 0.35 : place.sizeVar)); }
           else if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
           else s = (place.size || 1) * Math.exp((R() * 2 - 1) * spread);   // the species' size ALWAYS (the reed model is 288 units tall at size 0.012 - unscaled it was a 130 m screen-filling card, 450 ms a frame)
-          const yy = isRock ? y - p.h0 * s * (place.bury === undefined ? 0.45 : place.bury) : y - (place.sink || 0);
-          if (!noTint && !isRock && !isShrub) {
+          // a rock's row may say how deep it sits (`bury`, a fraction of its height; the shore's lie deeper)
+          const yy = isRock ? y - p.h0 * s * (row.bury !== undefined ? row.bury : (place.bury === undefined ? 0.45 : place.bury)) : y - (place.sink || 0);
+          if (isRock && row.tint > 0) {
+            // the rock takes the ground's colour at its foot, by `tint` (0 = the pack's pale grey as it is, 1 = the
+            // tufts' rule): the free_rock pack is one pale texture and read as gravel thrown on the dark foreshore
+            // the ground's CHROMA (its colour at full brightness), not its value: a straight multiply by a dark
+            // foreshore left the pack's own blue-grey showing through as lavender - the hue must be the ground's
+            const g = [G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], gm = Math.max(g[0], g[1], g[2], 1e-3);
+            const j = (1 + (R() * 2 - 1) * vary) * (1 - 0.35 * row.tint);   // and a third darker at full tint (the pack is pale)
+            col = [(1 + (g[0] / gm - 1) * row.tint) * j, (1 + (g[1] / gm - 1) * row.tint) * j, (1 + (g[2] / gm - 1) * row.tint) * j];
+          } else if (!noTint && !isRock && !isShrub) {
             col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
             if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
           } else if (noTint && !isRock && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }

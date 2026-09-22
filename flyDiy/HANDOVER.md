@@ -54812,3 +54812,25 @@ scrub: small conifers, snags, reed beds, the pools - the street-view look). The 
   kernel: omega^2 = g k, the 19.47 deg Kelvin V and its transverse waves emerge from the moving press) or
   Triton's analytic radiated-wave sum; the soft-particle depth fade; the C172's float SUPPORT STRUCTURE
   (spreader bars and struts) is not drawn on the Wipline build (the user) - to look into.
+
+## G477.1 — THE ROCKY SHORE HAS ROCKS: THE SHINGLE MIX (2026-09-22, the user: "rocks never really cut it with a texture only. Can you try using our existing low poly rocks and scatter them in there? Maybe use the biome concept and map to the terrain type?")
+
+- THE MACHINERY WAS THERE: the biomes map a terrain-type code to a bench mix, and a mix's `rocks` (per
+  1000 m2) plants the free_rock pack's boulders through the cover ring (G454.7) - codes 4 sand and 11
+  shingle both named `shore`, 2 rocks per 1000 m2 at size 12: one boulder per 500 m2, invisible.
+- A `shingle` MIX for code 11 (tools/_trees_tuning.json, baked by tree_prep.py --biomes): 150 rocks per
+  1000 m2 at size 6, and three new keys a rock row may carry (cover_ring.js): `bury` 0.55 (the shore's
+  lie deeper than the forest's 0.45), `cluster` 1 (the rocks take the mix's blotch mask, which rocks had
+  skipped: a foreshore's rocks lie in beds along the tide line, not evenly), `tint` 0.85 (the rock takes
+  the ground's colour at its foot, the tufts' rule). `shore` (code 4 sand) keeps its two per 1000.
+- THE TINT IS THE GROUND'S CHROMA, NOT ITS VALUE: the first cut multiplied by the foreshore's dark mean
+  (0.09 linear) and the pack's own blue-grey showed through as LAVENDER; the colour at full brightness
+  (g / max g) blended in by `tint`, a third darker at full tint, gives tan and brown boulders that sit
+  in the coastA set. bench/coast/rocks2_zoom.png (lavender / pale), rocks3_zoom.png (chroma),
+  rocks_final_pair.png (the defaults at 110 and 45 m).
+- WHAT THIS IS NOT: the free_rock pack is seventeen rounded boulders; they make a shore of cobbles in
+  beds, not the outcrops and slabs of a real foreshore. That is a chantier of its own - Poly Haven's
+  coast rock SCANS (coast_land_rocks_02 is one: a 10.5 x 4.9 m strip) as props through prop_lod.js,
+  sunk a few centimetres under the terrain and DRAPED to it (the vertices offset to terrainH at
+  placement), clustered along the tide line, the far tier an impostor. Not started.
+- GATES: BIOME / TREES / WORLD / UISMOKE / SPLAT / MEDIA green.
