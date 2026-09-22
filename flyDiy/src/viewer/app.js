@@ -9178,7 +9178,7 @@
       const cgM = sim.cgPos();
       let wl = world.waterH ? world.waterH(camera.position.x, camera.position.z) : NaN;
       if (!Number.isFinite(wl) && world.waterH) wl = world.waterH(cgM[0], cgM[2]);
-      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: 1 / 60, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
+      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: 1 / 60, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
       else if (WATER.mirror.on) WATER.mirrorOff();
     }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);

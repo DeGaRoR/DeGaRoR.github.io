@@ -55390,3 +55390,23 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
   mean |on - off| = 30 of 765 over the frame.
 - A NOTE FOR THE NEXT EYE: the first shot after a teleport can land before the first capture (the reflection
   is then the probe's sky alone, n1/n2) - the rig must let a frame or two pass after the eye moves.
+
+## G460.11.3 — THE SKY IS IN THE CAPTURE: THE REFLECTION IS ONE SOURCE (2026-09-22, the user: "can't we have
+## the tiles fade into each other? The hard edge looks bad")
+
+- THE EDGE WAS NOT THE TILES. The debug view 11 (the capture projected on the water, alpha 0 blue, p1/mir11.png)
+  named it: the capture covered the whole water, but its CLEAR SKY was empty (the sky dome was hidden in the
+  capture, so between the clouds the alpha was 0) - and there the water fell back to the PROBE's sky, a
+  different, duller, blurrier source. The reflection therefore changed source along every cloud's edge: a hard
+  jagged line across the sea (p1/sea12.png, the user's red circles on m5/seaC before it).
+- THE SKY DOME IS DRAWN INTO THE CAPTURE FIRST (water.js, opts.sky): it is a small sphere parented to the MAIN
+  camera, so during a capture it rides the wrong eye - and the oblique clip would kill it anyway (the mirrored
+  eye is under the water plane). It is drawn in a scratch scene at the mirrored eye under the NORMAL projection,
+  before the clouds' march (which composites over it) and before the oblique projection is applied to the scene
+  pass; the dome goes back to its parent after. The capture is opaque now - 79 % full alpha, 11 % empty (the
+  frame's own edges), 9.5 % partial (the foliage's coverage, un-premultiplied by G460.11.2) against 38 % empty
+  before - and the reflection is ONE source everywhere: the cloud's edge is just a cloud's edge (p2/sea12b.png,
+  p3_<cover>/lakeA2.png). Cost unchanged (14.5 ms a capture: one more dome draw).
+- GATE WATER holds it (the dome drawn at the mirrored eye and handed back to its parent; app.js passes
+  WF.skyDome). PROOF: p1/ (the diagnosis: sea12, mir11), p2/ (the sea after), p3_0.6,cu and p3_0.9,st (the
+  lake and the sea under two skies).

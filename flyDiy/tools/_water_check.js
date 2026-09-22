@@ -136,6 +136,10 @@ console.log('\n3. THE LAWS');
   verdict(/samples: 2,/.test(src('src/viewer/water.js')) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
     const w = src('src/viewer/water.js'), mp = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function mirrorOff('));
     verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
+    // THE SKY IS IN THE CAPTURE (G460.11.3): without it the clear sky was alpha 0 and the water took the PROBE's sky
+    // there - the reflection changed source at every cloud's edge, a hard line across the water
+    verdict(/if \(opts\.sky\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
+    verdict(/sky: WF\.skyDome/.test(src('src/viewer/app.js')), "app.js hands the world's sky dome to the capture");
     verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
     const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
   let mono = true, bounded = true, prev = -1;

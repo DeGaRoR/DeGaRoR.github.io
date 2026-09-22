@@ -774,8 +774,11 @@ const WATER = (() => {
   // The IBL is the atmosphere's probe - the sky and its clouds, a flat ground cap: the water reflected NOTHING
   // of the world (the user, on a lake photo: "we can see tree reflections everywhere, while ours does not mirror
   // anything at all"). mirrorRender(THREE, renderer, scene, camera, waterY, opts) renders the scene with a camera
-  // mirrored about y = waterY - the sky dome, the water meshes and the spray hidden (opts.hide), the near plane
-  // made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
+  // mirrored about y = waterY - THE SKY DOME DRAWN FIRST at the mirrored eye (G460.11.3: without it the capture's
+  // clear sky was alpha 0 and the water took the PROBE's sky there - so the reflection switched source at every
+  // cloud's edge, a hard line across the water, the user: "can't we have the tiles fade into each other? The hard
+  // edge looks bad"; one dome draw makes the capture opaque and the reflection one source), the water meshes and
+  // the spray hidden (opts.hide), the near plane made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
   // the shader reads it where a point projects in that capture and keeps the probe's sky where the capture is
   // empty. The capture is AMORTISED: a 'periodic' mode (the default) re-captures when the eye has moved 4 m or
   // turned 6 deg or after `every` seconds (never under 0.75 s), 'live' every frame (the rigs that can afford it), 'off' never; only
@@ -830,12 +833,27 @@ const WATER = (() => {
     const cc = renderer.getClearColor(mirrorTmp.cc || (mirrorTmp.cc = new THREE.Color())), ca = renderer.getClearAlpha();
     const t0 = performance.now();
     renderer.shadowMap.autoUpdate = false;
-    renderer.setRenderTarget(MIR.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = true; renderer.clear();
+    renderer.setRenderTarget(MIR.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = false; renderer.clear();
+    // THE SKY FIRST (G460.11.3): the dome is a small sphere parented to the MAIN camera, so it rides the wrong eye
+    // during the capture and the oblique clip would kill it anyway (the mirrored eye is under the water plane).
+    // It is drawn here in a scratch scene, placed at the mirrored eye, under the normal projection - the capture's
+    // background, opaque, with the clouds composited over it
+    let skyPar = null;
+    if (opts.sky) {
+      const sky = opts.sky;
+      MIR.skyScene = MIR.skyScene || new THREE.Scene();
+      skyPar = sky.parent;
+      MIR.skyScene.add(sky);
+      sky.position.copy(mc.position);
+      renderer.autoClear = false;
+      renderer.render(MIR.skyScene, mc);
+    }
     // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
     // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -
     // with the FRAME's far (the composite writes its depth against log2(far + 1): a cloud 10 km out under the
     // capture's capped far read as depth > 1 and was clipped - no cloud in the mirror, G460.11.1)
     if (opts.clouds) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
+    if (skyPar) { const sky = opts.sky; sky.position.set(0, 0, 0); skyPar.add(sky); }
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
     mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
     // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
