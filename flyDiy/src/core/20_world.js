@@ -681,73 +681,23 @@ function makeWorld(seed, opts) {
     return rec;
   }
 
-  // ---- wind field: steady vector + deterministic Dryden-ish gusts ----
-  // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
-  // sines with spatial phase (advecting waves), amplitude g horizontal and
-  // 0.6*g vertical. Deterministic by construction: gates can rely on it.
-  // Default null: wind() returns the shared zero vector (fast path).
-  let windSpec = null;
-  const W0 = [0, 0, 0], WV = [0, 0, 0];
-  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
-    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
-    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
-    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
-    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
-  ];
-  // ---- THE SURFACE LAYER (G72) -------------------------------------------
-  // `y` has been an argument of wind() since the field was written and has
-  // never been read. It is read now: the ground drags on the air, so the wind
-  // near it is slower than the wind above it, and an aeroplane on final is in
-  // measurably different air from the one at circuit height.
-  //
-  // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
-  // and the height every anemometer, every windsock and every METAR means is
-  // 10 m. So `refH` says which height `base` was measured at, and the profile
-  // is the engineering power law u/uref = (z/zref)^alpha — the same one every
-  // wind-resource and building-code calculation uses, with alpha set by how
-  // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
-  // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
-  //
-  // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
-  // and is what the fleet's whole wind calibration was measured in. That is a
-  // deliberate, declared boundary rather than a compatibility fudge: "no
-  // reference height" honestly means "we are not claiming to know where this
-  // wind was measured", and the only answer that does not invent information is
-  // to blow it everywhere equally. GATE WIND and the XCTY gates anchor to that
-  // column; the CONDITIONS presets and GATE HOTHIGH declare a refH and fly the
-  // profile. Re-anchoring the fleet battery onto sheared wind is named work,
-  // not a side effect of this one.
-  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
-  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
-  function shearK(x, y, z, refH, alpha) {
-    const agl = y - terrainH(x, z);
-    // a power law has no zero: floor the height rather than pretend it does.
-    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
-    return Math.pow(h / refH, alpha);
-  }
-  function wind(x, y, z, t) {
-    if (!windSpec) return W0;
-    const b = windSpec.base, g = windSpec.gust || 0;
-    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
-    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
-    // the gusts ride the local wind, so they die out in the surface layer and
-    // grow in the shear instead of being the same everywhere from grass to
-    // circuit height
-    const gk = g * k;
-    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
-      const s = Math.sin(om * t + kx * x + kz * z + ph);
-      WV[0] += gk * 0.30 * ax * s;
-      WV[1] += gk * 0.18 * ay * s;
-      WV[2] += gk * 0.30 * az * s;
-    }
-    return WV;
-  }
+  // ---- THE WIND: the climate's (09_climate.js, K0 2026-09-22) -------------
+  // The field the fleet was calibrated in (G72: base x power-law shear + the
+  // four gust sines, the exact zero W0 when nothing is set) moved there
+  // VERBATIM and is the whole field whenever the spec names no rich term; the
+  // terrain-following flow, the breeze, the thermals and the winds aloft are
+  // its rich terms. The day is made first: the climate's slow terms read it.
+  const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  const climate = CLIMATE.make({
+    terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
+    typeAt: ISL && ISL.ttype ? (x, z) => { const k = ISL.cellAt(x, z); return k < 0 ? -1 : ISL.ttype[k]; } : null,
+    coastAt: ISL ? ISL.coastAt : null,
+  });
+  const wind = climate.wind;
   function setWind(spec) {
-    windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
-                        refH: spec.refH || 0,
-                        alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+    const r = climate.setWind(spec);
     // ...and the sea follows the wind (H4, G393)
-    const b = windSpec ? windSpec.base : [0, 0, 0];
+    const b = r.base;
     const Wv = Math.hypot(b[0], b[2]);
     // THE WIND -> SEA LAW (G460.6): 0.018 m of amplitude per m/s, calibrated to the SMB fetch-limited
     // sea of a 10 km sound (H_s 0.26 m at 5 m/s, 0.5 at 10; A_equiv = H_s / 2.8) - G393's 0.04 was a
@@ -774,7 +724,6 @@ function makeWorld(seed, opts) {
   // clock advances through day.advance(), which only the viewer calls.
   let weather = null;
   let atmos = ATMOS_ISA;
-  const day = DAY.makeDay((opts && opts.day) || null, GEO);
   function setDay(spec) {
     const airChanged = day.set(spec);
     if (airChanged) atmos = day.hasAir ? makeAtmos(day.air()) : ATMOS_ISA;
@@ -843,6 +792,8 @@ function makeWorld(seed, opts) {
     get sea() { return SEA; }, setSea,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
+    // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
+    climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
     premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },

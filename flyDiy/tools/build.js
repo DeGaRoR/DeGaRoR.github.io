@@ -33,6 +33,10 @@ const MANIFEST = {
     '06_solar.js',
     '07_day.js',
     '08_cloud_field.js',
+    // THE CLIMATE (K0, 2026-09-22): the one wind field w(x,y,z,t) - the G72
+    // legacy column moved in verbatim, the rich terms, the relief raster;
+    // pure, before the world, which composes it.
+    '09_climate.js',
     // THE TERRAIN CODEC (W2, 2026-09-14): the quadtree asset's reader, one
     // global; before the world because an island world is built on it.
     '19_terrain_codec.js',

@@ -1,0 +1,232 @@
+// GATE CLIMATE — the one wind field and its keeper (K0, 2026-09-22).
+// Pure model, no renderer, under a few seconds:
+//   1. the zero path — no spec is the SHARED exact zero vector (every calm gate's fast path)
+//   2. the legacy field is BIT-IDENTICAL to G72's — held against a verbatim copy of the old
+//      20_world.js wind() embedded HERE, so it cannot drift with the source
+//   3. the rich field is deterministic across two worlds
+//   4. the relief raster: exact heights, bounded slopes, the coast's sign, the heat class, the build cost
+//   7. the linearised sampler agrees with the full field and earns its keep
+//  14. the sources: no Date / THREE / DOM in 09_climate.js; the manifests carry it; the world has no wind of its own
+// (5-6 ridge/crest, 8-9 thermals/breeze, 10 the profile, 11 the storm, 12 the sea, 13 the cloud link,
+//  15 the two clocks: added by their sessions — futureDesigns/CLIMATE-2026-09-22.md)
+//
+//   src/core/09_climate.js, 20_world.js  ->  tools/flight_core.js  ->  here
+// Run: node tools/test_climate.js   (contract: one final `GATE CLIMATE: ...`)
+
+const fs = require('fs'), path = require('path');
+const { CLIMATE, makeWorld } = require('./flight_core.js');
+
+let fails = 0;
+const fail = (m) => { console.log('  FAIL ' + m); fails++; };
+const ok = (m) => console.log('  ok   ' + m);
+const yes = (c, m) => (c ? ok : fail)(m);
+let seed = 0xC11A7E;
+const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+const fnvStr = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, '0'); };
+
+const W = makeWorld();
+
+// ---- 1. the zero path ----------------------------------------------------------
+console.log('1. the zero path');
+{
+  const a = W.wind(0, 0, 0, 0), b = W.wind(5, 5, 5, 1);
+  yes(a === b && a[0] === 0 && a[1] === 0 && a[2] === 0, 'no spec: the two calls return the SAME array of exact zeros');
+  yes(W.climate.mode === 'zero', 'mode is zero');
+  const s = W.climate.sample(100, 50, 100, 3);
+  yes(s[0] === 0 && s[1] === 0 && s[2] === 0 && s !== a, 'sample() is zero too, and its own array');
+  W.setWind({ base: [1, 0, 2] }); W.setWind(null);
+  yes(W.wind(1, 1, 1, 1) === a, 'clearing the spec restores the shared zero');
+}
+
+// ---- 2. the legacy field, bit for bit ---------------------------------------------
+// A verbatim copy of 20_world.js's wind() as it stood at G486 (the G72 model), over THIS world's terrainH.
+console.log('2. the legacy field against the G72 copy');
+{
+  const GC = [
+    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
+    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
+    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
+    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
+  ];
+  const WIND_TOP_H = 300, WIND_ALPHA = 0.14, WV = [0, 0, 0];
+  let windSpec = null;
+  const terrainH = W.terrainH;
+  function shearK(x, y, z, refH, alpha) {
+    const agl = y - terrainH(x, z);
+    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
+    return Math.pow(h / refH, alpha);
+  }
+  function windRef(x, y, z, t) {
+    const b = windSpec.base, g = windSpec.gust || 0;
+    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
+    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
+    const gk = g * k;
+    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+      const s = Math.sin(om * t + kx * x + kz * z + ph);
+      WV[0] += gk * 0.30 * ax * s; WV[1] += gk * 0.18 * ay * s; WV[2] += gk * 0.30 * az * s;
+    }
+    return WV;
+  }
+  const setRef = spec => { windSpec = { base: spec.base || [0, 0, 0], gust: spec.gust || 0, refH: spec.refH || 0, alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA }; };
+  const FORMS = [
+    ['a uniform column', { base: [0, 0, 3], gust: 0 }],
+    ['a gusty column', { base: [1, 0, 0], gust: 1.5 }],
+    ['a sheared column', { base: [-2.6, 0, 3.0], gust: 0.5, refH: 10 }],
+    ['a rough sheared column', { base: [-3.9, 0.2, 4.6], gust: 0.9, refH: 10, alpha: 0.2 }],
+  ];
+  const bounds = W.bounds;
+  for (const [name, spec] of FORMS) {
+    W.setWind(spec); setRef(spec);
+    let bad = 0, n = 0;
+    for (let i = 0; i < 2000; i++) {
+      const x = bounds.x0 + rnd() * (bounds.x1 - bounds.x0), z = bounds.z0 + rnd() * (bounds.z1 - bounds.z0);
+      const y = W.terrainH(x, z) + (rnd() < 0.3 ? rnd() * 3 : rnd() * 800), t = rnd() * 300;
+      const a = W.wind(x, y, z, t), r = windRef(x, y, z, t);
+      n++;
+      if (!Object.is(a[0], r[0]) || !Object.is(a[1], r[1]) || !Object.is(a[2], r[2])) bad++;
+    }
+    yes(bad === 0 && W.climate.mode === 'legacy', `${name}: ${n} samples bit-identical to the G72 field (${bad} differ)`);
+  }
+  // the declared form resolves to the same column: 10 kt from the west is +x at 5.14 m/s
+  W.setWind({ kts: 10, dirDeg: 270 });
+  const w = W.wind(0, 100, 0, 0);
+  yes(Math.abs(w[0] - 10 * 0.514444) < 1e-9 && Math.abs(w[2]) < 1e-9 && w[1] === 0, `10 kt from 270 blows +x at ${w[0].toFixed(3)} m/s (${w[2].toExponential(1)} across)`);
+  W.setWind({ mps: 4, dirDeg: 0 });
+  const wn = W.wind(0, 100, 0, 0);
+  yes(Math.abs(wn[2] - 4) < 1e-9 && Object.is(wn[0], 0), 'from north (000) blows toward +z (south), the x component an exact 0');
+  yes(W.day.spec().wind == null, 'setWind alone leaves the day untouched');
+  W.setDay({ wind: { kts: 12, dirDeg: 240, gust: 0.3, refH: 10 } });
+  const sp = W.day.spec().wind;
+  yes(sp && sp.kts === 12 && sp.dirDeg === 240 && sp.gust === 0.3, 'setDay({ wind }) round-trips the declared form through day.spec()');
+  yes(W.climate.spec.refH === 10 && Math.abs(Math.hypot(W.climate.spec.base[0], W.climate.spec.base[2]) - 12 * 0.514444) < 1e-9, 'and the climate resolved it');
+  W.setDay({ wind: null });
+  yes(W.wind(0, 0, 0, 0)[0] === 0 && W.day.spec().wind == null, 'setDay({ wind: null }) clears both');
+  // the sea follows the legacy law exactly as before: 32 trains, A = 0.018 W, L = 3 + 1.4 W
+  W.setWind({ base: [3, 0, 4] });
+  const S = W.sea;
+  yes(S.W.length === 32 && Math.abs(S.A - 0.09) < 1e-12 && Math.abs(S.L - 10) < 1e-12 && Math.abs(S.dir - Math.atan2(4, 3)) < 1e-12, `the sea follows the wind: ${S.W.length} trains, A ${S.A.toFixed(3)} L ${S.L.toFixed(1)}`);
+  const seaHash = fnvStr(JSON.stringify(S.W));
+  // pinned at K0 from the unchanged seaFrom (re-pin in the same commit as any intentional change to it)
+  yes(seaHash === '63eccad3', `the trains' golden ${seaHash}`);
+  W.setWind(null);
+}
+
+// ---- 3. the rich field is deterministic --------------------------------------------
+console.log('3. determinism');
+const RICH = { kts: 15, dirDeg: 250, gust: 0.4, refH: 10, aloftK: 1.3, veerDeg: 20, terrain: 1 };
+{
+  const W2 = makeWorld();
+  W.setWind(RICH); W2.setWind(RICH);
+  yes(W.climate.mode === 'rich' && W2.climate.mode === 'rich', 'a spec with aloftK/veerDeg/terrain is rich');
+  const parts = [];
+  let bad = 0;
+  const out = [0, 0, 0], out2 = [0, 0, 0];
+  for (let i = 0; i < 4096; i++) {
+    const x = (rnd() - 0.5) * 20000, z = (rnd() - 0.5) * 20000, y = W.terrainH(x, z) + rnd() * 1500, t = rnd() * 100;
+    W.climate.sample(x, y, z, t, out); W2.climate.sample(x, y, z, t, out2);
+    if (!Object.is(out[0], out2[0]) || !Object.is(out[1], out2[1]) || !Object.is(out[2], out2[2])) bad++;
+    parts.push(out[0].toFixed(6), out[1].toFixed(6), out[2].toFixed(6));
+  }
+  yes(bad === 0, `4096 rich samples identical across two worlds (hash ${fnvStr(parts.join(','))})`);
+  yes(W.climate.relief && W2.climate.relief && W.climate.relief.hash === W2.climate.relief.hash, `the relief rasters agree (${W.climate.relief.hash})`);
+}
+
+// ---- 4. the relief raster ------------------------------------------------------------
+console.log('4. the relief raster');
+{
+  const R = W.climate.relief, CH = CLIMATE.CH, N = R.nx * R.nz;
+  yes(R.cell === 200 && R.nx >= 120 && R.nz >= 120, `${R.nx} x ${R.nz} cells of ${R.cell} m over the bounds, built in ${R.ms.toFixed(0)} ms`);
+  yes(R.ms < 400, 'the build is under 400 ms');
+  let exact = 0, slopeMax = 0, promBad = 0, heatBad = 0;
+  for (let k = 0; k < N; k += 97) {
+    const i = k % R.nx, j = Math.floor(k / R.nx), x = R.x0 + (i + 0.5) * R.cell, z = R.z0 + (j + 0.5) * R.cell;
+    if (R.data[k * R.NCH + CH.h] === Math.fround(W.terrainH(x, z))) exact++;
+  }
+  for (let k = 0; k < N; k++) {
+    const o = k * R.NCH;
+    slopeMax = Math.max(slopeMax, Math.hypot(R.data[o + CH.gxc] + R.data[o + CH.gxf], R.data[o + CH.gzc] + R.data[o + CH.gzf]));
+    const p = R.data[o + CH.prom]; if (!(p >= -1 && p <= 1)) promBad++;
+    const h = R.data[o + CH.heat]; if (!(h >= 0 && h <= 1)) heatBad++;
+  }
+  yes(exact === Math.ceil(N / 97), `the height channel is terrainH at every sampled centre (${exact} of ${Math.ceil(N / 97)})`);
+  yes(slopeMax > 0.05 && slopeMax < 2, `the smoothed slope peaks at ${slopeMax.toFixed(3)} (a real relief, no spike)`);
+  yes(promBad === 0 && heatBad === 0, 'prominence in [-1, 1], heat in [0, 1] everywhere');
+  // the coast: negative on the sea, positive inland, the gradient pointing inland
+  let seaPt = null, landPt = null;
+  for (let k = 0; k < N && !(seaPt && landPt); k += 13) {
+    const i = k % R.nx, j = Math.floor(k / R.nx), x = R.x0 + (i + 0.5) * R.cell, z = R.z0 + (j + 0.5) * R.cell;
+    const h = W.terrainH(x, z);
+    if (!seaPt && h <= 0.05 && W.surface(x, z) === W.SURFACE.WATER) seaPt = [x, z];
+    if (!landPt && h > 50) landPt = [x, z];
+  }
+  const ra = W.climate.reliefAt(seaPt[0], seaPt[1], new Float32Array(R.NCH)), rb = W.climate.reliefAt(landPt[0], landPt[1], new Float32Array(R.NCH));   // own arrays: reliefAt's default is a shared scratch
+  yes(ra[CH.coast] < 0, `at sea (${seaPt.map(v => v.toFixed(0))}) the coast distance is ${ra[CH.coast].toFixed(0)} m`);
+  yes(rb[CH.coast] > 0, `inland (${landPt.map(v => v.toFixed(0))}) it is +${rb[CH.coast].toFixed(0)} m`);
+  yes(ra[CH.heat] === 0 && rb[CH.heat] > 0, 'water does not heat; land does');
+  // the gradient of the coast distance points inland: stepping along it from the sea raises the distance
+  const step = 600, x2 = seaPt[0] + ra[CH.cgx] * step, z2 = seaPt[1] + ra[CH.cgz] * step;
+  yes(W.climate.reliefAt(x2, z2, new Float32Array(R.NCH))[CH.coast] > ra[CH.coast], 'the coast gradient points inland');
+}
+
+// ---- 7. the linearised sampler ---------------------------------------------------------
+console.log('7. the linearised sampler');
+{
+  W.setWind(RICH);
+  const cl = W.climate;
+  cl.stats.full = cl.stats.linear = cl.stats.recentres = 0;
+  let worst = 0, worstRel = 0, worstLow = 0, worstFar = 0, n = 0;
+  const s = [0, 0, 0];
+  for (let i = 0; i < 1000; i++) {
+    const x = (rnd() - 0.5) * 20000, z = (rnd() - 0.5) * 20000, g = W.terrainH(x, z);
+    const low = rnd() < 0.2, y = g + (low ? 1 + rnd() * 6 : 20 + rnd() * 1200), t = 100 + i;   // a fresh instant: this call re-centres
+    W.wind(x, y, z, t);
+    // the solver's footprint: a wing's strips and the tail within ~12 m of the mean wing, +-2 m in height
+    const dx = (rnd() - 0.5) * 24, dy = (rnd() - 0.5) * 4, dz = (rnd() - 0.5) * 24;
+    const w = W.wind(x + dx, y + dy, z + dz, t);                     // the same instant, within the radius
+    cl.sample(x + dx, y + dy, z + dz, t, s);
+    const e = Math.hypot(w[0] - s[0], w[1] - s[1], w[2] - s[2]), m = Math.hypot(s[0], s[1], s[2]);
+    if (low) worstLow = Math.max(worstLow, e); else { worst = Math.max(worst, e); worstRel = Math.max(worstRel, e / Math.max(0.5, m)); n++; }
+    // and the whole radius, for the record
+    const fx = (rnd() - 0.5) * 60, fz = (rnd() - 0.5) * 60;
+    const wf = W.wind(x + fx, y + dy, z + fz, t); cl.sample(x + fx, y + dy, z + fz, t, s);
+    if (!low) worstFar = Math.max(worstFar, Math.hypot(wf[0] - s[0], wf[1] - s[1], wf[2] - s[2]));
+  }
+  yes(worst < 0.1 && worstRel < 0.01, `above 20 m agl the linearised wind is within ${worst.toFixed(4)} m/s (${(worstRel * 100).toFixed(2)} %) of the full field over ${n} pairs of the solver's footprint`);
+  console.log(`       (${worstFar.toFixed(3)} m/s at the 30 m radius; within 7 m of the ground the ground's own curvature costs up to ${worstLow.toFixed(3)} m/s)`);
+  // a solver-like pattern: 25 calls per instant within 10 m, 200 instants
+  cl.stats.full = cl.stats.linear = cl.stats.recentres = 0;
+  for (let k = 0; k < 200; k++) {
+    const t = 1000 + k / 60, x = 500 + k, y = 300, z = -200;
+    for (let i = 0; i < 25; i++) W.wind(x + (rnd() - 0.5) * 10, y + (rnd() - 0.5) * 2, z + (rnd() - 0.5) * 10, t);
+  }
+  yes(cl.stats.recentres === 200 && cl.stats.linear === 200 * 24 && cl.stats.linear / cl.stats.full >= 4,
+      `200 instants x 25 calls: ${cl.stats.recentres} re-centres, ${cl.stats.full} full, ${cl.stats.linear} linear (ratio ${(cl.stats.linear / cl.stats.full).toFixed(1)})`);
+  // a far call at the same instant does not re-centre
+  const before = cl.stats.recentres;
+  W.wind(500, 300, -200, 1000); W.wind(9000, 300, 4000, 1000);
+  yes(cl.stats.recentres === before + 1, 'a far call at the same instant is a full sample, not a re-centre');
+  // cost: full samples per second
+  const t0 = process.hrtime.bigint();
+  for (let i = 0; i < 20000; i++) cl.sample(i % 3000, 200 + (i % 7), -i % 2000, i * 0.01, s);
+  const us = Number(process.hrtime.bigint() - t0) / 1e3 / 20000;
+  console.log(`       full sample ${us.toFixed(2)} us`);
+  yes(us < 3, 'a full sample under 3 us');
+  W.setWind(null);
+}
+
+// ---- 14. the sources -------------------------------------------------------------------
+console.log('14. the sources');
+{
+  const core = f => fs.readFileSync(path.join(__dirname, '..', 'src', 'core', f), 'utf8');
+  const cl = core('09_climate.js');
+  yes(!/new Date\(|Date\.now\(|THREE\.|window\.|document\./.test(cl), '09_climate.js has no Date, no THREE, no DOM');
+  yes(/'09_climate\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'build.js MANIFEST.core carries 09_climate.js');
+  yes(/\bCLIMATE\b/.test(core('90_node_exports.js')), '90_node_exports.js exports CLIMATE');
+  const world = core('20_world.js');
+  yes(!/function wind\(/.test(world) && /CLIMATE\.make\(/.test(world), '20_world.js has no wind() of its own: the climate makes it');
+  yes(/const GC = \[/.test(cl) && /function windLegacy\(/.test(cl) && /WV\[1\] \+= gk \* 0\.18 \* ay \* s/.test(cl), 'the G72 field lives in 09_climate.js verbatim');
+}
+
+// ---- verdict -------------------------------------------------------------------------------
+console.log(`GATE CLIMATE: ${fails ? 'FAIL (' + fails + ' check' + (fails > 1 ? 's' : '') + ')' : 'PASS'}`);
+process.exit(fails ? 1 : 0);

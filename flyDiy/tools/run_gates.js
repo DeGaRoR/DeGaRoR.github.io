@@ -60,6 +60,9 @@ const GATES = [
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
+  // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
+  // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds
+  { id: 'CLIMATE', file: 'test_climate.js', tier: 'core' },
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
