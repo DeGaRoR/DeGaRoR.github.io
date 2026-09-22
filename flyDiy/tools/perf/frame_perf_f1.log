@@ -1,0 +1,17 @@
+  roll-out screen: gone after 121 s (a step timed out)
+frame_perf  ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)  [f1]
+  installed · gpu timer true · gfx {"preset":"medium","drawDist":"vis","aa":"msaa","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","glare":"on","sway":"on","mist":"land","clouds":"half","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","water":"full","mirror":"periodic"}
+  eval -> {"visM":180059,"hid":0}
+  stand   off0       full  frame   87.7 ms (p90 92.5; 86.4 under the timer) · gpu passes 85.05 ms · cpu world 3.83 ms · 12724 calls · 44.4 Mtris · GPU WAS 96 % BUSY BEFORE
+      scene 83.98 · shadow:maps 6.73×5.4 · clouds:march* 0.9 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   on         full  frame   82.9 ms (p90 134.7; 90.8 under the timer) · gpu passes 90.08 ms · cpu world 5.11 ms · 12546 calls · 39.1 Mtris · GPU WAS 86 % BUSY BEFORE
+      scene 89 · shadow:maps 7.99×5.4 · clouds:march* 0.91 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   off1       full  frame    133 ms (p90 157; 131.5 under the timer) · gpu passes 125.12 ms · cpu world 3.89 ms · 12548 calls · 41.9 Mtris · GPU WAS 98 % BUSY BEFORE
+      scene 124.05 · shadow:maps 9.19×5.4 · clouds:march* 0.9 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   on2        full  frame   90.9 ms (p90 92.5; 91.1 under the timer) · gpu passes 89.97 ms · cpu world 3.49 ms · 12542 calls · 39.1 Mtris · GPU WAS 98 % BUSY BEFORE
+      scene 88.89 · shadow:maps 7.47×5.4 · clouds:march* 0.91 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  stand   off2       full  frame   95.3 ms (p90 98.4; 90.3 under the timer) · gpu passes 78.99 ms · cpu world 3.63 ms · 12554 calls · 41.9 Mtris · GPU WAS 97 % BUSY BEFORE
+      scene 77.91 · shadow:maps 6.37×5.4 · clouds:march* 0.91 · resolve 0.12 · atmo:sky 0.03 · atmo:ap 0.02 · shadow:far 0×0.3
+  -> tools/perf/frame_perf_f1.json
+
+exit 0

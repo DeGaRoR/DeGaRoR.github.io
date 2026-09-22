@@ -440,6 +440,16 @@
                              + (mist().relief ? ' · ' + (mistScalarsN() || '?') + ' samples a ray' : ' · not in use (relief off)'))
                           : 'no field baked — the flat slab is all there is'; } };
       rows.push(R); live.push(R); A.appendChild(n); }
+    // F1: what the contract is doing, in the units it decides in
+    { const vis = () => (W.WORLD && W.WORLD.vis) ? W.WORLD.vis : null;
+      A.appendChild(slider('draw distance', 0, 1, 1, () => (vis() ? (vis().on ? 1 : 0) : NaN), v => { const V = vis(); if (V) { V.on = !!v; if (!v) V.release(); } }, v => (v ? 'by visibility' : 'always full')));
+      A.appendChild(slider('cut margin', 1, 3, 0.05, () => (vis() ? vis().k : NaN), v => { if (vis()) vis().k = v; }, v => v.toFixed(2) + 'x'));
+      const n = note(''); const R = { el: n, refresh: () => { const V = vis();
+        n.textContent = V ? ('sees ' + (V.visM === Infinity ? 'to the air’s own limit' : (V.visM / 1000).toFixed(1) + ' km level')
+                             + ' · far plane ' + (V.far / 1000).toFixed(1) + ' km'
+                             + ' · ' + V.nHidden + ' of ' + V.meshes.length + ' far meshes hidden'
+                             + ' · ' + V.ms.toFixed(2) + ' ms') : 'no world'; } };
+      rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the mist’s density is the day’s humidity (dry below 70 %); the GRAPHICS menu switches glare and mist off'));
     const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
     A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));

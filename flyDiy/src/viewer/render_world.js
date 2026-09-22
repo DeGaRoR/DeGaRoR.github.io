@@ -601,6 +601,63 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // when the eye has moved, and sampled by the TERRAIN alone - which is
   // where a shadow at 500 m is seen. Not a general cascade: trees do not
   // read it, and the near map keeps doing the near work.
+  // ---- F1: THE VISIBILITY CONTRACT (FOG-MIST §2) --------------------------
+  // On a foggy day the renderer draws exactly as much as on a clear one: the far plane is 100 km,
+  // the far terrain quadrants are never distance-culled, and nothing reads the visibility. Fog
+  // does not cost this frame - it LICENSES it to draw less. Measured at the stand: the far plane
+  // alone -25 %, the quadrant test alone -9 %, BOTH TOGETHER -45 % (super-additive, because a
+  // quadrant's bounding sphere reaches into the near field so the far plane cannot drop it, while
+  // only the far plane drops the ~1150 small distant objects).
+  //
+  // THE RULE IS THE SHADER'S OWN: a thing is hidden when the transmittance to its NEAREST point
+  // is under a threshold - ATMO.seeT, the closed form's own arithmetic on the CPU. Never from an
+  // authored visibility, or the cut shows the moment the two disagree.
+  //
+  // IT APPLIES TO THE MAIN CAMERA ONLY. The water's mirror, the reflection probes, the far shadow
+  // cascade and the parked-aeroplane captures all render this same scene from other eyes, and a
+  // cull sized for one eye is wrong for another. app.js wraps the MAIN render in apply/release;
+  // every other pass runs outside that window and sees the world whole.
+  const VIS = {
+    on: true, k: 1.3, minFar: 3000, maxFar: 100000, thresh: 0.01,
+    meshes: [], hidden: [], held: false,
+    far: 100000, visM: Infinity, nHidden: 0, ms: 0,
+    // the surface visibility a person would quote: the clearest LEVEL ray from the eye
+    level(eyeY) { return (typeof ATMO !== 'undefined' && ATMO.seeRange) ? ATMO.seeRange(eyeY, eyeY, this.thresh) : Infinity; },
+    apply(cam) {
+      if (this.held || !this.on || typeof ATMO === 'undefined' || !ATMO.seeT) return;
+      const t0 = performance.now(), eye = cam.position, eyeY = eye.y;
+      // THE FAR PLANE is sized for the thing that stays visible LONGEST: a summit standing at the
+      // top of the world's terrain, seen along a ray that barely enters the layer (§1f - the mist
+      // kills distant GROUND at a few km while the ridges above it stand for tens).
+      const yTop = (world.island && world.island.hMax > 0) ? world.island.hMax : 1200;   // the world's own summit
+      const r = ATMO.seeRange(eyeY, yTop, this.thresh);
+      this.visM = this.level(eyeY);
+      const want = Math.max(this.minFar, Math.min(this.maxFar, r * this.k));
+      if (Math.abs(want - cam.far) > 0.02 * cam.far) { cam.far = want; cam.updateProjectionMatrix(); }
+      this.far = cam.far;
+      // THE QUADRANTS, one test each: the nearest point of the sphere, at its own height.
+      let n = 0;
+      for (const m of this.meshes) {
+        const g = m.geometry; if (!g) continue;
+        if (!g.boundingSphere) g.computeBoundingSphere();
+        if (!g.boundingBox) g.computeBoundingBox();
+        const sp = g.boundingSphere, bb = g.boundingBox; if (!sp || !bb) continue;
+        _vc.copy(sp.center).applyMatrix4(m.matrixWorld);
+        const d = Math.max(0, _vc.distanceTo(eye) - sp.radius);
+        // AIM AT THE HIGHEST GROUND IT HOLDS, not at its bounding sphere: a terrain quadrant's
+        // sphere is kilometres wide, so centre + radius is a point in the SKY and the test asked
+        // whether one could see thin air (it could, so nothing was ever hidden). A quadrant is
+        // invisible only when even its SUMMIT is - which is §1f's own finding, that the mist
+        // takes the distant ground long before it takes the ridges standing out of it.
+        if (d > 0 && ATMO.seeT(eyeY, bb.max.y, d) < this.thresh) { m.visible = false; this.hidden.push(m); n++; }
+      }
+      this.nHidden = n; this.ms = performance.now() - t0; this.live = true;
+    },
+    release() { for (const m of this.hidden) m.visible = true; this.hidden.length = 0; this.live = false; },
+    get applied() { return !!this.live; },     // read-only, for GATE WATER: the capture runs with the cull ON
+  };
+  const _vc = new THREE.Vector3();
+
   const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
     enabled: !(renderer && renderer.isWebGPURenderer),   // W0.5b: the far cascade + canopy map are packed-depth passes; off under the flag until ported
 
@@ -1782,6 +1839,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.uv, 2));
         geo.setIndex(g.idx); geo.computeVertexNormals();
         const m = new THREE.Mesh(geo, oMat); m.receiveShadow = true; scene.add(m);
+        m.userData.farTerrain = true; VIS.meshes.push(m);   // F1: the contract hides these by distance
         farTris += g.idx.length / 3;
       }
       console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
@@ -5097,7 +5155,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (Number.isFinite(h) && Math.abs(h) < 3) return seaPlaneY;   // the sea's plane
     return null;
   }
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  return { worldUpdate, vis: VIS,
+    // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
+    // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
+    // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

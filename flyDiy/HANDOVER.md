@@ -56497,3 +56497,52 @@ and fails if one stops reading the cover - which is exactly how the trees came t
 - GATE WATER's bound on the dial is 0.25, so the rule prints the number and holds the cap either way.
 - A RIG NOTE: cloud_shot threw "the roll-out never happened" once at --wait 6000 on a cold server and ran
   clean at 12000. If a shot set dies at the roll-out, raise the wait before suspecting the page.
+## G505 - F1: THE VISIBILITY CONTRACT - the renderer stops drawing what the weather has already
+## swallowed, and it saves less than the study promised because the study was cutting too deep
+## (2026-09-22, the user: "do F1, ensure you coordinate")
+
+FOG-MIST-2026-09-21.md SS2 and SS5a, built. `day.visibilityKm` had been computed since G410 and
+read by nothing; the far plane was 100 km and the far terrain was never distance-culled, on a
+2 km-visibility morning as on a clear afternoon.
+
+- **THE RULE IS THE SHADER'S OWN.** `ATMO.seeT(eyeY, targetY, D)` and `ATMO.seeRange(...)` are the
+  CPU mirror of `MIST_GLSL`'s closed form (in-cloud slab included) times `medium()`'s own
+  extinction - the renderer asks what the SHADER will draw, never what the day was authored with.
+  A thing is hidden when the transmittance to the highest GROUND it holds is under 1 %.
+- **WHAT IT DOES NOT DO, and this is the finding.** SS1d measured -45 % by hiding far terrain at
+  `1.3 x visM`, and SS1f then showed in pictures that such a cut SHEARS THE SKYLINE: the mist takes
+  the distant ground at ~2 km while the ridges standing out of it are visible for 25. Both are
+  true, so the honest contract cannot take that saving. From 200 m it correctly hides NOTHING.
+- **MEASURED** (eye 25 m, Jolene): rh 0.90 -> visM 4052 m, 5 of 16 far meshes hidden; rh 0.98 ->
+  2090 m, 8 of 16; the mist x4 -> 527 m, 10 of 16, far plane 31.6 km. 0.1 ms of CPU. The live
+  numbers agree with the CPU mirror to three figures because they are the same arithmetic. The
+  saving in geometry at the stand under thick fog: **41.9 -> 39.1 Mtris, -6.7 %**. The frame-time
+  delta is OWED on a quiet box - every row of the A/B/A was taken at 96-98 % GPU with a peer's rig
+  on the card, and the OFF baselines read 87.7 / 133.0 / 95.3 ms.
+- **COORDINATED BEFORE A LINE WAS WRITTEN, with both sessions whose work it touches.** The WATER
+  session ruled (c): its mirror capture runs WITH the cull applied, because `mirrorRender` only
+  runs under 60 m AGL and the mirrored eye is the main eye moved VERTICALLY, so against a quadrant
+  kilometres out both eyes get the same answer - `apply` brackets the capture from OUTSIDE (never
+  between its own hide and restore), `WF.vis.applied` is exposed for GATE WATER, and
+  `ATMO.setEyeY/getEyeY` are there for a capture that wants the dome's mist exact from below. The
+  CLIMATE session ruled that `haze().rho0` is the COLUMN's aerosol extinction while the mist's is a
+  shallow layer's - two media, not two estimates of one (~10x apart) - so nothing here reads
+  `haze()` yet and F1 follows whichever way that settles; the mist's banks now drift on
+  `climate.sample()` as an INTEGRAL rather than `wind x seconds` (a position computed from the wind
+  NOW is not a position), and `WF.visM()` is published for their panel.
+- **GATE FOG** (`tools/test_fog.js`, core, 22 checks): the CPU mirror against the GLSL branch for
+  branch, transmittance monotone in distance and in density, the wall finding AS ARITHMETIC (at
+  rh 0.98 the ground is gone by 2.11 km while a summit stands to 26.9), the cull applied and
+  released around ONE render and bracketing the mirror from outside, the test aiming at a mesh's
+  highest ground rather than its bounding sphere, and every preset naming the row. **Headless, no
+  GPU, because a picture cannot prove this** - two identical frozen frames differ in 49 % of pixels
+  (SS1f), so a screenshot diff would be a gate that passes whatever happens.
+- GRAPHICS `draw distance`: `by visibility` / `always full`, live, on every preset. F8 gains the
+  switch, the margin, and a readout of what it is seeing and hiding.
+- GATES: FOG, ATMO, CLOUD, GFX, DAY, WORLDRENDER green.
+- **THE BUILD IS PART OF THE LANDING.** G503 (F2) changed four files under src/ and landed with no
+  `(built)` commit - master's page carried none of it until the water session's own build swept it
+  in by accident (the climate chantier did the same within the hour and wrote it up in G504.10).
+  This landing carries its build, and it regularises F2's at the same time.
+- OWED: the frame-time delta on a quiet box; whether the density law moves to the climate's
+  `haze().layer` (their chantier, the user's ruling); F3 untouched.

@@ -9310,6 +9310,15 @@
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
     // dome and the spray stay out of the capture (the probe's sky and clouds are the reflection's sky)
+    // F1 - THE VISIBILITY CONTRACT goes on HERE, before the mirror capture and the main render,
+    // and comes off after both (the water session's ruling, 2026-09-22): `mirrorRender` only runs
+    // under 60 m AGL and the mirrored eye is the main eye moved VERTICALLY, so against a quadrant
+    // kilometres out both eyes get the same answer to well under a per cent - releasing it for
+    // that pass would cost the saving and buy nothing. It must NOT be toggled between the
+    // mirror's own hide and restore, which is why it brackets that whole block from outside.
+    // Everything earlier in the frame - the probes, the far shadow cascade, the parked captures
+    // in worldUpdate - renders from other eyes entirely and sees the world whole.
+    if (!inGarage && WF && WF.vis) WF.vis.apply(camera);
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
@@ -9323,6 +9332,8 @@
     }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
     else renderer.render(inGarage ? garageScene() : scene, camera);
+    // F1: the contract comes OFF here, after the main render and the mirror capture it covers
+    if (!inGarage && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {
       const L = SKY_LIGHT.last;

@@ -806,6 +806,62 @@ ${MIST_GLSL}
   // update(renderer, day, camAltM): the day-only tables on a change, the sky-view every call
   let lastVer = -1;
   const _vp = (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4() : null, _sc = _vp ? new THREE.Vector4() : null;
+  // ---- F1: WHAT THE SHADER WILL DRAW, ON THE CPU --------------------------
+  // The renderer may only stop drawing where the player cannot see, and "cannot see" must be the
+  // SHADER's opinion or the cut shows as a wall the moment the two disagree (FOG-MIST §2a). So
+  // these are the closed form's own arithmetic, in JS: `mistODcpu` mirrors MIST_GLSL's `mistOD`
+  // line for line, and `seeT` is the transmittance along a straight segment - the mist times the
+  // clear air's own extinction (Rayleigh + Mie + ozone, the same `medium()` the tables are built
+  // from). If one of them is ever edited without the other, GATE FOG says so.
+  //
+  // THE FIELD IS NOT SAMPLED HERE, on purpose. With F2 the layer's top and density vary over the
+  // ground, so a ray into a bank and a ray down a clear lane differ - but the multipliers average
+  // ONE by construction and a path of kilometres crosses several banks, so the day's own rho0 is
+  // the honest mean and the contract's margin (1.3x) covers the variance. A single bank cannot
+  // make a whole path clear; that is the assumption, and it is written down so it can be argued.
+  function mistODcpu(y0, dy, D) {
+    const rho0 = MIST.on ? MIST.rho0 : 0;
+    // THE SLAB THE EYE IS IN (CLOUDS C4) counts too, and it is the case where this matters most:
+    // inside a deck the world is white and the renderer is drawing an island nobody can see.
+    let od = 0;
+    if (MIST.on && MIST.cloud.rho > 0) {
+      const yb = MIST.cloud.base, yt = MIST.cloud.top;
+      if (Math.abs(dy) < 1e-5) od += (y0 >= yb && y0 <= yt) ? MIST.cloud.rho * D : 0;
+      else { const ta = (yb - y0) / dy, tb = (yt - y0) / dy;
+             od += MIST.cloud.rho * Math.max(0, Math.min(D, Math.max(ta, tb)) - Math.max(0, Math.min(ta, tb))); }
+    }
+    if (rho0 <= 0) return od;
+    const yTop = MIST.top, H = Math.max(1, MIST.H);
+    const above = (ya, t0, t1) => (Math.abs(dy) < 1e-4)
+      ? (t1 - t0) * Math.exp(-ya / H)
+      : (H / dy) * (Math.exp(-(ya + dy * t0) / H) - Math.exp(-(ya + dy * t1) / H));
+    const ya = y0 - yTop, y1 = ya + dy * D;
+    if (ya <= 0 && y1 <= 0) return od + rho0 * D;
+    if (ya > 0 && y1 > 0) return od + rho0 * above(ya, 0, D);
+    const ts = -ya / dy;
+    return od + (ya <= 0 ? rho0 * (ts + above(ya, ts, D)) : rho0 * (above(ya, 0, ts) + (D - ts)));
+  }
+  const _med = newMed();
+  // the transmittance from an eye at y0 to a point D metres away that stands at yT
+  function seeT(y0, yT, D) {
+    if (!(D > 0)) return 1;
+    const dy = (yT - y0) / D;
+    let od = mistODcpu(y0, dy, D);
+    // the clear air, four samples along the segment (its extinction varies only with height)
+    let e = 0;
+    for (let i = 0; i < 4; i++) { medium(Math.max(0, (y0 + (yT - y0) * (i + 0.5) / 4) / 1000), _med); e += (_med.e[0] + _med.e[1] + _med.e[2]) / 3; }
+    od += (e / 4) * (D / 1000);          // medium() is per km
+    return Math.exp(-od);
+  }
+  // the distance at which a thing standing at yT stops being visible from an eye at y0
+  function seeRange(y0, yT, thresh) {
+    const th = thresh || 0.01;
+    if (seeT(y0, yT, 200000) > th) return Infinity;      // clear air all the way: nothing to cut
+    let lo = 0, hi = 200000;
+    for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (seeT(y0, yT, m) > th) lo = m; else hi = m; }
+    return hi;
+  }
+
   // eye / world are F2's: the march needs the eye's XZ (the GLSL signature carries only its height)
   // and the patches drift on the surface wind. Both optional - a caller that has neither (the boot,
   // the shed) gets the flat closed form, which is what it had before.
@@ -935,11 +991,27 @@ ${MIST_GLSL}
       mistScalars[19] = relief ? Math.max(2, Math.min(16, MIST.steps | 0)) : 0;
       mistScalars[20] = F ? F.x0 : 0; mistScalars[21] = F ? F.z0 : 0; mistScalars[22] = F ? F.inv : 0;
       mistScalars[23] = F ? F.yHi : 0;
-      // the banks drift downwind on the DAY's clock (day.jd is continuous and stops when the clock
-      // is paused - which is what a frozen A/B wants), at the mist's own height, not the gradient's
-      const w = (world && typeof world.wind === 'function') ? world.wind(0, Math.max(10, MIST.top), 0, 0) : null;
-      const tSec = MIST.driftK * (day.jd != null ? day.jd * 86400 : (day.utc || 0));
-      mistScalars[24] = w ? -w[0] * tSec : 0; mistScalars[25] = w ? -w[2] * tSec : 0;
+      // THE BANKS DRIFT ON THE CLIMATE'S OWN FIELD, and as an INTEGRAL (the climate session's
+      // ruling, 2026-09-22): a position computed as `wind now x seconds elapsed` jumps the whole
+      // layer whenever the wind changes, because that is not a position. It accumulates instead,
+      // and it reads `climate.sample()` - the field everyone but the solver reads - so the mist,
+      // the sky and the windsocks cannot disagree about which way the weather is going.
+      const tNow = (day.jd != null ? day.jd * 86400 : (day.utc || 0));
+      const dt = (MIST._t == null) ? 0 : Math.max(0, Math.min(600, tNow - MIST._t));
+      MIST._t = tNow;
+      if (dt > 0 && world) {
+        let wx = 0, wz = 0;
+        if (world.climate && typeof world.climate.sample === 'function') {
+          const f = world.climate.sample(eye ? eye.x : 0, Math.max(10, MIST.top), eye ? eye.z : 0, tNow, MIST._w || (MIST._w = {}));
+          const v = (f && (f.wind || f.v || f)) || null;
+          if (v && v.length >= 3) { wx = v[0]; wz = v[2]; }
+        } else if (typeof world.wind === 'function') {
+          const v = world.wind(0, Math.max(10, MIST.top), 0, 0); if (v) { wx = v[0]; wz = v[2]; }
+        }
+        MIST._dx = (MIST._dx || 0) - wx * dt * MIST.driftK;
+        MIST._dz = (MIST._dz || 0) - wz * dt * MIST.driftK;
+      }
+      mistScalars[24] = MIST._dx || 0; mistScalars[25] = MIST._dz || 0;
       mistScalars[26] = 1 / Math.max(50, MIST.bankM); mistScalars[27] = MIST.patch;
     }
     return true;
@@ -1034,7 +1106,12 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, bakeField, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
+    install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,
+    // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
+    // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
+    // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
+    setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
+    get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();
