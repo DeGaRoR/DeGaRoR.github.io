@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a70853898f794fa7
+// body-sha256: 98f0b6e831f5e3cd
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6187,6 +6187,19 @@ function compose(rec0, world, opts) {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' });
     }
+    // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
+    // `n` animals of the species `key` living within `r` metres of (x, z). One
+    // record makes a herd, a pod or a flock, and `n: 1, r: 0` is one animal
+    // placed by hand. They carry no mesh here: src/viewer/animal_run.js sows
+    // them on the composed ground (and the composed WATER, for a pod), seeded
+    // per individual so adding one never moves the others (rule 5).
+    O.records.animals = [];
+    for (const ob of rec.layers.objects) if (ob.kind === 'animal') {
+      if (!ob.key) { O.records.issues.push('animal ' + ob.id + ': no species'); continue; }
+      O.records.animals.push({ id: ob.id, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0,
+                               y: O.localH(ob.x, ob.z) + (+ob.dy || 0), dy: +ob.dy || 0,
+                               n: Math.max(1, Math.min(24, (+ob.n) | 0 || 1)), r: Math.max(0, +ob.r || 0) });
+    }
     for (const t of O.records.trees) t.y = O.localH(t.x, t.z);
   }
   return O;
@@ -6240,7 +6253,8 @@ function issues(rec0) {
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0))) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
-  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key'); }
+  for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
+    if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }
   const ids = new Set();
@@ -15738,6 +15752,130 @@ function decodeCharAnim(a, bin) {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { decodeChar, registerChar, charList, CHAR_REG,
                      decodeCharAnim, registerCharAnim, CHAR_ANIMS };
+// animal_codec.js — decode baked ANIMAL payloads (see tools/animal_prep.py).
+// Pure JS, no three.js: the same code runs in the page and in the node gates.
+//
+// WHY A FOURTH CODEC. 50_model_codec.js bakes an aeroplane, 51_prop_codec.js a
+// rigid prop, 52_char_codec.js a rigged CHARACTER — and that last one is
+// nearly this, which is why it was read line by line before this was written.
+// Three things it cannot carry, each of them load-bearing here:
+//
+//   A CLIP WITH TRANSLATIONS. char_prep keeps rotation channels only, on
+//   purpose: the ATD owns a seated pilot's root and a translation would fight
+//   the seat. An animal's clip IS the whole animal — 34 of a bear's 76
+//   channels are translations, and its root walks the rig forward.
+//   A CLIP LIBRARY. A character wears one of two clips. A bear ships 81 and
+//   chains them; the manifest carries every clip the table asked for, by ROLE.
+//   A RIGID CHILD. The elk's antlers are a plain mesh under a bone — no joint
+//   indices, no weights. `mesh.skin === 0` says so and the factory parents it.
+//
+// Layout (little-endian, sections 4-byte aligned; the manifest carries every
+// offset and count, nothing is discovered by reading ahead):
+//   ibm      f32[16 * nJoints]   inverse bind matrices, column-major (glTF)
+//   per mesh at manifest.meshes[i].off:
+//     f32 pos[3n] f32 nrm[3n] f32 uv[2n] [u8 jt[4n] f32 wt[4n]] u16 idx[3t]
+//
+// The clips ride in a SECOND file (manifest.clipBin), per clip at clip.off:
+//   f32 travel[3 * frames]                  the root's displacement, METRES,
+//                                           in the model frame, y up
+//   per frame: f32 t[3] per node of clip.nt
+//              f32 r[4] per node of clip.nr
+//              f32 s[3] per node of clip.ns
+// A node not in a list keeps its rest TRS, which is why a clip that animates
+// a third of the tree costs a third of the bytes.
+//
+// NOTHING IS SCALED IN THE PAYLOAD. `manifest.scale` is the factor from the
+// delivered units to the declared real length, and the SCENE applies it (one
+// Object3D scale at the root). `dim`, `bb` and every clip's `travel`/`speed`
+// are already in METRES — they are measurements, not geometry.
+
+const ANIMAL_REG = { animals: {}, order: [] };
+
+// A manifest registers itself at load (src/animals/<key>_animal.js); table
+// order is load order is animals_index.json order. The ONE list the editor's
+// palette, the behaviours and GATE MEDIA read.
+function registerAnimal(a) {
+  if (!ANIMAL_REG.animals[a.key]) ANIMAL_REG.order.push(a.key);
+  ANIMAL_REG.animals[a.key] = a;
+  return ANIMAL_REG;
+}
+function animalList(kind) {
+  return ANIMAL_REG.order.map(k => ANIMAL_REG.animals[k]).filter(a => !kind || a.kind === kind);
+}
+// every clip of a role, in manifest order; [] when the row never filled it
+function animalClips(a, role) {
+  return (a && a.clips ? a.clips : []).filter(c => c.role === role);
+}
+// the one clip a role resolves to, falling back down a chain of roles — the
+// ONE place "what does this animal do when it has no `lie`" is answered
+const ROLE_FALLBACK = { browse: 'idle', trot: 'walk', rear: 'idle', lie: 'idle',
+                        toWalk: null, toLie: null, fromLie: null, turnL: null, turnR: null,
+                        walk: 'idle', swim: 'idle', flap: 'idle' };
+function animalClip(a, role, pick) {
+  let r = role, seen = 0;
+  while (r && seen++ < 6) {
+    const got = animalClips(a, r);
+    if (got.length) return got[Math.min(got.length - 1, Math.floor((pick || 0) * got.length))];
+    r = ROLE_FALLBACK[r];
+  }
+  return null;
+}
+
+// bin -> { ibm: Float32Array(16*nJ), meshes: [{pos,nrm,uv,jt,wt,idx,mat,name,node,skin}] }
+// Typed arrays are views over a 4-aligned copy when the incoming buffer is not
+// aligned (fetch gives a fresh ArrayBuffer at 0, fs may not).
+function decodeAnimal(a, bin) {
+  if (!bin) throw new Error('decodeAnimal: "' + a.key + '" needs its bin bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const B = u8.buffer, o0 = u8.byteOffset;
+  const nJ = a.joints.length;
+  const ibm = new Float32Array(B, o0, 16 * nJ);
+  const meshes = a.meshes.map(m => {
+    let o = o0 + m.off;
+    const n = m.nv, t = m.nt;
+    const pos = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const nrm = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const uv = new Float32Array(B, o, 2 * n); o += 8 * n;
+    let jt = null, wt = null;
+    if (m.skin) {
+      jt = new Uint8Array(B, o, 4 * n); o += 4 * n;
+      wt = new Float32Array(B, o, 4 * n); o += 16 * n;
+    }
+    const idx = new Uint16Array(B, o, 3 * t); o += 6 * t;
+    if (o - (o0 + m.off) > m.len)
+      throw new Error('decodeAnimal: mesh "' + m.name + '" overruns its slice');
+    return { name: m.name, node: m.node, mat: m.mat, skin: !!m.skin, nv: n, nt: t,
+             pos, nrm, uv, jt, wt, idx };
+  });
+  return { ibm, meshes };
+}
+
+// the clip file -> one view per clip: { travel, frames, stride, data } where
+// `data` is the frames slab and `stride` the floats a frame. The SAMPLER lives
+// with THREE in src/viewer/animals.js; this hands back the numbers.
+function decodeAnimalClips(a, bin) {
+  if (!bin) throw new Error('decodeAnimalClips: "' + a.key + '" needs its clip bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const B = u8.buffer, o0 = u8.byteOffset;
+  const out = {};
+  for (const c of a.clips) {
+    const stride = 3 * c.nt.length + 4 * c.nr.length + 3 * c.ns.length;
+    const travel = new Float32Array(B, o0 + c.off, 3 * c.frames);
+    const data = new Float32Array(B, o0 + c.off + 12 * c.frames, stride * c.frames);
+    if (12 * c.frames + 4 * stride * c.frames > c.len)
+      throw new Error('decodeAnimalClips: clip "' + c.key + '" overruns its slice');
+    out[c.key] = { key: c.key, role: c.role, name: c.name, fps: c.fps, frames: c.frames,
+                   dur: c.dur, speed: c.speed, travelLen: c.travel, dir: c.dir,
+                   nt: c.nt, nr: c.nr, ns: c.ns, stride, travel, data };
+  }
+  return out;
+}
+
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { decodeAnimal, decodeAnimalClips, registerAnimal, animalList,
+                     animalClips, animalClip, ROLE_FALLBACK, ANIMAL_REG };
 // tree_codec.js — decode baked TREE payloads (see tools/tree_prep.py).
 // Pure JS, no three.js: the same code runs in the viewer and in the node gate.
 //
@@ -28856,4 +28994,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };
