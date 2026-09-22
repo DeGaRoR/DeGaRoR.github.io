@@ -56479,3 +56479,21 @@ and fails if one stops reading the cover - which is exactly how the trees came t
 - OWED: a service drop from the line into each frontage (the photograph's lower cable runs into the
   shed); guy wires at an angle pole; the PLANT tool and a `line` feature kind, which is what would
   let a hand draw a spur the roads do not follow.
+## G460.11.11 - THE WALK IS 0.15, BY THE USER'S EYE (2026-09-22): "the third screenshot looks best"
+
+- THE RULING. G460.11.9 shipped the slope's walk at 0.05 of the view distance and wrote in this file that
+  "the dial's useful range is about 0.03 to 0.08" and that 0.15 "scatters them so finely the cloud loses
+  its identity". Shown the three (screenshots/water-g440/c8/chop_off, chop_on 0.05, chop_big 0.15), the
+  user picked 0.15. MIR.perturb is 0.15 and the range claim above is withdrawn - it was my eye, not a
+  measurement, and the judgement was never mine to keep. What the user is choosing is a sea whose
+  reflection is BROKEN, not carried: a 12 m/s sea does not hold a cloud's shape, and the version that
+  still reads the cloud is the version that still reads as paint.
+- IT COSTS NOTHING ELSEWHERE, which is the whole point of the G460.11.9 form: the walk is a fraction of
+  the view distance applied to the FACET'S OWN reflected ray, so on flat water it is zero by construction
+  (Q = P, 2000 eyes in GATE WATER) whatever the dial says. Re-shot at 0.15 to be sure rather than to
+  argue: c9/coast.png (18 m over the coast, near-calm) still mirrors the treeline crisply and the clouds
+  read whole; c9/high.png (55 m over the 12 m/s sea) is the wave-textured sheen a low aeroplane sees;
+  c9/mid.png, c9/calm_low.png. Nothing needed a second dial.
+- GATE WATER's bound on the dial is 0.25, so the rule prints the number and holds the cap either way.
+- A RIG NOTE: cloud_shot threw "the roll-out never happened" once at --wait 6000 on a cold server and ran
+  clean at 12000. If a shot set dies at the roll-out, raise the wait before suspecting the page.
