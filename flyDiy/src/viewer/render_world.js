@@ -2604,7 +2604,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\nuniform vec2 uThin;\n' +
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\nuniform vec2 uThin;\nuniform vec4 uWind;\n' +
             'varying vec3 vImpDir;\nvarying float vImpD;')
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
@@ -2634,6 +2634,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'float hT = fract(sin(dot(floor((iPos.xz + modelMatrix[3].xz) * 4.0), vec2(12.9898, 78.233))) * 43758.5453);',
             'fade *= clamp((keep * 1.05 - hT) * 20.0, 0.0, 1.0);',
             'vec3 off = (rgt * position.x + upv * position.y) * (uDiam * fade);',
+            // THE CARD LEANS (CLIMATE K4). A SHEAR, never a rotation - the baked
+            // view direction has to stay valid - applied BEFORE the scaling below
+            // and well before the collapse test at the end, and scaled by uDiam
+            // because the stand cards share this material: a 47 m card for a 32 m
+            // stand would otherwise wave like a wheat field.
+            'float swayPh = uWind.z + hT * 6.2831;',
+            'off.xz += uWind.xy * (uWind.w * 0.010 * max(0.0, off.y + uDiam * 0.5) / max(1.0, uDiam * 0.08)) * (0.8 + 0.2 * sin(swayPh));',
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
             'gl_Position = projectionMatrix * mvPosition;',
@@ -2642,6 +2649,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vImpD = dCam;',
             'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
+        sh.uniforms.uWind = (typeof window !== 'undefined' && window.TREE_WIND) ? window.TREE_WIND : { value: new THREE.Vector4(0, 0, 0, 0) };
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uIGainK, uISolid, uICut, uTile;\n' +
@@ -4704,18 +4712,37 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function setWindVis(base) {
     const mag = base ? Math.hypot(base[0], base[2]) : 0;
     if (typeof WATER !== 'undefined' && WATER.setWind) WATER.setWind(mag, base ? Math.atan2(base[2], base[0]) : 0);   // G460: the detail band and the slope variance are the wind's
-    for (const s of socks) {
-      if (mag < 0.3) _sd.set(0.30, -0.92, 0.18).normalize();
-      else {
-        const sag = 0.85 * Math.max(0, 1 - mag / 8);
-        _sd.set(base[0] / mag, 0, base[2] / mag).multiplyScalar(Math.sqrt(1 - sag * sag));
-        _sd.y = -sag;
-      }
-      s.mesh.quaternion.setFromUnitVectors(_su, _sm.set(-_sd.x, -_sd.y, -_sd.z));
-      s.mesh.position.set(s.pole[0] + _sd.x * 1.3, s.pole[1] + _sd.y * 1.3, s.pole[2] + _sd.z * 1.3);
+    for (const s of socks) aimSock(s, base ? base[0] : 0, base ? base[2] : 0);
+  }
+  // ONE sag law, two callers (the boot's single vector, and K4's per-sock field)
+  function aimSock(s, wx, wz) {
+    const mag = Math.hypot(wx, wz);
+    if (mag < 0.3) _sd.set(0.30, -0.92, 0.18).normalize();
+    else {
+      const sag = 0.85 * Math.max(0, 1 - mag / 8);
+      _sd.set(wx / mag, 0, wz / mag).multiplyScalar(Math.sqrt(1 - sag * sag));
+      _sd.y = -sag;
     }
+    s.mesh.quaternion.setFromUnitVectors(_su, _sm.set(-_sd.x, -_sd.y, -_sd.z));
+    s.mesh.position.set(s.pole[0] + _sd.x * 1.3, s.pole[1] + _sd.y * 1.3, s.pole[2] + _sd.z * 1.3);
   }
   setWindVis(null);
+  // EVERY SOCK IN ITS OWN WIND (K4). setWindVis aims them all down ONE vector,
+  // which was all there was; with a field that varies over the map a sock on a
+  // ridge strip and one in a sheltered valley genuinely differ, and a sock is
+  // the one instrument in the world that is supposed to say so. Every third
+  // frame: ten socks, one sample each, and nothing moves fast enough to notice.
+  let sockN = 0;
+  const _sw = [0, 0, 0];
+  function sockFrame() {
+    const W = typeof world !== 'undefined' ? world : null;
+    if (!W || !W.climate || (sockN++ % 3)) return;
+    const t = (typeof FLIGHT_PROBE !== 'undefined' && FLIGHT_PROBE.sim) ? FLIGHT_PROBE.sim().t : 0;
+    for (const s of socks) {
+      W.climate.sample(s.pole[0], s.pole[1] + 1.0, s.pole[2], t, _sw);
+      aimSock(s, _sw[0], _sw[2]);
+    }
+  }
 
   // per-frame: keep the aircraft AND the spot its shadow falls on inside the
   // sun frustum (grown with hysteresis so the map isn't re-projected every frame)
@@ -4752,6 +4779,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
     uCG.value.set(cg[0], cg[1], cg[2]);
     groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)
+    // THE CLIMATE, ONCE A FRAME (K4). Before dayApply, because the clouds read
+    // their drift out of it; after seaUpdate, because the sea it reports is the
+    // one this frame drew. Everything that shows the wind reads this one block.
+    if (window.CLIMATE_LINK && window.CLIMATE_LINK.pub.on) {
+      window.CLIMATE_LINK.frame(cg, camera.position, 1 / 60, (typeof FLIGHT_PROBE !== 'undefined' && FLIGHT_PROBE.sim) ? FLIGHT_PROBE.sim().t : 0);
+      sockFrame();
+    }
     dayApply();
     fillUpdate(cg);
     lodUpdate(cg);

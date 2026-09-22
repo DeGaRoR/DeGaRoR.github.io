@@ -247,6 +247,8 @@ var DAY = (function () {
       get wind() { return s.wind || null; },
       get stormSpec() { return s.storm || null; },
       get diurnalC() { return s.diurnalC != null ? +s.diurnalC : 0; },
+      // K4: how long the sea takes to answer the wind (0 = at once, as it always was)
+      get seaTau() { return s.seaTau != null ? Math.max(0, +s.seaTau) : 0; },
       get version() { return version; },
       get geo() { return geo; },
       get date() { return s.date; }, get utc() { return utc; }, get jdn() { return jdn; },

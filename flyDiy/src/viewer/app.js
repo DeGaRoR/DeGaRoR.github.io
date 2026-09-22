@@ -3866,8 +3866,16 @@
       if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
       const K = D.kind[q] ? KP : KD;
       D.age[q] += dt;
-      const dr = Math.max(0, 1 - K.drag * dt);
-      D.v[q * 3] *= dr; D.v[q * 3 + 2] *= dr; D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
+      // THE DRAG RELAXES TOWARD THE AIR, not toward nothing (CLIMATE K4). A
+      // droplet or a puff slows down relative to the AIR it is in, and the air
+      // is moving: with a wind, spray blows downwind and a plume leans, which is
+      // the whole visible signature of a windy day on the water. Zero wind is
+      // the old line exactly (relaxing toward 0 is relaxing toward the air).
+      const dr = Math.max(0, 1 - K.drag * dt), wv = LKW();
+      const ax = wv ? wv[0] : 0, az = wv ? wv[1] : 0;
+      D.v[q * 3] = ax + (D.v[q * 3] - ax) * dr;
+      D.v[q * 3 + 2] = az + (D.v[q * 3 + 2] - az) * dr;
+      D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
       D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
       if (!D.kind[q] && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) { D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
       if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
@@ -6956,6 +6964,9 @@
   let nettoF = 0, nettoI = 0;
   const nettoRing = new Float64Array(20 * 60);
   const apSheet = () => { try { return ap && ap.sheet ? ap.sheet : null; } catch (e) { return null; } };
+  // THE WIND THE PARTICLES RIDE (CLIMATE K4): the link's 10 m wind, or nothing
+  const LKW = () => { const L = window.CLIMATE_LINK; return (L && L.pub.on) ? L.pub.surf : null; };
+  if (window.CLIMATE_LINK) window.CLIMATE_LINK.bind(world);        // K4: the one place the picture asks the climate
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;

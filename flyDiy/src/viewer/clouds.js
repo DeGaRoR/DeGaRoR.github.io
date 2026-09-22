@@ -650,7 +650,18 @@ var CLOUDS = (function () {
       let wx = 3, wz = 1;
       if (world && typeof world.wind === 'function') { const w = world.wind(0, l.base, 0, 0); if (w) { wx = w[0] * 1.5; wz = w[2] * 1.5; } }
       winds[i][0] = wx; winds[i][1] = wz;
-      drifts[i][0] = wx * secs * S.driftK; drifts[i][1] = wz * secs * S.driftK;
+      // THE DRIFT IS AN INTEGRAL, not a product (CLIMATE K4). `wind x secs` is a
+      // POSITION computed from the wind NOW, so the instant the wind changes the
+      // whole deck jumps by (dw) x secs - and secs is sixty thousand by the
+      // afternoon, which is hundreds of kilometres for a metre per second. With
+      // a wind that moves on its own (a front veers 55 deg over two hours) that
+      // is no longer tolerable. The link accumulates it over the day's clock
+      // instead; for a CONSTANT wind it returns exactly this product, which is
+      // how a boot still draws the sky it always drew.
+      const LK = (typeof window !== 'undefined') ? window.CLIMATE_LINK : null;
+      const dr = (LK && LK.pub.on) ? LK.cloudDrift(i, l.base, S.driftK, secs) : null;
+      if (dr) { drifts[i][0] = dr.x; drifts[i][1] = dr.z; }
+      else { drifts[i][0] = wx * secs * S.driftK; drifts[i][1] = wz * secs * S.driftK; }
       // THE NOISE PERIOD DIVIDES THE SPAN (G460.4, the user: "a clear seam" - a straight line across the sea
       // from 1000 m): the weather map tiles over the span, but the deck's noise did not, so the shadow tile's
       // two edges disagreed and its wrap line (it drifts with the clouds - it crosses anywhere) was a step in

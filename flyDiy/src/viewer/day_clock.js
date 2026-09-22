@@ -127,7 +127,13 @@ var DAY_CLOCK = (function () {
     // solver still never touches either (the two-clocks rule, 09_climate.js).
     tick(dt) {
       if (!day) return;
-      if (world && world.dayTick) world.dayTick(dt); else day.advance(dt);
+      // the world's tick takes the SIM clock and the craft's place too (K4): the
+      // sea's phase is anchored at the aeroplane, so the surface it rides stays
+      // continuous while the sea builds under a changing wind
+      let t = 0, ax = 0, az = 0;
+      const FP = W && W.FLIGHT_PROBE;
+      if (FP && FP.sim) { try { const sm = FP.sim(); t = sm.t; const c = sm.cgPos(); ax = c[0]; az = c[2]; } catch (e) {} }
+      if (world && world.dayTick) world.dayTick(dt, t, ax, az); else day.advance(dt);
       if ((sinceSave += dt) > 30) save();
     },
     set(o) { if (!world) return; world.setDay(o); save(); },

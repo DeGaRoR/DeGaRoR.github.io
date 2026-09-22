@@ -16,7 +16,8 @@
 //   8-9. the thermals (a core, a sink ring that balances it, a lid, a night that is an exact zero,
 //        a lattice that walks downwind) and the sea breeze that reverses overnight
 //  13. the thermals cluster under the cumulus, because the clouds and the columns are ONE field
-// (12 the sea: added by its session — futureDesigns/CLIMATE-2026-09-22.md)
+//  12. the sea: the legacy draw golden, the felt band invariant, and a sea that BUILDS under a
+//      changing wind instead of jumping (the phase anchored at the aeroplane)
 //
 //   src/core/09_climate.js, 20_world.js  ->  tools/flight_core.js  ->  here
 // Run: node tools/test_climate.js   (contract: one final `GATE CLIMATE: ...`)
@@ -384,6 +385,67 @@ console.log('9. the breeze');
   }
 }
 
+// ---- 12. the sea follows a wind that moves --------------------------------------------------
+console.log('12. the sea');
+{
+  const W12 = makeWorld();
+  // THE GOLDEN: the legacy path draws exactly the trains it always drew. The
+  // water session owns this law (GATE WATER 1); this is the climate's copy of
+  // the promise, because the climate is what made the wind able to move.
+  W12.setWind({ base: [3, 0, 4] });
+  const hash = fnvStr(JSON.stringify(W12.sea.W));
+  yes(hash === '63eccad3', `the legacy sea is the sea it always was (${hash})`);
+  yes(W12.sea.W.length === 32 && W12.sea.W.filter(w => w.felt).length === 8,
+      'thirty-two trains, eight of them felt - the swell band the hull rides');
+  W12.setSea({ A: 0.09, L: 10, n: 2 });        // setSea has always needed an amplitude of its own
+  yes(W12.sea.W.length === 2 && W12.sea.W.every(w => w.felt), 'setSea({A,L,n:2}) still gives the old pair, felt whole');
+  // THE FELT SET IS THE DRAW'S, not the wavelength's: it cannot change in flight,
+  // whatever the wind does, or waterH would step under a float.
+  W12.setWind({ base: [3, 0, 4] });
+  const felt0 = W12.sea.W.map(w => (w.felt ? 1 : 0)).join('');
+  let same = true;
+  for (const spd of [2, 6, 11, 18, 25]) {
+    W12.setWind({ base: [spd * 0.6, 0, spd * 0.8] });
+    if (W12.sea.W.map(w => (w.felt ? 1 : 0)).join('') !== felt0) same = false;
+  }
+  yes(same, `the felt band is the same eight trains at every wind from 2 to 25 m/s (${felt0.slice(0, 12)}...)`);
+  // seaTau 0 - the default - rebuilds on the spot, as it always did
+  const U = makeWorld();
+  U.setDay({ wind: { mps: 5, dirDeg: 270, refH: 10 } });
+  const t12 = 137;
+  const pts = [];
+  for (let z = 3000; z <= 9000 && pts.length < 4; z += 1500) for (let x = -4000; x <= 4000; x += 2000) if (U.waterH(x, z) === 0 && pts.length < 4) pts.push([x, z]);
+  const step = (W, at) => { const a = pts.map(([x, z]) => W.waterH(x, z, t12)); W.setDay({ wind: { mps: 16, dirDeg: 300, refH: 10 } });
+    const b = pts.map(([x, z]) => W.waterH(x, z, t12)); let m = 0; for (let i = 0; i < a.length; i++) m = Math.max(m, Math.abs(b[i] - a[i])); return m; };
+  const jump0 = step(U);
+  yes(jump0 > 0.05, `with seaTau 0 a wind change steps the surface ${jump0.toFixed(3)} m at once - which is what it has always done`);
+  // with a seaTau the same change moves NOTHING at once, and builds smoothly after
+  const V = makeWorld();
+  V.setDay({ seaTau: 900, wind: { mps: 5, dirDeg: 270, refH: 10 } });
+  const jump1 = step(V);
+  yes(jump1 < 1e-12, `with seaTau 900 it steps ${jump1.toExponential(1)} m - the wind moved, the sea has not yet`);
+  // THE ANCHOR IS THE AEROPLANE, so that is where continuity is measured. A
+  // wave field whose WAVELENGTH is changing cannot be continuous everywhere at
+  // once; the phase is held where the hull is and the residual grows with the
+  // distance from it, out where the water's own LOD has turned those ridges
+  // into roughness. Both numbers are taken, and both are printed.
+  const AX = pts[0][0], AZ = pts[0][1];
+  const near = [[AX, AZ], [AX + 60, AZ + 40], [AX - 120, AZ + 90]];
+  let pN = near.map(([x, z]) => V.waterH(x, z, t12)), pF = pts.map(([x, z]) => V.waterH(x, z, t12));
+  let wN = 0, wF = 0, n = 0;
+  for (let i = 0; i < 1800; i++) {
+    V.dayTick(1, t12, AX, AZ);
+    const cN = near.map(([x, z]) => V.waterH(x, z, t12)), cF = pts.map(([x, z]) => V.waterH(x, z, t12));
+    for (let k = 0; k < cN.length; k++) wN = Math.max(wN, Math.abs(cN[k] - pN[k]));
+    for (let k = 0; k < cF.length; k++) wF = Math.max(wF, Math.abs(cF[k] - pF[k]));
+    pN = cN; pF = cF; n++;
+    if (Math.abs(V.sea.A - V.seaTarget.A) < 1e-4) break;
+  }
+  yes(V.sea.A > 0.25 && V.sea.L > 22, `and builds to A ${V.sea.A.toFixed(3)} / L ${V.sea.L.toFixed(1)} over ${n} s of the day's clock`);
+  yes(wN < 0.06, `within 120 m of the hull it never moves more than ${wN.toFixed(4)} m in a second of it (the phase is anchored there); out at the probes 4-8 km away, ${wF.toFixed(2)} m - the slide, where the LOD has already eaten the ridges`);
+  yes(V.sea.W.map(w => (w.felt ? 1 : 0)).join('') === felt0, 'and the felt band came through the whole build unchanged');
+}
+
 // ---- 13. the thermals are under the clouds ---------------------------------------------------
 console.log('13. one field, not two');
 {
@@ -597,6 +659,23 @@ console.log('14. the sources');
   yes(/instOn && instOn\.netto/.test(app) && /sinkAt\(o\.V/.test(app), 'the HUD has a netto variometer, off until the instruments row asks for it');
   yes(/cloudSeed/.test(core('07_day.js')), 'the DAY owns the sky’s seed, so the clouds and the thermals are one field');
   yes(/CLOUD_FIELD\.weatherMap/.test(cl) && /thermalCell/.test(cl), 'and the climate reads that same map to place its columns');
+  // K4: the render links - one link, and every consumer reading IT
+  const lk = vw('climate_link.js');
+  yes(/function frame\(/.test(lk) && /cloudDrift/.test(lk), 'climate_link.js is the one place the picture asks the climate');
+  yes(/'climate_link\.js'/.test(fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8')), 'and the build carries it');
+  const rw = vw('render_world.js');
+  yes(/CLIMATE_LINK\.frame\(/.test(rw) && /sockFrame/.test(rw), 'render_world runs it once a frame, and aims every sock in its OWN wind');
+  yes(/function aimSock/.test(rw), 'one sag law, two callers (the boot vector and the field)');
+  yes(/uWind/.test(rw), 'the impostor cards lean');
+  const tj = vw('trees.js');
+  yes(/SWAY_GLSL/.test(tj) && /window\.TREE_WIND/.test(tj), 'the leaves and the cover lean on one shared uniform');
+  yes(!/objectNormal/.test(tj.slice(tj.indexOf('const SWAY_GLSL'), tj.indexOf('const UP_VS'))),
+      "and the sway bends the POSITION only - a cover tuft still shades with the ground's normal (G484)");
+  yes(/\.cloudDrift\(/.test(vw('clouds.js')), "the clouds' drift is the link's integral, not wind x seconds");
+  yes(/swayGain/.test(vw('gfx_settings.js')), 'and the graphics tier can switch the sway off without a recompile');
+  const wd = core('20_world.js');
+  yes(/function seaApply/.test(wd) && /function seaRelax/.test(wd), 'the sea can be re-applied without being redrawn, and walks after the wind');
+  yes(/w\.felt = r\.felt/.test(wd), 'the felt band is the draw’s, never re-decided');
 }
 
 // ---- verdict -------------------------------------------------------------------------------

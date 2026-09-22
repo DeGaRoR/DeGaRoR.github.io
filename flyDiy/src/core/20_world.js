@@ -613,6 +613,60 @@ function makeWorld(seed, opts) {
       const k = 2 * Math.PI / l;
       SEA.W.push({ A: a, k, om: Math.sqrt(9.81 * k), dx: Math.cos(d), dz: Math.sin(d), ph, felt: N === 2 || l >= SEA_FELT * L });   // the old pair is felt whole
     }
+    // ---- WHAT THE DRAW ACTUALLY WAS (CLIMATE K4) --------------------------
+    // Every row above is A, L and dir times something the seed drew: the
+    // amplitude is a coefficient times A, the wavelength a RATIO times L, the
+    // direction an offset from dir. Recording those three lets the sea be
+    // re-applied at a new (A, L, dir) without redrawing - which is what lets it
+    // follow a wind that moves instead of jumping every time one does.
+    //
+    // THE FELT FLAG IS THE RATIO'S, never an absolute wavelength, and that is
+    // load-bearing: waterH sums the felt band ALONE, so a train crossing the
+    // threshold mid-front would STEP the surface a float is riding. Decided
+    // once here, invariant under any later L. (The longest wind-sea component
+    // sits at ratio 0.671..0.757 against SEA_FELT 0.75 - right on the line.)
+    DRAW.n = N; DRAW.rows.length = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const [a, l, d] = rows[i];
+      DRAW.rows.push({ ca: A > 0 ? a / A : 0, ratio: l / L, dth: d - dir, felt: SEA.W[i].felt });
+    }
+  }
+  // the draw, kept so the sea can be re-applied without being redrawn
+  const DRAW = { n: 0, rows: [] };
+  // seaApply(A, L, dir, t0): the same draw at a new state. The temporal phase is
+  // held at t0 - phi' = phi + (om' - om) t0 - so the surface is CONTINUOUS IN
+  // TIME everywhere: at t0 every train reads exactly what it read a moment ago.
+  // It cannot also be continuous in SPACE, because k and the directions have
+  // moved; the far field slides at D x d(k.d)/dt along the ridge normal, which
+  // is ~0.17 rad/s at the near patch's edge and ~0.9 at a kilometre for a front
+  // relaxed over five minutes. The water's own LOD eats it: since G460.7 a
+  // wind-sea train fades out of the slope between 12 and 3 px of its own
+  // wavelength (the swell 6 to 2), so by a kilometre those ridges are drawn as
+  // roughness, and roughness has no phase to slide. If it ever shows at the
+  // hull, the remedy is an anchored phase - add (k' - k)(d . x_cg) - which makes
+  // it continuous AT THE AEROPLANE and pushes the slide outward.
+  function seaApply(A, L, dir, t0, ax, az) {
+    if (!DRAW.rows.length || !(A > 0) || !(L > 0)) { seaFrom(A, L, dir, DRAW.n || undefined); return; }
+    SEA.A = A; SEA.L = L; SEA.dir = dir;
+    ax = ax || 0; az = az || 0;
+    for (let i = 0; i < DRAW.rows.length; i++) {
+      const r = DRAW.rows[i], w = SEA.W[i];
+      const l = r.ratio * L, d = dir + r.dth, k = 2 * Math.PI / l, om = Math.sqrt(9.81 * k);
+      const dx = Math.cos(d), dz = Math.sin(d);
+      // THE PHASE IS ANCHORED AT THE AEROPLANE, not at the world's origin.
+      // Holding only the TIME term leaves the SPACE term free, and the space
+      // term is k times a distance: at four kilometres out, a wavelength moving
+      // by a percent turns the phase through several radians IN ONE TICK - a
+      // bigger step than the jump this was meant to remove (measured: 0.69 m
+      // against 0.28). Anchoring both terms at (ax, az) makes the surface
+      // continuous WHERE THE AEROPLANE IS - which is the only place a float can
+      // feel it - and pushes the slide outward, where the water's own LOD has
+      // already turned those ridges into roughness.
+      w.ph += (om - w.om) * (t0 || 0) + (w.k * (w.dx * ax + w.dz * az) - k * (dx * ax + dz * az));
+      w.A = r.ca * A; w.k = k; w.om = om;
+      w.dx = dx; w.dz = dz;
+      w.felt = r.felt;                                  // decided at the draw, never re-decided
+    }
   }
   function setSea(spec) {
     if (!spec) { seaFrom(0, 0, 0); return; }
@@ -700,6 +754,12 @@ function makeWorld(seed, opts) {
     // ...and the sea follows the wind (H4, G393)
     const b = r.base;
     const Wv = Math.hypot(b[0], b[2]);
+    seaTarget.A = Wv > 0.5 ? 0.018 * Wv : 0; seaTarget.L = 3 + 1.4 * Wv; seaTarget.dir = Math.atan2(b[2], b[0]);
+    // A SEA TAKES TIME (CLIMATE K4). With `seaTau` declared on the day the state
+    // is relaxed toward this target by the world's own tick instead of being
+    // rebuilt on the spot; at the default 0 it is rebuilt on the spot, which is
+    // exactly the line below and exactly what every gate has measured.
+    if (day.seaTau > 0 && SEA.A > 0) return;
     // THE WIND -> SEA LAW (G460.6): 0.018 m of amplitude per m/s, calibrated to the SMB fetch-limited
     // sea of a 10 km sound (H_s 0.26 m at 5 m/s, 0.5 at 10; A_equiv = H_s / 2.8) - G393's 0.04 was a
     // guess that put a 0.57 m significant sea under a 5 m/s breeze, and with a real spectrum (groups
@@ -707,6 +767,46 @@ function makeWorld(seed, opts) {
     seaFrom(Wv > 0.5 ? 0.018 * Wv : 0, 3 + 1.4 * Wv, Math.atan2(b[2], b[0]));
   }
 
+  const seaTarget = { A: 0, L: 10, dir: 0 };
+  // seaRelax(dtDay, simT): the sea walks toward the wind's target on the DAY's
+  // clock - the sea state is WEATHER, and weather is the slow clock's (the wave
+  // PHASE is the sim's, which is why t0 here is the sim time). A sea builds over
+  // tens of minutes and lies down more slowly still, so growth runs at tau and
+  // decay at 1.5 tau.
+  // HOW FAST A SEA MAY BUILD, and what it costs. A wave field whose wavelength
+  // is changing cannot be continuous everywhere at once - only at the anchor -
+  // so the residual motion near the craft is set by how fast L moves. MEASURED
+  // (a 5 -> 16 m/s step, the worst second within 150 m of the anchor):
+  //     tau  120 s   built in 15 min of day time   0.22 m/s   a visible wobble
+  //     tau  300 s   38 min                        0.10 m/s
+  //     tau  900 s   an hour+                      0.035 m/s  a smooth build
+  //     tau 1800 s                                 0.018 m/s
+  // So 900 is the honest default for a day that wants one: a sea that takes the
+  // better part of an hour to get up, which is what a sea does.
+  // The residual scales with the DAY's rate, as it must: at 60x the weather is
+  // moving sixty times faster, so the sea builds sixty times faster and the
+  // surface near the craft moves with it (0.30 m a frame at 600x against
+  // 0.035 at 1x). Sub-stepping the relaxation was tried and bought nothing
+  // measurable - the total change over a frame is the total change - so it is
+  // not here.
+  function seaRelax(dtDay, simT, ax, az) {
+    const tau = day.seaTau;
+    if (!(tau > 0) || !(dtDay > 0)) return false;
+    const gk = 1 - Math.exp(-dtDay / tau), dk = 1 - Math.exp(-dtDay / (1.5 * tau));
+    const k = seaTarget.A >= SEA.A ? gk : dk;
+    const A0 = SEA.A, L0 = SEA.L, d0 = SEA.dir;
+    let dd = seaTarget.dir - SEA.dir;                   // the shortest way round
+    while (dd > Math.PI) dd -= 2 * Math.PI;
+    while (dd < -Math.PI) dd += 2 * Math.PI;
+    const A = SEA.A + (seaTarget.A - SEA.A) * k;
+    const L = SEA.L + (seaTarget.L - SEA.L) * k;
+    const dir = SEA.dir + dd * k;
+    if (Math.abs(A - A0) < 1e-6 && Math.abs(L - L0) < 1e-5 && Math.abs(dir - d0) < 1e-6) return false;
+    if (!(A > 0)) { SEA.A = A; SEA.L = L; SEA.dir = dir; return true; }
+    if (!DRAW.rows.length || A0 <= 0) seaFrom(A, L, dir);   // the first sea of a calm day is a fresh draw
+    else seaApply(A, L, dir, simT || 0, ax, az);
+    return true;
+  }
   // ---- the day: ONE weather state, air and wind together (G72) ------------
   // setWeather({ oatC, qnhPa, wind: { base, gust } }) — everything a day is.
   // They are one object rather than two setters because a hot gusty afternoon
@@ -748,14 +848,17 @@ function makeWorld(seed, opts) {
   // dayTick(dt): the VIEWER's clock step - the day advances and the wind
   // follows the front through it. The solver never calls this (a gate's day is
   // frozen and its air is constant), which is the two-clocks rule (09_climate).
-  function dayTick(dt) {
+  function dayTick(dt, simT, ax, az) {
     if (!(dt > 0)) return;
     const st0 = day.storm ? day.storm.I : 0, sw = day.diurnalC > 0;
+    const u0 = day.utc;
     day.advance(dt);
     const st1 = day.storm ? day.storm.I : 0;
     if (st0 !== st1 || (sw && day.storm)) climate.refresh();
     else if (st1 > 0) climate.refresh();
     airNow();
+    // the sea walks after the wind, on the same clock the wind moved on
+    seaRelax(Math.abs(day.utc - u0), simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -818,6 +921,9 @@ function makeWorld(seed, opts) {
     day, setDay, dayTick, geo: GEO,
     // H4 (G393): the sea state (read live) and its override
     get sea() { return SEA; }, setSea,
+    // K4: the state the sea is walking toward, and the walk itself (the viewer
+    // pushes world.sea at the shader when `seaChanged` says the trains moved)
+    get seaTarget() { return seaTarget; }, seaRelax,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
     // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
