@@ -343,7 +343,16 @@ const WATER = (() => {
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
                 vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
-                iblRadiance = mix(iblRadiance, mr.rgb, clamp(mr.a, 0.0, 1.0) * edge);
+                // THE CAPTURE IS PREMULTIPLIED (G460.11.2, the user: "there are strange reflections"): the foliage is
+                // drawn with alphaToCoverage, so on the multisampled capture a half-covered canopy pixel RESOLVES to
+                // alpha 0.5 and a colour weighted by it - blended as-is, half the probe's bright sky leaked through
+                // every tree (pale blocky patches in the reflected forest, and blocky because 2 samples quantise the
+                // coverage to 0 / 0.5 / 1). The colour is un-premultiplied (the mips filter it consistently) and the
+                // canopy is made OPAQUE from a sixth of a sample up - a true gap between the trees (alpha 0) still
+                // shows the sky, a thin twig no longer paints the sky over the wood
+                vec3 mcol = mr.rgb / max(mr.a, 0.02);
+                float mmask = smoothstep(0.06, 0.35, mr.a);
+                iblRadiance = mix(iblRadiance, mcol, mmask * edge);
               }
             }
           } }`)

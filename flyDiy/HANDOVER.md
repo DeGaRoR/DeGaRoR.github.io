@@ -55364,3 +55364,29 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
   flat from 50 m, right from 300. The crossfade is what makes it work; the ablation is for reading the code,
   not the game.
 - GATES: BUILD / MEDIA / UISMOKE / WORLDRENDER / SPLAT / GFX / BIOME green.
+## G460.11.2 — THE MIRROR'S PALE PATCHES: THE CAPTURE IS PREMULTIPLIED (2026-09-22, the user: "there are
+## strange reflections. Is that failing on trying to reflect far impostors maybe? ... the new aggregated
+## tree card?")
+
+- NOT THE STAND CARDS (G490): the artefact reproduces with them off (`?stands=0`) and the probe finds no
+  stand root in either run. It is the CAPTURE'S ALPHA. The foliage is drawn with `alphaToCoverage` (trees.js
+  impostors: alphaTest 0.01 + A2C, transparent false) - a feature that turns the fragment's alpha into an
+  MSAA COVERAGE MASK. G460.11.1 made the mirror's capture multisampled (x2, so its depth texture is a resolve
+  the clouds' composite can sample), and from that moment a half-covered canopy texel RESOLVED to alpha 0.5
+  with a colour weighted by it. The shader read that alpha as "how much of the capture is here" and mixed the
+  rest from the probe's bright sky: every tree in the reflection was half sky - pale, and blocky because two
+  samples quantise the coverage to 0 / 0.5 / 1. Measured: 18 % of the capture's texels at partial alpha
+  (0.02..0.98) - `{empty 0.379, low 0.044, half 0.039, high 0.098, full 0.441}`.
+- THE FIX, two lines in the splice: the capture is PREMULTIPLIED, so the colour is un-premultiplied before
+  use (`mr.rgb / max(mr.a, 0.02)` - the mips filter premultiplied colour and alpha consistently, so the
+  divide is right after the lod fetch), and the canopy is made opaque from a sixth of a sample up
+  (`smoothstep(0.06, 0.35, mr.a)`): a real gap between the trees (alpha 0) still shows the probe's sky, a
+  twig no longer paints the sky over the wood. GATE WATER holds both (and that the capture is multisampled
+  with a DepthStencil depth texture - the clouds' reason).
+- THE DEBUG VIEW 11 is the instrument: the capture projected on the water, alpha 0 painted blue (n3/dbg.png
+  - the blue is the empty sky between the clouds, exactly where the probe's sky should take over).
+- PROOF: n4/on.png (the lake under 90 % stratus: the trees and the clouds reflected, no pale patches) against
+  m11_0.9,st/lakeB.png (the same eye before). The mirror's contribution measured by an A/B on its uniform:
+  mean |on - off| = 30 of 765 over the frame.
+- A NOTE FOR THE NEXT EYE: the first shot after a teleport can land before the first capture (the reflection
+  is then the probe's sky alone, n1/n2) - the rig must let a frame or two pass after the eye moves.
