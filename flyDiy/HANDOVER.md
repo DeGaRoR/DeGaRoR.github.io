@@ -56326,6 +56326,20 @@ VERIFIED BY THE SESSIONS THAT OWN THE FILES, which is why the peer messages are 
   shape of haze(): the ingredients, never a distance.
 - GATE SKINMAT is red on master already (taperPanel, drawnPane, reveal, shoulder, doorPanel),
   measured on a clean master worktree; it is not this chantier's.
+
+THE LANDING'S OWN DEFECT, recorded because the next reader will meet it in two HANDOVERs at once:
+G504-G504.9 landed SOURCE ONLY. There is no `(built)` commit, so master's index.html, dev.html and
+flight_core.js carried none of this chantier until the water session's G460.11.9 (built) at 0cb1dffa
+rebuilt them for a twenty-line change of its own and said so. The convention is a source commit AND a
+built commit from a clean LF worktree; the rebase script carried ten source commits and nobody noticed
+there was no eleventh, through three renumbers. WHAT WAS STALE WAS THE COMMITTED PAGE, NOT THE
+MEASUREMENTS: every number quoted above came off a freshly built proof worktree (`node tools/build.js`
+then `run_gates.js --no-build`), which is why GATE MEDIA could measure 8.55 MiB of a page master did
+not yet have. Verified after the fact rather than assumed - a clean rebuild of master's own source
+reproduces the committed flight_core.js, index.html and dev.html BYTE FOR BYTE (identical blob hashes;
+only version.json's timestamp moves, its build hash 91f7b6bdfdae unchanged). Nothing is owed. The
+lesson for the next long chantier: the built commit is part of the landing, not a follow-up, and a
+proof battery that never commits its build will let you forget it.
 ## G460.11.9 - THE WAVE'S SLOPE MOVES THE POINT, NOT THE UV: the mirror's perturbation had no frame
 ## (2026-09-22, the user: "fix the perturbation frame too" - the debt G460.11.8 wrote down an hour before)
 
