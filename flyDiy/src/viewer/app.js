@@ -3725,22 +3725,37 @@
   const SPRAY_N = 600, WAKE_N = 48;
   let waterFx = null;
   function buildWaterFx() {
-    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); o.geometry.dispose(); } waterFx = null; }
+    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
     if (!HY) return;
     const nF = HY.floats.length;
-    const pg = new THREE.BufferGeometry();
-    const sp = new Float32Array(SPRAY_N * nF * 3);
-    pg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-    const pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85,
-      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
-    pts2.frustumCulled = false; pts2.renderOrder = 4;
+    // THE SPRITES (H7.1, G460.9): spray.js's instanced quad batch - lit, soft, motion-stretched, two kinds
+    // (droplets and puffs); the Points (0.1 m additive squares) are the fallback without the module
+    const NP = SPRAY_N * nF;
+    let spray = null, pts2;
+    if (window.SPRAY && THREE.InstancedBufferGeometry) { spray = SPRAY.make(THREE, NP); pts2 = spray.mesh; }
+    else {
+      const pg = new THREE.BufferGeometry();
+      pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
+      pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+      pts2.frustumCulled = false; pts2.renderOrder = 4;
+    }
     craft.add(pts2);
-    const drops = { p: new Float32Array(SPRAY_N * nF * 3), v: new Float32Array(SPRAY_N * nF * 3), age: new Float32Array(SPRAY_N * nF).fill(9), next: 0 };
+    const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
+      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
     // as foam and ripples in the surface itself; the ribbon's list stays empty so its readers hold
     const ribbons = [];
     waterFx = { pts: pts2, drops, ribbons, t: 0, wasWet: HY.floats.map(() => false), vyPrev: HY.floats.map(() => 0) };
+  }
+  // emit(D, kind, x, y, z, vx, vy, vz): one particle of a kind (spray.js's KIND laws: the life and the birth size drawn
+  // inside the kind's range, a seed for its sprite's tear); the ring buffer's oldest slot goes first
+  function sprayEmit(D, kind, x, y, z, vx, vy, vz) {
+    const q = D.next; D.next = (D.next + 1) % D.age.length;
+    const K = window.SPRAY ? (kind ? SPRAY.KIND.puff : SPRAY.KIND.droplet) : { life: [0.9, 0.9], size: [0.1, 0.1] };
+    D.p[q * 3] = x; D.p[q * 3 + 1] = y; D.p[q * 3 + 2] = z; D.v[q * 3] = vx; D.v[q * 3 + 1] = vy; D.v[q * 3 + 2] = vz;
+    D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
+    D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
   }
   function syncWaterFx(dt) {
     if (!waterFx || !sim || !sim.hydro) return;
@@ -3762,6 +3777,9 @@
         //     on the step wets a third of its bottom and presses less than one at rest)
         const kc = [(out.W[F.edge.K][0] + out.W[F.stern.K][0]) / 2, 0, (out.W[F.edge.K][2] + out.W[F.stern.K][2]) / 2];
         WT.stamp(kc[0], kc[2], beam * 0.9, -0.06 - 0.10 * wetK, V > 3 ? 0.35 * Math.min(1, V / 10) : 0, 'press');
+        // (1b) THE BOW WAVE (G460.9): a hull under way pushes a crest up ahead of its stem - the wake's V radiates
+        //      from the bow as much as from the stern; the crest with the speed (5 cm at 2 m/s, 12 at 8)
+        if (V > 1.5 && F.sta && F.sta[0]) { const bw = out.W[F.sta[0].K]; WT.stamp(bw[0], bw[2], beam * 0.7, 0.03 + 0.09 * Math.min(1, V / 8), 0, 'press'); }
         // (2) TOUCHDOWN / A CRASH: the float went wet this frame with a vertical speed - a crater with a rim,
         //     its depth the impact's (0.3 m at 1 m/s, 1 m at 4), foam on the ring, and a burst of the spray
         if (!waterFx.wasWet[k]) {
@@ -3769,13 +3787,18 @@
           if (vy > 0.4) {
             const amp = Math.min(1.2, 0.3 * vy), r = beam * (1.2 + 0.4 * Math.min(3, vy));
             WT.stamp(eK[0], eK[2], r, -amp, Math.min(1, 0.4 + 0.2 * vy), 'ring');
-            const burst = Math.min(120, Math.round(25 * vy));
+            // the crown: many FINE droplets thrown out and a little up along the ring (a first cut of 25 per m/s at
+            // 4-12 cm read as popcorn, h7w/splash.png), the mist in fewer, slower puffs under them
+            const burst = Math.min(300, Math.round(70 * vy)), puffs = Math.min(24, Math.round(6 * vy));
             for (let j = 0; j < burst; j++) {
-              const q = D.next; D.next = (D.next + 1) % D.age.length;
-              const a = Math.random() * 6.2832, rr = r * (0.3 + 0.7 * Math.random());
-              D.p[q * 3] = eK[0] + Math.cos(a) * rr; D.p[q * 3 + 1] = fx.h + 0.05; D.p[q * 3 + 2] = eK[2] + Math.sin(a) * rr;
-              D.v[q * 3] = Math.cos(a) * (1 + 2 * Math.random()) * Math.min(2, vy) + vK[0] * 0.3; D.v[q * 3 + 1] = (1.5 + 2.5 * Math.random()) * Math.min(2, vy * 0.8); D.v[q * 3 + 2] = Math.sin(a) * (1 + 2 * Math.random()) * Math.min(2, vy) + vK[2] * 0.3;
-              D.age[q] = 0;
+              const a = Math.random() * 6.2832, rr = r * (0.5 + 0.5 * Math.random());
+              sprayEmit(D, 0, eK[0] + Math.cos(a) * rr, fx.h + 0.05, eK[2] + Math.sin(a) * rr,
+                Math.cos(a) * (1.5 + 2.5 * Math.random()) * Math.min(2, vy) + vK[0] * 0.3, (0.8 + 1.6 * Math.random()) * Math.min(2, vy * 0.6), Math.sin(a) * (1.5 + 2.5 * Math.random()) * Math.min(2, vy) + vK[2] * 0.3);
+            }
+            for (let j = 0; j < puffs; j++) {   // the mist that hangs over the splash: slow, wide, rising a little
+              const a = Math.random() * 6.2832, rr = r * (0.2 + 0.6 * Math.random());
+              sprayEmit(D, 1, eK[0] + Math.cos(a) * rr, fx.h + 0.15, eK[2] + Math.sin(a) * rr,
+                Math.cos(a) * 0.8 * Math.min(2, vy) + vK[0] * 0.2, 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy) + vK[2] * 0.2);
             }
           }
         }
@@ -3795,28 +3818,49 @@
           if (WT && Math.random() < 0.5) WT.stamp(o.c[0], o.c[2], 0.5, 0, Math.min(1, pd / 4000), 'foam');   // (3) the chine's white water in the sheet
           let n = Math.floor(rate); if (Math.random() < rate - n) n++;
           for (let j = 0; j < n; j++) {
-            const q = D.next; D.next = (D.next + 1) % D.age.length;
-            D.p[q * 3] = o.c[0] + (Math.random() - 0.5) * 0.15; D.p[q * 3 + 1] = Math.max(fx.h, o.c[1]) + 0.02; D.p[q * 3 + 2] = o.c[2] + (Math.random() - 0.5) * 0.15;
-            const up = 1.0 + 1.5 * Math.random(), outw = (0.8 + 1.2 * Math.random()) * Math.min(1, V / 12);
-            D.v[q * 3] = vK[0] * 0.35 + ox * outw * 2.2 + (Math.random() - 0.5) * 0.6;
-            D.v[q * 3 + 1] = up * Math.min(1.2, V / 10);
-            D.v[q * 3 + 2] = vK[2] * 0.35 + oz * outw * 2.2 + (Math.random() - 0.5) * 0.6;
-            D.age[q] = 0;
+            // the chine's fan is a low sheet flaring OUT and aft (G460.9: a first cut threw it up and buried the hull)
+            const up = 0.5 + 0.9 * Math.random(), outw = (0.8 + 1.2 * Math.random()) * Math.min(1, V / 12);
+            sprayEmit(D, 0, o.c[0] + (Math.random() - 0.5) * 0.15, Math.max(fx.h, o.c[1]) + 0.02, o.c[2] + (Math.random() - 0.5) * 0.15,
+              vK[0] * 0.35 + ox * outw * 3.2 + (Math.random() - 0.5) * 0.6, up * Math.min(1.0, V / 10), vK[2] * 0.35 + oz * outw * 3.2 + (Math.random() - 0.5) * 0.6);
           }
+          // the fan's mist: a puff for every ~12 droplets, outboard of the chine, left behind by the hull
+          if (n > 0 && Math.random() < n / 12) sprayEmit(D, 1, o.c[0] + ox * 0.9, Math.max(fx.h, o.c[1]) + 0.1, o.c[2] + oz * 0.9,
+            vK[0] * 0.1 + ox * 1.6 * Math.min(1, V / 12), 0.25 + 0.4 * Math.random(), vK[2] * 0.1 + oz * 1.6 * Math.min(1, V / 12));
         }
       }
     }
-    // integrate the droplets
-    const life = 0.9, sp = waterFx.pts.geometry.attributes.position.array;
+    // integrate the particles: a droplet is ballistic with a little air drag and dies where it meets the water
+    // (a foam speck is the field's, not a particle's); a puff is near-weightless mist under drag, sinking slowly
+    const S = D.spray, sp = S ? null : waterFx.pts.geometry.attributes.position.array;
+    const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD;
+    const wH = (x, z) => { const h = world.waterH ? world.waterH(x, z) : 0; return Number.isFinite(h) ? h : -1e9; };
     for (let q = 0; q < D.age.length; q++) {
-      if (D.age[q] >= life) { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; continue; }
+      if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
+      const K = D.kind[q] ? KP : KD;
       D.age[q] += dt;
-      D.v[q * 3 + 1] -= G * dt;
+      const dr = Math.max(0, 1 - K.drag * dt);
+      D.v[q * 3] *= dr; D.v[q * 3 + 2] *= dr; D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
       D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
-      sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2];
+      if (!D.kind[q] && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) { D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
+      if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
+      else { sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2]; }
     }
-    waterFx.pts.geometry.attributes.position.needsUpdate = true;
+    if (S) {
+      S.commit();
+      // lit by the world's own sun and sky, in the eye's frame
+      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; S.light([sd.x, sd.y, sd.z], sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity), skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity), camera); }
+    } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
   }
+  const sunIrr = new THREE.Color(), skyIrr = new THREE.Color();
+  // WATER_FX.burst(x, z, n, vy): a splash's spray by hand at (x, water level, z) - the rig's and the dev panel's door
+  // to the sprites without a touchdown (the same droplet + puff mix the touchdown emitter throws)
+  if (typeof window !== 'undefined') window.WATER_FX = { burst(x, z, n, vy) {
+    if (!waterFx) return 0; const D = waterFx.drops, h = (world.waterH && Number.isFinite(world.waterH(x, z))) ? world.waterH(x, z) : 0; vy = vy || 2; n = n || 80;
+    for (let j = 0; j < n; j++) { const a = Math.random() * 6.2832, rr = 1.5 * (0.3 + 0.7 * Math.random());
+      sprayEmit(D, 0, x + Math.cos(a) * rr, h + 0.05, z + Math.sin(a) * rr, Math.cos(a) * (1 + 2 * Math.random()) * Math.min(2, vy), (1.5 + 2.5 * Math.random()) * Math.min(2, vy * 0.8), Math.sin(a) * (1 + 2 * Math.random()) * Math.min(2, vy)); }
+    for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
+      sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
+    return n; }, get fx() { return waterFx; } };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;

@@ -19,6 +19,8 @@
 //      the roughness inside [three's floor, 1].
 //   4. THE TILE — periodic to the byte (the bake is a sum of integer waves),
 //      a zero-mean slope, deterministic, no NaN.
+//   6. THE SPRAY (H7.1) — spray.js loads, its kinds' laws are sane, the sprite
+//      shader carries the log-depth / tone-mapping chunks, app.js draws through it.
 //   5. THE FIELD (H7) — the interaction field's step is stable (CFL), damped,
 //      rimmed; a stamp displaces h and h_prev together; the derive/decode pair
 //      agree; app.js emits press/ring/foam from the hydro and steps the field.
@@ -181,6 +183,23 @@ console.log('\n5. THE FIELD');
   verdict(/const ribbons = \[\];/.test(app) && !/rb\.trail\.push/.test(app), 'the wake ribbons are retired (the field carries the wake)');
   verdict(/WATER\.fieldStep\(THREE, renderer, cgF\[0\], cgF\[2\]/.test(app) && /WATER\.fieldOn\(want\)/.test(app), 'app.js steps the field at the CG every frame while a floatplane is over water');
   verdict(/WATER\.fieldStep && !inGarage && \(sim\.hydro \|\| WATER\.field\.force\)/.test(app), 'without hydro the field runs only when the dev panel forces it');
+}
+
+// ---- 6. THE SPRAY (H7.1, G460.9) ---------------------------------------------
+console.log('\n6. THE SPRAY');
+{
+  const SP = require('../src/viewer/spray.js'); const app = src('src/viewer/app.js'), b = src('tools/build.js');
+  verdict(typeof SP.make === 'function' && SP.KIND && SP.KIND.droplet && SP.KIND.puff, 'spray.js loads headless: make + the two kinds');
+  for (const k of ['droplet', 'puff']) { const K = SP.KIND[k];
+    verdict(K.life[0] > 0 && K.life[1] >= K.life[0] && K.size[0] > 0 && K.size[1] >= K.size[0] && K.grow >= 1 && K.drag >= 0 && K.gravity >= 0 && K.gravity <= 1, `${k}: life ${K.life.join('-')} s, size ${K.size.join('-')} m, grow ${K.grow}, drag ${K.drag}, gravity ${K.gravity}`); }
+  // the log-depth chunks: the renderer runs a logarithmic depth buffer and a ShaderMaterial without them fails every depth test (h7t: nothing drew)
+  verdict(/#include <logdepthbuf_pars_vertex>/.test(SP.GLSL.vert) && /#include <logdepthbuf_vertex>/.test(SP.GLSL.vert) && /#include <logdepthbuf_pars_fragment>/.test(SP.GLSL.frag) && /#include <logdepthbuf_fragment>/.test(SP.GLSL.frag), 'the sprite shader splices the log-depth chunks (both stages)');
+  verdict(/#include <tonemapping_fragment>/.test(SP.GLSL.frag) && /#include <colorspace_fragment>/.test(SP.GLSL.frag), 'the sprite shader ends in three\'s tone-mapping and colour-space chunks');
+  verdict(/attribute vec3 iVel/.test(SP.GLSL.vert) && /uStretch/.test(SP.GLSL.vert), 'the sprite is stretched along its velocity');
+  verdict(/uSunV/.test(SP.GLSL.frag) && /uSkyCol/.test(SP.GLSL.frag) && !/AdditiveBlending/.test(src('src/viewer/spray.js')), 'the sprite is lit by the sun and the sky, alpha-blended (never additive)');
+  verdict(/SPRAY\.make\(THREE, NP\)/.test(app) && /sprayEmit\(D, 1,/.test(app) && /sprayEmit\(D, 0,/.test(app) && /S\.light\(/.test(app), 'app.js draws the spray through spray.js (both kinds emitted, lit each frame)');
+  verdict(/'water\.js', 'spray\.js'/.test(b), 'build.js lists spray.js beside water.js');
+  verdict(/F\.sta\[0\]\.K/.test(app) && /'press'\); \}/.test(app), 'the bow wave: a press ahead of the stem while under way');
 }
 
 console.log('\nGATE WATER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));

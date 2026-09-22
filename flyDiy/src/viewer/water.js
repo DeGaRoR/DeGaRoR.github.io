@@ -270,6 +270,7 @@ const WATER = (() => {
           // trail is a scatter of patches thinning as it decays (the untorn write was a solid white bar
           // 17 m long behind a hull, h7n/wake2.png), solid only where it is fresh
           float tearI = texture2D(uWDetail, vWP.xz / 2.3 + vec2(0.37, 0.11)).a;
+          tearI = tearI * 0.7 + 0.3 * texture2D(uWDetail, vWP.xz / 0.65 + vec2(0.81, 0.29)).a;   // (G460.9) a second octave at 0.65 m: bubbles inside the patches
           float fieldFoam = wIn.z * smoothstep(0.15, 0.85, tearI * (0.55 + 0.9 * wIn.z));
           wFoam = clamp(crest + lap + fieldFoam, 0.0, 1.0);
         }

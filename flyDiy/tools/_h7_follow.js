@@ -20,3 +20,15 @@ window.__thrV = null; window.__thr = v => { window.__thrV = v; };
   }
   requestAnimationFrame(tick);
 })();
+// __catchSplash(afterS): unpause, wait for the first float to go wet, let afterS of SIM time pass, pause -
+// the splash frozen for the rig's screenshot (the headless page runs the sim slower than the clock)
+window.__catchSplash = (afterS) => {
+  const b = document.getElementById('bPause'); if (b && !/pause/i.test(b.textContent)) b.click();
+  let tWet = -1;
+  const poll = setInterval(() => {
+    const s = FLIGHT_PROBE.sim(); if (!s.hydro) return;
+    const wet = s.hydro.floats.some(f => f.wet > 0);
+    if (wet && tWet < 0) tWet = s.t;
+    if (tWet >= 0 && s.t - tWet >= (afterS || 0.3)) { clearInterval(poll); const b2 = document.getElementById('bPause'); if (b2 && /pause/i.test(b2.textContent)) b2.click(); }
+  }, 30);
+};
