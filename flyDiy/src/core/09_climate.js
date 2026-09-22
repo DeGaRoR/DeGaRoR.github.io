@@ -693,7 +693,12 @@ var CLIMATE = (function () {
       if (k !== wKey || wAtm !== atm) { wKey = k; wAtm = atm; water = atm ? atmosWater(atm, dew) : null; }
       return water;
     }
-    // profile(h) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL
+    // profile(h) -> { T, p, rho, sigma, rh, Td, lcl } at an altitude MSL.
+    // HORIZONTALLY UNIFORM, and that is a declared boundary rather than an
+    // oversight: this is the COLUMN, the vertical law. A 2-D mist field - where
+    // a layer's top sits over valley floors and water, where the patches are -
+    // composes with it rather than competing: sample this for the vertical
+    // shape at an (x, z) and let the field say where the top of it is.
     function profile(h) {
       const atm = env.atmos ? env.atmos() : null, w = waterNow();
       if (!atm) return null;
@@ -714,9 +719,28 @@ var CLIMATE = (function () {
       if (lcl == null) return lid;
       return Math.min(lid, lcl);
     }
-    // haze(): what the mist reads (K4 wires it). Koschmieder's law turns a
-    // visibility into an extinction: beta = 3.912 / V. The day's own
-    // visibilityKm carries the turbidity and the humidity; a front thickens it.
+    // haze(): THE INGREDIENTS OF A MIST, not a distance. Koschmieder's law turns
+    // a visibility into an extinction, beta = 3.912 / V; the day's own
+    // visibilityKm carries the turbidity and the humidity, and a front thickens
+    // it. What is published is (rho0, top, H) - the layer itself - and the
+    // consumer integrates along ITS OWN ray.
+    //
+    // TWO WARNINGS FOR WHOEVER CONSUMES THIS, both measured by the fog study
+    // (futureDesigns/FOG-MIST-2026-09-21.md) rather than argued:
+    //
+    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid at `top`,
+    //    so how far an eye can see depends on where the eye is and where it is
+    //    looking: from 200 m over Jolene the distant GROUND dies at about 4 km
+    //    (that ray looks down through the layer) while the RIDGES stand at 5-9
+    //    km (their ray never enters it). A far plane or a ring radius sized off
+    //    a single surface number escapes by luck at rh 0.85 and shears the
+    //    mountains off at rh 0.90. Integrate the ray; that is what these three
+    //    numbers are for.
+    // 2. THIS NUMBER MOVES DURING A FLIGHT NOW. It used to be a constant per
+    //    day; a front takes it 60 -> 26 km over a couple of hours and the
+    //    diurnal humidity walks it as well. Any consumer that sizes a STREAMED
+    //    thing from it (the forest ring, a far cascade) needs two-radii
+    //    hysteresis and a rate limit, or it re-imports the chunk-crossing pop.
     function haze() {
       const day = env.day;
       if (!day) return null;

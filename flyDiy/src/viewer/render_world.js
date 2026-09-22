@@ -4838,10 +4838,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let dayVer = -1, dayEl = NaN, dayAz = NaN;
   function dayApply() {
     const day = world.day;
-    if (!day || rigCur.manual) return;
+    if (!day) return;
+    // THE WEATHER IS NOT THE SUN (CLIMATE K4.1). `rigCur.manual` is the F8 dial
+    // that lets a developer place the sun by hand, and it used to return from
+    // the whole of this function - which also froze the mist, the aerial
+    // perspective and the clouds' drift. That was invisible while the mist was
+    // a constant per day; now that a front moves the visibility and the sky
+    // drifts on its own clock, "the weather stops when I touch a sun slider" is
+    // a bug report waiting to happen (the fog study caught it before it was
+    // filed). So the weather runs first and the manual gate is where it always
+    // meant to be: on the LIGHT.
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y, camera.position, world); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
+    if (rigCur.manual) return;                                                          // the hand-placed sun: the LIGHT stops following the almanac; the weather does not
     if (probe && !rigCur.manual) probe.maybe(day, 1.5);
     if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     runwayLightsApply(day, camera.position);                                                // G443: before the sun-moved guard (the exposure and the eye move on their own)
