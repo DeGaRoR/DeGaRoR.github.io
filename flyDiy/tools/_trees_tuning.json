@@ -689,7 +689,7 @@
      "cluster": 1
     },
     "coast_land_rocks_02": {
-     "proportion": 0.3,
+     "proportion": 0.4,
      "size": 1,
      "bury": 0.187,
      "tilt": 1,
@@ -705,7 +705,7 @@
      "cluster": 1
     },
     "coast_land_rocks_04": {
-     "proportion": 0.3,
+     "proportion": 0,
      "size": 1,
      "bury": 0.392,
      "tilt": 1,
@@ -1478,7 +1478,8 @@
    "hue": 0,
    "sat": 1,
    "light": 1,
-   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 10 x 5 m strip of the foreshore, 1.35 m high"
+   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 10 x 5 m strip of the foreshore, 1.35 m high",
+   "cut": 0.27
   },
   "coast_land_rocks_03": {
    "file": "coast_land_rocks_03.glb",
@@ -1490,7 +1491,8 @@
    "hue": 0,
    "sat": 1,
    "light": 1,
-   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 9 x 6 m strip, 1.5 m"
+   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 9 x 6 m strip, 1.5 m",
+   "cut": 0.42
   },
   "coast_land_rocks_04": {
    "file": "coast_land_rocks_04.glb",
@@ -1502,7 +1504,8 @@
    "hue": 0,
    "sat": 1,
    "light": 1,
-   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 10 x 11 m flat pavement, 0.8 m"
+   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 10 x 11 m flat pavement, 0.8 m",
+   "cut": 0.33
   },
   "coast_rocks_05": {
    "file": "coast_rocks_05.glb",
@@ -1514,7 +1517,8 @@
    "hue": 0,
    "sat": 1,
    "light": 1,
-   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 4 x 4 m rock group, 1.3 m"
+   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): a 4 x 4 m rock group, 1.3 m",
+   "cut": 0.34
   },
   "sand_rocks_small_01": {
    "file": "sand_rocks_small_01.glb",
@@ -1526,7 +1530,8 @@
    "hue": 0,
    "sat": 1,
    "light": 1,
-   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): 4.6 x 3.9 m small rocks in sand, 0.5 m"
+   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): 4.6 x 3.9 m small rocks in sand, 0.5 m",
+   "cut": 0.16
   },
   "coast_rocks_03": {
    "file": "coast_rocks_03.glb",
@@ -1538,7 +1543,8 @@
    "hue": 0,
    "sat": 1,
    "light": 1,
-   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): the 21 x 28 m reef, 3.2 m - rare"
+   "note": "Poly Haven smugglers_cove scan, 1 500 tris (tools/coast_rocks_prep.py): the 21 x 28 m reef, 3.2 m - rare",
+   "cut": 1.84
   }
  },
  "biomes": {

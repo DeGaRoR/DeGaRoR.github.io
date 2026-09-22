@@ -122,7 +122,20 @@ var COVER_RING = (() => {
           const parts = b.parts.map(q => {
             let mat = q.mat;
             if (c.kind === 'rock') {                            // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
-              mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }); LEAF.fadeHook(mat);
+              mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 });
+              // THE SKIRT IS CUT (2026-09-22, the coast scans): a photoscanned strip carries the sand round its rocks, and
+              // that skirt lay on the terrain as a pale plate wherever the ground fell away under it. A rock row's
+              // `cut` (metres above the subject's floor - its own ground level, coast_rocks_tune.py) discards every
+              // fragment below it in the rock's own frame: the rocks stand out of the real ground, the sand is the ground's
+              if (place.cut > 0) {
+                const uCut = { value: place.cut };
+                mat.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
+                  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;')
+                    .replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
+                  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;')
+                    .replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
+              }
+              LEAF.fadeHook(mat); if (place.cut > 0) mat.customProgramCacheKey = () => 'fade-rockcut';
             } else {
               LEAF.fadeHook(mat);
               if (c.kind === 'cover' && LEAF.upHook) LEAF.upHook(mat);   // the tuft shades as the ground (trees.js UP_VS)
@@ -132,7 +145,8 @@ var COVER_RING = (() => {
             return { geo: q.geo, mat };
           });
           const h = (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)) * (place.size || 1);
-          P.push({ key: e.key, w: 1 / subs.length, kind: c.kind, h, h0: (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)), parts, size: place.size || 1 });
+          P.push({ key: e.key, w: 1 / subs.length, kind: c.kind, h, h0: (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)), parts, size: place.size || 1,
+                   r0: e.sub.bb ? Math.max(e.sub.bb[3] - e.sub.bb[0], e.sub.bb[5] - e.sub.bb[2]) / 2 : 1 });   // half its footprint: a slab's tilt is read over its own extent
         }
       }
       protos.set(c.name, P);
@@ -245,7 +259,8 @@ var COVER_RING = (() => {
           // `tilt`: the rock leans to the ground's slope (a slab lies ON the foreshore, not level in it) - the slope
           // from terrainH at +-1.5 m, scaled by the row's tilt (1 = the ground's own)
           let tx = 0, tz = 0;
-          if (isRock && row.tilt > 0) { tx = (world.terrainH(x + 1.5, z) - world.terrainH(x - 1.5, z)) / 3 * row.tilt; tz = (world.terrainH(x, z + 1.5) - world.terrainH(x, z - 1.5)) / 3 * row.tilt; }
+          // (over the rock's own footprint: a 10 m strip read at +-1.5 m stood on the wrong plane and showed its skirt as a plate)
+          if (isRock && row.tilt > 0) { const rr = Math.max(1.5, 0.45 * p.r0 * s); tx = (world.terrainH(x + rr, z) - world.terrainH(x - rr, z)) / (2 * rr) * row.tilt; tz = (world.terrainH(x, z + rr) - world.terrainH(x, z - rr)) / (2 * rr) * row.tilt; }
           push(p, x, yy, z, s, yaw, col, tx, tz); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
         }
       }

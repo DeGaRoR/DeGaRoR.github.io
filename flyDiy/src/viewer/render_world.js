@@ -20,6 +20,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
   let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
+  let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
@@ -1000,7 +1001,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the class smoothing (the bench's, G405): blur in metres over the weight fields, a smooth wobble of the sample point
     Object.assign(GROUND, { classBlur: 25, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {};
-    let islandGroundHook = null, SPL = null;
+    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookFine = null, SPL = null;
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
@@ -1033,6 +1034,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         uGW2: { value: (() => { const w2 = new Uint8Array(n * 4); if (ISLA.cover) { const slot = { 60: 0, 80: 1, 90: 2, 100: 3 }; for (let k = 0; k < n; k++) { const i = slot[ISLA.cover[k]]; if (i !== undefined) w2[k * 4 + i] = 255; } }
           const t = new THREE.DataTexture(w2, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; })() },
         uLOn: { value: STACK.map(l => l.on) }, uLMode: { value: STACK.map(l => l.mode) }, uLOp: { value: new Float32Array(STACK.map(l => l.op)) },
+        uFine: { value: new THREE.Vector4(0, 0, 0, 120) },   // the fine disc (TERRAIN FOLLOW-UP 2): centre, radius (0 = off), the geomorph band
       });
       GROUND.on = true;
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
@@ -1041,14 +1043,21 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
       // on the near ring / outer ring / premises patch (tools/sampler_census.js)
       SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA) : null;
-      islandGroundHook = sh => {
+      // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
+      // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
+      // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
+      // (aCoarse / aCoarseN: the ring's triangles sampled exactly, so the two coincide at the edge),
+      // the twin and the outer ring (0) do neither. uFine = (cx, cz, R, band); R 0 = the disc is off.
+      const islandGroundHookFor = side => sh => {
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPi = (modelMatrix * vec4(position, 1.0)).xyz;');
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
+            (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
+          .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz;');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
             // the packed fields: A = (ori, canopy, coast, lake), B = (ndvi, terrain type); the type at its texel's CENTRE (a nearest read off a linear texture)
@@ -1094,6 +1103,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' +
             (SPL ? SPL.glslCommon : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
+            // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
+            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
             '  float lsd = (gLake(guv) * 255.0 - 128.0) * 4.0;\n' +
@@ -1194,9 +1205,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           SC.lights_physical_pars_fragment.replace('reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;',
                                                    'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'));
       };
+      islandGroundHook = islandGroundHookFor(-1);      // the near ring
+      islandGroundHook0 = islandGroundHookFor(0);      // the twin (the premises patch), the outer ring
+      islandGroundHookFine = islandGroundHookFor(1);   // the fine tiles
     }
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
+      fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),
@@ -1388,7 +1403,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; gMatTwin.onBeforeCompile = islandGroundHook; }
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; gMat.customProgramCacheKey = () => 'island-ring';
+      gMatTwin.onBeforeCompile = islandGroundHook0; gMatTwin.customProgramCacheKey = () => 'island-twin'; }   // (the hooks share one source text: the keys keep the programs apart)
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
@@ -1414,6 +1430,102 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     ground.receiveShadow = true;
     scene.add(ground);
 
+    // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22, the user: "do the drape with the fine ring"):
+    // the near ring is a 512 x 512 plane over 9 km - 17.6 m chords - and the true surface is the
+    // quadtree's (5 m leaves): the ring rode above every concave lake edge (G438.1), cut through the
+    // premises (G434.1) and made every silhouette within a few hundred metres, and a 10 m rock slab
+    // laid on it stood on a plane the ground was not. Round the EYE a disc of FINE TILES (160 m
+    // squares on a fixed world grid, 5 m vertices off world.terrainH - the quadtree's own surface,
+    // the premises' sink applied like the ring's) replaces the ring: the ring DISCARDS its fragments
+    // inside the disc's radius, a tile discards outside it, and the tile's rim GEOMORPHS over the last
+    // `band` metres to the ring's own triangles (aCoarse / aCoarseN sampled from the ring's buffers,
+    // its diagonal split reproduced), so at the edge the two surfaces are one to the millimetre and
+    // nothing tears. The tiles stream with the eye (a budget a frame; the ring's discard radius is
+    // held to the radius the tiles have reached). Off when the eye is within reach of the ring's rim
+    // (the outer ring's surface is another) - INNER - R - band from the origin.
+    const FINE = { on: !!islandGroundHook, R: 700, band: 120, T: 160, step: 5, tiles: new Map(), mat: null, budget: 6, off: (typeof location !== 'undefined' && /[?&]fine=0/.test(location.search)) };   // ?fine=0: the ring alone (the A/B)
+    if (FINE.on) {
+      FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
+      FINE.mat.onBeforeCompile = islandGroundHookFine; FINE.mat.customProgramCacheKey = () => 'island-fine';
+      const SEG = 2 * INNER / 512, RP = geo.attributes.position, RN = geo.attributes.normal, RW = 513;
+      // the ring's surface at (x, z): its own triangles (PlaneGeometry's a-b-d / b-c-d split, the
+      // diagonal from (ix, iy+1) to (ix+1, iy)) and its own vertex normals, so the tile's rim is the ring
+      const cA = [0, 0, 0, 0];
+      const coarseAt = (x, z) => {
+        const gx = Math.max(0, Math.min(511.999, (x + INNER) / SEG)), gz = Math.max(0, Math.min(511.999, (z + INNER) / SEG));
+        const ix = Math.floor(gx), iz = Math.floor(gz), fu = gx - ix, fv = gz - iz;
+        const a = ix + RW * iz, b = ix + RW * (iz + 1), c = ix + 1 + RW * (iz + 1), d = ix + 1 + RW * iz;
+        let wa, wb, wc, wd;
+        if (fu + fv <= 1) { wa = 1 - fu - fv; wb = fv; wd = fu; wc = 0; } else { wc = fu + fv - 1; wb = 1 - fu; wd = 1 - fv; wa = 0; }
+        cA[0] = wa * RP.getY(a) + wb * RP.getY(b) + wc * RP.getY(c) + wd * RP.getY(d);
+        let nx = wa * RN.getX(a) + wb * RN.getX(b) + wc * RN.getX(c) + wd * RN.getX(d);
+        let ny = wa * RN.getY(a) + wb * RN.getY(b) + wc * RN.getY(c) + wd * RN.getY(d);
+        let nz = wa * RN.getZ(a) + wb * RN.getZ(b) + wc * RN.getZ(c) + wd * RN.getZ(d);
+        const l = Math.hypot(nx, ny, nz) || 1; cA[1] = nx / l; cA[2] = ny / l; cA[3] = nz / l;
+        return cA;
+      };
+      const H = (x, z) => world.terrainH(x, z) - groundSink(x, z);
+      // THE LAKE BANKS KEEP THE RING'S SHAPE: island_prep flattens a lake's cells to one level, and at 5 m
+      // the fine surface shows that flattening as a 10 m STAIRCASE round every lake (the ring's 17.6 m
+      // chords had smoothed it away; seen 2026-09-22 at -564,-1336). Until the prep feathers its lakes,
+      // a fine vertex within 30 m of a lake's edge blends back to the ring's height and normal.
+      const LK = ISLA && ISLA.lake ? ISLA.lake : null, LG = ISLA && ISLA.grid;
+      const lakeSD = (x, z) => {
+        if (!LK) return -1e9;
+        const u = (x - LG.x0) / LG.cell - 0.5, v = (z - LG.z0) / LG.cell - 0.5;
+        const i = Math.max(0, Math.min(LG.w - 2, Math.floor(u))), j = Math.max(0, Math.min(LG.h - 2, Math.floor(v)));
+        const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j)), q = j * LG.w + i;
+        return (((LK[q] * (1 - fu) + LK[q + 1] * fu) * (1 - fv) + (LK[q + LG.w] * (1 - fu) + LK[q + LG.w + 1] * fu) * fv) - 128) * 4;
+      };
+      const sm = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
+      FINE.build = (tx, tz) => {
+        const T = FINE.T, st = FINE.step, n = T / st + 1, x0 = tx * T, z0 = tz * T;
+        const pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), ac = new Float32Array(n * n), acn = new Float32Array(n * n * 3);
+        for (let j = 0, k = 0; j < n; j++) for (let i = 0; i < n; i++, k++) {
+          const x = x0 + i * st, z = z0 + j * st;
+          const c = coarseAt(x, z); ac[k] = c[0]; acn[k * 3] = c[1]; acn[k * 3 + 1] = c[2]; acn[k * 3 + 2] = c[3];
+          const lk = sm(-30, -6, lakeSD(x, z));   // 0 away from lakes, 1 at the bank: the ring's shape there
+          pos[k * 3] = x; pos[k * 3 + 1] = H(x, z) * (1 - lk) + c[0] * lk; pos[k * 3 + 2] = z;
+          // the normal from the surface itself at +-2.5 m (not from this tile's triangles: a tile edge would shade differently from its neighbour)
+          let nx = (H(x - 2.5, z) - H(x + 2.5, z)) / 5, nz = (H(x, z - 2.5) - H(x, z + 2.5)) / 5; let l = Math.hypot(nx, 1, nz);
+          nx = nx / l * (1 - lk) + c[1] * lk; let ny = 1 / l * (1 - lk) + c[2] * lk; nz = nz / l * (1 - lk) + c[3] * lk; l = Math.hypot(nx, ny, nz) || 1;
+          nor[k * 3] = nx / l; nor[k * 3 + 1] = ny / l; nor[k * 3 + 2] = nz / l;
+          const t = islandUV ? islandUV(x, z) : [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
+        }
+        const idx = [];
+        for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + n, c = b + 1, d = a + 1; idx.push(a, b, d, b, c, d); }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('aCoarse', new THREE.BufferAttribute(ac, 1)); g.setAttribute('aCoarseN', new THREE.BufferAttribute(acn, 3));
+        g.setIndex(idx); g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, FINE.mat); m.receiveShadow = true; m.frustumCulled = true;
+        scene.add(m); return m;
+      };
+      FINE.drop = key => { const m = FINE.tiles.get(key); if (!m) return; scene.remove(m); m.geometry.dispose(); FINE.tiles.delete(key); };
+      FINE.clear = () => { for (const k of [...FINE.tiles.keys()]) FINE.drop(k); };
+      // per frame: the disc follows the eye; the tiles it needs are built nearest first within the budget
+      FINE.update = () => {
+        const ex = camera.position.x, ez = camera.position.z, T = FINE.T, R = FINE.R;
+        const far = Math.max(Math.abs(ex), Math.abs(ez)) > INNER - R - FINE.band - 50;
+        if (far || FINE.off) { if (FINE.tiles.size) FINE.clear(); gU.uFine.value.set(ex, ez, 0, FINE.band); return; }
+        const need = [];
+        for (let tz = Math.floor((ez - R) / T); tz <= Math.floor((ez + R) / T); tz++) for (let tx = Math.floor((ex - R) / T); tx <= Math.floor((ex + R) / T); tx++) {
+          const dx = Math.max(0, Math.abs(ex - (tx + 0.5) * T) - T / 2), dz = Math.max(0, Math.abs(ez - (tz + 0.5) * T) - T / 2), d = Math.hypot(dx, dz);   // the tile's nearest point
+          if (d > R + 5) continue;
+          const key = tx + ',' + tz; if (!FINE.tiles.has(key)) need.push([d, tx, tz, key]);
+        }
+        need.sort((a, b) => a[0] - b[0]);
+        let built = 0;
+        for (const [, tx, tz, key] of need) { if (built >= FINE.budget) break; FINE.tiles.set(key, FINE.build(tx, tz)); built++; }
+        const reached = built < need.length ? Math.max(0, need[built][0] - 1) : R;   // the ring gives way only where the tiles are
+        gU.uFine.value.set(ex, ez, Math.min(R, reached), FINE.band);
+        for (const [key, m] of FINE.tiles) { const [tx, tz] = key.split(',').map(Number);
+          const dx = Math.max(0, Math.abs(ex - (tx + 0.5) * T) - T / 2), dz = Math.max(0, Math.abs(ez - (tz + 0.5) * T) - T / 2);
+          if (Math.hypot(dx, dz) > R + 2 * T) FINE.drop(key); }
+      };
+    }
+    fineRing = FINE;
+
     if (world.island && world.island.farRoot) {
       // THE FAR TERRAIN IS THE ASSET (G400, the user: "don't hide terrain
       // geometry in a flight game ... some trees are not on the ground"): the
@@ -1422,7 +1534,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // quadrant (frustum-culled as sixteen), wearing the ground material;
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
-      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;
+      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook0(sh); }) : canopyHook;
+      if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
       outerMatShared = oMat;
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch;
       const groups = new Map();
@@ -1461,7 +1574,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       console.log('island far terrain: ' + groups.size + ' meshes, ' + (farTris / 1e6).toFixed(1) + ' M tris');
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
-      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook(sh); }) : canopyHook;   // the far tier lives mostly out here
+      oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHook0(sh); }) : canopyHook;   // the far tier lives mostly out here
+      if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
       outerMatShared = oMat;
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
@@ -4334,6 +4448,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); if (x < bb.x0 - 40 || x > bb.x1 + 40 || z < bb.z0 - 40 || z > bb.z1 + 40) continue; pa.setY(i, world.terrainH(x, z) - groundSink(x, z)); n++; }
       if (n) { pa.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
     }
+    if (fineRing && fineRing.clear) fineRing.clear();   // the tiles carry the ring's heights in their rim: rebuilt on the next frame
   }
   let premTramLast = 0;
   function worldUpdate(cg) {
@@ -4347,6 +4462,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the camera after this call) and that is fine — 30 m of aircraft travel
     // shifts nothing at 450 m.
     uCam.value.copy(camera.position);
+    if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
     uCG.value.set(cg[0], cg[1], cg[2]);
     dayApply();
     fillUpdate(cg);

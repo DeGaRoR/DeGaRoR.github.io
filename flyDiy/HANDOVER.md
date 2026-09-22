@@ -55059,3 +55059,41 @@ side stands of the reference; the muskeg in clumps with the pools; the heath a b
 steep slopes had house-sized boulders (sizes halved); forest_old's spot (1900,-4700 at 373 m)
 read as a grassy slope with small trees - to look at (the old-growth mix at altitude, or the
 chunk's base quarter); the sand spot fell in the sea (the chase eye), no beach picture yet.
+
+## G488 — THE FINE RING (TERRAIN FOLLOW-UP 2) AND THE SLABS ON IT (2026-09-22, the user: "ok now do the drape with the fine ring (item 2)")
+
+- THE FINE RING (render_world.js FINE, ?fine=0 for the A/B): round the EYE a disc (R 700 m) of fine
+  tiles - 160 m squares on a fixed world grid, 5 m vertices off world.terrainH (the quadtree's own
+  surface; the premises' 4 m sink applied like the ring's; the normal off the surface at +-2.5 m, not
+  off the tile's own triangles, so tile edges shade alike) - replaces the 512 x 512 near ring (17.6 m
+  chords). The ring's fragments DISCARD inside the disc, a tile's outside it, and the tile's rim
+  GEOMORPHS over the last 120 m to the ring's own surface: aCoarse / aCoarseN are the ring's triangles
+  sampled exactly (PlaneGeometry's a-b-d / b-c-d split, the diagonal from (ix, iy+1) to (ix+1, iy) -
+  a bilinear read would have torn by the quad's twist, half a metre on a hillside) and its vertex
+  normals, blended in the vertex shader by the distance to uFine.xy. One surface per pixel, nothing
+  tears, no rim at 700 m (bench/fine/lake_4.png, the horizon views). The tiles stream with the eye
+  (six a frame; the ring's discard radius is held to the radius the tiles have reached). OFF beyond
+  INNER - R - band of the origin: past the near ring the ground is the quadtree's leaves already -
+  the spits at 4.9 km never had the chord problem, the muskeg near HOME did.
+- ONE HOOK, THREE SIDES: islandGroundHookFor(side) - the ring -1, the twin and the outer ring 0, the
+  fine tiles +1 (the attributes, the morph, the discard); customProgramCacheKey per material (the
+  three closures share one source text and three's default key would have handed the ring's program
+  to the tiles).
+- THE LAKE BANKS KEEP THE RING'S SHAPE: at 5 m the fine surface showed island_prep's lake flattening
+  as a 10 m STAIRCASE round every lake (the chords had smoothed it away; bench/fine/slope_4.png
+  bottom-left) - a fine vertex within 30 m of a lake's edge blends back to the ring's height and
+  normal (the lake field read on the CPU). Until the prep feathers its lakes.
+- SEEN: bench/fine/steep_4.png - the cut bank above the lake at -2960,600 (the ring's chords as a
+  terrace, top right) is a smooth bank with the tiles (top left); slope2_AB.png; muskeg_AB.png.
+- THE SLABS: the tilt is read over the rock's OWN FOOTPRINT (cover_ring.js: +-0.45 x its half-extent
+  x scale; a 10 m strip read at +-1.5 m stood on the wrong plane), and THE SKIRT IS CUT - a scan
+  carries the sand round its rocks and that sand lay on the terrain as a pale plate wherever the
+  ground fell away; a rock row's `cut` (metres above the subject's floor: its own ground level +
+  10 cm, coast_rocks_tune.py) discards every fragment below it in the rock's frame, so the rocks
+  stand out of the real ground and the sand is the ground's. coast_land_rocks_04, the flat pale
+  PAVEMENT, was the plate that remained (bench/fine/slabs_no04_3.png: all / without it / without
+  02) - out of the shingle mix (proportion 0; in the pack for a pavement code some day).
+- NOT DONE: the true drape (bending a slab to the surface) - on 5 m ground with the tilt over its
+  extent and the skirt cut, a slab reads as an outcrop and the drape is not what is missing; the far
+  tier of the rocks (below).
+- GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / PREMISES / LIGHT green.
