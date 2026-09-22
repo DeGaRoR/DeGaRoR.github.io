@@ -37051,7 +37051,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2d018b0afd3';window.FLYDIY_BUILD='f19301f974bb'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b2d018b0afd3';window.FLYDIY_BUILD='835a524efc78'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -104084,8 +104084,11 @@ const WATER = (() => {
   // The IBL is the atmosphere's probe - the sky and its clouds, a flat ground cap: the water reflected NOTHING
   // of the world (the user, on a lake photo: "we can see tree reflections everywhere, while ours does not mirror
   // anything at all"). mirrorRender(THREE, renderer, scene, camera, waterY, opts) renders the scene with a camera
-  // mirrored about y = waterY - the sky dome, the water meshes and the spray hidden (opts.hide), the near plane
-  // made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
+  // mirrored about y = waterY - THE SKY DOME DRAWN FIRST at the mirrored eye (G460.11.3: without it the capture's
+  // clear sky was alpha 0 and the water took the PROBE's sky there - so the reflection switched source at every
+  // cloud's edge, a hard line across the water, the user: "can't we have the tiles fade into each other? The hard
+  // edge looks bad"; one dome draw makes the capture opaque and the reflection one source), the water meshes and
+  // the spray hidden (opts.hide), the near plane made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
   // the shader reads it where a point projects in that capture and keeps the probe's sky where the capture is
   // empty. The capture is AMORTISED: a 'periodic' mode (the default) re-captures when the eye has moved 4 m or
   // turned 6 deg or after `every` seconds (never under 0.75 s), 'live' every frame (the rigs that can afford it), 'off' never; only
@@ -104140,12 +104143,27 @@ const WATER = (() => {
     const cc = renderer.getClearColor(mirrorTmp.cc || (mirrorTmp.cc = new THREE.Color())), ca = renderer.getClearAlpha();
     const t0 = performance.now();
     renderer.shadowMap.autoUpdate = false;
-    renderer.setRenderTarget(MIR.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = true; renderer.clear();
+    renderer.setRenderTarget(MIR.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = false; renderer.clear();
+    // THE SKY FIRST (G460.11.3): the dome is a small sphere parented to the MAIN camera, so it rides the wrong eye
+    // during the capture and the oblique clip would kill it anyway (the mirrored eye is under the water plane).
+    // It is drawn here in a scratch scene, placed at the mirrored eye, under the normal projection - the capture's
+    // background, opaque, with the clouds composited over it
+    let skyPar = null;
+    if (opts.sky) {
+      const sky = opts.sky;
+      MIR.skyScene = MIR.skyScene || new THREE.Scene();
+      skyPar = sky.parent;
+      MIR.skyScene.add(sky);
+      sky.position.copy(mc.position);
+      renderer.autoClear = false;
+      renderer.render(MIR.skyScene, mc);
+    }
     // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
     // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -
     // with the FRAME's far (the composite writes its depth against log2(far + 1): a cloud 10 km out under the
     // capture's capped far read as depth > 1 and was clipped - no cloud in the mirror, G460.11.1)
     if (opts.clouds) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
+    if (skyPar) { const sky = opts.sky; sky.position.set(0, 0, 0); skyPar.add(sky); }
     // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
     mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
     // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
@@ -142659,7 +142677,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       const cgM = sim.cgPos();
       let wl = world.waterH ? world.waterH(camera.position.x, camera.position.z) : NaN;
       if (!Number.isFinite(wl) && world.waterH) wl = world.waterH(cgM[0], cgM[2]);
-      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: 1 / 60, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
+      if (Number.isFinite(wl)) WATER.mirrorRender(THREE, renderer, scene, camera, wl, { dt: 1 / 60, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
       else if (WATER.mirror.on) WATER.mirrorOff();
     }
     if (aa) aa.render(inGarage ? garageScene() : scene, camera);
