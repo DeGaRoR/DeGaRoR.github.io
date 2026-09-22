@@ -56793,3 +56793,52 @@ after an hour of looking at the right values in the wrong place.
 Found by the user; independently bisected by the climate session to exactly G505 (22/22 at
 e48a675b, 21/22 from 5eb1cd94 on), which is the commit the brace came in with. GATE SKINMAT's five
 role rows are red too, all day, on master and independently of this.
+## G509 - THE LAKE PASS: a fetch-limited surface built, measured, SHOWN AND REFUSED; the rig's roll-out
+## made honest (2026-09-23, the user: "now do the lake, same treatment" then, on the A/B, "off looks
+## better on lakes")
+
+- WHAT THE LAKE ALREADY DID RIGHT, looked at first (screenshots/water-g440/L1, L3): the mirror works on a
+  lake exactly as on the sea - the mountain, the treeline and the clouds mirrored, the water near-black
+  (the muskeg constituents of G460.11), which is the user's own reference photo. Jolene has 317 lake
+  surfaces; the eye for a lake shot must be FOUND, not guessed, because a lake object carries only the
+  BOUNDING BOX of its cell group and on Jolene those boxes span ridges (L1/A_low.png is an eye inside a
+  hill). The scan that finds open water: walk the box on a 25 m grid, keep the points world.waterH calls
+  water, take the one with the longest clear reach along +-x and +-z. The six biggest, with their level
+  and the reach through the point: (1226, -17526) 115.91 m, 1675 x 1875; (4991, -8121) 103.88, 1575 x
+  1300; (4481, -3976) 31.93; (6241, -6631) 64.94; (-2644, -19711) 68.78; (981, -12846) 24.63.
+- WHAT WAS BUILT AND IS NOT HERE. A lake has NO SWELL: every wave on it was raised by the wind blowing
+  over THIS water, over only as much water as the bank allows - so the wave is the FETCH's. SMB (the
+  Shore Protection Manual's form), with X = g F / U^2: H_s = U^2/g x 0.283 tanh(0.0125 X^0.42), T_p =
+  U/g x 7.54 tanh(0.077 X^0.25), L_p = g T_p^2 / 2 pi. 6 m/s over 500 m makes 10 cm and 2.2 m; over 20 m,
+  3 cm and 45 cm. The fetch came PER PIXEL from the lake's own signed field marched UPWIND on a log ladder
+  (5 taps, x3 a rung, 15 m to 1215 m, textureLod so the march carries no derivatives), and it drove two
+  things: the detail tile's LENGTHS (L_p and the pair's own ratio under it, instead of the sea's 3.2 /
+  0.75 m) and the lower limit of the sub-pixel band. That second one is worth keeping in mind even
+  without the rest: wSigma2's law IS Phillips' equilibrium tail, mss = B ln(k_hi / k_lo) with B set so a
+  fully developed sea reproduces Cox-Munk - written that way, the lower limit can be the BODY's own peak
+  rather than the sea's, and today every lake takes the open ocean's slope variance.
+- IT WORKED, AND THE USER SAID NO. The windward bank went to GLASS (L3/lk_up.png: a still dark mirror of
+  the hill, the reference photo again) and the ripple grew downwind, which is the one thing that reads as
+  a lake rather than as a mirror laid on the ground. But the first cut gated the sea's tiles OFF by fetch
+  instead of MOVING them, so it also took the near water's fine ripple away, and on that A/B (L4/off.png
+  against L4/on.png, one boot, one eye, WATER.set({fetch:...})) the user's verdict was "off looks better
+  on lakes". REVERTED WHOLE - not landed behind a flag, not left as dead code in a hot path. A second
+  variant (the tiles MOVED to L_p rather than gated off, which keeps a ripple and only shortens it) was
+  written and never got a picture in front of the user, because the rig ate the afternoon. If the lake is
+  reopened, that is the version to shoot first, and everything above is enough to rebuild it in an hour.
+- THE RIG, made honest, which is what actually lands here (tools/cloud_shot.js): (a) `--rolltries N` -
+  the roll-out's patience in 5 s rounds, 14 (70 s) by default. On a loaded box - several headless runs at
+  once, the parked captures at 8 s apiece - the boot walks past 70 s and the run dies with "the roll-out
+  never happened" although the page is perfectly well. (b) THE TEST IS THE SCREEN, NOT THE PHASE: the old
+  check was a list of phase words in the body text, and a roll-out starting in one the list forgot reads
+  as "never happened"; the FLIGHT RAIL exists only on the flight screen, so its presence IS the roll-out,
+  with the phase words kept as the fast path. Four dead runs today, and a real shader error hiding under
+  them the whole time - which is the cost of an instrument that lies about why it stopped.
+- A BUG FOUND UNDER THOSE RUNS AND REPORTED, NOT MINE (the vegetation session has it): the bark material's
+  VERTEX SHADER DOES NOT COMPILE on master - `uniform vec4 uWind` is declared twice, and SWAY_GLSL's
+  locals (swayPh / swayAmp / swayF) with it, because trees.js:350 and trees.js:418 each prepend their own
+  prologue and splice the same sway block, and CommonBark goes through both. Either hook alone compiles,
+  so only the trunks are missing. It reaches the WATER too: the mirror captures the scene from the
+  mirrored eye, so a material that will not compile is absent from every reflection, and a lake's
+  reflection was nearly judged against a forest with holes in it.
+- WATER, WORLDRENDER, MEDIA, GFX, CLOUD, UISMOKE green (water.js is untouched at G460.11.11).

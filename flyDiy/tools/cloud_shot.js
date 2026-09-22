@@ -75,10 +75,18 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     return;
   }
   let flying = false;
-  for (let a = 0; a < 14 && !flying; a++) {
+  // --rolltries: the roll-out's patience in 5 s rounds (14 = 70 s, the default). A loaded box - several
+  // headless runs at once, the parked captures taking 8 s apiece - walks past 70 s and the run dies with
+  // "the roll-out never happened" although nothing is wrong with the page (2026-09-23, twice in a row).
+  const ROLL = Math.max(1, +opt('rolltries', 14));
+  for (let a = 0; a < ROLL && !flying; a++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(5000);
-    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText)");   // (a floatplane rolls out afloat, its first phase TAKEOFF)
+    // THE TEST IS THE SCREEN, NOT THE PHASE (2026-09-23): a phase word is whatever the pilot happens to be
+    // doing, and a roll-out that starts in one this list forgot reads as "never happened" - four dead runs
+    // in a row today, with a real shader error hiding underneath them. The FLIGHT RAIL exists only on the
+    // flight screen, so its presence IS the roll-out; the phase words stay as the fast path.
+    flying = await ev("/TAXI|DOWNWIND|FINAL|TAKEOFF|CLIMB/.test(document.body.innerText) || !!(document.querySelector('#flRail [data-f=camera]') && document.querySelector('#flRail [data-f=camera]').offsetParent)");
   }
   if (!flying) throw new Error('the roll-out never happened');
   // the fresh profile's chooser (NEW AEROPLANE / keep the current build) can appear after the roll-out: poll it away
