@@ -56599,3 +56599,16 @@ same aeroplane read darker on the shed floor than on the apron for no physical r
   branch). **Underwater is DEFERRED** at the water session's ruling - the surface from below (total
   internal reflection, the Snell window) does not exist yet and a slab under it would read as a
   tinted pane; their API contract is recorded in the study so nothing is rediscovered.
+
+## G507 — THE DEBRIS DIMMED TO THE DEAD TRUNKS, MEASURED (2026-09-23, the user: "the debris are still much too
+## bright, get the brightest one down almost 50 %. Look at the dead trunks. Debris should be barely brighter")
+
+MEASURED rather than guessed, the maps' mean linear luma over their opaque texels (the same method as
+G485's ground): log.glb 0.2490 - THREE TIMES the dead trunks' bark at 0.0807 - then the two stick
+packs 0.1145 and 0.1043 (single maps up at 0.216), dead_tree_trunk_02 0.0997, tree_stump_01 0.0878,
+dry_branches_medium_01 0.0704. A rock/debris row takes `dim` now (a straight factor on the instance
+colour, after the `tint` which turns hue and not level; cover_ring.js), and the rows carry the
+factors that land every species in the dead trunks' family: log 0.50 -> 0.125 (the user's "almost
+50 %", and the only one left barely brighter), sticks 0.72 -> 0.082, sticks_free 0.75 -> 0.078,
+trunk_02 0.90 -> 0.090, stump_01 0.95 -> 0.083, dry_branches 1.0 (already darker than the trunks).
+56 rows across the twelve mixes, baked with `tree_prep.py --biomes`.

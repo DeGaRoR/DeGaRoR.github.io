@@ -299,6 +299,12 @@ var COVER_RING = (() => {
         const yy = y - p.h0 * s * (floats ? (row.poolBury === undefined ? 0.06 : row.poolBury)
                                           : (row.bury !== undefined ? row.bury : (place.bury === undefined ? 0.45 : place.bury)));
         let col = null;
+        // `dim` (2026-09-23, the user: "the debris are still much too bright ... look at the dead trunks,
+        // debris should be barely brighter"): a straight factor on the instance colour, measured rather than
+        // guessed - the log's map is 0.249 linear luma against the dead trunks' bark at 0.081, three times
+        // brighter; the two stick packs 0.10-0.11 with single maps at 0.216. The row's factor lands each
+        // species in the dead trunks' family. It multiplies AFTER the tint (which turns hue, not level).
+        const dim = row.dim === undefined ? 1 : row.dim;
         if (row.tint > 0) {
           // the rock takes the ground's colour at its foot, by `tint` (0 = the pack's pale grey as it is, 1 = the
           // tufts' rule): the free_rock pack is one pale texture and read as gravel thrown on the dark foreshore -
@@ -308,6 +314,7 @@ var COVER_RING = (() => {
           const j = (1 + (Rq() * 2 - 1) * vary) * (1 - 0.35 * row.tint);   // and a third darker at full tint (the pack is pale)
           col = [(1 + (g[0] / gm - 1) * row.tint) * j, (1 + (g[1] / gm - 1) * row.tint) * j, (1 + (g[2] / gm - 1) * row.tint) * j];
         }
+        if (dim !== 1) { if (!col) col = [1, 1, 1]; col = [col[0] * dim, col[1] * dim, col[2] * dim]; }
         // `tilt`: the rock leans to the ground's slope over its OWN footprint (a 10 m strip read at +-1.5 m stood on
         // the wrong plane and showed its skirt as a plate), scaled by the row's tilt (1 = the ground's own)
         let tx = 0, tz = 0;

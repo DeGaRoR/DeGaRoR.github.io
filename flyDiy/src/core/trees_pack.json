@@ -10185,7 +10185,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10193,7 +10194,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10207,7 +10209,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -10215,7 +10218,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -10224,7 +10228,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -10294,7 +10299,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10302,7 +10308,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10316,7 +10323,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -10324,7 +10332,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -10333,7 +10342,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -10426,7 +10436,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.45,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "log.glb": {
       "proportion": 0.12,
@@ -10437,7 +10448,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.45,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.12,
@@ -10447,7 +10459,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.45,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10457,7 +10470,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.35,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10471,7 +10485,8 @@
       "proportion": 0.05,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      }
     },
     "forest": {
@@ -10551,7 +10566,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10559,7 +10575,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10573,7 +10590,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -10581,7 +10599,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -10590,7 +10609,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -10670,7 +10690,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10678,7 +10699,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10692,7 +10714,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -10700,7 +10723,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -10709,7 +10733,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -10744,7 +10769,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10752,7 +10778,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10766,7 +10793,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -10774,7 +10802,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -10783,7 +10812,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -10821,7 +10851,8 @@
        7,
        22
       ],
-      "tint": 0.25
+      "tint": 0.25,
+      "dim": 0.72
      },
      "log.glb": {
       "proportion": 0.3,
@@ -10833,7 +10864,8 @@
        7,
        22
       ],
-      "tint": 0.25
+      "tint": 0.25,
+      "dim": 0.5
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.28,
@@ -10844,7 +10876,8 @@
        7,
        22
       ],
-      "tint": 0.25
+      "tint": 0.25,
+      "dim": 0.9
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.35,
@@ -10934,7 +10967,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10942,7 +10976,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -10956,7 +10991,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -10964,7 +11000,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -10973,7 +11010,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -11063,7 +11101,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -11071,7 +11110,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -11085,7 +11125,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -11093,7 +11134,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -11102,7 +11144,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -11196,7 +11239,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -11204,7 +11248,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -11218,7 +11263,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -11226,7 +11272,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -11235,7 +11282,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
@@ -11327,7 +11375,8 @@
        7,
        22
       ],
-      "tint": 0.25
+      "tint": 0.25,
+      "dim": 0.72
      },
      "log.glb": {
       "proportion": 0.3,
@@ -11339,7 +11388,8 @@
        7,
        22
       ],
-      "tint": 0.25
+      "tint": 0.25,
+      "dim": 0.5
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.28,
@@ -11350,7 +11400,8 @@
        7,
        22
       ],
-      "tint": 0.25
+      "tint": 0.25,
+      "dim": 0.9
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.35,
@@ -11422,7 +11473,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.55,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.72
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -11430,7 +11482,8 @@
       "bury": 0.15,
       "cluster": 1,
       "hollow": 0.4,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.75
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.15,
@@ -11444,7 +11497,8 @@
       "proportion": 0.07,
       "tilt": 0.5,
       "bury": 0.2,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.95
      },
      "dead_tree_trunk_02.glb": {
       "proportion": 0.06,
@@ -11452,7 +11506,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.9
      },
      "log.glb": {
       "proportion": 0.06,
@@ -11461,7 +11516,8 @@
       "bury": 0.2,
       "cluster": 1,
       "hollow": 0.5,
-      "tint": 0.3
+      "tint": 0.3,
+      "dim": 0.5
      }
     },
     "forest": {
