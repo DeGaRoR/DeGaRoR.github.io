@@ -55596,3 +55596,30 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
 - SEEN: bench/debris/g1_4.png (the wrack line from above and along the beach, the forest floor, the
   spits), f1_3.png, e1_4.png; d4_3.png is the pass where the density was three times too high.
 - GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES green.
+
+## G496.1 — THE CLIFF TRIAL: A PHOTOSCAN IS A SLAB OF GROUND WITH ONE FACE (2026-09-22, the user: "Do you think it's realistic to try photoscanned cliffs as you suggested? We should definitely try that, can you DL and try? ... I worried about seams and junctions")
+
+TRIED, MEASURED, OFF BY DEFAULT (`?cliffs=1`), and the reason is the ground, not the scans.
+
+- THE ASSETS ARE FINE: coastal_cliff_02 (41 x 8.9 m), coastal_cliff_04 (87 x 9.7 m) and
+  namaqualand_cliff_02 (20 x 6 m), 0.2-1.5 M triangles each, decimated to 8 000 by the same Blender
+  prep as the rocks (--group cliffs), 2.5-2.9 MB a GLB with their 1k maps, CC0. src/viewer/cliffs.js
+  places them itself (the cover ring's 220 m reach and 150 m height fade are the wrong instrument for a
+  90 m feature): the island's own steepness picks the sites on a 26 m lattice, thinned to a spacing,
+  steepest first; the long axis along the CONTOUR, the body sunk `bury` of its height into the hill.
+  120 sites = 960 k triangles, 110 ms to place, frustum-culled; the cost is not why it is off.
+- THE SEAM THE USER ASKED ABOUT IS NOT A JOIN, it is an INTERSECTION: nothing is stitched, the ground
+  passes through the scan and they share the contour where they cross. That part works.
+- WHAT DOES NOT: a cliff scan has a FLAT TOP - it is a piece of ground the photographer walked over,
+  with one face. To read as a cliff its top must be UNDER the terrain and its face over a real STEP.
+  Jolene's DEM has no step near the eye: at 10 m its steepest coastal nodes are 40-45 deg over a drop
+  of 10-20 m, the scan's own height. So a scan left proud is a MESA on the hillside (the flat pale top,
+  bench/cliffs/d1_zoom.png), and sunk enough to hide that top its face goes with it (bury 0.72 and 0.9:
+  bench/cliffs/e1_2.png, they vanish). No placement maths fixes it - leaning them into the slope made
+  it worse (they jutted like fallen menhirs, bench/cliffs/c5_4.png; the scan stays upright now).
+- TWO WAYS ON, when the chantier comes: CARVE THE DEM at bake time (island_prep writes the ledge where
+  a cliff will stand) so the terrain the SOLVER reads has it too - the honest one, and the only one
+  where an aeroplane can hit the cliff; or place them BY HAND where a step exists (the premises
+  editor's cut faces), a per-site decision rather than a scatter.
+- The module, its knobs and the six scans stay in the tree: the next session starts from a working
+  placer and a measured verdict, not from a download.

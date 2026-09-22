@@ -2293,6 +2293,42 @@
    "light": 1,
    "size": 1,
    "note": "Poly Haven CC0 scan, 900 tris: a 1.4 m stump"
+  },
+  "coastal_cliff_02.glb": {
+   "file": "coastal_cliff_02.glb",
+   "kind": "cliff",
+   "size": 1,
+   "sizeVar": 0.15,
+   "bury": 0.2,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "note": "Poly Haven CC0 scan, 8 000 tris: 41 x 8.9 m of sea cliff"
+  },
+  "coastal_cliff_04.glb": {
+   "file": "coastal_cliff_04.glb",
+   "kind": "cliff",
+   "size": 1,
+   "sizeVar": 0.15,
+   "bury": 0.2,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "note": "Poly Haven CC0 scan, 8 000 tris: 87 x 9.7 m of sea cliff"
+  },
+  "namaqualand_cliff_02.glb": {
+   "file": "namaqualand_cliff_02.glb",
+   "kind": "cliff",
+   "size": 1,
+   "sizeVar": 0.15,
+   "bury": 0.2,
+   "proportion": 1,
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "note": "Poly Haven CC0 scan, 8 000 tris: 20 x 6 m of rock face"
   }
  },
  "biomes": {

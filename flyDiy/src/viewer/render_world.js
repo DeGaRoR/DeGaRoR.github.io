@@ -22,6 +22,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
+  let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
   let repaintStrips = () => {};       // v8: the premises' strip decals stood again after a live edit
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
@@ -1352,6 +1353,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       splat: () => (SPL ? SPL.api : null),
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
       rockMap: () => (rockMap ? rockMap.api : null),
+      cliffs: () => (cliffs ? cliffs.api : null),
       on: () => GROUND.on,
       get: () => Object.assign({}, GROUND),
       modes: () => GROUND_MODES.slice(),
@@ -3737,6 +3739,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                                                     ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled });
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
+          // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
+          if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
         }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,

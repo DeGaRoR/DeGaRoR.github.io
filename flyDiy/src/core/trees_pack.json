@@ -9057,6 +9057,213 @@
      "snag": []
     }
    ]
+  },
+  {
+   "name": "coastal_cliff_02.glb",
+   "file": "coastal_cliff_02.glb",
+   "kind": "cliff",
+   "credit": {
+    "title": "coastal cliff 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coastal_cliff_02"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.15,
+    "bury": 0.2,
+    "proportion": 1,
+    "note": "Poly Haven CC0 scan, 8 000 tris: 41 x 8.9 m of sea cliff",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coastal_cliff_02.d3b13303.bin",
+   "bytes": 123066,
+   "subjects": [
+    {
+     "name": "coastal_cliff_02",
+     "h": 10.06,
+     "tris": 8000,
+     "bb": [
+      -20.4616,
+      0.0,
+      -4.3172,
+      20.4616,
+      10.0566,
+      4.3172
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 8000,
+       "parts": [
+        {
+         "mat": "coastal_cliff_02",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.003166,
+          0.003565
+         ],
+         "uvScl": [
+          0.99325,
+          0.993152
+         ],
+         "off": 0,
+         "len": 123066
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "coastal_cliff_04.glb",
+   "file": "coastal_cliff_04.glb",
+   "kind": "cliff",
+   "credit": {
+    "title": "coastal cliff 04",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/coastal_cliff_04"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.15,
+    "bury": 0.2,
+    "proportion": 1,
+    "note": "Poly Haven CC0 scan, 8 000 tris: 87 x 9.7 m of sea cliff",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/coastal_cliff_04.d8bba191.bin",
+   "bytes": 128624,
+   "subjects": [
+    {
+     "name": "coastal_cliff_04",
+     "h": 10.98,
+     "tris": 8000,
+     "bb": [
+      -43.3753,
+      0.0,
+      -12.1609,
+      43.3753,
+      10.9841,
+      12.1609
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 8000,
+       "parts": [
+        {
+         "mat": "coastal_cliff_04",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.003295,
+          0.003798
+         ],
+         "uvScl": [
+          0.992409,
+          0.992833
+         ],
+         "off": 0,
+         "len": 128624
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
+  },
+  {
+   "name": "namaqualand_cliff_02.glb",
+   "file": "namaqualand_cliff_02.glb",
+   "kind": "cliff",
+   "credit": {
+    "title": "namaqualand cliff 02",
+    "author": "Poly Haven (https://polyhaven.com)",
+    "license": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+    "source": "https://polyhaven.com/a/namaqualand_cliff_02"
+   },
+   "licence": "CC0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "sizeVar": 0.15,
+    "bury": 0.2,
+    "proportion": 1,
+    "note": "Poly Haven CC0 scan, 8 000 tris: 20 x 6 m of rock face",
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1
+   },
+   "bin": "media/geo/trees/namaqualand_cliff_02.8070e416.bin",
+   "bytes": 138034,
+   "subjects": [
+    {
+     "name": "namaqualand_cliff_02",
+     "h": 7.2,
+     "tris": 7998,
+     "bb": [
+      -10.1065,
+      0.0,
+      -3.3061,
+      10.1065,
+      7.2024,
+      3.3061
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 7998,
+       "parts": [
+        {
+         "mat": "drone_rock_02",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.004803,
+          0.005547
+         ],
+         "uvScl": [
+          0.989669,
+          0.989524
+         ],
+         "off": 0,
+         "len": 138034
+        }
+       ]
+      }
+     ],
+     "stand": [],
+     "snag": []
+    }
+   ]
   }
  ],
  "materials": {
@@ -9885,6 +10092,39 @@
      1024
     ],
     "nor": "media/tex/trees/tree_stump_01_tree_stump_01_nor.836da7fd.jpg"
+   }
+  },
+  "coastal_cliff_02.glb": {
+   "coastal_cliff_02": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coastal_cliff_02_coastal_cliff_02_base.abeb8c2d.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coastal_cliff_02_coastal_cliff_02_nor.e77f6012.jpg"
+   }
+  },
+  "coastal_cliff_04.glb": {
+   "coastal_cliff_04": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/coastal_cliff_04_coastal_cliff_04_base.908c2950.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/coastal_cliff_04_coastal_cliff_04_nor.4c4de458.jpg"
+   }
+  },
+  "namaqualand_cliff_02.glb": {
+   "drone_rock_02": {
+    "mode": "OPAQUE",
+    "base": "media/tex/trees/namaqualand_cliff_02_drone_rock_02_base.f244d7df.jpg",
+    "baseSize": [
+     1024,
+     1024
+    ],
+    "nor": "media/tex/trees/namaqualand_cliff_02_drone_rock_02_nor.185f2bf7.jpg"
    }
   }
  },
