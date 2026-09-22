@@ -56612,3 +56612,50 @@ factors that land every species in the dead trunks' family: log 0.50 -> 0.125 (t
 50 %", and the only one left barely brighter), sticks 0.72 -> 0.082, sticks_free 0.75 -> 0.078,
 trunk_02 0.90 -> 0.090, stump_01 0.95 -> 0.083, dry_branches 1.0 (already darker than the trunks).
 56 rows across the twelve mixes, baked with `tree_prep.py --biomes`.
+
+
+## G508 — THE RUTS ARE A VEHICLE'S TRACK; THE LANES ARE THE ROAD'S WIDTH; THE PAINT WEARS WHERE
+## THE WHEELS RUN (2026-09-23, the user: "an
+## important check on your tyre marks. Do they represent a real interaxle distance? They seem big?
+## ... you can do 2 of them in every direction, maybe only past a certain width for the roads")
+
+THEY DID NOT AND THEY WERE. `rutTrack` is the HALF-track in metres (a pair sits at its centre +-
+that) and it shipped at 1.55, clamped to halfW * 0.5: a 6 m road wore its ruts 3.0 m apart, anything
+wider 3.1. A car's track is 1.5 m, a pickup's 1.7, a light truck's 1.8-2.0, a heavy truck's 2.1 (the
+legal vehicle maximum is 2.55 overall) - three metres is a vehicle nobody builds.
+NOW: rutTrack 0.85 (a 1.7 m pickup), and the WIDTH decides the count. Over ~5.3 m a road carries ONE
+TRACK PER DIRECTION on its lane centres (+-halfW/2), each wandering on its own noise, both equally
+worn; under it, the single shared track everyone drives with the fainter second pass where the
+traffic went round. The threshold is derived, not chosen: 2*ht + 2*rw + 0.35 is the width at which
+two tracks and their ruts fit side by side - the width at which two vehicles can pass. A 6 m road
+puts four ruts at +-0.65 and +-2.35 m; a 3 m track puts two at +-0.75 (the halfW clamp still holds,
+so a narrow track is a narrow vehicle's). The grass stripe follows: between the WHEELS on a single
+track, between the two TRACKS on a road that has one each way, which is where it grows - nobody
+drives the crown. The knob's label says what it is now ('half-track (m: 0.85 = a 1.7 m pickup)',
+0.35-1.6) because 'wheel track half' read as 'half the road'.
+Untouched: the strips, whose pairs are the aeroplane's gear track (rubberTrack). Fixed for free: the
+shoulder's vehicle paths, which read the same half-track.
+THEN THE SAME FOR THE ROAD ITSELF (the user: "let's do the same for the roads; have a dynamic number
+of lanes function of road width please, and proper road marking, including its wear"). lanesOf(w, cls,
+laneW) is the ONE lane rule and both the paint and the wear call it: a lane is `roadLane` 3.5 m (3.0 a
+town street, 3.7 an interstate), capped at six; under 5.2 m a road is ONE lane whatever the class.
+THE PAINT, the American convention which is Alaska's: white solid EDGE lines 35 cm in; between the
+DIRECTIONS a dashed yellow (3 m on, 9 m off) up to three lanes and a DOUBLE SOLID yellow at four or
+more; white dashed dividers between lanes going the same way; a single-lane road carries its edges and
+nothing else; a soft road carries nothing at all. 6 m -> 2 lanes, 11 -> 3, 14 -> 4, 30 -> 6.
+THE WEAR IS THE TRAFFIC'S: a paved road is polished in the WHEEL PATHS - two to a lane at the
+vehicle's own half-track from the lane centre, the aggregate smoother and a shade darker - and the
+paint that crosses a wheel path is SCRUBBED (keep *= 1 - polish * 0.8). No special case is needed for
+the centre line: it lies between the wheels of both directions, which is why it outlives the edge
+line, and why the edge line - 30 cm outside the outer wheel - goes first.
+ONE DEFAULT MOVED: paintAge 0.85 -> 0.5 and chalk 0.8 -> 0.55. 0.85 is the WWII runway's wear and with
+it a road's lines were gone before they were drawn; the extremes stay in PRESETS.fresh (0.3) and
+PRESETS.worn (0.9), which is where Jolene's strips take theirs.
+- FILES: src/viewer/pavement.js (the rut block, lanesOf + roadMarks, the uRoad uniform and the polish,
+  the knobs roadLane / wheelPolish), render_premises.js + render_world.js (roadMarks takes the recipe),
+  tools/_pavement_check.js (GATE PAVEMENT §9), futureDesigns/PAVEMENT-2026-09-21.md §10-11.
+- PROOF: screenshots/pavement/ruts_6m.png + ruts_3m.png (the bench: four ruts on 6 m, one track on 3),
+  jolene_ruts_s0.png + s1.png (IN GAME: the village road and the airport road, both 6 m, four ruts under
+  the new pole line), lanes_7m.png (two lanes, a dashed yellow centre, the polished wheel paths) and
+  lanes_12m.png (three lanes). GATE PAVEMENT green; the battery still owed from G505.
+

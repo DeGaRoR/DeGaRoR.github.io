@@ -4529,7 +4529,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const RS = PAV.resolve(null, null, PGm.RUNWAY_LOOKS[look]);
         const pr = PGm.polyRoad(r.pts, w);
         const geo = PAV.roadGeometry(THREE, { road: pr, w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed('R' + i), heightAt: world.terrainH, lift: 0.07, step: 4, resV: 1 });
-        const m = new THREE.Mesh(geo, PAV.make(THREE, { lib, cls: RS.cls, marks: PAV.roadMarks(pr.length, w, RS.cls), road: true, recipe: RS.recipe, band: RS.band }));
+        const m = new THREE.Mesh(geo, PAV.make(THREE, { lib, cls: RS.cls, marks: PAV.roadMarks(pr.length, w, RS.cls, RS.recipe), road: true, recipe: RS.recipe, band: RS.band }));
         m.renderOrder = 3; m.receiveShadow = true; m.name = 'pavement:road' + i; scene.add(m);
         // THE GUARDRAIL (2026-09-22): the W-beam where the ground falls away past the shoulder and on
         // the outside of a tight bend - and never inside a settlement's core (the user: "the large road

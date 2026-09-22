@@ -375,5 +375,29 @@ console.log('8. THE POWER LINE - the poles, the side, the cable');
   PW.dispose(g);
 }
 
+// ---- 9. THE LANES AND THEIR PAINT (2026-09-23) -------------------------------------
+console.log('9. THE LANES - how many by width, and what is painted between them');
+{
+  const L = (w, cls) => P.lanesOf(w, cls);
+  verdict(L(3, 'asphalt') === 1 && L(4.5, 'asphalt') === 1, 'under 5.2 m a road is ONE lane (a single shared track)');
+  verdict(L(6, 'asphalt') === 2 && L(7.5, 'asphalt') === 2, 'a 6-7.5 m road is two lanes');
+  verdict(L(11, 'asphalt') === 3 && L(14, 'asphalt') === 4 && L(30, 'asphalt') === 6, `11 m -> 3, 14 m -> 4, 30 m -> ${L(30, 'asphalt')} (the cap)`);
+  verdict(L(6, 'gravel') === 2 && P.roadMarks(400, 6, 'gravel').rects.length === 0, 'a soft road has lanes but no paint');
+  const mid = P.roadMarks(400, 7, 'asphalt'), wide = P.roadMarks(400, 14, 'asphalt'), one = P.roadMarks(400, 4, 'asphalt');
+  const edges = m => m.rects.filter(r => r[4] === 0 && r[5] === 0), yellow = m => m.rects.filter(r => r[4] === 1), dash = m => m.rects.filter(r => r[5] > 0);
+  verdict(edges(mid).length === 2 && Math.abs(Math.abs((edges(mid)[0][2] + edges(mid)[0][3]) / 2) - (7 / 2 - 0.35)) < 1e-9,
+    'two solid white edge lines, 35 cm in from the pavement edge');
+  verdict(one.rects.length === 2 && yellow(one).length === 0, 'a single-lane road carries its edges and no centre line');
+  verdict(yellow(mid).length === 1 && yellow(mid)[0][5] === 12 && yellow(mid)[0][7] === 3 && Math.abs((yellow(mid)[0][2] + yellow(mid)[0][3]) / 2) < 1e-9,
+    'two lanes: one DASHED YELLOW down the middle, 3 m on and 9 m off');
+  verdict(yellow(wide).length === 2 && yellow(wide).every(r => r[5] === 0) && Math.abs(yellow(wide)[0][2] - yellow(wide)[1][2]) > 0.15,
+    'four lanes: a DOUBLE SOLID yellow between the directions');
+  verdict(dash(wide).filter(r => r[4] === 0).length === 2, 'and a white dashed divider between the lanes going the same way');
+  // the paint and the wear must agree about where a lane is: both call lanesOf
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src/viewer/pavement.js'), 'utf8');
+  verdict((src.match(/lanesOf\(/g) || []).length >= 3, 'lanesOf is the one lane rule (roadMarks and the uniform both call it)');
+  verdict(/polish \* 0\.8/.test(src) && /uRoad\.z/.test(src), "the paint wears where the traffic runs (the marks' keep takes the polish)");
+}
+
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

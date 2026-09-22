@@ -71,9 +71,13 @@ const PAVEMENT = (() => {
     mossK: 0.55, mossEdge: 7.0, mossJoint: 0.5, mossScale: 4.0,
     stainK: 0.45, stainScale: 14, stainRough: 0.25,
     wet: 0.35, puddleCover: 0.25, puddleScale: 4.0, puddleEdge: 0.05,
-    paintAge: 0.85, paintRough: 0.7, chalk: 0.8, paintOnGrass: 0.35,
+    // paintAge/chalk are the MIDDLE of the road now (2026-09-23): 0.85 was the WWII runway's, and with
+    // it a road's lines were gone before they were drawn. The extremes live in PRESETS - `fresh` 0.3,
+    // `worn` 0.9 - which is where Jolene's strips take theirs.
+    paintAge: 0.5, paintRough: 0.7, chalk: 0.55, paintOnGrass: 0.35,
     rubberK: 0.7, rubberStart: 120, rubberPeak: 420, rubberEnd: 900, rubberTrack: 2.4, rubberSpread: 1.4, rubberStreak: 0.6,
-    rutTrack: 1.55, rutW: 0.3, rutDepth: 0.7, rutAmp: 1.0, rutLambda: 80, rutGrass: 0.6, shoulderPaths: 2,
+    rutTrack: 0.85, rutW: 0.3, rutDepth: 0.7, rutAmp: 1.0, rutLambda: 80, rutGrass: 0.6, shoulderPaths: 2,
+    roadLane: 3.5, wheelPolish: 0.5,
     edgeChip: 0.6, band: -1, grassReach: 6, fadeW: 6, bandNoise: 0.5,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0,
@@ -104,8 +108,9 @@ const PAVEMENT = (() => {
     ['rubberK', 'rubber amount', 0, 1, 0.02], ['rubberStart', 'rubber from (m)', 0, 400, 10], ['rubberPeak', 'rubber peak (m)', 50, 800, 10], ['rubberEnd', 'rubber to (m)', 100, 1500, 10],
     ['rubberTrack', 'gear track half (m)', 0, 6, 0.1], ['rubberSpread', 'rubber spread (m)', 0.2, 5, 0.1], ['rubberStreak', 'streak density', 0, 1, 0.02],
     ['— ruts & tracks —'],
-    ['rutTrack', 'wheel track half (m)', 0.5, 2, 0.05], ['rutW', 'rut width (m)', 0.1, 0.8, 0.02], ['rutDepth', 'rut relief', 0, 2, 0.05], ['rutAmp', 'rut meander (m)', 0, 3, 0.1], ['rutLambda', 'meander length (m)', 10, 200, 5],
+    ['rutTrack', 'half-track (m: 0.85 = a 1.7 m pickup)', 0.35, 1.6, 0.05], ['rutW', 'rut width (m)', 0.1, 0.8, 0.02], ['rutDepth', 'rut relief', 0, 2, 0.05], ['rutAmp', 'rut meander (m)', 0, 3, 0.1], ['rutLambda', 'meander length (m)', 10, 200, 5],
     ['rutGrass', 'grass stripe between', 0, 1, 0.02], ['shoulderPaths', 'shoulder paths (n)', 0, 4, 1],
+    ['roadLane', 'lane width (m, paved)', 2.6, 5, 0.1], ['wheelPolish', 'traffic polish in the wheel paths', 0, 1, 0.02],
     ['— soft ground —'],
     ['softMix', 'second ground in patches', 0, 1, 0.02], ['coarseK', 'coarse stony patches', 0, 1, 0.02], ['wheelBand', 'compacted wheel band', 0, 1, 0.02], ['treadK', 'tyre tread in the tracks', 0, 1, 0.02],
     ['edgeSoft', 'soft edge spread (m)', 0.3, 5, 0.1], ['mow', 'mowing stripes (grass)', 0, 1, 0.05], ['grassRough', 'soft roughness floor', 0.5, 1, 0.02],
@@ -374,13 +379,35 @@ const PAVEMENT = (() => {
   }
   // a road's paint by class: asphalt wears an edge line each side and, from 5.5 m wide, a centre
   // dash (3 m on, 9 m period); concrete the edge lines; the loose classes nothing
-  function roadMarks(len, w, cls) {
-    const rects = [];
-    if (cls === 'asphalt' || cls === 'concrete') {
-      for (const s of [1, -1]) rects.push([2, len - 2, s * (w / 2 - 0.35) - 0.06, s * (w / 2 - 0.35) + 0.06, 0, 0, 0, 0]);
-      if (cls === 'asphalt' && w >= 5.5) rects.push([4, len - 4, -0.06, 0.06, 0, 9, 0, 3]);
+  // HOW MANY LANES A ROAD HAS (2026-09-23, the user: "have a dynamic number of lanes function of road
+  // width"): a lane is `roadLane` metres - 3.5 by default (a rural highway's; 3.0 a town street, 3.7
+  // an interstate). Under 5.2 m there is ONE lane whatever the class: a single track everyone shares,
+  // which is why such a road wears one set of ruts and carries no centre line.
+  function lanesOf(w, cls, laneW) {
+    if (!(w > 0)) return 0;
+    if (w < 5.2) return 1;
+    if (cls !== 'asphalt' && cls !== 'concrete') return 2;                       // soft: two tracks, never painted
+    return Math.max(2, Math.min(6, Math.round(w / Math.max(2.6, laneW || R.roadLane || 3.5))));
+  }
+  // A ROAD'S PAINT, BY ITS LANES (the American convention, which is Alaska's): the EDGE lines white
+  // and solid; the line between the two DIRECTIONS yellow - dashed where you may overtake, a DOUBLE
+  // solid once the carriageway is four lanes or more; the dividers between lanes going the SAME way
+  // white and dashed. 3 m of line, 9 m of gap (the US standard). A soft road carries no paint at all,
+  // and a single-lane road carries nothing but its edges.
+  function roadMarks(len, w, cls, recipe) {
+    const rects = [], paved = cls === 'asphalt' || cls === 'concrete';
+    const n = lanesOf(w, cls, recipe && recipe.roadLane);
+    if (!paved) return { rects, segs: [], raw: 0, len, wid: w, lanes: n };
+    const EW = 0.06;
+    for (const sg of [1, -1]) rects.push([2, len - 2, sg * (w / 2 - 0.35) - EW, sg * (w / 2 - 0.35) + EW, 0, 0, 0, 0]);
+    if (n >= 2) {
+      const left = Math.floor(n / 2), lw = w / n, vC = -w / 2 + left * lw;
+      if (n >= 4) for (const o of [-0.1, 0.1]) rects.push([3, len - 3, vC + o - 0.05, vC + o + 0.05, 1, 0, 0, 0]);
+      else rects.push([4, len - 4, vC - EW, vC + EW, 1, 12, 0, 3]);
+      for (let i = 1; i < n; i++) { if (i === left) continue;
+        const v = -w / 2 + i * lw; rects.push([4, len - 4, v - EW, v + EW, 0, 12, 0, 3]); }
     }
-    return { rects, segs: [], raw: rects.length, len, wid: w };
+    return { rects, segs: [], raw: rects.length, len, wid: w, lanes: n };
   }
 
   // ---- the library: the sets a recipe names -> two arrays ---------------------
@@ -471,7 +498,7 @@ varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; v
 precision highp sampler2DArray;
 uniform highp sampler2DArray uPavA, uPavN;
 uniform float uPavOn, uPavDbg;
-uniform vec4 uLayer, uLayer2, uTile, uTile2, uHex, uMacro, uLane, uLane2, uCrack, uPatch, uMoss, uStain, uWet, uMark, uPaint0, uPaint1, uRubber, uRubber2, uRut, uRut2, uEdge, uEdge2, uDist, uSpec, uClass, uSoft, uSoft2;
+uniform vec4 uLayer, uLayer2, uTile, uTile2, uHex, uMacro, uLane, uLane2, uCrack, uPatch, uMoss, uStain, uWet, uMark, uPaint0, uPaint1, uRubber, uRubber2, uRut, uRut2, uRoad, uEdge, uEdge2, uDist, uSpec, uClass, uSoft, uSoft2;
 uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
 uniform int uMarkN, uSegN;
@@ -721,14 +748,27 @@ float pvTread(float u, float x, float w, float seed) {
         // THE ROAD: the wheel pair about a wandering centre; a second, fainter pair where the
         // traffic went round (a 200 m noise says where); the tread set ORIENTED along the road.
         // IN PROPORTION: the track never wider than the road holds, the wander inside it
-        float ht = min(uRut.x, halfW * 0.5), rw = min(uRut.y, halfW * 0.22), wander = min(uRut.w, max(halfW - ht - rw * 1.5, 0.0));
-        float c = wander * (pvNoise(vec2(u / uRut2.x, seed)) - 0.5) * 2.0;
+        // THE TRACK IS A VEHICLE'S, NOT THE ROAD'S (2026-09-23, the user: "do they represent a real
+        // interaxle distance? They seem big"). uRut.x is the HALF-TRACK in metres: 0.85 is a 1.7 m
+        // pickup, and a pair of ruts sits at its centre +- that. It used to be 1.55 and was clamped to
+        // halfW * 0.5, so a 6 m road wore its ruts 3 m apart - a vehicle nobody builds.
+        // A road wide enough for two to PASS carries a track per direction on the lane centres; a
+        // narrower one carries the single shared track, with the fainter second pass where the
+        // traffic went round (a 200 m noise says where).
+        float ht = min(uRut.x, halfW * 0.5), rw = min(uRut.y, halfW * 0.22);
+        float twin = step(ht * 2.0 + rw * 2.0 + 0.35, halfW);     // 1 when two tracks fit side by side (a road over ~5.3 m)
+        float lane = halfW * 0.5;
+        float wander = min(uRut.w, max(mix(halfW, lane, twin) - ht - rw * 1.5, 0.0));
+        float wa = wander * (pvNoise(vec2(u / uRut2.x, seed)) - 0.5) * 2.0;
+        float wb = wander * (pvNoise(vec2(u / uRut2.x + 31.0, seed + 3.0)) - 0.5) * 2.0;
+        float c = mix(wa, -lane + wa, twin);
+        float c2 = mix(c + (pvHash(vec2(seed, 5.0)) > 0.5 ? 1.0 : -1.0) * (0.6 + 0.8 * pvNoise(vec2(u / 37.0, seed + 2.0))), lane + wb, twin);
+        float on2 = mix(smoothstep(0.5, 0.65, pvNoise(vec2(u / 200.0 + 9.0, seed))), 1.0, twin);
+        float k2 = mix(0.6, 1.0, twin);                            // the second track is as worn as the first when it is the other direction
         vec4 r1 = pvRuts2(u, v, c, ht, rw, uRut.z, seed);
         rr = r1.xy; rut = r1.x;
-        float c2 = c + (pvHash(vec2(seed, 5.0)) > 0.5 ? 1.0 : -1.0) * (0.6 + 0.8 * pvNoise(vec2(u / 37.0, seed + 2.0)));
-        float on2 = smoothstep(0.5, 0.65, pvNoise(vec2(u / 200.0 + 9.0, seed)));
-        vec4 r2 = pvRuts2(u, v, c2, ht, rw * 1.2, uRut.z * 0.5, seed + 9.0);
-        rr += r2.xy * on2 * 0.6; rut = max(rut, r2.x * on2 * 0.7);
+        vec4 r2 = pvRuts2(u, v, c2, ht, rw * mix(1.2, 1.0, twin), uRut.z * mix(0.5, 0.9, twin), seed + 9.0);
+        rr += r2.xy * on2 * k2; rut = max(rut, r2.x * on2 * mix(0.7, 1.0, twin));
         // THE IMPRINT: the tyres' lugs pressed into the trough - a mask with its own relief (the
         // mask's gradient), where the ground is soft enough to take it (dirt and sand fully, gravel
         // and grass faintly), fading with the footprint (a 16 cm lug) and the distance
@@ -744,10 +784,13 @@ float pvTread(float u, float x, float w, float seed) {
         // the compacted band is wider than the trough (the wheels wander a little every pass)
         float gx1 = (v - c) / max(ht, 0.3);
         float bw = grassy ? 0.6 : 0.32;                                   // worn grass spreads wider than a rut in dirt
-        wheel = max(exp(-pow((abs(gx1) - 1.0) / bw, 2.0)), on2 * 0.7 * exp(-pow((abs((v - c2) / max(ht, 0.3)) - 1.0) / bw, 2.0)));
+        wheel = max(exp(-pow((abs(gx1) - 1.0) / bw, 2.0)), on2 * mix(0.7, 1.0, twin) * exp(-pow((abs((v - c2) / max(ht, 0.3)) - 1.0) / bw, 2.0)));
         wheel = min(wheel, 1.0) * uSoft.z;
         tread = max(tread, rut * uSoft.w * 0.5);
-        float gx = (v - c) / max(ht * 0.55, 0.1);
+        // the grass down the middle: between the wheels of a single track, between the two TRACKS on a
+        // road that carries one each way (which is where it really grows - nobody drives the crown)
+        float gc = mix(c, 0.0, twin), gw = mix(ht * 0.55, max(lane - ht, 0.35), twin);
+        float gx = (v - gc) / max(gw, 0.1);
         grassStripe = uRut2.y * exp(-gx * gx) * smoothstep(0.3, 0.6, pvNoise(uvS / 1.3 + 7.0) * 0.7 + pvNoise(uvS / 9.0 + 2.0) * 0.3) * (grassy ? 0.0 : 1.0);
       } else if (!road || isPoly) {
         // THE STRIP: the aircraft roll down the middle - a compacted band a third of the width,
@@ -811,6 +854,21 @@ float pvTread(float u, float x, float w, float seed) {
       if (moss > 0.004) { Smp m = pvSet(5, uvS); vec2 w2 = pvHw2(hgt, 1.0 - moss, m.c.a, moss, uHex.x); col = col * w2.x + m.c.rgb * w2.y; nT = nT * w2.x + m.n.xyz * w2.y; rough = rough * w2.x + m.n.a * w2.y; }
     }
     col *= 1.0 - damp * 0.35; rough -= damp * uStain.z;
+    // ---- 6b THE TRAFFIC'S POLISH (2026-09-23): a paved road wears in the WHEEL PATHS - two to a
+    // lane, at the vehicle's own half-track from the lane's centre. The aggregate there is polished
+    // smoother and a shade darker, and the paint that crosses them is scrubbed away. It needs no
+    // special case for the centre line: that line lies between the wheels of both directions, which
+    // is exactly why it outlives the edge lines on a real road.
+    float polish = 0.0;
+    if (paved && road && !isPoly && uRoad.x > 0.5 && uRoad.z > 0.001) {
+      float lw = max(uRoad.y, 1.5);
+      float lane = clamp(floor((v + halfW) / lw), 0.0, uRoad.x - 1.0);
+      float lc = (lane + 0.5) * lw - halfW;
+      float dmin = min(abs(v - (lc - uRut.x)), abs(v - (lc + uRut.x)));
+      polish = exp(-pow(dmin / 0.42, 2.0)) * uRoad.z * (0.65 + 0.35 * pvNoise(vec2(u / 29.0, seed + 6.0)));
+      col *= 1.0 - polish * 0.06;
+      rough = mix(rough, rough * 0.70, polish);
+    }
     // ---- 7 the markings (rects, rules, segments), weathered; the paint is a LAYER: it fills the
     // surface's grain, it has its own roughness, and its edge is a step the light catches
     vec3 mk = vec3(0.0); float paint = 0.0;
@@ -818,7 +876,9 @@ float pvTread(float u, float x, float w, float seed) {
       mk = pvMarks(P, fw);
       float wear = clamp((pvFbm(uvS / 0.45 + 51.0) * 0.7 + pvFbm(uvS / 3.0 + 8.0) * 0.3 - 0.15) / 0.7, 0.0, 1.0);
       float age = uMark.x;
-      float keep = smoothstep(age - 0.35, age + 0.15, wear) * (1.0 - crack * 0.8) * (1.0 - joint * 0.7) * (1.0 - spall * 0.6) * (1.0 - pch);
+      // ...and the traffic: paint under a wheel path is scrubbed, paint between them keeps
+      float keep = smoothstep(age - 0.35, age + 0.15, wear) * (1.0 - crack * 0.8) * (1.0 - joint * 0.7) * (1.0 - spall * 0.6) * (1.0 - pch)
+                 * (1.0 - polish * 0.8) * (1.0 - wheel * 0.5);
       float w = mk.x * keep, y = mk.y * keep;
       float mown = grassy ? mk.z * uMark.w : 0.0;
       vec3 pw = uPaint0.rgb, py = uPaint1.rgb;
@@ -987,6 +1047,10 @@ float pvTread(float u, float x, float w, float seed) {
     U.uRubber2.value.set(cls.rubber && !d.road ? r.rubberK : 0, r.rubberTrack, r.rubberStreak, 0);   // the rubber is a paved runway's (the touchdown zones); a soft strip's tyres MARK the same band
     U.uRut.value.set(r.rutTrack, r.rutW, r.rutDepth, r.rutAmp);
     U.uRut2.value.set(r.rutLambda, r.rutGrass, cls.rut, r.shoulderPaths);
+    // the lanes: how many, how wide, how hard the traffic polishes their wheel paths. The same
+    // lanesOf the PAINT used, so the wear and the markings cannot disagree about where a lane is.
+    { const wRoad = d.wid || 0, nL = (wRoad > 0 && d.road && !d.poly) ? lanesOf(wRoad, d.cls, r.roadLane) : 0;
+      U.uRoad.value.set(nL, nL > 0 ? wRoad / nL : 0, r.wheelPolish, 0); }
     const band = m.userData.pavBand !== undefined ? m.userData.pavBand : (r.band >= 0 ? r.band : (d.road ? Math.min(cls.band, 1.2) : cls.band));
     U.uEdge.value.set(r.edgeChip, band, r.grassReach, r.fadeW);
     U.uEdge2.value.set(r.bandNoise, 0, 0, 0);
@@ -1021,11 +1085,11 @@ float pvTread(float u, float x, float w, float seed) {
     m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG,
       uLayer: v4(), uLayer2: v4(), uTile: v4(), uTile2: v4(), uClass: v4(), uHex: v4(), uMacro: v4(), uLane: v4(), uLane2: v4(), uCrack: v4(), uPatch: v4(),
       uMoss: v4(), uStain: v4(), uWet: v4(), uMark: v4(), uPaint0: { value: new THREE.Vector4(0.62, 0.60, 0.55, 1) }, uPaint1: { value: new THREE.Vector4(0.70, 0.54, 0.14, 1) },
-      uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
+      uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
       uMean: { value: new THREE.Vector4(0.2, 0.2, 0.2, 0.9) }, uGrade: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 0, 0)) }, uTint: { value: Array.from({ length: 8 }, () => new THREE.Vector4(1, 1, 1, 0)) },
       uMarkN: { value: Math.min(NMARK, marks.rects.length) }, uSegN: { value: Math.min(NSEG, marks.segs.length) },
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk } };
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0 }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); };
     m.customProgramCacheKey = () => 'pavement:' + hook.toString().length;
@@ -1041,7 +1105,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
