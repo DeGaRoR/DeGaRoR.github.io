@@ -56749,3 +56749,19 @@ UISMOKE, WORLDRENDER, GFX, MEDIA green.
 
 AND THIS ONE SHIPPED ITS BUILD: a source commit and a `(built)` commit from a clean LF worktree,
 which G504-G504.9 did not do (G504.10 records that).
+
+## G508 — THE BARK DID NOT COMPILE: TWO HOOKS, TWO SWAY BLOCKS (2026-09-23, the water session, on master:
+## "uniform vec4 uWind is declared twice in trees.js ... CommonBark: Vertex shader is not compiled")
+
+A leaf material that ALSO carries userData.fade (the cover ring's) runs both hooks - hookLeaf splices
+its own prologue and sway, then calls fadeInject, which splices another - so `uniform vec4 uWind` and
+swayPh / swayAmp / swayF were each declared twice in one scope and the program failed to compile:
+every trunk on such a material (CommonBark and its neighbours) drew NOTHING, and with it vanished
+from the water session's planar mirror, which nearly had a lake judged against a forest with holes.
+Either hook alone compiled, which is why only the trunks showed it. THE FIX, in trees.js: the sway is
+ONE injection through swayOnce(vs, phaseExpr) - marked '// tree sway' and BRACED, so its locals are
+scoped and a second splice is refused - and every prologue line goes through declOnce(vs, line), so
+whichever hook arrives first declares it and the other does not. The phase is still the caller's (the
+leaf's instance id, the ring's aRand). Proved off-line by running both hooks over a stub shader:
+one uWind, one sway block, one swayPh, braces balanced (scratch idem.js).
+Landed within the hour of the report; the reporter's own files were never touched.

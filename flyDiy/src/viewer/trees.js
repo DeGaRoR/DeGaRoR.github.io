@@ -337,22 +337,42 @@
   const U_WIND = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0, 0, 0) : { x: 0, y: 0, z: 0, w: 0 } };
   // a leaf leans with its height above the trunk's base and flutters on its own
   // phase; `hi` is that height, `ph` the per-instance offset
-  const SWAY_GLSL = [
-    'float swayAmp = uWind.w * (0.012 * max(0.0, transformed.y));',
-    'float swayF = 0.6 + 0.4 * sin(uWind.z + swayPh);',
-    'transformed.xz += uWind.xy * swayAmp * swayF;',
+  // BOTH HOOKS RUN ON ONE MATERIAL (2026-09-23, the water session: "uniform vec4 uWind is declared twice
+  // ... CommonBark does not compile"): a leaf material that also carries userData.fade goes through
+  // hookLeaf AND fadeInject, and each prepended its own `uniform vec4 uWind;` and spliced its own sway
+  // block - two declarations of the uniform and of swayPh/swayAmp/swayF in one scope, so every trunk on
+  // such a material failed to compile and drew nothing (and vanished from the water's mirror with it).
+  // The sway is ONE injection now, BRACED so its locals cannot collide with whatever splices after it,
+  // and every prologue line is added only if it is not already there. `ph` is the caller's phase: the
+  // leaf's instance id, the ring's aRand.
+  const SWAY_MARK = '// tree sway';
+  const swayVS = ph => [
+    SWAY_MARK,
+    '{',
+    '  float swayPh = ' + ph + ';',
+    '  float swayAmp = uWind.w * (0.012 * max(0.0, transformed.y));',
+    '  float swayF = 0.6 + 0.4 * sin(uWind.z + swayPh);',
+    '  transformed.xz += uWind.xy * swayAmp * swayF;',
+    '}',
   ].join('\n');
+  // a prologue line prepended once, and the sway spliced once, whichever hook gets there first
+  const declOnce = (src, line) => src.indexOf(line) >= 0 ? src : line + '\n' + src;
+  const swayOnce = (src, ph) => src.indexOf(SWAY_MARK) >= 0 ? src
+    : src.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + swayVS(ph));
   const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
-    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;\nuniform vec4 uWind;\n' +
-      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
-                     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS)
-                     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase
-                     // `aRand` already carries, and its NORMAL is not touched (see UP_VS)
-                     .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat swayPh = aRand * 6.2831;\n' + SWAY_GLSL);
+    let vs = sh.vertexShader
+      .replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
+    // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
+    // carries, and its NORMAL is not touched (see UP_VS)
+    vs = swayOnce(vs, 'aRand * 6.2831');
+    vs = declOnce(vs, 'uniform vec4 uWind;');
+    vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;');
+    sh.vertexShader = declOnce(vs, 'attribute float aRand;');
   };
   // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
   function upHook(mat) {
@@ -415,9 +435,11 @@
       sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
-      sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\nuniform vec4 uWind;\n' +
-        sh.vertexShader.replace('#include <begin_vertex>',
-          '#include <begin_vertex>\nvAoV = aoV;\nfloat swayPh = float(gl_InstanceID) * 1.7;\n' + SWAY_GLSL);
+      { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
+        vs = swayOnce(vs, 'float(gl_InstanceID) * 1.7');   // a leaf flutters on its own instance id
+        vs = declOnce(vs, 'uniform vec4 uWind;');
+        vs = declOnce(vs, 'varying float vAoV;');
+        sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
       if (mat.userData.fade) fadeInject(sh);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
       // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
