@@ -224,10 +224,37 @@ var WEATHER_UI = (function () {
   }
   function wOf(day) {
     const w = worldNow(), c = w && w.climate ? w.climate : null;
-    if (!c) return { rh: null, lcl: null, mixTop: null, vis: day ? day.visibilityKm : null };
+    if (!c) return { rh: null, lcl: null, mixTop: null, vis: day ? day.visibilityKm : null, sfcVis: null, drawn: false };
     const p = c.profile ? c.profile(0) : null, hz = c.haze ? c.haze() : null;
+    // TWO VISIBILITIES, AND THE PLAYER IS TOLD THE ONE THEY FLY IN. `vis` is the
+    // COLUMN - the authored number, what the day was written with and what a front
+    // moves. `sfcVis` is what an eye on the ground can actually see horizontally,
+    // which on a fog morning is the fog's number and not the column's: the column
+    // would cheerfully say 37 km while the far end of the strip has gone. Preferring
+    // the renderer's own measurement (CLIMATE_LINK.pub.visM) when it exists means the
+    // panel quotes what was DRAWN; the weather's own surfaceVisM is the fallback.
+    const L = (typeof window !== 'undefined') ? window.CLIMATE_LINK : null;
+    const drawn = L && L.pub && L.pub.on && L.pub.visM != null ? L.pub.visM : null;
     return { rh: p ? p.rh : null, lcl: p ? p.lcl : null,
-             mixTop: c.mixTop ? c.mixTop() : null, vis: hz ? hz.visibilityKm : (day ? day.visibilityKm : null) };
+             mixTop: c.mixTop ? c.mixTop() : null,
+             vis: hz ? hz.column.visibilityKm : (day ? day.visibilityKm : null),
+             sfcVis: drawn != null ? drawn : (hz ? hz.surfaceVisM : null),
+             drawn: drawn != null };
+  }
+  // THE VISIBILITY ROW. The column first, because that is the day as authored; then
+  // the surface, but ONLY when it is meaningfully worse - on a clear day the two are
+  // the same number twice and a panel that says so is noise. Under a kilometre it is
+  // said in metres, as a METAR does, because that is the regime where the difference
+  // stops being interesting and starts being the flight.
+  function visKmStr(km) { return km >= 60 ? '60+ km' : km >= 10 ? km.toFixed(0) + ' km' : km.toFixed(1) + ' km'; }
+  function visLine(w) {
+    if (w.vis == null) return '—';
+    const col = visKmStr(w.vis);
+    if (w.sfcVis == null || !isFinite(w.sfcVis)) return col;
+    const sKm = w.sfcVis / 1000;
+    if (sKm > w.vis * 0.9) return col;                       // nothing on the deck worth saying
+    const sfc = sKm < 1 ? (Math.round(w.sfcVis / 100) * 100) + ' m' : visKmStr(sKm);
+    return col + ' · ' + sfc + ' on the deck' + (w.drawn ? '' : '*');
   }
   // what the front is doing, said in a sentence
   function frontLine(day) {
@@ -253,7 +280,7 @@ var WEATHER_UI = (function () {
       wxCol: (day.oatC != null ? day.oatC.toFixed(0) : '—') + ' °C · ' + (day.qnhEff / 100).toFixed(0) + ' hPa'
              + (w.mixTop != null ? ' · thermals to ' + w.mixTop.toFixed(0) + ' m' : '')
              + (day.cloudBase > 0 && day.cloudCover > 0.05 ? ' · base ' + day.cloudBase.toFixed(0) + ' m' : ''),
-      wxVis: w.vis != null ? (w.vis >= 60 ? '60+ km' : w.vis.toFixed(0) + ' km') : '—',
+      wxVis: visLine(w),
       wxFront: day.storm ? day.storm.phase + ' · ' + (day.storm.I * 100).toFixed(0) + ' %'
                : (day.stormSpec ? 'in ' + dur(day.stormSpec.at - day.utc) : 'none'),
     };

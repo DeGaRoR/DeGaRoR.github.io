@@ -452,6 +452,38 @@ console.log('12. the sea');
   yes(V.sea.W.map(w => (w.felt ? 1 : 0)).join('') === felt0, 'and the felt band came through the whole build unchanged');
 }
 
+console.log('16. two media, not one');
+{
+  const W16 = makeWorld();
+  W16.setDay({ oatC: 15, dewC: 13.5, turbidity: 2.5 });          // rh about 0.90
+  const hz = W16.climate.haze(), day = W16.day;
+  yes(hz.column && hz.layer && hz.surfaceVisM != null && hz.rho0 === undefined,
+      'haze() hands over a COLUMN and a LAYER, and no bare rho0 to mistake for either');
+  yes(Math.abs(hz.column.rho0 - 3.912 / (hz.column.visibilityKm * 1000)) < 1e-12,
+      `the column is Koschmieder on the day's own visibility (${hz.column.visibilityKm.toFixed(1)} km -> ${hz.column.rho0.toExponential(2)} /m)`);
+  yes(hz.layer.rho0 === day.mistRho0,
+      "the layer is the DAY's own density, read and not recomputed");
+  const ratio = hz.layer.rho0 / hz.column.rho0;
+  yes(ratio > 5 && ratio < 20,
+      `and it is a different medium: the layer is ${ratio.toFixed(1)}x denser than the column at rh ${(day.rh * 100).toFixed(0)} %`);
+  // the surface sees both; an eye above the lid sees only the column
+  yes(Math.abs(hz.surfaceVisM - 3.912 / (hz.column.rho0 + hz.layer.rho0)) < 1e-9,
+      `at the surface the extinctions ADD: ${(hz.surfaceVisM / 1000).toFixed(1)} km on the deck against ${hz.column.visibilityKm.toFixed(0)} in the column`);
+  yes(hz.surfaceVisM < hz.column.visibilityKm * 1000,
+      'so the deck is never rosier than the column - the fog morning cannot report 37 km any more');
+  // a dry day: no layer at all, and the two numbers become one
+  W16.setDay({ oatC: 15, dewC: -5, turbidity: 2.5 });
+  const dry = W16.climate.haze();
+  yes(dry.layer.rho0 === 0, 'a dry day has no layer at all (rho0 exactly 0)');
+  yes(Math.abs(dry.surfaceVisM / 1000 - dry.column.visibilityKm) < 1e-9,
+      'and then the deck IS the column, to the metre');
+  // the storm still thickens the column only
+  const clear = W16.climate.haze().column.visibilityKm;
+  W16.setDay({ storm: { at: W16.day.utc, intensity: 1 }, utc: W16.day.utc + 3900 });
+  yes(W16.climate.haze().column.visibilityKm < clear, 'and a front still thickens the column');
+}
+
+
 // ---- 13. the thermals are under the clouds ---------------------------------------------------
 console.log('13. one field, not two');
 {
@@ -563,7 +595,7 @@ console.log('11. the front');
     const w = W4.wind(0, 100, 0, 0);
     return { I: W4.day.storm.I, phase: W4.day.storm.phase, spd: Math.hypot(w[0], w[2]),
              dir: Math.atan2(w[2], w[0]) * 180 / Math.PI, oat: W4.day.oatC, qnh: W4.day.qnhEff,
-             cover: W4.day.cloudCoverEff, type: W4.day.cloudTypeEff, vis: W4.climate.haze().visibilityKm };
+             cover: W4.day.cloudCoverEff, type: W4.day.cloudTypeEff, vis: W4.climate.haze().column.visibilityKm };
   };
   const calm = read(-7200), pre = read(1800), pass = read(3900), post = read(9000), gone = read(20000);
   yes(calm.I === 0 && calm.phase === 'none', 'before it, nothing: I 0');
@@ -639,6 +671,17 @@ console.log('14. the sources');
   yes(!/new Date\(|Date\.now\(|THREE\.|window\.|document\./.test(dayS), '07_day.js still has no Date, no THREE, no DOM');
   // K2: the viewer's wiring
   const vw = f => fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+  // THE MIST'S DENSITY IS A WEATHER FACT AND LIVES IN ONE PLACE. It was derived in
+  // atmo.js, where the climate could not see it, which is how haze() came to publish a
+  // COLUMN density in the same flat object as a LAYER geometry. The law is the day's
+  // now; this asserts nobody has quietly put a second copy back.
+  const LAW = /0\.0025\s*\*\s*Math\.pow/;
+  yes(LAW.test(dayS), "the mist's density law is derived in 07_day.js, beside the visibility it is not");
+  const atmoS = vw('atmo.js');
+  yes(!LAW.test(atmoS), 'and atmo.js carries no copy of it - it reads day.mistRho0');
+  yes(/MIST\.rhoDay = day\.mistRho0/.test(atmoS), 'the renderer reads the day for the density and owns only the SHAPE');
+  yes(/pub\.visM/.test(vw('climate_link.js')),
+      "the link publishes what the RENDERER measured, so the panel can prefer it over the weather's own");
   const app = vw('app.js');
   yes(!/windBase/.test(app), 'app.js has no windBase: every reader is on the climate now');
   yes(/selCond.\)\.onchange/.test(app) && /WEATHER_UI[\s\S]{0,200}PRESETS\.find/.test(app),

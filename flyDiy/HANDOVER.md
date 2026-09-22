@@ -56659,3 +56659,93 @@ PRESETS.worn (0.9), which is where Jolene's strips take theirs.
   the new pole line), lanes_7m.png (two lanes, a dashed yellow centre, the polished wheel paths) and
   lanes_12m.png (three lanes). GATE PAVEMENT green; the battery still owed from G505.
 
+
+## G508 — THE RUTS ARE A VEHICLE'S TRACK; THE LANES ARE THE ROAD'S WIDTH; THE PAINT WEARS WHERE
+## THE WHEELS RUN (2026-09-23, the user: "an
+## important check on your tyre marks. Do they represent a real interaxle distance? They seem big?
+## ... you can do 2 of them in every direction, maybe only past a certain width for the roads")
+
+THEY DID NOT AND THEY WERE. `rutTrack` is the HALF-track in metres (a pair sits at its centre +-
+that) and it shipped at 1.55, clamped to halfW * 0.5: a 6 m road wore its ruts 3.0 m apart, anything
+wider 3.1. A car's track is 1.5 m, a pickup's 1.7, a light truck's 1.8-2.0, a heavy truck's 2.1 (the
+legal vehicle maximum is 2.55 overall) - three metres is a vehicle nobody builds.
+NOW: rutTrack 0.85 (a 1.7 m pickup), and the WIDTH decides the count. Over ~5.3 m a road carries ONE
+TRACK PER DIRECTION on its lane centres (+-halfW/2), each wandering on its own noise, both equally
+worn; under it, the single shared track everyone drives with the fainter second pass where the
+traffic went round. The threshold is derived, not chosen: 2*ht + 2*rw + 0.35 is the width at which
+two tracks and their ruts fit side by side - the width at which two vehicles can pass. A 6 m road
+puts four ruts at +-0.65 and +-2.35 m; a 3 m track puts two at +-0.75 (the halfW clamp still holds,
+so a narrow track is a narrow vehicle's). The grass stripe follows: between the WHEELS on a single
+track, between the two TRACKS on a road that has one each way, which is where it grows - nobody
+drives the crown. The knob's label says what it is now ('half-track (m: 0.85 = a 1.7 m pickup)',
+0.35-1.6) because 'wheel track half' read as 'half the road'.
+Untouched: the strips, whose pairs are the aeroplane's gear track (rubberTrack). Fixed for free: the
+shoulder's vehicle paths, which read the same half-track.
+THEN THE SAME FOR THE ROAD ITSELF (the user: "let's do the same for the roads; have a dynamic number
+of lanes function of road width please, and proper road marking, including its wear"). lanesOf(w, cls,
+laneW) is the ONE lane rule and both the paint and the wear call it: a lane is `roadLane` 3.5 m (3.0 a
+town street, 3.7 an interstate), capped at six; under 5.2 m a road is ONE lane whatever the class.
+THE PAINT, the American convention which is Alaska's: white solid EDGE lines 35 cm in; between the
+DIRECTIONS a dashed yellow (3 m on, 9 m off) up to three lanes and a DOUBLE SOLID yellow at four or
+more; white dashed dividers between lanes going the same way; a single-lane road carries its edges and
+nothing else; a soft road carries nothing at all. 6 m -> 2 lanes, 11 -> 3, 14 -> 4, 30 -> 6.
+THE WEAR IS THE TRAFFIC'S: a paved road is polished in the WHEEL PATHS - two to a lane at the
+vehicle's own half-track from the lane centre, the aggregate smoother and a shade darker - and the
+paint that crosses a wheel path is SCRUBBED (keep *= 1 - polish * 0.8). No special case is needed for
+the centre line: it lies between the wheels of both directions, which is why it outlives the edge
+line, and why the edge line - 30 cm outside the outer wheel - goes first.
+ONE DEFAULT MOVED: paintAge 0.85 -> 0.5 and chalk 0.8 -> 0.55. 0.85 is the WWII runway's wear and with
+it a road's lines were gone before they were drawn; the extremes stay in PRESETS.fresh (0.3) and
+PRESETS.worn (0.9), which is where Jolene's strips take theirs.
+- FILES: src/viewer/pavement.js (the rut block, lanesOf + roadMarks, the uRoad uniform and the polish,
+  the knobs roadLane / wheelPolish), render_premises.js + render_world.js (roadMarks takes the recipe),
+  tools/_pavement_check.js (GATE PAVEMENT §9), futureDesigns/PAVEMENT-2026-09-21.md §10-11.
+- PROOF: screenshots/pavement/ruts_6m.png + ruts_3m.png (the bench: four ruts on 6 m, one track on 3),
+  jolene_ruts_s0.png + s1.png (IN GAME: the village road and the airport road, both 6 m, four ruts under
+  the new pole line), lanes_7m.png (two lanes, a dashed yellow centre, the polished wheel paths) and
+  lanes_12m.png (three lanes). GATE PAVEMENT green; the battery still owed from G505.
+
+## G504.11 — TWO MEDIA, NOT ONE: the mist's density leaves the renderer, and the panel stops
+lying about a fog morning (2026-09-23, the fog study's finding, the user's go-ahead)
+
+`climate.haze()` used to return a flat `{ rho0, top, H, visibilityKm }`: a COLUMN density paired
+with a LAYER geometry, as though they were one medium. They are not, and the fog study found it the
+only way such a thing is ever found - by trying to use it. Adopting `rho0` as the mist's density made
+the mist about ten times too thin and all but erased the layer that had just been approved on a
+screen. Measured at rh 0.90 / turbidity 2.5: the column is 1.05e-4 /m (Koschmieder on a 37 km
+visibility), the ground layer 1.11e-3 - and at rh 0.98, 2.5e-4 against 2.2e-3. That is not a
+calibration to split the difference on. A hazy column is aerosol spread through the boundary layer
+and above it; a ground fog is droplets in the first tens of metres. A ray's transmittance is the
+PRODUCT of the two, so the extinctions add where both are present and neither number is wrong.
+
+THE SHAPE NOW MAKES THE MISTAKE IMPOSSIBLE: `haze()` returns `{ column: {rho0, visibilityKm},
+layer: {rho0, top, H}, surfaceVisM }`. Nothing can be handed one meaning it took for the other,
+which a `mistRho0` bolted beside `rho0` would not have prevented.
+
+ONE LAW, ONE PLACE. The density was derived in `atmo.js` - inside the renderer, where the climate
+could not see it - which is exactly how the two came to disagree. It is a WEATHER fact (a function
+of the humidity and nothing else), so it is derived in `07_day.js` now, beside `visibilityKm`, with
+the difference between them written down at the point where the confusion was born. `atmo.js` reads
+`day.mistRho0` and carries no copy; GATE CLIMATE 14 scans for the law and fails if a second one
+appears. THE SEAM: weather owns the DENSITY, the renderer owns the SHAPE - where the layer lies (F2
+lays it on the valley floors), its banks, its F8 multiplier. All four `ATMO.update` callers pass a
+real DAY (checked: render_world x3, hangar.applyDay), which is what let the fallback go entirely
+rather than becoming a second copy under another name.
+
+THE PANEL TOLD PILOTS 37 KM ON A FOG MORNING. `visibilityKm` is DECLARED - what the day was authored
+with and what a front moves - so it was not redefined under its authors; `surfaceVisM` is DERIVED
+beside it, the two extinctions added at the ground and Koschmieder inverted. The WEATHER row now
+reads "37 km · 3.2 km on the deck" and says nothing extra on a clear day, where the two are one
+number twice. Under a kilometre it is said in metres to the nearest hundred, as a METAR does.
+WHOSE NUMBER WINS: `CLIMATE_LINK.pub.visM` - what the renderer actually DREW along the eye's own ray,
+including the dials and the relief - when the fog study's F1 publishes it; `surfaceVisM` is the
+fallback and is marked with a `*` in the row so the two are never silently confused either.
+
+GATE CLIMATE 16 (nine checks: the shape, Koschmieder on the column, the layer read and not
+recomputed, the 10.9x ratio measured, the extinctions adding, the deck never rosier than the column,
+a dry day with no layer at all and the deck then equal to the column to the metre, a front still
+thickening the column) and four more source scans in 14. CLIMATE, DAY, ATMO, ATMOS, CLOUD, WORLD,
+UISMOKE, WORLDRENDER, GFX, MEDIA green.
+
+AND THIS ONE SHIPPED ITS BUILD: a source commit and a `(built)` commit from a clean LF worktree,
+which G504-G504.9 did not do (G504.10 records that).

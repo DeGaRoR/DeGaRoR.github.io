@@ -179,6 +179,20 @@ var DAY = (function () {
       // an AUTHORED visibility: clear alpine air 60 km, a hazy T10 day 4 km, saturated air a sixth of that
       const tb = s.turbidity != null ? s.turbidity : DEFAULT.turbidity;
       d.visibilityKm = 375 / (tb * tb) * (1 - 0.85 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2));
+      // TWO NUMBERS OUT OF ONE HUMIDITY, AND THEY ARE NOT THE SAME MEDIUM. They sit
+      // together deliberately, because keeping them apart is what went wrong before:
+      // `visibilityKm` above is the COLUMN - the whole air, aerosol spread through the
+      // boundary layer and above it, roughly uniform over kilometres, and the number a
+      // Koschmieder extinction is calibrated from. `mistRho0` is the IN-LAYER density of
+      // a shallow ground fog: droplets, tens of metres deep, absent above its lid. At
+      // rh 0.90 the column gives 1.05e-4 /m and the layer 1.11e-3 - ten times denser -
+      // and that is not a disagreement to reconcile, it is two media. A ray's
+      // transmittance is the product of both, so an eye at the surface sees the SUM of
+      // the extinctions (climate.haze().surfaceVisM), while an eye above the lid looking
+      // at a ridge sees only the column. The renderer owns where the layer LIES (its top
+      // follows the valley floors, it has banks); the day owns only how dense the air
+      // makes it. One law, one place - atmo.js reads this and no longer carries a copy.
+      d.mistRho0 = 0.0025 * Math.pow(clamp((d.rh - 0.7) / 0.3, 0, 1), 2);
       // local time
       const std = geo.tz ? geo.tz.std : 0;
       const dst = geo.tz && geo.tz.dst === 'us' ? usDst(jdn, utc, std) : false;
@@ -289,7 +303,7 @@ var DAY = (function () {
     for (const k of ['sun', 'sunEl', 'sunAz', 'sunAzGrid', 'rigAzim', 'sunUp', 'illumClass', 'isNight',
                      'moon', 'moonEl', 'moonAz', 'moonPhase', 'moonWaxing', 'moonUp',
                      'noonUtc', 'sunriseUtc', 'sunsetUtc', 'polar',
-                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm',
+                     'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm', 'mistRho0',
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
                      'sunElLag',                                                       // K3
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {

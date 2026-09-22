@@ -582,8 +582,9 @@ var ATMO = (function () {
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
   const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
-  // (humidity: rho0 = 0.0025/m x ((rh - 0.7) / 0.3)^2 - saturated air sees 1.2 km), its top (m ASL)
+  // (`day.mistRho0`, derived in 07_day.js - saturated air sees 1.2 km), its top (m ASL)
   // and thickness (m), the forward peak. F8's atmosphere fold writes these.
+  let mistWarned = false;                                    // the density's one-shot complaint (below)
   const MIST = { on: true, k: 1, top: 60, H: 18, fwd: 0.8, rhoDay: 0, get rho0() { return this.rhoDay * this.k; },
     cloud: { rho: 0, base: 0, top: 0 },                         // the slab the eye is in (clouds.js writes it)
     // F2: `relief` lifts the layer off one world altitude and onto the land (0 = the flat slab,
@@ -975,8 +976,19 @@ ${MIST_GLSL}
     U.eyeY.value = camAltM || 0;
     // the mist's day: its density from the humidity, its colour from the sun and the sky at its top
     if (day) {
-      const rh = day.rh != null ? day.rh : 0.5;
-      MIST.rhoDay = 0.0025 * Math.pow(Math.max(0, Math.min(1, (rh - 0.7) / 0.3)), 2);
+      // THE DENSITY IS THE DAY'S, and this file no longer carries a copy of the law.
+      // It is a weather fact (a function of the humidity) and it was derived here and
+      // nowhere else, which is how the climate came to publish a COLUMN density that
+      // looked like it meant the same thing and was ten times thinner. 07_day.js now
+      // derives it beside visibilityKm, where the difference between the two is
+      // written down. What stays here is what this file actually owns: MIST.k (the F8
+      // multiplier), the layer's SHAPE, its relief, its banks and its colour.
+      // The zero is not a default: it means whoever called this handed a day that is not
+      // a 07_day DAY, and a mist that quietly disappears is the failure this chantier has
+      // twice paid to learn about (the fog session asked for it to be loud, and was right).
+      if (day.mistRho0 == null && !mistWarned) { mistWarned = true;
+        console.warn('ATMO: day.mistRho0 is undefined - this is not a 07_day day, so the mist is off. That is a bug, not a setting.'); }
+      MIST.rhoDay = day.mistRho0 != null ? day.mistRho0 : 0;
       const km = MIST.top / 1000, T = [0, 0, 0], E = [0, 0, 0], Em = [0, 0, 0];
       sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E);
       const sy = Math.max(0, day.sun[1]);

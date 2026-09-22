@@ -402,7 +402,7 @@
             + (pr ? ` · ${pr.T.toFixed(1)}°C rh ${(pr.rh == null ? NaN : pr.rh * 100).toFixed(0)}%` : '')
             + ` · thermals to ${c.mixTop ? c.mixTop().toFixed(0) : '?'} m`
             + (pr && pr.lcl != null ? ` (base ${pr.lcl.toFixed(0)})` : ' (no base)')
-            + (hz ? ` · vis ${hz.visibilityKm.toFixed(0)} km` : '')
+            + (hz ? ` · vis ${hz.column.visibilityKm.toFixed(0)} km` + (hz.surfaceVisM < hz.column.visibilityKm * 900 ? ` (${(hz.surfaceVisM / 1000).toFixed(1)} on the deck)` : '') : '')
             + (st ? ` · front ${st.phase} I ${st.I.toFixed(2)}` : '')
             + ` · raster ${c.relief ? c.relief.nx + '²  ' + S.rasterMs.toFixed(0) + ' ms' : 'not built'}`
             + ` · ${S.full || 0} full / ${S.linear || 0} linear`;

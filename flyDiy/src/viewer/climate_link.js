@@ -38,6 +38,7 @@ var CLIMATE_LINK = (function () {
     cam: [0, 0, 0],
     gust: 0,
     haze: null,
+    visM: null,          // what the RENDERER measured, when it can (see frame())
     sea: null,
     utc: 0,
   };
@@ -103,6 +104,22 @@ var CLIMATE_LINK = (function () {
     }
     // ---- what the mist and the sea would read ------------------------------
     pub.haze = c.haze ? c.haze() : null;
+    // WHAT THE EYE CAN ACTUALLY SEE, measured through the mist that was really DRAWN.
+    // haze().surfaceVisM is the WEATHER's number - the two extinctions added at the
+    // ground - and it is blind to the graphics dials, to F2's relief and banks, and to
+    // where the eye is. The fog study's ATMO.seeRange() integrates the eye's own level
+    // ray through the real layer, so where it exists it is the better number.
+    //
+    // THE THRESHOLD IS OURS, NOT ITS CALLER'S. WORLD.visM() asks seeRange for 1 %
+    // transmittance, which is right for what it does (sizing a far plane: keep drawing
+    // while anything is still faintly there). A VISIBILITY, the number on a METAR and
+    // the one a pilot is briefed with, is Koschmieder's 2 % contrast - exp(-3.912) =
+    // 0.02 exactly, the same constant haze() inverts. Asking for 1 % here would report
+    // a fifth further than the met definition and would disagree with the fallback by
+    // that much whenever a world came up. So: their integral, our constant.
+    const A = (typeof ATMO !== 'undefined') ? ATMO : null;
+    pub.visM = (A && typeof A.seeRange === 'function' && camPos)
+      ? A.seeRange(camPos.y, camPos.y, 0.02) : null;
     pub.sea = world.sea || null;
     pub.utc = day ? day.utc : 0;
     // ---- the ripples, on CHANGE only ---------------------------------------

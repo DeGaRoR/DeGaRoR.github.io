@@ -725,28 +725,52 @@ var CLIMATE = (function () {
       if (lcl == null) return lid;
       return Math.min(lid, lcl);
     }
-    // haze(): THE INGREDIENTS OF A MIST, not a distance. Koschmieder's law turns
-    // a visibility into an extinction, beta = 3.912 / V; the day's own
-    // visibilityKm carries the turbidity and the humidity, and a front thickens
-    // it. What is published is (rho0, top, H) - the layer itself - and the
-    // consumer integrates along ITS OWN ray.
+    // haze(): THE INGREDIENTS OF A MIST, not a distance - and TWO MEDIA, never one.
+    //
+    // This function used to hand over a flat { rho0, top, H }: a COLUMN density paired
+    // with a LAYER geometry, as though they belonged together. They do not, and the fog
+    // study found it by trying to use them: adopting `rho0` as the mist's density made
+    // the mist ten times too thin and all but erased it. The shape below makes that
+    // mistake impossible to make by accident.
+    //
+    //   column : the whole air - aerosol through the boundary layer and above it,
+    //            roughly uniform over kilometres. `rho0` is Koschmieder's extinction
+    //            from the day's own visibility, 3.912 / V, and a front thickens it.
+    //            This is the AERIAL PERSPECTIVE's number.
+    //   layer  : the shallow ground fog - droplets, tens of metres deep, absent above
+    //            its lid, roughly ten times denser than the column at the same humidity.
+    //            `rho0` is the day's (07_day.js derives it beside visibilityKm - ONE law,
+    //            one place; atmo.js reads the day and carries no copy). `top` and `H` are
+    //            its nominal shape; the RENDERER owns where it actually lies, because F2
+    //            lays the layer on the valley floors and gives it banks, at which point
+    //            `top` is a height above the LOCAL FLOOR rather than above the sea.
     //
     // TWO WARNINGS FOR WHOEVER CONSUMES THIS, both measured by the fog study
     // (futureDesigns/FOG-MIST-2026-09-21.md) rather than argued:
     //
-    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid at `top`,
-    //    so how far an eye can see depends on where the eye is and where it is
-    //    looking: from 200 m over Jolene the distant GROUND dies at about 4 km
-    //    (that ray looks down through the layer) while the RIDGES stand at 5-9
-    //    km (their ray never enters it). A far plane or a ring radius sized off
-    //    a single surface number escapes by luck at rh 0.85 and shears the
-    //    mountains off at rh 0.90. Integrate the ray; that is what these three
-    //    numbers are for.
-    // 2. THIS NUMBER MOVES DURING A FLIGHT NOW. It used to be a constant per
-    //    day; a front takes it 60 -> 26 km over a couple of hours and the
-    //    diurnal humidity walks it as well. Any consumer that sizes a STREAMED
-    //    thing from it (the forest ring, a far cascade) needs two-radii
-    //    hysteresis and a rate limit, or it re-imports the chunk-crossing pop.
+    // 1. A VISIBILITY IS NOT A RADIUS. The mist is a layer with a lid, so how far an eye
+    //    can see depends on where the eye is and where it is LOOKING: from 200 m over
+    //    Jolene the distant GROUND dies at about 4 km (that ray looks down through the
+    //    layer) while the RIDGES stand at 5-9 km (their ray never enters it). With F2's
+    //    banks it is direction-dependent in a second way - a ray into a bank and one down
+    //    a clear lane differ from the same eye. A far plane or a ring radius sized off any
+    //    single scalar escapes by luck at rh 0.85 and shears the mountains off at rh 0.90.
+    //    Integrate the ray; these numbers are the ingredients for doing so.
+    // 2. THESE NUMBERS MOVE DURING A FLIGHT NOW. They used to be constants per day; a
+    //    front takes the visibility 60 -> 26 km over a couple of hours and the diurnal
+    //    humidity walks both. Any consumer that sizes a STREAMED thing from them (the
+    //    forest ring, a far cascade) needs two-radii hysteresis and a rate limit, or it
+    //    re-imports the chunk-crossing pop.
+    //
+    // `surfaceVisM` is the one honest scalar here, and only at the surface: an eye on the
+    // ground looking horizontally is inside BOTH media, so the extinctions add and
+    // Koschmieder inverts the sum. That is what a pilot is told, and it is why the panel
+    // must not quote `column.visibilityKm` on a fog morning - the column says 37 km while
+    // the strip's far end has vanished. It is the WEATHER's number, blind to the graphics
+    // dials, and to where the eye happens to be. Where the renderer can integrate the
+    // eye's OWN ray through the layer it really drew (the fog study's ATMO.seeRange),
+    // that wins and climate_link.js prefers it - asked at Koschmieder's 2 % contrast,
+    // the same constant inverted here, so the two definitions cannot drift apart.
     function haze() {
       const day = env.day;
       if (!day) return null;
@@ -754,8 +778,14 @@ var CLIMATE = (function () {
       let visKm = day.visibilityKm;
       if (st) visKm *= 1 - 0.55 * st.I;                             // a front's murk, declared
       const w = waterNow();
-      return { visibilityKm: visKm, rho0: 3.912 / Math.max(0.05, visKm * 1000),
-               top: 60, H: 18, rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
+      const colRho = 3.912 / Math.max(0.05, visKm * 1000);
+      // the day's own law (07_day.js). The fallback is for a bare day-shaped object, not
+      // a second copy of the law: a DAY always derives it.
+      const layRho = day.mistRho0 != null ? day.mistRho0 : 0;
+      return { column: { rho0: colRho, visibilityKm: visKm },
+               layer: { rho0: layRho, top: 60, H: 18 },
+               surfaceVisM: 3.912 / Math.max(1e-9, colRho + layRho),
+               rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
     }
     // thermals(): every live column within `r` of a point, as records - what the
     // debug view draws, what a gate flies to, and what a panel counts. Pure in
