@@ -32,7 +32,10 @@ var DAY = (function () {
   const DEFAULT = Object.freeze({
     date: '2026-06-21', utc: 18 * 3600, rate: 1,
     rh: 0.5, turbidity: 2.5, ozone: 300, groundAlbedo: 0.15,
-    cloudCover: 0.2, cloudType: 'cu',
+    // THE SKY'S SEED IS THE DAY'S (CLIMATE K3): the renderer draws the weather
+    // map from it and the climate reads the SAME map to know where the cumulus
+    // are - a thermal sits under a cloud because they are one field, not two.
+    cloudCover: 0.2, cloudType: 'cu', cloudSeed: 1,
   });
   // the geo a world declares; this default is Jolene's origin (28_island.js)
   // with NO convergence — the analytic world's own -z is true north
@@ -97,6 +100,11 @@ var DAY = (function () {
       d.moonEl = mo.el; d.moonAz = mo.az; d.moonPhase = mo.phase; d.moonWaxing = mo.waxing;
       d.moon = SOLAR.toFrame(mo.el, mo.az, conv);
       d.moonUp = mo.el >= 0;
+      // THE GROUND RUNS BEHIND THE SUN (CLIMATE K3). What drives the thermals is
+      // not the sun's elevation now but the heat the ground has taken in, which
+      // peaks about two hours later. One more call on the same pure almanac -
+      // no state, no integration, and a gate's frozen day freezes this with it.
+      d.sunElLag = SOLAR.sun({ jdn, utc: utc - 7200, lat: geo.lat, lon: geo.lon }).el;
       if (!sunCache || sunCache.jdn !== jdn) {          // the day's events, once per civil day
         const ev = SOLAR.events(o);
         sunCache = { jdn, noonUtc: ev.noon, sunriseUtc: ev.rise, sunsetUtc: ev.set, polar: ev.rise == null ? (ev.up ? 'day' : 'night') : null };
@@ -249,6 +257,7 @@ var DAY = (function () {
       get groundAlbedo() { return s.groundAlbedo != null ? s.groundAlbedo : DEFAULT.groundAlbedo; },
       get cloudCover() { return s.cloudCover != null ? s.cloudCover : DEFAULT.cloudCover; },
       get cloudType() { return s.cloudType || DEFAULT.cloudType; },
+      get cloudSeed() { return s.cloudSeed != null ? (s.cloudSeed | 0) : DEFAULT.cloudSeed; },
       // THE UPPER DECKS (A6, 2026-09-20): [{ cover, type, base? }] above the low layer - at most two, sanitised
       // (a cover clamped, a base a number or absent); cloudLayers puts the low layer first, the field
       // (08_cloud_field.js layers()) stacks them without overlap
@@ -280,6 +289,7 @@ var DAY = (function () {
                      'noonUtc', 'sunriseUtc', 'sunsetUtc', 'polar',
                      'oatC', 'dewC', 'rh', 'cloudBase', 'visibilityKm',
                      'storm', 'qnhEff', 'airKey', 'cloudCoverEff', 'cloudTypeEff',   // K2
+                     'sunElLag',                                                       // K3
                      'offsetH', 'localSeconds', 'localDate', 'local', 'tzLabel']) {
       Object.defineProperty(day, k, { get: () => d[k], enumerable: true });
     }

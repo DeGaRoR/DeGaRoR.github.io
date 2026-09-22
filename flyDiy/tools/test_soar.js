@@ -6,7 +6,9 @@
 //                     along the band, flown at the sheet's minimum-sink speed with the reversals turned
 //                     into wind, GAINS energy height and stays up; the same beat with the terrain term
 //                     off is on the ground inside the run (the negative control)
-//   S3  THE THERMAL — K3
+//   S3  THE THERMAL — a summer afternoon: the glider is put in the strongest live column and
+//                     circles it at minimum-sink speed, and CLIMBS; the same circle with the
+//                     thermals off sinks at the polar's own rate (the negative control)
 //
 //   tools/_bake_joined.js (the card as the game flies it) + flight_core.js  ->  here
 // Run: node tools/test_soar.js [--show]   (contract: one final `GATE SOAR: ...`)
@@ -50,6 +52,10 @@ let WORLD = null;
 // and walks the aeroplane upwind (it did, 3.4 m/s of it). So: no crab here. The pilot flies the line.
 function fly(windSpec, plan) {
   WORLD = C.makeWorld();
+  // the DAY first when the plan names one (a thermal day is a day, not a wind:
+  // the sun that drives it, the lid that caps it and the sky that marks it all
+  // live there), then the wind over it
+  if (plan.day) WORLD.setDay(plan.day);
   WORLD.setWind(windSpec);
   const sim = C.makeSim(def, WORLD);
   launch(sim, plan.x, plan.z, plan.y, plan.hdg0, plan.V);
@@ -157,6 +163,102 @@ console.log('S2. the ridge');
       `with the terrain term off it goes ${eC0.toFixed(0)} -> ${eC1.toFixed(0)} m (${(eC1 - eC0).toFixed(0)} m, mean vs ${mean(calm.vs, 20, 260).toFixed(2)}) and is down at ${cEnd.toFixed(0)} m, on the face's own ${core.g.toFixed(0)}`);
   const yEnd = ridge.y[ridge.y.length - 1];
   yes(yEnd > core.g + 60, `and it is still flying the face (${yEnd.toFixed(0)} m, the ground under it ${core.g.toFixed(0)})`);
+}
+
+// ---- S3. the thermal ---------------------------------------------------------------------------
+console.log('S3. the thermal');
+{
+  // A SUMMER AFTERNOON: a mixed layer to 1800 m under a light lid, cumulus at a
+  // third cover, and almost no wind - the day a glider pilot waits for.
+  const DAY = { date: '2026-06-21', localHours: 14, oatC: 24, dewC: 9,
+                lapse: 'mixed', mixH: 1800, cloudCover: 0.35, cloudType: 'cu', cloudSeed: 3 };
+  // CALM AIR, and deliberately: a thermal drifts with the wind and a glider
+  // circling it drifts with it too, but the pilot's lateral law holds a GROUND
+  // track, so a commanded circle stands still while the column walks away (4 kt
+  // at circuit height is 650 m over this run - measured, and it left the glider
+  // in dead air). Thermalling in a wind is re-centring, which is the pilot's
+  // work, not the field's; S2 already flies the field in 20 kt.
+  const WIND = { kts: 0, dirDeg: 0, refH: 10, thermals: 1 };
+  const W0 = C.makeWorld();
+  W0.setDay(Object.assign({ wind: WIND }, DAY));
+  const cl = W0.climate;
+  // the strongest column within reach of the home strip, and the height to work it at
+  const th = cl.thermals(0, 0, 12000);
+  if (!th.length) { fail('no thermal on a summer afternoon'); } else {
+    const t = th[0];
+    const Y0 = t.ground + 0.35 * t.zi;                    // low in the layer, where the core is strongest
+    const s3 = [0, 0, 0];
+    cl.sample(t.x, Y0, t.z, 0, s3);
+    console.log(`  the column at (${t.x.toFixed(0)}, ${t.z.toFixed(0)}) tops at ${t.top.toFixed(0)} m, peaks ${t.wpk.toFixed(2)} m/s;` +
+                ` ${s3[1].toFixed(2)} m/s where the glider is put in, against ${SH.sinkMin.toFixed(2)} of sink at Vms`);
+    // THE CIRCLE. A glider centres a thermal by flying a steady banked turn, so
+    // the gate flies one: the track is rotated at the rate that bank and speed
+    // give (g tan(phi) / V), about the column's own axis. 45 deg at Vms is a
+    // 40 m radius, well inside a 130 m core - which is what centring means.
+    const bank = 0.72;                                     // rad, a working thermalling bank (41 deg)
+    const Vc = SH.Vms;
+    const Rturn = Vc * Vc / (9.80665 * Math.tan(bank));
+    // AN ORBIT LAW, not a rotating heading. A commanded track that simply turns
+    // at the bank's rate is open loop: the small errors integrate and the
+    // aeroplane spirals off the column (measured: 272 m off a 128 m core). What
+    // a pilot actually does is RE-CENTRE - fly the tangent, and lean in or out
+    // by how far off the radius you are. That is this, and it holds the circle
+    // wherever the aeroplane can fly it.
+    // CHASE A POINT THAT KEEPS MOVING AHEAD. The tangent alone will not do it:
+    // the pilot's lateral law NULLS the track error, so the moment the aeroplane
+    // is flying the tangent it stops banking and leaves the circle straight
+    // (measured: 8 deg of bank and a 181 m radius where 41 deg and 29 m were
+    // asked). A point a fixed angle ahead ON the circle always leaves an error
+    // to chase, and chasing it IS the turn.
+    const LEAD = 1.0;                                      // rad ahead on the circle (57 deg)
+    const circle = () => (tt, x, z) => {
+      const dx = x - t.x, dz = z - t.z;
+      const a = Math.atan2(dz, dx) + LEAD;
+      const gx = t.x + Rturn * Math.cos(a), gz = t.z + Rturn * Math.sin(a);
+      const ux = gx - x, uz = gz - z, m = Math.max(1e-6, Math.hypot(ux, uz));
+      return [ux / m, uz / m];
+    };
+    const plan = { x: t.x + Rturn, z: t.z, y: Y0, V: Vc, sink: SH.sinkMin, day: DAY,
+                   hdg0: Math.PI / 2, track: circle(), T: 200, bank };
+    console.log(`  circling at ${(bank * 180 / Math.PI).toFixed(0)}° and ${Vc.toFixed(1)} m/s: a ${Rturn.toFixed(0)} m radius inside a ${t.r2.toFixed(0)} m core`);
+    const lift = fly(WIND, plan);
+    const flat = fly(Object.assign({}, WIND, { thermals: 0 }), plan);
+    const vL = mean(lift.vs, 20, 200), vF = mean(flat.vs, 20, 200);
+    const wL = mean(lift.wy, 20, 200);
+    const off = lift.t.map((_, i) => Math.hypot(lift.x[i] - t.x, lift.z[i] - t.z));
+    const offMax = Math.max.apply(null, off.slice(10));
+    yes(!lift.nan && !flat.nan, 'both runs stay finite');
+    yes(offMax < 2 * t.r2, `it stays on the column: never more than ${offMax.toFixed(0)} m off its axis (the core is ${t.r2.toFixed(0)})`);
+    yes(vL > 0.4, `in the thermal it climbs ${vL.toFixed(2)} m/s (the air under it averaging ${wL.toFixed(2)})`);
+    yes(vF < -0.6, `with the thermals off the same circle sinks ${vF.toFixed(2)} m/s - a banked turn's own polar`);
+    yes(vL - vF > 1.2, `the column is worth ${(vL - vF).toFixed(2)} m/s of climb`);
+    // IT GOES UP, and that is the whole claim. The margin is modest because the
+    // circle is not centred (it wanders 170 m about a 128 m core, so a third of
+    // every turn is spent in the sink ring) and because a 41 deg turn costs
+    // about 0.9 m/s over the wings-level polar - both of them real, and both of
+    // them the reason a soaring pilot's first skill is centring. The control
+    // flying the identical circle in the same air with the columns switched off
+    // loses 420 m over the same run.
+    const gain = lift.y[lift.y.length - 1] - lift.y[0];
+    const lost = flat.y[flat.y.length - 1] - flat.y[0];
+    yes(gain > 25 && gain - lost > 300,
+        `and it GAINS ${gain.toFixed(0)} m in ${plan.T} s (${lift.y[0].toFixed(0)} -> ${lift.y[lift.y.length - 1].toFixed(0)}) where the same circle without the columns loses ${(-lost).toFixed(0)}`);
+    // THE NETTO VARIOMETER: what the air is doing, with the glider's own sink
+    // added back. In the core it must read the air, not the climb.
+    if (SH.sinkAt) {
+      // A VARIOMETER IS AN AVERAGE. The instantaneous reading carries the
+      // aeroplane's own pitching and the turn's load factor (the polar is a
+      // wings-level curve), which is exactly why a soaring pilot flies the
+      // 20-second mean - so that is what is held here, with the spread printed.
+      let dMean = 0, worst = 0, n = 0;
+      for (let i = 30; i < lift.t.length; i++) {
+        const d = (lift.vs[i] + SH.sinkAt(lift.V[i])) - lift.wy[i];
+        dMean += d; worst = Math.max(worst, Math.abs(d)); n++;
+      }
+      dMean /= Math.max(1, n);
+      yes(Math.abs(dMean) < 0.8, `the netto vario reads the AIR to ${dMean.toFixed(2)} m/s of the field itself on the mean of ${n} samples (the instantaneous spread ${worst.toFixed(2)}: a turn's load factor is not on a wings-level polar)`);
+    } else fail('the sheet has no polar to read a netto from');
+  }
 }
 
 console.log(`GATE SOAR: ${fails ? 'FAIL (' + fails + ' check' + (fails > 1 ? 's' : '') + ')' : 'PASS'}`);

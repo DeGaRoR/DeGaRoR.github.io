@@ -62,6 +62,22 @@ var CLIMATE = (function () {
   // a few hundred metres up, which is what a ridge pilot knows.
   const D_COARSE = 800, D_FINE = 200, D_LOCAL = 80;
   const GD = 60;                       // m: the local slope's half-step (terrainH at +-GD, a 120 m baseline)
+  // ---- the convection (K3) --------------------------------------------------
+  const S0 = 1361, TAU_ATM = 0.75, CP = 1005;   // W/m2 the solar constant, a clear sky's transmission, J/(kg K)
+  const TH_LIFE = 1200;                // s: a thermal's life (Allen 2006), on the DAY clock
+  const TH_SPACE = 1.5;                // the spacing, in units of the mixed layer's depth (Lenschow)
+  const TH_JIT = 0.35;                 // how far off its cell a thermal may sit (in cells)
+  const TH_R2K = 0.102;                // the core's radius as a fraction of z_i (Allen)
+  // THE CORE'S PEAK, against Lenschow's AREA MEAN. w_bar = w* (z/zi)^(1/3)(1 - 1.1 z/zi) is the mean
+  // over the updraft area and comes to 0.36 w* at mid-layer - which is NOT what a glider feels in a
+  // core. Deardorff's scaling puts the rms vertical velocity near 0.6 w* and individual cores at
+  // 1.5-2 w*, so the peak is the mean times this: 1.5 w* at mid-layer. Declared, and the one number
+  // that sets how good a day feels.
+  const TH_CORE = 4.2;
+  // ---- the breeze (K3) ------------------------------------------------------
+  const SB_V = 4;                      // m/s: a sea breeze at the coast, at full drive
+  const SB_H = 700;                    // m: how deep it runs
+  const SB_IN = 20000, SB_OUT = 8000;  // m: how far it reaches inland, and out to sea
   const SLOPE_CAP = 0.7;               // a band's slope is capped here: no cliff makes more than 0.7 U
   const LIN_R2 = 40 * 40;              // m^2: a call within this of the reference rides its Jacobian
   const LIN_H = 10;                    // m: the forward-difference step
@@ -381,8 +397,28 @@ var CLIMATE = (function () {
         ti += 3 * T * smoothstep(0.15, 0.4, lee) * Math.exp(-a0 / (2 * D_FINE));
         ux *= m; uz *= m; uy += wy;
       }
+      // the terms that do NOT shear with the ground: they are their own flows
+      let rx = 0, ry = 0, rz = 0;
+      if (rich.breeze > 0) {
+        const C = convNow();
+        breezeAt(x, z, agl, C, BR);
+        rx += rich.breeze * BR[0]; ry += rich.breeze * BR[1]; rz += rich.breeze * BR[2];
+      }
+      if (rich.thermals > 0) {
+        const C = convNow();
+        if (C) {
+          const utc = env.day ? env.day.utc : 0;
+          ry += rich.thermals * thermalAt(x, z, agl, C, utc);
+          // THE CONVECTION ROUGHENS THE AIR IT WORKS IN. A mixed layer is
+          // turbulent everywhere, not only in the cores, so the gusts ride
+          // harder inside it - and only inside it: above the lid the air is
+          // smooth, and under the ground there is no air (that clause is not
+          // pedantry, it was putting gusts below the terrain).
+          if (agl > 0 && agl < C.zi) ti += 0.5 * rich.thermals;
+        }
+      }
       out[0] = ux; out[1] = uy; out[2] = uz;
-      out[3] = 0; out[4] = 0; out[5] = 0;
+      out[3] = rx; out[4] = ry; out[5] = rz;
       out[6] = ti;
     }
     // combine(S, agl, x, y, z, t, out): the wind from seven channels and the ground. The gusts ride
@@ -395,6 +431,174 @@ var CLIMATE = (function () {
       addGust(x, y, z, t, k * ((windSpec.gust || 0) * S[6] + 0.5 * (S[6] - 1)), out);
       return out;
     }
+    // ---- THE CONVECTION (K3) -------------------------------------------------
+    // WHAT DRIVES IT. The ground takes the sun's heat and gives it back to the
+    // air as thermals. The sensible heat flux is what is left of the beam after
+    // the albedo and the cloud, and it runs BEHIND the sun (the day's sunElLag):
+    //
+    //   H  = heat x (1 - albedo) x S0 x tau x max(0, sin El_lag) x (1 - 0.7 cover)
+    //   w* = ( g/T x H/(rho cp) x z_i )^(1/3)                        (Deardorff)
+    //
+    // `heat` is the ground's own share, off the relief raster (water 0, forest
+    // 0.25, rock 0.6 - a Bowen-ratio ordering), so a thermal stands over a
+    // gravel bar and not over a lake. z_i is mixTop(): the LOWER of the day's
+    // lid and its condensation level, which is why a capped day tops its
+    // thermals early and an uncapped one puts a cumulus on each of them. A fair
+    // afternoon gives 200-250 W/m2 and w* around 2 m/s, which is a good day.
+    const mapCache = {};
+    let conv = null, convKey = null;
+    function convNow() {
+      const day = env.day;
+      if (!day || !windSpec) return null;
+      const zi = mixTop();
+      const cover = day.cloudCoverEff != null ? day.cloudCoverEff : day.cloudCover;
+      const sinEl = Math.sin(Math.max(0, day.sunElLag != null ? day.sunElLag : day.sunEl) * D2R);
+      const b = windSpec.base;
+      const k = Math.round(zi) + ':' + Math.round(cover * 1000) + ':' + Math.round(sinEl * 1e4)
+              + ':' + day.cloudSeed + ':' + (day.cloudTypeEff || day.cloudType)
+              + ':' + Math.round((day.oatC || 15) * 10) + ':' + Math.round(b[0] * 100) + ',' + Math.round(b[2] * 100);
+      if (k === convKey) return conv;
+      convKey = k;
+      if (!(sinEl > 0) || !(zi > 0)) { conv = null; return null; }   // night: no convection at all
+      const alb = day.groundAlbedo != null ? day.groundAlbedo : 0.15;
+      const T = (day.oatC != null ? day.oatC : 15) + 273.15;
+      const atm = env.atmos ? env.atmos() : null;
+      const rho = atm ? atm.rho(0) : 1.225;
+      const beam = S0 * TAU_ATM * sinEl * (1 - alb) * (1 - 0.7 * clamp(cover, 0, 1));
+      const wstarOf = heat => {
+        const H = Math.max(0, heat) * beam;
+        return H > 0 ? Math.cbrt((9.80665 / T) * (H / (rho * CP)) * zi) : 0;
+      };
+      // THE LATTICE DRIFTS AT ONE WIND, not at the wind where it is sampled: a
+      // frame whose speed varied with the sample point would not be a frame.
+      // That one wind is the boundary layer's mean - the declared base lifted
+      // to half the layer's depth by the same power law the column shears on.
+      const kBL = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, 0.5 * zi)) / windSpec.refH, windSpec.alpha) : 1;
+      conv = { zi, cover, sinEl, T, rho, beam, wstarOf,
+               spacing: Math.max(400, TH_SPACE * zi),
+               ux: b[0] * kBL, uz: b[2] * kBL, bx: b[0], bz: b[2],
+               wRef: Math.max(0.5, wstarOf(0.35)),                   // for the tilt's lag, one number per day
+               map: CLOUD_FIELD.weatherMap({ seed: day.cloudSeed, cover,
+                                             type: day.cloudTypeEff || day.cloudType, cache: mapCache }) };
+      return conv;
+    }
+    // THE LATTICE. A square lattice of spacing 1.5 z_i (Lenschow's thermal
+    // spacing) in a frame advected by that one wind, so every thermal drifts
+    // downwind with no per-thermal state to keep - and a gate whose day is
+    // frozen has a frozen field. A cell's hash decides whether a thermal stands
+    // there at all, with what strength and how far off centre; the probability
+    // leans on the weather map's coverage, so the thermals cluster where the
+    // cumulus are (they are one field: the clouds ARE the tops). The age runs on
+    // the DAY clock with a smooth envelope - born, working, dying over twenty
+    // minutes - which is the two-clocks rule again.
+    function thash(i, j, n) {
+      let h = (i * 374761393 + j * 668265263 + n * 1013904223 + (env.seed | 0) * 2654435761) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    }
+    const smf01 = t => { const q = clamp(t, 0, 1); return q * q * (3 - 2 * q); };
+    const TH_TMP = { x: 0, z: 0, k: 0, ok: false };
+    const RL2 = new Float32Array(NCH), RL3 = new Float32Array(NCH);
+    function thermalCell(i, j, C, utc, dx0, dz0, out) {
+      const sp = C.spacing;
+      const ph = thash(i, j, 7);
+      const n = Math.floor(utc / TH_LIFE + ph);
+      // WHERE IT STANDS, FIRST. The jitter comes before the tests, not after:
+      // a cell is 1.5 z_i across and a thermal may sit a third of that off
+      // centre, so asking 'is there cloud here' at the lattice point instead of
+      // at the column's own place blurs the answer over most of a cloud
+      // (measured: the clustering fell from nearly two-to-one to 1.4).
+      const x0 = i * sp + dx0 + (thash(i, j, n * 31 + 2) - 0.5) * 2 * TH_JIT * sp;
+      const z0 = j * sp + dz0 + (thash(i, j, n * 31 + 3) - 0.5) * 2 * TH_JIT * sp;
+      // UNDER THE CLOUD. The map's coverage carries a soft edge, so most of a
+      // covered texel reads well under 1; a linear ramp on it barely clusters
+      // anything. What matters is whether there IS cloud overhead, so the odds
+      // step over the edge instead of leaning on its depth.
+      const cov = C.map ? CLOUD_FIELD.sample(C.map, x0, z0)[0] : 0;
+      if (thash(i, j, n * 31 + 1) > 0.22 + 0.68 * smf01(cov / 0.25)) { out.ok = false; return out; }
+      // AND ON GROUND THAT HEATS: no column stands over water. The raster is
+      // bilinear, so a point just off a beach still carries some of the land's
+      // heat; under this floor there is no thermal at all, not a weak one.
+      if (reliefAt(x0, z0, RL3)[CH.heat] < 0.06) { out.ok = false; return out; }
+      const a = (utc / TH_LIFE + ph) - n;                            // 0..1 through its life
+      const e = smf01(a / 0.2) * (1 - smf01((a - 0.7) / 0.3));
+      if (e <= 0.001) { out.ok = false; return out; }
+      out.x = x0; out.z = z0;
+      out.k = (0.6 + 0.8 * thash(i, j, n * 31 + 4)) * e;
+      out.ok = true;
+      return out;
+    }
+    // THE COLUMN'S SHAPE (Lenschow 1980 / Allen 2006): a mean updraft over the
+    // layer's depth, a core of radius r2, and a SINK ANNULUS out to 2 r2 that
+    // carries down exactly the air the core lifts - mass balanced by
+    // construction (the core integrates to pi w r2^2 / 2 and the annulus to
+    // 2 pi r2^2 w_ann, so w_ann = w/4). Above z_i there is nothing: a glider
+    // does not climb into the cloud here, and that is a declared cut.
+    function thermalAt(x, z, agl, C, utc) {
+      const zi = C.zi;
+      if (agl <= 0 || agl >= zi) return 0;
+      const zr = agl / zi;
+      const wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+      if (wbar <= 0) return 0;
+      const r2 = Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * zi);
+      const sp = C.spacing;
+      const dx0 = C.ux * utc, dz0 = C.uz * utc;                      // the lattice, carried downwind
+      // THE TILT IS THE SHEAR'S, NOT THE WIND'S. The column rides in the moving
+      // air, so the wind itself carries the whole thing (that is the lattice's
+      // drift above) and cannot lean it. What leans it is the DIFFERENCE between
+      // the wind at this height and the mean the column travels at: a parcel
+      // took agl/w* seconds to get here and spent them in air moving (U(z)-U_bl)
+      // relative to the column. Using the whole wind instead put a 2 km lean on
+      // a 900 m column - measured, and wrong by the width of the lattice.
+      const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, agl)) / windSpec.refH, windSpec.alpha) : 1;
+      const shx = C.bx * kz - C.ux, shz = C.bz * kz - C.uz;
+      const lag = Math.min(900, agl / C.wRef);
+      const tx = x - shx * lag, tz = z - shz * lag;
+      const i0 = Math.floor((tx - dx0) / sp), j0 = Math.floor((tz - dz0) / sp);
+      let w = 0;
+      for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) {
+        const c = thermalCell(i0 + di, j0 + dj, C, utc, dx0, dz0, TH_TMP);
+        if (!c.ok) continue;
+        const ddx = tx - c.x, ddz = tz - c.z, r = Math.hypot(ddx, ddz);
+        if (r > 2 * r2) continue;
+        const wstar = C.wstarOf(reliefAt(c.x, c.z, RL2)[CH.heat]);
+        if (!(wstar > 0)) continue;
+        const wpk = TH_CORE * wbar * wstar * c.k;                    // the core's peak (see TH_CORE)
+        w += r <= r2 ? wpk * (1 - (r / r2) * (r / r2))
+                     : -(wpk / 4) * (1 - Math.pow((r - 1.5 * r2) / (0.5 * r2), 2));
+      }
+      return w;
+    }
+    // THE SEA BREEZE (K3). The land heats, the air over it rises, and the sea's
+    // cooler air runs in underneath: a flow along the coast's own gradient (the
+    // raster's `cgx, cgz`, which points inland), driven by the same lagged sun,
+    // killed by cloud, about 700 m deep, reaching ~20 km inland and ~8 km out.
+    // At night it reverses, weakly, as the land gives its heat back.
+    //
+    // The VERTICAL part is continuity and nothing else: the horizontal flow dies
+    // out inland, so what it carries has to go up. With A(d) = V exp(-|d|/D),
+    //   div V_h = (1 - z/H) dA/dd = -(1 - z/H) A sgn(d) / D
+    //   w(z)    = -int_0^z div  =  (A/D) sgn(d) z (1 - z/2H)
+    // NAMED CUT, and it matters: that lift is BROAD - 0.05-0.1 m/s spread over
+    // twenty kilometres, which is what a front's convergence comes to when it is
+    // smeared over its whole envelope. The real sea-breeze front is a line, 1-2
+    // m/s over a kilometre, and a glider works the line. That sharpening (where
+    // the breeze meets the opposing gradient wind) is owed, not modelled here.
+    // The breeze's WIND is honest and is the big effect: a coast that swings
+    // onshore through the afternoon.
+    function breezeAt(x, z, agl, C, out) {
+      const R = reliefAt(x, z, RL2), d = R[CH.coast];
+      const drive = C ? C.sinEl * (1 - 0.8 * clamp(C.cover, 0, 1)) : -0.25;
+      const D = d >= 0 ? SB_IN : SB_OUT;
+      const A = SB_V * drive * Math.exp(-Math.abs(d) / D);
+      const zc = Math.min(agl, SB_H);
+      const envZ = Math.max(0, 1 - agl / SB_H);
+      out[0] = A * envZ * R[CH.cgx];
+      out[2] = A * envZ * R[CH.cgz];
+      out[1] = (A / D) * (d >= 0 ? 1 : -1) * zc * (1 - zc / (2 * SB_H));
+      return out;
+    }
+    const BR = [0, 0, 0];
     // ---- the linearised sampler (rule 2) -----------------------------------
     // The reference: the ground and its gradient (three terrainH calls), the seven channels and their
     // Jacobian (four smooth() calls). A call within LIN_R of it at the same instant costs a pow and
@@ -523,6 +727,41 @@ var CLIMATE = (function () {
       return { visibilityKm: visKm, rho0: 3.912 / Math.max(0.05, visKm * 1000),
                top: 60, H: 18, rhSfc: w ? w.rh(0) : null, lcl: w ? w.lcl : null };
     }
+    // thermals(): every live column within `r` of a point, as records - what the
+    // debug view draws, what a gate flies to, and what a panel counts. Pure in
+    // the day's clock, like the field it reads.
+    function thermals(x, z, r) {
+      const C = convNow();
+      if (!C || !rich || !(rich.thermals > 0)) return [];
+      const utc = env.day ? env.day.utc : 0;
+      const sp = C.spacing, dx0 = C.ux * utc, dz0 = C.uz * utc;
+      r = r || 6000;
+      const i0 = Math.floor((x - r - dx0) / sp), i1 = Math.floor((x + r - dx0) / sp);
+      const j0 = Math.floor((z - r - dz0) / sp), j1 = Math.floor((z + r - dz0) / sp);
+      const out = [];
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const c = thermalCell(i, j, C, utc, dx0, dz0, { x: 0, z: 0, k: 0, ok: false });
+        if (!c.ok) continue;
+        if (Math.hypot(c.x - x, c.z - z) > r) continue;
+        const heat = reliefAt(c.x, c.z, RL2)[CH.heat];
+        const wstar = C.wstarOf(heat);
+        if (!(wstar > 0)) continue;
+        const g = terrainH(c.x, c.z);
+        // the peak at mid-layer, which is the number a pilot would quote, and the
+        // axis THERE - the column leans with the shear, so where you circle is not
+        // over where it was born (`x0, z0` is the source on the ground)
+        const zr = 0.5, wbar = Math.pow(zr, 1 / 3) * (1 - 1.1 * zr);
+        const mid = 0.5 * C.zi;
+        const kz = windSpec.refH ? Math.pow(Math.min(WIND_TOP_H, Math.max(0.2, mid)) / windSpec.refH, windSpec.alpha) : 1;
+        const lag = Math.min(900, mid / C.wRef);
+        out.push({ i, j, x: c.x + (C.bx * kz - C.ux) * lag, z: c.z + (C.bz * kz - C.uz) * lag,
+                   x0: c.x, z0: c.z, ground: g, zi: C.zi, top: g + C.zi, mid: g + mid, k: c.k, wstar,
+                   wpk: TH_CORE * wbar * wstar * c.k,
+                   r2: Math.max(20, TH_R2K * Math.pow(zr, 1 / 3) * (1 - 0.25 * zr) * C.zi) });
+      }
+      out.sort((a, b) => (b.wpk - a.wpk) || (a.x - b.x) || (a.z - b.z));
+      return out;
+    }
     // refresh(): the viewer's tick calls this when the DAY's clock has moved,
     // so a front's veer and rise reach the wind. Pure: re-resolving the
     // declared spec against the day as it now is. A day with no front and no
@@ -530,7 +769,8 @@ var CLIMATE = (function () {
     function refresh() { if (spec0) setWind(spec0); }
     return {
       setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
-      profile, mixTop, haze, refresh, get water() { return waterNow(); },
+      profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
+      get conv() { return convNow(); },
       get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
       get relief() { return relief; }, get version() { return version; }, stats,
     };

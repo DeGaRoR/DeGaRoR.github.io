@@ -6952,6 +6952,10 @@
     if (lab !== nrgLabel) { nrgLabel = lab; if (R.nrgU) R.nrgU.textContent = lab; }
     if (RD.nrg) RD.nrg.classList.toggle('warn', dead || frac < 0.1);
   }
+  // the netto's state: a 3 s needle and a 20 s ring, as a vario has
+  let nettoF = 0, nettoI = 0;
+  const nettoRing = new Float64Array(20 * 60);
+  const apSheet = () => { try { return ap && ap.sheet ? ap.sheet : null; } catch (e) { return null; } };
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;
@@ -6964,6 +6968,27 @@
     R.ias.textContent = ias.toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
+    // THE NETTO VARIOMETER (CLIMATE K3). `vs` is what the AEROPLANE is doing;
+    // netto is what the AIR is doing, which is the number a soaring pilot flies
+    // by: add back the sink the machine would have at this speed in still air
+    // (the sheet's own polar, 44_machine_sheet sinkAt) and what is left is the
+    // thermal. A variometer is an average - the instantaneous reading carries
+    // every gust and the turn's load factor - so this is a 3-second one, and
+    // the label carries a 20-second mean beside it, as a real vario's does.
+    if (instOn && instOn.netto) {
+      const sk = apSheet();
+      if (sk && sk.sinkAt) {
+        const raw = o.vs + sk.sinkAt(o.V || 0);
+        nettoF += (raw - nettoF) * Math.min(1, (1 / 60) / 3 * 3);
+        nettoRing[nettoI = (nettoI + 1) % nettoRing.length] = raw;
+        let m = 0; for (const q of nettoRing) m += q;
+        m /= nettoRing.length;
+        if (R.netto) R.netto.textContent = (nettoF >= 0 ? '+' : '') + nettoF.toFixed(1);
+        if (RD.netto) { RD.netto.classList.toggle('on', nettoF > 0.3); RD.netto.classList.toggle('warn', nettoF < -1.5); }
+        const u = RD.netto && RD.netto.querySelector('i');
+        if (u) u.textContent = 'm/s air · ' + (m >= 0 ? '+' : '') + m.toFixed(1) + ' avg';
+      }
+    }
     hudEnergy();
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
     // number the PLAQUE actually declares. The stall is one — genShakedown
@@ -7914,7 +7939,8 @@
     },
   };
 
-  const FL_INST = [['aoa', 'angle of attack'], ['bank', 'bank'],
+  const FL_INST = [['netto', 'netto vario (what the AIR is doing)'],
+    ['aoa', 'angle of attack'], ['bank', 'bank'],
     ['agl', 'height above ground'], ['thr', 'throttle'],
     ['tas', 'true airspeed'], ['pwr', 'power'],
     ['de', 'elevator'], ['da', 'aileron'], ['dr', 'rudder']];

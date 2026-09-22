@@ -37,6 +37,8 @@
 //   sinkMin   0.877 x Vbg / LDbest (m/s) — the minimum sink at idle, derived
 //             from the measured glide (3^(3/4)/2 on a parabolic polar)
 //   sinkBg    Vbg / LDbest — the sink at best glide
+//   sinkAt(V) the whole polar through those two points (CLIMATE K3), so a
+//             variometer can say what the AIR is doing: netto = vs + sinkAt(V)
 //   gammaClimb, LDbest — measured
 // THE RUNS: TORun (measured, the sheet's), LDGrun (derived: the stop from
 // 1.15 Vs0 at the grass datum's braking, the accelerate-stop's own law).
@@ -99,6 +101,34 @@ function machineSheet(def, opts) {
     src,
     shakedown: !!sh,
   };
+  // ---- THE POLAR, AS A CURVE (CLIMATE K3) -----------------------------------
+  // The sheet knows two points of the glide polar - minimum sink at Vms and the
+  // sink at best glide at Vbg - and a variometer needs the whole curve: to say
+  // what the AIR is doing it must subtract what the AEROPLANE would be doing at
+  // the speed it is flying.
+  //
+  //   sink(V) = a V^3 + b / V
+  //
+  // is the parabolic-polar sink rate (induced drag goes as 1/V, profile as V^3
+  // in the sink), and two measured points fix a and b exactly. It is the same
+  // curve Vms = 0.76 Vbg and sinkMin = 0.877 sinkBg were derived from, so this
+  // adds no new assumption - it just stops throwing the curve away.
+  //
+  // NETTO, which is what a soaring pilot reads: vs + sink(V). The glider's own
+  // sink is added back, so still air reads zero and what is left is the air.
+  S.sinkAt = (() => {
+    if (!(Vbg > 0) || !(S.sinkBg > 0) || !(S.Vms > 0) || !(S.sinkMin > 0)) return null;
+    // solve [Vbg^3, 1/Vbg; Vms^3, 1/Vms] [a; b] = [sinkBg; sinkMin]
+    const A1 = Vbg * Vbg * Vbg, B1 = 1 / Vbg, A2 = S.Vms * S.Vms * S.Vms, B2 = 1 / S.Vms;
+    const det = A1 * B2 - A2 * B1;
+    if (!(Math.abs(det) > 1e-12)) return null;
+    const a = (S.sinkBg * B2 - S.sinkMin * B1) / det;
+    const b = (A1 * S.sinkMin - A2 * S.sinkBg) / det;
+    return V => {
+      const v = Math.max(0.5 * S.Vms, Math.min(3 * Vbg, V || Vbg));   // the curve is only good where it was fitted
+      return Math.max(0, a * v * v * v + b / v);
+    };
+  })();
   // the same numbers, rounded, for a plaque or a status line
   S.show = () => {
     const o = {};

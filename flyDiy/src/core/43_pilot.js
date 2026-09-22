@@ -259,6 +259,11 @@ function makePilot(sim, def, world, opts) {
     box: { on: false, lat: null, vert: null, thr: null, sel: {}, resume: null },
     nav: null,
     budget: 600, style: ST.name, legs: null, legI: 0, path: null, pathI: 0, plan: null,
+    // THE SHEET, PUBLISHED (CLIMATE K3). The header has said since P0.4 that it
+    // is "published as ap.sheet for the panel and the planner to come" and it
+    // never was - the panel came (the netto variometer reads its polar), so it
+    // is published now, lazily, through the same memo the pilot uses.
+    get sheet() { return sheetOf(); },
   };
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });

@@ -13,14 +13,16 @@
 //  11. the front on the clock: it rises, veers, drops the temperature and the pressure, closes the
 //      sky, and leaves behind the day it found - smoothly
 //  15. the two clocks: the sim's moves the gusts, the day's moves the front, and neither moves the other
-// (8-9 thermals/breeze, 12 the sea, 13 the cloud link: added by their sessions —
-//  futureDesigns/CLIMATE-2026-09-22.md)
+//   8-9. the thermals (a core, a sink ring that balances it, a lid, a night that is an exact zero,
+//        a lattice that walks downwind) and the sea breeze that reverses overnight
+//  13. the thermals cluster under the cumulus, because the clouds and the columns are ONE field
+// (12 the sea: added by its session — futureDesigns/CLIMATE-2026-09-22.md)
 //
 //   src/core/09_climate.js, 20_world.js  ->  tools/flight_core.js  ->  here
 // Run: node tools/test_climate.js   (contract: one final `GATE CLIMATE: ...`)
 
 const fs = require('fs'), path = require('path');
-const { CLIMATE, makeWorld } = require('./flight_core.js');
+const { CLIMATE, CLOUD_FIELD, makeWorld } = require('./flight_core.js');
 
 let fails = 0;
 const fail = (m) => { console.log('  FAIL ' + m); fails++; };
@@ -279,6 +281,143 @@ console.log('7. the linearised sampler');
   W.setWind(null);
 }
 
+// ---- 8. the thermals -----------------------------------------------------------------------
+console.log('8. the thermals');
+{
+  const W8 = makeWorld();
+  const DAY8 = { date: '2026-06-21', localHours: 14, oatC: 24, dewC: 9, lapse: 'mixed', mixH: 1800,
+                 cloudCover: 0.4, cloudType: 'cu', cloudSeed: 1 };
+  W8.setDay(Object.assign({ wind: { kts: 0, dirDeg: 0, refH: 10, thermals: 1 } }, DAY8));
+  const c = W8.climate, C = c.conv;
+  yes(!!C && C.zi === 1800, `a summer afternoon convects: z_i ${C ? C.zi.toFixed(0) : '-'} m, the lid under a ${c.profile(0).lcl.toFixed(0)} m base`);
+  yes(C.beam > 300 && C.beam < 800, `the beam is ${C.beam.toFixed(0)} W/m2 after the albedo and the cloud`);
+  const wsRock = C.wstarOf(0.6), wsGrass = C.wstarOf(0.35), wsWater = C.wstarOf(0);
+  yes(wsRock > wsGrass && wsGrass > 1.4 && wsGrass < 3.2 && wsWater === 0,
+      `w* is ${wsGrass.toFixed(2)} m/s over grass, ${wsRock.toFixed(2)} over rock, and exactly ${wsWater} over water`);
+  const th = c.thermals(0, 0, 8000);
+  yes(th.length >= 2, `${th.length} live columns within 8 km, spaced ${C.spacing.toFixed(0)} m (1.5 z_i, Lenschow)`);
+  const t = th[0];
+  yes(t.wpk > 2 && t.wpk < 6, `the best of them peaks at ${t.wpk.toFixed(2)} m/s in a ${t.r2.toFixed(0)} m core`);
+  // UP THE COLUMN: nothing at the ground, a peak in the lower half, nothing at the lid
+  const s8 = [0, 0, 0];
+  const at = (dx, agl) => { c.sample(t.x + dx, t.ground + agl, t.z, 0, s8); return s8[1]; };
+  const prof = [50, 300, 600, 900, 1200, 1500, 1790].map(a => at(0, a));
+  yes(prof[1] > 2 && prof[6] < 0.3 && prof[1] > prof[5],
+      `up the core: ${prof.map(v => v.toFixed(1)).join(' / ')} m/s at 50 / 300 / 600 / 900 / 1200 / 1500 / 1790 m`);
+  yes(at(0, 1900) === 0 && at(0, -5) === 0, 'above the lid and under the ground there is nothing at all');
+  // ACROSS IT: a core, a ring of sink, then air that is merely turbulent. The
+  // mixed layer gusts everywhere, so `outside` is a MEAN over half a minute -
+  // the column is done there, the roughness is not.
+  const mean30 = (dx, agl) => { let q = 0, n = 0;
+    for (let tt = 0; tt < 30; tt += 0.5) { c.sample(t.x + dx, t.ground + agl, t.z, tt, s8); q += s8[1]; n++; }
+    return q / n; };
+  yes(at(t.r2 * 1.5, 600) < -0.1 && Math.abs(mean30(t.r2 * 3, 600)) < 0.15,
+      `across it: ${at(0, 600).toFixed(2)} in the core, ${at(t.r2 * 1.5, 600).toFixed(2)} in the sink ring, ${mean30(t.r2 * 3, 600).toFixed(2)} outside (a 30 s mean: the layer is rough there, but the column is done)`);
+  // MASS BALANCE. Measured at a constant HEIGHT ABOVE THE GROUND, because the
+  // column's profile is a function of agl and sloping ground would otherwise
+  // tilt the sum by geometry rather than by the model.
+  {
+    const R = 2.2 * t.r2, st = 2;
+    let net = 0, abs = 0;
+    for (let dx = -R; dx <= R; dx += st) for (let dz = -R; dz <= R; dz += st) {
+      const r = Math.hypot(dx, dz); if (r > R) continue;
+      const X = t.x + dx, Z = t.z + dz;
+      c.sample(X, W8.terrainH(X, Z) + 600, Z, 0, s8);
+      net += s8[1]; abs += Math.abs(s8[1]);                          // a cartesian grid: every cell the same area
+    }
+    yes(Math.abs(net) < 0.02 * abs, `what the core lifts, the ring brings back: the net flux is ${(100 * Math.abs(net) / abs).toFixed(2)} % of the gross`);
+  }
+  // THE NIGHT, and the lattice's clock
+  W8.setDay({ localHours: 2 });
+  yes(c.conv === null && at(0, 600) === 0, 'at two in the morning there is no convection at all, and the field is an exact zero');
+  W8.setDay({ localHours: 14 });
+  yes(Math.abs(at(0, 600) - prof[2]) < 1e-9, 'and the same hour is the same air again');
+  // THE LATTICE DRIFTS with the boundary layer's wind, on the DAY clock
+  W8.setDay(Object.assign({ wind: { kts: 12, dirDeg: 270, refH: 10, thermals: 1 } }, DAY8));
+  const a0 = W8.climate.thermals(0, 0, 9000)[0];
+  W8.setDay({ localHours: 14 + 600 / 3600 });                       // ten minutes later
+  const a1 = W8.climate.thermals(0, 0, 12000).filter(q => q.i === a0.i && q.j === a0.j)[0];
+  if (a1) {
+    const moved = (a1.x0 - a0.x0) / 600;
+    yes(moved > 1 && moved < 12, `and the whole field walks downwind at ${moved.toFixed(1)} m/s of the boundary layer's wind`);
+  } else fail('the same column could not be found ten minutes later');
+  // GROUND THAT HEATS: a column stands over the land, never over the water
+  W8.setDay(Object.assign({ wind: { kts: 0, dirDeg: 0, refH: 10, thermals: 1 } }, DAY8));
+  const over = c.thermals(0, 0, 12000);
+  const RLh = new Float32Array(CLIMATE.NCH);
+  const cold = over.filter(q => c.reliefAt(q.x0, q.z0, RLh)[CLIMATE.CH.heat] < 0.06);
+  const wet = over.filter(q => W8.surface(q.x0, q.z0) === W8.SURFACE.WATER);
+  yes(over.length > 0 && cold.length === 0, `all ${over.length} columns stand on ground that heats (${wet.length} of them within a raster cell of open water, which is the 200 m raster's own edge)`);
+}
+
+// ---- 9. the breeze --------------------------------------------------------------------------
+console.log('9. the breeze');
+{
+  const W9 = makeWorld();
+  const base = { date: '2026-06-21', oatC: 20, dewC: 10, cloudCover: 0 };
+  const c = W9.climate, CH = CLIMATE.CH, s9 = [0, 0, 0], R9 = new Float32Array(CLIMATE.NCH);
+  // a point a few kilometres inland of a real coastline
+  let pt = null;
+  for (let x = -9000; x <= 9000 && !pt; x += 500) for (let z = -9000; z <= 9000; z += 500) {
+    W9.setDay(Object.assign({ localHours: 15, wind: { kts: 0, dirDeg: 0, refH: 10, breeze: 1 } }, base));
+    const r = c.reliefAt(x, z, R9);
+    if (r[CH.coast] > 1500 && r[CH.coast] < 6000 && Math.hypot(r[CH.cgx], r[CH.cgz]) > 0.9) { pt = [x, z, r[CH.cgx], r[CH.cgz], r[CH.coast]]; break; }
+  }
+  if (!pt) fail('no clean coastline on this world'); else {
+    const [x, z, gx, gz, dc] = pt;
+    const g = Math.max(0, W9.terrainH(x, z));
+    const onshore = () => { c.sample(x, g + 100, z, 0, s9); return s9[0] * gx + s9[2] * gz; };   // along the coast's gradient: + is inland
+    const lift = () => { c.sample(x, g + 300, z, 0, s9); return s9[1]; };
+    W9.setDay({ localHours: 15 });
+    const day = onshore(), dayW = lift(), spd = Math.hypot(s9[0], s9[2]);
+    yes(day > 0.5, `${(dc / 1000).toFixed(1)} km inland at three in the afternoon the breeze blows ONSHORE at ${day.toFixed(2)} m/s`);
+    yes(dayW > 0, `and the air it pushes inland has to rise: ${dayW.toFixed(3)} m/s (broad, as a smeared front is - see the note in 09_climate.js)`);
+    W9.setDay({ localHours: 2 });
+    yes(onshore() < 0, `at two in the morning it has reversed and runs seaward (${onshore().toFixed(2)} m/s)`);
+    // cloud kills it
+    W9.setDay({ localHours: 15, cloudCover: 0.95 });
+    yes(onshore() < 0.5 * day, `an overcast afternoon kills it: ${onshore().toFixed(2)} against ${day.toFixed(2)} m/s in the clear`);
+    // and it dies out to sea and inland, and with height
+    W9.setDay({ localHours: 15, cloudCover: 0 });
+    c.sample(x, g + 900, z, 0, s9);
+    yes(Math.hypot(s9[0], s9[2]) < 0.2 * spd, `it is 700 m deep: ${Math.hypot(s9[0], s9[2]).toFixed(2)} m/s at 900 m against ${spd.toFixed(2)} at 100`);
+  }
+}
+
+// ---- 13. the thermals are under the clouds ---------------------------------------------------
+console.log('13. one field, not two');
+{
+  const W13 = makeWorld();
+  W13.setDay({ date: '2026-06-21', localHours: 14, oatC: 24, dewC: 9, lapse: 'mixed', mixH: 1800,
+               cloudCover: 0.4, cloudType: 'cu', cloudSeed: 7,
+               wind: { kts: 0, dirDeg: 0, refH: 10, thermals: 1 } });
+  const c = W13.climate, C = c.conv;
+  const map = C.map;
+  yes(map && map.seed === 7, 'the climate reads the weather map the SKY is drawn from, by the day’s own seed');
+  // UNDER CLOUD means under a real one: the map's coverage carries a soft edge,
+  // and counting every texel it touches would call a quarter of the sky's fringe
+  // 'cloud'. The threshold here is the same one the odds step over.
+  const th = c.thermals(0, 0, 20000);
+  let under = 0;
+  for (const t of th) if (CLOUD_FIELD.sample(map, t.x0, t.z0)[0] > 0.25) under++;
+  // THE BASELINE IS CLOUD OVER GROUND THAT CAN HOLD A THERMAL, not over the
+  // whole map: half this world is sea, no column stands there, and counting the
+  // sky over the water would flatter the comparison in the wrong direction.
+  let land = 0, landUnder = 0;
+  const RLc = new Float32Array(CLIMATE.NCH);
+  for (let gx = -20000; gx <= 20000; gx += 500) for (let gz = -20000; gz <= 20000; gz += 500) {
+    if (c.reliefAt(gx, gz, RLc)[CLIMATE.CH.heat] < 0.06) continue;
+    land++; if (CLOUD_FIELD.sample(map, gx, gz)[0] > 0.25) landUnder++;
+  }
+  const byArea = landUnder / Math.max(1, land), frac = th.length ? under / th.length : 0;
+  yes(th.length > 20 && frac > byArea * 1.6,
+      `${(frac * 100).toFixed(0)} % of ${th.length} columns stand under cloud, where cloud covers ${(byArea * 100).toFixed(0)} % of the ground that could hold one - twice over, because they are the same field`);
+  // and the cover's hand on the strength: more cloud, less sun, weaker thermals
+  const w0 = C.wstarOf(0.35);
+  W13.setDay({ cloudCover: 0.9 });
+  yes(W13.climate.conv.wstarOf(0.35) < w0, `and a covered sky weakens them (w* ${w0.toFixed(2)} -> ${W13.climate.conv.wstarOf(0.35).toFixed(2)} m/s)`);
+}
+
 // ---- 10. the column: the layered day and the water in it -------------------------------
 console.log('10. the column');
 {
@@ -450,6 +589,14 @@ console.log('14. the sources');
   yes(/WEATHER_UI\.mount/.test(ed), 'the shed mounts the same panel (one panel, two rails)');
   const dp = vw('dev_panel.js');
   yes(/fold\(root, 'climate'/.test(dp), 'and the F8 panel has a climate fold');
+  // K3: the variometer, and the day that owns the sky's seed
+  const ms = core('44_machine_sheet.js');
+  yes(/S\.sinkAt = /.test(ms), 'the machine sheet carries the whole polar (sinkAt), not just two points of it');
+  const pil = core('43_pilot.js');
+  yes(/get sheet\(\)/.test(pil), 'and the pilot publishes it, as its own header has said since P0.4');
+  yes(/instOn && instOn\.netto/.test(app) && /sinkAt\(o\.V/.test(app), 'the HUD has a netto variometer, off until the instruments row asks for it');
+  yes(/cloudSeed/.test(core('07_day.js')), 'the DAY owns the sky’s seed, so the clouds and the thermals are one field');
+  yes(/CLOUD_FIELD\.weatherMap/.test(cl) && /thermalCell/.test(cl), 'and the climate reads that same map to place its columns');
 }
 
 // ---- verdict -------------------------------------------------------------------------------
