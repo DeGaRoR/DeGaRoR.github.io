@@ -158,7 +158,50 @@ console.log('\n3. THE LAWS');
     verdict(/MIR\.t = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
     // the capture is projected from the STILL surface: through the displaced (faceted) position it creases along
     // every facet edge of the near patch's 3.75 m grid (G460.11.6)
-    verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
+    verdict(/vec4 mp = uWMirrorVP \* vec4\(vWP0 \+ mD, 1\.0\);/.test(w), 'the mirror is projected from the undisplaced position (never the faceted one)');
+    // THE SLOPE MOVES THE POINT, NOT THE UV (G460.11.9): the walk is R = reflect(V, n) followed from the
+    // MIRRORED EYE back to the water plane, Q = E' + R (h / R.y) - metres on the water, in the reflection's
+    // own direction, so no frame is assumed (the old uv push added a WORLD vector to a CAPTURE uv whose x
+    // axis is the negative of the world's). The four lines are asserted here and their arithmetic is proved
+    // below, scalar-wise: Q IS the point itself when the surface is flat, the walk stays on the plane, and
+    // the cap holds (a facet at grazing has R.y near zero and h / R.y near infinity).
+    verdict(/vec3 mR = reflect\(normalize\(vWP0 - mEye\), wNw\);/.test(w) &&
+            /float mH = mEye\.y - uWMirror4\.w, mL = max\(distance\(vWP0, mEye\), 1\.0e-3\);/.test(w) &&
+            /float mT = mH \/ max\(mR\.y, min\(mH \/ mL, 0\.02\)\);/.test(w) &&
+            /vec3 mD = vec3\(mEye\.x \+ mR\.x \* mT, vWP0\.y, mEye\.z \+ mR\.z \* mT\) - vWP0;/.test(w) &&
+            /mD \*= min\(1\.0, mLim \/ max\(length\(mD\), 1\.0e-4\)\);/.test(w) &&
+            !/muv = mp\.xy \/ mp\.w \* 0\.5 \+ 0\.5 \+ /.test(w),
+      "the slope walks the POINT on the water (the mirrored eye's reflected ray back to the plane), never the capture's uv");
+    verdict(/U\.uWMirror4\.value\.set\(1, MIR\.perturb, MIR\.lod, waterY\);/.test(w) && W.mirror.perturb > 0 && W.mirror.perturb <= 0.25,
+      `the mirror's plane rides uWMirror4.w (the walk needs it) and the walk is capped at ${(W.mirror.perturb * 100).toFixed(0)} % of the view distance`);
+    { // the shader's arithmetic, scalar-wise (the lines above are asserted verbatim, so the two cannot drift
+      // silently): flat water must give back the point, the walk must stay on the plane, the cap must hold
+      const K = W.mirror.perturb;
+      const walk = (ex, ey, ez, px, pz, py, nx, ny, nz) => {
+        const vx = px - ex, vy = py - ey, vz = pz - ez, vl = Math.hypot(vx, vy, vz);
+        const ux = vx / vl, uy = vy / vl, uz = vz / vl;
+        const nl = Math.hypot(nx, ny, nz), mx = nx / nl, my = ny / nl, mz = nz / nl;
+        const d = ux * mx + uy * my + uz * mz;
+        const rx = ux - 2 * d * mx, ry = uy - 2 * d * my, rz = uz - 2 * d * mz;
+        const t = (ey - py) / Math.max(ry, Math.min((ey - py) / Math.max(vl, 1e-3), 0.02));
+        let dx = ex + rx * t - px, dy = 0, dz = ez + rz * t - pz;
+        const k = Math.min(1, K * vl / Math.max(Math.hypot(dx, dy, dz), 1e-4));
+        return [dx * k, dy * k, dz * k, vl];
+      };
+      let flat = 0, cap = 0, plane = 0;
+      let r = 12345; const rnd = () => (r = (r * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      for (let i = 0; i < 2000; i++) {
+        const py = (rnd() - 0.5) * 80;                                  // the water's level, anywhere
+        const ex = (rnd() - 0.5) * 2000, ez = (rnd() - 0.5) * 2000, ey = py + 0.2 + rnd() * 400;
+        const px = ex + (rnd() - 0.5) * 4000, pz = ez + (rnd() - 0.5) * 4000;
+        const f = walk(ex, ey, ez, px, pz, py, 0, 1, 0);
+        if (Math.hypot(f[0], f[1], f[2]) > 1e-9) flat++;
+        const n = walk(ex, ey, ez, px, pz, py, (rnd() - 0.5) * 1.2, 1, (rnd() - 0.5) * 1.2);
+        if (Math.abs(n[1]) > 1e-12) plane++;
+        if (Math.hypot(n[0], n[1], n[2]) > K * n[3] + 1e-6) cap++;
+      }
+      verdict(flat === 0 && plane === 0 && cap === 0,
+        `the walk over 2000 eyes: flat water gives back the point (${flat} misses), it stays on the plane (${plane}), it never exceeds the cap (${cap})`); }
     verdict(W.mirror.moveM <= 4 && W.mirror.turnDeg <= 4 && W.mirror.jumpM > 0 && /due = jump \|\|/.test(mp), `the eye re-captures at ${W.mirror.moveM} m / ${W.mirror.turnDeg} deg, a jump (${W.mirror.jumpM} m / ${W.mirror.jumpDeg} deg) at once`);
     const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
   let mono = true, bounded = true, prev = -1;

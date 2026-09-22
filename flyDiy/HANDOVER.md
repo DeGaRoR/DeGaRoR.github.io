@@ -56326,3 +56326,38 @@ VERIFIED BY THE SESSIONS THAT OWN THE FILES, which is why the peer messages are 
   shape of haze(): the ingredients, never a distance.
 - GATE SKINMAT is red on master already (taperPanel, drawnPane, reveal, shoulder, doorPanel),
   measured on a clean master worktree; it is not this chantier's.
+## G460.11.9 - THE WAVE'S SLOPE MOVES THE POINT, NOT THE UV: the mirror's perturbation had no frame
+## (2026-09-22, the user: "fix the perturbation frame too" - the debt G460.11.8 wrote down an hour before)
+
+- WHAT IT WAS: `muv += wNw.xz * 0.06` - the water's WORLD normal added to the CAPTURE's uv. Three things
+  wrong in one line. (a) THE FRAME: the capture's x axis is the NEGATIVE of the world's (measured, debug
+  view 13: muv.x - suv.x is +1 at the left edge, 0 at the centre, -1 at the right; it is lookAt with the
+  reflected up re-orthonormalising to a right-handed basis, three's Reflector's own behaviour and harmless
+  because the projection carries the same flip - but a hand-written uv offset does NOT). So a slope moved
+  the reflection the wrong way horizontally. (b) THE PERSPECTIVE: a constant uv push is a constant ANGLE,
+  so a wave 5 m away and a wave 500 m away displaced the reflection by the same number of pixels. (c) THE
+  MAGNITUDE was a dial with no unit behind it.
+- WHAT IT IS: the honest form needs no frame at all, because the capture already answers the question.
+  What it holds at the projection of a point Q on the water plane is the radiance arriving at the eye
+  along the FLAT reflection of the eye-ray through Q. So to read what a TILTED facet at P sends to the
+  eye, take that facet's reflected ray R = reflect(V, n) and follow it from the MIRRORED EYE back down to
+  the plane: Q = E' + R (h / R.y), h the eye's height over the water. Q is P exactly when the water is
+  flat - GATE WATER proves it over 2000 random eyes, levels and grazings, 0 misses. The walk is METRES ON
+  THE WATER, so it carries the perspective for free and points where the reflection actually goes.
+- TWO GUARDS, both needed and both measured: the floor on R.y is min(h/L, 0.02) and never the flat ray's
+  own value - a bare max(R.y, 0.02) breaks the identity at grazing (162 of 2000 eyes failed it, found by
+  the gate, not by eye) - and the walk is CAPPED at `MIR.perturb` (0.05) of the view distance, because a
+  facet whose R.y goes to zero sends h/R.y to infinity and the lookup past the horizon.
+- WHAT IT BUYS, seen: screenshots/water-g440/c8/ at 9 m over a 12 m/s sea (A 0.6, L 14). chop_off.png -
+  the walk at zero - has the reflected clouds glued flat on the water as soft blobs that ignore the swell
+  entirely: paint. chop_on.png (0.05) breaks them along the wave faces into the chopped-mirror texture
+  that reads as water at a glance. chop_big.png (0.15) scatters them so finely the cloud loses its
+  identity - the dial's useful range is about 0.03 to 0.08. On calm water (h_on.png, the coast from 18 m)
+  the walk is near zero and the treeline still mirrors crisply, which is the identity above, drawn.
+- GATE WATER 3: the four lines asserted verbatim, plus the arithmetic proved scalar-wise (flat gives back
+  the point, the walk stays on the plane, the cap holds), plus `uWMirror4.w` carrying the mirror's plane
+  (the walk needs it; it was the spare slot). The old uv-push spelling is forbidden by name.
+- A TRAP FOR THE NEXT EDITOR OF THE HOOK: a BACKTICK in a comment inside the GLSL closes the template
+  literal and the file stops parsing with a message that points at a line forty above. Do not quote code
+  with backticks in there.
+- WATER, WORLDRENDER, HYDRODYN, FLOATS, GFX, CLOUD, UISMOKE, MEDIA green.

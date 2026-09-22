@@ -126,7 +126,7 @@ const WATER = (() => {
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: on, y: the slope's perturbation, z: the lod per roughness, w: 0
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: on, y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -345,9 +345,29 @@ const WATER = (() => {
             // position creases along every facet edge (straight world-axis lines across the near water, measured at
             // constant world x). The mirror's plane IS the still surface: the lookup comes from vWP0 (undisplaced)
             // and the wave's effect on the reflection is the slope's perturbation below, which is continuous
-            vec4 mp = uWMirrorVP * vec4(vWP0, 1.0);
+            // AND THE WAVE'S SLOPE MOVES THE POINT, NOT THE UV (G460.11.9, the user: "fix the perturbation
+            // frame too"). The old push was muv += wNw.xz * k: a WORLD vector added to a CAPTURE uv whose x
+            // axis is the NEGATIVE of the world's (lookAt with the reflected up re-orthonormalises to a
+            // right-handed basis - measured, debug view 13), so a slope moved the reflection the wrong way
+            // horizontally, by an amount that ignored the perspective, and in a frame nobody could name.
+            // The honest form needs no frame at all. What the capture holds at the projection of a point Q on
+            // the plane is the radiance arriving along the FLAT reflection of the eye-ray through Q - so to
+            // read the radiance the TILTED facet sends to the eye, take its reflected ray R = reflect(V, n)
+            // and follow it from the MIRRORED EYE back to the plane: Q = E' + R (h / R.y), h the eye's height
+            // over the water. Q is vWP0 exactly when the surface is flat (proved in GATE WATER), the walk is
+            // in metres on the water and so carries the perspective for free, and its direction is the
+            // reflection's own. It is CAPPED at uWMirror4.y of the view distance: a facet at grazing has
+            // R.y near zero and h / R.y near infinity, and an uncapped walk sends the lookup past the horizon
+            vec3 mEye = cameraPosition;
+            vec3 mR = reflect(normalize(vWP0 - mEye), wNw);
+            float mH = mEye.y - uWMirror4.w, mL = max(distance(vWP0, mEye), 1.0e-3);
+            float mT = mH / max(mR.y, min(mH / mL, 0.02));   // the floor never bites the FLAT ray (whose R.y is mH / mL): flat water must give back the point, at any grazing
+            float mLim = uWMirror4.y * mL;
+            vec3 mD = vec3(mEye.x + mR.x * mT, vWP0.y, mEye.z + mR.z * mT) - vWP0;
+            mD *= min(1.0, mLim / max(length(mD), 1.0e-4));
+            vec4 mp = uWMirrorVP * vec4(vWP0 + mD, 1.0);
             if (mp.w > 0.0) {
-              vec2 muv = mp.xy / mp.w * 0.5 + 0.5 + wNw.xz * uWMirror4.y;
+              vec2 muv = mp.xy / mp.w * 0.5 + 0.5;
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
                 vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
@@ -804,7 +824,7 @@ const WATER = (() => {
   // captures at once whatever the gap. THE CLOCK IS REAL SECONDS: a fake 1/60-a-call clock ran at a fifth of the
   // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
   // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, far: 4000, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, maxAgl: 60, res: 0.5, perturb: 0.05, lod: 5.0, far: 4000, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
   const mirrorTmp = {};
   function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
     opts = opts || {};
@@ -904,7 +924,7 @@ const WATER = (() => {
     MIR.last = { x: pos.x, y: pos.y, z: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w, wy: waterY }; MIR.lastT = MIR.t; MIR.on = true;
     U.uWMirror.value = MIR.rt.texture;
     U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
-    U.uWMirror4.value.set(1, MIR.perturb, MIR.lod, 0);
+    U.uWMirror4.value.set(1, MIR.perturb, MIR.lod, waterY);   // w: the mirror's plane, which the slope's walk needs (G460.11.9)
     U.uWRes.value.set(size.x, size.y);
     return true;
   }
