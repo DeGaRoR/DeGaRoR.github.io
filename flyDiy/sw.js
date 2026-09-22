@@ -1,4 +1,4 @@
-// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build cd4de559d3fd.
+// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build d396822f34b1.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
 const CACHE = 'flydiy-media-v1';
 self.addEventListener('install', e => { self.skipWaiting(); });
