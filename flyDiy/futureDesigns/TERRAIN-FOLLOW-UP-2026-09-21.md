@@ -7,8 +7,15 @@ seventeen sets, on the bench (`tools/_island.html`) and in the game
 splat). This lists what it left owed, in the order the user's eye will meet
 them, with what is known about each. Nothing here is started.
 
-**Status (2026-09-21, G471 + G477):** items 1, 3 and 4 LANDED (the Standard ring
-with the sets' roughness, GATE SPLAT, the rocky beach); 2, 5, 6, 7 as written.
+**Status (2026-09-22):** items 1, 2, 3 and 4 LANDED - the Standard near ring with
+the sets' roughness (G471), the FINE RING (G488), GATE SPLAT (G471), the rocky
+beach (G477) and its rocks (G486: the coast scans) with a far tier of their own
+(G493: the rock map). Since then, outside this list: the DEADWOOD (G496 - logs,
+sticks and stumps on every treed mix, floating in the muskeg pools, a wrack line
+on the beaches) and THE CLIFF TRIAL (G496.1 - photoscans placed, measured, OFF by
+default; the verdict is in the HANDOVER and the module). Items 5, 6 and 7 stand as
+written, and 6 (displacement) is now the only one still waiting on item 2, which
+is done - so it is a real candidate rather than a note.
 
 ## Where things are (read first)
 
@@ -72,7 +79,19 @@ roughness written into `roughnessmap_fragment` (the hook already computes
   response; re-measure the near/far luminance (the scratch `measure.py` recipe
   in HANDOVER G438.1) after the switch.
 
-## 2. The fine ring under the aeroplane (5 m geometry near the eye)
+## 2. The fine ring under the aeroplane (5 m geometry near the eye) - DONE G488
+
+Landed 2026-09-22: a 700 m disc of 5 m tiles round the eye replaces the near
+ring inside it (`?fine=0` for the A/B); the ring discards its fragments inside
+the disc, a tile discards outside, and the tile's rim geomorphs over its last
+120 m to the ring's OWN triangles, sampled exactly - one surface per pixel, no
+seam. Two findings for whoever reads this next: past the near ring (4.5 km) the
+ground is already the quadtree's leaves, so the disc switches off out there; and
+at 5 m the surface shows island_prep's lake FLATTENING as a 10 m staircase round
+every lake, which the 17.6 m chords had hidden - the fine vertices blend back to
+the ring's shape within 30 m of a lake until the prep feathers its lakes. The
+original text follows.
+
 
 The game's near ring is a 512x512 plane over the inner disc: 17.6 m chords.
 The true surface is 5 m (the quadtree's leaves, which the bench draws). This
