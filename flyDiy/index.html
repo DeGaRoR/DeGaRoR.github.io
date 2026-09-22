@@ -37053,7 +37053,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a70853898f79';window.FLYDIY_BUILD='c2328f27c0a9'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='a70853898f79';window.FLYDIY_BUILD='954d30507865'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -99292,9 +99292,28 @@ var SKY_LIGHT = (function () {
   let isMoon = false, lastEx = -1;
 
   // applyDay(day, o): o = { key, hemi, scene, renderer, unit (LIGHT_UNIT or 1), roomGain, sunGain, hemiBoost,
-  //                         hemiGnd (hex), gb (ground bounce), exposureK, altM }
+  //                         gndAlb (the world's mean albedo, linear rgb - the ground half is derived from it),
+  //                         gndGain, hemiGnd (hex, the fallback when there is no albedo),
+  //                         gb (ground bounce), exposureK, altM }
   // returns { isMoon, el, exposure, sunI, hemiI }
   const _c3 = (typeof THREE !== 'undefined' && THREE.Color) ? new THREE.Color() : { setRGB() { return this; } };
+  // groundHalf(key, hemi, dirY, alb, gb, gain) -> true when it wrote the ground term.
+  // ONE implementation of the derivation documented at its call site: both the day's pass and a
+  // MANUAL rig row (render_world rigApply, where the sliders place the sun by hand and applyDay
+  // never runs) must get the same answer, so neither of them owns the arithmetic.
+  function groundHalf(key, hemi, dirY, alb, gb, gain) {
+    if (!key || !hemi || !hemi.groundColor || !hemi.groundColor.setRGB || !alb) return false;
+    if (!(alb[0] + alb[1] + alb[2] > 0)) return false;
+    const gg = (gb != null ? gb : 1) * (gain != null ? gain : 1);
+    const hI = Math.max(1e-9, hemi.intensity), kI = key.intensity * Math.max(0, dirY);
+    const kc = key.color, sc = hemi.color;
+    const c = v => Math.min(4, Math.max(0, v));       // a ground brighter than 4x the sky is snow at noon, and past that it is a bug
+    hemi.groundColor.setRGB(c(alb[0] * (kc.r * kI + sc.r * hI) / hI * gg),
+                            c(alb[1] * (kc.g * kI + sc.g * hI) / hI * gg),
+                            c(alb[2] * (kc.b * kI + sc.b * hI) / hI * gg));
+    API.gnd = [hemi.groundColor.r, hemi.groundColor.g, hemi.groundColor.b];
+    return true;
+  }
   function applyDay(day, o) {
     if (!day || typeof ATMO === 'undefined') return null;
     if (K_SUN == null && !calibrate()) return null;
@@ -99338,8 +99357,30 @@ var SKY_LIGHT = (function () {
         // CLOUDS C3: under a cloud the sky's light is the deck's (the sun's transmitted colour diffused), not the zenith's blue
         if (o.cloudT != null && o.cloudT < 1 && !isMoon) { const mT = maxc(_T), w = 0.6 * (1 - Math.max(0, o.cloudT)); hemi.color.lerp(_c3.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT), w); }
       }
-      if (hemi.groundColor && hemi.groundColor.setHex && o.hemiGnd != null) {
+      // ---- THE GROUND HALF IS THE WORLD'S ALBEDO x WHAT FALLS ON IT (2026-09-22) ----
+      // It was a hex per rig row (island 0x3a3f30, alps 0x343422): a colour somebody chose, fixed
+      // against the sky through every hour, and the last authored green in the rig. It is derived
+      // now, and the derivation needs no new physics because three renders both terms in the same
+      // units: a hemisphere's ground irradiance is groundColor x intensity, its sky irradiance is
+      // skyColor x intensity, and a directional's on a horizontal surface is colour x intensity x
+      // max(0, dir.y). So what the GROUND receives is
+      //     E_total = keyColour x keyIntensity x max(0, dir.y)  +  skyColour x hemiIntensity
+      // and what it hands back upward is albedo x E_total, which in groundColor's own units is
+      //     groundColor = albedo (x) E_total / hemiIntensity  x gb x gain.
+      // Two checks the arithmetic must pass: a white ground (albedo 1) under no sun gives exactly
+      // the sky colour back, and the whole thing carries the moon, the horizon fade, the cloud
+      // transmittance and the hemisphere's boost for free, because they are already in the two
+      // lights. THE SHAPE OF THE RESULT: at noon the bounce is several times the sky term (the sun
+      // is what lights the ground); through dusk it falls to albedo x sky, faster than the sky
+      // itself - which the fixed hex could not do, it tracked the sky exactly at every hour.
+      // gb (LIGHT_RIG.groundBounce) is still the occlusion, and it is still a judgement: an
+      // unoccluded hemisphere of lit ground is right for an aeroplane over an open field and
+      // generous for a valley floor or a forest.
+      if (groundHalf(key, hemi, dir[1], o.gndAlb, o.gb, o.gndGain)) { /* derived (one implementation, below) */ }
+      else if (hemi.groundColor && hemi.groundColor.setHex && o.hemiGnd != null) {
+        // no world albedo (no imagery and no classifier - the bench's stub scenes): the row's hex
         hemi.groundColor.setHex(o.hemiGnd).multiplyScalar(o.gb != null ? o.gb : 1);
+        API.gnd = [hemi.groundColor.r, hemi.groundColor.g, hemi.groundColor.b];
       }
     }
     // the dome's scale: the same K, the same unit
@@ -99361,7 +99402,8 @@ var SKY_LIGHT = (function () {
     API.last = { isMoon, el, T: [_T[0], _T[1], _T[2]], phase: day.moonPhase };   // the flare reads the light's transmitted colour
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }
-  const API = { applyDay, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null };
+  const API = { applyDay, groundHalf, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null,
+                gnd: null };   // the ground half as last derived (linear rgb) - the F8 readout and GATE LIGHT read it
   if (typeof window !== 'undefined') window.SKY_LIGHT = API;
   return API;
 })();
@@ -101962,6 +102004,12 @@ const SPLAT_GROUND = (() => {
       for (let i = 0; i < n; i += 7) { const t = T[i]; if (t < 2) continue; const a = acc[t] || (acc[t] = [0, 0, 0, 0]);
         a[0] += lin(A[i * 3]); a[1] += lin(A[i * 3 + 1]); a[2] += lin(A[i * 3 + 2]); a[3]++; }
       const target = {}; for (const k in acc) { const a = acc[k]; target[k] = [a[0] / a[3], a[1] / a[3], a[2] / a[3], a[3]]; }
+      // THE WORLD'S MEAN ALBEDO, off the same pass (2026-09-22): the cell-weighted mean of every
+      // LAND cell's imagery (t >= 2, the convention above - water and no-data are not the ground the
+      // hemisphere's lower half stands for). The hemisphere's ground term is derived from it in
+      // render_world, so it is measured ONCE, here, where the raster is already being walked.
+      { let r = 0, g = 0, b = 0, n2 = 0; for (const k in acc) { const a = acc[k]; r += a[0]; g += a[1]; b += a[2]; n2 += a[3]; }
+        if (n2) R.albedoMean = [r / n2, g / n2, b / n2]; }
       const parent = { 12: 6, 13: 8, 14: 7 };
       const mean = {}; for (const st of SPLAT_TEX_SETS) mean[st.key] = st.mean;
       const num = {}, den = {}, SLOT = [0.6, 0.3, 0.1];
@@ -102057,6 +102105,7 @@ const SPLAT_GROUND = (() => {
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
+      albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
@@ -106975,6 +107024,55 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const k = 1 - Math.exp(-dt / 1.0);               // eased over a second
     for (let i = 0; i < 3; i++) GU.alb[i] += (GU.target[i] - GU.alb[i]) * k;
   }
+  // ---- THE WORLD'S MEAN ALBEDO (2026-09-22) --------------------------------
+  // The hemisphere's ground half used to be a hex per rig row. It is the world's own ground now,
+  // and the number is MEASURED ONCE, where the data lives:
+  //   an island  the imagery. G485 already walks isla.albedo cell by cell to normalise the splat's
+  //              sets to it (splat_ground normGains, stride 7, sRGB -> linear, land cells only);
+  //              the grand mean rides out of that same pass as SPL.api.albedoMean(). A second walk
+  //              here would be a second definition of one measurement, and they would drift.
+  //   otherwise  the SURFACE classifier over the world's own bounds through GROUND_ALBEDO (the
+  //              table above) - a 24 x 24 lattice, land classes only, WATER left out for the same
+  //              reason the imagery pass leaves it out: the sea is not the ground this term stands
+  //              for. This is the analytic world's answer, and the bench stubs'.
+  // Cached: a world's mean ground does not change. `pin` is the A/B (see hemiGndPin below).
+  // THE TWO SOURCES ARE NOT ON THE SAME SCALE, and the readout prints both so it is a measured
+  // fact rather than a claim. The imagery is surface REFLECTANCE (Landsat, visible bands: dense
+  // conifer 0.026 luma - vegetation really is that dark to the eye); GROUND_ALBEDO is the look
+  // table, whose GRASS was pinned at G495 to the exact colour a year of bellies had been judged
+  // against (0x6d7a45, luma 0.175) rather than to a measurement. On Jolene the classifier reads
+  // ~4x the imagery, so a world with no imagery gets a correspondingly stronger bounce. The
+  // imagery wins wherever it exists (it is the measurement); the gain is the lever if it must move.
+  const WALB = { v: null, src: 'none', pin: null, img: null, cls: null };
+  function albedoFromImagery() {
+    if (WALB.img) return WALB.img;
+    try {
+      const sp = groundApi && groundApi.splat && groundApi.splat();
+      const m = sp && sp.albedoMean && sp.albedoMean();
+      if (m && (m[0] + m[1] + m[2]) > 1e-6) return (WALB.img = m);
+    } catch (e) {}
+    return null;
+  }
+  function albedoFromClassifier() {
+    if (WALB.cls) return WALB.cls;
+    if (!world.surface || !world.SURFACE) return null;
+    const B = world.bounds, N = 24, t = [0, 0, 0]; let n = 0;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = B.x0 + (i + 0.5) / N * (B.x1 - B.x0), z = B.z0 + (j + 0.5) / N * (B.z1 - B.z0);
+      const k = guClassAt(x, z); if (k === 'WATER') continue;
+      const a = GROUND_ALBEDO[k]; t[0] += a[0]; t[1] += a[1]; t[2] += a[2]; n++;
+    }
+    return n ? (WALB.cls = [t[0] / n, t[1] / n, t[2] / n]) : null;
+  }
+  function worldAlbedo() {
+    if (WALB.pin) return WALB.pin;
+    if (WALB.v) return WALB.v;
+    const im = albedoFromImagery();
+    if (im) { WALB.v = im; WALB.src = 'imagery'; return im; }
+    const cl = albedoFromClassifier();
+    if (cl) { WALB.v = cl; WALB.src = 'classifier'; return cl; }
+    return null;
+  }
   const groundUnder = () => ({ cls: GU.pin ? 'PIN' : GU.cls, alb: capOf().slice(), target: GU.target.slice(), r: GU.r, mix: Object.assign({}, GU.mix), table: GROUND_ALBEDO });
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
@@ -107061,6 +107159,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // drop density than shadow fidelity"): the sun map always covers ±540 m,
   // so nothing inside it pops from shadow to none as the aircraft climbs
   const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 540 };
+  // the ground half's gain over the derivation (1 = the physics as measured); a row may dial it,
+  // and 0 turns the world's bounce off altogether - the A/B that says what it is doing
+  const GND_GAIN = 1;
   // THE LIGHT UNIT (W0.5a). r128 drew the world under the LEGACY light model,
   // where a directional or hemisphere intensity meant PI times what the
   // physical model — r186's only one — means (lights_pars_begin's
@@ -111340,6 +111441,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
       SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer, unit: LIGHT_UNIT,
         sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
+        gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
+        gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
@@ -111360,7 +111463,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     exposure: (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null)
       ? window.GFX.exposureBase() : ((renderer && renderer.toneMappingExposure) || 1),   // the BASE, never the menu's step over it
     env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
-    farShadow: true, snap: true, manual: false,
+    farShadow: true, snap: true, manual: false, gndGain: GND_GAIN, gndDerive: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     // the painted dome's palette; the physical dome (S3) has none, and the row keeps the legacy numbers for the fallback
     dome: (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uTop) ? {
@@ -111431,7 +111534,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     dayVer = -1;                                   // a row write re-arms the day's pass on the next frame
     sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
     hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
-    if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
+    if (hemi.color && hemi.color.setHex) {
+      hemi.color.setHex(R.hemiSky);
+      // THE GROUND HALF, the same one implementation the day's pass uses (sky_light groundHalf):
+      // a MANUAL row places the sun by hand and dayApply returns early, so this is the only writer
+      // then. The hex is what is left when the world has no albedo to derive from.
+      const alb = R.gndDerive === false ? null : worldAlbedo();
+      const done = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.groundHalf)
+        ? SKY_LIGHT.groundHalf(sun, hemi, SUN.y, alb, gb, R.gndGain) : false;
+      if (!done) hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb);
+    }
     if (renderer) { if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(renderer, R.exposure); else renderer.toneMappingExposure = R.exposure; }
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
@@ -111472,6 +111584,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
     // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
     groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
+    // THE WORLD'S MEAN ALBEDO and the hemisphere's ground half derived from it (the F8 readout, the rig)
+    worldAlbedo: () => ({ alb: worldAlbedo(), src: WALB.pin ? 'pinned' : WALB.src, pin: WALB.pin,
+                          img: albedoFromImagery(), cls: albedoFromClassifier(),   // both, so the scale gap between them is measured and not asserted
+                          gnd: (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.gnd) ? SKY_LIGHT.gnd.slice() : null,
+                          gain: rigCur.gndGain == null ? 1 : rigCur.gndGain, derive: rigCur.gndDerive !== false,
+                          // hemiI is here because groundColor ALONE is a misleading readout: it is divided by
+                          // the hemisphere's intensity, so it shrinks when the `hemisphere` dial grows while the
+                          // light it stands for does not move at all. groundColor x hemiI is the invariant.
+                          hemiI: hemi ? hemi.intensity : 0, hex: rigCur.hemiGnd, gb }),
+    // pinned, for an A/B from one boot (tools/light_shot.js --step); null hands it back to the world
+    worldAlbedoPin: a => { WALB.pin = a ? a.slice(0, 3) : null; dayVer = -1; return WALB.pin; },
     // PINNED, for an A/B from ONE boot and one eye (tools/light_shot.js --step): a linear rgb holds the
     // cap there - `WORLD_RIG.groundUnderPin(WORLD_RIG.groundUnder().table.GRASS)` is what the old
     // fixed cap did everywhere - and null hands it back to the ground. The instrument, not a setting.
@@ -144104,7 +144227,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     E.appendChild(slider('sun', 0, 5, 0.05, () => rig().get().sunI, v => rig().set({ sunI: v })));
     E.appendChild(slider('sun warmth', 0, 1, 0.02, () => sunWarm(), v => rig().set({ sunCol: warmHex(v) })));
     E.appendChild(slider('hemisphere', 0, 1.5, 0.02, () => rig().get().hemi, v => rig().set({ hemi: v })));
-    E.appendChild(note('the hemisphere is the WORLD’s one ambient - its sky half is the day’s irradiance, its ground half the rig row’s average ground (every slope and underside out there, not this aeroplane’s)'));
+    E.appendChild(note('the hemisphere is the WORLD’s one ambient - its sky half is the day’s irradiance, its ground half the world’s own mean albedo x what falls on it (every slope and underside out there, not this aeroplane’s: the probe’s cap is the craft’s)'));
+    // THE GROUND HALF, DERIVED (2026-09-22): the world's mean albedo, the colour it hands back, and the two levers
+    E.appendChild(select('ground bounce', [['1', 'the world’s albedo (derived)'], ['0', 'the row’s hex (before)']],
+      () => (rig().get().gndDerive === false ? '0' : '1'), v => rig().set({ gndDerive: v === '1' })));
+    E.appendChild(slider('ground bounce gain', 0, 2, 0.05, () => { const g = rig().get().gndGain; return g == null ? 1 : g; }, v => rig().set({ gndGain: v })));
+    { const n = note(''); const R = { el: n, refresh: () => {
+        const w = (rig() && rig().worldAlbedo) ? rig().worldAlbedo() : null;
+        if (!w) { n.textContent = 'the world’s albedo: (no world yet)'; return; }
+        const f = a => a ? a.map(v => v.toFixed(3)).join('/') : '-';
+        const L = a => a ? (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]).toFixed(3) : '-';
+        // the BOUNCE (groundColor x hemiI) is the invariant: groundColor alone moves with the hemisphere dial
+        const bo = (w.gnd && w.hemiI) ? w.gnd.map(v => v * w.hemiI) : null;
+        n.textContent = `the world’s mean albedo (${w.src}): ${f(w.alb)} luma ${L(w.alb)}` +
+          ` → the ground half ${f(w.gnd)}, bounce luma ${L(bo)}${w.derive ? '' : '  (DERIVE OFF - the hex)'}` +
+          `${w.gb !== 1 ? '  · occlusion ' + w.gb : ''}`; } };
+      rows.push(R); live.push(R); E.appendChild(n); }
     // THE GROUND UNDER THE CRAFT (2026-09-22): the probe's cap, which IS the aeroplane's ambient
     // from below - what it is now, what it is easing to, and what the probe last baked over.
     // (the panel can be built before the world is - every read is inside the refresh, guarded, the
