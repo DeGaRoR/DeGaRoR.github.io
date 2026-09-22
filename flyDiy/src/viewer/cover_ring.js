@@ -200,15 +200,20 @@ var COVER_RING = (() => {
     // (0 the biome's, 1 a plot's LAWN, 2 a plot's meadow, 3 none), the lawn's height and density factor,
     // and `col` (the linear colour the DRAWN ground has beside a pavement) taken as the tuft's ground
     const KIND = { lawn: 1, meadow: 2, none: 3 };
+    // IS THERE A PAVEMENT AT THIS NODE? (v1.17 coverAt's `cls`). The vocabulary is the premises' own -
+    // grass, asphalt, concrete, worn, gravel, dirt, sand - plus the analytic world's asphalt / gravel / grass,
+    // so the test is "a class at all", not a list to keep in step. The debris reads it because a GRASS strip's
+    // `kill` never passes 0.6 (it is the world's grass, mown), and kill alone would leave a log lying across a
+    // grass runway (the roads session, 2026-09-22).
     function subGrid(x0, z0, C) {
       const N = Math.round(C / SG) + 1, mix = new Array(N * N), code = new Int16Array(N * N), ok = new Uint8Array(N * N), col = new Float32Array(N * N * 3);
-      const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N);
+      const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N), cls = new Uint8Array(N * N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
         code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
-        if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0;
+        if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
           // a plot is the biome's ground with a lawn on it: the tuft stands, the mix does not
           if (kind[k] && !mix[k]) mix[k] = 'lawn'; if (kind[k] && !ok[k] && ctx.okAt(x, z)) ok[k] = 1; }
@@ -217,7 +222,7 @@ var COVER_RING = (() => {
       }
       const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
       let bmax = 0, lawn = 0; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; }
-      return { N, mix, code, ok, col, kill, boost, kind, lawnH, lawnD, at, bmax, lawn };
+      return { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn };
     }
 
     // ---- THE ROCKS OF ONE CELL (2026-09-22, the rock map) --------------------------------
@@ -269,6 +274,14 @@ var COVER_RING = (() => {
         }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
+        // NOTHING LIES ON A PAVEMENT (2026-09-22, the roads session's v1.17 `coverAt`, which the ring already
+        // samples per lattice node for the tufts): a log has no business on a runway, an apron, a road or a
+        // track. `kill` is 1 over a hard surface AND its drawn band, falling to 0 over the 6 m fade past it -
+        // but a GRASS strip only ever thins the cover to 0.6, so kill alone would leave a log across a grass
+        // runway: the piece is refused wherever the pavement has a CLASS and a grip on the ground (kill 0.5),
+        // and thinned by what is left of the fade beyond it.
+        if (G.kill[gk] >= 1 || (G.cls[gk] && G.kill[gk] >= 0.5)) continue;
+        if (G.kill[gk] > 0 && Rq() > 1 - G.kill[gk]) continue;
         if (floats) { if (!(ctx.poolAt && ctx.poolAt(x, z) > 0.6)) continue; }
         else if (!G.ok[gk]) continue;
         const p = draw(P, r2);
@@ -478,6 +491,11 @@ var COVER_RING = (() => {
         if (S.cell !== was.cell || S.density !== was.density || S.shrubs !== was.shrubs || S.rocks !== was.rocks) api.replant(); return api.get(); },
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); },
       rockPlan,                                                           // the rock map's read (above)
+      // WHAT THE RING SEES AT A POINT (the instrument, 2026-09-22): the sub-grid node's own answers -
+      // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"
+      // is one call instead of a guess
+      nodeAt: (x, z) => { const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), G = subGrid(cx * C, cz * C, C), k = G.at(x, z);
+        return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3) }; },
       rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); scene.remove(root); },

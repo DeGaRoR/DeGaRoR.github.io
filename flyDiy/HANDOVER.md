@@ -55997,3 +55997,27 @@ lives 8 km outside it, and the gate holds that.
   off), bird 16, plume 1 — a whale was blowing at that moment.
 - GATES: ANIMALS / MEDIA / PREMISES / PROPS / TOTEM / CLOUD / BUILD green. GATE MEDIA learned the
   animals' manifests (one line in `manifestFiles`), or every map it wrote was an orphan.
+
+## G502 — NOTHING LIES ON A PAVEMENT: THE DEBRIS READS coverAt (2026-09-22, the roads session's v1.17 query, the user: "the coverAt gating for debris")
+
+- cover_ring.js placeRocks: a rock or a piece of deadwood is refused where the pavement has a CLASS and a
+  grip on the ground (`kill >= 1`, or a class with `kill >= 0.5`), and thinned by what is left of the
+  fade beyond it (`1 - kill`). The ring already sampled `world.coverAt` per lattice node for the tufts
+  (G492); the sub-grid now keeps its `cls` as well as its `kill`, so the query costs nothing new.
+- WHY THE CLASS AND NOT THE KILL ALONE (the roads session's warning, worth the line): a GRASS strip is
+  the world's grass mown, so its kill never passes 0.6 - a log would have lain across a grass runway
+  with a kill test alone. And the class vocabulary is the premises' own (grass, asphalt, concrete, worn,
+  gravel, dirt, sand) plus the analytic world's, so the test is "a class at all", not a list to keep in
+  step: concrete was the first thing the probe met and was not in my first draft's map.
+- THE INSTRUMENT, because two measurements lied before the code was believed: `TREE_FILL.cover().nodeAt(x, z)`
+  returns the RING'S OWN view of a point (mix, code, ok, kill, cls, kind, boost) - it is what proved the
+  gate sees kill 1 / a class over the strip - and tools/_debris_probe.js buckets every planted piece by
+  what coverAt says under it. THE TRAP IT CAUGHT: the aerodrome's SHOULDER SCATTER (render_world
+  standRocks: 7-30 cm pebbles in a band 0.2-2 m off the strip edge, where the drawn band legitimately
+  reads kill 1) draws the SAME coast-scan geometry as the ring's rocks, and a triangle-count filter puts
+  1 328 of them in the debris column - "the gate is broken" for an hour. They are named `rocks:<id>`;
+  the probe counts them apart. A debris subject also becomes SEVERAL instanced meshes (one per material
+  part), so its meshes' triangle counts are not the pack's subject counts either.
+- SEEN: bench/debris/gate_2.png - HOME's strip from above at the planted density and at six times it:
+  the pavement and its band clear, the grass beside it littered.
+- GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES / SITE green.
