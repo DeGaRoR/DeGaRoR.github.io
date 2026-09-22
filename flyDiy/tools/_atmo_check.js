@@ -132,7 +132,16 @@ console.log('5. the sources');
   yes(chunkWrites.length === 5 && ['SC.fog_pars_vertex', 'SC.fog_vertex', 'SC.fog_pars_fragment', 'SC.fog_fragment', 'SC.tonemapping_fragment'].every(k => chunkWrites.includes(k)),
       'the atmosphere overrides exactly the five fog/tonemapping chunks, in install(): ' + chunkWrites.join(' '));
   yes(/SC\.tonemapping_fragment = AP_APPLY \+/.test(code), 'the aerial perspective is spliced at the HEAD of tonemapping_fragment (before the tone map, in linear radiance)');
-  yes(/if \(uAtmoAP\.z > 0\.5\)/.test(src) && /if \(uAtmoAP\.z < 0\.5\)/.test(src), 'the splice and the legacy fog are gated on the one shared flag');
+  // F3: ONE PATH. The aerial perspective is still gated on the flag (it needs a sky), but the mist
+  // is a MEDIUM and runs wherever there is a fog object - which is what lets the shed have an
+  // honest room haze and what retired three's own smoothstep, the last legacy fog in the tree.
+  yes(/if \(uAtmoAP\.z > 0\.5\) \{[\s\S]{0,240}?atmoAP\(\)/.test(src), 'the aerial perspective is gated on the flag (it needs a sky to be under)');
+  yes(!/if \(uAtmoAP\.z < 0\.5\)/.test(src), 'the legacy display-space fog is GONE - no second path through the fog chunks');
+  yes(/const AP_FOG_FRAG = '';/.test(src), 'fog_fragment is emptied rather than replaced');
+  { const ap = /const AP_APPLY = `([\s\S]*?)`;/.exec(src);
+    const body = ap ? ap[1] : '';
+    const gate = body.indexOf('uAtmoAP.z > 0.5'), close = body.indexOf('}', body.indexOf('atmoAP()')), mist = body.indexOf('mistApply(');
+    yes(gate >= 0 && close > gate && mist > close, 'mistApply runs OUTSIDE the flag (a room is a medium with no sky): the AP block closes before it'); }
   yes(/Object\.defineProperty\(proto, 'onBeforeCompile'/.test(src) && /inject\(sh\); return f\.call\(this, sh, r\);/.test(src), 'the prototype hook is an accessor: every material\'s own hook comes back wrapped in inject (G432.2)');
   // ...and it WORKS, on a stand-in THREE: a material with a hook of its own gets the atlas sampler and a
   // cache key that still tells its hooks apart; a hook copied from one material to another stays one hook

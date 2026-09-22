@@ -558,27 +558,25 @@ var ATMO = (function () {
     varying vec3 vAtmoV;
     ` + AP_SAMPLE_GLSL + MIST_GLSL + `
     vec4 atmoAP() { return apSample(normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV) * 0.001); }`;
+  // TWO GATES, NOT ONE (F3). The aerial perspective is the SKY's and wants a world to be under;
+  // the mist is a MEDIUM and wants only a density - so a ROOM is a medium with no sky, and the
+  // shed can have an honest haze instead of three's smoothstep to near-black. Splicing them apart
+  // is what retires the last legacy fog in the tree.
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
       vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
-      gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     }
+    gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
   `;
-  // the legacy fog (display space) stays for a scene that wants it (the shed): the flag decides
-  const AP_FOG_FRAG = `
-    #ifdef USE_FOG
-    if (uAtmoAP.z < 0.5) {
-      #ifdef FOG_EXP2
-      float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
-      #else
-      float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
-      #endif
-      gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
-    }
-    #endif
-  `;
+  // THE LEGACY FOG IS GONE (F3). `Fog(0x1a1712, 40, 120)` in the shed was its last user: a
+  // smoothstep to near-black in DISPLAY space, which made the same aeroplane read darker on the
+  // shed floor than on the apron for no physical reason (POST-FX SS3, the one-light-contract).
+  // The room is a medium now - a density between the floor and the roof, through mistApply, in
+  // linear radiance like everything else - so `fog_fragment` is emptied rather than replaced and
+  // there is ONE path through the fog chunks instead of two.
+  const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
   const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
@@ -593,6 +591,10 @@ var ATMO = (function () {
     // `steps` is the march (0/1 = the closed form). `top` becomes the height ABOVE the local
     // floor once relief is on, which is what it always meant on flat ground.
     relief: 0, patch: 0, steps: 6, bankM: 900, driftK: 1, blH: 200,
+    // F3: a ROOM - a slab between floor and roof with its own light, set by whoever owns the room
+    // (the shed). While it is set the day's ground mist is off and the slab's colour is the room's,
+    // because there is no sky in here to take a colour from.
+    room: null,
     field: null };                                              // { tex, x0, z0, inv, yHi, ms } from bakeField()
   let installed = false;
   function install() {
@@ -1013,6 +1015,18 @@ ${MIST_GLSL}
       }
       mistScalars[24] = MIST._dx || 0; mistScalars[25] = MIST._dz || 0;
       mistScalars[26] = 1 / Math.max(50, MIST.bankM); mistScalars[27] = MIST.patch;
+      // F3 - A ROOM overrides the lot: no ground mist (there is no ground), the slab is the room's
+      // own air between floor and roof, and the colour is the room's light rather than a sky's.
+      if (MIST.room) {
+        const R = MIST.room;
+        mistScalars[0] = 0;                                   // the day's ground mist stops at the door
+        mistScalars[3] = 1;                                   // the medium is on even where the sky is not
+        mistScalars[4] = S * R.col[0]; mistScalars[5] = S * R.col[1]; mistScalars[6] = S * R.col[2];
+        mistScalars[7] = 0;                                   // no forward peak: there is no sun in here
+        mistScalars[12] = R.rho; mistScalars[13] = R.base; mistScalars[14] = R.top;
+        mistScalars[19] = 0;                                  // and no march: a room is one slab
+      }
+
     }
     return true;
   }

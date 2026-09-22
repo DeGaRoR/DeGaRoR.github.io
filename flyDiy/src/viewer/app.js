@@ -812,7 +812,10 @@
           kits: shed.kits, shell: shed.shell });
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
-      hangarScene.fog = hangar.fog;
+      hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
+      // F3: the shed's air is a MEDIUM, set while we are in the room and cleared on the way out,
+      // so the day's ground mist never follows anyone indoors and the world never inherits a room.
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = hangar.roomAir || null;
       // The room lights itself: a cube camera on the floor sees the glazing,
       // the roof lights and the open door, and a PMREM of that is what every
       // glossy thing in here reflects. It is the difference between "lit" and
@@ -6208,6 +6211,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     setExp(WORLD_EXPOSURE);
@@ -9155,7 +9159,7 @@
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
-      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4: the shed keeps its own dark-wall fog; the world's aerial perspective is off in its frames
+      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
       // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
       if (hangar && hangar.applyDay && world.day) {
         const r = hangar.applyDay(world.day, renderer);

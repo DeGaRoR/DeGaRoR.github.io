@@ -2684,7 +2684,17 @@ if (typeof hangarFit === 'function' && PROPS_OK) {
 // behind — which is what happens the first time they are tracked separately.
 const ROOT = new THREE.Group();
 const BG = new THREE.Color(0x14120f);
-const FOG = new THREE.Fog(0x1a1712, 40, 120);
+// THE ROOM'S AIR (FOG-MIST F3). This was `Fog(0x1a1712, 40, 120)` - three's own smoothstep to
+// near-black, in DISPLAY space, after the tone map. It was the last legacy fog in the tree and it
+// made the same aeroplane read darker on this floor than on the apron for no physical reason
+// (POST-FX SS3, the one-light-contract). The scene still needs a fog OBJECT because that is what
+// defines USE_FOG and so brings the splice in at all - but it is a SENTINEL now, like the world's,
+// and the actual haze is a medium: a density between the floor and the roof, in the lamps' own
+// colour, integrated in linear radiance by the same `mistApply` the weather uses outdoors.
+const FOG = new THREE.Fog(0x1a1712, 1e9, 2e9);
+// rho 0.0035/m: at the far wall (~35 m) that is 12 % of the light lost, which is a big shed with
+// dust in the air rather than a room full of smoke. base/top are the floor and the roof.
+const ROOM_AIR = { rho: 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
 ROOT.add(G);
 
 // THE ROOM HAS TWO LIGHTS AND AN ENVIRONMENT (G62.5, user: "why don't we
@@ -3674,7 +3684,7 @@ setMood(0);
 texBudget();          // print the fragment-sampler count, once, per G66
 
 return {
-  group: ROOT, background: BG, fog: FOG,
+  group: ROOT, background: BG, fog: FOG, roomAir: ROOM_AIR,
   library: [{ key: 'baked', name: '(part’s own)' }].concat(
     Object.keys(LIB).map(k => ({ key: k, name: LIB[k].name || k }))),
   parts: Object.keys(PARTS).map(k => ({ key: k, name: PARTS[k].name })),

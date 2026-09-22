@@ -56568,3 +56568,34 @@ check also turned up a silent failure of their own (`WF` is a LOCAL in app.js, p
 `window.WORLD`, so their reach would have read null forever and looked exactly like "F1 has not
 landed yet"). Worth the entry for that alone: two numbers that agree are not evidence of anything
 until someone asks what each one MEANS.
+
+## G506 - F3d: THE SHED'S AIR IS A MEDIUM, AND THE LAST LEGACY FOG IS GONE (2026-09-22)
+
+FOG-MIST SS3d, and POST-FX SS3's own recommendation. The shed ran `Fog(0x1a1712, 40, 120)` -
+three's smoothstep to near-black, applied in DISPLAY space after the tone map - which is why the
+same aeroplane read darker on the shed floor than on the apron for no physical reason.
+
+- **THE TWO GATES CAME APART, and that is the whole enabling change.** `AP_APPLY` ran the aerial
+  perspective AND `mistApply` under one flag, so a room - no sky, flag clear - could have no mist
+  and had to keep three's fog. They say different things: the aerial perspective is the SKY's and
+  wants a world to be under; the mist is a MEDIUM and wants only a density. **A room is a medium
+  with no sky.** The AP stays gated; `mistApply` now runs wherever there is a fog object.
+- **THE SHED IS A SLAB**: `ATMO.MIST.room = { rho: 0.0035, base: -1, top: 11, col }` - 12 % of the
+  light lost at the far wall, a big shed with dust in the air. `scene.fog` stays a SENTINEL (it is
+  what defines USE_FOG). The room overrides the day's ground mist (the weather stops at the door),
+  takes the lamps' colour rather than a sky's, has no forward peak and no march. `app.js` sets it
+  on entry and CLEARS IT on the way out, so the world never inherits a room.
+- **`AP_FOG_FRAG` DELETED.** `fog_fragment` is emptied rather than replaced: one path through the
+  fog chunks instead of two, and the last legacy fog in the tree is gone. GATE ATMO's "both paths
+  gated on one flag" becomes three checks - the AP still gated, the legacy path absent,
+  `mistApply` proven to sit OUTSIDE the flag's block (83 checks, was 80).
+- SEEN: the shed at the default view, the aeroplane lit, the far wall and the open door visible,
+  air in the room rather than a black box at 120 m (`bench/fog/room_q.png`, `room_s.png`).
+- GATES: ATMO, FOG, CLOUD, GFX, DAY, WORLDRENDER, LIGHT, HANGAR, VIEW green.
+- F3's other two: **burn-off is QUEUED** behind the climate chantier's G504.11, which moves the
+  density law into `07_day.js` - burn-off multiplies that line, so it belongs there and not here,
+  and it will use their `sunElLag` (the sun's elevation two hours ago: the ground runs behind the
+  sun, which is WHY fog burns off, and it removes the polar cases by arithmetic rather than by a
+  branch). **Underwater is DEFERRED** at the water session's ruling - the surface from below (total
+  internal reflection, the Snell window) does not exist yet and a slab under it would read as a
+  tinted pane; their API contract is recorded in the study so nothing is rediscovered.
