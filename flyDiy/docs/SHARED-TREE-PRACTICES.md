@@ -173,8 +173,18 @@ blocked for an hour between them), so it belongs here.
      commits) and intersect with what is dirty there;
   2. classify each one: ABSENT from the tree but present in master (your new
      file), or byte-identical to a blob THAT PATH has held in history — not
-     only at the tip. Anything else is unexplained: stop and ask, it may be
-     someone's live work;
+     only at the tip. COMPARE IT WITH THE LINE ENDINGS NORMALISED, CRLF
+     folded to LF on both sides before the bytes are weighed: the shared
+     checkout writes CRLF, so a file it holds stale differs from every blob
+     in its own history by bytes alone and reads as unexplained while
+     nothing whatever is at risk. G505 refused itself that way on
+     `src/viewer/tram_run.js` — 139 CRLF lines, identical modulo EOL to the
+     commit before it. Anything still unexplained after that fold: stop and
+     ask, it may be someone's live work.
+     AND A GENERATED STAMP IS NOT EVIDENCE: `version.json` is rewritten by
+     every local build, so its working copy is routinely in no commit at all
+     and can never be classified. Name the generated paths up front and let
+     master's copy win, rather than letting one stop the chain;
   3. verify again IN THE SAME PROCESS AS THE WRITE, and refuse on any
      surprise. This is not ceremony: a peer landed between the check and the
      write once, and the guard caught it;
@@ -183,6 +193,12 @@ blocked for an hour between them), so it belongs here.
      stale copies to master.
   Touch only paths your own landing owns. Leave untracked files alone — the
   user's screenshots and scratch directories live there.
+- AND THE DIRTY SET IS NOT ALL RESIDUE. This section assumes the dirty paths
+  are landings that did not close themselves, which is the common case — but
+  a session may be editing the shared checkout LIVE (G505 found 47 dirty, 20
+  its own, 27 another session's work in progress). That is why step 2
+  classifies every path and step 3 refuses on a surprise, instead of taking
+  the intersection on trust.
 - THE RULE IN §1 STANDS: never `git checkout` the shared tree blind. What
   makes the step above legitimate is the proof that every byte you overwrite
   is already in the object DB, carried out in the same breath as the write.
