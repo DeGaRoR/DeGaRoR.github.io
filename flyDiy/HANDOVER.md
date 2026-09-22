@@ -56083,3 +56083,48 @@ was no valley for it to pool in and no edge to fly INTO.
 - OWED: the march's samples are uniform along the clipped segment, so a bank thinner than the
   spacing can still be missed at long range; the early-out's size on a quiet box; and F3 (burn-off,
   the shed's room haze, underwater) is untouched.
+
+## G460.11.8 - THE SKY WAS HIDDEN BEFORE IT WAS DRAWN: the mirror's capture had HOLES, and the water
+## read a second sky through them (2026-09-22, the user, on c4/gust3_horizon.png: "the cloud reflections
+## look really strange. Can't really put my finger on it. Looks like inverted colors? ... looks sometimes
+## more like a shading mistake. My brain does not reconcile it as being the mirrored sky")
+
+- THE PICTURE FIRST, because the bug was invisible in the frame and obvious in the capture. Debug view 11
+  (the capture where it lands, alpha 0 painted blue) over the Jolene coast: a mirrored world - mirrored
+  treeline, mirrored clouds - with a HUGE irregular ALPHA-0 REGION through it, its boundary running along
+  cloud silhouettes (screenshots/water-g440/c5/c_proj.png; view 12, the capture as a picture, shows the
+  same region black). So the capture carried the clouds but not the clear sky between them, and the shader
+  falls back to the PROBE where the capture has nothing: ONE reflection built from TWO skies, swapping
+  source at every cloud's edge. That is what the eye refuses - not a colour, a seam in the light.
+- THE CAUSE: the dome is handed to the capture (`sky: WF.skyDome`) AND listed in `hide` - it must be out
+  of the SCENE draw, where it is parented to the MAIN camera and would ride the wrong eye. The hide loop
+  runs first and sets `visible = false`; the sky pass then rendered an INVISIBLE dome. G460.11.3's fix
+  ("one dome draw makes the capture opaque and the reflection one source") has therefore never once run
+  since it landed - the hard edge the user reported then was answered by a pass that drew nothing, and
+  the only reason the water looked better afterwards is that the OTHER half of that landing (the cloud
+  march into the capture) did work. Four landings sat on top of a no-op. THE FIX is three lines: the
+  dome is made visible for its own draw and put back before the scene's (`const skyVis = sky.visible;
+  sky.visible = true; ... sky.visible = skyVis;`).
+- AND THE MEAN FRESNEL NOW RIDES THE MIRROR: Bruneton's mean-Fresnel dim (a rough sea at grazing reflects
+  a third of a mirror's sky - its facets shadow each other) multiplied only the PROBE's radiance, because
+  when it was written the mirror was a patch over part of the sky. With the dome in the capture the mirror
+  supplies the WHOLE reflection, so the factor is taken into `wMeanF` before the mirror's mix and applied
+  after it: the probe and the capture dim alike, and the grazing sea does not turn into a hard mirror.
+- MEASURED / SEEN (screenshots/water-g440/): c5/ the capture BEFORE (c_proj.png the alpha-0 region,
+  b_cap.png the same as black, d_uvdiff.png); c6/c_proj.png the capture AFTER - one sky, no holes -
+  and c6/a_base.png the frame; c7/horizon.png (a low eye on the coast: the treeline and the clouds
+  mirrored, the reflection fading toward the eye) and c7/sea.png (the mountain and the cloud deck
+  mirrored on open water) - the "mountain-and-tree-reflection-pool" shot the user asked for at G460.11.
+- A NOTE FOR WHOEVER READS DEBUG VIEW 12 NEXT: the capture is HORIZONTALLY MIRRORED against the frame
+  (measured, view 13: muv.x - suv.x is +1 at the left edge, 0 at the centre, -1 at the right). That is
+  correct and is three's Reflector's own behaviour - `lookAt` with the reflected up re-orthonormalises to
+  a RIGHT-handed basis, which is the true (left-handed) reflection with its right vector negated - and it
+  cancels because the lookup is projected through THAT camera's matrix. View 12's premise (the projected
+  uv equals the pixel's own) holds only for the y axis; use view 11 to judge the capture's content.
+- GATE WATER 3 gains two rules: the sky pass makes the dome visible for its own draw and puts it back
+  (with the order asserted: the toggle before the render), and the mean Fresnel is applied AFTER the
+  mirror's mix. WATER, WORLDRENDER, HYDRODYN, FLOATS, GFX, CLOUD, UISMOKE green.
+- OWED, unchanged and noted again here: the slope's perturbation is a screen-space uv push in the
+  CAPTURE's frame, whose x axis is the negative of the world's - a wave slope moves the reflection the
+  wrong way horizontally (small at the scale it is used, 0.06 uv); the honest form is a world-space
+  offset of the projected point, which also gets the perspective right.

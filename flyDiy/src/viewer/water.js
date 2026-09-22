@@ -330,7 +330,10 @@ const WATER = (() => {
           // the ratio, s = sqrt(sigma^2) of the sub-pixel band, applied to the sky's reflection (the sun's GGX has Smith)
           float wSg = sqrt(max(wSig, 0.0)), wC = clamp(dot(geometryViewDir, wUpV * faceDirection), 0.02, 1.0);
           float wF5 = pow(1.0 - wC, 5.0), wFm = pow(1.0 - wC, 5.0 * exp(-2.69 * wSg)) / (1.0 + 22.7 * pow(wSg, 1.5));
-          iblRadiance *= mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC));
+          // (G460.11.8: the factor is taken here and applied AFTER the mirror's mix below - with the sky
+          // drawn into the capture the mirror supplies the WHOLE reflection, and a dim that rode only the
+          // probe would have left the grazing sea a hard mirror again)
+          float wMeanF = mix(1.0, clamp(wFm / max(wF5, 1.0e-4), 0.0, 1.0), smoothstep(0.55, 0.15, wC));
           // THE PLANAR MIRROR (G460.11, the user: "we can see tree reflections everywhere, while ours does not mirror
           // anything at all"): the decor - terrain, trees, the craft - captured from the eye mirrored about the water
           // plane (the sky left out: the probe carries the sky and its clouds, at the probe's own cadence), read where
@@ -360,7 +363,8 @@ const WATER = (() => {
                 iblRadiance = mix(iblRadiance, mcol, mmask * edge);
               }
             }
-          } }`)
+          }
+          iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
       // THE BODY COLOUR IS NOT A LAMBERT SURFACE (G460.5, the user: "it looks very matte blue"): three lights
       // material.diffuseColor by dot(N, L) on the WAVE normal, so every ridge was a painted stripe and the
@@ -853,6 +857,12 @@ const WATER = (() => {
     // during the capture and the oblique clip would kill it anyway (the mirrored eye is under the water plane).
     // It is drawn here in a scratch scene, placed at the mirrored eye, under the normal projection - the capture's
     // background, opaque, with the clouds composited over it
+    // (G460.11.8: THE DOME IS IN opts.hide - it must be hidden from the SCENE draw, where it rides the
+    // main camera - and the hide loop above had already set visible = false, so this pass drew NOTHING
+    // and G460.11.3's fix never took effect: the capture's clear sky stayed alpha 0 and the water read
+    // the PROBE there, a second sky pasted over the first at every cloud's edge. The dome is made visible
+    // for its own draw and hidden again before the scene's. The user: "the cloud reflections look really
+    // strange ... my brain does not reconcile it as being the mirrored sky")
     let skyPar = null;
     if (opts.sky) {
       const sky = opts.sky;
@@ -860,8 +870,11 @@ const WATER = (() => {
       skyPar = sky.parent;
       MIR.skyScene.add(sky);
       sky.position.copy(mc.position);
+      const skyVis = sky.visible;
+      sky.visible = true;
       renderer.autoClear = false;
       renderer.render(MIR.skyScene, mc);
+      sky.visible = skyVis;
     }
     // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
     // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -

@@ -140,6 +140,18 @@ console.log('\n3. THE LAWS');
     // there - the reflection changed source at every cloud's edge, a hard line across the water
     verdict(/if \(opts\.sky\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
     verdict(/sky: WF\.skyDome/.test(src('src/viewer/app.js')), "app.js hands the world's sky dome to the capture");
+    // AND IT IS VISIBLE WHILE IT IS DRAWN (G460.11.8): the dome is in opts.hide (it must be out of the SCENE
+    // draw, where it rides the main camera) and the hide loop runs FIRST - so for six landings the sky pass
+    // rendered an invisible dome, the capture's clear sky stayed alpha 0 and the water read the probe there:
+    // one sky in the cloudy parts of the reflection and another in the clear ones, which is what the user saw
+    // ("the cloud reflections look really strange ... my brain does not reconcile it as being the mirrored sky")
+    { const sk = mp.slice(mp.indexOf('if (opts.sky) {'), mp.indexOf('if (opts.clouds)'));
+      verdict(/const skyVis = sky\.visible;\s*\n\s*sky\.visible = true;/.test(sk) && sk.indexOf('sky.visible = true;') < sk.indexOf('renderer.render(MIR.skyScene, mc);') && /sky\.visible = skyVis;/.test(sk),
+        'the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back'); }
+    // the mean Fresnel rides the MIRROR too: with the sky in the capture the mirror supplies the whole
+    // reflection, and a dim that rode only the probe would leave the grazing sea a hard mirror again
+    verdict(/float wMeanF = mix\(1\.0, clamp\(wFm \/ max\(wF5, 1\.0e-4\), 0\.0, 1\.0\), smoothstep\(0\.55, 0\.15, wC\)\);/.test(w) && w.indexOf('float wMeanF =') < w.indexOf('iblRadiance = mix(iblRadiance, mcol, mmask * edge);') && /iblRadiance \*= wMeanF; \}`\)/.test(w),
+      "Bruneton's mean Fresnel is applied AFTER the mirror's mix (the probe and the capture dim alike)");
     verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
     // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
     // the rig: a stale capture from 1500 m away, the reflection stretched), the eye's motion re-captures, a jump at once
