@@ -55327,3 +55327,20 @@ thousands of quads across a visible coast, and the map is ONE sampler at any dis
   conifer's boulders the same far tier (not tried: the trees cover them); the cliffs (code 12) want
   their own scans first.
 - GATES: BUILD / BIOME / TREES / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES green.
+
+## G494 — THE VILLAGE'S OWN GRASS; THE FAR FOREST OVER THE WHOLE ISLAND (2026-09-22, the user: "do the village
+## grass height now, and if the cards cost almost nothing, then extend the visibility range even beyond 18 km ...
+## just filling all the parts of the island visible from the camera")
+
+THE VILLAGE: a mix row may scale a cover's size now (`size`, a factor over the species' own - the
+reed's 0.012 is still absolute), and code 10 'built' names a new `village` mix: grass_dry at 0.45
+of its height and 6 /m2, plates at 0.6 and 3, foamflower, a few shrubs and birches, small tinted
+rocks, 40 trees in r 220. Outside the lots the heath is 0.7 and the muskeg 0.85 of the moor's
+height. (The plots' LAWN, G492, is shorter still and comes from the plot's own rule.)
+THE REACH, MEASURED (the card shared at 7 GB, so the frame numbers are noise - the COUNTS are not):
+171 k cards at 18 km, 193 k at 26 km, 193.6 k at 40 km - IT SATURATES, because Jolene is 39 km
+across and there is no more land to plant. So `far` is 30 km now (the island's diagonal from any
+point on it) and the wanted set is clipped to world.bounds - the sea costs no loop. The whole
+island stands: 370 chunks / 212 k cards from 600 m over the field, every visible slope furred.
+No view test of its own: a chunk is one InstancedMesh with a sphere, and three culls it per frame -
+"the parts visible from the camera" is what the frustum already answers.

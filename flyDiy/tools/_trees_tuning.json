@@ -199,7 +199,8 @@
     },
     "grass_dry": {
      "proportion": 1,
-     "density": 4
+     "density": 4,
+     "size": 0.85
     },
     "grass_reed": {
      "proportion": 0.5,
@@ -272,7 +273,8 @@
     },
     "grass_dry": {
      "proportion": 1,
-     "density": 4
+     "density": 4,
+     "size": 0.7
     },
     "grass_reed": {
      "proportion": 0.4,
@@ -755,6 +757,61 @@
     "ttype": 11,
     "coverSpread": 0.08,
     "rockMap": 1
+   }
+  },
+  "village": {
+   "species": {
+    "grass_dry": {
+     "proportion": 1,
+     "density": 6,
+     "size": 0.45
+    },
+    "grass_plates": {
+     "proportion": 1,
+     "density": 3,
+     "size": 0.6
+    },
+    "flower_foam": {
+     "proportion": 1,
+     "density": 0.35,
+     "patch": 5
+    },
+    "shrub_deciduous": {
+     "proportion": 1
+    },
+    "raspberry": {
+     "proportion": 0.6
+    },
+    "birch": {
+     "proportion": 0.6,
+     "dead": 0.03
+    },
+    "rocks": {
+     "proportion": 1,
+     "size": 6,
+     "tint": 0.7
+    }
+   },
+   "forest": {
+    "ground": "plane",
+    "count": 40,
+    "radius": 220,
+    "under": 2,
+    "cover": 1,
+    "reach": 220,
+    "wet": 0,
+    "mix": 1,
+    "taper": 0.5,
+    "holes": 1,
+    "blotch": 0.6,
+    "blotchM": 18,
+    "coverNear": 50,
+    "rocks": 1,
+    "ttype": 10,
+    "spread": 0.2,
+    "coverSpread": 0.08,
+    "canopyFloor": 0,
+    "clump": 0
    }
   }
  },
@@ -1559,6 +1616,7 @@
   "11": "shingle",
   "12": "conifer_steep",
   "13": "conifer",
-  "14": "conifer_scrub"
+  "14": "conifer_scrub",
+  "10": "village"
  }
 }

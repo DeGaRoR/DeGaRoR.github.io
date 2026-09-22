@@ -363,7 +363,9 @@ var COVER_RING = (() => {
           const y = world.terrainH(x, z);
           let s = 1, yaw = r3 * Math.PI * 2, col = null;
           if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
-          else s = (place.size || 1) * Math.exp((R() * 2 - 1) * spread);   // the species' size ALWAYS (the reed model is 288 units tall at size 0.012 - unscaled it was a 130 m screen-filling card, 450 ms a frame)
+          // the species' size ALWAYS (the reed's 0.012 is absolute); a MIX ROW may scale it (`size`, a factor:
+          // a village's grass is shorter than a moor's - 2026-09-22)
+          else s = (place.size || 1) * (row.size === undefined ? 1 : row.size) * Math.exp((R() * 2 - 1) * spread);
           const yy = y - (place.sink || 0);
           if (!noTint && !isShrub) {
             col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);

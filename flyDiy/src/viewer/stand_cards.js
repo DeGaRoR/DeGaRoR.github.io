@@ -24,7 +24,13 @@ const STAND_CARDS = (() => {
   function make(THREE, ctx) {
     const { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
             ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled } = ctx;
-    const S = { on: true, far: 18000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young' };
+    // THE WHOLE ISLAND (2026-09-22, the user: "extend the visibility range even beyond the 18 km ... just
+    // filling all the parts of the island visible from the camera"): measured 171 k cards at 18 km,
+    // 193 k at 26, 193.6 k at 40 - it SATURATES, because Jolene is 39 km across and there is no more
+    // land to plant. 30 km covers the island's diagonal from any point on it, so `far` is the island's
+    // own size now and nothing is left bare; the visible SIDE needs no test of its own - a chunk is
+    // one InstancedMesh with a sphere and three culls it per frame.
+    const S = { on: true, far: 30000, near: 4000, spacing: 32, cell: 2048, gain: 6, block: 4, treeH: 12, mixKey: 'conifer_young' };
     const STAT = { chunks: 0, instances: 0, lastMs: 0, maxMs: 0, baked: false };
     const root = new THREE.Group(); root.name = 'standCards'; scene.add(root);
     const chunks = new Map();
@@ -143,10 +149,12 @@ const STAND_CARDS = (() => {
       if (!ensure()) return;
       if ((tick++ % 20) === 0) {
         const C = S.cell, R = Math.ceil(S.far / C) + 1, cx0 = Math.floor(cg[0] / C), cz0 = Math.floor(cg[2] / C);
+        const B = world.bounds;   // no chunk outside the island's own square: the sea plants nothing
         const want = new Set();
         for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
           const cx = cx0 + dx, cz = cz0 + dz, ex = (cx + 0.5) * C - cg[0], ez = (cz + 0.5) * C - cg[2], d = Math.hypot(ex, ez);
           if (d > S.far + C * 0.71 || d < S.near - C * 0.71) continue;
+          if (B && ((cx + 1) * C < B.x0 || cx * C > B.x1 || (cz + 1) * C < B.z0 || cz * C > B.z1)) continue;
           want.add(cx + ',' + cz);
         }
         for (const k of chunks.keys()) if (!want.has(k)) drop(k);
