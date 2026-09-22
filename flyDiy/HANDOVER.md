@@ -56361,3 +56361,30 @@ VERIFIED BY THE SESSIONS THAT OWN THE FILES, which is why the peer messages are 
   literal and the file stops parsing with a message that points at a line forty above. Do not quote code
   with backticks in there.
 - WATER, WORLDRENDER, HYDRODYN, FLOATS, GFX, CLOUD, UISMOKE, MEDIA green.
+
+## G460.11.10 - THE GOLDEN: one hash of what a named wind DRAWS, in GATE WATER beside the climate's
+## (2026-09-22, placed at the climate session's request after their K0 moved the wind field under seaFrom)
+
+- WHY IT IS HERE: G504 moved the whole wind field into src/core/09_climate.js without touching a line of
+  seaFrom's arithmetic - which is exactly the change that a hash catches if the claim is ever false. GATE
+  CLIMATE 12 already holds the band's SHAPE (8 felt of 32 at every wind from 2 to 25 m/s); this holds its
+  NUMBERS, so a future session cannot quietly re-decide the sea the floats are pushed by.
+- THE RECIPE IS THEIRS VERBATIM so the two gates quote ONE value and cannot split: FNV-1a 32-bit over
+  JSON.stringify of the RAW `world.sea.W` array - full double precision, every key in its own insertion
+  order, `felt` a real boolean. `makeWorld(0)` + `setWind({base:[3,0,4]})` -> 32 trains, A 0.0900,
+  L 10.000, dir 0.92730, FNV 63eccad3 (reproduced here on the landed tree, first train byte for byte
+  against theirs). My own first reading - a field list at six decimals - gave 3a8350ef, which is the whole
+  reason I asked for the recipe instead of guessing: two goldens for one fact is worse than none.
+- THE SHARP EDGE, written beside the value because it is the kind of red that wastes a night: hashing the
+  stringified OBJECTS makes the golden sensitive to ADDING A KEY to a train, not only to changing a
+  number. Give a train a new field and it goes red although the water is identical. Pinned from the
+  unchanged seaFrom, and RE-PINNED IN THE SAME COMMIT as any intentional change to it, never alone.
+- ALSO SETTLED WITH THE TWO PEERS THIS SESSION, for the record: (a) the fog session's F1 visibility cull
+  stays APPLIED across the mirror's capture - the mirrored eye shares the main eye's x and z and the pass
+  only runs under 60 m of water, so a cull sized for the main eye is already right for mine to well under
+  a per-cent, and they bracket my block from outside and expose `WF.vis.applied` for a rule; the mirror
+  keeps INHERITING `camera.far` (fog-shortened is correct for it) under its own min(., MIR.far) cap, and
+  `ATMO.setEyeY` now exists if the dome's mist ever reads wrong from below the surface. (b) G504-G504.9
+  landed SOURCE ONLY - no built commit - so master's page carried none of the climate until G460.11.9's
+  build; verified by them as a byte-for-byte rebuild of master's own source.
+- OWED: a GATE WATER rule asserting `WF.vis.applied === true` inside the capture, once F1 lands.

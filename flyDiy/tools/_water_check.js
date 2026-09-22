@@ -7,7 +7,10 @@
 //      Gerstner GLSL in a scalar subset and TRANSPILES that exact string to
 //      the JS the buoys and the bench read (gerstnerFromGLSL); this gate holds
 //      that JS against waterH at 3000 random (x, z, t) to 1e-9, at t up to
-//      1e5 s (the reduced phases), on the analytic world's own trains.
+//      1e5 s (the reduced phases), on the analytic world's own trains. And one
+//      GOLDEN: the FNV of what setWind([3, 0, 4]) draws, the climate session's
+//      recipe verbatim, so the two gates pin one number (see the rule for the
+//      edge it has - re-pin it in the same commit as any change to seaFrom).
 //   2. THE RULES — one hook in water.js, ATMO.inject its first line, nothing
 //      per body interpolated into the GLSL (the cache key is the hook's
 //      source); the uniform arrays hold 8 trains and seaFrom never makes more;
@@ -80,6 +83,21 @@ console.log('1. PARITY - the shipped GLSL against world.waterH');
     const t = 3.3, x = sea[0] + 7, z = sea[1] - 4; let all = 0; for (const w of S.W) all += w.A * Math.cos(w.k * (w.dx * x + w.dz * z) - w.om * t + w.ph);
     verdict(Math.abs(all - world.waterH(x, z, t)) > 1e-4, 'waterH is the felt band, not the sum of all 32 (the two differ)');
     world.setSea({ A: 0.4, L: 12, dir: 0.7, n: 2 }); verdict(world.sea.W.every(w => w.felt), 'the two-train sea is felt whole'); world.setSea({ A: 0.4, L: 12, dir: 0.7 }); }
+  // THE GOLDEN (G460.11.10, placed at the climate session's request after their K0 - G504 - moved the wind
+  // field under seaFrom without touching a line of its arithmetic): one hash of what a named wind DRAWS, so
+  // that a future session cannot quietly re-decide the sea the floats are pushed by. GATE CLIMATE 12 holds
+  // the band's SHAPE (8 felt of 32 at every wind from 2 to 25 m/s); this holds its NUMBERS, and the two are
+  // complementary. The recipe is theirs verbatim so the two gates quote one value: FNV-1a 32-bit over
+  // JSON.stringify of the RAW train array - full double precision, every key in its own insertion order,
+  // `felt` as a real boolean. THE SHARP EDGE, and it is why this comment is long: hashing the stringified
+  // OBJECTS makes the golden sensitive to ADDING A KEY to a train, not only to changing a number. Give a
+  // train a new field and this goes red although the water is identical. That is a useful tripwire and a
+  // confusing one at two in the morning - so, as on their side: pinned from the unchanged seaFrom, and
+  // RE-PINNED IN THE SAME COMMIT as any intentional change to it, never in a commit of its own.
+  { const gw = CORE.makeWorld(0); gw.setWind({ base: [3, 0, 4] });
+    const fnvStr = str => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, '0'); };
+    const got = fnvStr(JSON.stringify(gw.sea.W));
+    verdict(got === '63eccad3', `the golden: setWind([3,0,4]) draws ${gw.sea.W.length} trains, A ${f(gw.sea.A, 4)} L ${f(gw.sea.L, 3)}, FNV ${got} (pinned 63eccad3)`); }
 }
 
 // ---- 2. THE RULES -----------------------------------------------------------
