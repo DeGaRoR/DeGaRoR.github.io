@@ -36901,7 +36901,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='34c7048cd0ae'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='7de8131c4dd5'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -102122,6 +102122,7 @@ const WATER = (() => {
           // trail is a scatter of patches thinning as it decays (the untorn write was a solid white bar
           // 17 m long behind a hull, h7n/wake2.png), solid only where it is fresh
           float tearI = texture2D(uWDetail, vWP.xz / 2.3 + vec2(0.37, 0.11)).a;
+          tearI = tearI * 0.7 + 0.3 * texture2D(uWDetail, vWP.xz / 0.65 + vec2(0.81, 0.29)).a;   // (G460.9) a second octave at 0.65 m: bubbles inside the patches
           float fieldFoam = wIn.z * smoothstep(0.15, 0.85, tearI * (0.55 + 0.9 * wIn.z));
           wFoam = clamp(crest + lap + fieldFoam, 0.0, 1.0);
         }
@@ -102655,6 +102656,144 @@ const WATER = (() => {
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WATER;
+</script>
+<script type="text/x-flydiy">
+// spray.js — THE SPRAY (H7.1, G460.9): the white water the hull throws, drawn as lit, soft,
+// motion-stretched sprites - not points.
+//
+// What the field cannot hold - the water that leaves the surface - is particles: the twin
+// fans a planing float throws off its chines, the burst of a touchdown, the mist that hangs
+// over a splash. They were THREE.Points: 0.1 m squares, additive white, unlit - the one thing
+// in the water that read as 2005 (the user: "little white squares"). What holds now, from the
+// state of the art (the whitewater of Sea of Thieves / Triton / the Niagara ships: sprites
+// with a soft, noisy alpha, lit as a scattering medium, stretched along their motion, a
+// short-lived droplet kind and a slow mist kind):
+//   - ONE InstancedBufferGeometry quad batch (a draw), the corners built in VIEW space so a
+//     sprite always faces the eye and its size is metres in perspective;
+//   - MOTION STRETCH: the quad's long axis follows the particle's screen velocity, its length
+//     size + |v| x uStretch (a 12 m/s droplet is a 0.3 m streak; a resting puff a disc) -
+//     the thrown read of spray without a trail texture;
+//   - the SPRITE is procedural: a soft disc torn by two octaves of value noise seeded per
+//     particle (no media, no atlas) - the puff's edge is never a circle;
+//   - LIT AS WHITE WATER: a scattering medium under the sky - albedo 0.9 x (the sun's
+//     irradiance x a WRAPPED N.L on the sprite's sphere normal + the sky's hemisphere) / pi,
+//     the same Lambert the foam gets in water.js, plus a forward-scatter lobe when the sun
+//     is behind the spray (the backlit fan that glows white on a real run);
+//   - alpha-blended (not additive: white water is opaque-ish and additive spray glows over a
+//     dark sea), depth-tested (the LOG depth chunks are spliced in: the renderer runs a
+//     logarithmic depth buffer and a ShaderMaterial without them writes a linear depth into it
+//     - every sprite failed the test against the water and nothing drew), no depth write, fading in over the first tenth of its life and
+//     out over the last 40 %, growing with age (a droplet cloud expands as it falls).
+//   Two kinds: DROPLETS (kind 0: 1-4 cm radius, 0.6-1.0 s, ballistic, streaked) and PUFFS (kind 1:
+//   0.2-0.5 m, 1.2-2.0 s, drag-damped, near-weightless mist that hangs where the splash was;
+//   few - a first cut at 0.9 m and one per 7 droplets buried the floats in a cloud, h7v/run6).
+// The emitters and the integration stay in app.js (syncWaterFx - the hydro's own numbers);
+// this module owns the draw. Cost: one draw of <= 1200 quads, ~0.05 ms.
+//
+//   SPRAY.make(THREE, n)      -> { mesh, n, set(i, p, v, age01, size, seed, kind), hide(i),
+//                                  commit(), light(sunDir, sunCol, skyCol), dispose() }
+'use strict';
+(function () {
+  const VERT = `
+    precision highp float;
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    attribute vec3 iPos; attribute vec3 iVel; attribute vec4 iA;   // iA: age01, size (m), seed, kind
+    uniform float uStretch;
+    varying vec2 vUv; varying vec4 vA;
+    void main() {
+      vUv = uv; vA = iA;
+      vec4 vp = modelViewMatrix * vec4(iPos, 1.0);
+      vec3 vv = (modelViewMatrix * vec4(iVel, 0.0)).xyz;
+      // the long axis along the screen velocity, the short across; a slow particle is a disc
+      float sp = length(vv.xy);
+      vec2 ax = sp > 0.05 ? vv.xy / sp : vec2(1.0, 0.0);
+      vec2 ay = vec2(-ax.y, ax.x);
+      float s = iA.y;
+      float len = s + min(0.35, sp * uStretch) * (iA.w < 0.5 ? 1.0 : 0.15);
+      vec2 c = (uv - 0.5);
+      vp.xy += ax * c.x * len * 2.0 + ay * c.y * s * 2.0;
+      gl_Position = projectionMatrix * vp;
+      #include <logdepthbuf_vertex>
+    }`;
+  const FRAG = `
+    precision highp float;
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    varying vec2 vUv; varying vec4 vA;
+    uniform vec3 uSunV; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform float uOpacity;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+    void main() {
+      #include <logdepthbuf_fragment>
+      vec2 q = vUv * 2.0 - 1.0;
+      float d2 = dot(q, q);
+      if (d2 > 1.0) discard;
+      float age = vA.x, seed = vA.z, kind = vA.w;
+      // the sprite: a soft disc torn by noise - more torn for a puff, and the tear drifts with age
+      vec2 np = vUv * (kind < 0.5 ? 3.0 : 4.5) + seed * 37.0 + age * 0.8;
+      float n = 0.65 * vnoise(np) + 0.35 * vnoise(np * 2.3 + 11.0);
+      float tear = kind < 0.5 ? smoothstep(0.15, 0.9, n) : smoothstep(0.18, 0.75, n * (1.0 - 0.35 * d2));
+      float disc = smoothstep(1.0, kind < 0.5 ? 0.25 : 0.05, d2);
+      float fade = smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.6, 1.0, age));
+      float a = disc * tear * fade * uOpacity * (kind < 0.5 ? 0.45 : 0.24) * (0.6 + 0.4 * hash(vec2(seed, 3.1)));   // every particle its own density
+      if (a < 0.004) discard;
+      // lit as white water: a sphere normal on the sprite, the sun wrapped, the sky's hemisphere,
+      // and a forward-scatter lobe when the sun is behind it
+      vec3 N = normalize(vec3(q, sqrt(max(0.0, 1.0 - d2)) * 0.8 + 0.2));
+      float ndl = dot(N, uSunV) * 0.5 + 0.5;
+      vec3 V = vec3(0.0, 0.0, 1.0);
+      float back = pow(max(0.0, dot(-uSunV, V)), 6.0);
+      vec3 col = 0.9 * (uSunCol * 0.65 * (0.25 + 0.75 * ndl * ndl) + uSkyCol * 0.9) / 3.14159265;   // thin water: two thirds of the foam's sun
+      col += uSunCol * back * 0.12 * (1.0 - disc * 0.5);
+      gl_FragColor = vec4(col, a);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`;
+  function make(THREE, n) {
+    const g = new THREE.InstancedBufferGeometry();
+    const base = new THREE.PlaneGeometry(1, 1);
+    g.setIndex(base.getIndex()); g.setAttribute('position', base.getAttribute('position')); g.setAttribute('uv', base.getAttribute('uv'));
+    const pos = new Float32Array(n * 3), vel = new Float32Array(n * 3), A = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { pos[i * 3 + 1] = -1e4; }
+    const aP = new THREE.InstancedBufferAttribute(pos, 3), aV = new THREE.InstancedBufferAttribute(vel, 3), aA = new THREE.InstancedBufferAttribute(A, 4);
+    aP.setUsage(THREE.DynamicDrawUsage); aV.setUsage(THREE.DynamicDrawUsage); aA.setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('iPos', aP); g.setAttribute('iVel', aV); g.setAttribute('iA', aA);
+    g.instanceCount = n;
+    const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
+      uniforms: { uStretch: { value: 0.014 }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) }, uOpacity: { value: 1 } } });
+    mat.toneMapped = true;
+    const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4;
+    const sunW = new THREE.Vector3();
+    const api = {
+      mesh, n,
+      set(i, p, v, age01, size, seed, kind) { pos[i * 3] = p[0]; pos[i * 3 + 1] = p[1]; pos[i * 3 + 2] = p[2]; vel[i * 3] = v[0]; vel[i * 3 + 1] = v[1]; vel[i * 3 + 2] = v[2]; A[i * 4] = age01; A[i * 4 + 1] = size; A[i * 4 + 2] = seed; A[i * 4 + 3] = kind; },
+      hide(i) { pos[i * 3 + 1] = -1e4; A[i * 4 + 1] = 0; },
+      commit() { aP.needsUpdate = true; aV.needsUpdate = true; aA.needsUpdate = true; },
+      // light(sunDir (world, toward the sun), sunCol (irradiance), skyCol (the hemisphere's), camera): the view-space sun
+      light(sunDir, sunCol, skyCol, camera) {
+        sunW.set(sunDir[0], sunDir[1], sunDir[2]).normalize();
+        if (camera) sunW.transformDirection(camera.matrixWorldInverse);
+        mat.uniforms.uSunV.value.copy(sunW);
+        if (sunCol) mat.uniforms.uSunCol.value.copy(sunCol);
+        if (skyCol) mat.uniforms.uSkyCol.value.copy(skyCol);
+      },
+      set opacity(v) { mat.uniforms.uOpacity.value = v; }, get opacity() { return mat.uniforms.uOpacity.value; },
+      material: mat,
+      dispose() { g.dispose(); mat.dispose(); },
+    };
+    return api;
+  }
+  // the two kinds' laws, read by app.js's emitters and integration (one keeper)
+  const KIND = {
+    droplet: { id: 0, life: [0.6, 1.0], size: [0.012, 0.04], grow: 1.6, drag: 0.25, gravity: 1.0 },   // size = the sprite's RADIUS, m
+    puff:    { id: 1, life: [1.2, 2.0], size: [0.2, 0.5], grow: 2.0, drag: 2.2, gravity: 0.12 },
+  };
+  const SPRAY = { make, KIND, GLSL: { vert: VERT, frag: FRAG } };
+  if (typeof window !== 'undefined') window.SPRAY = SPRAY;
+  if (typeof module !== 'undefined' && module.exports) module.exports = SPRAY;
+})();
 </script>
 <script type="text/x-flydiy">
 // trees_pack.js - BAKED by tools/tree_prep.py, do not edit.
@@ -134448,22 +134587,37 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   const SPRAY_N = 600, WAKE_N = 48;
   let waterFx = null;
   function buildWaterFx() {
-    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); o.geometry.dispose(); } waterFx = null; }
+    if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
     if (!HY) return;
     const nF = HY.floats.length;
-    const pg = new THREE.BufferGeometry();
-    const sp = new Float32Array(SPRAY_N * nF * 3);
-    pg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-    const pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85,
-      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
-    pts2.frustumCulled = false; pts2.renderOrder = 4;
+    // THE SPRITES (H7.1, G460.9): spray.js's instanced quad batch - lit, soft, motion-stretched, two kinds
+    // (droplets and puffs); the Points (0.1 m additive squares) are the fallback without the module
+    const NP = SPRAY_N * nF;
+    let spray = null, pts2;
+    if (window.SPRAY && THREE.InstancedBufferGeometry) { spray = SPRAY.make(THREE, NP); pts2 = spray.mesh; }
+    else {
+      const pg = new THREE.BufferGeometry();
+      pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
+      pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+      pts2.frustumCulled = false; pts2.renderOrder = 4;
+    }
     craft.add(pts2);
-    const drops = { p: new Float32Array(SPRAY_N * nF * 3), v: new Float32Array(SPRAY_N * nF * 3), age: new Float32Array(SPRAY_N * nF).fill(9), next: 0 };
+    const drops = { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), age: new Float32Array(NP).fill(9), life: new Float32Array(NP).fill(1),
+      size: new Float32Array(NP), seed: new Float32Array(NP), kind: new Uint8Array(NP), next: 0, spray };
     // H7 (G460.8): the wake RIBBONS retired - the water's interaction field (water.js) carries the wake
     // as foam and ripples in the surface itself; the ribbon's list stays empty so its readers hold
     const ribbons = [];
     waterFx = { pts: pts2, drops, ribbons, t: 0, wasWet: HY.floats.map(() => false), vyPrev: HY.floats.map(() => 0) };
+  }
+  // emit(D, kind, x, y, z, vx, vy, vz): one particle of a kind (spray.js's KIND laws: the life and the birth size drawn
+  // inside the kind's range, a seed for its sprite's tear); the ring buffer's oldest slot goes first
+  function sprayEmit(D, kind, x, y, z, vx, vy, vz) {
+    const q = D.next; D.next = (D.next + 1) % D.age.length;
+    const K = window.SPRAY ? (kind ? SPRAY.KIND.puff : SPRAY.KIND.droplet) : { life: [0.9, 0.9], size: [0.1, 0.1] };
+    D.p[q * 3] = x; D.p[q * 3 + 1] = y; D.p[q * 3 + 2] = z; D.v[q * 3] = vx; D.v[q * 3 + 1] = vy; D.v[q * 3 + 2] = vz;
+    D.age[q] = 0; D.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
+    D.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); D.seed[q] = Math.random(); D.kind[q] = kind;
   }
   function syncWaterFx(dt) {
     if (!waterFx || !sim || !sim.hydro) return;
@@ -134485,6 +134639,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         //     on the step wets a third of its bottom and presses less than one at rest)
         const kc = [(out.W[F.edge.K][0] + out.W[F.stern.K][0]) / 2, 0, (out.W[F.edge.K][2] + out.W[F.stern.K][2]) / 2];
         WT.stamp(kc[0], kc[2], beam * 0.9, -0.06 - 0.10 * wetK, V > 3 ? 0.35 * Math.min(1, V / 10) : 0, 'press');
+        // (1b) THE BOW WAVE (G460.9): a hull under way pushes a crest up ahead of its stem - the wake's V radiates
+        //      from the bow as much as from the stern; the crest with the speed (5 cm at 2 m/s, 12 at 8)
+        if (V > 1.5 && F.sta && F.sta[0]) { const bw = out.W[F.sta[0].K]; WT.stamp(bw[0], bw[2], beam * 0.7, 0.03 + 0.09 * Math.min(1, V / 8), 0, 'press'); }
         // (2) TOUCHDOWN / A CRASH: the float went wet this frame with a vertical speed - a crater with a rim,
         //     its depth the impact's (0.3 m at 1 m/s, 1 m at 4), foam on the ring, and a burst of the spray
         if (!waterFx.wasWet[k]) {
@@ -134492,13 +134649,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           if (vy > 0.4) {
             const amp = Math.min(1.2, 0.3 * vy), r = beam * (1.2 + 0.4 * Math.min(3, vy));
             WT.stamp(eK[0], eK[2], r, -amp, Math.min(1, 0.4 + 0.2 * vy), 'ring');
-            const burst = Math.min(120, Math.round(25 * vy));
+            // the crown: many FINE droplets thrown out and a little up along the ring (a first cut of 25 per m/s at
+            // 4-12 cm read as popcorn, h7w/splash.png), the mist in fewer, slower puffs under them
+            const burst = Math.min(300, Math.round(70 * vy)), puffs = Math.min(24, Math.round(6 * vy));
             for (let j = 0; j < burst; j++) {
-              const q = D.next; D.next = (D.next + 1) % D.age.length;
-              const a = Math.random() * 6.2832, rr = r * (0.3 + 0.7 * Math.random());
-              D.p[q * 3] = eK[0] + Math.cos(a) * rr; D.p[q * 3 + 1] = fx.h + 0.05; D.p[q * 3 + 2] = eK[2] + Math.sin(a) * rr;
-              D.v[q * 3] = Math.cos(a) * (1 + 2 * Math.random()) * Math.min(2, vy) + vK[0] * 0.3; D.v[q * 3 + 1] = (1.5 + 2.5 * Math.random()) * Math.min(2, vy * 0.8); D.v[q * 3 + 2] = Math.sin(a) * (1 + 2 * Math.random()) * Math.min(2, vy) + vK[2] * 0.3;
-              D.age[q] = 0;
+              const a = Math.random() * 6.2832, rr = r * (0.5 + 0.5 * Math.random());
+              sprayEmit(D, 0, eK[0] + Math.cos(a) * rr, fx.h + 0.05, eK[2] + Math.sin(a) * rr,
+                Math.cos(a) * (1.5 + 2.5 * Math.random()) * Math.min(2, vy) + vK[0] * 0.3, (0.8 + 1.6 * Math.random()) * Math.min(2, vy * 0.6), Math.sin(a) * (1.5 + 2.5 * Math.random()) * Math.min(2, vy) + vK[2] * 0.3);
+            }
+            for (let j = 0; j < puffs; j++) {   // the mist that hangs over the splash: slow, wide, rising a little
+              const a = Math.random() * 6.2832, rr = r * (0.2 + 0.6 * Math.random());
+              sprayEmit(D, 1, eK[0] + Math.cos(a) * rr, fx.h + 0.15, eK[2] + Math.sin(a) * rr,
+                Math.cos(a) * 0.8 * Math.min(2, vy) + vK[0] * 0.2, 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy) + vK[2] * 0.2);
             }
           }
         }
@@ -134518,28 +134680,49 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
           if (WT && Math.random() < 0.5) WT.stamp(o.c[0], o.c[2], 0.5, 0, Math.min(1, pd / 4000), 'foam');   // (3) the chine's white water in the sheet
           let n = Math.floor(rate); if (Math.random() < rate - n) n++;
           for (let j = 0; j < n; j++) {
-            const q = D.next; D.next = (D.next + 1) % D.age.length;
-            D.p[q * 3] = o.c[0] + (Math.random() - 0.5) * 0.15; D.p[q * 3 + 1] = Math.max(fx.h, o.c[1]) + 0.02; D.p[q * 3 + 2] = o.c[2] + (Math.random() - 0.5) * 0.15;
-            const up = 1.0 + 1.5 * Math.random(), outw = (0.8 + 1.2 * Math.random()) * Math.min(1, V / 12);
-            D.v[q * 3] = vK[0] * 0.35 + ox * outw * 2.2 + (Math.random() - 0.5) * 0.6;
-            D.v[q * 3 + 1] = up * Math.min(1.2, V / 10);
-            D.v[q * 3 + 2] = vK[2] * 0.35 + oz * outw * 2.2 + (Math.random() - 0.5) * 0.6;
-            D.age[q] = 0;
+            // the chine's fan is a low sheet flaring OUT and aft (G460.9: a first cut threw it up and buried the hull)
+            const up = 0.5 + 0.9 * Math.random(), outw = (0.8 + 1.2 * Math.random()) * Math.min(1, V / 12);
+            sprayEmit(D, 0, o.c[0] + (Math.random() - 0.5) * 0.15, Math.max(fx.h, o.c[1]) + 0.02, o.c[2] + (Math.random() - 0.5) * 0.15,
+              vK[0] * 0.35 + ox * outw * 3.2 + (Math.random() - 0.5) * 0.6, up * Math.min(1.0, V / 10), vK[2] * 0.35 + oz * outw * 3.2 + (Math.random() - 0.5) * 0.6);
           }
+          // the fan's mist: a puff for every ~12 droplets, outboard of the chine, left behind by the hull
+          if (n > 0 && Math.random() < n / 12) sprayEmit(D, 1, o.c[0] + ox * 0.9, Math.max(fx.h, o.c[1]) + 0.1, o.c[2] + oz * 0.9,
+            vK[0] * 0.1 + ox * 1.6 * Math.min(1, V / 12), 0.25 + 0.4 * Math.random(), vK[2] * 0.1 + oz * 1.6 * Math.min(1, V / 12));
         }
       }
     }
-    // integrate the droplets
-    const life = 0.9, sp = waterFx.pts.geometry.attributes.position.array;
+    // integrate the particles: a droplet is ballistic with a little air drag and dies where it meets the water
+    // (a foam speck is the field's, not a particle's); a puff is near-weightless mist under drag, sinking slowly
+    const S = D.spray, sp = S ? null : waterFx.pts.geometry.attributes.position.array;
+    const KD = window.SPRAY ? SPRAY.KIND.droplet : { drag: 0, gravity: 1, grow: 1 }, KP = window.SPRAY ? SPRAY.KIND.puff : KD;
+    const wH = (x, z) => { const h = world.waterH ? world.waterH(x, z) : 0; return Number.isFinite(h) ? h : -1e9; };
     for (let q = 0; q < D.age.length; q++) {
-      if (D.age[q] >= life) { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; continue; }
+      if (D.age[q] >= D.life[q]) { if (S) S.hide(q); else { sp[q * 3] = 0; sp[q * 3 + 1] = -1e4; sp[q * 3 + 2] = 0; } continue; }
+      const K = D.kind[q] ? KP : KD;
       D.age[q] += dt;
-      D.v[q * 3 + 1] -= G * dt;
+      const dr = Math.max(0, 1 - K.drag * dt);
+      D.v[q * 3] *= dr; D.v[q * 3 + 2] *= dr; D.v[q * 3 + 1] = D.v[q * 3 + 1] * dr - G * K.gravity * dt;
       D.p[q * 3] += D.v[q * 3] * dt; D.p[q * 3 + 1] += D.v[q * 3 + 1] * dt; D.p[q * 3 + 2] += D.v[q * 3 + 2] * dt;
-      sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2];
+      if (!D.kind[q] && D.age[q] > 0.1 && D.p[q * 3 + 1] < wH(D.p[q * 3], D.p[q * 3 + 2]) - 0.02) { D.age[q] = D.life[q]; if (S) S.hide(q); continue; }
+      if (S) { const a01 = D.age[q] / D.life[q]; S.set(q, [D.p[q * 3], D.p[q * 3 + 1], D.p[q * 3 + 2]], [D.v[q * 3], D.v[q * 3 + 1], D.v[q * 3 + 2]], a01, D.size[q] * (1 + (K.grow - 1) * a01), D.seed[q], D.kind[q]); }
+      else { sp[q * 3] = D.p[q * 3]; sp[q * 3 + 1] = D.p[q * 3 + 1]; sp[q * 3 + 2] = D.p[q * 3 + 2]; }
     }
-    waterFx.pts.geometry.attributes.position.needsUpdate = true;
+    if (S) {
+      S.commit();
+      // lit by the world's own sun and sky, in the eye's frame
+      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; S.light([sd.x, sd.y, sd.z], sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity), skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity), camera); }
+    } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
   }
+  const sunIrr = new THREE.Color(), skyIrr = new THREE.Color();
+  // WATER_FX.burst(x, z, n, vy): a splash's spray by hand at (x, water level, z) - the rig's and the dev panel's door
+  // to the sprites without a touchdown (the same droplet + puff mix the touchdown emitter throws)
+  if (typeof window !== 'undefined') window.WATER_FX = { burst(x, z, n, vy) {
+    if (!waterFx) return 0; const D = waterFx.drops, h = (world.waterH && Number.isFinite(world.waterH(x, z))) ? world.waterH(x, z) : 0; vy = vy || 2; n = n || 80;
+    for (let j = 0; j < n; j++) { const a = Math.random() * 6.2832, rr = 1.5 * (0.3 + 0.7 * Math.random());
+      sprayEmit(D, 0, x + Math.cos(a) * rr, h + 0.05, z + Math.sin(a) * rr, Math.cos(a) * (1 + 2 * Math.random()) * Math.min(2, vy), (1.5 + 2.5 * Math.random()) * Math.min(2, vy * 0.8), Math.sin(a) * (1 + 2 * Math.random()) * Math.min(2, vy)); }
+    for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
+      sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
+    return n; }, get fx() { return waterFx; } };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;
