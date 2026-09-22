@@ -55410,3 +55410,84 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
 - GATE WATER holds it (the dome drawn at the mirrored eye and handed back to its parent; app.js passes
   WF.skyDome). PROOF: p1/ (the diagnosis: sea12, mir11), p2/ (the sea after), p3_0.6,cu and p3_0.9,st (the
   lake and the sea under two skies).
+
+
+## G495 — THE GROUND UNDER THE CRAFT: THE PROBE'S CAP FOLLOWS THE GROUND (2026-09-22, the user, on a
+## screenshot of the aeroplane on Jolene's apron: "I have the feeling the plane is receiving some green
+## tint from the bottom, and I don't see where it should come from ... we had the same issue with the
+## interior ... the single source now should really be the sun, but we also need an ambient light model,
+## are we clean on all of that?")
+
+- YES, AND IT IS THE SAME CAP THE CABIN ALREADY HAD ITS OWN PROBE FOR (G436.6). The world's reflection
+  probe (S5) is the physical sky over a ground cap, and that cap was ONE colour for ever: 0x6d7a45,
+  an upland green, judged at W18 for a belly over grass. scene.environment reaches every Standard
+  material, so the cap is the aeroplane's whole ambient from below, wherever it stands - on a concrete
+  apron it was still a half-dome of lit grass pressed against the belly. G436.6 fixed the CABIN by
+  giving it a second probe with a neutral cap; the airframe outside kept the green.
+- THE INSTRUMENT FIRST (tools/light_shot.js, new): island_shot's boot, the craft held, and beside it a
+  GREY SPHERE - a MeshStandardMaterial at linear 0.5, roughness 1, metalness 0, the one material every
+  Standard part of the aeroplane is a case of with nothing of its own to say. Its shading BY NORMAL is
+  the incident light; the rig reads it back at a table of normals (up, eye, two down, the sun, the
+  antisun) and prints R G B and G / mean(R, B) - the number that names a green cap. --states drives the
+  world switchboard (all / sun / hemi / env / none, `+` for a pair); --step runs an expression in the
+  same page and re-reads the table (the sphere is RE-PLACED after a step: the first grass run read a
+  sphere 700 m behind the craft, in shade - a confident wrong number).
+- MEASURED AT THE STAND ON THE APRON (Jolene, 10:00, sun 45.8 deg), the belly normal (0.28, -0.89, 0.37):
+      the probe alone   61 / 73 / 41   G/mean(R,B) 1.44
+      the hemisphere    29 / 36 / 35                1.13   (its ground half, the row's 0x3a3f30)
+      the sun            0 /  0 /  0                  -    (the belly is not in the sun)
+      everything on     81 / 94 / 70                1.24
+  The probe is four times the hemisphere on a downward normal in linear light: the cap WAS the tint.
+- THE FIX. atmo.js makeProbe takes `cap`, a function returning the cap's LINEAR rgb now (o.capHex stays
+  for a cap that does not move - the cabin's 0x3f3c38, the shed's outdoors), reads it at every bake and
+  RE-BAKES when it has moved (a 0.01 step in any channel, at most every minGapMs - 4 s, the clouds'
+  gap). render_world.js declares GROUND_ALBEDO, one linear rgb per SURFACE class (GRASS is the old cap
+  to the bit - 0x6d7a45 is .153/.194/.060, and the gate holds it there; PAVED is pavement_tex's
+  concreteD mean, SAND the beach set's, the rest measured off the same libraries), samples it over THE
+  DISC THE BELLY SEES - 16 points, centre + 5 at half the radius + 10 at it, the radius = the height
+  above the ground (6 m on the stand, 400 m at the cap), every 6th frame - averages the classes by
+  count, and eases the result toward the mix with tau = 1 s ON THE WALL CLOCK (a per-frame 1/60 eased
+  at the frame rate: in the headless rig the cap was still a quarter of the way back to concrete eight
+  seconds after the craft stood on grass).
+- THE A/B, ONE BOOT, ONE EYE (WORLD_RIG.groundUnderPin pins the cap; light_shot --step drives it), the
+  same pixel on the same sphere on the apron:
+      the old fixed grass cap   the probe alone 61/73/41 (1.44)   everything on 81/94/70 (1.24)
+      the ground's cap          the probe alone 83/81/76 (1.01)   everything on 98/100/95 (1.03)
+  bench/light/ab2_s0_all.png vs ab2_s1_all.png: the fin, the rear fuselage and the tailplane underside
+  lose the olive cast. Over GRASS the cap is byte-identical to master (1.21 on the belly - green,
+  correctly: it is over a field), so nothing that was ever judged over grass moved.
+- WATER IS NOT ITS ALBEDO, and that is the one judgement in the table. The cap is the RADIANCE the
+  belly sees; over water almost none of it is the sea's own 0.03 - it is the sky, reflected, and
+  Fresnel is 2 % straight down but climbs to 1 at the grazing angles that fill most of a belly's cone.
+  At the diffuse albedo (0.020/0.040/0.060) the belly over open water measured 42/58/68 under the whole
+  rig against grass's 77/91/68: a hole under a floatplane. WATER is 0.048/0.068/0.100 - the reflected
+  sky, blue, ~0.07 - and the belly reads 52/65/78, G/mean 1.01: cool, not green, not a hole
+  (bench/light/sea2_s1_all.png is the old grass cap over the same water, 1.25). The number a user's
+  eye may want to move.
+- THE AUDIT (the second half of the question). LIGHT_RIG.census of the flight scene, rolled out on
+  Jolene: HemisphereLight x1 (i 2.10), DirectionalLight x2 - the sun (i 9.04) and shadow_near's BLACK
+  light (colour 0x000000: a shadow map, not a source) - and 12 Point/Spot at intensity 0 (the craft's
+  nav / beacon / landing and the premises lamp pool, off by day). scene.environmentIntensity 0.5 (G94's
+  halved double count). With sun, hemisphere and environment muted the sphere reads 0/0/0 at every
+  normal: NOTHING ELSE LIGHTS THE AEROPLANE. So: ONE key (the sun, or the moon below the horizon), and
+  the ambient is two terms that are now each about the right thing -
+      the HEMISPHERE  the WORLD's ambient: its sky half the day's irradiance (ATMO.skyIrradiance,
+                      physical), its ground half the rig row's AVERAGE ground (0x3a3f30 on the island).
+                      It lights every slope, underside and canopy out there and does not follow one
+                      aeroplane about - so it keeps its row's number, and it is a third of the cap's
+                      strength on the craft.
+      the PROBE's CAP the CRAFT's ambient from below: the ground it is actually over. The cabin's
+                      neutral cap (G436.6) is the special case of this rule, and stays.
+  OWED, if the user wants the last of it physical: hemiGnd derived from the world's mean albedo x the
+  day rather than authored per row - that moves every shaded slope in the world and wants their eye.
+  NOT CHANGED: the shed's outdoor sky probe (app.js, capHex 0x6d7a45) - it lights the garage's own
+  apron and field OUTSIDE the door, never the aeroplane (the craft in the shed reads the room's probe).
+- SURFACED: F8 > environment now says what the hemisphere is for, and carries a live line - "the ground
+  under the craft: paved 100% over +-6 m -> cap 0.251/0.230/0.190 . baked ... (5 bakes)".
+- COST: the 16-sample sweep is 0.034 ms, every 6th frame - 0.006 ms a frame. Six probe bakes over a
+  whole circuit (the sun's 1.5 deg schedule already bakes more often than the cap does).
+- GATE LIGHT 4e.2: the table's shape and GRASS on its judged value, the probe's `cap`, the frame hook,
+  atmo's live cap and its re-bake, the pin, and the cabin's own probe still there; three new negative
+  tests (the cap pinned back to a hex, GRASS moved, the bounce un-occluded). GATE CLOUD's makeProbe
+  assertion rewritten for the combined dirty/cap condition.
+- SEEN: bench/light/ (stand_* master, ab2_* the A/B), tools/light_shot.js is the rig.

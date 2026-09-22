@@ -340,6 +340,69 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // light below need it, and they must never disagree
   const gb = (typeof window !== 'undefined' && window.LIGHT_RIG)
     ? window.LIGHT_RIG.groundBounce() : 1;
+  // ---- THE GROUND UNDER THE CRAFT (2026-09-22) -----------------------------
+  // The probe's cap was ONE colour for ever - the upland green 0x6d7a45, judged
+  // for a belly over grass (W18) - and it lit every Standard material on the
+  // aeroplane from below wherever it stood: measured on a grey sphere beside
+  // the craft parked on Jolene's CONCRETE apron (tools/light_shot.js), the
+  // probe alone put G / mean(R, B) = 1.42 on its underside (the sun 1.0, the
+  // hemisphere's ground half 1.15), the cabin's dash took the same cap from
+  // below (G436.6 gave the cabin its own neutral probe - the special case of
+  // this). The ambient from below is the ground the craft is over: its albedo
+  // by the world's SURFACE class (linear rgb - the grass keeps the number every
+  // belly was judged with; the concrete is the apron set's measured mean,
+  // pavement_tex.js concreteD; the sand the beach set's), sampled over the
+  // disc the belly sees (a ring of 16 points, its radius the height above the
+  // ground, 6 m on the stand), averaged, and eased over a second so a coast or
+  // an apron's edge is never a step. ONE keeper: the probe reads it at every
+  // bake and re-bakes when it moved (atmo.js makeProbe o.cap). The world's
+  // hemisphere keeps its row's ground half: it is the WORLD's ambient (the
+  // walls, the slopes, the undersides of the canopy) and does not follow one
+  // aeroplane about; on the craft it is a third of the cap's strength.
+  // WATER IS NOT ITS ALBEDO. The cap is the RADIANCE the belly sees, and over water almost none of
+  // that is the sea's own 0.03: it is the sky, reflected - Fresnel is 2 % straight down and climbs
+  // to 1 at the grazing angles that fill most of a belly's cone, so the effective value is ~0.07
+  // and BLUE. At the sea's diffuse albedo the belly went to 42/58/68 under the whole rig (grass
+  // gave 77/91/68): a hole under a floatplane. This is a judgement, like the ground bounce, and it
+  // is the one number here a user's eye may want to move.
+  const GROUND_ALBEDO = {
+    GRASS: [0.153, 0.194, 0.060], FOREST_FLOOR: [0.060, 0.070, 0.030], ROCK: [0.200, 0.190, 0.170],
+    SCREE: [0.190, 0.170, 0.130], WATER: [0.048, 0.068, 0.100], PAVED: [0.251, 0.230, 0.190],
+    GRAVEL: [0.190, 0.150, 0.110], SAND: [0.283, 0.237, 0.196],
+  };
+  const GU = { alb: GROUND_ALBEDO.GRASS.slice(), target: GROUND_ALBEDO.GRASS.slice(), cls: 'GRASS', r: 6, tick: 0, mix: {}, last: 0, pin: null };
+  const capOf = () => GU.pin || GU.alb;   // the cap the probe bakes over: the ground, or a pinned colour (the A/B below)
+  const GU_NAMES = Object.keys(GROUND_ALBEDO);
+  const guClassAt = (x, z) => {
+    const s = world.surface ? world.surface(x, z) : -1;
+    const k = (world.SURFACE && s >= 0) ? GU_NAMES.find(n => world.SURFACE[n] === s) : null;
+    return k || 'GRASS';
+  };
+  // THE EASE IS ON THE WALL CLOCK, NOT ON FRAMES. A per-frame 1/60 eased at the frame rate: in the
+  // headless rig (~15 fps) the cap was still a quarter of the way back to concrete eight seconds
+  // after the craft stood on grass. tau = 1 s, measured with performance.now().
+  function groundUnderUpdate(cg) {
+    if (!cg) return;
+    const now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+    const dt = GU.last ? Math.min(0.5, (now - GU.last) / 1000) : 1 / 60;
+    GU.last = now;
+    if ((GU.tick++ % 6) === 0) {
+      // the disc: the centre, 5 at half the radius, 10 at the radius (r = the height above the ground, 6 m at least, 400 m at most)
+      const gy = world.terrainH(cg[0], cg[2]), r = Math.max(6, Math.min(400, cg[1] - gy));
+      GU.r = r;
+      const mix = {}; let n = 0;
+      const tally = (x, z) => { const k = guClassAt(x, z); mix[k] = (mix[k] || 0) + 1; n++; };
+      tally(cg[0], cg[2]);
+      for (let i = 0; i < 5; i++) { const a = i * 2 * Math.PI / 5; tally(cg[0] + 0.5 * r * Math.cos(a), cg[2] + 0.5 * r * Math.sin(a)); }
+      for (let i = 0; i < 10; i++) { const a = (i + 0.5) * 2 * Math.PI / 10; tally(cg[0] + r * Math.cos(a), cg[2] + r * Math.sin(a)); }
+      const t = [0, 0, 0]; let top = null;
+      for (const k in mix) { const w = mix[k] / n, a = GROUND_ALBEDO[k]; t[0] += w * a[0]; t[1] += w * a[1]; t[2] += w * a[2]; if (!top || mix[k] > mix[top]) top = k; }
+      GU.target = t; GU.cls = top; GU.mix = mix;
+    }
+    const k = 1 - Math.exp(-dt / 1.0);               // eased over a second
+    for (let i = 0; i < 3; i++) GU.alb[i] += (GU.target[i] - GU.alb[i]) * k;
+  }
+  const groundUnder = () => ({ cls: GU.pin ? 'PIN' : GU.cls, alb: capOf().slice(), target: GU.target.slice(), r: GU.r, mix: Object.assign({}, GU.mix), table: GROUND_ALBEDO });
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
@@ -351,7 +414,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
     ATMO.update(renderer, world.day, 0);
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
-    probe = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x6d7a45, gb, onSwap: t => { envMap = t; scene.environment = t; },
+    probe = ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
@@ -403,7 +466,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return Math.min(1.5, Eg(s) / Math.max(1e-9, ref));
     })() : 1;
     es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({
-      color: C(0x6d7a45).multiplyScalar(gb).multiplyScalar(capK), side: THREE.BackSide,
+      color: C(0xffffff).setRGB(capOf()[0], capOf()[1], capOf()[2]).multiplyScalar(gb).multiplyScalar(capK), side: THREE.BackSide,   // the one-shot bake: the table's grass (the craft has not stood anywhere yet)
       toneMapped: false, fog: false })));
     const pmrem = new THREE.PMREMGenerator(renderer);
     envMap = pmrem.fromScene(es, 0.035, 1, 100).texture;   // slight blur: a sky, not a mirror
@@ -4590,6 +4653,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     uCam.value.copy(camera.position);
     if (fineRing && fineRing.on) fineRing.update();   // the fine disc follows the eye (TERRAIN FOLLOW-UP 2)
     uCG.value.set(cg[0], cg[1], cg[2]);
+    groundUnderUpdate(cg);           // the probe's cap follows the ground the craft is over (before the day's pass re-bakes it)
     dayApply();
     fillUpdate(cg);
     lodUpdate(cg);
@@ -4803,6 +4867,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     envState: () => alpsState,
     // A6: the eye is in the cockpit - the cabin's probe (a neutral cap) is the environment, else the world's
     interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
+    // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
+    groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
+    // PINNED, for an A/B from ONE boot and one eye (tools/light_shot.js --step): a linear rgb holds the
+    // cap there - `WORLD_RIG.groundUnderPin(WORLD_RIG.groundUnder().table.GRASS)` is what the old
+    // fixed cap did everywhere - and null hands it back to the ground. The instrument, not a setting.
+    groundUnderPin: a => { GU.pin = a ? a.slice(0, 3) : null; if (probe) probe.bake(world.day); return GU.pin; },
   };
   if (typeof window !== 'undefined') window.WORLD_RIG = worldRig;
 

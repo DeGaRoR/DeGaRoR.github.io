@@ -448,6 +448,19 @@
     E.appendChild(slider('sun', 0, 5, 0.05, () => rig().get().sunI, v => rig().set({ sunI: v })));
     E.appendChild(slider('sun warmth', 0, 1, 0.02, () => sunWarm(), v => rig().set({ sunCol: warmHex(v) })));
     E.appendChild(slider('hemisphere', 0, 1.5, 0.02, () => rig().get().hemi, v => rig().set({ hemi: v })));
+    E.appendChild(note('the hemisphere is the WORLD’s one ambient - its sky half is the day’s irradiance, its ground half the rig row’s average ground (every slope and underside out there, not this aeroplane’s)'));
+    // THE GROUND UNDER THE CRAFT (2026-09-22): the probe's cap, which IS the aeroplane's ambient
+    // from below - what it is now, what it is easing to, and what the probe last baked over.
+    // (the panel can be built before the world is - every read is inside the refresh, guarded, the
+    // way the K_sun line above is: `live` calls these with no try/catch of its own)
+    { const n = note(''); const R = { el: n, refresh: () => {
+        const g = (rig() && rig().groundUnder) ? rig().groundUnder() : null;
+        if (!g) { n.textContent = 'the ground under the craft: (no world yet)'; return; }
+        const f = a => a ? a.map(v => v.toFixed(3)).join('/') : '-';
+        const mix = Object.keys(g.mix || {}).map(k => k.toLowerCase() + ' ' + Math.round(100 * g.mix[k] / 16) + '%').join(', ');
+        n.textContent = `the ground under the craft: ${mix || '-'} over ±${g.r.toFixed(0)} m → cap ${f(g.alb)}` +
+          `${g.pin ? ' (PINNED)' : ''} · baked ${f(g.baked)} (${g.bakes} bakes)`; } };
+      rows.push(R); live.push(R); E.appendChild(n); }
     E.appendChild(slider('exposure', 0.3, 2, 0.02, () => rig().get().exposure, v => rig().set({ exposure: v })));
     E.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));

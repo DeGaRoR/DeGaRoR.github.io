@@ -133,7 +133,8 @@ console.log('6. the splice rules');
   yes(/vec4 march\(vec3 o, vec3 d, float tScene, float jitterK\)/.test(cj) && /gl_FragColor = march\(o, d, tScene, uDials2\.x\);/.test(cj) && /vec4 m = march\(uEye, d, 1e9, 0\.0\);/.test(cj), 'one march text serves the fullscreen pass and the dome (the probe, the shed)');
   const rw3 = src('viewer/render_world.js');
   yes(/decorate: typeof CLOUDS !== 'undefined' && CLOUDS\.domeMesh \? es => \{ const m = CLOUDS\.domeMesh\(0, 20, 24\);/.test(rw3) && /dirty: typeof CLOUDS !== 'undefined' && CLOUDS\.probeDirty/.test(rw3), 'the world\'s probe bakes the layer and re-bakes as it drifts (the water reflects the clouds)');
-  yes(/if \(o\.decorate\) o\.decorate\(es\);/.test(at) && /o\.dirty\(\)\) return probe\.bake\(day\);/.test(at), 'ATMO.makeProbe takes the decorator and the dirty test');
+  yes(/if \(o\.decorate\) o\.decorate\(es\);/.test(at) && /\(\(o\.dirty && o\.dirty\(\)\) \|\| \(o\.cap && capMoved\(\)\)\)\) return probe\.bake\(day\);/.test(at),
+      'ATMO.makeProbe takes the decorator and the dirty test (with the live cap beside it - the ground under the craft, 2026-09-22)');
   yes(/hemiBoost: RIG\.hemi \/ 0\.274 \* \(typeof CLOUDS !== 'undefined' && CLOUDS\.hemiUnder \? CLOUDS\.hemiUnder\(cT\) : 1\)/.test(rw3) && /cloudT: cT/.test(rw3), 'the hemisphere rises under the cloud at the eye and whitens (sky_light cloudT)');
   yes(/if \(o\.keyGain != null && !isMoon\) I \*= o\.keyGain;/.test(src('viewer/sky_light.js')) && /keyGain: cloudT/.test(src('viewer/hangar.js')) && /CLOUDS\.domeMesh\(SHED_FRAME_YAW, 598, 24, \{ depthTest: true \}\)/.test(src('viewer/hangar.js')) && /depthTest: !!\(opts && opts\.depthTest\)/.test(cj), 'the shed sees the layer on its backdrop, depth-tested behind its walls (G436.2), and its key takes the column (the dome keeps its scale)');
   const idx = rw3.indexOf('CLOUDS.update(day, camera, world)'), gate = rw3.indexOf('if (day.version === dayVer && Math.abs(el - dayEl) < 0.02');

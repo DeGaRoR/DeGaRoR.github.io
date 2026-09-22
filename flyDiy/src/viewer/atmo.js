@@ -818,6 +818,11 @@ var ATMO = (function () {
   // rooms take one (the shed's in its own frame): the aeroplane's skin, the
   // glazing, the water and the shed's outdoors read it, and the sunset through
   // the windows moves with the sun at last.
+  // THE CAP IS THE GROUND UNDER THE EYE (2026-09-22, the user: "the plane is receiving some
+  // green tint from the bottom, and I don't see where it should come from" - on the concrete
+  // apron). o.capHex is a colour that never moves; o.cap is a function returning the cap's
+  // LINEAR rgb now (render_world's GROUND UNDER THE CRAFT), read at every bake, and the probe
+  // re-bakes when it has moved (maybe(): a 1 % step in any channel, at most every o.minGapMs).
   const lum3 = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   function groundIrradiance(day) {              // the ground's irradiance relative to the alps anchor (0..~1.2)
     const T = [0, 0, 0], E = [0, 0, 0];
@@ -833,15 +838,21 @@ var ATMO = (function () {
     const domeG = new THREE.SphereGeometry(20, 32, 20);
     es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
     const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });
-    const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45).multiplyScalar(o.gb != null ? o.gb : 1);
+    const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45);
+    const gb = o.gb != null ? o.gb : 1;      // the occlusion every ambient-from-below carries (LIGHT_RIG.groundBounce)
+    const capNow = () => { if (!o.cap) return cap0; const c = o.cap(); return cap0.setRGB(c[0], c[1], c[2]); };
+    const capBaked = [0, 0, 0];
+    const capMoved = () => { const c = capNow(); return Math.abs(c.r - capBaked[0]) > 0.01 || Math.abs(c.g - capBaked[1]) > 0.01 || Math.abs(c.b - capBaked[2]) > 0.01; };
     es.add(new THREE.Mesh(new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2), capMat));
     if (o.decorate) o.decorate(es);          // CLOUDS C3: the layer's sphere over the dome (the water reflects the clouds)
     let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0, lastBake = -1e9;
     const probe = {
       get texture() { return rt ? rt.texture : null; },
       get bakes() { return bakes; }, get lastMs() { return lastMs; },
+      get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
       bake(day) {
-        capMat.color.copy(cap0).multiplyScalar(groundIrradiance(day));
+        const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
+        capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day));
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         const next = pmrem.fromScene(es, 0.035, 1, 100);
         lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
@@ -862,7 +873,7 @@ var ATMO = (function () {
         const moved = Math.acos(cosA) * 180 / Math.PI > (thresholdDeg || 1.5);
         if (moved || day.version !== bakedVer) return probe.bake(day);
         const now = (typeof performance !== 'undefined') ? performance.now() : 0;
-        if (o.dirty && now - lastBake > (o.minGapMs || 4000) && o.dirty()) return probe.bake(day);
+        if (now - lastBake > (o.minGapMs || 4000) && ((o.dirty && o.dirty()) || (o.cap && capMoved()))) return probe.bake(day);
         return null;
       },
     };

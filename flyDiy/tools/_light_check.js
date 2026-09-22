@@ -250,11 +250,38 @@ check(!/aeroSetEnv\(|propSetEnv\(|CAGE_ENERGY\.setEnv\(/.test(shed.replace(/^\s*
 // light that is a flat colour and never moves.
 check(/groundColor\.multiplyScalar\(gb\)/.test(world),
       'the world hemisphere\'s ground term is no longer occluded');
-check(/C\(0x6d7a45\)\.multiplyScalar\(gb\)/.test(world),
-      'the world environment\'s ground cap is no longer occluded');
+check(/\.multiplyScalar\(gb\)\.multiplyScalar\(capK\)/.test(world),
+      'the world environment\'s ground cap (the one-shot fallback bake) is no longer occluded');
+check(/multiplyScalar\(gb\)\.multiplyScalar\(groundIrradiance\(day\)\)/.test(read('atmo.js')),
+      'the probe\'s cap is no longer occluded by the ground bounce');
 check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
       /LIGHT_RIG\.groundBounce\(\)/.test(app),
       'a room is deciding its own ground bounce instead of applying the rig\'s');
+
+// 4e.2 THE CAP IS THE GROUND UNDER THE CRAFT (2026-09-22, the user: "the plane is
+// receiving some green tint from the bottom, and I don't see where it should come
+// from" - parked on concrete). The probe's lower hemisphere was ONE upland green for
+// ever, wherever the aeroplane stood; it is the albedo of the SURFACE classes the
+// belly actually sees now, eased, and the probe re-bakes when it has moved. GRASS
+// must stay the colour every belly was judged against (0x6d7a45, linear .153/.194/.060).
+{
+  const atmo = read('atmo.js');
+  const g = /GRASS: [[]([0-9.]+), ([0-9.]+), ([0-9.]+)]/.exec(world);
+  check(!!g, 'the world no longer declares a GROUND_ALBEDO table');
+  if (g) check(Math.abs(+g[1] - 0.153) < 0.002 && Math.abs(+g[2] - 0.194) < 0.002 && Math.abs(+g[3] - 0.060) < 0.002,
+        'GROUND_ALBEDO.GRASS moved off the cap the bellies were judged with (0x6d7a45 = .153/.194/.060): ' + g.slice(1, 4).join('/'));
+  const tbl = /const GROUND_ALBEDO = [{]([^]*?)[}];/.exec(world);
+  check(!!tbl, 'GROUND_ALBEDO is no longer one table');
+  if (tbl) for (const k of ['GRASS', 'FOREST_FLOOR', 'ROCK', 'SCREE', 'WATER', 'PAVED', 'GRAVEL', 'SAND'])
+    check(new RegExp(k + ':').test(tbl[1]), 'GROUND_ALBEDO has no ' + k + ' - a SURFACE class with no albedo falls back to grass');
+  check(/cap: capOf, gb,/.test(world) && /const capOf = [(][)] => GU[.]pin [|][|] GU[.]alb;/.test(world),
+        'the world probe no longer takes the ground under the craft as its cap');
+  check(/groundUnderPin: a =>/.test(world), 'the cap can no longer be pinned - the one-boot A/B (tools/light_shot.js --step) is gone');
+  check(/groundUnderUpdate[(]cg[)];/.test(world), 'the ground under the craft is no longer sampled each frame');
+  check(/if [(]!o[.]cap[)] return cap0;/.test(atmo) && /o[.]cap && capMoved[(][)]/.test(atmo),
+        'atmo.makeProbe no longer reads a live cap, or no longer re-bakes when the cap has moved');
+  check(/capHex: 0x3f3c38/.test(world), "the cabin's own neutral probe (G436.6) is gone");
+}
 
 // 4f. THE SHED'S SWITCH LIST COVERS ALL THREE KINDS, and every switch has an
 // action. A list is what was wrong every previous time.
@@ -431,8 +458,14 @@ if (process.argv.includes('--selftest')) {
                      '      sc.add(new THREE.HemisphereLight(C(0xbcd8f0), C(0x6a5a3c), 0.50));'),
       s => (s.match(/new THREE\.HemisphereLight\(/g) || []).length !== 1],
     ['world ground bounce un-occluded', world,
-      s => s.replace('C(0x6d7a45).multiplyScalar(gb)', 'C(0x6d7a45)'),
-      s => !/C\(0x6d7a45\)\.multiplyScalar\(gb\)/.test(s)],
+      s => s.replace('.multiplyScalar(gb).multiplyScalar(capK)', '.multiplyScalar(capK)'),
+      s => !/\.multiplyScalar\(gb\)\.multiplyScalar\(capK\)/.test(s)],
+    ['the cap stops following the ground under the craft', world,
+      s => s.replace('cap: capOf, gb,', 'capHex: 0x6d7a45, gb,'),
+      s => !/cap: capOf, gb,/.test(s)],
+    ['GRASS moves off the judged cap', world,
+      s => s.replace('GRASS: [0.153, 0.194, 0.060]', 'GRASS: [0.253, 0.394, 0.060]'),
+      s => { const g = /GRASS: [[]([0-9.]+),/.exec(s); return !!g && Math.abs(+g[1] - 0.153) > 0.002; }],
     ['hemisphere ground term un-occluded', world,
       s => s.replace('h.groundColor.multiplyScalar(gb);', ''),
       s => !/groundColor\.multiplyScalar\(gb\)/.test(s)],

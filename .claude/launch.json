@@ -728,6 +728,18 @@
         "D:/Dev/DeGaRoR.github.io"
       ],
       "port": 8484
+    },
+    {
+      "name": "flydiy-lighting",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8487",
+        ".",
+        "--fallback",
+        "D:/Dev/DeGaRoR.github.io"
+      ],
+      "port": 8487
     }
   ]
 }
