@@ -126,7 +126,7 @@ const WATER = (() => {
     uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4;   // the planar mirror (G460.11): its capture's view-projection; x: on, y: the slope's perturbation, z: the lod per roughness, w: 0
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes;   // the planar mirror (G460.11): its capture's view-projection; x: on, y: the slope's perturbation, z: the lod per roughness, w: 0
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
     uniform vec4 uWFoam;       // x: the fold's RMS Q sqrt(sum (A k)^2 / 2), y: the whitecap cover (Monahan, of the wind), z: the swell's A (m), w: 0
     uniform int uWDbg;
@@ -384,6 +384,8 @@ const WATER = (() => {
         else if (uWDbg == 8) gl_FragColor = vec4(vec3(wGerstnerH(vWP.x, vWP.z) * 0.5 + 0.5), 1.0);
         else if (uWDbg == 9) { vec2 q = (vWP.xz - uWInterBox.xy) * uWInterBox.z; gl_FragColor = vec4(q, wIn.z, 1.0); }
         else if (uWDbg == 10) gl_FragColor = vec4(0.5 + 3.0 * wIn.x, 0.5 + 3.0 * wIn.y, wIn.z, 1.0);   // the field's slope (G460.10: the wake's V read straight off the sheet)
+        else if (uWDbg == 13) { vec4 mp = uWMirrorVP * vec4(vWP, 1.0); vec2 muv = mp.xy / max(mp.w, 1.0e-4) * 0.5 + 0.5; vec2 suv = gl_FragCoord.xy / uWRes; vec2 d = muv - suv; gl_FragColor = vec4(0.5 + 20.0 * d.x, 0.5 + 20.0 * d.y, 0.5, 1.0); }   // (G460.11.4) the projected uv against the pixel's own: grey = they agree
+        else if (uWDbg == 12) { vec2 muv = gl_FragCoord.xy / uWRes; vec4 mr = texture2D(uWMirror, muv); gl_FragColor = vec4(mr.rgb / max(mr.a, 0.02) * step(0.06, mr.a), 1.0); }   // (G460.11.4) the capture at the PIXEL'S OWN screen place: for a point on the water plane the projection must agree with it
         else if (uWDbg == 11) { vec4 mp = uWMirrorVP * vec4(vWP, 1.0); vec2 muv = mp.xy / max(mp.w, 1.0e-4) * 0.5 + 0.5; vec4 mr = texture2D(uWMirror, muv); gl_FragColor = vec4(mr.rgb * mr.a + vec3(0.0, 0.0, 0.3) * (1.0 - mr.a), 1.0); }   // the mirror's capture where it lands (G460.11.1: alpha 0 = blue)`);
   }
 
@@ -459,7 +461,7 @@ const WATER = (() => {
       uWMisc: { value: v4(S.shoreFade, S.lakeK, S.lakeCap, 1) }, uWFoam: { value: v4(1, 0, 0, 0) },
       uWSdf: { value: null }, uWGrid: { value: v4(0, 0, 1, 1) }, uWSdfOn: { value: 0 },
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
-      uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() },
+      uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWNear: { value: v4() }, uWDbg: { value: 0 },
     };
     applyPresets();
@@ -781,23 +783,31 @@ const WATER = (() => {
   // the spray hidden (opts.hide), the near plane made OBLIQUE so nothing under the water is captured - into a half-float target with mips, cleared to alpha 0:
   // the shader reads it where a point projects in that capture and keeps the probe's sky where the capture is
   // empty. The capture is AMORTISED: a 'periodic' mode (the default) re-captures when the eye has moved 4 m or
-  // turned 6 deg or after `every` seconds (never under 0.75 s), 'live' every frame (the rigs that can afford it), 'off' never; only
+  // turned 3 deg or after `every` seconds (never under 0.25 s; a jump captures at once), 'live' every frame (the rigs that can afford it), 'off' never; only
   // when the eye is under `maxAgl` over the water - higher, the reflection is the sky. Cost: one scene render
   // at a quarter of the frame's pixels when it fires (measured in HANDOVER).
   // (measured under the rig: a capture is 13-22 ms of CPU submission - the world's draw calls + the clouds' march - and
-  // 460 ms the first time (its targets and programs); 'periodic' spaces them: 8 m / 6 deg / 3 s, never under 0.75 s)
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.75, moveM: 8, turnDeg: 6, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, far: 4000, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  // 460 ms the first time (its targets and programs)).
+  // THE CADENCE (G460.11.4): a capture is the reflection AS SEEN FROM ONE EYE, pasted on the water by projecting
+  // through THAT eye's matrix - it stays right only while the eye is near where it was taken. 'periodic' is a
+  // cadence for the WORLD's content (the clouds drift, a hull moves), never a licence to let the eye run: the
+  // eye's own motion re-captures at 3 m / 3 deg, and a JUMP (over 15 m or 12 deg - a teleport, a camera cut)
+  // captures at once whatever the gap. THE CLOCK IS REAL SECONDS: a fake 1/60-a-call clock ran at a fifth of the
+  // wall clock under the rig, so a '3 s' refresh was 20 s and the water drew a capture taken 1500 m away - the
+  // reflection stretched and smeared (the user: "reflections seem stretched, everything is twice as long")
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.25, moveM: 3, turnDeg: 3, jumpM: 15, jumpDeg: 12, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, far: 4000, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
   const mirrorTmp = {};
   function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
     opts = opts || {};
     const eyeAgl = camera.position.y - waterY;
     if (!U || MIR.mode === 'off' || !(eyeAgl > 0.1) || eyeAgl > MIR.maxAgl) { if (MIR.on && U) { MIR.on = false; U.uWMirror4.value.x = 0; } return false; }
-    const dt = opts.dt || 1 / 60; MIR.t += dt;
+    MIR.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
     const pos = camera.position, q = camera.quaternion;
     let due = MIR.mode === 'live' || !MIR.last;
     if (!due && MIR.last) {
       const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
-      due = (MIR.t - MIR.lastT > MIR.minGap) && (moved > MIR.moveM || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05);
+      const jump = moved > MIR.jumpM || turned > MIR.jumpDeg * Math.PI / 180 || Math.abs(waterY - L.wy) > 0.5;
+      due = jump || ((MIR.t - MIR.lastT > MIR.minGap) && (moved > MIR.moveM || turned > MIR.turnDeg * Math.PI / 180 || MIR.t - MIR.lastT > MIR.every || Math.abs(waterY - L.wy) > 0.05));
     }
     if (!due) return false;
     const size = renderer.getDrawingBufferSize ? renderer.getDrawingBufferSize(mirrorTmp.v2 || (mirrorTmp.v2 = new THREE.Vector2())) : { x: 1920, y: 1080 };
@@ -877,6 +887,7 @@ const WATER = (() => {
     U.uWMirror.value = MIR.rt.texture;
     U.uWMirrorVP.value.multiplyMatrices(mc.projectionMatrix, mc.matrixWorldInverse);
     U.uWMirror4.value.set(1, MIR.perturb, MIR.lod, 0);
+    U.uWRes.value.set(size.x, size.y);
     return true;
   }
   function mirrorOff() { MIR.on = false; MIR.last = null; if (U) U.uWMirror4.value.x = 0; }

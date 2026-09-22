@@ -55491,3 +55491,32 @@ Both remarks were one fault and one honest-instrument gap, found by MEASURING th
   tests (the cap pinned back to a hex, GRASS moved, the bounce un-occluded). GATE CLOUD's makeProbe
   assertion rewritten for the combined dirty/cap condition.
 - SEEN: bench/light/ (stand_* master, ab2_* the A/B), tools/light_shot.js is the rig.
+## G460.11.4 — THE STRETCHED REFLECTION: A STALE CAPTURE AND THE WRONG PLANE (2026-09-22, the user:
+## "reflections seem stretched, everything is twice as long, I don't think it is realistic")
+
+- TWO CAUSES, both measured with two new debug views: 12 (the capture sampled at the PIXEL'S OWN screen place -
+  for a point on the water plane the projection must agree with it, since a plane point projects the same in
+  the eye and in its mirror) and 13 (the DIFFERENCE between the two uv, x and y x 20 about grey).
+- (1) THE CLOCK WAS A COUNT OF CALLS. `MIR.t += dt` with dt = 1/60 a call made a fake clock that ran at the
+  frame rate, and under the rig mirrorRender is called ~8 times a second: a '3 s' refresh was 20 s of wall
+  clock, the eye teleported 1500 m, and the water went on drawing the capture taken at the old place - its
+  matrix and its content both stale, which is a smeared, stretched reflection (the trace: t 0.42, the camera
+  at the lake, the capture's eye still at the roll-out spot). THE CLOCK IS REAL SECONDS now
+  (performance.now()), the eye's own motion re-captures at 3 m / 3 deg, and a JUMP (over 15 m or 12 deg - a
+  teleport, a camera cut) captures at once whatever the gap. A capture is the reflection AS SEEN FROM ONE EYE:
+  'periodic' is a cadence for the WORLD's content, never a licence to let the eye run.
+- (2) THE MIRROR PLANE WAS THE PHYSICS', NOT THE PICTURE'S. app.js took `world.waterH` for the plane; at
+  Jolene's lake that is 38.54 (the procedural hydrology's level) while the DRAWN lake quad is at 37.92 (the
+  island DEM's lake + 0.02) - 0.62 m apart. A plane mirror 0.62 m off reflects about the wrong plane and the
+  error GROWS toward the eye: the near water's reflection is pushed down and stretched, which is exactly the
+  2 x the user measured. render_world publishes `waterDrawY(x, z)` now - the y of the surface DRAWN here (a
+  lake's quad, else the sea's plane, else null) - and the mirror mirrors about that; the diff view goes from
+  saturated to a constant ~1 % (one capture's lag) with the x flip that cancels in the sampling.
+- A FINDING FOR THE WORLD/HYDRO TRACK (not fixed here, the models are theirs): THE AEROPLANE FLOATS 0.62 m
+  ABOVE THE WATER IT IS DRAWN ON at that lake - the hydro rides `waterH` (HYD.water, 38.54), the renderer
+  draws the island DEM's lake (37.92). Ruling (ap) says ONE surface for the physics and the renderer; one of
+  the two models must win (drawing the quads at waterH is a two-line change in render_world's lake loop, at
+  the cost of 0.6 m more water over the 1:12 shore). It is visible without any mirror: the floats hover.
+- PROOF: q4/diff13.png (before: the difference saturated over the whole lake), q5/diff13.png (after: a flat
+  1 %), q5/lakeA.png and q5/lakeB.png (the trees' reflections as long as the trees), q3/screen12.png (the
+  capture itself, 1:1). GATE WATER holds the clock and the cadence.

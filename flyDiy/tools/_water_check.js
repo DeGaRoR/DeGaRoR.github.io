@@ -141,6 +141,10 @@ console.log('\n3. THE LAWS');
     verdict(/if \(opts\.sky\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
     verdict(/sky: WF\.skyDome/.test(src('src/viewer/app.js')), "app.js hands the world's sky dome to the capture");
     verdict(typeof W.mirrorRender === 'function' && W.mirror && W.mirror.mode === 'periodic' && W.mirror.maxAgl > 10, `the mirror API, '${W.mirror.mode}' by default, under ${W.mirror.maxAgl} m over the water`);
+    // THE CADENCE (G460.11.4): the clock is real seconds (a call-counted clock ran at a fifth of the wall clock under
+    // the rig: a stale capture from 1500 m away, the reflection stretched), the eye's motion re-captures, a jump at once
+    verdict(/MIR\.t = \(typeof performance !== 'undefined' \? performance\.now\(\) : Date\.now\(\)\) \/ 1000;/.test(mp), "the mirror's clock is real seconds (never a count of calls)");
+    verdict(W.mirror.moveM <= 4 && W.mirror.turnDeg <= 4 && W.mirror.jumpM > 0 && /due = jump \|\|/.test(mp), `the eye re-captures at ${W.mirror.moveM} m / ${W.mirror.turnDeg} deg, a jump (${W.mirror.jumpM} m / ${W.mirror.jumpDeg} deg) at once`);
     const gfx = src('src/viewer/gfx_settings.js'); verdict(/k: 'mirror'/.test(gfx) && /W\.WATER\.set\(\{ mirror: S\.mirror \}\)/.test(gfx), 'GRAPHICS has the reflections row and hands it to the water'); }
   let mono = true, bounded = true, prev = -1;
   for (const U10 of [0, 2, 5, 10, 20, 30]) {

@@ -58,6 +58,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
+  const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
   let coverRing = null, fillPoolAt = null, standCards = null;   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -1964,6 +1965,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const g = new THREE.PlaneGeometry(L.x1 - L.x0 + 8, L.z1 - L.z0 + 8); g.rotateX(-Math.PI / 2);
           const m = new THREE.Mesh(wtag(g, 1, false), lakeMat); m.position.set((L.x0 + L.x1) / 2, L.level + 0.02, (L.z0 + L.z1) / 2);
           m.receiveShadow = true; scene.add(m); n++;
+          // the DRAWN level, for anything that needs the plane the eye sees rather than the physics' (the water's
+          // planar mirror: it reflects about a plane, and 0.6 m of error there stretches the reflection, G460.11.4)
+          lakeQuads.push({ x0: L.x0 - 4, x1: L.x1 + 4, z0: L.z0 - 4, z1: L.z1 + 4, y: L.level + 0.02 });
         }
         console.log('island lakes: ' + n + ' surfaces, one quad each, the field cuts the edge; ' + seaSkipped + ' on the coast left to the sea');
       }
@@ -4892,7 +4896,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
     return ENV_ALB.k;
   };
-  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
+  // waterDrawY(x, z): the y of the water surface DRAWN here - a lake's quad, else the sea plane (0 with the
+  // shader, -0.4 without it), else null. The physics' waterH is its own model (a procedural lake can sit 0.6 m
+  // over the DEM lake the renderer draws); anything that must agree with the PICTURE reads this.
+  function waterDrawY(x, z) {
+    for (let i = 0; i < lakeQuads.length; i++) { const q = lakeQuads[i]; if (x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1) return q.y; }
+    const h = world.waterH ? world.waterH(x, z) : NaN;
+    if (Number.isFinite(h) && Math.abs(h) < 3) return WSH ? 0 : -0.4;   // the sea's plane
+    return null;
+  }
+  return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
