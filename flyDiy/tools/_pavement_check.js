@@ -208,6 +208,11 @@ console.log('6. COVERAT - what the cover ring may plant');
   const bad = P.CLASSES.filter(c => PG.PAVE_BAND[c] !== P.CLASS_DEF[c].band);
   verdict(bad.length === 0, 'PAVE_BAND (the core) equals CLASS_DEF.band (the viewer) for every class' + (bad.length ? ': ' + bad.join(', ') : ''));
   verdict(Math.abs(PG.PAVE_FADE - P.RECIPE.fadeW) < 1e-9, `PAVE_FADE ${PG.PAVE_FADE} = the recipe's fadeW ${P.RECIPE.fadeW}`);
+  // the record's validator must know exactly the knobs a `pav` may carry, or a misspelt key is read,
+  // ignored and never reported (the Metlakatla session, 2026-09-23: "a typo in the key would not be caught")
+  { const want = P.ENTRY_KNOBS.concat(['marks']).sort(), got = PG.PAV_KEYS.slice().sort();
+    verdict(want.join() === got.join(), `PAV_KEYS (the core's validator) = ENTRY_KNOBS + marks (the viewer's): ${got.join(' ')}`);
+    verdict(PG.PAV_MARKS.join() === 'auto,none,edges,centre', `pav.marks may say ${PG.PAV_MARKS.join(' | ')}`); }
   const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
   const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
   const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];

@@ -56933,3 +56933,23 @@ is the old instant rebuild), `inversion.thick` (the lid's dT has a row, its thic
 `aloftK`/`veerDeg` (presets and F8 only). The first is a real omission for a floatplane player; the
 last two are expert knobs and arguably belong in F8. K5's wind view is still owed and would be the
 natural home for seeing what any of these do.
+
+## G508.1 — A `pav` IS VALIDATED, AND THE ROADS WERE NEVER VALIDATED AT ALL (2026-09-23, the
+## Metlakatla session: "`issues()` already asserts `pav` is an object, so a typo in the key would
+## not be caught")
+
+They were right and it was worse than they thought. `resolve()` reads the seven knobs it knows and
+ignores the rest, so `pav: { mark: 'none' }` on forty roads would have been read, ignored and never
+reported. `issues()` now runs `pavIssues` over every layer that takes a `pav`: an unknown key names
+itself and the seven it could have been, and `marks` must say auto | none | edges | centre.
+AND THE FINDING UNDER IT: the loop carrying the `band`, `pav` and `look` checks for roads and runways
+iterated `['terrain', 'surface', 'material', 'exclude', 'zones']` - the POLYGON layers - so all three
+checks, written at the v1.16 port, have never run on a road or a runway. Only 'material' ever reached
+them. They run now in their own loop over roads and runways, and the dead conditions in the polygon
+loop are gone. A road with an unknown `look` says so at last.
+The core's PAV_KEYS mirrors the viewer's ENTRY_KNOBS + `marks`; GATE PAVEMENT §6 holds them equal, as
+it already does for PAVE_BAND / CLASS_DEF.band. Contract v1.20.
+- FILES: src/core/27_premises.js (PAV_KEYS, PAV_MARKS, pavIssues, the roads/runways loop),
+  tools/_pavement_check.js, futureDesigns/PREMISES-CONTRACT-2026-09-13.md.
+- PROOF: a record with `pav: {mark}`, `pav: {marks: 'non'}` and an unknown look reports three issues
+  and a good one reports none; GATE PAVEMENT / PREMISES / SITE / WORLDRENDER green.

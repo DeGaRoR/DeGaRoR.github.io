@@ -608,6 +608,11 @@ const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'g
 // capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
 // holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
 const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+// WHAT A `pav` MAY SAY (v1.16's per-entry knobs, mirrored from src/viewer/pavement.js's ENTRY_KNOBS,
+// which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
+// ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
+const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+const PAV_MARKS = ['auto', 'none', 'edges', 'centre'];
 const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
@@ -1322,6 +1327,16 @@ function compose(rec0, world, opts) {
 // ---------------------------------------------------------------------------
 // issues — what refuses a commit; checks — what the panel shows and the gate holds
 // ---------------------------------------------------------------------------
+// what a `pav` may carry, checked once for every layer that takes one. A MISSPELT KEY WAS SILENT:
+// resolve() reads the seven knobs it knows and ignores the rest, so `pav: { mark: 'none' }` did
+// nothing and said nothing (the Metlakatla session asked, 2026-09-23)
+function pavIssues(what, pav) {
+  const out = [];
+  if (typeof pav !== 'object') { out.push(what + ': pav is an object of knobs'); return out; }
+  for (const key in pav) if (PAV_KEYS.indexOf(key) < 0) out.push(what + ': pav has no knob `' + key + '` (' + PAV_KEYS.join(', ') + ')');
+  if (pav.marks !== undefined && PAV_MARKS.indexOf(pav.marks) < 0) out.push(what + ': pav.marks is ' + PAV_MARKS.join(' | '));
+  return out;
+}
 function issues(rec0) {
   const rec = normalise(rec0);
   const out = [];
@@ -1334,9 +1349,17 @@ function issues(rec0) {
     if (k === 'zones' && e.rules && e.rules.grass && ['lawn', 'meadow', 'none'].indexOf(e.rules.grass.kind) < 0) out.push('zone ' + e.id + ': grass kind is lawn, meadow or none');
     if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
-    if ((k === 'roads' || k === 'runways' || k === 'material') && e.pav && typeof e.pav !== 'object') out.push(k.replace(/s$/, '') + ' ' + e.id + ': pav is an object of knobs');
-    if (k === 'roads' && e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push('road ' + e.id + ': unknown look ' + e.look);
+    if (k === 'material' && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push('material ' + e.id + ': band must be 0 or more');
+    if (k === 'material' && e.pav) out.push.apply(out, pavIssues('material ' + e.id, e.pav));
+  }
+  // ROADS AND RUNWAYS ARE VALIDATED HERE (2026-09-23): the polygon loop above carried three checks
+  // written `k === 'roads' || k === 'runways'` and never ran over either layer, so a road's band, its
+  // `pav` and its look have gone unchecked since v1.16. They are checked now.
+  for (const k of ['roads', 'runways']) for (const e of rec.layers[k]) {
+    const what = k.replace(/s$/, '') + ' ' + e.id;
+    if (e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(what + ': band must be 0 or more');
+    if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
+    if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {
@@ -1572,7 +1595,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, PAV_KEYS, PAV_MARKS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

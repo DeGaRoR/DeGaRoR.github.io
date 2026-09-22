@@ -707,4 +707,11 @@ after the freeze, against this document.
   0.19 µs against the full query's 1.34, and it is what the TREE fill asks on every lattice point
   (`render_world.js` forestHere/openHere reject where `kill > 0`: the pavement, its band and the 6 m
   fade, about 7 m of clearance from a road's edge). The full query is still the cover ring's.
+- **v1.20 (2026-09-23).** A `pav` is VALIDATED now. `issues()` reports a key that is not one of the
+  seven knobs plus `marks` (`PAV_KEYS`, the core's mirror of `pavement.js`'s `ENTRY_KNOBS`, which
+  GATE PAVEMENT holds equal), and a `marks` that is not `auto | none | edges | centre`. A misspelt
+  key used to be read by `resolve()`, ignored, and never reported — `pav: { mark: 'none' }` did
+  nothing and said nothing. While fixing it: the loop that carried the `band`, `pav` and `look`
+  checks for roads and runways **only ever ran over the polygon layers**, so none of those three has
+  been checked on a road or a runway since v1.16. They are checked now, in their own loop.
 
