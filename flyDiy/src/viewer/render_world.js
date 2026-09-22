@@ -2635,10 +2635,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'fade *= clamp((keep * 1.05 - hT) * 20.0, 0.0, 1.0);',
             'vec3 off = (rgt * position.x + upv * position.y) * (uDiam * fade);',
             // THE CARD LEANS (CLIMATE K4). A SHEAR, never a rotation - the baked
-            // view direction has to stay valid - applied BEFORE the scaling below
-            // and well before the collapse test at the end, and scaled by uDiam
-            // because the stand cards share this material: a 47 m card for a 32 m
-            // stand would otherwise wave like a wheat field.
+            // view direction has to stay valid. It goes in AFTER `off` has taken
+            // its (uDiam * fade) scaling and before the sX/sY one below, which is
+            // what makes it shrink with the card as the fade closes; the collapse
+            // test stays last, so a sheared card cannot un-collapse at the near
+            // edge. The uDiam divisor is why a 47 m stand card leans about a
+            // seventh of a 6 m tree card instead of waving like wheat.
             'float swayPh = uWind.z + hT * 6.2831;',
             'off.xz += uWind.xy * (uWind.w * 0.010 * max(0.0, off.y + uDiam * 0.5) / max(1.0, uDiam * 0.08)) * (0.8 + 0.2 * sin(swayPh));',
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
@@ -4782,7 +4784,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // THE CLIMATE, ONCE A FRAME (K4). Before dayApply, because the clouds read
     // their drift out of it; after seaUpdate, because the sea it reports is the
     // one this frame drew. Everything that shows the wind reads this one block.
-    if (window.CLIMATE_LINK && window.CLIMATE_LINK.pub.on) {
+    // `typeof window` and not a bare `window`: worldUpdate is CALLED HEADLESS by
+    // GATE WORLDRENDER, which evals this file under node with a THREE stub and
+    // no DOM at all. Every other window reach in this file is guarded the same
+    // way, and this one was not - it threw on the gate and nowhere else.
+    if (typeof window !== 'undefined' && window.CLIMATE_LINK && window.CLIMATE_LINK.pub.on) {
       window.CLIMATE_LINK.frame(cg, camera.position, 1 / 60, (typeof FLIGHT_PROBE !== 'undefined' && FLIGHT_PROBE.sim) ? FLIGHT_PROBE.sim().t : 0);
       sockFrame();
     }

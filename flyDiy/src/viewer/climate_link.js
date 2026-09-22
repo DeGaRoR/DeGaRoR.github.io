@@ -41,7 +41,9 @@ var CLIMATE_LINK = (function () {
     sea: null,
     utc: 0,
   };
-  // the sway uniform every leaf, tuft and impostor can share (x, z, phase, gain)
+  // The sway uniform every leaf, tuft and impostor can share (x, z, phase, gain).
+  // WRITING IT FROM OUTSIDE DOES NOT STICK: frame() fills it every frame, which
+  // is the point. To move the trees, move the WIND - CLIMATE_LINK.setWind().
   let uWind = null;
   function uniform(THREE) {
     if (!uWind && THREE) uWind = { value: new THREE.Vector4(0, 0, 0, 0) };
@@ -149,7 +151,24 @@ var CLIMATE_LINK = (function () {
   }
   function reset() { acc.length = 0; lastU = -1e9; lastDir = -1e9; }
 
-  const API = { pub, S, bind, frame, cloudDrift, reset, uniform,
+  // ---- what a RIG needs (the vegetation session asked, K4.3) ---------------
+  // A measuring rig drives the page from outside and had no way in: it could
+  // find TREE_WIND but writing it does not stick (frame() rewrites the uniform
+  // every frame, which is right), and it could not reach the climate at all
+  // without knowing FLIGHT_PROBE. So the link hands over the two things a rig
+  // actually needs - the climate itself, and a wind it can set - and says
+  // plainly that the uniform is not one of them.
+  const climate = () => (world && world.climate) ? world.climate : null;
+  // setWind(spec) - through the DAY, so the panel, the pref, the URL and the
+  // solver all see the same change a rig makes. `CLIMATE_LINK.setWind({ kts: 25,
+  // dirDeg: 270, gust: 0.4, refH: 10 })` is a windy afternoon from a probe.
+  function setWind(spec) {
+    if (!world) return false;
+    const CK = W.DAY_CLOCK;
+    if (CK && CK.set) CK.set({ wind: spec || null }); else world.setDay({ wind: spec || null });
+    return true;
+  }
+  const API = { pub, S, bind, frame, cloudDrift, reset, uniform, climate, setWind,
                 get uWind() { return uWind; } };
   if (typeof window !== 'undefined') window.CLIMATE_LINK = API;
   return API;

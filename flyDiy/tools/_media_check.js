@@ -118,7 +118,19 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //              the one steel material, 19 KB, on a master already at 8.391 after G490's far forest,
 //              G493's rock map and G496's deadwood. It carries no texture at all (vertex colour),
 //              so nothing of it is media.
-const BUDGET_MIB = 8.5;
+//   8.5 -> 8.7 (G503, the climate, 2026-09-22): the wind field and its picture are code -
+//              src/core/09_climate.js is the field itself (49 KB: the legacy column carried in
+//              verbatim, the linearised sampler, the relief raster, the terrain terms, the
+//              thermals and the breeze), src/viewer/weather_ui.js the panel both rails mount
+//              (17 KB) and src/viewer/climate_link.js the one per-frame ask (8 KB), plus the
+//              layered atmosphere and the day's front. Measured 8.44 -> 8.55 MiB on the LF
+//              build against a master that already carried G498's animals, and the same
+//              +0.11 against the 8.42 master this was first measured on - the growth is the
+//              code, not the base it lands on. The headroom is the usual worktree CRLF
+//              margin. It carries NO asset:
+//              the data: payload is unmoved at 118 KB of the 400 it is allowed, which is the
+//              tripwire this budget exists for.
+const BUDGET_MIB = 8.7;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
