@@ -56546,3 +56546,25 @@ read by nothing; the far plane was 100 km and the far terrain was never distance
   This landing carries its build, and it regularises F2's at the same time.
 - OWED: the frame-time delta on a quiet box; whether the density law moves to the climate's
   `haze().layer` (their chantier, the user's ruling); F3 untouched.
+## G505.1 - `visM` IS NOT A VISIBILITY, and saying so in the file (2026-09-22)
+
+A comment and a doc line, no behaviour. The climate chantier's WEATHER panel and F1's contract
+quoted the same air and disagreed by a fifth - 4052 m against 3220 - and the cause was neither
+session being wrong: **F1's threshold is 1 % TRANSMITTANCE (ln 100 = 4.605 optical depths) because
+its consumer is the far plane and its question is "may I stop drawing this?", while a VISIBILITY -
+the METAR number, what a pilot is briefed with - is Koschmieder's 2 % CONTRAST, 3.912.** The same
+air is 1.177x shorter measured the second way. At rh 0.90 the mist alone gives 4149 m at 1 %
+against 3524 m at 2 %, and F1's measured 4052 is the first of those once `medium()`'s clear air
+has taken its 97 m - the integral working correctly, not a discrepancy.
+
+So `VIS.thresh` now says which quantity it is and points anything wanting the met number at
+`ATMO.seeRange(eyeY, eyeY, 0.02)` - the same integral through the same mist with the other
+constant. The climate session changed their link to ask for exactly that rather than reading
+`WF.visM()`, so the two can no longer drift depending on which one a reader happens to quote.
+FOG-MIST SS5a records it beside the measurements.
+
+Found because F1's landing prompted them to check their panel would pick up `WF.visM()` - and that
+check also turned up a silent failure of their own (`WF` is a LOCAL in app.js, published as
+`window.WORLD`, so their reach would have read null forever and looked exactly like "F1 has not
+landed yet"). Worth the entry for that alone: two numbers that agree are not evidence of anything
+until someone asks what each one MEANS.

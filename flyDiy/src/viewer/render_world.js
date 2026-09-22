@@ -617,6 +617,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // cascade and the parked-aeroplane captures all render this same scene from other eyes, and a
   // cull sized for one eye is wrong for another. app.js wraps the MAIN render in apply/release;
   // every other pass runs outside that window and sees the world whole.
+  // `thresh` IS AN ENGINEERING THRESHOLD, NOT A VISIBILITY, and the two were briefly taken for one
+  // another across two sessions (2026-09-22, the climate chantier's panel against this): 1 % is
+  // ln(100) = 4.605 optical depths and it answers "may I stop drawing this?" - keep it while
+  // anything is still faintly there. A VISIBILITY - the METAR number, what a pilot is briefed -
+  // is Koschmieder's 2 % CONTRAST, 3.912, and it is 1.177x shorter for the same air. Anything
+  // wanting the met number asks `ATMO.seeRange(eyeY, eyeY, 0.02)` and gets this same integral
+  // with that constant; `visM` below keeps the 1 % because the far plane is its consumer.
   const VIS = {
     on: true, k: 1.3, minFar: 3000, maxFar: 100000, thresh: 0.01,
     meshes: [], hidden: [], held: false,
