@@ -112,7 +112,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -786,6 +786,98 @@ if (SELFTEST) {
   const st = JSON.parse(JSON.stringify(rec)); st.layers.terrain[0].falloff = 0;
   neg.push([PG.issues(st).length > 0, 'a zero falloff is refused']);
   for (const [ok, what] of neg) check(ok, 'selftest: ' + what);
+}
+
+// ---------------------------------------------------------------------------
+// 14  THE ISLAND'S OWN PREMISES (2026-09-22): the field AND Metlakatla, composed
+//     on Jolene itself with the full catalogue. Every other section composes a
+//     premises_v1_* fixture on a synthetic world; nothing held the record the
+//     GAME actually boots, and nothing at all held the harbour kit, whose whole
+//     point is to stand over water where no other entry may.
+//     bench/ is the developer's machine: absent, the section says so and skips.
+{
+  let IW = null;
+  try { IW = require(path.join(TOOLS, 'island_node.js')).islandWorld('jolene', {}); } catch (e) { IW = null; }
+  if (!IW) {
+    console.log('  14 the island premises: bench/jolene absent, skipped');
+  } else {
+    const txt = fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8');
+    const rec = PG.unwrap(txt).rec;
+    check(PG.issues(rec).length === 0, '14a island_jolene has no issues', PG.issues(rec).slice(0, 4).join(' / '));
+    const O = PG.compose(rec, IW, { catalogue: CAT, globals: GENS });
+    // every site item names an entry the catalogue has
+    const miss = [];
+    for (const st of rec.layers.sites) for (const it of (st.items || [])) if (!CAT.entries.get(CAT.aliases[it.key] || it.key)) miss.push(it.key);
+    check(miss.length === 0, '14b every site item resolves from the catalogue', [...new Set(miss)].join(', '));
+    check(O.records.items.length >= rec.layers.sites.length, '14c every site placed an item',
+          O.records.items.length + ' of ' + rec.layers.sites.length + ' sites');
+    // a marine item stands OVER THE WATER and its deck is above it; and it cuts no ground
+    const marine = O.records.items.filter(r => r.entry && r.entry.gen === 'MARINE_GEN');
+    check(marine.length >= 10, '14d the harbour kit is placed', marine.length + ' marine items');
+    // THE SEA IS AT ZERO, and `world.waterH` is not the test: it answers with the
+    // level of the water body that TOUCHES a point, which inland is -Infinity and
+    // beside a lake is the lake's - it read 13 m over Airport Road. The island's
+    // sea level is 0 (20_world.js ~:520), so that is what "over the water" means.
+    // A pier is allowed to START on the beach; what must be wet is its FAR END.
+    const dry = [];
+    for (const r of marine) {
+      if (String(r.key).indexOf('breakwater') >= 0) continue;   // a mole IS raised ground
+      const L = (r.size && r.size.L) || 0;
+      const far = r.toWorld(L / 2 - 2, 0);
+      if (!(O.terrainAt(far[0], far[1]) <= 0.05)) dry.push(r.key + ' @' + far.map(v => v.toFixed(0)));
+    }
+    check(dry.length === 0, '14e a pier, a float and a wharf reaches the water', dry.slice(0, 5).join(', '));
+    check(rec.layers.terrain.every(t => !/^mk_/.test(t.id) || t.abs === true),
+          "14f the town's terrain is absolute — a level read off the DEM is not relative to an anchor");
+    // the road network is dry, end to end
+    const wetRoad = [];
+    for (const r of rec.layers.roads) {
+      if (!/^mk_/.test(r.id)) continue;
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        const a = r.pts[i], b = r.pts[i + 1];
+        const n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 20));
+        for (let k = 0; k <= n; k++) {
+          const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n;
+          if (O.terrainAt(x, z) <= 0.15) { wetRoad.push(r.id); break; }     // sea level is 0
+        }
+      }
+    }
+    check(wetRoad.length === 0, "14g no street of the town runs through the water", [...new Set(wetRoad)].slice(0, 5).join(', '));
+    // the ttype stamp: it lands, and it puts the old bytes back
+    if (IW.ttype) {
+      const before = IW.ttype.slice(0, 0);   // (a copy of the whole grid would be 12 MB; count instead)
+      const count = c => { let n = 0; for (let k = 0; k < IW.ttype.length; k++) if (IW.ttype[k] === c) n++; return n; };
+      const l0 = count(15), undo = O.stampTtype(IW), l1 = count(15);
+      check(l1 > l0 && l1 > 1000, '14h the ttype layer stamps its terrain type', l0 + ' -> ' + l1 + ' cells');
+      undo();
+      check(count(15) === l0, '14i and the stamp is exactly undone', count(15) + ' left of ' + l0);
+      void before;
+    }
+    // `smooth` is a no-op when it is absent, and rounds when it is there
+    const straight = [[0, 0], [100, 0], [100, 100]];
+    check(PG.smoothPath(straight, 0) === straight, '14j smooth: absent is a no-op');
+    const sm = PG.smoothPath(straight, 25);
+    check(sm.length > straight.length && Math.abs(sm[0][0]) < 1e-9 && Math.abs(sm[sm.length - 1][1] - 100) < 1e-9,
+          '14k smooth: the corner rounds and the ends hold');
+    // the seaplane base is an aerodrome of the world
+    check(O.aerodromes.some(a => a.id === 'MKSEA' && a.kind === 'water'), '14l Metlakatla has its own sea lane');
+    // 14m EVERY PLACED ITEM ACTUALLY BUILDS, and publishes what the renderer reads.
+    // render_premises.js placeBuilt iterates `stats.lit.lights`; MARINE_GEN handed
+    // it a NUMBER, the loop threw inside the renderer's own try, and all 26 harbour
+    // items silently vanished from the game while the record said they were placed.
+    const broke = [];
+    for (const r of O.records.items) {
+      const G = GENS[r.gen];
+      if (!G || !G.build) { broke.push(r.key + ': no generator'); continue; }
+      let b = null;
+      try { b = G.build(r.P, 0, null); } catch (e) { broke.push(r.key + ': ' + e.message); continue; }
+      const st = b && b.stats;
+      if (!st || !(st.tris > 0)) broke.push(r.key + ': no triangles');
+      else if (st.lit && !Array.isArray(st.lit.lights)) broke.push(r.key + ': stats.lit.lights is not a list');
+      else if (st.nan) broke.push(r.key + ': ' + st.nan + ' NaN vertices');
+    }
+    check(broke.length === 0, '14m every placed item builds and publishes a lamp LIST', [...new Set(broke)].slice(0, 5).join(' / '));
+  }
 }
 
 // ---------------------------------------------------------------------------

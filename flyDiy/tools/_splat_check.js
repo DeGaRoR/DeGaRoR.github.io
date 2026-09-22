@@ -89,8 +89,14 @@ function checkRecipe(G, splatSrc, quiet) {
   say(R.library.length === new Set(R.library.map(x => x[0])).size, `library: ${R.library.length} sets, keys unique`);
   say(R.library.every(([k, m]) => typeof k === 'string' && /^[a-zA-Z]\w*$/.test(k) && num(m) && m > 0), 'library: every row [key, metres > 0]');
   const codes = Object.keys(R.codes).map(Number).sort((a, b) => a - b);
-  say(codes.length === 13 && codes[0] === 2 && codes[12] === 14 && codes.every((c, i) => c === i + 2), `codes: rows for 2..14 (${codes.join(' ')})`);
-  say([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].every(c => typeof R.names[c] === 'string' && R.names[c]), 'names: 0..14 named');
+  // A CONTIGUOUS RUN FROM 2, and the top is no longer fixed: 15 `lush` was added
+  // for Metlakatla (contract v1.20 - a premises `cover` polygon stamps it into the
+  // island's own ttype grid), and a code may be added again. What must hold is
+  // that there is no HOLE - the shader indexes its uniform arrays by the code.
+  const TOP = codes[codes.length - 1];
+  say(codes[0] === 2 && TOP >= 14 && codes.every((c, i) => c === i + 2), `codes: a contiguous run 2..${TOP} (${codes.join(' ')})`);
+  const named = []; for (let c = 0; c <= TOP; c++) named.push(c);
+  say(named.every(c => typeof R.names[c] === 'string' && R.names[c]), `names: 0..${TOP} named`);
   const NC = splatSrc.match(/const NCODE = (\d+), NLIB = (\d+)/);
   say(!!NC && +NC[1] > Math.max(...codes) && +NC[2] >= R.library.length, `the shader's constants hold them: NCODE ${NC && NC[1]} > ${Math.max(...codes)}, NLIB ${NC && NC[2]} >= ${R.library.length}`);
   let bad = [];

@@ -15,9 +15,19 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const ROOT = path.join(__dirname, '..');
+// bench/ is gitignored - the developer's machine - so a WORKTREE has none. Fall
+// back to the main checkout's bake, exactly as tools/jolene_author.py does.
+// NEVER junction it in: `git worktree remove` and the app's own cleanup follow a
+// junction and have emptied the real bench/ twice (see tools/_serve.js's note).
+const BENCH_ROOTS = [ROOT, 'D:/Dev/DeGaRoR.github.io/flyDiy'];
+function benchRoot(name) {
+  for (const r of BENCH_ROOTS) if (fs.existsSync(path.join(r, 'bench', name, 'dem.json'))) return r;
+  return ROOT;
+}
 
 function islandBoot(name) {
-  const T = path.join(ROOT, 'bench', 'terrain', name + '5_e2'), G = path.join(ROOT, 'bench', name, 'dem'), F = path.join(ROOT, 'bench', 'terrain', name + '5_e4');
+  const R = benchRoot(name);
+  const T = path.join(R, 'bench', 'terrain', name + '5_e2'), G = path.join(R, 'bench', name, 'dem'), F = path.join(R, 'bench', 'terrain', name + '5_e4');
   if (!fs.existsSync(T + '.json') || !fs.existsSync(G + '.json')) return null;
   const u8 = p => fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : null;
   const js = p => fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;

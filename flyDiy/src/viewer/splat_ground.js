@@ -39,7 +39,9 @@
 //   - an oriented set (the beach facing the sea) tiles plainly, never turned.
 'use strict';
 const SPLAT_GROUND = (() => {
-  const NCODE = 15, NLIB = 24;
+  // NCODE is the WIDTH of the per-code uniform arrays, so it must exceed the highest
+  // code: 15 lush (authored by a premises cover polygon) made it 16 on 2026-09-22.
+  const NCODE = 16, NLIB = 24;
   const G = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null;
 
   // ---- the state: the recipe (the module's default under the browser's copy) --
@@ -162,7 +164,9 @@ const SPLAT_GROUND = (() => {
   }
   int sCodeAt(vec2 cellIx){
     vec2 gn = uGGrid.zw / uGCell;
-    return min(int(texture2D(uGPackB, (cellIx + 0.5) / gn).g * 255.0 + 0.5), 11);
+    // 15 is the ceiling, not 11: the raster carries 0-11, and a premises cover polygon
+    // stamps 15 (lush) into it. A byte over the clamp used to read as shingle.
+    return min(int(texture2D(uGPackB, (cellIx + 0.5) / gn).g * 255.0 + 0.5), 15);
   }
   // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
   vec3 sSplat(vec3 macro, vec3 nGeo, float canopy, vec2 uv, float sd, float lsd){

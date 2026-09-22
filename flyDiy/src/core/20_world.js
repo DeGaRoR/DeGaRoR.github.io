@@ -366,6 +366,7 @@ function makeWorld(seed, opts) {
     if (!kill && !boost) return null;
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null };
   }
+  let ttypeUndo = null;
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -376,6 +377,12 @@ function makeWorld(seed, opts) {
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
     PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals }, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
     PMrec = rec;
+    // THE TTYPE STAMP (contract v1.20): a `ttype` polygon writes its terrain-type
+    // code into the island's own ttype grid, which the ground's packed texture, the
+    // tree walk and the cover ring all read - one array, one writer. The previous
+    // stamp is undone first so a live edit in the world editor never compounds.
+    if (ttypeUndo) { ttypeUndo(); ttypeUndo = null; }
+    if (ISL && PM.stampTtype) ttypeUndo = PM.stampTtype(ISL);
     // the strips join the registry as the generator's do; a strip's site (its stand, its way out,
     // an authored pattern) is what siteOf answers the pilot with
     // a premises runway named HOME REPLACES the world's own (an island's field is its premises')

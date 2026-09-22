@@ -694,3 +694,48 @@ after the freeze, against this document.
   Nothing is stored about where the rails actually stand: they are rebuilt with the road. The
   player's GRAPHICS > guardrails switch hides them whatever a road says.
 
+- **v1.19 (2026-09-22, METLAKATLA, the user: "maybe we need smooth roads too").** A road entry may
+  carry `smooth`: a fillet RADIUS in metres (`true` means 25). A road has always been VERTICALLY
+  smooth — its grade is re-densified every 6 m and run through four 3-tap passes — and horizontally
+  POLYGONAL: `polyRoad`'s tangent is per segment and jumps at every vertex, so `PAVEMENT.roadGeometry`
+  lays its cross-rows on a normal that jumps with it and the ribbon pinches inside a bend and gapes
+  outside. `smooth` rounds the corner: a circular fillet at each interior vertex, its tangent length
+  cut back to 45 % of the shorter neighbouring segment where the radius will not fit, the two ends
+  held. It is applied ONCE, in `compose` (`smoothPath`, 27_premises.js), before anything reads `pts`,
+  so the ribbon, the grade, the surface strip, the cover query, the traffic and the guardrails all see
+  the same line — and the RECORD keeps the polyline the editor drew, which is what the editor edits.
+  Absent, the polyline is passed through unchanged and nothing that exists moves.
+
+- **v1.20 (2026-09-22, METLAKATLA, the user: "you will notice some more lush vegetation. We should
+  identify this as new terrain type and give them the border biome for now").** A new LAYER, `ttype`:
+  `{ id, poly, code }`, the eleventh, and the only one that writes into the world's own data rather
+  than over it. At composition the overlay publishes `stampTtype(island)`, which writes `code` into
+  the island's `ttype` grid for every cell whose centre falls inside the polygon and returns the
+  function that puts the old bytes back; `20_world.js setPremises` undoes the previous stamp and
+  applies the new one, so a live edit never compounds. That one grid is read by the ground's packed
+  texture, by the tree fill's `ttypeAt` and by the cover ring, which is why one polygon moves
+  the ground and the vegetation together with no second path.
+  Rules: the code must be 2..15; 0 sea and 1 lake are skipped UNLESS this premises has raised that
+  cell clear of the water (a breakwater is the case — the rubble has to say `rock`, or the ground is
+  drawn as sea four metres up in the air); 12, 13 and 14 may not be stamped at all, because they are
+  DERIVED from slope and canopy, not from a polygon. It is NOT called `cover`: `coverAt` on the overlay already means what the COVER
+  RING may plant at a point, and two unrelated things may not share that word.
+  15 `lush` was added with this amendment
+  (28b_ground_fields RECIPE.codes[15], 28c_biomes NAMES, the `borders` mix in `_trees_tuning.json`);
+  it needed the shader's raster clamp lifted from 11 to 15 and `NCODE` widened to 16.
+
+- **v1.21 (2026-09-22, METLAKATLA).** Two fixes the harbour kit forced, both in `placeItem`:
+  - `P.waterY` is the water AT THE ITEM. It was one number read at the premises' ANCHOR, and on an
+    island that anchor is inland, so it read `-Infinity` — the same trap that had stopped a harbour
+    zone sowing (G434) — and every pier, float and wharf was built at minus infinity. `ctx.waterAt`
+    ring-samples outward (0/18/40/90/160 m, eight ways) and takes the nearest finite level: the
+    nearest water IS the water a thing floats in, and a mole whose middle has been raised out of the
+    sea still finds the sea beside it.
+  - `P.floorOverWater` stands a building on a DECK. An item's floor is otherwise the ground under its
+    footprint, and a warehouse on a wharf has no ground under it — the seabed is five metres down.
+    Given `floorOverWater`, the composer sets `P.floorY = P.waterY + floorOverWater`. Metlakatla's
+    packing plant is four BIG_GEN sheds on one `marine/wharf deck`, in one site.
+  And a new generator namespace: `MARINE_GEN` -> `marine` (`GENERATORS` / `GEN_NS`), the harbour kit —
+  `marine/trestle pier`, `float dock`, `breakwater`, `wharf deck`, `net pens`. Every entry's
+  `ground.need` is `'none'`: it stands in the water on its own piles or floats on it, and cutting a
+  shelf under a pier would flatten the seabed into a table.

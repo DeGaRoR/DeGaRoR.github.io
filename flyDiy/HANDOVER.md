@@ -55758,3 +55758,119 @@ LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
   the bounce no longer moves with that dial, so it is a clean A/B for the user's eye; and whether
   GROUND_ALBEDO's GRASS should be re-based onto the imagery's scale, which would move every belly
   judged since G495 and is the same kind of call.
+
+## G506 — METLAKATLA: THE ISLAND'S ONE REAL TOWN, AND THE HARBOUR KIT IT NEEDED (2026-09-22, the user:
+## "YOU know that there is a single town on Anette island, and it's metlakata ... we should have traces
+## of it in our own map ... It is essential you try and understand well the city structure")
+
+- WHAT WAS THERE: nothing. Jolene IS Annette, cut from real IFSAR elevation, and its one settlement
+  existed only as a patch of `ttype 10 built` - no road, no street, no building, no name. The village
+  on `island_jolene.json` is 2.8 km north of the airfield and invented; the user's ruling was to keep
+  it and put the real town where it really is, 9.4 km north-north-west at x -4300..-2400, z -9150..-7650.
+
+- THE METHOD, and it is the reusable part. Authoring a real place means reading streets off a
+  satellite view and writing world coordinates; doing that by eye (as jolene_author.py had to) costs a
+  round per feature and is wrong by tens of metres. But the island already ships a picture that IS in
+  the game frame - `bench/jolene/dem.ori.u8`, the IFSAR radar orthoimage, which resolves the street
+  grid at 10 m. Three new tools:
+  - `tools/geo.py` - the frame in one place at last: `lonlat_to_game` / `game_to_lonlat` through
+    rasterio (pyproj is NOT installed on this machine), and the convergence as a bearing conversion.
+    Until now nothing in the repo could turn a latitude into a game coordinate.
+  - `tools/met_fit.py` - registers a north-up Google view onto the frame by its COASTLINE: the
+    rotation is PINNED at the 19.32 deg convergence (let free it peaks at 15-16 deg with a very flat
+    maximum - Metlakatla's coast is one long convex arc and hardly constrains an angle - and the town
+    then lands 30-50 m off at both ends), the scale and the offset fall out of one FFT
+    cross-correlation of the view's water/land split against `dem.coast.u8`. A close view with no
+    coastline (the civic core, the harbour, the piers) is fitted against an ALREADY registered view
+    instead, on a high-passed greyscale: same projection, same rotation, so only scale and offset are
+    open and the streets correlate. Water is BLUE MINUS GREEN over an Otsu threshold - open sea reads
+    0.12-0.13 on these views and every land cover under 0.04; a darkness rule had put shadowed forest
+    in the water and fitted the coast to the wrong shape.
+  - `tools/met_streets.py` - pulls the grid off a registered view: every road-like pixel VOTES on the
+    perpendicular offset of the line it lies on, per street family, and each peak is walked to its
+    ends. A road detector worth the name would be a project; a vote is not fooled by roofs.
+  - `tools/met_trace.py` - the drawing board AND the check: any layer of the island's own rasters,
+    cropped in game coordinates with a labelled grid, with the RECORD drawn over it and, optionally,
+    a registered view warped into it. Every verification picture of this chantier came from here.
+  TRAP MET: a street detector finds FLOATS. The marina's finger floats and the cannery's dock read
+  exactly like a bright grey line on a dark ground; five of them came back as streets and are dropped
+  by the author (its middle is at sea / an end will not come ashore).
+  TRAP MET: the DEM is clamped at 0 over the sea - there is no bathymetry in it, the seabed is
+  synthesised by 28_island.js `seaFloor` - so `dem <= -1` is never true anywhere and everything that
+  searched for water by height searched for ever. The COAST FIELD is the test.
+  TRAP MET (dangerous): bench/ was junctioned into the worktree to run the gates. `tools/_serve.js`
+  records that `git worktree remove` and the app's cleanup FOLLOW a junction and have emptied the real
+  bench/ twice. The junctions were removed the moment that was read; `tools/island_node.js` now falls
+  back to the main checkout's bake the way `jolene_author.py` already did, and the preview is served
+  with `--fallback`.
+
+- THE RECORD. `tools/metlakatla_author.py` (new) holds the town; `tools/jolene_author.py` imports it
+  and splices its layers in, because ONE record per island is all the runtime composes. rev 5, the
+  extent the union. 73 streets (the grid pulled off the view, plus Walden Point Road, Airport Road,
+  Skaters Lake Road, the graveyard road, the subdivision and Breakwater Road traced by hand), 11
+  zones, 63 sites, 11 ttype polygons, 40 poles, the `MKSEA` sea lane off the north point - Metlakatla's
+  own seaplane base, and an aerodrome of the world like any other. The zone sower cuts 348 plots: the
+  real town is about 350 houses.
+  THE WATERLINE IS NOT THE BEACH. The 10 m grid's coastline sits some 30 m inland of the real one
+  here, so a street traced at its true position lands in the sea. Rather than invent fill under the
+  whole waterfront - which would cut a step through the town behind it - a point that is not far
+  enough inland WALKS up the coast field's own gradient until it is (`pull_inland`), a straight street
+  that still crosses a cove is trimmed to its longest dry run, and what cannot be got ashore is
+  dropped and said so. A pier's root walks the other way, to the waterline.
+
+- THE HARBOUR KIT, `tools/_marine_gen.js` (new, the fifth generator): `marine/trestle pier` (piled
+  walkway, T or L head), `float dock` (a REAL float - pontoons at water level, finger floats at a slip
+  pitch, a hinged gangway, pile GUIDES the collar rides), `breakwater` (a rubble mound, armour stone
+  on its flanks, a light on the head), `wharf deck` (a planked platform on bents - the thing BIG_GEN
+  cannot do, it has no stance and no water at all), `net pens` (the fish farm: a collar grid, nets
+  under it, a feed shed on a float, mooring buoys). 11 presets, all built headless. None of this
+  existed: the wooden `pier_*` props are a fixed piled kit reachable only as a slot on a house that
+  sits in the tide, and `placeSite` turns that off for every hand-placed item.
+  THE BUG THAT HID THE WHOLE HARBOUR: `render_premises.js` placeBuilt iterates `stats.lit.lights`.
+  MARINE_GEN published a NUMBER there; the loop threw inside the renderer's own try, and all 26 items
+  silently built nothing while the record said they were placed and the gate said the record was
+  clean. GATE PREMISES rule 14m now builds every placed item and asserts the lamp LIST.
+
+- THE CONTRACT (§9): v1.19 road `smooth` (a circular fillet applied once in compose, so the ribbon,
+  the grade, the cover query, the traffic and the guardrails see one line and the record keeps the
+  drawn polyline); v1.20 the `ttype` LAYER, which stamps a terrain-type code into the island's own
+  ttype grid - the one grid the ground's packed texture, the tree fill and the cover ring all read,
+  which is why one polygon moves the ground and the vegetation together; v1.21 `P.waterY` measured AT
+  THE ITEM (it was one number read at the anchor, inland, `-Infinity`: every pier was built at minus
+  infinity - the same trap that stopped a harbour zone sowing at G434) and `P.floorOverWater`, which
+  stands a building on a DECK.
+
+- 15 LUSH, the terrain type the user asked for: the bright green that borders a road cut and fills an
+  old clearing, mapped to the `borders` mix - deciduous shrubs, holly, raspberry, a birch here and
+  there - which had been ORPHANED since codes 7 and 14 were re-pointed on 2026-09-21. The `lush`
+  texture set (library index 12) had been sitting unused since the same day. It needed the shader's
+  raster clamp lifted from 11 to 15 and `NCODE` widened to 16, in both the viewer and the bench: a
+  byte over the clamp read as shingle. 42 ha stamped along Walden Point Road and its clearings.
+
+- GATE PREMISES section 14 (new): the island's own premises, composed on JOLENE with the full
+  catalogue - no other section touches the record the game actually boots, and nothing at all touched
+  the harbour kit. It holds: no issues; every site item resolves; every marine item REACHES the water
+  (a pier may start on the beach, its far end may not); no street of the town runs through the sea;
+  every town flatten is absolute; the cover stamp lands and is exactly undone; `smooth` is a no-op
+  when absent; the sea lane is an aerodrome; and 14m above. bench/ absent, the section says so and
+  skips.
+
+- MEASURED / OWED: see the entry's tail.
+
+- MEASURED (static): the record composes in 1.9 s headless; the renderer reports 2.48 M triangles,
+  1210 ground chunks and 415 built things over the two places. GATE PREMISES 325 checks green, and the world /
+  biome / settle / house / village / pavement / tree / splat / light gates with it.
+- RED AT HEAD, NOT MINE: GATE SKINMAT (`role rows for sections no build emits - taperPanel,
+  drawnPane, reveal, shoulder, doorPanel`) fails identically on a clean worktree at 15ed5bfc.
+- tools/met_perf.js (new) is the TOWN's benchmark - headless Chrome, the game rolled out on Jolene,
+  the aeroplane teleported to a named station and held, the streamer settled, 120 frames with the
+  world update and the render timed apart, and THE AIRFIELD AS THE CONTROL in the same run. It does
+  NOT yet produce a number on this machine: the headless page never lifts its boot overlay and the
+  first run printed 0.4 ms medians with ONE draw call and twelve triangles - a number that looks
+  like a result and is not. It now REFUSES a frame under 50 calls and says why. What can be said
+  honestly is static: 2.48 M triangles, 1210 ground chunks, 415 built things, 1.9 s to compose.
+- OWED: the frame time itself, from that tool on a page that renders (or the F8 counter by hand);
+  Walden Point Road past Bayside to the ferry terminal; a Tsimshian LONGHOUSE (the Long House has no
+  equivalent - `totem/park`'s clan house stands in); the fuel tanks, the ferry linkspan and the quarry
+  (deferred by the user); and the civic buildings by the user's eye - they are placed from the
+  registered close views to about +-10 m, and the residential fabric is sown, not placed.

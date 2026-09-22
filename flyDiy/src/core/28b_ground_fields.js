@@ -83,9 +83,14 @@ const GROUND_FIELDS = (() => {
       12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
       13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['grassRock', 'grass', 'rockyA'], scale: [15, 4, 90], far: ['grassRock', null, 'rockyA'],     farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },   // 2026-09-21: the lush lawn out here too
+      // 15 LUSH (METLAKATLA, 2026-09-22): the bright green that borders a road cut and fills an old clearing -
+      // alder and salmonberry on drained ground, not the moor. It is the ONE terrain type the island's raster
+      // does not carry: a premises `cover` polygon stamps it in (27_premises.js), which is why the `lush` set
+      // (library index 12) was sitting unused since it left codes 3/7/14 on 2026-09-21. Its biome is `borders`.
+      15: { tex: ['lush', 'grass', 'grassRock'], scale: [2.4, 2.4, 15], far: ['grassRock', null, 'grassRock'], farScale: [15, 0, 15], mix: [22, 3, 0.05, -0.15], vary: [10, 0.18, 22], para: 0.2 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
-    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' },
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,

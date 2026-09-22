@@ -1258,11 +1258,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  A /= ws; B /= ws; float tot = A.r + A.g + A.b + A.a + B.r + B.g + B.b + B.a;\n' +
             '  vec3 c = A.r * c0 + A.g * c1 + A.b * c2 + A.a * c3 + B.r * c4 + B.g * c5 + B.b * c6 + B.a * c7;\n' +
             '  return tot > 1e-3 ? c / tot : c0; }\n' +
-            // the terrain type palette (G405): sea, lake, heath, muskeg, sand, scree, rock, scrub, forest, snow, built
+            // the terrain type palette (G405): sea, lake, heath, muskeg, sand, scree, rock, scrub, forest, snow, built - and 15 lush (2026-09-22)
             'vec3 gTTCol(float c){ int i = int(c + 0.5);\n' +
             '  if (i == 0) return vec3(0.02,0.05,0.30); if (i == 1) return vec3(0.05,0.35,0.95); if (i == 2) return vec3(0.75,0.85,0.25); if (i == 3) return vec3(0.35,0.55,0.15);\n' +
             '  if (i == 4) return vec3(0.95,0.85,0.55); if (i == 5) return vec3(0.55,0.50,0.45); if (i == 6) return vec3(0.30,0.28,0.28); if (i == 7) return vec3(0.60,0.65,0.05);\n' +
-            '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); return vec3(0.95,0.10,0.10); }\n' +
+            '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); if (i == 15) return vec3(0.45,0.95,0.20); return vec3(0.95,0.10,0.10); }\n' +
             'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
             'uniform int uLOn[5]; uniform int uLMode[5]; uniform float uLOp[5];\n' +
             'float gLuma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }\n' +

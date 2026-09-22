@@ -39,6 +39,12 @@ WHAT IS WRITTEN (contract v1.14, G434):
 import json, math, os, sys
 import numpy as np
 
+# METLAKATLA (the island's real town) is authored in its own module and spliced in
+# here: one record per island is all the runtime composes (src/viewer/app.js ~:34,
+# src/core/20_world.js setPremises), so the town and the field share this file.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import metlakatla_author as MK
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json')
 
@@ -265,8 +271,22 @@ def main():
             ],
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 4,
+        'rev': 5,
     }
+    # ---- THE TOWN ------------------------------------------------------------
+    # Metlakatla's layers append to the field's; the extent becomes the union of
+    # the two. That is safe for the ground: render_premises.js marks its 64 m
+    # chunks by DISTANCE to each feature (G434), precisely so that a field, a town
+    # 9 km away and the road between do not build five million vertices over the
+    # muskeg in between.
+    town = MK.layers()
+    for k, v in town.items():
+        rec['layers'].setdefault(k, [])
+        rec['layers'][k] += v
+    e, t = rec['frame']['extent'], MK.extent()
+    rec['frame']['extent'] = {'x0': min(e['x0'], t['x0']), 'z0': min(e['z0'], t['z0']),
+                              'x1': max(e['x1'], t['x1']), 'z1': max(e['z1'], t['z1'])}
+    rec['budget'] = {'tris': 1400000, 'lights': 90, 'smoke': 14, 'people': 90}
     txt = json.dumps(rec, indent=1)
     if '--print' in sys.argv: print(txt); return
     with open(OUT, 'w', newline='\n') as f: f.write(txt + '\n')
