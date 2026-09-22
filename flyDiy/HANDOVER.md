@@ -55204,3 +55204,36 @@ stands under the cards (cheap to drop later). Owed: the mix per card is one (the
 a muskeg card (small trees, the clumps) and an old-forest card would be two more bakes on the same
 path; the far canopy TEXTURE keyed to every treed code (the fur between the cards, the half-day
 step of the plan) is not done.
+
+## G491 — THE COVER'S QUERY: coverAt (contract v1.17, 2026-09-22, the user: "grass should be
+## excluded from the main pathway, but maybe even encouraged on the borders ... the grass is too tall
+## for that environment ... land plots should override the default biome settings, and come with
+## their own grass definition ... small and dense ... the grass does not seem to take the ground
+## color at all ... coordinate with the vegetation impostors quality session")
+
+THE SPLIT (agreed with the vegetation session, which holds cover_ring.js / trees.js / the tuning):
+this side knows WHERE things are and what colour the drawn ground is; theirs knows what grows and
+how it is tinted. ONE query: `world.coverAt(x, z)` -> null (the biome's own) | { kill, boost,
+kind, cls, grass, col }. kill 0..1: 1 on every pavement and across its drawn band (a strip's box,
+a road's width, a paved polygon), 1 -> 0 over the 6 m fade past the band; a GRASS pavement (a
+track, a grass strip) thins to 0.6 instead - it IS the world's grass with the wear drawn on it.
+boost 0..1: a sine bump over the border past the band and half in a soft road's last metre - the
+grass ENCOURAGED there. kind: 'lawn' | 'meadow' | 'none' inside a PLOT by its zone's grass rule
+(ZONE_GRASS: residential / commercial / park a lawn 10-15 cm, industrial / harbour none, the
+rest the meadow; `rules.grass { kind, h, density }` overrides; a lawn is mown to the road's band,
+no fade thins it). cls: the nearest pavement's class. col (the viewer's wrapper in render_world):
+PAVEMENT.groundColor(cls, rec.pavement) = the class's BAND set mean graded as the shader grades
+it - the linear colour the eye sees of that ground (the vegetation session's amendment: the
+drawn colour, never the shipped map's). 27_premises.js: a 64 m SpatialIndex of every strip /
+road / paved polygon with its reach (band + fade + 6), the plots by polygon; 20_world.js:
+the premises' answer first, else the analytic roads (23_world_settle's new roadNearCls: 'road'
+5 m gravel, 'track' 3 m grass) and strips by surface class. 1.1 us a call (100 k in 113 ms).
+The editor's zone inspector: `plot grass` pills (lawn / meadow / none), the lawn's height and
+density, back to the kind's. The core's PAVE_BAND table mirrors pavement.js's CLASS_DEF.band and
+PAVE_FADE the recipe's fadeW - GATE PAVEMENT holds both equal, and rule 6 walks Jolene's 13/31
+from the centre across the band and the fade to the open field, a residential plot's middle, the
+analytic road and HOME, and the cost. THEIRS, next: the ring reads ctx.coverAt (density x
+(1 - kill) x (1 + boost)), a LAWN species row (size 0.3, density 4x, no reeds) for kind 'lawn',
+the tint from col, the 'built' code's missing colour row (the pale tufts on Jolene), the village
+mix's height outside the lots. Until they wire it the game draws as before: the ring ignores a
+ctx key it does not read.

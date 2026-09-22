@@ -666,3 +666,22 @@ after the freeze, against this document.
   m_taxi_* / m_turn_* / m_pad` material polygons become paved polygons or bands; the `y_*`
   surface polygons stay (the wheels' class is not the pavement's business). GATE PREMISES: a look
   names a class, a band is >= 0, a `pav` is an object.
+- **v1.17 (2026-09-22, the user: "grass should be excluded from the main pathway, but maybe even
+  encouraged on the borders ... land plots should override the default biome settings, and come
+  with their own grass definition ... small and dense").** THE COVER'S QUERY: `world.coverAt(x, z)`
+  -> null (the biome's own) | `{ kill, boost, kind, cls, grass }` (+ `col` when the viewer wraps it):
+  `kill` 0..1 is 1 on every pavement and across its drawn band, 1 -> 0 over the 6 m fade past the
+  band (a GRASS pavement - a track, a grass strip - thins to 0.6 instead: it IS the world's grass
+  with the wear drawn on it); `boost` 0..1 a bump in the border past a band and in a soft road's
+  last metre (the grass encouraged there); `kind` 'lawn' | 'meadow' | 'none' inside a PLOT (the
+  zone's grass rule: `ZONE_GRASS[kind]` - residential/commercial/park a lawn, industrial/harbour
+  none, the rest the meadow - overridden by `rules.grass { kind, h, density }`; a lawn is mown to
+  the road's band, no fade thins it); `cls` the nearest pavement's class; `col` the linear rgb the
+  pavement draws there (`PAVEMENT.groundColor(cls, rec.pavement)`: the band set's mean, graded).
+  The premises answers where it has one (27_premises.js coverAt: a 64 m cell index of every strip,
+  road and paved polygon with its reach, the plots by polygon; O(1), ~1 us); the analytic world's
+  own roads (23_world_settle's roadNearCls: 'road' 5 m gravel, 'track' 3 m grass) and strips
+  answer else (20_world.js). The cover ring (the vegetation session's) reads it: density x
+  (1 - kill) x (1 + boost), a lawn species row for `kind: 'lawn'`, the tint from `col`. The
+  editor's zone inspector: `plot grass` pills, the lawn's height and density. The band table the
+  core carries (PAVE_BAND) is the viewer's CLASS_DEF.band; GATE PAVEMENT holds them equal.

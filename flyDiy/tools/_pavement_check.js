@@ -202,5 +202,32 @@ console.log('5. THE RECIPE - the classes name baked sets');
   verdict(bad.length === 0, `every knob's default is a finite number (${Object.keys(P.RECIPE).length - 1} knobs)`);
 }
 
+// ---- 6. THE COVER'S QUERY (v1.17) ---------------------------------------------------
+console.log('6. COVERAT - what the cover ring may plant');
+{
+  const bad = P.CLASSES.filter(c => PG.PAVE_BAND[c] !== P.CLASS_DEF[c].band);
+  verdict(bad.length === 0, 'PAVE_BAND (the core) equals CLASS_DEF.band (the viewer) for every class' + (bad.length ? ': ' + bad.join(', ') : ''));
+  verdict(Math.abs(PG.PAVE_FADE - P.RECIPE.fadeW) < 1e-9, `PAVE_FADE ${PG.PAVE_FADE} = the recipe's fadeW ${P.RECIPE.fadeW}`);
+  const j = require('./fixtures/island_jolene.json'), w0 = CORE.makeWorld(0), rec = PG.unwrap(j).rec, O = PG.compose(rec, w0, {});
+  const F = O.frame, at = (lx, lz) => { const p = F.toWorld(lx, lz); return O.coverAt(p[0], p[1]); };
+  const H = rec.layers.runways.find(r => r.id === 'HOME'), c = H.c, d = [Math.cos(H.hdg), Math.sin(H.hdg)], n = [-d[1], d[0]];
+  const side = k => at(c[0] - n[0] * k, c[1] - n[1] * k);
+  const c0 = at(c[0], c[1]), cb = side(H.wid / 2 + H.band - 1), cf = side(H.wid / 2 + H.band + 3), cz = side(H.wid / 2 + H.band + 20), far = at(4000, -8000);
+  verdict(c0 && c0.kill === 1 && c0.cls === 'concrete', `13/31's centre: kill ${c0 && c0.kill} on ${c0 && c0.cls}`);
+  verdict(cb && cb.kill === 1, `the band (1 m inside its edge): kill ${cb && cb.kill}`);
+  verdict(cf && cf.kill > 0 && cf.kill < 1 && cf.boost > 0, `the fade (3 m past the band): kill ${cf && f(cf.kill)}, boost ${cf && f(cf.boost)}`);
+  verdict(cz === null || (cz.kill === 0 && cz.boost === 0), `20 m past the band: nothing (${JSON.stringify(cz)})`);
+  verdict(far === null, 'the far field answers null');
+  const plot = O.records.plots.find(p => p.kind === 'residential');
+  const inP = plot && at(plot.front[0] + plot.n[0] * (plot.depth * 0.5), plot.front[1] + plot.n[1] * (plot.depth * 0.5));
+  verdict(inP && inP.kind === 'lawn' && inP.grass && inP.grass.h > 0 && inP.kill === 0, `a residential plot's middle: ${JSON.stringify(inP)}`);
+  verdict(PG.zoneGrass({ kind: 'industrial' }).kind === 'none' && PG.zoneGrass({ kind: 'residential', rules: { grass: { kind: 'meadow' } } }).kind === 'meadow', 'the zone rule: industrial none, an override wins');
+  const rd = w0.roadNet.roads.find(r => r.cls === 'road'), q = w0.coverAt(rd.pts[2][0], rd.pts[2][1]), h0 = w0.coverAt(-520, 0);
+  verdict(q && q.kill === 1 && q.cls === 'gravel', `the analytic road: ${JSON.stringify(q)}`);
+  verdict(h0 && Math.abs(h0.kill - 0.6) < 1e-9 && h0.cls === 'grass', `the analytic HOME (a grass strip thins, never bare): ${JSON.stringify(h0)}`);
+  let t0 = Date.now(); for (let i = 0; i < 100000; i++) O.coverAt(-300 + i % 400, 200 + (i * 7) % 400); const ms = Date.now() - t0;
+  verdict(ms < 2000, `100 000 coverAt calls in ${ms} ms`);
+}
+
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

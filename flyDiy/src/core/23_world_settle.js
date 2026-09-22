@@ -285,7 +285,7 @@ function bakeSettlements(D) {
     if (r.cls === 'bridge') continue;
     for (let i = 0; i + 1 < r.pts.length; i++) {
       const s = { ax: r.pts[i][0], az: r.pts[i][1], bx: r.pts[i + 1][0], bz: r.pts[i + 1][1],
-                  tA: r.tgt[i], tB: r.tgt[i + 1] };
+                  tA: r.tgt[i], tB: r.tgt[i + 1], cls: r.cls };   // cls: what the nearest road is (coverAt, v1.17)
       const qx0 = Math.floor((Math.min(s.ax, s.bx) - RINF) / QC), qx1 = Math.floor((Math.max(s.ax, s.bx) + RINF) / QC);
       const qz0 = Math.floor((Math.min(s.az, s.bz) - RINF) / QC), qz1 = Math.floor((Math.max(s.az, s.bz) + RINF) / QC);
       for (let qx = qx0; qx <= qx1; qx++) for (let qz = qz0; qz <= qz1; qz++) {
@@ -296,9 +296,9 @@ function bakeSettlements(D) {
       }
     }
   }
-  let _d = Infinity, _t = 0;
+  let _d = Infinity, _t = 0, _cls = null;
   function roadScan(x, z) {
-    _d = Infinity; _t = 0;
+    _d = Infinity; _t = 0; _cls = null;
     const arr = qmap.get(qKey(Math.floor(x / QC), Math.floor(z / QC)));
     if (!arr) return;
     for (let i = 0; i < arr.length; i++) {
@@ -309,10 +309,12 @@ function bakeSettlements(D) {
       let t = (wx * vx + wz * vz) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
       const ex = wx - t * vx, ez = wz - t * vz;
       const dist = Math.sqrt(ex * ex + ez * ez);
-      if (dist < _d) { _d = dist; _t = s.tA + (s.tB - s.tA) * t; }
+      if (dist < _d) { _d = dist; _t = s.tA + (s.tB - s.tA) * t; _cls = s.cls; }
     }
   }
   function roadNear(x, z) { roadScan(x, z); return _d; }
+  // the nearest road's distance AND class ('road' | 'track'), for coverAt (v1.17): one scan
+  function roadNearCls(x, z) { roadScan(x, z); return { d: _d, cls: _cls }; }
   function roadDelta(x, z, h) {
     roadScan(x, z);
     if (_d >= RINF) return h;
@@ -370,7 +372,7 @@ function bakeSettlements(D) {
   const inCore = (x, z) => settlements.some(s => Math.hypot(x - s.x, z - s.z) < s.r * 0.75);
 
   return {
-    settlements, roads, buildings, roadNear, roadDelta, inCore,
+    settlements, roads, buildings, roadNear, roadNearCls, roadDelta, inCore,
     stats: { bakeMs: Date.now() - t0, junctions: junctions.length },
   };
 }

@@ -711,6 +711,16 @@ function mount(host, ctx) {
           else if (rule.tag) rows.note(insp, 'a ' + e.kind + ' zone stands what the theme tags ' + rule.tag + ' (' + (ctx.catalogue ? ctx.catalogue.byTag(rule.tag).length : 0) + ' in the catalogue)');
           else if (rule.sampler) rows.note(insp, Math.round(rule.sampler * 100) + ' % of the plots draw the house generator\'s own random house, the rest a named preset of those categories'); }
         rows.slider(insp, 'density', 0, 1, 0.05, () => e.density === undefined ? 1 : e.density, v => ed(x => { x.density = v; }, 'density of ' + id, 'density'), v => v.toFixed(2));
+        // THE PLOTS' GRASS (v1.17): what the cover ring plants inside this zone's plots - a lawn (short,
+        // dense), the meadow (the biome's own) or none; the kind's default until touched
+        { const G = PG.zoneGrass(e), own = !!(e.rules && e.rules.grass);
+          const setG = (patch, label, key) => ed(x => { x.rules = Object.assign({}, x.rules, { grass: Object.assign({}, (x.rules && x.rules.grass) || {}, patch) }); }, label + ' of ' + id, key);
+          rows.pills(insp, 'plot grass', [['lawn', 'lawn', 'short, dense, mown to the road'], ['meadow', 'meadow', "the biome's own grass"], ['none', 'none', 'a yard: gravel, no grass']], () => G.kind, v => setG({ kind: v }, 'grass'));
+          if (G.kind === 'lawn') {
+            rows.slider(insp, 'lawn height (m)', 0.04, 0.4, 0.01, () => G.h || 0.12, v => setG({ kind: 'lawn', h: v }, 'lawn', 'lawnH'), v => (v * 100).toFixed(0) + ' cm');
+            rows.slider(insp, 'lawn density (x)', 0.2, 2, 0.1, () => G.density || 1, v => setG({ kind: 'lawn', density: v }, 'lawn', 'lawnD'), v => v.toFixed(1));
+          }
+          if (own) rows.button(insp, "back to the kind's grass", () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.grass; x.rules = r2; }, 'grass of ' + id)); }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
         rows.slider(insp, 'plot max (m)', 16, 60, 1, () => RU.plotMax, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMax: v }); }, 'plots of ' + id, 'plotMax'), v => v.toFixed(0) + ' m');

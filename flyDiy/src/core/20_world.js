@@ -330,6 +330,42 @@ function makeWorld(seed, opts) {
   // composer read -Infinity over the whole coast, a harbour zone's water level came from a pond up the
   // hill and the harbour never sowed a plot)
   const baseWorld = { id: ISL ? 'ISLAND-' + ISL.id : 'W-24km', terrainH: baseH, waterH: ISL ? ((x, z) => waterAt(baseH(x, z), x, z)) : ((x, z) => HYD.water(x, z)) };
+  // coverAt (v1.17): the analytic roads by roadNear's distance (the road's own index), the analytic
+  // strips by their box; the premises' answer wins where it has one
+  const COV_FADE = 6, COV_BAND = 1.2;
+  function coverAt(x, z) {
+    if (PM && PM.coverAt) { const c = PM.coverAt(x, z); if (c) return c; }
+    let kill = 0, boost = 0, cls = null;
+    // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
+    for (const a of aerodromes) {
+      if (a.premises || a.kind === 'meadow' || a.kind === 'water') continue;
+      const dx = x - a.x, dz = z - a.z; if (Math.abs(dx) + Math.abs(dz) > a.len / 2 + a.wid / 2 + 40) continue;
+      const c = Math.cos(a.hdg), s = Math.sin(a.hdg), u = dx * c + dz * s, v = -dx * s + dz * c;
+      const du = Math.abs(u) - a.len / 2, dv = Math.abs(v) - a.wid / 2;
+      const out = Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0);
+      const aCls = a.surface === SURFACE.PAVED ? 'asphalt' : a.surface === SURFACE.GRAVEL ? 'gravel' : 'grass';
+      const band = aCls === 'asphalt' ? 1.5 : aCls === 'gravel' ? 2.5 : 1.5;
+      if (out > band + COV_FADE + 6) continue;
+      let k = out <= band ? 1 : Math.max(0, 1 - (out - band) / COV_FADE);
+      if (aCls === 'grass') k *= 0.6;                       // a grass strip is the world's grass, mown: thinned, not bare
+      const bump = out <= band ? 0 : Math.sin(Math.PI * Math.min(1, (out - band) / (COV_FADE + 6))) * 0.7;
+      if (k > kill) kill = k; boost = Math.max(boost, bump); if (!cls || out <= 0) cls = aCls;
+    }
+    // the roads: the settlement bake's nearest road and its class - a 'road' is 5 m of gravel, a
+    // 'track' 3 m of the world's grass with wheel ruts (the pavement's grass class draws only the
+    // wear), so a track THINS the cover (0.6) rather than killing it
+    if (SET.roadNearCls) {
+      const q = SET.roadNearCls(x, z), track = q.cls === 'track', halfW = track ? 1.5 : 2.5, out = q.d - halfW;
+      if (out <= COV_BAND + COV_FADE + 6) {
+        let k = out <= COV_BAND ? 1 : Math.max(0, 1 - (out - COV_BAND) / COV_FADE);
+        if (track) k *= 0.6;
+        const bump = out <= COV_BAND ? 0 : Math.sin(Math.PI * Math.min(1, (out - COV_BAND) / (COV_FADE + 6))) * 0.7;
+        if (k > kill) kill = k; boost = Math.max(boost, bump); if (out <= 0) cls = track ? 'grass' : 'gravel';
+      }
+    }
+    if (!kill && !boost) return null;
+    return { kill, boost: Math.min(1, boost * (1 - kill)), kind: null, cls, grass: null };
+  }
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
@@ -808,5 +844,11 @@ function makeWorld(seed, opts) {
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
     premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },
+    // THE COVER'S QUERY (contract v1.17, 2026-09-22): what the cover ring may plant at a world point -
+    // null (the biome's own) or { kill, boost, kind, cls, grass }: the premises' answer where it has
+    // one (its strips, roads, aprons, plots - 27_premises.js coverAt), else the analytic world's
+    // own roads (a 'road' 5 m of gravel, a 'track' 3 m of worn grass, band 1.2) and its strips (by
+    // their surface class). The viewer adds `col`, the drawn ground's colour (render_world.js).
+    coverAt,
   };
 }

@@ -604,6 +604,23 @@ const RUNWAY_LOOKS = {
   sand:     { name: 'sand',           surface: SURFACE.SAND,   set: 'dry',     cls: 'sand',     preset: null },
 };
 const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'grass' };
+// THE BAND a pavement class draws beside itself when the entry says nothing (metres; a road's is
+// capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
+// holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
+const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's default): where the ground is the world's again
+function paveBand(entry, cls, isRoad) {
+  const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
+  return Math.max(0, b);
+}
+// THE GRASS OF A ZONE (contract v1.17, the user: "land plots should override the default biome
+// settings, and come with their own grass definition ... small and dense"): what the cover ring
+// plants INSIDE a plot of this kind - a lawn (short, dense), the meadow (the biome's own), or none
+// (a works' yard, a harbour's gravel). `h` is the tuft's height in metres, `density` a factor on
+// the lawn row's own; a zone's `rules.grass` overrides its kind's
+const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commercial: { kind: 'lawn', h: 0.15, density: 0.8 }, park: { kind: 'lawn', h: 0.1, density: 1.2 },
+  industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
+function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
 // THE ONE-WAY STRIP (v9, contract v1.11): `approach` names the end the landing comes over (0 or 1) when
@@ -1055,6 +1072,20 @@ function compose(rec0, world, opts) {
     // the composed ground in the PREMISES frame
     localH: (lx, lz) => { const w = F.toWorld(lx, lz); return O.terrainAt(w[0], w[1]); },
     materials: mats, pavePolys, pavement: rec.pavement || null,
+    // THE COVER'S QUERY (contract v1.17): what the cover ring may plant at a WORLD point -
+    //   null                      the premises has nothing to say here (the biome's own)
+    //   { kill, boost, kind, cls, look, grass }
+    //     kill  0..1  1 on a pavement (a strip's box, a road's width, a paved polygon) and across its
+    //                 drawn band, falling to 0 over the fade past the band (a few stragglers there)
+    //     boost 0..1  the borders: a bump in the fade past a band and a soft road's edge, where the
+    //                 user wants the grass ENCOURAGED
+    //     kind  'lawn' inside a plot whose zone says so, 'none' (a works' yard), 'meadow' (the
+    //                 biome's) or null when no plot claims the point
+    //     cls   the pavement class drawn nearest (for the tuft's colour, which the viewer adds)
+    //     grass the zone's grass rule when kind is a plot's (h, density)
+    // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
+    // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
+    coverAt: (x, z) => coverAt(x, z),
     // the material seen at a world point after the composite: { set, w } of the top one, or null
     materialAt(x, z) {
       const L = F.toLocal(x, z);
@@ -1079,6 +1110,61 @@ function compose(rec0, world, opts) {
     inExtent(x, z) { const L = F.toLocal(x, z); return inBB(ext, L[0], L[1]); },
     records: { plots: [], trees: [], items: [], links: [], issues: [], excludes: excl.map(e => e.poly) },
   };
+  // ---- coverAt's index (v1.17): every pavement's reach and every plot, in 64 m cells ------------
+  const CIDX = SpatialIndex(64);
+  const covItems = [];
+  const addCov = (bbox, it) => { covItems.push(it); CIDX.add(bbox, it); };
+  for (const r of runways) {
+    if (runwayIsWater(r)) continue;
+    const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
+    const E = runwayEnds(r);
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
+  }
+  for (const rd of roadObjs) {
+    if (rd.runway || rd.ribbon === false) continue;
+    const L = RUNWAY_LOOKS[rd.look] || RUNWAY_LOOKS.gravel, cls = L.cls || 'gravel', band = paveBand(rd, cls, true), reach = rd.w / 2 + band + PAVE_FADE + 6;
+    const bb = polyBBox(rd.pts);
+    addCov({ x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, { kind: 'road', cls, band, halfW: rd.w / 2, road: rd, soft: cls !== 'concrete' && cls !== 'asphalt' });
+  }
+  for (const pp of pavePolys) {
+    const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
+    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', cls, band, poly: pp.poly, soft: false });
+  }
+  const zoneOf = id => rec.layers.zones.find(z => z.id === id) || null;
+  // the strip's dEdge (its box's SDF: + inside), the road's (w/2 - the distance), the polygon's
+  const dEdgeOf = (it, lx, lz) => {
+    if (it.kind === 'strip') { const dx = lx - it.e0[0], dz = lz - it.e0[1]; const u = dx * it.d[0] + dz * it.d[1], v = -dx * it.d[1] + dz * it.d[0];
+      const du = Math.max(-u, u - it.len), dv = Math.abs(v) - it.halfW; return -(Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0)); }
+    if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
+    return -sdPoly(it.poly, lx, lz);
+  };
+  function coverAt(x, z) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+    const cell = CIDX.query(lx, lz);
+    let kill = 0, boost = 0, cls = null, best = -Infinity;
+    if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
+      const out = -d;
+      if (out > it.band + PAVE_FADE + 6) continue;
+      // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
+      let k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
+      if (it.cls === 'grass') k *= 0.6;              // a grass pavement is the world's grass with the wear drawn on it: thinned, not bare
+      const bump = out <= it.band ? 0 : (out < it.band + PAVE_FADE + 6 ? Math.sin(Math.PI * Math.min(1, (out - it.band) / (PAVE_FADE + 6))) : 0);
+      // a soft road's own edge is where the grass creeps in: the bump reaches into its last metre
+      const soft = it.soft && d > 0 && d < 1 ? 0.5 * (1 - d) : 0;
+      if (k > kill) { kill = k; }
+      boost = Math.max(boost, bump * 0.7, soft);
+      if (d > best) { best = d; cls = it.cls; }
+    }
+    let kind = null, grass = null;
+    // the plots: a point inside one takes its zone's grass rule
+    for (const p of O.records.plots) if (p.poly && inPoly(p.poly, lx, lz)) { const g = zoneGrass(zoneOf(p.zone)); kind = g.kind; grass = g; break; }
+    // a plot's lawn is mown to the road's band: no fade thins it, only the pavement and the band kill
+    if (kind === 'lawn' && kill < 1) kill = 0;
+    if (!kill && !boost && !kind) return null;
+    return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
+  }
+
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
@@ -1228,6 +1314,7 @@ function issues(rec0) {
     if (!polySimple(e.poly)) out.push(k + ' ' + e.id + ': the polygon crosses itself');
     if (k === 'terrain' && !(+e.falloff > 0)) out.push('terrain ' + e.id + ': falloff must be positive');
     if (k === 'zones' && ZONE_KINDS.indexOf(e.kind) < 0) out.push('zone ' + e.id + ': unknown kind ' + e.kind);
+    if (k === 'zones' && e.rules && e.rules.grass && ['lawn', 'meadow', 'none'].indexOf(e.rules.grass.kind) < 0) out.push('zone ' + e.id + ': grass kind is lawn, meadow or none');
     if (k === 'material' && !e.set && !e.look) out.push('material ' + e.id + ': no set and no look');
     if (k === 'material' && e.look && !(RUNWAY_LOOKS[e.look] && RUNWAY_LOOKS[e.look].cls)) out.push('material ' + e.id + ': unknown look ' + e.look);
     if ((k === 'roads' || k === 'runways' || k === 'material') && e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(k.replace(/s$/, '') + ' ' + e.id + ': band must be 0 or more');
@@ -1467,7 +1554,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, paveBand, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

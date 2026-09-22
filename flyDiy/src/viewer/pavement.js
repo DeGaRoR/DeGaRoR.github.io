@@ -944,6 +944,22 @@ float pvTread(float u, float x, float w, float seed) {
   // loop over them is nothing, and no per-draw trick is needed to keep one program.
   const MATS = [];
   function applyAll(THREE) { for (const m of MATS) applyOne(THREE, m); }
+  // a set's mean colour graded as the shader grades it (gain, tint, saturation): linear rgb, what the
+  // eye sees of that set on average - the far tier's uMean and the cover ring's `col` (v1.17)
+  function gradedMean(key, r, lib) {
+    const g = (r.grade && r.grade[key]) || [1, 1], t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
+    const mean = (lib && lib.mean[key]) || ((typeof PAVEMENT_TEX_SETS !== 'undefined' && PAVEMENT_TEX_SETS[key] && PAVEMENT_TEX_SETS[key].mean) || [0.2, 0.2, 0.2]);
+    const c = [mean[0] * g[0] * t[0], mean[1] * g[0] * t[1], mean[2] * g[0] * t[2]], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    return [l + (c[0] - l) * g[1], l + (c[1] - l) * g[1], l + (c[2] - l) * g[1]];
+  }
+  // groundColor(cls, recipe): the drawn ground's linear colour beside a pavement of this class - its
+  // BAND set (the cleared earth, the crushed stone) graded by the recipe (the premises' over the
+  // module's); a tuft standing there takes it (the cover ring, v1.17)
+  function groundColor(cls, recipe) {
+    const row = CLASS_DEF[cls]; if (!row) return null;
+    const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
+    return gradedMean(row.shoulder, r, SHARED);
+  }
   function applyOne(THREE, m) {
     const r = m.userData.pavRecipe || R, U = m.uniforms, d = m.userData.pav, lib = m.userData.pavLib, cls = CLASS_DEF[d.cls];
     // a road's band is crushed stone where a runway's is the cleared bare ground (the pale band beside a road read as a halo)
@@ -956,9 +972,7 @@ float pvTread(float u, float x, float w, float seed) {
     SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
     U.uClass.value.set(CLASSES.indexOf(d.cls), cls.lanes, cls.rut, d.poly ? 2 : (d.road ? 1 : 0));
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
-    { const g = (r.grade && r.grade[cls.base]) || [1, 1], t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1], m = lib.mean[cls.base] || [0.2, 0.2, 0.2];
-      const c = [m[0] * g[0] * t[0], m[1] * g[0] * t[1], m[2] * g[0] * t[2]], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-      U.uMean.value.set(l + (c[0] - l) * g[1], l + (c[1] - l) * g[1], l + (c[2] - l) * g[1], 0.85); }
+    { const c = gradedMean(cls.base, r, lib); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
     U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, 0);
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
@@ -1027,7 +1041,7 @@ float pvTread(float u, float x, float w, float seed) {
   function exportRecipe() { return JSON.parse(JSON.stringify(R)); }
   function dispose(m) { const i = MATS.indexOf(m); if (i >= 0) MATS.splice(i, 1); m.dispose(); }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
+    stripGeometry, roadGeometry, polyGeometry, field, shoulderFor, sharedLib, groundColor, gradedMean, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, exportRecipe, dispose, GLSL, hook, mats: MATS };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;

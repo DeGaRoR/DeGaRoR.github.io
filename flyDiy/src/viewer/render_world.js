@@ -3634,8 +3634,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           };
           const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
+          // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
+          // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
+          // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
+          const coverAt = (x, z) => { const c = world.coverAt ? world.coverAt(x, z) : null; if (!c) return null; c.col = (c.cls && PAV) ? PAV.groundColor(c.cls, PM_RECIPE()) : null; return c; };
+          const PM_RECIPE = () => (world.premises && world.premises.rec && world.premises.rec.pavement) || null;
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt });
+            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt, coverAt });
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
