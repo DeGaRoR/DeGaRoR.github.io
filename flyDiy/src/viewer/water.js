@@ -634,6 +634,7 @@ const WATER = (() => {
   // press broader and shallower), the slot's texture derived; called once a frame by app.js before the render
   function fieldStep(THREE, renderer, cx, cz, dt, vx, vz) {
     if (!F.on || !fieldInit(THREE, renderer)) { F.stamps.length = 0; return; }
+    if (!(dt > 0)) { F.stamps.length = 0; return; }   // a paused sim is a frozen sheet (the slot keeps its last texture; a 1 ms floor stepped the rings out across a paused lake)
     const dx = F.L[0].dx;
     const sp = Math.hypot(vx || 0, vz || 0);
     if (sp > 0.5) { const k = Math.min(1, dt * 0.5); F.ax += (vx / sp - F.ax) * k; F.az += (vz / sp - F.az) * k; }
