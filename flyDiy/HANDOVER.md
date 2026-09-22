@@ -56027,3 +56027,59 @@ lives 8 km outside it, and the gate holds that.
 - SEEN: bench/debris/gate_2.png - HOME's strip from above at the planted density and at six times it:
   the pavement and its band clear, the grass beside it littered.
 - GATES: BUILD / TREES / BIOME / WORLD / WORLDRENDER / UISMOKE / MEDIA / SPLAT / GFX / PREMISES / SITE green.
+## G503 - F2: THE MIST ON THE LAND - it lies in the valleys, it has banks with faces, and you can
+## fly into one (2026-09-22, the user: "can we have patches of mist? Like that mist that seems
+## like it drops in valleys and mountains, stays floating like hung on the trees?" and "what
+## about the cut through?")
+
+FOG-MIST-2026-09-21.md SS3b, built. The mist was a horizontally infinite uniform slab: one `yTop`
+for the whole world, so it could only ever be a horizontal sheet with a razor-straight lid, there
+was no valley for it to pool in and no edge to fly INTO.
+
+- **THE FIELD.** `ATMO.bakeField(renderer, world)` - CPU, once per world, 256^2, ~50 ms under the
+  roll-out screen. The terrain opened by a 400 m MINIMUM filter (the height a hollow shares, not
+  the ridge beside it), blurred 200 m, with the water's own surface where water stands. A texel is
+  (top, density x, thickness H) in world metres. It rides the SAME atlas the aerial perspective
+  already binds, in the columns the clouds' tile leaves free (x >= AP_TILE) - **no new sampler**,
+  because the island's ground programs stand at 15 of 16 and one more texture does not link (G424).
+- **THE BOUNDARY LAYER, and the first picture is why it exists.** A top that merely follows the
+  land puts mist at 400 m on every shoulder, and the first F2 frame washed out the whole middle
+  distance. The density now dies as `exp(-floor / 200 m)`: a sea-level basin fills, a 300 m valley
+  floor keeps a fifth, a 600 m shoulder gets nothing. Without it "on the land" is "haze over
+  everything", which is worse than the slab it replaces.
+- **THE PATCHES** are analytic (two octaves of value noise, drifted downwind on `day.jd` so they
+  stop when the clock is paused), not a texture: the atlas does not wrap and there is no unit to
+  spare. Their gain is 2.0 because smoothstep's mean over the noise is 0.5 - **the field's
+  multipliers must AVERAGE ONE**, or relief and patches change how much fog the day has instead of
+  where it lies, and the day's rho0 is the calibrated quantity. Two calibration errors were caught
+  this way (a wet bonus of 1.35 lifting the whole muskeg, a patch gain of 1.7 quietly thinning it).
+- **THE MARCH.** 6 samples along the slice of the ray that is actually inside the layer's band
+  (clipped to the field's own ceiling - the highest top whose density survives, 669 m on Jolene).
+  The patch noise runs only where `dens > 1e-6`, since on a long ray most samples sit above the
+  layer. With the step count at 0 or 1 the CLOSED FORM runs exactly as it always has.
+- **THE DOME'S DUPLICATE, RETIRED FIRST.** atmo.js carried the whole mist block TWICE - the splice's
+  copy and a verbatim one in the dome. With two copies the march would have gone into one of them
+  and the horizon would have disagreed with the ground. `${MIST_GLSL}` is interpolated now, and the
+  atlas sampler is declared under an `#ifndef ATMO_AP_SAMPLER` guard so a shader carrying both
+  blocks still declares it once.
+- **MEASURED** (A/B/A at the stand, tier full, rh 0.90, `tools/perf/frame_perf_f2.log` - the run
+  was stopped when a second rig started on the same card, so its rows are in the log and it wrote
+  no JSON; baselines steady at 72.5 / 72.3 ms):
+  the closed form 72.4, ON THE LAND (6 samples) 73.2 = **+0.8 ms**, PATCHY 75.7 = **+3.3 ms**,
+  patchy at 12 samples 81.3. The cost is the PATCHES, not the field's tap. So the ladder:
+  **Low flat, Medium on the land, High and Ultra patchy** - GRAPHICS `mist: off / flat / on the
+  land / patchy`, all four live, no restart. F8 gains relief, patches, bank size, drift, march
+  samples and a field readout. The `dens > 1e-6` early-out went in AFTER those numbers and its size
+  could not be resolved (the re-measurement's own baselines drifted 6 ms); it is recorded as
+  unmeasured rather than claimed.
+- **GATE ATMO** grows 15 checks (80 total): the block exists ONCE, the field's region is beside the
+  clouds' tile and inside the atlas, the march is a function in MIST_GLSL and not a sixth chunk,
+  every `uApAtlas` declaration is guarded, the boundary layer is present, and **the step count is
+  ZERO unless a field is baked AND relief is on** - the bit-identical guarantee as an assertion,
+  because a picture cannot prove it (two identical frames differ in 49 % of pixels, FOG-MIST SS1f).
+  GATE CLOUD's "both copies of the mist GLSL" assertion becomes "the ONE copy" - it had encoded the
+  duplication as a requirement.
+- GATES: ATMO, CLOUD, GFX, DAY, WORLDRENDER, LIGHT, ATMOS, SPLAT, WATER, MEDIA, VIEW, UISMOKE green.
+- OWED: the march's samples are uniform along the clipped segment, so a bank thinner than the
+  spacing can still be missed at long range; the early-out's size on a quiet box; and F3 (burn-off,
+  the shed's room haze, underwater) is untouched.

@@ -58,8 +58,10 @@
         { v: 'off', label: 'off', why: 'no corona, no flare' },
         { v: 'on',  label: 'on', why: 'the corona round the sun and a flare over the frame, hidden behind the wing and the hills' } ] },
     { k: 'mist', label: 'mist', steps: [
-        { v: 'off', label: 'off', why: 'no ground mist whatever the day' },
-        { v: 'on',  label: 'on', why: 'the day’s humidity as a layer over the low ground and the water' } ] },
+        { v: 'off',   label: 'off', why: 'no ground mist whatever the day' },
+        { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
+        { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
+        { v: 'banks', label: 'patchy', why: 'and it thins and thickens in banks that drift downwind - a face you fly into' } ] },
     // THE CLOUDS (C1): the volumetric layer, marched at half or full resolution
     { k: 'clouds', label: 'clouds', steps: [
         { v: 'off',  label: 'off', why: 'a clear sky whatever the day' },
@@ -150,9 +152,9 @@
   const PRESETS = {
     // tone Cineon + colour managed: the user's ruling on the A/B (2026-09-13)
     low:    { aa: 'off',  density: 100,  bands: 'near', shadows: 'near', canopy: 'off', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'off', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' },
-    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
-    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'on', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
+    medium: { aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    high:   { aa: 'msaa', density: 160, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on',  lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'banks', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' },
+    ultra:  { aa: 'full', density: 200, bands: 'near', shadows: 'ultra', canopy: 'on', rails: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', mist: 'banks', clouds: 'full', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'live' },
   };
   const PRESET_WHY = {
     low: 'for an integrated or old GPU', medium: 'for a mid-range card - the default',
@@ -207,7 +209,13 @@
     if (rig && applied.canopy !== S.canopy) { rig.set({ floor: S.canopy === 'on' ? 0.30 : 1.0 }); applied.canopy = S.canopy; }
     // the sky's own switches (S7): the glare's two halves and the mist
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
-    if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) { W.ATMO.MIST.on = S.mist !== 'off'; applied.mist = S.mist; }
+    if (W.ATMO && W.ATMO.MIST && applied.mist !== S.mist) {
+      const M = W.ATMO.MIST;
+      M.on = S.mist !== 'off';
+      M.relief = (S.mist === 'land' || S.mist === 'banks') ? 1 : 0;    // 0 keeps the closed form, bit-identical
+      M.patch = S.mist === 'banks' ? 0.85 : 0;
+      applied.mist = S.mist;
+    }
     if (W.WATER && applied.water !== S.water) { W.WATER.set({ tier: S.water }); applied.water = S.water; }
     if (W.GUARDRAIL && applied.rails !== S.rails) { W.GUARDRAIL.setOn(S.rails !== 'off'); applied.rails = S.rails; }
     if (W.WATER && applied.mirror !== S.mirror) { W.WATER.set({ mirror: S.mirror }); applied.mirror = S.mirror; }

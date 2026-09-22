@@ -156,6 +156,37 @@ console.log('5. the sources');
     if (had) g.THREE = old; else delete g.THREE;
     yes(okI, 'install() took the stand-in THREE'); }
   yes(!/\.onBeforeCompile\s*=\s*sh\s*=>/.test(src), 'the atmosphere\'s own programs are standalone (no hook of their own)');
+
+  // ---- F2: THE MIST ON THE LAND --------------------------------------------------------------
+  // The layer's top and density come from a 2-D field baked once per world into the SAME atlas the
+  // aerial perspective already binds. Three things must hold or the feature is a regression: the
+  // field must not overlap the clouds' tile, the march must live inside MIST_GLSL (no sixth chunk),
+  // and relief OFF must be the closed form it always was.
+  {
+    const flat = src.replace(/\s+/g, ' ');
+    const nMist = (src.match(/THE MIST \(SKY S7\): an exponential height layer/g) || []).length;
+    yes(nMist === 1, "the mist GLSL exists ONCE (the dome interpolates it, it does not carry a copy): " + nMist);
+    yes(src.indexOf('${MIST_GLSL}') > 0, "the dome shader interpolates MIST_GLSL");
+    const mMap = /MIST_MAP = (\d+)/.exec(src), mX = /MIST_X = ([A-Z_]+)/.exec(src), mY = /MIST_Y = ([A-Z_]+)/.exec(src);
+    yes(!!mMap && +mMap[1] > 0, "the field has a declared side: " + (mMap ? mMap[1] : '?'));
+    yes(!!mX && mX[1] === 'AP_TILE', "the field starts at x = AP_TILE: the columns BESIDE the clouds' tile, never over it");
+    yes(!!mY && mY[1] === 'AP_TILE_Y', "the field sits in the tile's rows (y = AP_TILE_Y)");
+    yes(!!mMap && 512 + (+mMap[1]) <= 2048, "the field fits the atlas's width");
+    yes(!!mMap && (+mMap[1]) <= 512, "the field fits the atlas's height");
+    yes(/float mistODField\(vec3 o, vec3 d, float D\)/.test(src), "the march is a function, not a sixth chunk");
+    yes(/const MIST_GLSL = `[\s\S]*?float mistODField/.test(src), "mistODField lives INSIDE MIST_GLSL, so the dome and the cloud march inherit it");
+    yes(/uMist\[4\]\.w > 1\.5 \? mistODField\(.*?\) : mistOD\(y0, d\.y, D\)/.test(flat),
+        "mistApply takes the CLOSED FORM unless the march is asked for");
+    yes(/relief = \(F && MIST\.relief > 0\) \? 1 : 0/.test(src) && /mistScalars\[19\] = relief \?/.test(src),
+        "the step count is ZERO unless a field is baked AND relief is on - a missing field never takes the march");
+    yes(/uniform vec4 uMist\[7\];/.test(src), "uMist carries F2's three extra lanes");
+    const nS = (src.match(/uniform sampler2D uApAtlas;/g) || []).length, nG = (src.match(/#ifndef ATMO_AP_SAMPLER/g) || []).length;
+    yes(nS === 2 && nG === 2, "every uApAtlas declaration is guarded, so a shader carrying both blocks declares it once (" + nS + " declarations, " + nG + " guards)");
+    yes(/uApAtlas: apUniforms\.uApAtlas/.test(src), "the dome binds the atlas it now samples");
+    yes(/Math\.exp\(-Math\.max\(0, base\) \/ BL_H\)/.test(src),
+        "the field dies with height (the boundary layer): the mist POOLS instead of draping over every shoulder");
+  }
+
   const hooked = { 'render_world.js': 8, 'render_premises.js': 2, 'props.js': 1, 'lot_tex.js': 1, 'site_ground.js': 1, 'trees.js': 1, 'cabin.js': 1, 'aeroskin.js': 2 };
   for (const f in hooked) {
     const t = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');

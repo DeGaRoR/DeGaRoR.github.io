@@ -141,7 +141,10 @@ console.log('6. the splice rules');
   yes(idx > 0 && gate > 0 && idx < gate, 'the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow\'s scalars)');
   // C4: the veil, the in-cloud slab, the weather on the rails
   yes(/uniform vec4 uVeil; uniform vec3 uVeilSun, uVeilSky;/.test(at) && /L \+= veil\(d, uSun\);/.test(at), 'the dome carries the cirrus veil');
-  yes((at.match(/uniform vec4 uMist\[4\];/g) || []).length === 2 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (both copies of the mist GLSL)');
+  // ONE copy since F2 (the dome interpolates MIST_GLSL instead of carrying a duplicate, so the
+  // march and the in-cloud slab cannot disagree between the ground and the horizon). The lane
+  // count grew to 7 with F2's field; what this gate cares about is that the slab is still applied.
+  yes((at.match(/uniform vec4 uMist\[7\];/g) || []).length === 1 && /slabLen\(y0, d\.y, D, uMist\[3\]\.y, uMist\[3\]\.z\)/.test(at), 'the mist takes the in-cloud slab (the ONE copy of the mist GLSL)');
   yes(/c\.rho = rho; c\.base = inL\.base; c\.top = inL\.top;/.test(cj) && /A\.U\.veil\.value/.test(cj), 'clouds.js writes the veil and the slab from the day (the slab: the deck the eye is in)');
   yes(/\[\?&\]cloud=\(\[0-9\.\]\+\)\(\?:,\(\[a-z\]\{2\}\)\)\?/.test(src('viewer/day_clock.js')) && /o\.cloudUpper = c\[3\]/.test(src('viewer/day_clock.js')), '?cloud=<cover>[,<type>][;<cover>,<type>[,<base>]]* on the URL');
   // 2026-09-20: the low deck's cover and type moved from the brief's day slot to the clouds panel (one keeper); the day panel keeps a door to it

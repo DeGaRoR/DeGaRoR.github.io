@@ -375,10 +375,22 @@
     A.appendChild(slider('flare ghosts', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.ghosts : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.ghosts = v; }));
     A.appendChild(slider('flare streak', 0, 3, 0.05, () => (W.SKY_GLARE ? W.SKY_GLARE.S.streak : NaN), v => { if (W.SKY_GLARE) W.SKY_GLARE.S.streak = v; }));
     const mist = () => (W.ATMO ? W.ATMO.MIST : null);
+    const mistScalarsN = () => { const u = W.ATMO && W.ATMO.apUniforms && W.ATMO.apUniforms.uMist; return u && u.value ? (u.value[19] | 0) : 0; };
     A.appendChild(slider('mist density', 0, 6, 0.1, () => (mist() ? mist().k : NaN), v => { if (mist()) mist().k = v; }, v => v.toFixed(1) + 'x' + (mist() && mist().rho0 > 0 ? ' · vis ' + (3 / mist().rho0 / 1000).toFixed(1) + ' km' : ' · none (dry air)')));
     A.appendChild(slider('mist top', -20, 600, 5, () => (mist() ? mist().top : NaN), v => { if (mist()) mist().top = v; }, v => v + ' m ASL'));
     A.appendChild(slider('mist thickness', 5, 300, 5, () => (mist() ? mist().H : NaN), v => { if (mist()) mist().H = v; }, v => v + ' m'));
     A.appendChild(slider('mist forward', 0, 3, 0.1, () => (mist() ? mist().fwd : NaN), v => { if (mist()) mist().fwd = v; }));
+    // F2: the mist ON THE LAND - the field's dials. `relief` 0 is the flat slab, bit-identical.
+    A.appendChild(slider('mist relief', 0, 1, 1, () => (mist() ? mist().relief : NaN), v => { if (mist()) mist().relief = v; }, v => (v ? 'on the land' : 'one flat slab')));
+    A.appendChild(slider('mist patches', 0, 1, 0.05, () => (mist() ? mist().patch : NaN), v => { if (mist()) mist().patch = v; }, v => v ? v.toFixed(2) + ' banks' : 'even'));
+    A.appendChild(slider('mist bank size', 200, 4000, 100, () => (mist() ? mist().bankM : NaN), v => { if (mist()) mist().bankM = v; }, v => v + ' m'));
+    A.appendChild(slider('mist drift', 0, 4, 0.1, () => (mist() ? mist().driftK : NaN), v => { if (mist()) mist().driftK = v; }, v => v.toFixed(1) + 'x the wind'));
+    A.appendChild(slider('mist march', 2, 16, 1, () => (mist() ? mist().steps : NaN), v => { if (mist()) mist().steps = v; }, v => v + ' samples'));
+    { const n = note(''); const R = { el: n, refresh: () => { const f = mist() && mist().field;
+        n.textContent = f ? ('the field: ' + f.N + '² baked in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'
+                             + (mist().relief ? ' · ' + (mistScalarsN() || '?') + ' samples a ray' : ' · not in use (relief off)'))
+                          : 'no field baked — the flat slab is all there is'; } };
+      rows.push(R); live.push(R); A.appendChild(n); }
     A.appendChild(note('the mist’s density is the day’s humidity (dry below 70 %); the GRAPHICS menu switches glare and mist off'));
     const lamps = () => (W.WORLD && W.WORLD.premises && W.WORLD.premises.lamps) ? W.WORLD.premises.lamps : null;
     A.appendChild(slider('village lamps', 0, 6, 0.1, () => (lamps() ? lamps().gain : NaN), v => { if (lamps()) lamps().gain = v; }, v => v.toFixed(1) + 'x' + (lamps() ? ' · ' + (W.WORLD.premises.stats.litNow || 0) + ' lit' : '')));

@@ -471,6 +471,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the day's dials changed - the window fix, and the water's and the
     // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
     ATMO.update(renderer, world.day, 0);
+    // F2: the mist's field - where the layer LIES, from this world's valley floors and water.
+    // Once per world, here, because this is where the world's own fields are already in hand.
+    try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
     probe = ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
@@ -4802,7 +4805,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   function dayApply() {
     const day = world.day;
     if (!day || rigCur.manual) return;
-    if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
+    if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y, camera.position, world); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
     if (probe && !rigCur.manual) probe.maybe(day, 1.5);
