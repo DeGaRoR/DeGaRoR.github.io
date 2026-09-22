@@ -36901,7 +36901,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='618e69beb6d4'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='b5c8506d1f24'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -103134,16 +103134,31 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     'float _fk = pow(1.0 - _ft, 1.0 + 2.0 * uFadeTaper) * uFadeAgl;',
     'if (aRand > _fk) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);',
   ].join('\n');
+  // THE GRASS SHADES AS THE GROUND (2026-09-22, the user: "its shading looks real harsh"): a tuft is
+  // two or three crossed cards, and lit by their own normals half of every tuft faces away from
+  // the sun - a field of light and dark halves, the harshness. The fix every grass renderer uses:
+  // the card's shading normal is UP (the ground's), so a tuft takes the ground's light, and only
+  // its texture and its tint vary. userData.uUp = 1 on a cover material (the ring sets it).
+  const UP_VS = 'if (uUp > 0.5) { objectNormal = vec3(0.0, 1.0, 0.0); }';
   const fadeInject = sh => {
     sh.uniforms.uFadeNear = U_FADE_NEAR; sh.uniforms.uFadeReach = U_FADE_REACH; sh.uniforms.uFadeTaper = U_FADE_TAPER; sh.uniforms.uFadeAgl = U_FADE_AGL;
-    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl;\n' +
-      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS);
+    sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
+    sh.vertexShader = 'attribute float aRand;\nuniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp;\n' +
+      sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + FADE_VS)
+                     .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
   };
+  // upHook(mat): the cover's material shades as the ground (see UP_VS); the uniform is the material's own
+  function upHook(mat) {
+    mat.userData.uUp = { value: 1 };
+    const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); sh.uniforms.uUp = mat.userData.uUp; };
+    mat.customProgramCacheKey = () => 'fade-up' + (mat.userData.uLeaf ? '-leaf' : '');   // a hooked leaf program and a plain one are not the same program
+    return mat;
+  }
   // fadeHook(mat): a material of the ring's - a hooked leaf material takes it at its own
   // compile (userData.fade), any other gets a hook of its own here
   function fadeHook(mat) {
     mat.userData.fade = true;
-    mat.customProgramCacheKey = () => 'fade';
+    mat.customProgramCacheKey = () => 'fade' + (mat.userData.uLeaf ? '-leaf' : '');
     if (!mat.userData.uLeaf) { const prev = mat.onBeforeCompile; mat.onBeforeCompile = sh => { if (prev) prev(sh); fadeInject(sh); }; }
     return mat;
   }
@@ -103227,7 +103242,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     terms: LEAF_TERMS,
     tintGlsl: TINT_GLSL,
     // the ring's fade (G454.13): the hook and the four dials, shared by every faded material
-    fadeHook: fadeHook,
+    fadeHook: fadeHook, upHook: upHook,
     // what the loader holds (bytes): the decoded rungs and the coverage mip chains
     memory: () => { let geo = 0, mip = 0, n = 0; for (const b of BUILT.values()) for (const q of b.parts) { n++; for (const k in q.geo.attributes) geo += q.geo.attributes[k].array.byteLength; if (q.geo.index) geo += q.geo.index.array.byteLength; }
       for (const t of TEX.values()) if (t.mipmaps) for (const m of t.mipmaps) mip += m.data ? m.data.byteLength : 0; return { parts: n, geoMB: +(geo / 1048576).toFixed(1), mipMB: +(mip / 1048576).toFixed(1), textures: TEX.size }; },
@@ -103391,7 +103406,7 @@ var COVER_RING = (() => {
 
   function make(THREE, ctx) {
     const { scene, world, camera, treeBuild, treeList, LEAF, BIO, GF } = ctx;
-    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 1, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };
+    const S = { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400 };   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // 'cx,cz' -> { group, n, meshes }
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
@@ -103430,7 +103445,7 @@ var COVER_RING = (() => {
       let t = flowerTex.get(url);
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
       const m = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
-      return LEAF.fadeHook(m);
+      LEAF.fadeHook(m); return LEAF.upHook ? LEAF.upHook(m) : m;
     };
     function protosOf(c) {
       let P = protos.get(c.name);
@@ -103451,6 +103466,7 @@ var COVER_RING = (() => {
               mat = new THREE.MeshStandardMaterial({ map: q.mat.map || null, roughness: 1, metalness: 0 }); LEAF.fadeHook(mat);
             } else {
               LEAF.fadeHook(mat);
+              if (c.kind === 'cover' && LEAF.upHook) LEAF.upHook(mat);   // the tuft shades as the ground (trees.js UP_VS)
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
@@ -103487,7 +103503,7 @@ var COVER_RING = (() => {
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
-        code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = ctx.okAt(x, z) ? 1 : 0;
+        code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         const c = cd >= 0 ? colAt(x, z, cd) : null;
         if (c) { col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; } else { col[k * 3] = 0.3; col[k * 3 + 1] = 0.3; col[k * 3 + 2] = 0.15; }
       }
@@ -103707,7 +103723,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     stand(edge, 0xfff1cc); stand(thr, 0x37ff6a);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
-  let coverRing = null;               // G454.13 the cover ring (set in the tree block once the payload is in)
+  let coverRing = null, fillPoolAt = null;   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -106908,6 +106924,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
           if (!forestHere(x, z) && !(BIO && openHere(x, z))) continue;  // the forest's rule (the bake's too), or the biome's open ground
+          if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
@@ -107099,10 +107116,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // eye, once the payload is in (its materials are the trees' loader's)
       if (ISLC && BIO && typeof COVER_RING !== 'undefined' && !/[?&]cover=0/.test(location.search))   // ?cover=0: the ring off (an A/B, and the rigs' control)
         treeSettle().then(() => {
+          // THE POOLS ARE THE SHADER'S (2026-09-22, the user: "are we sure vegetation does not render on top of
+          // water bodies?"): a puddle is a colour the ground shader paints from GF.poolAt on codes 3 and 7 - no water
+          // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
+          const poolAt = (x, z) => {
+            const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
+            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
+            if (!(K.pudCover > 0)) return 0;
+            return GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
+          };
           const okAt = (x, z) => { const h = world.terrainH(x, z); if (h < 0.3 || world.waterH(x, z) > h - 0.3) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt });
+            GF: (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null, biomeAt, codeAt, okAt, poolAt });
+          fillPoolAt = poolAt;
         }).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
