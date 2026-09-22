@@ -54,7 +54,7 @@ var CLOUDS = (function () {
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
-  let map = null, mapKey = '', weatherTex = null, rt = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, compMesh = null, frame = 0;
+  let map = null, mapKey = '', weatherTex = null, rt = null, rtPool = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, compMesh = null, frame = 0;
   let maps = [], lays = [];                // the decks (A6): one weather map and one layer per deck; map / lay stay the first's
   let shadowRT = null, shadowMat = null, shadowDirty = true, shadowDrift = [1e9, 1e9];
   let lay = null, dayRef = null, lastCover = 0, stats = { ms: 0, gpuMs: 0, shadowMs: 0, slicesBaked: 0, cover: 0 };
@@ -836,8 +836,12 @@ var CLOUDS = (function () {
     const k = S.mode === 'full' ? 1 : 0.5;
     const w = Math.max(8, Math.round(target.width * k)), h = Math.max(8, Math.round(target.height * k));
     if (!rt || rtW !== w || rtH !== h) {
-      if (rt) rt.dispose();
-      rt = new THREE.WebGLRenderTarget(w, h, { count: 2, type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+      // the march targets are KEPT PER SIZE (G460.11.1): the water's mirror marches the clouds for its own capture
+      // at half the frame's size every capture, and a dispose + allocate per call cost more than the march
+      rtPool = rtPool || new Map(); const key = w + 'x' + h;
+      rt = rtPool.get(key);
+      if (!rt) { rt = new THREE.WebGLRenderTarget(w, h, { count: 2, type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+        if (rtPool.size >= 3) { const k0 = rtPool.keys().next().value; rtPool.get(k0).dispose(); rtPool.delete(k0); } rtPool.set(key, rt); }
       rtW = w; rtH = h; U.uCloudTex.value = rt.textures[0]; U.uKeyTex.value = rt.textures[1]; U.uTexel.value.set(1 / w, 1 / h);
     }
     U.uDepth.value = target.depthTexture;

@@ -164,7 +164,10 @@ const WATER = (() => {
     vec2 wHash2(vec2 c) { vec3 q = fract(vec3(c.xyx) * vec3(0.1031, 0.1030, 0.0973)); q += dot(q, q.yzx + 33.33); return fract((q.xx + q.yz) * q.zy); }
     vec4 wTileTap(vec2 p, vec2 cellId, float L) {
       vec2 h = wHash2(cellId);
-      float a = h.x * 6.2831853, ca = cos(a), sa = sin(a);
+      // (G460.11.1: the turn is +-12 deg, not a full turn - the ripples are the WIND's, anisotropic, and a cell turned
+      // 90 deg showed its streaks across its neighbours' as a patch with a hard edge, the user: "harsh transition
+      // between the stretched water textures"; the offset alone breaks the lattice)
+      float a = (h.x - 0.5) * 0.42, ca = cos(a), sa = sin(a);
       vec2 q = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca) + h * 7.31;      // turned about the origin, shifted
       vec4 t = texture2D(uWDetail, q);
       vec2 sl = t.rg * 2.0 - 1.0;
@@ -371,7 +374,8 @@ const WATER = (() => {
         else if (uWDbg == 7) gl_FragColor = vec4(float(wB == 0), float(wB == 1), float(wB >= 2), 1.0);
         else if (uWDbg == 8) gl_FragColor = vec4(vec3(wGerstnerH(vWP.x, vWP.z) * 0.5 + 0.5), 1.0);
         else if (uWDbg == 9) { vec2 q = (vWP.xz - uWInterBox.xy) * uWInterBox.z; gl_FragColor = vec4(q, wIn.z, 1.0); }
-        else if (uWDbg == 10) gl_FragColor = vec4(0.5 + 3.0 * wIn.x, 0.5 + 3.0 * wIn.y, wIn.z, 1.0);   // the field's slope (G460.10: the wake's V read straight off the sheet)`);
+        else if (uWDbg == 10) gl_FragColor = vec4(0.5 + 3.0 * wIn.x, 0.5 + 3.0 * wIn.y, wIn.z, 1.0);   // the field's slope (G460.10: the wake's V read straight off the sheet)
+        else if (uWDbg == 11) { vec4 mp = uWMirrorVP * vec4(vWP, 1.0); vec2 muv = mp.xy / max(mp.w, 1.0e-4) * 0.5 + 0.5; vec4 mr = texture2D(uWMirror, muv); gl_FragColor = vec4(mr.rgb * mr.a + vec3(0.0, 0.0, 0.3) * (1.0 - mr.a), 1.0); }   // the mirror's capture where it lands (G460.11.1: alpha 0 = blue)`);
   }
 
   // ---- THE PRESETS: one row per body ------------------------------------------------------------
@@ -770,7 +774,7 @@ const WATER = (() => {
   // at a quarter of the frame's pixels when it fires (measured in HANDOVER).
   // (measured under the rig: a capture is 13-22 ms of CPU submission - the world's draw calls + the clouds' march - and
   // 460 ms the first time (its targets and programs); 'periodic' spaces them: 8 m / 6 deg / 3 s, never under 0.75 s)
-  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.75, moveM: 8, turnDeg: 6, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
+  const MIR = { mode: 'periodic', every: 3.0, minGap: 0.75, moveM: 8, turnDeg: 6, maxAgl: 60, res: 0.5, perturb: 0.06, lod: 5.0, far: 4000, rt: null, cam: null, last: null, t: 0, lastT: -1e9, on: false, ms: 0 };
   const mirrorTmp = {};
   function mirrorRender(THREE, renderer, scene, camera, waterY, opts) {
     opts = opts || {};
@@ -788,9 +792,13 @@ const WATER = (() => {
     const w = Math.max(64, Math.round(size.x * MIR.res)), h = Math.max(64, Math.round(size.y * MIR.res));
     if (!MIR.rt || MIR.rt.width !== w || MIR.rt.height !== h) {
       if (MIR.rt) MIR.rt.dispose();
-      // (a depth texture: the clouds' march reads the capture's depth, as it reads the frame's)
-      MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: false,
-        depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, THREE.UnsignedIntType) : null });
+      // (a depth texture: the clouds' march reads the capture's depth, as it reads the frame's - and the capture is
+      // MULTISAMPLED x2 so that texture is the RESOLVE of the depth, not the attachment itself: the clouds' composite
+      // samples it while drawing into the capture, and on a single-sampled target that is a feedback loop WebGL
+      // drops the draw of - no cloud in any mirror, G460.11.1)
+      MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: true, samples: 2,
+        depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, THREE.UnsignedInt248Type) : null });
+      if (MIR.rt.depthTexture) { MIR.rt.depthTexture.format = THREE.DepthStencilFormat; MIR.rt.depthTexture.minFilter = MIR.rt.depthTexture.magFilter = THREE.NearestFilter; }
       MIR.rt.texture.wrapS = MIR.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
     }
     if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();
@@ -803,16 +811,6 @@ const WATER = (() => {
     tgt.copy(mc.position).add(fwd); mc.up.copy(up); mc.lookAt(tgt);
     mc.fov = camera.fov; mc.aspect = camera.aspect; mc.near = camera.near; mc.far = camera.far;
     mc.updateProjectionMatrix(); mc.updateMatrixWorld(true);
-    // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
-    { const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
-      mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
-      pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
-      pl.applyMatrix4(mc.matrixWorldInverse);
-      n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
-      const e = P.elements;
-      qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
-      n.multiplyScalar(2.0 / n.dot(qv));
-      e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w; }
     // the capture: the water's own material, the spray's and the sky dome hidden; the shadow maps reused
     const hidden = [];
     for (const m of (opts.hideMaterials || [])) if (m && m.visible !== false) { m.visible = false; hidden.push(m); }
@@ -824,10 +822,24 @@ const WATER = (() => {
     const t0 = performance.now();
     renderer.shadowMap.autoUpdate = false;
     renderer.setRenderTarget(MIR.rt); renderer.setClearColor(0x000000, 0); renderer.autoClear = true; renderer.clear();
-    const bg = scene.background; scene.background = null;
-    // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march
-    // run for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad
+    // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
+    // for the mirrored eye into this capture (opts.clouds = CLOUDS.draw), composited by the scene's cloud quad -
+    // with the FRAME's far (the composite writes its depth against log2(far + 1): a cloud 10 km out under the
+    // capture's capped far read as depth > 1 and was clipped - no cloud in the mirror, G460.11.1)
     if (opts.clouds) { try { opts.clouds(renderer, mc, MIR.rt); } catch (e) {} }
+    // the scene's own far CAPPED (the capture's cost is its draw calls; the decor past it is the sky's in the reflection)
+    mc.far = Math.min(camera.far, MIR.far); mc.updateProjectionMatrix();
+    // the oblique near plane (Lengyel; three's Reflector): the clip plane y = waterY in the mirror camera's view
+    { const P = mc.projectionMatrix, n = mirrorTmp.n || (mirrorTmp.n = new THREE.Vector4()), pl = mirrorTmp.pl || (mirrorTmp.pl = new THREE.Plane()), qv = mirrorTmp.qv || (mirrorTmp.qv = new THREE.Vector4());
+      mirrorTmp.pn = mirrorTmp.pn || new THREE.Vector3(0, 1, 0); mirrorTmp.pp = mirrorTmp.pp || new THREE.Vector3(); mirrorTmp.pp.set(0, waterY, 0);
+      pl.setFromNormalAndCoplanarPoint(mirrorTmp.pn, mirrorTmp.pp);
+      pl.applyMatrix4(mc.matrixWorldInverse);
+      n.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
+      const e = P.elements;
+      qv.x = (Math.sign(n.x) + e[8]) / e[0]; qv.y = (Math.sign(n.y) + e[9]) / e[5]; qv.z = -1.0; qv.w = (1.0 + e[10]) / e[14];
+      n.multiplyScalar(2.0 / n.dot(qv));
+      e[2] = n.x; e[6] = n.y; e[10] = n.z + 1.0; e[14] = n.w; }
+    const bg = scene.background; scene.background = null;
     renderer.render(scene, mc);
     scene.background = bg;
     renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;

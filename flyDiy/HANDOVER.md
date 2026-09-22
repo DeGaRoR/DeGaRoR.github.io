@@ -55237,3 +55237,34 @@ analytic road and HOME, and the cost. THEIRS, next: the ring reads ctx.coverAt (
 the tint from col, the 'built' code's missing colour row (the pale tufts on Jolene), the village
 mix's height outside the lots. Until they wire it the game draws as before: the ring ignores a
 ctx key it does not read.
+## G460.11.1 — THE MIRROR'S CLOUDS (A FEEDBACK LOOP), THE TILE'S TURN, THE FAR CAP MEASURED (2026-09-22, the
+## user: "cap the mirror's far plane and measure again ... the cloud does feel odd ... harsh transition
+## between the stretched water textures")
+
+- THE CLOUDS WERE NEVER IN THE MIRROR: G460.11's capture marched the clouds and drew their composite quad into a
+  SINGLE-SAMPLED target whose depth texture was the depth attachment itself - the composite samples that
+  texture while drawing into the target, a feedback loop WebGL drops the draw of (the readback: the march's
+  own alpha 0.30 for the mirror eye, the capture's cloud alpha 0). The "clouds" in G460.11's lake were the
+  probe's blurred shed showing through the capture's empty sky (the user: "the cloud does feel odd"). The
+  capture is MULTISAMPLED x2 now, its depth texture the resolve (UnsignedInt248 / DepthStencil, the aa
+  target's spec) - the same reason the frame's own composite works. The march runs with the FRAME's far
+  (the composite's depth is log2(1 + w) / log2(far + 1): under a capped far a cloud 10 km out is depth > 1,
+  clipped) and only the scene's far is capped after it. m11_0.6,cu/lakeA.png, m11_0.9,st/lakeB.png: the
+  real cumulus and the overcast in the lake; sea12.png.
+- THE MARCH TARGETS ARE POOLED PER SIZE (clouds.js): the mirror marches at half the frame's size and the frame
+  at its own, and draw() disposed and re-allocated its 2-attachment half-float target on EVERY size change
+  - twice a frame in 'live' - which was most of the capture's cost (58 ms a capture -> 16).
+- THE TILE'S TURN IS +-12 deg (was a full turn): the hex tiling turned each cell by a random angle, and the
+  ripples are the wind's - anisotropic streaks - so a cell turned 90 deg read as a patch of cross-hatching
+  with a hard edge (the user's red circles, m5/seaC). The random offset alone breaks the lattice.
+- THE FAR CAP, MEASURED (the rig's frame at the lake, 4 s means; the headless frame is ~110 ms baseline and
+  GPU-shared, so these are ratios, not budgets): mirror off 110 ms, live 122 at far 4000 and at far inf
+  alike, live 134 at 1500 (noise), periodic 129. With the pooled targets the far cap no longer moves the
+  number on this rig; it stays at 4000 m (the mountains behind the lake are 2-4 km off and must be in the
+  reflection). The CPU submission of a capture is 16-18 ms here (the world's draw calls), 460 ms the first.
+  A GPU timer round the capture was tried and removed: the clouds' march runs its own TIME_ELAPSED queries
+  and two cannot nest.
+- PROOF: screenshots/water-g440/m11_<cover>/ (three skies x lake A/B/C, sea12, boat). GATE WATER, CLOUD,
+  GFX, WORLDRENDER, MEDIA green.
+- OWED: the cost on a real GPU (tree_perf's PROFILE with the mirror live vs off); the first capture's 460 ms
+  (its programs) prewarmed at boot.
