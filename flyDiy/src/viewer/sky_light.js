@@ -43,9 +43,28 @@ var SKY_LIGHT = (function () {
   let isMoon = false, lastEx = -1;
 
   // applyDay(day, o): o = { key, hemi, scene, renderer, unit (LIGHT_UNIT or 1), roomGain, sunGain, hemiBoost,
-  //                         hemiGnd (hex), gb (ground bounce), exposureK, altM }
+  //                         gndAlb (the world's mean albedo, linear rgb - the ground half is derived from it),
+  //                         gndGain, hemiGnd (hex, the fallback when there is no albedo),
+  //                         gb (ground bounce), exposureK, altM }
   // returns { isMoon, el, exposure, sunI, hemiI }
   const _c3 = (typeof THREE !== 'undefined' && THREE.Color) ? new THREE.Color() : { setRGB() { return this; } };
+  // groundHalf(key, hemi, dirY, alb, gb, gain) -> true when it wrote the ground term.
+  // ONE implementation of the derivation documented at its call site: both the day's pass and a
+  // MANUAL rig row (render_world rigApply, where the sliders place the sun by hand and applyDay
+  // never runs) must get the same answer, so neither of them owns the arithmetic.
+  function groundHalf(key, hemi, dirY, alb, gb, gain) {
+    if (!key || !hemi || !hemi.groundColor || !hemi.groundColor.setRGB || !alb) return false;
+    if (!(alb[0] + alb[1] + alb[2] > 0)) return false;
+    const gg = (gb != null ? gb : 1) * (gain != null ? gain : 1);
+    const hI = Math.max(1e-9, hemi.intensity), kI = key.intensity * Math.max(0, dirY);
+    const kc = key.color, sc = hemi.color;
+    const c = v => Math.min(4, Math.max(0, v));       // a ground brighter than 4x the sky is snow at noon, and past that it is a bug
+    hemi.groundColor.setRGB(c(alb[0] * (kc.r * kI + sc.r * hI) / hI * gg),
+                            c(alb[1] * (kc.g * kI + sc.g * hI) / hI * gg),
+                            c(alb[2] * (kc.b * kI + sc.b * hI) / hI * gg));
+    API.gnd = [hemi.groundColor.r, hemi.groundColor.g, hemi.groundColor.b];
+    return true;
+  }
   function applyDay(day, o) {
     if (!day || typeof ATMO === 'undefined') return null;
     if (K_SUN == null && !calibrate()) return null;
@@ -89,8 +108,30 @@ var SKY_LIGHT = (function () {
         // CLOUDS C3: under a cloud the sky's light is the deck's (the sun's transmitted colour diffused), not the zenith's blue
         if (o.cloudT != null && o.cloudT < 1 && !isMoon) { const mT = maxc(_T), w = 0.6 * (1 - Math.max(0, o.cloudT)); hemi.color.lerp(_c3.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT), w); }
       }
-      if (hemi.groundColor && hemi.groundColor.setHex && o.hemiGnd != null) {
+      // ---- THE GROUND HALF IS THE WORLD'S ALBEDO x WHAT FALLS ON IT (2026-09-22) ----
+      // It was a hex per rig row (island 0x3a3f30, alps 0x343422): a colour somebody chose, fixed
+      // against the sky through every hour, and the last authored green in the rig. It is derived
+      // now, and the derivation needs no new physics because three renders both terms in the same
+      // units: a hemisphere's ground irradiance is groundColor x intensity, its sky irradiance is
+      // skyColor x intensity, and a directional's on a horizontal surface is colour x intensity x
+      // max(0, dir.y). So what the GROUND receives is
+      //     E_total = keyColour x keyIntensity x max(0, dir.y)  +  skyColour x hemiIntensity
+      // and what it hands back upward is albedo x E_total, which in groundColor's own units is
+      //     groundColor = albedo (x) E_total / hemiIntensity  x gb x gain.
+      // Two checks the arithmetic must pass: a white ground (albedo 1) under no sun gives exactly
+      // the sky colour back, and the whole thing carries the moon, the horizon fade, the cloud
+      // transmittance and the hemisphere's boost for free, because they are already in the two
+      // lights. THE SHAPE OF THE RESULT: at noon the bounce is several times the sky term (the sun
+      // is what lights the ground); through dusk it falls to albedo x sky, faster than the sky
+      // itself - which the fixed hex could not do, it tracked the sky exactly at every hour.
+      // gb (LIGHT_RIG.groundBounce) is still the occlusion, and it is still a judgement: an
+      // unoccluded hemisphere of lit ground is right for an aeroplane over an open field and
+      // generous for a valley floor or a forest.
+      if (groundHalf(key, hemi, dir[1], o.gndAlb, o.gb, o.gndGain)) { /* derived (one implementation, below) */ }
+      else if (hemi.groundColor && hemi.groundColor.setHex && o.hemiGnd != null) {
+        // no world albedo (no imagery and no classifier - the bench's stub scenes): the row's hex
         hemi.groundColor.setHex(o.hemiGnd).multiplyScalar(o.gb != null ? o.gb : 1);
+        API.gnd = [hemi.groundColor.r, hemi.groundColor.g, hemi.groundColor.b];
       }
     }
     // the dome's scale: the same K, the same unit
@@ -112,7 +153,8 @@ var SKY_LIGHT = (function () {
     API.last = { isMoon, el, T: [_T[0], _T[1], _T[2]], phase: day.moonPhase };   // the flare reads the light's transmitted colour
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }
-  const API = { applyDay, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null };
+  const API = { applyDay, groundHalf, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null,
+                gnd: null };   // the ground half as last derived (linear rgb) - the F8 readout and GATE LIGHT read it
   if (typeof window !== 'undefined') window.SKY_LIGHT = API;
   return API;
 })();

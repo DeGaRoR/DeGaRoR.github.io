@@ -55688,3 +55688,73 @@ LOT_GROUND.grade(s, v, w) - the A/B is one step in one boot.
   it did - the bank is simply under ~0.6 m more water there (7 m of a 1:12 shore). s1/shore.png: the water's
   edge along the grass, clean. s1/floatClose.png: the floats' chines in the water, the waterline across the
   hull, the reflection starting at it.
+
+
+## G499 — THE HEMISPHERE'S GROUND HALF IS THE WORLD'S OWN ALBEDO (2026-09-22, the user: "now do the
+## hemisphere ground from the world's mean albedo" - G495's owed item)
+
+- WHAT IT WAS: a hex per rig row (island 0x3a3f30, alps 0x343422, sunset 0x6a5a3c) x the ground
+  bounce - the last authored colour in the rig, and fixed AGAINST THE SKY at every hour: the ground's
+  bounce tracked the sky exactly from noon to midnight, which is the one thing it cannot do.
+- THE DERIVATION NEEDS NO NEW PHYSICS, because three renders both terms in the same units: a
+  hemisphere's ground irradiance is groundColor x intensity, its sky irradiance is skyColor x
+  intensity, and a directional's on a horizontal surface is colour x intensity x max(0, dir.y). So
+  what the GROUND receives is E = keyColour x keyI x max(0, dir.y) + skyColour x hemiI, and what it
+  hands back is albedo x E, which in groundColor's own units is
+      groundColor = albedo (x) E / hemiI  x gb x gain.
+  Two checks it passes: a white ground (albedo 1) with no sun gives exactly the sky colour back; and
+  the moon, the horizon fade, the cloud transmittance and the hemisphere's boost all ride for free
+  because they are already in the two lights. A THIRD, worth knowing: hemiI cancels (rendered bounce
+  = albedo x E, independent of it), so the `hemisphere` dial now moves the SKY half alone and the
+  bounce stays anchored to the sun - if G400's doubled island hemisphere is ever undone, the ground
+  term does not move with it.
+- ONE IMPLEMENTATION: SKY_LIGHT.groundHalf(key, hemi, dirY, alb, gb, gain). The day's pass and a
+  MANUAL rig row (render_world rigApply, where the sliders place the sun and dayApply returns early)
+  both call it; neither owns the arithmetic. The row's hex is the FALLBACK, for a world with no
+  albedo at all (the bench stubs).
+- THE MEAN IS MEASURED ONCE, where the data already is. G485 walks isla.albedo cell by cell to
+  normalise the splat's sets to the imagery; the grand mean of that same pass rides out as
+  SPL.api.albedoMean() (land cells, t >= 2 - the sea is not the ground this term stands for). A
+  second walk here would be a second definition of one measurement. A world with NO imagery (the
+  analytic one, the stubs) gets albedoFromClassifier(): the SURFACE classifier over the world's own
+  bounds, 24 x 24, through G495's GROUND_ALBEDO, WATER left out the same way.
+- THE TWO SOURCES ARE NOT ON THE SAME SCALE, and the readout prints BOTH so it is a measured fact
+  and not a claim. On Jolene: imagery 0.0282/0.0403/0.0149 (luma 0.0359 - Landsat visible-band
+  reflectance; vegetation really is that dark to the eye, G485's forest cells are 0.026), classifier
+  0.0978/0.1196/0.0425 (luma 0.1094) - THE CLASSIFIER READS 3.05x THE IMAGERY, because GROUND_ALBEDO's
+  GRASS was pinned at G495 to the exact colour a year of bellies had been judged against (0x6d7a45,
+  luma 0.175) rather than to a measurement. The imagery wins wherever it exists. A world without it
+  therefore gets a ~3x stronger bounce - the analytic world's derived ground half is 0.40 luma
+  against its hex's 0.113. THE GAIN IS THE LEVER (F8 > environment > "ground bounce gain").
+- MEASURED (tools/light_shot.js, the grey sphere, Jolene, the stand, sun 45.8 deg), the ground half:
+      the row's hex   0.0423/0.0497/0.0296  luma 0.047
+      derived         0.0834/0.1131/0.0407  luma 0.102   (2.2x, and greener)
+  On the belly, the hemisphere ALONE: 32/45/51 (G/mean 1.09) -> 44/60/54 (1.23). Everything on:
+  1.02 -> 1.09 at the stand, 1.18 -> 1.21 aloft. AND THAT IS THE HONEST COST OF THE CHANGE: the
+  world's ambient is greener now because JOLENE IS GREEN - light bouncing off a conifer island is
+  green, and the fixed hex was a grey-blue nobody had measured. It does not undo G495: the probe's
+  cap still says "concrete" under a craft on concrete, and the cap is four times the hemisphere on a
+  downward normal. What is left is the world's average reaching the craft, which is what a world
+  average is for.
+- THE DAY, measured at the same spot (ground half luma): noon 0.102, sunset (sun -1 deg) 0.026,
+  night (sun -11 deg, the moon) 0.013 - at night it converges on albedo x the sky alone, which is
+  the arithmetic's own limit. Nothing clamps (the guard is 4x the sky, which is snow at noon).
+- A READOUT TRAP, caught by reading the panel against the measurement: groundColor ALONE is
+  divided by the hemisphere's intensity, so the number shrinks when the `hemisphere` dial grows
+  while the light it stands for does not move at all (hemiI cancels in the rendered bounce). The
+  panel prints the INVARIANT - groundColor x hemiI - beside it.
+- SURFACED: F8 > environment - "ground bounce" (the world's albedo / the row's hex, a one-click
+  A/B), "ground bounce gain" (0..2, 1 = the physics as measured), and a live line with both source
+  means, their lumas and the ground half they produce. WORLD_RIG.worldAlbedo() /
+  worldAlbedoPin(rgb|null) for the rig.
+- GATE LIGHT 4e.3: ONE groundHalf and exactly one writer of the ground term, the formula's shape,
+  the manual path going through it, the hex fallback, the three albedo functions, the imagery
+  preferred over the classifier, no second sRGB decode inside the imagery source, both means in the
+  readout, the F8 rows; two new negative tests. TRAP MET while writing it: `[]]` in a JS regex is an
+  EMPTY character class followed by `]` and matches NOTHING - the assertion passed vacuously until
+  it was tested against the real file.
+- OWED: whether G400's doubled island hemisphere (hemi 0.55, put there when "the shaded part of the
+  mountains is almost pitch black") should come back to 0.274 now that the bounce does that work -
+  the bounce no longer moves with that dial, so it is a clean A/B for the user's eye; and whether
+  GROUND_ALBEDO's GRASS should be re-based onto the imagery's scale, which would move every belly
+  judged since G495 and is the same kind of call.

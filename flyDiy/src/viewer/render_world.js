@@ -405,6 +405,55 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const k = 1 - Math.exp(-dt / 1.0);               // eased over a second
     for (let i = 0; i < 3; i++) GU.alb[i] += (GU.target[i] - GU.alb[i]) * k;
   }
+  // ---- THE WORLD'S MEAN ALBEDO (2026-09-22) --------------------------------
+  // The hemisphere's ground half used to be a hex per rig row. It is the world's own ground now,
+  // and the number is MEASURED ONCE, where the data lives:
+  //   an island  the imagery. G485 already walks isla.albedo cell by cell to normalise the splat's
+  //              sets to it (splat_ground normGains, stride 7, sRGB -> linear, land cells only);
+  //              the grand mean rides out of that same pass as SPL.api.albedoMean(). A second walk
+  //              here would be a second definition of one measurement, and they would drift.
+  //   otherwise  the SURFACE classifier over the world's own bounds through GROUND_ALBEDO (the
+  //              table above) - a 24 x 24 lattice, land classes only, WATER left out for the same
+  //              reason the imagery pass leaves it out: the sea is not the ground this term stands
+  //              for. This is the analytic world's answer, and the bench stubs'.
+  // Cached: a world's mean ground does not change. `pin` is the A/B (see hemiGndPin below).
+  // THE TWO SOURCES ARE NOT ON THE SAME SCALE, and the readout prints both so it is a measured
+  // fact rather than a claim. The imagery is surface REFLECTANCE (Landsat, visible bands: dense
+  // conifer 0.026 luma - vegetation really is that dark to the eye); GROUND_ALBEDO is the look
+  // table, whose GRASS was pinned at G495 to the exact colour a year of bellies had been judged
+  // against (0x6d7a45, luma 0.175) rather than to a measurement. On Jolene the classifier reads
+  // ~4x the imagery, so a world with no imagery gets a correspondingly stronger bounce. The
+  // imagery wins wherever it exists (it is the measurement); the gain is the lever if it must move.
+  const WALB = { v: null, src: 'none', pin: null, img: null, cls: null };
+  function albedoFromImagery() {
+    if (WALB.img) return WALB.img;
+    try {
+      const sp = groundApi && groundApi.splat && groundApi.splat();
+      const m = sp && sp.albedoMean && sp.albedoMean();
+      if (m && (m[0] + m[1] + m[2]) > 1e-6) return (WALB.img = m);
+    } catch (e) {}
+    return null;
+  }
+  function albedoFromClassifier() {
+    if (WALB.cls) return WALB.cls;
+    if (!world.surface || !world.SURFACE) return null;
+    const B = world.bounds, N = 24, t = [0, 0, 0]; let n = 0;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = B.x0 + (i + 0.5) / N * (B.x1 - B.x0), z = B.z0 + (j + 0.5) / N * (B.z1 - B.z0);
+      const k = guClassAt(x, z); if (k === 'WATER') continue;
+      const a = GROUND_ALBEDO[k]; t[0] += a[0]; t[1] += a[1]; t[2] += a[2]; n++;
+    }
+    return n ? (WALB.cls = [t[0] / n, t[1] / n, t[2] / n]) : null;
+  }
+  function worldAlbedo() {
+    if (WALB.pin) return WALB.pin;
+    if (WALB.v) return WALB.v;
+    const im = albedoFromImagery();
+    if (im) { WALB.v = im; WALB.src = 'imagery'; return im; }
+    const cl = albedoFromClassifier();
+    if (cl) { WALB.v = cl; WALB.src = 'classifier'; return cl; }
+    return null;
+  }
   const groundUnder = () => ({ cls: GU.pin ? 'PIN' : GU.cls, alb: capOf().slice(), target: GU.target.slice(), r: GU.r, mix: Object.assign({}, GU.mix), table: GROUND_ALBEDO });
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
@@ -491,6 +540,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // drop density than shadow fidelity"): the sun map always covers ±540 m,
   // so nothing inside it pops from shadow to none as the aircraft climbs
   const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 540 };
+  // the ground half's gain over the derivation (1 = the physics as measured); a row may dial it,
+  // and 0 turns the world's bounce off altogether - the A/B that says what it is doing
+  const GND_GAIN = 1;
   // THE LIGHT UNIT (W0.5a). r128 drew the world under the LEGACY light model,
   // where a directional or hemisphere intensity meant PI times what the
   // physical model — r186's only one — means (lights_pars_begin's
@@ -4770,6 +4822,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
       SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer, unit: LIGHT_UNIT,
         sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
+        gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
+        gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
@@ -4790,7 +4844,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     exposure: (typeof window !== 'undefined' && window.GFX && window.GFX.exposureBase && window.GFX.exposureBase() != null)
       ? window.GFX.exposureBase() : ((renderer && renderer.toneMappingExposure) || 1),   // the BASE, never the menu's step over it
     env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
-    farShadow: true, snap: true, manual: false,
+    farShadow: true, snap: true, manual: false, gndGain: GND_GAIN, gndDerive: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     // the painted dome's palette; the physical dome (S3) has none, and the row keeps the legacy numbers for the fallback
     dome: (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uTop) ? {
@@ -4861,7 +4915,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     dayVer = -1;                                   // a row write re-arms the day's pass on the next frame
     sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
     hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
-    if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
+    if (hemi.color && hemi.color.setHex) {
+      hemi.color.setHex(R.hemiSky);
+      // THE GROUND HALF, the same one implementation the day's pass uses (sky_light groundHalf):
+      // a MANUAL row places the sun by hand and dayApply returns early, so this is the only writer
+      // then. The hex is what is left when the world has no albedo to derive from.
+      const alb = R.gndDerive === false ? null : worldAlbedo();
+      const done = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.groundHalf)
+        ? SKY_LIGHT.groundHalf(sun, hemi, SUN.y, alb, gb, R.gndGain) : false;
+      if (!done) hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb);
+    }
     if (renderer) { if (typeof window !== 'undefined' && window.GFX && window.GFX.setExposure) window.GFX.setExposure(renderer, R.exposure); else renderer.toneMappingExposure = R.exposure; }
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
@@ -4902,6 +4965,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
     // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
     groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
+    // THE WORLD'S MEAN ALBEDO and the hemisphere's ground half derived from it (the F8 readout, the rig)
+    worldAlbedo: () => ({ alb: worldAlbedo(), src: WALB.pin ? 'pinned' : WALB.src, pin: WALB.pin,
+                          img: albedoFromImagery(), cls: albedoFromClassifier(),   // both, so the scale gap between them is measured and not asserted
+                          gnd: (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.gnd) ? SKY_LIGHT.gnd.slice() : null,
+                          gain: rigCur.gndGain == null ? 1 : rigCur.gndGain, derive: rigCur.gndDerive !== false,
+                          // hemiI is here because groundColor ALONE is a misleading readout: it is divided by
+                          // the hemisphere's intensity, so it shrinks when the `hemisphere` dial grows while the
+                          // light it stands for does not move at all. groundColor x hemiI is the invariant.
+                          hemiI: hemi ? hemi.intensity : 0, hex: rigCur.hemiGnd, gb }),
+    // pinned, for an A/B from one boot (tools/light_shot.js --step); null hands it back to the world
+    worldAlbedoPin: a => { WALB.pin = a ? a.slice(0, 3) : null; dayVer = -1; return WALB.pin; },
     // PINNED, for an A/B from ONE boot and one eye (tools/light_shot.js --step): a linear rgb holds the
     // cap there - `WORLD_RIG.groundUnderPin(WORLD_RIG.groundUnder().table.GRASS)` is what the old
     // fixed cap did everywhere - and null hands it back to the ground. The instrument, not a setting.

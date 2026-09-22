@@ -320,6 +320,12 @@ const SPLAT_GROUND = (() => {
       for (let i = 0; i < n; i += 7) { const t = T[i]; if (t < 2) continue; const a = acc[t] || (acc[t] = [0, 0, 0, 0]);
         a[0] += lin(A[i * 3]); a[1] += lin(A[i * 3 + 1]); a[2] += lin(A[i * 3 + 2]); a[3]++; }
       const target = {}; for (const k in acc) { const a = acc[k]; target[k] = [a[0] / a[3], a[1] / a[3], a[2] / a[3], a[3]]; }
+      // THE WORLD'S MEAN ALBEDO, off the same pass (2026-09-22): the cell-weighted mean of every
+      // LAND cell's imagery (t >= 2, the convention above - water and no-data are not the ground the
+      // hemisphere's lower half stands for). The hemisphere's ground term is derived from it in
+      // render_world, so it is measured ONCE, here, where the raster is already being walked.
+      { let r = 0, g = 0, b = 0, n2 = 0; for (const k in acc) { const a = acc[k]; r += a[0]; g += a[1]; b += a[2]; n2 += a[3]; }
+        if (n2) R.albedoMean = [r / n2, g / n2, b / n2]; }
       const parent = { 12: 6, 13: 8, 14: 7 };
       const mean = {}; for (const st of SPLAT_TEX_SETS) mean[st.key] = st.mean;
       const num = {}, den = {}, SLOT = [0.6, 0.3, 0.1];
@@ -415,6 +421,7 @@ const SPLAT_GROUND = (() => {
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
+      albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });

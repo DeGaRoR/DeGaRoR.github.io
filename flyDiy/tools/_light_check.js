@@ -283,6 +283,60 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
   check(/capHex: 0x3f3c38/.test(world), "the cabin's own neutral probe (G436.6) is gone");
 }
 
+// 4e.3 THE HEMISPHERE'S GROUND HALF IS THE WORLD'S ALBEDO (2026-09-22, the user: "now do the
+// hemisphere ground from the world's mean albedo"). It was a hex per rig row - the last authored
+// colour in the rig, fixed against the sky at every hour. It is derived now from the world's own
+// mean albedo x what falls on the ground, and the derivation is ONE function because both the
+// day's pass and a MANUAL row must agree. The world's mean albedo is likewise measured ONCE, in
+// the pass that already walks the imagery for the splat's normalisation (G485).
+{
+  const sky = read('sky_light.js'), splat = read('splat_ground.js'), panel = read('dev_panel.js');
+  check(/function groundHalf[(]key, hemi, dirY, alb, gb, gain[)]/.test(sky),
+        'sky_light no longer owns ONE groundHalf - the derivation has been copied somewhere');
+  check((sky.match(/hemi[.]groundColor[.]setRGB[(]/g) || []).length === 1,
+        'the ground term is written from more than one place in sky_light');
+  check(/kc[.]r [*] kI [+] sc[.]r [*] hI/.test(sky) && /key[.]intensity [*] Math[.]max[(]0, dirY[)]/.test(sky),
+        'the ground half is no longer albedo x (key x cos + sky) - the physics has been rewritten');
+  check(/groundHalf, calibrate/.test(sky), 'SKY_LIGHT no longer publishes groundHalf (rigApply needs it)');
+  check(/SKY_LIGHT[.]groundHalf[(]sun, hemi, SUN[.]y, alb, gb, R[.]gndGain[)]/.test(world),
+        'the MANUAL rig path no longer derives the ground half - a row with the sun by hand would keep the hex');
+  check(/if [(][!]done[)] hemi[.]groundColor[.]setHex[(]R[.]hemiGnd[)][.]multiplyScalar[(]gb[)];/.test(world) &&
+        /else if [(]hemi[.]groundColor && hemi[.]groundColor[.]setHex && o[.]hemiGnd != null[)]/.test(sky),
+        'the row hex is no longer the fallback when the world has no albedo (the bench stubs need it)');
+  check(/gndAlb: rigCur[.]gndDerive === false [?] null : worldAlbedo[(][)]/.test(world),
+        'the day pass no longer hands the world albedo over, or the derive switch is gone');
+  // the measurement lives ONCE, where the raster is already walked
+  check(/R[.]albedoMean = \[r \/ n2, g \/ n2, b \/ n2\];/.test(splat) && /albedoMean: [(][)] =>/.test(splat),
+        'splat_ground no longer publishes the world mean albedo off the normGains pass');
+  // A SECOND WALK would show up INSIDE worldAlbedo() - the file at large decodes sRGB for the sky
+  // shader, the impostor chunk and the alps env, so the check is scoped to the function's own body.
+  {
+    const grab = n => { const m = new RegExp('function ' + n + '[(][)] [{]([^]*?)\\n  [}]').exec(world); return m && m[1]; };
+    const fi = grab('albedoFromImagery'), fc = grab('albedoFromClassifier'), fw = grab('worldAlbedo');
+    check(!!fi && !!fc && !!fw, 'render_world no longer declares the three albedo functions (imagery / classifier / the chooser)');
+    if (fi && fc && fw) {
+      check(/sp[.]albedoMean/.test(fi), 'the imagery source no longer reads the mean from the splat module');
+      check(!/0[.]04045/.test(fi) && !/[.]ttype/.test(fi),
+            'the imagery source walks the raster itself - that is a SECOND definition of one measurement (use SPL.api.albedoMean)');
+      check(/guClassAt/.test(fc) && /GROUND_ALBEDO/.test(fc), 'the classifier fallback is gone (the analytic world and the stubs)');
+      check(/albedoFromImagery[(][)]/.test(fw) && /albedoFromClassifier[(][)]/.test(fw),
+            'worldAlbedo no longer chooses between the two sources');
+      const iAt = fw.indexOf('albedoFromImagery'), cAt = fw.indexOf('albedoFromClassifier');
+      check(iAt >= 0 && cAt > iAt, 'the classifier is tried BEFORE the imagery - the measurement must win where it exists');
+    }
+    check(/img: albedoFromImagery[(][)], cls: albedoFromClassifier[(][)]/.test(world),
+          'the readout no longer prints BOTH sources - the scale gap between them would be a claim, not a measurement');
+  }
+  check(/0[.]04045/.test(splat), 'the imagery decode has left splat_ground, where the one pass lives');
+  check(/sp[.]albedoMean && sp[.]albedoMean[(][)]/.test(world), 'render_world no longer reads the imagery mean from the splat module');
+  check(/if [(]k === 'WATER'[)] continue;/.test(world),
+        'the classifier fallback no longer leaves WATER out - the sea is not the ground this term stands for');
+  check(/worldAlbedo: [(][)] => [(][{] alb: worldAlbedo[(][)]/.test(world) && /worldAlbedoPin: a =>/.test(world),
+        'the world albedo readout or its A/B pin is gone');
+  check(/the world.{1,3}s mean albedo/.test(panel) && /ground bounce gain/.test(panel),
+        'F8 no longer shows the world albedo or its gain');
+}
+
 // 4f. THE SHED'S SWITCH LIST COVERS ALL THREE KINDS, and every switch has an
 // action. A list is what was wrong every previous time.
 {
@@ -463,6 +517,12 @@ if (process.argv.includes('--selftest')) {
     ['the cap stops following the ground under the craft', world,
       s => s.replace('cap: capOf, gb,', 'capHex: 0x6d7a45, gb,'),
       s => !/cap: capOf, gb,/.test(s)],
+    ['the ground half stops being derived', world,
+      s => s.replace('gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),', 'gndAlb: null,'),
+      s => !/gndAlb: rigCur[.]gndDerive === false [?] null : worldAlbedo[(][)]/.test(s)],
+    ['the manual rig path keeps the hex', world,
+      s => s.replace(/const done = [(]typeof SKY_LIGHT[^;]*;/, 'const done = false;'),
+      s => !/SKY_LIGHT[.]groundHalf[(]sun, hemi, SUN[.]y/.test(s)],
     ['GRASS moves off the judged cap', world,
       s => s.replace('GRASS: [0.153, 0.194, 0.060]', 'GRASS: [0.253, 0.394, 0.060]'),
       s => { const g = /GRASS: [[]([0-9.]+),/.exec(s); return !!g && Math.abs(+g[1] - 0.153) > 0.002; }],

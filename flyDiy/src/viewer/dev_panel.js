@@ -448,7 +448,22 @@
     E.appendChild(slider('sun', 0, 5, 0.05, () => rig().get().sunI, v => rig().set({ sunI: v })));
     E.appendChild(slider('sun warmth', 0, 1, 0.02, () => sunWarm(), v => rig().set({ sunCol: warmHex(v) })));
     E.appendChild(slider('hemisphere', 0, 1.5, 0.02, () => rig().get().hemi, v => rig().set({ hemi: v })));
-    E.appendChild(note('the hemisphere is the WORLD’s one ambient - its sky half is the day’s irradiance, its ground half the rig row’s average ground (every slope and underside out there, not this aeroplane’s)'));
+    E.appendChild(note('the hemisphere is the WORLD’s one ambient - its sky half is the day’s irradiance, its ground half the world’s own mean albedo x what falls on it (every slope and underside out there, not this aeroplane’s: the probe’s cap is the craft’s)'));
+    // THE GROUND HALF, DERIVED (2026-09-22): the world's mean albedo, the colour it hands back, and the two levers
+    E.appendChild(select('ground bounce', [['1', 'the world’s albedo (derived)'], ['0', 'the row’s hex (before)']],
+      () => (rig().get().gndDerive === false ? '0' : '1'), v => rig().set({ gndDerive: v === '1' })));
+    E.appendChild(slider('ground bounce gain', 0, 2, 0.05, () => { const g = rig().get().gndGain; return g == null ? 1 : g; }, v => rig().set({ gndGain: v })));
+    { const n = note(''); const R = { el: n, refresh: () => {
+        const w = (rig() && rig().worldAlbedo) ? rig().worldAlbedo() : null;
+        if (!w) { n.textContent = 'the world’s albedo: (no world yet)'; return; }
+        const f = a => a ? a.map(v => v.toFixed(3)).join('/') : '-';
+        const L = a => a ? (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]).toFixed(3) : '-';
+        // the BOUNCE (groundColor x hemiI) is the invariant: groundColor alone moves with the hemisphere dial
+        const bo = (w.gnd && w.hemiI) ? w.gnd.map(v => v * w.hemiI) : null;
+        n.textContent = `the world’s mean albedo (${w.src}): ${f(w.alb)} luma ${L(w.alb)}` +
+          ` → the ground half ${f(w.gnd)}, bounce luma ${L(bo)}${w.derive ? '' : '  (DERIVE OFF - the hex)'}` +
+          `${w.gb !== 1 ? '  · occlusion ' + w.gb : ''}`; } };
+      rows.push(R); live.push(R); E.appendChild(n); }
     // THE GROUND UNDER THE CRAFT (2026-09-22): the probe's cap, which IS the aeroplane's ambient
     // from below - what it is now, what it is easing to, and what the probe last baked over.
     // (the panel can be built before the world is - every read is inside the refresh, guarded, the
