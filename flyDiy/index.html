@@ -14711,7 +14711,7 @@ const GROUND_FIELDS = (() => {
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
-      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.45, macroLum: 0.6, macroExp: 2.2,   // macroLum (2026-09-21): how much of the IMAGERY'S brightness the near ground keeps (see splat_ground sSplat)   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
+      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.45, macroLum: 0.6, albedoNorm: 1, macroExp: 2.2,   // macroLum (2026-09-21): how much of the IMAGERY'S brightness the near ground keeps (see splat_ground sSplat)   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
@@ -36901,7 +36901,7 @@ function playerShedDims(doc, id, site) {
 if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC };</script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='b89eae32b01c';window.FLYDIY_BUILD='1b63b2dd8bea'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='721df2213db1';window.FLYDIY_BUILD='1a5f897a613e'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=267306e7"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3be353d3"></script>
@@ -101776,12 +101776,49 @@ const SPLAT_GROUND = (() => {
       return Math.min(6, Math.max(1, (ls / ns) / (lm / nm)));
     } catch (e) { return 1; }
   }
+  // THE SETS NORMALISED TO THE IMAGERY (2026-09-22, the user: "the whole island looks yellow, while the
+  // colour data gives mostly green and brown ... do the per-set albedo normalisation to the imagery").
+  // The imagery (isla.albedo, the Landsat composite the stack is built on) is the colour authority:
+  // per terrain type its mean linear rgb is measured (forest 0.017/0.030/0.009, heath 0.056/0.064/0.028,
+  // scrub 0.041/0.055/0.020 on Jolene - the sets ship at 3-10x that: dry 0.30/0.25/0.12, forestAir
+  // 0.13/0.08/0.03). Each set gets one gain per channel so that, over the codes it stands on (weighted
+  // by the code's cells and the set's slot in the code's mix: first 0.6, second 0.3, third 0.1), its
+  // mean lands on the imagery's. A derived code (cliff / old forest / dense scrub) takes its parent's
+  // imagery. Clamped 0.15-2.5. albedoNorm (knob, 0..1) is how far the gain is applied; at 1 the
+  // macro's exposure is 1 as well (the imagery as it is - autoExposure lifted it to the OLD sets).
+  function normGains(isla, R) {
+    const out = {};
+    try {
+      const T = isla.ttype, A = isla.albedo, n = T.length; if (!T || !A) return out;
+      const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const acc = {};
+      for (let i = 0; i < n; i += 7) { const t = T[i]; if (t < 2) continue; const a = acc[t] || (acc[t] = [0, 0, 0, 0]);
+        a[0] += lin(A[i * 3]); a[1] += lin(A[i * 3 + 1]); a[2] += lin(A[i * 3 + 2]); a[3]++; }
+      const target = {}; for (const k in acc) { const a = acc[k]; target[k] = [a[0] / a[3], a[1] / a[3], a[2] / a[3], a[3]]; }
+      const parent = { 12: 6, 13: 8, 14: 7 };
+      const mean = {}; for (const st of SPLAT_TEX_SETS) mean[st.key] = st.mean;
+      const num = {}, den = {}, SLOT = [0.6, 0.3, 0.1];
+      for (let c = 2; c < 16; c++) {
+        const row = R.codes[c]; if (!row) continue;
+        const tg = target[parent[c] || c]; if (!tg) continue;
+        row.tex.forEach((k, si) => { if (!k || !mean[k]) return;
+          const w = tg[3] * SLOT[si]; const N = num[k] || (num[k] = [0, 0, 0]);
+          for (let ch = 0; ch < 3; ch++) N[ch] += w * tg[ch] / Math.max(mean[k][ch], 1e-4);
+          den[k] = (den[k] || 0) + w; });
+      }
+      for (const k in num) out[k] = num[k].map(v => Math.min(2.5, Math.max(0.15, v / den[k])));
+    } catch (e) {}
+    return out;
+  }
   function make(gU, isla) {
     if (!G || typeof SPLAT_TEX_SETS === 'undefined' || !SPLAT_TEX_SETS) return null;
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
-    if (!R.macroExpSaved && isla) R.knobs.macroExp = +autoExposure(isla, R).toFixed(2);
+    if (R.knobs.albedoNorm === undefined) R.knobs.albedoNorm = RECIPE.knobs.albedoNorm === undefined ? 1 : RECIPE.knobs.albedoNorm;
+    R.norm = isla ? normGains(isla, R) : {};
+    if (!R.macroExpSaved && isla) { const auto = autoExposure(isla, R); R.knobs.macroExp = +(auto + (1 - auto) * R.knobs.albedoNorm).toFixed(2); }
+    if (Object.keys(R.norm).length) console.log('splat: the sets normalised to the imagery (gain r/g/b): ' + Object.keys(R.norm).map(k => k + ' ' + R.norm[k].map(v => v.toFixed(2)).join('/')).join(', '));
     const LIB = SPLAT_TEX_SETS.map(s => s.key);
     const V4 = () => new THREE.Vector4();
     const blank = new THREE.DataArrayTexture(new Uint8Array([128, 128, 128, 255]), 1, 1, 1); blank.needsUpdate = true;
@@ -101814,7 +101851,10 @@ const SPLAT_GROUND = (() => {
         M.set(m.mix[0], m.mix[1], m.mix[2], m.mix[3]);
         const v = m.vary || [0, 0, 20]; Vv.set(v[0] * Math.PI / 180, v[1], v[2], 0);
       }
-      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff'); U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
+      LIB.forEach((k, i) => { const g = R.grade[k] || {}; const c = new THREE.Color(g.gain || '#ffffff');
+        const nm = (R.norm && R.norm[k]) || [1, 1, 1], kA = K.albedoNorm === undefined ? 1 : K.albedoNorm;
+        c.r *= 1 + (nm[0] - 1) * kA; c.g *= 1 + (nm[1] - 1) * kA; c.b *= 1 + (nm[2] - 1) * kA;   // the normalisation rides on the hand grade
+        U.uSGrade.value[i].set(c.r, c.g, c.b, g.sat === undefined ? 1 : g.sat);
         U.uSGloss.value[i] = g.gloss === undefined ? 1 : +g.gloss;
         // the set's mean luminance after its grade (the import's linear mean x the gain; the saturation leaves luma alone)
         const mn = (SPLAT_TEX_SETS.find(x => x.key === k) || {}).mean || [0.2, 0.2, 0.2];
@@ -101839,6 +101879,7 @@ const SPLAT_GROUND = (() => {
       library: () => SPLAT_TEX_SETS.map(s => ({ key: s.key, metres: s.metres })),
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
+      norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
@@ -103287,7 +103328,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
   // pack at 1.3 of its lightness in the bench was at 1.0 here, the spruce
   // at 0.54 was at 1.0, and the stand was a different colour from the one
   // that had been judged. MASTER rides over all of them at once.
-  const MASTER = { hue: 0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint (hue negated with the dial's sign, 2026-09-20)
+  // THE TREES NORMALISED TO THE FOREST CELLS (2026-09-22, with the ground's per-set normalisation): the
+  // conifer sheets' mean albedo as baked (AO in, tint out) is 0.043 linear; the imagery's forest cells
+  // read 0.026 (0.017/0.030/0.009 - a spruce canopy's real albedo). light 1.12 -> 0.6 puts the rendered
+  // canopy on the imagery's level; sat 1.58 -> 1.2 (the imagery's green is moderate, g/r 1.75 against
+  // the fir map's 1.85 - the boost was against the OLD bright ground). W0c.31 had 1.58 / 1.12 by eye.
+  const MASTER = { hue: 0.045, sat: 1.2, light: 0.6 };
   const TINT_GLSL = [
     // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
     // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
@@ -108428,7 +108474,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;
     ENV_ALB.k = Math.max(0.05, +k);
     groundApi.set({ light: ENV_ALB.k });
-    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = ENV_ALB.base * ENV_ALB.k * 0.9; }
+    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
     return ENV_ALB.k;
   };
   return { worldUpdate, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, setWindVis, get envMap() { return envMap; }, probe, rig: worldRig, ground: groundApi, envAlbedo, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: () => repaintStrips(),
@@ -140728,6 +140774,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         Sd.appendChild(slider('macro strength', 0, 1, 0.05, kn('macroMix'), ss('macroMix')));
         Sd.appendChild(slider('macro tint under', 0, 1, 0.05, kn('macroNear'), ss('macroNear')));
         Sd.appendChild(slider('macro light kept', 0, 1, 0.05, kn('macroLum'), ss('macroLum')));
+        Sd.appendChild(slider('albedo to imagery', 0, 1, 0.05, kn('albedoNorm'), ss('albedoNorm')));
+        Sd.appendChild(note('albedo to imagery: each set\u2019s mean pulled onto the imagery\u2019s mean colour for the terrain types it stands on (one gain per channel per set, from the map\u2019s own pixels); 1 = the imagery is the level, 0 = the sets as shipped. The table is in the console at boot (SP.norm())'));
         Sd.appendChild(note('tint under: how much of the near ground’s colour is the imagery’s (the sets keep their texture); light kept: how much of the imagery’s own light and dark the tint carries (0 = the detail’s brightness, 1 = the imagery’s - the valley green, the slope brown, the flat pale)'));
         Sd.appendChild(note('the macro is the stack above (the Landsat albedo the game already ships); \u201ctint under\u201d gives the detail the place\u2019s colour, luminance kept'));
         const Sb = fold(Sf, 'blend \u00b7 tiling', false, true);
